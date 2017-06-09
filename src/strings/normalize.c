@@ -616,22 +616,22 @@ static void grapheme_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint3
  * significant codepoint identified by a quick check for the target form). We
  * may find the quick check itself is enough; if not, we have to do real work
  * compute the normalization. */
-MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint in, MVMCodepoint *out) {
+MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVMNormalizer *norm, MVMCodepoint in, MVMCodepoint *out) {
     MVMint64 qc_in, ccc_in;
     int is_prepend = is_grapheme_prepend(tc, in);
     /* If it's a control character (outside of the range we checked in the
      * fast path) then it's a normalization terminator. */
     if (in > 0xFF && is_control_beyond_latin1(tc, in) && !is_prepend) {
-        return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, n, in, out);
+        return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, norm, in, out);
     }
 
     /* Do a quickcheck on the codepoint we got in and get its CCC. */
-    qc_in  = passes_quickcheck(tc, n, in);
+    qc_in  = passes_quickcheck(tc, norm, in);
     ccc_in = ccc(tc, in);
 
     /* Fast cases when we pass quick check and what we got in has CCC = 0. */
     if (qc_in && ccc_in == 0) {
-        if (MVM_NORMALIZE_COMPOSE(n->form)) {
+        if (MVM_NORMALIZE_COMPOSE(norm->form)) {
             /* We're composing. If we have exactly one thing in the buffer and
              * it also passes the quick check, and both it and the thing in the
              * buffer have a CCC of zero, we can hand back the first of the
@@ -639,11 +639,11 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
              * codepoint coming in. Note that the NFG quick-check property
              * factors in grapheme extenders that don't have a CCC of zero,
              * so we're safe. */
-            if (n->buffer_end - n->buffer_start == 1) {
-                MVMCodepoint maybe_result = n->buffer[n->buffer_start];
-                if (passes_quickcheck(tc, n, maybe_result) && ccc(tc, maybe_result) == 0) {
-                    *out = n->buffer[n->buffer_start];
-                    n->buffer[n->buffer_start] = in;
+            if (norm->buffer_end - norm->buffer_start == 1) {
+                MVMCodepoint maybe_result = norm->buffer[norm->buffer_start];
+                if (passes_quickcheck(tc, norm, maybe_result) && ccc(tc, maybe_result) == 0) {
+                    *out = norm->buffer[norm->buffer_start];
+                    norm->buffer[norm->buffer_start] = in;
                     return 1;
                 }
             }
@@ -651,7 +651,7 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
         else {
             /* We're only decomposing. There should probably be nothing in the
              * buffer in this case; if so we can simply return the codepoint. */
-            if (n->buffer_start == n->buffer_end) {
+            if (norm->buffer_start == norm->buffer_end) {
                 *out = in;
                 return 1;
             }
@@ -664,21 +664,21 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
          * buffer, if any. We need to do this since it may have passed
          * quickcheck, but having seen some character that does pass then we
          * must make sure we decomposed the prior passing one too. */
-        if (MVM_NORMALIZE_COMPOSE(n->form) && n->buffer_end != n->buffer_norm_end && !is_prepend) {
-            MVMCodepoint decomp = n->buffer[n->buffer_end - 1];
-            n->buffer_end--;
-            decomp_codepoint_to_buffer(tc, n, decomp);
+        if (MVM_NORMALIZE_COMPOSE(norm->form) && norm->buffer_end != norm->buffer_norm_end && !is_prepend) {
+            MVMCodepoint decomp = norm->buffer[norm->buffer_end - 1];
+            norm->buffer_end--;
+            decomp_codepoint_to_buffer(tc, norm, decomp);
         }
 
         /* Decompose this new character into the buffer. We'll need to see
          * more before we can go any further. */
-        decomp_codepoint_to_buffer(tc, n, in);
+        decomp_codepoint_to_buffer(tc, norm, in);
         return 0;
     }
 
     /* Since anything we have at this point does pass quick check, add it to
      * the buffer directly. */
-    add_codepoint_to_buffer(tc, n, in);
+    add_codepoint_to_buffer(tc, norm, in);
 
     /* If the codepoint has a CCC that is non-zero, it's not a starter so we
      * should see more before normalizing. */
@@ -687,28 +687,28 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
 
     /* If we don't have at least one codepoint in the buffer, it's too early
      * to hand anything back. */
-    if (n->buffer_end - n->buffer_start <= 1)
+    if (norm->buffer_end - norm->buffer_start <= 1)
         return 0;
 
     /* Perform canonical sorting on everything from the start of the not yet
      * normalized things in the buffer, up to but excluding the quick-check
      * passing thing we just added. */
-    canonical_sort(tc, n, n->buffer_norm_end, n->buffer_end - 1);
+    canonical_sort(tc, norm, norm->buffer_norm_end, norm->buffer_end - 1);
 
     /* Perform canonical composition and grapheme composition if needed. */
-    if (MVM_NORMALIZE_COMPOSE(n->form)) {
-        canonical_composition(tc, n, n->buffer_norm_end, n->buffer_end - 1);
-        if (MVM_NORMALIZE_GRAPHEME(n->form))
-            grapheme_composition(tc, n, n->buffer_norm_end, n->buffer_end - 1);
+    if (MVM_NORMALIZE_COMPOSE(norm->form)) {
+        canonical_composition(tc, norm, norm->buffer_norm_end, norm->buffer_end - 1);
+        if (MVM_NORMALIZE_GRAPHEME(norm->form))
+            grapheme_composition(tc, norm, norm->buffer_norm_end, norm->buffer_end - 1);
     }
 
     /* We've now normalized all except the latest, quick-check-passing
      * codepoint. */
-    n->buffer_norm_end = n->buffer_end - 1;
+    norm->buffer_norm_end = norm->buffer_end - 1;
 
     /* Hand back a codepoint, and flag how many more are available. */
-    *out = n->buffer[n->buffer_start];
-    return n->buffer_norm_end - n->buffer_start++;
+    *out = norm->buffer[norm->buffer_start];
+    return norm->buffer_norm_end - norm->buffer_start++;
 }
 
 /* Push a number of codepoints into the "to normalize" buffer. */
