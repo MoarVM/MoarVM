@@ -61,6 +61,8 @@ struct MVMNormalizer {
 
     MVMint32 prepend_buffer;
 
+    MVMint32 regional_indicator;
+
 };
 
 /* Guts-y functions, called by the API level ones below. */

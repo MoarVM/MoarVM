@@ -204,6 +204,7 @@ void MVM_unicode_normalizer_init(MVMThreadContext *tc, MVMNormalizer *n, MVMNorm
     n->buffer_norm_end    = 0;
     n->translate_newlines = 0;
     n->prepend_buffer     = 0;
+    n->regional_indicator = 0;
     switch (n->form) {
         case MVM_NORMALIZE_NFD:
             n->first_significant    = MVM_NORMALIZE_FIRST_SIG_NFD;
@@ -500,7 +501,7 @@ static MVMint32 is_grapheme_prepend(MVMThreadContext *tc, MVMCodepoint cp) {
     return MVM_unicode_codepoint_get_property_int(tc, cp,
         MVM_UNICODE_PROPERTY_PREPENDED_CONCATENATION_MARK);
 }
-static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b) {
+static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b, MVMNormalizer *norm) {
     int GCB_a = MVM_unicode_codepoint_get_property_int(tc, a, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
     int GCB_b = MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
     /* Don't break between \r and \n, but otherwise break around \r. */
@@ -526,8 +527,18 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
 
     switch (GCB_a) {
         case MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR:
-            if ( GCB_b == MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR )
+            if (2 <= norm->regional_indicator) {
+                norm->regional_indicator = 0;
+                if (GCB_b == MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR)
+                    return 1;
+            }
+            if (GCB_b == MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR) {
+                if (!norm->regional_indicator)
+                    norm->regional_indicator = 2;
+                else
+                    norm->regional_indicator++;
                 return 0;
+            }
             break;
         /* Don't break after Prepend Grapheme_Cluster_Break=Prepend */
         case MVM_UNICODE_PVALUE_GCB_PREPEND:
@@ -593,7 +604,7 @@ static void grapheme_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint3
         MVMint32 pos        = from;
         while (pos < to) {
             MVMint32 next_pos = pos + 1;
-            if (next_pos == to || should_break(tc, n->buffer[pos], n->buffer[next_pos])) {
+            if (next_pos == to || should_break(tc, n->buffer[pos], n->buffer[next_pos], n)) {
                 /* Last in buffer or next code point is a non-starter; turn
                  * sequence into a synthetic. */
                 MVMGrapheme32 g = MVM_nfg_codes_to_grapheme(tc, n->buffer + starterish, next_pos - starterish);
@@ -753,7 +764,9 @@ void MVM_unicode_normalizer_eof(MVMThreadContext *tc, MVMNormalizer *n) {
         if (MVM_NORMALIZE_GRAPHEME(n->form))
             grapheme_composition(tc, n, n->buffer_norm_end, n->buffer_end);
     }
-
+    /* Reset these two to ensure their value doesn't stick around */
+    n->prepend_buffer     = 0;
+    n->regional_indicator = 0;
     /* We've now normalized all that remains. */
     n->buffer_norm_end = n->buffer_end;
 }
