@@ -99,6 +99,7 @@ typedef struct {
     MVMint32           reg_num;
 
     MVMint32           spill_pos;
+    MVMint32           spill_idx;
 } LiveRange;
 
 
@@ -176,6 +177,7 @@ MVMint32 live_range_init(RegisterAllocator *alc) {
     LiveRange *range;
     MVMint32 idx = alc->values_num++;
     MVM_VECTOR_ENSURE_SIZE(alc->values, idx);
+    alc->values[idx].spill_idx = INT32_MAX;
     return idx;
 }
 
@@ -762,6 +764,7 @@ static void live_range_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMJi
     }
     /* mark as spilled and store the spill position */
     spillee->spill_pos = spill_pos;
+    spillee->spill_idx = code_pos;
     free_register(tc, alc, MVM_JIT_STORAGE_GPR, reg_spilled);
     MVM_VECTOR_PUSH(alc->spilled, to_spill);
 }
@@ -775,15 +778,6 @@ static void spill_any_register(MVMThreadContext *tc, RegisterAllocator *alc, MVM
 }
 
 
-/* not sure if this is sufficiently general-purpose and unconfusing */
-#define MVM_VECTOR_ASSIGN(a,b) do {             \
-        a = b;                                  \
-        a ## _top = b ## _top;                  \
-        a ## _alloc = b ## _alloc;              \
-    } while (0);
-
-
-
 static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
                                      MVMint32 arglist_idx, MVMint32 call_idx) {
     MVMJitTile *arglist_tile = list->items[arglist_idx],
@@ -793,7 +787,6 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     MVMint32           arg_values[16];
     MVMJitStorageRef storage_refs[16];
 
-    MVMint8 register_map[MVM_JIT_ARCH_NUM_GPR];
     struct {
         MVMint8 in_reg; /* register number that is to be moved in */
         MVMint8 num_out; /* how many values need to make room for me */
@@ -810,13 +803,12 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
 
     MVMint8 spilled_args[16];
     MVMint32 spilled_args_top = 0;
-    MVMint32 survivors[MAX_ACTIVE], survivors_num = 0;
 
     MVMuint32 call_bitmap = 0, arg_bitmap = 0;
 
     MVMint8 spare_register;
 
-    MVMint32 i, ins_pos = 2;
+    MVMint32 i, j, ins_pos = 2;
 
     /* get storage positions for arglist */
     MVM_jit_arch_storage_for_arglist(tc, alc->compiler, tree, arglist_tile->node, storage_refs);
@@ -824,41 +816,41 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     /* get value refs for arglist */
     for (i = 0; i < num_args; i++) {
         MVMint32 carg  = tree->nodes[arglist_tile->node + 2 + i];
-        arg_values[i] = value_set_find(alc->sets, tree->nodes[carg + 1])->idx; /* may refer to spilled live range */
+        /* may refer to spilled live range */
+        arg_values[i] = value_set_find(alc->sets, tree->nodes[carg + 1])->idx;
     }
 
     _DEBUG("prepare_call: Got %d args", num_args);
 
     /* initialize topological map, use -1 as 'undefined' inboud value */
     for (i = 0; i < ARRAY_SIZE(topological_map); i++) {
-        topological_map[i].num_out = 0;
-        topological_map[i].in_reg      = -1;
+        topological_map[i].num_out =  0;
+        topological_map[i].in_reg  = -1;
     }
-    memset(register_map, -1, sizeof(register_map));
 
-    for (i = 0; i < alc->active_top; i++) {
-        MVMint32 v = alc->active[i];
-        MVMint8  r = alc->values[v].reg_num;
-        LiveRange *l = alc->values + v;
+    for (i = 0, j = 0; i < alc->active_top; i++) {
+        LiveRange *v = alc->values + alc->active[i];
+        MVMint32 code_pos = order_nr(call_idx);
+        if (last_ref(v) > code_pos && live_range_has_hole(v, code_pos) == NULL) {
+            /* surviving values need to be spilled */
+            MVMint32 spill_pos = select_memory_for_spill(tc, alc, list, code_pos, sizeof(MVMRegister));
+            /* spilling at the CALL idx will mean that the spiller inserts a
+             * LOAD at the current register before the ARGLIST, meaning it
+             * remains 'live' for this ARGLIST */
+            _DEBUG("Spilling %d to %d at %d", alc->active[i], spill_pos, code_pos);
+            live_range_spill(tc, alc, list, alc->active[i], spill_pos, code_pos);
 
-        if (last_ref(l) >= order_nr(arglist_idx) &&
-            live_range_has_hole(l, order_nr(arglist_idx)) == NULL) {
-            /* if it has a hole in the value arround ARGLIST, it is not live for
-             * shuffling */
-            register_map[r] = v;
-        }
-        if (last_ref(l) > order_nr(call_idx) &&
-            /* if it has a hole arround CALL, it's not a survivor */
-            live_range_has_hole(l, order_nr(call_idx)) == NULL) {
-            survivors[survivors_num++] = v;
-            /* add an outbound edge */
-            topological_map[r].num_out++;
+        } else {
+            /* compact the active set */
+            alc->active[j++] = alc->active[i];
         }
     }
+    alc->active_top = j;
 
     for (i = 0; i < num_args; i++) {
         LiveRange *v = alc->values + arg_values[i];
-        if (v->spill_pos != 0) {
+        if (v->spill_idx < order_nr(call_idx)) {
+            /* spilled prior to the ARGLIST/CALL */
             spilled_args[spilled_args_top++] = i;
         } else if (storage_refs[i]._cls == MVM_JIT_STORAGE_GPR) {
             MVMint8 reg_num = storage_refs[i]._pos;
@@ -867,10 +859,6 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
                 topological_map[reg_num].in_reg = v->reg_num;
                 topological_map[v->reg_num].num_out++;
                 transfers_required++;
-                if (register_map[reg_num] < 0) {
-                    /* we can immediately queue a transfer, it's not used */
-                    transfer_queue[transfer_queue_top++] = reg_num;
-                }
             }
         } else if (storage_refs[i]._cls == MVM_JIT_STORAGE_STACK) {
             /* enqueue for stack transfer */
@@ -891,6 +879,8 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         }
     }
 
+    _DEBUG("%d transfers required", transfers_required);
+
 #define INSERT_TILE(_tile, _pos, _order) MVM_jit_tile_list_insert(tc, list, _tile, _pos, _order)
 #define INSERT_NEXT_TILE(_tile) INSERT_TILE(_tile, arglist_idx, ins_pos++)
 #define MAKE_TILE(_code, _narg, _nval, ...) MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_ ## _code, _narg, _nval, __VA_ARGS__)
@@ -909,32 +899,6 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
          } \
      } while(0)
 
-    /* Before any other thing, spill the surviving registers.
-     * There are a number of correct strategies, e.g. a full spill, a split-and-spill or a restorative spill.
-     * Full spill may be wasteful (although this could be optimized).
-     * Split-and-spill, to do correctly, requires data flow analysis which I
-     * don't have ready. (Where lies the 'split', in case you have multiple
-     * basic blocks).
-     * Restorative-spill (i.e. load directly after the CALL) may also be
-     * wasteful, but at least it simple, and I predict it's useful for the
-     * common case of a conditional branch.
-     *
-     * By the way, if you're wondering why LuaJIT2 is so amazingly fast, it's
-     * also because it doesn't have to worry about such things, because 'jumping
-     * out' of hot code is rare due to the tracing, and most primitives are
-     * implemented in assembly.
-     */
-    for (i = 0; i < survivors_num; i++) {
-        MVMint32 v    = survivors[i];
-        MVMint8  src  = alc->values[v].reg_num;
-        MVMint32 dst  = select_memory_for_spill(tc, alc, list, order_nr(call_idx), sizeof(MVMRegister));
-        _DEBUG("Spilling Rq(%d) -> [rbx+%d]", src, dst);
-        INSERT_NEXT_TILE(MAKE_TILE(store, 2, 2, MVM_JIT_STORAGE_LOCAL, dst, 0, src));
-        /* directly after the CALL, restore the values */
-        INSERT_TILE(MAKE_TILE(load, 2, 1, MVM_JIT_STORAGE_LOCAL, dst, src), call_idx, -2);
-        /* decrease the outbound edges, and enqueue if possible */
-        ENQUEUE_TRANSFER(src);
-    }
 
     /* resolve conflicts for CALL; since we're spilling any surviving bits,
      * we can just move it to any free registers. */
@@ -973,6 +937,17 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         }
     }
 
+
+    /* at this point, all outbound edges have been created, and none have been
+     * processed yet, so we can eqnueue all 'free' transfers */
+    for (i = 0; i < ARRAY_SIZE(topological_map); i++) {
+        if (topological_map[i].num_out == 0 &&
+            topological_map[i].in_reg >= 0) {
+            _DEBUG("Directly transfer %d -> %d", topological_map[i].in_reg, i);
+            transfer_queue[transfer_queue_top++] = i;
+        }
+    }
+
     /* with call_bitmap and arg_bitmap given, we can determine the spare
      * register used for allocation; NB this may only be necessary in some
      * cases */
@@ -986,6 +961,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         _DEBUG("Insert stack parameter: Rq(%d) -> [rsp+%d]", reg_num, stk_pos);
         ENQUEUE_TRANSFER(reg_num);
     }
+
 
     for (transfer_queue_idx = 0; transfer_queue_idx < transfer_queue_top; transfer_queue_idx++) {
         MVMint8 dst = transfer_queue[transfer_queue_idx];
@@ -1025,11 +1001,12 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
 
     /* now all that remains is to deal with spilled values */
     for (i = 0; i < spilled_args_top; i++) {
-        LiveRange *value = alc->values + arg_values[i];
-        if (storage_refs[i]._cls == MVM_JIT_STORAGE_GPR) {
-            INSERT_LOAD_LOCAL(storage_refs[i]._pos, value->spill_pos);
-        } else if (storage_refs[i]._cls == MVM_JIT_STORAGE_STACK) {
-            INSERT_LOCAL_STACK_COPY(storage_refs[i]._pos, value->spill_pos);
+        MVMint32 arg = spilled_args[i];
+        LiveRange *v = alc->values + arg_values[arg];
+        if (storage_refs[arg]._cls == MVM_JIT_STORAGE_GPR) {
+            INSERT_LOAD_LOCAL(storage_refs[arg]._pos, v->spill_pos);
+        } else if (storage_refs[arg]._cls == MVM_JIT_STORAGE_STACK) {
+            INSERT_LOCAL_STACK_COPY(storage_refs[arg]._pos, v->spill_pos);
         } else {
             NYI(storage_class);
         }

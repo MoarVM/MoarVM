@@ -54,6 +54,38 @@ remove double loads by copy insertion, and we don't maintain
 'memory-backing' either, so the code is kind of worst-case. Which is
 good for rooting out bugs, of course.
 
+The final alternative is to keep the order of allocation as-is, but
+move to full-spilling for function arguments. I liking that idea
+better now - after all, point spill is an optimization, and that goes
+after correctness.
+
+Necessary to achieve this
+- eliminate register map
+- eliminate survivors
+- insert a full spill at the CALL site
+  - code position to use? CALL or ARGLIST idx?
+    - semantically, CALL is the correct one, becuase it it there that
+      these values 'lose' their current values
+  - by definition, at ARGLIST site they are live and current
+  - if we use CALL, the spiller will insert a LOAD prior to the
+    ARGLIST use (if any)
+  - the arglist handling code currently treats spilled values as
+    'special', i.e. it will attempt to load them directly into the
+    right place
+  - we can tag the live range with the spilled code position, which
+    will allow us to use the CALL site for spillage, and yet determine
+    that the value is not yet spilled for the ARGLIST
+  - we can also collect the survivors after setting up the initial
+    topological map (i.e. not letting the ARGLIST handler 'see' that
+    we're going to spill them). I actually... don't like that so very
+    much.
+- enlist all the directly-enqueuable transfers
+  - because we no longer try to maintain an up-to-date map of
+    register-in-use state, we need to find all registers with inbound
+    edges and no outbound edges, but we need to do so after having
+    procoessed 'other' outbound edges anyway, i.e. stack registers,
+    call/arg conflict resolution
+
 * Generalized 3-op to two-op conversion
 
 Already implemented for direct-memory binary ops, but needs to be
