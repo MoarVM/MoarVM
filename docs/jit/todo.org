@@ -3,7 +3,94 @@
 Before merging the expression JIT, there are numerous standing issues
 to resolve, sorted by priority.
 
-* point and full spill interaction
+* Maintain 'object' status of pointers
+
+If we do spill, it is kind of important to let the GC know that the
+location we're spilling to is an object pointer, so that it can update
+it automatically.
+
+I think that is the bug that now keeps happening with sp_fastcreate,
+because it crashes inpredictably and in slightly different ways each
+time.
+
+So to fix this, we need to maintain 'object' or 'string' status and
+associate this with individual nodes, at expr node graph building time.
+
+We should then maintain this status in values
+
+** Prove this is our problem
+
+- we see this problem reliably with a low nursery and not-so-reliably
+  with a big nursery
+- we see this problem start being real when we add sp_fastcreate,
+  which can affect GC directly
+- we see this problem occurs in a frame that does spilling and object
+  access
+- it is a priori a plausible problem.
+
+So I think that I'm going to consider it 'proven' so far.
+
+** Store associated spesh op and op type in expr node info
+
+Means we must create info array alongside the nodes
+
+** Store value 'kind' in live range
+
+Can be done during live range building.
+
+** Register spilled value status in local_types
+
+We can fortunately do this at the end because we have a single array
+of 'spilled' values. (I can create a 'local_spills' structure in the
+compiler, which allows us to reuse spill positions over multiple
+expression graphs, but it adds to more complexity for now).
+
+* Generalized 3-op to two-op conversion
+
+Already implemented for direct-memory binary ops, but needs to be
+extended to take into account indirect-access ops and memory base +
+indexed ops.
+
+* Maintain memory backed positions
+
+Currently, when we need to spill a value, we always treat it as if it
+were a temporary, i.e. we store it to a *new* location in the local
+memory buffer. We increment the local memory buffer, too.  This is
+suboptimal for values that are not temporaries, i.e. values that are
+stored to the local value buffer anyway.
+
++ stored to a local value
++ directly retrieved from a local value
+
+There are two classes of such values:
+There is no need to ever spill such values to memory.
+
+* Don't spill-and-load directly between definition and
+* 'Optimistic' insertion of STORE
+
+Involves delaying the insertion of STORE operations for generated
+expressions until the insertion of flush. (Currently inserted directly
+after being generated).
+
+Involves
+- iterating over currently active local variables
+- inserting a STORE
+- replacing the root referring to these variable generation with the
+  STORE root
+  - to do this efficiently, we need to maintain the root index as well
+    as the node index of the last definition of a value (this is
+    actually easy)
+
+
+
+* Fix S-EXPR parser for tile list
+
+I think it currently counts balancing parentheses, and it doesn't
+always work when the last line doesn't end with a line. And, it
+doesn't support strings. So we should probably fix that with a proper
+parser.
+
+* DONE point and full spill interaction
 
 It can happen that we first point-spill a value arround a CALL, then
 allocate a register for the CALL result, full-spilling the same value,
@@ -86,58 +173,7 @@ Necessary to achieve this
     procoessed 'other' outbound edges anyway, i.e. stack registers,
     call/arg conflict resolution
 
-* Generalized 3-op to two-op conversion
-
-Already implemented for direct-memory binary ops, but needs to be
-extended to take into account indirect-access ops and memory base +
-indexed ops.
-
-* Maintain memory backed positions
-
-Currently, when we need to spill a value, we always treat it as if it
-were a temporary, i.e. we store it to a *new* location in the local
-memory buffer. We increment the local memory buffer, too.  This is
-suboptimal for values that are not temporaries, i.e. values that are
-stored to the local value buffer anyway.
-
-+ stored to a local value
-+ directly retrieved from a local value
-
-There are two classes of such values:
-There is no need to ever spill such values to memory.
-
-* Maintain 'object' status of pointers
-
-If we do spill, it is kind of important to let the GC know that the
-location we're spilling to is an object pointer, so that it can update
-it automatically.
-
-* Don't spill-and-load directly between definition and
-* 'Optimistic' insertion of STORE
-
-Involves delaying the insertion of STORE operations for generated
-expressions until the insertion of flush. (Currently inserted directly
-after being generated).
-
-Involves
-- iterating over currently active local variables
-- inserting a STORE
-- replacing the root referring to these variable generation with the
-  STORE root
-  - to do this efficiently, we need to maintain the root index as well
-    as the node index of the last definition of a value (this is
-    actually easy)
-
-
-
-* Fix S-EXPR parser for tile list
-
-I think it currently counts balancing parentheses, and it doesn't
-always work when the last line doesn't end with a line. And, it
-doesn't support strings. So we should probably fix that with a proper
-parser.
-
-* DONE sp_fastcreate problem
+* DONE destructive template wrong reference problem
 
 May be an interaction between allocation and restoring registers to
 objects, i.e. if an allocation (can) happen, pointers in registers are
