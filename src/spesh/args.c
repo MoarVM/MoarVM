@@ -177,6 +177,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     MVMint32      named_used = 0;
     MVMint32      named_passed = (cs->arg_count - cs->num_pos) / 2;
     MVMint32      cs_flags   = cs->num_pos + named_passed;
+    MVMint32      seen_deopt = 0;
 
     MVMSpeshBB *bb = g->entry;
 
@@ -186,6 +187,13 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
+            MVMSpeshAnn *ann = ins->annotations;
+            while (ann) {
+                if (ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS ||
+                        ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS)
+                    seen_deopt = 1;
+                ann = ann->next;
+            }
             switch (ins->info->opcode) {
             case MVM_OP_checkarity:
                 if (checkarity_ins)
@@ -638,15 +646,18 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
 
         /* If all of the passed named arguments have been eaten up by named
          * parameteters, then we can:
-         * 1. Toss the instructions that mark them used.
+         * 1. Toss the instructions that mark them used, provided there is
+         *    no chance of deoptimization.
          * 2. Toss the instruction to check there aren't any unused ones.
          * 3. Turn a slurpy param capturer into an empty hash (which may be
          *    further optimized away later).
          */
         if (named_passed == named_used) {
-            for (i = 0; i < num_named; i++)
-                if (used_ins[i])
-                    MVM_spesh_manipulate_delete_ins(tc, g, named_bb[i], used_ins[i]);
+            if (!seen_deopt) {
+                for (i = 0; i < num_named; i++)
+                    if (used_ins[i])
+                        MVM_spesh_manipulate_delete_ins(tc, g, named_bb[i], used_ins[i]);
+            }
             if (paramnamesused_ins)
                 MVM_spesh_manipulate_delete_ins(tc, g, paramnamesused_bb, paramnamesused_ins);
             if (param_sn_ins) {
