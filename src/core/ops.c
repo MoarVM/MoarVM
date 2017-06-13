@@ -8601,7 +8601,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
-        0,
+        1,
         0,
         { MVM_operand_int16 }
     },

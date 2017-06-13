@@ -175,7 +175,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     MVMint32      opt_max    = -1;
     MVMint32      num_named  = 0;
     MVMint32      named_used = 0;
-    MVMint32      got_named  = cs->num_pos != cs->arg_count;
+    MVMint32      named_passed = (cs->arg_count - cs->num_pos) / 2;
+    MVMint32      cs_flags   = cs->num_pos + named_passed;
 
     MVMSpeshBB *bb = g->entry;
 
@@ -314,24 +315,6 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             }
         }
 
-        /* If we know there's no incoming nameds we can always turn param_sn into a
-         * simple hash creation. This will typically be further lowered in optimize. */
-        if (param_sn_ins && !got_named) {
-            MVMObject *hash_type = g->sf->body.cu->body.hll_config->slurpy_hash_type;
-            if (REPR(hash_type)->ID == MVM_REPR_ID_MVMHash) {
-                MVMSpeshOperand target    = param_sn_ins->operands[0];
-                param_sn_ins->info        = MVM_op_get_op(MVM_OP_sp_fastcreate);
-                param_sn_ins->operands    = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-                param_sn_ins->operands[0] = target;
-                param_sn_ins->operands[1].lit_i16 = sizeof(MVMHash);
-                param_sn_ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g,
-                    (MVMCollectable *)STABLE(hash_type));
-            }
-            else {
-                goto cleanup;
-            }
-        }
-
         /* We can optimize. Toss checkarity. */
         MVM_spesh_manipulate_delete_ins(tc, g, checkarity_bb, checkarity_ins);
 
@@ -441,8 +424,6 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
         for (i = 0; i < num_named; i++) {
             /* See if the arg was passed. */
             MVMString *arg_name      = MVM_spesh_get_string(tc, g, named_ins[i]->operands[1]);
-            MVMint32   passed_nameds = (cs->arg_count - cs->num_pos) / 2;
-            MVMint32   cs_flags      = cs->num_pos + passed_nameds;
             MVMint32   cur_idx       = 0;
             MVMint32   cur_named     = 0;
             MVMuint8   found_flag    = 0;
@@ -655,13 +636,34 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             }
         }
 
-        /* If we had no nameds or we used them all, can toss namesused, and we
-         * don't need to mark used after all. */
-        if (paramnamesused_ins && num_named == named_used) {
-            MVM_spesh_manipulate_delete_ins(tc, g, paramnamesused_bb, paramnamesused_ins);
+        /* If all of the passed named arguments have been eaten up by named
+         * parameteters, then we can:
+         * 1. Toss the instructions that mark them used.
+         * 2. Toss the instruction to check there aren't any unused ones.
+         * 3. Turn a slurpy param capturer into an empty hash (which may be
+         *    further optimized away later).
+         */
+        if (named_passed == named_used) {
             for (i = 0; i < num_named; i++)
                 if (used_ins[i])
                     MVM_spesh_manipulate_delete_ins(tc, g, named_bb[i], used_ins[i]);
+            if (paramnamesused_ins)
+                MVM_spesh_manipulate_delete_ins(tc, g, paramnamesused_bb, paramnamesused_ins);
+            if (param_sn_ins) {
+                MVMObject *hash_type = g->sf->body.cu->body.hll_config->slurpy_hash_type;
+                if (REPR(hash_type)->ID == MVM_REPR_ID_MVMHash) {
+                    MVMSpeshOperand target    = param_sn_ins->operands[0];
+                    param_sn_ins->info        = MVM_op_get_op(MVM_OP_sp_fastcreate);
+                    param_sn_ins->operands    = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                    param_sn_ins->operands[0] = target;
+                    param_sn_ins->operands[1].lit_i16 = sizeof(MVMHash);
+                    param_sn_ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g,
+                        (MVMCollectable *)STABLE(hash_type));
+                }
+                else {
+                    MVM_oops(tc, "Arg spesh: slurpy hash type was not a VMHash as expected");
+                }
+            }
         }
     }
 

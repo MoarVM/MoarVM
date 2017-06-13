@@ -849,7 +849,7 @@ sp_fastinvoke_s  .s w(str) r(obj) int16
 sp_fastinvoke_o  .s w(obj) r(obj) int16
 
 # Marking named params used.
-sp_namedarg_used .s int16
+sp_namedarg_used .s int16 :noinline
 
 # Look up a spesh slot.
 sp_getspeshslot  .s w(obj) sslot :pure
