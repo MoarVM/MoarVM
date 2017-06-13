@@ -47,6 +47,8 @@ struct MVMJitExprNodeInfo {
     const MVMJitExprOpInfo *op_info;
     /* VM instruction represented by this node */
     MVMSpeshIns    *spesh_ins;
+    /* VM 'register' type represented by this node */
+    MVMint8          opr_type;
     /* Size of computed value */
     MVMint8         size;
     /* internal label for IF/WHEN/ALL/ANY etc, relative to the tree label offset */

@@ -33,10 +33,17 @@ So I think that I'm going to consider it 'proven' so far.
 ** Store associated spesh op and op type in expr node info
 
 Means we must create info array alongside the nodes
+So - we want to record the 'object status' of a node.
+
+For 'write' registers, we generate the 'address', which doesn't really
+count as it doesn't describe the object. So we need to remove
+them. However, the result node of the template *should* be tagged as
+'object' or whatever value it is. Although I'm not so sure it should
+be tagged
 
 ** Store value 'kind' in live range
 
-Can be done during live range building.
+Can be done during live range building....
 
 ** Register spilled value status in local_types
 

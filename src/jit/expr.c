@@ -231,7 +231,8 @@ void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree, MVMS
     MVMint32 i;
     for (i = 0; i < ins->info->num_operands; i++) {
         MVMSpeshOperand opr = ins->operands[i];
-        switch(ins->info->operands[i] & MVM_operand_rw_mask) {
+        MVMint8    opr_kind = ins->info->operands[i];
+        switch(opr_kind & MVM_operand_rw_mask) {
         case MVM_operand_read_reg:
             if (computed[opr.reg.orig] > 0) {
                 operands[i] = computed[opr.reg.orig];
@@ -417,6 +418,7 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         node_info->size = 0;
         break;
     }
+
     /* Insert casts as necessary */
     if (op_info->cast != MVM_JIT_NO_CAST) {
         for (i = 0; i < nchild; i++) {
@@ -577,7 +579,7 @@ static void assign_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 void MVM_jit_expr_tree_analyze(MVMThreadContext *tc, MVMJitExprTree *tree) {
     /* analyse the tree, calculate usage and destination information */
     MVMJitTreeTraverser traverser;
-    MVM_VECTOR_INIT(tree->info, tree->nodes_num);
+    MVM_VECTOR_ENSURE_SIZE(tree->info, tree->nodes_num);
     traverser.policy    = MVM_JIT_TRAVERSER_ONCE;
     traverser.data      = NULL;
     traverser.preorder  = &assign_labels;
@@ -606,12 +608,14 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
     /* No instructions, just skip */
     if (!iter->ins)
         return NULL;
+
     /* Make the tree */
     tree = MVM_malloc(sizeof(MVMJitExprTree));
-    MVM_VECTOR_INIT(tree->nodes, 32);
-    MVM_VECTOR_INIT(tree->roots, 8);
+    MVM_VECTOR_INIT(tree->nodes, 256);
+    MVM_VECTOR_INIT(tree->info,  256);
+    MVM_VECTOR_INIT(tree->roots, 16);
+
     tree->graph      = jg;
-    tree->info       = NULL;
     tree->num_labels = 0;
     /* Hold indices to the node that last computed a value belonging
      * to a register. Initialized as -1 to indicate that these
@@ -625,7 +629,9 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
        which is a): filled with nodes coming from operands and b):
        internally linked together (relative to absolute indexes).
        Afterwards stores are inserted for computed values. */
-    for (ins = iter->ins; ins; ins = MVM_spesh_iterator_next_ins(tc, iter)) {
+#define BAIL(x, ...) do { if (x) { MVM_jit_log(tc, __VA_ARGS__); goto done; } } while (0)
+
+    for (ins = iter->ins; ins != NULL; ins = MVM_spesh_iterator_next_ins(tc, iter)) {
         /* NB - we probably will want to involve the spesh info in selecting a
            template. And for optimisation, I'd like to copy spesh facts (if any)
            to the tree info */
@@ -637,10 +643,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         }
 
         /* check if this is a getlex and if we can handle it */
-        if (opcode == MVM_OP_getlex && !can_getlex(tc, jg, ins)) {
-            /* XXX - we probably can handle it by now */
-            goto done;
-        }
+        BAIL(opcode == MVM_OP_getlex && !can_getlex(tc, jg, ins), "Can't compile object getlex");
 
         /* Check annotations that require handling before the expression  */
         for (ann = ins->annotations; ann != NULL; ann = ann->next) {
@@ -650,11 +653,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             case MVM_SPESH_ANN_FH_GOTO:
                 /* start or end of a frame handler, means that we have to insert
                  * a label here and a label-setter */
-                if (tree->nodes_num > 0) {
-                    /* with the exception of GOTO, we can probably do this more
-                     * cleverly, but for now it is simpler not to */
-                    goto done;
-                }
+                BAIL(tree->nodes_num > 0, "Can't handle internal label");
                 break;
             case MVM_SPESH_ANN_DEOPT_OSR:
                 /* If we have a deopt annotation in the middle of the tree, it
@@ -663,9 +662,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                  * to allow that. On the other hand, if this is the first node
                  * of the block, the graph builder must already have handled
                  * it, and we may continue.. */
-                if (tree->nodes_num > 0) {
-                    goto done;
-                }
+                BAIL(tree->nodes_num, "Internal deopt label");
                 break;
             default:
                 break;
@@ -673,35 +670,75 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         }
 
         template = MVM_jit_get_template_for_opcode(opcode);
-        if (template == NULL) {
-            /* we don't have a template for this yet, so we can't
-             * convert it to an expression */
-            MVM_jit_log(tc, "Cannot get template for %s\n", ins->info->name);
-            goto done;
-        } else {
-            check_template(tc, template, ins);
-        }
+        BAIL(template == NULL, "Cannot get template for: %s\n", ins->info->name);
+
+        check_template(tc, template, ins);
 
         MVM_jit_expr_load_operands(tc, tree, ins, computed, operands);
         root = MVM_jit_expr_apply_template(tc, tree, template, operands);
 
-        /* if this operation writes a register, it typically yields a value */
-        if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
-            MVMuint16 reg = ins->operands[0].reg.orig;
-            if (template->flags & MVM_JIT_EXPR_TEMPLATE_DESTRUCTIVE) {
-                /* any old value is, like, totally no longer valid */
-                computed[reg] = -1;
-            } else {
-                /* assign computed value to computed nodes */
-                computed[reg] = root;
-                /* and add a store, which becomes the root */
-                root = MVM_jit_expr_add_store(tc, tree, operands[0], root, MVM_JIT_REG_SZ);
+        /* root is highest node by construction, so we don't have to check the size of info later */
+        MVM_VECTOR_ENSURE_SIZE(tree->info, root);
+        tree->info[root].spesh_ins = ins;
+
+        /* mark operand types */
+        for (i = 0; i < ins->info->num_operands; i++) {
+            MVMint8 opr_kind = ins->info->operands[i];
+            MVMint8 opr_type = opr_kind & MVM_operand_type_mask;
+            MVMSpeshOperand opr = ins->operands[i];
+            if (opr_type == MVM_operand_type_var) {
+                switch (opr_kind & MVM_operand_rw_mask) {
+                case MVM_operand_read_reg:
+                case MVM_operand_write_reg:
+                    opr_type = MVM_spesh_get_reg_type(tc, sg, opr.reg.orig) << 3; /* shift up 3 to match operand type */
+                    break;
+                case MVM_operand_read_lex:
+                case MVM_operand_write_lex:
+                    opr_type = MVM_spesh_get_lex_type(tc, sg, opr.lex.outers, opr.lex.idx);
+                    break;
+                }
+            }
+            switch(opr_kind & MVM_operand_rw_mask) {
+            case MVM_operand_read_reg:
+            case MVM_operand_read_lex:
+                tree->info[operands[i]].opr_type = opr_type;
+                break;
+            case MVM_operand_write_reg:
+                /* for write_reg and write_lex, operands[i] is the *address*,
+                 * the *value* is the root, but this is only valid if the
+                 * operand index is 0 */
+                if (template->flags & MVM_JIT_EXPR_TEMPLATE_DESTRUCTIVE) {
+                    /* overrides any earlier definition of this local variable */
+                    computed[opr.reg.orig] = -1;
+                } else {
+                    BAIL(i != 0, "Write reg operand %d", i);
+                    computed[opr.reg.orig] = root;
+                    tree->info[root].opr_type  = opr_type;
+                    /* insert a store, should be only one for the root */
+                    root = MVM_jit_expr_add_store(tc, tree, operands[i], root, MVM_JIT_REG_SZ);
+                }
+                break;
+            case MVM_operand_write_lex:
+                /* does not define a value we can look up, but we may need to
+                 * insert a store */
+                if (!(template->flags & MVM_JIT_EXPR_TEMPLATE_DESTRUCTIVE)) {
+                    BAIL(i != 0, "Write lex operand %d", i);
+                    tree->info[root].opr_type = opr_type;
+                    root = MVM_jit_expr_add_store(tc, tree, operands[i], root, MVM_JIT_REG_SZ);
+                }
+                break;
             }
         }
+
         if (ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
             /* NB: GUARD only wraps void nodes, so when the inserted stores
              * above are removed (and replaced by the flushing), we need to
-             * replace the root we are wrapping as well if it isn't VOID. */
+             * replace the root we are wrapping as well if it isn't VOID..
+             *
+             * Also NB: we should make this a template-level flag; should be
+             * possible to replace an invokish version with a non-invokish
+             * version
+             */
             root = MVM_jit_expr_wrap_guard(tc, tree, root, ins->info->jittivity);
             flush_computed_variables(tc, tree, computed, sg->num_locals);
         }

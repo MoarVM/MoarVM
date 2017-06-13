@@ -23,7 +23,7 @@
 
 (template: set (copy $1))
 (template: getlex (copy $1))
-(template: bindlex (store $0 $1 reg_sz))
+(template: bindlex! (store $0 $1 reg_sz))
 
 (template: add_i (add $1 $2))
 (template: sub_i (sub $1 $2))
