@@ -8,6 +8,7 @@
 typedef struct stat STAT;
 #else
 #include <fcntl.h>
+#include <errno.h>
 #define O_CREAT  _O_CREAT
 #define O_RDONLY _O_RDONLY
 #define O_WRONLY _O_WRONLY
@@ -166,8 +167,11 @@ static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
 /* Flushes the file handle. */
 static void flush(MVMThreadContext *tc, MVMOSHandle *h){
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    if (MVM_platform_fsync(data->fd) == -1)
-        MVM_exception_throw_adhoc(tc, "Failed to flush filehandle: %s", strerror(errno));
+    if (MVM_platform_fsync(data->fd) == -1) {
+        /* If this is something that can't be flushed, we let that pass. */
+        if (errno != EROFS && errno != EINVAL)
+            MVM_exception_throw_adhoc(tc, "Failed to flush filehandle: %s", strerror(errno));
+    }
 }
 
 /* Truncates the file handle. */
