@@ -1899,6 +1899,9 @@ static void eliminate_unused_log_guards(MVMThreadContext *tc, MVMSpeshGraph *g) 
 
 /* Drives the overall optimization work taking place on a spesh graph. */
 void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    /* Before starting, we eliminate dead basic blocks that were tossed by
+     * arg spesh, to simplify the graph. */
+    eliminate_dead_bbs(tc, g);
     optimize_bb(tc, g, g->entry);
     eliminate_dead_ins(tc, g);
     eliminate_dead_bbs(tc, g);
