@@ -47,6 +47,10 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
         }
         ins->annotations = ann_next;
     }
+
+    /* If it was a write instruction, mark is as having a dead writer. */
+    if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg)
+        MVM_spesh_get_facts(tc, g, ins->operands[0])->dead_writer = 1;
 }
 
 void MVM_spesh_manipulate_insert_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshIns *previous, MVMSpeshIns *to_insert) {
