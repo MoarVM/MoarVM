@@ -1830,6 +1830,14 @@ static MVMint64 has_handler_anns(MVMThreadContext *tc, MVMSpeshBB *bb) {
     }
     return 0;
 }
+static void mark_dead_writers(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *dead_bb) {
+    MVMSpeshIns *ins = dead_bb->first_ins;
+    while (ins) {
+        if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg)
+            get_facts_direct(tc, g, ins->operands[0])->flags |= MVM_SPESH_FACT_DEAD_WRITER; 
+        ins = ins->next;
+    }
+}
 static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Iterate to fixed point. */
     MVMint8  *seen     = MVM_malloc(g->num_bbs);
@@ -1857,6 +1865,7 @@ static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
             MVMSpeshBB *death_cand = cur_bb->linear_next;
             if (!seen[death_cand->idx]) {
                 if (!death_cand->inlined && !has_handler_anns(tc, death_cand)) {
+                    mark_dead_writers(tc, g, death_cand);
                     cur_bb->linear_next = cur_bb->linear_next->linear_next;
                     g->num_bbs--;
                     death = 1;
