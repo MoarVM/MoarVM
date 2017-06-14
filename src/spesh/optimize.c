@@ -1375,6 +1375,23 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
     MVM_free(handlers_found);
 }
 
+static void eliminate_phi_dead_reads(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMuint32 operand = 1;
+    MVMuint32 insert_pos = 1;
+    MVMuint32 num_operands = ins->info->num_operands;
+    while (operand < num_operands) {
+        if (get_facts_direct(tc, g, ins->operands[operand])->flags & MVM_SPESH_FACT_DEAD_WRITER) {
+            num_operands--;
+        }
+        else {
+            ins->operands[insert_pos] = ins->operands[operand];
+            insert_pos++;
+        }
+        operand++;
+    }
+    if (num_operands != ins->info->num_operands)
+        ins->info = get_phi(tc, g, num_operands);
+}
 static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMuint32 operand;
     MVMint32 common_flags;
@@ -1382,6 +1399,8 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
     MVMObject *common_decont_type;
     MVMuint32 needs_merged_with_log_guard = 0;
     MVMSpeshFacts *target_facts = get_facts_direct(tc, g, ins->operands[0]);
+
+    eliminate_phi_dead_reads(tc, g, ins);
 
     common_flags       = get_facts_direct(tc, g, ins->operands[1])->flags;
     common_type        = get_facts_direct(tc, g, ins->operands[1])->type;
