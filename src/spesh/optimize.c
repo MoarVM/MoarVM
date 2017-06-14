@@ -1379,8 +1379,8 @@ static void eliminate_phi_dead_reads(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
     MVMuint32 operand = 1;
     MVMuint32 insert_pos = 1;
     MVMuint32 num_operands = ins->info->num_operands;
-    while (operand < num_operands) {
-        if (get_facts_direct(tc, g, ins->operands[operand])->flags & MVM_SPESH_FACT_DEAD_WRITER) {
+    while (operand < ins->info->num_operands) {
+        if (get_facts_direct(tc, g, ins->operands[operand])->dead_writer) {
             num_operands--;
         }
         else {
@@ -1852,7 +1852,7 @@ static void mark_dead_writers(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
     MVMSpeshIns *ins = dead_bb->first_ins;
     while (ins) {
         if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg)
-            get_facts_direct(tc, g, ins->operands[0])->flags |= MVM_SPESH_FACT_DEAD_WRITER; 
+            get_facts_direct(tc, g, ins->operands[0])->dead_writer = 1; 
         ins = ins->next;
     }
 }

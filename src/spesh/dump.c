@@ -380,7 +380,7 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
             if (flags & 8192) {
                 append(ds, " KRWCn");
             }
-            if (flags & MVM_SPESH_FACT_DEAD_WRITER) {
+            if (g->facts[i][j].dead_writer) {
                 append(ds, " DeadWriter");
             }
             if (g->facts[i][j].writer && g->facts[i][j].writer->info->opcode == MVM_SSA_PHI) {
