@@ -1171,20 +1171,23 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 /* Yes. Will we be able to inline? */
                 MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
                     target_code, &target_code->body.sf->body.spesh_candidates[spesh_cand]);
-                if (inline_graph) {
-                    /* Yes, have inline graph, so go ahead and do it. */
 #if MVM_LOG_INLINES
+                {
                     char *c_name_i = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.name);
                     char *c_cuid_i = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.cuuid);
                     char *c_name_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.name);
                     char *c_cuid_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.cuuid);
-                    printf("Can inline %s (%s) into %s (%s)\n",
+                    printf("%s inline %s (%s) into %s (%s)\n",
+                        (inline_graph ? "Can" : "Can NOT"),
                         c_name_i, c_cuid_i, c_name_t, c_cuid_t);
                     MVM_free(c_name_i);
                     MVM_free(c_cuid_i);
                     MVM_free(c_name_t);
                     MVM_free(c_cuid_t);
+                }
 #endif
+                if (inline_graph) {
+                    /* Yes, have inline graph, so go ahead and do it. */
                     MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_code);
                 }
                 else {
