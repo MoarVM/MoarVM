@@ -888,7 +888,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     process_options.file        = si->prog;
     process_options.args        = si->args;
     process_options.cwd         = si->cwd;
-    process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
+    process_options.flags       = UV_PROCESS_WINDOWS_HIDE;
     process_options.env         = si->env;
     process_options.stdio_count = 3;
     process_options.exit_cb     = async_spawn_on_exit;
