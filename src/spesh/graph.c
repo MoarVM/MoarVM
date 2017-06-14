@@ -71,6 +71,7 @@ MVMSpeshBB * MVM_spesh_graph_linear_prev(MVMThreadContext *tc, MVMSpeshGraph *g,
  * with it. This also makes nodes for all of the instruction. */
 #define MVM_CFG_BB_START    1
 #define MVM_CFG_BB_END      2
+#define MVM_CFG_BB_JUMPLIST 4
 static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf,
                       MVMint32 *existing_deopts, MVMint32 num_existing_deopts) {
     MVMSpeshBB  *cur_bb, *prev_bb;
@@ -86,10 +87,11 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
      * integer. This is used for two things:
      * A) When we make the MVMSpeshIns for an instruction starting at the
      *    byte, we put the instruction index (into ins_flat) in the slot,
-     *    shifting it by 2 bits to the left. We will use this to do fixups.
+     *    shifting it by 3 bits to the left. We will use this to do fixups.
      * B) The first bit is "I have an incoming branch" - that is, start of
      *    a basic block. The second bit is "I can branch" - that is, end of
-     *    a basic block. It's possible to have both bits set.
+     *    a basic block. It's possible to have both bits set. If it's part
+     *    of a jumplist, it gets the third bit set also.
      * Anything that's just a zero has no instruction starting there. */
     MVMuint32 *byte_to_ins_flags = MVM_calloc(g->bytecode_size, sizeof(MVMuint32));
 
@@ -120,7 +122,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         /* Create an instruction node, add it, and record its position. */
         MVMSpeshIns *ins_node = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
         ins_flat[ins_idx] = ins_node;
-        byte_to_ins_flags[pc - g->bytecode] |= ins_idx << 2;
+        byte_to_ins_flags[pc - g->bytecode] |= ins_idx << 3;
 
         /* Did previous instruction end a basic block? */
         if (next_bbs) {
@@ -256,7 +258,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         if (opcode == MVM_OP_jumplist) {
             MVMint64 n = MVM_BC_get_I64(args, 0);
             for (i = 0; i <= n; i++)
-                byte_to_ins_flags[(pc - g->bytecode) + 12 + i * 6] |= MVM_CFG_BB_START;
+                byte_to_ins_flags[(pc - g->bytecode) + 12 + i * 6] |=
+                    MVM_CFG_BB_START | MVM_CFG_BB_JUMPLIST;
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
         }
 
@@ -309,9 +312,9 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
 
     /* Annotate instructions that are handler-significant. */
     for (i = 0; i < g->num_handlers; i++) {
-        MVMSpeshIns *start_ins = ins_flat[byte_to_ins_flags[g->handlers[i].start_offset] >> 2];
-        MVMSpeshIns *end_ins   = ins_flat[byte_to_ins_flags[g->handlers[i].end_offset] >> 2];
-        MVMSpeshIns *goto_ins  = ins_flat[byte_to_ins_flags[g->handlers[i].goto_offset] >> 2];
+        MVMSpeshIns *start_ins = ins_flat[byte_to_ins_flags[g->handlers[i].start_offset] >> 3];
+        MVMSpeshIns *end_ins   = ins_flat[byte_to_ins_flags[g->handlers[i].end_offset] >> 3];
+        MVMSpeshIns *goto_ins  = ins_flat[byte_to_ins_flags[g->handlers[i].goto_offset] >> 3];
         MVMSpeshAnn *start_ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
         MVMSpeshAnn *end_ann   = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
         MVMSpeshAnn *goto_ann  = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
@@ -334,8 +337,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
 
     /* Annotate instructions that are inline start/end points. */
     for (i = 0; i < g->num_inlines; i++) {
-        MVMSpeshIns *start_ins = ins_flat[byte_to_ins_flags[g->inlines[i].start] >> 2];
-        MVMSpeshIns *end_ins   = ins_flat[byte_to_ins_flags[g->inlines[i].end] >> 2];
+        MVMSpeshIns *start_ins = ins_flat[byte_to_ins_flags[g->inlines[i].start] >> 3];
+        MVMSpeshIns *end_ins   = ins_flat[byte_to_ins_flags[g->inlines[i].end] >> 3];
         MVMSpeshAnn *start_ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
         MVMSpeshAnn *end_ann   = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
 
@@ -374,7 +377,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             continue;
 
         /* Get current instruction. */
-        cur_ins = ins_flat[byte_to_ins_flags[i] >> 2];
+        cur_ins = ins_flat[byte_to_ins_flags[i] >> 3];
 
         /* Start of a basic block? */
         if (byte_to_ins_flags[i] & MVM_CFG_BB_START) {
@@ -389,6 +392,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             cur_bb->first_ins = cur_ins;
             cur_bb->idx = bb_idx;
             cur_bb->initial_pc = i;
+            cur_bb->jumplist = byte_to_ins_flags[i] & MVM_CFG_BB_JUMPLIST;
             bb_idx++;
 
             /* Record instruction -> BB start mapping. */
@@ -435,7 +439,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             cur_bb->succ[0]  = cur_bb->linear_next;
             for (i = 0; i < g->num_handlers; i++) {
                 MVMuint32 offset = g->handlers[i].goto_offset;
-                cur_bb->succ[i + 1] = ins_to_bb[byte_to_ins_flags[offset] >> 2];
+                cur_bb->succ[i + 1] = ins_to_bb[byte_to_ins_flags[offset] >> 3];
             }
         }
 
@@ -457,7 +461,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                 case MVM_OP_goto: {
                     /* Unconditional branch, so one successor. */
                     MVMuint32   offset = cur_bb->last_ins->operands[0].ins_offset;
-                    MVMSpeshBB *tgt    = ins_to_bb[byte_to_ins_flags[offset] >> 2];
+                    MVMSpeshBB *tgt    = ins_to_bb[byte_to_ins_flags[offset] >> 3];
                     cur_bb->succ       = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
                     cur_bb->succ[0]    = tgt;
                     cur_bb->num_succ   = 1;
@@ -472,7 +476,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                     for (i = 0; i < cur_bb->last_ins->info->num_operands; i++) {
                         if (cur_bb->last_ins->info->operands[i] == MVM_operand_ins) {
                             MVMuint32 offset = cur_bb->last_ins->operands[i].ins_offset;
-                            cur_bb->succ[0] = ins_to_bb[byte_to_ins_flags[offset] >> 2];
+                            cur_bb->succ[0] = ins_to_bb[byte_to_ins_flags[offset] >> 3];
                             cur_bb->num_succ++;
                             cur_bb->last_ins->operands[i].ins_bb = cur_bb->succ[0];
                         }
@@ -501,10 +505,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     if (existing_deopts) {
         for (i = 0; i < num_existing_deopts; i ++) {
             if (existing_deopts[2 * i + 1] >= 0) {
-                MVMSpeshIns *post_ins     = ins_flat[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 2];
+                MVMSpeshIns *post_ins     = ins_flat[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 3];
                 MVMSpeshIns *deopt_ins    = post_ins->prev ? post_ins->prev :
                     MVM_spesh_graph_linear_prev(tc, g,
-                        ins_to_bb[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 2])->last_ins;
+                        ins_to_bb[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 3])->last_ins;
                 MVMSpeshAnn *deopt_ann    = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
                 deopt_ann->next           = deopt_ins->annotations;
                 deopt_ann->type           = MVM_SPESH_ANN_DEOPT_INLINE;

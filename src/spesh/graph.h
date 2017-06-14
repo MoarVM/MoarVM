@@ -161,7 +161,10 @@ struct MVMSpeshBB {
     MVMuint32 initial_pc;
 
     /* Is this block an inlining of another one? */
-    MVMint32 inlined;
+    MVMint16 inlined;
+
+    /* Is this basic block part of a jump list? */
+    MVMint16 jumplist;
 };
 
 /* The SSA phi instruction. */
