@@ -1177,7 +1177,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                     char *c_cuid_i = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.cuuid);
                     char *c_name_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.name);
                     char *c_cuid_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.cuuid);
-                    printf("%s inline %s (%s) into %s (%s)\n",
+                    fprintf(stderr, "%s inline %s (%s) into %s (%s)\n",
                         (inline_graph ? "Can" : "Can NOT"),
                         c_name_i, c_cuid_i, c_name_t, c_cuid_t);
                     MVM_free(c_name_i);
