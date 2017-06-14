@@ -1915,6 +1915,22 @@ static void eliminate_unused_log_guards(MVMThreadContext *tc, MVMSpeshGraph *g) 
                 g->log_guards[i].ins);
 }
 
+/* Sometimes - almost always due to other optmimizations having done their
+ * work - we end up with an unconditional goto at the end of a basic block
+ * that points right to the very next basic block. Delete these. */
+static void eliminate_pointless_gotos(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    MVMSpeshBB *cur_bb = g->entry;
+    while (cur_bb) {
+        if (!cur_bb->jumplist) {
+            MVMSpeshIns *last_ins = cur_bb->last_ins;
+            if (last_ins && last_ins->info->opcode == MVM_OP_goto)
+                if (last_ins->operands[0].ins_bb == cur_bb->linear_next) 
+                    MVM_spesh_manipulate_delete_ins(tc, g, cur_bb, last_ins);
+        }
+        cur_bb = cur_bb->linear_next;
+    }
+}
+
 /* Drives the overall optimization work taking place on a spesh graph. */
 void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Before starting, we eliminate dead basic blocks that were tossed by
@@ -1924,5 +1940,6 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
     eliminate_dead_ins(tc, g);
     eliminate_dead_bbs(tc, g);
     eliminate_unused_log_guards(tc, g);
+    eliminate_pointless_gotos(tc, g);
     second_pass(tc, g, g->entry);
 }
