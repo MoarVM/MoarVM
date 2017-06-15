@@ -238,7 +238,8 @@ static MVMint32 have_separator(MVMThreadContext *tc, MVMDecodeStreamChars *start
     return 0;
 }
 static MVMint32 find_separator(MVMThreadContext *tc, const MVMDecodeStream *ds,
-                               MVMDecodeStreamSeparators *sep_spec, MVMint32 *sep_length) {
+                               MVMDecodeStreamSeparators *sep_spec, MVMint32 *sep_length,
+                               int eof) {
     MVMint32 sep_loc = 0;
     MVMDecodeStreamChars *cur_chars = ds->chars_head;
 
@@ -253,8 +254,26 @@ static MVMint32 find_separator(MVMThreadContext *tc, const MVMDecodeStream *ds,
 
     /* Now scan for the separator. */
     while (cur_chars) {
-        MVMint32 start = cur_chars == ds->chars_head ? ds->chars_head_pos : 0;
         MVMint32 i, j;
+        MVMint32 start;
+        if (eof) {
+            start = cur_chars == ds->chars_head ? ds->chars_head_pos : 0;
+        }
+        else {
+            start = cur_chars->length - max_sep_chars;
+            if (cur_chars == ds->chars_head) {
+                if (start >= ds->chars_head_pos)
+                    sep_loc += start - ds->chars_head_pos;
+                else
+                    start = ds->chars_head_pos;
+            }
+            else {
+                if (start >= 0)
+                    sep_loc += start;
+                else
+                    start = 0;
+            }
+        }
         for (i = start; i < cur_chars->length; i++) {
             MVMint32 sep_graph_pos = 0;
             MVMGrapheme32 cur_char = cur_chars->chars[i];
@@ -286,13 +305,13 @@ MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecod
      * just beyond the separator, so can use take_chars to get what's need.
      * Note that decoders are only responsible for finding the final char of
      * the separator, so we may need to loop a few times around this. */
-    sep_loc = find_separator(tc, ds, sep_spec, &sep_length);
+    sep_loc = find_separator(tc, ds, sep_spec, &sep_length, 0);
     while (!sep_loc) {
         MVMuint32 decode_outcome = run_decode(tc, ds, NULL, sep_spec, DECODE_NOT_EOF);
         if (decode_outcome == RUN_DECODE_NOTHING_DECODED)
             break;
         if (decode_outcome == RUN_DECODE_STOPPER_REACHED)
-            sep_loc = find_separator(tc, ds, sep_spec, &sep_length);
+            sep_loc = find_separator(tc, ds, sep_spec, &sep_length, 0);
     }
     if (sep_loc)
         return take_chars(tc, ds, sep_loc, chomp ? sep_length : 0);
@@ -331,7 +350,7 @@ MVMString * MVM_string_decodestream_get_until_sep_eof(MVMThreadContext *tc, MVMD
 
     /* Look for separator, which should by now be at the end, and chomp it
      * off if needed. */
-    sep_loc = find_separator(tc, ds, sep_spec, &sep_length);
+    sep_loc = find_separator(tc, ds, sep_spec, &sep_length, 1);
     if (sep_loc)
         return take_chars(tc, ds, sep_loc, chomp ? sep_length : 0);
 
