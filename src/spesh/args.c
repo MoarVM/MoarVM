@@ -177,7 +177,9 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     MVMint32      named_used = 0;
     MVMint32      named_passed = (cs->arg_count - cs->num_pos) / 2;
     MVMint32      cs_flags   = cs->num_pos + named_passed;
-    MVMint32      seen_deopt = 0;
+    MVMint32      first_deopt_ins = -1;
+    MVMint32      last_param_ins = -1;
+    MVMint32      cur_ins = 0;
 
     MVMSpeshBB *bb = g->entry;
 
@@ -187,12 +189,14 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
-            MVMSpeshAnn *ann = ins->annotations;
-            while (ann) {
-                if (ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS ||
-                        ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS)
-                    seen_deopt = 1;
-                ann = ann->next;
+            if (first_deopt_ins == -1) {
+                MVMSpeshAnn *ann = ins->annotations;
+                while (ann) {
+                    if (ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS ||
+                            ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS)
+                        first_deopt_ins = cur_ins;
+                    ann = ann->next;
+                }
             }
             switch (ins->info->opcode) {
             case MVM_OP_checkarity:
@@ -200,6 +204,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     goto cleanup; /* Dupe; weird; bail out! */
                 checkarity_ins = ins;
                 checkarity_bb  = bb;
+                last_param_ins = cur_ins;
                 break;
             case MVM_OP_param_rp_i:
             case MVM_OP_param_rp_n:
@@ -215,6 +220,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 pos_bb[idx]  = bb;
                 if (idx > req_max)
                     req_max = idx;
+                last_param_ins = cur_ins;
                 break;
             }
             case MVM_OP_param_op_i:
@@ -233,6 +239,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     opt_max = idx;
                 if (opt_min == -1 || idx < opt_min)
                     opt_min = idx;
+                last_param_ins = cur_ins;
                 break;
             }
             case MVM_OP_param_on_i:
@@ -249,11 +256,13 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 named_ins[num_named] = ins;
                 named_bb[num_named]  = bb;
                 num_named++;
+                last_param_ins = cur_ins;
                 break;
             case MVM_OP_param_sp:
                 break;
             case MVM_OP_param_sn:
                 param_sn_ins = ins;
+                last_param_ins = cur_ins;
                 break;
             case MVM_OP_usecapture:
             case MVM_OP_savecapture:
@@ -264,10 +273,12 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     goto cleanup; /* Dupe; weird; bail out! */
                 paramnamesused_ins = ins;
                 paramnamesused_bb  = bb;
+                last_param_ins = cur_ins;
                 break;
             default:
                 break;
             }
+            cur_ins++;
             ins = ins->next;
         }
         bb = bb->linear_next;
@@ -669,7 +680,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
          *    further optimized away later).
          */
         if (named_passed == named_used) {
-            if (!seen_deopt) {
+            if (first_deopt_ins == -1 || first_deopt_ins > last_param_ins) {
                 for (i = 0; i < num_named; i++)
                     if (used_ins[i])
                         MVM_spesh_manipulate_delete_ins(tc, g, named_bb[i], used_ins[i]);
