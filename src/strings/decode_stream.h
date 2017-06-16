@@ -55,6 +55,9 @@ struct MVMDecodeStreamSeparators {
 
     /* The number of separators we have. */
     MVMint32 num_seps;
+
+    /* Cached maximum separator length, to save regular recalculation. */
+    MVMint32 max_sep_length;
 };
 
 /* Checks if we may have encountered one of the separators. This just looks to
@@ -91,5 +94,4 @@ MVMint32 MVM_string_decodestream_is_empty(MVMThreadContext *tc, MVMDecodeStream 
 void MVM_string_decodestream_destroy(MVMThreadContext *tc, MVMDecodeStream *ds);
 void MVM_string_decode_stream_sep_default(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec);
 void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec, MVMString **seps, MVMint32 num_seps);
-MVMint32 MVM_string_decode_stream_sep_max_chars(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec);
 void MVM_string_decode_stream_sep_destroy(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec);

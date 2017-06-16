@@ -244,9 +244,9 @@ static MVMint32 find_separator(MVMThreadContext *tc, const MVMDecodeStream *ds,
     MVMDecodeStreamChars *cur_chars = ds->chars_head;
 
     /* First, skip over any buffers we need not consider. */
-    MVMint32 max_sep_chars = MVM_string_decode_stream_sep_max_chars(tc, sep_spec);
+    MVMint32 max_sep_length = sep_spec->max_sep_length;
     while (cur_chars && cur_chars->next) {
-        if (cur_chars->next->length < max_sep_chars)
+        if (cur_chars->next->length < max_sep_length)
             break;
         sep_loc += cur_chars->length;
         cur_chars = cur_chars->next;
@@ -260,7 +260,7 @@ static MVMint32 find_separator(MVMThreadContext *tc, const MVMDecodeStream *ds,
             start = cur_chars == ds->chars_head ? ds->chars_head_pos : 0;
         }
         else {
-            start = cur_chars->length - max_sep_chars;
+            start = cur_chars->length - max_sep_length;
             if (cur_chars == ds->chars_head) {
                 if (start >= ds->chars_head_pos)
                     sep_loc += start - ds->chars_head_pos;
@@ -550,11 +550,21 @@ void MVM_string_decode_stream_sep_default(MVMThreadContext *tc, MVMDecodeStreamS
 
     sep_spec->sep_lengths[1] = 1;
     sep_spec->sep_graphemes[1] = MVM_nfg_crlf_grapheme(tc);
+
+    sep_spec->max_sep_length = 1;
 }
 
 /* Takes a string and sets it up as a decode stream separator. */
+static MVMint32 max_sep_length(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec) {
+    MVMint32 i;
+    MVMint32 max_length = 1;
+    for (i = 0; i < sep_spec->num_seps; i++)
+        if (sep_spec->sep_lengths[i] > max_length)
+            max_length = sep_spec->sep_lengths[i];
+    return max_length;
+}
 void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec,
-                                                     MVMString **seps, MVMint32 num_seps) {
+                                               MVMString **seps, MVMint32 num_seps) {
     MVMGraphemeIter gi;
     MVMint32 i, graph_length, graph_pos;
 
@@ -582,17 +592,11 @@ void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeSt
         while (MVM_string_gi_has_more(tc, &gi))
             sep_spec->sep_graphemes[graph_pos++] = MVM_string_gi_get_grapheme(tc, &gi);
     }
+
+    sep_spec->max_sep_length = max_sep_length(tc, sep_spec);
 }
 
 /* Returns the maximum length of any separator, in graphemes. */
-MVMint32 MVM_string_decode_stream_sep_max_chars(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec) {
-    MVMint32 i;
-    MVMint32 max_length = 1;
-    for (i = 0; i < sep_spec->num_seps; i++)
-        if (sep_spec->sep_lengths[i] > max_length)
-            max_length = sep_spec->sep_lengths[i];
-    return max_length;
-}
 
 /* Cleans up memory associated with a stream separator set. */
 void MVM_string_decode_stream_sep_destroy(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec) {
