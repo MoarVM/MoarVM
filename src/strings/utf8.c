@@ -386,11 +386,11 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     }
                     buffer[count++] = g;
                     total++;
-                    if (stopper_chars && *stopper_chars == total) {
+                    if (MVM_string_decode_stream_maybe_sep(tc, seps, g)) {
                         reached_stopper = 1;
                         goto done;
                     }
-                    if (MVM_string_decode_stream_maybe_sep(tc, seps, g)) {
+                    else if (stopper_chars && *stopper_chars == total) {
                         reached_stopper = 1;
                         goto done;
                     }
