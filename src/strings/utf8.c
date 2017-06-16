@@ -323,12 +323,15 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
     MVMint32 count = 0, total = 0;
     MVMint32 state = 0;
     MVMCodepoint codepoint = 0;
+    MVMCodepoint lag_codepoint = -1;
     MVMint32 bufsize;
     MVMGrapheme32 *buffer;
     MVMDecodeStreamBytes *cur_bytes;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
-    MVMint32 last_accept_pos, ready, at_start;
+    MVMDecodeStreamBytes *lag_last_accept_bytes;
+    MVMint32 last_accept_pos, lag_last_accept_pos, ready, at_start;
     MVMuint32 reached_stopper;
+    MVMuint32 can_fast_path;
 
     /* If there's no buffers, we're done. */
     if (!ds->bytes_head)
@@ -338,6 +341,10 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
     /* If we're asked for zero chars, also done. */
     if (stopper_chars && *stopper_chars == 0)
         return 1;
+
+    /* If there's nothing hanging around in the normalization buffer, we can
+     * use the fast path. */
+    can_fast_path = MVM_unicode_normalizer_empty(tc, &(ds->norm));
 
     /* Rough starting-size estimate is number of bytes in the head buffer. */
     bufsize = ds->bytes_head->length;
@@ -363,43 +370,120 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
             }
             at_start = 0;
         }
-        while (pos < cur_bytes->length) {
-            switch(decode_utf8_byte(&state, &codepoint, bytes[pos++])) {
-            case UTF8_ACCEPT: {
-                MVMint32 first = 1;
-                MVMGrapheme32 g;
-                last_accept_bytes = cur_bytes;
-                last_accept_pos = pos;
-                ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &(ds->norm), codepoint, &g);
-                while (ready--) {
-                    if (first)
-                        first = 0;
-                    else
-                        g = MVM_unicode_normalizer_get_grapheme(tc, &(ds->norm));
-                    if (count == bufsize) {
-                        /* Valid character, but we filled the buffer. Attach this
-                        * one to the buffers linked list, and continue with a new
-                        * one. */
-                        MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
-                        buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
-                        count = 0;
+
+        /* We have both a fast path and a slow path for UTF-8 decoding. The
+         * fast path covers the common case where we have no chars that are
+         * significant to normalization, and so we can skip the normalizer.
+         * This is true of the ASCII and Latin-1 ranges of UTF-8, with the
+         * exception of \r. Note that since the following codepoint may be
+         * the one that causes us to need to compose, we need a lag of 1
+         * codepoint. */
+        if (can_fast_path) {
+            while (pos < cur_bytes->length) {
+                switch(decode_utf8_byte(&state, &codepoint, bytes[pos++])) {
+                case UTF8_ACCEPT: {
+                    /* If we hit something that needs the normalizer, we put
+                     * any lagging codepoint into its buffer and jump to it. */
+                    if (codepoint == '\r' || codepoint >= ds->norm.first_significant) {
+                        if (lag_codepoint != -1) {
+                            MVM_unicode_normalizer_push_codepoints(tc, &(ds->norm),
+                                &lag_codepoint, 1);
+                            lag_codepoint = -1; /* Invalidate, we used it. */
+                        }
+                        can_fast_path = 0;
+                        goto slow_path;
                     }
-                    buffer[count++] = g;
-                    total++;
-                    if (MVM_string_decode_stream_maybe_sep(tc, seps, g)) {
-                        reached_stopper = 1;
-                        goto done;
+
+                    /* If we've a lagging codepoint, and this one does not
+                     * need normalization, then we know we can spit out the
+                     * lagging one. */
+                    if (lag_codepoint != -1) {
+                        last_accept_bytes = lag_last_accept_bytes;
+                        last_accept_pos = lag_last_accept_pos;
+                        if (count == bufsize) {
+                            /* Valid character, but we filled the buffer. Attach this
+                            * one to the buffers linked list, and continue with a new
+                            * one. */
+                            MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
+                            buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
+                            count = 0;
+                        }
+                        buffer[count++] = lag_codepoint;
+                        total++;
+                        if (MVM_string_decode_stream_maybe_sep(tc, seps, lag_codepoint)) {
+                            reached_stopper = 1;
+                            goto done;
+                        }
+                        else if (stopper_chars && *stopper_chars == total) {
+                            reached_stopper = 1;
+                            goto done;
+                        }
                     }
-                    else if (stopper_chars && *stopper_chars == total) {
-                        reached_stopper = 1;
-                        goto done;
-                    }
+
+                    /* The current state becomes the lagged state. */
+                    lag_codepoint = codepoint;
+                    lag_last_accept_bytes = cur_bytes;
+                    lag_last_accept_pos = pos;
+                    break;
                 }
-                break;
+                case UTF8_REJECT:
+                    MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
+                    break;
+                }
             }
-            case UTF8_REJECT:
-                MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
-                break;
+
+            /* If we fall out of the loop and have a lagged codepoint, but
+             * no next buffer, then we fall into the slow path to process it
+             * correctly. */
+            if (lag_codepoint != -1 && !cur_bytes->next) {
+                codepoint = lag_codepoint;
+                lag_codepoint = -1;
+                can_fast_path = 0;
+                goto slow_path;
+            }
+        }
+        else {
+            while (pos < cur_bytes->length) {
+                switch(decode_utf8_byte(&state, &codepoint, bytes[pos++])) {
+                case UTF8_ACCEPT: {
+                    MVMGrapheme32 g;
+                    MVMint32 first;
+                  slow_path:
+                    first = 1;
+                    last_accept_bytes = cur_bytes;
+                    last_accept_pos = pos;
+                    ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc,
+                        &(ds->norm), codepoint, &g);
+                    while (ready--) {
+                        if (first)
+                            first = 0;
+                        else
+                            g = MVM_unicode_normalizer_get_grapheme(tc, &(ds->norm));
+                        if (count == bufsize) {
+                            /* Valid character, but we filled the buffer. Attach this
+                            * one to the buffers linked list, and continue with a new
+                            * one. */
+                            MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
+                            buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
+                            count = 0;
+                        }
+                        buffer[count++] = g;
+                        total++;
+                        if (MVM_string_decode_stream_maybe_sep(tc, seps, g)) {
+                            reached_stopper = 1;
+                            goto done;
+                        }
+                        else if (stopper_chars && *stopper_chars == total) {
+                            reached_stopper = 1;
+                            goto done;
+                        }
+                    }
+                    break;
+                }
+                case UTF8_REJECT:
+                    MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
+                    break;
+                }
             }
         }
         cur_bytes = cur_bytes->next;
