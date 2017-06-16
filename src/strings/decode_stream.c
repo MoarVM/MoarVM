@@ -165,48 +165,64 @@ static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint3
         MVM_exception_throw_adhoc(tc, "DecodeStream take_chars: chars - exclude < 0 should never happen");
 
     result                       = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-    result->body.storage.blob_32 = MVM_malloc(result_chars * sizeof(MVMGrapheme32));
     result->body.storage_type    = MVM_STRING_GRAPHEME_32;
     result->body.num_graphs      = result_chars;
-    while (found < chars) {
+
+    /* In the best case, the head char buffer has exactly what we need. This
+     * will typically happen when it a steady state of decoding lines. */
+    if (ds->chars_head->length - ds->chars_head_pos == chars) {
         MVMDecodeStreamChars *cur_chars = ds->chars_head;
-        MVMint32 available = cur_chars->length - ds->chars_head_pos;
-        if (available <= chars - found) {
-            /* We need all that's left in this buffer and likely
-             * more. */
-            MVMDecodeStreamChars *next_chars = cur_chars->next;
-            if (available <= result_chars - result_found) {
-                memcpy(result->body.storage.blob_32 + result_found,
-                    cur_chars->chars + ds->chars_head_pos,
-                    available * sizeof(MVMGrapheme32));
-                result_found += available;
+        result->body.storage.blob_32 = cur_chars->chars + ds->chars_head_pos;
+        ds->chars_head = cur_chars->next;
+        ds->chars_head_pos = 0;
+        if (ds->chars_head == NULL)
+            ds->chars_tail = NULL;
+        free_chars(tc, ds, cur_chars);
+    }
+
+    /* Otherwise, need to take and copy. */
+    else {
+        result->body.storage.blob_32 = MVM_malloc(result_chars * sizeof(MVMGrapheme32));
+        while (found < chars) {
+            MVMDecodeStreamChars *cur_chars = ds->chars_head;
+            MVMint32 available = cur_chars->length - ds->chars_head_pos;
+            if (available <= chars - found) {
+                /* We need all that's left in this buffer and likely
+                 * more. */
+                MVMDecodeStreamChars *next_chars = cur_chars->next;
+                if (available <= result_chars - result_found) {
+                    memcpy(result->body.storage.blob_32 + result_found,
+                        cur_chars->chars + ds->chars_head_pos,
+                        available * sizeof(MVMGrapheme32));
+                    result_found += available;
+                }
+                else {
+                    MVMint32 to_copy = result_chars - result_found;
+                    memcpy(result->body.storage.blob_32 + result_found,
+                        cur_chars->chars + ds->chars_head_pos,
+                        to_copy * sizeof(MVMGrapheme32));
+                    result_found += to_copy;
+                }
+                found += available;
+                MVM_free(cur_chars->chars);
+                free_chars(tc, ds, cur_chars);
+                ds->chars_head = next_chars;
+                ds->chars_head_pos = 0;
+                if (ds->chars_head == NULL)
+                    ds->chars_tail = NULL;
             }
             else {
+                /* There's enough in this buffer to satisfy us, and we'll leave
+                 * some behind. */
+                MVMint32 take = chars - found;
                 MVMint32 to_copy = result_chars - result_found;
                 memcpy(result->body.storage.blob_32 + result_found,
                     cur_chars->chars + ds->chars_head_pos,
                     to_copy * sizeof(MVMGrapheme32));
                 result_found += to_copy;
+                found += take;
+                ds->chars_head_pos += take;
             }
-            found += available;
-            MVM_free(cur_chars->chars);
-            free_chars(tc, ds, cur_chars);
-            ds->chars_head = next_chars;
-            ds->chars_head_pos = 0;
-            if (ds->chars_head == NULL)
-                ds->chars_tail = NULL;
-        }
-        else {
-            /* There's enough in this buffer to satisfy us, and we'll leave
-             * some behind. */
-            MVMint32 take = chars - found;
-            MVMint32 to_copy = result_chars - result_found;
-            memcpy(result->body.storage.blob_32 + result_found,
-                cur_chars->chars + ds->chars_head_pos,
-                to_copy * sizeof(MVMGrapheme32));
-            result_found += to_copy;
-            found += take;
-            ds->chars_head_pos += take;
         }
     }
     return result;
@@ -336,7 +352,7 @@ MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecod
         /* Use this line length as a guesstimate of the next, unless it's tiny
          * in which case we treat it as an outlier (probably an empty line or
          * some such). Also round up and to a nice power of 2. */
-        if (sep_loc < 32)
+        if (sep_loc > 32)
             ds->result_size_guess = (sep_loc << 1) & ~0xF;
         return take_chars(tc, ds, sep_loc, chomp ? sep_length : 0);
     }
