@@ -378,45 +378,61 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
          * the one that causes us to need to compose, we need a lag of 1
          * codepoint. */
         if (can_fast_path) {
+            /* Lift the no lag codepoint case out of the hot loop below,
+             * to save on a couple of branches. */
+            while (lag_codepoint == -1 && pos < cur_bytes->length) {
+                switch(decode_utf8_byte(&state, &codepoint, bytes[pos++])) {
+                case UTF8_ACCEPT: {
+                    if (codepoint == '\r' || codepoint >= ds->norm.first_significant) {
+                        can_fast_path = 0;
+                        goto slow_path;
+                    }
+                    lag_codepoint = codepoint;
+                    lag_last_accept_bytes = cur_bytes;
+                    lag_last_accept_pos = pos;
+                    break;
+                }
+                case UTF8_REJECT:
+                    MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
+                    break;
+                }
+            }
+
             while (pos < cur_bytes->length) {
                 switch(decode_utf8_byte(&state, &codepoint, bytes[pos++])) {
                 case UTF8_ACCEPT: {
                     /* If we hit something that needs the normalizer, we put
                      * any lagging codepoint into its buffer and jump to it. */
                     if (codepoint == '\r' || codepoint >= ds->norm.first_significant) {
-                        if (lag_codepoint != -1) {
-                            MVM_unicode_normalizer_push_codepoints(tc, &(ds->norm),
-                                &lag_codepoint, 1);
-                            lag_codepoint = -1; /* Invalidate, we used it. */
-                        }
+                        MVM_unicode_normalizer_push_codepoints(tc, &(ds->norm),
+                            &lag_codepoint, 1);
+                        lag_codepoint = -1; /* Invalidate, we used it. */
                         can_fast_path = 0;
                         goto slow_path;
                     }
 
-                    /* If we've a lagging codepoint, and this one does not
+                    /* As we have a lagging codepoint, and this one does not
                      * need normalization, then we know we can spit out the
                      * lagging one. */
-                    if (lag_codepoint != -1) {
-                        last_accept_bytes = lag_last_accept_bytes;
-                        last_accept_pos = lag_last_accept_pos;
-                        if (count == bufsize) {
-                            /* Valid character, but we filled the buffer. Attach this
-                            * one to the buffers linked list, and continue with a new
-                            * one. */
-                            MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
-                            buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
-                            count = 0;
-                        }
-                        buffer[count++] = lag_codepoint;
-                        total++;
-                        if (MVM_string_decode_stream_maybe_sep(tc, seps, lag_codepoint)) {
-                            reached_stopper = 1;
-                            goto done;
-                        }
-                        else if (stopper_chars && *stopper_chars == total) {
-                            reached_stopper = 1;
-                            goto done;
-                        }
+                    last_accept_bytes = lag_last_accept_bytes;
+                    last_accept_pos = lag_last_accept_pos;
+                    if (count == bufsize) {
+                        /* Valid character, but we filled the buffer. Attach this
+                        * one to the buffers linked list, and continue with a new
+                        * one. */
+                        MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
+                        buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
+                        count = 0;
+                    }
+                    buffer[count++] = lag_codepoint;
+                    total++;
+                    if (MVM_string_decode_stream_maybe_sep(tc, seps, lag_codepoint)) {
+                        reached_stopper = 1;
+                        goto done;
+                    }
+                    else if (stopper_chars && *stopper_chars == total) {
+                        reached_stopper = 1;
+                        goto done;
                     }
 
                     /* The current state becomes the lagged state. */
