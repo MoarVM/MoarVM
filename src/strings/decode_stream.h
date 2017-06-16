@@ -58,6 +58,9 @@ struct MVMDecodeStreamSeparators {
 
     /* Cached maximum separator length, to save regular recalculation. */
     MVMint32 max_sep_length;
+
+    /* Cached final graphemes, for quick lookups in stream_maybe_sep. */
+    MVMGrapheme32 *final_graphemes;
 };
 
 /* Checks if we may have encountered one of the separators. This just looks to
@@ -66,13 +69,10 @@ struct MVMDecodeStreamSeparators {
  * are handled in the decode stream logic itself). */
 MVM_STATIC_INLINE MVMint32 MVM_string_decode_stream_maybe_sep(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec, MVMGrapheme32 g) {
     if (sep_spec) {
-        MVMint32 cur_graph = -1;
         MVMint32 i;
-        for (i = 0; i < sep_spec->num_seps; i++) {
-            cur_graph += sep_spec->sep_lengths[i];
-            if (sep_spec->sep_graphemes[cur_graph] == g)
+        for (i = 0; i < sep_spec->num_seps; i++)
+            if (sep_spec->final_graphemes[i] == g)
                 return 1;
-        }
     }
     return 0;
 }
