@@ -811,6 +811,12 @@ __END__
                    [--static] [--big-endian] [--prefix]
                    [--lua <lua>] [--make-install]
 
+=head2 Use of environment variables
+
+Compiler and linker flags can be extended with environment variables.
+
+CFLAGS="..." LDFLAGS="..." ./Configure.pl
+
 =head1 OPTIONS
 
 =over 4
