@@ -129,11 +129,11 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->int_const_cache = MVM_calloc(1, sizeof(MVMIntConstCache));
     instance->int_to_str_cache = MVM_calloc(MVM_INT_TO_STR_CACHE_SIZE, sizeof(MVMString *));
 
-    /* Initialize Unicode database */
+    /* Initialize Unicode database and NFG. */
     MVM_unicode_init(instance->main_thread);
     MVM_string_cclass_init(instance->main_thread);
+    MVM_nfg_init(instance->main_thread);
 
-    /* Set up NFG state mutation mutex. */
     instance->nfg = calloc(1, sizeof(MVMNFGState));
     init_mutex(instance->nfg->update_mutex, "NFG update mutex");
 

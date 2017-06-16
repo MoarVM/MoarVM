@@ -4,6 +4,17 @@
  * to grow it. */
 #define MVM_SYNTHETIC_GROW_ELEMS 32
 
+/* Initialize NFG subsystem. */
+void MVM_nfg_init(MVMThreadContext *tc) {
+    int init_stat;
+    tc->instance->nfg = calloc(1, sizeof(MVMNFGState));
+    if ((init_stat = uv_mutex_init(&(tc->instance->nfg->update_mutex))) < 0) {
+        fprintf(stderr, "MoarVM: Initialization of NFG update mutex failed\n    %s\n",
+            uv_strerror(init_stat));
+        exit(1);
+    }
+}
+
 /* Finds the index of a given codepoint within a trie node. Returns it if
  * there is one, or negative if there is not (note 0 is a valid index). */
 static MVMint32 find_child_node_idx(MVMThreadContext *tc, const MVMNFGTrieNode *node, MVMCodepoint cp) {
