@@ -415,8 +415,6 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     /* As we have a lagging codepoint, and this one does not
                      * need normalization, then we know we can spit out the
                      * lagging one. */
-                    last_accept_bytes = lag_last_accept_bytes;
-                    last_accept_pos = lag_last_accept_pos;
                     if (count == bufsize) {
                         /* Valid character, but we filled the buffer. Attach this
                         * one to the buffers linked list, and continue with a new
@@ -429,10 +427,14 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     total++;
                     if (MVM_string_decode_stream_maybe_sep(tc, seps, lag_codepoint)) {
                         reached_stopper = 1;
+                        last_accept_bytes = lag_last_accept_bytes;
+                        last_accept_pos = lag_last_accept_pos;
                         goto done;
                     }
                     else if (stopper_chars && *stopper_chars == total) {
                         reached_stopper = 1;
+                        last_accept_bytes = lag_last_accept_bytes;
+                        last_accept_pos = lag_last_accept_pos;
                         goto done;
                     }
 
@@ -447,6 +449,8 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     break;
                 }
             }
+            lag_last_accept_bytes = cur_bytes;
+            lag_last_accept_pos = pos;
 
             /* If we fall out of the loop and have a lagged codepoint, but
              * no next buffer, then we fall into the slow path to process it
