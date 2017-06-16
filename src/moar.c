@@ -134,9 +134,6 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVM_string_cclass_init(instance->main_thread);
     MVM_nfg_init(instance->main_thread);
 
-    instance->nfg = calloc(1, sizeof(MVMNFGState));
-    init_mutex(instance->nfg->update_mutex, "NFG update mutex");
-
     /* Bootstrap 6model. It is assumed the GC will not be called during this. */
     MVM_6model_bootstrap(instance->main_thread);
 
