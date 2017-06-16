@@ -8,6 +8,13 @@ struct MVMDecodeStream {
     MVMDecodeStreamChars *chars_head;
     MVMDecodeStreamChars *chars_tail;
 
+    /* Often, when reading lines or chunks, we'll fill up one char buffer
+     * and then immediately take it. That results in a lot of allocating
+     * and freeing of MVMDecodeStreamChars structures. Keeping a free one
+     * avoids this. (There's not really a common steady state where we
+     * have multiple free ones, so a free isn't worth the extra work.) */
+    MVMDecodeStreamChars *chars_reuse;
+
     /* The byte position (for tell). */
     MVMint64 abs_byte_pos;
 

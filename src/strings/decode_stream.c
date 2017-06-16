@@ -45,14 +45,31 @@ void MVM_string_decodestream_add_bytes(MVMThreadContext *tc, MVMDecodeStream *ds
 
 /* Adds another char result buffer into the decoding stream. */
 void MVM_string_decodestream_add_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 *chars, MVMint32 length) {
-    MVMDecodeStreamChars *new_chars = MVM_calloc(1, sizeof(MVMDecodeStreamChars));
+    MVMDecodeStreamChars *new_chars;
+    if (ds->chars_reuse) {
+        new_chars = ds->chars_reuse;
+        ds->chars_reuse = NULL;
+    }
+    else {
+        new_chars = MVM_malloc(sizeof(MVMDecodeStreamChars));
+    }
     new_chars->chars  = chars;
     new_chars->length = length;
+    new_chars->next = NULL;
     if (ds->chars_tail)
         ds->chars_tail->next = new_chars;
     ds->chars_tail = new_chars;
     if (!ds->chars_head)
         ds->chars_head = new_chars;
+}
+
+/* Internal function to free a chars result structure, putting it into the
+ * re-use slot if it's empty. */
+static void free_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMDecodeStreamChars *chars) {
+    if (ds->chars_reuse)
+        MVM_free(chars);
+    else
+        ds->chars_reuse = chars;
 }
 
 /* Throws away byte buffers no longer needed. */
@@ -172,7 +189,7 @@ static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint3
             }
             found += available;
             MVM_free(cur_chars->chars);
-            MVM_free(cur_chars);
+            free_chars(tc, ds, cur_chars);
             ds->chars_head = next_chars;
             ds->chars_head_pos = 0;
             if (ds->chars_head == NULL)
@@ -379,7 +396,7 @@ static MVMString * get_all_in_buffer(MVMThreadContext *tc, MVMDecodeStream *ds) 
 
         /* Don't free the buffer's memory itself, just the holder, as we
          * stole that for the buffer into the string above. */
-        MVM_free(ds->chars_head);
+        free_chars(tc, ds, ds->chars_head);
         ds->chars_head = ds->chars_tail = NULL;
     }
 
@@ -416,7 +433,7 @@ static MVMString * get_all_in_buffer(MVMThreadContext *tc, MVMDecodeStream *ds) 
                 pos += cur_chars->length;
             }
             MVM_free(cur_chars->chars);
-            MVM_free(cur_chars);
+            free_chars(tc, ds, cur_chars);
             cur_chars = next_chars;
         }
         ds->chars_head = ds->chars_tail = NULL;
@@ -536,6 +553,7 @@ void MVM_string_decodestream_destroy(MVMThreadContext *tc, MVMDecodeStream *ds) 
     }
     MVM_unicode_normalizer_cleanup(tc, &(ds->norm));
     MVM_free(ds->decoder_state);
+    MVM_free(ds->chars_reuse);
     MVM_free(ds);
 }
 
