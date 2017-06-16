@@ -61,6 +61,12 @@ struct MVMDecodeStreamSeparators {
 
     /* Cached final graphemes, for quick lookups in stream_maybe_sep. */
     MVMGrapheme32 *final_graphemes;
+
+    /* Since separators are most often control chars, we can quickly filter
+     * out many graphemes without a separator search by keeping around the
+     * maximum codepoint/synthetic index of any final grapheme and doing a
+     * quick comparison. */
+    MVMGrapheme32 max_final_grapheme;
 };
 
 /* Checks if we may have encountered one of the separators. This just looks to
@@ -68,7 +74,7 @@ struct MVMDecodeStreamSeparators {
  * demand the actual encodings themselves work out (multi-grapheme separators
  * are handled in the decode stream logic itself). */
 MVM_STATIC_INLINE MVMint32 MVM_string_decode_stream_maybe_sep(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec, MVMGrapheme32 g) {
-    if (sep_spec) {
+    if (sep_spec && g <= sep_spec->max_final_grapheme) {
         MVMint32 i;
         for (i = 0; i < sep_spec->num_seps; i++)
             if (sep_spec->final_graphemes[i] == g)

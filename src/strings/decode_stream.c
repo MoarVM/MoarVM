@@ -543,6 +543,7 @@ void MVM_string_decodestream_destroy(MVMThreadContext *tc, MVMDecodeStream *ds) 
  * faster line reading. */
 static void cache_sep_info(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec) {
     MVMGrapheme32 *final_graphemes = MVM_malloc(sep_spec->num_seps * sizeof(MVMGrapheme32));
+    MVMint32 max_final_grapheme = -1;
     MVMint32 max_sep_length = 1;
     MVMint32 cur_sep_pos = 0;
     MVMint32 i;
@@ -552,9 +553,12 @@ static void cache_sep_info(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_
             max_sep_length = length;
         cur_sep_pos += length;
         final_graphemes[i] = sep_spec->sep_graphemes[cur_sep_pos - 1];
+        if (final_graphemes[i] > max_final_grapheme)
+            max_final_grapheme = final_graphemes[i];
     }
     sep_spec->max_sep_length = max_sep_length;
     sep_spec->final_graphemes = final_graphemes;
+    sep_spec->max_final_grapheme = max_final_grapheme;
 }
 
 /* Sets a decode stream separator to its default value. */
