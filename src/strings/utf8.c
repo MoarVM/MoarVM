@@ -380,10 +380,11 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
         if (can_fast_path) {
             /* Lift the no lag codepoint case out of the hot loop below,
              * to save on a couple of branches. */
+            MVMCodepoint first_significant = ds->norm.first_significant;
             while (lag_codepoint == -1 && pos < cur_bytes->length) {
                 switch(decode_utf8_byte(&state, &codepoint, bytes[pos++])) {
                 case UTF8_ACCEPT: {
-                    if (codepoint == '\r' || codepoint >= ds->norm.first_significant) {
+                    if (codepoint == '\r' || codepoint >= first_significant) {
                         can_fast_path = 0;
                         goto slow_path;
                     }
@@ -403,7 +404,7 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                 case UTF8_ACCEPT: {
                     /* If we hit something that needs the normalizer, we put
                      * any lagging codepoint into its buffer and jump to it. */
-                    if (codepoint == '\r' || codepoint >= ds->norm.first_significant) {
+                    if (codepoint == '\r' || codepoint >= first_significant) {
                         MVM_unicode_normalizer_push_codepoints(tc, &(ds->norm),
                             &lag_codepoint, 1);
                         lag_codepoint = -1; /* Invalidate, we used it. */
