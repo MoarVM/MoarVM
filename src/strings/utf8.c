@@ -346,8 +346,7 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
      * use the fast path. */
     can_fast_path = MVM_unicode_normalizer_empty(tc, &(ds->norm));
 
-    /* Rough starting-size estimate is number of bytes in the head buffer. */
-    bufsize = ds->bytes_head->length;
+    bufsize = ds->result_size_guess;
     buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
 
     /* Decode each of the buffers. */

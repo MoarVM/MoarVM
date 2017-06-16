@@ -27,6 +27,10 @@ struct MVMDecodeStream {
     /* The encoding we're using. */
     MVMint32 encoding;
 
+    /* Suggestion for decoders of how many bytes to guess at when allocating
+     * decoded result buffers. */
+    MVMint32 result_size_guess;
+
     /* Normalizer. */
     MVMNormalizer norm;
 

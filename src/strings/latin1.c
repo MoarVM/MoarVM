@@ -68,8 +68,7 @@ MVMuint32 MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *
     if (stopper_chars && *stopper_chars == 0)
         return 1;
 
-    /* Take length of head buffer as initial guess. */
-    bufsize = ds->bytes_head->length;
+    bufsize = ds->result_size_guess;
     buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
 
     /* Decode each of the buffers. */

@@ -22,6 +22,7 @@ MVMDecodeStream * MVM_string_decodestream_create(MVMThreadContext *tc, MVMint32 
     MVM_unicode_normalizer_init(tc, &(ds->norm), MVM_NORMALIZE_NFG);
     if (translate_newlines)
         MVM_unicode_normalizer_translate_newlines(tc, &(ds->norm));
+    ds->result_size_guess = 64;
     return ds;
 }
 
@@ -219,6 +220,7 @@ MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStr
 
     /* If we don't already have enough chars, try and decode more. */
     missing = missing_chars(tc, ds, chars);
+    ds->result_size_guess = missing;
     if (missing)
         run_decode(tc, ds, &missing, NULL, DECODE_NOT_EOF);
 
@@ -330,10 +332,17 @@ MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecod
         if (decode_outcome == RUN_DECODE_STOPPER_REACHED)
             sep_loc = find_separator(tc, ds, sep_spec, &sep_length, 0);
     }
-    if (sep_loc)
+    if (sep_loc) {
+        /* Use this line length as a guesstimate of the next, unless it's tiny
+         * in which case we treat it as an outlier (probably an empty line or
+         * some such). Also round up and to a nice power of 2. */
+        if (sep_loc < 32)
+            ds->result_size_guess = (sep_loc << 1) & ~0xF;
         return take_chars(tc, ds, sep_loc, chomp ? sep_length : 0);
-    else
+    }
+    else {
         return NULL;
+    }
 }
 
 /* In situations where we have hit EOF, we need to decode what's left and flush
@@ -453,8 +462,10 @@ MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStrea
  * There may still be more to read after this, due to incomplete multi-byte
  * or multi-codepoint sequences that are not yet completely processed. */
 MVMString * MVM_string_decodestream_get_available(MVMThreadContext *tc, MVMDecodeStream *ds) {
-    if (ds->bytes_head)
+    if (ds->bytes_head) {
+        ds->result_size_guess = ds->bytes_head->length;
         run_decode(tc, ds, NULL, NULL, DECODE_NOT_EOF);
+    }
     return get_all_in_buffer(tc, ds);
 }
 
