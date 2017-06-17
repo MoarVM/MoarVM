@@ -84,7 +84,7 @@ MVMuint32 MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *
             MVMGrapheme32 graph;
             if (last_was_cr) {
                 if (codepoint == '\n') {
-                    graph = MVM_nfg_crlf_grapheme(tc);
+                    graph = MVM_unicode_normalizer_translated_crlf(tc, &(ds->norm));
                 }
                 else {
                     graph = '\r';

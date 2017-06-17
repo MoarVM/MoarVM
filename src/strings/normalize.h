@@ -186,3 +186,11 @@ MVM_STATIC_INLINE MVMint32 fast_atoi( const char * dec_str ) {
     }
     return value;
 }
+
+/* Function for choosing the appropriate line-ending grapheme depending on if
+ * newline translation is enabled. */
+MVM_STATIC_INLINE MVMGrapheme32 MVM_unicode_normalizer_translated_crlf(MVMThreadContext *tc, MVMNormalizer *n) {
+    return n->translate_newlines
+        ? '\n'
+        : MVM_nfg_crlf_grapheme(tc);
+}

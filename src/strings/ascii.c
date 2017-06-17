@@ -75,7 +75,7 @@ MVMuint32 MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *d
                     "Will not decode invalid ASCII (code point > 127 found)");
             if (last_was_cr) {
                 if (codepoint == '\n') {
-                    graph = MVM_nfg_crlf_grapheme(tc);
+                    graph = MVM_unicode_normalizer_translated_crlf(tc, &(ds->norm));
                 }
                 else {
                     graph = '\r';
