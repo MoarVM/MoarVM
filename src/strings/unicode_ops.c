@@ -1,15 +1,22 @@
-/* Compares two strings, based on Unicode Collation Algorithm
- *    0   The strings are identical, includes codepoints
- * -1/1   We used the primary collation values to decide the result
- * -2/2   We used the secondary, meaning the primary weights were equal
- * -3/3   We used the tetriary, meaning the primary and also the secondary
-          weights (if we used that option, which is the default) were equal.
- *   -4/4 We used codepoints to decide because primary, secondary and/or tetriary
-          were equal (depending on if secondary and tetriary were requested).
-          If the codepoints are all the same, we will decide based on length.
- * -10/10 The collation algorithm was not able to be applied and so they
-          were compared based on codepoints. If codepoints were equal they were
-          compared by length. */
+/* Compares two strings, using the Unicode Collation Algorithm
+ * Return values:
+ *    0   The strings are identical for the collation levels requested
+ * -1/1   String a is less than string b/String a is greater than string b
+ *
+ * `collation_mode` acts like a bitfield. Each of primary, secondary and tertiary
+ * collation levels can be either: disabled, enabled, reversed.
+ * In the table below, where + designates sorting normal direction and
+ * - indicates reversed sorting for that collation level.
+ *
+ * Collation level | bitfield value
+ *        Primary+ | 1
+ *        Primary- | 2
+ *      Secondary+ | 4
+ *      Secondary- | 8
+ *       Tertiary+ | 16
+ *       Tertiary- | 32
+ */
+
 MVMint32 MVM_unicode_collation_primary (MVMThreadContext *tc, MVMint32 codepoint) {
      return MVM_unicode_codepoint_get_property_int(tc, codepoint, MVM_UNICODE_PROPERTY_MVM_COLLATION_PRIMARY);
 }
@@ -18,6 +25,20 @@ MVMint32 MVM_unicode_collation_secondary (MVMThreadContext *tc, MVMint32 codepoi
 }
 MVMint32 MVM_unicode_collation_tertiary (MVMThreadContext *tc, MVMint32 codepoint) {
      return MVM_unicode_codepoint_get_property_int(tc, codepoint, MVM_UNICODE_PROPERTY_MVM_COLLATION_TERTIARY);
+}
+#define collation_adjust(tc, coll_val, collation_mode, cp) {\
+    if (collation_mode & 1)\
+        coll_val += MVM_unicode_collation_primary(tc, cp);\
+    if (collation_mode & 2)\
+        coll_val -= MVM_unicode_collation_primary(tc, cp);\
+    if (collation_mode & 4)\
+        coll_val += MVM_unicode_collation_secondary(tc, cp);\
+    if (collation_mode & 8)\
+        coll_val -= MVM_unicode_collation_secondary(tc, cp);\
+    if (collation_mode & 16)\
+        coll_val += MVM_unicode_collation_tertiary(tc, cp);\
+    if (collation_mode & 32)\
+        coll_val -= MVM_unicode_collation_tertiary(tc, cp);\
 }
 /* MVM_unicode_string_compare supports synthetic graphemes but in case we have
  * a codepoint without any collation value, we do not yet decompose it and
@@ -70,35 +91,19 @@ MVMint64 MVM_unicode_string_compare
 
                 /* result_a is the base character of the grapheme. */
                 result_a = synth_a->base;
-                if (collation_mode & 1)
-                    ai_coll_val += MVM_unicode_collation_primary(tc, result_a);
-                if (collation_mode & 2)
-                    ai_coll_val += MVM_unicode_collation_secondary(tc, result_a);
-                if (collation_mode & 4)
-                    ai_coll_val += MVM_unicode_collation_tertiary(tc, result_a);
+                collation_adjust(tc, ai_coll_val, collation_mode, result_a);
                 while (a_ci.synth_codes) {
                     /* Take the current combiner as the result_a. */
                     result_a = a_ci.synth_codes[a_ci.visited_synth_codes];
-                    if (collation_mode & 1)
-                        ai_coll_val += MVM_unicode_collation_primary(tc, result_a);
-                    if (collation_mode & 2)
-                        ai_coll_val += MVM_unicode_collation_secondary(tc, result_a);
-                    if (collation_mode & 4)
-                        ai_coll_val += MVM_unicode_collation_tertiary(tc, result_a);
-                    /* If we've seen all of the synthetics, clear up so we'll take another
-                     * grapheme next time around. */
+                    collation_adjust(tc, ai_coll_val, collation_mode, result_a);
+
                     a_ci.visited_synth_codes++;
                     if (a_ci.visited_synth_codes == a_ci.total_synth_codes)
                         a_ci.synth_codes = NULL;
                 }
             }
             else {
-                if (collation_mode & 1)
-                    ai_coll_val += MVM_unicode_collation_primary(tc, ai);
-                if (collation_mode & 2)
-                    ai_coll_val += MVM_unicode_collation_secondary(tc, ai);
-                if (collation_mode & 4)
-                    ai_coll_val += MVM_unicode_collation_tertiary(tc, ai);
+                collation_adjust(tc, ai_coll_val, collation_mode, ai);
             }
 
             if (bi < 0) {
@@ -115,39 +120,23 @@ MVMint64 MVM_unicode_string_compare
 
                 /* result_b is the base character of the grapheme. */
                 result_b = synth_b->base;
-                if (collation_mode & 1)
-                    bi_coll_val += MVM_unicode_collation_primary(tc, result_b);
-                if (collation_mode & 2)
-                    bi_coll_val += MVM_unicode_collation_secondary(tc, result_b);
-                if (collation_mode & 4)
-                    bi_coll_val += MVM_unicode_collation_tertiary(tc, result_b);
+                collation_adjust(tc, bi_coll_val, collation_mode, result_b);
+
                 while (b_ci.synth_codes) {
                     /* Take the current combiner as the result_b. */
                     result_b = b_ci.synth_codes[b_ci.visited_synth_codes];
-                    if (collation_mode & 1)
-                        bi_coll_val += MVM_unicode_collation_primary(tc, result_b);
-                    if (collation_mode & 2)
-                        bi_coll_val += MVM_unicode_collation_secondary(tc, result_b);
-                    if (collation_mode & 4)
-                        bi_coll_val += MVM_unicode_collation_tertiary(tc, result_b);
-                    /* If we've seen all of the synthetics, clear up so we'll take another
-                     * grapheme next time around. */
+                    collation_adjust(tc, bi_coll_val, collation_mode, result_b);
                     b_ci.visited_synth_codes++;
                     if (b_ci.visited_synth_codes == b_ci.total_synth_codes)
                         b_ci.synth_codes = NULL;
                 }
             }
             else {
-                if (collation_mode & 1)
-                    bi_coll_val += MVM_unicode_collation_primary(tc, bi);
-                if (collation_mode & 2)
-                    bi_coll_val += MVM_unicode_collation_secondary(tc, bi);
-                if (collation_mode & 4)
-                    bi_coll_val += MVM_unicode_collation_tertiary(tc, bi);
+                collation_adjust(tc, bi_coll_val, collation_mode, bi);
             }
             /* If collation values are not equal or we don't have quaternary
              * collation set, return by collation value */
-            if ((ai_coll_val != bi_coll_val) || !(collation_mode & 8))
+            if ((ai_coll_val != bi_coll_val) || !(collation_mode & 128 + 64))
                 return ai_coll_val < bi_coll_val ? -1 :
                        ai_coll_val > bi_coll_val ?  1 :
                                                     0 ;
