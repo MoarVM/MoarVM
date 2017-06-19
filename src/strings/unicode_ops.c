@@ -134,24 +134,53 @@ MVMint64 MVM_unicode_string_compare
             else {
                 collation_adjust(tc, bi_coll_val, collation_mode, bi);
             }
-            /* If collation values are not equal or we don't have quaternary
-             * collation set, return by collation value */
-            if ((ai_coll_val != bi_coll_val) || !(collation_mode & 128 + 64))
+            /* Note if we are here we *already* know the codepoints are not equal */
+
+            /* If collation values are not equal */
+            if (ai_coll_val != bi_coll_val)
                 return ai_coll_val < bi_coll_val ? -1 :
                        ai_coll_val > bi_coll_val ?  1 :
                                                     0 ;
+            /* If we don't have quaternary collation level set (we throw away codepoint info)
+             * we know from the previous check that the collation values are equal */
+            if ( !( collation_mode & (128 + 64) ) )
+                continue;
+
             /* If we get here, then collation values were equal and we have
              * quaternary level enabled, so return by codepoint */
-            return ai < bi ? -1 :
-                   ai > bi ?  1 :
-                              0 ;
+            if (collation_mode & 64) {
+                return  ai < bi ? -1 :
+                        ai > bi ?  1 :
+                                   0 ;
+            }
+            else {
+                return  ai < bi ?  1 :
+                        ai > bi ? -1 :
+                                   0 ;
+            }
         }
     }
-
-    /* All shared chars equal, so go on length. */
-    return alen < blen ? -1 :
-           alen > blen ?  1 :
-                          0 ;
+    /* If collation values are not equal */
+    if (ai_coll_val != bi_coll_val)
+        return ai_coll_val < bi_coll_val ? -1 :
+               ai_coll_val > bi_coll_val ?  1 :
+                                            0 ;
+    /* If we don't have quaternary collation level set (we throw away codepoint info)
+     * we should return 0 because we have gone through all codepoints we have */
+    if ( !( collation_mode & (128 + 64) ) )
+        return 0;
+    /* If we get here, then collation values were equal and we have
+     * quaternary level enabled, so return by length */
+    if (collation_mode & 64) {
+        return alen < blen ? -1 :
+               alen > blen ?  1 :
+                              0 ;
+    }
+    else {
+        return alen < blen ?  1 :
+               alen > blen ? -1 :
+                              0 ;
+    }
 }
 
 /* Looks up a codepoint by name. Lazily constructs a hash. */
