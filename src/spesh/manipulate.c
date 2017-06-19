@@ -48,8 +48,14 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
         ins->annotations = ann_next;
     }
 
-    /* If it was a write instruction, mark is as having a dead writer, and
-     * decrement the use count of any reads. */
+    MVM_spesh_manipulate_cleanup_ins_deps(tc, g, ins);
+}
+
+/* When deleting an instruction, we can mark any writes of the instruction as
+ * dead, and also decrement the usage counts on anything that is read. This is
+ * called by MVM_spesh_manipulate_delete_ins, but provided separately for when
+ * an instruction goes away by virtue of a whole basic block dying. */ 
+void MVM_spesh_manipulate_cleanup_ins_deps(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     if (ins->info->opcode == MVM_SSA_PHI) {
         MVMint32 i;
         MVM_spesh_get_facts(tc, g, ins->operands[0])->dead_writer = 1;

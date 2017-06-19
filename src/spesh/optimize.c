@@ -1833,11 +1833,10 @@ static MVMint64 has_handler_anns(MVMThreadContext *tc, MVMSpeshBB *bb) {
     }
     return 0;
 }
-static void mark_dead_writers(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *dead_bb) {
+static void cleanup_dead_bb_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *dead_bb) {
     MVMSpeshIns *ins = dead_bb->first_ins;
     while (ins) {
-        if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg)
-            get_facts_direct(tc, g, ins->operands[0])->dead_writer = 1; 
+        MVM_spesh_manipulate_cleanup_ins_deps(tc, g, ins);
         ins = ins->next;
     }
 }
@@ -1868,7 +1867,7 @@ static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
             MVMSpeshBB *death_cand = cur_bb->linear_next;
             if (!seen[death_cand->idx]) {
                 if (!death_cand->inlined && !has_handler_anns(tc, death_cand)) {
-                    mark_dead_writers(tc, g, death_cand);
+                    cleanup_dead_bb_instructions(tc, g, death_cand);
                     cur_bb->linear_next = cur_bb->linear_next->linear_next;
                     g->num_bbs--;
                     death = 1;
