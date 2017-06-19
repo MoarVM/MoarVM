@@ -97,6 +97,8 @@ typedef struct {
     MVMint8            register_spec;
     MVMJitStorageClass reg_cls;
     MVMint32           reg_num;
+    MVMint8            reg_type;
+
 
     MVMint32           spill_pos;
     MVMint32           spill_idx;
@@ -565,8 +567,9 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
         } else if (tile->op == MVM_JIT_IF) {
             MVMint32 left_cond   = tree->nodes[tile->node + 2];
             MVMint32 right_cond  = tree->nodes[tile->node + 3];
-            /* NB; this may cause a conflict, in which case we can resolve it by
-             * creating a new live range or inserting a copy */
+            /* NB; this may cause a conflict in register requirements, in which
+             * case we should resolve it by creating a new live range or inserting
+             * a copy */
             alc->sets[node].key  = value_set_union(alc->sets, alc->values, left_cond, right_cond);
             num_phi++;
         } else if (tile->op == MVM_JIT_ARGLIST) {
@@ -600,6 +603,14 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
                     live_range_add_ref(alc, alc->values + idx, i, j + 1);
                 }
             }
+        }
+        if (MVM_JIT_TILE_YIELDS_VALUE(tile) && tree->info[node].opr_type != 0) {
+            LiveRange *range = alc->values + value_set_find(alc->sets, node)->idx;
+            _ASSERT(range->reg_type == 0 || (range->reg_type << 3) == tree->info[node].opr_type,
+                    "Register types do not match between value and node");
+            /* shift to match MVM_reg_types. should arguably be a macro maybe */
+            range->reg_type = tree->info[node].opr_type >> 3;
+            _DEBUG( "Assigned type: %d\n", range->reg_type);
         }
     }
     if (num_phi > 0) {

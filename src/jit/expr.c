@@ -694,7 +694,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                     break;
                 case MVM_operand_read_lex:
                 case MVM_operand_write_lex:
-                    opr_type = MVM_spesh_get_lex_type(tc, sg, opr.lex.outers, opr.lex.idx);
+                    opr_type = MVM_spesh_get_lex_type(tc, sg, opr.lex.outers, opr.lex.idx) << 3;
                     break;
                 }
             }
