@@ -657,7 +657,6 @@ static void optimize_assertparamcheck(MVMThreadContext *tc, MVMSpeshGraph *g, MV
     MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
     if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE && facts->value.i) {
         MVM_spesh_use_facts(tc, g, facts);
-        facts->usages--;
         MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
     }
 }
@@ -1282,8 +1281,8 @@ static void optimize_uniprop_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 static void optimize_prof_allocated(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshFacts *logee_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
     if (logee_facts->usages == 1) {
-        logee_facts->usages = 0;
         MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+        logee_facts->usages = 0;
         /* This check should always succeed, but just in case ... */
         if (logee_facts->writer)
             MVM_spesh_manipulate_delete_ins(tc, g, bb, logee_facts->writer);
@@ -1724,11 +1723,6 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 if (ins->info->opcode == MVM_SSA_PHI) {
                     MVMSpeshFacts *facts = get_facts_direct(tc, g, ins->operands[0]);
                     if (facts->usages == 0) {
-                        /* Propagate non-usage. */
-                        MVMint32 i;
-                        for (i = 1; i < ins->info->num_operands; i++)
-                            get_facts_direct(tc, g, ins->operands[i])->usages--;
-
                         /* Remove this phi. */
                         MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
                         death = 1;
@@ -1739,12 +1733,6 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
                     if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
                         MVMSpeshFacts *facts = get_facts_direct(tc, g, ins->operands[0]);
                         if (facts->usages == 0) {
-                            /* Propagate non-usage. */
-                            MVMint32 i;
-                            for (i = 1; i < ins->info->num_operands; i++)
-                                if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
-                                    get_facts_direct(tc, g, ins->operands[i])->usages--;
-
                             /* Remove this instruction. */
                             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
                             death = 1;
@@ -1801,10 +1789,8 @@ static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
                      * and throw out the set instruction. */
                     MVMSpeshIns *previous = ins->prev;
                     ins->prev->operands[0].reg = ins->operands[0].reg;
-
                     MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
                     ins = previous;
-                    facts->usages--;
                 }
             }
         } else if (ins->prev && ins->info->opcode == MVM_OP_sp_getspeshslot && ins->prev->info->opcode == ins->info->opcode) {
@@ -1815,7 +1801,6 @@ static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
              * null the spesh slot that we throw out. */
             if (ins->operands[0].reg.orig == ins->prev->operands[0].reg.orig) {
                g->spesh_slots[ins->prev->operands[1].lit_i16] = NULL;
-
                MVM_spesh_manipulate_delete_ins(tc, g, bb, ins->prev);
             }
         } else if (ins->info->opcode == MVM_OP_prof_allocated) {
