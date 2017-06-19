@@ -26,19 +26,21 @@ MVMint32 MVM_unicode_collation_secondary (MVMThreadContext *tc, MVMint32 codepoi
 MVMint32 MVM_unicode_collation_tertiary (MVMThreadContext *tc, MVMint32 codepoint) {
      return MVM_unicode_codepoint_get_property_int(tc, codepoint, MVM_UNICODE_PROPERTY_MVM_COLLATION_TERTIARY);
 }
-#define collation_adjust(tc, coll_val, collation_mode, cp) {\
+/* coll_val is where the collation value will be placed. In the case the
+ * collation order is reversed for that level, it will be placed in coll_val_rev */
+#define collation_adjust(tc, coll_val, coll_val_rev, collation_mode, cp) {\
     if (collation_mode & 1)\
-        coll_val += MVM_unicode_collation_primary(tc, cp);\
+        coll_val[0]     += MVM_unicode_collation_primary(tc, cp);\
     if (collation_mode & 2)\
-        coll_val -= MVM_unicode_collation_primary(tc, cp);\
+        coll_val_rev[0] += MVM_unicode_collation_primary(tc, cp);\
     if (collation_mode & 4)\
-        coll_val += MVM_unicode_collation_secondary(tc, cp);\
+        coll_val[1]     += MVM_unicode_collation_secondary(tc, cp);\
     if (collation_mode & 8)\
-        coll_val -= MVM_unicode_collation_secondary(tc, cp);\
+        coll_val_rev[1] += MVM_unicode_collation_secondary(tc, cp);\
     if (collation_mode & 16)\
-        coll_val += MVM_unicode_collation_tertiary(tc, cp);\
+        coll_val[2]     += MVM_unicode_collation_tertiary(tc, cp);\
     if (collation_mode & 32)\
-        coll_val -= MVM_unicode_collation_tertiary(tc, cp);\
+        coll_val_rev[2] += MVM_unicode_collation_tertiary(tc, cp);\
 }
 /* MVM_unicode_string_compare supports synthetic graphemes but in case we have
  * a codepoint without any collation value, we do not yet decompose it and
@@ -52,8 +54,8 @@ MVMint64 MVM_unicode_string_compare
     MVMGraphemeIter *s_has_more_gi;
     MVMGrapheme32 ai, bi;
     /* Collation order numbers */
-    MVMint32 ai_coll_val = 0;
-    MVMint32 bi_coll_val = 0;
+    MVMuint32 ai_coll_val[3] = {0,0,0};
+    MVMuint32 bi_coll_val[3] = {0,0,0};
     MVM_string_check_arg(tc, a, "compare");
     MVM_string_check_arg(tc, b, "compare");
     /* Simple cases when one or both are zero length. */
@@ -76,6 +78,7 @@ MVMint64 MVM_unicode_string_compare
         bi = MVM_string_gi_get_grapheme(tc, &b_gi);
         /* Only need to do this if they're not the same grapheme */
         if (ai != bi) {
+            int rtrn, i = 0;
             /* If it's less than zero we have a synthetic codepoint */
             if (ai < 0) {
                 MVMCodepointIter a_ci;
@@ -91,11 +94,11 @@ MVMint64 MVM_unicode_string_compare
 
                 /* result_a is the base character of the grapheme. */
                 result_a = synth_a->base;
-                collation_adjust(tc, ai_coll_val, collation_mode, result_a);
+                collation_adjust(tc, ai_coll_val, bi_coll_val, collation_mode, result_a);
                 while (a_ci.synth_codes) {
                     /* Take the current combiner as the result_a. */
                     result_a = a_ci.synth_codes[a_ci.visited_synth_codes];
-                    collation_adjust(tc, ai_coll_val, collation_mode, result_a);
+                    collation_adjust(tc, ai_coll_val, bi_coll_val, collation_mode, result_a);
 
                     a_ci.visited_synth_codes++;
                     if (a_ci.visited_synth_codes == a_ci.total_synth_codes)
@@ -103,7 +106,7 @@ MVMint64 MVM_unicode_string_compare
                 }
             }
             else {
-                collation_adjust(tc, ai_coll_val, collation_mode, ai);
+                collation_adjust(tc, ai_coll_val, bi_coll_val, collation_mode, ai);
             }
 
             if (bi < 0) {
@@ -120,27 +123,30 @@ MVMint64 MVM_unicode_string_compare
 
                 /* result_b is the base character of the grapheme. */
                 result_b = synth_b->base;
-                collation_adjust(tc, bi_coll_val, collation_mode, result_b);
+                collation_adjust(tc, bi_coll_val, ai_coll_val, collation_mode, result_b);
 
                 while (b_ci.synth_codes) {
                     /* Take the current combiner as the result_b. */
                     result_b = b_ci.synth_codes[b_ci.visited_synth_codes];
-                    collation_adjust(tc, bi_coll_val, collation_mode, result_b);
+                    collation_adjust(tc, bi_coll_val, ai_coll_val, collation_mode, result_b);
                     b_ci.visited_synth_codes++;
                     if (b_ci.visited_synth_codes == b_ci.total_synth_codes)
                         b_ci.synth_codes = NULL;
                 }
             }
             else {
-                collation_adjust(tc, bi_coll_val, collation_mode, bi);
+                collation_adjust(tc, bi_coll_val, ai_coll_val, collation_mode, bi);
             }
             /* Note if we are here we *already* know the codepoints are not equal */
-
-            /* If collation values are not equal */
-            if (ai_coll_val != bi_coll_val)
-                return ai_coll_val < bi_coll_val ? -1 :
-                       ai_coll_val > bi_coll_val ?  1 :
-                                                    0 ;
+            for (i = 0; i < 3; i++) {
+                /* If collation values are not equal */
+                if (ai_coll_val[i] != bi_coll_val[i])
+                    rtrn = ai_coll_val[i] < bi_coll_val[i] ? -1 :
+                           ai_coll_val[i] > bi_coll_val[i] ?  1 :
+                                                              0 ;
+                    if (rtrn != 0)
+                        return rtrn;
+            }
             /* If we don't have quaternary collation level set (we throw away codepoint info)
              * we know from the previous check that the collation values are equal */
             if ( !( collation_mode & (128 + 64) ) )
@@ -160,11 +166,7 @@ MVMint64 MVM_unicode_string_compare
             }
         }
     }
-    /* If collation values are not equal */
-    if (ai_coll_val != bi_coll_val)
-        return ai_coll_val < bi_coll_val ? -1 :
-               ai_coll_val > bi_coll_val ?  1 :
-                                            0 ;
+
     /* If we don't have quaternary collation level set (we throw away codepoint info)
      * we should return 0 because we have gone through all codepoints we have */
     if ( !( collation_mode & (128 + 64) ) )
