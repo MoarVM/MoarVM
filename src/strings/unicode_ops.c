@@ -171,18 +171,26 @@ MVMint64 MVM_unicode_string_compare
      * we should return 0 because we have gone through all codepoints we have */
     if ( !( collation_mode & (128 + 64) ) )
         return 0;
+
     /* If we get here, then collation values were equal and we have
      * quaternary level enabled, so return by length */
-    if (collation_mode & 64) {
+
+    /* If quaternary level is both enabled AND reversed, this negates itself
+     * and it is thus ignored */
+    if (collation_mode & 64 && collation_mode & 128) {
+        return 0;
+    }
+    else if (collation_mode & 64) {
         return alen < blen ? -1 :
                alen > blen ?  1 :
                               0 ;
     }
-    else {
+    else if (collation_mode & 128) {
         return alen < blen ?  1 :
                alen > blen ? -1 :
                               0 ;
     }
+    MVM_exception_throw_adhoc(tc, "unicmp_s end of function should not be reachable\n");
 }
 
 /* Looks up a codepoint by name. Lazily constructs a hash. */
