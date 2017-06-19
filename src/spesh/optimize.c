@@ -1921,9 +1921,9 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
      * arg spesh, to simplify the graph. */
     eliminate_dead_bbs(tc, g);
     optimize_bb(tc, g, g->entry);
-    eliminate_dead_ins(tc, g);
     eliminate_dead_bbs(tc, g);
     eliminate_unused_log_guards(tc, g);
     eliminate_pointless_gotos(tc, g);
+    eliminate_dead_ins(tc, g);
     second_pass(tc, g, g->entry);
 }
