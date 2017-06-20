@@ -198,8 +198,10 @@ MVM_STATIC_INLINE MVMCodepoint MVM_string_ci_get_codepoint(MVMThreadContext *tc,
     /* Otherwise, proceed to the next grapheme. */
     else {
         MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &(ci->gi));
+#ifdef _WIN32
         if (ci->translate_newlines && g == '\n')
             g = MVM_nfg_crlf_grapheme(tc);
+#endif
         if (g >= 0) {
             /* It's not a synthetic, so we're done. */
             result = (MVMCodepoint)g;
