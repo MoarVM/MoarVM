@@ -1098,7 +1098,8 @@ char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start,
 
 /* Encodes a string, and writes the encoding string into the supplied Buf
  * instance, which should be an integer array with MVMArray REPR. */
-void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc_name, MVMObject *buf, MVMString *replacement) {
+MVMObject * MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc_name,
+        MVMObject *buf, MVMString *replacement) {
     MVMuint64 output_size;
     MVMuint8 *encoded;
     MVMArrayREPRData *buf_rd;
@@ -1141,6 +1142,7 @@ void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc
     ((MVMArray *)buf)->body.start    = 0;
     ((MVMArray *)buf)->body.ssize    = output_size / elem_size;
     ((MVMArray *)buf)->body.elems    = output_size / elem_size;
+    return buf;
 }
 
 /* Decodes a string using the data from the specified Buf. */
