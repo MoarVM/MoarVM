@@ -304,19 +304,20 @@ MVM_STATIC_INLINE void heap_swap(MVMint32 *heap, MVMint32 a, MVMint32 b) {
 }
 
 /* Functions to maintain a heap of references to the live ranges */
-void live_range_heap_down(LiveRange *values, MVMint32 *heap, MVMint32 top, MVMint32 item) {
+void live_range_heap_down(LiveRange *values, MVMint32 *heap, MVMint32 top, MVMint32 item,
+                          MVMint32 (*cmp)(LiveRange *values, MVMint32 a, MVMint32 b)) {
     while (item < top) {
         MVMint32 left = item * 2 + 1;
         MVMint32 right = left + 1;
         MVMint32 swap;
         if (right < top) {
-            swap = first_ref(&values[heap[left]]) < first_ref(&values[heap[right]]) ? left : right;
+            swap = cmp(values, heap[left], heap[right]) < 0 ? left : right;
         } else if (left < top) {
             swap = left;
         } else {
             break;
         }
-        if (first_ref(&values[heap[swap]]) < first_ref(&values[heap[item]])) {
+        if (cmp(values, heap[swap], heap[item]) < 0) {
             heap_swap(heap, swap, item);
             item       = swap;
         } else {
@@ -325,10 +326,11 @@ void live_range_heap_down(LiveRange *values, MVMint32 *heap, MVMint32 top, MVMin
     }
 }
 
-void live_range_heap_up(LiveRange *values, MVMint32 *heap, MVMint32 item) {
+void live_range_heap_up(LiveRange *values, MVMint32 *heap, MVMint32 item,
+                        MVMint32 (*cmp)(LiveRange* values, MVMint32 a, MVMint32 b)) {
     while (item > 0) {
         MVMint32 parent = (item-1)/2;
-        if (first_ref(&values[heap[parent]]) > first_ref(&values[heap[item]])) {
+        if (cmp(values, heap[parent], heap[item]) > 0) {
             heap_swap(heap, item, parent);
             item = parent;
         } else {
@@ -337,29 +339,40 @@ void live_range_heap_up(LiveRange *values, MVMint32 *heap, MVMint32 item) {
     }
 }
 
-MVMint32 live_range_heap_pop(LiveRange *values, MVMint32 *heap, size_t *top) {
+MVMint32 live_range_heap_pop(LiveRange *values, MVMint32 *heap, size_t *top,
+                             MVMint32 (*cmp)(LiveRange* values, MVMint32 a, MVMint32 b)) {
     MVMint32 v = heap[0];
     MVMint32 t = --(*top);
     /* pop by swap and heap-down */
     heap[0]    = heap[t];
-    live_range_heap_down(values, heap, t, 0);
+    live_range_heap_down(values, heap, t, 0, cmp);
     return v;
 }
 
-void live_range_heap_push(LiveRange *values, MVMint32 *heap, size_t *top, MVMint32 v) {
+void live_range_heap_push(LiveRange *values, MVMint32 *heap, size_t *top, MVMint32 v,
+                          MVMint32 (*cmp)(LiveRange* values, MVMint32 a, MVMint32 b)) {
     /* NB, caller should use MVM_ENSURE_SPACE prior to calling */
     MVMint32 t = (*top)++;
     heap[t] = v;
-    live_range_heap_up(values, heap, t);
+    live_range_heap_up(values, heap, t, cmp);
 }
 
-void live_range_heapify(LiveRange *values, MVMint32 *heap, MVMint32 top) {
+void live_range_heapify(LiveRange *values, MVMint32 *heap, MVMint32 top,
+                        MVMint32 (*cmp)(LiveRange* values, MVMint32 a, MVMint32 b)) {
     MVMint32 i = top, mid = top/2;
     while (i-- > mid) {
-        live_range_heap_up(values, heap, i);
+        live_range_heap_up(values, heap, i, cmp);
     }
 }
 
+
+MVMint32 values_cmp_first_ref(LiveRange *values, MVMint32 a, MVMint32 b) {
+    return first_ref(values + a) - first_ref(values + b);
+}
+
+MVMint32 values_cmp_last_ref(LiveRange *values, MVMint32 a, MVMint32 b) {
+    return last_ref(values + a) - last_ref(values + b);
+}
 
 /* register assignment logic */
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
@@ -414,6 +427,7 @@ void assign_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileLis
     }
 }
 
+/* NB - make this a separate 'library', use it for register bitmap */
 /* Witness the elegance of the bitmap for our purposes. */
 MVM_STATIC_INLINE void bitmap_set(MVMuint64 *bits, MVMint32 idx) {
     bits[idx >> 6] |= (1 << (idx & 0x3f));
@@ -698,7 +712,16 @@ static void active_set_splice(MVMThreadContext *tc, RegisterAllocator *alc, MVMi
     }
 }
 
-
+static void spill_set_release(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 order_nr) {
+    while (alc->spilled_num > 0 && last_ref(alc->values + alc->spilled[0]) <= order_nr) {
+        MVMint32 spilled = live_range_heap_pop(alc->values, alc->spilled, &alc->spilled_num,
+                                               values_cmp_last_ref);
+        LiveRange *value = alc->values + spilled;
+        _DEBUG("VM Register %d for live range %d can be released",
+               values->spill_pos / sizeof(MVMRegister), spilled);
+        /* MVM_jit_spill_release(tc, alc->compiler, value->spill_pos, value->reg_type) */
+    }
+}
 
 static MVMint32 insert_load_before_use(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
                                        ValueRef *ref, MVMint32 load_pos) {
@@ -770,22 +793,17 @@ static void live_range_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMJi
         } else {
             /* in the future, which means we need to add it to the worklist */
             MVM_VECTOR_ENSURE_SPACE(alc->worklist, 1);
-            live_range_heap_push(alc->values, alc->worklist, &alc->worklist_num, n);
+            live_range_heap_push(alc->values, alc->worklist, &alc->worklist_num, n,
+                                 values_cmp_first_ref);
         }
     }
     /* mark as spilled and store the spill position */
     spillee->spill_pos = spill_pos;
     spillee->spill_idx = code_pos;
     free_register(tc, alc, MVM_JIT_STORAGE_GPR, reg_spilled);
-    MVM_VECTOR_PUSH(alc->spilled, to_spill);
-}
-
-static void spill_any_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, MVMint32 code_position) {
-    /* choose a live range, a register to spill, and a spill location */
-    MVMint32 to_spill   = select_live_range_for_spill(tc, alc, list, code_position);
-    MVMint32 spill_pos  = select_memory_for_spill(tc, alc, list, code_position, sizeof(MVMRegister));
-    active_set_splice(tc, alc, to_spill);
-    live_range_spill(tc, alc, list, to_spill, spill_pos, code_position);
+    MVM_VECTOR_ENSURE_SPACE(alc->spilled, 1);
+    live_range_heap_push(alc->values, alc->spilled, &alc->spilled_num,
+                         to_spill, values_cmp_last_ref);
 }
 
 
@@ -1081,7 +1099,7 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
     _DEBUG("STARTING LINEAR SCAN: %ld/%d", tc->instance->jit_seq_nr, list->tree->seq_nr);
 
     while (alc->worklist_num > 0) {
-        MVMint32 v             = live_range_heap_pop(alc->values, alc->worklist, &alc->worklist_num);
+        MVMint32 v             = live_range_heap_pop(alc->values, alc->worklist, &alc->worklist_num, values_cmp_first_ref);
         MVMint32 tile_order_nr = first_ref(alc->values + v);
         MVMint8 reg;
         _DEBUG("Processing live range %d (first ref %d, last ref %d)", v, first_ref(alc->values + v), last_ref(alc->values + v));
@@ -1091,8 +1109,10 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
             process_tile(tc, alc, list, tile_cursor);
         }
 
-        /* assign registers in loop */
+        /* clean up 'old' values */
         active_set_expire(tc, alc, tile_order_nr);
+        spill_set_release(tc, alc, tile_order_nr);
+
         if (MVM_JIT_REGISTER_HAS_REQUIREMENT(alc->values[v].register_spec)) {
             reg = MVM_JIT_REGISTER_REQUIREMENT(alc->values[v].register_spec);
             if (NVR_GPR_BITMAP & (1 << reg)) {
@@ -1103,7 +1123,11 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
             }
         } else {
             while ((reg = get_register(tc, alc, MVM_JIT_STORAGE_GPR)) < 0) {
-                spill_any_register(tc, alc, list, tile_order_nr);
+                /* choose a live range, a register to spill, and a spill location */
+                MVMint32 to_spill   = select_live_range_for_spill(tc, alc, list, tile_order_nr);
+                MVMint32 spill_pos  = select_memory_for_spill(tc, alc, list, tile_order_nr, sizeof(MVMRegister));
+                active_set_splice(tc, alc, to_spill);
+                live_range_spill(tc, alc, list, to_spill, spill_pos, tile_order_nr);
             }
             assign_register(tc, alc, list, v, MVM_JIT_STORAGE_GPR, reg);
             active_set_add(tc, alc, v);
