@@ -315,6 +315,7 @@ static const MVMIOOps op_table = {
     &lockable,
     &introspection,
     NULL,
+    NULL,
     gc_free
 };
 

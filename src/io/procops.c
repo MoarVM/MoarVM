@@ -642,6 +642,7 @@ static const MVMIOOps proc_op_table = {
     NULL,
     NULL,
     NULL,
+    NULL,
     proc_async_gc_mark,
     NULL
 };

@@ -13,6 +13,7 @@ struct MVMIOOps {
     const MVMIOPipeable        *pipeable;
     const MVMIOLockable        *lockable;
     const MVMIOIntrospection   *introspection;
+    void (*set_buffer_size) (MVMThreadContext *tc, MVMOSHandle *h, MVMint64 size);
 
     /* How to mark the handle's data, if needed. */
     void (*gc_mark) (MVMThreadContext *tc, void *data, MVMGCWorklist *worklist);
@@ -113,3 +114,4 @@ void MVM_io_connect(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, 
 void MVM_io_bind(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port, MVMint32 backlog);
 MVMObject * MVM_io_accept(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_io_getport(MVMThreadContext *tc, MVMObject *oshandle);
+void MVM_io_set_buffer_size(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 size);

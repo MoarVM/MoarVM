@@ -302,3 +302,14 @@ MVMObject * MVM_io_accept(MVMThreadContext *tc, MVMObject *oshandle) {
     else
         MVM_exception_throw_adhoc(tc, "Cannot accept this kind of handle");
 }
+
+void MVM_io_set_buffer_size(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 size) {
+    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "set buffer size");
+    if (handle->body.ops->set_buffer_size) {
+        uv_mutex_t *mutex = acquire_mutex(tc, handle);
+        handle->body.ops->set_buffer_size(tc, handle, size);
+        release_mutex(tc, mutex);
+    }
+    else
+        MVM_exception_throw_adhoc(tc, "Cannot set buffer size on this kind of handle");
+}

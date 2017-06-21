@@ -97,6 +97,7 @@ static const MVMIOOps op_table = {
     NULL,
     &introspection,
     NULL,
+    NULL,
     gc_free
 };
 

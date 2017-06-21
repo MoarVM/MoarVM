@@ -417,6 +417,7 @@ static const MVMIOOps op_table = {
     NULL,
     NULL,
     NULL,
+    NULL,
     NULL
 };
 
