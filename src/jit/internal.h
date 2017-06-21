@@ -17,8 +17,9 @@ struct MVMJitCompiler {
     MVMint32    label_max;
 
     /* For spilling values that don't fit into the register allocator */
-    MVMint32    spill_bottom;
-    MVMint32    spill_top;
+    MVMint32    spills_base;
+    MVMint32    spills_free[4];
+    MVM_VECTOR_DECL(struct { MVMint8 reg_type; MVMint32 next; }, spills);
 };
 
 /* Declarations for architecture-specific codegen stuff */
@@ -56,6 +57,9 @@ void MVM_jit_emit_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
 void MVM_jit_emit_copy(MVMThreadContext *tc, MVMJitCompiler *compiler,
                        MVMint32 dst_cls, MVMint8 dst_reg, MVMint32 src_cls, MVMint8 src_num);
 void MVM_jit_emit_marker(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 num);
+
+MVMint32 MVM_jit_spill_memory_select(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint8 reg_type);
+void MVM_jit_spill_memory_release(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 pos, MVMint8 reg_type);
 
 
 

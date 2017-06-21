@@ -4,6 +4,10 @@ struct MVMJitCode {
     MVMuint8  *bytecode;
 
     MVMStaticFrame *sf;
+
+    MVMuint16 *local_types;
+    MVMint32   num_locals;
+
     /* The basic idea here is that /all/ label names are indexes into
      * the single labels array. This isn't particularly efficient at
      * runtime (because we need a second dereference to figure the

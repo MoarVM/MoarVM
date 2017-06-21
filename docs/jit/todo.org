@@ -18,7 +18,7 @@ associate this with individual nodes, at expr node graph building time.
 
 We should then maintain this status in values
 
-** Prove this is our problem
+** TODO Prove this is our problem
 
 - we see this problem reliably with a low nursery and not-so-reliably
   with a big nursery
@@ -30,7 +30,7 @@ We should then maintain this status in values
 
 So I think that I'm going to consider it 'proven' so far.
 
-** Store associated spesh op and op type in expr node info
+** DONE Store associated spesh op and op type in expr node info
 
 Means we must create info array alongside the nodes
 So - we want to record the 'object status' of a node.
@@ -38,19 +38,42 @@ So - we want to record the 'object status' of a node.
 For 'write' registers, we generate the 'address', which doesn't really
 count as it doesn't describe the object. So we need to remove
 them. However, the result node of the template *should* be tagged as
-'object' or whatever value it is. Although I'm not so sure it should
-be tagged
+'object' or whatever value it is.
 
-** Store value 'kind' in live range
+** DONE Store value 'kind' in live range
 
 Can be done during live range building....
+** DONE Refactor live range heap to support the spilled heap
 
-** Register spilled value status in local_types
+I want to convert the 'spilled' array to a heap, that we take from
+prior to processing in order to 'release' spilled register space.
 
-We can fortunately do this at the end because we have a single array
-of 'spilled' values. (I can create a 'local_spills' structure in the
-compiler, which allows us to reuse spill positions over multiple
-expression graphs, but it adds to more complexity for now).
+This should be easy, spilled and values are both MVMint32* arrays, so
+we need only introduce a comparison function.
+
+** DONE Register spilled value status in local_types
+
+Let's do this right for once.
+We want the ability to
+- allocate a temporary register (should be O(1))
+- free the temporary register of a given type (should be O(1))
+- update local_types and local size for the JIT code fragment
+  - and this can be O(n) on the number of temporary registers
+    allocated
+- apply this to the 'effective_local_types' array
+- and to do the setup for this once per compilation session
+
+So the (substructure) should be part of the MVMJitCompiler structure,
+and the creation of the (modified) local types array (if necessary).
+
+Because we now have a jitcode-specific local types and num_locals
+size, we can dispense with calculating the work env size for the spesh
+cand, it's different between the spesh cand and the jitcode anyway.
+
+** TODO Use local types for jit code
+
+I thought there was such a think as 'effective_local_types', but if
+not,
 
 * Generalized 3-op to two-op conversion
 

@@ -719,7 +719,7 @@ static void spill_set_release(MVMThreadContext *tc, RegisterAllocator *alc, MVMi
         LiveRange *value = alc->values + spilled;
         _DEBUG("VM Register %d for live range %d can be released",
                values->spill_pos / sizeof(MVMRegister), spilled);
-        /* MVM_jit_spill_release(tc, alc->compiler, value->spill_pos, value->reg_type) */
+        MVM_jit_spill_memory_release(tc, alc->compiler, value->spill_pos, value->reg_type);
     }
 }
 
@@ -751,13 +751,6 @@ static MVMint32 select_live_range_for_spill(MVMThreadContext *tc, RegisterAlloca
     return alc->active[alc->active_top-1];
 }
 
-static MVMint32 select_memory_for_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
-                                        MVMint32 code_pos, MVMuint32 size) {
-    /* TODO: Implement a 'free list' of spillable locations */
-    MVMint32 pos = alc->compiler->spill_top;
-    alc->compiler->spill_top += size;
-    return pos;
-}
 
 
 static void live_range_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
@@ -862,13 +855,12 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         MVMint32 code_pos = order_nr(call_idx);
         if (last_ref(v) > code_pos && live_range_has_hole(v, code_pos) == NULL) {
             /* surviving values need to be spilled */
-            MVMint32 spill_pos = select_memory_for_spill(tc, alc, list, code_pos, sizeof(MVMRegister));
+            MVMint32 spill_pos = MVM_jit_spill_memory_select(tc, alc->compiler, v->reg_type);
             /* spilling at the CALL idx will mean that the spiller inserts a
              * LOAD at the current register before the ARGLIST, meaning it
              * remains 'live' for this ARGLIST */
             _DEBUG("Spilling %d to %d at %d", alc->active[i], spill_pos, code_pos);
             live_range_spill(tc, alc, list, alc->active[i], spill_pos, code_pos);
-
         } else {
             /* compact the active set */
             alc->active[j++] = alc->active[i];
@@ -1125,7 +1117,7 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
             while ((reg = get_register(tc, alc, MVM_JIT_STORAGE_GPR)) < 0) {
                 /* choose a live range, a register to spill, and a spill location */
                 MVMint32 to_spill   = select_live_range_for_spill(tc, alc, list, tile_order_nr);
-                MVMint32 spill_pos  = select_memory_for_spill(tc, alc, list, tile_order_nr, sizeof(MVMRegister));
+                MVMint32 spill_pos  = MVM_jit_spill_memory_select(tc, alc->compiler, alc->values[to_spill].reg_type);
                 active_set_splice(tc, alc, to_spill);
                 live_range_spill(tc, alc, list, to_spill, spill_pos, tile_order_nr);
             }
@@ -1140,7 +1132,8 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
     }
 
     /* flush active live ranges */
-    active_set_expire(tc, alc, list->items_num + 1);
+    active_set_expire(tc, alc, order_nr(list->items_num) + 1);
+    spill_set_release(tc, alc, order_nr(list->items_num) + 1);
     _DEBUG("END OF LINEAR SCAN%s","\n");
 }
 
