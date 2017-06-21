@@ -40,19 +40,16 @@ typedef struct {
 
     /* Did read already report EOF? */
     int eof_reported;
-} MVMIOFileData;
 
-/* Closes the file. */
-static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
-    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    if (data->fd != -1) {
-        int r = close(data->fd);
-        data->fd = -1;
-        if (r == -1)
-            MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", strerror(errno));
-    }
-    return 0;
-}
+    /* Output buffer, for buffered output. */
+    char *output_buffer;
+
+    /* Size of the output buffer, for buffered output; 0 if not buffering. */
+    size_t output_buffer_size;
+
+    /* How much of the output buffer has been used so far. */
+    size_t output_buffer_used;
+} MVMIOFileData;
 
 /* Checks if the file is a TTY. */
 static MVMint64 is_tty(MVMThreadContext *tc, MVMOSHandle *h) {
@@ -142,9 +139,9 @@ static MVMint64 mvm_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     }
 }
 
-/* Writes the specified bytes to the file handle. */
-static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes) {
-    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+/* Performs a write, either because a buffer filled or because we are not
+ * buffering output. */
+static void perform_write(MVMThreadContext *tc, MVMIOFileData *data, char *buf, MVMint64 bytes) {
     MVMint64 bytes_written = 0;
     MVM_gc_mark_thread_blocked(tc);
     while (bytes > 0) {
@@ -161,12 +158,60 @@ static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
     }
     MVM_gc_mark_thread_unblocked(tc);
     data->byte_position += bytes_written;
-    return bytes_written;
+}
+
+/* Flushes any existing output buffer and clears use back to 0. */
+static void flush_output_buffer(MVMThreadContext *tc, MVMIOFileData *data) {
+    if (data->output_buffer_used) {
+        perform_write(tc, data, data->output_buffer, data->output_buffer_used);
+        data->output_buffer_used = 0;
+    }
+}
+
+/* Sets the output buffer size; if <= 0, means no buffering. Flushes any
+ * existing buffer before changing. */
+static void set_buffer_size(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 size) {
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+
+    /* Flush and clear up any existing output buffer. */
+    flush_output_buffer(tc, data);
+    MVM_free(data->output_buffer);
+
+    /* Set up new buffer if needed. */
+    if (size > 0) {
+        data->output_buffer_size = size;
+        data->output_buffer = MVM_malloc(size);
+    }
+    else {
+        data->output_buffer_size = 0;
+        data->output_buffer = NULL;
+    }
+}
+
+/* Writes the specified bytes to the file handle. */
+static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes) {
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    if (data->output_buffer_size) {
+        /* If we can't fit it on the end of the buffer, flush the buffer. */
+        if (data->output_buffer_used + bytes > data->output_buffer_size)
+            flush_output_buffer(tc, data);
+
+        /* If we can fit it in the buffer now, memcpy it there, and we're
+         * done. */
+        if (bytes < data->output_buffer_size) {
+            memcpy(data->output_buffer + data->output_buffer_used, buf, bytes);
+            data->output_buffer_used += bytes;
+            return bytes;
+        }
+    }
+    perform_write(tc, data, buf, bytes);
+    return bytes;
 }
 
 /* Flushes the file handle. */
 static void flush(MVMThreadContext *tc, MVMOSHandle *h){
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    flush_output_buffer(tc, data);
     if (MVM_platform_fsync(data->fd) == -1) {
         /* If this is something that can't be flushed, we let that pass. */
         if (errno != EROFS && errno != EINVAL)
@@ -180,6 +225,21 @@ static void truncatefh(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
     if (ftruncate(data->fd, bytes) == -1)
         MVM_exception_throw_adhoc(tc, "Failed to truncate filehandle: %s", strerror(errno));
 }
+
+/* Closes the file. */
+static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    if (data->fd != -1) {
+        int r;
+        flush_output_buffer(tc, data);
+        r = close(data->fd);
+        data->fd = -1;
+        if (r == -1)
+            MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", strerror(errno));
+    }
+    return 0;
+}
+
 
 /* Operations aiding process spawning and I/O handling. */
 static void bind_stdio_handle(MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio) {
@@ -314,7 +374,7 @@ static const MVMIOOps op_table = {
     &pipeable,
     &lockable,
     &introspection,
-    NULL,
+    &set_buffer_size,
     NULL,
     gc_free
 };
