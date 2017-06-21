@@ -236,7 +236,7 @@ static const void * const LABELS[] = {
     &&OP_rindexfrom,
     &&OP_escape,
     &&OP_flip,
-    &&OP_setbuffersizefh,
+    &&OP_setbuffersize_fh,
     &&OP_iscclass,
     &&OP_findcclass,
     &&OP_findnotcclass,

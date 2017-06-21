@@ -1655,7 +1655,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
-            OP(setbuffersizefh):
+            OP(setbuffersize_fh):
                 MVM_io_set_buffer_size(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
                 cur_op += 4;
                 goto NEXT;

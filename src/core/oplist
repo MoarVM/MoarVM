@@ -273,7 +273,7 @@ ordat               w(int64) r(str) r(int64) :pure
 rindexfrom          w(int64) r(str) r(str) r(int64) :pure
 escape              w(str) r(str) :pure
 flip                w(str) r(str) :pure
-setbuffersizefh     r(obj) r(int64)
+setbuffersize_fh    r(obj) r(int64)
 iscclass            w(int64) r(int64) r(str) r(int64) :pure
 findcclass          w(int64) r(int64) r(str) r(int64) r(int64) :pure
 findnotcclass       w(int64) r(int64) r(str) r(int64) r(int64) :pure

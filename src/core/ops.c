@@ -2585,8 +2585,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP_setbuffersizefh,
-        "setbuffersizefh",
+        MVM_OP_setbuffersize_fh,
+        "setbuffersize_fh",
         "  ",
         2,
         0,
