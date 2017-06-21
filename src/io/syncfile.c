@@ -232,6 +232,8 @@ static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     if (data->fd != -1) {
         int r;
         flush_output_buffer(tc, data);
+        MVM_free(data->output_buffer);
+        data->output_buffer = NULL;
         r = close(data->fd);
         data->fd = -1;
         if (r == -1)
@@ -349,8 +351,10 @@ static void unlock(MVMThreadContext *tc, MVMOSHandle *h) {
 /* Frees data associated with the handle. */
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIOFileData *data = (MVMIOFileData *)d;
-    if (data)
+    if (data) {
+        MVM_free(data->output_buffer);
         MVM_free(data);
+    }
 }
 
 /* IO ops table, populated with functions. */
