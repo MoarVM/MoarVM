@@ -4996,7 +4996,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(decodersetlineseps): {
                 MVMObject *decoder = GET_REG(cur_op, 0).o;
-                MVM_decoder_ensure_decoder(tc, decoder, "decoderaddbytes");
+                MVM_decoder_ensure_decoder(tc, decoder, "decodersetlineseps");
                 MVM_decoder_set_separators(tc, (MVMDecoder *)decoder, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
