@@ -26,21 +26,98 @@ MVMint32 MVM_unicode_collation_secondary (MVMThreadContext *tc, MVMint32 codepoi
 MVMint32 MVM_unicode_collation_tertiary (MVMThreadContext *tc, MVMint32 codepoint) {
      return MVM_unicode_codepoint_get_property_int(tc, codepoint, MVM_UNICODE_PROPERTY_MVM_COLLATION_TERTIARY);
 }
+
+MVMint32 MVM_unicode_collation_quickcheck (MVMThreadContext *tc, MVMint32 codepoint) {
+    return MVM_unicode_codepoint_get_property_int(tc, codepoint, MVM_UNICODE_PROPERTY_MVM_COLLATION_QC);
+}
+
 /* coll_val is where the collation value will be placed. In the case the
  * collation order is reversed for that level, it will be placed in coll_val_rev */
 #define collation_adjust(tc, coll_val, coll_val_rev, collation_mode, cp) {\
     if (collation_mode & 1)\
-        coll_val[0]     += MVM_unicode_collation_primary(tc, cp);\
+        coll_val.s.primary       += MVM_unicode_collation_primary(tc, cp);\
     if (collation_mode & 2)\
-        coll_val_rev[0] += MVM_unicode_collation_primary(tc, cp);\
+        coll_val_rev.s.primary   += MVM_unicode_collation_primary(tc, cp);\
     if (collation_mode & 4)\
-        coll_val[1]     += MVM_unicode_collation_secondary(tc, cp);\
+        coll_val.s.secondary     += MVM_unicode_collation_secondary(tc, cp);\
     if (collation_mode & 8)\
-        coll_val_rev[1] += MVM_unicode_collation_secondary(tc, cp);\
+        coll_val_rev.s.secondary += MVM_unicode_collation_secondary(tc, cp);\
     if (collation_mode & 16)\
-        coll_val[2]     += MVM_unicode_collation_tertiary(tc, cp);\
+        coll_val.s.tetriary      += MVM_unicode_collation_tertiary(tc, cp);\
     if (collation_mode & 32)\
-        coll_val_rev[2] += MVM_unicode_collation_tertiary(tc, cp);\
+        coll_val_rev.s.tetriary  += MVM_unicode_collation_tertiary(tc, cp);\
+}
+struct collation_key_s {
+    MVMuint32 primary, secondary, tetriary;
+};
+union collation_key_u {
+    struct collation_key_s s;
+    MVMuint32              a[3];
+};
+typedef union collation_key_u collation_key;
+struct collation_stack {
+    collation_key keys[100];
+    int stack_top;
+};
+typedef struct collation_stack collation_stack;
+int init_stack (MVMThreadContext *tc, collation_stack *stack) {
+    stack->stack_top = -1;
+    return 1;
+}
+int stack_is_empty (MVMThreadContext *tc, collation_stack *stack) {
+    return -1 == stack->stack_top;
+}
+#define collation_zero 1
+
+#define set_key(key, a, b, c) {\
+    key.s.primary = a;\
+    key.s.secondary = b;\
+    key.s.tetriary = c;\
+}
+int print_stack (MVMThreadContext *tc, collation_stack *stack) {
+    int i = 0;
+    fprintf(stderr, "STACK elems: %i\n", stack->stack_top + 1);
+    for (i = 0; i < stack->stack_top + 1; i++) {
+        fprintf(stderr, "i: %i [%.4X.%.4X.%.4X]\n", i, stack->keys[i].s.primary, stack->keys[i].s.secondary, stack->keys[i].s.tetriary);
+    }
+    return 0;
+}
+//int coll_push (MVMThreadContext, *tc, *coll_key,
+int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMuint32 cp) {
+    int i = stack->stack_top;
+    fprintf(stderr, "push orig stack_top %i\n", i);
+    // specialcase æ
+    if (cp == 230) {
+        i++;
+        //[.1C47.0020.0004][.0000.0110.0004][.1CAA.0020.0004]
+        set_key(stack->keys[i],
+            0x1C47 + 1,
+            0x0020 + 1,
+            0x0004 + 1
+        );
+        i++;
+        set_key(stack->keys[i],
+            0x0000 + 1,
+            0x0110 + 1,
+            0x0004 + 1
+        );
+        i++;
+        set_key(stack->keys[i],
+            0x1CAA + 1,
+            0x0020 + 1,
+            0x0004 + 1
+        );
+    }
+    else {
+        i++;
+        set_key(stack->keys[i],
+            MVM_unicode_collation_primary(tc, cp),
+            MVM_unicode_collation_secondary(tc, cp),
+            MVM_unicode_collation_tertiary(tc, cp)
+        );
+    }
+    stack->stack_top = i;
+    return 0;
 }
 /* MVM_unicode_string_compare supports synthetic graphemes but in case we have
  * a codepoint without any collation value, we do not yet decompose it and
@@ -54,8 +131,12 @@ MVMint64 MVM_unicode_string_compare
     MVMGraphemeIter *s_has_more_gi;
     MVMGrapheme32 ai, bi;
     /* Collation order numbers */
-    MVMuint32 ai_coll_val[3] = {0,0,0};
-    MVMuint32 bi_coll_val[3] = {0,0,0};
+    collation_key ai_coll_val = {0,0,0};
+    collation_key bi_coll_val = {0,0,0};
+    collation_stack stack_a, stack_b;
+    init_stack(tc, &stack_a);
+    init_stack(tc, &stack_b);
+    fprintf(stderr, "is_empty? %d\n", stack_is_empty(tc, &stack_a));
     MVM_string_check_arg(tc, a, "compare");
     MVM_string_check_arg(tc, b, "compare");
     /* Simple cases when one or both are zero length. */
@@ -71,13 +152,13 @@ MVMint64 MVM_unicode_string_compare
     /* Initialize a grapheme iterator */
     MVM_string_gi_init(tc, &a_gi, a);
     MVM_string_gi_init(tc, &b_gi, b);
-
     /* Otherwise, need to iterate by grapheme */
     while (MVM_string_gi_has_more(tc, s_has_more_gi)) {
         ai = MVM_string_gi_get_grapheme(tc, &a_gi);
         bi = MVM_string_gi_get_grapheme(tc, &b_gi);
+        //if ( MVM_unicode_collation_quickcheck(ai) && MVM_unicode_collation_quickcheck(bi) )
         /* Only need to do this if they're not the same grapheme */
-        if (ai != bi) {
+        if (1 || ai != bi) {
             int rtrn, i = 0;
             /* If it's less than zero we have a synthetic codepoint */
             if (ai < 0) {
@@ -94,10 +175,12 @@ MVMint64 MVM_unicode_string_compare
 
                 /* result_a is the base character of the grapheme. */
                 result_a = synth_a->base;
+                collation_push_cp(tc, &stack_a, result_a);
                 collation_adjust(tc, ai_coll_val, bi_coll_val, collation_mode, result_a);
                 while (a_ci.synth_codes) {
                     /* Take the current combiner as the result_a. */
                     result_a = a_ci.synth_codes[a_ci.visited_synth_codes];
+                    collation_push_cp(tc, &stack_a, result_a);
                     collation_adjust(tc, ai_coll_val, bi_coll_val, collation_mode, result_a);
 
                     a_ci.visited_synth_codes++;
@@ -106,6 +189,7 @@ MVMint64 MVM_unicode_string_compare
                 }
             }
             else {
+                collation_push_cp(tc, &stack_a, ai);
                 collation_adjust(tc, ai_coll_val, bi_coll_val, collation_mode, ai);
             }
 
@@ -123,11 +207,13 @@ MVMint64 MVM_unicode_string_compare
 
                 /* result_b is the base character of the grapheme. */
                 result_b = synth_b->base;
+                collation_push_cp(tc, &stack_b, result_b);
                 collation_adjust(tc, bi_coll_val, ai_coll_val, collation_mode, result_b);
 
                 while (b_ci.synth_codes) {
                     /* Take the current combiner as the result_b. */
                     result_b = b_ci.synth_codes[b_ci.visited_synth_codes];
+                    collation_push_cp(tc, &stack_b, result_b);
                     collation_adjust(tc, bi_coll_val, ai_coll_val, collation_mode, result_b);
                     b_ci.visited_synth_codes++;
                     if (b_ci.visited_synth_codes == b_ci.total_synth_codes)
@@ -135,26 +221,28 @@ MVMint64 MVM_unicode_string_compare
                 }
             }
             else {
+                collation_push_cp(tc, &stack_b, bi);
                 collation_adjust(tc, bi_coll_val, ai_coll_val, collation_mode, bi);
             }
+
             /* Note if we are here we *already* know the codepoints are not equal */
-            for (i = 0; i < 3; i++) {
+            //for (i = 0; i < 3; i++) {
                 /* If collation values are not equal */
-                if (ai_coll_val[i] != bi_coll_val[i])
-                    rtrn = ai_coll_val[i] < bi_coll_val[i] ? -1 :
-                           ai_coll_val[i] > bi_coll_val[i] ?  1 :
+            /*    if (ai_coll_val.a[i] != bi_coll_val.a[i])
+                    rtrn = ai_coll_val.a[i] < bi_coll_val.a[i] ? -1 :
+                           ai_coll_val.a[i] > bi_coll_val.a[i] ?  1 :
                                                               0 ;
                     if (rtrn != 0)
                         return rtrn;
-            }
+            }*/
             /* If we don't have quaternary collation level set (we throw away codepoint info)
              * we know from the previous check that the collation values are equal */
-            if ( !( collation_mode & (128 + 64) ) )
-                continue;
+            /*if ( !( collation_mode & (128 + 64) ) )
+                continue;*/
 
             /* If we get here, then collation values were equal and we have
              * quaternary level enabled, so return by codepoint */
-            if (collation_mode & 64) {
+            /*if (collation_mode & 64) {
                 return  ai < bi ? -1 :
                         ai > bi ?  1 :
                                    0 ;
@@ -163,7 +251,7 @@ MVMint64 MVM_unicode_string_compare
                 return  ai < bi ?  1 :
                         ai > bi ? -1 :
                                    0 ;
-            }
+            }*/
         }
     }
 
