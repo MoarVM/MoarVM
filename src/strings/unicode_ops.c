@@ -48,11 +48,11 @@ MVMint32 MVM_unicode_collation_quickcheck (MVMThreadContext *tc, MVMint32 codepo
         coll_val_rev.s.tetriary  += MVM_unicode_collation_tertiary(tc, cp);\
 }
 struct collation_key_s {
-    MVMuint32 primary, secondary, tetriary;
+    MVMuint32 primary, secondary, tetriary, index;
 };
 union collation_key_u {
     struct collation_key_s s;
-    MVMuint32              a[3];
+    MVMuint32              a[4];
 };
 typedef union collation_key_u collation_key;
 struct collation_stack {
@@ -82,9 +82,11 @@ int print_stack (MVMThreadContext *tc, collation_stack *stack) {
     }
     return 0;
 }
+/* Returns the number of added collation keys */
 //int coll_push (MVMThreadContext, *tc, *coll_key,
-int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMuint32 cp) {
+int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMuint32 cp, MVMuint32 index) {
     int i = stack->stack_top;
+    int rtrn = 0;
     fprintf(stderr, "push orig stack_top %i\n", i);
     // specialcase æ
     if (cp == 230) {
@@ -96,17 +98,41 @@ int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMuint32 c
             0x0004 + 1
         );
         i++;
+        /*
         set_key(stack->keys[i],
             0x0000 + 1,
             0x0110 + 1,
             0x0004 + 1
         );
-        i++;
+        i++;*/
         set_key(stack->keys[i],
             0x1CAA + 1,
             0x0020 + 1,
             0x0004 + 1
         );
+        rtrn = 2;
+    }
+    else if (cp == 198) {
+        //[.1C47.0020.000A][.0000.0110.0004][.1CAA.0020.000A]
+        set_key(stack->keys[i],
+            0x1C47 + 1,
+            0x0020 + 1,
+            0x000A + 1
+        );
+        i++;
+        /*
+        set_key(stack->keys[i],
+            0x0000 + 1,
+            0x0110 + 1,
+            0x0004 + 1
+        );
+        i++;*/
+        set_key(stack->keys[i],
+            0x1CAA + 1,
+            0x0020 + 1,
+            0x000A + 1
+        );
+        rtrn = 2;
     }
     else {
         i++;
@@ -115,9 +141,42 @@ int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMuint32 c
             MVM_unicode_collation_secondary(tc, cp),
             MVM_unicode_collation_tertiary(tc, cp)
         );
+        rtrn = 1;
     }
     stack->stack_top = i;
-    return 0;
+    return rtrn;
+}
+int process_grapheme_to_stack (MVMThreadContext *tc, MVMGrapheme32 g, collation_stack *stack, MVMuint32 index) {
+    int rtrn = 0;
+    if (g < 0) {
+        MVMCodepointIter ci;
+        MVMGrapheme32 result;
+        /* It's a synthetic. Look it up. */
+        MVMNFGSynthetic *synth_a = MVM_nfg_get_synthetic_info(tc, g);
+
+        /* Set up the iterator so in the next iteration we will start to
+        * hand back combiners. */
+        ci.synth_codes         = synth_a->combs;
+        ci.visited_synth_codes = 0;
+        ci.total_synth_codes   = synth_a->num_combs;
+
+        /* result is the base character of the grapheme. */
+        result = synth_a->base;
+        rtrn += collation_push_cp(tc, stack, result, index);
+        while (ci.synth_codes) {
+            /* Take the current combiner as the result. */
+            result = ci.synth_codes[ci.visited_synth_codes];
+            rtrn += collation_push_cp(tc, stack, result, index);
+
+            ci.visited_synth_codes++;
+            if (ci.visited_synth_codes == ci.total_synth_codes)
+                ci.synth_codes = NULL;
+        }
+    }
+    else {
+        rtrn += collation_push_cp(tc, stack, g, index);
+    }
+    return rtrn;
 }
 /* MVM_unicode_string_compare supports synthetic graphemes but in case we have
  * a codepoint without any collation value, we do not yet decompose it and
@@ -130,6 +189,9 @@ MVMint64 MVM_unicode_string_compare
     MVMGraphemeIter a_gi, b_gi;
     MVMGraphemeIter *s_has_more_gi;
     MVMGrapheme32 ai, bi;
+    int grapheme_index = 0;
+    int a_keys_pushed = 0;
+    int b_keys_pushed = 0;
     /* Collation order numbers */
     collation_key ai_coll_val = {0,0,0};
     collation_key bi_coll_val = {0,0,0};
@@ -153,6 +215,55 @@ MVMint64 MVM_unicode_string_compare
     MVM_string_gi_init(tc, &a_gi, a);
     MVM_string_gi_init(tc, &b_gi, b);
     /* Otherwise, need to iterate by grapheme */
+    grapheme_index = 0;
+    a_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, &a_gi), &stack_a, grapheme_index++);
+    b_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, &b_gi), &stack_b, grapheme_index++);
+    while (a_keys_pushed != b_keys_pushed) {
+        if (a_keys_pushed < b_keys_pushed) {
+            if (!MVM_string_gi_has_more(tc, &a_gi))
+                break;
+            a_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, &a_gi), &stack_a, grapheme_index++);
+        }
+        else if (b_keys_pushed < a_keys_pushed) {
+            if (!MVM_string_gi_has_more(tc, &b_gi))
+                break;
+            b_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, &b_gi), &stack_b, grapheme_index++);
+        }
+    }
+    int pos_a = 0, pos_b = 0, i = 0, rtrn = 0;
+    print_stack(tc, &stack_a);
+    print_stack(tc, &stack_b);
+    for (i = 0; i < 3; i++) {
+        pos_a = 0;
+        pos_b = 0;
+    while (pos_a <= stack_a.stack_top && pos_b <= stack_b.stack_top) {
+        if (stack_a.keys[pos_a].s.primary == 1) {
+            fprintf(stderr, "skipping stack_a index %i since it's value 1\n", pos_a);
+            pos_a++;
+        }
+        if (stack_b.keys[pos_b].s.primary == 1) {
+            fprintf(stderr, "skipping stack_b index %i since it's value 1\n", pos_b);
+            pos_b++;
+        }
+        fprintf(stderr, "stack_a index %i is value %X\n", pos_a, stack_a.keys[pos_a].s.primary);
+        fprintf(stderr, "stack_b index %i is value %X\n", pos_b, stack_b.keys[pos_b].s.primary);
+
+        //for (i = 0; i < 3; i++) {
+            fprintf(stderr, "checking level %i at pos_a %i pos_b %i\n", i, pos_a, pos_b);
+            /* If collation values are not equal */
+            if (stack_a.keys[pos_a].a[i] != stack_b.keys[pos_b].a[i])
+                rtrn = stack_a.keys[pos_a].a[i] < stack_b.keys[pos_b].a[i] ? -1 :
+                       stack_a.keys[pos_a].a[i] > stack_b.keys[pos_b].a[i] ?  1 :
+                                                                              0 ;
+                if (rtrn != 0)
+                    return rtrn;
+        //}
+        pos_a++;
+        pos_b++;
+
+    }
+    }
+    return 0;
     while (MVM_string_gi_has_more(tc, s_has_more_gi)) {
         ai = MVM_string_gi_get_grapheme(tc, &a_gi);
         bi = MVM_string_gi_get_grapheme(tc, &b_gi);
@@ -175,12 +286,10 @@ MVMint64 MVM_unicode_string_compare
 
                 /* result_a is the base character of the grapheme. */
                 result_a = synth_a->base;
-                collation_push_cp(tc, &stack_a, result_a);
                 collation_adjust(tc, ai_coll_val, bi_coll_val, collation_mode, result_a);
                 while (a_ci.synth_codes) {
                     /* Take the current combiner as the result_a. */
                     result_a = a_ci.synth_codes[a_ci.visited_synth_codes];
-                    collation_push_cp(tc, &stack_a, result_a);
                     collation_adjust(tc, ai_coll_val, bi_coll_val, collation_mode, result_a);
 
                     a_ci.visited_synth_codes++;
@@ -189,7 +298,6 @@ MVMint64 MVM_unicode_string_compare
                 }
             }
             else {
-                collation_push_cp(tc, &stack_a, ai);
                 collation_adjust(tc, ai_coll_val, bi_coll_val, collation_mode, ai);
             }
 
@@ -207,13 +315,11 @@ MVMint64 MVM_unicode_string_compare
 
                 /* result_b is the base character of the grapheme. */
                 result_b = synth_b->base;
-                collation_push_cp(tc, &stack_b, result_b);
                 collation_adjust(tc, bi_coll_val, ai_coll_val, collation_mode, result_b);
 
                 while (b_ci.synth_codes) {
                     /* Take the current combiner as the result_b. */
                     result_b = b_ci.synth_codes[b_ci.visited_synth_codes];
-                    collation_push_cp(tc, &stack_b, result_b);
                     collation_adjust(tc, bi_coll_val, ai_coll_val, collation_mode, result_b);
                     b_ci.visited_synth_codes++;
                     if (b_ci.visited_synth_codes == b_ci.total_synth_codes)
@@ -221,7 +327,6 @@ MVMint64 MVM_unicode_string_compare
                 }
             }
             else {
-                collation_push_cp(tc, &stack_b, bi);
                 collation_adjust(tc, bi_coll_val, ai_coll_val, collation_mode, bi);
             }
 
