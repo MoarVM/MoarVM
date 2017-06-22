@@ -178,6 +178,53 @@ int process_grapheme_to_stack (MVMThreadContext *tc, MVMGrapheme32 g, collation_
     }
     return rtrn;
 }
+int grab_from_stack(
+    MVMThreadContext *tc,
+    int *a_keys_pushed,
+    int *b_keys_pushed,
+    MVMGraphemeIter *a_gi,
+    MVMGraphemeIter *b_gi,
+    collation_stack *stack_a,
+    collation_stack *stack_b) {
+#define onexit_stack fprintf(stderr, "Grabbing from the stack. a_pushed %i b_pushed %i\n", *a_keys_pushed, *b_keys_pushed)
+
+    fprintf(stderr, "Grabbing from the stack. a_pushed %i b_pushed %i\n", *a_keys_pushed, *b_keys_pushed);
+    int grapheme_index = 0;
+    int run_times = 0;
+    while (run_times == 0 || *a_keys_pushed != *b_keys_pushed) {
+        int a_started = *a_keys_pushed, b_started = *b_keys_pushed;
+        if (*a_keys_pushed == *b_keys_pushed) {
+            if (!MVM_string_gi_has_more(tc, a_gi)||!MVM_string_gi_has_more(tc, b_gi)) {
+                onexit_stack;
+                return 0;
+            }
+            *a_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, a_gi), stack_a, grapheme_index++);
+            *b_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, b_gi), stack_b, grapheme_index++);
+        }
+        else if (*a_keys_pushed < *b_keys_pushed) {
+            if (!MVM_string_gi_has_more(tc, a_gi)) {
+                onexit_stack;
+                return 0;
+            }
+            *a_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, a_gi), stack_a, grapheme_index++);
+        }
+        else if (*b_keys_pushed < *a_keys_pushed) {
+            if (!MVM_string_gi_has_more(tc, b_gi)) {
+                onexit_stack;
+                return 0;
+            }
+            *b_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, b_gi), stack_b, grapheme_index++);
+        }
+        if (*a_keys_pushed == a_started && *b_keys_pushed == b_started) {
+            break;
+        }
+        fprintf(stderr, "Finished one run succesfully\n");
+        run_times++;
+
+    }
+    onexit_stack;
+    return 1;
+}
 /* MVM_unicode_string_compare supports synthetic graphemes but in case we have
  * a codepoint without any collation value, we do not yet decompose it and
  * then use the decomposed codepoint's weights. */
@@ -216,53 +263,49 @@ MVMint64 MVM_unicode_string_compare
     MVM_string_gi_init(tc, &b_gi, b);
     /* Otherwise, need to iterate by grapheme */
     grapheme_index = 0;
-    a_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, &a_gi), &stack_a, grapheme_index++);
-    b_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, &b_gi), &stack_b, grapheme_index++);
-    while (a_keys_pushed != b_keys_pushed) {
-        if (a_keys_pushed < b_keys_pushed) {
-            if (!MVM_string_gi_has_more(tc, &a_gi))
-                break;
-            a_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, &a_gi), &stack_a, grapheme_index++);
-        }
-        else if (b_keys_pushed < a_keys_pushed) {
-            if (!MVM_string_gi_has_more(tc, &b_gi))
-                break;
-            b_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, &b_gi), &stack_b, grapheme_index++);
-        }
-    }
-    int pos_a = 0, pos_b = 0, i = 0, rtrn = 0;
-    print_stack(tc, &stack_a);
-    print_stack(tc, &stack_b);
-    for (i = 0; i < 3; i++) {
-        pos_a = 0;
-        pos_b = 0;
-    while (pos_a <= stack_a.stack_top && pos_b <= stack_b.stack_top) {
-        if (stack_a.keys[pos_a].s.primary == 1) {
-            fprintf(stderr, "skipping stack_a index %i since it's value 1\n", pos_a);
-            pos_a++;
-        }
-        if (stack_b.keys[pos_b].s.primary == 1) {
-            fprintf(stderr, "skipping stack_b index %i since it's value 1\n", pos_b);
-            pos_b++;
-        }
-        fprintf(stderr, "stack_a index %i is value %X\n", pos_a, stack_a.keys[pos_a].s.primary);
-        fprintf(stderr, "stack_b index %i is value %X\n", pos_b, stack_b.keys[pos_b].s.primary);
+    //a_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, &a_gi), &stack_a, grapheme_index++);
+    //b_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, &b_gi), &stack_b, grapheme_index++);
+    grab_from_stack(tc, &a_keys_pushed, &b_keys_pushed, &a_gi, &b_gi, &stack_a, &stack_b);
+    int pos_a = 0, pos_b = 0, i = 0, rtrn = 0, save_pos_a = 0, save_pos_b = 0;
+    while (rtrn == 0) {
+        print_stack(tc, &stack_a);
+        print_stack(tc, &stack_b);
+        for (i = 0; i < 3; i++) {
+            pos_a = 0;
+            pos_b = 0;
+            while (pos_a <= stack_a.stack_top && pos_b <= stack_b.stack_top) {
+                if (stack_a.keys[pos_a].s.primary == 1) {
+                    fprintf(stderr, "skipping stack_a index %i since it's value 1\n", pos_a);
+                    pos_a++;
+                }
+                if (stack_b.keys[pos_b].s.primary == 1) {
+                    fprintf(stderr, "skipping stack_b index %i since it's value 1\n", pos_b);
+                    pos_b++;
+                }
+                fprintf(stderr, "stack_a index %i is value %X\n", pos_a, stack_a.keys[pos_a].s.primary);
+                fprintf(stderr, "stack_b index %i is value %X\n", pos_b, stack_b.keys[pos_b].s.primary);
 
-        //for (i = 0; i < 3; i++) {
-            fprintf(stderr, "checking level %i at pos_a %i pos_b %i\n", i, pos_a, pos_b);
-            /* If collation values are not equal */
-            if (stack_a.keys[pos_a].a[i] != stack_b.keys[pos_b].a[i])
-                rtrn = stack_a.keys[pos_a].a[i] < stack_b.keys[pos_b].a[i] ? -1 :
-                       stack_a.keys[pos_a].a[i] > stack_b.keys[pos_b].a[i] ?  1 :
-                                                                              0 ;
+                fprintf(stderr, "checking level %i at pos_a %i pos_b %i\n", i, pos_a, pos_b);
+                /* If collation values are not equal */
+                if (stack_a.keys[pos_a].a[i] != stack_b.keys[pos_b].a[i])
+                    rtrn = stack_a.keys[pos_a].a[i] < stack_b.keys[pos_b].a[i] ? -1 :
+                           stack_a.keys[pos_a].a[i] > stack_b.keys[pos_b].a[i] ?  1 :
+                                                                                  0 ;
                 if (rtrn != 0)
                     return rtrn;
-        //}
-        pos_a++;
-        pos_b++;
+                pos_a++;
+                pos_b++;
 
+            }
+        }
+        //if (MVM_string_gi_has_more(tc, &a_gi) && MVM_string_gi_has_more(tc, &b_gi)) {
+        if (!grab_from_stack(tc, &a_keys_pushed, &b_keys_pushed, &a_gi, &b_gi, &stack_a, &stack_b)) {
+            fprintf(stderr, "Couldn't grab any more from strings\n");
+            break;
+            //break;
+        }
     }
-    }
+
     return 0;
     while (MVM_string_gi_has_more(tc, s_has_more_gi)) {
         ai = MVM_string_gi_get_grapheme(tc, &a_gi);
