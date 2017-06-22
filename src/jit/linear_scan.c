@@ -718,7 +718,7 @@ static void spill_set_release(MVMThreadContext *tc, RegisterAllocator *alc, MVMi
                                                values_cmp_last_ref);
         LiveRange *value = alc->values + spilled;
         _DEBUG("VM Register %d for live range %d can be released",
-               values->spill_pos / sizeof(MVMRegister), spilled);
+               value->spill_pos / sizeof(MVMRegister), spilled);
         MVM_jit_spill_memory_release(tc, alc->compiler, value->spill_pos, value->reg_type);
     }
 }

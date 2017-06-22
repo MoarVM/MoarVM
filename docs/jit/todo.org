@@ -70,10 +70,10 @@ Because we now have a jitcode-specific local types and num_locals
 size, we can dispense with calculating the work env size for the spesh
 cand, it's different between the spesh cand and the jitcode anyway.
 
-** TODO Use local types for jit code
+** DONE Use local types for jit code
 
-I thought there was such a think as 'effective_local_types', but if
-not,
+Needs update in src/core/frame.c to use the correct num_locals,
+and update in src/gcroots.c to use this local_types.
 
 * Generalized 3-op to two-op conversion
 

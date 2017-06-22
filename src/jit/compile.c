@@ -29,7 +29,7 @@ void MVM_jit_compiler_init(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitGraph
     dasm_growpc(cl, jg->num_labels);
 
     /* Spill offset and free list */
-    cl->spills_base = (jg->sg->num_locals + jg->sg->sf->body.cu->body.max_callsite_size) * sizeof(MVMRegister);
+    cl->spills_base = jg->sg->num_locals * sizeof(MVMRegister);
     memset(cl->spills_free, -1, sizeof(cl->spills_free));
     MVM_VECTOR_INIT(cl->spills, 4);
 
@@ -141,6 +141,9 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
         for (i = 0; i < cl->spills_num; i++) {
             code->local_types[sg_num_locals + i] = cl->spills[i].reg_type;
         }
+    } else {
+        code->local_types = NULL;
+        code->num_locals  = 0;
     }
 
     /* Get the basic block labels */
@@ -284,6 +287,7 @@ MVM_STATIC_INLINE MVMint32 reg_type_bucket(MVMint8 reg_type) {
 MVMint32 MVM_jit_spill_memory_select(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint8 reg_type) {
     MVMint32 idx;
     MVMint8 bucket = reg_type_bucket(reg_type);
+
     if (compiler->spills_free[bucket] >= 0) {
         idx = compiler->spills_free[bucket];
         compiler->spills_free[bucket] = compiler->spills[idx].next;

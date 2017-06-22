@@ -215,8 +215,9 @@ static MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
 static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                                  MVMSpeshCandidate *spesh_cand) {
     MVMFrame *frame;
-    MVMint32  env_size, work_size;
+    MVMint32  env_size, work_size, num_locals;
     MVMStaticFrameBody *static_frame_body;
+    MVMJitCode *jitcode;
 
     /* Allocate the frame. */
     MVMCallStackRegion *stack = tc->stack_current;
@@ -229,6 +230,10 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
     /* Allocate space for lexicals and work area. */
     static_frame_body = &(static_frame->body);
     env_size = spesh_cand ? spesh_cand->env_size : static_frame_body->env_size;
+
+    jitcode = spesh_cand ? spesh_cand->jitcode : NULL;
+    num_locals = jitcode && jitcode->local_types ? jitcode->num_locals :
+        (spesh_cand ? spesh_cand->num_locals : static_frame_body->num_locals);
     if (env_size) {
         frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, env_size);
         frame->allocd_env = env_size;
@@ -249,9 +254,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
         frame->allocd_work = work_size;
 
         /* Calculate args buffer position. */
-        frame->args = frame->work + (spesh_cand
-            ? spesh_cand->num_locals
-            : static_frame_body->num_locals);
+        frame->args = frame->work + num_locals;
     }
 
     /* Assign a sequence nr */

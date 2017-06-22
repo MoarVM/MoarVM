@@ -392,8 +392,14 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
     if (frame->work) {
         /* Scan locals. */
         if (frame->spesh_cand && frame->spesh_log_idx == -1 && frame->spesh_cand->local_types) {
-            type_map = frame->spesh_cand->local_types;
-            count    = frame->spesh_cand->num_locals;
+            MVMJitCode *jitcode = frame->spesh_cand->jitcode;
+            if (jitcode && jitcode->local_types) {
+                type_map = jitcode->local_types;
+                count    = jitcode->num_locals;
+            } else {
+                type_map = frame->spesh_cand->local_types;
+                count    = frame->spesh_cand->num_locals;
+            }
         }
         else {
             type_map = frame->static_info->body.local_types;
