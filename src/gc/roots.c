@@ -387,19 +387,17 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
     MVMuint16  i, count, flag;
     MVMuint16 *type_map;
     MVMuint8  *flag_map;
-
     /* We only need to do any of this work if the frame is in dynamic scope. */
     if (frame->work) {
         /* Scan locals. */
-        if (frame->spesh_cand && frame->spesh_log_idx == -1 && frame->spesh_cand->local_types) {
-            MVMJitCode *jitcode = frame->spesh_cand->jitcode;
-            if (jitcode && jitcode->local_types) {
-                type_map = jitcode->local_types;
-                count    = jitcode->num_locals;
-            } else {
-                type_map = frame->spesh_cand->local_types;
-                count    = frame->spesh_cand->num_locals;
-            }
+        MVMSpeshCandidate *spesh_cand = frame->spesh_cand;
+        MVMJitCode *jitcode = spesh_cand ? spesh_cand->jitcode : NULL;
+        if (jitcode && jitcode->local_types) {
+            type_map = jitcode->local_types;
+            count    = jitcode->num_locals;
+        } else if (spesh_cand && frame->spesh_log_idx == -1 && spesh_cand->local_types) {
+            type_map = frame->spesh_cand->local_types;
+            count    = frame->spesh_cand->num_locals;
         }
         else {
             type_map = frame->static_info->body.local_types;
