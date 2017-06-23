@@ -267,10 +267,10 @@ MVMint64 MVM_unicode_string_compare
     //b_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, &b_gi), &stack_b, grapheme_index++);
     grab_from_stack(tc, &a_keys_pushed, &b_keys_pushed, &a_gi, &b_gi, &stack_a, &stack_b);
     int pos_a = 0, pos_b = 0, i = 0, rtrn = 0, save_pos_a = 0, save_pos_b = 0;
-    while (rtrn == 0) {
+    for (i = 0; i < 3; i++) {
         print_stack(tc, &stack_a);
         print_stack(tc, &stack_b);
-        for (i = 0; i < 3; i++) {
+        while (rtrn == 0) {
             pos_a = 0;
             pos_b = 0;
             while (pos_a <= stack_a.stack_top && pos_b <= stack_b.stack_top) {
@@ -297,13 +297,13 @@ MVMint64 MVM_unicode_string_compare
                 pos_b++;
 
             }
+            if (!grab_from_stack(tc, &a_keys_pushed, &b_keys_pushed, &a_gi, &b_gi, &stack_a, &stack_b)) {
+                fprintf(stderr, "Couldn't grab any more from strings\n");
+                break;
+            }
         }
         //if (MVM_string_gi_has_more(tc, &a_gi) && MVM_string_gi_has_more(tc, &b_gi)) {
-        if (!grab_from_stack(tc, &a_keys_pushed, &b_keys_pushed, &a_gi, &b_gi, &stack_a, &stack_b)) {
-            fprintf(stderr, "Couldn't grab any more from strings\n");
-            break;
-            //break;
-        }
+
     }
 
     return 0;
