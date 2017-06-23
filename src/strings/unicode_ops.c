@@ -239,10 +239,49 @@ MVMint64 MVM_unicode_string_compare
     int grapheme_index = 0;
     int a_keys_pushed = 0;
     int b_keys_pushed = 0;
+    /* default of everything being off */
+    int level_eval_settings[3][3] = {
+        {0,0,0}, {0,0,0}, {0,0,0}
+    };
     /* Collation order numbers */
     collation_key ai_coll_val = {0,0,0};
     collation_key bi_coll_val = {0,0,0};
     collation_stack stack_a, stack_b;
+    if (collation_mode & 1) {
+        level_eval_settings[0][0] += -1;
+        level_eval_settings[0][1] +=  0;
+        level_eval_settings[0][2] +=  1;
+    }
+    if (collation_mode & 2) {
+        level_eval_settings[0][0] +=  1;
+        level_eval_settings[0][1] +=  0;
+        level_eval_settings[0][2] += -1;
+    }
+    if (collation_mode & 4) {
+        level_eval_settings[1][0] += -1;
+        level_eval_settings[1][1] +=  0;
+        level_eval_settings[1][2] +=  1;
+    }
+    if (collation_mode & 8) {
+        level_eval_settings[1][0] +=  1;
+        level_eval_settings[1][1] +=  0;
+        level_eval_settings[1][2] += -1;
+    }
+    if (collation_mode & 16) {
+        level_eval_settings[2][0] += -1;
+        level_eval_settings[2][1] +=  0;
+        level_eval_settings[2][2] +=  1;
+    }
+    if (collation_mode & 32) {
+        level_eval_settings[2][0] +=  1;
+        level_eval_settings[2][1] +=  0;
+        level_eval_settings[2][2] += -1;
+    }
+    fprintf(stderr, "Setting: %li\n", collation_mode);
+    fprintf(stderr, "Setting primary {%i,%i,%i}\n", level_eval_settings[0][0], level_eval_settings[0][1], level_eval_settings[0][2]);
+    fprintf(stderr, "Setting secondary {%i,%i,%i}\n", level_eval_settings[1][0], level_eval_settings[1][1], level_eval_settings[1][2]);
+    fprintf(stderr, "Setting tertiary {%i,%i,%i}\n", level_eval_settings[2][0], level_eval_settings[2][1], level_eval_settings[2][2]);
+
     init_stack(tc, &stack_a);
     init_stack(tc, &stack_b);
     fprintf(stderr, "is_empty? %d\n", stack_is_empty(tc, &stack_a));
@@ -288,9 +327,9 @@ MVMint64 MVM_unicode_string_compare
                 fprintf(stderr, "checking level %i at pos_a %i pos_b %i\n", i, pos_a, pos_b);
                 /* If collation values are not equal */
                 if (stack_a.keys[pos_a].a[i] != stack_b.keys[pos_b].a[i])
-                    rtrn = stack_a.keys[pos_a].a[i] < stack_b.keys[pos_b].a[i] ? -1 :
-                           stack_a.keys[pos_a].a[i] > stack_b.keys[pos_b].a[i] ?  1 :
-                                                                                  0 ;
+                    rtrn = stack_a.keys[pos_a].a[i] < stack_b.keys[pos_b].a[i] ? level_eval_settings[i][0] :
+                           stack_a.keys[pos_a].a[i] > stack_b.keys[pos_b].a[i] ?  level_eval_settings[i][2] :
+                                                                                  level_eval_settings[i][2] ;
                 if (rtrn != 0)
                     return rtrn;
                 pos_a++;
