@@ -134,6 +134,22 @@ void MVM_io_eventloop_queue_work(MVMThreadContext *tc, MVMObject *work) {
     });
 }
 
+/* Permits an asynchronous task to emit more events. This is used to provide a
+ * back-pressure mechanism. */
+void MVM_io_eventloop_permit(MVMThreadContext *tc, MVMObject *task_obj,
+                              MVMint64 channel, MVMint64 permits) {
+    if (REPR(task_obj)->ID == MVM_REPR_ID_MVMAsyncTask) {
+        MVMROOT(tc, task_obj, {
+            get_or_vivify_loop(tc);
+            uv_async_send(tc->instance->event_loop_wakeup);
+            MVM_exception_throw_adhoc(tc, "permit NYI");
+        });
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Can only permit an AsyncTask handle");
+    }
+}
+
 /* Cancels a piece of async work. */
 void MVM_io_eventloop_cancel_work(MVMThreadContext *tc, MVMObject *task_obj,
         MVMObject *notify_queue, MVMObject *notify_schedulee) {

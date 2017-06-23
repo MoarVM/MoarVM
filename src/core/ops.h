@@ -545,7 +545,7 @@
 #define MVM_OP_write_fhb 541
 #define MVM_OP_replace 542
 #define MVM_OP_newexception 543
-#define MVM_OP_DEPRECATED_0 544
+#define MVM_OP_permit 544
 #define MVM_OP_backtrace 545
 #define MVM_OP_symlink 546
 #define MVM_OP_link 547

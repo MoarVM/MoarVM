@@ -15,6 +15,8 @@ struct MVMAsyncTaskOps {
 };
 
 void MVM_io_eventloop_queue_work(MVMThreadContext *tc, MVMObject *work);
+void MVM_io_eventloop_permit(MVMThreadContext *tc, MVMObject *task_obj,
+    MVMint64 channel, MVMint64 permits);
 void MVM_io_eventloop_cancel_work(MVMThreadContext *tc, MVMObject *task_obj,
     MVMObject *notify_queue, MVMObject *notify_schedulee);
 void MVM_io_eventloop_send_cancellation_notification(MVMThreadContext *tc, MVMAsyncTask *task_obj);
