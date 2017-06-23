@@ -4,6 +4,10 @@ struct MVMAsyncTaskOps {
     /* How to set work up on the event loop. */
     void (*setup) (MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data);
 
+    /* How to grant emit permits, if possible. */
+    void (*permit) (MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data,
+            MVMint64 channel, MVMint64 permits);
+
     /* How to cancel, if possible. */
     void (*cancel) (MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data);
 

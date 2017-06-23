@@ -291,6 +291,7 @@ static void write_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
 static const MVMAsyncTaskOps write_op_table = {
     write_setup,
     NULL,
+    NULL,
     write_gc_mark,
     write_gc_free
 };
@@ -359,6 +360,7 @@ static const MVMAsyncTaskOps close_op_table = {
     close_perform,
     NULL,
     NULL,
+    NULL,
     NULL
 };
 
@@ -366,6 +368,7 @@ static void deferred_close_perform(MVMThreadContext *tc, uv_loop_t *loop, MVMObj
 
 static const MVMAsyncTaskOps deferred_close_op_table = {
     deferred_close_perform,
+    NULL,
     NULL,
     NULL,
     NULL
@@ -820,6 +823,7 @@ static void spawn_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
 /* Operations table for async connect task. */
 static const MVMAsyncTaskOps spawn_op_table = {
     spawn_setup,
+    NULL,
     spawn_cancel,
     spawn_gc_mark,
     spawn_gc_free

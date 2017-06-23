@@ -145,6 +145,7 @@ static void read_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
 static const MVMAsyncTaskOps read_op_table = {
     read_setup,
     NULL,
+    NULL,
     read_gc_mark,
     read_gc_free
 };
@@ -313,6 +314,7 @@ static void write_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
 static const MVMAsyncTaskOps write_op_table = {
     write_setup,
     NULL,
+    NULL,
     write_gc_mark,
     write_gc_free
 };
@@ -380,6 +382,7 @@ static void close_perform(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *asyn
 /* Operations table for async close task. */
 static const MVMAsyncTaskOps close_op_table = {
     close_perform,
+    NULL,
     NULL,
     NULL,
     NULL
@@ -493,6 +496,7 @@ static void setup_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
 /* Operations table for async connect task. */
 static const MVMAsyncTaskOps setup_op_table = {
     setup_setup,
+    NULL,
     NULL,
     NULL,
     setup_gc_free
