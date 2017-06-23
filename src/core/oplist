@@ -549,7 +549,7 @@ newthread           w(obj) r(obj) r(int64)
 threadjoin          r(obj)
 time_n              w(num64)
 exit                r(int64)
-shell               w(int64) r(str) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
+DEPRECATED_30       w(int64) r(str) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
 cwd                 w(str)
 clargs              w(obj)
 getenvhash          w(obj)
@@ -572,7 +572,7 @@ inf                 w(num64) :pure
 neginf              w(num64) :pure
 nan                 w(num64) :pure
 getpid              w(int64) :pure
-spawn               w(int64) r(obj) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
+DEPRECATED_29       w(int64) r(obj) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
 filereadable        w(int64) r(str)
 filewritable        w(int64) r(str)
 fileexecutable      w(int64) r(str)
@@ -657,7 +657,7 @@ objectid            w(int64) r(obj)
 settypefinalize     r(obj) r(int64)
 force_gc
 nativecallglobal    w(obj) r(str) r(str) r(obj) r(obj)
-close_fhi           w(int64) r(obj)
+DEPRECATED_32       w(int64) r(obj)
 setparameterizer    r(obj) r(obj)
 parameterizetype    w(obj) r(obj) r(obj)
 typeparameterized   w(obj) r(obj)
@@ -702,7 +702,7 @@ eqatim_s            w(int64) r(str) r(str) r(int64) :pure
 ordbaseat           w(int64) r(str) r(int64) :pure
 neverrepossess      r(obj)
 scdisclaim          r(obj)
-syncpipe            w(obj)
+DEPRECATED_31       w(obj)
 atpos2d_i           w(int64) r(obj) r(int64) r(int64) :pure
 atpos2d_n           w(num64) r(obj) r(int64) r(int64) :pure
 atpos2d_s           w(str) r(obj) r(int64) r(int64) :pure
