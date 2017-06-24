@@ -3,6 +3,8 @@ use strict;
 use warnings;
 use autodie qw(open close);
 use FindBin;
+use lib $FindBin::Bin;
+use timeout qw(run_timeout);
 
 use File::Spec;
 use File::Temp qw(tempdir);
@@ -12,11 +14,12 @@ use Getopt::Long;
 my %OPTIONS = (
     dir =>   '.',
     arch => 'x64',
+    timeout => undef
 );
 
 GetOptions(
     \%OPTIONS,
-    qw(frame=i@ block=i@ objdump=s dir=s arch=s)
+    qw(frame=i@ block=i@ objdump=s dir=s arch=s timeout=i)
 ) or die "Could not parse options";
 
 delete @ENV{qw(
@@ -25,24 +28,28 @@ delete @ENV{qw(
     MVM_JIT_EXPR_DISABLE
 )};
 
+
 die "--frame and --block required" unless $OPTIONS{frame} and $OPTIONS{block};
 my @command = @ARGV;
 die "Command required" unless @command;
 my @binary;
+
+my $timeout = delete $OPTIONS{timeout};
 push @{$OPTIONS{block}}, $OPTIONS{block}[0] - 1 if @{$OPTIONS{block}} == 1;
 
 for my $frame (@{$OPTIONS{frame}}) {
     $ENV{MVM_JIT_EXPR_LAST_FRAME}    = $frame;
     for my $block (@{$OPTIONS{block}}) {
-
-
         $ENV{MVM_JIT_EXPR_LAST_BB} = $block;
         my $log_directory = tempdir;
         $ENV{MVM_JIT_BYTECODE_DIR} = $log_directory;
         $ENV{MVM_JIT_LOG} = File::Spec->catfile($log_directory, 'jit-log.txt');
         printf("Logging to directory: %s (frame %d block %d)\n", $log_directory, $frame, $block);
 
-        my $result = system @command;
+        my $result = defined $timeout ?
+            run_timeout(\@command, $timeout) :
+            system @command;
+
         if ($result == -1) {
             local $" = " ";
             die "Could not start `@command`: $!";

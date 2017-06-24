@@ -4,10 +4,11 @@ use warnings;
 use Getopt::Long;
 use File::Spec;
 use FindBin;
-
+use lib $FindBin::Bin;
+use timeout qw(run_timeout);
 
 sub run_with {
-    my ($command, $env) = @_;
+    my ($command, $env, $timeout) = @_;
     my $status;
     {
         # simulate 'local' env vars, which doesn't really work with
@@ -17,7 +18,11 @@ sub run_with {
             $copy{$k} = $ENV{$v};
             $ENV{$k} = $v;
         }
-        $status = system @$command;
+        if (defined $timeout) {
+            $status = run_timeout $command, $timeout;
+        } else {
+            $status = system @$command;
+        }
         while (my ($k,$v) = each %copy) {
             if (defined $v) {
                 $ENV{$k} = $v;
@@ -79,7 +84,7 @@ sub noisily(&) {
 }
 
 sub bisect {
-    my ($varname, $program, $env) = @_;
+    my ($varname, $program, $env, $timeout) = @_;
 
     $env ||= {};
     printf STDERR ("Bisecting %s\n", $varname);
@@ -94,7 +99,7 @@ sub bisect {
     do {
         printf STDERR "%s=%d", $varname, $high;
         $status = quietly {
-            run_with($program, { %$env, $varname => $high });
+            run_with($program, { %$env, $varname => $high }, $timeout);
         };
         if ($status == 0) {
             print STDERR "\tOK\n";
@@ -108,7 +113,7 @@ sub bisect {
         $mid = int(($high + $low) / 2);
         printf STDERR "%s=%d", $varname, $mid;
         $status = quietly {
-            run_with($program, { %$env, $varname => $mid });
+            run_with($program, { %$env, $varname => $mid }, $timeout);
         };
         if ($status == 0) {
             $low = $mid;
@@ -124,9 +129,10 @@ sub bisect {
 
 my %OPTS = (
     verbose => 0,
-    dump => 1
+    dump => 1,
+    timeout => undef,
 );
-GetOptions(\%OPTS, qw(verbose dump!)) or die "Could not get options";
+GetOptions(\%OPTS, qw(verbose dump! timeout=i)) or die "Could not get options";
 
 my @command = @ARGV;
 die 'Command is required' unless @command;
@@ -135,6 +141,7 @@ if ($OPTS{verbose}) {
     no warnings 'redefine';
     *quietly = \&noisily;
 }
+my $timeout = delete $OPTS{timeout};
 
 # start with a clean slate
 delete @ENV{qw(
@@ -146,29 +153,28 @@ delete @ENV{qw(
 )};
 
 
-quietly { run_with(\@command, {}) } or do {
+quietly { run_with(\@command, {}, $timeout) } or do {
     die "This program is quite alright";
 };
-quietly { run_with(\@command, { MVM_JIT_EXPR_DISABLE => 1 }) } and do {
+quietly { run_with(\@command, { MVM_JIT_EXPR_DISABLE => 1 }, $timeout) } and do {
     die "This program cannot be bisected: $?";
 };
 printf STDERR "Checks OK, this program can be bisected\n";
 
-
-
-my $last_good_frame = bisect('MVM_JIT_EXPR_LAST_FRAME', \@command);
+my $last_good_frame = bisect('MVM_JIT_EXPR_LAST_FRAME', \@command, {}, $timeout);
 my $last_good_block = bisect('MVM_JIT_EXPR_LAST_BB', \@command, {
     MVM_JIT_EXPR_LAST_FRAME => $last_good_frame + 1
-});
+}, $timeout);
 printf STDERR ('Broken Frame/BB: %d / %d'."\n", $last_good_frame + 1, $last_good_block + 1);
 
 my $dump_script = File::Spec->catfile($FindBin::Bin, 'jit-dump.pl');
 my @dump_command = (
     $^X, $dump_script,
-    '--frame' => $last_good_frame + 1, '--block' => $last_good_block + 1,
+    '--frame' => $last_good_frame + 1,
+    '--block' => $last_good_block + 1,
+    ($timeout ? ('--timeout' => $timeout) : ()),
     '--', @command
 );
 run_with(\@dump_command, {}) if $OPTS{dump};
 
 __END__
-
