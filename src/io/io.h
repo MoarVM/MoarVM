@@ -10,7 +10,7 @@ struct MVMIOOps {
     const MVMIOAsyncWritableTo *async_writable_to;
     const MVMIOSeekable        *seekable;
     const MVMIOSockety         *sockety;
-    const MVMIOPipeable        *pipeable;
+    MVMObject * (*get_async_task_handle) (MVMThreadContext *tc, MVMOSHandle *h);
     const MVMIOLockable        *lockable;
     const MVMIOIntrospection   *introspection;
     void (*set_buffer_size) (MVMThreadContext *tc, MVMOSHandle *h, MVMint64 size);
@@ -85,11 +85,6 @@ struct MVMIOIntrospection {
     MVMint64 (*native_descriptor) (MVMThreadContext *tc, MVMOSHandle *h);
 };
 
-/* Operations aiding process spawning and I/O handling.  */
-struct MVMIOPipeable {
-    void (*bind_stdio_handle) (MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio);
-};
-
 MVMint64 MVM_io_close(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_io_is_tty(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_io_fileno(MVMThreadContext *tc, MVMObject *oshandle);
@@ -115,3 +110,4 @@ void MVM_io_bind(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVM
 MVMObject * MVM_io_accept(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_io_getport(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_set_buffer_size(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 size);
+MVMObject * MVM_io_get_async_task_handle(MVMThreadContext *tc, MVMObject *oshandle);

@@ -423,6 +423,11 @@ static void deferred_close_perform(MVMThreadContext *tc, uv_loop_t *loop, MVMObj
     }
 }
 
+MVMObject * get_async_task_handle(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOAsyncProcessData *handle_data = (MVMIOAsyncProcessData *)h->body.data;
+    return handle_data->async_task;
+}
+
 /* IO ops table, for async process, populated with functions. */
 static const MVMIOAsyncWritable proc_async_writable = { write_bytes };
 static const MVMIOClosable      closable            = { close_stdin };
@@ -435,7 +440,7 @@ static const MVMIOOps proc_op_table = {
     NULL,
     NULL,
     NULL,
-    NULL,
+    get_async_task_handle,
     NULL,
     NULL,
     NULL,

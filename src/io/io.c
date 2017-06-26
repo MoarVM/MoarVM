@@ -313,3 +313,16 @@ void MVM_io_set_buffer_size(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 
     else
         MVM_exception_throw_adhoc(tc, "Cannot set buffer size on this kind of handle");
 }
+
+MVMObject * MVM_io_get_async_task_handle(MVMThreadContext *tc, MVMObject *oshandle) {
+    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "get async task handle");
+    if (handle->body.ops->get_async_task_handle) {
+        MVMObject *ath;
+        uv_mutex_t *mutex = acquire_mutex(tc, handle);
+        ath = handle->body.ops->get_async_task_handle(tc, handle);
+        release_mutex(tc, mutex);
+        return ath;
+    }
+    else
+        MVM_exception_throw_adhoc(tc, "Cannot get async task handle from this kind of handle");
+}

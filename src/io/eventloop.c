@@ -159,6 +159,8 @@ void MVM_io_eventloop_queue_work(MVMThreadContext *tc, MVMObject *work) {
  * back-pressure mechanism. */
 void MVM_io_eventloop_permit(MVMThreadContext *tc, MVMObject *task_obj,
                               MVMint64 channel, MVMint64 permits) {
+    if (REPR(task_obj)->ID == MVM_REPR_ID_MVMOSHandle)
+        task_obj = MVM_io_get_async_task_handle(tc, task_obj);
     if (REPR(task_obj)->ID == MVM_REPR_ID_MVMAsyncTask) {
         MVMROOT(tc, task_obj, {
             MVMObject *channel_box = NULL;
