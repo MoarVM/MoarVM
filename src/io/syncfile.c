@@ -242,14 +242,6 @@ static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     return 0;
 }
 
-
-/* Operations aiding process spawning and I/O handling. */
-static void bind_stdio_handle(MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio) {
-    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    stdio->flags        = UV_INHERIT_FD;
-    stdio->data.fd      = data->fd;
-}
-
 /* Locks a file. */
 static MVMint64 lock(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
