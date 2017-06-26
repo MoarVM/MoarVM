@@ -616,6 +616,13 @@ static void async_spawn_merge_bytes_read(uv_stream_t *handle, ssize_t nread, con
 }
 
 /* Actually spawns an async task. This runs in the event loop thread. */
+static MVMint64 get_pipe_fd(MVMThreadContext *tc, uv_pipe_t *pipe) {
+    uv_os_fd_t fd;
+    if (uv_fileno((uv_handle_t *)pipe, &fd) == 0)
+        return (MVMint64)fd;
+    else
+        return 0;
+}
 static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     MVMint64 spawn_result;
 
@@ -773,8 +780,19 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
             MVMROOT(tc, ready_cb, {
             MVMROOT(tc, async_task, {
                 MVMObject *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-                MVM_repr_push_o(tc, arr, ready_cb);
-                MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
+                MVMROOT(tc, arr, {
+                    MVMObject *handle_arr = MVM_repr_alloc_init(tc,
+                        tc->instance->boot_types.BOOTIntArray);
+                    MVM_repr_push_i(tc, handle_arr, si->pipe_stdout
+                        ? get_pipe_fd(tc, si->pipe_stdout)
+                        : -1);
+                    MVM_repr_push_i(tc, handle_arr, si->pipe_stderr
+                        ? get_pipe_fd(tc, si->pipe_stderr)
+                        : -1);
+                    MVM_repr_push_o(tc, arr, ready_cb);
+                    MVM_repr_push_o(tc, arr, handle_arr);
+                    MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
+                });
             });
             });
         }
