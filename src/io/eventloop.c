@@ -25,13 +25,13 @@ static void setup_work(MVMThreadContext *tc) {
 
 /* Performs an async emit permit grant on the loop. */
 static void permit_work(MVMThreadContext *tc) {
-    MVMConcBlockingQueue *queue = (MVMConcBlockingQueue *)tc->instance->event_loop_todo_queue;
+    MVMConcBlockingQueue *queue = (MVMConcBlockingQueue *)tc->instance->event_loop_permit_queue;
     MVMObject *task_arr;
 
     MVMROOT(tc, queue, {
         while (!MVM_is_null(tc, task_arr = MVM_concblockingqueue_poll(tc, queue))) {
             MVMObject *task_obj = MVM_repr_at_pos_o(tc, task_arr, 0);
-            MVMAsyncTask *task = (MVMAsyncTask *)task;
+            MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
             if (task->body.ops->permit) {
                 MVMint64 channel = MVM_repr_get_int(tc, MVM_repr_at_pos_o(tc, task_arr, 1));
                 MVMint64 permit = MVM_repr_get_int(tc, MVM_repr_at_pos_o(tc, task_arr, 2));
