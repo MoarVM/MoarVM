@@ -61,6 +61,268 @@ static MVMStaticFrame * get_frame(MVMThreadContext *tc, MVMCompUnit *cu, int idx
     return ((MVMCode *)cu->body.coderefs[idx])->body.sf;
 }
 
+static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *frame, MVMSpeshCandidate *maybe_candidate, MVMuint8 *frame_cur_op, char ***frame_lexicals, char **oo, MVMuint32 *os, MVMuint32 *ol) {
+    /* since "references" are not a thing in C, keep a local copy of these
+     * and update the passed-in pointers at the end of the function */
+    char *o = *oo;
+    MVMuint32 s = *os;
+    MVMuint32 l = *ol;
+
+    MVMuint32 i, j, k;
+
+    /* mostly stolen from validation.c */
+    MVMStaticFrame *static_frame = frame;
+    MVMuint32 bytecode_size = maybe_candidate ? maybe_candidate->bytecode_size : static_frame->body.bytecode_size;
+    MVMuint8 *bytecode_start = maybe_candidate ? maybe_candidate->bytecode : static_frame->body.bytecode;
+    MVMuint8 *bytecode_end = bytecode_start + bytecode_size;
+    /* current position in the bytestream */
+    MVMuint8 *cur_op = bytecode_start;
+    /* positions in the bytestream that are starts of ops and goto targets */
+    MVMuint8 *labels = MVM_calloc(1, bytecode_size);
+    MVMuint32 *jumps = MVM_calloc(1, sizeof(MVMuint32) * bytecode_size);
+    char **lines = MVM_malloc(sizeof(char *) * bytecode_size);
+    MVMuint32 *linelocs = MVM_malloc(sizeof(MVMuint32) * bytecode_size);
+    MVMuint32 lineno = 0;
+    MVMuint32 lineloc;
+    MVMuint16 op_num;
+    const MVMOpInfo *op_info;
+    MVMuint32 operand_size = 0;
+    unsigned char op_rw;
+    unsigned char op_type;
+    unsigned char op_flags;
+    MVMOpInfo tmp_extop_info;
+    /* stash the outer output buffer */
+    MVMuint32 sP = s;
+    MVMuint32 lP = l;
+    char *oP = o;
+    char *tmpstr;
+    char mark_this_line = 0;
+    MVMCompUnit *cu = static_frame->body.cu;
+
+    while (cur_op < bytecode_end - 1) {
+
+        /* allocate a line buffer */
+        s = 200;
+        l = 0;
+        o = MVM_calloc(s, sizeof(char));
+
+        lineloc = cur_op - bytecode_start;
+        /* mark that this line starts at this point in the bytestream */
+        linelocs[lineno] = lineloc;
+        /* mark that this point in the bytestream is an op boundary */
+        labels[lineloc] |= MVM_val_op_boundary;
+
+
+        mark_this_line = 0;
+        if (frame_cur_op) {
+            if (frame_cur_op == cur_op || frame_cur_op == cur_op + 2) {
+                mark_this_line = 1;
+            }
+        }
+
+        if (mark_this_line) {
+            a("-> ");
+        } else {
+            a("   ");
+        }
+
+        op_num = *((MVMint16 *)cur_op);
+        cur_op += 2;
+        if (op_num < MVM_OP_EXT_BASE) {
+            op_info = MVM_op_get_op(op_num);
+            a("%-12s ", op_info->name);
+        }
+        else {
+            MVMint16 ext_op_num = op_num - MVM_OP_EXT_BASE;
+            if (ext_op_num < cu->body.num_extops) {
+                MVMExtOpRecord r = cu->body.extops[ext_op_num];
+                MVMuint8 j;
+                memset(&tmp_extop_info, 0, sizeof(MVMOpInfo));
+                tmp_extop_info.name = MVM_string_utf8_encode_C_string(tc, r.name);
+                memcpy(tmp_extop_info.operands, r.operand_descriptor, 8);
+                for (j = 0; j < 8; j++)
+                    if (tmp_extop_info.operands[j])
+                        tmp_extop_info.num_operands++;
+                    else
+                        break;
+                op_info = &tmp_extop_info;
+                a("%-12s ", tmp_extop_info.name);
+                MVM_free((void *)tmp_extop_info.name);
+                tmp_extop_info.name = NULL;
+            }
+            else {
+                MVM_exception_throw_adhoc(tc, "Extension op %d out of range", (int)op_num);
+            }
+        }
+
+        for (i = 0; i < op_info->num_operands; i++) {
+            if (i) a(", ");
+            op_flags = op_info->operands[i];
+            op_rw   = op_flags & MVM_operand_rw_mask;
+            op_type = op_flags & MVM_operand_type_mask;
+
+            if (op_rw == MVM_operand_literal) {
+                switch (op_type) {
+                    case MVM_operand_int8:
+                        operand_size = 1;
+                        a("%"PRId8, GET_I8(cur_op, 0));
+                        break;
+                    case MVM_operand_int16:
+                        operand_size = 2;
+                        a("%"PRId16, GET_I16(cur_op, 0));
+                        break;
+                    case MVM_operand_int32:
+                        operand_size = 4;
+                        a("%"PRId32, GET_I32(cur_op, 0));
+                        break;
+                    case MVM_operand_int64:
+                        operand_size = 8;
+                        a("%"PRId64, MVM_BC_get_I64(cur_op, 0));
+                        break;
+                    case MVM_operand_num32:
+                        operand_size = 4;
+                        a("%f", GET_N32(cur_op, 0));
+                        break;
+                    case MVM_operand_num64:
+                        operand_size = 8;
+                        a("%f", MVM_BC_get_N64(cur_op, 0));
+                        break;
+                    case MVM_operand_callsite:
+                        operand_size = 2;
+                        a("Callsite_%"PRIu16, GET_UI16(cur_op, 0));
+                        break;
+                    case MVM_operand_coderef:
+                        operand_size = 2;
+                        a("Frame_%"PRIu16, GET_UI16(cur_op, 0));
+                        break;
+                    case MVM_operand_str:
+                        operand_size = 4;
+                        tmpstr = MVM_string_utf8_encode_C_string(
+                            tc, MVM_cu_string(tc, cu, GET_UI32(cur_op, 0)));
+                        /* XXX C-string-literal escape the \ and '
+                            and line breaks and non-ascii someday */
+                        a("'%s'", tmpstr);
+                        MVM_free(tmpstr);
+                        break;
+                    case MVM_operand_ins:
+                        operand_size = 4;
+                        /* luckily all the ins operands are at the end
+                        of op operands, so I can wait to resolve the label
+                        to the end. */
+                        labels[GET_UI32(cur_op, 0)] |= MVM_val_branch_target;
+                        jumps[lineno] = GET_UI32(cur_op, 0);
+                        break;
+                    case MVM_operand_obj:
+                        /* not sure what a literal object is */
+                        operand_size = 4;
+                        break;
+                    case MVM_operand_spesh_slot:
+                        operand_size = 2;
+                        a("sslot(%d)", GET_UI16(cur_op, 0));
+                        break;
+                    default:
+                        abort(); /* never reached, silence compiler warnings */
+                }
+            }
+            else if (op_rw == MVM_operand_read_reg || op_rw == MVM_operand_write_reg) {
+                /* register operand */
+                operand_size = 2;
+                a("loc_%u_%s", GET_REG(cur_op, 0),
+                    get_typename(frame->body.local_types[GET_REG(cur_op, 0)]));
+            }
+            else if (op_rw == MVM_operand_read_lex || op_rw == MVM_operand_write_lex) {
+                /* lexical operand */
+                MVMuint16 idx, frames, m;
+                MVMStaticFrame *applicable_frame = static_frame;
+
+                operand_size = 4;
+                idx = GET_UI16(cur_op, 0);
+                frames = GET_UI16(cur_op, 2);
+
+                m = frames;
+                while (m > 0) {
+                    applicable_frame = applicable_frame->body.outer;
+                    m--;
+                }
+                /* inefficient, I know. should use a hash. */
+                for (m = 0; m < cu->body.num_frames; m++) {
+                    if (get_frame(tc, cu, m) == applicable_frame) {
+                        char *lexname = frame_lexicals ? frame_lexicals[m][idx] : "lex??";
+                        a("lex_Frame_%u_%s_%s", m, lexname,
+                            get_typename(applicable_frame->body.lexical_types[idx]));
+                    }
+                }
+            }
+            cur_op += operand_size;
+        }
+
+        lines[lineno++] = o;
+    }
+    {
+        MVMuint32 *linelabels = MVM_calloc(lineno, sizeof(MVMuint32));
+        MVMuint32 byte_offset = 0;
+        MVMuint32 line_number = 0;
+        MVMuint32 label_number = 1;
+        MVMuint32 *annotations = MVM_calloc(lineno, sizeof(MVMuint32));
+
+        for (; byte_offset < bytecode_size; byte_offset++) {
+            if (labels[byte_offset] & MVM_val_branch_target) {
+                /* found a byte_offset where a label should be.
+                 now crawl up through the lines to find which line starts there */
+                while (linelocs[line_number] != byte_offset) line_number++;
+                linelabels[line_number] = label_number++;
+            }
+        }
+        o = oP;
+        l = lP;
+        s = sP;
+
+        i = 0;
+        /* resolve annotation line numbers */
+        for (j = 0; j < frame->body.num_annotations; j++) {
+            MVMuint32 ann_offset = GET_UI32(frame->body.annotations_data, j*12);
+            for (; i < lineno; i++) {
+                if (linelocs[i] == ann_offset) {
+                    annotations[i] = j + 1;
+                    break;
+                }
+            }
+        }
+
+        for (j = 0; j < lineno; j++) {
+            if (annotations[j]) {
+                MVMuint16 shi = GET_UI16(frame->body.annotations_data + 4, (annotations[j] - 1)*12);
+                tmpstr = MVM_string_utf8_encode_C_string(
+                    tc, MVM_cu_string(tc, cu, shi < cu->body.num_strings ? shi : 0));
+                a("     annotation: %s:%u\n", tmpstr, GET_UI32(frame->body.annotations_data, (annotations[j] - 1)*12 + 8));
+                MVM_free(tmpstr);
+            }
+            if (linelabels[j])
+                a("     label_%u:\n", linelabels[j]);
+            a("%05d   %s", j, lines[j]);
+            MVM_free(lines[j]);
+            if (jumps[j]) {
+                /* horribly inefficient for large frames.  again, should use a hash */
+                line_number = 0;
+                while (linelocs[line_number] != jumps[j]) line_number++;
+                a("label_%u(%05u)", linelabels[line_number], line_number);
+            }
+            a("\n");
+        }
+        MVM_free(lines);
+        MVM_free(jumps);
+        MVM_free(linelocs);
+        MVM_free(linelabels);
+        MVM_free(labels);
+        MVM_free(annotations);
+    }
+
+    *oo = o;
+    *os = s;
+    *ol = l;
+}
+
+
 char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32 s = 1024;
     MVMuint32 l = 0;
@@ -167,231 +429,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         }
         a("    Instructions :\n");
         {
-
-    /* mostly stolen from validation.c */
-    MVMStaticFrame *static_frame = frame;
-    MVMuint32 bytecode_size = static_frame->body.bytecode_size;
-    MVMuint8 *bytecode_start = static_frame->body.bytecode;
-    MVMuint8 *bytecode_end = bytecode_start + bytecode_size;
-    /* current position in the bytestream */
-    MVMuint8 *cur_op = bytecode_start;
-    /* positions in the bytestream that are starts of ops and goto targets */
-    MVMuint8 *labels = MVM_calloc(1, bytecode_size);
-    MVMuint32 *jumps = MVM_calloc(1, sizeof(MVMuint32) * bytecode_size);
-    char **lines = MVM_malloc(sizeof(char *) * bytecode_size);
-    MVMuint32 *linelocs = MVM_malloc(sizeof(MVMuint32) * bytecode_size);
-    MVMuint32 lineno = 0;
-    MVMuint32 lineloc;
-    MVMuint16 op_num;
-    const MVMOpInfo *op_info;
-    MVMuint32 operand_size = 0;
-    unsigned char op_rw;
-    unsigned char op_type;
-    unsigned char op_flags;
-    MVMOpInfo tmp_extop_info;
-    /* stash the outer output buffer */
-    MVMuint32 sP = s;
-    MVMuint32 lP = l;
-    char *oP = o;
-    char *tmpstr;
-    while (cur_op < bytecode_end - 1) {
-
-        /* allocate a line buffer */
-        s = 200;
-        l = 0;
-        o = MVM_calloc(s, sizeof(char));
-
-        lineloc = cur_op - bytecode_start;
-        /* mark that this line starts at this point in the bytestream */
-        linelocs[lineno] = lineloc;
-        /* mark that this point in the bytestream is an op boundary */
-        labels[lineloc] |= MVM_val_op_boundary;
-
-        op_num = *((MVMint16 *)cur_op);
-        cur_op += 2;
-        if (op_num < MVM_OP_EXT_BASE) {
-            op_info = MVM_op_get_op(op_num);
-            a("%-12s ", op_info->name);
-        }
-        else {
-            MVMint16 ext_op_num = op_num - MVM_OP_EXT_BASE;
-            if (ext_op_num < cu->body.num_extops) {
-                MVMExtOpRecord r = cu->body.extops[ext_op_num];
-                MVMuint8 j;
-                memset(&tmp_extop_info, 0, sizeof(MVMOpInfo));
-                tmp_extop_info.name = MVM_string_utf8_encode_C_string(tc, r.name);
-                memcpy(tmp_extop_info.operands, r.operand_descriptor, 8);
-                for (j = 0; j < 8; j++)
-                    if (tmp_extop_info.operands[j])
-                        tmp_extop_info.num_operands++;
-                    else
-                        break;
-                op_info = &tmp_extop_info;
-                a("%-12s ", tmp_extop_info.name);
-                MVM_free((void *)tmp_extop_info.name);
-                tmp_extop_info.name = NULL;
-            }
-            else {
-                MVM_exception_throw_adhoc(tc, "Extension op %d out of range", (int)op_num);
-            }
-        }
-
-        for (i = 0; i < op_info->num_operands; i++) {
-            if (i) a(", ");
-            op_flags = op_info->operands[i];
-            op_rw   = op_flags & MVM_operand_rw_mask;
-            op_type = op_flags & MVM_operand_type_mask;
-
-            if (op_rw == MVM_operand_literal) {
-                switch (op_type) {
-                    case MVM_operand_int8:
-                        operand_size = 1;
-                        a("%"PRId8, GET_I8(cur_op, 0));
-                        break;
-                    case MVM_operand_int16:
-                        operand_size = 2;
-                        a("%"PRId16, GET_I16(cur_op, 0));
-                        break;
-                    case MVM_operand_int32:
-                        operand_size = 4;
-                        a("%"PRId32, GET_I32(cur_op, 0));
-                        break;
-                    case MVM_operand_int64:
-                        operand_size = 8;
-                        a("%"PRId64, MVM_BC_get_I64(cur_op, 0));
-                        break;
-                    case MVM_operand_num32:
-                        operand_size = 4;
-                        a("%f", GET_N32(cur_op, 0));
-                        break;
-                    case MVM_operand_num64:
-                        operand_size = 8;
-                        a("%f", MVM_BC_get_N64(cur_op, 0));
-                        break;
-                    case MVM_operand_callsite:
-                        operand_size = 2;
-                        a("Callsite_%"PRIu16, GET_UI16(cur_op, 0));
-                        break;
-                    case MVM_operand_coderef:
-                        operand_size = 2;
-                        a("Frame_%"PRIu16, GET_UI16(cur_op, 0));
-                        break;
-                    case MVM_operand_str:
-                        operand_size = 4;
-                        tmpstr = MVM_string_utf8_encode_C_string(
-                            tc, MVM_cu_string(tc, cu, GET_UI32(cur_op, 0)));
-                        /* XXX C-string-literal escape the \ and '
-                            and line breaks and non-ascii someday */
-                        a("'%s'", tmpstr);
-                        MVM_free(tmpstr);
-                        break;
-                    case MVM_operand_ins:
-                        operand_size = 4;
-                        /* luckily all the ins operands are at the end
-                        of op operands, so I can wait to resolve the label
-                        to the end. */
-                        labels[GET_UI32(cur_op, 0)] |= MVM_val_branch_target;
-                        jumps[lineno] = GET_UI32(cur_op, 0);
-                        break;
-                    case MVM_operand_obj:
-                        /* not sure what a literal object is */
-                        operand_size = 4;
-                        break;
-                    default:
-                        abort(); /* never reached, silence compiler warnings */
-                }
-            }
-            else if (op_rw == MVM_operand_read_reg || op_rw == MVM_operand_write_reg) {
-                /* register operand */
-                operand_size = 2;
-                a("loc_%u_%s", GET_REG(cur_op, 0),
-                    get_typename(frame->body.local_types[GET_REG(cur_op, 0)]));
-            }
-            else if (op_rw == MVM_operand_read_lex || op_rw == MVM_operand_write_lex) {
-                /* lexical operand */
-                MVMuint16 idx, frames, m;
-                MVMStaticFrame *applicable_frame = static_frame;
-
-                operand_size = 4;
-                idx = GET_UI16(cur_op, 0);
-                frames = GET_UI16(cur_op, 2);
-
-                m = frames;
-                while (m > 0) {
-                    applicable_frame = applicable_frame->body.outer;
-                    m--;
-                }
-                /* inefficient, I know. should use a hash. */
-                for (m = 0; m < cu->body.num_frames; m++) {
-                    if (get_frame(tc, cu, m) == applicable_frame) {
-                        a("lex_Frame_%u_%s_%s", m, frame_lexicals[m][idx],
-                            get_typename(applicable_frame->body.lexical_types[idx]));
-                    }
-                }
-            }
-            cur_op += operand_size;
-        }
-        lines[lineno++] = o;
-    }
-    {
-        MVMuint32 *linelabels = MVM_calloc(lineno, sizeof(MVMuint32));
-        MVMuint32 byte_offset = 0;
-        MVMuint32 line_number = 0;
-        MVMuint32 label_number = 1;
-        MVMuint32 *annotations = MVM_calloc(lineno, sizeof(MVMuint32));
-
-        for (; byte_offset < bytecode_size; byte_offset++) {
-            if (labels[byte_offset] & MVM_val_branch_target) {
-                /* found a byte_offset where a label should be.
-                 now crawl up through the lines to find which line starts there */
-                while (linelocs[line_number] != byte_offset) line_number++;
-                linelabels[line_number] = label_number++;
-            }
-        }
-        o = oP;
-        l = lP;
-        s = sP;
-
-        i = 0;
-        /* resolve annotation line numbers */
-        for (j = 0; j < frame->body.num_annotations; j++) {
-            MVMuint32 ann_offset = GET_UI32(frame->body.annotations_data, j*12);
-            for (; i < lineno; i++) {
-                if (linelocs[i] == ann_offset) {
-                    annotations[i] = j + 1;
-                    break;
-                }
-            }
-        }
-
-        for (j = 0; j < lineno; j++) {
-            if (annotations[j]) {
-                MVMuint16 shi = GET_UI16(frame->body.annotations_data + 4, (annotations[j] - 1)*12);
-                tmpstr = MVM_string_utf8_encode_C_string(
-                    tc, MVM_cu_string(tc, cu, shi < cu->body.num_strings ? shi : 0));
-                a("     annotation: %s:%u\n", tmpstr, GET_UI32(frame->body.annotations_data, (annotations[j] - 1)*12 + 8));
-                MVM_free(tmpstr);
-            }
-            if (linelabels[j])
-                a("     label_%u:\n", linelabels[j]);
-            a("%05d   %s", j, lines[j]);
-            MVM_free(lines[j]);
-            if (jumps[j]) {
-                /* horribly inefficient for large frames.  again, should use a hash */
-                line_number = 0;
-                while (linelocs[line_number] != jumps[j]) line_number++;
-                a("label_%u(%05u)", linelabels[line_number], line_number);
-            }
-            a("\n");
-        }
-        MVM_free(lines);
-        MVM_free(jumps);
-        MVM_free(linelocs);
-        MVM_free(linelabels);
-        MVM_free(labels);
-        MVM_free(annotations);
-    }
-
+            bytecode_dump_frame_internal(tc, frame, NULL, NULL, frame_lexicals, &o, &s, &l);
         }
     }
 
@@ -406,3 +444,73 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVM_free(frame_lexicals);
     return o;
 }
+
+#ifdef DEBUG_HELPERS
+void MVM_dump_bytecode_of(MVMThreadContext *tc, MVMFrame *frame, MVMSpeshCandidate *maybe_candidate) {
+    MVMuint32 s = 1024;
+    MVMuint32 l = 0;
+    char *o = MVM_calloc(s, sizeof(char));
+    MVMuint8 *addr;
+
+    if (!frame) {
+        frame = tc->cur_frame;
+        addr = *tc->interp_cur_op;
+    } else {
+        addr = frame->return_address;
+        if (!addr) {
+            addr = *tc->interp_cur_op;
+        }
+    }
+
+    bytecode_dump_frame_internal(tc, frame->static_info, maybe_candidate, addr, NULL, &o, &s, &l);
+
+    o[l] = 0;
+
+    fprintf(stderr, "%s", o);
+}
+
+void MVM_dump_bytecode(MVMThreadContext *tc) {
+    MVMStaticFrame *sf = tc->cur_frame->static_info;
+    MVMuint8 *effective_bytecode = tc->cur_frame->effective_bytecode;
+    if (effective_bytecode == sf->body.bytecode) {
+        MVM_dump_bytecode_of(tc, tc->cur_frame, NULL);
+    } else {
+        MVM_dump_bytecode_of(tc, tc->cur_frame, tc->cur_frame->spesh_cand);
+        /*MVMint32 spesh_cand_idx;*/
+        /*MVMuint8 found = 0;*/
+        /*for (spesh_cand_idx = 0; spesh_cand_idx < sf->body.num_spesh_candidates; spesh_cand_idx++) {*/
+            /*MVMSpeshCandidate *cand = &sf->body.spesh_candidates[spesh_cand_idx];*/
+            /*if (cand->bytecode == effective_bytecode) {*/
+                /*MVM_dump_bytecode_of(tc, tc->cur_frame, cand);*/
+                /*found = 1;*/
+            /*}*/
+        /*}*/
+        /*if (!found) {*/
+            /* It's likely the MAGIC_BYTECODE from the jit?
+             * in that case we just grab tc->cur_frame->spesh_cand apparently */
+        /*}*/
+    }
+}
+
+void MVM_dump_bytecode_stackframe(MVMThreadContext *tc, MVMint32 depth) {
+    MVMStaticFrame *sf;
+    MVMuint8 *effective_bytecode;
+    MVMFrame *frame = tc->cur_frame;
+    for (;depth > 0; depth--) {
+        frame = frame->caller;
+    }
+    sf = frame->static_info;
+    effective_bytecode = frame->effective_bytecode;
+    if (effective_bytecode == sf->body.bytecode) {
+        MVM_dump_bytecode_of(tc, frame, NULL);
+    } else {
+        MVMint32 spesh_cand_idx;
+        for (spesh_cand_idx = 0; spesh_cand_idx < sf->body.num_spesh_candidates; spesh_cand_idx++) {
+            MVMSpeshCandidate *cand = &sf->body.spesh_candidates[spesh_cand_idx];
+            if (cand->bytecode == effective_bytecode) {
+                MVM_dump_bytecode_of(tc, frame, cand);
+            }
+        }
+    }
+}
+#endif
