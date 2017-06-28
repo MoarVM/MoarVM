@@ -3,7 +3,70 @@
 Before merging the expression JIT, there are numerous standing issues
 to resolve, sorted by priority.
 
-* Maintain 'object' status of pointers
+* Fix OSR problem
+
+Frame: 373
+Block: 7
+
+But,
+- that block is compiled twice, what? (same frame? no, same basic block)
+- and in neither case are we talking about something that has OSR
+  sensitivity
+- but specifiying MVM_SPESH_OSR_DISABLE=1 makes the program continue
+
+- Partial problem, we're overwriting the ARGS array, and that's not
+  entirely legal, it might be overwritten by an invokish op
+  - I can fix that but it doesn't resolve this problem
+
+* Generalized 3-op to two-op conversion
+
+Already implemented for direct-memory binary ops, but needs to be
+extended to take into account indirect-access ops and memory base +
+indexed ops.
+
+* Maintain memory backed positions
+
+Currently, when we need to spill a value, we always treat it as if it
+were a temporary, i.e. we store it to a *new* location in the local
+memory buffer. We increment the local memory buffer, too.  This is
+suboptimal for values that are not temporaries, i.e. values that are
+stored to the local value buffer anyway.
+
++ stored to a local value
++ directly retrieved from a local value
+
+There are two classes of such values:
+There is no need to ever spill such values to memory.
+
+* Don't spill-and-load directly between definition and use
+* 'Optimistic' insertion of STORE
+
+Involves delaying the insertion of STORE operations for generated
+expressions until the insertion of flush. (Currently inserted directly
+after being generated).
+
+Involves
+- iterating over currently active local variables
+- inserting a STORE
+- replacing the root referring to these variable generation with the
+  STORE root
+  - to do this efficiently, we need to maintain the root index as well
+    as the node index of the last definition of a value (this is
+    actually easy)
+
+* We 'retry' setting up the entire tree for something we couldn't compile
+
+We don't communicate non-completion to the 'driver' process.
+I think that's wasteful.
+
+* Fix S-EXPR parser for tile list
+
+I think it currently counts balancing parentheses, and it doesn't
+always work when the last line doesn't end with a line. And, it
+doesn't support strings. So we should probably fix that with a proper
+parser.
+
+* DONE Maintain 'object' status of pointers
 
 If we do spill, it is kind of important to let the GC know that the
 location we're spilling to is an object pointer, so that it can update
@@ -18,7 +81,7 @@ associate this with individual nodes, at expr node graph building time.
 
 We should then maintain this status in values
 
-** TODO Prove this is our problem
+** DONE Prove this is our problem
 
 - we see this problem reliably with a low nursery and not-so-reliably
   with a big nursery
@@ -29,6 +92,8 @@ We should then maintain this status in values
 - it is a priori a plausible problem.
 
 So I think that I'm going to consider it 'proven' so far.
+
+And lo-and-behold, when I correctly mark object registers, it works.
 
 ** DONE Store associated spesh op and op type in expr node info
 
@@ -74,51 +139,6 @@ cand, it's different between the spesh cand and the jitcode anyway.
 
 Needs update in src/core/frame.c to use the correct num_locals,
 and update in src/gcroots.c to use this local_types.
-
-* Generalized 3-op to two-op conversion
-
-Already implemented for direct-memory binary ops, but needs to be
-extended to take into account indirect-access ops and memory base +
-indexed ops.
-
-* Maintain memory backed positions
-
-Currently, when we need to spill a value, we always treat it as if it
-were a temporary, i.e. we store it to a *new* location in the local
-memory buffer. We increment the local memory buffer, too.  This is
-suboptimal for values that are not temporaries, i.e. values that are
-stored to the local value buffer anyway.
-
-+ stored to a local value
-+ directly retrieved from a local value
-
-There are two classes of such values:
-There is no need to ever spill such values to memory.
-
-* Don't spill-and-load directly between definition and
-* 'Optimistic' insertion of STORE
-
-Involves delaying the insertion of STORE operations for generated
-expressions until the insertion of flush. (Currently inserted directly
-after being generated).
-
-Involves
-- iterating over currently active local variables
-- inserting a STORE
-- replacing the root referring to these variable generation with the
-  STORE root
-  - to do this efficiently, we need to maintain the root index as well
-    as the node index of the last definition of a value (this is
-    actually easy)
-
-
-
-* Fix S-EXPR parser for tile list
-
-I think it currently counts balancing parentheses, and it doesn't
-always work when the last line doesn't end with a line. And, it
-doesn't support strings. So we should probably fix that with a proper
-parser.
 
 * DONE point and full spill interaction
 

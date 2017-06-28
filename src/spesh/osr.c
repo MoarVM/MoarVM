@@ -75,24 +75,31 @@ void MVM_spesh_osr(MVMThreadContext *tc) {
 void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
     /* Find deopt index using existing deopt table, for entering the updated
      * code later. */
+    MVMStaticFrame *static_info = tc->cur_frame->static_info;
     MVMSpeshCandidate *specialized = tc->cur_frame->spesh_cand;
     MVMint32 osr_index = get_osr_deopt_finalize_index(tc, specialized);
-    MVMJitCode *jc;
+    MVMJitCode *jit_code;
+    MVMint32 num_locals;
+
     /* Finish up the specialization. */
-    MVM_spesh_candidate_specialize(tc, tc->cur_frame->static_info, specialized);
+    MVM_spesh_candidate_specialize(tc, static_info, specialized);
+
+    jit_code = specialized->jitcode;
+    num_locals = jit_code && jit_code->local_types ?
+        jit_code->num_locals : specialized->num_locals;
 
     /* Resize work area if needed. */
-    if (specialized->num_locals > tc->cur_frame->static_info->body.num_locals) {
+    if (num_locals > static_info->body.num_locals) {
         /* Resize work area. */
         MVMRegister *new_work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-            specialized->work_size);
+                                                            specialized->work_size);
         memcpy(new_work, tc->cur_frame->work,
-            tc->cur_frame->static_info->body.num_locals * sizeof(MVMRegister));
+               static_info->body.num_locals * sizeof(MVMRegister));
         MVM_fixed_size_free(tc, tc->instance->fsa, tc->cur_frame->allocd_work,
             tc->cur_frame->work);
         tc->cur_frame->work = new_work;
         tc->cur_frame->allocd_work = specialized->work_size;
-        tc->cur_frame->args = tc->cur_frame->work + specialized->num_locals;
+        tc->cur_frame->args = tc->cur_frame->work + num_locals;
     }
 
     /* Resize environment if needed. */
@@ -117,18 +124,19 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
     tc->cur_frame->spesh_log_idx         = -1;
 
     /* Sync interpreter with updates. */
-    jc = specialized->jitcode;
-    if (jc && jc->num_deopts) {
+
+    if (jit_code && jit_code->num_deopts) {
         MVMint32 i;
-        *(tc->interp_bytecode_start)   = specialized->jitcode->bytecode;
-        *(tc->interp_cur_op)           = specialized->jitcode->bytecode;
-        for (i = 0; i < jc->num_deopts; i++) {
-            if (jc->deopts[i].idx == osr_index) {
-                tc->cur_frame->jit_entry_label = jc->labels[jc->deopts[i].label];
+        *(tc->interp_bytecode_start)   = jit_code->bytecode;
+        *(tc->interp_cur_op)           = jit_code->bytecode;
+        for (i = 0; i < jit_code->num_deopts; i++) {
+            if (jit_code->deopts[i].idx == osr_index) {
+                tc->cur_frame->jit_entry_label = jit_code->labels[jit_code->deopts[i].label];
                 break;
             }
         }
-        if (i == jc->num_deopts)
+
+        if (i == jit_code->num_deopts)
             MVM_oops(tc, "JIT: Could not find OSR label");
         if (tc->instance->profiling)
             MVM_profiler_log_osr(tc, 1);
@@ -143,7 +151,6 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
 
     /* Tweak frame invocation count so future invocations will use the code
      * produced by OSR. */
-    tc->cur_frame->static_info->body.invocations +=
-        tc->cur_frame->static_info->body.spesh_threshold;
+    static_info->body.invocations += static_info->body.spesh_threshold;
 }
 
