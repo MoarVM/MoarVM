@@ -1839,6 +1839,8 @@ static void cleanup_dead_bb_instructions(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVM_spesh_manipulate_cleanup_ins_deps(tc, g, ins);
         ins = ins->next;
     }
+    dead_bb->first_ins = NULL;
+    dead_bb->last_ins = NULL;
 }
 static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Iterate to fixed point. */
