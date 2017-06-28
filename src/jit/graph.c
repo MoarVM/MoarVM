@@ -2773,8 +2773,9 @@ static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
                 tree->seq_nr     = jg->expr_seq_nr++;
                 jg_append_node(jg, node);
                 MVM_jit_log_expr_tree(tc, tree);
-            } else {
-                /* soemthing we can't compile yet, or simply an empty tree */
+            }
+            if (iter->ins) {
+                /* something we can't compile yet, or simply an empty tree */
                 break;
             }
         }
