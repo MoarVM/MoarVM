@@ -469,6 +469,18 @@ void MVM_dump_bytecode_of(MVMThreadContext *tc, MVMFrame *frame, MVMSpeshCandida
     fprintf(stderr, "%s", o);
 }
 
+void MVM_dump_bytecode_staticframe(MVMThreadContext *tc, MVMStaticFrame *frame) {
+    MVMuint32 s = 1024;
+    MVMuint32 l = 0;
+    char *o = MVM_calloc(s, sizeof(char));
+
+    bytecode_dump_frame_internal(tc, frame, NULL, NULL, NULL, &o, &s, &l);
+
+    o[l] = 0;
+
+    fprintf(stderr, "%s", o);
+}
+
 void MVM_dump_bytecode(MVMThreadContext *tc) {
     MVMStaticFrame *sf = tc->cur_frame->static_info;
     MVMuint8 *effective_bytecode = tc->cur_frame->effective_bytecode;
