@@ -208,7 +208,6 @@ struct MVMInstance {
     MVMuint32                     all_scs_next_idx;
     MVMuint32                     all_scs_alloc;
 
-
     /************************************************************************
      * Specializer (dynamic optimization)
      ************************************************************************/
@@ -229,6 +228,14 @@ struct MVMInstance {
 
     /* Mutex taken when install specializations. */
     uv_mutex_t mutex_spesh_install;
+
+    /* The thread started to perform specialization, provided it is
+     * enabled. */
+    MVMThreadContext *spesh_thread;
+
+    /* The concurrent queue used to send logs to spesh_thread, provided it
+     * is enabled. */
+    MVMObject *spesh_queue;
 
     /************************************************************************
      * JIT compilation
