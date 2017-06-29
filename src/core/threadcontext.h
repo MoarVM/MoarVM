@@ -192,11 +192,6 @@ struct MVMThreadContext {
      * like I/O, which grab a mutex but may throw an exception. */
     uv_mutex_t *ex_release_mutex;
 
-    /* The usecapture op can, without allocating, have a way to talk about the
-     * arguments of the current call. This is the (pre-thread) object that is
-     * used by that op. */
-    MVMObject *cur_usecapture;
-
     /* Memory buffer pointing to the last thing we serialized, intended to go
      * into the next compilation unit we write. Also the serialized string
      * heap, which will be used to seed the compilation unit string heap. */
