@@ -17,6 +17,13 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     return st->WHAT;
 }
 
+/* Initializes the log. */
+static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVMSpeshLogBody *log = (MVMSpeshLogBody *)data;
+    log->entries = MVM_malloc(sizeof(MVMSpeshLogEntry) * MVM_SPESH_LOG_DEFAULT_ENTRIES);
+    log->limit = MVM_SPESH_LOG_DEFAULT_ENTRIES;
+}
+
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVM_exception_throw_adhoc(tc, "Cannot copy object with representation SpeshLog");
@@ -90,7 +97,7 @@ const MVMREPROps * MVMSpeshLog_initialize(MVMThreadContext *tc) {
 static const MVMREPROps SpeshLog_this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
-    NULL, /* initialize */
+    initialize,
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,
     MVM_REPR_DEFAULT_BOX_FUNCS,
