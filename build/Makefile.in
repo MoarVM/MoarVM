@@ -183,6 +183,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/inline@obj@ \
           src/spesh/osr@obj@ \
           src/spesh/lookup@obj@ \
+          src/spesh/worker@obj@ \
           src/jit/graph@obj@ \
           src/jit/compile@obj@ \
           src/jit/log@obj@ \
@@ -332,6 +333,7 @@ HEADERS = src/moar.h \
           src/spesh/inline.h \
           src/spesh/osr.h \
           src/spesh/lookup.h \
+          src/spesh/worker.h \
           src/strings/unicode_gen.h \
           src/strings/normalize.h \
           src/strings/decode_stream.h \
