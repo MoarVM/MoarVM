@@ -43,6 +43,7 @@
 #include "6model/reprs/NativeRef.h"
 #include "6model/reprs/MultiDimArray.h"
 #include "6model/reprs/Decoder.h"
+#include "6model/reprs/MVMSpeshLog.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -96,8 +97,9 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MultiDimArray           41
 #define MVM_REPR_ID_MVMCPPStruct            42
 #define MVM_REPR_ID_Decoder                 43
+#define MVM_REPR_ID_MVMSpeshLog             44
 
-#define MVM_REPR_CORE_COUNT                 44
+#define MVM_REPR_CORE_COUNT                 45
 #define MVM_REPR_MAX_COUNT                  64
 
 /* Default attribute functions for a REPR that lacks them. */
