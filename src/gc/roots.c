@@ -143,9 +143,6 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     /* Any exception handler result. */
     add_collectable(tc, worklist, snapshot, tc->last_handler_result, "Last handler result");
 
-    /* The usecapture object. */
-    add_collectable(tc, worklist, snapshot, tc->cur_usecapture, "Cached usecapture");
-
     /* List of SCs currently being compiled. */
     add_collectable(tc, worklist, snapshot, tc->compiling_scs, "Compiling serialization contexts");
 
