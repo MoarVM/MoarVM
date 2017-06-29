@@ -1,10 +1,15 @@
 #include "moar.h"
 
-/* In order to collect more information to use during specialization, we
- * make a pass through the code inserting logging instructions after a
- * range of insturctions that obtain data we can't reason about easily
- * statically. After a number of logging runs, the collected data is
- * used as an additional "fact" source while specializing. */
+/* Provided spesh is enabled, create a specialization data log for the thread
+ * in question. */
+void MVM_spesh_log_create_for_thread(MVMThreadContext *tc) {
+    if (tc->instance->spesh_enabled)
+        tc->spesh_log = (MVMSpeshLog *)MVM_repr_alloc_init(tc, tc->instance->SpeshLog); 
+}
+
+/* Code below this point is legacy spesh logging infrasturcture, and will be
+ * replaced or significantly changed once the new spesh worker approach is
+ * in place. */
 
 static void insert_log(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins, MVMint32 next_bb) {
     /* Add the entry. */
