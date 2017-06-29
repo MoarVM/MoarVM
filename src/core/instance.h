@@ -113,11 +113,145 @@ struct MVMObjectId {
 
 /* Represents a MoarVM instance. */
 struct MVMInstance {
+    /************************************************************************
+     * Threads
+     ************************************************************************/
+
     /* The main thread. */
     MVMThreadContext *main_thread;
 
     /* The ID to allocate the next-created thread. */
     AO_t next_user_thread_id;
+
+    /* MVMThreads completed starting, running, and/or exited. */
+    /* note: used atomically */
+    MVMThread *threads;
+
+    /************************************************************************
+     * Garbage collection and memory management
+     ************************************************************************/
+
+    /* Number of permanent GC roots we've got, allocated space for, and
+     * a list of the addresses to them. The mutex controls writing to the
+     * list, just in case multiple threads somehow end up doing so. Note
+     * that during a GC the world is stopped so reading is safe. We also
+     * keep a list of names for these, for the purpose of heap debugging
+     * and heap profiling. */
+    MVMuint32             num_permroots;
+    MVMuint32             alloc_permroots;
+    MVMCollectable     ***permroots;
+    char                **permroot_descriptions;
+    uv_mutex_t            mutex_permroots;
+
+    /* The current GC run sequence number. May wrap around over time; that
+     * is fine since only equality ever matters. */
+    AO_t gc_seq_number;
+
+    /* The number of threads that vote for starting GC. */
+    AO_t gc_start;
+
+    /* The number of threads that still need to vote for considering GC done. */
+    AO_t gc_finish;
+
+    /* Whether the coordinator considers all in-trays clear. */
+    AO_t gc_intrays_clearing;
+
+    /* The number of threads that have yet to acknowledge the finish. */
+    AO_t gc_ack;
+
+    /* Linked list (via forwarder) of STables to free. */
+    MVMSTable *stables_to_free;
+
+    /* Whether the current GC run is a full collection. */
+    MVMuint32 gc_full_collect;
+
+    /* How many bytes of data have we promoted from the nursery to gen2
+     * since we last did a full collection? */
+    AO_t gc_promoted_bytes_since_last_full;
+
+    /* Persistent object ID hash, used to give nursery objects a lifetime
+     * unique ID. Plus a lock to protect it. */
+    MVMObjectId *object_ids;
+    uv_mutex_t    mutex_object_ids;
+
+    /* Fixed size allocator. */
+    MVMFixedSizeAlloc *fsa;
+
+    /************************************************************************
+     * Object system
+     ************************************************************************/
+
+    /* Number of representations registered so far. */
+    MVMuint32 num_reprs;
+
+    /* An array mapping representation IDs to registry entries. */
+    MVMReprRegistry **repr_list;
+
+    /* A hash mapping representation names to registry entries. */
+    MVMReprRegistry *repr_hash;
+
+    /* Mutex for REPR registration. */
+    uv_mutex_t mutex_repr_registry;
+
+    /* Container type registry and mutex to protect it. */
+    MVMContainerRegistry *container_registry;
+    uv_mutex_t      mutex_container_registry;
+
+    /* Hash of all known serialization contexts. Marked for GC iff
+     * the item is unresolved. Also, array of all SCs, used for the
+     * index stored in object headers. When an SC goes away this is
+     * simply nulled. That makes it a small memory leak if a lot of
+     * SCs are created and go away over time. */
+    MVMSerializationContextBody  *sc_weakhash;
+    uv_mutex_t                    mutex_sc_weakhash;
+    MVMSerializationContextBody **all_scs;
+    MVMuint32                     all_scs_next_idx;
+    MVMuint32                     all_scs_alloc;
+
+
+    /************************************************************************
+     * Specializer (dynamic optimization)
+     ************************************************************************/
+
+    /* Log file for specializations, if we're to log them. */
+    FILE *spesh_log_fh;
+
+    /* Flag for if spesh (and certain spesh features) are enabled. */
+    MVMint8 spesh_enabled;
+    MVMint8 spesh_inline_enabled;
+    MVMint8 spesh_osr_enabled;
+    MVMint8 spesh_nodelay;
+
+    /* Number of specializations produced, and limit on number of
+     * specializations (zero if no limit). */
+    MVMint32 spesh_produced;
+    MVMint32 spesh_limit;
+
+    /* Mutex taken when install specializations. */
+    uv_mutex_t mutex_spesh_install;
+
+    /************************************************************************
+     * JIT compilation
+     ************************************************************************/
+
+    /* Flag for if jit is enabled */
+    MVMint32 jit_enabled;
+
+    /* File for JIT logging */
+    FILE *jit_log_fh;
+
+    /* Directory name for JIT bytecode dumps */
+    char *jit_bytecode_dir;
+
+    /* File for map of frame information for bytecode dumps */
+    FILE *jit_bytecode_map;
+
+    /* sequence number for JIT compiled frames */
+    AO_t  jit_seq_nr;
+
+    /************************************************************************
+     * I/O and process state
+     ************************************************************************/
 
     /* The event loop thread, a mutex to avoid start-races, a concurrent
      * queue of tasks that need to be processed by the event loop thread
@@ -132,8 +266,60 @@ struct MVMInstance {
     MVMObject        *event_loop_active;
     uv_async_t       *event_loop_wakeup;
 
-    /* The VM null object. */
-    MVMObject *VMNull;
+    /* Standard file handles. */
+    MVMObject *stdin_handle;
+    MVMObject *stdout_handle;
+    MVMObject *stderr_handle;
+
+    /* Raw command line args */
+    char          **raw_clargs;
+    /* Number of passed command-line args */
+    MVMint64        num_clargs;
+    /* executable name */
+    const char     *exec_name;
+    /* program name; becomes first clargs entry */
+    const char     *prog_name;
+    /* cached parsed command line args */
+    MVMObject      *clargs;
+    /* Any --libpath=... options, to prefix in loadbytecode lookups. */
+    const char     *lib_path[8];
+
+    /************************************************************************
+     * Caching and interning
+     ************************************************************************/
+
+    /* int -> str cache */
+    MVMString **int_to_str_cache;
+
+    /* By far the most common integers are between 0 and 8, but we cache up to 15
+     * so that it lines up properly. */
+    MVMIntConstCache    *int_const_cache;
+    uv_mutex_t mutex_int_const_cache;
+
+    /* Multi-dispatch cache addition mutex (additions are relatively
+     * rare, so little motivation to have it more fine-grained). */ 
+    uv_mutex_t mutex_multi_cache_add;
+
+    /* Next type cache ID, to go in STable. */
+    AO_t cur_type_cache_id;
+
+    /* Cached backend config hash. */
+    MVMObject *cached_backend_config;
+
+    /* Atomically-incremented counter of newly invoked frames, used for
+     * lexotic caching. */
+    AO_t num_frames_run;
+
+    /* Interned callsites. */
+    MVMCallsiteInterns *callsite_interns;
+    uv_mutex_t          mutex_callsite_interns;
+
+    /* Normal Form Grapheme state (synthetics table, lookup, etc.). */
+    MVMNFGState *nfg;
+
+    /************************************************************************
+     * Type objects for built-in types and special values
+     ************************************************************************/
 
     /* The KnowHOW meta-object; all other meta-objects (which are
      * built in user-space) are built out of this. */
@@ -166,117 +352,15 @@ struct MVMInstance {
     /* Set of raw types. */
     MVMRawTypes raw_types;
 
+    /* The VM null object. */
+    MVMObject *VMNull;
+
     /* Set of string constants. */
     MVMStringConsts str_consts;
 
-    /* int -> str cache */
-    MVMString **int_to_str_cache;
-
-    /* Multi-dispatch cache and specialization installation mutexes
-     * (global, as the additions are quite low contention, so no
-     * real motivation to have it more fine-grained at present). */
-    uv_mutex_t mutex_multi_cache_add;
-    uv_mutex_t mutex_spesh_install;
-
-    /* Log file for specializations, if we're to log them. */
-    FILE *spesh_log_fh;
-
-    /* Log file for dynamic var performance, if we're to log it. */
-    FILE *dynvar_log_fh;
-    MVMint64 dynvar_log_lasttime;
-
-    /* Flag for if spesh (and certain spesh features) are enabled. */
-    MVMint8 spesh_enabled;
-    MVMint8 spesh_inline_enabled;
-    MVMint8 spesh_osr_enabled;
-    MVMint8 spesh_nodelay;
-
-    /* Number of specializations produced, and limit on number of
-     * specializations (zero if no limit). */
-    MVMint32 spesh_produced;
-    MVMint32 spesh_limit;
-
-    /* Flag for if NFA debugging is enabled. */
-    MVMint8 nfa_debug_enabled;
-
-    /* Flag for if jit is enabled */
-    MVMint32 jit_enabled;
-
-    /* File for JIT logging */
-    FILE *jit_log_fh;
-
-    /* Directory name for JIT bytecode dumps */
-    char *jit_bytecode_dir;
-    /* File for map of frame information for bytecode dumps */
-    FILE *jit_bytecode_map;
-    /* sequence number for JIT compiled frames */
-    AO_t  jit_seq_nr;
-
-    /* Number of representations registered so far. */
-    MVMuint32 num_reprs;
-
-    /* An array mapping representation IDs to registry entries. */
-    MVMReprRegistry **repr_list;
-
-    /* A hash mapping representation names to registry entries. */
-    MVMReprRegistry *repr_hash;
-
-    /* Mutex for REPR registration. */
-    uv_mutex_t mutex_repr_registry;
-
-    /* Number of permanent GC roots we've got, allocated space for, and
-     * a list of the addresses to them. The mutex controls writing to the
-     * list, just in case multiple threads somehow end up doing so. Note
-     * that during a GC the world is stopped so reading is safe. We also
-     * keep a list of names for these, for the purpose of heap debugging
-     * and heap profiling. */
-    MVMuint32             num_permroots;
-    MVMuint32             alloc_permroots;
-    MVMCollectable     ***permroots;
-    char                **permroot_descriptions;
-    uv_mutex_t            mutex_permroots;
-
-    /* The current GC run sequence number. May wrap around over time; that
-     * is fine since only equality ever matters. */
-    AO_t gc_seq_number;
-    /* The number of threads that vote for starting GC. */
-    AO_t gc_start;
-    /* The number of threads that still need to vote for considering GC done. */
-    AO_t gc_finish;
-    /* Whether the coordinator considers all in-trays clear. */
-    AO_t gc_intrays_clearing;
-    /* The number of threads that have yet to acknowledge the finish. */
-    AO_t gc_ack;
-    /* Linked list (via forwarder) of STables to free. */
-    MVMSTable *stables_to_free;
-    /* Whether the current GC run is a full collection. */
-    MVMuint32 gc_full_collect;
-
-    /* How many bytes of data have we promoted from the nursery to gen2
-     * since we last did a full collection? */
-    AO_t gc_promoted_bytes_since_last_full;
-
-    /* Persistent object ID hash, used to give nursery objects a lifetime
-     * unique ID. Plus a lock to protect it. */
-    MVMObjectId *object_ids;
-    uv_mutex_t    mutex_object_ids;
-
-    /* MVMThreads completed starting, running, and/or exited. */
-    /* note: used atomically */
-    MVMThread *threads;
-
-    /* raw command line args from APR */
-    char          **raw_clargs;
-    /* Number of passed command-line args */
-    MVMint64        num_clargs;
-    /* executable name */
-    const char     *exec_name;
-    /* program name; becomes first clargs entry */
-    const char     *prog_name;
-    /* cached parsed command line args */
-    MVMObject      *clargs;
-    /* Any --libpath=... options, to prefix in loadbytecode lookups. */
-    const char     *lib_path[8];
+    /************************************************************************
+     * Per-language state, compiler registry, and VM extensions
+     ************************************************************************/
 
     /* Hashes of HLLConfig objects. compiler_hll_configs is those for the
      * running compiler, and the default. compilee_hll_configs is used if
@@ -286,25 +370,17 @@ struct MVMInstance {
     MVMint64      hll_compilee_depth;
     uv_mutex_t    mutex_hllconfigs;
 
-    /* By far the most common integers are between 0 and 8, but we cache up to 15
-     * so that it lines up properly. */
-    MVMIntConstCache    *int_const_cache;
-    uv_mutex_t mutex_int_const_cache;
-
-    /* Atomically-incremented counter of newly invoked frames, used for
-     * lexotic caching. */
-    AO_t num_frames_run;
+    /* Hash of hashes of symbol tables per hll. */
+    MVMObject          *hll_syms;
+    uv_mutex_t    mutex_hll_syms;
 
     /* Hash of compiler objects keyed by name */
     MVMObject          *compiler_registry;
     uv_mutex_t    mutex_compiler_registry;
 
-    /* Hash of hashes of symbol tables per hll. */
-    MVMObject          *hll_syms;
-    uv_mutex_t    mutex_hll_syms;
-
-    MVMContainerRegistry *container_registry;     /* Container registry */
-    uv_mutex_t      mutex_container_registry;     /* mutex for container registry */
+    /* Hash of filenames of compunits loaded from disk. */
+    MVMLoadedCompUnitName *loaded_compunits;
+    uv_mutex_t       mutex_loaded_compunits;
 
     /* Hash of all loaded DLLs. */
     MVMDLLRegistry  *dll_registry;
@@ -318,38 +394,9 @@ struct MVMInstance {
     MVMExtOpRegistry *extop_registry;
     uv_mutex_t  mutex_extop_registry;
 
-    /* Hash of all known serialization contexts. Marked for GC iff
-     * the item is unresolved. Also, array of all SCs, used for the
-     * index stored in object headers. When an SC goes away this is
-     * simply nulled. That makes it a small memory leak if a lot of
-     * SCs are created and go away over time. */
-    MVMSerializationContextBody  *sc_weakhash;
-    uv_mutex_t                    mutex_sc_weakhash;
-    MVMSerializationContextBody **all_scs;
-    MVMuint32                     all_scs_next_idx;
-    MVMuint32                     all_scs_alloc;
-
-    /* Hash of filenames of compunits loaded from disk. */
-    MVMLoadedCompUnitName *loaded_compunits;
-    uv_mutex_t       mutex_loaded_compunits;
-
-    /* Interned callsites. */
-    MVMCallsiteInterns *callsite_interns;
-    uv_mutex_t          mutex_callsite_interns;
-
-    /* Standard file handles. */
-    MVMObject *stdin_handle;
-    MVMObject *stdout_handle;
-    MVMObject *stderr_handle;
-
-    /* Fixed size allocator. */
-    MVMFixedSizeAlloc *fsa;
-
-    /* Normal Form Grapheme state (synthetics table, lookup, etc.). */
-    MVMNFGState *nfg;
-
-    /* Next type cache ID, to go in STable. */
-    AO_t cur_type_cache_id;
+    /************************************************************************
+     * Bytecode instrumentations (profiler, coverage, etc.)
+     ************************************************************************/
 
     /* The current instrumentation level. Each time we turn on/off some kind
      * of instrumentation, such as profiling, this is incremented. The next
@@ -370,12 +417,20 @@ struct MVMInstance {
     MVMuint32  cross_thread_write_logging_include_locked;
     uv_mutex_t mutex_cross_thread_write_logging;
 
-    MVMuint32  coverage_logging;
     /* Log file for coverage logging. */
+    MVMuint32  coverage_logging;
     FILE *coverage_log_fh;
 
-    /* Cached backend config hash. */
-    MVMObject *cached_backend_config;
+    /************************************************************************
+     * Debugging
+     ************************************************************************/
+
+    /* Log file for dynamic var performance, if we're to log it. */
+    FILE *dynvar_log_fh;
+    MVMint64 dynvar_log_lasttime;
+
+    /* Flag for if NFA debugging is enabled. */
+    MVMint8 nfa_debug_enabled;
 };
 
 /* Returns a true value if we have created user threads (and so are running a
