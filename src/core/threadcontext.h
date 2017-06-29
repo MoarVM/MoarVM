@@ -143,11 +143,6 @@ struct MVMThreadContext {
     /* The frame we're currently executing. */
     MVMFrame *cur_frame;
 
-    /* Frame sequence numbers in order to cheaply identify the place of a frame
-     * in the call stack */
-    MVMint32 current_frame_nr;
-    MVMint32 next_frame_nr;
-
     /* The frame lying at the base of the current thread. */
     MVMFrame *thread_entry_frame;
 
@@ -166,6 +161,25 @@ struct MVMThreadContext {
 
     /* Last payload made available in a payload-goto exception handler. */
     MVMObject *last_payload;
+
+    /************************************************************************
+     * Specialization and JIT compilation
+     ************************************************************************/
+
+    /* Frame sequence numbers in order to cheaply identify the place of a frame
+     * in the call stack */
+    MVMint32 current_frame_nr;
+    MVMint32 next_frame_nr;
+
+    /* This thread's current spesh log to write in to, if there curently is
+     * one. */
+    MVMSpeshLog *spesh_log;
+
+#if MVM_GC_DEBUG
+    /* Whether we are currently in the specializer. Used to catch GC runs that
+     * take place at times they never should. */
+    MVMint32 in_spesh;
+#endif
 
     /************************************************************************
      * Per-thread state held by assorted VM subsystems
@@ -230,12 +244,6 @@ struct MVMThreadContext {
 
     /* Profiling data collected for this thread, if profiling is on. */
     MVMProfileThreadData *prof_data;
-
-#if MVM_GC_DEBUG
-    /* Whether we are currently in the specializer. Used to catch GC runs that
-     * take place at times they never should. */
-    MVMint32 in_spesh;
-#endif
 };
 
 MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance);

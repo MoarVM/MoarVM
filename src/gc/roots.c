@@ -83,6 +83,9 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
         "Event loop cancel queue");
     add_collectable(tc, worklist, snapshot, tc->instance->event_loop_active, "Event loop active");
 
+    add_collectable(tc, worklist, snapshot, tc->instance->spesh_queue,
+        "Specialization log queue");
+
     int_to_str_cache = tc->instance->int_to_str_cache;
     for (i = 0; i < MVM_INT_TO_STR_CACHE_SIZE; i++)
         add_collectable(tc, worklist, snapshot, int_to_str_cache[i],
@@ -185,6 +188,9 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     /* Serialized string heap, if any. */
     add_collectable(tc, worklist, snapshot, tc->serialized_string_heap,
         "Serialized string heap");
+
+    /* Specialization log. */
+    add_collectable(tc, worklist, snapshot, tc->spesh_log, "Specialization log");
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */
