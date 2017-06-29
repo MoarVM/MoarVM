@@ -24,6 +24,6 @@ void MVM_spesh_worker_setup(MVMThreadContext *tc) {
         tc->instance->spesh_queue = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTQueue);
         worker_entry_point = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTCCode);
         ((MVMCFunction *)worker_entry_point)->body.func = worker;
-        MVM_thread_new(tc, worker_entry_point, 1);
+        MVM_thread_run(tc, MVM_thread_new(tc, worker_entry_point, 1));
     }
 }
