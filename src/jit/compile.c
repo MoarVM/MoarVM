@@ -310,7 +310,8 @@ void MVM_jit_spill_memory_release(MVMThreadContext *tc, MVMJitCompiler *compiler
 void MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
                         MVMJitCode *code) {
     void *label = tc->cur_frame->jit_entry_label;
-    if (label < (void*)code->func_ptr || (char*)label > (((char*)code->func_ptr) + code->size))
+    MVMint32 ofs = (char*)label - (char*)code->func_ptr;
+    if (ofs < 0 || ofs >= code->size)
         MVM_oops(tc, "JIT entry label out of range for code!\n"
                  "(label %p, func_ptr %p, code size %lui, offset %li, frame_nr %i, seq nr %i)",
                  label, code->func_ptr, code->size, ((char*)label) - ((char*)code->func_ptr),

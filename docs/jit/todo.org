@@ -3,20 +3,6 @@
 Before merging the expression JIT, there are numerous standing issues
 to resolve, sorted by priority.
 
-* Fix OSR problem
-
-Frame: 373
-Block: 7
-
-But,
-- that block is compiled twice, what? (same frame? no, same basic block)
-- and in neither case are we talking about something that has OSR
-  sensitivity
-- but specifiying MVM_SPESH_OSR_DISABLE=1 makes the program continue
-
-- Partial problem, we're overwriting the ARGS array, and that's not
-  entirely legal, it might be overwritten by an invokish op
-  - I can fix that but it doesn't resolve this problem
 
 * Generalized 3-op to two-op conversion
 
@@ -65,6 +51,72 @@ I think it currently counts balancing parentheses, and it doesn't
 always work when the last line doesn't end with a line. And, it
 doesn't support strings. So we should probably fix that with a proper
 parser.
+
+* DONE Label problem
+
+Frame: 373
+Block: 7
+
+But,
+- that block is compiled twice, what? (same frame? no, same basic block)
+- and in neither case are we talking about something that has OSR
+  sensitivity
+- but specifiying MVM_SPESH_OSR_DISABLE=1 makes the program continue
+
+- Partial problem, we're overwriting the ARGS array, and that's not
+  entirely legal, it might be overwritten by an invokish op
+  - I can fix that but it doesn't resolve this problem
+
+My label is off by one.
+I'm supposed to jump to 0x5ff, but I'm really jumping to 0x600.
+This is obviously wrong.
+This is really, really scary.
+Let's see if it is the reason for our breakage.
+
+The correct label is moving forwards, rather than backwards.
+
+Hypothesis: we're reusing the same label erroneously.
+(that doesn't seem to be the correct hypothesis here - whatever I dump, I can't see a difference.)
+
+So what is the right approach?  Let's dump the internal dynasm
+structures though.  (dumping labels doesn't make much of a differnece,
+strangely).
+But - the difference between the correct code is:
+
+#+BEGIN_SRC asm
+# correct
+ 67e:	75 67                jne    0x6e7
+# incorrect
+ 67e:	75 80                jne    0x600
+#+END_SRC
+
+Now
+- that might be an overflow, though
+- but why?
+- in one case, label 8 is 0x6e7 (0x680) = 0x67
+- in another case, label 8 is 0x700  - (0x680) = 0x80
+
+Okay, how does that work...
+- if we reference a label, either it is already defined
+  - in which case we store that location in the buffer
+  - in the other case, we create a chain
+- if we insert a label, then
+  - we collapse the chain if necessary
+  - and then assign that to the label pointer
+
+That makes sufficient sense, today.
+
+- NB: when we start off, we insert pos=795 at D->pclabels[8]
+- and when we store the label, we store pos=889
+- pass 1 offset estimate is 769
+- when we link it, we think the offset is 125 <= 128
+
+What happens during the link phase?
+- we look at all labels and compute if we expect them to be within
+  -128 to +127.
+- and if they are, we 'shrink' the size of the buffer computed for
+  them.
+- so this is obviously very suspect!
 
 * DONE Maintain 'object' status of pointers
 
