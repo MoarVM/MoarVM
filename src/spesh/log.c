@@ -78,6 +78,21 @@ void MVM_spesh_log_static(MVMThreadContext *tc, MVMObject *value) {
     }
 }
 
+/* Log a decont, only those that did not invoke. */
+void MVM_spesh_log_decont(MVMThreadContext *tc, MVMuint8 *prev_op, MVMObject *value) {
+    MVMSpeshLog *sl = tc->spesh_log;
+    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
+    if (sl && cid && prev_op - 4 == *(tc->interp_cur_op)) {
+        MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
+        entry->kind = MVM_SPESH_LOG_TYPE;
+        entry->id = cid;
+        MVM_ASSIGN_REF(tc, &(sl->common.header), entry->type.type, value->st->WHAT);
+        entry->type.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_ENTRY : 0;
+        entry->type.bytecode_offset = (prev_op - *(tc->interp_bytecode_start)) - 2;
+        commit_entry(tc, sl);
+    }
+}
+
 /* Code below this point is legacy spesh logging infrasturcture, and will be
  * replaced or significantly changed once the new spesh worker approach is
  * in place. */
