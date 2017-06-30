@@ -148,6 +148,11 @@ struct MVMFrame {
      * trigger if the limit is hit. */
     MVMuint8 osr_counter;
 
+    /* The current spesh correlation ID, if we're interpreting code and
+     * recording logs. Zero if interpreting unspecialized and not recording.
+     * Junk if running specialized code. */
+    MVMint32 spesh_correlation_id;
+
     /* A sequence number to indicate our place in the call stack */
     MVMint32 sequence_nr;
     /* The 'entry label' is a sort of indirect return address for the JIT */

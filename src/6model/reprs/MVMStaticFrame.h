@@ -39,6 +39,11 @@ struct MVMStaticFrameBody {
     /* Number of times we should invoke before spesh applies. */
     MVMuint32 spesh_threshold;
 
+    /* Correlation ID for data recording for the specializer. Incremented
+     * atomically until the recording threshold is reached, may be cleared
+     * by the specialization worker later if it wants more data recorded. */
+    AO_t spesh_correlation_id;
+
     /* Specializations array, if there are any. */
     MVMSpeshCandidate *spesh_candidates;
     MVMuint32          num_spesh_candidates;
