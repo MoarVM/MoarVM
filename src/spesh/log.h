@@ -25,6 +25,7 @@ void MVM_spesh_log_osr(MVMThreadContext *tc);
 void MVM_spesh_log_parameter(MVMThreadContext *tc, MVMObject *param);
 void MVM_spesh_log_type(MVMThreadContext *tc, MVMObject *value);
 void MVM_spesh_log_static(MVMThreadContext *tc, MVMObject *value);
+void MVM_spesh_log_decont(MVMThreadContext *tc, MVMuint8 *prev_op, MVMObject *value);
 
 /* These are part of the legacy spesh logging mechanism, and will be removed
  * (or very significantly changed) in the future. */
