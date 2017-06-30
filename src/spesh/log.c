@@ -7,6 +7,29 @@ void MVM_spesh_log_create_for_thread(MVMThreadContext *tc) {
         tc->spesh_log = (MVMSpeshLog *)MVM_repr_alloc_init(tc, tc->instance->SpeshLog); 
 }
 
+/* Increments the used count and - if it hits the limit - sends the log off
+ * to the worker thread and NULLs it out. */
+void commit_entry(MVMThreadContext *tc, MVMSpeshLog *sl) {
+    sl->body.used++;
+    if (sl->body.used == sl->body.limit) {
+        tc->spesh_log = NULL;
+        MVM_repr_push_o(tc, tc->instance->spesh_queue, (MVMObject *)sl);
+    }
+}
+
+/* Log the entry to a call frame. */
+void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf, MVMCallsite *cs) {
+    MVMSpeshLog *sl = tc->spesh_log;
+    if (sl) {
+        MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
+        entry->kind = MVM_SPESH_LOG_ENTRY;
+        entry->id = cid;
+        MVM_ASSIGN_REF(tc, &(sl->common.header), entry->entry.sf, sf);
+        entry->entry.cs = cs->is_interned ? cs : NULL;
+        commit_entry(tc, sl);
+    }
+}
+
 /* Code below this point is legacy spesh logging infrasturcture, and will be
  * replaced or significantly changed once the new spesh worker approach is
  * in place. */
