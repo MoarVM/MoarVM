@@ -93,6 +93,20 @@ void MVM_spesh_log_decont(MVMThreadContext *tc, MVMuint8 *prev_op, MVMObject *va
     }
 }
 
+/* Log the target of an invocation. */
+void MVM_spesh_log_invoke_target(MVMThreadContext *tc, MVMObject *invoke_target) {
+    MVMSpeshLog *sl = tc->spesh_log;
+    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
+    if (sl && cid) {
+        MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
+        entry->kind = MVM_SPESH_LOG_INVOKE;
+        entry->id = cid;
+        MVM_ASSIGN_REF(tc, &(sl->common.header), entry->value.value, invoke_target);
+        entry->type.bytecode_offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start)) - 2;
+        commit_entry(tc, sl);
+    }
+}
+
 /* Code below this point is legacy spesh logging infrasturcture, and will be
  * replaced or significantly changed once the new spesh worker approach is
  * in place. */
