@@ -17,6 +17,9 @@ typedef enum {
     MVM_SPESH_LOG_OSR
 } MVMSpeshLogEntryKind;
 
+/* Flags on types. */
+#define MVM_SPESH_LOG_TYPE_FLAG_CONCRETE 1
+
 /* An entry in the spesh log. */
 struct MVMSpeshLogEntry {
     /* The kind of log entry it is; discriminator for the union. */
