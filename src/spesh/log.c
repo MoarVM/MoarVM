@@ -30,6 +30,19 @@ void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf,
     }
 }
 
+/* Log an OSR point being hit. */
+void MVM_spesh_log_osr(MVMThreadContext *tc) {
+    MVMSpeshLog *sl = tc->spesh_log;
+    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
+    if (sl && cid) {
+        MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
+        entry->kind = MVM_SPESH_LOG_OSR;
+        entry->id = cid;
+        entry->osr.bytecode_offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start)) - 2;
+        commit_entry(tc, sl);
+    }
+}
+
 /* Code below this point is legacy spesh logging infrasturcture, and will be
  * replaced or significantly changed once the new spesh worker approach is
  * in place. */
