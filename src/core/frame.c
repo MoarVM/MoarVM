@@ -506,6 +506,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
         /* If we didn't find any, and we're below the limit, can set up a
          * specialization. */
+        /* TODO This changes once we switch over to the spesh worker thread. */
         if (!chosen_cand && num_spesh < MVM_SPESH_LIMIT && tc->instance->spesh_enabled)
             chosen_cand = MVM_spesh_candidate_setup(tc, static_frame,
                 callsite, args, 0);
@@ -553,6 +554,21 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         frame = allocate_frame(tc, static_frame, NULL);
         frame->effective_bytecode = static_frame->body.bytecode;
         frame->effective_handlers = static_frame->body.handlers;
+
+        /* If we should be spesh logging, set the correlation ID. */
+        frame->spesh_correlation_id = 0;
+        if (tc->spesh_log) {
+           if (static_frame->body.spesh_correlation_id < MVM_SPESH_LOG_LOGGED_ENOUGH) {
+               MVMint32 id = (MVMint32)MVM_incr(&(static_frame->body.spesh_correlation_id));
+               if (id >= MVM_SPESH_LOG_WARM_ENOUGH && id < MVM_SPESH_LOG_LOGGED_ENOUGH) {
+                   frame->spesh_correlation_id = id;
+               }
+           }
+        }
+    }
+    else {
+        /* TODO Should not need this after full spesh changes to worker thread. */
+        frame->spesh_correlation_id = 0;
     }
 
     /* Set static frame. */
