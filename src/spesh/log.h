@@ -20,6 +20,7 @@ struct MVMSpeshLogGuard {
 #define MVM_SPESH_LOG_LOGGED_ENOUGH 100
 
 void MVM_spesh_log_create_for_thread(MVMThreadContext *tc);
+void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf, MVMCallsite *cs);
 
 /* These are part of the legacy spesh logging mechanism, and will be removed
  * (or very significantly changed) in the future. */

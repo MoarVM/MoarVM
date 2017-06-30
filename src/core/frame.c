@@ -557,13 +557,14 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
         /* If we should be spesh logging, set the correlation ID. */
         frame->spesh_correlation_id = 0;
-        if (tc->spesh_log) {
-           if (static_frame->body.spesh_correlation_id < MVM_SPESH_LOG_LOGGED_ENOUGH) {
-               MVMint32 id = (MVMint32)MVM_incr(&(static_frame->body.spesh_correlation_id));
-               if (id >= MVM_SPESH_LOG_WARM_ENOUGH && id < MVM_SPESH_LOG_LOGGED_ENOUGH) {
-                   frame->spesh_correlation_id = id;
-               }
-           }
+        if (static_frame->body.spesh_correlation_id < MVM_SPESH_LOG_LOGGED_ENOUGH) {
+            MVMint32 id = (MVMint32)MVM_incr(&(static_frame->body.spesh_correlation_id));
+            if (id >= MVM_SPESH_LOG_WARM_ENOUGH && id < MVM_SPESH_LOG_LOGGED_ENOUGH) {
+                frame->spesh_correlation_id = id;
+                MVMROOT(tc, static_frame, {
+                    MVM_spesh_log_entry(tc, id, static_frame, callsite);
+                });
+            }
         }
     }
     else {
