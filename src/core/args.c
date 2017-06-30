@@ -411,6 +411,8 @@ void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 f
                 break;
             case MVM_RETURN_OBJ:
                 target->return_value->o = result;
+                if (!target->spesh_cand)
+                    MVM_spesh_log_return_type(tc, target);
                 break;
             case MVM_RETURN_INT:
                 target->return_value->i64 = MVM_repr_get_int(tc, decont_result(tc, result));
