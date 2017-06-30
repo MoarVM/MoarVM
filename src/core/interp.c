@@ -289,23 +289,29 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(getlex): {
-                MVMFrame    *f = tc->cur_frame;
-                MVMuint16    outers = GET_UI16(cur_op, 4);
-                MVMRegister  found;
+                MVMFrame *f = tc->cur_frame;
+                MVMuint16 idx = GET_UI16(cur_op, 2);
+                MVMuint16 outers = GET_UI16(cur_op, 4);
+                MVMuint16 *lexical_types;
                 while (outers) {
                     if (!f->outer)
                         MVM_exception_throw_adhoc(tc, "getlex: outer index out of range");
                     f = f->outer;
                     outers--;
                 }
-                GET_REG(cur_op, 0) = found = GET_LEX(cur_op, 2, f);
-                if (found.o == NULL) {
-                    MVMuint16 idx = GET_UI16(cur_op, 2);
-                    MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
-                        ? f->spesh_cand->lexical_types
-                        : f->static_info->body.lexical_types;
-                    if (lexical_types[idx] == MVM_reg_obj)
-                        GET_REG(cur_op, 0).o = MVM_frame_vivify_lexical(tc, f, idx);
+                lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
+                    ? f->spesh_cand->lexical_types
+                    : f->static_info->body.lexical_types;
+                if (lexical_types[idx] == MVM_reg_obj) {
+                    MVMRegister found = GET_LEX(cur_op, 2, f);
+                    MVMObject *value = found.o == NULL
+                        ? MVM_frame_vivify_lexical(tc, f, idx)
+                        : found.o;
+                    GET_REG(cur_op, 0).o = value;
+                    MVM_spesh_log_type(tc, value);
+                }
+                else {
+                    GET_REG(cur_op, 0) = GET_LEX(cur_op, 2, f);
                 }
                 cur_op += 6;
                 goto NEXT;
@@ -353,7 +359,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getlex_no): {
                 MVMRegister *found = MVM_frame_find_lexical_by_name(tc,
                     MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)), MVM_reg_obj);
-                GET_REG(cur_op, 0).o = found ? found->o : tc->instance->VMNull;
+                if (found) {
+                    GET_REG(cur_op, 0).o = found->o;
+                    MVM_spesh_log_type(tc, found->o);
+                }
+                else {
+                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
+                }
                 cur_op += 6;
                 goto NEXT;
             }
@@ -2028,6 +2040,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)),
                     GET_I16(cur_op, 10), &GET_REG(cur_op, 0), MVM_reg_obj);
+                MVM_spesh_log_type(tc, GET_REG(cur_op, 0).o);
                 cur_op += 12;
                 goto NEXT;
             }
@@ -2072,6 +2085,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
                     -1, &GET_REG(cur_op, 0), MVM_reg_obj);
+                MVM_spesh_log_type(tc, GET_REG(cur_op, 0).o);
                 cur_op += 8;
                 goto NEXT;
             }
@@ -4194,11 +4208,29 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 10).o);
                 cur_op += 12;
                 goto NEXT;
-            OP(getlexstatic_o):
+            OP(getlexstatic_o): {
+                MVMRegister *found = MVM_frame_find_lexical_by_name(tc,
+                    GET_REG(cur_op, 2).s, MVM_reg_obj);
+                if (found) {
+                    GET_REG(cur_op, 0).o = found->o;
+                    MVM_spesh_log_static(tc, found->o);
+                }
+                else {
+                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
+                }
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(getlexperinvtype_o): {
                 MVMRegister *found = MVM_frame_find_lexical_by_name(tc,
                     GET_REG(cur_op, 2).s, MVM_reg_obj);
-                GET_REG(cur_op, 0).o = found ? found->o : tc->instance->VMNull;
+                if (found) {
+                    GET_REG(cur_op, 0).o = found->o;
+                    MVM_spesh_log_type(tc, found->o);
+                }
+                else {
+                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
+                }
                 cur_op += 4;
                 goto NEXT;
             }
