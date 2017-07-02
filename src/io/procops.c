@@ -142,213 +142,6 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     MVM_free(_env); \
 } while (0)
 
-static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_signal) {
-    if (req->data)
-        *(MVMint64 *)req->data = (exit_status << 8) | term_signal;
-    uv_unref((uv_handle_t *)req);
-    uv_close((uv_handle_t *)req, NULL);
-}
-
-static void setup_process_stdio(MVMThreadContext *tc, MVMObject *handle, uv_process_t *process,
-        uv_stdio_container_t *stdio, int fd, MVMint64 flags, const char *op) {
-    if (flags & MVM_PIPE_CAPTURE) {
-        MVMIOSyncPipeData *pipedata;
-
-        if (REPR(handle)->ID != MVM_REPR_ID_MVMOSHandle)
-            MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle (got %s with REPR %s)", op, STABLE(handle)->debug_name, REPR(handle)->name);
-
-        pipedata           = (MVMIOSyncPipeData *)((MVMOSHandle *)handle)->body.data;
-        pipedata->process  = process;
-
-        stdio->flags       = UV_CREATE_PIPE | (fd == 0 ? UV_READABLE_PIPE : UV_WRITABLE_PIPE);
-        stdio->data.stream = pipedata->ss.handle;
-    }
-    else if (flags & MVM_PIPE_INHERIT) {
-        if (handle == tc->instance->VMNull) {
-            stdio->flags   = UV_INHERIT_FD;
-            stdio->data.fd = fd;
-        }
-        else {
-            MVMOSHandleBody body = ((MVMOSHandle *)handle)->body;
-
-            if (REPR(handle)->ID != MVM_REPR_ID_MVMOSHandle)
-                MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle (got %s with REPR %s)", op, STABLE(handle)->debug_name, REPR(handle)->name);
-
-            body.ops->pipeable->bind_stdio_handle(tc, ((MVMOSHandle *)handle), stdio);
-        }
-    }
-    else
-        stdio->flags = UV_IGNORE;
-}
-
-MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env,
-        MVMObject *in, MVMObject *out, MVMObject *err, MVMint64 flags) {
-    MVMint64 result = 0, spawn_result;
-    uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
-    uv_process_options_t process_options = {0};
-    uv_stdio_container_t process_stdio[3];
-    int i, process_still_running;
-
-    char * const cmdin = MVM_string_utf8_c8_encode_C_string(tc, cmd);
-    char * const _cwd = MVM_string_utf8_c8_encode_C_string(tc, cwd);
-    const MVMuint64 size = MVM_repr_elems(tc, env);
-    char **_env = MVM_malloc((size + 1) * sizeof(char *));
-    MVMIter *iter;
-
-#ifdef _WIN32
-    const MVMuint16 acp = GetACP(); /* We should get ACP at runtime. */
-    char * const _cmd = ANSIToUTF8(acp, getenv("ComSpec"));
-    char *args[3];
-    args[0] = "/c";
-    args[1] = cmdin;
-    args[2] = NULL;
-#else
-    char * const _cmd = "/bin/sh";
-    char *args[4];
-    args[0] = "/bin/sh";
-    args[1] = "-c";
-    args[2] = cmdin;
-    args[3] = NULL;
-#endif
-
-    MVMROOT(tc, in, {
-    MVMROOT(tc, out, {
-    MVMROOT(tc, err, {
-        iter = (MVMIter *)MVM_iter(tc, env);
-        INIT_ENV();
-    });
-    });
-    });
-
-    setup_process_stdio(tc, in,  process, &process_stdio[0], 0, flags,      "shell");
-    setup_process_stdio(tc, out, process, &process_stdio[1], 1, flags >> 3, "shell");
-    if (!(flags & MVM_PIPE_MERGED_OUT_ERR))
-        setup_process_stdio(tc, err, process, &process_stdio[2], 2, flags >> 6, "shell");
-
-    process_options.stdio       = process_stdio;
-    process_options.file        = _cmd;
-    process_options.args        = args;
-    process_options.cwd         = _cwd;
-    process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
-    process_options.env         = _env;
-    if (flags & MVM_PIPE_MERGED_OUT_ERR) {
-        process_options.stdio_count = 2;
-    }
-    else
-        process_options.stdio_count = 3;
-    process_options.exit_cb     = spawn_on_exit;
-    if (flags & (MVM_PIPE_CAPTURE_IN | MVM_PIPE_CAPTURE_OUT | MVM_PIPE_CAPTURE_ERR)) {
-        process_still_running = 1;
-        process->data = MVM_calloc(1, sizeof(MVMint64));
-        uv_ref((uv_handle_t *)process);
-        spawn_result = uv_spawn(tc->loop, process, &process_options);
-        if (spawn_result)
-            result = spawn_result;
-    }
-    else {
-        process_still_running = 0;
-        process->data = &result;
-        uv_ref((uv_handle_t *)process);
-        spawn_result = uv_spawn(tc->loop, process, &process_options);
-        if (spawn_result)
-            result = spawn_result;
-        else
-            uv_run(tc->loop, UV_RUN_DEFAULT);
-    }
-
-    FREE_ENV();
-    MVM_free(_cwd);
-#ifdef _WIN32
-    MVM_free(_cmd);
-#endif
-    MVM_free(cmdin);
-    uv_unref((uv_handle_t *)process);
-
-    if (!process_still_running)
-        MVM_free(process);
-
-    return result;
-}
-
-MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, MVMObject *env,
-        MVMObject *in, MVMObject *out, MVMObject *err, MVMint64 flags) {
-    MVMint64 result = 0, spawn_result;
-    uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
-    uv_process_options_t process_options = {0};
-    uv_stdio_container_t process_stdio[3];
-    int i;
-
-    char   * const      _cwd = MVM_string_utf8_c8_encode_C_string(tc, cwd);
-    const MVMuint64     size = MVM_repr_elems(tc, env);
-    char              **_env = MVM_malloc((size + 1) * sizeof(char *));
-    const MVMuint64  arg_size = MVM_repr_elems(tc, argv);
-    char             **args = MVM_malloc((arg_size + 1) * sizeof(char *));
-    MVMRegister        reg;
-    MVMIter           *iter;
-
-    i = 0;
-    while(i < arg_size) {
-        REPR(argv)->pos_funcs.at_pos(tc, STABLE(argv), argv, OBJECT_BODY(argv), i, &reg, MVM_reg_obj);
-        args[i++] = MVM_string_utf8_c8_encode_C_string(tc, MVM_repr_get_str(tc, reg.o));
-    }
-    args[arg_size] = NULL;
-
-    MVMROOT(tc, in, {
-    MVMROOT(tc, out, {
-    MVMROOT(tc, err, {
-        iter = (MVMIter *)MVM_iter(tc, env);
-        INIT_ENV();
-    });
-    });
-    });
-
-    setup_process_stdio(tc, in,  process, &process_stdio[0], 0, flags,      "spawn");
-    setup_process_stdio(tc, out, process, &process_stdio[1], 1, flags >> 3, "spawn");
-    if (!(flags & MVM_PIPE_MERGED_OUT_ERR))
-        setup_process_stdio(tc, err, process, &process_stdio[2], 2, flags >> 6, "spawn");
-
-    process_options.stdio       = process_stdio;
-    process_options.file        = arg_size ? args[0] : NULL;
-    process_options.args        = args;
-    process_options.cwd         = _cwd;
-    process_options.flags       = UV_PROCESS_WINDOWS_HIDE;
-    process_options.env         = _env;
-    if (flags & MVM_PIPE_MERGED_OUT_ERR) {
-        process_options.stdio_count = 2;
-    }
-    else
-        process_options.stdio_count = 3;
-    process_options.exit_cb     = spawn_on_exit;
-    if (flags & (MVM_PIPE_CAPTURE_IN | MVM_PIPE_CAPTURE_OUT | MVM_PIPE_CAPTURE_ERR)) {
-        process->data = MVM_calloc(1, sizeof(MVMint64));
-        uv_ref((uv_handle_t *)process);
-        spawn_result = uv_spawn(tc->loop, process, &process_options);
-        if (spawn_result)
-            result = spawn_result;
-    }
-    else {
-        process->data = &result;
-        uv_ref((uv_handle_t *)process);
-        spawn_result = uv_spawn(tc->loop, process, &process_options);
-        if (spawn_result)
-            result = spawn_result;
-        else
-            uv_run(tc->loop, UV_RUN_DEFAULT);
-    }
-
-    FREE_ENV();
-    MVM_free(_cwd);
-    uv_unref((uv_handle_t *)process);
-
-    i = 0;
-    while(args[i])
-        MVM_free(args[i++]);
-
-    MVM_free(args);
-
-    return result;
-}
-
 /* Data that we keep for an asynchronous process handle. */
 typedef struct {
     /* The libuv handle to the process. */
@@ -377,12 +170,20 @@ typedef struct {
     char              *cwd;
     char             **env;
     char             **args;
+    uv_stream_t       *stdin_handle;
     MVMuint32          seq_stdout;
     MVMuint32          seq_stderr;
     MVMuint32          seq_merge;
-    uv_stream_t       *stdin_handle;
+    MVMint64           permit_stdout;
+    MVMint64           permit_stderr;
+    MVMint64           permit_merge;
+    uv_pipe_t         *pipe_stdout;
+    uv_pipe_t         *pipe_stderr;
+    int                reading_stdout;
+    int                reading_stderr;
     ProcessState       state;
     int                using;
+    int                merge;
 } SpawnInfo;
 
 /* Info we convey about a write task. */
@@ -498,6 +299,7 @@ static void write_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
 static const MVMAsyncTaskOps write_op_table = {
     write_setup,
     NULL,
+    NULL,
     write_gc_mark,
     write_gc_free
 };
@@ -566,6 +368,7 @@ static const MVMAsyncTaskOps close_op_table = {
     close_perform,
     NULL,
     NULL,
+    NULL,
     NULL
 };
 
@@ -573,6 +376,7 @@ static void deferred_close_perform(MVMThreadContext *tc, uv_loop_t *loop, MVMObj
 
 static const MVMAsyncTaskOps deferred_close_op_table = {
     deferred_close_perform,
+    NULL,
     NULL,
     NULL,
     NULL
@@ -627,6 +431,11 @@ static void deferred_close_perform(MVMThreadContext *tc, uv_loop_t *loop, MVMObj
     }
 }
 
+MVMObject * get_async_task_handle(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOAsyncProcessData *handle_data = (MVMIOAsyncProcessData *)h->body.data;
+    return handle_data->async_task;
+}
+
 /* IO ops table, for async process, populated with functions. */
 static const MVMIOAsyncWritable proc_async_writable = { write_bytes };
 static const MVMIOClosable      closable            = { close_stdin };
@@ -639,7 +448,7 @@ static const MVMIOOps proc_op_table = {
     NULL,
     NULL,
     NULL,
-    NULL,
+    get_async_task_handle,
     NULL,
     NULL,
     NULL,
@@ -703,7 +512,7 @@ static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) 
 
 /* Read functions for stdout/stderr/merged. */
 static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, SpawnInfo *si,
-                       MVMObject *callback, MVMuint32 seq_number) {
+                       MVMObject *callback, MVMuint32 seq_number, MVMint64 *permit) {
     MVMThreadContext *tc  = si->tc;
     MVMObject *arr;
     MVMAsyncTask *t;
@@ -734,6 +543,20 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
 
             /* Finally, no error. */
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+
+            /* Update permit count, stop reading if we run out. */
+            if (permit > 0) {
+                (*permit)--;
+                if (*permit == 0) {
+                    uv_read_stop(handle);
+                    if (handle == (uv_stream_t *)si->pipe_stdout)
+                        si->reading_stdout = 0;
+                    else if (handle == (uv_stream_t *)si->pipe_stderr)
+                        si->reading_stderr = 0;
+                    else
+                        MVM_panic(1, "Confused stopping reading async process handle");
+                }
+            }
         });
         });
     }
@@ -749,7 +572,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
         });
         if (buf->base)
             MVM_free(buf->base);
-        uv_close((uv_handle_t *) handle, NULL);
+        uv_close((uv_handle_t *)handle, NULL);
         if (--si->using == 0)
             MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
     }
@@ -767,7 +590,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
         });
         if (buf->base)
             MVM_free(buf->base);
-        uv_close((uv_handle_t *) handle, NULL);
+        uv_close((uv_handle_t *)handle, NULL);
         if (--si->using == 0)
             MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
     }
@@ -777,22 +600,29 @@ static void async_spawn_stdout_bytes_read(uv_stream_t *handle, ssize_t nread, co
     SpawnInfo *si = (SpawnInfo *)handle->data;
     MVMObject *cb = MVM_repr_at_key_o(si->tc, si->callbacks,
         si->tc->instance->str_consts.stdout_bytes);
-    async_read(handle, nread, buf, si, cb, si->seq_stdout++);
+    async_read(handle, nread, buf, si, cb, si->seq_stdout++, &(si->permit_stdout));
 }
 static void async_spawn_stderr_bytes_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
     SpawnInfo *si = (SpawnInfo *)handle->data;
     MVMObject *cb = MVM_repr_at_key_o(si->tc, si->callbacks,
         si->tc->instance->str_consts.stderr_bytes);
-    async_read(handle, nread, buf, si, cb, si->seq_stderr++);
+    async_read(handle, nread, buf, si, cb, si->seq_stderr++, &(si->permit_stderr));
 }
 static void async_spawn_merge_bytes_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
     SpawnInfo *si = (SpawnInfo *)handle->data;
     MVMObject *cb = MVM_repr_at_key_o(si->tc, si->callbacks,
         si->tc->instance->str_consts.merge_bytes);
-    async_read(handle, nread, buf, si, cb, si->seq_merge++);
+    async_read(handle, nread, buf, si, cb, si->seq_merge++, &(si->permit_merge));
 }
 
 /* Actually spawns an async task. This runs in the event loop thread. */
+static MVMint64 get_pipe_fd(MVMThreadContext *tc, uv_pipe_t *pipe) {
+    uv_os_fd_t fd;
+    if (uv_fileno((uv_handle_t *)pipe, &fd) == 0)
+        return (MVMint64)fd;
+    else
+        return 0;
+}
 static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     MVMint64 spawn_result;
 
@@ -800,9 +630,6 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
-    uv_pipe_t *stdout_pipe = NULL;
-    uv_pipe_t *stderr_pipe = NULL;
-    uv_read_cb stdout_cb, stderr_cb;
 
     /* Add to work in progress. */
     SpawnInfo *si = (SpawnInfo *)data;
@@ -829,29 +656,26 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         process_stdio[0].data.fd = 0;
     }
     if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.merge_bytes)) {
-        stdout_pipe = MVM_malloc(sizeof(uv_pipe_t));
-        uv_pipe_init(tc->loop, stdout_pipe, 0);
-        stdout_pipe->data = si;
+        si->pipe_stdout = MVM_malloc(sizeof(uv_pipe_t));
+        uv_pipe_init(tc->loop, si->pipe_stdout, 0);
+        si->pipe_stdout->data = si;
         process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-        process_stdio[1].data.stream = (uv_stream_t *)stdout_pipe;
-        stdout_cb                    = async_spawn_merge_bytes_read;
-        stderr_pipe = MVM_malloc(sizeof(uv_pipe_t));
-        uv_pipe_init(tc->loop, stderr_pipe, 0);
-        stderr_pipe->data = si;
+        process_stdio[1].data.stream = (uv_stream_t *)si->pipe_stdout;
+        si->pipe_stderr = MVM_malloc(sizeof(uv_pipe_t));
+        uv_pipe_init(tc->loop, si->pipe_stderr, 0);
+        si->pipe_stderr->data = si;
         process_stdio[2].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-        process_stdio[2].data.stream = (uv_stream_t *)stderr_pipe;
-        stderr_cb                    = async_spawn_merge_bytes_read;
+        process_stdio[2].data.stream = (uv_stream_t *)si->pipe_stderr;
+        si->merge = 1;
         si->using += 2;
     }
     else {
         if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_bytes)) {
-            uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
-            uv_pipe_init(tc->loop, pipe, 0);
-            pipe->data = si;
+            si->pipe_stdout = MVM_malloc(sizeof(uv_pipe_t));
+            uv_pipe_init(tc->loop, si->pipe_stdout, 0);
+            si->pipe_stdout->data = si;
             process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-            process_stdio[1].data.stream = (uv_stream_t *)pipe;
-            stdout_pipe                  = pipe;
-            stdout_cb                    = async_spawn_stdout_bytes_read;
+            process_stdio[1].data.stream = (uv_stream_t *)si->pipe_stdout;
             si->using++;
         }
         else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_fd)) {
@@ -864,13 +688,11 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
             process_stdio[1].data.fd = 1;
         }
         if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_bytes)) {
-            uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
-            uv_pipe_init(tc->loop, pipe, 0);
-            pipe->data = si;
+            si->pipe_stderr = MVM_malloc(sizeof(uv_pipe_t));
+            uv_pipe_init(tc->loop, si->pipe_stderr, 0);
+            si->pipe_stderr->data = si;
             process_stdio[2].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-            process_stdio[2].data.stream = (uv_stream_t *)pipe;
-            stderr_pipe                  = pipe;
-            stderr_cb                    = async_spawn_stderr_bytes_read;
+            process_stdio[2].data.stream = (uv_stream_t *)si->pipe_stderr;
             si->using++;
         }
         else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_fd)) {
@@ -918,7 +740,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                 });
             }
 
-            if (stdout_pipe) {
+            if (si->pipe_stdout) {
                 MVMObject *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
                 MVMObject *cb = MVM_repr_at_key_o(tc, si->callbacks,
                     tc->instance->str_consts.stdout_bytes);
@@ -929,7 +751,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                 MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
             }
 
-            if (stderr_pipe) {
+            if (si->pipe_stderr) {
                 MVMObject *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
                 MVMObject *cb = MVM_repr_at_key_o(tc, si->callbacks,
                     tc->instance->str_consts.stderr_bytes);
@@ -958,17 +780,86 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
             MVMROOT(tc, ready_cb, {
             MVMROOT(tc, async_task, {
                 MVMObject *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-                MVM_repr_push_o(tc, arr, ready_cb);
-                MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
+                MVMROOT(tc, arr, {
+                    MVMObject *handle_arr = MVM_repr_alloc_init(tc,
+                        tc->instance->boot_types.BOOTIntArray);
+                    MVM_repr_push_i(tc, handle_arr, si->pipe_stdout
+                        ? get_pipe_fd(tc, si->pipe_stdout)
+                        : -1);
+                    MVM_repr_push_i(tc, handle_arr, si->pipe_stderr
+                        ? get_pipe_fd(tc, si->pipe_stderr)
+                        : -1);
+                    MVM_repr_push_o(tc, arr, ready_cb);
+                    MVM_repr_push_o(tc, arr, handle_arr);
+                    MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
+                });
             });
             });
         }
+    }
+}
 
-        /* Start any output readers. */
-        if (stdout_pipe)
-            uv_read_start((uv_stream_t *)stdout_pipe, on_alloc, stdout_cb);
-        if (stderr_pipe)
-            uv_read_start((uv_stream_t *)stderr_pipe, on_alloc, stderr_cb);
+/* Permits provide the back-pressure mechanism for the readers. */
+static void spawn_permit(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data,
+                         MVMint64 channel, MVMint64 permits) {
+    SpawnInfo *si = (SpawnInfo *)data;
+    if (si->work_idx < 0)
+        return;
+    if (channel == 0 && si->pipe_stdout && si->pipe_stderr && si->merge) {
+        if (permits < 0)
+            si->permit_merge = -1;
+        else if (si->permit_merge < 0)
+            si->permit_merge = permits;
+        else
+            si->permit_merge += permits;
+        if (!si->reading_stdout && si->permit_merge) {
+            uv_read_start((uv_stream_t *)si->pipe_stdout, on_alloc,
+                async_spawn_merge_bytes_read);
+            uv_read_start((uv_stream_t *)si->pipe_stderr, on_alloc,
+                async_spawn_merge_bytes_read);
+            si->reading_stdout = 1;
+            si->reading_stderr = 1;
+        }
+        else if (si->reading_stdout && !si->permit_merge) {
+            uv_read_stop((uv_stream_t *)si->pipe_stdout);
+            uv_read_stop((uv_stream_t *)si->pipe_stderr);
+            si->reading_stdout = 0;
+            si->reading_stderr = 0;
+        }
+    }
+    else if (channel == 1 && si->pipe_stdout && !si->merge) {
+        if (permits < 0)
+            si->permit_stdout = -1;
+        else if (si->permit_stdout < 0)
+            si->permit_stdout = permits;
+        else
+            si->permit_stdout += permits;
+        if (!si->reading_stdout && si->permit_stdout) {
+            uv_read_start((uv_stream_t *)si->pipe_stdout, on_alloc,
+                async_spawn_stdout_bytes_read);
+            si->reading_stdout = 1;
+        }
+        else if (si->reading_stdout && !si->permit_stdout) {
+            uv_read_stop((uv_stream_t *)si->pipe_stdout);
+            si->reading_stdout = 0;
+        }
+    }
+    else if (channel == 2 && si->pipe_stderr && !si->merge) {
+        if (permits < 0)
+            si->permit_stderr = -1;
+        else if (si->permit_stderr < 0)
+            si->permit_stderr = permits;
+        else
+            si->permit_stderr += permits;
+        if (!si->reading_stderr && si->permit_stderr) {
+            uv_read_start((uv_stream_t *)si->pipe_stderr, on_alloc,
+                async_spawn_stderr_bytes_read);
+            si->reading_stderr = 1;
+        }
+        else if (si->reading_stderr && !si->permit_stderr) {
+            uv_read_stop((uv_stream_t *)si->pipe_stderr);
+            si->reading_stderr = 0;
+        }
     }
 }
 
@@ -1027,6 +918,7 @@ static void spawn_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
 /* Operations table for async connect task. */
 static const MVMAsyncTaskOps spawn_op_table = {
     spawn_setup,
+    spawn_permit,
     spawn_cancel,
     spawn_gc_mark,
     spawn_gc_free

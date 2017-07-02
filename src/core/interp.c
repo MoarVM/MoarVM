@@ -3669,11 +3669,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMint64 exit_code = GET_REG(cur_op, 0).i64;
                 exit(exit_code);
             }
-            OP(shell):
-                GET_REG(cur_op, 0).i64 = MVM_proc_shell(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
-                    GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o, GET_REG(cur_op, 10).o, GET_REG(cur_op, 12).o, GET_REG(cur_op, 14).i64);
-                cur_op += 16;
-                goto NEXT;
             OP(cwd):
                 GET_REG(cur_op, 0).s = MVM_dir_cwd(tc);
                 cur_op += 2;
@@ -3805,11 +3800,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_proc_getpid(tc);
                 cur_op += 2;
                 goto NEXT;
-            OP(spawn):
-                GET_REG(cur_op, 0).i64 = MVM_proc_spawn(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
-                    GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o, GET_REG(cur_op, 10).o, GET_REG(cur_op, 12).o, GET_REG(cur_op, 14).i64);
-                cur_op += 16;
-                goto NEXT;
             OP(filereadable):
                 GET_REG(cur_op, 0).i64 = MVM_file_isreadable(tc, GET_REG(cur_op, 2).s,0);
                 cur_op += 4;
@@ -3853,8 +3843,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     tc->instance->boot_types.BOOTException);
                 cur_op += 2;
                 goto NEXT;
-            OP(DEPRECATED_0):
-                cur_op += 2;
+            OP(permit):
+                MVM_io_eventloop_permit(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64,
+                       GET_REG(cur_op, 4).i64);
+                cur_op += 6;
                 goto NEXT;
             OP(backtrace):
                 GET_REG(cur_op, 0).o = MVM_exception_backtrace(tc, GET_REG(cur_op, 2).o);
@@ -4366,10 +4358,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o);
                 cur_op += 10;
                 goto NEXT;
-            OP(close_fhi):
-                GET_REG(cur_op, 0).i64 = MVM_io_close(tc, GET_REG(cur_op, 2).o);
-                cur_op += 4;
-                goto NEXT;
             OP(setparameterizer):
                 MVM_6model_parametric_setup(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o);
                 cur_op += 4;
@@ -4586,10 +4574,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(scdisclaim):
                 MVM_sc_disclaim(tc, (MVMSerializationContext *)GET_REG(cur_op, 0).o);
-                cur_op += 2;
-                goto NEXT;
-            OP(syncpipe):
-                GET_REG(cur_op, 0).o = MVM_io_syncpipe(tc);
                 cur_op += 2;
                 goto NEXT;
             OP(atpos2d_i):
@@ -4996,7 +4980,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(decodersetlineseps): {
                 MVMObject *decoder = GET_REG(cur_op, 0).o;
-                MVM_decoder_ensure_decoder(tc, decoder, "decoderaddbytes");
+                MVM_decoder_ensure_decoder(tc, decoder, "decodersetlineseps");
                 MVM_decoder_set_separators(tc, (MVMDecoder *)decoder, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
@@ -5615,6 +5599,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "The slurp op was removed in MoarVM 2017.06.");
             OP(DEPRECATED_28):
                 MVM_exception_throw_adhoc(tc, "The spew op was removed in MoarVM 2017.06.");
+            OP(DEPRECATED_29):
+                MVM_exception_throw_adhoc(tc, "The spawn op was removed in MoarVM 2017.07.");
+            OP(DEPRECATED_30):
+                MVM_exception_throw_adhoc(tc, "The shell op was removed in MoarVM 2017.07.");
+            OP(DEPRECATED_31):
+                MVM_exception_throw_adhoc(tc, "The syncpipe op was removed in MoarVM 2017.07.");
+            OP(DEPRECATED_32):
+                MVM_exception_throw_adhoc(tc, "The close_fhi op was removed in MoarVM 2017.07.");
             OP(coverage_log): {
                 MVMString *filename = MVM_cu_string(tc, cu, GET_UI32(cur_op, 0));
                 MVMuint32 lineno    = GET_UI32(cur_op, 4);

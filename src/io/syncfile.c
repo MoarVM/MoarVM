@@ -242,14 +242,6 @@ static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     return 0;
 }
 
-
-/* Operations aiding process spawning and I/O handling. */
-static void bind_stdio_handle(MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio) {
-    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    stdio->flags        = UV_INHERIT_FD;
-    stdio->data.fd      = data->fd;
-}
-
 /* Locks a file. */
 static MVMint64 lock(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
@@ -362,7 +354,6 @@ static const MVMIOClosable      closable      = { closefh };
 static const MVMIOSyncReadable  sync_readable = { read_bytes, mvm_eof };
 static const MVMIOSyncWritable  sync_writable = { write_bytes, flush, truncatefh };
 static const MVMIOSeekable      seekable      = { seek, mvm_tell };
-static const MVMIOPipeable      pipeable      = { bind_stdio_handle };
 static const MVMIOLockable      lockable      = { lock, unlock };
 static const MVMIOIntrospection introspection = { is_tty, mvm_fileno };
 
@@ -375,7 +366,7 @@ static const MVMIOOps op_table = {
     NULL,
     &seekable,
     NULL,
-    &pipeable,
+    NULL,
     &lockable,
     &introspection,
     &set_buffer_size,

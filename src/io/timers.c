@@ -45,6 +45,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
 /* Operations table for async timer task. */
 static const MVMAsyncTaskOps op_table = {
     setup,
+    NULL,
     cancel,
     NULL,
     gc_free

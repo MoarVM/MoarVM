@@ -512,7 +512,7 @@
 #define MVM_OP_threadjoin 508
 #define MVM_OP_time_n 509
 #define MVM_OP_exit 510
-#define MVM_OP_shell 511
+#define MVM_OP_DEPRECATED_30 511
 #define MVM_OP_cwd 512
 #define MVM_OP_clargs 513
 #define MVM_OP_getenvhash 514
@@ -535,7 +535,7 @@
 #define MVM_OP_neginf 531
 #define MVM_OP_nan 532
 #define MVM_OP_getpid 533
-#define MVM_OP_spawn 534
+#define MVM_OP_DEPRECATED_29 534
 #define MVM_OP_filereadable 535
 #define MVM_OP_filewritable 536
 #define MVM_OP_fileexecutable 537
@@ -545,7 +545,7 @@
 #define MVM_OP_write_fhb 541
 #define MVM_OP_replace 542
 #define MVM_OP_newexception 543
-#define MVM_OP_DEPRECATED_0 544
+#define MVM_OP_permit 544
 #define MVM_OP_backtrace 545
 #define MVM_OP_symlink 546
 #define MVM_OP_link 547
@@ -619,7 +619,7 @@
 #define MVM_OP_settypefinalize 615
 #define MVM_OP_force_gc 616
 #define MVM_OP_nativecallglobal 617
-#define MVM_OP_close_fhi 618
+#define MVM_OP_DEPRECATED_32 618
 #define MVM_OP_setparameterizer 619
 #define MVM_OP_parameterizetype 620
 #define MVM_OP_typeparameterized 621
@@ -664,7 +664,7 @@
 #define MVM_OP_ordbaseat 660
 #define MVM_OP_neverrepossess 661
 #define MVM_OP_scdisclaim 662
-#define MVM_OP_syncpipe 663
+#define MVM_OP_DEPRECATED_31 663
 #define MVM_OP_atpos2d_i 664
 #define MVM_OP_atpos2d_n 665
 #define MVM_OP_atpos2d_s 666
