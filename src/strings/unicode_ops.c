@@ -178,6 +178,8 @@ int process_grapheme_to_stack (MVMThreadContext *tc, MVMGrapheme32 g, collation_
     }
     return rtrn;
 }
+#define onexit_stack fprintf(stderr, "Grabbing from the stack. a_pushed %i b_pushed %i\n", *a_keys_pushed, *b_keys_pushed)
+
 int grab_from_stack(
     MVMThreadContext *tc,
     int *a_keys_pushed,
@@ -186,7 +188,6 @@ int grab_from_stack(
     MVMGraphemeIter *b_gi,
     collation_stack *stack_a,
     collation_stack *stack_b) {
-#define onexit_stack fprintf(stderr, "Grabbing from the stack. a_pushed %i b_pushed %i\n", *a_keys_pushed, *b_keys_pushed)
 
     fprintf(stderr, "Grabbing from the stack. a_pushed %i b_pushed %i\n", *a_keys_pushed, *b_keys_pushed);
     int grapheme_index = 0;
@@ -224,6 +225,37 @@ int grab_from_stack(
     }
     onexit_stack;
     return 1;
+}
+int grab_from_stack2(
+    MVMThreadContext *tc,
+    int *a_keys_pushed,
+    MVMGraphemeIter *a_gi,
+    collation_stack *stack_a) {
+    int grapheme_index = 0;
+    fprintf(stderr, "Grabbing from the stack. a_pushed %i\n", *a_keys_pushed);
+    if (!MVM_string_gi_has_more(tc, a_gi)) {
+        return 0;
+    }
+    *a_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, a_gi), stack_a, grapheme_index++);
+    fprintf(stderr, "Finished one graphebe grab to stack. a_pushed %i\n", *a_keys_pushed);
+    return 1;
+}
+/* These are not found in the collation data and must be synthesized */
+int synthesize_values (int cp) {
+    /* ASSIGNED Block=Tangut/Tangut_Components */
+    int collation_key_Tangut[2][3] = {
+        {0xFB00, 0x20, 0x2}, {((cp - 0x17000) | 0x8000), 0x0, 0x0}
+    };
+    /* ASSIGNED Block=Nushu */
+    int collation_key_Nushu[2][3] = {
+        {0xFB01, 0x20, 0x2}, {((cp - 0x1B170) | 0x8000), 0x0, 0x0}
+    };
+    /* Unified_Ideograph=True AND ((Block=CJK_Unified_Ideograph) OR (Block=CJK_Compatibility_Ideographs)) */
+    int collation_key_Ideograph[2][3] = {
+        {(0xFB40+ (cp >> 15)), 0x20, 0x2}, {((cp - 0x1B170) | 0x8000), 0x0, 0x0}
+    };
+
+    return 0;
 }
 /* MVM_unicode_string_compare supports synthetic graphemes but in case we have
  * a codepoint without any collation value, we do not yet decompose it and
@@ -302,24 +334,26 @@ MVMint64 MVM_unicode_string_compare
     MVM_string_gi_init(tc, &b_gi, b);
     /* Otherwise, need to iterate by grapheme */
     grapheme_index = 0;
-    //a_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, &a_gi), &stack_a, grapheme_index++);
-    //b_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, &b_gi), &stack_b, grapheme_index++);
-    grab_from_stack(tc, &a_keys_pushed, &b_keys_pushed, &a_gi, &b_gi, &stack_a, &stack_b);
-    int pos_a = 0, pos_b = 0, i = 0, rtrn = 0, save_pos_a = 0, save_pos_b = 0;
+    grab_from_stack2(tc, &b_keys_pushed, &b_gi, &stack_b);
+    grab_from_stack2(tc, &a_keys_pushed, &a_gi, &stack_a);
+    int pos_a = 0, pos_b = 0, i = 0, rtrn = 0;
+    int grab_a_rtrn = 1, grab_b_rtrn = 1;
     for (i = 0; i < 3; i++) {
         print_stack(tc, &stack_a);
         print_stack(tc, &stack_b);
         while (rtrn == 0) {
-            pos_a = 0;
-            pos_b = 0;
-            while (pos_a <= stack_a.stack_top && pos_b <= stack_b.stack_top) {
-                if (stack_a.keys[pos_a].s.primary == 1) {
+            while (pos_a <= a_keys_pushed && pos_b <= b_keys_pushed) {
+                if (stack_a.keys[pos_a].a[i] == collation_zero) {
                     fprintf(stderr, "skipping stack_a index %i since it's value 1\n", pos_a);
                     pos_a++;
+                    if (a_keys_pushed < pos_a)
+                        continue;
                 }
-                if (stack_b.keys[pos_b].s.primary == 1) {
+                if (stack_b.keys[pos_b].a[i] == collation_zero) {
                     fprintf(stderr, "skipping stack_b index %i since it's value 1\n", pos_b);
                     pos_b++;
+                    if (b_keys_pushed < pos_b)
+                        continue;
                 }
                 fprintf(stderr, "stack_a index %i is value %X\n", pos_a, stack_a.keys[pos_a].s.primary);
                 fprintf(stderr, "stack_b index %i is value %X\n", pos_b, stack_b.keys[pos_b].s.primary);
@@ -327,7 +361,7 @@ MVMint64 MVM_unicode_string_compare
                 fprintf(stderr, "checking level %i at pos_a %i pos_b %i\n", i, pos_a, pos_b);
                 /* If collation values are not equal */
                 if (stack_a.keys[pos_a].a[i] != stack_b.keys[pos_b].a[i])
-                    rtrn = stack_a.keys[pos_a].a[i] < stack_b.keys[pos_b].a[i] ? level_eval_settings[i][0] :
+                    rtrn = stack_a.keys[pos_a].a[i] < stack_b.keys[pos_b].a[i] ?  level_eval_settings[i][0] :
                            stack_a.keys[pos_a].a[i] > stack_b.keys[pos_b].a[i] ?  level_eval_settings[i][2] :
                                                                                   level_eval_settings[i][2] ;
                 if (rtrn != 0)
@@ -336,13 +370,19 @@ MVMint64 MVM_unicode_string_compare
                 pos_b++;
 
             }
-            if (!grab_from_stack(tc, &a_keys_pushed, &b_keys_pushed, &a_gi, &b_gi, &stack_a, &stack_b)) {
-                fprintf(stderr, "Couldn't grab any more from strings\n");
+            grab_b_rtrn = grab_from_stack2(tc, &b_keys_pushed, &b_gi, &stack_b);
+            if (!grab_b_rtrn) {
+                /* TODO push [0.0.0] onto the stack */
+            }
+            grab_a_rtrn = grab_from_stack2(tc, &a_keys_pushed, &a_gi, &stack_a);
+            if (!grab_a_rtrn) {
+                /* TODO push [0.0.0] onto the stack */
+            }
+            if (!grab_a_rtrn && !grab_b_rtrn) {
+                fprintf(stderr, "Can't grab any more of string a or string b\n");
                 break;
             }
         }
-        //if (MVM_string_gi_has_more(tc, &a_gi) && MVM_string_gi_has_more(tc, &b_gi)) {
-
     }
     /* If we don't have quaternary collation level set (we throw away codepoint info)
      * we should return 0 because we have gone through all codepoints we have */
