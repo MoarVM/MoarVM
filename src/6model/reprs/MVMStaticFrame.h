@@ -44,6 +44,10 @@ struct MVMStaticFrameBody {
      * by the specialization worker later if it wants more data recorded. */
     AO_t spesh_correlation_id;
 
+    /* Specialization statistics assembled by the specialization worker thread
+     * from logs. */
+    MVMSpeshStats *spesh_stats;
+
     /* Specializations array, if there are any. */
     MVMSpeshCandidate *spesh_candidates;
     MVMuint32          num_spesh_candidates;
