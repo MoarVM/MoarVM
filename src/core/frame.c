@@ -976,7 +976,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
             two_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ);
             MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, two_args_callsite);
             cur_frame->args[0].o = cur_frame->code_ref;
-            cur_frame->args[1].o = NULL;
+            cur_frame->args[1].o = tc->instance->VMNull;
             cur_frame->special_return = continue_unwind;
             cur_frame->mark_special_return_data = mark_unwind_data;
             {
