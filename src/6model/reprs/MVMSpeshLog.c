@@ -39,6 +39,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
                 MVM_gc_worklist_add(tc, worklist, &(log->entries[i].entry.sf));
                 break;
             case MVM_SPESH_LOG_PARAMETER:
+            case MVM_SPESH_LOG_PARAMETER_DECONT:
             case MVM_SPESH_LOG_TYPE:
                 MVM_gc_worklist_add(tc, worklist, &(log->entries[i].type.type));
                 break;
