@@ -13,7 +13,28 @@ void commit_entry(MVMThreadContext *tc, MVMSpeshLog *sl) {
     sl->body.used++;
     if (sl->body.used == sl->body.limit) {
         tc->spesh_log = NULL;
-        MVM_repr_push_o(tc, tc->instance->spesh_queue, (MVMObject *)sl);
+        if (tc->instance->spesh_blocking) {
+            sl->body.block_mutex = MVM_malloc(sizeof(uv_mutex_t));
+            uv_mutex_init(sl->body.block_mutex);
+            sl->body.block_condvar = MVM_malloc(sizeof(uv_cond_t));
+            uv_cond_init(sl->body.block_condvar);
+            uv_mutex_lock(sl->body.block_mutex);
+            MVMROOT(tc, sl, {
+                MVM_repr_push_o(tc, tc->instance->spesh_queue, (MVMObject *)sl);
+                MVM_gc_mark_thread_blocked(tc);
+                while (!MVM_load(&(sl->body.completed)))
+                    uv_cond_wait(sl->body.block_condvar, sl->body.block_mutex);
+                MVM_gc_mark_thread_unblocked(tc);
+            });
+            uv_mutex_unlock(sl->body.block_mutex);
+            uv_cond_destroy(sl->body.block_condvar);
+            uv_mutex_destroy(sl->body.block_mutex);
+            MVM_free(sl->body.block_condvar);
+            MVM_free(sl->body.block_mutex);
+        }
+        else {
+            MVM_repr_push_o(tc, tc->instance->spesh_queue, (MVMObject *)sl);
+        }
     }
 }
 

@@ -74,12 +74,13 @@ USAGE: moar [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [program args]
 The following environment variables are respected:\n\
 \n\
     MVM_SPESH_DISABLE           Disables all dynamic optimization\n\
-    MVM_SPESH_NODELAY           Run dynamic optimization even for cold frames\n\
     MVM_SPESH_INLINE_DISABLE    Disables inlining\n\
     MVM_SPESH_OSR_DISABLE       Disables on-stack replacement\n\
+    MVM_SPESH_BLOCKING          Blocks log-sending thread while specializer runs\n\
+    MVM_SPESH_LOG               Specifies a dynamic optimizer log file\n\
+    MVM_SPESH_NODELAY           Run dynamic optimization even for cold frames\n\
     MVM_SPESH_LIMIT             Limit the maximum number of specializations\n\
     MVM_JIT_DISABLE             Disables JITting to machine code\n\
-    MVM_SPESH_LOG               Specifies a dynamic optimizer log file\n\
     MVM_JIT_LOG                 Specifies a JIT-compiler log file\n\
     MVM_JIT_BYTECODE_DIR        Specifies a directory for JIT bytecode dumps\n\
     MVM_CROSS_THREAD_WRITE_LOG  Log unprotected cross-thread object writes to stderr\n\
