@@ -541,9 +541,9 @@ static void dump_arg_guards(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g)
     append(ds, "\n");
 }
 
-static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
-    MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &g->sf->body, 0);
-    MVMCompUnit            *cu = g->sf->body.cu;
+static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMStaticFrame *sf) {
+    MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &sf->body, 0);
+    MVMCompUnit            *cu = sf->body.cu;
     MVMint32           str_idx = ann ? ann->filename_string_heap_index : 0;
     MVMint32           line_nr = ann ? ann->line_number : 1;
     MVMString        *filename = cu->body.filename;
@@ -575,7 +575,7 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     append(&ds, "' (cuid: ");
     append_str(tc, &ds, g->sf->body.cuuid);
     append(&ds, ", file: ");
-    dump_fileinfo(tc, &ds, g);
+    dump_fileinfo(tc, &ds, g->sf);
     append(&ds, ")\n");
     if (g->cs)
         dump_callsite(tc, &ds, g);
@@ -603,6 +603,36 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
     if (g->num_log_slots) {
         dump_log_values(tc, &ds, g);
+    }
+
+    append(&ds, "\n");
+    append_null(&ds);
+    return ds.buffer;
+}
+
+/* Dumps the statistics associated with a static frame into a string. */
+char * MVM_spesh_dump_stats(MVMThreadContext *tc, MVMStaticFrame *sf) {
+    DumpStr ds;
+    ds.alloc  = 8192;
+    ds.buffer = MVM_malloc(ds.alloc);
+    ds.pos    = 0;
+
+    /* Dump name and CUID. */
+    append(&ds, "Latest statistics for '");
+    append_str(tc, &ds, sf->body.name);
+    append(&ds, "' (cuid: ");
+    append_str(tc, &ds, sf->body.cuuid);
+    append(&ds, ", file: ");
+    dump_fileinfo(tc, &ds, sf);
+    append(&ds, ")\n\n");
+
+    /* Dump the spesh stats if present. */
+    if (sf->body.spesh_stats) {
+        MVMSpeshStats *ss = sf->body.spesh_stats;
+        appendf(&ds, "Total hits: %d\n\n", ss->hits);
+    }
+    else {
+        append(&ds, "No spesh stats for this static frame\n");
     }
 
     append(&ds, "\n");

@@ -234,6 +234,10 @@ struct MVMInstance {
      * is enabled. */
     MVMObject *spesh_queue;
 
+    /* The latest statistics version (incremented each time a spesh log is
+     * received by the worker thread). */
+    MVMuint32 spesh_stats_version;
+
     /************************************************************************
      * JIT compilation
      ************************************************************************/
