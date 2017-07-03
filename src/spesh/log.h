@@ -12,9 +12,6 @@ struct MVMSpeshLogGuard {
  * before it is sent to a specialization worker. */
 #define MVM_SPESH_LOG_DEFAULT_ENTRIES 4096
 
-/* The number of invocations before we start logging. */
-#define MVM_SPESH_LOG_WARM_ENOUGH 10
-
 /* The number of logged invocations before we decide we've enough data for
  * the time being. */
 #define MVM_SPESH_LOG_LOGGED_ENOUGH 100
