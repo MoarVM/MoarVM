@@ -82,6 +82,18 @@ int print_stack (MVMThreadContext *tc, collation_stack *stack) {
     }
     return 0;
 }
+int collation_push_int (MVMThreadContext *tc, collation_stack *stack, int *count, int primary, int secondary, int tertiary) {
+    int i = stack->stack_top;
+    i++;
+    set_key(stack->keys[i],
+        primary,
+        secondary,
+        tertiary
+    );
+    stack->stack_top = i;
+    *count += 1;
+    return 1;
+}
 /* Returns the number of added collation keys */
 //int coll_push (MVMThreadContext, *tc, *coll_key,
 int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMuint32 cp, MVMuint32 index) {
@@ -230,14 +242,16 @@ int grab_from_stack2(
     MVMThreadContext *tc,
     int *a_keys_pushed,
     MVMGraphemeIter *a_gi,
-    collation_stack *stack_a) {
+    collation_stack *stack_a,
+    char *string_name)
+{
     int grapheme_index = 0;
-    fprintf(stderr, "Grabbing from the stack. a_pushed %i\n", *a_keys_pushed);
+    fprintf(stderr, "Grabbing from the stack. %s_keys_pushed %i\n", string_name, *a_keys_pushed);
     if (!MVM_string_gi_has_more(tc, a_gi)) {
         return 0;
     }
     *a_keys_pushed += process_grapheme_to_stack(tc, MVM_string_gi_get_grapheme(tc, a_gi), stack_a, grapheme_index++);
-    fprintf(stderr, "Finished one graphebe grab to stack. a_pushed %i\n", *a_keys_pushed);
+    fprintf(stderr, "Finished one grapheme grab to stack. %s_keys_pushed %i\n", string_name, *a_keys_pushed);
     return 1;
 }
 /* These are not found in the collation data and must be synthesized */
@@ -330,19 +344,29 @@ MVMint64 MVM_unicode_string_compare
      * so find which string is longer */
     s_has_more_gi = alen > blen ? &b_gi : &a_gi;
     /* Initialize a grapheme iterator */
-    MVM_string_gi_init(tc, &a_gi, a);
-    MVM_string_gi_init(tc, &b_gi, b);
+    MVMROOT(tc, a_gi, {
+        MVM_string_gi_init(tc, &a_gi, a);
+    });
+    MVMROOT(tc, b_gi, {
+        MVM_string_gi_init(tc, &b_gi, b);
+    });
     /* Otherwise, need to iterate by grapheme */
     grapheme_index = 0;
-    grab_from_stack2(tc, &b_keys_pushed, &b_gi, &stack_b);
-    grab_from_stack2(tc, &a_keys_pushed, &a_gi, &stack_a);
+    fprintf(stderr, "Pushing initial collation elements to the stack\n");
+    grab_from_stack2(tc, &b_keys_pushed, &b_gi, &stack_b, "b");
+    grab_from_stack2(tc, &a_keys_pushed, &a_gi, &stack_a, "a");
     int pos_a = 0, pos_b = 0, i = 0, rtrn = 0;
     int grab_a_rtrn = 1, grab_b_rtrn = 1;
-    for (i = 0; i < 3; i++) {
+    int grab_a_done = 0, grab_b_done = 0;
+    //for (i = 0; i < 3; i++) {
+        /* From 0 to 2 for primary, secondary, tertiary levels */
+        int a_level = 0;
+        int b_level = 0;
         print_stack(tc, &stack_a);
         print_stack(tc, &stack_b);
         while (rtrn == 0) {
-            while (pos_a <= a_keys_pushed && pos_b <= b_keys_pushed) {
+            while (pos_a < a_keys_pushed && pos_b < b_keys_pushed) {
+                /*
                 if (stack_a.keys[pos_a].a[i] == collation_zero) {
                     fprintf(stderr, "skipping stack_a index %i since it's value 1\n", pos_a);
                     pos_a++;
@@ -354,36 +378,68 @@ MVMint64 MVM_unicode_string_compare
                     pos_b++;
                     if (b_keys_pushed < pos_b)
                         continue;
-                }
+                }*/
                 fprintf(stderr, "stack_a index %i is value %X\n", pos_a, stack_a.keys[pos_a].s.primary);
                 fprintf(stderr, "stack_b index %i is value %X\n", pos_b, stack_b.keys[pos_b].s.primary);
 
-                fprintf(stderr, "checking level %i at pos_a %i pos_b %i\n", i, pos_a, pos_b);
+                fprintf(stderr, "checking a_level %i at pos_a %i b_level %i at pos_b %i\n", a_level, pos_a, b_level, pos_b);
                 /* If collation values are not equal */
-                if (stack_a.keys[pos_a].a[i] != stack_b.keys[pos_b].a[i])
-                    rtrn = stack_a.keys[pos_a].a[i] < stack_b.keys[pos_b].a[i] ?  level_eval_settings[i][0] :
-                           stack_a.keys[pos_a].a[i] > stack_b.keys[pos_b].a[i] ?  level_eval_settings[i][2] :
-                                                                                  level_eval_settings[i][2] ;
-                if (rtrn != 0)
+                if (stack_a.keys[pos_a].a[a_level] != stack_b.keys[pos_b].a[b_level])
+                    rtrn = stack_a.keys[pos_a].a[a_level] < stack_b.keys[pos_b].a[b_level] ?  level_eval_settings[0][0] :
+                           stack_a.keys[pos_a].a[a_level] > stack_b.keys[pos_b].a[b_level] ?  level_eval_settings[0][2] :
+                                                                                  level_eval_settings[0][2] ;
+                if (rtrn != 0) {
+                    fprintf(stderr, "\nDONE decided rtrn=%i\npos_a=%i pos_b=%i a_keys_pushed=%i b_keys_pushed=%i\n", rtrn, pos_a, pos_b, a_keys_pushed, b_keys_pushed);
                     return rtrn;
+                }
                 pos_a++;
                 pos_b++;
 
             }
-            grab_b_rtrn = grab_from_stack2(tc, &b_keys_pushed, &b_gi, &stack_b);
-            if (!grab_b_rtrn) {
-                /* TODO push [0.0.0] onto the stack */
+            if (!grab_b_done) {
+                fprintf(stderr, "Pushing b NON_INITIAL collation elements to the stack\n");
+                grab_b_rtrn = grab_from_stack2(tc, &b_keys_pushed, &b_gi, &stack_b, "b");
+                if (!grab_b_rtrn) {
+                    fprintf(stderr, "Pushing null value collation array to stack_b\n");
+                    collation_push_int(tc, &stack_b, &b_keys_pushed, collation_zero, collation_zero, collation_zero);
+                    grab_b_done = 1;
+                }
             }
-            grab_a_rtrn = grab_from_stack2(tc, &a_keys_pushed, &a_gi, &stack_a);
-            if (!grab_a_rtrn) {
-                /* TODO push [0.0.0] onto the stack */
+            if (!grab_a_done) {
+                fprintf(stderr, "Pushing a NON_INITIAL collation elements to the stack\n");
+                grab_a_rtrn = grab_from_stack2(tc, &a_keys_pushed, &a_gi, &stack_a, "a");
+                if (!grab_a_rtrn) {
+                    fprintf(stderr, "Pushing null value collation array to stack_a\n");
+                    /* No collation seperator needed for tertiary so have a real 0 for this */
+                    collation_push_int(tc, &stack_a, &a_keys_pushed, collation_zero, collation_zero, 0);
+                    grab_a_done = 1;
+                }
             }
-            if (!grab_a_rtrn && !grab_b_rtrn) {
-                fprintf(stderr, "Can't grab any more of string a or string b\n");
-                break;
+            /* Here we wrap to the next level of collation elements */
+            if (grab_a_done && a_keys_pushed < pos_a + 1) {
+                if (a_level < 2) {
+                    pos_a = 0;
+                    a_level++;
+                    fprintf(stderr, "Setting a_level to %i and pos_a to %i\n", a_level, pos_a);
+                }
+                else {
+                    fprintf(stderr, "Can't wrap a anymore so breaking\n");
+                    break;
+                }
+            }
+            if (grab_b_done && b_keys_pushed < pos_b + 1) {
+                if (b_level < 2) {
+                    pos_b = 0;
+                    b_level++;
+                    fprintf(stderr, "Setting b_level to %i and pos_b to %i\n", b_level, pos_b);
+                }
+                else {
+                    fprintf(stderr, "Can't wrap b anymore so breaking\n");
+                    break;
+                }
             }
         }
-    }
+    //}
     /* If we don't have quaternary collation level set (we throw away codepoint info)
      * we should return 0 because we have gone through all codepoints we have */
     if ( !( collation_mode & (128 + 64) ) )
