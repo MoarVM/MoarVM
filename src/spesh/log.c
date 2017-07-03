@@ -62,6 +62,14 @@ void MVM_spesh_log_type(MVMThreadContext *tc, MVMObject *value) {
 }
 void MVM_spesh_log_parameter(MVMThreadContext *tc, MVMObject *param) {
     log_type(tc, param, MVM_SPESH_LOG_PARAMETER);
+    if (IS_CONCRETE(param)) {
+        MVMContainerSpec const *cs = STABLE(param)->container_spec;
+        if (cs && cs->fetch_never_invokes) {
+            MVMRegister r;
+            cs->fetch(tc, param, &r);
+            log_type(tc, r.o, MVM_SPESH_LOG_PARAMETER_DECONT);
+        }
+    }
 }
 
 /* Log a static value. */

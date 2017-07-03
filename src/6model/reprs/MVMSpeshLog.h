@@ -7,6 +7,9 @@ typedef enum {
     MVM_SPESH_LOG_ENTRY,
     /* Parameter type information. */
     MVM_SPESH_LOG_PARAMETER,
+    /* Parameter type if we were to decontainerize the parameter. Recorded
+     * when the parameter is a container type. */
+    MVM_SPESH_LOG_PARAMETER_DECONT,
     /* Decont, attribute lookup, or lexical lookup type information. */
     MVM_SPESH_LOG_TYPE,
     /* Static lexical lookup (bytecode says we can cache the result). */
