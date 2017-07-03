@@ -67,7 +67,7 @@ static FILE *fopen_perhaps_with_pid(char *path, const char *mode) {
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
     char *spesh_log, *spesh_nodelay, *spesh_disable, *spesh_inline_disable,
-         *spesh_osr_disable, *spesh_limit;
+         *spesh_osr_disable, *spesh_limit, *spesh_blocking;
     char *jit_log, *jit_disable, *jit_bytecode_dir;
     char *dynvar_log;
     int init_stat;
@@ -210,6 +210,13 @@ MVMInstance * MVM_vm_create_instance(void) {
     spesh_limit = getenv("MVM_SPESH_LIMIT");
     if (spesh_limit && strlen(spesh_limit))
         instance->spesh_limit = atoi(spesh_limit);
+
+    /* Should we enforce that a thread, when sending work to the specialzation
+     * worker, block until the specialization worker is done? This is useful
+     * for getting more predictable behavior when debugging. */
+    spesh_blocking = getenv("MVM_SPESH_BLOCKING");
+    if (spesh_blocking && strlen(spesh_blocking))
+        instance->spesh_blocking = 1;
 
     /* JIT environment/logging setup. */
     jit_disable = getenv("MVM_JIT_DISABLE");
