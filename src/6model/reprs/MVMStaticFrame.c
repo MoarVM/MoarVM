@@ -146,7 +146,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
                 MVM_gc_worklist_add(tc, worklist, &body->static_env[i].o);
     }
 
-    /* Spesh slots. */
+    /* Spesh statistics and slots. */
+    MVM_spesh_stats_gc_mark(tc, body->spesh_stats, worklist);
     if (body->num_spesh_candidates) {
         MVMint32 i, j;
         for (i = 0; i < body->num_spesh_candidates; i++) {
@@ -188,6 +189,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(body->lexical_names_list);
     MVM_HASH_DESTROY(hash_handle, MVMLexicalRegistry, body->lexical_names);
 
+    MVM_spesh_stats_destroy(tc, body->spesh_stats);
     for (i = 0; i < body->num_spesh_candidates; i++)
         MVM_spesh_candidate_destroy(tc, &body->spesh_candidates[i]);
     MVM_free(body->spesh_candidates);
