@@ -231,3 +231,13 @@
         (if (nz $caller)
             (^getf $caller MVMFrame code_ref)
             (const 0 ptr_sz))))
+
+(template: sp_fastcreate!
+   (let: (($block
+           (call (^func &MVM_gc_allocate_zeroed)
+                 (arglist 2 (carg (tc) ptr)
+                            (carg $1 int)) ptr_sz)))
+          (^setf $block MVMObject st (load (^spesh_slot $2) ptr_sz))
+          (^setf $block MVMObject header.size $1)
+          (^setf $block MVMObject header.owner (^getf (tc) MVMThreadContext thread_id))
+          (store $0 $block ptr_sz))))
