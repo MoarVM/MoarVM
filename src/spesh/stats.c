@@ -7,6 +7,25 @@ MVMSpeshStats * stats_for(MVMThreadContext *tc, MVMStaticFrame *sf) {
     return sf->body.spesh_stats;
 }
 
+/* Gets the stats by callsite, adding it if it's missing. */
+MVMuint32 by_callsite_idx(MVMThreadContext *tc, MVMSpeshStats *ss, MVMCallsite *cs) {
+    /* See if we already have it. */
+    MVMuint32 found;
+    MVMuint32 n = ss->num_by_callsite;
+    for (found = 0; found < n; found++)
+        if (ss->by_callsite[found].cs == cs)
+            return found;
+
+    /* If not, we need a new record. */
+    found = ss->num_by_callsite;
+    ss->num_by_callsite++;
+    ss->by_callsite = MVM_realloc(ss->by_callsite,
+        ss->num_by_callsite * sizeof(MVMSpeshStatsByCallsite));
+    memset(&(ss->by_callsite[found]), 0, sizeof(MVMSpeshStatsByCallsite));
+    ss->by_callsite[found].cs = cs;
+    return found;
+}
+
 /* Receives a spesh log and updates static frame statistics. Each static frame
  * that is updated is pushed once into sf_updated. */
 void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf_updated) {
@@ -17,11 +36,14 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
         switch (e->kind) {
             case MVM_SPESH_LOG_ENTRY: {
                 MVMSpeshStats *ss = stats_for(tc, e->entry.sf);
+                MVMuint32 callsite_idx;
                 if (ss->last_update != tc->instance->spesh_stats_version) {
                     ss->last_update = tc->instance->spesh_stats_version;
                     MVM_repr_push_o(tc, sf_updated, (MVMObject *)e->entry.sf);
                 }
                 ss->hits++;
+                callsite_idx = by_callsite_idx(tc, ss, e->entry.cs);
+                ss->by_callsite[callsite_idx].hits++;
                 break;
             }
         }

@@ -466,20 +466,20 @@ static void dump_log_values(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g)
     }
 }
 
-static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
+static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMCallsite *cs) {
     MVMuint16 i;
-    appendf(ds, "Callsite %p (%d args, %d pos)\n", g->cs, g->cs->arg_count, g->cs->num_pos);
-    for (i = 0; i < (g->cs->arg_count - g->cs->num_pos) / 2; i++) {
-        if (g->cs->arg_names[i]) {
-            char * argname_utf8 = MVM_string_utf8_encode_C_string(tc, g->cs->arg_names[i]);
+    appendf(ds, "Callsite %p (%d args, %d pos)\n", cs, cs->arg_count, cs->num_pos);
+    for (i = 0; i < (cs->arg_count - cs->num_pos) / 2; i++) {
+        if (cs->arg_names[i]) {
+            char * argname_utf8 = MVM_string_utf8_encode_C_string(tc, cs->arg_names[i]);
             appendf(ds, "  - %s\n", argname_utf8);
             MVM_free(argname_utf8);
         }
     }
-    if (g->cs->num_pos)
+    if (cs->num_pos)
         append(ds, "Positional flags: ");
-    for (i = 0; i < g->cs->num_pos; i++) {
-        MVMCallsiteEntry arg_flag = g->cs->arg_flags[i];
+    for (i = 0; i < cs->num_pos; i++) {
+        MVMCallsiteEntry arg_flag = cs->arg_flags[i];
 
         if (i)
             append(ds, ", ");
@@ -494,7 +494,7 @@ static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
             append(ds, "str");
         }
     }
-    if (g->cs->num_pos)
+    if (cs->num_pos)
         append(ds, "\n");
     append(ds, "\n");
 }
@@ -578,7 +578,7 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     dump_fileinfo(tc, &ds, g->sf);
     append(&ds, ")\n");
     if (g->cs)
-        dump_callsite(tc, &ds, g);
+        dump_callsite(tc, &ds, g->cs);
     if (g->num_arg_guards)
         dump_arg_guards(tc, &ds, g);
     if (!g->cs && !g->num_arg_guards)
@@ -610,6 +610,15 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     return ds.buffer;
 }
 
+/* Dumps the statistics associated with a particular callsite object. */
+void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCallsite *css) {
+    if (css->cs)
+        dump_callsite(tc, ds, css->cs);
+    else
+        append(ds, "No interned callsite\n");
+    appendf(ds, "    Callsite hits: %d\n\n", css->hits);
+} 
+
 /* Dumps the statistics associated with a static frame into a string. */
 char * MVM_spesh_dump_stats(MVMThreadContext *tc, MVMStaticFrame *sf) {
     DumpStr ds;
@@ -629,7 +638,12 @@ char * MVM_spesh_dump_stats(MVMThreadContext *tc, MVMStaticFrame *sf) {
     /* Dump the spesh stats if present. */
     if (sf->body.spesh_stats) {
         MVMSpeshStats *ss = sf->body.spesh_stats;
+        MVMuint32 i;
+
         appendf(&ds, "Total hits: %d\n\n", ss->hits);
+
+        for (i = 0; i < ss->num_by_callsite; i++)
+            dump_stats_by_callsite(tc, &ds, &(ss->by_callsite[i]));
     }
     else {
         append(&ds, "No spesh stats for this static frame\n");
