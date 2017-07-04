@@ -9,6 +9,9 @@ typedef struct SimStackFrame {
 
     /* Correlation ID. */
     MVMuint32 cid;
+
+    /* Callsite stats index (not pointer in case of realloc). */
+    MVMuint32 callsite_idx;
 } SimStackFrame;
 typedef struct SimStack {
     /* Array of frames. */
@@ -34,7 +37,8 @@ void sim_stack_init(MVMThreadContext *tc, SimStack *sims) {
 }
 
 /* Pushes an entry onto the stack frame model. */
-void sim_stack_push(MVMThreadContext *tc, SimStack *sims, MVMSpeshStats *ss, MVMuint32 cid) {
+void sim_stack_push(MVMThreadContext *tc, SimStack *sims, MVMSpeshStats *ss, MVMuint32 cid,
+                    MVMuint32 callsite_idx) {
     SimStackFrame *frame;
     if (sims->used == sims->limit) {
         sims->limit *= 2;
@@ -43,6 +47,7 @@ void sim_stack_push(MVMThreadContext *tc, SimStack *sims, MVMSpeshStats *ss, MVM
     frame = &(sims->frames[sims->used++]);
     frame->ss = ss;
     frame->cid = cid;
+    frame->callsite_idx = callsite_idx;
 }
 
 /* Pops the top frame from the sim stack. */
@@ -130,7 +135,7 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                 ss->hits++;
                 callsite_idx = by_callsite_idx(tc, ss, e->entry.cs);
                 ss->by_callsite[callsite_idx].hits++;
-                sim_stack_push(tc, &sims, ss, e->id);
+                sim_stack_push(tc, &sims, ss, e->id, callsite_idx);
                 break;
             }
             case MVM_SPESH_LOG_PARAMETER: {
