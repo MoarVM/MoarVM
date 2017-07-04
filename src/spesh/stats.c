@@ -61,8 +61,9 @@ SimStackFrame * sim_stack_find(MVMThreadContext *tc, SimStack *sims, MVMuint32 c
     while (found_at != 0) {
         found_at--;
         if (sims->frames[found_at].cid == cid) {
+            MVMint32 pop = (sims->used - found_at) - 1;
             MVMint32 i;
-            for (i = found_at + 1; found_at < sims->used; i++)
+            for (i = 0; i < pop; i++)
                 sim_stack_pop(tc, sims);
             return &(sims->frames[found_at]);
         }
