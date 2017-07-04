@@ -4,6 +4,9 @@
  * simulate the call stack as part of the analysis. This models a frame on
  * the call stack and the stack respectively. */
 typedef struct SimStackFrame {
+    /* The static frame. */
+    MVMStaticFrame *sf;
+
     /* Spesh stats for the stack frame. */
     MVMSpeshStats *ss;
 
@@ -37,14 +40,15 @@ void sim_stack_init(MVMThreadContext *tc, SimStack *sims) {
 }
 
 /* Pushes an entry onto the stack frame model. */
-void sim_stack_push(MVMThreadContext *tc, SimStack *sims, MVMSpeshStats *ss, MVMuint32 cid,
-                    MVMuint32 callsite_idx) {
+void sim_stack_push(MVMThreadContext *tc, SimStack *sims, MVMStaticFrame *sf,
+                    MVMSpeshStats *ss, MVMuint32 cid, MVMuint32 callsite_idx) {
     SimStackFrame *frame;
     if (sims->used == sims->limit) {
         sims->limit *= 2;
         sims->frames = MVM_realloc(sims->frames, sims->limit * sizeof(SimStackFrame));
     }
     frame = &(sims->frames[sims->used++]);
+    frame->sf = sf;
     frame->ss = ss;
     frame->cid = cid;
     frame->callsite_idx = callsite_idx;
@@ -112,7 +116,7 @@ void add_static_value(MVMThreadContext *tc, SimStackFrame *simf, MVMint32 byteco
     ss->static_values = MVM_realloc(ss->static_values,
         ss->num_static_values * sizeof(MVMSpeshStatsStatic));
     ss->static_values[id].bytecode_offset = bytecode_offset;
-    ss->static_values[id].value = value;
+    MVM_ASSIGN_REF(tc, &(simf->sf->common.header), ss->static_values[id].value, value);
 }
 
 /* Receives a spesh log and updates static frame statistics. Each static frame
@@ -135,7 +139,7 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                 ss->hits++;
                 callsite_idx = by_callsite_idx(tc, ss, e->entry.cs);
                 ss->by_callsite[callsite_idx].hits++;
-                sim_stack_push(tc, &sims, ss, e->id, callsite_idx);
+                sim_stack_push(tc, &sims, e->entry.sf, ss, e->id, callsite_idx);
                 break;
             }
             case MVM_SPESH_LOG_PARAMETER: {
