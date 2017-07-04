@@ -146,7 +146,7 @@ void MVM_spesh_log_invoke_target(MVMThreadContext *tc, MVMObject *invoke_target)
         entry->kind = MVM_SPESH_LOG_INVOKE;
         entry->id = cid;
         MVM_ASSIGN_REF(tc, &(sl->common.header), entry->value.value, invoke_target);
-        entry->type.bytecode_offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start)) - 2;
+        entry->value.bytecode_offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start)) - 2;
         commit_entry(tc, sl);
     }
 }
