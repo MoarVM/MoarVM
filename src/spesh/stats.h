@@ -54,7 +54,11 @@ struct MVMSpeshStatsByType {
     /* Total OSR hits for this callsite/type combination. */
     MVMuint32 osr_hits;
 
-    /* TODO Aggregated logs of types and invokees inside of here */
+    /* Logged type and logged value counts, by bytecode offset. */
+    MVMSpeshStatsByOffset *by_offset;
+
+    /* Number of stats by offset we have. */
+    MVMuint32 num_by_offset;
 };
 
 /* Type statistics. */
@@ -69,6 +73,39 @@ struct MVMSpeshStatsType {
     /* Whether the type and decont type were concrete. */
     MVMuint8 type_concrete;
     MVMuint8 decont_type_concrete;
+};
+
+/* Statistics by bytecode offset. */
+struct MVMSpeshStatsByOffset {
+    /* The bytecode offset these types/values were recorded at. */
+    MVMuint32 bytecode_offset;
+
+    /* Number of types recorded, with counts. */
+    MVMuint32 num_types;
+    MVMSpeshStatsTypeCount *types;
+
+    /* Number of values recorded, with counts. */
+    MVMuint32 num_values;
+    MVMSpeshStatsValueCount *values;
+};
+
+/* Counts of a given type that has shown up at a bytecode offset. */
+struct MVMSpeshStatsTypeCount {
+    /* The type and its concreteness. */
+    MVMObject *type;
+    MVMuint8 type_concrete;
+
+    /* The number of times we've seen it. */
+    MVMuint32 count;
+};
+
+/* Counts of a given value that has shown up at a bytecode offset. */
+struct MVMSpeshStatsValueCount {
+    /* The value. */
+    MVMObject *value;
+
+    /* The number of times we've seen it. */
+    MVMuint32 count;
 };
 
 /* Static values table entry. */
