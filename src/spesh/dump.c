@@ -619,6 +619,8 @@ void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCa
     else
         append(ds, "No interned callsite\n");
     appendf(ds, "    Callsite hits: %d\n\n", css->hits);
+    if (css->osr_hits)
+        appendf(ds, "    OSR hits: %d\n\n", css->osr_hits);
 
     for (i = 0; i < css->num_by_type; i++) {
         MVMSpeshStatsByType *tss = &(css->by_type[i]);
@@ -638,6 +640,8 @@ void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCa
             }
         }
         appendf(ds, "        Hits: %d\n", tss->hits);
+        if (tss->osr_hits)
+            appendf(ds, "        OSR hits: %d\n", tss->osr_hits);
         if (tss->num_by_offset) {
             append(ds, "        Logged at offset:\n");
             for (j = 0; j < tss->num_by_offset; j++) {
