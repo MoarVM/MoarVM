@@ -64,36 +64,45 @@ void MVM_spesh_log_osr(MVMThreadContext *tc) {
     }
 }
 
-/* Log a type or parameter type. */
-static void log_type(MVMThreadContext *tc, MVMSpeshLog *sl, MVMint32 cid, MVMObject *value,
-                     MVMSpeshLogEntryKind kind) {
-    MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
-    entry->kind = kind;
-    entry->id = cid;
-    MVM_ASSIGN_REF(tc, &(sl->common.header), entry->type.type, value->st->WHAT);
-    entry->type.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_ENTRY : 0;
-    entry->type.bytecode_offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start)) - 2;
-    commit_entry(tc, sl);
-}
+/* Log a type. */
 void MVM_spesh_log_type(MVMThreadContext *tc, MVMObject *value) {
     MVMSpeshLog *sl = tc->spesh_log;
     MVMint32 cid = tc->cur_frame->spesh_correlation_id;
-    if (sl && cid)
-        log_type(tc, sl, cid, value, MVM_SPESH_LOG_TYPE);
+    if (sl && cid) {
+        MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
+        entry->kind = MVM_SPESH_LOG_TYPE;
+        entry->id = cid;
+        MVM_ASSIGN_REF(tc, &(sl->common.header), entry->type.type, value->st->WHAT);
+        entry->type.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_TYPE_FLAG_CONCRETE : 0;
+        entry->type.bytecode_offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start)) - 2;
+        commit_entry(tc, sl);
+    }
 }
-void MVM_spesh_log_parameter(MVMThreadContext *tc, MVMObject *param) {
+
+/* Log a parameter type and, maybe, decontainerized type. */
+static void log_param_type(MVMThreadContext *tc, MVMSpeshLog *sl, MVMint32 cid, MVMuint16 arg_idx,
+                           MVMObject *value, MVMSpeshLogEntryKind kind) {
+    MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
+    entry->kind = kind;
+    entry->id = cid;
+    MVM_ASSIGN_REF(tc, &(sl->common.header), entry->param.type, value->st->WHAT);
+    entry->param.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_TYPE_FLAG_CONCRETE : 0;
+    entry->param.arg_idx = arg_idx;
+    commit_entry(tc, sl);
+}
+void MVM_spesh_log_parameter(MVMThreadContext *tc, MVMuint16 arg_idx, MVMObject *param) {
     MVMSpeshLog *sl = tc->spesh_log;
     MVMint32 cid = tc->cur_frame->spesh_correlation_id;
     if (sl && cid) {
         MVMROOT(tc, param, {
-            log_type(tc, sl, cid, param, MVM_SPESH_LOG_PARAMETER);
+            log_param_type(tc, sl, cid, arg_idx, param, MVM_SPESH_LOG_PARAMETER);
         });
         if (IS_CONCRETE(param)) {
             MVMContainerSpec const *cs = STABLE(param)->container_spec;
             if (cs && cs->fetch_never_invokes) {
                 MVMRegister r;
                 cs->fetch(tc, param, &r);
-            log_type(tc, sl, cid, r.o, MVM_SPESH_LOG_PARAMETER_DECONT);
+                log_param_type(tc, sl, cid, arg_idx, r.o, MVM_SPESH_LOG_PARAMETER_DECONT);
             }
         }
     }
@@ -122,7 +131,7 @@ void MVM_spesh_log_decont(MVMThreadContext *tc, MVMuint8 *prev_op, MVMObject *va
         entry->kind = MVM_SPESH_LOG_TYPE;
         entry->id = cid;
         MVM_ASSIGN_REF(tc, &(sl->common.header), entry->type.type, value->st->WHAT);
-        entry->type.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_ENTRY : 0;
+        entry->type.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_TYPE_FLAG_CONCRETE : 0;
         entry->type.bytecode_offset = (prev_op - *(tc->interp_bytecode_start)) - 2;
         commit_entry(tc, sl);
     }
@@ -152,7 +161,7 @@ void MVM_spesh_log_return_type(MVMThreadContext *tc, MVMFrame *target) {
         entry->kind = MVM_SPESH_LOG_TYPE;
         entry->id = cid;
         MVM_ASSIGN_REF(tc, &(sl->common.header), entry->type.type, value->st->WHAT);
-        entry->type.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_ENTRY : 0;
+        entry->type.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_TYPE_FLAG_CONCRETE : 0;
         entry->type.bytecode_offset = (target->return_address - target->effective_bytecode)
             - 6; /* 6 is the length of the invoke_o opcode and operands */
         commit_entry(tc, sl);

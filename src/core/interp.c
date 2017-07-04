@@ -961,10 +961,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(param_rp_o): {
+                MVMuint16 arg_idx = GET_UI16(cur_op, 2);
                 MVMObject *param = MVM_args_get_pos_obj(tc, &tc->cur_frame->params,
-                    GET_UI16(cur_op, 2), MVM_ARG_REQUIRED).arg.o;
+                    arg_idx, MVM_ARG_REQUIRED).arg.o;
                 GET_REG(cur_op, 0).o = param;
-                MVM_spesh_log_parameter(tc, param);
+                MVM_spesh_log_parameter(tc, arg_idx, param);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -1009,11 +1010,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(param_op_o):
             {
+                MVMuint16 arg_idx = GET_UI16(cur_op, 2);
                 MVMArgInfo param = MVM_args_get_pos_obj(tc, &tc->cur_frame->params,
-                    GET_UI16(cur_op, 2), MVM_ARG_OPTIONAL);
+                    arg_idx, MVM_ARG_OPTIONAL);
                 if (param.exists) {
                     GET_REG(cur_op, 0).o = param.arg.o;
-                    MVM_spesh_log_parameter(tc, param.arg.o);
+                    MVM_spesh_log_parameter(tc, arg_idx, param.arg.o);
                     cur_op = bytecode_start + GET_UI32(cur_op, 4);
                 }
                 else {
@@ -1037,10 +1039,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(param_rn_o): {
-                MVMObject *param = MVM_args_get_named_obj(tc, &tc->cur_frame->params,
-                    MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)), MVM_ARG_REQUIRED).arg.o;
-                GET_REG(cur_op, 0).o = param;
-                MVM_spesh_log_parameter(tc, param);
+                MVMArgInfo param = MVM_args_get_named_obj(tc, &tc->cur_frame->params,
+                    MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)), MVM_ARG_REQUIRED);
+                GET_REG(cur_op, 0).o = param.arg.o;
+                MVM_spesh_log_parameter(tc, param.arg_idx, param.arg.o);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -1089,7 +1091,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)), MVM_ARG_OPTIONAL);
                 if (param.exists) {
                     GET_REG(cur_op, 0).o = param.arg.o;
-                    MVM_spesh_log_parameter(tc, param.arg.o);
+                    MVM_spesh_log_parameter(tc, param.arg_idx, param.arg.o);
                     cur_op = bytecode_start + GET_UI32(cur_op, 6);
                 }
                 else {
@@ -4294,12 +4296,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(param_rn2_o): {
                 MVMArgInfo param = MVM_args_get_named_obj(tc, &tc->cur_frame->params,
                     MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)), MVM_ARG_OPTIONAL);
-                if (param.exists)
-                    GET_REG(cur_op, 0).o = param.arg.o;
-                else
-                    GET_REG(cur_op, 0).o = MVM_args_get_named_obj(tc, &tc->cur_frame->params,
-                        MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)), MVM_ARG_REQUIRED).arg.o;
-                MVM_spesh_log_parameter(tc, GET_REG(cur_op, 0).o);
+                if (!param.exists)
+                    param = MVM_args_get_named_obj(tc, &tc->cur_frame->params,
+                        MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)), MVM_ARG_REQUIRED);
+                GET_REG(cur_op, 0).o = param.arg.o;
+                MVM_spesh_log_parameter(tc, param.arg_idx, param.arg.o);
                 cur_op += 10;
                 goto NEXT;
             }
@@ -4356,7 +4357,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)), MVM_ARG_OPTIONAL);
                 if (param.exists) {
                     GET_REG(cur_op, 0).o = param.arg.o;
-                    MVM_spesh_log_parameter(tc, param.arg.o);
+                    MVM_spesh_log_parameter(tc, param.arg_idx, param.arg.o);
                     cur_op = bytecode_start + GET_UI32(cur_op, 10);
                 }
                 else {
