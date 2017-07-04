@@ -612,11 +612,33 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
 /* Dumps the statistics associated with a particular callsite object. */
 void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCallsite *css) {
+    MVMuint32 i, j;
+
     if (css->cs)
         dump_callsite(tc, ds, css->cs);
     else
         append(ds, "No interned callsite\n");
     appendf(ds, "    Callsite hits: %d\n\n", css->hits);
+
+    for (i = 0; i < css->num_by_type; i++) {
+        MVMSpeshStatsByType *tss = &(css->by_type[i]);
+        appendf(ds, "    Type tuple %d\n", i);
+        for (j = 0; j < css->cs->flag_count; j++) {
+            MVMObject *type = tss->arg_types[j].type;
+            if (type) {
+                MVMObject *decont_type = tss->arg_types[j].decont_type;
+                appendf(ds, "        Type %d: %s (%s)",
+                    j, type->st->debug_name,
+                    (tss->arg_types[j].type_concrete ? "Conc" : "TypeObj"));
+                if (decont_type)
+                    appendf(ds, " of %s (%s)",
+                        decont_type->st->debug_name,
+                        (tss->arg_types[j].decont_type_concrete ? "Conc" : "TypeObj"));
+                append(ds, "\n");
+            }
+        }
+        appendf(ds, "        Hits: %d\n\n", tss->hits);
+    }
 } 
 
 /* Dumps the statistics associated with a static frame into a string. */
