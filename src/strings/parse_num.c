@@ -297,7 +297,7 @@ MVMnum64 MVM_coerce_s_n(MVMThreadContext *tc, MVMString *s) {
     skip_whitespace(tc, &ci, &cp);
 
     if (MVM_string_ci_has_more(tc, &ci) || cp != END_OF_NUM) {
-        parse_error(tc, s, "trailing stuff");
+        parse_error(tc, s, "trailing characters");
     }
 
     return n;

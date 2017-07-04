@@ -230,8 +230,7 @@ MVMGrapheme32 MVM_nfg_codes_to_grapheme_utf8_c8(MVMThreadContext *tc, MVMCodepoi
 
 /* Gets the \r\n synthetic. */
 MVMGrapheme32 MVM_nfg_crlf_grapheme(MVMThreadContext *tc) {
-    MVMCodepoint codes[2] = { '\r', '\n' };
-    return lookup_or_add_synthetic(tc, codes, 2, 0);
+    return tc->instance->nfg->crlf_grapheme;
 }
 
 /* Does a lookup of information held about a synthetic. The synth parameter
@@ -388,6 +387,22 @@ MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString 
      * Grapheme_Cluster_Break=Control we have to re-normalize */
     return (last_a == crlf || codepoint_GCB_Control(tc, last_a) || passes_quickcheck_and_zero_ccc(tc, last_a))
         && (first_b == crlf || codepoint_GCB_Control(tc, first_b) || passes_quickcheck_and_zero_ccc(tc, first_b));
+}
+
+/* Initialize NFG subsystem. */
+static void cache_crlf(MVMThreadContext *tc) {
+    MVMCodepoint codes[2] = { '\r', '\n' };
+    tc->instance->nfg->crlf_grapheme = lookup_or_add_synthetic(tc, codes, 2, 0);
+}
+void MVM_nfg_init(MVMThreadContext *tc) {
+    int init_stat;
+    tc->instance->nfg = calloc(1, sizeof(MVMNFGState));
+    if ((init_stat = uv_mutex_init(&(tc->instance->nfg->update_mutex))) < 0) {
+        fprintf(stderr, "MoarVM: Initialization of NFG update mutex failed\n    %s\n",
+            uv_strerror(init_stat));
+        exit(1);
+    }
+    cache_crlf(tc);
 }
 
 /* Free all memory allocated to hold synthetic graphemes. These are global

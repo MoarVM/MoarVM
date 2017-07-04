@@ -561,12 +561,14 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(auto_viv_container, "auto_viv_container");
     string_creator(done, "done");
     string_creator(error, "error");
-    string_creator(stdout_chars, "stdout_chars");
     string_creator(stdout_bytes, "stdout_bytes");
-    string_creator(stderr_chars, "stderr_chars");
     string_creator(stderr_bytes, "stderr_bytes");
+    string_creator(merge_bytes, "merge_bytes");
     string_creator(buf_type, "buf_type");
     string_creator(write, "write");
+    string_creator(stdin_fd, "stdin_fd");
+    string_creator(stdout_fd, "stdout_fd");
+    string_creator(stderr_fd, "stderr_fd");
     string_creator(nativeref, "nativeref");
     string_creator(refkind, "refkind");
     string_creator(positional, "positional");
@@ -579,6 +581,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(instrumented, "instrumented");
     string_creator(heap, "heap");
     string_creator(translate_newlines, "translate_newlines");
+    string_creator(platform_newline, MVM_TRANSLATE_NEWLINE_OUTPUT ? "\r\n" : "\n");
 }
 
 /* Drives the overall bootstrap process. */

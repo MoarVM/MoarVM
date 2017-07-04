@@ -1,3 +1,71 @@
+New in 2017.06
+
++ Make coerce_s_n work more like the Perl 6 Str.Num method
++ Eliminate socket string I/O
++ Re-implement synchronous sockets without using libuv, enabling them to be
+  passed between threads
++ Add ability to get port from already bind-ed socket
++ Add cpucores op to get the number of CPU cores
++ Fix inconsistency in decode stream take bytes API, so it returns null if
+  that number of bytes is not available
++ Fix memory leak in syncpipe
++ Removed unsed header file in threads.c
+* Remove unused args to bind_stdio_handle
++ Remove char-level I/O ops and the functions they called
++ Remove char-level I/O from synchronous I/O vtables
++ Remove unused encoding option in dir handle
++ Re-implement print/say debug output ops to encode and then use binary I/O
++ Eliminate use of libuv in synchronous file handles
++ Switch standard handles to use the new synchronous file handle code, which
+  means they can now be safely used from multiple threads also
++ Remove unused ->filename slot of syncfile
++ Debugging aid for introspecting P6opaque objects
++ Support merge_bytes in async proc ops, for reading STDOUT and STDERR
+  together
++ Support binding handles to file descriptors in async procs
++ Fix off-by-one in profiler node GC
++ Add string eqat/index ignorecase+ignoremark functions
++ Add new eqaticim_s and indexicim_s ops ignorecase+ignoremark
++ Use norm instead of n for the normalizer variable
++ Add improved support for GCB=Prepend
++ Improve Regional Indicators support during normalization
++ Serialize a Decoder REPR object into null, so incidental file handle
+  serialization in Perl 6 does not blow up
++ Improve named argument optimization, so we can specialize and throw out
+  instructions in more cases
++ JIT decodertakeline
++ Fix missed opportunity to run JITted code
++ Have inline log note what couldn't inline also
++ Remove successor when optional named argument is passed, so default code
+  can be eliminated
++ Flag writers that die when a basic block is eliminated, and disregard them
+  in PHI node analysis, provide more precise type information
++ Make a basic block elimination pre-pass before the main optimization work
++ Set dead writer when deleting instructions also, to further aid PHI merges
++ Track which basic blocks are part of a jump list
++ Delete pointless goto instructions (those at the end of a basic block that
+  simply go to the next block)
++ Remove bad Windows quoting option async proc code
++ Actually log inlines to stderr as the comment up top claims
++ Make find_separator only look at the last chars, which is far cheaper
++ Add help text for environment variables to Configure
++ Move NFG initialization into nfg.c
++ Cache CRLF grapheme value
++ Cache maximum separator length, to save recomputing it for every line that
+  is read
++ Cache a list of final separator graphemes, for faster stopper detection in
+  streaming decoders
++ Introduce a max final grapheme codepoint filter, for faster stopper
+  detection in streaming decoders
++ Add a UTF-8 decoding fast-path that doesn't need to go through the full
+  normalizer
++ Keep last freed chars buffer handy for re-use in streaming decoder
++ Make a smarter guess at decode result buffer size in streaming decoder
++ Don't copy when we can steal decoder output, saving a memory copy in most
+  line reading operations
++ Various micro-optimizations to UTF-8 decoding fast path
++ Fix newline translation in various encoding's streaming decoder
+
 New in 2017.05
 
 + Mark profiler call graphs iteratively instead of recursively

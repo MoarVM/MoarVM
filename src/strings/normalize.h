@@ -58,6 +58,11 @@ struct MVMNormalizer {
     /* If we should translate the \r\n grapheme to \n (only applicable when
      * normalizing to NFG). */
     MVMint32 translate_newlines;
+
+    MVMint32 prepend_buffer;
+
+    MVMint32 regional_indicator;
+
 };
 
 /* Guts-y functions, called by the API level ones below. */
@@ -80,8 +85,9 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadCon
             return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, n, in, out);
 
     /* Fast-paths apply when the codepoint to consider is too low to have any
-     * interesting properties in the target normalization form. */
-    if (in < n->first_significant) {
+     * interesting properties in the target normalization form AND
+     * it doesn't follow a prepend character */
+    if (in < n->first_significant && !n->prepend_buffer) {
         if (MVM_NORMALIZE_COMPOSE(n->form)) {
             /* For the composition fast path we always have to know that we've
             * seen two codepoints in a row that are below those needing a full
@@ -179,4 +185,12 @@ MVM_STATIC_INLINE MVMint32 fast_atoi( const char * dec_str ) {
         value = value*10 + (*dec_str++ - '0');
     }
     return value;
+}
+
+/* Function for choosing the appropriate line-ending grapheme depending on if
+ * newline translation is enabled. */
+MVM_STATIC_INLINE MVMGrapheme32 MVM_unicode_normalizer_translated_crlf(MVMThreadContext *tc, MVMNormalizer *n) {
+    return n->translate_newlines
+        ? '\n'
+        : MVM_nfg_crlf_grapheme(tc);
 }

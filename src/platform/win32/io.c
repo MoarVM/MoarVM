@@ -106,3 +106,12 @@ MVMint64 MVM_platform_unlink(const char *pathname) {
 
     return 0;
 }
+
+int MVM_platform_fsync(int fd) {
+    if (FlushFileBuffers((HANDLE)_get_osfhandle(fd)))
+        return 0;
+    errno = GetLastError();
+    if (errno == ENXIO)
+        return 0; /* Not something we can flush. */
+    return -1;
+}

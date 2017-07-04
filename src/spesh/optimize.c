@@ -657,7 +657,6 @@ static void optimize_assertparamcheck(MVMThreadContext *tc, MVMSpeshGraph *g, MV
     MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
     if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE && facts->value.i) {
         MVM_spesh_use_facts(tc, g, facts);
-        facts->usages--;
         MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
     }
 }
@@ -1171,20 +1170,23 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 /* Yes. Will we be able to inline? */
                 MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
                     target_code, &target_code->body.sf->body.spesh_candidates[spesh_cand]);
-                if (inline_graph) {
-                    /* Yes, have inline graph, so go ahead and do it. */
 #if MVM_LOG_INLINES
+                {
                     char *c_name_i = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.name);
                     char *c_cuid_i = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.cuuid);
                     char *c_name_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.name);
                     char *c_cuid_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.cuuid);
-                    printf("Can inline %s (%s) into %s (%s)\n",
+                    fprintf(stderr, "%s inline %s (%s) into %s (%s)\n",
+                        (inline_graph ? "Can" : "Can NOT"),
                         c_name_i, c_cuid_i, c_name_t, c_cuid_t);
                     MVM_free(c_name_i);
                     MVM_free(c_cuid_i);
                     MVM_free(c_name_t);
                     MVM_free(c_cuid_t);
+                }
 #endif
+                if (inline_graph) {
+                    /* Yes, have inline graph, so go ahead and do it. */
                     MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_code);
                 }
                 else {
@@ -1279,8 +1281,8 @@ static void optimize_uniprop_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 static void optimize_prof_allocated(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshFacts *logee_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
     if (logee_facts->usages == 1) {
-        logee_facts->usages = 0;
         MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+        logee_facts->usages = 0;
         /* This check should always succeed, but just in case ... */
         if (logee_facts->writer)
             MVM_spesh_manipulate_delete_ins(tc, g, bb, logee_facts->writer);
@@ -1372,6 +1374,23 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
     MVM_free(handlers_found);
 }
 
+static void eliminate_phi_dead_reads(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMuint32 operand = 1;
+    MVMuint32 insert_pos = 1;
+    MVMuint32 num_operands = ins->info->num_operands;
+    while (operand < ins->info->num_operands) {
+        if (get_facts_direct(tc, g, ins->operands[operand])->dead_writer) {
+            num_operands--;
+        }
+        else {
+            ins->operands[insert_pos] = ins->operands[operand];
+            insert_pos++;
+        }
+        operand++;
+    }
+    if (num_operands != ins->info->num_operands)
+        ins->info = get_phi(tc, g, num_operands);
+}
 static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMuint32 operand;
     MVMint32 common_flags;
@@ -1379,6 +1398,8 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
     MVMObject *common_decont_type;
     MVMuint32 needs_merged_with_log_guard = 0;
     MVMSpeshFacts *target_facts = get_facts_direct(tc, g, ins->operands[0]);
+
+    eliminate_phi_dead_reads(tc, g, ins);
 
     common_flags       = get_facts_direct(tc, g, ins->operands[1])->flags;
     common_type        = get_facts_direct(tc, g, ins->operands[1])->type;
@@ -1454,7 +1475,6 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
         }
     } else {
         /*fprintf(stderr, "a PHI node of %d operands had no intersecting flags\n", ins->info->num_operands);*/
-        return;
     }
 }
 /* Visits the blocks in dominator tree order, recursively. */
@@ -1703,11 +1723,6 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 if (ins->info->opcode == MVM_SSA_PHI) {
                     MVMSpeshFacts *facts = get_facts_direct(tc, g, ins->operands[0]);
                     if (facts->usages == 0) {
-                        /* Propagate non-usage. */
-                        MVMint32 i;
-                        for (i = 1; i < ins->info->num_operands; i++)
-                            get_facts_direct(tc, g, ins->operands[i])->usages--;
-
                         /* Remove this phi. */
                         MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
                         death = 1;
@@ -1718,12 +1733,6 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
                     if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
                         MVMSpeshFacts *facts = get_facts_direct(tc, g, ins->operands[0]);
                         if (facts->usages == 0) {
-                            /* Propagate non-usage. */
-                            MVMint32 i;
-                            for (i = 1; i < ins->info->num_operands; i++)
-                                if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
-                                    get_facts_direct(tc, g, ins->operands[i])->usages--;
-
                             /* Remove this instruction. */
                             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
                             death = 1;
@@ -1780,10 +1789,8 @@ static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
                      * and throw out the set instruction. */
                     MVMSpeshIns *previous = ins->prev;
                     ins->prev->operands[0].reg = ins->operands[0].reg;
-
                     MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
                     ins = previous;
-                    facts->usages--;
                 }
             }
         } else if (ins->prev && ins->info->opcode == MVM_OP_sp_getspeshslot && ins->prev->info->opcode == ins->info->opcode) {
@@ -1794,7 +1801,6 @@ static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
              * null the spesh slot that we throw out. */
             if (ins->operands[0].reg.orig == ins->prev->operands[0].reg.orig) {
                g->spesh_slots[ins->prev->operands[1].lit_i16] = NULL;
-
                MVM_spesh_manipulate_delete_ins(tc, g, bb, ins->prev);
             }
         } else if (ins->info->opcode == MVM_OP_prof_allocated) {
@@ -1827,6 +1833,15 @@ static MVMint64 has_handler_anns(MVMThreadContext *tc, MVMSpeshBB *bb) {
     }
     return 0;
 }
+static void cleanup_dead_bb_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *dead_bb) {
+    MVMSpeshIns *ins = dead_bb->first_ins;
+    while (ins) {
+        MVM_spesh_manipulate_cleanup_ins_deps(tc, g, ins);
+        ins = ins->next;
+    }
+    dead_bb->first_ins = NULL;
+    dead_bb->last_ins = NULL;
+}
 static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Iterate to fixed point. */
     MVMint8  *seen     = MVM_malloc(g->num_bbs);
@@ -1854,6 +1869,7 @@ static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
             MVMSpeshBB *death_cand = cur_bb->linear_next;
             if (!seen[death_cand->idx]) {
                 if (!death_cand->inlined && !has_handler_anns(tc, death_cand)) {
+                    cleanup_dead_bb_instructions(tc, g, death_cand);
                     cur_bb->linear_next = cur_bb->linear_next->linear_next;
                     g->num_bbs--;
                     death = 1;
@@ -1885,11 +1901,31 @@ static void eliminate_unused_log_guards(MVMThreadContext *tc, MVMSpeshGraph *g) 
                 g->log_guards[i].ins);
 }
 
+/* Sometimes - almost always due to other optmimizations having done their
+ * work - we end up with an unconditional goto at the end of a basic block
+ * that points right to the very next basic block. Delete these. */
+static void eliminate_pointless_gotos(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    MVMSpeshBB *cur_bb = g->entry;
+    while (cur_bb) {
+        if (!cur_bb->jumplist) {
+            MVMSpeshIns *last_ins = cur_bb->last_ins;
+            if (last_ins && last_ins->info->opcode == MVM_OP_goto)
+                if (last_ins->operands[0].ins_bb == cur_bb->linear_next) 
+                    MVM_spesh_manipulate_delete_ins(tc, g, cur_bb, last_ins);
+        }
+        cur_bb = cur_bb->linear_next;
+    }
+}
+
 /* Drives the overall optimization work taking place on a spesh graph. */
 void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    /* Before starting, we eliminate dead basic blocks that were tossed by
+     * arg spesh, to simplify the graph. */
+    eliminate_dead_bbs(tc, g);
     optimize_bb(tc, g, g->entry);
-    eliminate_dead_ins(tc, g);
     eliminate_dead_bbs(tc, g);
     eliminate_unused_log_guards(tc, g);
+    eliminate_pointless_gotos(tc, g);
+    eliminate_dead_ins(tc, g);
     second_pass(tc, g, g->entry);
 }

@@ -62,12 +62,14 @@ struct MVMStringConsts {
     MVMString *auto_viv_container;
     MVMString *done;
     MVMString *error;
-    MVMString *stdout_chars;
     MVMString *stdout_bytes;
-    MVMString *stderr_chars;
     MVMString *stderr_bytes;
+    MVMString *merge_bytes;
     MVMString *buf_type;
     MVMString *write;
+    MVMString *stdin_fd;
+    MVMString *stdout_fd;
+    MVMString *stderr_fd;
     MVMString *nativeref;
     MVMString *refkind;
     MVMString *positional;
@@ -80,6 +82,7 @@ struct MVMStringConsts {
     MVMString *instrumented;
     MVMString *heap;
     MVMString *translate_newlines;
+    MVMString *platform_newline;
 };
 
 /* An entry in the representations registry. */
@@ -124,6 +127,7 @@ struct MVMInstance {
     uv_mutex_t        mutex_event_loop_start;
     uv_sem_t          sem_event_loop_started;
     MVMObject        *event_loop_todo_queue;
+    MVMObject        *event_loop_permit_queue;
     MVMObject        *event_loop_cancel_queue;
     MVMObject        *event_loop_active;
     uv_async_t       *event_loop_wakeup;

@@ -8,6 +8,13 @@ struct MVMDecodeStream {
     MVMDecodeStreamChars *chars_head;
     MVMDecodeStreamChars *chars_tail;
 
+    /* Often, when reading lines or chunks, we'll fill up one char buffer
+     * and then immediately take it. That results in a lot of allocating
+     * and freeing of MVMDecodeStreamChars structures. Keeping a free one
+     * avoids this. (There's not really a common steady state where we
+     * have multiple free ones, so a free isn't worth the extra work.) */
+    MVMDecodeStreamChars *chars_reuse;
+
     /* The byte position (for tell). */
     MVMint64 abs_byte_pos;
 
@@ -19,6 +26,10 @@ struct MVMDecodeStream {
 
     /* The encoding we're using. */
     MVMint32 encoding;
+
+    /* Suggestion for decoders of how many bytes to guess at when allocating
+     * decoded result buffers. */
+    MVMint32 result_size_guess;
 
     /* Normalizer. */
     MVMNormalizer norm;
@@ -55,6 +66,18 @@ struct MVMDecodeStreamSeparators {
 
     /* The number of separators we have. */
     MVMint32 num_seps;
+
+    /* Cached maximum separator length, to save regular recalculation. */
+    MVMint32 max_sep_length;
+
+    /* Cached final graphemes, for quick lookups in stream_maybe_sep. */
+    MVMGrapheme32 *final_graphemes;
+
+    /* Since separators are most often control chars, we can quickly filter
+     * out many graphemes without a separator search by keeping around the
+     * maximum codepoint/synthetic index of any final grapheme and doing a
+     * quick comparison. */
+    MVMGrapheme32 max_final_grapheme;
 };
 
 /* Checks if we may have encountered one of the separators. This just looks to
@@ -62,14 +85,11 @@ struct MVMDecodeStreamSeparators {
  * demand the actual encodings themselves work out (multi-grapheme separators
  * are handled in the decode stream logic itself). */
 MVM_STATIC_INLINE MVMint32 MVM_string_decode_stream_maybe_sep(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec, MVMGrapheme32 g) {
-    if (sep_spec) {
-        MVMint32 cur_graph = -1;
+    if (sep_spec && g <= sep_spec->max_final_grapheme) {
         MVMint32 i;
-        for (i = 0; i < sep_spec->num_seps; i++) {
-            cur_graph += sep_spec->sep_lengths[i];
-            if (sep_spec->sep_graphemes[cur_graph] == g)
+        for (i = 0; i < sep_spec->num_seps; i++)
+            if (sep_spec->final_graphemes[i] == g)
                 return 1;
-        }
     }
     return 0;
 }
@@ -91,5 +111,4 @@ MVMint32 MVM_string_decodestream_is_empty(MVMThreadContext *tc, MVMDecodeStream 
 void MVM_string_decodestream_destroy(MVMThreadContext *tc, MVMDecodeStream *ds);
 void MVM_string_decode_stream_sep_default(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec);
 void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec, MVMString **seps, MVMint32 num_seps);
-MVMint32 MVM_string_decode_stream_sep_max_chars(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec);
 void MVM_string_decode_stream_sep_destroy(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec);

@@ -75,8 +75,12 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
     add_collectable(tc, worklist, snapshot, tc->instance->compiler_registry, "Compiler registry");
     add_collectable(tc, worklist, snapshot, tc->instance->hll_syms, "HLL symbols");
     add_collectable(tc, worklist, snapshot, tc->instance->clargs, "Command line args");
-    add_collectable(tc, worklist, snapshot, tc->instance->event_loop_todo_queue, "Event loop todo queue");
-    add_collectable(tc, worklist, snapshot, tc->instance->event_loop_cancel_queue, "Event loop cancel queue");
+    add_collectable(tc, worklist, snapshot, tc->instance->event_loop_todo_queue,
+        "Event loop todo queue");
+    add_collectable(tc, worklist, snapshot, tc->instance->event_loop_permit_queue,
+        "Event loop permit queue");
+    add_collectable(tc, worklist, snapshot, tc->instance->event_loop_cancel_queue,
+        "Event loop cancel queue");
     add_collectable(tc, worklist, snapshot, tc->instance->event_loop_active, "Event loop active");
 
     int_to_str_cache = tc->instance->int_to_str_cache;

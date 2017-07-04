@@ -56,8 +56,7 @@ MVMuint32 MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *d
     if (stopper_chars && *stopper_chars == 0)
         return 1;
 
-    /* Take length of head buffer as initial guess. */
-    bufsize = ds->bytes_head->length;
+    bufsize = ds->result_size_guess;
     buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
 
     /* Decode each of the buffers. */
@@ -76,7 +75,7 @@ MVMuint32 MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *d
                     "Will not decode invalid ASCII (code point > 127 found)");
             if (last_was_cr) {
                 if (codepoint == '\n') {
-                    graph = MVM_nfg_crlf_grapheme(tc);
+                    graph = MVM_unicode_normalizer_translated_crlf(tc, &(ds->norm));
                 }
                 else {
                     graph = '\r';
@@ -102,11 +101,11 @@ MVMuint32 MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *d
             last_accept_bytes = cur_bytes;
             last_accept_pos = pos;
             total++;
-            if (stopper_chars && *stopper_chars == total) {
+            if (MVM_string_decode_stream_maybe_sep(tc, seps, codepoint)) {
                 reached_stopper = 1;
                 goto done;
             }
-            if (MVM_string_decode_stream_maybe_sep(tc, seps, codepoint)) {
+            else if (stopper_chars && *stopper_chars == total) {
                 reached_stopper = 1;
                 goto done;
             }

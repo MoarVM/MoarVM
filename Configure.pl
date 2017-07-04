@@ -335,6 +335,7 @@ push @cflags, $config{ccshared}     unless $args{static};
 push @cflags, '-fno-omit-frame-pointer' if $args{asan} or $args{ubsan};
 push @cflags, '-fsanitize=address' if $args{asan};
 push @cflags, '-fsanitize=undefined' if $args{ubsan};
+push @cflags, '-DDEBUG_HELPERS' if $args{debug};
 push @cflags, '-DMVM_VALGRIND_SUPPORT' if $args{valgrind};
 push @cflags, '-DHAVE_TELEMEH' if $args{telemeh};
 push @cflags, '-DWORDS_BIGENDIAN' if $config{be}; # 3rdparty/sha1 needs it and it isnt set on mips;
@@ -808,6 +809,12 @@ __END__
                    [--debug] [--optimize] [--instrument]
                    [--static] [--big-endian] [--prefix]
                    [--make-install]
+
+=head2 Use of environment variables
+
+Compiler and linker flags can be extended with environment variables.
+
+CFLAGS="..." LDFLAGS="..." ./Configure.pl
 
 =head1 OPTIONS
 

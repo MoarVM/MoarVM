@@ -82,6 +82,7 @@ static const MVMAsyncTaskOps op_table = {
     setup,
     NULL,
     NULL,
+    NULL,
     gc_free
 };
 

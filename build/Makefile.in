@@ -51,12 +51,10 @@ ARFLAGS   = @arflags@
 
 PLATFORM_WIN32 = src/platform/win32/mmap@obj@ \
                  src/platform/win32/time@obj@ \
-                 src/platform/win32/io@obj@ \
-                 src/platform/win32/sys@obj@
+                 src/platform/win32/io@obj@
 
 PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
-                 src/platform/posix/time@obj@ \
-                 src/platform/posix/sys@obj@
+                 src/platform/posix/time@obj@
 
 DASM_FLAGS_WIN32 = -D WIN32=1
 DASM_FLAGS_POSIX = -D POSIX=1
@@ -106,8 +104,6 @@ OBJECTS = src/core/callsite@obj@ \
           src/io/io@obj@ \
           src/io/eventloop@obj@ \
           src/io/syncfile@obj@ \
-          src/io/syncstream@obj@ \
-          src/io/syncpipe@obj@ \
           src/io/syncsocket@obj@ \
           src/io/fileops@obj@ \
           src/io/dirops@obj@ \
@@ -213,6 +209,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/profiler/telemeh@obj@ \
           src/instrument/crossthreadwrite@obj@ \
           src/instrument/line_coverage@obj@ \
+          src/platform/sys@obj@ \
           src/moar@obj@ \
           @platform@ \
           @jit_obj@
@@ -252,8 +249,6 @@ HEADERS = src/moar.h \
           src/io/io.h \
           src/io/eventloop.h \
           src/io/syncfile.h \
-          src/io/syncstream.h \
-          src/io/syncpipe.h \
           src/io/syncsocket.h \
           src/io/fileops.h \
           src/io/dirops.h \

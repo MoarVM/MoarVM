@@ -30,6 +30,9 @@ struct MVMSpeshFacts {
 
     /* The log guard the facts depend on, if any. */
     MVMuint32 log_guard;
+
+    /* Has the instruction that wrote this value been deleted? */
+    MVMuint32 dead_writer;
 };
 
 /* Various fact flags. */

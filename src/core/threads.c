@@ -262,3 +262,4 @@ void MVM_thread_join_foreground(MVMThreadContext *tc) {
         }
     }
 }
+

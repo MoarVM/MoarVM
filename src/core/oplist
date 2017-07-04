@@ -273,7 +273,7 @@ ordat               w(int64) r(str) r(int64) :pure
 rindexfrom          w(int64) r(str) r(str) r(int64) :pure
 escape              w(str) r(str) :pure
 flip                w(str) r(str) :pure
-DEPRECATED_1        r(str)
+setbuffersize_fh    r(obj) r(int64)
 iscclass            w(int64) r(int64) r(str) r(int64) :pure
 findcclass          w(int64) r(int64) r(str) r(int64) r(int64) :pure
 findnotcclass       w(int64) r(int64) r(str) r(int64) r(int64) :pure
@@ -511,10 +511,10 @@ read_dir            w(str) r(obj)
 close_dir           r(obj)
 open_fh             w(obj) r(str) r(str)
 close_fh            r(obj)
-read_fhs            w(str) r(obj) r(int64)
-slurp               w(str) r(str) r(str)
-spew                r(str) r(str) r(str)
-write_fhs           w(int64) r(obj) r(str)
+DEPRECATED_23       w(str) r(obj) r(int64)
+DEPRECATED_27       w(str) r(str) r(str)
+DEPRECATED_28       r(str) r(str) r(str)
+DEPRECATED_18       w(int64) r(obj) r(str)
 seek_fh             r(obj) r(int64) r(int64)
 lock_fh             w(int64) r(obj) r(int64)
 unlock_fh           r(obj)
@@ -527,18 +527,18 @@ getstderr           w(obj) :pure
 connect_sk          r(obj) r(str) r(int64)
 socket              w(obj) r(int64)
 bind_sk             r(obj) r(str) r(int64) r(int64)
-setinputlinesep_fh  r(obj) r(str)
+DEPRECATED_24       r(obj) r(str)
 accept_sk           w(obj) r(obj)
 decodetocodes       r(obj) r(str) r(int64) r(obj)
 encodefromcodes     r(obj) r(str) r(obj)
-setencoding         r(obj) r(str)
+DEPRECATED_17       r(obj) r(str)
 print               r(str)
 say                 r(str)
-readall_fh          w(str) r(obj)
+DEPRECATED_22       w(str) r(obj)
 tell_fh             w(int64) r(obj)
 stat                w(int64) r(str) r(int64)
-readline_fh         w(str) r(obj)
-readlineint_fh      w(str) r(obj) r(str)
+DEPRECATED_20       w(str) r(obj)
+DEPRECATED_26       w(str) r(obj) r(str)
 chdir               r(str)
 srand               r(int64)
 rand_i              w(int64)
@@ -549,7 +549,7 @@ newthread           w(obj) r(obj) r(int64)
 threadjoin          r(obj)
 time_n              w(num64)
 exit                r(int64)
-shell               w(int64) r(str) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
+DEPRECATED_30       w(int64) r(str) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
 cwd                 w(str)
 clargs              w(obj)
 getenvhash          w(obj)
@@ -572,17 +572,17 @@ inf                 w(num64) :pure
 neginf              w(num64) :pure
 nan                 w(num64) :pure
 getpid              w(int64) :pure
-spawn               w(int64) r(obj) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
+DEPRECATED_29       w(int64) r(obj) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
 filereadable        w(int64) r(str)
 filewritable        w(int64) r(str)
 fileexecutable      w(int64) r(str)
-say_fhs             w(int64) r(obj) r(str)
+DEPRECATED_19       w(int64) r(obj) r(str)
 capturenamedshash   w(obj) r(obj) :pure
 read_fhb            r(obj) r(obj) r(int64)
 write_fhb           r(obj) r(obj)
 replace             w(str) r(str) r(int64) r(int64) r(str)
 newexception        w(obj)
-DEPRECATED_0        w(obj)
+permit              r(obj) r(int64) r(int64)
 backtrace           w(obj) r(obj)
 symlink             r(str) r(str)
 link                r(str) r(str)
@@ -657,7 +657,7 @@ objectid            w(int64) r(obj)
 settypefinalize     r(obj) r(int64)
 force_gc
 nativecallglobal    w(obj) r(str) r(str) r(obj) r(obj)
-close_fhi           w(int64) r(obj)
+DEPRECATED_32       w(int64) r(obj)
 setparameterizer    r(obj) r(obj)
 parameterizetype    w(obj) r(obj) r(obj)
 typeparameterized   w(obj) r(obj)
@@ -702,7 +702,7 @@ eqatim_s            w(int64) r(str) r(str) r(int64) :pure
 ordbaseat           w(int64) r(str) r(int64) :pure
 neverrepossess      r(obj)
 scdisclaim          r(obj)
-syncpipe            w(obj)
+DEPRECATED_31       w(obj)
 atpos2d_i           w(int64) r(obj) r(int64) r(int64) :pure
 atpos2d_n           w(num64) r(obj) r(int64) r(int64) :pure
 atpos2d_s           w(str) r(obj) r(int64) r(int64) :pure
@@ -733,8 +733,8 @@ numdimensions       w(int64) r(obj) :pure
 ctxcode             w(obj) r(obj)
 isrwcont            w(int64) r(obj) :pure
 fc                  w(str) r(str) :pure
-setinputlineseps_fh r(obj) r(obj)
-readlinechomp_fh    w(str) r(obj)
+DEPRECATED_25       r(obj) r(obj)
+DEPRECATED_21       w(str) r(obj)
 encoderep           w(obj) r(str) r(str) r(str) r(obj)
 istty_fh            w(int64) r(obj) :pure
 multidimref_i       w(obj) r(obj) r(obj) :pure
@@ -798,10 +798,12 @@ indexingoptimized   w(str) r(str) :pure
 captureinnerlex     r(obj) :noinline
 unicmp_s            w(int64) r(str) r(str) r(int64) r(int64) r(int64) :pure
 setdispatcherfor    r(obj) r(obj)
-getstrfromname       w(str) r(str) :pure
-indexic_s            w(int64) r(str) r(str) r(int64) :pure
+getstrfromname      w(str) r(str) :pure
+indexic_s           w(int64) r(str) r(str) r(int64) :pure
 getport_sk          w(int64) r(obj)
-
+cpucores            w(int64) :pure
+eqaticim_s          w(int64) r(str) r(str) r(int64) :pure
+indexicim_s         w(int64) r(str) r(str) r(int64) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
@@ -847,7 +849,7 @@ sp_fastinvoke_s  .s w(str) r(obj) int16
 sp_fastinvoke_o  .s w(obj) r(obj) int16
 
 # Marking named params used.
-sp_namedarg_used .s int16
+sp_namedarg_used .s int16 :noinline
 
 # Look up a spesh slot.
 sp_getspeshslot  .s w(obj) sslot :pure
