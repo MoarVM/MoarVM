@@ -175,6 +175,9 @@ struct MVMThreadContext {
      * one. */
     MVMSpeshLog *spesh_log;
 
+    /* The current specialization correlation ID, used in logging. */
+    MVMuint32 spesh_cid;
+
 #if MVM_GC_DEBUG
     /* Whether we are currently in the specializer. Used to catch GC runs that
      * take place at times they never should. */
