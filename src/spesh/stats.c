@@ -18,6 +18,11 @@ typedef struct SimStackFrame {
 
     /* Argument types logged. Sized by number of callsite flags. */
     MVMSpeshStatsType *arg_types;
+
+    /* Spesh log entries for types and values, for later processing. */
+    MVMSpeshLogEntry **offset_logs;
+    MVMuint32 offset_logs_used;
+    MVMuint32 offset_logs_limit;
 } SimStackFrame;
 typedef struct SimStack {
     /* Array of frames. */
@@ -112,6 +117,8 @@ void sim_stack_push(MVMThreadContext *tc, SimStack *sims, MVMStaticFrame *sf,
     frame->arg_types = (cs = ss->by_callsite[callsite_idx].cs)
         ? MVM_calloc(cs->flag_count, sizeof(MVMSpeshStatsType))
         : NULL;
+    frame->offset_logs = 0;
+    frame->offset_logs_used = frame->offset_logs_limit = 0;
 }
 
 /* Pops the top frame from the sim stack. */
@@ -129,6 +136,9 @@ void sim_stack_pop(MVMThreadContext *tc, SimStack *sims) {
     tss = by_type(tc, simf->ss, simf->callsite_idx, simf->arg_types);
     if (tss)
         tss->hits++;
+
+    /* Clear up offset logs; they're either incorproated or to be tossed. */
+    MVM_free(simf->offset_logs);
 }
 
 /* Gets the simulation stack frame for the specified correlation ID. If it is
@@ -237,10 +247,24 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                 break;
             }
             case MVM_SPESH_LOG_TYPE:
-            case MVM_SPESH_LOG_INVOKE:
+            case MVM_SPESH_LOG_INVOKE: {
+                /* We only incorporate these into the model later, and only
+                 * then if we need to. For now, just mkeep references to
+                 * them. */
+                SimStackFrame *simf = sim_stack_find(tc, &sims, e->id);
+                if (simf) {
+                    if (simf->offset_logs_used == simf->offset_logs_limit) {
+                        simf->offset_logs_limit += 32;
+                        simf->offset_logs = MVM_realloc(simf->offset_logs,
+                            simf->offset_logs_limit * sizeof(MVMSpeshLogEntry *));
+                    }
+                    simf->offset_logs[simf->offset_logs_used++] = e;
+                }
+                break;
+            }
             case MVM_SPESH_LOG_OSR: {
                 SimStackFrame *simf = sim_stack_find(tc, &sims, e->id);
-                /* TODO Stash entry for later association */
+                /* TODO store this */
                 break;
             }
             case MVM_SPESH_LOG_STATIC: {
