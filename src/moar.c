@@ -318,9 +318,14 @@ void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
         MVMString *const str = MVM_string_utf8_c8_decode(tc, instance->VMString, filename, strlen(filename));
         cu->body.filename = str;
 
-        /* Run deserialization frame, if there is one. */
+        /* Run deserialization frame, if there is one. Disable specialization
+         * during this time, so we don't waste time logging one-shot setup
+         * code. */
         if (cu->body.deserialize_frame) {
+            MVMint8 spesh_enabled_orig = tc->instance->spesh_enabled;
+            tc->instance->spesh_enabled = 0;
             MVM_interp_run(tc, toplevel_initial_invoke, cu->body.deserialize_frame);
+            tc->instance->spesh_enabled = spesh_enabled_orig;
         }
     });
 
