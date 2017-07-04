@@ -113,6 +113,49 @@ MVMSpeshStatsByOffset * by_offset(MVMThreadContext *tc, MVMSpeshStatsByType *tss
     return &(tss->by_offset[found]);
 }
 
+/* Adds/increments the count of a certain type seen at the given offset. */
+void add_type_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
+                        MVMStaticFrame *sf, MVMObject *type, MVMuint8 concrete) {
+    /* If we have it already, increment the count. */
+    MVMuint32 found;
+    MVMuint32 n = oss->num_types;
+    for (found = 0; found < n; found++) {
+        if (oss->types[found].type == type && oss->types[found].type_concrete == concrete) {
+            oss->types[found].count++;
+            return;
+        }
+    }
+
+    /* Otherwise, add it to the list. */
+    found = oss->num_types;
+    oss->num_types++;
+    oss->types = MVM_realloc(oss->types, oss->num_types * sizeof(MVMSpeshStatsTypeCount));
+    MVM_ASSIGN_REF(tc, &(sf->common.header), oss->types[found].type, type);
+    oss->types[found].type_concrete = concrete;
+    oss->types[found].count = 1;
+}
+
+/* Adds/increments the count of a certain value seen at the given offset. */
+void add_value_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
+                         MVMStaticFrame *sf, MVMObject *value) {
+    /* If we have it already, increment the count. */
+    MVMuint32 found;
+    MVMuint32 n = oss->num_values;
+    for (found = 0; found < n; found++) {
+        if (oss->values[found].value == value) {
+            oss->values[found].count++;
+            return;
+        }
+    }
+
+    /* Otherwise, add it to the list. */
+    found = oss->num_values;
+    oss->num_values++;
+    oss->values = MVM_realloc(oss->values, oss->num_values * sizeof(MVMSpeshStatsValueCount));
+    MVM_ASSIGN_REF(tc, &(sf->common.header), oss->values[found].value, value);
+    oss->values[found].count = 1;
+}
+
 /* Initializes the stack simulation. */
 void sim_stack_init(MVMThreadContext *tc, SimStack *sims) {
     sims->used = 0;
@@ -162,11 +205,14 @@ void sim_stack_pop(MVMThreadContext *tc, SimStack *sims) {
                 case MVM_SPESH_LOG_TYPE: {
                     MVMSpeshStatsByOffset *oss = by_offset(tc, tss,
                         e->type.bytecode_offset);
+                    add_type_at_offset(tc, oss, simf->sf, e->type.type,
+                        e->type.flags & MVM_SPESH_LOG_TYPE_FLAG_CONCRETE);
                     break;
                 }
                 case MVM_SPESH_LOG_INVOKE: {
                     MVMSpeshStatsByOffset *oss = by_offset(tc, tss,
                         e->value.bytecode_offset);
+                    add_value_at_offset(tc, oss, simf->sf, e->value.value);
                     break;
                 }
             }

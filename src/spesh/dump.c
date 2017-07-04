@@ -612,7 +612,7 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
 /* Dumps the statistics associated with a particular callsite object. */
 void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCallsite *css) {
-    MVMuint32 i, j;
+    MVMuint32 i, j, k;
 
     if (css->cs)
         dump_callsite(tc, ds, css->cs);
@@ -643,6 +643,16 @@ void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCa
             for (j = 0; j < tss->num_by_offset; j++) {
                 MVMSpeshStatsByOffset *oss = &(tss->by_offset[j]);
                 appendf(ds, "            %d:\n", oss->bytecode_offset);
+                for (k = 0; k < oss->num_types; k++)
+                    appendf(ds, "                %d x type %s (%s)\n",
+                        oss->types[k].count,
+                        oss->types[k].type->st->debug_name,
+                        (oss->types[k].type_concrete ? "Conc" : "TypeObj"));
+                for (k = 0; k < oss->num_values; k++)
+                    appendf(ds, "                %d x value at %p of type %s\n",
+                        oss->values[k].count,
+                        oss->values[k].value,
+                        oss->values[k].value->st->debug_name);
             }
         }
         append(ds, "\n");
