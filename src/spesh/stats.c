@@ -95,6 +95,21 @@ MVMuint32 by_callsite_idx(MVMThreadContext *tc, MVMSpeshStats *ss, MVMCallsite *
     return found;
 }
 
+/* Records a static value for a frame, unless it's already in the log. */
+void add_static_value(MVMThreadContext *tc, SimStackFrame *simf, MVMint32 bytecode_offset,
+                      MVMObject *value) {
+    MVMSpeshStats *ss = simf->ss;
+    MVMuint32 i, id;
+    for (i = 0; i < ss->num_static_values; i++)
+        if (ss->static_values[i].bytecode_offset == bytecode_offset)
+            return;
+    id = ss->num_static_values++;
+    ss->static_values = MVM_realloc(ss->static_values,
+        ss->num_static_values * sizeof(MVMSpeshStatsStatic));
+    ss->static_values[id].bytecode_offset = bytecode_offset;
+    ss->static_values[id].value = value;
+}
+
 /* Receives a spesh log and updates static frame statistics. Each static frame
  * that is updated is pushed once into sf_updated. */
 void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf_updated) {
@@ -137,7 +152,8 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
             }
             case MVM_SPESH_LOG_STATIC: {
                 SimStackFrame *simf = sim_stack_find(tc, &sims, e->id);
-                /* TODO Log static value */
+                if (simf)
+                    add_static_value(tc, simf, e->value.bytecode_offset, e->value.value);
                 break;
             }
         }
