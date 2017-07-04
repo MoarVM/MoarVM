@@ -23,6 +23,9 @@ typedef struct SimStackFrame {
     MVMSpeshLogEntry **offset_logs;
     MVMuint32 offset_logs_used;
     MVMuint32 offset_logs_limit;
+
+    /* Number of types we crossed an OSR point. */
+    MVMuint32 osr_hits;
 } SimStackFrame;
 typedef struct SimStack {
     /* Array of frames. */
@@ -180,8 +183,9 @@ void sim_stack_push(MVMThreadContext *tc, SimStack *sims, MVMStaticFrame *sf,
     frame->arg_types = (cs = ss->by_callsite[callsite_idx].cs)
         ? MVM_calloc(cs->flag_count, sizeof(MVMSpeshStatsType))
         : NULL;
-    frame->offset_logs = 0;
+    frame->offset_logs = NULL;
     frame->offset_logs_used = frame->offset_logs_limit = 0;
+    frame->osr_hits = 0;
 }
 
 /* Pops the top frame from the sim stack. */
@@ -194,6 +198,10 @@ void sim_stack_pop(MVMThreadContext *tc, SimStack *sims) {
         MVM_panic(1, "Spesh stats: cannot pop an empty simulation stack");
     sims->used--;
     simf = &(sims->frames[sims->used]);
+
+    /* Add OSR hits at callsite level. */
+    if (simf->osr_hits)
+        simf->ss->by_callsite[simf->callsite_idx].osr_hits += simf->osr_hits;
 
     /* Update the by-type record, incorporating by-offset data. */
     tss = by_type(tc, simf->ss, simf->callsite_idx, simf->arg_types);
@@ -218,6 +226,7 @@ void sim_stack_pop(MVMThreadContext *tc, SimStack *sims) {
             }
         }
         tss->hits++;
+        tss->osr_hits += simf->osr_hits;
     }
 
     /* Clear up offset logs; they're either incorproated or to be tossed. */
@@ -347,7 +356,8 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
             }
             case MVM_SPESH_LOG_OSR: {
                 SimStackFrame *simf = sim_stack_find(tc, &sims, e->id);
-                /* TODO store this */
+                if (simf)
+                    simf->osr_hits++;
                 break;
             }
             case MVM_SPESH_LOG_STATIC: {
