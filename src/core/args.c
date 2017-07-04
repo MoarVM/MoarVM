@@ -321,6 +321,7 @@ MVMArgInfo MVM_args_get_pos_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, M
             result.arg    = ctx->args[arg_pos + 1]; \
             result.flags  = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[flag_pos]; \
             result.exists = 1; \
+            result.arg_idx = arg_pos + 1; \
             ctx->named_used[(arg_pos - ctx->num_pos)/2] = 1; \
             break; \
         } \

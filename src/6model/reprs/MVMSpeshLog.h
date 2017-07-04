@@ -38,7 +38,14 @@ struct MVMSpeshLogEntry {
             MVMCallsite *cs;
         } entry;
 
-        /* Observed type (PARAMETER, TYPE). */
+        /* Observed parameter type (PARAMETER, PARAMETER_DECONT). */
+        struct {
+            MVMObject *type;
+            MVMint32 flags;
+            MVMuint16 arg_idx;
+        } param;
+
+        /* Observed type (TYPE). */
         struct {
             MVMObject *type;
             MVMint32 flags;

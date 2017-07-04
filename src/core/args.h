@@ -50,6 +50,7 @@ struct MVMArgInfo {
     MVMRegister arg;
     MVMCallsiteEntry   flags;
     MVMuint8           exists;
+    MVMuint16          arg_idx; /* Set only for nameds, obvious for pos */
 };
 
 /* Argument processing context handling. */
