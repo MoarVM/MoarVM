@@ -256,7 +256,7 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
 
 void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorklist *worklist) {
     if (ss) {
-        MVMuint32 i, j, k;
+        MVMuint32 i, j, k, l, m;
         for (i = 0; i < ss->num_by_callsite; i++) {
             MVMSpeshStatsByCallsite *by_cs = &(ss->by_callsite[i]);
             for (j = 0; j < by_cs->num_by_type; j++) {
@@ -265,6 +265,13 @@ void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorkl
                 for (k = 0; k < num_types; k++) {
                     MVM_gc_worklist_add(tc, worklist, &(by_type->arg_types[k].type));
                     MVM_gc_worklist_add(tc, worklist, &(by_type->arg_types[k].decont_type));
+                    for (l = 0; l < by_type->num_by_offset; l++) {
+                        MVMSpeshStatsByOffset *by_offset = &(by_type->by_offset[l]);
+                        for (m = 0; m < by_offset->num_types; m++)
+                            MVM_gc_worklist_add(tc, worklist, &(by_offset->types[m].type));
+                        for (m = 0; m < by_offset->num_values; m++)
+                            MVM_gc_worklist_add(tc, worklist, &(by_offset->values[m].value));
+                    }
                 }
             }
         }
@@ -275,11 +282,17 @@ void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorkl
 
 void MVM_spesh_stats_destroy(MVMThreadContext *tc, MVMSpeshStats *ss) {
     if (ss) {
-        MVMuint32 i, j;
+        MVMuint32 i, j, k;
         for (i = 0; i < ss->num_by_callsite; i++) {
             MVMSpeshStatsByCallsite *by_cs = &(ss->by_callsite[i]);
             for (j = 0; j < by_cs->num_by_type; j++) {
                 MVMSpeshStatsByType *by_type = &(by_cs->by_type[j]);
+                for (k = 0; k < by_type->num_by_offset; k++) {
+                    MVMSpeshStatsByOffset *by_offset = &(by_type->by_offset[k]);
+                    MVM_free(by_offset->types);
+                    MVM_free(by_offset->values);
+                }
+                MVM_free(by_type->by_offset);
                 MVM_free(by_type->arg_types);
             }
             MVM_free(by_cs->by_type);
