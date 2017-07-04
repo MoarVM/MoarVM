@@ -637,7 +637,15 @@ void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCa
                 append(ds, "\n");
             }
         }
-        appendf(ds, "        Hits: %d\n\n", tss->hits);
+        appendf(ds, "        Hits: %d\n", tss->hits);
+        if (tss->num_by_offset) {
+            append(ds, "        Logged at offset:\n");
+            for (j = 0; j < tss->num_by_offset; j++) {
+                MVMSpeshStatsByOffset *oss = &(tss->by_offset[j]);
+                appendf(ds, "            %d:\n", oss->bytecode_offset);
+            }
+        }
+        append(ds, "\n");
     }
 } 
 

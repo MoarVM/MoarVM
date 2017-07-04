@@ -93,6 +93,26 @@ MVMSpeshStatsByType * by_type(MVMThreadContext *tc, MVMSpeshStats *ss, MVMuint32
     }
 }
 
+/* Get the stats by offset entry, adding it if it's missing. */
+MVMSpeshStatsByOffset * by_offset(MVMThreadContext *tc, MVMSpeshStatsByType *tss,
+                                  MVMuint32 bytecode_offset) {
+    /* See if we already have it. */
+    MVMuint32 found;
+    MVMuint32 n = tss->num_by_offset;
+    for (found = 0; found < n; found++)
+        if (tss->by_offset[found].bytecode_offset == bytecode_offset)
+            return &(tss->by_offset[found]);
+
+    /* If not, we need a new record. */
+    found = tss->num_by_offset;
+    tss->num_by_offset++;
+    tss->by_offset = MVM_realloc(tss->by_offset,
+        tss->num_by_offset * sizeof(MVMSpeshStatsByOffset));
+    memset(&(tss->by_offset[found]), 0, sizeof(MVMSpeshStatsByOffset));
+    tss->by_offset[found].bytecode_offset = bytecode_offset;
+    return &(tss->by_offset[found]);
+}
+
 /* Initializes the stack simulation. */
 void sim_stack_init(MVMThreadContext *tc, SimStack *sims) {
     sims->used = 0;
@@ -132,10 +152,27 @@ void sim_stack_pop(MVMThreadContext *tc, SimStack *sims) {
     sims->used--;
     simf = &(sims->frames[sims->used]);
 
-    /* Update the by-type record. */
+    /* Update the by-type record, incorporating by-offset data. */
     tss = by_type(tc, simf->ss, simf->callsite_idx, simf->arg_types);
-    if (tss)
+    if (tss) {
+        MVMuint32 i;
+        for (i = 0; i < simf->offset_logs_used; i++) {
+            MVMSpeshLogEntry *e = simf->offset_logs[i];
+            switch (e->kind) {
+                case MVM_SPESH_LOG_TYPE: {
+                    MVMSpeshStatsByOffset *oss = by_offset(tc, tss,
+                        e->type.bytecode_offset);
+                    break;
+                }
+                case MVM_SPESH_LOG_INVOKE: {
+                    MVMSpeshStatsByOffset *oss = by_offset(tc, tss,
+                        e->value.bytecode_offset);
+                    break;
+                }
+            }
+        }
         tss->hits++;
+    }
 
     /* Clear up offset logs; they're either incorproated or to be tossed. */
     MVM_free(simf->offset_logs);
