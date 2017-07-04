@@ -15,6 +15,9 @@ typedef struct SimStackFrame {
 
     /* Callsite stats index (not pointer in case of realloc). */
     MVMuint32 callsite_idx;
+
+    /* Argument types logged. Sized by number of callsite flags. */
+    MVMSpeshStatsType *arg_types;
 } SimStackFrame;
 typedef struct SimStack {
     /* Array of frames. */
@@ -32,6 +35,59 @@ MVMSpeshStats * stats_for(MVMThreadContext *tc, MVMStaticFrame *sf) {
     return sf->body.spesh_stats;
 }
 
+/* Gets the stats by callsite, adding it if it's missing. */
+MVMuint32 by_callsite_idx(MVMThreadContext *tc, MVMSpeshStats *ss, MVMCallsite *cs) {
+    /* See if we already have it. */
+    MVMuint32 found;
+    MVMuint32 n = ss->num_by_callsite;
+    for (found = 0; found < n; found++)
+        if (ss->by_callsite[found].cs == cs)
+            return found;
+
+    /* If not, we need a new record. */
+    found = ss->num_by_callsite;
+    ss->num_by_callsite++;
+    ss->by_callsite = MVM_realloc(ss->by_callsite,
+        ss->num_by_callsite * sizeof(MVMSpeshStatsByCallsite));
+    memset(&(ss->by_callsite[found]), 0, sizeof(MVMSpeshStatsByCallsite));
+    ss->by_callsite[found].cs = cs;
+    return found;
+}
+
+/* Gets the stats by type, adding it if it's missing. Frees arg_types. */
+MVMSpeshStatsByType * by_type(MVMThreadContext *tc, MVMSpeshStats *ss, MVMuint32 callsite_idx,
+                              MVMSpeshStatsType *arg_types) {
+    /* Resolve the by callsite level info. If this is the no-callsite
+     * specialization, nothing further to do. */
+    MVMSpeshStatsByCallsite *css = &(ss->by_callsite[callsite_idx]);
+    MVMCallsite *cs = css->cs;
+    if (!cs) {
+        MVM_free(arg_types);
+        return NULL;
+    }
+    else {
+        /* See if we already have it. */
+        size_t args_length = cs->flag_count * sizeof(MVMSpeshStatsType);
+        MVMuint32 found;
+        MVMuint32 n = css->num_by_type;
+        for (found = 0; found < n; found++) {
+            if (memcmp(css->by_type[found].arg_types, arg_types, args_length) == 0) {
+                MVM_free(arg_types);
+                return &(css->by_type[found]);
+            }
+        }
+
+        /* If not, we need a new record. */
+        found = css->num_by_type;
+        css->num_by_type++;
+        css->by_type = MVM_realloc(css->by_type,
+            css->num_by_type * sizeof(MVMSpeshStatsByType));
+        memset(&(css->by_type[found]), 0, sizeof(MVMSpeshStatsByType));
+        css->by_type[found].arg_types = arg_types;
+        return &(css->by_type[found]);
+    }
+}
+
 /* Initializes the stack simulation. */
 void sim_stack_init(MVMThreadContext *tc, SimStack *sims) {
     sims->used = 0;
@@ -43,6 +99,7 @@ void sim_stack_init(MVMThreadContext *tc, SimStack *sims) {
 void sim_stack_push(MVMThreadContext *tc, SimStack *sims, MVMStaticFrame *sf,
                     MVMSpeshStats *ss, MVMuint32 cid, MVMuint32 callsite_idx) {
     SimStackFrame *frame;
+    MVMCallsite *cs;
     if (sims->used == sims->limit) {
         sims->limit *= 2;
         sims->frames = MVM_realloc(sims->frames, sims->limit * sizeof(SimStackFrame));
@@ -52,13 +109,26 @@ void sim_stack_push(MVMThreadContext *tc, SimStack *sims, MVMStaticFrame *sf,
     frame->ss = ss;
     frame->cid = cid;
     frame->callsite_idx = callsite_idx;
+    frame->arg_types = (cs = ss->by_callsite[callsite_idx].cs)
+        ? MVM_calloc(cs->flag_count, sizeof(MVMSpeshStatsType))
+        : NULL;
 }
 
 /* Pops the top frame from the sim stack. */
 void sim_stack_pop(MVMThreadContext *tc, SimStack *sims) {
+    SimStackFrame *simf;
+    MVMSpeshStatsByType *tss;
+
+    /* Pop off the simulated frame. */
     if (sims->used == 0)
         MVM_panic(1, "Spesh stats: cannot pop an empty simulation stack");
     sims->used--;
+    simf = &(sims->frames[sims->used]);
+
+    /* Update the by-type record. */
+    tss = by_type(tc, simf->ss, simf->callsite_idx, simf->arg_types);
+    if (tss)
+        tss->hits++;
 }
 
 /* Gets the simulation stack frame for the specified correlation ID. If it is
@@ -82,26 +152,24 @@ SimStackFrame * sim_stack_find(MVMThreadContext *tc, SimStack *sims, MVMuint32 c
 
 /* Destroys the stack simulation. */
 void sim_stack_destroy(MVMThreadContext *tc, SimStack *sims) {
+    while (sims->used)
+        sim_stack_pop(tc, sims);
     MVM_free(sims->frames);
 }
 
-/* Gets the stats by callsite, adding it if it's missing. */
-MVMuint32 by_callsite_idx(MVMThreadContext *tc, MVMSpeshStats *ss, MVMCallsite *cs) {
-    /* See if we already have it. */
-    MVMuint32 found;
-    MVMuint32 n = ss->num_by_callsite;
-    for (found = 0; found < n; found++)
-        if (ss->by_callsite[found].cs == cs)
-            return found;
-
-    /* If not, we need a new record. */
-    found = ss->num_by_callsite;
-    ss->num_by_callsite++;
-    ss->by_callsite = MVM_realloc(ss->by_callsite,
-        ss->num_by_callsite * sizeof(MVMSpeshStatsByCallsite));
-    memset(&(ss->by_callsite[found]), 0, sizeof(MVMSpeshStatsByCallsite));
-    ss->by_callsite[found].cs = cs;
-    return found;
+/* Gets the parameter type slot from a simulation frame. */
+MVMSpeshStatsType * param_type(MVMThreadContext *tc, SimStackFrame *simf, MVMSpeshLogEntry *e) {
+    MVMuint16 idx = e->param.arg_idx;
+    MVMCallsite *cs = simf->ss->by_callsite[simf->callsite_idx].cs;
+    if (cs) {
+        MVMint32 flag_idx = idx < cs->num_pos
+            ? idx
+            : cs->num_pos + (((idx - 1) - cs->num_pos) / 2);
+        if (flag_idx >= cs->flag_count)
+            MVM_panic(1, "Spesh stats: argument flag index out of bounds");
+        return &(simf->arg_types[flag_idx]);
+    }
+    return NULL;
 }
 
 /* Records a static value for a frame, unless it's already in the log. */
@@ -144,12 +212,28 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
             }
             case MVM_SPESH_LOG_PARAMETER: {
                 SimStackFrame *simf = sim_stack_find(tc, &sims, e->id);
-                /* TODO Add to parameters logging */
+                if (simf) {
+                    MVMSpeshStatsType *type_slot = param_type(tc, simf, e);
+                    if (type_slot) {
+                        MVM_ASSIGN_REF(tc, &(simf->sf->common.header), type_slot->type,
+                            e->param.type);
+                        type_slot->type_concrete =
+                            e->param.flags & MVM_SPESH_LOG_TYPE_FLAG_CONCRETE;
+                    }
+                }
                 break;
             }
             case MVM_SPESH_LOG_PARAMETER_DECONT: {
                 SimStackFrame *simf = sim_stack_find(tc, &sims, e->id);
-                /* TODO Add to parameters logging */
+                if (simf) {
+                    MVMSpeshStatsType *type_slot = param_type(tc, simf, e);
+                    if (type_slot) {
+                        MVM_ASSIGN_REF(tc, &(simf->sf->common.header), type_slot->decont_type,
+                            e->param.type);
+                        type_slot->decont_type_concrete =
+                            e->param.flags & MVM_SPESH_LOG_TYPE_FLAG_CONCRETE;
+                    }
+                }
                 break;
             }
             case MVM_SPESH_LOG_TYPE:
