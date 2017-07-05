@@ -73,6 +73,9 @@ struct MVMSpeshStatsType {
     /* Whether the type and decont type were concrete. */
     MVMuint8 type_concrete;
     MVMuint8 decont_type_concrete;
+
+    /* If there is a container type, whether it must be rw. */
+    MVMuint8 rw_cont;
 };
 
 /* Statistics by bytecode offset. */
