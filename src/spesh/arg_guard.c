@@ -101,12 +101,66 @@ MVMuint32 get_load_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 ba
     return ag->used_nodes++;
 }
 
+/* Resolves or inserts a node for testing the curernt type loaded into the
+ * test buffer. If it needs to insert a new node, it chains it on to the
+ * end of the existing set of type tests. */
+MVMuint32 get_type_check_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
+                              MVMuint32 base_node, MVMObject *type, MVMuint8 concrete) {
+    MVMuint32 current_node = ag->nodes[base_node].yes;
+    MVMuint32 have_fixup_node = 0;
+    MVMuint32 fixup_node;
+    while (current_node != 0) {
+        MVMSpeshArgGuardNode *agn = &(ag->nodes[current_node]);
+        if (agn->op == MVM_SPESH_GUARD_OP_STABLE_CONC) {
+            /* If it matches, we've found it. */
+            if (concrete && agn->st == type->st)
+                return current_node;
+
+             /* Otherwise, treat this as the working fixup node, and take
+             * the no branch. */
+            fixup_node = current_node;
+            have_fixup_node = 1;
+            current_node = agn->no;
+        }
+        else if (agn->op == MVM_SPESH_GUARD_OP_STABLE_TYPE) {
+            /* If it matches, we've found it. */
+            if (!concrete && agn->st == type->st)
+                return current_node;
+
+             /* Otherwise, treat this as the working fixup node, and take
+             * the no branch. */
+            fixup_node = current_node;
+            have_fixup_node = 1;
+            current_node = agn->no;
+        }
+        else {
+            /* We only expect type matching nodes at the top level. */
+            MVM_panic(1, "Spesh arg guard: unexpected type structure in tree");
+        }
+    }
+
+    /* If we get here, we need to add a node for this callsite. */
+    ag->nodes[ag->used_nodes].op = concrete
+        ? MVM_SPESH_GUARD_OP_STABLE_CONC
+        : MVM_SPESH_GUARD_OP_STABLE_TYPE;
+    ag->nodes[ag->used_nodes].st = type->st;
+    ag->nodes[ag->used_nodes].yes = 0;
+    ag->nodes[ag->used_nodes].no = 0;
+    if (have_fixup_node)
+        ag->nodes[fixup_node].no = ag->used_nodes;
+    else
+        ag->nodes[base_node].yes = ag->used_nodes;
+    return ag->used_nodes++;
+}
+
 /* Resolves or inserts a guard for the specified type information, rooted off
  * the given node. */
 MVMuint32 get_type_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 base_node,
                         MVMSpeshStatsType *type, MVMuint16 arg_idx) {
     MVMuint32 current_node = get_load_node(tc, ag, base_node, arg_idx);
-    /* TODO chain type checks */
+    current_node = get_type_check_node(tc, ag, current_node, type->type, type->type_concrete);
+    /* TODO chain rw container check */
+    /* TODO chain decont container check */
     return current_node;
 }
 
