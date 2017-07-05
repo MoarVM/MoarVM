@@ -756,7 +756,7 @@ char * MVM_spesh_dump_arg_guard(MVMThreadContext *tc, MVMStaticFrame *sf) {
                         i, agn->offset, agn->yes, agn->no);
                     break;
                 case MVM_SPESH_GUARD_OP_RESULT:
-                    appendf(&ds, "%u: RESULT %u", i, agn->result);
+                    appendf(&ds, "%u: RESULT %u\n", i, agn->result);
                     break;
             }
         }
