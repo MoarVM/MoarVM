@@ -14,6 +14,9 @@ struct MVMSpeshArgGuard {
 
 /* Operations we may perform when evaluating a guard. */
 typedef enum {
+    /* Check if the callsite matches. */
+    MVM_SPESH_GUARD_OP_CALLSITE,
+
     /* Load an arg from the args buffer into the test register. Always takes
      * "yes" branch. */
     MVM_SPESH_GUARD_OP_LOAD_ARG,
@@ -55,6 +58,8 @@ struct MVMSpeshArgGuardNode {
 
     /* Data for the operation; union discriminated by op. */
     union {
+        /* Used by CALLSITE */
+        MVMCallsite *cs;
         /* Used by LOAD_ARG */
         MVMuint16 arg_index;
         /* Used by STABLE_CONC, STABLE_TYPE */
