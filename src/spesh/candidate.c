@@ -1,5 +1,46 @@
 #include "moar.h"
 
+/* TODO Remove this when spesh migration to worker is complete. */
+static void _tmp_add_new_guard(MVMThreadContext *tc, MVMStaticFrame *sf,
+                               MVMSpeshCandidate *cand, MVMuint32 cand_idx) {
+    MVMCallsite *cs = cand->cs;
+    MVMSpeshStatsType *tuple = MVM_calloc(cand->cs->flag_count, sizeof(MVMSpeshStatsType));
+    MVMuint32 i;
+    for (i = 0; i < cand->num_guards; i++) {
+        MVMSpeshGuard *g = &(cand->guards[i]);
+        MVMint32 flag_idx = g->slot < cs->num_pos
+            ? g->slot
+            : cs->num_pos + (((g->slot - 1) - cs->num_pos) / 2);
+        switch (g->kind) {
+            case MVM_SPESH_GUARD_CONC:
+                tuple[flag_idx].type = ((MVMSTable *)g->match)->WHAT;
+                tuple[flag_idx].type_concrete = 1;
+                break;
+            case MVM_SPESH_GUARD_TYPE:
+                tuple[flag_idx].type = ((MVMSTable *)g->match)->WHAT;
+                break;
+            case MVM_SPESH_GUARD_DC_CONC:
+                tuple[flag_idx].decont_type = ((MVMSTable *)g->match)->WHAT;
+                tuple[flag_idx].decont_type_concrete = 1;
+                break;
+            case MVM_SPESH_GUARD_DC_TYPE:
+                tuple[flag_idx].decont_type = ((MVMSTable *)g->match)->WHAT;
+                break;
+            case MVM_SPESH_GUARD_DC_CONC_RW:
+                tuple[flag_idx].decont_type = ((MVMSTable *)g->match)->WHAT;
+                tuple[flag_idx].decont_type_concrete = 1;
+                tuple[flag_idx].rw_cont = 1;
+                break;
+            case MVM_SPESH_GUARD_DC_TYPE_RW:
+                tuple[flag_idx].decont_type = ((MVMSTable *)g->match)->WHAT;
+                tuple[flag_idx].rw_cont = 1;
+                break;
+        }
+    }
+    MVM_spesh_arg_guard_add(tc, &(sf->body.spesh_arg_guard), cs, tuple, cand_idx);
+    MVM_free(tuple);
+}
+
 /* Calculates the work and env sizes based on the number of locals and
  * lexicals. */
 static void calculate_work_env_sizes(MVMThreadContext *tc, MVMStaticFrame *sf,
@@ -119,19 +160,23 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
             if (osr)
                 result->osr_logging = 1;
             MVM_barrier();
-            static_frame->body.num_spesh_candidates++;
+            _tmp_add_new_guard(tc, static_frame, result,
+                static_frame->body.num_spesh_candidates++);
             if (static_frame->common.header.flags & MVM_CF_SECOND_GEN)
                 MVM_gc_write_barrier_hit(tc, (MVMCollectable *)static_frame);
             if (tc->instance->spesh_log_fh) {
                 char *c_name = MVM_string_utf8_encode_C_string(tc, static_frame->body.name);
                 char *c_cuid = MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid);
+                char *guard_dump = MVM_spesh_dump_arg_guard(tc, static_frame);
                 fprintf(tc->instance->spesh_log_fh,
                     "Inserting logging for specialization of '%s' (cuid: %s)\n\n", c_name, c_cuid);
                 fprintf(tc->instance->spesh_log_fh,
                     "Before:\n%s\nAfter:\n%s\n\n========\n\n", before, after);
+                fprintf(tc->instance->spesh_log_fh, "%s========\n\n", guard_dump);
                 fflush(tc->instance->spesh_log_fh);
                 MVM_free(c_name);
                 MVM_free(c_cuid);
+                MVM_free(guard_dump);
             }
             used = 1;
         }
