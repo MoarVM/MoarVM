@@ -10,7 +10,7 @@ struct MVMSpeshArgGuard {
 };
 
 /* Operations we may perform when evaluating a guard. */
-enum MVMSpeshArgGuardOp {
+typedef enum {
     /* Load an arg from the args buffer into the test register. Always takes
      * "yes" branch. */
     MVM_SPESH_GUARD_OP_LOAD_ARG,
@@ -38,12 +38,12 @@ enum MVMSpeshArgGuardOp {
     /* Selects a specialization, if this node is reached. Ignores yes/no;
      * terminates execution of the guard check. */
     MVM_SPESH_GUARD_OP_RESULT
-};
+} MVMSpeshArgGuardOp;
 
 /* A node in the guard tree. */
 struct MVMSpeshArgGuardNode {
     /* The operation. */
-    MVMSpeshGuardOp op;
+    MVMSpeshArgGuardOp op;
 
     /* Where to go on match of the guard or no match. These are indexes into
      * the guard tree node array. */
@@ -62,3 +62,7 @@ struct MVMSpeshArgGuardNode {
         MVMuint32 result;
     };
 };
+
+void MVM_spesh_arg_guard_gc_mark(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
+    MVMGCWorklist *worklist);
+void MVM_spesh_arg_guard_destroy(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 safe);
