@@ -23,7 +23,7 @@
 (define: (dov void void) void)
 
 # INVOKISH / THROWISH
-(define: (guard void $mode) void)
+(define: (guard void $before $after) void)
 
 
 #

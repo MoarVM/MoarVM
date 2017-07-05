@@ -117,9 +117,9 @@ static MVMint32 MVM_jit_expr_add_cast(MVMThreadContext *tc, MVMJitExprTree *tree
     return num;
 }
 
-static MVMint32 MVM_jit_expr_wrap_guard(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node, MVMint32 jittivity) {
+static MVMint32 MVM_jit_expr_wrap_guard(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node, MVMint32 before, MVMint32 after) {
     MVMint32 num = tree->nodes_num;
-    MVMJitExprNode template[] = { MVM_JIT_GUARD, node, jittivity };
+    MVMJitExprNode template[] = { MVM_JIT_GUARD, node, before, after };
     MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num;
 }
@@ -739,7 +739,9 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
              * possible to replace an invokish version with a non-invokish
              * version
              */
-            root = MVM_jit_expr_wrap_guard(tc, tree, root, ins->info->jittivity);
+            MVMint32 after = (ins->info->jittivity & MVM_JIT_INFO_THROWISH) ?
+                MVM_JIT_CONTROL_THROWISH_POST : MVM_JIT_CONTROL_INVOKISH;
+            root = MVM_jit_expr_wrap_guard(tc, tree, root, MVM_JIT_CONTROL_THROWISH_PRE, after);
             flush_computed_variables(tc, tree, computed, sg->num_locals);
         }
 

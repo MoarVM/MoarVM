@@ -3,6 +3,120 @@
 Before merging the expression JIT, there are numerous standing issues
 to resolve, sorted by priority.
 
+* Inlining problem
+
+Code looks innocent enough:
+
+#+BEGIN_EXAMPLE
+Build tree out of: [set, goto, ]
+Starting dump of JIT expression tree
+====================================
+digraph {
+  n_0000 [label="LOCAL"];
+  n_0001 [label="ADDR(0x40)"];
+    n_0001 -> n_0000;
+  n_0004 [label="LOCAL"]
+  n_0005 [label="ADDR(0x158)"];
+    n_0005 -> n_0004;
+  n_0008 [label="LOAD(0x8)"];
+    n_0008 -> n_0005;
+  n_0011 [label="COPY"];
+    n_0011 -> n_0008;
+  n_0013 [label="STORE(0x8)"];
+    n_0013 -> n_0001;
+    n_0013 -> n_0011;
+  n_0017 [label="CONST(0x2, 0x4)"];
+  n_0020 [label="LABEL"];
+    n_0020 -> n_0017;
+  n_0022 [label="BRANCH"];
+    n_0022 -> n_0020;
+}
+End dump of JIT expression tree
+#+END_EXAMPLE
+
+And is indeed indistinguishable by assembly output.
+Broken code is 3rd invocation of jit_enter_code with frame nr 1596990.
+We throw using: MVM_exception_throwobj.
+Let's see what happens next.
+(We inline 7 frames!)
+Current jit entry label is 3110.
+
+Inlines block looks weird altogether! (first inlines end label = 0)....
+
+Looking at the code:
+- we rely on doing before_ins before doing an expr build
+- we don't do after_ins though (which would be enough)
+- and if we bail out early, we're going to be doing the before_ins
+  twice
+
+Okay, we're going to go at this the other way.
+
+We're going to handle annotations in the expr tree itself.  We're
+going to extend the GUARD node to have 'wraparound' behaviour.
+
+** FH_START
+
+We mark the current position in the jit entry label.
+This is annoying but okay. (for now).
+Current-position marking is a GUARD with DYNAMIC_LABEL.
+Don't think we need a flush here.
+
+** FH_END
+
+For some reason, this is marked with a label prior to the one we start
+at. Otherwise the same as the FH_START thing.
+No flush required.
+
+** FH_GOTO
+
+This is, I think, the label we jump to.
+So it needs a mark and a flush.
+
+** DEOPT_ONE_INS
+
+- this one wants a 'special' deopt guard implemented as a function
+  call
+- we don't really need to do anything about this until we start
+  implementing the deopt opts
+- but it needs a flush anyways as always
+
+** DEOPT_ALL_INS
+
+- flush before instruction (so that the deopt has consistent state)
+- insert a label after the instruction
+- might be simpler to handle this otherwise (storing the jit deopt
+  idx prior to the invocation, much like we do with deopt_ons
+- i don't think we currently do this, so it might be best not to worry
+  yet
+
+** INLINE_START
+
+Mark the inline with label prior to instruction.. I don't think this
+needs any dynamic label since these will always be the starts of basic
+blocks, which already have a dynamic label guard.
+
+** INLINE_END
+
+Mark inline given by annotation with label posterior to instruction,
+which is always either a basic block label or the graph end label.
+
+** DEOPT_INLINE
+
+- not sure if i really need to do anything about this
+- but its treated similarly to the regular deopt guards
+
+** DEOPT_OSR
+
+This inserts a label that OSR can jump to. So it needs a flush. (It's
+similar to a FH_GOTO in that respect).
+
+** LINENO
+
+We can ignore this for now (although it would be kind of cool to keep
+it arround, and generate debugging information.
+
+Note that we can make a bitmap of annotations... but whatever.
+
 
 * Generalized 3-op to two-op conversion
 

@@ -63,7 +63,7 @@
     _(ARGLIST, -1, 0, C_ARGS, NO_CAST), \
     _(CARG, 1, 1, VOID, NO_CAST),     \
     /* special constrol structures */ \
-    _(GUARD, 1, 1, VOID, NO_CAST),  \
+    _(GUARD, 1, 2, VOID, NO_CAST),  \
     /* interpreter special variables */ \
     _(TC, 0, 0, REG, NO_CAST), \
     _(CU, 0, 0, REG, NO_CAST), \

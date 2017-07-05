@@ -246,14 +246,17 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         break;
     case MVM_JIT_GUARD:
         {
-            /* for invokish / throwish instructions */
-            MVMJitTile *tile = MVM_jit_tile_make(tc, tiler->compiler,
-                                                 MVM_jit_compile_guard, 1, 0,
-                                                 MVM_JIT_CONTROL_THROWISH_PRE);
-            /* XXX - request a spare register. This should be generalized */
-            tile->register_spec = MVM_JIT_REGISTER_ANY;
-            tile->debug_name    = "(guard :pre)";
-            MVM_VECTOR_PUSH(tiler->list->items, tile);
+            /* tree->nodes[node+2] = the first guard of the before/after pair */
+            if (tree->nodes[node+2] != 0) {
+                MVMJitTile *tile = MVM_jit_tile_make(tc, tiler->compiler,
+                                                     MVM_jit_compile_guard, 1, 0,
+                                                     tree->nodes[node+2]);
+                /* XXX - request a spare register (necessary for DYMAMIC LABEL
+                 * etc). This should be generalized */
+                tile->register_spec = MVM_JIT_REGISTER_ANY;
+                tile->debug_name    = "(guard :pre)";
+                MVM_VECTOR_PUSH(tiler->list->items, tile);
+            }
             DO_ASSIGN_CHILD(0, left_sym);
         }
     default:
@@ -573,11 +576,11 @@ static void build_tilelist(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         /* NB: ALL and ANY also generate basic blocks, but their successors can
          * only be resolved after the conditional construct */
         patch_basic_blocks(tc, tiler, tree, node);
-    } else if (tile->op == MVM_JIT_GUARD) {
-        MVMint32 jittivity = tile->args[0];
-        MVMint32 guard_mode = (jittivity & MVM_JIT_THROWISH) ? MVM_JIT_CONTROL_THROWISH_POST : MVM_JIT_CONTROL_INVOKISH;
-        /* overwrite tile to point to guard compilation */
-        tile->args[0] = guard_mode;
+    } else if (tile->op == MVM_JIT_GUARD && tile->args[1] != 0) {
+        /* second arg is wrap after (and nonzero if required). Because guard is
+         * a 'definition' tile, it's emit is usually NULL, so we can overwrite
+         * it to make it a 'real' tile. */
+        tile->args[0] = tile->args[1];
         tile->emit    = MVM_jit_compile_guard;
     }
 }
