@@ -90,7 +90,7 @@ void add_guard(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMCallsite *cs,
             arg_idx++; /* Skip over name */
         if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ) {
             MVMSpeshStatsType *type = &(types[i]);
-            if (types->type)
+            if (type->type)
                 current_node = get_type_node(tc, ag, current_node, type, arg_idx);
         }
         arg_idx++;
