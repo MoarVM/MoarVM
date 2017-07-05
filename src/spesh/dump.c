@@ -706,3 +706,66 @@ char * MVM_spesh_dump_stats(MVMThreadContext *tc, MVMStaticFrame *sf) {
     append_null(&ds);
     return ds.buffer;
 }
+
+/* Dumps a static frame's guard set into a string. */
+char * MVM_spesh_dump_arg_guard(MVMThreadContext *tc, MVMStaticFrame *sf) {
+    MVMSpeshArgGuard *ag = sf->body.spesh_arg_guard;
+
+    DumpStr ds;
+    ds.alloc  = 8192;
+    ds.buffer = MVM_malloc(ds.alloc);
+    ds.pos    = 0;
+
+    /* Dump name and CUID. */
+    append(&ds, "Latest guard tree for '");
+    append_str(tc, &ds, sf->body.name);
+    append(&ds, "' (cuid: ");
+    append_str(tc, &ds, sf->body.cuuid);
+    append(&ds, ", file: ");
+    dump_fileinfo(tc, &ds, sf);
+    append(&ds, ")\n\n");
+
+    /* Dump nodes. */
+    if (ag) {
+        MVMuint32 i = 0;
+        for (i = 0; i < ag->used_nodes; i++) {
+            MVMSpeshArgGuardNode *agn = &(ag->nodes[i]);
+            switch (agn->op) {
+                case MVM_SPESH_GUARD_OP_CALLSITE:
+                    appendf(&ds, "%u: CALLSITE %p | Y: %u, N: %u\n",
+                        i, agn->cs, agn->yes, agn->no);
+                    break;
+                case MVM_SPESH_GUARD_OP_LOAD_ARG:
+                    appendf(&ds, "%u: LOAD ARG %d | Y: %u\n",
+                        i, agn->arg_index, agn->yes);
+                    break;
+                case MVM_SPESH_GUARD_OP_STABLE_CONC:
+                    appendf(&ds, "%u: STABLE CONC %s | Y: %u, N: %u\n",
+                        i, agn->st->debug_name, agn->yes, agn->no);
+                    break;
+                case MVM_SPESH_GUARD_OP_STABLE_TYPE:
+                    appendf(&ds, "%u: STABLE CONC %s | Y: %u, N: %u\n",
+                        i, agn->st->debug_name, agn->yes, agn->no);
+                    break;
+                case MVM_SPESH_GUARD_OP_DEREF_VALUE:
+                    appendf(&ds, "%u: DEREF_PTR %u | Y: %u, N: %u\n",
+                        i, agn->offset, agn->yes, agn->no);
+                    break;
+                case MVM_SPESH_GUARD_OP_DEREF_RW:
+                    appendf(&ds, "%u: DEREF_INT %u | Y: %u, N: %u\n",
+                        i, agn->offset, agn->yes, agn->no);
+                    break;
+                case MVM_SPESH_GUARD_OP_RESULT:
+                    appendf(&ds, "%u: RESULT %u", i, agn->result);
+                    break;
+            }
+        }
+    }
+    else {
+        append(&ds, "No argument guard nodes\n");
+    }
+
+    append(&ds, "\n");
+    append_null(&ds);
+    return ds.buffer;
+}
