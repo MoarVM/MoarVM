@@ -52,7 +52,9 @@ struct MVMSpeshArgGuardNode {
     MVMSpeshArgGuardOp op;
 
     /* Where to go on match of the guard or no match. These are indexes into
-     * the guard tree node array. */
+     * the guard tree node array. A "no" value of zero indicates that there
+     * are no more options, and the match should be termianted without a
+     * result. */
     MVMuint16 yes;
     MVMuint16 no;
 
