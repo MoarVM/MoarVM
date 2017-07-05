@@ -29,17 +29,17 @@ typedef enum {
      * a type object. */
     MVM_SPESH_GUARD_OP_STABLE_TYPE,
 
-    /* Dereferences the pointer-sized value offset into the current contents
+    /* Dereferences the value at the specified offset into the current contents
      * of the test register and puts that value into the test register. Takes
      * the no branch if it is NULL and the yes branch otherwise. (Used for
-     * a decont of a container.) */
-    MVM_SPESH_GUARD_OP_DEREF_PTR,
+     * a decont of a container value.)  */
+    MVM_SPESH_GUARD_OP_DEREF_VALUE,
 
     /* Dereferences the 64-bit integer value offset into the current contents
      * of the test register. Takes the no branch if it's zero and the yes
      * branch otherwise. Does *not* update the test register. (Used for a
-     * rw-ness test.) */
-    MVM_SPESH_GUARD_OP_DEREF_INT,
+     * rw-ness test of a container.) */
+    MVM_SPESH_GUARD_OP_DEREF_RW,
 
     /* Selects a specialization, if this node is reached. Ignores yes/no;
      * terminates execution of the guard check. */
@@ -66,7 +66,7 @@ struct MVMSpeshArgGuardNode {
         MVMuint16 arg_index;
         /* Used by STABLE_CONC, STABLE_TYPE */
         MVMSTable *st;
-        /* Used by DEREF and DEREF_INT. */
+        /* Used by DEREF_VALUE and DEREF_RW. */
         MVMuint32 offset;
         /* Used by RESULT. */
         MVMuint32 result;
