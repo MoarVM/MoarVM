@@ -153,6 +153,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "spesh/lookup.h"
 #include "spesh/worker.h"
 #include "spesh/stats.h"
+#include "spesh/arg_guard.h"
 #include "strings/nfg.h"
 #include "strings/normalize.h"
 #include "strings/decode_stream.h"

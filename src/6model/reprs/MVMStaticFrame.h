@@ -50,6 +50,9 @@ struct MVMStaticFrameBody {
      * from logs. */
     MVMSpeshStats *spesh_stats;
 
+    /* Specialization argument guard tree, for selecting a specialization. */
+    MVMSpeshArgGuard *spesh_arg_guard;
+
     /* Specializations array, if there are any. */
     MVMSpeshCandidate *spesh_candidates;
     MVMuint32          num_spesh_candidates;
