@@ -57,7 +57,7 @@ MVMuint32 get_callsite_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMCalls
             }
             else {
                 /* We only expect callsite nodes at the top level. */
-                MVM_panic(0, "Spesh arg guard: unexpected callsite structure in tree");
+                MVM_panic(1, "Spesh arg guard: unexpected callsite structure in tree");
             }
         } while (current_node != 0);
     }
@@ -65,17 +65,48 @@ MVMuint32 get_callsite_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMCalls
     /* If we get here, we need to add a node for this callsite. */
     ag->nodes[ag->used_nodes].op = MVM_SPESH_GUARD_OP_CALLSITE;
     ag->nodes[ag->used_nodes].cs = cs;
+    ag->nodes[ag->used_nodes].yes = 0;
     ag->nodes[ag->used_nodes].no = 0;
     if (have_fixup_node)
         ag->nodes[fixup_node].no = ag->used_nodes;
     return ag->used_nodes++;
 }
 
+/* Resolves or inserts the argument load node. This is a little complex, in
+ * that we may (though it should be quite unusual) have multiple starting
+ * points in the argument list to consider. For example, there may be for
+ * ($obj, $obj) specializations of (Foo, <no guard>) and (<no guard>, Foo).
+ * In that case, we tweak the previous tree(s) of other starting points so
+ * any "no result" points to instead try the added subtree. */
+MVMuint32 get_load_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 base_node,
+                        MVMuint16 arg_idx) {
+    if (ag->nodes[base_node].yes) {
+        MVMuint32 check_node = ag->nodes[base_node].yes;
+        if (ag->nodes[check_node].op == MVM_SPESH_GUARD_OP_LOAD_ARG) {
+            if (ag->nodes[check_node].arg_index == arg_idx)
+                return check_node;
+            MVM_panic(1, "Spesh arg guard: unimplemented spare guard case");
+        }
+        else {
+            MVM_panic(1, "Spesh arg guard: unexpected op in get_load_node");
+        }
+    }
+
+    /* If we get here, need to add a new load node. */
+    ag->nodes[ag->used_nodes].op = MVM_SPESH_GUARD_OP_LOAD_ARG;
+    ag->nodes[ag->used_nodes].arg_index = arg_idx;
+    ag->nodes[ag->used_nodes].yes = 0;
+    ag->nodes[ag->used_nodes].no = 0;
+    ag->nodes[base_node].yes = ag->used_nodes;
+    return ag->used_nodes++;
+}
+
 /* Resolves or inserts a guard for the specified type information, rooted off
  * the given node. */
-MVMuint32 get_type_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 current_node,
+MVMuint32 get_type_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 base_node,
                         MVMSpeshStatsType *type, MVMuint16 arg_idx) {
-    /* TODO */
+    MVMuint32 current_node = get_load_node(tc, ag, base_node, arg_idx);
+    /* TODO chain type checks */
     return current_node;
 }
 
