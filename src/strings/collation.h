@@ -3149,111 +3149,112 @@ int get_main_node (int cp) {
     }
     return -1;
 }
-int get_first_subnode_elem (
+int get_first_subnode_elem_no_recurse (
     sub_node my_main_node,
-    int *cp,
-    int start_cp_array_elem,
-    int cp_array_length,
-    int last_result,
-    int *interated_over)
+    int cp,
+    int last_result)
 {
-    printf("get_first_subnode_elem: start: %i, length: %i curr_cp: %i last_result: %i\n", start_cp_array_elem, cp_array_length, cp[start_cp_array_elem], last_result);
+    printf("get_first_subnode_elem: curr_cp: %i last_result: %i\n", cp, last_result);
     fprintf(stderr, "testmin %i testmax %i\nmin %i max %i\n", min(my_main_node), max(my_main_node), min(my_main_node), max(my_main_node));
 
     int result = -1;
+    /*
     if (start_cp_array_elem == cp_array_length) {
         printf("I went too far. This is past the array end\nReturning the last result\n");
         if (last_result != -1) {
             *interated_over = start_cp_array_elem - 1;
         }
         return last_result;
-    }
+    }*/
     /* If it passed the above check, and there's only one element, we're already know the element */
     if (my_main_node.sub_node_elems == 1) {
         result = my_main_node.sub_node_link;
         printf("result %i\n", result);
-        if (sub_nodes[result].codepoint != cp[start_cp_array_elem]) {
-            printf("Error subnode[%i].codepoint should have equaled %i\n", result, cp[start_cp_array_elem]);
+        if (sub_nodes[result].codepoint != cp) {
+            printf("Error subnode[%i].codepoint should have equaled %i\n", result, cp);
             print_sub_node(sub_nodes[result]);
             return -1;
         }
-        return get_first_subnode_elem(sub_nodes[result], cp, start_cp_array_elem+1, cp_array_length, result, interated_over);
+        return result;
     }
     /* If it matches min, then we know to go to sub_node_link */
     /* Removing this will cause floating point divide by zero error */
-    if (cp[start_cp_array_elem] == min(my_main_node)) {
+    if (cp == min(my_main_node)) {
         printf("cp %i equals min(my_main_node) %i. Check if codepoint matches for next node (it should otherwise there's an error). Nextcodepoint is %i\n",
-            cp[start_cp_array_elem], min(my_main_node), sub_nodes[my_main_node.sub_node_link].codepoint);
-        if (cp[start_cp_array_elem] == sub_nodes[my_main_node.sub_node_link].codepoint) {
+            cp, min(my_main_node), sub_nodes[my_main_node.sub_node_link].codepoint);
+        if (cp == sub_nodes[my_main_node.sub_node_link].codepoint) {
             result = my_main_node.sub_node_link;
-            return get_first_subnode_elem(sub_nodes[result], cp, start_cp_array_elem+1, cp_array_length, result, interated_over);
+           return result;;
         }
         return -1;
     }
     /* If it matches max then we know to go to sub_node_link + sub_node_elems */
     /* Probably shouldn't remove this. Could cause math errors as in the above conditional */
-    if (cp[start_cp_array_elem] == max(my_main_node)) {
+    if (cp == max(my_main_node)) {
         printf("cp %i equals max(my_main_node) %i. Check if codepoint matches for next node + node elems(it should otherwise there's an error). Nextcodepoint is %i\n",
-            cp[start_cp_array_elem], max(my_main_node), sub_nodes[my_main_node.sub_node_link + my_main_node.sub_node_elems].codepoint);
-        if (cp[start_cp_array_elem] == sub_nodes[my_main_node.sub_node_link + my_main_node.sub_node_elems].codepoint) {
+            cp, max(my_main_node), sub_nodes[my_main_node.sub_node_link + my_main_node.sub_node_elems].codepoint);
+        if (cp == sub_nodes[my_main_node.sub_node_link + my_main_node.sub_node_elems].codepoint) {
             result = my_main_node.sub_node_link + my_main_node.sub_node_elems;
-            return get_first_subnode_elem(sub_nodes[result], cp, start_cp_array_elem+1, cp_array_length, result, interated_over);
+           return result;;
         }
     }
-    if ( cp[start_cp_array_elem] < min(my_main_node) || max(my_main_node) < cp[start_cp_array_elem]) {
+    if ( cp < min(my_main_node) || max(my_main_node) < cp) {
         printf("node(cp[%i]) is not a match for min[%i] or max[%i]\n",
-            cp[start_cp_array_elem], min(my_main_node),  max(my_main_node)  );
+            cp, min(my_main_node),  max(my_main_node)  );
         if (last_result != -1) {
-            *interated_over = start_cp_array_elem - 1;
             return last_result;
         }
         return -1;
     }
-    fprintf(stderr, "min %i max %i elems %i cp[start_cp_array_elem] %i\n",
+    fprintf(stderr, "min %i max %i elems %i cp %i\n",
             min(my_main_node), max(my_main_node), my_main_node.sub_node_elems,
-            cp[start_cp_array_elem]);
-    fprintf(stderr, "cp[start_cp_array_elem]-min = %i max - min = %i. (%i)/( %i/(%i) )\n",
-            cp[start_cp_array_elem] - min(my_main_node), max(my_main_node) - min(my_main_node),
-            cp[start_cp_array_elem] - min(my_main_node), my_main_node.sub_node_elems,
-            max(my_main_node) - min(my_main_node));
-    result = (cp[start_cp_array_elem] - min(my_main_node))/( my_main_node.sub_node_elems/(max(my_main_node) - min(my_main_node)) );
+            cp);
+    //fprintf(stderr, "cp-min = %i max - min = %i. (%i)/( %i/(%i) )\n",
+      //      cp - min(my_main_node), max(my_main_node) - min(my_main_node),
+        //    cp - min(my_main_node), my_main_node.sub_node_elems,
+          //  max(my_main_node) - min(my_main_node));
+    /* Skip this to avoid floating point exceptions until it's fixed */
+    /*result = (cp - min(my_main_node))
+                    /
+            ( my_main_node.sub_node_elems/(max(my_main_node) - min(my_main_node)) );*/
+    result = my_main_node.sub_node_link;
     fprintf(stderr, "The guessed codepoint ended up being codepoint %i\n", sub_nodes[result].codepoint);
     if (result < my_main_node.sub_node_link || my_main_node.sub_node_link + my_main_node.sub_node_elems - 1 < result) {
         result = my_main_node.sub_node_link;
         fprintf(stderr, "Result is out of bounds. result is %i node_link is %i node elems is %i\n", result, my_main_node.sub_node_link, my_main_node.sub_node_elems);
     }
-    if (sub_nodes[result].codepoint == cp[start_cp_array_elem]) {
+    if (sub_nodes[result].codepoint == cp) {
         fprintf(stderr, "result %i  ", result);
         print_sub_node(sub_nodes[result]);
-        return get_first_subnode_elem(sub_nodes[result], cp, start_cp_array_elem+1, cp_array_length, result, interated_over);
+       return result;;
     }
     /* Search forward */
-    if (sub_nodes[result].codepoint < cp[start_cp_array_elem]) {
+    if (sub_nodes[result].codepoint < cp) {
         int i;
-        printf("The current cp %i is more than %i located at node index %i\n", cp[start_cp_array_elem], sub_nodes[result].codepoint, result);
+        printf("The current cp %i is more than %i located at node index %i\n", cp, sub_nodes[result].codepoint, result);
         for (i = result + 1 ; i < my_main_node.sub_node_link + my_main_node.sub_node_elems; i++) {
             fprintf(stderr, "Trying node index %i\n", i);
-            if (sub_nodes[i].codepoint == cp[start_cp_array_elem]) {
+            if (sub_nodes[i].codepoint == cp) {
                 result = i;
-                return get_first_subnode_elem(sub_nodes[result], cp, start_cp_array_elem+1, cp_array_length, result, interated_over);
+               return result;;
             }
             /* The codpoint doesn't exist in this case */
-            if (cp[start_cp_array_elem] < sub_nodes[i].codepoint)
+            if (cp < sub_nodes[i].codepoint)
                 return -1;
         }
     }
     /* Search backward */
-    if (cp[start_cp_array_elem] < sub_nodes[result].codepoint) {
+    if (cp < sub_nodes[result].codepoint) {
         int i;
-        fprintf(stderr, "The current cp %i is less than the node %i cp value %i I found\n", cp[start_cp_array_elem], result, sub_nodes[result].codepoint);
+        fprintf(stderr, "The current cp %i is less than the node %i cp value %i I found\n", cp, result, sub_nodes[result].codepoint);
         for (i = result - 1 ; my_main_node.sub_node_link < i; i--) {
             fprintf(stderr, "i %i\n", i);
-            if (sub_nodes[i].codepoint == cp[start_cp_array_elem]) {
+            if (sub_nodes[i].codepoint == cp) {
                 result = i;
-                return get_first_subnode_elem(sub_nodes[result], cp, start_cp_array_elem+1, cp_array_length, result, interated_over);
+               return result;;
             }
             /* The codepoint doesn't exist in this case */
-            if (sub_nodes[i].codepoint < cp[start_cp_array_elem])
+            if (sub_nodes[i].codepoint < cp)
                 return -1;
         }
     }
@@ -3279,7 +3280,6 @@ int get_collation_elements (int *cp, int cp_elems, int *collation_key_link, int 
     int terminal_subnode;
     int collation_element_elems;
     int collation_element_start;
-    *iterated_over = 0;
     if (main_node_elem < 0 || main_nodes_elems <= main_node_elem) {
         printf("Could not find codepoint in main nodes %i\n", cp[0]);
         *collation_key_link = -1;
@@ -3308,7 +3308,7 @@ int get_collation_elements (int *cp, int cp_elems, int *collation_key_link, int 
         return 1;
     }
     /* It has subnodes so we should check if we have matches */
-    terminal_subnode = get_first_subnode_elem(main_nodes[main_node_elem], cp, 1, cp_elems, -1, iterated_over);
+    terminal_subnode = 0; //get_first_subnode_elem(main_nodes[main_node_elem], cp, 1, cp_elems, -1, iterated_over);
     if (terminal_subnode < 0) {
         fprintf(stderr, "No match found. terminal_subnode = %i\n", terminal_subnode);
         *collation_key_link = -1;
@@ -3322,6 +3322,7 @@ int get_collation_elements (int *cp, int cp_elems, int *collation_key_link, int 
     *collation_key_link = sub_nodes[terminal_subnode].collation_key_link;
     return *iterated_over;
 }
+/*
 int print_collation_elements(int *cp, int cp_elems) {
     int *collation_key_link = malloc(sizeof(int));
     int *collation_elems = malloc(sizeof(int));
@@ -3334,3 +3335,4 @@ int print_collation_elements(int *cp, int cp_elems) {
     }
     return *iterated_over;
 }
+*/
