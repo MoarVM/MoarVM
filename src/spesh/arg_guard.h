@@ -7,6 +7,9 @@ struct MVMSpeshArgGuard {
 
     /* How many nodes we have. */
     MVMuint32 num_nodes;
+
+    /* How many nodes are actually used. */
+    MVMuint32 used_nodes;
 };
 
 /* Operations we may perform when evaluating a guard. */

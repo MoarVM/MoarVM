@@ -5,7 +5,7 @@ void MVM_spesh_arg_guard_gc_mark(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
                                  MVMGCWorklist *worklist) {
     if (ag) {
         MVMuint32 i;
-        for (i = 0; i < ag->num_nodes; i++) {
+        for (i = 0; i < ag->used_nodes; i++) {
             switch (ag->nodes[i].op) {
                 case MVM_SPESH_GUARD_OP_STABLE_CONC:
                 case MVM_SPESH_GUARD_OP_STABLE_TYPE:
