@@ -431,103 +431,17 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     }
     if (!found_spesh && ++static_frame->body.invocations >= static_frame->body.spesh_threshold && callsite->is_interned) {
         /* Look for specialized bytecode. */
-        MVMint32 num_spesh = static_frame->body.num_spesh_candidates;
-        MVMSpeshCandidate *chosen_cand = NULL;
-        MVMint32 i, j;
-        for (i = 0; i < num_spesh; i++) {
-            MVMSpeshCandidate *cand = &static_frame->body.spesh_candidates[i];
-            if (cand->cs == callsite) {
-                MVMint32 match = 1;
-                for (j = 0; j < cand->num_guards; j++) {
-                    MVMint32   pos = cand->guards[j].slot;
-                    MVMSTable *st  = (MVMSTable *)cand->guards[j].match;
-                    MVMObject *arg = args[pos].o;
-                    if (!arg) {
-                        match = 0;
-                        break;
-                    }
-                    switch (cand->guards[j].kind) {
-                    case MVM_SPESH_GUARD_CONC:
-                        if (!IS_CONCRETE(arg) || STABLE(arg) != st)
-                            match = 0;
-                        break;
-                    case MVM_SPESH_GUARD_TYPE:
-                        if (IS_CONCRETE(arg) || STABLE(arg) != st)
-                            match = 0;
-                        break;
-                    case MVM_SPESH_GUARD_DC_CONC: {
-                        if (!STABLE(arg)->container_spec->can_store(tc, arg)) {
-                            MVMRegister dc;
-                            STABLE(arg)->container_spec->fetch(tc, arg, &dc);
-                            if (!dc.o || !IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
-                                match = 0;
-                        }
-                        else {
-                            match = 0;
-                        }
-                        break;
-                    }
-                    case MVM_SPESH_GUARD_DC_TYPE: {
-                        if (!STABLE(arg)->container_spec->can_store(tc, arg)) {
-                            MVMRegister dc;
-                            STABLE(arg)->container_spec->fetch(tc, arg, &dc);
-                            if (!dc.o || IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
-                                match = 0;
-                        }
-                        else {
-                            match = 0;
-                        }
-                        break;
-                    }
-                    case MVM_SPESH_GUARD_DC_CONC_RW: {
-                        if (STABLE(arg)->container_spec->can_store(tc, arg)) {
-                            MVMRegister dc;
-                            STABLE(arg)->container_spec->fetch(tc, arg, &dc);
-                            if (!dc.o || !IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
-                                match = 0;
-                        }
-                        else {
-                            match = 0;
-                        }
-                        break;
-                    }
-                    case MVM_SPESH_GUARD_DC_TYPE_RW: {
-                        if (STABLE(arg)->container_spec->can_store(tc, arg)) {
-                            MVMRegister dc;
-                            STABLE(arg)->container_spec->fetch(tc, arg, &dc);
-                            if (!dc.o || IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
-                                match = 0;
-                        }
-                        else {
-                            match = 0;
-                        }
-                        break;
-                    }
-                    }
-                    if (!match)
-                        break;
-                }
-                if (match) {
-                    /* TODO Switch to using new guard system instead; for now
-                     * just run it also to ensure identical decision. */
-                    MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
-                        static_frame->body.spesh_arg_guard, callsite, args);
-                    if (ag_result != i)
-                        MVM_oops(tc,
-                            "Wrong result from new arg guard for %s (%s): got %d, wanted %d",
-                            MVM_string_utf8_encode_C_string(tc, static_frame->body.name),
-                            MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid),
-                            ag_result, i);
-                    chosen_cand = cand;
-                    break;
-                }
-            }
-        }
+        MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
+            static_frame->body.spesh_arg_guard, callsite, args);
+        MVMSpeshCandidate *chosen_cand = ag_result >= 0
+            ? &static_frame->body.spesh_candidates[ag_result]
+            : NULL;
 
         /* If we didn't find any, and we're below the limit, can set up a
          * specialization. */
         /* TODO This changes once we switch over to the spesh worker thread. */
-        if (!chosen_cand && num_spesh < MVM_SPESH_LIMIT && tc->instance->spesh_enabled)
+        if (!chosen_cand && static_frame->body.num_spesh_candidates < MVM_SPESH_LIMIT
+                && tc->instance->spesh_enabled)
             chosen_cand = MVM_spesh_candidate_setup(tc, static_frame,
                 callsite, args, 0);
 
