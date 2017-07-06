@@ -80,29 +80,31 @@ void MVM_spesh_log_type(MVMThreadContext *tc, MVMObject *value) {
 }
 
 /* Log a parameter type and, maybe, decontainerized type. */
-static void log_param_type(MVMThreadContext *tc, MVMSpeshLog *sl, MVMint32 cid, MVMuint16 arg_idx,
+static void log_param_type(MVMThreadContext *tc, MVMint32 cid, MVMuint16 arg_idx,
                            MVMObject *value, MVMSpeshLogEntryKind kind) {
-    MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
-    entry->kind = kind;
-    entry->id = cid;
-    MVM_ASSIGN_REF(tc, &(sl->common.header), entry->param.type, value->st->WHAT);
-    entry->param.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_TYPE_FLAG_CONCRETE : 0;
-    entry->param.arg_idx = arg_idx;
-    commit_entry(tc, sl);
+    MVMSpeshLog *sl = tc->spesh_log;
+    if (sl) {
+        MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
+        entry->kind = kind;
+        entry->id = cid;
+        MVM_ASSIGN_REF(tc, &(sl->common.header), entry->param.type, value->st->WHAT);
+        entry->param.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_TYPE_FLAG_CONCRETE : 0;
+        entry->param.arg_idx = arg_idx;
+        commit_entry(tc, sl);
+    }
 }
 void MVM_spesh_log_parameter(MVMThreadContext *tc, MVMuint16 arg_idx, MVMObject *param) {
-    MVMSpeshLog *sl = tc->spesh_log;
     MVMint32 cid = tc->cur_frame->spesh_correlation_id;
-    if (sl && cid) {
+    if (cid) {
         MVMROOT(tc, param, {
-            log_param_type(tc, sl, cid, arg_idx, param, MVM_SPESH_LOG_PARAMETER);
+            log_param_type(tc, cid, arg_idx, param, MVM_SPESH_LOG_PARAMETER);
         });
         if (IS_CONCRETE(param)) {
             MVMContainerSpec const *cs = STABLE(param)->container_spec;
             if (cs && cs->fetch_never_invokes) {
                 MVMRegister r;
                 cs->fetch(tc, param, &r);
-                log_param_type(tc, sl, cid, arg_idx, r.o, MVM_SPESH_LOG_PARAMETER_DECONT);
+                log_param_type(tc, cid, arg_idx, r.o, MVM_SPESH_LOG_PARAMETER_DECONT);
             }
         }
     }
