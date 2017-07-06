@@ -748,11 +748,11 @@ char * MVM_spesh_dump_arg_guard(MVMThreadContext *tc, MVMStaticFrame *sf) {
                         i, agn->st->debug_name, agn->yes, agn->no);
                     break;
                 case MVM_SPESH_GUARD_OP_DEREF_VALUE:
-                    appendf(&ds, "%u: DEREF_PTR %u | Y: %u, N: %u\n",
+                    appendf(&ds, "%u: DEREF_VALUE %u | Y: %u, N: %u\n",
                         i, agn->offset, agn->yes, agn->no);
                     break;
                 case MVM_SPESH_GUARD_OP_DEREF_RW:
-                    appendf(&ds, "%u: DEREF_INT %u | Y: %u, N: %u\n",
+                    appendf(&ds, "%u: DEREF_RW %u | Y: %u, N: %u\n",
                         i, agn->offset, agn->yes, agn->no);
                     break;
                 case MVM_SPESH_GUARD_OP_RESULT:
