@@ -41,6 +41,7 @@ MVM_JIT_TILE_DECL(test_addr_const);
 MVM_JIT_TILE_DECL(cmp);
 MVM_JIT_TILE_DECL(flagval);
 
+MVM_JIT_TILE_DECL(mark);
 MVM_JIT_TILE_DECL(label);
 MVM_JIT_TILE_DECL(branch_label);
 

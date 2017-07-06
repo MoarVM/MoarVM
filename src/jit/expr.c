@@ -124,6 +124,13 @@ static MVMint32 MVM_jit_expr_wrap_guard(MVMThreadContext *tc, MVMJitExprTree *tr
     return num;
 }
 
+static MVMint32 MVM_jit_expr_add_label(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 label) {
+    MVMint32 num = tree->nodes_num;
+    MVMJitExprNode template[] = { MVM_JIT_CONST, label, 4, MVM_JIT_LABEL, 0, MVM_JIT_MARK, 3 };
+    MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(template[0]));
+    return num;
+}
+
 static MVMint32 MVM_jit_expr_add_lexaddr(MVMThreadContext *tc, MVMJitExprTree *tree,
                                          MVMuint16 outers, MVMuint16 idx) {
     MVMint32 i;
@@ -638,6 +645,9 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         MVMuint16 opcode = ins->info->opcode;
         MVMSpeshAnn *ann;
         const MVMJitExprTemplate *template;
+        MVMint32 before_label = -1, after_label = -1,
+            wrap_before = 0, wrap_after = 0;
+
         if (opcode == MVM_SSA_PHI || opcode == MVM_OP_no_op) {
             continue;
         }
@@ -645,29 +655,85 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         /* check if this is a getlex and if we can handle it */
         BAIL(opcode == MVM_OP_getlex && !can_getlex(tc, jg, ins), "Can't compile object getlex");
 
-        /* Check annotations that require handling before the expression  */
+        /* Check annotations that may require handling or wrapping the expression */
         for (ann = ins->annotations; ann != NULL; ann = ann->next) {
+            MVMint32 idx;
             switch (ann->type) {
             case MVM_SPESH_ANN_FH_START:
+                /* start of a frame handler (inclusive). We need to mark this
+                 * instruction with a label so that we know the handler covers
+                 * this code, and we need to install a dynamic label to tell the
+                 * interpreter that JIT execution has reached this point. */
+                before_label = MVM_jit_label_before_ins(tc, jg, iter->bb, ins);
+                jg->handlers[ann->data.frame_handler_index].start_label = before_label;
+
+                wrap_before = MVM_JIT_CONTROL_DYNAMIC_LABEL;
+                break;
             case MVM_SPESH_ANN_FH_END:
+                /* end of the frame handler (exclusive), funnily enough not the
+                 * end of a basic block. The dynamic label will be installed
+                 * just after the label that marks the end, which means that
+                 * jit_entry_label will compare greater-than the end label,
+                 * which ensures that the end is exclusive. */
+                before_label = MVM_jit_label_before_ins(tc, jg, iter->bb, ins);
+                jg->handlers[ann->data.frame_handler_index].end_label = before_label;
+                wrap_before = MVM_JIT_CONTROL_DYNAMIC_LABEL;
+                break;
             case MVM_SPESH_ANN_FH_GOTO:
-                /* start or end of a frame handler, means that we have to insert
-                 * a label here and a label-setter */
-                BAIL(tree->nodes_num > 0, "Can't handle internal label");
+                /* A label to jump to for when a handler catches an
+                 * exception. Thus, this can be a control flow entry point (and
+                 * should be the start of a basic block, but I'm not sure if it
+                 * always is).  */
+                before_label = MVM_jit_label_before_ins(tc, jg, iter->bb, ins);
+                jg->handlers[ann->data.frame_handler_index].goto_label = before_label;
+                flush_computed_variables(tc, tree, computed, sg->num_locals);
                 break;
             case MVM_SPESH_ANN_DEOPT_OSR:
-                /* If we have a deopt annotation in the middle of the tree, it
-                 * breaks the expression because the interpreter is allowed to
-                 * jump right in the middle of the block. It is much simpler not
-                 * to allow that. On the other hand, if this is the first node
-                 * of the block, the graph builder must already have handled
-                 * it, and we may continue.. */
-                BAIL(tree->nodes_num, "Internal deopt label");
+                /* A label the OSR can jump into to 'start running', so to
+                 * speak. As it breaks the basic-block assumption, arguably,
+                 * this should only ever be at the start of a basic block. But
+                 * it's not. So we have to insert the label and compute it. */
+                before_label = MVM_jit_label_before_ins(tc, jg, iter->bb, ins);
+                /* OSR reuses the deopt label mechanism */
+                MVM_VECTOR_ENSURE_SIZE(jg->deopts, idx = jg->deopts_num++);
+                jg->deopts[idx].label = before_label;
+                jg->deopts[idx].idx   = ann->data.deopt_idx;
+                /* possible entrypoint, so flush intermediates */
+                flush_computed_variables(tc, tree, computed, sg->num_locals);
                 break;
-            default:
+            case MVM_SPESH_ANN_INLINE_START:
+                /* start of an inline, used for reconstructing state when deoptimizing */
+                before_label = MVM_jit_label_before_ins(tc, jg, iter->bb, ins);
+                jg->inlines[ann->data.inline_idx].start_label = before_label;
+                break;
+            case MVM_SPESH_ANN_INLINE_END:
+                /* end of the inline (inclusive), so we need to add a label,
+                 * which should be the end of the basic block. */
+                after_label = MVM_jit_label_after_ins(tc, jg, iter->bb, ins);
+                jg->inlines[ann->data.inline_idx].end_label = after_label;
+                break;
+            case MVM_SPESH_ANN_DEOPT_INLINE:
+            case MVM_SPESH_ANN_DEOPT_ONE_INS:
+                /* we should only see this in guards, which we don't do just
+                 * yet, although we will. At the very least, this implies a flush. */
+                MVM_jit_log(tc, "WARNING expr tree is asked to handle DEOPT_ONE / DEOPT_INLINE (ins=%s) and can't really",
+                            ins->info->name);
+                break;
+            case MVM_SPESH_ANN_DEOPT_ALL_INS:
+                /* don't expect to be handling these, either, but these also
+                 * might need a label-after-the-fact */
+                after_label = MVM_jit_label_after_ins(tc, jg, iter->bb, ins);
+                /* ensure a consistent state for deoptimization */
+                flush_computed_variables(tc, tree, computed, sg->num_locals);
+                /* add deopt idx */
+                MVM_VECTOR_ENSURE_SIZE(jg->deopts, idx = jg->deopts_num++);
+                jg->deopts[idx].label = after_label;
+                jg->deopts[idx].idx   = ann->data.deopt_idx;
                 break;
             }
         }
+
+
 
         template = MVM_jit_get_template_for_opcode(opcode);
         BAIL(template == NULL, "Cannot get template for: %s\n", ins->info->name);
@@ -680,6 +746,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         /* root is highest node by construction, so we don't have to check the size of info later */
         MVM_VECTOR_ENSURE_SIZE(tree->info, root);
         tree->info[root].spesh_ins = ins;
+
 
         /* mark operand types */
         for (i = 0; i < ins->info->num_operands; i++) {
@@ -730,23 +797,45 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             }
         }
 
+
+
+        /* NB - MVM_JIT_CONTROL_DYNAMIC_LABEL which is set in wrap_before, may
+         * be overwritten, but that is okay, since for all uses of the DYNAMIC
+         * LABEL, the MVM_JIT_CONTROL_THROWISH_PRE is equivalent because it
+         * installs a jit_entry_point 'within' the labels before and after this
+         * instructions. */
+
         if (ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
-            /* NB: GUARD only wraps void nodes, so when the inserted stores
-             * above are removed (and replaced by the flushing), we need to
-             * replace the root we are wrapping as well if it isn't VOID..
-             *
-             * Also NB: we should make this a template-level flag; should be
-             * possible to replace an invokish version with a non-invokish
-             * version
-             */
-            MVMint32 after = (ins->info->jittivity & MVM_JIT_INFO_THROWISH) ?
+            /* NB: we should make this a template-level flag; should be possible
+             * to replace an invokish version with a non-invokish version (but
+             * perhaps best if that is opt-in so people don't accidentally
+             * forget to set it). */
+            wrap_before = MVM_JIT_CONTROL_THROWISH_PRE;
+            wrap_after = (ins->info->jittivity & MVM_JIT_INFO_THROWISH) ?
                 MVM_JIT_CONTROL_THROWISH_POST : MVM_JIT_CONTROL_INVOKISH;
-            root = MVM_jit_expr_wrap_guard(tc, tree, root, MVM_JIT_CONTROL_THROWISH_PRE, after);
             flush_computed_variables(tc, tree, computed, sg->num_locals);
         }
 
-        /* Add root to tree to ensure source evaluation order */
+
+        /* Add root to tree to ensure source evaluation order, wrapped with
+         * labels if necessary. */
+        if (before_label >= 0 && MVM_jit_label_is_for_ins(tc, jg, before_label)) {
+            MVM_VECTOR_PUSH(tree->roots, MVM_jit_expr_add_label(tc, tree, before_label));
+        }
+
+        /* NB: GUARD only wraps void nodes. Currently that is all but guaranteed
+         * (either the template does not return a value, or if it does, it will
+         * be replaced by a STORE, or it is descructive. In the future, we will
+         * do 'lazy' flushing, and we should take some care to 'void' this
+         * node as well. */
+        if (wrap_before != 0 || wrap_after != 0) {
+            /* install wrapper */
+            root = MVM_jit_expr_wrap_guard(tc, tree, root, wrap_before, wrap_after);
+        }
         MVM_VECTOR_PUSH(tree->roots, root);
+        if (after_label >= 0 && MVM_jit_label_is_for_ins(tc, jg, after_label)) {
+            MVM_VECTOR_PUSH(tree->roots, MVM_jit_expr_add_label(tc, tree, after_label));
+        }
     }
 
  done:

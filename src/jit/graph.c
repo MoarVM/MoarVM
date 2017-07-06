@@ -2847,7 +2847,6 @@ static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
         /* skip phi nodes */
         MVM_spesh_iterator_skip_phi(tc, iter);
         while (iter->ins) {
-            before_ins(tc, jg, iter, iter->ins);
             /* consumes iterator */
             tree = MVM_jit_expr_tree_build(tc, jg, iter);
             if (tree != NULL) {

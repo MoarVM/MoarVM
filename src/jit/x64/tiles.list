@@ -22,9 +22,10 @@
 (define: (do void reg) reg)
 (define: (dov void void) void)
 
+
+
 # INVOKISH / THROWISH
 (define: (guard void $before $after) void)
-
 
 #
 # ALIASING
@@ -101,9 +102,10 @@
 
 (tile: flagval (flagval flag) reg 2)
 
+# Labels and branches
+(tile: mark    (mark (label (const $value))) void 1)
 (tile: label   (label (const $val)) reg 2)
 (tile: branch_label (branch (label (const $val))) void 2)
-
 
 # placeholder for arglist pseudotile
 (define: (arglist (carg reg)) c_args 1)

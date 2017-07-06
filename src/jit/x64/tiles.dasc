@@ -766,6 +766,11 @@ MVM_JIT_TILE_DECL(flagval) {
 }
 
 
+MVM_JIT_TILE_DECL(mark) {
+    MVMint32 label = tile->args[0];
+    |=>(label):
+}
+
 MVM_JIT_TILE_DECL(label) {
     MVMint8 reg = tile->values[0];
     MVMint32 label = tile->args[0];
