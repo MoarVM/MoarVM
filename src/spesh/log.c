@@ -117,7 +117,7 @@ void MVM_spesh_log_static(MVMThreadContext *tc, MVMObject *value) {
         entry->kind = MVM_SPESH_LOG_STATIC;
         entry->id = cid;
         MVM_ASSIGN_REF(tc, &(sl->common.header), entry->value.value, value);
-        entry->type.bytecode_offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start)) - 2;
+        entry->value.bytecode_offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start)) - 2;
         commit_entry(tc, sl);
     }
 }
