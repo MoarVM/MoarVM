@@ -990,78 +990,7 @@ static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
  * set of argument info. */
 static MVMint32 try_find_spesh_candidate(MVMThreadContext *tc, MVMCode *code, MVMSpeshCallInfo *arg_info) {
     MVMStaticFrameBody *sfb = &(code->body.sf->body);
-    MVMint32 num_spesh      = sfb->num_spesh_candidates;
-    MVMint32 i, j;
-    for (i = 0; i < num_spesh; i++) {
-        MVMSpeshCandidate *cand = &sfb->spesh_candidates[i];
-        if (cand->cs == arg_info->cs) {
-            /* Matching callsite, now see if we have enough information to
-             * test the guards. */
-            MVMint32 guard_failed = 0;
-            for (j = 0; j < cand->num_guards; j++) {
-                MVMint32       slot    = cand->guards[j].slot;
-                MVMSpeshFacts *facts   = slot < MAX_ARGS_FOR_OPT ? arg_info->arg_facts[slot] : NULL;
-                MVMSTable     *want_st = (MVMSTable *)cand->guards[j].match;
-                if (!facts) {
-                    guard_failed = 1;
-                    break;
-                }
-                switch (cand->guards[j].kind) {
-                case MVM_SPESH_GUARD_CONC:
-                    if (!(facts->flags & MVM_SPESH_FACT_CONCRETE) ||
-                            !(facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) ||
-                            STABLE(facts->type) != want_st)
-                        guard_failed = 1;
-                    break;
-                case MVM_SPESH_GUARD_TYPE:
-                    if (!(facts->flags & MVM_SPESH_FACT_TYPEOBJ) ||
-                            !(facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) ||
-                            STABLE(facts->type) != want_st)
-                        guard_failed = 1;
-                    break;
-                case MVM_SPESH_GUARD_DC_CONC:
-                    if (!(facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE) ||
-                            !(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) ||
-                            STABLE(facts->decont_type) != want_st)
-                        guard_failed = 1;
-                    break;
-                case MVM_SPESH_GUARD_DC_TYPE:
-                    if (!(facts->flags & MVM_SPESH_FACT_DECONT_TYPEOBJ) ||
-                            !(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) ||
-                            STABLE(facts->decont_type) != want_st)
-                        guard_failed = 1;
-                    break;
-                case MVM_SPESH_GUARD_DC_CONC_RW:
-                    if (!(facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE) ||
-                            !(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) ||
-                            STABLE(facts->decont_type) != want_st ||
-                            !(facts->flags & MVM_SPESH_FACT_RW_CONT))
-                        guard_failed = 1;
-                    break;
-                case MVM_SPESH_GUARD_DC_TYPE_RW:
-                    if (!(facts->flags & MVM_SPESH_FACT_DECONT_TYPEOBJ) ||
-                            !(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) ||
-                            STABLE(facts->decont_type) != want_st ||
-                            !(facts->flags & MVM_SPESH_FACT_RW_CONT))
-                        guard_failed = 1;
-                    break;
-                default:
-                    guard_failed = 1;
-                    break;
-                }
-                if (guard_failed)
-                    break;
-            }
-            if (!guard_failed) {
-                MVMint32 result_ag = MVM_spesh_arg_guard_run_callinfo(tc,
-                    sfb->spesh_arg_guard, arg_info);
-                if (result_ag != i)
-                    MVM_oops(tc, "Spesh optimize: arg guard resolution by callinfo wrong");
-                return i;
-            }
-        }
-    }
-    return -1;
+    return MVM_spesh_arg_guard_run_callinfo(tc, sfb->spesh_arg_guard, arg_info);
 }
 
 /* Drives optimization of a call. */
