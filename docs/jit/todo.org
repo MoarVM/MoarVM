@@ -3,7 +3,114 @@
 Before merging the expression JIT, there are numerous standing issues
 to resolve, sorted by priority.
 
-* Inlining problem
+
+* Stack walker for dynamic labels
+
+Currently we mark the 'current position' in the JIT entry label at the
+start of every basic block, the start-and-end of frame handlers, and
+the start-and-end of inlines. This is major code bloat, for a feature
+that is only necessary in exceptional cases,
+
+Concept of stack walker is very simple:
+#+BEGIN_SRC asm
+       mov rcx, 1 ; rsp = []
+       call foo  ; rsp = [label:],
+label: mov rcx, rax;  rsp = []
+       ...
+
+foo: ; stack (from rsp) looks like: [label:]
+     push rbp     ; [label:,rbp]
+     mov rbp, rsp ; rbp is now top of stack, so that
+     add rsp, 0xff; rsp = [label:,rbp, ? x 1]
+     ...
+     sub rsp, 0xff ; rsp = [label:,rbp]
+     pop rbp       ; rsp = [label:]
+     ret           ; rsp = []
+#+END_SRC
+
+On POSIX, arg 0 = rdi, arg 1 = rsi
+On linux, names are generally used as-is
+On Windows, arg0 = rcx, arg1 = rdx.
+
+
+#+BEGIN_SRC asm
+walk_stack_posix:
+_walk_stack_posix:
+    mov rcx, rdi
+    mov rdx, rsi
+_walk_stack_win64:
+    # rdi = base pointer, rsi = end pointer
+	push rbp
+    mov r8, rsp
+loop:
+    mov rax, qword ptr [r8+0x8]
+    mov r8, qword ptr [r8]
+    cmp rax, rcx
+    jl  loop
+    cmp rax, rdx
+    jg  loop
+done:
+    ## rax is now within range by definition
+    pop rbp
+    ret
+#+END_SRC
+
+But this uses rcx, rax, rdi and rsi.
+
+
+
+The only thing to do is to:
+
+
+* Generalized 3-op to two-op conversion
+
+Already implemented for direct-memory binary ops, but needs to be
+extended to take into account indirect-access ops and memory base +
+indexed ops.
+
+* Maintain memory backed positions
+
+Currently, when we need to spill a value, we always treat it as if it
+were a temporary, i.e. we store it to a *new* location in the local
+memory buffer. We increment the local memory buffer, too.  This is
+suboptimal for values that are not temporaries, i.e. values that are
+stored to the local value buffer anyway.
+
++ stored to a local value
++ directly retrieved from a local value
+
+There are two classes of such values:
+There is no need to ever spill such values to memory.
+
+* Don't spill-and-load directly between definition and use
+* 'Optimistic' insertion of STORE
+
+Involves delaying the insertion of STORE operations for generated
+expressions until the insertion of flush. (Currently inserted directly
+after being generated).
+
+Involves
+- iterating over currently active local variables
+- inserting a STORE
+- replacing the root referring to these variable generation with the
+  STORE root
+  - to do this efficiently, we need to maintain the root index as well
+    as the node index of the last definition of a value (this is
+    actually easy)
+
+* We 'retry' setting up the entire tree for something we couldn't compile
+
+We don't communicate non-completion to the 'driver' process.
+I think that's wasteful.
+
+* Fix S-EXPR parser for tile list
+
+I think it currently counts balancing parentheses, and it doesn't
+always work when the last line doesn't end with a line. And, it
+doesn't support strings. So we should probably fix that with a proper
+parser.
+
+* DONE Inlining problem
 
 Code looks innocent enough:
 
@@ -116,55 +223,6 @@ We can ignore this for now (although it would be kind of cool to keep
 it arround, and generate debugging information.
 
 Note that we can make a bitmap of annotations... but whatever.
-
-
-* Generalized 3-op to two-op conversion
-
-Already implemented for direct-memory binary ops, but needs to be
-extended to take into account indirect-access ops and memory base +
-indexed ops.
-
-* Maintain memory backed positions
-
-Currently, when we need to spill a value, we always treat it as if it
-were a temporary, i.e. we store it to a *new* location in the local
-memory buffer. We increment the local memory buffer, too.  This is
-suboptimal for values that are not temporaries, i.e. values that are
-stored to the local value buffer anyway.
-
-+ stored to a local value
-+ directly retrieved from a local value
-
-There are two classes of such values:
-There is no need to ever spill such values to memory.
-
-* Don't spill-and-load directly between definition and use
-* 'Optimistic' insertion of STORE
-
-Involves delaying the insertion of STORE operations for generated
-expressions until the insertion of flush. (Currently inserted directly
-after being generated).
-
-Involves
-- iterating over currently active local variables
-- inserting a STORE
-- replacing the root referring to these variable generation with the
-  STORE root
-  - to do this efficiently, we need to maintain the root index as well
-    as the node index of the last definition of a value (this is
-    actually easy)
-
-* We 'retry' setting up the entire tree for something we couldn't compile
-
-We don't communicate non-completion to the 'driver' process.
-I think that's wasteful.
-
-* Fix S-EXPR parser for tile list
-
-I think it currently counts balancing parentheses, and it doesn't
-always work when the last line doesn't end with a line. And, it
-doesn't support strings. So we should probably fix that with a proper
-parser.
 
 * DONE Label problem
 
