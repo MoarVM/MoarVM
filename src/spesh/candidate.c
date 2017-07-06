@@ -119,27 +119,15 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     used      = 0;
     uv_mutex_lock(&tc->instance->mutex_spesh_install);
     if (static_frame->body.num_spesh_candidates < MVM_SPESH_LIMIT) {
-        MVMint32 num_spesh = static_frame->body.num_spesh_candidates;
-        MVMint32 existing_match = 0;
-        MVMint32 i;
         MVMSpeshStatsType *type_tuple = _tmp_type_tuple(tc, static_frame, callsite,
             guards, num_guards);
-        MVMint32 ag_existing_match = MVM_spesh_arg_guard_run_types(tc,
+        MVMint32 ag_candidate = MVM_spesh_arg_guard_run_types(tc,
             static_frame->body.spesh_arg_guard, callsite, type_tuple);
-        for (i = 0; i < num_spesh; i++) {
-            MVMSpeshCandidate *compare = &static_frame->body.spesh_candidates[i];
-            if (compare->cs == callsite && compare->num_guards == num_guards &&
-                memcmp(compare->guards, guards, num_guards * sizeof(MVMSpeshGuard)) == 0) {
-                /* Beaten! */
-                result = osr ? NULL : &static_frame->body.spesh_candidates[i];
-                existing_match = 1;
-                break;
-            }
-        }
-        if (existing_match != (ag_existing_match >= 0 ? 1 : 0))
-            MVM_oops(tc, "Spesh arg guard: existing match conflict (got %d, wanted %d)",
-                ag_existing_match, existing_match);
+        MVMint32 existing_match = ag_candidate >= 0;
+        if (existing_match)
+            result = osr ? NULL : &static_frame->body.spesh_candidates[ag_candidate];
         if (!result) {
+            MVMint32 num_spesh = static_frame->body.num_spesh_candidates;
             if (!static_frame->body.spesh_candidates)
                 static_frame->body.spesh_candidates = MVM_calloc(
                     MVM_SPESH_LIMIT, sizeof(MVMSpeshCandidate));
