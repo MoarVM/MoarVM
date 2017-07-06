@@ -504,7 +504,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                         static_frame->body.spesh_arg_guard, callsite, args);
                     if (ag_result != i)
                         MVM_oops(tc,
-                            "Wrong result from new arg guard: got %d, wanted %d",
+                            "Wrong result from new arg guard for %s (%s): got %d, wanted %d",
+                            MVM_string_utf8_encode_C_string(tc, static_frame->body.name),
+                            MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid),
                             ag_result, i);
                     chosen_cand = cand;
                     break;
