@@ -498,6 +498,14 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                         break;
                 }
                 if (match) {
+                    /* TODO Switch to using new guard system instead; for now
+                     * just run it also to ensure identical decision. */
+                    MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
+                        static_frame->body.spesh_arg_guard, callsite, args);
+                    if (ag_result != i)
+                        MVM_oops(tc,
+                            "Wrong result from new arg guard: got %d, wanted %d",
+                            ag_result, i);
                     chosen_cand = cand;
                     break;
                 }
