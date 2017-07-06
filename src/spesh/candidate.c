@@ -164,7 +164,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
             MVM_barrier();
             if (!existing_match)
                 _tmp_add_new_guard(tc, static_frame, result,
-                    static_frame->body.num_spesh_candidates++);
+                    static_frame->body.num_spesh_candidates);
+            static_frame->body.num_spesh_candidates++;
             if (static_frame->common.header.flags & MVM_CF_SECOND_GEN)
                 MVM_gc_write_barrier_hit(tc, (MVMCollectable *)static_frame);
             if (tc->instance->spesh_log_fh) {
