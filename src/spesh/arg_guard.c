@@ -242,6 +242,8 @@ void add_guard(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMCallsite *cs,
         }
         arg_idx++;
     }
+    if (ag->nodes[current_node].yes)
+        MVM_panic(1, "Spesh arg guard: trying to add duplicate result for same guard");
     ag->nodes[ag->used_nodes].op = MVM_SPESH_GUARD_OP_RESULT;
     ag->nodes[ag->used_nodes].result = candidate;
     ag->nodes[ag->used_nodes].yes = 0;
