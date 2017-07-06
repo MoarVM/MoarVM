@@ -1,13 +1,13 @@
 #include "moar.h"
 
-/* TODO Remove this when spesh migration to worker is complete. */
-static void _tmp_add_new_guard(MVMThreadContext *tc, MVMStaticFrame *sf,
-                               MVMSpeshCandidate *cand, MVMuint32 cand_idx) {
-    MVMCallsite *cs = cand->cs;
-    MVMSpeshStatsType *tuple = MVM_calloc(cand->cs->flag_count, sizeof(MVMSpeshStatsType));
+/* TODO Remove this when spesh migration to new guards is complete. */
+static MVMSpeshStatsType * _tmp_type_tuple(MVMThreadContext *tc, MVMStaticFrame *sf,
+                                           MVMCallsite *cs, MVMSpeshGuard *guards,
+                                           MVMuint32 num_guards) {
+    MVMSpeshStatsType *tuple = MVM_calloc(cs->flag_count, sizeof(MVMSpeshStatsType));
     MVMuint32 i;
-    for (i = 0; i < cand->num_guards; i++) {
-        MVMSpeshGuard *g = &(cand->guards[i]);
+    for (i = 0; i < num_guards; i++) {
+        MVMSpeshGuard *g = &(guards[i]);
         MVMint32 flag_idx = g->slot < cs->num_pos
             ? g->slot
             : cs->num_pos + (((g->slot - 1) - cs->num_pos) / 2);
@@ -37,8 +37,7 @@ static void _tmp_add_new_guard(MVMThreadContext *tc, MVMStaticFrame *sf,
                 break;
         }
     }
-    MVM_spesh_arg_guard_add(tc, &(sf->body.spesh_arg_guard), cs, tuple, cand_idx);
-    MVM_free(tuple);
+    return tuple;
 }
 
 /* Calculates the work and env sizes based on the number of locals and
@@ -123,6 +122,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
         MVMint32 num_spesh = static_frame->body.num_spesh_candidates;
         MVMint32 existing_match = 0;
         MVMint32 i;
+        MVMSpeshStatsType *type_tuple = _tmp_type_tuple(tc, static_frame, callsite,
+            guards, num_guards);
         for (i = 0; i < num_spesh; i++) {
             MVMSpeshCandidate *compare = &static_frame->body.spesh_candidates[i];
             if (compare->cs == callsite && compare->num_guards == num_guards &&
@@ -163,8 +164,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
                 result->osr_logging = 1;
             MVM_barrier();
             if (!existing_match)
-                _tmp_add_new_guard(tc, static_frame, result,
-                    static_frame->body.num_spesh_candidates);
+                MVM_spesh_arg_guard_add(tc, &(static_frame->body.spesh_arg_guard),
+                    callsite, type_tuple, static_frame->body.num_spesh_candidates);
             static_frame->body.num_spesh_candidates++;
             if (static_frame->common.header.flags & MVM_CF_SECOND_GEN)
                 MVM_gc_write_barrier_hit(tc, (MVMCollectable *)static_frame);
@@ -184,6 +185,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
             }
             used = 1;
         }
+        MVM_free(type_tuple);
     }
     MVM_free(after);
     MVM_free(before);
