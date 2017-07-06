@@ -173,7 +173,44 @@ MVMuint32 get_rw_cont_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
     return ag->used_nodes++;
 }
 
-/* Resolves or inserts a guard for the specified type information, rooted off
+/* Resolves or inserts a guard op that decontainerizes the current test
+ * register content. We only do this once before a possible chain of nodes
+ * that test the decontainerized type. Therefore, we can expect that such a
+ * node is already in the tree at this point, *or* that there is an RW
+ * guard node and *then* the one we're looking for. */
+MVMuint32 get_decont_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
+                          MVMuint32 base_node) {
+    MVMuint32 check_node = ag->nodes[base_node].yes;
+    MVMuint32 update_no_node = 0;
+    if (check_node) {
+        if (ag->nodes[check_node].op == MVM_SPESH_GUARD_OP_DEREF_VALUE) {
+            return check_node;
+        }
+        else if (ag->nodes[check_node].op == MVM_SPESH_GUARD_OP_DEREF_RW) {
+            MVMuint32 no_node = ag->nodes[check_node].no;
+            if (no_node) {
+                if (ag->nodes[no_node].op == MVM_SPESH_GUARD_OP_DEREF_VALUE)
+                    return no_node;
+            }
+            else {
+                update_no_node = check_node;
+            }
+        }
+        if (!update_no_node)
+            MVM_panic(1, "Spesh arg guard: unexpected tree structure adding deref value");
+    }
+    ag->nodes[ag->used_nodes].op = MVM_SPESH_GUARD_OP_DEREF_VALUE;
+    ag->nodes[ag->used_nodes].offset = 0; /* TODO populate this properly */
+    ag->nodes[ag->used_nodes].yes = 0;
+    ag->nodes[ag->used_nodes].no = 0;
+    if (update_no_node)
+        ag->nodes[update_no_node].no = ag->used_nodes;
+    else
+        ag->nodes[base_node].yes = ag->used_nodes;
+    return ag->used_nodes++;
+}
+
+/* Resolves or inserts guards for the specified type information, rooted off
  * the given node. */
 MVMuint32 get_type_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 base_node,
                         MVMSpeshStatsType *type, MVMuint16 arg_idx) {
@@ -181,7 +218,11 @@ MVMuint32 get_type_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 ba
     current_node = get_type_check_node(tc, ag, current_node, type->type, type->type_concrete);
     if (type->rw_cont)
         current_node = get_rw_cont_node(tc, ag, current_node);
-    /* TODO chain decont container check */
+    if (type->decont_type) {
+        current_node = get_decont_node(tc, ag, current_node);
+        current_node = get_type_check_node(tc, ag, current_node, type->decont_type,
+            type->decont_type_concrete);
+    }
     return current_node;
 }
 
