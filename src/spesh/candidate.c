@@ -124,6 +124,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
         MVMint32 i;
         MVMSpeshStatsType *type_tuple = _tmp_type_tuple(tc, static_frame, callsite,
             guards, num_guards);
+        MVMuint32 ag_existing_match = MVM_spesh_arg_guard_exists(tc,
+            static_frame->body.spesh_arg_guard, callsite, type_tuple);
         for (i = 0; i < num_spesh; i++) {
             MVMSpeshCandidate *compare = &static_frame->body.spesh_candidates[i];
             if (compare->cs == callsite && compare->num_guards == num_guards &&
@@ -134,6 +136,9 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
                 break;
             }
         }
+        if (existing_match != ag_existing_match)
+            MVM_oops(tc, "Spesh arg guard: existing match conflict (got %d, wanted %d)",
+                ag_existing_match, existing_match);
         if (!result) {
             if (!static_frame->body.spesh_candidates)
                 static_frame->body.spesh_candidates = MVM_calloc(

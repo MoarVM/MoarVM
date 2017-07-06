@@ -271,6 +271,75 @@ void MVM_spesh_arg_guard_add(MVMThreadContext *tc, MVMSpeshArgGuard **orig,
     }
 }
 
+/* Tests if a guard for the specified callsite and type tuple already exists.
+ * Returns non-zero if it does, zero otherwise. Does it by just evaluating the
+ * guards against the type tuple to see if one matches it. */
+MVMuint32 MVM_spesh_arg_guard_exists(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
+                                     MVMCallsite *cs, MVMSpeshStatsType *types) {
+    MVMuint32 current_node = 0;
+    MVMSpeshStatsType *test = NULL;
+    MVMuint32 use_decont_type = 0;
+    if (!ag)
+        return 0;
+    do {
+        MVMSpeshArgGuardNode *agn = &(ag->nodes[current_node]);
+        switch (agn->op) {
+            case MVM_SPESH_GUARD_OP_CALLSITE:
+                current_node = agn->cs == cs ? agn->yes : agn->no;
+                break;
+            case MVM_SPESH_GUARD_OP_LOAD_ARG: {
+                test = &(types[agn->arg_index < cs->num_pos
+                    ? agn->arg_index
+                    : cs->num_pos + (((agn->arg_index - 1) - cs->num_pos) / 2)]);
+                use_decont_type = 0;
+                current_node = agn->yes;
+                break;
+            case MVM_SPESH_GUARD_OP_STABLE_CONC:
+                if (use_decont_type)
+                    current_node = test->decont_type_concrete && test->decont_type &&
+                            test->decont_type->st == agn->st
+                        ? agn->yes
+                        : agn->no;
+                else
+                    current_node = test->type_concrete && test->type &&
+                            test->type->st == agn->st
+                        ? agn->yes
+                        : agn->no;
+                break;
+            case MVM_SPESH_GUARD_OP_STABLE_TYPE:
+                if (use_decont_type)
+                    current_node = !test->decont_type_concrete && test->decont_type &&
+                            test->decont_type->st == agn->st
+                        ? agn->yes
+                        : agn->no;
+                else
+                    current_node = !test->type_concrete && test->type &&
+                            test->type->st == agn->st
+                        ? agn->yes
+                        : agn->no;
+                break;
+            case MVM_SPESH_GUARD_OP_DEREF_VALUE:
+                if (test->decont_type) {
+                    use_decont_type = 1;
+                    current_node = agn->yes;
+                }
+                else {
+                    current_node = agn->no;
+                }
+                break;
+            }
+            case MVM_SPESH_GUARD_OP_DEREF_RW:
+                current_node = test->rw_cont
+                    ? agn->yes
+                    : agn->no;
+                break;
+            case MVM_SPESH_GUARD_OP_RESULT:
+                return 1;
+        }
+    } while (current_node != 0);
+    return 0;
+}
+
 /* Evaluates the argument guards. Returns >= 0 if there is a matching spesh
  * candidate, or -1 if there is not. */
 MVMint32 MVM_spesh_arg_guard_run(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
