@@ -271,16 +271,16 @@ void MVM_spesh_arg_guard_add(MVMThreadContext *tc, MVMSpeshArgGuard **orig,
     }
 }
 
-/* Tests if a guard for the specified callsite and type tuple already exists.
- * Returns non-zero if it does, zero otherwise. Does it by just evaluating the
- * guards against the type tuple to see if one matches it. */
-MVMuint32 MVM_spesh_arg_guard_exists(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
-                                     MVMCallsite *cs, MVMSpeshStatsType *types) {
+/* Runs the guard against a type tuple, which is used primarily for detecting
+ * if an existing specialization already exists. Returns the index of that
+ * specialization, or -1 if there is no match. */
+MVMint32 MVM_spesh_arg_guard_run_types(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
+                                        MVMCallsite *cs, MVMSpeshStatsType *types) {
     MVMuint32 current_node = 0;
     MVMSpeshStatsType *test = NULL;
     MVMuint32 use_decont_type = 0;
     if (!ag)
-        return 0;
+        return -1;
     do {
         MVMSpeshArgGuardNode *agn = &(ag->nodes[current_node]);
         switch (agn->op) {
@@ -334,10 +334,10 @@ MVMuint32 MVM_spesh_arg_guard_exists(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
                     : agn->no;
                 break;
             case MVM_SPESH_GUARD_OP_RESULT:
-                return 1;
+                return agn->result;
         }
     } while (current_node != 0);
-    return 0;
+    return -1;
 }
 
 /* Evaluates the argument guards. Returns >= 0 if there is a matching spesh
