@@ -277,6 +277,8 @@ MVMint32 MVM_spesh_arg_guard_run(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
                                  MVMCallsite *cs, MVMRegister *args) {
     MVMuint32 current_node = 0;
     MVMObject *test = NULL;
+    if (!ag)
+        return -1;
     do {
         MVMSpeshArgGuardNode *agn = &(ag->nodes[current_node]);
         switch (agn->op) {
