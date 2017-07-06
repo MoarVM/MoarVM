@@ -1052,8 +1052,13 @@ static MVMint32 try_find_spesh_candidate(MVMThreadContext *tc, MVMCode *code, MV
                 if (guard_failed)
                     break;
             }
-            if (!guard_failed)
+            if (!guard_failed) {
+                MVMint32 result_ag = MVM_spesh_arg_guard_run_callinfo(tc,
+                    sfb->spesh_arg_guard, arg_info);
+                if (result_ag != i)
+                    MVM_oops(tc, "Spesh optimize: arg guard resolution by callinfo wrong");
                 return i;
+            }
         }
     }
     return -1;

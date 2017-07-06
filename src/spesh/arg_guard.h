@@ -77,6 +77,8 @@ void MVM_spesh_arg_guard_add(MVMThreadContext *tc, MVMSpeshArgGuard **orig,
     MVMCallsite *cs, MVMSpeshStatsType *types, MVMuint32 candidate);
 MVMint32 MVM_spesh_arg_guard_run(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
     MVMCallsite *cs, MVMRegister *args);
+MVMint32 MVM_spesh_arg_guard_run_callinfo(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
+    MVMSpeshCallInfo *info);
 void MVM_spesh_arg_guard_gc_mark(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
     MVMGCWorklist *worklist);
 void MVM_spesh_arg_guard_destroy(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 safe);

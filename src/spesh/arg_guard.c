@@ -320,6 +320,82 @@ MVMint32 MVM_spesh_arg_guard_run(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
     return -1;
 }
 
+/* Runs the guards using call information gathered by the optimizer. This is
+ * used for finding existing candidates to emit fast calls to or inline. */
+MVMint32 MVM_spesh_arg_guard_run_callinfo(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
+                                          MVMSpeshCallInfo *arg_info) {
+    MVMuint32 current_node = 0;
+    MVMSpeshFacts *facts = NULL;
+    MVMuint8 use_decont_facts = 0;
+    if (!ag)
+        return -1;
+    do {
+        MVMSpeshArgGuardNode *agn = &(ag->nodes[current_node]);
+        switch (agn->op) {
+            case MVM_SPESH_GUARD_OP_CALLSITE:
+                current_node = agn->cs == arg_info->cs ? agn->yes : agn->no;
+                break;
+            case MVM_SPESH_GUARD_OP_LOAD_ARG:
+                if (agn->arg_index >= MAX_ARGS_FOR_OPT)
+                    return -1;
+                facts = arg_info->arg_facts[agn->arg_index];
+                use_decont_facts = 0;
+                current_node = agn->yes;
+                break;
+            case MVM_SPESH_GUARD_OP_STABLE_CONC:
+                if (use_decont_facts) {
+                    current_node = facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE &&
+                            facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE &&
+                            facts->decont_type->st == agn->st
+                        ? agn->yes
+                        : agn->no;
+                }
+                else {
+                    current_node = facts->flags & MVM_SPESH_FACT_CONCRETE &&
+                            facts->flags & MVM_SPESH_FACT_KNOWN_TYPE &&
+                            facts->type->st == agn->st
+                        ? agn->yes
+                        : agn->no;
+                }
+                break;
+            case MVM_SPESH_GUARD_OP_STABLE_TYPE:
+                if (use_decont_facts) {
+                    current_node = facts->flags & MVM_SPESH_FACT_DECONT_TYPEOBJ &&
+                            facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE &&
+                            facts->decont_type->st == agn->st
+                        ? agn->yes
+                        : agn->no;
+                }
+                else {
+                    current_node = facts->flags & MVM_SPESH_FACT_TYPEOBJ &&
+                            facts->flags & MVM_SPESH_FACT_KNOWN_TYPE &&
+                            facts->type->st == agn->st
+                        ? agn->yes
+                        : agn->no;
+                }
+                break;
+            case MVM_SPESH_GUARD_OP_DEREF_VALUE: {
+                if (facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) {
+                    use_decont_facts = 1;
+                    current_node = agn->yes;
+                }
+                else {
+                    current_node = agn->no;
+                }
+                break;
+            }
+            case MVM_SPESH_GUARD_OP_DEREF_RW:
+                current_node = facts->flags & MVM_SPESH_FACT_RW_CONT
+                    ? agn->yes
+                    : agn->no;
+                break;
+            case MVM_SPESH_GUARD_OP_RESULT:
+                return agn->result;
+        }
+    } while (current_node != 0);
+    return -1;
+}
+
 /* Marks any objects held by an argument guard. */
 void MVM_spesh_arg_guard_gc_mark(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
                                  MVMGCWorklist *worklist) {
