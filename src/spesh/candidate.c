@@ -121,6 +121,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     uv_mutex_lock(&tc->instance->mutex_spesh_install);
     if (static_frame->body.num_spesh_candidates < MVM_SPESH_LIMIT) {
         MVMint32 num_spesh = static_frame->body.num_spesh_candidates;
+        MVMint32 existing_match = 0;
         MVMint32 i;
         for (i = 0; i < num_spesh; i++) {
             MVMSpeshCandidate *compare = &static_frame->body.spesh_candidates[i];
@@ -128,6 +129,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
                 memcmp(compare->guards, guards, num_guards * sizeof(MVMSpeshGuard)) == 0) {
                 /* Beaten! */
                 result = osr ? NULL : &static_frame->body.spesh_candidates[i];
+                existing_match = 1;
                 break;
             }
         }
@@ -160,8 +162,9 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
             if (osr)
                 result->osr_logging = 1;
             MVM_barrier();
-            _tmp_add_new_guard(tc, static_frame, result,
-                static_frame->body.num_spesh_candidates++);
+            if (!existing_match)
+                _tmp_add_new_guard(tc, static_frame, result,
+                    static_frame->body.num_spesh_candidates++);
             if (static_frame->common.header.flags & MVM_CF_SECOND_GEN)
                 MVM_gc_write_barrier_hit(tc, (MVMCollectable *)static_frame);
             if (tc->instance->spesh_log_fh) {
