@@ -153,13 +153,34 @@ MVMuint32 get_type_check_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
     return ag->used_nodes++;
 }
 
+/* Resolves or inserts a guard for "is this an rw container" hanging off the
+ * specified base node. We will always have the rw-or-not check right after
+ * the container type check, so if there's already a "yes" branch off the base
+ * node that is not an rw container check, we'll add the rw container check in
+ * its place and attach the "no" branch to where it used to point. This means
+ * we can know if there is such a node for this container type by just looking
+ * at the "yes" branch of the base node we are passed. */
+MVMuint32 get_rw_cont_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
+                           MVMuint32 base_node) {
+    MVMuint32 yes_node = ag->nodes[base_node].yes;
+    if (yes_node && ag->nodes[yes_node].op == MVM_SPESH_GUARD_OP_DEREF_RW)
+        return yes_node;
+    ag->nodes[ag->used_nodes].op = MVM_SPESH_GUARD_OP_DEREF_RW;
+    ag->nodes[ag->used_nodes].offset = 0; /* TODO populate this properly */
+    ag->nodes[ag->used_nodes].yes = 0;
+    ag->nodes[ag->used_nodes].no = yes_node;
+    ag->nodes[base_node].yes = ag->used_nodes;
+    return ag->used_nodes++;
+}
+
 /* Resolves or inserts a guard for the specified type information, rooted off
  * the given node. */
 MVMuint32 get_type_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 base_node,
                         MVMSpeshStatsType *type, MVMuint16 arg_idx) {
     MVMuint32 current_node = get_load_node(tc, ag, base_node, arg_idx);
     current_node = get_type_check_node(tc, ag, current_node, type->type, type->type_concrete);
-    /* TODO chain rw container check */
+    if (type->rw_cont)
+        current_node = get_rw_cont_node(tc, ag, current_node);
     /* TODO chain decont container check */
     return current_node;
 }
