@@ -269,6 +269,53 @@ void MVM_spesh_arg_guard_add(MVMThreadContext *tc, MVMSpeshArgGuard **orig,
     }
 }
 
+/* Evaluates the argument guards. Returns >= 0 if there is a matching spesh
+ * candidate, or -1 if there is not. */
+MVMint32 MVM_spesh_arg_guard_run(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
+                                 MVMCallsite *cs, MVMRegister *args) {
+    MVMuint32 current_node = 0;
+    MVMObject *test = NULL;
+    do {
+        MVMSpeshArgGuardNode *agn = &(ag->nodes[current_node]);
+        switch (agn->op) {
+            case MVM_SPESH_GUARD_OP_CALLSITE:
+                current_node = agn->cs == cs ? agn->yes : agn->no;
+                break;
+            case MVM_SPESH_GUARD_OP_LOAD_ARG:
+                test = args[agn->arg_index].o;
+                current_node = agn->yes;
+                break;
+            case MVM_SPESH_GUARD_OP_STABLE_CONC:
+                current_node = IS_CONCRETE(test) && test->st == agn->st
+                    ? agn->yes
+                    : agn->no;
+                break;
+            case MVM_SPESH_GUARD_OP_STABLE_TYPE:
+                current_node = !IS_CONCRETE(test) && test->st == agn->st
+                    ? agn->yes
+                    : agn->no;
+                break;
+            case MVM_SPESH_GUARD_OP_DEREF_VALUE: {
+                /* TODO Use offset approach later to avoid these calls. */
+                MVMRegister dc;
+                test->st->container_spec->fetch(tc, test, &dc);
+                test = dc.o;
+                current_node = test ? agn->yes : agn->no;
+                break;
+            }
+            case MVM_SPESH_GUARD_OP_DEREF_RW:
+                /* TODO Use offset approach later to avoid these calls. */
+                current_node = STABLE(test)->container_spec->can_store(tc, test)
+                    ? agn->yes
+                    : agn->no;
+                break;
+            case MVM_SPESH_GUARD_OP_RESULT:
+                return agn->result;
+        }
+    } while (current_node != 0);
+    return -1;
+}
+
 /* Marks any objects held by an argument guard. */
 void MVM_spesh_arg_guard_gc_mark(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
                                  MVMGCWorklist *worklist) {
