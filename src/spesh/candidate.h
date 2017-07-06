@@ -3,12 +3,6 @@ struct MVMSpeshCandidate {
     /* The callsite we should have for a match. */
     MVMCallsite *cs;
 
-    /* Guards on incoming args. */
-    MVMSpeshGuard *guards;
-
-    /* Number of guards we have. */
-    MVMuint32 num_guards;
-
     /* Length of the specialized bytecode in bytes. */
     MVMuint32 bytecode_size;
 

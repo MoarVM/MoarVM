@@ -133,8 +133,6 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
                     MVM_SPESH_LIMIT, sizeof(MVMSpeshCandidate));
             result                      = &static_frame->body.spesh_candidates[num_spesh];
             result->cs                  = callsite;
-            result->num_guards          = num_guards;
-            result->guards              = guards;
             result->bytecode            = sc->bytecode;
             result->bytecode_size       = sc->bytecode_size;
             result->handlers            = sc->handlers;
@@ -304,7 +302,6 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
 void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candidate) {
     if (candidate->sg)
         MVM_spesh_graph_destroy(tc, candidate->sg);
-    MVM_free(candidate->guards);
     MVM_free(candidate->bytecode);
     MVM_free(candidate->handlers);
     MVM_free(candidate->spesh_slots);

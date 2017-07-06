@@ -152,8 +152,6 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     if (body->num_spesh_candidates) {
         MVMint32 i, j;
         for (i = 0; i < body->num_spesh_candidates; i++) {
-            for (j = 0; j < body->spesh_candidates[i].num_guards; j++)
-                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].guards[j].match);
             for (j = 0; j < body->spesh_candidates[i].num_spesh_slots; j++)
                 MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].spesh_slots[j]);
             if (body->spesh_candidates[i].log_slots)
@@ -248,7 +246,6 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
 
         for (spesh_idx = 0; spesh_idx < body->num_spesh_candidates; spesh_idx++) {
             MVMSpeshCandidate *cand = &body->spesh_candidates[spesh_idx];
-            size += sizeof(MVMSpeshGuard) * cand->num_guards;
 
             size += cand->bytecode_size;
 
@@ -341,10 +338,6 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
     if (body->num_spesh_candidates) {
         MVMint32 i, j;
         for (i = 0; i < body->num_spesh_candidates; i++) {
-            for (j = 0; j < body->spesh_candidates[i].num_guards; j++)
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->spesh_candidates[i].guards[j].match,
-                    "Spesh guard match");
             for (j = 0; j < body->spesh_candidates[i].num_spesh_slots; j++)
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                     (MVMCollectable *)body->spesh_candidates[i].spesh_slots[j],
