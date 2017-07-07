@@ -491,7 +491,7 @@ static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint
  * the handling of breaking around controls much earlier, so don't have to
  * consider that case. */
 static MVMint32 maybe_hangul(MVMCodepoint cp) {
-    return (cp >= 0x1100 && cp < 0x1200) || (cp >= 0xA960 && cp < 0xD7FC);
+    return (0x1100 <= cp  && cp < 0x1200) || (0xA960 <= cp && cp < 0xD7FC);
 }
 static MVMint32 is_grapheme_extend(MVMThreadContext *tc, MVMCodepoint cp) {
     return MVM_unicode_codepoint_get_property_int(tc, cp,
