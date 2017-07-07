@@ -499,48 +499,6 @@ static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMCallsite *cs) {
     append(ds, "\n");
 }
 
-static void dump_arg_guards(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
-    MVMuint16 i;
-    appendf(ds, "%d argument guards\n", g->num_arg_guards);
-
-    for (i = 0; i < g->num_arg_guards; i++) {
-        MVMSpeshGuard *guard = &g->arg_guards[i];
-        switch (guard->kind) {
-        case MVM_SPESH_GUARD_CONC:
-            appendf(ds, "  concrete(%d)\n", guard->slot);
-            break;
-        case MVM_SPESH_GUARD_TYPE:
-            appendf(ds, "  type(%d, %p)", guard->slot, guard->match);
-            if (((MVMSTable*)(guard->match))->debug_name) {
-                appendf(ds, " debugname: %s", ((MVMSTable*)(guard->match))->debug_name);
-            }
-            append(ds, "\n");
-            break;
-        case MVM_SPESH_GUARD_DC_CONC:
-            appendf(ds, "  deconted_concrete(%d)\n", guard->slot);
-            break;
-        case MVM_SPESH_GUARD_DC_TYPE:
-            appendf(ds, "  deconted_type(%d, %p)", guard->slot, guard->match);
-            if (((MVMSTable*)(guard->match))->debug_name) {
-                appendf(ds, " debugname: %s", ((MVMSTable*)(guard->match))->debug_name);
-            }
-            append(ds, "\n");
-            break;
-        case MVM_SPESH_GUARD_DC_CONC_RW:
-            appendf(ds, "  deconted_concrete_rw(%d)\n", guard->slot);
-            break;
-        case MVM_SPESH_GUARD_DC_TYPE_RW:
-            appendf(ds, "  deconted_type_rw(%d, %p)", guard->slot, guard->match);
-            if (((MVMSTable*)(guard->match))->debug_name) {
-                appendf(ds, " debugname: %s", ((MVMSTable*)(guard->match))->debug_name);
-            }
-            append(ds, "\n");
-            break;
-        }
-    }
-    append(ds, "\n");
-}
-
 static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMStaticFrame *sf) {
     MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &sf->body, 0);
     MVMCompUnit            *cu = sf->body.cu;
@@ -579,9 +537,7 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     append(&ds, ")\n");
     if (g->cs)
         dump_callsite(tc, &ds, g->cs);
-    if (g->num_arg_guards)
-        dump_arg_guards(tc, &ds, g);
-    if (!g->cs && !g->num_arg_guards)
+    if (!g->cs)
         append(&ds, "\n");
 
     /* Go over all the basic blocks and dump them. */
