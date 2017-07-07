@@ -329,14 +329,28 @@ static MVMint64 passes_quickcheck(MVMThreadContext *tc, const MVMNormalizer *n, 
     return pval && pval[0] == 'Y';
 }
 
-/* Gets the canonical combining class for a codepoint. */
-static MVMint64 ccc(MVMThreadContext *tc, MVMCodepoint cp) {
+/* Gets the CCC (actual value) but is slower as it looks up with string properties
+ * Exact values are not needed for normalization.
+ * Returns 0 for Not_Reordered codepoints *and* CCC 0 codepoints */
+static MVMint64 ccc_old(MVMThreadContext *tc, MVMCodepoint cp) {
+    if (cp < MVM_NORMALIZE_FIRST_NONZERO_CCC) {
+        return 0;
+    }
+    const char *ccc_str = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS);
+    return !ccc_str || strlen(ccc_str) > 3 ? 0 : fast_atoi(ccc_str);
+}
+/* Gets the canonical combining class for a codepoint. Does a shortcut
+ * since CCC is stored as a string property, though because they are all sorted
+ * numerically it is ok to get the internal integer value as stored instead of
+ * the string.
+ * Returns 0 for Not_Reordered codepoints *and* CCC 0 codepoints */
+static MVMint64 relative_ccc(MVMThreadContext *tc, MVMCodepoint cp) {
     if (cp < MVM_NORMALIZE_FIRST_NONZERO_CCC) {
         return 0;
     }
     else {
-        const char *ccc_str = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS);
-        return !ccc_str || strlen(ccc_str) > 3 ? 0 : fast_atoi(ccc_str);
+        int ccc_int = MVM_unicode_codepoint_get_property_int(tc, cp, MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS);
+        return ccc_int <= MVM_UNICODE_PVALUE_CCC_0 ? 0 : ccc_int - MVM_UNICODE_PVALUE_CCC_0;
     }
 }
 
@@ -383,8 +397,8 @@ static void canonical_sort(MVMThreadContext *tc, MVMNormalizer *n, MVMint32 from
         MVMint32 i = from;
         reordered = 0;
         while (i < to - 1) {
-            MVMint64 cccA = ccc(tc, n->buffer[i]);
-            MVMint64 cccB = ccc(tc, n->buffer[i + 1]);
+            MVMint64 cccA = relative_ccc(tc, n->buffer[i]);
+            MVMint64 cccB = relative_ccc(tc, n->buffer[i + 1]);
             if (cccA > cccB && cccB > 0) {
                 MVMCodepoint tmp = n->buffer[i];
                 n->buffer[i] = n->buffer[i + 1];
@@ -402,11 +416,11 @@ static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint
     while (c_idx < to) {
         /* Search for the last non-blocked starter. */
         MVMint32 ss_idx = c_idx - 1;
-        MVMint32 c_ccc  = ccc(tc, n->buffer[c_idx]);
+        MVMint32 c_ccc  = relative_ccc(tc, n->buffer[c_idx]);
         while (ss_idx >= from) {
             /* Make sure we don't go past a code point that blocks a starter
              * from the current character we're considering. */
-            MVMint32 ss_ccc = ccc(tc, n->buffer[ss_idx]);
+            MVMint32 ss_ccc = relative_ccc(tc, n->buffer[ss_idx]);
             if (ss_ccc >= c_ccc && ss_ccc != 0)
                 break;
 
@@ -646,7 +660,7 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
 
     /* Do a quickcheck on the codepoint we got in and get its CCC. */
     qc_in  = passes_quickcheck(tc, norm, in);
-    ccc_in = ccc(tc, in);
+    ccc_in = relative_ccc(tc, in);
     /* Fast cases when we pass quick check and what we got in has CCC = 0,
      * and it does not follow a prepend character. */
     if (qc_in && ccc_in == 0 && norm->prepend_buffer == 0) {
@@ -660,7 +674,7 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
              * so we're safe. */
             if (norm->buffer_end - norm->buffer_start == 1) {
                 MVMCodepoint maybe_result = norm->buffer[norm->buffer_start];
-                if (passes_quickcheck(tc, norm, maybe_result) && ccc(tc, maybe_result) == 0) {
+                if (passes_quickcheck(tc, norm, maybe_result) && relative_ccc(tc, maybe_result) == 0) {
                     *out = norm->buffer[norm->buffer_start];
                     norm->buffer[norm->buffer_start] = in;
                     return 1;
