@@ -185,6 +185,8 @@ typedef struct MVMSpeshStatsByOffset MVMSpeshStatsByOffset;
 typedef struct MVMSpeshStatsTypeCount MVMSpeshStatsTypeCount;
 typedef struct MVMSpeshStatsValueCount MVMSpeshStatsValueCount;
 typedef struct MVMSpeshStatsStatic MVMSpeshStatsStatic;
+typedef struct MVMSpeshPlan MVMSpeshPlan;
+typedef struct MVMSpeshPlanned MVMSpeshPlanned;
 typedef struct MVMSpeshArgGuard MVMSpeshArgGuard;
 typedef struct MVMSpeshArgGuardNode MVMSpeshArgGuardNode;
 typedef struct MVMSTable MVMSTable;

@@ -185,6 +185,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/lookup@obj@ \
           src/spesh/worker@obj@ \
           src/spesh/stats@obj@ \
+          src/spesh/plan@obj@ \
           src/spesh/arg_guard@obj@ \
           src/jit/graph@obj@ \
           src/jit/compile@obj@ \
@@ -337,6 +338,7 @@ HEADERS = src/moar.h \
           src/spesh/lookup.h \
           src/spesh/worker.h \
           src/spesh/stats.h \
+          src/spesh/plan.h \
           src/spesh/arg_guard.h \
           src/strings/unicode_gen.h \
           src/strings/normalize.h \
