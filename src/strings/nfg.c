@@ -241,9 +241,9 @@ MVMNFGSynthetic * MVM_nfg_get_synthetic_info(MVMThreadContext *tc, MVMGrapheme32
     MVMNFGState *nfg       = tc->instance->nfg;
     MVMint32     synth_idx = -synth - 1;
     if (synth >= 0)
-        MVM_exception_throw_adhoc(tc, "MVM_nfg_get_synthetic_info illegally called on a non-synthetic codepoint.\nRequested codepoint %i.", synth);
+        MVM_oops(tc, "MVM_nfg_get_synthetic_info illegally called on a non-synthetic codepoint.\nRequested codepoint %i.", synth);
     if (synth_idx >= nfg->num_synthetics)
-        MVM_exception_throw_adhoc(tc, "MVM_nfg_get_synthetic_info call requested a synthetic codepoint that does not exist.\nRequested synthetic %i when only %i have been created.", -synth, nfg->num_synthetics);
+        MVM_oops(tc, "MVM_nfg_get_synthetic_info call requested a synthetic codepoint that does not exist.\nRequested synthetic %i when only %i have been created.", -synth, nfg->num_synthetics);
     return &(nfg->synthetics[synth_idx]);
 }
 
