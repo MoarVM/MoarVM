@@ -85,6 +85,7 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 
     add_collectable(tc, worklist, snapshot, tc->instance->spesh_queue,
         "Specialization log queue");
+    MVM_spesh_plan_gc_mark(tc, tc->instance->spesh_plan, worklist);
 
     int_to_str_cache = tc->instance->int_to_str_cache;
     for (i = 0; i < MVM_INT_TO_STR_CACHE_SIZE; i++)

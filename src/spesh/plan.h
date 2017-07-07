@@ -47,3 +47,6 @@ struct MVMSpeshPlanned {
      * specialization, this would be 1.) */
     MVMuint32 num_type_stats;
 };
+
+void MVM_spesh_plan_gc_mark(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMGCWorklist *worklist);
+void MVM_spesh_plan_destroy(MVMThreadContext *tc, MVMSpeshPlan *plan);

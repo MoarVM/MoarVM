@@ -234,6 +234,9 @@ struct MVMInstance {
      * is enabled. */
     MVMObject *spesh_queue;
 
+    /* The current specialization plan; hung off here so we can mark it. */
+    MVMSpeshPlan *spesh_plan;
+
     /* The latest statistics version (incremented each time a spesh log is
      * received by the worker thread). */
     MVMuint32 spesh_stats_version;
