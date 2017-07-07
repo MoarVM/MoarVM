@@ -936,16 +936,6 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
     }
 }
 
-/* Checks if we have specialized on the invocant - useful to know for some
- * optimizations. */
-static MVMint32 specialized_on_invocant(MVMThreadContext *tc, MVMSpeshGraph *g) {
-    MVMint32 i;
-    for (i = 0; i < g->num_arg_guards; i++)
-        if (g->arg_guards[i].slot == 0)
-            return 1;
-    return 0;
-}
-
 /* Optimizes away a lexical lookup when we know the value won't change from
  * the logged one. */
 static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -1610,7 +1600,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             optimize_getlex_known(tc, g, bb, ins);
             break;
         case MVM_OP_getlexperinvtype_o:
-            if (specialized_on_invocant(tc, g))
+            if (g->specialized_on_invocant)
                 optimize_getlex_known(tc, g, bb, ins);
             break;
         case MVM_OP_isrwcont:

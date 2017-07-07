@@ -32,12 +32,6 @@ struct MVMSpeshGraph {
     /* Number of fact entries per local. */
     MVMuint16 *fact_counts;
 
-    /* Argument guards added. */
-    MVMSpeshGuard *arg_guards;
-
-    /* Number of argument guards we have. */
-    MVMint32 num_arg_guards;
-
     /* Log-based guards added. */
     MVMSpeshLogGuard *log_guards;
 
@@ -105,6 +99,9 @@ struct MVMSpeshGraph {
     /* If this graph was formed from a spesh candidate rather than an
      * original static frame, the candidate will be stored here. */
     MVMSpeshCandidate *cand;
+
+    /* Did we specialize on the invocant type? */
+    MVMuint8 specialized_on_invocant;
 };
 
 /* A temporary register, added to support transformations. */

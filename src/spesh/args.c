@@ -6,9 +6,9 @@
 /* Maximum number of named args we'll consider for optimization purposes. */
 #define MAX_NAMED_ARGS 8
 
-/* Adds guards and facts for an object arg. */
-static void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
-                          MVMObject *arg, MVMSpeshIns *arg_ins) {
+/* Adds facts for an object arg. */
+static void add_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
+                      MVMObject *arg, MVMSpeshIns *arg_ins) {
     /* Grab type and concreteness. */
     MVMObject *type     = STABLE(arg)->WHAT;
     MVMint32   concrete = IS_CONCRETE(arg);
@@ -29,15 +29,6 @@ static void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint3
     else {
         g->facts[orig][i].flags |= MVM_SPESH_FACT_TYPEOBJ | MVM_SPESH_FACT_DECONTED;
     }
-
-    /* Add guard record for the arg type. */
-    g->arg_guards[g->num_arg_guards].slot  = slot;
-    g->arg_guards[g->num_arg_guards].match = (MVMCollectable *)STABLE(type);
-    if (concrete)
-        g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_CONC;
-    else
-        g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_TYPE;
-    g->num_arg_guards++;
 
     /* If we know it's a container, might be able to look inside it to
      * further optimize. */
@@ -64,23 +55,6 @@ static void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint3
             g->facts[orig][i].flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
         if (is_rw)
             g->facts[orig][i].flags |= MVM_SPESH_FACT_RW_CONT;
-
-        /* Add guard for contained value. */
-        g->arg_guards[g->num_arg_guards].slot  = slot;
-        g->arg_guards[g->num_arg_guards].match = (MVMCollectable *)STABLE(type);
-        if (is_rw) {
-            if (concrete)
-                g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_DC_CONC_RW;
-            else
-                g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_DC_TYPE_RW;
-        }
-        else {
-            if (concrete)
-                g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_DC_CONC;
-            else
-                g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_DC_TYPE;
-        }
-        g->num_arg_guards++;
     }
 }
 
@@ -337,10 +311,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
         /* We can optimize. Toss checkarity. */
         MVM_spesh_manipulate_delete_ins(tc, g, checkarity_bb, checkarity_ins);
 
-        /* Re-write the passed required positionals to spesh ops, and store
-         * any gurads. */
-        if (cs->arg_count)
-            g->arg_guards = MVM_malloc(2 * cs->arg_count * sizeof(MVMSpeshGuard));
+        /* Re-write the passed required positionals to spesh ops, and add any
+         * facts. */
         for (i = 0; i < cs->num_pos; i++) {
             MVMCallsiteEntry arg_flag = cs->arg_flags[i];
             switch (pos_ins[i]->info->opcode) {
@@ -353,7 +325,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     pos_unbox(tc, g, pos_bb[i], pos_ins[i], MVM_op_get_op(MVM_OP_unbox_i));
                     pos_added[i]++;
                     if (args[i].o)
-                        add_guards_and_facts(tc, g, i, args[i].o, pos_ins[i]);
+                        add_facts(tc, g, i, args[i].o, pos_ins[i]);
                 }
                 break;
             case MVM_OP_param_rp_n:
@@ -365,7 +337,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     pos_unbox(tc, g, pos_bb[i], pos_ins[i], MVM_op_get_op(MVM_OP_unbox_n));
                     pos_added[i]++;
                     if (args[i].o)
-                        add_guards_and_facts(tc, g, i, args[i].o, pos_ins[i]);
+                        add_facts(tc, g, i, args[i].o, pos_ins[i]);
                 }
                 break;
             case MVM_OP_param_rp_s:
@@ -377,15 +349,18 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     pos_unbox(tc, g, pos_bb[i], pos_ins[i], MVM_op_get_op(MVM_OP_unbox_s));
                     pos_added[i]++;
                     if (args[i].o)
-                        add_guards_and_facts(tc, g, i, args[i].o, pos_ins[i]);
+                        add_facts(tc, g, i, args[i].o, pos_ins[i]);
                 }
                 break;
             case MVM_OP_param_rp_o:
             case MVM_OP_param_op_o:
                 if (arg_flag == MVM_CALLSITE_ARG_OBJ) {
                     pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
-                    if (args[i].o)
-                        add_guards_and_facts(tc, g, i, args[i].o, pos_ins[i]);
+                    if (args[i].o) {
+                        add_facts(tc, g, i, args[i].o, pos_ins[i]);
+                        if (i == 0)
+                            g->specialized_on_invocant = 1;
+                    }
                 }
                 else if (arg_flag == MVM_CALLSITE_ARG_INT) {
                     pos_box(tc, g, pos_bb[i], pos_ins[i],
@@ -523,7 +498,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     named_ins[i]->operands[1].lit_i16 = arg_idx;
                     used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
                     if (args[arg_idx].o)
-                        add_guards_and_facts(tc, g, arg_idx, args[arg_idx].o, named_ins[i]);
+                        add_facts(tc, g, arg_idx, args[arg_idx].o, named_ins[i]);
                 }
                 else if (found_flag & (MVM_CALLSITE_ARG_INT | MVM_CALLSITE_ARG_NUM | MVM_CALLSITE_ARG_STR)) {
                     MVMuint16 arg_idx = found_idx + 1;
@@ -640,7 +615,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                         named_bb[i]->linear_next);
                     used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
                     if (args[arg_idx].o)
-                        add_guards_and_facts(tc, g, arg_idx, args[arg_idx].o, named_ins[i]);
+                        add_facts(tc, g, arg_idx, args[arg_idx].o, named_ins[i]);
                     named_used++;
                 }
                 else if (found_flag & (MVM_CALLSITE_ARG_INT | MVM_CALLSITE_ARG_NUM | MVM_CALLSITE_ARG_STR)) {
