@@ -640,7 +640,10 @@ char * MVM_spesh_dump_stats(MVMThreadContext *tc, MVMStaticFrame *sf) {
         MVMSpeshStats *ss = sf->body.spesh_stats;
         MVMuint32 i;
 
-        appendf(&ds, "Total hits: %d\n\n", ss->hits);
+        appendf(&ds, "Total hits: %d\n", ss->hits);
+        if (ss->osr_hits)
+            appendf(&ds, "OSR hits: %d\n", ss->osr_hits);
+        append(&ds, "\n");
 
         for (i = 0; i < ss->num_by_callsite; i++)
             dump_stats_by_callsite(tc, &ds, &(ss->by_callsite[i]));

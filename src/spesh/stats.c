@@ -200,8 +200,10 @@ void sim_stack_pop(MVMThreadContext *tc, SimStack *sims) {
     simf = &(sims->frames[sims->used]);
 
     /* Add OSR hits at callsite level. */
-    if (simf->osr_hits)
+    if (simf->osr_hits) {
+        simf->ss->osr_hits += simf->osr_hits;
         simf->ss->by_callsite[simf->callsite_idx].osr_hits += simf->osr_hits;
+    }
 
     /* Update the by-type record, incorporating by-offset data. */
     tss = by_type(tc, simf->ss, simf->callsite_idx, simf->arg_types);

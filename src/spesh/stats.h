@@ -18,6 +18,9 @@ struct MVMSpeshStats {
     /* Total calls across all callsites. */
     MVMuint32 hits;
 
+    /* Total OSR hits across all callsites. */
+    MVMuint32 osr_hits;
+
     /* The latest version of the statistics when this was updated. Used to
      * help decide when to throw out data that is no longer evolving, to
      * reduce memory use. */
