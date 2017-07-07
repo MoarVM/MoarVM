@@ -1,6 +1,6 @@
 #include "moar.h"
 
-/* TODO Remove this when spesh migration to new guards is complete. */
+/* TODO Remove this when migration to spesh worker thread is done. */
 static MVMSpeshStatsType * _tmp_type_tuple(MVMThreadContext *tc, MVMStaticFrame *sf,
                                            MVMCallsite *cs, MVMRegister *args) {
     MVMSpeshStatsType *tuple = MVM_calloc(cs->flag_count, sizeof(MVMSpeshStatsType));
@@ -56,9 +56,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
         MVMStaticFrame *static_frame, MVMCallsite *callsite, MVMRegister *args,
         MVMint32 osr) {
     MVMSpeshCandidate *result;
-    MVMSpeshGuard *guards;
     MVMSpeshCode *sc;
-    MVMint32 num_spesh_slots, num_log_slots, num_guards, *deopts, num_deopts;
+    MVMint32 num_spesh_slots, num_log_slots, *deopts, num_deopts;
     MVMuint16 num_locals, num_lexicals, used;
     MVMCollectable **spesh_slots, **log_slots;
     char *before = 0;
@@ -83,7 +82,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     type_tuple = _tmp_type_tuple(tc, static_frame, callsite, args);
 
     /* Do initial generation of the specialization, working out the argument
-     * guards and adding logging. */
+     * facts and adding logging. */
     sg = MVM_spesh_graph_create(tc, static_frame, 0, 1);
     if (tc->instance->spesh_log_fh)
         before = MVM_spesh_dump(tc, sg);
@@ -92,8 +91,6 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     if (tc->instance->spesh_log_fh)
         after = MVM_spesh_dump(tc, sg);
     sc              = MVM_spesh_codegen(tc, sg);
-    num_guards      = sg->num_arg_guards;
-    guards          = sg->arg_guards;
     num_deopts      = sg->num_deopt_addrs;
     deopts          = sg->deopt_addrs;
     num_spesh_slots = sg->num_spesh_slots;
