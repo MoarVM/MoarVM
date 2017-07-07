@@ -512,17 +512,13 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
 
     /* Hangul. Avoid property lookup with a couple of quick range checks. */
     if (maybe_hangul(a) && maybe_hangul(b)) {
-        const char *hst_a = MVM_unicode_codepoint_get_property_cstr(tc, a,
-            MVM_UNICODE_PROPERTY_HANGUL_SYLLABLE_TYPE);
-        const char *hst_b = MVM_unicode_codepoint_get_property_cstr(tc, b,
-            MVM_UNICODE_PROPERTY_HANGUL_SYLLABLE_TYPE);
-        if (strcmp(hst_a, "L") == 0)
-            return !(strcmp(hst_b, "L") == 0 || strcmp(hst_b, "V") == 0 ||
-                     strcmp(hst_b, "LV") == 0 || strcmp(hst_b, "LVT") == 0);
-        else if (strcmp(hst_a, "LV") == 0 || strcmp(hst_a, "V") == 0)
-            return !(strcmp(hst_b, "V") == 0 || strcmp(hst_b, "T") == 0);
-        else if (strcmp(hst_a, "LVT") == 0 || strcmp(hst_a, "T") == 0)
-            return !(strcmp(hst_b, "T") == 0);
+        if (GCB_a == MVM_UNICODE_PVALUE_GCB_L)
+            return !(GCB_b == MVM_UNICODE_PVALUE_GCB_L  || GCB_b == MVM_UNICODE_PVALUE_GCB_V ||
+                     GCB_b == MVM_UNICODE_PVALUE_GCB_LV || GCB_b == MVM_UNICODE_PVALUE_GCB_LVT);
+        else if (GCB_a == MVM_UNICODE_PVALUE_GCB_LV    || GCB_a == MVM_UNICODE_PVALUE_GCB_V)
+            return !(GCB_b == MVM_UNICODE_PVALUE_GCB_V || GCB_b == MVM_UNICODE_PVALUE_GCB_T);
+        else if (GCB_a == MVM_UNICODE_PVALUE_GCB_LVT || GCB_a == MVM_UNICODE_PVALUE_GCB_T)
+            return !(GCB_b == MVM_UNICODE_PVALUE_GCB_T);
     }
 
     switch (GCB_a) {
