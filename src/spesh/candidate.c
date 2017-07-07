@@ -2,40 +2,28 @@
 
 /* TODO Remove this when spesh migration to new guards is complete. */
 static MVMSpeshStatsType * _tmp_type_tuple(MVMThreadContext *tc, MVMStaticFrame *sf,
-                                           MVMCallsite *cs, MVMSpeshGuard *guards,
-                                           MVMuint32 num_guards) {
+                                           MVMCallsite *cs, MVMRegister *args) {
     MVMSpeshStatsType *tuple = MVM_calloc(cs->flag_count, sizeof(MVMSpeshStatsType));
+    MVMuint32 arg_index = 0;
     MVMuint32 i;
-    for (i = 0; i < num_guards; i++) {
-        MVMSpeshGuard *g = &(guards[i]);
-        MVMint32 flag_idx = g->slot < cs->num_pos
-            ? g->slot
-            : cs->num_pos + (((g->slot - 1) - cs->num_pos) / 2);
-        switch (g->kind) {
-            case MVM_SPESH_GUARD_CONC:
-                tuple[flag_idx].type = ((MVMSTable *)g->match)->WHAT;
-                tuple[flag_idx].type_concrete = 1;
-                break;
-            case MVM_SPESH_GUARD_TYPE:
-                tuple[flag_idx].type = ((MVMSTable *)g->match)->WHAT;
-                break;
-            case MVM_SPESH_GUARD_DC_CONC:
-                tuple[flag_idx].decont_type = ((MVMSTable *)g->match)->WHAT;
-                tuple[flag_idx].decont_type_concrete = 1;
-                break;
-            case MVM_SPESH_GUARD_DC_TYPE:
-                tuple[flag_idx].decont_type = ((MVMSTable *)g->match)->WHAT;
-                break;
-            case MVM_SPESH_GUARD_DC_CONC_RW:
-                tuple[flag_idx].decont_type = ((MVMSTable *)g->match)->WHAT;
-                tuple[flag_idx].decont_type_concrete = 1;
-                tuple[flag_idx].rw_cont = 1;
-                break;
-            case MVM_SPESH_GUARD_DC_TYPE_RW:
-                tuple[flag_idx].decont_type = ((MVMSTable *)g->match)->WHAT;
-                tuple[flag_idx].rw_cont = 1;
-                break;
+    for (i = 0; i < cs->flag_count; i++) {
+        if (cs->arg_flags[i] & MVM_CALLSITE_ARG_NAMED)
+            arg_index++;
+        if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ) {
+            MVMObject *arg = args[arg_index].o;
+            tuple[i].type = arg->st->WHAT;
+            tuple[i].type_concrete = IS_CONCRETE(arg);
+            if (IS_CONCRETE(arg) && arg->st->container_spec &&
+                    arg->st->container_spec->fetch_never_invokes &&
+                    REPR(arg)->ID != MVM_REPR_ID_NativeRef) {
+                MVMRegister dc;
+                arg->st->container_spec->fetch(tc, arg, &dc);
+                tuple[i].decont_type = dc.o->st->WHAT;
+                tuple[i].decont_type_concrete = IS_CONCRETE(dc.o);
+                tuple[i].rw_cont = arg->st->container_spec->can_store(tc, arg);
+            }
         }
+        arg_index++;
     }
     return tuple;
 }
@@ -76,6 +64,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     char *before = 0;
     char *after = 0;
     MVMSpeshGraph *sg;
+    MVMSpeshStatsType *type_tuple;
 
     /* If we've reached our specialization limit, don't continue. */
     if (tc->instance->spesh_limit)
@@ -89,6 +78,9 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
 #if MVM_GC_DEBUG
     tc->in_spesh = 1;
 #endif
+
+    /* Form type tuple from the args. */
+    type_tuple = _tmp_type_tuple(tc, static_frame, callsite, args);
 
     /* Do initial generation of the specialization, working out the argument
      * guards and adding logging. */
@@ -119,8 +111,6 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     used      = 0;
     uv_mutex_lock(&tc->instance->mutex_spesh_install);
     if (static_frame->body.num_spesh_candidates < MVM_SPESH_LIMIT) {
-        MVMSpeshStatsType *type_tuple = _tmp_type_tuple(tc, static_frame, callsite,
-            guards, num_guards);
         MVMint32 ag_candidate = MVM_spesh_arg_guard_run_types(tc,
             static_frame->body.spesh_arg_guard, callsite, type_tuple);
         MVMint32 existing_match = ag_candidate >= 0;
@@ -176,7 +166,6 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
             }
             used = 1;
         }
-        MVM_free(type_tuple);
     }
     MVM_free(after);
     MVM_free(before);
@@ -196,6 +185,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
 #endif
 
     MVM_free(sc);
+    MVM_free(type_tuple);
     return result;
 }
 
