@@ -702,6 +702,26 @@ char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
         append(&ds, "The specialization is for when there is no interned callsite.\n");
     }
 
+    /* Dump reasoning. */
+    switch (p->kind) {
+        case MVM_SPESH_PLANNED_CERTAIN:
+            if (p->cs_stats->hits >= MVM_SPESH_PLAN_CS_MIN)
+                appendf(&ds,
+                    "It was planned due to the callsite receiving %u hits.\n",
+                    p->cs_stats->hits);
+            else if (p->cs_stats->osr_hits >= MVM_SPESH_PLAN_CS_MIN_OSR)
+                appendf(&ds,
+                    "It was planned due to the callsite receiving %u OSR hits.\n",
+                    p->cs_stats->osr_hits);
+            else
+                append(&ds, "It was planned for unknown reasons.\n");
+            break;
+        case MVM_SPESH_PLANNED_OBSERVED_TYPES:
+            break;
+        case MVM_SPESH_PLANNED_DERIVED_TYPES:
+            break;
+    }
+
     append(&ds, "\n");
     append_null(&ds);
     return ds.buffer;
