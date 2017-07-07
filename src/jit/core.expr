@@ -240,4 +240,16 @@
           (^setf $block MVMObject st (load (^spesh_slot $2) ptr_sz))
           (^setf $block MVMObject header.size $1)
           (^setf $block MVMObject header.owner (^getf (tc) MVMThreadContext thread_id))
-          (store $0 $block ptr_sz))))
+          (store $0 $block ptr_sz)))
+
+(template: return_o
+  (dov 3
+     (callv (^func &MVM_args_set_result_obj)
+           (arglist 3
+              (carg (tc) ptr)
+              (carg $0 ptr)
+              (carg (const 0 int_sz) int)))
+     (callv (^func &MVM_frame_try_return)
+           (arglist 1 (carg (tc) ptr)))
+     (^exit)))
+
