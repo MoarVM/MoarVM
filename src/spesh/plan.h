@@ -48,5 +48,6 @@ struct MVMSpeshPlanned {
     MVMuint32 num_type_stats;
 };
 
+MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_frames);
 void MVM_spesh_plan_gc_mark(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMGCWorklist *worklist);
 void MVM_spesh_plan_destroy(MVMThreadContext *tc, MVMSpeshPlan *plan);

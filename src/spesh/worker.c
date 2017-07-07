@@ -32,6 +32,26 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                             MVM_free(dump);
                         }
                     }
+                    GC_SYNC_POINT(tc);
+
+                    /* Form a specialization plan. */
+                    tc->instance->spesh_plan = MVM_spesh_plan(tc, updated_static_frames);
+                    if (tc->instance->spesh_log_fh) {
+                        MVMuint32 n = tc->instance->spesh_plan->num_planned;
+                        MVMuint32 i;
+                        fprintf(tc->instance->spesh_log_fh,
+                            "Specialization Plan\n"
+                            "===================\n"
+                            "%u specialization(s) will be produced.\n\n",
+                            n);
+                        for (i = 0; i < n; i++) {
+                            char *dump = MVM_spesh_dump_planned(tc,
+                                &(tc->instance->spesh_plan->planned[i]));
+                            fprintf(tc->instance->spesh_log_fh, "%s==========\n\n", dump);
+                            MVM_free(dump);
+                        }
+                    }
+                    GC_SYNC_POINT(tc);
 
                     /* Clear updated static frames array. */
                     MVM_repr_pos_set_elems(tc, updated_static_frames, 0);

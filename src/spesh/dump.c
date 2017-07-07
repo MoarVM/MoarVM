@@ -663,6 +663,47 @@ char * MVM_spesh_dump_stats(MVMThreadContext *tc, MVMStaticFrame *sf) {
     return ds.buffer;
 }
 
+/* Dumps a planned specialization into a string. */
+char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
+    DumpStr ds;
+    ds.alloc  = 8192;
+    ds.buffer = MVM_malloc(ds.alloc);
+    ds.pos    = 0;
+
+    /* Dump kind of specialization and target. */
+    switch (p->kind) {
+        case MVM_SPESH_PLANNED_CERTAIN:
+            append(&ds, "Certain");
+            break;
+        case MVM_SPESH_PLANNED_OBSERVED_TYPES:
+            append(&ds, "Observed type");
+            break;
+        case MVM_SPESH_PLANNED_DERIVED_TYPES:
+            append(&ds, "Derived type");
+            break;
+    }
+    append(&ds, " specialization of '");
+    append_str(tc, &ds, p->sf->body.name);
+    append(&ds, "' (cuid: ");
+    append_str(tc, &ds, p->sf->body.cuuid);
+    append(&ds, ", file: ");
+    dump_fileinfo(tc, &ds, p->sf);
+    append(&ds, ")\n\n");
+
+    /* Dump the callsite of the specialization. */
+    if (p->cs_stats->cs) {
+        append(&ds, "The specialization is for the callsite:\n");
+        dump_callsite(tc, &ds, p->cs_stats->cs);
+    }
+    else {
+        append(&ds, "The specialization is for when there is no interned callsite.\n");
+    }
+
+    append(&ds, "\n");
+    append_null(&ds);
+    return ds.buffer;
+}
+
 /* Dumps a static frame's guard set into a string. */
 char * MVM_spesh_dump_arg_guard(MVMThreadContext *tc, MVMStaticFrame *sf) {
     MVMSpeshArgGuard *ag = sf->body.spesh_arg_guard;
