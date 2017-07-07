@@ -1,3 +1,16 @@
+/* The minimum number of hits or OSR hits a static frame as a whole has to
+ * receive (across all callsites and type tuples) before it is hot enough to
+ * further consider. */
+#define MVM_SPESH_PLAN_SF_MIN       10
+#define MVM_SPESH_PLAN_SF_MIN_OSR   100
+
+/* The minimum number of hits or OSR hits a given static frame and interned
+ * callsite combination have to have before it is hot enough to further
+ * consider. (The lack of an interned callsite counts as a callsite, for
+ * these purposes.) */
+#define MVM_SPESH_PLAN_CS_MIN       10
+#define MVM_SPESH_PLAN_CS_MIN_OSR   100
+
 /* The plan of what specializations to produce. */
 struct MVMSpeshPlan {
     /* List of planned specializations. */
@@ -5,6 +18,9 @@ struct MVMSpeshPlan {
 
     /* Number of planned specializations. */
     MVMuint32 num_planned;
+
+    /* The number of specialization plans space is allocated for. */
+    MVMuint32 alloc_planned;
 };
 
 /* Kinds of specializations we might decide to produce. */

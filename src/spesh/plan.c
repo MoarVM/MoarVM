@@ -1,8 +1,44 @@
 #include "moar.h"
 
+/* Adds a planned specialization. */
+void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlannedKind kind,
+                 MVMStaticFrame *sf, MVMSpeshStatsByCallsite *cs_stats) {
+    MVMSpeshPlanned *p;
+    if (plan->num_planned == plan->alloc_planned) {
+        plan->alloc_planned += 16;
+        plan->planned = MVM_realloc(plan->planned,
+            plan->alloc_planned * sizeof(MVMSpeshPlanned));
+    }
+    p = &(plan->planned[plan->num_planned++]);
+    p->kind = kind;
+    p->sf = sf;
+    p->cs_stats = cs_stats;
+    p->type_tuple = NULL;
+    p->type_stats = NULL;
+    p->num_type_stats = 0;
+}
+
+/* Considers the statistics of a given callsite + static frame pairing and
+ * plans specializations to produce for it. */
+void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
+                 MVMSpeshStatsByCallsite *by_cs) {
+    if (by_cs->hits >= MVM_SPESH_PLAN_CS_MIN || by_cs->osr_hits >= MVM_SPESH_PLAN_CS_MIN_OSR) {
+        /* This callsite is hot enough. */
+        /* TODO Consider type specializations; for now just plan certain */
+        add_planned(tc, plan, MVM_SPESH_PLANNED_CERTAIN, sf, by_cs);
+    }
+}
+
 /* Considers the statistics of a given static frame and plans specializtions
  * to produce for it. */
-void plan_for(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf) {
+void plan_for_sf(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf) {
+    MVMSpeshStats *ss = sf->body.spesh_stats;
+    if (ss->hits >= MVM_SPESH_PLAN_SF_MIN || ss->osr_hits >= MVM_SPESH_PLAN_SF_MIN_OSR) {
+        /* The frame is hot enough; look through its callsites. */
+        MVMuint32 i;
+        for (i = 0; i < ss->num_by_callsite; i++)
+            plan_for_cs(tc, plan, sf, &(ss->by_callsite[i]));
+    }
 }
 
 /* Forms a specialization plan from considering all frames whose statics have
@@ -13,7 +49,7 @@ MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_fr
     MVMint64 i;
     for (i = 0; i < updated; i++) {
         MVMObject *sf = MVM_repr_at_pos_o(tc, updated_static_frames, i);
-        plan_for(tc, plan, (MVMStaticFrame *)sf);
+        plan_for_sf(tc, plan, (MVMStaticFrame *)sf);
     }
     return plan;
 }
