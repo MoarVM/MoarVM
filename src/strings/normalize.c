@@ -555,12 +555,6 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
                 case MVM_UNICODE_PVALUE_GCB_ZWJ:
                 case MVM_UNICODE_PVALUE_GCB_GLUE_AFTER_ZWJ:
                     return 0;
-                if (MVM_unicode_codepoint_get_property_int(tc, a, MVM_UNICODE_PROPERTY_EMOJI)) {
-                    /* Not all emoji modifiers have E_BASE or E_BASE_GAZ, some cases we need to check the
-                     * Emoji_Modifier_Base property */
-                    return 0;
-                }
-
             }
             if ( b == UNI_CP_FEMALE_SIGN || b == UNI_CP_MALE_SIGN )
                 return 0;
@@ -593,6 +587,11 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
                  * we don't save state so can't support this now
                  *case MVM_UNICODE_PVALUE_GCB_EXTEND:
                  *    return 0; */
+            }
+            if (MVM_unicode_codepoint_get_property_int(tc, a, MVM_UNICODE_PROPERTY_EMOJI_MODIFIER_BASE)) {
+                /* Not all emoji modifiers have E_BASE or E_BASE_GAZ, some cases we need to check the
+                 * Emoji_Modifier_Base property */
+                return 0;
             }
             break;
         /* Don't break before spacing marks. */
