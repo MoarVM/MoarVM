@@ -336,8 +336,10 @@ static MVMint64 ccc_old(MVMThreadContext *tc, MVMCodepoint cp) {
     if (cp < MVM_NORMALIZE_FIRST_NONZERO_CCC) {
         return 0;
     }
-    const char *ccc_str = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS);
-    return !ccc_str || strlen(ccc_str) > 3 ? 0 : fast_atoi(ccc_str);
+    else {
+        const char *ccc_str = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS);
+        return !ccc_str || strlen(ccc_str) > 3 ? 0 : fast_atoi(ccc_str);
+    }
 }
 /* Gets the canonical combining class for a codepoint. Does a shortcut
  * since CCC is stored as a string property, though because they are all sorted
