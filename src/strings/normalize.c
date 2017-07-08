@@ -525,17 +525,6 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
     if (a == 0x0D || b == 0x0D)
         return 1;
 
-    /* Hangul. Avoid property lookup with a couple of quick range checks. */
-    if (maybe_hangul(a) && maybe_hangul(b)) {
-        if (GCB_a == MVM_UNICODE_PVALUE_GCB_L)
-            return !(GCB_b == MVM_UNICODE_PVALUE_GCB_L  || GCB_b == MVM_UNICODE_PVALUE_GCB_V ||
-                     GCB_b == MVM_UNICODE_PVALUE_GCB_LV || GCB_b == MVM_UNICODE_PVALUE_GCB_LVT);
-        else if (GCB_a == MVM_UNICODE_PVALUE_GCB_LV    || GCB_a == MVM_UNICODE_PVALUE_GCB_V)
-            return !(GCB_b == MVM_UNICODE_PVALUE_GCB_V || GCB_b == MVM_UNICODE_PVALUE_GCB_T);
-        else if (GCB_a == MVM_UNICODE_PVALUE_GCB_LVT || GCB_a == MVM_UNICODE_PVALUE_GCB_T)
-            return !(GCB_b == MVM_UNICODE_PVALUE_GCB_T);
-    }
-
     switch (GCB_a) {
         case MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR:
             if (2 <= norm->regional_indicator) {
@@ -578,6 +567,21 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
                 if ( b == UNI_CP_FEMALE_SIGN || b == UNI_CP_MALE_SIGN )
                     return 0;
             }
+            break;
+        case MVM_UNICODE_PVALUE_GCB_L:
+            if (GCB_b == MVM_UNICODE_PVALUE_GCB_L  || GCB_b == MVM_UNICODE_PVALUE_GCB_V ||
+                     GCB_b == MVM_UNICODE_PVALUE_GCB_LV || GCB_b == MVM_UNICODE_PVALUE_GCB_LVT)
+                return 0;
+            break;
+        case MVM_UNICODE_PVALUE_GCB_LV:
+        case MVM_UNICODE_PVALUE_GCB_V:
+            if (GCB_b == MVM_UNICODE_PVALUE_GCB_V || GCB_b == MVM_UNICODE_PVALUE_GCB_T)
+                return 0;
+            break;
+        case MVM_UNICODE_PVALUE_GCB_LVT:
+        case MVM_UNICODE_PVALUE_GCB_T:
+            if (GCB_b == MVM_UNICODE_PVALUE_GCB_T)
+                return 0;
             break;
     }
     switch (GCB_b) {
