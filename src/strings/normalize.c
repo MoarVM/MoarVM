@@ -558,6 +558,15 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
             }
             if ( b == UNI_CP_FEMALE_SIGN || b == UNI_CP_MALE_SIGN )
                 return 0;
+            /* Don't break after ZWJ for Emoji property characters that have
+             * GCB=Other. This is *not* a unicode text segmentation rule but
+             * is needed to not break inside Emoji sequences. As the rule to
+             * not break in Emoji sequences is specified by Unicode to need
+             * customization to perform properly. */
+            if (GCB_b == MVM_UNICODE_PVALUE_GCB_OTHER
+            && 127 < b /* Numbers and # have property Emoji. So make sure we're not in ASCII range */
+            && MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_EMOJI) )
+                return 0;
         case MVM_UNICODE_PVALUE_GCB_E_MODIFIER:
             if (MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_EMOJI_MODIFIER_BASE)) {
                 /* Don't break after ZWJ if it's an Emoji Sequence.
