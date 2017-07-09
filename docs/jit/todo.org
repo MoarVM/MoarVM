@@ -55,18 +55,39 @@ done:
     ret
 #+END_SRC
 
-But this uses rcx, rax, rdi and rsi.
+There are three things to do:
 
+- Integrate this in the build system. clang and gcc can build this
+  just fine (clang is ... whiney about comment syntax).  Microsoft
+  has: [[https://docs.microsoft.com/en-us/cpp/assembler/masm/masm-for-x64-ml64-exe][ml64]]. It also supports intel syntax. It can be a bit fuzzy
+  about directives. I don't want to ask our users to install another
+  assembler, but what I can do is use the C preprocessor to smoothen
+  out the differences (with $(CC) -E or whatever is the equivalent for
+  windows).
+- Figure out where we need it. As far as I can tell, this is separate
+  from the jit_entry_label thing, and we will never *set* the
+  jit_entry_label with the result of this value, as that might lead to
+  a jump right behind the handler, and in the case of a THROWISH_POST,
+  an infinite loop. Indeed throwish_pre and throwish_post don't change.
+  - src/exceptions.c: search_frame_handlers (we compare the current
+    jit label, but we're interested in the current position); other
+    than that, the only updates are to the goto_handlers, and/or
+    setting the resum labels, but that only ever happens with
+    throwobj, and that one is explicitly throwish anyway, so the
+    jit_entry_label will be set correct.y
+  - src/core/frame.c: assignments from predefined labels, but, also,
+    MVM_frame_find_contextual_by_name, which uses it as a location
+    marker. For frames higher in the callstack, that is correct,
+    though, so we need to distinguish the top frame from the rest.
+  - src/spesh/deopt.c: for upper frames, we use jit_entry_label as
+    current location marker.... which is correct as it relies on exact
+    matches, and anything invoking anything that could deopt_all must
+    set the label anyway.
+- Finally, configure our toolchain so they have
+  -fno-omit-frame-pointer portably, this is spelled [[https://msdn.microsoft.com/en-us/library/2kxx5t2c.aspx][/Oy]] in microsoft
+  land.
 
-
-The only thing to do is to:
-
-
-* Generalized 3-op to two-op conversion
-
-Already implemented for direct-memory binary ops, but needs to be
-extended to take into account indirect-access ops and memory base +
-indexed ops.
+This doesn't have to start in the expr JIT though.
 
 * Maintain memory backed positions
 
@@ -81,6 +102,12 @@ stored to the local value buffer anyway.
 
 There are two classes of such values:
 There is no need to ever spill such values to memory.
+
+* Generalized 3-op to two-op conversion
+
+Already implemented for direct-memory binary ops, but needs to be
+extended to take into account indirect-access ops and memory base +
+indexed ops.
 
 * Don't spill-and-load directly between definition and use
 * 'Optimistic' insertion of STORE
@@ -98,10 +125,13 @@ Involves
     as the node index of the last definition of a value (this is
     actually easy)
 
-* We 'retry' setting up the entire tree for something we couldn't compile
+* Better template validation
 
-We don't communicate non-completion to the 'driver' process.
-I think that's wasteful.
+Like, DOV taking non-void things...  This should not crash at runtime,
+it should crash at compile time.
+
+Challenge is to specify the information in a way that the expr
+template compiler (perl) and the expr tree processing code can use.
 
 * Fix S-EXPR parser for tile list
 
@@ -109,6 +139,11 @@ I think it currently counts balancing parentheses, and it doesn't
 always work when the last line doesn't end with a line. And, it
 doesn't support strings. So we should probably fix that with a proper
 parser.
+
+* DONE We 'retry' setting up the entire tree for something we couldn't compile
+
+We don't communicate non-completion to the 'driver' process.
+I think that's wasteful.
 
 * DONE Inlining problem
 
