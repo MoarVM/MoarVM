@@ -3,7 +3,7 @@
 #define MVM_DEBUG_STRANDS 0
 
 /* Max value possible for MVMuint32 MVMStringBody.num_graphs */
-#define MAX_GRAPHEMES     0xFFFFFFFF
+#define MAX_GRAPHEMES     0xFFFFFFFFLL
 
 #if MVM_DEBUG_STRANDS
 static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
@@ -559,9 +559,9 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
     if (count == 1)
         return a;
     if (count < 0)
-        MVM_exception_throw_adhoc(tc, "repeat count (%"PRId64") cannot be negative", count);
+        MVM_exception_throw_adhoc(tc, "Repeat count (%"PRId64") cannot be negative", count);
     if (count > MAX_GRAPHEMES)
-        MVM_exception_throw_adhoc(tc, "repeat count (%"PRId64") cannot be greater than max allowed number of graphemes %u", count, MAX_GRAPHEMES);
+        MVM_exception_throw_adhoc(tc, "Repeat count (%"PRId64") cannot be greater than max allowed number of graphemes %u", count, MAX_GRAPHEMES);
 
     /* If input string is empty, repeating it is empty. */
     agraphs = MVM_string_graphs_nocheck(tc, a);
