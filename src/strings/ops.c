@@ -572,8 +572,8 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
     total_graphs = (MVMuint64)agraphs * (MVMuint64)count;
     if (total_graphs > MAX_GRAPHEMES)
         MVM_exception_throw_adhoc(tc,
-            "Can't repeat string, required number of graphemes %"PRIu64" greater than max allowed of %u",
-             total_graphs, MAX_GRAPHEMES);
+            "Can't repeat string, required number of graphemes (%"PRIu64" * %"PRIu64") greater than max allowed of %u",
+             agraphs, count, MAX_GRAPHEMES);
 
     /* Now build a result string with the repetition set. */
     MVMROOT(tc, a, {
