@@ -2044,7 +2044,7 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
 /* Turns a codepoint into a string. If required uses the normalizer to ensure
  * that we get a valid NFG string (NFG is a superset of NFC, and singleton
  * decompositions exist). */
-MVMString * MVM_string_chr(MVMThreadContext *tc, MVMCodepoint cp) {
+MVMString * MVM_string_chr(MVMThreadContext *tc, MVMint64 cp) {
     MVMString *s;
     MVMGrapheme32 g;
 
