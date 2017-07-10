@@ -270,7 +270,7 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *
 
     /* brute force for now. horrible, yes. halp. */
     while (index <= H_graphs - n_graphs) {
-        if (MVM_string_substrings_equal_nocheck(tc, needle, 0, n_graphs, Haystack, index)) {
+        if (string_equal_at_ignore_case_INTERNAL_loop(tc, Haystack, needle, index, H_graphs, n_graphs, 0, 0) != -1) {
             return (MVMint64)index;
         }
         index++;
@@ -664,7 +664,7 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
  * MVMStringIndex in length, we could have some weird results. */
 
 /* ignoremark is 0 for normal operation and 1 for ignoring diacritics */
-MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle_fc, MVMint64 H_start, MVMint64 H_graphs, MVMint64 n_fc_graphs, int ignoremark) {
+MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle_fc, MVMint64 H_start, MVMint64 H_graphs, MVMint64 n_fc_graphs, int ignoremark, int ignorecase) {
     MVMuint32 H_fc_cps;
     /* An additional needle offset which is used only when codepoints expand
      * when casefolded. The offset is the number of additional codepoints that
@@ -675,7 +675,10 @@ MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadCo
     for (i = 0; i + H_start < H_graphs && i + n_offset < n_fc_graphs; i++) {
         const MVMCodepoint* H_result_cps;
         H_g = MVM_string_get_grapheme_at_nocheck(tc, Haystack, H_start + i);
-        if (H_g >= 0 ) {
+        if (!ignorecase) {
+            H_fc_cps = 0;
+        }
+        else if (H_g >= 0) {
             /* For codeponits we can get the case change directly */
             H_fc_cps = MVM_unicode_get_case_change(tc, H_g, MVM_unicode_case_change_type_fold, &H_result_cps);
         }
@@ -744,7 +747,7 @@ static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Hay
         needle_fc = MVM_string_fc(tc, needle);
     });
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
-    H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, Haystack, needle_fc, H_offset, H_graphs, n_fc_graphs, ignoremark);
+    H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, Haystack, needle_fc, H_offset, H_graphs, n_fc_graphs, ignoremark, 1);
     if (H_expansion >= 0)
         return H_graphs + H_expansion - H_offset >= n_fc_graphs  ? 1 : 0;
     return 0;
@@ -784,7 +787,7 @@ static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haysta
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
     /* brute force for now. horrible, yes. halp. */
     while (index <= H_graphs) {
-        H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, Haystack, needle_fc, index, H_graphs, n_fc_graphs, ignoremark);
+        H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, Haystack, needle_fc, index, H_graphs, n_fc_graphs, ignoremark, 1);
         if (H_expansion >= 0)
             return H_graphs + H_expansion - index >= n_fc_graphs  ? (MVMint64)index : -1;
         index++;
