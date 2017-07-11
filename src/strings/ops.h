@@ -98,4 +98,3 @@ MVMint64 MVM_string_find_not_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMSt
 MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name);
 MVMString * MVM_string_chr(MVMThreadContext *tc, MVMint64 cp);
 void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s);
-MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle_fc, MVMint64 H_start, MVMint64 H_graphs, MVMint64 n_fc_graphs, int ignoremark, int ignorecase);
