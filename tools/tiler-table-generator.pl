@@ -362,7 +362,8 @@ if ($TESTING) {
 
 # Collect rules from the grammar
 my $parser = sexpr->parser($input);
-while (my $tree = $parser->read) {
+
+while (my $tree = $parser->parse) {
     my $keyword = shift @$tree;
     if ($keyword eq 'tile:') {
         # (tile: name pattern symbol cost)

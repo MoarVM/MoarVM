@@ -133,7 +133,7 @@ it should crash at compile time.
 Challenge is to specify the information in a way that the expr
 template compiler (perl) and the expr tree processing code can use.
 
-* Fix S-EXPR parser for tile list
+* DONE Fix S-EXPR parser for tile list
 
 I think it currently counts balancing parentheses, and it doesn't
 always work when the last line doesn't end with a line. And, it

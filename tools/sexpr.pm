@@ -1,71 +1,110 @@
 package sexpr;
 use strict;
+use warnings;
 
 # declare keyword syntax regex
-my $keyword = qr/^[&\$^,]?[\w\.\[\]_:\*]+[!]?/;
+my $tokenize = qr/
+    \A
+    (?<open>\() |
+    (?<close>\)) |
+    (?<space>\s+) |
+    (?<comment>\#.+) |
+    (?<string>\".*?") |
+    (?<word>[^\s\(\)\#"']+)
+/x;
 
 sub parser {
     my ($class, $input) = @_;
     return bless {
         input => $input,
         buffer => '',
+        token => undef,
+        match => undef,
         macros => {},
     }, $class;
 }
 
-sub read {
+sub empty {
     my $self = shift;
-    my $file = $self->{input};
-    my $expr = $self->{buffer};
-    my ($open, $close) = (0, 0);
-    while (!eof($file)) {
-        my $line = <$file>;
-        next if $line =~ m/^#|^\s*$/;
-        $expr  .= $line;
-        $open   = $expr =~ tr/(//;
-        $close  = $expr =~ tr/)//;
-        last if ($open > 0) && ($open == $close);
+    length($self->{buffer}) == 0 and eof($self->{input});
+}
+
+sub current {
+    my $self = shift;
+    unless (length($self->{buffer}) or eof($self->{input})) {
+        $self->{buffer} = readline($self->{input});
     }
-    die "End of input with unclosed template" if $open > $close;
-    my ($tree, $rest) = $self->parse($expr);
-    $self->{buffer} = $rest;
-    return $tree;
+    $self->{buffer};
+}
+
+
+sub token {
+    my $self = shift;
+    my $line = $self->current;
+    # cache token
+    return @$self{'token','match'} if $self->{token};
+    return unless length($line);
+    return unless $line =~ $tokenize;
+    @$self{'token','match'} = %+;
+}
+
+sub _shift {
+    my ($self) = @_;
+    my $length = length($self->{match});
+    @$self{'token','match'} = (undef,undef);
+    substr($self->{buffer}, 0, $length, '');
+}
+
+sub expect {
+    my ($self, $expect) = @_;
+    my ($token, $match) = $self->token;
+    die "Got $token but expected $expect" unless $expect eq $token;
+    $self->_shift;
+}
+
+sub peek {
+    my ($self, $expect) = @_;
+    my ($token, $match) = $self->token or return;
+    return $match if $token eq $expect;
+}
+
+sub skip {
+    my ($self, @possible) = @_;
+    my %check = map { $_ => 1 } @possible;
+    while (my ($token, $match) = $self->token) {
+        last unless $check{$token};
+        $self->_shift;
+    }
 }
 
 sub parse {
-    my ($self, $expr) = @_;
-    my $tree = [];
-    # consume initial opening parenthesis
-    return (undef, $expr) unless $expr =~ m/^\s*\(/;
-    $expr = substr($expr, $+[0]);
-    while ($expr) {
-        # remove initial space
-        $expr =~ s/^\s*//;
-        if (substr($expr, 0, 1) eq '(') {
-            # descend on opening parenthesis
-            my ($child, $rest) = $self->parse($expr);
-            $expr = $rest;
-            push @$tree, $child;
-        } elsif (substr($expr, 0, 1) eq ')') {
-            # ascend on closing parenthesis
-            $expr = substr $expr, 1;
-            last;
-        } elsif ($expr =~ m/$keyword/) {
-            # consume keyword
-            push @$tree, substr($expr, $-[0], $+[0] - $-[0]);
-            $expr = substr $expr, $+[0];
+    my $self = shift;
+    $self->skip('comment', 'space');
+    return if $self->empty;
+    $self->expect('open');
+    my @expr;
+    until ($self->peek('close')) {
+        die "Could not continue reading" if $self->empty;
+        my ($token, $what) = $self->token or
+            die "Could not read a token";
+        if ($token eq 'word' or $token eq 'string') {
+            push @expr, $self->_shift;
+        } elsif ($token eq 'open')  {
+            push @expr, $self->parse;
         } else {
-            die "Could not parse $expr";
+            $self->_shift;
         }
     }
-    if (@$tree && substr($tree->[0], 0, 1) eq '^') {
-        if (defined $self->{macros}->{$tree->[0]}) {
-            $tree = apply_macro($self->{macros}->{$tree->[0]}, $tree);
+    $self->_shift;
+    if (@expr and $expr[0] =~ m/\A\^/) {
+        my $macro = $self->{macros}{$expr[0]}; 
+        if (defined $macro) {
+            @expr = @{apply_macro($macro, \@expr)};
         } else {
-            die "Attempted to invoke undefined macro $tree->[0]";
+            die "Attempt to invoke undefined macro by name: $expr[0]";
         }
     }
-    return ($tree, $expr);
+    return \@expr;
 }
 
 sub decl_macro {
