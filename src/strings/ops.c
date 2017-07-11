@@ -767,8 +767,8 @@ static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haysta
     MVMint64 return_val = -1;
     MVM_string_check_arg(tc, Haystack, ignoremark ? "index ignore case ignore mark search target" : "index ignore case search target");
     MVM_string_check_arg(tc, needle,   ignoremark ? "index ignore case ignore mark search term"   : "index ignore case search term");
-    H_graphs = MVM_string_graphs(tc, Haystack);
-    n_graphs = MVM_string_graphs(tc, needle);
+    H_graphs = MVM_string_graphs_nocheck(tc, Haystack);
+    n_graphs = MVM_string_graphs_nocheck(tc, needle);
     if (!n_graphs)
         return start <= H_graphs ? start : -1; /* Empty string is in any other string */
     if (!H_graphs)
@@ -834,7 +834,7 @@ MVMGrapheme32 MVM_string_ord_basechar_at(MVMThreadContext *tc, MVMString *s, MVM
 
     MVM_string_check_arg(tc, s, "ord_basechar_at");
 
-    agraphs = MVM_string_graphs(tc, s);
+    agraphs = MVM_string_graphs_nocheck(tc, s);
     if (offset < 0 || offset >= agraphs)
         return -1;  /* fixes RT #126771 */
 
@@ -858,7 +858,7 @@ MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVM_string_check_arg(tc, b, "equal");
     if (a == b)
         return 1;
-    if (MVM_string_graphs(tc, a) != MVM_string_graphs(tc, b))
+    if (MVM_string_graphs_nocheck(tc, a) != MVM_string_graphs_nocheck(tc, b))
         return 0;
     return MVM_string_equal_at(tc, a, b, 0);
 }
@@ -874,7 +874,7 @@ MVMint64 MVM_string_have_at(MVMThreadContext *tc, MVMString *a,
         return 0;
     if (length == 0)
         return 1;
-    if (starta + length > MVM_string_graphs(tc, a) || startb + length > MVM_string_graphs(tc, b))
+    if (starta + length > MVM_string_graphs_nocheck(tc, a) || startb + length > MVM_string_graphs_nocheck(tc, b))
         return 0;
 
     return MVM_string_substrings_equal_nocheck(tc, a, starta, length, b, startb);
@@ -886,7 +886,7 @@ MVMint64 MVM_string_get_grapheme_at(MVMThreadContext *tc, MVMString *a, MVMint64
 
     MVM_string_check_arg(tc, a, "grapheme_at");
 
-    agraphs = MVM_string_graphs(tc, a);
+    agraphs = MVM_string_graphs_nocheck(tc, a);
 
     if (index < 0 || index >= agraphs)
         MVM_exception_throw_adhoc(tc, "Invalid string index: max %"PRId32", got %"PRId64,
@@ -916,7 +916,7 @@ static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGra
 static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 type, char *error) {
     MVMint64 sgraphs;
     MVM_string_check_arg(tc, s, error);
-    sgraphs = MVM_string_graphs(tc, s);
+    sgraphs = MVM_string_graphs_nocheck(tc, s);
     if (sgraphs) {
         MVMString *result;
         MVMGraphemeIter gi;
@@ -1138,7 +1138,7 @@ MVMObject * MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMStri
     MVMROOT(tc, buf, {
     MVMROOT(tc, s, {
         const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, enc_name);
-        encoded = (MVMuint8 *)MVM_string_encode(tc, s, 0, MVM_string_graphs(tc, s), &output_size,
+        encoded = (MVMuint8 *)MVM_string_encode(tc, s, 0, MVM_string_graphs_nocheck(tc, s), &output_size,
             encoding_flag, replacement, 0);
     });
     });
