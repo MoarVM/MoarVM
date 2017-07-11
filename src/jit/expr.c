@@ -126,7 +126,7 @@ static MVMint32 MVM_jit_expr_wrap_guard(MVMThreadContext *tc, MVMJitExprTree *tr
 
 static MVMint32 MVM_jit_expr_add_label(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 label) {
     MVMint32 num = tree->nodes_num;
-    MVMJitExprNode template[] = { MVM_JIT_CONST, label, 4, MVM_JIT_LABEL, 0, MVM_JIT_MARK, 3 };
+    MVMJitExprNode template[] = { MVM_JIT_LABEL, label, MVM_JIT_MARK, 0 };
     MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(template[0]));
     return num;
 }
@@ -162,6 +162,7 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
 
     MVMJitExprNode template[]  = { MVM_JIT_CONST, 0, 0 };
     MVMint32 num               = tree->nodes_num;
+    MVMint32 size              = 3;
     switch(info & MVM_operand_type_mask) {
     case MVM_operand_int8:
         template[1] = opr.lit_i8;
@@ -199,8 +200,9 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
         template[2] = sizeof(MVMuint32);
         break;
     case MVM_operand_ins:
+        template[0] = MVM_JIT_LABEL;
         template[1] = MVM_jit_label_before_bb(tc, tree->graph, opr.ins_bb);
-        template[2] = sizeof(MVMint32);
+        size        = 2;
         break;
     case MVM_operand_callsite:
         template[1] = opr.callsite_idx;
@@ -213,7 +215,7 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
     default:
         MVM_oops(tc, "Can't add constant for operand type %d\n", (info & MVM_operand_type_mask) >> 3);
     }
-    MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
+    MVM_VECTOR_APPEND(tree->nodes, template, size);
     return num;
 }
 

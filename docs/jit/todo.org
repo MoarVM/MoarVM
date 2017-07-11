@@ -133,6 +133,23 @@ it should crash at compile time.
 Challenge is to specify the information in a way that the expr
 template compiler (perl) and the expr tree processing code can use.
 
+* DONE Flatten label
+
+Currently we have (label (const ...))
+and (branch (label (const ...)))
+and (mark (label (const ...)))
+
+and the const is really redundant.
+
+** DONE Change expr_ops.h
+
+NB: label really returns a register now.
+
+** DONE Change core.expr
+** DONE Change tiles
+** DONE Change expr.c
+Both add_label and add_const
+
 * DONE Fix S-EXPR parser for tile list
 
 I think it currently counts balancing parentheses, and it doesn't

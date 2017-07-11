@@ -53,7 +53,8 @@
     _(IF, 3, 0, REG, NO_CAST),    \
     _(IFV, 3, 0, VOID, NO_CAST), \
     _(BRANCH, 1, 0, VOID, NO_CAST), \
-    _(LABEL, 1, 0, VOID, NO_CAST),  \
+    _(LABEL, 0, 1, REG, NO_CAST),  \
+    _(MARK, 1, 0, VOID, NO_CAST), \
     /* special control operators */ \
      _(INVOKISH, 1, 0, VOID, NO_CAST), \
      _(THROWISH, 1, 0, VOID, NO_CAST), \
@@ -63,7 +64,6 @@
     _(ARGLIST, -1, 0, C_ARGS, NO_CAST), \
     _(CARG, 1, 1, VOID, NO_CAST),     \
     /* special constrol structures */ \
-    _(MARK, 1, 0, VOID, NO_CAST), \
     _(GUARD, 1, 2, VOID, NO_CAST),  \
     /* interpreter special variables */ \
     _(TC, 0, 0, REG, NO_CAST), \

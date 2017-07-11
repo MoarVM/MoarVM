@@ -85,23 +85,21 @@
 (template: unless_i
     (when
         (zr $0)
-        (branch (label $1)
-    )))
+        (branch $1)))
 
 (template: if_i
     (when
         (nz $0)
-        (branch (label $1)
-    )))
+        (branch $1)))
 
 (template: ifnonnull
     (when (all 2
               (nz $0) (ne $0 (^vmnull)))
-        (branch (label $1))))
+        (branch $1)))
 
-(template: goto (branch (label $0)))
+(template: goto (branch $0))
 
-(macro: ^exit () (branch (label (const branch_exit int_sz))))
+(macro: ^exit () (branch (label branch_exit)))
 
 (macro: ^p6obody (,a) (let: (($replace (^getf ,a MVMP6opaque body.replaced)))
                       (if (nz $replace)
