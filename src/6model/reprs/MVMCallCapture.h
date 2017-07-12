@@ -1,6 +1,5 @@
 /* Is this a capture that refers to the args area of an existing frame, or
  * a saved copy of a frame's args area? */
-#define MVM_CALL_CAPTURE_MODE_USE   1
 #define MVM_CALL_CAPTURE_MODE_SAVE  2
 
 /* Representation for a context in the VM. Holds an MVMFrame. */
