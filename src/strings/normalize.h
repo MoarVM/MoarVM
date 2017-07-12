@@ -186,6 +186,7 @@ MVM_STATIC_INLINE MVMint32 fast_atoi( const char * dec_str ) {
     }
     return value;
 }
+MVMint32 normalize_should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b, MVMNormalizer *norm);
 
 /* Function for choosing the appropriate line-ending grapheme depending on if
  * newline translation is enabled. */

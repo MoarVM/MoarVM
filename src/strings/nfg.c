@@ -367,26 +367,36 @@ MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString 
     /* Get first and last graphemes of the strings. */
     last_a = MVM_string_get_grapheme_at_nocheck(tc, a, a->body.num_graphs - 1);
     first_b = MVM_string_get_grapheme_at_nocheck(tc, b, 0);
+    /* Put the case where we are adding a lf or crlf line ending */
+    if (first_b == '\n')
+        /* If we see \r + \n we need to renormalize. Otherwise we're good */
+        return last_a == '\r' ? 0 : 1;
 
     crlf = MVM_nfg_crlf_grapheme(tc);
-
+    /* As a control code we are always going to break if we see one of these.
+     * Check first_b for speeding up line endings */
+    if (first_b == crlf || last_a == crlf)
+        return 0;
     /* If either is synthetic other than "\r\n", assume we'll have to re-normalize
      * (this is an over-estimate, most likely). Note if you optimize this that it
-     * serves as a guard for what follows. */
-    if ((last_a != crlf && last_a < 0) || (first_b != crlf && first_b < 0))
-        return 0;
-    /* If last_a is \r and first_b is \n then we need to renormalize */
-    if (last_a == '\r' && first_b == '\n')
+     * serves as a guard for what follows.
+     * TODO get the last codepoint of last_a and first codepoint of first_b and call
+     * normalize_should_break */
+    if (last_a < 0 || first_b < 0)
         return 0;
 
     /* If both less than the first significant char for NFC we are good */
-    if (last_a < MVM_NORMALIZE_FIRST_SIG_NFC && first_b < MVM_NORMALIZE_FIRST_SIG_NFC)
+    if (last_a < MVM_NORMALIZE_FIRST_SIG_NFC && first_b < MVM_NORMALIZE_FIRST_SIG_NFC) {
         return 1;
-
-    /* If either fail quickcheck or have ccc > 0, and it does not have
-     * Grapheme_Cluster_Break=Control we have to re-normalize */
-    return (last_a == crlf || codepoint_GCB_Control(tc, last_a) || passes_quickcheck_and_zero_ccc(tc, last_a))
-        && (first_b == crlf || codepoint_GCB_Control(tc, first_b) || passes_quickcheck_and_zero_ccc(tc, first_b));
+    }
+    else {
+        /* Check if the two codepoints would be joined during normalization.
+         * Returns 1 if they would break and thus is safe under concat, or 0 if
+         * they would be joined. */
+        MVMNormalizer norm;
+        MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
+        return normalize_should_break(tc, last_a, first_b, &norm);
+    }
 }
 
 /* Initialize NFG subsystem. */
