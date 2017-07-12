@@ -92,21 +92,24 @@ MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f) {
 }
 
 MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
-    MVMObject *cc_obj = MVM_repr_alloc_init(tc, tc->instance->CallCapture);
-    MVMCallCapture *cc = (MVMCallCapture *)cc_obj;
+    MVMObject *cc_obj;
+    MVMROOT(tc, frame, {
+        MVMCallCapture *cc = (MVMCallCapture *)
+            (cc_obj = MVM_repr_alloc_init(tc, tc->instance->CallCapture));
 
-    /* Copy the arguments. */
-    MVMuint32 arg_size = frame->params.arg_count * sizeof(MVMRegister);
-    MVMRegister *args = MVM_malloc(arg_size);
-    memcpy(args, frame->params.args, arg_size);
+        /* Copy the arguments. */
+        MVMuint32 arg_size = frame->params.arg_count * sizeof(MVMRegister);
+        MVMRegister *args = MVM_malloc(arg_size);
+        memcpy(args, frame->params.args, arg_size);
 
-    /* Create effective callsite. */
-    cc->body.effective_callsite = MVM_args_proc_to_callsite(tc, &frame->params, &cc->body.owns_callsite);
+        /* Create effective callsite. */
+        cc->body.effective_callsite = MVM_args_proc_to_callsite(tc, &frame->params, &cc->body.owns_callsite);
 
-    /* Set up the call capture. */
-    cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
-    cc->body.apc  = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
-    MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
+        /* Set up the call capture. */
+        cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
+        cc->body.apc  = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
+        MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
+    });
     return cc_obj;
 }
 
