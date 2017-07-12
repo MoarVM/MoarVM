@@ -106,7 +106,6 @@ MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
         cc->body.effective_callsite = MVM_args_proc_to_callsite(tc, &frame->params, &cc->body.owns_callsite);
 
         /* Set up the call capture. */
-        cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
         cc->body.apc  = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
         MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
     });
@@ -861,7 +860,6 @@ void MVM_args_bind_failed(MVMThreadContext *tc) {
     cc->body.effective_callsite = MVM_args_proc_to_callsite(tc, &tc->cur_frame->params, &cc->body.owns_callsite);
 
     /* Set up the call capture. */
-    cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
     cc->body.apc  = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
     MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
 

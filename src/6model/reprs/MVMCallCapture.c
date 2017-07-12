@@ -27,7 +27,6 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     memcpy(args, src_body->apc->args, arg_size);
 
     dest_body->apc = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
-    dest_body->mode = MVM_CALL_CAPTURE_MODE_SAVE;
 
     if (src_body->owns_callsite) {
         dest_body->owns_callsite = 1;
@@ -45,20 +44,18 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     /* Only need to worry about the SAVE case, as the USE case will be marked by
      * the frame holding the args being marked. */
     MVMCallCaptureBody *body = (MVMCallCaptureBody *)data;
-    if (body->mode == MVM_CALL_CAPTURE_MODE_SAVE) {
-        MVMArgProcContext *ctx = body->apc;
-        MVMuint8  *flag_map = ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags;
-        MVMuint16  count = ctx->arg_count;
-        MVMuint16  i, flag;
-        for (i = 0, flag = 0; i < count; i++, flag++) {
-            if (flag_map[flag] & MVM_CALLSITE_ARG_NAMED) {
-                /* Current position is name, then next is value. */
-                MVM_gc_worklist_add(tc, worklist, &ctx->args[i].s);
-                i++;
-            }
-            if (flag_map[flag] & MVM_CALLSITE_ARG_STR || flag_map[flag] & MVM_CALLSITE_ARG_OBJ)
-                MVM_gc_worklist_add(tc, worklist, &ctx->args[i].o);
+    MVMArgProcContext *ctx = body->apc;
+    MVMuint8  *flag_map = ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags;
+    MVMuint16  count = ctx->arg_count;
+    MVMuint16  i, flag;
+    for (i = 0, flag = 0; i < count; i++, flag++) {
+        if (flag_map[flag] & MVM_CALLSITE_ARG_NAMED) {
+            /* Current position is name, then next is value. */
+            MVM_gc_worklist_add(tc, worklist, &ctx->args[i].s);
+            i++;
         }
+        if (flag_map[flag] & MVM_CALLSITE_ARG_STR || flag_map[flag] & MVM_CALLSITE_ARG_OBJ)
+            MVM_gc_worklist_add(tc, worklist, &ctx->args[i].o);
     }
 }
 
@@ -73,19 +70,17 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         MVM_free(ctx->body.effective_callsite->arg_flags);
         MVM_free(ctx->body.effective_callsite);
     }
-    if (ctx->body.mode == MVM_CALL_CAPTURE_MODE_SAVE) {
-        /* We made our own copy of the args buffer and processing context, so
-         * free them both. */
-        if (ctx->body.apc) {
-            if (ctx->body.apc->named_used) {
-                MVM_fixed_size_free(tc, tc->instance->fsa,
-                    ctx->body.apc->named_used_size,
-                    ctx->body.apc->named_used);
-                ctx->body.apc->named_used = NULL;
-            }
-            MVM_free(ctx->body.apc->args);
-            MVM_free(ctx->body.apc);
+    /* We made our own copy of the args buffer and processing context, so
+     * free them both. */
+    if (ctx->body.apc) {
+        if (ctx->body.apc->named_used) {
+            MVM_fixed_size_free(tc, tc->instance->fsa,
+                ctx->body.apc->named_used_size,
+                ctx->body.apc->named_used);
+            ctx->body.apc->named_used = NULL;
         }
+        MVM_free(ctx->body.apc->args);
+        MVM_free(ctx->body.apc);
     }
 }
 
