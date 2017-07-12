@@ -8,10 +8,6 @@ struct MVMCallCaptureBody {
      * the frame in question. For save mode, we allocate a fresh one. */
     MVMArgProcContext *apc;
 
-    /* The frame the ArgProcContext lives in, if we're in use mode. This
-     * ensures the frame stays alive long enough. */
-    MVMFrame *use_mode_frame;
-
     /* The effective MVMCallsite. This may be the original one, but in the
      * event of flattening will describe the flattened outcome. */
     MVMCallsite *effective_callsite;
