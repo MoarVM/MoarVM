@@ -76,11 +76,6 @@ struct MVMThreadContext {
     /* libuv event loop */
     uv_loop_t *loop;
 
-    /* The usecapture op can, without allocating, have a way to talk about the
-     * arguments of the current call. This is the (pre-thread) object that is
-     * used by that op. */
-    MVMObject *cur_usecapture;
-
     /* Linked list of exception handlers that we're currently executing, topmost
      * one first in the list. */
     MVMActiveHandler *active_handlers;
