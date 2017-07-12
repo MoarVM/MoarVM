@@ -516,7 +516,7 @@ static MVMint32 is_grapheme_prepend(MVMThreadContext *tc, MVMCodepoint cp) {
     return MVM_unicode_codepoint_get_property_int(tc, cp,
         MVM_UNICODE_PROPERTY_PREPENDED_CONCATENATION_MARK);
 }
-MVMint32 normalize_should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b, MVMNormalizer *norm) {
+MVMint32 MVM_unicode_normalize_should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b, MVMNormalizer *norm) {
     int GCB_a = MVM_unicode_codepoint_get_property_int(tc, a, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
     int GCB_b = MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
     /* Don't break between \r and \n, but otherwise break around \r. */
@@ -633,7 +633,7 @@ static void grapheme_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint3
         MVMint32 pos        = from;
         while (pos < to) {
             MVMint32 next_pos = pos + 1;
-            if (next_pos == to || normalize_should_break(tc, n->buffer[pos], n->buffer[next_pos], n)) {
+            if (next_pos == to || MVM_unicode_normalize_should_break(tc, n->buffer[pos], n->buffer[next_pos], n)) {
                 /* Last in buffer or next code point is a non-starter; turn
                  * sequence into a synthetic. */
                 MVMGrapheme32 g = MVM_nfg_codes_to_grapheme(tc, n->buffer + starterish, next_pos - starterish);

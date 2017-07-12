@@ -381,7 +381,7 @@ MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString 
      * (this is an over-estimate, most likely). Note if you optimize this that it
      * serves as a guard for what follows.
      * TODO get the last codepoint of last_a and first codepoint of first_b and call
-     * normalize_should_break */
+     * MVM_unicode_normalize_should_break */
     if (last_a < 0 || first_b < 0)
         return 0;
 
@@ -395,7 +395,7 @@ MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString 
          * they would be joined. */
         MVMNormalizer norm;
         MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
-        return normalize_should_break(tc, last_a, first_b, &norm);
+        return MVM_unicode_normalize_should_break(tc, last_a, first_b, &norm);
     }
 }
 
