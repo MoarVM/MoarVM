@@ -41,8 +41,6 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
-    /* Only need to worry about the SAVE case, as the USE case will be marked by
-     * the frame holding the args being marked. */
     MVMCallCaptureBody *body = (MVMCallCaptureBody *)data;
     MVMArgProcContext *ctx = body->apc;
     MVMuint8  *flag_map = ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags;
