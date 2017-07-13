@@ -346,7 +346,7 @@ static MVMint64 ccc_old(MVMThreadContext *tc, MVMCodepoint cp) {
  * numerically it is ok to get the internal integer value as stored instead of
  * the string.
  * Returns 0 for Not_Reordered codepoints *and* CCC 0 codepoints */
-static MVMint64 relative_ccc(MVMThreadContext *tc, MVMCodepoint cp) {
+MVMint64 MVM_unicode_relative_ccc(MVMThreadContext *tc, MVMCodepoint cp) {
     if (cp < MVM_NORMALIZE_FIRST_NONZERO_CCC) {
         return 0;
     }
@@ -398,8 +398,8 @@ static void canonical_sort(MVMThreadContext *tc, MVMNormalizer *n, MVMint32 from
         MVMint32 i = from;
         reordered = 0;
         while (i < to - 1) {
-            MVMint64 cccA = relative_ccc(tc, n->buffer[i]);
-            MVMint64 cccB = relative_ccc(tc, n->buffer[i + 1]);
+            MVMint64 cccA = MVM_unicode_relative_ccc(tc, n->buffer[i]);
+            MVMint64 cccB = MVM_unicode_relative_ccc(tc, n->buffer[i + 1]);
             if (cccA > cccB && cccB > 0) {
                 MVMCodepoint tmp = n->buffer[i];
                 n->buffer[i] = n->buffer[i + 1];
@@ -417,11 +417,11 @@ static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint
     while (c_idx < to) {
         /* Search for the last non-blocked starter. */
         MVMint32 ss_idx = c_idx - 1;
-        MVMint32 c_ccc  = relative_ccc(tc, n->buffer[c_idx]);
+        MVMint32 c_ccc  = MVM_unicode_relative_ccc(tc, n->buffer[c_idx]);
         while (ss_idx >= from) {
             /* Make sure we don't go past a code point that blocks a starter
              * from the current character we're considering. */
-            MVMint32 ss_ccc = relative_ccc(tc, n->buffer[ss_idx]);
+            MVMint32 ss_ccc = MVM_unicode_relative_ccc(tc, n->buffer[ss_idx]);
             if (ss_ccc >= c_ccc && ss_ccc != 0)
                 break;
 
@@ -674,7 +674,7 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
 
     /* Do a quickcheck on the codepoint we got in and get its CCC. */
     qc_in  = passes_quickcheck(tc, norm, in);
-    ccc_in = relative_ccc(tc, in);
+    ccc_in = MVM_unicode_relative_ccc(tc, in);
     /* Fast cases when we pass quick check and what we got in has CCC = 0,
      * and it does not follow a prepend character. */
     if (qc_in && ccc_in == 0 && norm->prepend_buffer == 0) {
@@ -688,7 +688,7 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
              * so we're safe. */
             if (norm->buffer_end - norm->buffer_start == 1) {
                 MVMCodepoint maybe_result = norm->buffer[norm->buffer_start];
-                if (passes_quickcheck(tc, norm, maybe_result) && relative_ccc(tc, maybe_result) == 0) {
+                if (passes_quickcheck(tc, norm, maybe_result) && MVM_unicode_relative_ccc(tc, maybe_result) == 0) {
                     *out = norm->buffer[norm->buffer_start];
                     norm->buffer[norm->buffer_start] = in;
                     return 1;
