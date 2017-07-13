@@ -1661,13 +1661,13 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         /* tc->cur_frame->return_address = cur_op */
         | get_cur_op ARG1;
         | mov aword FRAME:TMP6->return_address, ARG1;
-        /* STABLE(code)->invoke(tc, code, capture->body.effective_callsite,
+        /* STABLE(code)->invoke(tc, code, capture->body.apc->effective_callsite,
            capture->body.apc->arg) */
         | mov ARG1, TC;
         | mov ARG3, WORK[capture];
         | mov ARG4, aword CAPTURE:ARG3->body.apc;
+        | mov ARG3, aword ARGCTX:ARG4->callsite;
         | mov ARG4, aword ARGCTX:ARG4->args;
-        | mov ARG3, aword CAPTURE:ARG3->body.effective_callsite;
         | mov FUNCTION, OBJECT:ARG2->st;
         | mov FUNCTION, STABLE:FUNCTION->invoke;
         | call FUNCTION;

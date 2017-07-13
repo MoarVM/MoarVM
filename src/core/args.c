@@ -88,12 +88,9 @@ MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
         MVMRegister *args = MVM_malloc(arg_size);
         memcpy(args, frame->params.args, arg_size);
 
-        /* Create effective callsite. */
-        cc->body.effective_callsite = MVM_args_copy_callsite(tc, &frame->params);
-
-        /* Set up the call capture. */
+        /* Set up the call capture, copying the callsite. */
         cc->body.apc  = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
-        MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
+        MVM_args_proc_init(tc, cc->body.apc, MVM_args_copy_callsite(tc, &frame->params), args);
     });
     return cc_obj;
 }

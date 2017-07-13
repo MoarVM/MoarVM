@@ -1,10 +1,6 @@
 /* Representation for an argument capture, with argument processing state. */
 struct MVMCallCaptureBody {
-    /* Argument processing context. */
     MVMArgProcContext *apc;
-
-    /* The callsite, which is always copied. */
-    MVMCallsite *effective_callsite;
 };
 struct MVMCallCapture {
     MVMObject common;

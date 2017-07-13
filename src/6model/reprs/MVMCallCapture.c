@@ -27,15 +27,14 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     memcpy(args, src_body->apc->args, arg_size);
 
     dest_body->apc = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
-    dest_body->effective_callsite = MVM_args_copy_callsite(tc, src_body->apc);
-    MVM_args_proc_init(tc, dest_body->apc, dest_body->effective_callsite, args);
+    MVM_args_proc_init(tc, dest_body->apc, MVM_args_copy_callsite(tc, src_body->apc), args);
 }
 
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMCallCaptureBody *body = (MVMCallCaptureBody *)data;
     MVMArgProcContext *ctx = body->apc;
-    MVMuint8  *flag_map = body->effective_callsite->arg_flags;
+    MVMuint8  *flag_map = body->apc->callsite->arg_flags;
     MVMuint16  count = ctx->arg_count;
     MVMuint16  i, flag;
     for (i = 0, flag = 0; i < count; i++, flag++) {
@@ -54,21 +53,19 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCallCapture *ctx = (MVMCallCapture *)obj;
     /* We made our own copy of the callsite, args buffer and processing
      * context, so free them all. */
-    if (ctx->body.effective_callsite)
-        MVM_free(ctx->body.effective_callsite->arg_flags);
-    MVM_free(ctx->body.effective_callsite);
     if (ctx->body.apc) {
-        if (ctx->body.apc->named_used) {
+        MVMCallsite *cs = ctx->body.apc->callsite;
+        if (cs)
+            MVM_free(cs->arg_flags);
+        MVM_free(cs);
+        if (ctx->body.apc->named_used)
             MVM_fixed_size_free(tc, tc->instance->fsa,
                 ctx->body.apc->named_used_size,
                 ctx->body.apc->named_used);
-            ctx->body.apc->named_used = NULL;
-        }
         MVM_free(ctx->body.apc->args);
         MVM_free(ctx->body.apc);
     }
 }
-
 
 static const MVMStorageSpec storage_spec = {
     MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
