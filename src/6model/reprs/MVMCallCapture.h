@@ -1,14 +1,10 @@
-/* Representation for a context in the VM. Holds an MVMFrame. */
+/* Representation for an argument capture, with argument processing state. */
 struct MVMCallCaptureBody {
-    /* Argument processing context. For use mode, it points to the context of
-     * the frame in question. For save mode, we allocate a fresh one. */
+    /* Argument processing context. */
     MVMArgProcContext *apc;
 
-    /* The effective MVMCallsite. This may be the original one, but in the
-     * event of flattening will describe the flattened outcome. */
+    /* The callsite, which is always copied. */
     MVMCallsite *effective_callsite;
-
-    MVMuint8 owns_callsite;
 };
 struct MVMCallCapture {
     MVMObject common;

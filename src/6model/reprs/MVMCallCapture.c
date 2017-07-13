@@ -27,15 +27,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     memcpy(args, src_body->apc->args, arg_size);
 
     dest_body->apc = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
-
-    if (src_body->owns_callsite) {
-        dest_body->owns_callsite = 1;
-        dest_body->effective_callsite = MVM_args_copy_callsite(tc, src_body->apc);
-    }
-    else {
-        dest_body->owns_callsite = 0;
-        dest_body->effective_callsite = src_body->effective_callsite;
-    }
+    dest_body->effective_callsite = MVM_args_copy_callsite(tc, src_body->apc);
     MVM_args_proc_init(tc, dest_body->apc, dest_body->effective_callsite, args);
 }
 
@@ -60,12 +52,11 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCallCapture *ctx = (MVMCallCapture *)obj;
-    if (ctx->body.owns_callsite) {
+    /* We made our own copy of the callsite, args buffer and processing
+     * context, so free them all. */
+    if (ctx->body.effective_callsite)
         MVM_free(ctx->body.effective_callsite->arg_flags);
-        MVM_free(ctx->body.effective_callsite);
-    }
-    /* We made our own copy of the args buffer and processing context, so
-     * free them both. */
+    MVM_free(ctx->body.effective_callsite);
     if (ctx->body.apc) {
         if (ctx->body.apc->named_used) {
             MVM_fixed_size_free(tc, tc->instance->fsa,

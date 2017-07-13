@@ -68,20 +68,6 @@ MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ct
     return res;
 }
 
-/* Turn an argument processing context into a callsite. In the case that no
- * flattening happened, this is the original call site. Otherwise, we make
- * one up. */
-MVMCallsite * MVM_args_proc_to_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint8 *owns_callsite) {
-    if (ctx->arg_flags) {
-        *owns_callsite = 1;
-        return MVM_args_copy_callsite(tc, ctx);
-    }
-    else {
-        *owns_callsite = 0;
-        return ctx->callsite;
-    }
-}
-
 MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f) {
     /* We used to try and avoid some GC churn by keeping one call capture per
      * thread that was mutated. However, its lifetime was difficult to manage,
@@ -103,7 +89,7 @@ MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
         memcpy(args, frame->params.args, arg_size);
 
         /* Create effective callsite. */
-        cc->body.effective_callsite = MVM_args_proc_to_callsite(tc, &frame->params, &cc->body.owns_callsite);
+        cc->body.effective_callsite = MVM_args_copy_callsite(tc, &frame->params);
 
         /* Set up the call capture. */
         cc->body.apc  = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
@@ -857,7 +843,7 @@ void MVM_args_bind_failed(MVMThreadContext *tc) {
     memcpy(args, tc->cur_frame->params.args, arg_size);
 
     /* Create effective callsite. */
-    cc->body.effective_callsite = MVM_args_proc_to_callsite(tc, &tc->cur_frame->params, &cc->body.owns_callsite);
+    cc->body.effective_callsite = MVM_args_copy_callsite(tc, &tc->cur_frame->params);
 
     /* Set up the call capture. */
     cc->body.apc  = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
