@@ -27,7 +27,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     memcpy(args, src_body->apc->args, arg_size);
 
     dest_body->apc = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
-    MVM_args_proc_init(tc, dest_body->apc, MVM_args_copy_callsite(tc, src_body->apc), args);
+    MVM_args_proc_init(tc, dest_body->apc,
+        MVM_args_copy_uninterned_callsite(tc, src_body->apc), args);
 }
 
 /* Adds held objects to the GC worklist. */
@@ -55,9 +56,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
      * context, so free them all. */
     if (ctx->body.apc) {
         MVMCallsite *cs = ctx->body.apc->callsite;
-        if (cs)
+        if (cs && !cs->is_interned) {
             MVM_free(cs->arg_flags);
-        MVM_free(cs);
+            MVM_free(cs);
+        }
         if (ctx->body.apc->named_used)
             MVM_fixed_size_free(tc, tc->instance->fsa,
                 ctx->body.apc->named_used_size,

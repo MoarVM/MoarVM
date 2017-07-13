@@ -42,6 +42,7 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     }
 }
 
+/* Make a copy of the callsite. */
 MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     MVMCallsite      *res   = MVM_calloc(1, sizeof(MVMCallsite));
     MVMCallsiteEntry *flags = NULL;
@@ -68,6 +69,13 @@ MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ct
     return res;
 }
 
+/* Copy a callsite unless it is interned. */
+MVMCallsite * MVM_args_copy_uninterned_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
+    return ctx->callsite->is_interned && !ctx->arg_flags
+        ? ctx->callsite
+        : MVM_args_copy_callsite(tc, ctx);
+}
+
 MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f) {
     /* We used to try and avoid some GC churn by keeping one call capture per
      * thread that was mutated. However, its lifetime was difficult to manage,
@@ -90,7 +98,9 @@ MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
 
         /* Set up the call capture, copying the callsite. */
         cc->body.apc  = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
-        MVM_args_proc_init(tc, cc->body.apc, MVM_args_copy_callsite(tc, &frame->params), args);
+        MVM_args_proc_init(tc, cc->body.apc,
+            MVM_args_copy_uninterned_callsite(tc, &frame->params),
+            args);
     });
     return cc_obj;
 }
