@@ -43,7 +43,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMCallCaptureBody *body = (MVMCallCaptureBody *)data;
     MVMArgProcContext *ctx = body->apc;
-    MVMuint8  *flag_map = ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags;
+    MVMuint8  *flag_map = body->effective_callsite->arg_flags;
     MVMuint16  count = ctx->arg_count;
     MVMuint16  i, flag;
     for (i = 0, flag = 0; i < count; i++, flag++) {
@@ -60,11 +60,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCallCapture *ctx = (MVMCallCapture *)obj;
-    if (ctx->body.apc && ctx->body.effective_callsite != ctx->body.apc->callsite) {
-        MVM_free(ctx->body.effective_callsite->arg_flags);
-        MVM_free(ctx->body.effective_callsite);
-    }
-    else if (ctx->body.owns_callsite) {
+    if (ctx->body.owns_callsite) {
         MVM_free(ctx->body.effective_callsite->arg_flags);
         MVM_free(ctx->body.effective_callsite);
     }
