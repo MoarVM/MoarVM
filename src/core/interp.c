@@ -1405,6 +1405,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     tc->cur_frame->return_address = cur_op;
                     STABLE(code)->invoke(tc, code, cc->body.effective_callsite,
                         cc->body.apc->args);
+                    tc->cur_frame->invoked_call_capture = cobj;
                     goto NEXT;
                 }
                 else {
