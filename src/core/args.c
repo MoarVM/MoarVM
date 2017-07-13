@@ -828,29 +828,15 @@ static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *w
     MVM_gc_worklist_add(tc, worklist, &r->o);
 }
 void MVM_args_bind_failed(MVMThreadContext *tc) {
-    MVMObject   *bind_error;
     MVMRegister *res;
     MVMCallsite *inv_arg_callsite;
-    MVMFrame *cur_frame = tc->cur_frame;
 
-    /* Create a new call capture object. */
-    MVMObject *cc_obj = MVM_repr_alloc_init(tc, tc->instance->CallCapture);
-    MVMCallCapture *cc = (MVMCallCapture *)cc_obj;
-
-    /* Copy the arguments. */
-    MVMuint32 arg_size = tc->cur_frame->params.arg_count * sizeof(MVMRegister);
-    MVMRegister *args = MVM_malloc(arg_size);
-    memcpy(args, tc->cur_frame->params.args, arg_size);
-
-    /* Create effective callsite. */
-    cc->body.effective_callsite = MVM_args_copy_callsite(tc, &tc->cur_frame->params);
-
-    /* Set up the call capture. */
-    cc->body.apc  = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
-    MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
+    /* Capture arguments into a call capture, to pass off for analysis. */
+    MVMObject *cc_obj = MVM_args_save_capture(tc, tc->cur_frame);
 
     /* Invoke the HLL's bind failure handler. */
-    bind_error = MVM_hll_current(tc)->bind_error;
+    MVMFrame *cur_frame = tc->cur_frame;
+    MVMObject *bind_error = MVM_hll_current(tc)->bind_error;
     if (!bind_error)
         MVM_exception_throw_adhoc(tc, "Bind error occurred, but HLL has no handler");
     bind_error = MVM_frame_find_invokee(tc, bind_error, NULL);
