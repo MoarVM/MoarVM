@@ -104,7 +104,7 @@ void MVM_decoder_ensure_decoder(MVMThreadContext *tc, MVMObject *decoder, const 
 /* Checks and sets the decoder single-user sanity check flag. */
 static void enter_single_user(MVMThreadContext *tc, MVMDecoder *decoder) {
     if (!MVM_trycas(&(decoder->body.in_use), 0, 1))
-       MVM_exception_throw_adhoc(tc, "Deocder may not be used concurrently"); 
+       MVM_exception_throw_adhoc(tc, "Decoder may not be used concurrently"); 
 }
 
 /* Releases the decoder single-user sanity check flag. */
@@ -141,7 +141,7 @@ void MVM_decoder_configure(MVMThreadContext *tc, MVMDecoder *decoder,
 static MVMDecodeStream * get_ds(MVMThreadContext *tc, MVMDecoder *decoder) {
     MVMDecodeStream *ds = decoder->body.ds;
     if (!ds)
-        MVM_exception_throw_adhoc(tc, "Docder not yet configured");
+        MVM_exception_throw_adhoc(tc, "Decoder not yet configured");
     return ds;
 }
 
@@ -175,7 +175,7 @@ void MVM_decoder_set_separators(MVMThreadContext *tc, MVMDecoder *decoder, MVMOb
     }
 }
 
-/* Adds bytes to the deocde stream. */
+/* Adds bytes to the decode stream. */
 void MVM_decoder_add_bytes(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject *buffer) {
     MVMDecodeStream *ds = get_ds(tc, decoder);
     if (REPR(buffer)->ID == MVM_REPR_ID_VMArray) {
