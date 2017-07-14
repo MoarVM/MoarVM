@@ -4,7 +4,7 @@ Before merging the expression JIT, there are numerous standing issues
 to resolve, sorted by priority.
 
 
-* Stack walker for dynamic labels
+* Stack walker for current position
 
 Currently we mark the 'current position' in the JIT entry label at the
 start of every basic block, the start-and-end of frame handlers, and
@@ -28,29 +28,33 @@ foo: ; stack (from rsp) looks like: [label:]
      ret           ; rsp = []
 #+END_SRC
 
-On POSIX, arg 0 = rdi, arg 1 = rsi
-On linux, names are generally used as-is
-On Windows, arg0 = rcx, arg1 = rdx.
+- On POSIX, arg 0 = rdi, arg 1 = rsi, arg2 = rdx.
+- On Windows, arg0 = rcx, arg1 = rdx, arg2 = r8.
+- On linux, names are generally used as-is, mac wants them prefixed by an underscore.
 
+Desirable thing: limit the depth of stack walking to some reasonable number (say, 5 or so)
 
 #+BEGIN_SRC asm
 walk_stack_posix:
 _walk_stack_posix:
-    mov rcx, rdi
-    mov rdx, rsi
+    mov rcx, rdi ; base pointer
+    mov r8,  rdx ; maximum number of steps
+    mov rdx, rsi ; end pointer
 _walk_stack_win64:
     # rdi = base pointer, rsi = end pointer
-	push rbp
-    mov r8, rsp
+    push rbp
+    mov r9, rsp
 loop:
-    mov rax, qword ptr [r8+0x8]
-    mov r8, qword ptr [r8]
+    dec r8 ; counter
+    jz done
+    mov rax, qword ptr [r9+0x8]
+    mov r9, qword ptr [r9]
     cmp rax, rcx
     jl  loop
     cmp rax, rdx
     jg  loop
 done:
-    ## rax is now within range by definition
+    ## rax is now within range by definition, or, we're to deep
     pop rbp
     ret
 #+END_SRC
@@ -89,19 +93,6 @@ There are three things to do:
 
 This doesn't have to start in the expr JIT though.
 
-* Maintain memory backed positions
-
-Currently, when we need to spill a value, we always treat it as if it
-were a temporary, i.e. we store it to a *new* location in the local
-memory buffer. We increment the local memory buffer, too.  This is
-suboptimal for values that are not temporaries, i.e. values that are
-stored to the local value buffer anyway.
-
-+ stored to a local value
-+ directly retrieved from a local value
-
-There are two classes of such values:
-There is no need to ever spill such values to memory.
 
 * Generalized 3-op to two-op conversion
 
@@ -109,21 +100,34 @@ Already implemented for direct-memory binary ops, but needs to be
 extended to take into account indirect-access ops and memory base +
 indexed ops.
 
-* Don't spill-and-load directly between definition and use
-* 'Optimistic' insertion of STORE
+More to the point, I'd like this to be a restriction we can build into
+the allocator itself, so it doesn't need last-minute patchup.
 
-Involves delaying the insertion of STORE operations for generated
-expressions until the insertion of flush. (Currently inserted directly
-after being generated).
+* Spill reduction
+** Maintain memory backed positions
 
-Involves
-- iterating over currently active local variables
-- inserting a STORE
-- replacing the root referring to these variable generation with the
-  STORE root
-  - to do this efficiently, we need to maintain the root index as well
-    as the node index of the last definition of a value (this is
-    actually easy)
+ Currently, when we need to spill a value, we always treat it as if it
+ were a temporary, i.e. we store it to a *new* location in the local
+ memory buffer. We increment the local memory buffer, too.  This is
+ suboptimal for values that are not temporaries, i.e. values that are
+ stored to the local value buffer anyway.
+
+ + stored to a local value
+ + directly retrieved from a local value
+
+ There are two classes of such values:
+ There is no need to ever spill such values to memory.
+
+** Don't spill-and-load directly between definition and use
+
+** Don't spill constants
+
+- We can either do that as part of the optimizer, or as part of the
+  allocator, or both.
+- It is *simpler* to do it for the allocator (if a value we're
+  spilling has a single definition, and that definition is a constant,
+  copy it)
+- It might be more effective to do it in the expression optimizer
 
 * Better template validation
 
@@ -132,6 +136,59 @@ it should crash at compile time.
 
 Challenge is to specify the information in a way that the expr
 template compiler (perl) and the expr tree processing code can use.
+
+
+* DONE 'Optimistic' insertion of STORE
+
+Involves delaying the insertion of STORE operations for generated
+expressions until the insertion of flush. (Currently inserted directly
+after being generated).
+
+Currently, we do the following:
+
++ Store node for a 'generated' or 'loaded' value in computed[]
++ If the template generates a value, wrap the root with a 'store'
+  node, unless template is destructive
+  + if the template is destructive, we flush the value it defines
+    (memory is authorative)
+  + the wrapping happens before we assign the root (roots are for
+    ordering)
++ When loading operands that are register values, try to use the
+  values in computed, otherwise insert a load an mark that in
+  destructive
+
+What we kind of want to do:
++ Keep storing nodes for generated values in computed[]
++ If a template generates a value
+  + if destructive, flush the value from computed[]
+    + but a store is now redundant
+  + if not destructive, record the node in computed[], also the root
+    that it represents (except that the root isn't know yet because we
+    might have to insert a label before it)
++ if we reach a instruction that forces a flush, then we iterate over
+  the current set in computed[],
+  + if something is defined, and has a 'defining root' associated with
+    it, then we wrap that root with a store and replace it
+  + if something is defined, we set it to -1
++ What to do with things that are already wrapped? (or about to be?)
+  + the bad case: we do a flush, wrap it with a STORE, update the root
+    (which wasn't actually pushed yet, so we may not even have enough
+    memory allocated), then wrap it with our guard, then overwrite the
+    root, not having the store
+  + I can't really imagine having a non-destructive value-yielding
+    invokish or throwish op. I mean, how would that even work? But
+    this can be true for dynamic label wraps.
+
+So this suggests that we need to:
+- delay inserting the new node into the computed[] array until after
+  we've inserted any possible labels (because we don't know the root)
+- distinguish between the node generating the value, and the node that
+  becomes the root (potentially wrapped)
+- maybe just insert the store directly if we're wrapping it, because
+  otherwise, we're going to have the update the wrap when we flush it.
+  - still possible to refer to the value, in principle
+  - although the invokish/throwish ops should probably flush that
+    value anyway
 
 * DONE Flatten label
 
