@@ -398,6 +398,10 @@ MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString 
         MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
         rtrn = MVM_unicode_normalize_should_break(tc, last_a, first_b, &norm);
         MVM_unicode_normalizer_cleanup(tc, &norm);
+        /* If both CCC are non-zero then it may need to be reordered. For now return 0.
+         * This can be optimized. */
+        if (MVM_unicode_relative_ccc(tc, last_a) != 0 && MVM_unicode_relative_ccc(tc, first_b) != 0)
+            return 0;
         return rtrn;
     }
 }
