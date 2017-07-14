@@ -459,7 +459,7 @@ static MVMString * get_all_in_buffer(MVMThreadContext *tc, MVMDecodeStream *ds) 
             if (cur_chars == ds->chars_head) {
                 MVMint32 to_copy = ds->chars_head->length - ds->chars_head_pos;
                 memcpy(result->body.storage.blob_32 + pos, cur_chars->chars + ds->chars_head_pos,
-                    cur_chars->length * sizeof(MVMGrapheme32));
+                    to_copy * sizeof(MVMGrapheme32));
                 pos += to_copy;
             }
             else {
