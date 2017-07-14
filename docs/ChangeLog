@@ -1,3 +1,69 @@
+New in 2017.07
+
++ Remove arbitrary string repeat limit
++ unicmp_s can now reverse any of the collation levels
++ Handle additional possible cases in collation
++ Store collation levels in an array not a single value
++ Handle if quaternary collation level is both enabled and reversed
++ Improved instruction and basic block deletion hanlding to allow further code
+  elimination
++ Only compile in \n -> \r\n on Windows
++ JIT-compile write_fhb and encode ops
++ Include return type facts for the encode op
++ Implement setbuffersize_fh op, which sets up output buffering for synchronous
+  file handles
++ Fix error message for decodersetlineseps getting non-decoder
++ JIT open_fh, close_fh, read_fhb, decoderaddbytes, fc, chr, getcp_s, and
+  objectid
++ Remove synchornous process support
++ Add new asynchronous permit mechanism, which can be used to provide delayed
+  starting of reads and back-pressure
++ Implement permits handling for asynchronous processes
++ Convey file descriptors of stdout/stderr pipes when spawning an asynchronous
+  process
++ Add debug helpers: MVM_dump_bytecode, MVM_dump_bytecode_stackframe and
+  MVM_dump_bytecode_staticframe
++ Add gdb command to give a history of spesh optimization decisions
++ Improve specialization dump: less trailing spaces, chop up facts list by
+  register
++ Empty instructios list of removed basic blocks
++ Eliminate duplicate code in utf8 decoder
++ Fix an accidental nested redeclaration in process handling
++ Fix overflow in uniprop lookups
++ Improvements to segmentation of Emoji w/ GCB=Other
++ Fix ASCII streaming decode error handling
++ Make illegal synthetic an oops, not a panic
++ Tweak the format of oops messages
++ Use GCB instead of HST to avoid property lookup for Hangul
++ Reorder conditional in maybe_hangul() to be more clear
++ Speed up ccc by making ccc_relative using integer prop lookup
++ Improved debug output for serialization errors
++ Rename is_control_beyond_latin1 to is_control_full
++ Work Hangul grapheme segmentation into GCB switches
++ Don't break after ZWJ for Emoji=True + GCB=Other
++ Make some fixes to the Unicode data file downloader
++ Use MVMint64 for MVM_string_chr (oplist/function mismatch)
++ Make string_index 16% faster for incompatible string types
++ Fix ARM build
++ Use MVM_string_graphs_nocheck more places in strings/ops.c
++ Use normalize_should_break to decide if concat needs normalization
++ Rename should_break to MVM_unicode_normalize_should_break
++ Clear cached dynamics when taking continuation
++ Missing MVMROOT during an allocation
++ Remove never-assinged use_mode_frame field from CallCapture
++ Remove now-unused cur_usecapture per thread
++ Eliminate mode flag from CallCapture
++ Fix invokewithcapture to keep the used capture alive
++ Always copy callsite into an MVMCallCapture unless its interned
++ Remove now-unrequired effective_callsite
++ Fix memory leak in MVM_nfg_is_concat_stable
++ Rename relative_ccc to MVM_unicode_relative_ccc
++ If both last_a and first_b during concat are non-0 CCC, re-NFG
++ Add decodertakecharseof op
++ Copy correct length in get_all_in_buffer
++ Fix ctxcode op to not leak a NULL
++ Fix decoder typos
+
 New in 2017.06
 
 + Make coerce_s_n work more like the Perl 6 Str.Num method
