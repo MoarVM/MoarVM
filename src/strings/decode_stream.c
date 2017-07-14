@@ -189,11 +189,10 @@ static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint3
 
     /* In the best case, the head char buffer has exactly what we need. This
      * will typically happen when it a steady state of decoding lines. */
-    if (ds->chars_head->length - ds->chars_head_pos == chars) {
+    if (ds->chars_head->length == chars && ds->chars_head_pos == 0) {
         MVMDecodeStreamChars *cur_chars = ds->chars_head;
-        result->body.storage.blob_32 = cur_chars->chars + ds->chars_head_pos;
+        result->body.storage.blob_32 = cur_chars->chars;
         ds->chars_head = cur_chars->next;
-        ds->chars_head_pos = 0;
         if (ds->chars_head == NULL)
             ds->chars_tail = NULL;
         free_chars(tc, ds, cur_chars);
