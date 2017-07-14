@@ -394,8 +394,11 @@ MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString 
          * Returns 1 if they would break and thus is safe under concat, or 0 if
          * they would be joined. */
         MVMNormalizer norm;
+        int rtrn;
         MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
-        return MVM_unicode_normalize_should_break(tc, last_a, first_b, &norm);
+        rtrn = MVM_unicode_normalize_should_break(tc, last_a, first_b, &norm);
+        MVM_unicode_normalizer_cleanup(tc, &norm);
+        return rtrn;
     }
 }
 
