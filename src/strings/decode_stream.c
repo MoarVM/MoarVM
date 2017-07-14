@@ -138,6 +138,25 @@ static MVMuint32 run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVM
         return RUN_DECODE_STOPPER_NOT_REACHED;
 }
 
+/* In situations where we have hit EOF, we need to decode what's left and flush
+ * the normalization buffer also. */
+static void reached_eof(MVMThreadContext *tc, MVMDecodeStream *ds) {
+    /* Decode all the things. */
+    if (ds->bytes_head)
+        run_decode(tc, ds, NULL, NULL, DECODE_EOF);
+
+    /* If there's some things left in the normalization buffer, take them. */
+    MVM_unicode_normalizer_eof(tc, &(ds->norm));
+    if (MVM_unicode_normalizer_available(tc, &(ds->norm))) {
+        MVMint32 ready = MVM_unicode_normalizer_available(tc, &(ds->norm));
+        MVMGrapheme32 *buffer = MVM_malloc(ready * sizeof(MVMGrapheme32));
+        MVMint32 count = 0;
+        while (ready--)
+            buffer[count++] = MVM_unicode_normalizer_get_grapheme(tc, &(ds->norm));
+        MVM_string_decodestream_add_chars(tc, ds, buffer, count);
+    }
+}
+
 /* Gets the specified number of characters. If we are not yet able to decode
  * that many, returns NULL. This may mean more input buffers are needed. The
  * exclude parameter specifies a number of chars that should be taken from the
@@ -227,7 +246,8 @@ static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint3
     }
     return result;
 }
-MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 chars) {
+MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStream *ds,
+                                              MVMint32 chars, MVMint64 eof) {
     MVMint32 missing;
 
     /* If we request nothing, give empty string. */
@@ -240,11 +260,20 @@ MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStr
     if (missing)
         run_decode(tc, ds, &missing, NULL, DECODE_NOT_EOF);
 
-    /* If we've got enough, assemble a string. Otherwise, give up. */
-    if (missing_chars(tc, ds, chars) == 0)
+    /* If we've got enough, assemble a string. Otherwise, flag EOF and retry,
+     * falling back to returning what's available. */
+    if (missing_chars(tc, ds, chars) == 0) {
         return take_chars(tc, ds, chars, 0);
-    else
+    }
+    else if (eof) {
+        reached_eof(tc, ds);
+        return missing_chars(tc, ds, chars) == 0
+            ? take_chars(tc, ds, chars, 0)
+            : MVM_string_decodestream_get_all(tc, ds);
+    }
+    else {
         return NULL;
+    }
 }
 
 /* Gets characters up until one of the specified separators is encountered. If
@@ -358,25 +387,6 @@ MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecod
     }
     else {
         return NULL;
-    }
-}
-
-/* In situations where we have hit EOF, we need to decode what's left and flush
- * the normalization buffer also. */
-static void reached_eof(MVMThreadContext *tc, MVMDecodeStream *ds) {
-    /* Decode all the things. */
-    if (ds->bytes_head)
-        run_decode(tc, ds, NULL, NULL, DECODE_EOF);
-
-    /* If there's some things left in the normalization buffer, take them. */
-    MVM_unicode_normalizer_eof(tc, &(ds->norm));
-    if (MVM_unicode_normalizer_available(tc, &(ds->norm))) {
-        MVMint32 ready = MVM_unicode_normalizer_available(tc, &(ds->norm));
-        MVMGrapheme32 *buffer = MVM_malloc(ready * sizeof(MVMGrapheme32));
-        MVMint32 count = 0;
-        while (ready--)
-            buffer[count++] = MVM_unicode_normalizer_get_grapheme(tc, &(ds->norm));
-        MVM_string_decodestream_add_chars(tc, ds, buffer, count);
     }
 }
 

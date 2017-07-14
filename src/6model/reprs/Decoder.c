@@ -216,11 +216,12 @@ void MVM_decoder_add_bytes(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject 
 
 /* Takes the specified number of chars from the decoder, or all if there
  * is not enough. */
-MVMString * MVM_decoder_take_chars(MVMThreadContext *tc, MVMDecoder *decoder, MVMint64 chars) {
+MVMString * MVM_decoder_take_chars(MVMThreadContext *tc, MVMDecoder *decoder, MVMint64 chars,
+                                   MVMint64 eof) {
     MVMString *result;
     enter_single_user(tc, decoder);
     MVMROOT(tc, decoder, {
-        result = MVM_string_decodestream_get_chars(tc, get_ds(tc, decoder), (MVMint32)chars);
+        result = MVM_string_decodestream_get_chars(tc, get_ds(tc, decoder), (MVMint32)chars, eof);
     });
     exit_single_user(tc, decoder);
     return result;
