@@ -811,6 +811,8 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                     defined_value = values + opr.reg.orig;
                     defined_value->addr = operands[i];
                     defined_value->node = root;
+                    /* this overwrites any previous definition */
+                    defined_value->root = -1;
                 }
                 break;
             case MVM_operand_write_lex:
