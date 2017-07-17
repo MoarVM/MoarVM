@@ -18,6 +18,16 @@ void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlannedKind k
     p->type_tuple = type_tuple;
     p->type_stats = type_stats;
     p->num_type_stats = num_type_stats;
+    if (num_type_stats) {
+        MVMuint32 i;
+        p->max_depth = type_stats[0]->max_depth;
+        for (i = 1; i < num_type_stats; i++)
+            if (type_stats[i]->max_depth > p->max_depth)
+                p->max_depth = type_stats[i]->max_depth;
+    }
+    else {
+        p->max_depth = cs_stats->max_depth;
+    }
 }
 
 /* Considers the statistics of a given callsite + static frame pairing and

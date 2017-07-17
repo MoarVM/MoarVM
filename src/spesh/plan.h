@@ -47,6 +47,11 @@ struct MVMSpeshPlanned {
     /* What kind of specialization we're planning. */
     MVMSpeshPlannedKind kind;
 
+    /* The maximum stack depth this was seen at; used to sort the plan so we
+     * can specialize deepest first, in hope of having callees specialized
+     * ahead of callers. */
+    MVMuint32 max_depth;
+
     /* The static frame with the code to specialize. */
     MVMStaticFrame *sf;
 

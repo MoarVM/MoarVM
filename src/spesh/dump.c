@@ -749,7 +749,7 @@ char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
             break;
     }
 
-    append(&ds, "\n");
+    appendf(&ds, "\nThe maximum stack depth is %d.\n\n", p->max_depth);
     append_null(&ds);
     return ds.buffer;
 }
