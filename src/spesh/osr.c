@@ -56,10 +56,7 @@ void MVM_spesh_osr(MVMThreadContext *tc) {
         tc->cur_frame->effective_bytecode    = specialized->bytecode;
         tc->cur_frame->effective_handlers    = specialized->handlers;
         tc->cur_frame->effective_spesh_slots = specialized->spesh_slots;
-        tc->cur_frame->spesh_log_slots       = specialized->log_slots;
         tc->cur_frame->spesh_cand            = specialized;
-        tc->cur_frame->spesh_log_idx         = 0;
-        specialized->log_enter_idx           = 1;
 
         /* Work out deopt index that applies, and move interpreter into the
          * logging version of the code. */
@@ -113,8 +110,6 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
     tc->cur_frame->effective_bytecode    = specialized->bytecode;
     tc->cur_frame->effective_handlers    = specialized->handlers;
     tc->cur_frame->effective_spesh_slots = specialized->spesh_slots;
-    tc->cur_frame->spesh_log_slots       = NULL;
-    tc->cur_frame->spesh_log_idx         = -1;
 
     /* Sync interpreter with updates. */
     jc = specialized->jitcode;
