@@ -262,12 +262,6 @@ static void allocate_log_guard_table(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* TODO Replace this with use of the new spesh log */
 }
 
-/* Check for stability of what was logged, and if it looks sane then add facts
- * and turn the log instruction into a  */
-static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
-    /* TODO Replace this with use of the new spesh log */
-}
-
 /* Visits the blocks in dominator tree order, recursively. */
 static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                          MVMint32 cur_deopt_idx) {
@@ -519,14 +513,6 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[4].reg.orig, ins->operands[4].reg.i);
             break;
-        case MVM_OP_sp_log: {
-            MVMuint16 po = ins->prev
-                ? ins->prev->info->opcode
-                : bb->pred[0]->last_ins->info->opcode;
-            if (po != MVM_OP_getlexstatic_o && po != MVM_OP_getlexperinvtype_o)
-                log_facts(tc, g, bb, ins);
-            break;
-        }
         default:
             if (ins->info->opcode == (MVMuint16)-1)
                 discover_extop(tc, g, ins);

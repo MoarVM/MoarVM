@@ -1573,7 +1573,6 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_isrwcont:
             optimize_container_check(tc, g, bb, ins);
             break;
-        case MVM_OP_sp_log:
         case MVM_OP_sp_osrfinalize:
             /* Left-over log instruction that didn't become a guard, or OSR
              * finalize instruction; just delete it. */
