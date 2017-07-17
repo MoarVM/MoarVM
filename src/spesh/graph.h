@@ -64,10 +64,6 @@ struct MVMSpeshGraph {
     MVMSpeshInline *inlines;
     MVMint32 num_inlines;
 
-    /* Logging slots, along with the number of them. */
-    MVMint32 num_log_slots;
-    MVMCollectable **log_slots;
-
     /* Number of basic blocks we have. */
     MVMint32 num_bbs;
 
