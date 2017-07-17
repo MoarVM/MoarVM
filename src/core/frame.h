@@ -136,10 +136,6 @@ struct MVMFrame {
     /* Assorted frame flags. */
     MVMuint8 flags;
 
-    /* On Stack Replacement iteration counter; incremented in loops, and will
-     * trigger if the limit is hit. */
-    MVMuint8 osr_counter;
-
     /* The current spesh correlation ID, if we're interpreting code and
      * recording logs. Zero if interpreting unspecialized and not recording.
      * Junk if running specialized code. */
