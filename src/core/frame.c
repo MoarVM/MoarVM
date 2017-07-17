@@ -815,6 +815,8 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
 
         if (caller->return_type == MVM_RETURN_OBJ) {
             result = caller->return_value->o;
+            if (!result)
+                result = tc->instance->VMNull;
         }
         else {
             MVMROOT(tc, cur_frame, {
@@ -829,7 +831,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
                         result = MVM_repr_box_str(tc, hll->str_box_type, caller->return_value->s);
                         break;
                     default:
-                        result = NULL;
+                        result = tc->instance->VMNull;
                 }
             });
         }
