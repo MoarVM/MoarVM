@@ -140,10 +140,4 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
             MVM_profiler_log_osr(tc, 0);
     }
     *(tc->interp_reg_base) = tc->cur_frame->work;
-
-    /* Tweak frame invocation count so future invocations will use the code
-     * produced by OSR. */
-    tc->cur_frame->static_info->body.invocations +=
-        tc->cur_frame->static_info->body.spesh_threshold;
 }
-

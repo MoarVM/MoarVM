@@ -58,9 +58,6 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
                     break;
                 }
         }
-
-        /* Set its spesh threshold. */
-        static_frame_body->spesh_threshold = MVM_spesh_threshold(tc, static_frame);
     }
 
     /* Unlock, now we're finished. */

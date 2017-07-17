@@ -31,14 +31,6 @@ struct MVMStaticFrameBody {
      * the VM instance wide field for this. */
     MVMuint32 instrumentation_level;
 
-    /* Rough call count. May be hit up by multiple threads, and lose the odd
-     * count, but that's fine; it's just a rough indicator, used to make
-     * decisions about optimization. */
-    MVMuint32 invocations;
-
-    /* Number of times we should invoke before spesh applies. */
-    MVMuint32 spesh_threshold;
-
     /* Recorded count for data recording for the specializer. Incremented
      * until the recording threshold is reached, and may be cleared by the
      * specialization worker later if it wants more data recorded. Allowed
