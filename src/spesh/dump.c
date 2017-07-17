@@ -566,6 +566,26 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     return ds.buffer;
 }
 
+/* Dumps a spesh stats type typle. */
+void dump_stats_type_tuple(MVMThreadContext *tc, DumpStr *ds, MVMCallsite *cs,
+                           MVMSpeshStatsType *type_tuple, char *prefix) {
+    MVMuint32 j;
+    for (j = 0; j < cs->flag_count; j++) {
+        MVMObject *type = type_tuple[j].type;
+        if (type) {
+            MVMObject *decont_type = type_tuple[j].decont_type;
+            appendf(ds, "%sType %d: %s (%s)",
+                prefix, j, type->st->debug_name,
+                (type_tuple[j].type_concrete ? "Conc" : "TypeObj"));
+            if (decont_type)
+                appendf(ds, " of %s (%s)",
+                    decont_type->st->debug_name,
+                    (type_tuple[j].decont_type_concrete ? "Conc" : "TypeObj"));
+            append(ds, "\n");
+        }
+    }
+}
+
 /* Dumps the statistics associated with a particular callsite object. */
 void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCallsite *css) {
     MVMuint32 i, j, k;
@@ -581,20 +601,7 @@ void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCa
     for (i = 0; i < css->num_by_type; i++) {
         MVMSpeshStatsByType *tss = &(css->by_type[i]);
         appendf(ds, "    Type tuple %d\n", i);
-        for (j = 0; j < css->cs->flag_count; j++) {
-            MVMObject *type = tss->arg_types[j].type;
-            if (type) {
-                MVMObject *decont_type = tss->arg_types[j].decont_type;
-                appendf(ds, "        Type %d: %s (%s)",
-                    j, type->st->debug_name,
-                    (tss->arg_types[j].type_concrete ? "Conc" : "TypeObj"));
-                if (decont_type)
-                    appendf(ds, " of %s (%s)",
-                        decont_type->st->debug_name,
-                        (tss->arg_types[j].decont_type_concrete ? "Conc" : "TypeObj"));
-                append(ds, "\n");
-            }
-        }
+        dump_stats_type_tuple(tc, ds, css->cs, tss->arg_types, "        ");
         appendf(ds, "        Hits: %d\n", tss->hits);
         if (tss->osr_hits)
             appendf(ds, "        OSR hits: %d\n", tss->osr_hits);
