@@ -40,13 +40,6 @@ struct MVMSpeshCandidate {
      * specialization for this candidate. NULL afterwards. */
     MVMSpeshGraph *sg;
 
-    /* Logging slots, used when we're in the log phase of producing
-     * a specialization. */
-    MVMCollectable **log_slots;
-
-    /* Number of logging slots. */
-    MVMuint32 num_log_slots;
-
     /* Number of inlines and inlines table; see graph.h for description of
      * the table format. */
     MVMint32 num_inlines;

@@ -154,9 +154,6 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         for (i = 0; i < body->num_spesh_candidates; i++) {
             for (j = 0; j < body->spesh_candidates[i].num_spesh_slots; j++)
                 MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].spesh_slots[j]);
-            if (body->spesh_candidates[i].log_slots)
-                for (j = 0; j < body->spesh_candidates[i].num_log_slots * MVM_SPESH_LOG_RUNS; j++)
-                    MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].log_slots[j]);
             for (j = 0; j < body->spesh_candidates[i].num_inlines; j++)
                 MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].inlines[j].code);
             if (body->spesh_candidates[i].sg)
@@ -259,8 +256,6 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
                 /* XXX we ought to descend into the speshgraph, too. */
                 size += sizeof(MVMSpeshGraph);
 
-            size += sizeof(MVMCollectable *) * cand->num_log_slots;
-
             size += sizeof(MVMSpeshInline) * cand->num_inlines;
 
             size += sizeof(MVMuint16) * (cand->num_locals + cand->num_lexicals);
@@ -342,11 +337,6 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                     (MVMCollectable *)body->spesh_candidates[i].spesh_slots[j],
                     "Spesh slot entry");
-            if (body->spesh_candidates[i].log_slots)
-                for (j = 0; j < body->spesh_candidates[i].num_log_slots * MVM_SPESH_LOG_RUNS; j++)
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->spesh_candidates[i].log_slots[j],
-                    "Spesh log slots");
             for (j = 0; j < body->spesh_candidates[i].num_inlines; j++)
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                     (MVMCollectable *)body->spesh_candidates[i].inlines[j].code,
