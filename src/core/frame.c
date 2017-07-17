@@ -422,7 +422,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             frame->effective_handlers    = chosen_cand->handlers;
             frame->effective_spesh_slots = chosen_cand->spesh_slots;
             frame->spesh_cand            = chosen_cand;
-            frame->spesh_log_idx         = -1;
             found_spesh                  = 1;
         }
     }
@@ -446,7 +445,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             frame->effective_handlers    = chosen_cand->handlers;
             frame->effective_spesh_slots = chosen_cand->spesh_slots;
             frame->spesh_cand            = chosen_cand;
-            frame->spesh_log_idx         = -1;
             found_spesh                  = 1;
         }
     }

@@ -136,11 +136,6 @@ struct MVMFrame {
     /* Assorted frame flags. */
     MVMuint8 flags;
 
-    /* If we're in a logging spesh run, the index to log at in this
-     * invocation. -1 if we're not in a logging spesh run, junk if no
-     * spesh_cand is set in this frame at all. */
-    MVMint8 spesh_log_idx;
-
     /* On Stack Replacement iteration counter; incremented in loops, and will
      * trigger if the limit is hit. */
     MVMuint8 osr_counter;

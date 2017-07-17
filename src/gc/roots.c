@@ -402,7 +402,7 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
     /* We only need to do any of this work if the frame is in dynamic scope. */
     if (frame->work) {
         /* Scan locals. */
-        if (frame->spesh_cand && frame->spesh_log_idx == -1 && frame->spesh_cand->local_types) {
+        if (frame->spesh_cand && frame->spesh_cand->local_types) {
             type_map = frame->spesh_cand->local_types;
             count    = frame->spesh_cand->num_locals;
         }
@@ -453,7 +453,7 @@ static void scan_lexicals(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFram
     if (frame->env) {
         MVMuint16  i, count;
         MVMuint16 *type_map;
-        if (frame->spesh_cand && frame->spesh_log_idx == -1 && frame->spesh_cand->lexical_types) {
+        if (frame->spesh_cand && frame->spesh_cand->lexical_types) {
             type_map = frame->spesh_cand->lexical_types;
             count    = frame->spesh_cand->num_lexicals;
         }
