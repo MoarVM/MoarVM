@@ -481,10 +481,9 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     append(&ds, "\nFacts:\n");
     dump_facts(tc, &ds, g);
 
-    if (g->num_spesh_slots || g->num_log_slots) {
+    if (g->num_spesh_slots) {
         append(&ds, "\nStats:\n");
         appendf(&ds, "    %d spesh slots\n", g->num_spesh_slots);
-        appendf(&ds, "    %d log slots\n", g->num_log_slots);
     }
 
     append(&ds, "\n");
