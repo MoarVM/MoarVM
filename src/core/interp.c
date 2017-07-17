@@ -5140,25 +5140,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_log):
-                if (tc->cur_frame->spesh_log_idx >= 0) {
-                    MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
-                        tc->cur_frame->spesh_log_slots[
-                            GET_UI16(cur_op, 2) * MVM_SPESH_LOG_RUNS + tc->cur_frame->spesh_log_idx
-                        ],
-                        GET_REG(cur_op, 0).o);
-                }
+                /* TODO Remove as part of spesh worker refactor */
                 cur_op += 4;
                 goto NEXT;
-            OP(sp_osrfinalize): {
-                MVMSpeshCandidate *cand = tc->cur_frame->spesh_cand;
-                if (cand) {
-                    tc->cur_frame->spesh_log_idx = cand->log_enter_idx;
-                    cand->log_enter_idx++;
-                    if (cand->log_enter_idx >= MVM_SPESH_LOG_RUNS)
-                        MVM_spesh_osr_finalize(tc);
-                }
+            OP(sp_osrfinalize):
+                /* TODO Remove as part of spesh worker refactor */
                 goto NEXT;
-            }
             OP(sp_guardconc): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
