@@ -1573,11 +1573,6 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_isrwcont:
             optimize_container_check(tc, g, bb, ins);
             break;
-        case MVM_OP_sp_osrfinalize:
-            /* Left-over log instruction that didn't become a guard, or OSR
-             * finalize instruction; just delete it. */
-            MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
-            break;
         case MVM_OP_prof_enter:
             /* Profiling entered from spesh should indicate so. */
             ins->info = MVM_op_get_op(MVM_OP_prof_enterspesh);

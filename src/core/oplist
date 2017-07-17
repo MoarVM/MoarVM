@@ -809,11 +809,6 @@ decodertakecharseof w(str) r(obj) r(int64)
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
 
-# If we're doing OSR, the logging phase replaces the osrpoint with this op, to
-# trigger the finalization of the optimization process once we do enough loops
-# to gather logging information.
-sp_osrfinalize   .s
-
 # Guard operations. Trigger de-optimization if the guard is violated.
 #   guardconc = guard on concrete type; index is spesh slot with type
 #   guardtype = guard on type object; index is spesh slot with type
