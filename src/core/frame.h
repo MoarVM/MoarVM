@@ -90,9 +90,6 @@ struct MVMFrame {
     /* Effective set of spesh slots, if any. */
     MVMCollectable **effective_spesh_slots;
 
-    /* Effective set of spesh logging slots, if any. */
-    MVMCollectable **spesh_log_slots;
-
     /* The spesh candidate information, if we're in one. */
     MVMSpeshCandidate *spesh_cand;
 
