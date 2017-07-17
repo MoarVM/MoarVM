@@ -57,9 +57,9 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
         MVMint32 osr) {
     MVMSpeshCandidate *result;
     MVMSpeshCode *sc;
-    MVMint32 num_spesh_slots, num_log_slots, *deopts, num_deopts;
+    MVMint32 num_spesh_slots, *deopts, num_deopts;
     MVMuint16 num_locals, num_lexicals, used;
-    MVMCollectable **spesh_slots, **log_slots;
+    MVMCollectable **spesh_slots;
     char *before = 0;
     char *after = 0;
     MVMSpeshGraph *sg;
@@ -94,8 +94,6 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     deopts          = sg->deopt_addrs;
     num_spesh_slots = sg->num_spesh_slots;
     spesh_slots     = sg->spesh_slots;
-    num_log_slots   = sg->num_log_slots;
-    log_slots       = sg->log_slots;
     num_locals      = sg->num_locals;
     num_lexicals    = sg->num_lexicals;
 
@@ -127,15 +125,12 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
             result->spesh_slots         = spesh_slots;
             result->num_deopts          = num_deopts;
             result->deopts              = deopts;
-            result->num_log_slots       = num_log_slots;
-            result->log_slots           = log_slots;
             result->num_locals          = num_locals;
             result->num_lexicals        = num_lexicals;
             result->local_types         = sg->local_types;
             result->lexical_types       = sg->lexical_types;
             result->sg                  = sg;
             result->log_enter_idx       = 0;
-            result->log_exits_remaining = MVM_SPESH_LOG_RUNS;
             calculate_work_env_sizes(tc, static_frame, result);
             if (osr)
                 result->osr_logging = 1;
@@ -250,10 +245,6 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
             candidate->jitcode = MVM_jit_compile_graph(tc, jg);
     }
 
-    /* No longer need log slots. */
-    MVM_free(candidate->log_slots);
-    candidate->log_slots = NULL;
-
     /* Update spesh slots. */
     candidate->num_spesh_slots = sg->num_spesh_slots;
     candidate->spesh_slots     = sg->spesh_slots;
@@ -292,7 +283,6 @@ void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candid
     MVM_free(candidate->handlers);
     MVM_free(candidate->spesh_slots);
     MVM_free(candidate->deopts);
-    MVM_free(candidate->log_slots);
     MVM_free(candidate->inlines);
     MVM_free(candidate->local_types);
     MVM_free(candidate->lexical_types);
