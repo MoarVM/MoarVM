@@ -11,6 +11,11 @@
 #define MVM_SPESH_PLAN_CS_MIN       10
 #define MVM_SPESH_PLAN_CS_MIN_OSR   100
 
+/* The percentage of hits or OSR hits that a type tuple should receive, out of
+ * the total callsite hits, to receive an "observed types" specialization. */
+#define MVM_SPESH_PLAN_TT_OBS_PERCENT       25
+#define MVM_SPESH_PLAN_TT_OBS_PERCENT_OSR   25
+
 /* The plan of what specializations to produce. */
 struct MVMSpeshPlan {
     /* List of planned specializations. */

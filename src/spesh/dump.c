@@ -723,8 +723,26 @@ char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
             else
                 append(&ds, "It was planned for unknown reasons.\n");
             break;
-        case MVM_SPESH_PLANNED_OBSERVED_TYPES:
+        case MVM_SPESH_PLANNED_OBSERVED_TYPES: {
+            MVMCallsite *cs = p->cs_stats->cs;
+            MVMuint32 hit_percent = p->cs_stats->hits
+               ? (100 * p->type_stats[0]->hits) / p->cs_stats->hits
+               : 0;
+            MVMuint32 osr_hit_percent = p->cs_stats->osr_hits
+               ? (100 * p->type_stats[0]->osr_hits) / p->cs_stats->osr_hits
+               : 0;
+            append(&ds, "It was planned for the type tuple:\n");
+            dump_stats_type_tuple(tc, &ds, cs, p->type_tuple, "    ");
+            if (osr_hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT_OSR)
+                appendf(&ds, "Which received %u OSR hits (%u%% of the %u callsite OSR hits).\n",
+                    p->type_stats[0]->osr_hits, osr_hit_percent, p->cs_stats->osr_hits);
+            else if (hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT)
+                appendf(&ds, "Which received %u hits (%u%% of the %u callsite hits).\n",
+                    p->type_stats[0]->hits, hit_percent, p->cs_stats->hits);
+            else
+                append(&ds, "For unknown reasons.\n");
             break;
+        }
         case MVM_SPESH_PLANNED_DERIVED_TYPES:
             break;
     }

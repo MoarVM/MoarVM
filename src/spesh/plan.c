@@ -2,7 +2,9 @@
 
 /* Adds a planned specialization. */
 void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlannedKind kind,
-                 MVMStaticFrame *sf, MVMSpeshStatsByCallsite *cs_stats) {
+                 MVMStaticFrame *sf, MVMSpeshStatsByCallsite *cs_stats,
+                 MVMSpeshStatsType *type_tuple, MVMSpeshStatsByType **type_stats,
+                 MVMuint32 num_type_stats) {
     MVMSpeshPlanned *p;
     if (plan->num_planned == plan->alloc_planned) {
         plan->alloc_planned += 16;
@@ -13,9 +15,9 @@ void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlannedKind k
     p->kind = kind;
     p->sf = sf;
     p->cs_stats = cs_stats;
-    p->type_tuple = NULL;
-    p->type_stats = NULL;
-    p->num_type_stats = 0;
+    p->type_tuple = type_tuple;
+    p->type_stats = type_stats;
+    p->num_type_stats = num_type_stats;
 }
 
 /* Considers the statistics of a given callsite + static frame pairing and
@@ -23,9 +25,38 @@ void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlannedKind k
 void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
                  MVMSpeshStatsByCallsite *by_cs) {
     if (by_cs->hits >= MVM_SPESH_PLAN_CS_MIN || by_cs->osr_hits >= MVM_SPESH_PLAN_CS_MIN_OSR) {
-        /* This callsite is hot enough. */
-        /* TODO Consider type specializations; for now just plan certain */
-        add_planned(tc, plan, MVM_SPESH_PLANNED_CERTAIN, sf, by_cs);
+        /* This callsite is hot enough. See if any types tuples are hot
+         * enough. */
+        MVMuint32 i;
+        MVMuint32 unaccounted_hits = by_cs->hits;
+        MVMuint32 unaccounted_osr_hits = by_cs->osr_hits;
+        for (i = 0; i < by_cs->num_by_type; i++) {
+            MVMSpeshStatsByType *by_type = &(by_cs->by_type[i]);
+            MVMuint32 hit_percent = by_cs->hits
+               ? (100 * by_type->hits) / by_cs->hits
+               : 0;
+            MVMuint32 osr_hit_percent = by_cs->osr_hits
+                ? (100 * by_type->osr_hits) / by_cs->osr_hits
+                : 0;
+            if (by_cs->cs && (hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT ||
+                    osr_hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT_OSR)) {
+                MVMSpeshStatsByType **evidence = MVM_malloc(sizeof(MVMSpeshStatsByType *));
+                evidence[0] = by_type;
+                add_planned(tc, plan, MVM_SPESH_PLANNED_OBSERVED_TYPES, sf, by_cs,
+                    by_type->arg_types, evidence, 1);
+                unaccounted_hits -= by_type->hits;
+                unaccounted_osr_hits -= by_type->osr_hits;
+            }
+            else {
+                /* TODO derived specialization planning */
+            }
+        }
+
+        /* If there are enough unaccounted for hits by type specializations, then
+         * plan a certain specialization. */
+        if (unaccounted_hits >= MVM_SPESH_PLAN_CS_MIN ||
+                unaccounted_osr_hits >= MVM_SPESH_PLAN_CS_MIN_OSR)
+            add_planned(tc, plan, MVM_SPESH_PLANNED_CERTAIN, sf, by_cs, NULL, NULL, 0);
     }
 }
 
