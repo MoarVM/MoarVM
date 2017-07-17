@@ -43,6 +43,9 @@ struct MVMSpeshStatsByCallsite {
 
     /* Total OSR hits for this callsite. */
     MVMuint32 osr_hits;
+
+    /* The maximum callstack depth we observed this at. */
+    MVMuint32 max_depth;
 };
 
 /* Statistics by type. */
@@ -62,6 +65,9 @@ struct MVMSpeshStatsByType {
 
     /* Number of stats by offset we have. */
     MVMuint32 num_by_offset;
+
+    /* The maximum callstack depth we observed this at. */
+    MVMuint32 max_depth;
 };
 
 /* Type statistics. */

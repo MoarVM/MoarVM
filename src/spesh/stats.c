@@ -34,6 +34,9 @@ typedef struct SimStack {
     /* Current frame index and allocated space. */
     MVMuint32 used;
     MVMuint32 limit;
+
+    /* Current stack depth. */
+    MVMuint32 depth;
 } SimStack;
 
 /* Gets the statistics for a static frame, creating them if needed. */
@@ -164,6 +167,7 @@ void sim_stack_init(MVMThreadContext *tc, SimStack *sims) {
     sims->used = 0;
     sims->limit = 32;
     sims->frames = MVM_malloc(sims->limit * sizeof(SimStackFrame));
+    sims->depth = 0;
 }
 
 /* Pushes an entry onto the stack frame model. */
@@ -186,24 +190,29 @@ void sim_stack_push(MVMThreadContext *tc, SimStack *sims, MVMStaticFrame *sf,
     frame->offset_logs = NULL;
     frame->offset_logs_used = frame->offset_logs_limit = 0;
     frame->osr_hits = 0;
+    sims->depth++;
 }
 
 /* Pops the top frame from the sim stack. */
 void sim_stack_pop(MVMThreadContext *tc, SimStack *sims) {
     SimStackFrame *simf;
     MVMSpeshStatsByType *tss;
+    MVMuint32 frame_depth;
 
     /* Pop off the simulated frame. */
     if (sims->used == 0)
         MVM_panic(1, "Spesh stats: cannot pop an empty simulation stack");
     sims->used--;
     simf = &(sims->frames[sims->used]);
+    frame_depth = sims->depth--;
 
-    /* Add OSR hits at callsite level. */
+    /* Add OSR hits at callsite level and update depth. */
     if (simf->osr_hits) {
         simf->ss->osr_hits += simf->osr_hits;
         simf->ss->by_callsite[simf->callsite_idx].osr_hits += simf->osr_hits;
     }
+    if (frame_depth > simf->ss->by_callsite[simf->callsite_idx].max_depth)
+        simf->ss->by_callsite[simf->callsite_idx].max_depth = frame_depth;
 
     /* Update the by-type record, incorporating by-offset data. */
     tss = by_type(tc, simf->ss, simf->callsite_idx, simf->arg_types);
@@ -229,6 +238,8 @@ void sim_stack_pop(MVMThreadContext *tc, SimStack *sims) {
         }
         tss->hits++;
         tss->osr_hits += simf->osr_hits;
+        if (frame_depth > tss->max_depth)
+            tss->max_depth = frame_depth;
     }
 
     /* Clear up offset logs; they're either incorproated or to be tossed. */

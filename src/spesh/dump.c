@@ -597,6 +597,7 @@ void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCa
     appendf(ds, "    Callsite hits: %d\n\n", css->hits);
     if (css->osr_hits)
         appendf(ds, "    OSR hits: %d\n\n", css->osr_hits);
+    appendf(ds, "    Maximum stack depth: %d\n\n", css->max_depth);
 
     for (i = 0; i < css->num_by_type; i++) {
         MVMSpeshStatsByType *tss = &(css->by_type[i]);
@@ -605,6 +606,7 @@ void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCa
         appendf(ds, "        Hits: %d\n", tss->hits);
         if (tss->osr_hits)
             appendf(ds, "        OSR hits: %d\n", tss->osr_hits);
+        appendf(ds, "        Maximum stack depth: %d\n", tss->max_depth);
         if (tss->num_by_offset) {
             append(ds, "        Logged at offset:\n");
             for (j = 0; j < tss->num_by_offset; j++) {
