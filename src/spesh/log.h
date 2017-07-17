@@ -29,4 +29,3 @@ void MVM_spesh_log_return_type(MVMThreadContext *tc, MVMFrame *target);
 /* These are part of the legacy spesh logging mechanism, and will be removed
  * (or very significantly changed) in the future. */
 #define MVM_SPESH_LOG_RUNS  8
-void MVM_spesh_log_add_logging(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 osr);

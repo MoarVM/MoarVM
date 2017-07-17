@@ -87,7 +87,6 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     if (tc->instance->spesh_log_fh)
         before = MVM_spesh_dump(tc, sg);
     MVM_spesh_args(tc, sg, callsite, type_tuple);
-    MVM_spesh_log_add_logging(tc, sg, osr);
     if (tc->instance->spesh_log_fh)
         after = MVM_spesh_dump(tc, sg);
     sc              = MVM_spesh_codegen(tc, sg);
