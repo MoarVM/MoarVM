@@ -396,76 +396,6 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
     }
 }
 
-/* Dumps a table of all logged values */
-static void dump_log_values(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
-    MVMint16 log_index;
-    MVMint16 seen_table_size =  g->num_log_slots * MVM_SPESH_LOG_RUNS;
-    size_t   ds_pos_before = tell_ds(ds);
-    MVMint16 interesting = 0;
-
-    MVMCollectable **seen_table = alloca(sizeof(MVMCollectable *) *seen_table_size);
-    memset(seen_table, 0, sizeof(MVMCollectable *) * seen_table_size);
-
-    append(ds, "Logged values:\n");
-
-    for (log_index = 0; log_index < g->num_log_slots; log_index++) {
-        MVMint16 run_index;
-
-        appendf(ds, "    % 3d ", log_index);
-
-        for (run_index = 0; run_index < MVM_SPESH_LOG_RUNS; run_index++) {
-            MVMuint16       log_slot = log_index * MVM_SPESH_LOG_RUNS + run_index;
-            MVMCollectable *log_obj  = g->log_slots[log_slot];
-            MVMint16        log_obj_idx;
-
-            if (log_obj) {
-                for (log_obj_idx = 0; log_obj_idx < seen_table_size; log_obj_idx++) {
-                    if (seen_table[log_obj_idx] == log_obj) {
-                        break;
-                    } else if (seen_table[log_obj_idx] == 0) {
-                        seen_table[log_obj_idx] = log_obj;
-                        break;
-                    }
-                }
-
-                appendf(ds, "% 4d  ", log_obj_idx + 1);
-                interesting = 1;
-            } else {
-                appendf(ds, "%4s  ", "_");
-            }
-
-        }
-
-        append(ds, "\n");
-    }
-    append(ds, "\n");
-
-    for (log_index = 0; log_index < seen_table_size && seen_table[log_index]; log_index++) {
-        appendf(ds, "    %d: %p", log_index + 1, seen_table[log_index]);
-        if (STABLE(seen_table[log_index])->REPR->ID == MVM_REPR_ID_P6int) {
-            if (IS_CONCRETE(seen_table[log_index]))
-                appendf(ds, " P6int(%"PRId64")", MVM_repr_get_int(tc, (MVMObject*)seen_table[log_index]));
-            else
-                append(ds, " P6int(type object)");
-        } else {
-            append(ds, " ");
-            append(ds, (char *)STABLE(seen_table[log_index])->REPR->name);
-            if (!IS_CONCRETE(seen_table[log_index]))
-                append(ds, "(type object)");
-            if (STABLE(seen_table[log_index])->debug_name) {
-                appendf(ds, " debugname: %s", STABLE(seen_table[log_index])->debug_name);
-            }
-        }
-        append(ds, "\n");
-    }
-
-    append(ds, "\n");
-
-    if (!interesting) {
-        rewind_ds(ds, ds_pos_before);
-    }
-}
-
 static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMCallsite *cs) {
     MVMuint16 i;
     appendf(ds, "Callsite %p (%d args, %d pos)\n", cs, cs->arg_count, cs->num_pos);
@@ -555,10 +485,6 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
         append(&ds, "\nStats:\n");
         appendf(&ds, "    %d spesh slots\n", g->num_spesh_slots);
         appendf(&ds, "    %d log slots\n", g->num_log_slots);
-    }
-
-    if (g->num_log_slots) {
-        dump_log_values(tc, &ds, g);
     }
 
     append(&ds, "\n");
