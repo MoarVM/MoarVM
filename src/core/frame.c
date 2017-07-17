@@ -429,59 +429,28 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             found_spesh                  = 1;
         }
     }
-    if (!found_spesh && ++static_frame->body.invocations >= static_frame->body.spesh_threshold && callsite->is_interned) {
-        /* Look for specialized bytecode. */
+    if (!found_spesh) {
+        /* Look for specialized bytecode and run it if it exists. */
         MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
             static_frame->body.spesh_arg_guard, callsite, args);
         MVMSpeshCandidate *chosen_cand = ag_result >= 0
             ? &static_frame->body.spesh_candidates[ag_result]
             : NULL;
-
-        /* If we didn't find any, and we're below the limit, can set up a
-         * specialization. */
-        /* TODO This changes once we switch over to the spesh worker thread. */
-        if (!chosen_cand && static_frame->body.num_spesh_candidates < MVM_SPESH_LIMIT
-                && tc->instance->spesh_enabled)
-            chosen_cand = MVM_spesh_candidate_setup(tc, static_frame,
-                callsite, args, 0);
-
-        /* Now try to use specialized bytecode. We may need to compete to
-         * be a logging run of it. */
         if (chosen_cand) {
-            if (chosen_cand->sg) {
-                /* In the logging phase. Try to get a logging index; ensure it
-                 * is not being used as an OSR logging candidate elsewhere. */
-                AO_t cur_idx = MVM_load(&(chosen_cand->log_enter_idx));
-                if (!chosen_cand->osr_logging && cur_idx < MVM_SPESH_LOG_RUNS) {
-                    if (MVM_cas(&(chosen_cand->log_enter_idx), cur_idx, cur_idx + 1) == cur_idx) {
-                        /* We get to log. */
-                        frame = allocate_frame(tc, static_frame, chosen_cand);
-                        frame->effective_bytecode    = chosen_cand->bytecode;
-                        frame->effective_handlers    = chosen_cand->handlers;
-                        frame->effective_spesh_slots = chosen_cand->spesh_slots;
-                        frame->spesh_log_slots       = chosen_cand->log_slots;
-                        frame->spesh_cand            = chosen_cand;
-                        frame->spesh_log_idx         = (MVMint8)cur_idx;
-                        found_spesh                  = 1;
-                    }
-                }
+            /* In the post-specialize phase; can safely used the code. */
+            frame = allocate_frame(tc, static_frame, chosen_cand);
+            if (chosen_cand->jitcode) {
+                frame->effective_bytecode = chosen_cand->jitcode->bytecode;
+                frame->jit_entry_label    = chosen_cand->jitcode->labels[0];
             }
             else {
-                /* In the post-specialize phase; can safely used the code. */
-                frame = allocate_frame(tc, static_frame, chosen_cand);
-                if (chosen_cand->jitcode) {
-                    frame->effective_bytecode = chosen_cand->jitcode->bytecode;
-                    frame->jit_entry_label    = chosen_cand->jitcode->labels[0];
-                }
-                else {
-                    frame->effective_bytecode = chosen_cand->bytecode;
-                }
-                frame->effective_handlers    = chosen_cand->handlers;
-                frame->effective_spesh_slots = chosen_cand->spesh_slots;
-                frame->spesh_cand            = chosen_cand;
-                frame->spesh_log_idx         = -1;
-                found_spesh                  = 1;
+                frame->effective_bytecode = chosen_cand->bytecode;
             }
+            frame->effective_handlers    = chosen_cand->handlers;
+            frame->effective_spesh_slots = chosen_cand->spesh_slots;
+            frame->spesh_cand            = chosen_cand;
+            frame->spesh_log_idx         = -1;
+            found_spesh                  = 1;
         }
     }
     if (!found_spesh) {
@@ -525,13 +494,10 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
      * frame. */
     tc->cur_frame = frame;
     tc->current_frame_nr = frame->sequence_nr;
-
     *(tc->interp_cur_op) = frame->effective_bytecode;
     *(tc->interp_bytecode_start) = frame->effective_bytecode;
     *(tc->interp_reg_base) = frame->work;
     *(tc->interp_cu) = static_frame->body.cu;
-
-
 
     /* If we need to do so, make clones of things in the lexical environment
      * that need it. Note that we do this after tc->cur_frame became the
@@ -707,24 +673,6 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     MVMFrame *returner = tc->cur_frame;
     MVMFrame *caller   = returner->caller;
 
-    /* See if we were in a logging spesh frame, and need to complete the
-     * specialization. */
-    if (returner->spesh_cand && returner->spesh_log_idx >= 0) {
-        if (returner->spesh_cand->osr_logging) {
-            /* Didn't achieve enough log entries to complete the OSR, but
-             * clearly hot, so specialize anyway. This also avoids races
-             * when the candidate is called again later and still has
-             * sp_osrfinalize instructions in it. */
-            returner->spesh_cand->osr_logging = 0;
-            MVM_spesh_candidate_specialize(tc, returner->static_info,
-                returner->spesh_cand);
-        }
-        else if (MVM_decr(&(returner->spesh_cand->log_exits_remaining)) == 1) {
-            MVM_spesh_candidate_specialize(tc, returner->static_info,
-                returner->spesh_cand);
-        }
-    }
-
     /* Clear up any continuation tags. */
     if (returner->continuation_tags)
         MVM_continuation_free_tags(tc, returner);
@@ -764,7 +712,6 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         *(tc->interp_bytecode_start) = caller->effective_bytecode;
         *(tc->interp_reg_base) = caller->work;
         *(tc->interp_cu) = caller->static_info->body.cu;
-
 
         /* Handle any special return hooks. */
         if (caller->special_return || caller->special_unwind) {
