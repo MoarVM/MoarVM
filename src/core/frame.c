@@ -608,7 +608,7 @@ MVMFrame * MVM_frame_force_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
                     (char *)cur_to_promote + sizeof(MVMCollectable),
                     sizeof(MVMFrame) - sizeof(MVMCollectable));
 
-                /* Update caller of previously promtoed frame, if any. This is the
+                /* Update caller of previously promoted frame, if any. This is the
                  * only reference that might point to a non-heap frame. */
                 if (update_caller) {
                     MVM_ASSIGN_REF(tc, &(update_caller->header),
