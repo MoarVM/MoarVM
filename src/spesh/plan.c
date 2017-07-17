@@ -82,6 +82,28 @@ void plan_for_sf(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf) {
     }
 }
 
+/* Sorts the plan in descending order of maximum call depth. */
+void sort_plan(MVMThreadContext *tc, MVMSpeshPlanned *planned, MVMuint32 n) {
+    if (n >= 2) {
+        MVMSpeshPlanned pivot = planned[n / 2];
+        MVMuint32 i, j;
+        for (i = 0, j = n - 1; ; i++, j--) {
+            MVMSpeshPlanned temp;
+            while (planned[i].max_depth > pivot.max_depth)
+                i++;
+            while (planned[j].max_depth < pivot.max_depth)
+                j--;
+            if (i >= j)
+                break;
+            temp = planned[i];
+            planned[i] = planned[j];
+            planned[j] = temp;
+        }
+        sort_plan(tc, planned, i);
+        sort_plan(tc, planned + i, n - i);
+    }
+}
+
 /* Forms a specialization plan from considering all frames whose statics have
  * changed. */
 MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_frames) {
@@ -92,6 +114,7 @@ MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_fr
         MVMObject *sf = MVM_repr_at_pos_o(tc, updated_static_frames, i);
         plan_for_sf(tc, plan, (MVMStaticFrame *)sf);
     }
+    sort_plan(tc, plan->planned, plan->num_planned);
     return plan;
 }
 
