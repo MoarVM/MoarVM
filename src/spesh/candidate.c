@@ -51,11 +51,17 @@ static void calculate_work_env_sizes(MVMThreadContext *tc, MVMStaticFrame *sf,
  * specified plan. */
 void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     MVMSpeshGraph *sg;
+    MVMSpeshCode *sc;
+    MVMSpeshCandidate *candidate;
 
     /* If we've reached our specialization limit, don't continue. */
     if (tc->instance->spesh_limit)
         if (++tc->instance->spesh_produced > tc->instance->spesh_limit)
             return;
+
+    /* TODO lift this specialization limit */
+    if (p->sf->body.num_spesh_candidates == MVM_SPESH_LIMIT)
+        return;
 
     /* Produce the specialization graph and, if we're logging, dump it out
      * pre-transformation. */
@@ -69,7 +75,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
         char *before = MVM_spesh_dump(tc, sg);
         fprintf(tc->instance->spesh_log_fh,
             "Specialization of '%s' (cuid: %s)\n\n", c_name, c_cuid);
-        fprintf(tc->instance->spesh_log_fh, "Before:\n%s\n", before);
+        fprintf(tc->instance->spesh_log_fh, "Before:\n%s", before);
         MVM_free(c_name);
         MVM_free(c_cuid);
         MVM_free(before);
@@ -82,14 +88,73 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     MVM_spesh_optimize(tc, sg);
     if (tc->instance->spesh_log_fh) {
         char *after = MVM_spesh_dump(tc, sg);
-        fprintf(tc->instance->spesh_log_fh, "After:\n%s\n\n========\n\n", after);
-        fflush(tc->instance->spesh_log_fh);
+        fprintf(tc->instance->spesh_log_fh, "After:\n%s========\n\n", after);
         MVM_free(after);
+    }
+
+    /* Copy existing candidates list into a new region of memory; we'll append
+     * the new one on the end. */
+    if (!p->sf->body.spesh_candidates)
+        p->sf->body.spesh_candidates = MVM_calloc(MVM_SPESH_LIMIT, sizeof(MVMSpeshCandidate));
+    candidate = &(p->sf->body.spesh_candidates[p->sf->body.num_spesh_candidates]);
+
+    /* Generate code and install it into the candidate. */
+    sc = MVM_spesh_codegen(tc, sg);
+    candidate->bytecode      = sc->bytecode;
+    candidate->bytecode_size = sc->bytecode_size;
+    candidate->handlers      = sc->handlers;
+    candidate->num_handlers  = sg->num_handlers;
+    candidate->num_deopts    = sg->num_deopt_addrs;
+    candidate->deopts        = sg->deopt_addrs;
+    candidate->num_locals    = sg->num_locals;
+    candidate->num_lexicals  = sg->num_lexicals;
+    candidate->num_inlines   = sg->num_inlines;
+    candidate->inlines       = sg->inlines;
+    candidate->local_types   = sg->local_types;
+    candidate->lexical_types = sg->lexical_types;
+    calculate_work_env_sizes(tc, p->sf, candidate);
+    MVM_free(sc);
+
+    /* Try to JIT compile the optimised graph. The JIT graph hangs from
+     * the spesh graph and can safely be deleted with it. */
+    if (tc->instance->jit_enabled) {
+        MVMJitGraph *jg = MVM_jit_try_make_graph(tc, sg);
+        if (jg != NULL)
+            candidate->jitcode = MVM_jit_compile_graph(tc, jg);
+    }
+
+    /* Update spesh slots. */
+    candidate->num_spesh_slots = sg->num_spesh_slots;
+    candidate->spesh_slots     = sg->spesh_slots;
+
+    /* May now be referencing nursery objects, so barrier just in case. */
+    if (p->sf->common.header.flags & MVM_CF_SECOND_GEN)
+        MVM_gc_write_barrier_hit(tc, (MVMCollectable *)p->sf);
+
+    /* Clean up after specialization work. */
+    if (candidate->num_inlines) {
+        MVMint32 i;
+        for (i = 0; i < candidate->num_inlines; i++)
+            if (candidate->inlines[i].g) {
+                MVM_spesh_graph_destroy(tc, candidate->inlines[i].g);
+                candidate->inlines[i].g = NULL;
+            }
+    }
+    MVM_spesh_graph_destroy(tc, sg);
+
+    /* Install the new candidate by bumping the number of candidates in
+     * order to make it available, and then updating the guards. */
+    MVM_spesh_arg_guard_add(tc, &(p->sf->body.spesh_arg_guard),
+        p->cs_stats->cs, p->type_tuple, p->sf->body.num_spesh_candidates++);
+
+    /* If we're logging, dump the updated arg guards also. */
+    if (tc->instance->spesh_log_fh) {
+        char *guard_dump = MVM_spesh_dump_arg_guard(tc, p->sf);
+        fprintf(tc->instance->spesh_log_fh, "%s========\n\n", guard_dump);
+        fflush(tc->instance->spesh_log_fh);
         MVM_free(guard_dump);
     }
 
-    /* Clean up after specialization work. */
-    MVM_spesh_graph_destroy(tc, sg);
 #if MVM_GC_DEBUG
     tc->in_spesh = 0;
 #endif
