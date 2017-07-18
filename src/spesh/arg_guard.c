@@ -229,8 +229,8 @@ MVMuint32 get_type_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 ba
 }
 
 /* Inserts a guard for the specified types into the tree. */
-void add_guard(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMCallsite *cs,
-               MVMSpeshStatsType *types, MVMuint32 candidate) {
+static MVMint32 try_add_guard(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMCallsite *cs,
+                              MVMSpeshStatsType *types, MVMuint32 candidate) {
     MVMuint32 current_node = get_callsite_node(tc, ag, cs);
     if (types) {
         MVMuint16 arg_idx = 0;
@@ -247,12 +247,13 @@ void add_guard(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMCallsite *cs,
         }
     }
     if (ag->nodes[current_node].yes)
-        MVM_panic(1, "Spesh arg guard: trying to add duplicate result for same guard");
+        return 0;
     ag->nodes[ag->used_nodes].op = MVM_SPESH_GUARD_OP_RESULT;
     ag->nodes[ag->used_nodes].result = candidate;
     ag->nodes[ag->used_nodes].yes = 0;
     ag->nodes[ag->used_nodes].no = 0;
     ag->nodes[current_node].yes = ag->used_nodes++;
+    return 1;
 }
 
 /* Takes a pointer to a guard set. Replaces it with a guard set that also
@@ -264,7 +265,8 @@ void MVM_spesh_arg_guard_add(MVMThreadContext *tc, MVMSpeshArgGuard **orig,
                              MVMCallsite *cs, MVMSpeshStatsType *types,
                              MVMuint32 candidate) {
     MVMSpeshArgGuard *new_guard = copy_and_extend(tc, *orig, max_new_nodes(cs, types));
-    add_guard(tc, new_guard, cs, types, candidate);
+    if (!try_add_guard(tc, new_guard, cs, types, candidate))
+        MVM_panic(1, "Spesh arg guard: trying to add duplicate result for same guard");
     if (*orig) {
         MVMSpeshArgGuard *prev = *orig;
         *orig = new_guard;
@@ -273,6 +275,19 @@ void MVM_spesh_arg_guard_add(MVMThreadContext *tc, MVMSpeshArgGuard **orig,
     else {
         *orig = new_guard;
     }
+}
+
+/* Checks if we already have a guard that precisely matches the specified
+ * pair of callsite and type tuple. This is a more exact check that "would
+ * the guard match", since a less precise specialization would match if we
+ * just ran the guard tree against the arguments. This answers the question of
+ * "if I added this, would it collide with an existing entry" instead. */
+MVMint32 MVM_spesh_arg_guard_exists(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
+                                    MVMCallsite *cs, MVMSpeshStatsType *types) {
+    MVMSpeshArgGuard *try_guard = copy_and_extend(tc, ag, max_new_nodes(cs, types));
+    MVMint32 exists = !try_add_guard(tc, try_guard, cs, types, 0);
+    MVM_spesh_arg_guard_destroy(tc, try_guard, 0);
+    return exists;
 }
 
 /* Runs the guard against a type tuple, which is used primarily for detecting

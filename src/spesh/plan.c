@@ -1,11 +1,15 @@
 #include "moar.h"
 
-/* Adds a planned specialization. */
+/* Adds a planned specialization, provided it doesn't already exist (this may
+ * happen due to further data suggesting it being logged while it was being
+ * produced). */
 void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlannedKind kind,
                  MVMStaticFrame *sf, MVMSpeshStatsByCallsite *cs_stats,
                  MVMSpeshStatsType *type_tuple, MVMSpeshStatsByType **type_stats,
                  MVMuint32 num_type_stats) {
     MVMSpeshPlanned *p;
+    if (MVM_spesh_arg_guard_exists(tc, sf->body.spesh_arg_guard, cs_stats->cs, type_tuple))
+        return;
     if (plan->num_planned == plan->alloc_planned) {
         plan->alloc_planned += 16;
         plan->planned = MVM_realloc(plan->planned,
