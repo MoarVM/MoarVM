@@ -63,8 +63,3 @@ struct MVMSpeshCandidate {
 /* Functions for creating and clearing up specializations. */
 void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p);
 void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candidate);
-MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
-    MVMStaticFrame *static_frame, MVMCallsite *callsite, MVMRegister *args,
-    MVMint32 osr);
-void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static_frame,
-        MVMSpeshCandidate *candidate);
