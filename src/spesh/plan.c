@@ -30,6 +30,15 @@ void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlannedKind k
     }
 }
 
+/* Makes a copy of an argument type tuple. */
+MVMSpeshStatsType * copy_type_tuple(MVMThreadContext *tc, MVMCallsite *cs,
+        MVMSpeshStatsType *to_copy) {
+    size_t stats_size = cs->flag_count * sizeof(MVMSpeshStatsType);
+    MVMSpeshStatsType *result = MVM_malloc(stats_size);
+    memcpy(result, to_copy, stats_size);
+    return result;
+}
+
 /* Considers the statistics of a given callsite + static frame pairing and
  * plans specializations to produce for it. */
 void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
@@ -53,7 +62,7 @@ void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
                 MVMSpeshStatsByType **evidence = MVM_malloc(sizeof(MVMSpeshStatsByType *));
                 evidence[0] = by_type;
                 add_planned(tc, plan, MVM_SPESH_PLANNED_OBSERVED_TYPES, sf, by_cs,
-                    by_type->arg_types, evidence, 1);
+                    copy_type_tuple(tc, by_cs->cs, by_type->arg_types), evidence, 1);
                 unaccounted_hits -= by_type->hits;
                 unaccounted_osr_hits -= by_type->osr_hits;
             }
