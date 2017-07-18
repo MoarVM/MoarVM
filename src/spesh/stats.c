@@ -386,7 +386,7 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
 
 void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorklist *worklist) {
     if (ss) {
-        MVMuint32 i, j, k, l, m;
+        MVMuint32 i, j, k, l;
         for (i = 0; i < ss->num_by_callsite; i++) {
             MVMSpeshStatsByCallsite *by_cs = &(ss->by_callsite[i]);
             for (j = 0; j < by_cs->num_by_type; j++) {
@@ -395,13 +395,13 @@ void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorkl
                 for (k = 0; k < num_types; k++) {
                     MVM_gc_worklist_add(tc, worklist, &(by_type->arg_types[k].type));
                     MVM_gc_worklist_add(tc, worklist, &(by_type->arg_types[k].decont_type));
-                    for (l = 0; l < by_type->num_by_offset; l++) {
-                        MVMSpeshStatsByOffset *by_offset = &(by_type->by_offset[l]);
-                        for (m = 0; m < by_offset->num_types; m++)
-                            MVM_gc_worklist_add(tc, worklist, &(by_offset->types[m].type));
-                        for (m = 0; m < by_offset->num_values; m++)
-                            MVM_gc_worklist_add(tc, worklist, &(by_offset->values[m].value));
-                    }
+                }
+                for (k = 0; k < by_type->num_by_offset; k++) {
+                    MVMSpeshStatsByOffset *by_offset = &(by_type->by_offset[k]);
+                    for (l = 0; l < by_offset->num_types; l++)
+                        MVM_gc_worklist_add(tc, worklist, &(by_offset->types[l].type));
+                    for (l = 0; l < by_offset->num_values; l++)
+                        MVM_gc_worklist_add(tc, worklist, &(by_offset->values[l].value));
                 }
             }
         }
