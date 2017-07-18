@@ -433,7 +433,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             ? &static_frame->body.spesh_candidates[ag_result]
             : NULL;
         if (chosen_cand) {
-            /* In the post-specialize phase; can safely used the code. */
             frame = allocate_frame(tc, static_frame, chosen_cand);
             if (chosen_cand->jitcode) {
                 frame->effective_bytecode = chosen_cand->jitcode->bytecode;
