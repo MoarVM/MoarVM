@@ -14,12 +14,14 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
             if (log_obj->st->REPR->ID == MVM_REPR_ID_MVMSpeshLog) {
                 MVMSpeshLog *sl = (MVMSpeshLog *)log_obj;
                 MVMROOT(tc, sl, {
+                    MVMuint32 i;
+                    MVMuint32 n;
+
                     /* Update stats, and if we're logging dump each of them. */
                     tc->instance->spesh_stats_version++;
                     MVM_spesh_stats_update(tc, sl, updated_static_frames);
                     if (tc->instance->spesh_log_fh) {
-                        MVMint64 i;
-                        MVMint64 n = MVM_repr_elems(tc, updated_static_frames);
+                        n = MVM_repr_elems(tc, updated_static_frames);
                         fprintf(tc->instance->spesh_log_fh,
                             "Statistics Updated\n"
                             "==================\n"
@@ -37,8 +39,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                     /* Form a specialization plan. */
                     tc->instance->spesh_plan = MVM_spesh_plan(tc, updated_static_frames);
                     if (tc->instance->spesh_log_fh) {
-                        MVMuint32 n = tc->instance->spesh_plan->num_planned;
-                        MVMuint32 i;
+                        n = tc->instance->spesh_plan->num_planned;
                         fprintf(tc->instance->spesh_log_fh,
                             "Specialization Plan\n"
                             "===================\n"
@@ -52,6 +53,15 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                         }
                     }
                     GC_SYNC_POINT(tc);
+
+                    /* Implement the plan and then discard it. */
+                    n = tc->instance->spesh_plan->num_planned;
+                    for (i = 0; i < n; i++) {
+                        MVM_spesh_candidate_add(tc, &(tc->instance->spesh_plan->planned[i]));
+                        GC_SYNC_POINT(tc);
+                    }
+                    MVM_spesh_plan_destroy(tc, tc->instance->spesh_plan);
+                    tc->instance->spesh_plan = NULL;
 
                     /* Clear updated static frames array. */
                     MVM_repr_pos_set_elems(tc, updated_static_frames, 0);

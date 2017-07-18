@@ -47,6 +47,41 @@ static void calculate_work_env_sizes(MVMThreadContext *tc, MVMStaticFrame *sf,
     c->env_size = c->num_lexicals * sizeof(MVMRegister);
 }
 
+/* Produces and installs a specialized version of the code, according to the
+ * specified plan. */
+void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
+    MVMSpeshGraph *sg;
+
+    /* If we've reached our specialization limit, don't continue. */
+    if (tc->instance->spesh_limit)
+        if (++tc->instance->spesh_produced > tc->instance->spesh_limit)
+            return;
+
+    /* Produce the specialization graph pre-transformation and, if we're
+     * logging, dump it out. */
+#if MVM_GC_DEBUG
+    tc->in_spesh = 1;
+#endif
+    sg = MVM_spesh_graph_create(tc, p->sf, 0, 1);
+    if (tc->instance->spesh_log_fh) {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, p->sf->body.name);
+        char *c_cuid = MVM_string_utf8_encode_C_string(tc, p->sf->body.cuuid);
+        char *before = MVM_spesh_dump(tc, sg);
+        fprintf(tc->instance->spesh_log_fh,
+            "Specialization of '%s' (cuid: %s)\n\n", c_name, c_cuid);
+        fprintf(tc->instance->spesh_log_fh, "Before:\n%s\n", before);
+        MVM_free(c_name);
+        MVM_free(c_cuid);
+        MVM_free(before);
+    }
+
+    /* Clean up after specialization work. */
+    MVM_spesh_graph_destroy(tc, sg);
+#if MVM_GC_DEBUG
+    tc->in_spesh = 0;
+#endif
+}
+
 /* Tries to set up a specialization of the bytecode for a given arg tuple.
  * Doesn't do the actual optimizations, just works out the guards and does
  * any simple argument transformations, and then inserts logging to record
