@@ -24,10 +24,6 @@ struct MVMSpeshCandidate {
     /* Deoptimization mappings. */
     MVMint32 *deopts;
 
-    /* The spesh graph, if we're still in the process of producing a
-     * specialization for this candidate. NULL afterwards. */
-    MVMSpeshGraph *sg;
-
     /* Number of inlines and inlines table; see graph.h for description of
      * the table format. */
     MVMint32 num_inlines;

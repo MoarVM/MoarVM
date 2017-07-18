@@ -410,20 +410,18 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     found_spesh = 0;
     if (spesh_cand >= 0 && spesh_cand < static_frame->body.num_spesh_candidates) {
         MVMSpeshCandidate *chosen_cand = &static_frame->body.spesh_candidates[spesh_cand];
-        if (!chosen_cand->sg) {
-            frame = allocate_frame(tc, static_frame, chosen_cand);
-            if (chosen_cand->jitcode) {
-                frame->effective_bytecode = chosen_cand->jitcode->bytecode;
-                frame->jit_entry_label    = chosen_cand->jitcode->labels[0];
-            }
-            else {
-                frame->effective_bytecode = chosen_cand->bytecode;
-            }
-            frame->effective_handlers    = chosen_cand->handlers;
-            frame->effective_spesh_slots = chosen_cand->spesh_slots;
-            frame->spesh_cand            = chosen_cand;
-            found_spesh                  = 1;
+        frame = allocate_frame(tc, static_frame, chosen_cand);
+        if (chosen_cand->jitcode) {
+            frame->effective_bytecode = chosen_cand->jitcode->bytecode;
+            frame->jit_entry_label    = chosen_cand->jitcode->labels[0];
         }
+        else {
+            frame->effective_bytecode = chosen_cand->bytecode;
+        }
+        frame->effective_handlers    = chosen_cand->handlers;
+        frame->effective_spesh_slots = chosen_cand->spesh_slots;
+        frame->spesh_cand            = chosen_cand;
+        found_spesh                  = 1;
     }
     if (!found_spesh) {
         /* Look for specialized bytecode and run it if it exists. */

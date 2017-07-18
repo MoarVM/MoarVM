@@ -67,10 +67,6 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
     if (target->body.sf->body.cu->body.hll_config != inliner->sf->body.cu->body.hll_config)
         return NULL;
 
-    /* Ensure the candidate isn't still logging. */
-    if (cand->sg)
-        return NULL;
-
     /* Build graph from the already-specialized bytecode. */
     ig = MVM_spesh_graph_create_from_cand(tc, target->body.sf, cand, 0);
 

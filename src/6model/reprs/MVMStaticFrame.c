@@ -156,8 +156,6 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
                 MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].spesh_slots[j]);
             for (j = 0; j < body->spesh_candidates[i].num_inlines; j++)
                 MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].inlines[j].code);
-            if (body->spesh_candidates[i].sg)
-                MVM_spesh_graph_mark(tc, body->spesh_candidates[i].sg, worklist);
         }
     }
 }
@@ -252,10 +250,6 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
 
             size += sizeof(MVMint32) * cand->num_deopts;
 
-            if (cand->sg)
-                /* XXX we ought to descend into the speshgraph, too. */
-                size += sizeof(MVMSpeshGraph);
-
             size += sizeof(MVMSpeshInline) * cand->num_inlines;
 
             size += sizeof(MVMuint16) * (cand->num_locals + cand->num_lexicals);
@@ -341,15 +335,6 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                     (MVMCollectable *)body->spesh_candidates[i].inlines[j].code,
                     "Spesh inlined code object");
-            if (body->spesh_candidates[i].sg) {
-                MVMCollectable **c_ptr;
-                MVM_spesh_graph_mark(tc, body->spesh_candidates[i].sg, ss->gcwl);
-                while (( c_ptr = MVM_gc_worklist_get(tc, ss->gcwl) )) {
-                    MVMCollectable *c = *c_ptr;
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, c,
-                        "Object held by spesh graph");
-                }
-            }
         }
     }
 }

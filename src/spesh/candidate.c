@@ -162,8 +162,6 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
 
 /* Frees the memory associated with a spesh candidate. */
 void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candidate) {
-    if (candidate->sg)
-        MVM_spesh_graph_destroy(tc, candidate->sg);
     MVM_free(candidate->bytecode);
     MVM_free(candidate->handlers);
     MVM_free(candidate->spesh_slots);
