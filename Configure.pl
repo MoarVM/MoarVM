@@ -304,27 +304,6 @@ else {
                         . "\t\$(CP) 3rdparty/dyncall/dyncallback/*.h \$(DESTDIR)\$(PREFIX)/include/dyncall\n";
 }
 
-if ($args{'jit'}) {
-    if ($Config{archname} =~ m/^x86_64|^amd64|^darwin(-thread)?(-multi)?-2level/) {
-        $config{jit_obj}      = '$(JIT_POSIX_X64)';
-        $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
-        $config{jit_platform} = 'MVM_JIT_PLATFORM_POSIX';
-    } elsif ($Config{archname} =~ /^MSWin32-x64/) {
-        $config{jit_obj}      = '$(JIT_WIN32_X64)';
-        $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
-        $config{jit_platform} = 'MVM_JIT_PLATFORM_WIN32';
-    } else {
-        print "JIT isn't supported on $Config{archname} yet.\n";
-    }
-}
-# fallback
-unless (defined $config{jit_obj}) {
-    $config{jit_obj} = '$(JIT_STUB)';
-    $config{jit_arch} = 'MVM_JIT_ARCH_NONE';
-    $config{jit_platform} = 'MVM_JIT_PLATFORM_NONE';
-}
-
-
 # mangle library names
 $config{ldlibs} = join ' ',
     (map { sprintf $config{ldusr}, $_; } @{$config{usrlibs}}),
@@ -418,19 +397,32 @@ else {
     build::probe::ptr_size_native(\%config, \%defaults);
 }
 
+
 if ($args{'jit'}) {
     if ($config{ptr_size} != 8) {
         print "JIT isn't supported on platforms with $config{ptr_size} byte pointers.\n";
     } elsif ($Config{archname} =~ m/^x86_64|^amd64|^darwin(-thread)?(-multi)?-2level/) {
-        $config{jit} = '$(JIT_POSIX_X64)';
+        $config{jit_obj}      = '$(JIT_ARCH_X64)';
+        $config{dasm_flags}   = '-D POSIX=1';
+        $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
+        $config{jit_platform} = 'MVM_JIT_PLATFORM_POSIX';
     } elsif ($Config{archname} =~ /^MSWin32-x64/) {
-        $config{jit} = '$(JIT_WIN32_X64)';
+        $config{jit_obj}      = '$(JIT_ARCH_X64)';
+        $config{dasm_flags}   = '-D WIN32=1';
+        $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
+        $config{jit_platform} = 'MVM_JIT_PLATFORM_WIN32';
     } else {
         print "JIT isn't supported on $Config{archname} yet.\n";
     }
 }
 # fallback
-$config{jit} = '$(JIT_STUB)' unless defined $config{jit};
+unless (defined $config{jit_obj}) {
+    $config{jit_obj}      = '$(JIT_STUB)';
+    $config{jit_arch}     = 'MVM_JIT_ARCH_NONE';
+    $config{jit_platform} = 'MVM_JIT_PLATFORM_NONE';
+    $config{dasm_flags}   = '';
+}
+
 
 if ($config{cc} eq 'cl') {
     $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/msinttypes\n"
