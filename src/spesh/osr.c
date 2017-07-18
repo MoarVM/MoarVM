@@ -15,68 +15,15 @@ static MVMint32 get_osr_deopt_index(MVMThreadContext *tc, MVMSpeshCandidate *can
     MVM_oops(tc, "Spesh: get_osr_deopt_index failed");
 }
 
-/* Locates deopt index matching OSR finalize point. */
-static MVMint32 get_osr_deopt_finalize_index(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
-    /* Calculate offset. */
-    MVMint32 offset = ((*(tc->interp_cur_op) - *(tc->interp_bytecode_start))) - 2;
-
-    /* Locate it in the deopt table. */
-    MVMint32 i;
-    for (i = 0; i < cand->num_deopts; i++)
-        if (cand->deopts[2 * i + 1] == offset)
-            return i;
-
-    /* If we couldn't locate it, something is really very wrong. */
-    MVM_oops(tc, "Spesh: get_osr_deopt_finalize_index failed");
-}
-
-/* Called to start OSR. Switches us over to logging runs of spesh'd code, to
- * collect extra type info. */
-void MVM_spesh_osr(MVMThreadContext *tc) {
-    MVMSpeshCandidate *specialized;
+/* Polls for an optimization and, when one is produced, jumps into it. */
+void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
+    MVMJitCode *jc;
     MVMint32 osr_index;
 
-    /* Check OSR is enabled. */
-    if (!tc->instance->spesh_osr_enabled)
+    /* TODO implement this to get OSR working again */
+    MVMSpeshCandidate *specialized = NULL;
+    if (!specialized)
         return;
-
-    /* Ensure that we are in a position to specialize. */
-    if (!tc->cur_frame->caller)
-        return;
-    if (!tc->cur_frame->params.callsite->is_interned)
-        return;
-    if (tc->cur_frame->static_info->body.num_spesh_candidates == MVM_SPESH_LIMIT)
-        return;
-
-    /* Produce logging spesh candidate. */
-    specialized = MVM_spesh_candidate_setup(tc, tc->cur_frame->static_info,
-        tc->cur_frame->params.callsite, tc->cur_frame->params.args, 1);
-    if (specialized) {
-        /* Set up frame to point to specialized logging code. */
-        tc->cur_frame->effective_bytecode    = specialized->bytecode;
-        tc->cur_frame->effective_handlers    = specialized->handlers;
-        tc->cur_frame->effective_spesh_slots = specialized->spesh_slots;
-        tc->cur_frame->spesh_cand            = specialized;
-
-        /* Work out deopt index that applies, and move interpreter into the
-         * logging version of the code. */
-        osr_index = get_osr_deopt_index(tc, specialized);
-        *(tc->interp_bytecode_start) = specialized->bytecode;
-        *(tc->interp_cur_op)         = specialized->bytecode +
-                                       specialized->deopts[2 * osr_index + 1] +
-                                       2; /* Pass over sp_osrfianlize this first time */;
-    }
-}
-
-/* Finalizes OSR. */
-void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
-    /* Find deopt index using existing deopt table, for entering the updated
-     * code later. */
-    MVMSpeshCandidate *specialized = tc->cur_frame->spesh_cand;
-    MVMint32 osr_index = get_osr_deopt_finalize_index(tc, specialized);
-    MVMJitCode *jc;
-    /* Finish up the specialization. */
-    MVM_spesh_candidate_specialize(tc, tc->cur_frame->static_info, specialized);
 
     /* Resize work area if needed. */
     if (specialized->num_locals > tc->cur_frame->static_info->body.num_locals) {
@@ -106,12 +53,15 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
         tc->cur_frame->allocd_env = specialized->env_size;
     }
 
-    /* Sync frame with updates. */
+    /* Set up frame to point to specialized code. */
     tc->cur_frame->effective_bytecode    = specialized->bytecode;
     tc->cur_frame->effective_handlers    = specialized->handlers;
     tc->cur_frame->effective_spesh_slots = specialized->spesh_slots;
+    tc->cur_frame->spesh_cand            = specialized;
 
-    /* Sync interpreter with updates. */
+    /* Work out deopt index that applies, and move interpreter the optimized
+     * (and maybe JIT-compiled) code. */
+    osr_index = get_osr_deopt_index(tc, specialized);
     jc = specialized->jitcode;
     if (jc && jc->num_deopts) {
         MVMint32 i;

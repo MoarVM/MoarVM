@@ -4378,7 +4378,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(osrpoint):
                 MVM_spesh_log_osr(tc);
-                /* TODO Update after spesh worker thread makes candidates. */
+                MVM_spesh_osr_poll_for_result(tc);
                 goto NEXT;
             OP(nativecallcast):
                 GET_REG(cur_op, 0).o = MVM_nativecall_cast(tc, GET_REG(cur_op, 2).o,
