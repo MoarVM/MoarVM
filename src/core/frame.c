@@ -542,8 +542,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                     frame->effective_bytecode = code->bytecode;
                     frame->jit_entry_label    = code->labels[0];
                     if (frame->jit_entry_label == NULL ||
-                        frame->jit_entry_label - (void*)code->func_ptr > code->size ||
-                        frame->jit_entry_label - (void*)code->func_ptr < 0) {
+                        (char*)frame->jit_entry_label - (char*)code->func_ptr > code->size ||
+                        (char*)frame->jit_entry_label - (char*)code->func_ptr < 0) {
                         MVM_oops(tc, "Label not correctly initialized!");
                     }
                 }

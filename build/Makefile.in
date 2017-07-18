@@ -56,11 +56,9 @@ PLATFORM_WIN32 = src/platform/win32/mmap@obj@ \
 PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
                  src/platform/posix/time@obj@
 
-DASM_FLAGS_WIN32 = -D WIN32=1
-DASM_FLAGS_POSIX = -D POSIX=1
-JIT_WIN32_X64 = src/jit/x64/emit_win32@obj@ src/jit/x64/arch@obj@
-JIT_POSIX_X64 = src/jit/x64/emit_posix@obj@ src/jit/x64/arch@obj@
-JIT_STUB = src/jit/stub@obj@
+DASM_FLAGS   = @dasm_flags@
+JIT_ARCH_X64 = src/jit/x64/emit@obj@ src/jit/x64/arch@obj@
+JIT_STUB     = src/jit/stub@obj@
 
 
 MAIN_OBJECTS = src/main@obj@
@@ -561,24 +559,18 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 $(MINILUA): 3rdparty/dynasm/minilua.c
 	$(CC) $(CFLAGS) $(LDFLAGS) 3rdparty/dynasm/minilua.c -o $@ $(LDLIBS)
 
-src/jit/x64/emit_posix@obj@: src/jit/x64/emit_posix.c $(DYNASM_HEADERS)
-src/jit/x64/emit_win32@obj@: src/jit/x64/emit_win32.c $(DYNASM_HEADERS)
+src/jit/x64/emit@obj@: src/jit/x64/emit.c $(DYNASM_HEADERS)
 
-src/jit/x64/emit_posix.c: src/jit/x64/emit.dasc src/jit/x64/tiles.dasc $(MINILUA) $(DYNASM_SCRIPTS)
-	$(DYNASM) $(DASM_FLAGS_POSIX) -o $@ $<
-
-src/jit/x64/emit_win32.c: src/jit/x64/emit.dasc src/jit/x64/tiles.dasc $(MINILUA) $(DYNASM_SCRIPTS)
-	$(DYNASM) $(DASM_FLAGS_WIN32) -o $@ $<
-
-dasm_all: src/jit/x64/emit_win32.c src/jit/x64/emit_posix.c
+src/jit/x64/emit.c: src/jit/x64/emit.dasc src/jit/x64/tiles.dasc $(MINILUA) $(DYNASM_SCRIPTS)
+	$(DYNASM) $(DASM_FLAGS) -o $@ src/jit/x64/emit.dasc
 
 # Expression list tables
-%_expr_tables.h: %.expr tools/expr-template-compiler.pl src/core/oplist src/jit/expr_ops.h
-	$(PERL) -Itools/ tools/expr-template-compiler.pl -o $@ $<
+src/jit/core_expr_tables.h: src/jit/core.expr tools/expr-template-compiler.pl src/core/oplist src/jit/expr_ops.h
+	$(PERL) -Itools/ tools/expr-template-compiler.pl -o $@ src/jit/core.expr
 
 # Architecture-specific tiles
 src/jit/x64/tile_tables.h: src/jit/x64/tiles.list tools/tiler-table-generator.pl src/jit/expr_ops.h
-	$(PERL) -Itools/ tools/tiler-table-generator.pl -o $@ $<
+	$(PERL) -Itools/ tools/tiler-table-generator.pl -o $@ src/jit/x64/tiles.list
 
 src/jit/expr@obj@: src/jit/core_expr_tables.h
 # TODO-fix stub
@@ -586,8 +578,7 @@ src/jit/tile@obj@: src/jit/x64/tile_tables.h
 src/jit/compile@obj@ src/jit/linear_scan@obj@ src/jit/x64/arch@obj@ @jit_obj@: src/jit/internal.h src/jit/x64/arch.h
 
 # JIT intermediate files which clean should remove
-JIT_INTERMEDIATES:= src/jit/x64/emit_win32.c \
-                    src/jit/x64/emit_posix.c \
+JIT_INTERMEDIATES = src/jit/x64/emit.c \
                     src/jit/x64/tile_tables.h \
                     src/jit/core_expr_tables.h
 
@@ -642,7 +633,7 @@ distclean: realclean
 	$(MSG) remove configuration and generated files
 	-$(CMD)$(RM) Makefile src/gen/config.h src/gen/config.c src/strings/unicode.c \
 	    tools/check.mk 3rdparty/libatomic_ops/config.log 3rdparty/libatomic_ops/config.status $(NOOUT) $(NOERR)
-	-$(CMD)$(RM_RF) src/jit/emit_posix_x64.c build/mk-moar-pc.pl pkgconfig/ $(NOOUT) $(NOERR)
+	-$(CMD)$(RM_RF) build/mk-moar-pc.pl pkgconfig/ $(NOOUT) $(NOERR)
 
 release:
 	[ -n "$(VERSION)" ] || ( echo "\nTry 'make release VERSION=yyyy.mm'\n\n"; exit 1 )

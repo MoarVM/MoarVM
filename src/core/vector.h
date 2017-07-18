@@ -1,7 +1,8 @@
 /* An as-small-as-possible dynamic array implementation. */
 #define MVM_VECTOR_DECL(type, x) type *x; \
     size_t x ## _num; \
-    size_t x ## _alloc;
+    size_t x ## _alloc
+
 
 #define MVM_VECTOR_INIT(x, size) do { \
         size_t _s = (size); \
