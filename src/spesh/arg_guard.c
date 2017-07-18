@@ -5,15 +5,17 @@
  * due to head sharing.) */
 static size_t max_new_nodes(MVMCallsite *cs, MVMSpeshStatsType *types) {
     size_t needed = 2; /* One for callsite, one for result */
-    MVMuint32 i;
-    for (i = 0; i < cs->flag_count; i++) {
-        if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ) {
-            if (types[i].type)
-                needed += 2; /* One to read arg, one to check */
-            if (types[i].rw_cont)
-                needed++;
-            if (types[i].decont_type)
-                needed += 2; /* One to decont, one to check */
+    if (types) {
+        MVMuint32 i;
+        for (i = 0; i < cs->flag_count; i++) {
+            if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ) {
+                if (types[i].type)
+                    needed += 2; /* One to read arg, one to check */
+                if (types[i].rw_cont)
+                    needed++;
+                if (types[i].decont_type)
+                    needed += 2; /* One to decont, one to check */
+            }
         }
     }
     return needed + 1;
@@ -230,17 +232,19 @@ MVMuint32 get_type_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 ba
 void add_guard(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMCallsite *cs,
                MVMSpeshStatsType *types, MVMuint32 candidate) {
     MVMuint32 current_node = get_callsite_node(tc, ag, cs);
-    MVMuint16 arg_idx = 0;
-    MVMuint16 i;
-    for (i = 0; i < cs->flag_count; i++) {
-        if (cs->arg_flags[i] & MVM_CALLSITE_ARG_NAMED)
-            arg_idx++; /* Skip over name */
-        if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ) {
-            MVMSpeshStatsType *type = &(types[i]);
-            if (type->type)
-                current_node = get_type_node(tc, ag, current_node, type, arg_idx);
+    if (types) {
+        MVMuint16 arg_idx = 0;
+        MVMuint16 i;
+        for (i = 0; i < cs->flag_count; i++) {
+            if (cs->arg_flags[i] & MVM_CALLSITE_ARG_NAMED)
+                arg_idx++; /* Skip over name */
+            if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ) {
+                MVMSpeshStatsType *type = &(types[i]);
+                if (type->type)
+                    current_node = get_type_node(tc, ag, current_node, type, arg_idx);
+            }
+            arg_idx++;
         }
-        arg_idx++;
     }
     if (ag->nodes[current_node].yes)
         MVM_panic(1, "Spesh arg guard: trying to add duplicate result for same guard");
