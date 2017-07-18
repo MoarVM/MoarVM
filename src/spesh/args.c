@@ -9,9 +9,7 @@
 /* Adds facts for an object arg. */
 static void add_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
                       MVMSpeshStatsType type_tuple_entry, MVMSpeshIns *arg_ins) {
-    /* Grab type and concreteness. */
-
-    /* Add appropriate facts from the arg type tuple itself. */
+    /* Add appropriate facts from the arg type tuple. */
     MVMint16 orig = arg_ins->operands[0].reg.orig;
     MVMint16 i = arg_ins->operands[0].reg.i;
     MVMObject *type = type_tuple_entry.type;
