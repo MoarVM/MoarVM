@@ -130,10 +130,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
             result->local_types         = sg->local_types;
             result->lexical_types       = sg->lexical_types;
             result->sg                  = sg;
-            result->log_enter_idx       = 0;
             calculate_work_env_sizes(tc, static_frame, result);
-            if (osr)
-                result->osr_logging = 1;
             MVM_barrier();
             if (!existing_match)
                 MVM_spesh_arg_guard_add(tc, &(static_frame->body.spesh_arg_guard),

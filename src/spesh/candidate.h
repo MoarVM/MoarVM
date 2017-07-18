@@ -24,18 +24,6 @@ struct MVMSpeshCandidate {
     /* Deoptimization mappings. */
     MVMint32 *deopts;
 
-    /* Atomic integer for the number of times we've entered the code so far
-     * for the purpose of logging, in the trace phase. We used this as an
-     * index into the log slots when running logging code. Once it hits the
-     * limit on number of log attempts it increments no further. */
-    AO_t log_enter_idx;
-
-    /* Atomic integer for the number of times we need to exit the logging
-     * version of the code. When this hits zero, we know we were the last
-     * run, that there are no remaining runs, and so we should finalize
-     * the specialization. */
-    AO_t log_exits_remaining;
-
     /* The spesh graph, if we're still in the process of producing a
      * specialization for this candidate. NULL afterwards. */
     MVMSpeshGraph *sg;
@@ -64,10 +52,6 @@ struct MVMSpeshCandidate {
 
     /* Number of handlers. */
     MVMuint32 num_handlers;
-
-    /* Whether this is a candidate we're in the process of doing OSR logging
-     * on. */
-    MVMuint32 osr_logging;
 
     /* JIT-code structure */
     MVMJitCode *jitcode;
