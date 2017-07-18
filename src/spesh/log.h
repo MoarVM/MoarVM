@@ -12,6 +12,11 @@ struct MVMSpeshLogGuard {
  * before it is sent to a specialization worker. */
 #define MVM_SPESH_LOG_DEFAULT_ENTRIES 4096
 
+/* The number of spesh log buffers a thread can write before the spesh worker
+ * thread allows it to write more (effectively, the limit to the number of
+ * outstanding workers). */
+#define MVM_SPESH_LOG_QUOTA 3
+
 /* The number of logged invocations before we decide we've enough data for
  * the time being. */
 #define MVM_SPESH_LOG_LOGGED_ENOUGH 100

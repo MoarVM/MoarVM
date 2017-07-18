@@ -67,6 +67,9 @@ struct MVMSpeshLogEntry {
 
 /* The spesh log representation itself. */
 struct MVMSpeshLogBody {
+    /* The sending thread. */
+    MVMThread *thread;
+
     /* Array of log entries. */
     MVMSpeshLogEntry *entries;
 

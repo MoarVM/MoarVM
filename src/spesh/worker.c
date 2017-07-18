@@ -14,6 +14,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
             if (log_obj->st->REPR->ID == MVM_REPR_ID_MVMSpeshLog) {
                 MVMSpeshLog *sl = (MVMSpeshLog *)log_obj;
                 MVMROOT(tc, sl, {
+                    MVMThreadContext *stc;
                     MVMuint32 i;
                     MVMuint32 n;
 
@@ -65,6 +66,14 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
 
                     /* Clear updated static frames array. */
                     MVM_repr_pos_set_elems(tc, updated_static_frames, 0);
+
+                    /* Allow the sending thread to produce more logs again,
+                     * putting a new spesh log in place if needed. */
+                    stc = sl->body.thread->body.tc;
+                    if (stc)
+                        if (MVM_incr(&(stc->spesh_log_quota)) == 0)
+                            stc->spesh_log = (MVMSpeshLog *)MVM_repr_alloc_init(tc,
+                                tc->instance->SpeshLog);
 
                     /* If needed, signal sending thread that it can continue. */
                     if (sl->body.block_mutex) {

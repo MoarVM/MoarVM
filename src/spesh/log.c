@@ -3,8 +3,10 @@
 /* Provided spesh is enabled, create a specialization data log for the thread
  * in question. */
 void MVM_spesh_log_create_for_thread(MVMThreadContext *tc) {
-    if (tc->instance->spesh_enabled)
-        tc->spesh_log = (MVMSpeshLog *)MVM_repr_alloc_init(tc, tc->instance->SpeshLog); 
+    if (tc->instance->spesh_enabled) {
+        tc->spesh_log = (MVMSpeshLog *)MVM_repr_alloc_init(tc, tc->instance->SpeshLog);
+        tc->spesh_log_quota = MVM_SPESH_LOG_QUOTA;
+    }
 }
 
 /* Increments the used count and - if it hits the limit - sends the log off
@@ -12,7 +14,6 @@ void MVM_spesh_log_create_for_thread(MVMThreadContext *tc) {
 void commit_entry(MVMThreadContext *tc, MVMSpeshLog *sl) {
     sl->body.used++;
     if (sl->body.used == sl->body.limit) {
-        tc->spesh_log = NULL;
         if (tc->instance->spesh_blocking) {
             sl->body.block_mutex = MVM_malloc(sizeof(uv_mutex_t));
             uv_mutex_init(sl->body.block_mutex);
@@ -35,6 +36,10 @@ void commit_entry(MVMThreadContext *tc, MVMSpeshLog *sl) {
         else {
             MVM_repr_push_o(tc, tc->instance->spesh_queue, (MVMObject *)sl);
         }
+        if (MVM_decr(&(tc->spesh_log_quota)) > 1)
+            tc->spesh_log = (MVMSpeshLog *)MVM_repr_alloc_init(tc, tc->instance->SpeshLog);
+        else
+            tc->spesh_log = NULL;
     }
 }
 

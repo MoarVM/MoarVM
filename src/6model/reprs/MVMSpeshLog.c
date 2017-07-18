@@ -22,6 +22,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVMSpeshLogBody *log = (MVMSpeshLogBody *)data;
     log->entries = MVM_malloc(sizeof(MVMSpeshLogEntry) * MVM_SPESH_LOG_DEFAULT_ENTRIES);
     log->limit = MVM_SPESH_LOG_DEFAULT_ENTRIES;
+    MVM_ASSIGN_REF(tc, &(root->header), log->thread, tc->thread_obj);
 }
 
 /* Copies the body of one object to another. */
@@ -33,6 +34,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMSpeshLogBody *log = (MVMSpeshLogBody *)data;
     MVMuint32 i;
+    MVM_gc_worklist_add(tc, worklist, &(log->thread));
     for (i = 0; i < log->used; i++) {
         switch (log->entries[i].kind) {
             case MVM_SPESH_LOG_ENTRY:

@@ -175,6 +175,11 @@ struct MVMThreadContext {
      * one. */
     MVMSpeshLog *spesh_log;
 
+    /* How many spesh logs we can produce, inclusive of the current one.
+     * Ensures the spesh worker isn't overwhelmed with data before it has a
+     * change to produce some specializations. */
+    AO_t spesh_log_quota;
+
     /* The current specialization correlation ID, used in logging. */
     MVMuint32 spesh_cid;
 
