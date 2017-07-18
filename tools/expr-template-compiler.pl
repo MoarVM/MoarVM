@@ -1,23 +1,19 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
-use Data::Dumper;
+# use very strict
+use autodie qw(open close);
+use warnings FATAL => 'all';
 
 use Getopt::Long;
-
+use File::Spec;
+# use my libs
 use FindBin;
 use lib $FindBin::Bin;
+
 use sexpr;
 use expr_ops;
 
-# A S-EXP is the most trivial thing to parse in the world.  Writing S-EXP
-# is greatly preferable to hand-matching tree fragment offsets, We
-# need (a lot of) tree fragments for building the low-level expression
-# tree IR (the ETIR). Because of this, it seems to me to be simpler to
-# build a preprocessor for generating the ETIR template tables, which
-# are then used (at runtime) to generate the ET for a basic block.
-# This is pretty much exactly the same game as dynasm, except for an
-# intermediate format rather than machine code.
 
 # Input:
 #   (load (addr pargs $1))
@@ -25,22 +21,23 @@ use expr_ops;
 #   template: (MVM_JIT_ADDR, MVM_JIT_PARGS, 1, MVM_JIT_LOAD, 0)
 #   length: 5, root: 3 "..f..l"
 
-my $OPLIST = 'src/core/oplist';     # We need this for generating the lookup table
-my $PREFIX = 'MVM_JIT_';            # Prefix of all nodes
-my ($INPUT, $OUTPUT);
-my $TESTING;
-GetOptions(
-    'prefix=s' => \$PREFIX,
-    'input=s' => sub { open $INPUT, '<', $_[1] or die "Could not open $_[1]"; },
-    'output=s' => sub { open $OUTPUT, '>', $_[1] or die "Could not open $_[1]"; }
-);
-$OUTPUT = \*STDOUT unless defined $OUTPUT;
-# any file-like arguments left, that's our input
-if (@ARGV && -f $ARGV[0]) {
-    open $INPUT, '<', $ARGV[0] or die "Could not open $ARGV[0]: $!";
-}
-$INPUT = \*STDIN unless defined $INPUT;
 
+# options to compile
+my %OPTIONS = (
+    prefix => 'MVM_JIT_',
+    oplist => File::Spec->catfile($FindBin::Bin, File::Spec->updir, qw(src core oplist)),
+);
+GetOptions(\%OPTIONS, qw(prefix=s list=s input=s output=s));
+
+my ($PREFIX, $OPLIST) = @OPTIONS{'prefix', 'oplist'};
+if ($OPTIONS{output}) {
+    close STDOUT;
+    open STDOUT, '>', $OPTIONS{output};
+}
+if ($OPTIONS{input} //= shift @ARGV) {
+    close STDIN;
+    open STDIN, '<', $OPTIONS{input};
+}
 
 # Wrapper for the recursive write_template
 sub compile_template {
@@ -102,6 +99,54 @@ sub validate_template {
             die "Child $i of $txt is not an argument";
         }
     }
+}
+
+sub apply_macros {
+    my ($tree, $macros) = @_;
+    return unless ref($tree) eq 'ARRAY';
+
+    my @result;
+    for my $node (@$tree) {
+        if (ref($node) eq 'ARRAY') {
+            push @result, apply_macros($node, $macros);
+        } else {
+            push @result, $node;
+        }
+    }
+    # empty lists can occur for instance with macros without arguments
+    if (@result and $result[0] =~ m/^\^/) {
+        # looks like a macro
+        my $name = shift @result;
+        if (my $macro = $macros->{$name}) {
+            my ($params, $structure) = @$macro[0,1];
+            die sprintf("Macro %s needs %d params, got %d", $name, 0+@result, 0+@{$params})
+                unless @result == @{$params};
+            my %bind; @bind{@$params} = @result;
+            return fill_macro($structure, \%bind);
+        } else {
+            die "Tried to instantiate undefined macro $result[0]";
+        }
+    }
+    return \@result;
+}
+
+sub fill_macro {
+    my ($macro, $bind) = @_;
+    my $result = [];
+    for (my $i = 0; $i < @$macro; $i++) {
+        if (ref($macro->[$i]) eq 'ARRAY') {
+            push @$result, fill_macro($macro->[$i], $bind);
+        } elsif (substr($macro->[$i], 0, 1) eq ',') {
+            if (defined $bind->{$macro->[$i]}) {
+                push @$result, $bind->{$macro->[$i]};
+            } else {
+                die "Unmatched macro substitution: $macro->[$i]";
+            }
+        } else {
+            push @$result, $macro->[$i];
+        }
+    }
+    return $result;
 }
 
 
@@ -179,28 +224,29 @@ sub write_template {
 
     # first read the correct order of opcodes
 my (@opcodes, %names);
-open my $oplist, '<', $OPLIST or die "Could not open $OPLIST";
-while (<$oplist>) {
-    next unless (m/^\w+/);
-    my $opcode = substr $_, 0, $+[0];
-    push @opcodes, $opcode;
-    $names{$opcode} = $#opcodes;
-
+{
+    open my $oplist, '<', $OPLIST;
+    while (<$oplist>) {
+        next unless (m/^\w+/);
+        my $opcode = substr $_, 0, $+[0];
+        push @opcodes, $opcode;
+        $names{$opcode} = $#opcodes;
+    }
+    close $oplist;
 }
-close $oplist;
 
 # read input, which should use the expresison-list
 # syntax. generate template info table and template array
+my %macros;
 my %info;
 my @templates;
-my $parser = sexpr->parser($INPUT);
-
-
-while (my $tree = $parser->parse) {
+my $parser = sexpr->parser(\*STDIN);
+while (my $tree = apply_macros($parser->parse, \%macros)) {
     my $keyword = shift @$tree;
     if ($keyword eq 'macro:') {
         my $name = shift @$tree;
-        $parser->decl_macro($name, $tree);
+        # declare that macro
+        $macros{$name} = $tree;
     } elsif ($keyword eq 'template:') {
         my $opcode   = shift @$tree;
         my $template = shift @$tree;
@@ -223,42 +269,41 @@ while (my $tree = $parser->parse) {
             len => length($compiled->{desc}),
             flags => $flags
         };
-
         push @templates, @{$compiled->{template}};
     } else {
         die "I don't know what to do with '$keyword' ";
     }
 }
-close $INPUT;
+close STDIN;
 
 # write a c output header file.
-print $OUTPUT <<"HEADER";
+print <<"HEADER";
 /* FILE AUTOGENERATED BY $0. DO NOT EDIT.
  * Defines tables for expression templates. */
 HEADER
     my $i = 0;
-    print $OUTPUT "static const MVMJitExprNode MVM_jit_expr_templates[] = {\n    ";
+    print "static const MVMJitExprNode MVM_jit_expr_templates[] = {\n    ";
     for (@templates) {
         $i += length($_) + 2;
         if ($i > 75) {
-            print $OUTPUT "\n    ";
+            print "\n    ";
             $i = length($_) + 2;
         }
-        print $OUTPUT "$_,";
+        print "$_,";
     }
-    print $OUTPUT "\n};\n";
-    print $OUTPUT "static const MVMJitExprTemplate MVM_jit_expr_template_info[] = {\n";
+    print "\n};\n";
+    print "static const MVMJitExprTemplate MVM_jit_expr_template_info[] = {\n";
     for (@opcodes) {
         if (defined($info{$_})) {
             my $td = $info{$_};
-            printf $OUTPUT '    { MVM_jit_expr_templates + %d, "%s", %d, %d, %d },%s',
+            printf '    { MVM_jit_expr_templates + %d, "%s", %d, %d, %d },%s',
                            $td->{idx}, $td->{info}, $td->{len}, $td->{root}, $td->{flags}, "\n";
         } else {
-            print $OUTPUT "    { NULL, NULL, -1, 0 },\n";
+            print "    { NULL, NULL, -1, 0 },\n";
         }
     }
-    print $OUTPUT "};\n";
-    print $OUTPUT <<'FOOTER';
+    print "};\n";
+    print <<'FOOTER';
 static const MVMJitExprTemplate * MVM_jit_get_template_for_opcode(MVMuint16 opcode) {
     if (opcode >= MVM_OP_EXT_BASE) return NULL;
     if (MVM_jit_expr_template_info[opcode].len < 0) return NULL;

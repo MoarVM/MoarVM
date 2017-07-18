@@ -4,6 +4,66 @@ Before merging the expression JIT, there are numerous standing issues
 to resolve, sorted by priority.
 
 
+* Better template validation
+
+Like, DOV taking non-void things...  This should not crash at runtime,
+it should crash at compile time.
+
+Challenge is to specify the information in a way that the expr
+template compiler (perl) and the expr tree processing code can use.
+Ideally, I'd want to use it in such a way as to solve the 'casting'
+issues, but that might be too much to ask.
+
+Matter of fact, we can also just ignore the C expr tree builder, in
+the first place, and just do it for perl-side validation first.
+
+* REPR-Specialized expression code
+
+Parts needed:
++ A hook for instructions with operands of known repr type to insert a template
+  + So how do we know which instruction/operand this is? (Hardcode with a switch, maybe)
+  + Runtime hook should be similar to spesh hook
+  + We should probably pass the tree and let the repr do manipulations itself for maximum flexibility
+  + and have a default hook which attempts to apply a template
+  + return root if succesful, otherwise -1 (in which case we can fallback to the normal mode)
+  + should have a separate jit flags entry which is also settable by
+    the specializer (for jittivity, template destructiveness, possibly
+    other things)
+  + operands loading must be public / template apply must become 'public methods'
++ Compile-time support for arbitrary templates in the expression templates
+  + I think adding to a makefile list is acceptable, in general, but
+    it would be nice if we could have a substitution rule that would
+    make sure the expression templates are compiled 'automatically'
+
+#+BEGIN_SRC makefile
+EPXR_TEMPLATES=src/jit/core_expr.h \
+               src/6model/reprs/MMArray_expr.h \
+               src/6model/reprs/NativeRef_expr.h \
+               src/6model/reprs/MultiDimArray_expr.h \
+# preferefably, we'd match the .expr with the file name automatically
+
+src/6model/reprs/%.c: src/6model/reprs/%_expr.h # would be ideal, but this is not automatically picked up
+# Expression list tables
+%_expr_tables.h: %.expr tools/expr-template-compiler.pl src/core/oplist src/jit/expr_ops.h
+	$(PERL) -Itools/ tools/expr-template-compiler.pl -o $@ $<
+#+END_SRC
+
+
+* Expression tree code optimizer
+
+Stuff we want for this:
+
+** DONE An equivalence function
+** TODO A replacement 'function'
+
+Basically we require the possibility to update all uses of a node with
+another one, including roots, if necessary.
+
+Now, there will never be more uses than nodes, so we can build a
+'usage' table-of-linked-list from a single block of memory.
+
+Walks should be single-visit.
+
 * Stack walker for current position
 
 Currently we mark the 'current position' in the JIT entry label at the
@@ -128,14 +188,6 @@ the allocator itself, so it doesn't need last-minute patchup.
   spilling has a single definition, and that definition is a constant,
   copy it)
 - It might be more effective to do it in the expression optimizer
-
-* Better template validation
-
-Like, DOV taking non-void things...  This should not crash at runtime,
-it should crash at compile time.
-
-Challenge is to specify the information in a way that the expr
-template compiler (perl) and the expr tree processing code can use.
 
 
 * DONE 'Optimistic' insertion of STORE

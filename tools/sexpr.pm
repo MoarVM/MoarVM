@@ -96,53 +96,9 @@ sub parse {
         }
     }
     $self->_shift;
-    if (@expr and $expr[0] =~ m/\A\^/) {
-        my $macro = $self->{macros}{$expr[0]}; 
-        if (defined $macro) {
-            @expr = @{apply_macro($macro, \@expr)};
-        } else {
-            die "Attempt to invoke undefined macro by name: $expr[0]";
-        }
-    }
     return \@expr;
 }
 
-sub decl_macro {
-    my ($self, $name, $macro) = @_;
-    die "Macro name '$name' must start with ^ symbol" unless substr($name,0,1) eq '^';
-    die "Redeclaration of macro $name" if defined $self->{'macros'}->{$name};
-
-    $self->{macros}->{$name} = $macro;
-}
-
-sub apply_macro {
-    my ($macro, $tree) = @_;
-    my $params = $macro->[0];
-    my $args   = [@$tree[1..$#$tree]];
-    die "Incorrect number of args, got ".@$args." expected ".@$params unless @$args == @$params;
-    my %bind;
-    @bind{@$params} = @$args;
-    return fill_macro($macro->[1], \%bind);
-}
-
-sub fill_macro {
-    my ($macro, $bind) = @_;
-    my $result = [];
-    for (my $i = 0; $i < @$macro; $i++) {
-        if (ref($macro->[$i]) eq 'ARRAY') {
-            push @$result, fill_macro($macro->[$i], $bind);
-        } elsif (substr($macro->[$i], 0, 1) eq ',') {
-            if (defined $bind->{$macro->[$i]}) {
-                push @$result, $bind->{$macro->[$i]};
-            } else {
-                die "Unmatched macro substitution: $macro->[$i]";
-            }
-        } else {
-            push @$result, $macro->[$i];
-        }
-    }
-    return $result;
-}
 
 sub encode {
     my $list = shift;
