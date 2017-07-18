@@ -23,7 +23,8 @@ static size_t max_new_nodes(MVMCallsite *cs, MVMSpeshStatsType *types) {
 
 /* Allocates a new set of spesh argument guards extended by the extras amount
  * of nodes specified. Copies the original argument guards into it. */
-MVMSpeshArgGuard * copy_and_extend(MVMThreadContext *tc, MVMSpeshArgGuard *orig, size_t extra) {
+static MVMSpeshArgGuard * copy_and_extend(MVMThreadContext *tc, MVMSpeshArgGuard *orig,
+                                          size_t extra) {
     size_t orig_nodes = orig ? orig->used_nodes : 0;
     size_t total_nodes = orig_nodes + extra;
     size_t node_size = total_nodes * sizeof(MVMSpeshArgGuardNode);
@@ -39,7 +40,7 @@ MVMSpeshArgGuard * copy_and_extend(MVMThreadContext *tc, MVMSpeshArgGuard *orig,
 
 /* Locates an existing node that matches a particular callsite. If there is
  * no such node, adds it. */
-MVMuint32 get_callsite_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMCallsite *cs) {
+static MVMuint32 get_callsite_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMCallsite *cs) {
     MVMuint32 have_fixup_node = 0;
     MVMuint32 fixup_node;
     if (ag->used_nodes) {
@@ -80,8 +81,8 @@ MVMuint32 get_callsite_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMCalls
  * ($obj, $obj) specializations of (Foo, <no guard>) and (<no guard>, Foo).
  * In that case, we tweak the previous tree(s) of other starting points so
  * any "no result" points to instead try the added subtree. */
-MVMuint32 get_load_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 base_node,
-                        MVMuint16 arg_idx) {
+static MVMuint32 get_load_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 base_node,
+                               MVMuint16 arg_idx) {
     if (ag->nodes[base_node].yes) {
         MVMuint32 check_node = ag->nodes[base_node].yes;
         if (ag->nodes[check_node].op == MVM_SPESH_GUARD_OP_LOAD_ARG) {
@@ -106,8 +107,8 @@ MVMuint32 get_load_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 ba
 /* Resolves or inserts a node for testing the curernt type loaded into the
  * test buffer. If it needs to insert a new node, it chains it on to the
  * end of the existing set of type tests. */
-MVMuint32 get_type_check_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
-                              MVMuint32 base_node, MVMObject *type, MVMuint8 concrete) {
+static MVMuint32 get_type_check_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
+                                     MVMuint32 base_node, MVMObject *type, MVMuint8 concrete) {
     MVMuint32 current_node = ag->nodes[base_node].yes;
     MVMuint32 have_fixup_node = 0;
     MVMuint32 fixup_node;
@@ -162,8 +163,8 @@ MVMuint32 get_type_check_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
  * its place and attach the "no" branch to where it used to point. This means
  * we can know if there is such a node for this container type by just looking
  * at the "yes" branch of the base node we are passed. */
-MVMuint32 get_rw_cont_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
-                           MVMuint32 base_node) {
+static MVMuint32 get_rw_cont_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
+                                  MVMuint32 base_node) {
     MVMuint32 yes_node = ag->nodes[base_node].yes;
     if (yes_node && ag->nodes[yes_node].op == MVM_SPESH_GUARD_OP_DEREF_RW)
         return yes_node;
@@ -180,8 +181,8 @@ MVMuint32 get_rw_cont_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
  * that test the decontainerized type. Therefore, we can expect that such a
  * node is already in the tree at this point, *or* that there is an RW
  * guard node and *then* the one we're looking for. */
-MVMuint32 get_decont_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
-                          MVMuint32 base_node) {
+static MVMuint32 get_decont_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
+                                 MVMuint32 base_node) {
     MVMuint32 check_node = ag->nodes[base_node].yes;
     MVMuint32 update_no_node = 0;
     if (check_node) {
@@ -214,8 +215,8 @@ MVMuint32 get_decont_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
 
 /* Resolves or inserts guards for the specified type information, rooted off
  * the given node. */
-MVMuint32 get_type_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 base_node,
-                        MVMSpeshStatsType *type, MVMuint16 arg_idx) {
+static MVMuint32 get_type_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 base_node,
+                               MVMSpeshStatsType *type, MVMuint16 arg_idx) {
     MVMuint32 current_node = get_load_node(tc, ag, base_node, arg_idx);
     current_node = get_type_check_node(tc, ag, current_node, type->type, type->type_concrete);
     if (type->rw_cont)
