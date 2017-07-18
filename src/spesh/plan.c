@@ -110,11 +110,17 @@ MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_fr
     MVMSpeshPlan *plan = MVM_calloc(1, sizeof(MVMSpeshPlan));
     MVMint64 updated = MVM_repr_elems(tc, updated_static_frames);
     MVMint64 i;
+#if MVM_GC_DEBUG
+    tc->in_spesh = 1;
+#endif
     for (i = 0; i < updated; i++) {
         MVMObject *sf = MVM_repr_at_pos_o(tc, updated_static_frames, i);
         plan_for_sf(tc, plan, (MVMStaticFrame *)sf);
     }
     sort_plan(tc, plan->planned, plan->num_planned);
+#if MVM_GC_DEBUG
+    tc->in_spesh = 0;
+#endif
     return plan;
 }
 

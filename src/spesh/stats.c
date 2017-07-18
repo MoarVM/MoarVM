@@ -308,6 +308,9 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
     MVMuint32 i;
     MVMuint32 n = sl->body.used;
     SimStack sims;
+#if MVM_GC_DEBUG
+    tc->in_spesh = 1;
+#endif
     sim_stack_init(tc, &sims);
     for (i = 0; i < n; i++) {
         MVMSpeshLogEntry *e = &(sl->body.entries[i]);
@@ -382,6 +385,9 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
         }
     }
     sim_stack_destroy(tc, &sims);
+#if MVM_GC_DEBUG
+    tc->in_spesh = 0;
+#endif
 }
 
 void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorklist *worklist) {
