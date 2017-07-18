@@ -57,8 +57,8 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
         if (++tc->instance->spesh_produced > tc->instance->spesh_limit)
             return;
 
-    /* Produce the specialization graph pre-transformation and, if we're
-     * logging, dump it out. */
+    /* Produce the specialization graph and, if we're logging, dump it out
+     * pre-transformation. */
 #if MVM_GC_DEBUG
     tc->in_spesh = 1;
 #endif
@@ -73,6 +73,19 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
         MVM_free(c_name);
         MVM_free(c_cuid);
         MVM_free(before);
+    }
+
+    /* Perform the optimization and, if we're logging, dump out the result. */
+    if (p->cs_stats->cs)
+        MVM_spesh_args(tc, sg, p->cs_stats->cs, p->type_tuple);
+    MVM_spesh_facts_discover(tc, sg);
+    MVM_spesh_optimize(tc, sg);
+    if (tc->instance->spesh_log_fh) {
+        char *after = MVM_spesh_dump(tc, sg);
+        fprintf(tc->instance->spesh_log_fh, "After:\n%s\n\n========\n\n", after);
+        fflush(tc->instance->spesh_log_fh);
+        MVM_free(after);
+        MVM_free(guard_dump);
     }
 
     /* Clean up after specialization work. */
