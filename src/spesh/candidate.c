@@ -1,33 +1,5 @@
 #include "moar.h"
 
-/* TODO Remove this when migration to spesh worker thread is done. */
-static MVMSpeshStatsType * _tmp_type_tuple(MVMThreadContext *tc, MVMStaticFrame *sf,
-                                           MVMCallsite *cs, MVMRegister *args) {
-    MVMSpeshStatsType *tuple = MVM_calloc(cs->flag_count, sizeof(MVMSpeshStatsType));
-    MVMuint32 arg_index = 0;
-    MVMuint32 i;
-    for (i = 0; i < cs->flag_count; i++) {
-        if (cs->arg_flags[i] & MVM_CALLSITE_ARG_NAMED)
-            arg_index++;
-        if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ) {
-            MVMObject *arg = args[arg_index].o;
-            tuple[i].type = arg->st->WHAT;
-            tuple[i].type_concrete = IS_CONCRETE(arg);
-            if (IS_CONCRETE(arg) && arg->st->container_spec &&
-                    arg->st->container_spec->fetch_never_invokes &&
-                    REPR(arg)->ID != MVM_REPR_ID_NativeRef) {
-                MVMRegister dc;
-                arg->st->container_spec->fetch(tc, arg, &dc);
-                tuple[i].decont_type = dc.o->st->WHAT;
-                tuple[i].decont_type_concrete = IS_CONCRETE(dc.o);
-                tuple[i].rw_cont = arg->st->container_spec->can_store(tc, arg);
-            }
-        }
-        arg_index++;
-    }
-    return tuple;
-}
-
 /* Calculates the work and env sizes based on the number of locals and
  * lexicals. */
 static void calculate_work_env_sizes(MVMThreadContext *tc, MVMStaticFrame *sf,
