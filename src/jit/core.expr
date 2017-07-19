@@ -1,6 +1,9 @@
 # -*-whitespace-*-
 # SYNTAX: (keyword: opcode (tree $substitutions))
 
+# include 'standard' macros
+(include: "src/jit/macro.expr")
+
 # Number with dollar-signs stand for the arguments of the opcode.  The
 # opcode preprocessor inserts loads, and immediate nodes for arguments
 # automatically.
@@ -10,16 +13,7 @@
 (template: const_i64_32 (copy $1))
 (template: const_i64 (copy $1))
 
-(macro: ^getf (,object ,type ,field)
-   (load (addr ,object (&offsetof ,type ,field)) (&SIZEOF_MEMBER ,type ,field)))
-(macro: ^setf (,object ,type ,field ,value)
-    (store (addr ,object (&offsetof ,type ,field)) ,value (&SIZEOF_MEMBER ,type ,field)))
-
-
-(macro: ^cu_string (,a) (idx  (^getf (cu) MVMCompUnit body.strings) ,a ptr_sz))
 (template: const_s (load (^cu_string $1) ptr_sz))
-
-(macro: ^cu_callsite (,a) (idx  (^getf (cu) MVMCompUnit body.callsites) ,a ptr_sz))
 
 (template: set (copy $1))
 (template: getlex (copy $1))
@@ -33,38 +27,20 @@
 (template: gt_i (flagval (gt $1 $2)))
 (template: eq_i (flagval (eq $1 $2)))
 
-(macro: ^frame () (^getf (tc) MVMThreadContext cur_frame))
-
-(macro: ^parg (,a) (idx (^getf (^frame) MVMFrame params.args) ,a reg_sz))
 (template: sp_getarg_o (load (^parg $1) ptr_sz))
 (template: sp_getarg_s (load (^parg $1) ptr_sz))
 (template: sp_getarg_i (load (^parg $1) int_sz))
 (template: sp_getarg_n (load (^parg $1) int_sz))
 
-(macro: ^params () (addr (^frame) (&offsetof MVMFrame params)))
-(macro: ^caller () (addr (^frame) (&offsetof MVMFrame caller)))
-
-# get spesh slot address
-(macro: ^spesh_slot (,a)
-   (idx (^getf (^frame) MVMFrame effective_spesh_slots) ,a ptr_sz))
 
 (template: sp_getspeshslot (load (^spesh_slot $1) ptr_sz))
 
 (template: null_s (const 0 ptr_sz))
 
-(macro: ^vmnull ()
-    (^getf
-          (^getf (tc) MVMThreadContext instance)
-          MVMInstance VMNull))
-
 (template: null (^vmnull))
-
-(macro: ^stable (,a) (^getf ,a MVMObject st))
 
 (template: getwhat (^getf (^stable $1) MVMSTable WHAT))
 
-(macro: ^hllconfig ()
-    (^getf (cu) MVMCompUnit body.hll_config))
 
 (template: hllboxtype_i
     (^getf (^hllconfig) MVMHLLConfig int_box_type))
@@ -99,12 +75,6 @@
 
 (template: goto (branch $0))
 
-(macro: ^exit () (branch (label branch_exit)))
-
-(macro: ^p6obody (,a) (let: (($replace (^getf ,a MVMP6opaque body.replaced)))
-                      (if (nz $replace)
-                           $replace
-                           (addr ,a (&offsetof MVMP6opaque body)))))
 
 # since compilation of invocation is special-cased in the regular jit
 # we can't just toss this in here without also handling all of arg_*
@@ -123,15 +93,6 @@
    (let: (($who (^getf (^stable $1) MVMSTable WHO)))
      (if (nz $who) $who (^vmnull))))
 
-(macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
-(macro: ^objflag (,cv) (const (&QUOTE ,cv) (&SIZEOF_MEMBER MVMObject header.flags)))
-(macro: ^write_barrier (,obj ,ref)
-   (when (all 3 (nz (and (^getf ,obj MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN)))
-                (nz ,ref)
-                (zr (and (^getf ,ref MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN))))
-         (callv (^func &MVM_gc_write_barrier_hit)
-                (arglist 2 (carg (tc) ptr)
-                           (carg ,obj ptr)))))
 
 (template: sp_p6obind_i (store (add (^p6obody $0) $1) $2 int_sz))
 (template: sp_p6obind_n (store (add (^p6obody $0) $1) $2 int_sz))
@@ -153,14 +114,6 @@
                  (^write_barrier $1 $type)
                  (store $addr $type ptr_sz)
                  (copy $type)))))
-
-(macro: ^repr (,obj) (^getf (^stable ,obj) MVMSTable REPR))
-(macro: ^is_type_obj (,a)
-    (nz (and (^getf ,a MVMObject header.flags) (^objflag MVM_CF_TYPE_OBJECT))))
-(macro: ^stable_cont_func (,obj ,func)
-    (^getf
-          (^getf (^stable ,obj) MVMSTable container_spec)
-          MVMContainerSpec ,func))
 
 (template: say (callv (^func &MVM_string_say)
                       (arglist 2 (carg (tc) ptr)
@@ -186,7 +139,6 @@
                    (carg $1 int)
                    (carg $2 int)) ptr_sz))
 
-(macro: ^body (,a) (addr ,a (&offsetof MVMObjectStooge data)))
 #  GET_REG(cur_op, 0).i64 = (MVMint64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
 
 (template: elems

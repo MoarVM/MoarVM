@@ -26,8 +26,9 @@ use expr_ops;
 my %OPTIONS = (
     prefix => 'MVM_JIT_',
     oplist => File::Spec->catfile($FindBin::Bin, File::Spec->updir, qw(src core oplist)),
+    include => 1,
 );
-GetOptions(\%OPTIONS, qw(prefix=s list=s input=s output=s));
+GetOptions(\%OPTIONS, qw(prefix=s list=s input=s output=s include!));
 
 my ($PREFIX, $OPLIST) = @OPTIONS{'prefix', 'oplist'};
 if ($OPTIONS{output}) {
@@ -237,43 +238,67 @@ my (@opcodes, %names);
 
 # read input, which should use the expresison-list
 # syntax. generate template info table and template array
-my %macros;
-my %info;
-my @templates;
-my $parser = sexpr->parser(\*STDIN);
-while (my $tree = apply_macros($parser->parse, \%macros)) {
-    my $keyword = shift @$tree;
-    if ($keyword eq 'macro:') {
-        my $name = shift @$tree;
-        # declare that macro
-        $macros{$name} = $tree;
-    } elsif ($keyword eq 'template:') {
-        my $opcode   = shift @$tree;
-        my $template = shift @$tree;
-        my $flags    = 0;
-        if (substr($opcode, -1) eq '!') {
-            # destructive template
-            $opcode = substr $opcode, 0, -1;
-            $flags |= 1;
+my %SEEN;
+
+sub parse_file {
+    my ($fh, $macros) = @_;
+    my (@templates, %info);
+    my $parser = sexpr->parser($fh);
+    while (my $raw = $parser->parse) {
+        my $tree    = apply_macros($raw, $macros);
+        my $keyword = shift @$tree;
+        if ($keyword eq 'macro:') {
+            my $name = shift @$tree;
+            $macros->{$name} = $tree;
+        } elsif ($keyword eq 'template:') {
+            my $opcode   = shift @$tree;
+            my $template = shift @$tree;
+            my $flags    = 0;
+            if (substr($opcode, -1) eq '!') {
+                # destructive template
+                $opcode = substr $opcode, 0, -1;
+                $flags |= 1;
+            }
+            die "Opcode '$opcode' unknown" unless defined $names{$opcode};
+            die "Opcode '$opcode' redefined" if defined $info{$opcode};
+            # Validate template for consistency with expr.h node definitions
+            validate_template($template);
+            my $compiled = compile_template($template);
+            push @templates, @{$compiled->{template}};
+            $info{$opcode} = {
+                idx => $#templates,
+                info => $compiled->{desc},
+                root => $compiled->{root},
+                len => length($compiled->{desc}),
+                flags => $flags
+            };
+        } elsif ($keyword eq 'include:') {
+            my $file = shift @$tree;
+            $file =~ s/^"|"$//g;
+
+            if ($SEEN{$file}++) {
+                warn "$file already included";
+                next;
+            }
+
+            open my $handle, '<', $file;
+            my ($inc_templates, $inc_info) = parse_file($handle, $macros);
+            close $handle;
+            die "Template redeclared in include" if grep $info{$_}, keys %$inc_info;
+
+            # merge templates into including file
+            $_->{idx} += @templates for values %$inc_info;
+            $info{keys %$inc_info} = values %$inc_info;
+            push @templates, @$inc_templates;
+
+        } else {
+            die "I don't know what to do with '$keyword' ";
         }
-        die "Opcode '$opcode' unknown" unless defined $names{$opcode};
-        die "Opcode '$opcode' redefined" if defined $info{$opcode};
-        # Validate template for consistency with expr.h node definitions
-        validate_template($template);
-        my $compiled = compile_template($template);
-        my $idx = scalar(@templates); # template index into array is current array top
-        $info{$opcode} = {
-            idx => $idx,
-            info => $compiled->{desc},
-            root => $compiled->{root},
-            len => length($compiled->{desc}),
-            flags => $flags
-        };
-        push @templates, @{$compiled->{template}};
-    } else {
-        die "I don't know what to do with '$keyword' ";
     }
+    return \(@templates, %info);
 }
+
+my ($templates, $info) = parse_file(\*STDIN, {});
 close STDIN;
 
 # write a c output header file.
@@ -283,7 +308,7 @@ print <<"HEADER";
 HEADER
     my $i = 0;
     print "static const MVMJitExprNode MVM_jit_expr_templates[] = {\n    ";
-    for (@templates) {
+    for (@$templates) {
         $i += length($_) + 2;
         if ($i > 75) {
             print "\n    ";
@@ -294,8 +319,8 @@ HEADER
     print "\n};\n";
     print "static const MVMJitExprTemplate MVM_jit_expr_template_info[] = {\n";
     for (@opcodes) {
-        if (defined($info{$_})) {
-            my $td = $info{$_};
+        if (defined($info->{$_})) {
+            my $td = $info->{$_};
             printf '    { MVM_jit_expr_templates + %d, "%s", %d, %d, %d },%s',
                            $td->{idx}, $td->{info}, $td->{len}, $td->{root}, $td->{flags}, "\n";
         } else {
