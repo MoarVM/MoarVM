@@ -88,7 +88,7 @@ static MVMuint32 get_load_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMui
         if (ag->nodes[check_node].op == MVM_SPESH_GUARD_OP_LOAD_ARG) {
             if (ag->nodes[check_node].arg_index == arg_idx)
                 return check_node;
-            MVM_panic(1, "Spesh arg guard: unimplemented spare guard case");
+            MVM_panic(1, "Spesh arg guard: unimplemented sparse guard case");
         }
         else {
             MVM_panic(1, "Spesh arg guard: unexpected op in get_load_node");
