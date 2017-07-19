@@ -159,14 +159,16 @@ void MVM_spesh_log_return_type(MVMThreadContext *tc, MVMFrame *target) {
     MVMSpeshLog *sl = tc->spesh_log;
     MVMint32 cid = target->spesh_correlation_id;
     if (sl && cid) {
-        MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
         MVMObject *value = target->return_value->o;
-        entry->kind = MVM_SPESH_LOG_TYPE;
-        entry->id = cid;
-        MVM_ASSIGN_REF(tc, &(sl->common.header), entry->type.type, value->st->WHAT);
-        entry->type.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_TYPE_FLAG_CONCRETE : 0;
-        entry->type.bytecode_offset = (target->return_address - target->effective_bytecode)
-            - 6; /* 6 is the length of the invoke_o opcode and operands */
-        commit_entry(tc, sl);
+        if (value) {
+            MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
+            entry->kind = MVM_SPESH_LOG_TYPE;
+            entry->id = cid;
+            MVM_ASSIGN_REF(tc, &(sl->common.header), entry->type.type, value->st->WHAT);
+            entry->type.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_TYPE_FLAG_CONCRETE : 0;
+            entry->type.bytecode_offset = (target->return_address - target->effective_bytecode)
+                - 6; /* 6 is the length of the invoke_o opcode and operands */
+            commit_entry(tc, sl);
+        }
     }
 }
