@@ -940,7 +940,50 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
  * the logged one. */
 static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                   MVMSpeshIns *ins) {
-    /* TODO replace this with value from new spesh static values table */
+    /* Try to find logged offset. */
+    MVMSpeshAnn *ann = ins->annotations;
+    while (ann) {
+        if (ann->type == MVM_SPESH_ANN_LOGGED)
+            break;
+    }
+    if (ann) {
+        /* See if we can find a logged static value. */
+        MVMSpeshStats *ss = g->sf->body.spesh_stats;
+        MVMuint32 n = ss->num_static_values;
+        MVMuint32 i;
+        for (i = 0; i < n; i++) {
+            if (ss->static_values[i].bytecode_offset == ann->data.bytecode_offset) {
+                MVMObject *log_obj = ss->static_values[i].value;
+                if (log_obj) {
+                   MVMSpeshFacts *facts;
+
+                    /* Place in a spesh slot. */
+                    MVMuint16 ss = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                        (MVMCollectable *)log_obj);
+
+                    /* Transform lookup instruction into spesh slot read. */
+                    MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
+                    ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+                    ins->operands[1].lit_i16 = ss;
+
+                    /* Set up facts. */
+                    facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                    facts->flags  |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_KNOWN_VALUE;
+                    facts->type    = STABLE(log_obj)->WHAT;
+                    facts->value.o = log_obj;
+                    if (IS_CONCRETE(log_obj)) {
+                        facts->flags |= MVM_SPESH_FACT_CONCRETE;
+                        if (!STABLE(log_obj)->container_spec)
+                            facts->flags |= MVM_SPESH_FACT_DECONTED;
+                    }
+                    else {
+                        facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
+                    }
+                }
+                return;
+            }
+        }
+    }
 }
 
 /* Determines if there's a matching spesh candidate for a callee and a given
