@@ -945,6 +945,7 @@ static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
     while (ann) {
         if (ann->type == MVM_SPESH_ANN_LOGGED)
             break;
+        ann = ann->next;
     }
     if (ann) {
         /* See if we can find a logged static value. */
