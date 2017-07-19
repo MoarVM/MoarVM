@@ -491,7 +491,7 @@ void MVM_dump_bytecode(MVMThreadContext *tc) {
         /*MVMint32 spesh_cand_idx;*/
         /*MVMuint8 found = 0;*/
         /*for (spesh_cand_idx = 0; spesh_cand_idx < sf->body.num_spesh_candidates; spesh_cand_idx++) {*/
-            /*MVMSpeshCandidate *cand = &sf->body.spesh_candidates[spesh_cand_idx];*/
+            /*MVMSpeshCandidate *cand = sf->body.spesh_candidates[spesh_cand_idx];*/
             /*if (cand->bytecode == effective_bytecode) {*/
                 /*MVM_dump_bytecode_of(tc, tc->cur_frame, cand);*/
                 /*found = 1;*/
@@ -518,7 +518,7 @@ void MVM_dump_bytecode_stackframe(MVMThreadContext *tc, MVMint32 depth) {
     } else {
         MVMint32 spesh_cand_idx;
         for (spesh_cand_idx = 0; spesh_cand_idx < sf->body.num_spesh_candidates; spesh_cand_idx++) {
-            MVMSpeshCandidate *cand = &sf->body.spesh_candidates[spesh_cand_idx];
+            MVMSpeshCandidate *cand = sf->body.spesh_candidates[spesh_cand_idx];
             if (cand->bytecode == effective_bytecode) {
                 MVM_dump_bytecode_of(tc, frame, cand);
             }

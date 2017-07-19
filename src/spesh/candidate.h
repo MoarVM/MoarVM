@@ -53,9 +53,6 @@ struct MVMSpeshCandidate {
     MVMJitCode *jitcode;
 };
 
-/* The number of specializations we'll allow per static frame. */
-#define MVM_SPESH_LIMIT 4
-
 /* Functions for creating and clearing up specializations. */
 void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p);
 void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candidate);

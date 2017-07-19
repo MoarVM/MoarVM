@@ -152,10 +152,10 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     if (body->num_spesh_candidates) {
         MVMint32 i, j;
         for (i = 0; i < body->num_spesh_candidates; i++) {
-            for (j = 0; j < body->spesh_candidates[i].num_spesh_slots; j++)
-                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].spesh_slots[j]);
-            for (j = 0; j < body->spesh_candidates[i].num_inlines; j++)
-                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].inlines[j].code);
+            for (j = 0; j < body->spesh_candidates[i]->num_spesh_slots; j++)
+                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i]->spesh_slots[j]);
+            for (j = 0; j < body->spesh_candidates[i]->num_inlines; j++)
+                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i]->inlines[j].code);
         }
     }
 }
@@ -186,7 +186,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_spesh_stats_destroy(tc, body->spesh_stats);
     MVM_spesh_arg_guard_destroy(tc, body->spesh_arg_guard, 0);
     for (i = 0; i < body->num_spesh_candidates; i++)
-        MVM_spesh_candidate_destroy(tc, &body->spesh_candidates[i]);
+        MVM_spesh_candidate_destroy(tc, body->spesh_candidates[i]);
     MVM_free(body->spesh_candidates);
 }
 
@@ -240,7 +240,7 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
         size += body->num_lexicals; /* static_env_flags */
 
         for (spesh_idx = 0; spesh_idx < body->num_spesh_candidates; spesh_idx++) {
-            MVMSpeshCandidate *cand = &body->spesh_candidates[spesh_idx];
+            MVMSpeshCandidate *cand = body->spesh_candidates[spesh_idx];
 
             size += cand->bytecode_size;
 
@@ -327,13 +327,13 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
     if (body->num_spesh_candidates) {
         MVMint32 i, j;
         for (i = 0; i < body->num_spesh_candidates; i++) {
-            for (j = 0; j < body->spesh_candidates[i].num_spesh_slots; j++)
+            for (j = 0; j < body->spesh_candidates[i]->num_spesh_slots; j++)
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->spesh_candidates[i].spesh_slots[j],
+                    (MVMCollectable *)body->spesh_candidates[i]->spesh_slots[j],
                     "Spesh slot entry");
-            for (j = 0; j < body->spesh_candidates[i].num_inlines; j++)
+            for (j = 0; j < body->spesh_candidates[i]->num_inlines; j++)
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->spesh_candidates[i].inlines[j].code,
+                    (MVMCollectable *)body->spesh_candidates[i]->inlines[j].code,
                     "Spesh inlined code object");
         }
     }

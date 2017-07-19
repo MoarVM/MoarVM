@@ -25,15 +25,12 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     MVMSpeshGraph *sg;
     MVMSpeshCode *sc;
     MVMSpeshCandidate *candidate;
+    MVMSpeshCandidate **new_candidate_list;
 
     /* If we've reached our specialization limit, don't continue. */
     if (tc->instance->spesh_limit)
         if (++tc->instance->spesh_produced > tc->instance->spesh_limit)
             return;
-
-    /* TODO lift this specialization limit */
-    if (p->sf->body.num_spesh_candidates == MVM_SPESH_LIMIT)
-        return;
 
     /* Produce the specialization graph and, if we're logging, dump it out
      * pre-transformation. */
@@ -64,14 +61,9 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
         MVM_free(after);
     }
 
-    /* Copy existing candidates list into a new region of memory; we'll append
-     * the new one on the end. */
-    if (!p->sf->body.spesh_candidates)
-        p->sf->body.spesh_candidates = MVM_calloc(MVM_SPESH_LIMIT, sizeof(MVMSpeshCandidate));
-    candidate = &(p->sf->body.spesh_candidates[p->sf->body.num_spesh_candidates]);
-
     /* Generate code and install it into the candidate. */
     sc = MVM_spesh_codegen(tc, sg);
+    candidate = MVM_calloc(1, sizeof(MVMSpeshCandidate));
     candidate->bytecode      = sc->bytecode;
     candidate->bytecode_size = sc->bytecode_size;
     candidate->handlers      = sc->handlers;
@@ -113,6 +105,19 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
             }
     }
     MVM_spesh_graph_destroy(tc, sg);
+
+    /* Create a new candidate list and copy any existing ones. Free memory
+     * using the FSA safepoint mechanism. */
+    new_candidate_list = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+        (p->sf->body.num_spesh_candidates + 1) * sizeof(MVMSpeshCandidate *));
+    if (p->sf->body.num_spesh_candidates) {
+        size_t orig_size = p->sf->body.num_spesh_candidates * sizeof(MVMSpeshCandidate *);
+        memcpy(new_candidate_list, p->sf->body.spesh_candidates, orig_size);
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, orig_size,
+            p->sf->body.spesh_candidates);
+    }
+    new_candidate_list[p->sf->body.num_spesh_candidates] = candidate;
+    p->sf->body.spesh_candidates = new_candidate_list;
 
     /* Install the new candidate by bumping the number of candidates in
      * order to make it available, and then updating the guards. */
