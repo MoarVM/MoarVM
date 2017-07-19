@@ -36,7 +36,7 @@ static const MVMOpInfo * get_op_info(MVMThreadContext *tc, MVMCompUnit *cu, MVMu
 /* Records a de-optimization annotation and mapping pair. */
 static void add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins_node,
                                  MVMuint8 *pc, MVMint32 type) {
-    /* Add an the annotations. */
+    /* Add an annotations. */
     MVMSpeshAnn *ann      = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
     ann->type             = type;
     ann->data.deopt_idx   = g->num_deopt_addrs;
