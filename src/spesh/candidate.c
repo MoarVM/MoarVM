@@ -26,6 +26,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     MVMSpeshCode *sc;
     MVMSpeshCandidate *candidate;
     MVMSpeshCandidate **new_candidate_list;
+    MVMuint64 start_time;
 
     /* If we've reached our specialization limit, don't continue. */
     if (tc->instance->spesh_limit)
@@ -37,6 +38,8 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
 #if MVM_GC_DEBUG
     tc->in_spesh = 1;
 #endif
+    if (tc->instance->spesh_log_fh)
+        start_time = uv_hrtime();
     sg = MVM_spesh_graph_create(tc, p->sf, 0, 1);
     if (tc->instance->spesh_log_fh) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, p->sf->body.name);
@@ -57,7 +60,9 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     MVM_spesh_optimize(tc, sg);
     if (tc->instance->spesh_log_fh) {
         char *after = MVM_spesh_dump(tc, sg);
-        fprintf(tc->instance->spesh_log_fh, "After:\n%s========\n\n", after);
+        fprintf(tc->instance->spesh_log_fh, "After:\n%s", after);
+        fprintf(tc->instance->spesh_log_fh, "Specialization took %dus\n\n========\n\n",
+            (int)((uv_hrtime() - start_time) / 1000));
         MVM_free(after);
     }
 
