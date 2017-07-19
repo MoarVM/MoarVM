@@ -28,10 +28,6 @@ void commit_entry(MVMThreadContext *tc, MVMSpeshLog *sl) {
                 MVM_gc_mark_thread_unblocked(tc);
             });
             uv_mutex_unlock(sl->body.block_mutex);
-            uv_cond_destroy(sl->body.block_condvar);
-            uv_mutex_destroy(sl->body.block_mutex);
-            MVM_free(sl->body.block_condvar);
-            MVM_free(sl->body.block_mutex);
         }
         else {
             MVM_repr_push_o(tc, tc->instance->spesh_queue, (MVMObject *)sl);
