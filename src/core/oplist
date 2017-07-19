@@ -633,8 +633,8 @@ DEPRECATED_14       w(obj) r(obj) r(obj) r(obj) r(str) r(obj)
 asyncwritebytes     w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
 DEPRECATED_16       w(obj) r(obj) r(obj) r(obj) r(obj)
 asyncreadbytes      w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
-getlexstatic_o      w(obj) r(str) :pure :noinline
-getlexperinvtype_o  w(obj) r(str) :pure :noinline
+getlexstatic_o      w(obj) r(str) :pure :noinline :logged
+getlexperinvtype_o  w(obj) r(str) :pure :noinline :logged
 execname            w(str)
 const_i64_16        w(int64) int16 :pure
 const_i64_32        w(int64) int32 :pure
