@@ -21,7 +21,8 @@ MVMint64 MVM_decoder_empty(MVMThreadContext *tc, MVMDecoder *decoder);
 void MVM_decoder_add_bytes(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject *blob);
 MVMString * MVM_decoder_take_all_chars(MVMThreadContext *tc, MVMDecoder *decoder);
 MVMString * MVM_decoder_take_available_chars(MVMThreadContext *tc, MVMDecoder *decoder);
-MVMString * MVM_decoder_take_chars(MVMThreadContext *tc, MVMDecoder *decoder, MVMint64 chars);
+MVMString * MVM_decoder_take_chars(MVMThreadContext *tc, MVMDecoder *decoder, MVMint64 chars,
+                                   MVMint64 eof);
 MVMString * MVM_decoder_take_line(MVMThreadContext *tc, MVMDecoder *decoder,
                                   MVMint64 chomp, MVMint64 incomplete_ok);
 MVMint64 MVM_decoder_bytes_available(MVMThreadContext *tc, MVMDecoder *decoder);

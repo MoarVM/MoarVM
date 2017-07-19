@@ -80,7 +80,7 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadCon
      * far in normalized form without having to consider them into the
      * normalization process. The exception is if we're computing NFG, and
      * we got \r, which can form a grapheme in the case of \r\n. */
-    if (in < 0x20 || (in >= 0x7F && in <= 0x9F) || in == 0xAD)
+    if (in < 0x20 || (0x7F <= in && in <= 0x9F) || in == 0xAD)
         if (!(MVM_NORMALIZE_GRAPHEME(n->form) && in == 0x0D))
             return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, n, in, out);
 
@@ -186,6 +186,8 @@ MVM_STATIC_INLINE MVMint32 fast_atoi( const char * dec_str ) {
     }
     return value;
 }
+MVMint32 MVM_unicode_normalize_should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b, MVMNormalizer *norm);
+MVMint64 MVM_unicode_relative_ccc(MVMThreadContext *tc, MVMCodepoint cp);
 
 /* Function for choosing the appropriate line-ending grapheme depending on if
  * newline translation is enabled. */

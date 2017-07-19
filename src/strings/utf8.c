@@ -425,13 +425,8 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     }
                     buffer[count++] = lag_codepoint;
                     total++;
-                    if (MVM_string_decode_stream_maybe_sep(tc, seps, lag_codepoint)) {
-                        reached_stopper = 1;
-                        last_accept_bytes = lag_last_accept_bytes;
-                        last_accept_pos = lag_last_accept_pos;
-                        goto done;
-                    }
-                    else if (stopper_chars && *stopper_chars == total) {
+                    if (MVM_string_decode_stream_maybe_sep(tc, seps, lag_codepoint) ||
+                            stopper_chars && *stopper_chars == total) {
                         reached_stopper = 1;
                         last_accept_bytes = lag_last_accept_bytes;
                         last_accept_pos = lag_last_accept_pos;
@@ -489,11 +484,8 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                         }
                         buffer[count++] = g;
                         total++;
-                        if (MVM_string_decode_stream_maybe_sep(tc, seps, g)) {
-                            reached_stopper = 1;
-                            goto done;
-                        }
-                        else if (stopper_chars && *stopper_chars == total) {
+                        if (MVM_string_decode_stream_maybe_sep(tc, seps, g) ||
+                                stopper_chars && *stopper_chars == total) {
                             reached_stopper = 1;
                             goto done;
                         }

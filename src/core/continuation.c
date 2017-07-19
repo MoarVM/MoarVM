@@ -43,8 +43,9 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
     MVMObject *cont;
     MVMCallsite *inv_arg_callsite;
 
-    /* Hunt the tag on the stack; mark frames as being incorporated into a
-     * continuation as we go to avoid a second pass. */
+    /* Hunt the tag on the stack. Also toss any dynamic variable cache
+     * entries, as they may be invalid once the continuation is invoked (the
+     * Perl 6 $*THREAD is a good example of a problematic one). */
     MVMFrame           *root_frame  = NULL;
     MVMContinuationTag *tag_record  = NULL;
     MVMFrame            *jump_frame;
@@ -54,6 +55,7 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
     });
     });
     while (jump_frame) {
+        jump_frame->dynlex_cache_name = NULL;
         tag_record = jump_frame->continuation_tags;
         while (tag_record) {
             if (MVM_is_null(tc, tag) || tag_record->tag == tag)

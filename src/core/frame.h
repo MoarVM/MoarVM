@@ -152,6 +152,10 @@ struct MVMFrame {
     MVMint32 sequence_nr;
     /* The 'entry label' is a sort of indirect return address for the JIT */
     void * jit_entry_label;
+
+    /* If we were invoked with a call capture, that call capture, so we can
+     * keep its callsite alive. */
+    MVMObject *invoked_call_capture;
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for

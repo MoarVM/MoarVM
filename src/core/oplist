@@ -804,6 +804,7 @@ getport_sk          w(int64) r(obj)
 cpucores            w(int64) :pure
 eqaticim_s          w(int64) r(str) r(str) r(int64) :pure
 indexicim_s         w(int64) r(str) r(str) r(int64) :pure
+decodertakecharseof w(str) r(obj) r(int64)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

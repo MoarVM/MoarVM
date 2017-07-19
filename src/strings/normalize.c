@@ -329,8 +329,10 @@ static MVMint64 passes_quickcheck(MVMThreadContext *tc, const MVMNormalizer *n, 
     return pval && pval[0] == 'Y';
 }
 
-/* Gets the canonical combining class for a codepoint. */
-static MVMint64 ccc(MVMThreadContext *tc, MVMCodepoint cp) {
+/* Gets the CCC (actual value) but is slower as it looks up with string properties
+ * Exact values are not needed for normalization.
+ * Returns 0 for Not_Reordered codepoints *and* CCC 0 codepoints */
+static MVMint64 ccc_old(MVMThreadContext *tc, MVMCodepoint cp) {
     if (cp < MVM_NORMALIZE_FIRST_NONZERO_CCC) {
         return 0;
     }
@@ -339,12 +341,25 @@ static MVMint64 ccc(MVMThreadContext *tc, MVMCodepoint cp) {
         return !ccc_str || strlen(ccc_str) > 3 ? 0 : fast_atoi(ccc_str);
     }
 }
+/* Gets the canonical combining class for a codepoint. Does a shortcut
+ * since CCC is stored as a string property, though because they are all sorted
+ * numerically it is ok to get the internal integer value as stored instead of
+ * the string.
+ * Returns 0 for Not_Reordered codepoints *and* CCC 0 codepoints */
+MVMint64 MVM_unicode_relative_ccc(MVMThreadContext *tc, MVMCodepoint cp) {
+    if (cp < MVM_NORMALIZE_FIRST_NONZERO_CCC) {
+        return 0;
+    }
+    else {
+        int ccc_int = MVM_unicode_codepoint_get_property_int(tc, cp, MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS);
+        return ccc_int <= MVM_UNICODE_PVALUE_CCC_0 ? 0 : ccc_int - MVM_UNICODE_PVALUE_CCC_0;
+    }
+}
 
 /* Checks if the thing we have is a control character (for the definition in
- * the Unicode Standard Annex #29). Assumes it doesn't have to care about any
- * of the controls in the Latin-1 range, because those were already covered in
- * a fast path. */
-static MVMint32 is_control_beyond_latin1(MVMThreadContext *tc, MVMCodepoint in) {
+ * the Unicode Standard Annex #29). Full path. Fast path checks for controls
+ * in the Latin-1 range. This works for those as well but needs a property lookup */
+static MVMint32 is_control_full(MVMThreadContext *tc, MVMCodepoint in) {
     /* U+200C ZERO WIDTH NON-JOINER and U+200D ZERO WIDTH JOINER are excluded. */
     if (in != UNI_CP_ZERO_WIDTH_NON_JOINER && in != UNI_CP_ZERO_WIDTH_JOINER) {
         /* Consider general property. */
@@ -383,8 +398,8 @@ static void canonical_sort(MVMThreadContext *tc, MVMNormalizer *n, MVMint32 from
         MVMint32 i = from;
         reordered = 0;
         while (i < to - 1) {
-            MVMint64 cccA = ccc(tc, n->buffer[i]);
-            MVMint64 cccB = ccc(tc, n->buffer[i + 1]);
+            MVMint64 cccA = MVM_unicode_relative_ccc(tc, n->buffer[i]);
+            MVMint64 cccB = MVM_unicode_relative_ccc(tc, n->buffer[i + 1]);
             if (cccA > cccB && cccB > 0) {
                 MVMCodepoint tmp = n->buffer[i];
                 n->buffer[i] = n->buffer[i + 1];
@@ -402,11 +417,11 @@ static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint
     while (c_idx < to) {
         /* Search for the last non-blocked starter. */
         MVMint32 ss_idx = c_idx - 1;
-        MVMint32 c_ccc  = ccc(tc, n->buffer[c_idx]);
+        MVMint32 c_ccc  = MVM_unicode_relative_ccc(tc, n->buffer[c_idx]);
         while (ss_idx >= from) {
             /* Make sure we don't go past a code point that blocks a starter
              * from the current character we're considering. */
-            MVMint32 ss_ccc = ccc(tc, n->buffer[ss_idx]);
+            MVMint32 ss_ccc = MVM_unicode_relative_ccc(tc, n->buffer[ss_idx]);
             if (ss_ccc >= c_ccc && ss_ccc != 0)
                 break;
 
@@ -491,7 +506,7 @@ static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint
  * the handling of breaking around controls much earlier, so don't have to
  * consider that case. */
 static MVMint32 maybe_hangul(MVMCodepoint cp) {
-    return (cp >= 0x1100 && cp < 0x1200) || (cp >= 0xA960 && cp < 0xD7FC);
+    return (0x1100 <= cp  && cp < 0x1200) || (0xA960 <= cp && cp < 0xD7FC);
 }
 static MVMint32 is_grapheme_extend(MVMThreadContext *tc, MVMCodepoint cp) {
     return MVM_unicode_codepoint_get_property_int(tc, cp,
@@ -501,7 +516,7 @@ static MVMint32 is_grapheme_prepend(MVMThreadContext *tc, MVMCodepoint cp) {
     return MVM_unicode_codepoint_get_property_int(tc, cp,
         MVM_UNICODE_PROPERTY_PREPENDED_CONCATENATION_MARK);
 }
-static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b, MVMNormalizer *norm) {
+MVMint32 MVM_unicode_normalize_should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b, MVMNormalizer *norm) {
     int GCB_a = MVM_unicode_codepoint_get_property_int(tc, a, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
     int GCB_b = MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
     /* Don't break between \r and \n, but otherwise break around \r. */
@@ -509,21 +524,6 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
         return 0;
     if (a == 0x0D || b == 0x0D)
         return 1;
-
-    /* Hangul. Avoid property lookup with a couple of quick range checks. */
-    if (maybe_hangul(a) && maybe_hangul(b)) {
-        const char *hst_a = MVM_unicode_codepoint_get_property_cstr(tc, a,
-            MVM_UNICODE_PROPERTY_HANGUL_SYLLABLE_TYPE);
-        const char *hst_b = MVM_unicode_codepoint_get_property_cstr(tc, b,
-            MVM_UNICODE_PROPERTY_HANGUL_SYLLABLE_TYPE);
-        if (strcmp(hst_a, "L") == 0)
-            return !(strcmp(hst_b, "L") == 0 || strcmp(hst_b, "V") == 0 ||
-                     strcmp(hst_b, "LV") == 0 || strcmp(hst_b, "LVT") == 0);
-        else if (strcmp(hst_a, "LV") == 0 || strcmp(hst_a, "V") == 0)
-            return !(strcmp(hst_b, "V") == 0 || strcmp(hst_b, "T") == 0);
-        else if (strcmp(hst_a, "LVT") == 0 || strcmp(hst_a, "T") == 0)
-            return !(strcmp(hst_b, "T") == 0);
-    }
 
     switch (GCB_a) {
         case MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR:
@@ -543,7 +543,7 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
         /* Don't break after Prepend Grapheme_Cluster_Break=Prepend */
         case MVM_UNICODE_PVALUE_GCB_PREPEND:
             /* If it's a control character remember to break */
-            if (is_control_beyond_latin1(tc, b )) {
+            if (is_control_full(tc, b )) {
                 return 1;
             }
             /* Otherwise don't break */
@@ -558,6 +558,15 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
             }
             if ( b == UNI_CP_FEMALE_SIGN || b == UNI_CP_MALE_SIGN )
                 return 0;
+            /* Don't break after ZWJ for Emoji property characters that have
+             * GCB=Other. This is *not* a unicode text segmentation rule but
+             * is needed to not break inside Emoji sequences. As the rule to
+             * not break in Emoji sequences is specified by Unicode to need
+             * customization to perform properly. */
+            if (GCB_b == MVM_UNICODE_PVALUE_GCB_OTHER
+            && 127 < b /* Numbers and # have property Emoji. So make sure we're not in ASCII range */
+            && MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_EMOJI) )
+                return 0;
         case MVM_UNICODE_PVALUE_GCB_E_MODIFIER:
             if (MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_EMOJI_MODIFIER_BASE)) {
                 /* Don't break after ZWJ if it's an Emoji Sequence.
@@ -567,6 +576,21 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
                 if ( b == UNI_CP_FEMALE_SIGN || b == UNI_CP_MALE_SIGN )
                     return 0;
             }
+            break;
+        case MVM_UNICODE_PVALUE_GCB_L:
+            if (GCB_b == MVM_UNICODE_PVALUE_GCB_L  || GCB_b == MVM_UNICODE_PVALUE_GCB_V ||
+                     GCB_b == MVM_UNICODE_PVALUE_GCB_LV || GCB_b == MVM_UNICODE_PVALUE_GCB_LVT)
+                return 0;
+            break;
+        case MVM_UNICODE_PVALUE_GCB_LV:
+        case MVM_UNICODE_PVALUE_GCB_V:
+            if (GCB_b == MVM_UNICODE_PVALUE_GCB_V || GCB_b == MVM_UNICODE_PVALUE_GCB_T)
+                return 0;
+            break;
+        case MVM_UNICODE_PVALUE_GCB_LVT:
+        case MVM_UNICODE_PVALUE_GCB_T:
+            if (GCB_b == MVM_UNICODE_PVALUE_GCB_T)
+                return 0;
             break;
     }
     switch (GCB_b) {
@@ -588,6 +612,11 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
                  *case MVM_UNICODE_PVALUE_GCB_EXTEND:
                  *    return 0; */
             }
+            if (MVM_unicode_codepoint_get_property_int(tc, a, MVM_UNICODE_PROPERTY_EMOJI_MODIFIER_BASE)) {
+                /* Not all emoji modifiers have E_BASE or E_BASE_GAZ, some cases we need to check the
+                 * Emoji_Modifier_Base property */
+                return 0;
+            }
             break;
         /* Don't break before spacing marks. */
         case MVM_UNICODE_PVALUE_GCB_SPACINGMARK:
@@ -604,7 +633,7 @@ static void grapheme_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint3
         MVMint32 pos        = from;
         while (pos < to) {
             MVMint32 next_pos = pos + 1;
-            if (next_pos == to || should_break(tc, n->buffer[pos], n->buffer[next_pos], n)) {
+            if (next_pos == to || MVM_unicode_normalize_should_break(tc, n->buffer[pos], n->buffer[next_pos], n)) {
                 /* Last in buffer or next code point is a non-starter; turn
                  * sequence into a synthetic. */
                 MVMGrapheme32 g = MVM_nfg_codes_to_grapheme(tc, n->buffer + starterish, next_pos - starterish);
@@ -639,13 +668,13 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
 
     /* If it's a control character (outside of the range we checked in the
      * fast path) then it's a normalization terminator. */
-    if (in > 0xFF && is_control_beyond_latin1(tc, in) && !is_prepend) {
+    if (in > 0xFF && is_control_full(tc, in) && !is_prepend) {
         return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, norm, in, out);
     }
 
     /* Do a quickcheck on the codepoint we got in and get its CCC. */
     qc_in  = passes_quickcheck(tc, norm, in);
-    ccc_in = ccc(tc, in);
+    ccc_in = MVM_unicode_relative_ccc(tc, in);
     /* Fast cases when we pass quick check and what we got in has CCC = 0,
      * and it does not follow a prepend character. */
     if (qc_in && ccc_in == 0 && norm->prepend_buffer == 0) {
@@ -659,7 +688,7 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
              * so we're safe. */
             if (norm->buffer_end - norm->buffer_start == 1) {
                 MVMCodepoint maybe_result = norm->buffer[norm->buffer_start];
-                if (passes_quickcheck(tc, norm, maybe_result) && ccc(tc, maybe_result) == 0) {
+                if (passes_quickcheck(tc, norm, maybe_result) && MVM_unicode_relative_ccc(tc, maybe_result) == 0) {
                     *out = norm->buffer[norm->buffer_start];
                     norm->buffer[norm->buffer_start] = in;
                     return 1;

@@ -1,3 +1,73 @@
+New in 2017.07
+
++ Full Unicode 9.0 and Emoji 4.0 text segmentation support
+    + Improvements to segmentation of Emoji w/ GCB=Other
+    + Use GCB instead of HST to avoid property lookup for Hangul
+    + Reorder conditional in maybe_hangul() to be more clear
+    + Work Hangul grapheme segmentation into GCB switches
+    + Don't break after ZWJ for Emoji=True + GCB=Other
++ Make string_index 16% faster for non-identical string types
++ Greatly reduce the cases when string concatenation needs renormalization
+    + Use normalize_should_break to decide if concat needs normalization
+    + Rename should_break to MVM_unicode_normalize_should_break
+    + Fix memory leak in MVM_nfg_is_concat_stable
+    + If both last_a and first_b during concat are non-0 CCC, re-NFG
++ Improve the speed of normalization. Improves speed of slurping non-ASCII Unicode files
+    + Speed up ccc by making ccc_relative using integer prop lookup
+    + Rename is_control_beyond_latin1 to is_control_full
+    + Use MVM_string_graphs_nocheck in more places throughout strings/ops.c
+    + Rename relative_ccc to MVM_unicode_relative_ccc
++ Remove arbitrary string repeat limit
++ unicmp_s improvements
+    + unicmp_s can now reverse any of the collation levels
+    + Handle additional possible cases in collation
+    + Store collation levels in an array not a single value
+    + Handle quaternary collation level being both enabled and reversed
++ Improved instruction and basic block deletion handling to allow further code
+  elimination
++ Only compile in \n -> \r\n on Windows
++ JIT-compile write_fhb and encode ops
++ Include return type facts for the encode op
++ Implement setbuffersize_fh op, which sets up output buffering for synchronous
+  file handles
++ Fix error message for decodersetlineseps getting non-decoder
++ JIT open_fh, close_fh, read_fhb, decoderaddbytes, fc, chr, getcp_s, and
+  objectid
++ Remove synchronous process support
++ Add new asynchronous permit mechanism, which can be used to provide delayed
+  starting of reads and back-pressure
++ Implement permits handling for asynchronous processes
++ Convey file descriptors of stdout/stderr pipes when spawning an asynchronous
+  process
++ Add debug helpers: MVM_dump_bytecode, MVM_dump_bytecode_stackframe and
+  MVM_dump_bytecode_staticframe
++ Add gdb command to give a history of spesh optimization decisions
++ Improve specialization dump: less trailing spaces, chop up facts list by
+  register
++ Empty out instruction list of removed basic blocks
++ Eliminate duplicate code in utf8 decoder
++ Fix overflow in uniprop lookups
++ Fix ASCII streaming decode error handling
++ Make illegal synthetic an oops, not a panic
++ Make some fixes to the Unicode data file downloader
++ Use MVMint64 for MVM_string_chr (oplist/function mismatch)
++ Fix an accidental nested redeclaration in process handling
++ Tweak the format of oops messages
++ Improved debug output for serialization errors
++ Fix ARM build
++ Clear cached dynamics when taking continuation
++ Missing MVMROOT during an allocation
++ Remove never-assinged use_mode_frame field from CallCapture
++ Remove now-unused cur_usecapture per thread
++ Eliminate mode flag from CallCapture
++ Fix invokewithcapture to keep the used capture alive
++ Always copy callsite into an MVMCallCapture unless it's interned
++ Remove now-unrequired effective_callsite
++ Add decodertakecharseof op
++ Copy correct length in get_all_in_buffer
++ Fix ctxcode op to not leak a NULL
++ Fix decoder typos
+
 New in 2017.06
 
 + Make coerce_s_n work more like the Perl 6 Str.Num method

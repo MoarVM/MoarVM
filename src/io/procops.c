@@ -724,12 +724,13 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         si->state = STATE_DONE;
         MVMROOT(tc, async_task, {
         MVMROOT(tc, msg_box, {
+            MVMObject *error_cb;
             MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
                 tc->instance->VMString, uv_strerror(spawn_result));
-            MVMObject *msg_box = MVM_repr_box_str(tc,
+            msg_box = MVM_repr_box_str(tc,
                 tc->instance->boot_types.BOOTStr, msg_str);
 
-            MVMObject *error_cb = MVM_repr_at_key_o(tc, si->callbacks,
+            error_cb = MVM_repr_at_key_o(tc, si->callbacks,
                 tc->instance->str_consts.error);
             if (!MVM_is_null(tc, error_cb)) {
                 MVMROOT(tc, error_cb, {

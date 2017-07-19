@@ -772,7 +772,9 @@ void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMint32 handler_idx, MVMSt
 }
 
 /* Panics and shuts down the VM. Don't do this unless it's something quite
- * unrecoverable.
+ * unrecoverable, and a thread context is either not available or stands a
+ * good chance of being too corrupt to print (or is not relevant information).
+ * Use MVM_oops in the case a thread context is available.
  * TODO: Some hook for embedders.
  */
 MVM_NO_RETURN
@@ -799,6 +801,7 @@ void MVM_panic_allocation_failed(size_t len) {
 MVM_NO_RETURN
 void MVM_oops(MVMThreadContext *tc, const char *messageFormat, ...) {
     va_list args;
+    fprintf(stderr, "MoarVM oops: ");
     va_start(args, messageFormat);
     vfprintf(stderr, messageFormat, args);
     va_end(args);
