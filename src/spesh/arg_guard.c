@@ -83,15 +83,20 @@ static MVMuint32 get_callsite_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, M
  * any "no result" points to instead try the added subtree. */
 static MVMuint32 get_load_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 base_node,
                                MVMuint16 arg_idx) {
+    MVMuint16 new_no = 0;
     if (ag->nodes[base_node].yes) {
         MVMuint32 check_node = ag->nodes[base_node].yes;
-        if (ag->nodes[check_node].op == MVM_SPESH_GUARD_OP_LOAD_ARG) {
+        MVMSpeshArgGuardOp op = ag->nodes[check_node].op;
+        if (op == MVM_SPESH_GUARD_OP_LOAD_ARG) {
             if (ag->nodes[check_node].arg_index == arg_idx)
                 return check_node;
             MVM_panic(1, "Spesh arg guard: unimplemented sparse guard case");
         }
+        else if (op == MVM_SPESH_GUARD_OP_RESULT) {
+            new_no = check_node;
+        }
         else {
-            MVM_panic(1, "Spesh arg guard: unexpected op in get_load_node");
+            MVM_panic(1, "Spesh arg guard: unexpected op %d in get_load_node", op);
         }
     }
 
@@ -99,7 +104,7 @@ static MVMuint32 get_load_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMui
     ag->nodes[ag->used_nodes].op = MVM_SPESH_GUARD_OP_LOAD_ARG;
     ag->nodes[ag->used_nodes].arg_index = arg_idx;
     ag->nodes[ag->used_nodes].yes = 0;
-    ag->nodes[ag->used_nodes].no = 0;
+    ag->nodes[ag->used_nodes].no = new_no;
     ag->nodes[base_node].yes = ag->used_nodes;
     return ag->used_nodes++;
 }
