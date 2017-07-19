@@ -264,7 +264,7 @@ static void allocate_log_guard_table(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
 /* Visits the blocks in dominator tree order, recursively. */
 static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-                         MVMint32 cur_deopt_idx) {
+                         MVMSpeshPlanned *p, MVMint32 cur_deopt_idx) {
     MVMint32 i, is_phi;
 
     /* Look for instructions that provide or propagate facts. */
@@ -522,7 +522,7 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
 
     /* Visit children. */
     for (i = 0; i < bb->num_children; i++)
-        add_bb_facts(tc, g, bb->children[i], cur_deopt_idx);
+        add_bb_facts(tc, g, bb->children[i], p, cur_deopt_idx);
 }
 
 /* Exception handlers that use a block to store the handler must not have the
@@ -537,8 +537,8 @@ static void tweak_block_handler_usage(MVMThreadContext *tc, MVMSpeshGraph *g) {
 }
 
 /* Kicks off fact discovery from the top of the (dominator) tree. */
-void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g) {
+void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p) {
     allocate_log_guard_table(tc, g);
-    add_bb_facts(tc, g, g->entry, -1);
+    add_bb_facts(tc, g, g->entry, p, -1);
     tweak_block_handler_usage(tc, g);
 }
