@@ -21,7 +21,8 @@ struct MVMSpeshLogGuard {
  * the time being. */
 #define MVM_SPESH_LOG_LOGGED_ENOUGH 100
 
-void MVM_spesh_log_create_for_thread(MVMThreadContext *tc);
+void MVM_spesh_log_initialize_thread(MVMThreadContext *tc);
+MVMSpeshLog * MVM_spesh_log_create(MVMThreadContext *tc, MVMThread *target_thread);
 void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf, MVMCallsite *cs);
 void MVM_spesh_log_osr(MVMThreadContext *tc);
 void MVM_spesh_log_parameter(MVMThreadContext *tc, MVMuint16 arg_idx, MVMObject *param);

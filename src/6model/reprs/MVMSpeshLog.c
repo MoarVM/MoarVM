@@ -22,7 +22,6 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVMSpeshLogBody *log = (MVMSpeshLogBody *)data;
     log->entries = MVM_malloc(sizeof(MVMSpeshLogEntry) * MVM_SPESH_LOG_DEFAULT_ENTRIES);
     log->limit = MVM_SPESH_LOG_DEFAULT_ENTRIES;
-    MVM_ASSIGN_REF(tc, &(root->header), log->thread, tc->thread_obj);
 }
 
 /* Copies the body of one object to another. */

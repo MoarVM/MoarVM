@@ -72,8 +72,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                     stc = sl->body.thread->body.tc;
                     if (stc)
                         if (MVM_incr(&(stc->spesh_log_quota)) == 0)
-                            stc->spesh_log = (MVMSpeshLog *)MVM_repr_alloc_init(tc,
-                                tc->instance->SpeshLog);
+                            stc->spesh_log = MVM_spesh_log_create(tc, sl->body.thread);
 
                     /* If needed, signal sending thread that it can continue. */
                     if (sl->body.block_mutex) {

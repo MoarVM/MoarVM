@@ -276,7 +276,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up the specialization worker thread and a log for the main thread. */
     MVM_spesh_worker_setup(instance->main_thread);
-    MVM_spesh_log_create_for_thread(instance->main_thread);
+    MVM_spesh_log_initialize_thread(instance->main_thread);
 
     /* Back to nursery allocation, now we're set up. */
     MVM_gc_allocate_gen2_default_clear(instance->main_thread);

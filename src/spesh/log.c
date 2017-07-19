@@ -1,12 +1,22 @@
 #include "moar.h"
 
-/* Provided spesh is enabled, create a specialization data log for the thread
- * in question. */
-void MVM_spesh_log_create_for_thread(MVMThreadContext *tc) {
+/* Provided spesh is enabled, set up specialization data logging for the
+ * current thread. */
+void MVM_spesh_log_initialize_thread(MVMThreadContext *tc) {
     if (tc->instance->spesh_enabled) {
-        tc->spesh_log = (MVMSpeshLog *)MVM_repr_alloc_init(tc, tc->instance->SpeshLog);
+        tc->spesh_log = MVM_spesh_log_create(tc, tc->thread_obj);
         tc->spesh_log_quota = MVM_SPESH_LOG_QUOTA;
     }
+}
+
+/* Creates a spesh log for the specified target thread. */
+MVMSpeshLog * MVM_spesh_log_create(MVMThreadContext *tc, MVMThread *target_thread) {
+    MVMSpeshLog *result;
+    MVMROOT(tc, target_thread, {
+        result = (MVMSpeshLog *)MVM_repr_alloc_init(tc, tc->instance->SpeshLog);
+        MVM_ASSIGN_REF(tc, &(result->common.header), result->body.thread, target_thread);
+    });
+    return result;
 }
 
 /* Increments the used count and - if it hits the limit - sends the log off
@@ -33,7 +43,7 @@ void commit_entry(MVMThreadContext *tc, MVMSpeshLog *sl) {
             MVM_repr_push_o(tc, tc->instance->spesh_queue, (MVMObject *)sl);
         }
         if (MVM_decr(&(tc->spesh_log_quota)) > 1)
-            tc->spesh_log = (MVMSpeshLog *)MVM_repr_alloc_init(tc, tc->instance->SpeshLog);
+            tc->spesh_log = MVM_spesh_log_create(tc, tc->thread_obj);
         else
             tc->spesh_log = NULL;
     }
