@@ -1480,35 +1480,10 @@ MVMint64 MVM_string_offset_has_unicode_property_value(MVMThreadContext *tc, MVMS
  * into heavily (when evaluating regexes, for example). */
 MVMString * MVM_string_indexing_optimized(MVMThreadContext *tc, MVMString *s) {
     MVM_string_check_arg(tc, s, "indexingoptimized");
-    if (s->body.storage_type == MVM_STRING_STRAND) {
-        MVMuint32        chars = MVM_string_graphs_nocheck(tc, s);
-        MVMGrapheme32   *flat  = MVM_malloc(chars * sizeof(MVMGrapheme32));
-        MVMuint32        i     = 0;
-        MVMString       *res;
-        MVMint8          string_can_fit_into_8bit = 1;
-
-        MVMGraphemeIter  gi;
-        MVM_string_gi_init(tc, &gi, s);
-        while (MVM_string_gi_has_more(tc, &gi)) {
-            MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
-            if (! can_fit_into_8bit(g) )
-                string_can_fit_into_8bit = 0;
-            flat[i++] = g;
-        }
-
-        res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-        res->body.storage_type    = MVM_STRING_GRAPHEME_32;
-        res->body.storage.blob_32 = flat;
-        res->body.num_graphs      = chars;
-
-        if (string_can_fit_into_8bit)
-            turn_32bit_into_8bit_unchecked(tc, res);
-
-        return res;
-    }
-    else {
+    if (s->body.storage_type == MVM_STRING_STRAND)
+        return collapse_strands(tc, s);
+    else
         return s;
-    }
 }
 
 /* Escapes a string, replacing various chars like \n with \\n. Can no doubt be
