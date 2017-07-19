@@ -306,18 +306,21 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         if (pc + 2 + arg_size == end)
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
 
+        /* If the instruction is logged, store its program counter so we can
+         * associate it with a static value later. */
+        if (info->logged)
+            add_logged_annotation(tc, g, ins_node, pc);
+
         /* Caculate next instruction's PC. */
         pc += 2 + arg_size;
 
-        /* If this is a deopt point opcode or logged... */
+        /* If this is a deopt point opcode... */
         if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_ONE))
             add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_ONE_INS);
         if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_ALL))
             add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_ALL_INS);
         if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_OSR))
             add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_OSR);
-        if (info->logged)
-            add_logged_annotation(tc, g, ins_node, pc);
 
         /* Go to next instruction. */
         ins_idx++;
