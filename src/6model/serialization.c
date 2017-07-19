@@ -2968,7 +2968,7 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
         if (MVM_sc_get_stable_sc(tc, orig_st) != orig_sc)
             fail_deserialize(tc, reader,
                 "STable conflict detected during deserialization.\n"
-                "(Probable attempt to load two modules that cannot be loaded together).");
+                "(Probable attempt to load a mutated module or modules that cannot be loaded together).");
 
         /* Put it into STables root set at the apporpriate slot. */
         slot = read_int32(table_row, 4);
