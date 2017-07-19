@@ -56,6 +56,17 @@ static void add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     g->num_deopt_addrs++;
 }
 
+/* Records the current bytecode position as a logged annotation. Used for
+ * resolving logged values. */
+static void add_logged_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins_node,
+                                  MVMuint8 *pc) {
+    MVMSpeshAnn *ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+    ann->type = MVM_SPESH_ANN_LOGGED;
+    ann->data.bytecode_offset = pc - g->bytecode;
+    ann->next = ins_node->annotations;
+    ins_node->annotations = ann;
+}
+
 /* Finds the linearly previous basic block (not cheap, but uncommon). */
 MVMSpeshBB * MVM_spesh_graph_linear_prev(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *search) {
     MVMSpeshBB *bb = g->entry;
@@ -298,13 +309,15 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         /* Caculate next instruction's PC. */
         pc += 2 + arg_size;
 
-        /* If this is a deopt point opcode... */
+        /* If this is a deopt point opcode or logged... */
         if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_ONE))
             add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_ONE_INS);
         if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_ALL))
             add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_ALL_INS);
         if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_OSR))
             add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_OSR);
+        if (info->logged)
+            add_logged_annotation(tc, g, ins_node, pc);
 
         /* Go to next instruction. */
         ins_idx++;
