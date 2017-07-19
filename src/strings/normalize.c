@@ -516,6 +516,11 @@ static MVMint32 is_grapheme_prepend(MVMThreadContext *tc, MVMCodepoint cp) {
     return MVM_unicode_codepoint_get_property_int(tc, cp,
         MVM_UNICODE_PROPERTY_PREPENDED_CONCATENATION_MARK);
 }
+/* Returns 0 if the two graphemes should be combined and returns 1 or 2 if
+ * the graphemes should break. 2 is returned if more than the currenly seen
+ * graphemes may be needed to determine the breaking (this is only needed if
+ * we are checking two arbitrary codepoints. If we are normalizing linearly from
+ * the start of the string this has no more significance than returning 1) */
 MVMint32 MVM_unicode_normalize_should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b, MVMNormalizer *norm) {
     int GCB_a = MVM_unicode_codepoint_get_property_int(tc, a, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
     int GCB_b = MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
@@ -530,7 +535,8 @@ MVMint32 MVM_unicode_normalize_should_break(MVMThreadContext *tc, MVMCodepoint a
             if (2 <= norm->regional_indicator) {
                 norm->regional_indicator = 0;
                 if (GCB_b == MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR)
-                    return 1;
+                /* Return 2 here so is_concat_stable can know to run re_nfg */
+                    return 2;
             }
             if (GCB_b == MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR) {
                 if (!norm->regional_indicator)

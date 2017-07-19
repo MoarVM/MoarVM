@@ -17,7 +17,7 @@ static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
     }
     if (len != MVM_string_graphs(tc, s))
         MVM_exception_throw_adhoc(tc,
-            "Strand sanity check failed (stand length %d != num_graphs %d)",
+            "Strand sanity check failed (strand length %d != num_graphs %d)",
             len, MVM_string_graphs(tc, s));
 }
 #define STRAND_CHECK(tc, s) check_strand_sanity(tc, s);
@@ -38,6 +38,16 @@ static void copy_strands(MVMThreadContext *tc, const MVMString *from, MVMuint16 
     assert(from->body.storage_type == MVM_STRING_STRAND);
     assert(to->body.storage_type == MVM_STRING_STRAND);
     memcpy(
+        to->body.storage.strands + to_offset,
+        from->body.storage.strands + from_offset,
+        num_strands * sizeof(MVMStringStrand));
+}
+/* Move strands inside the same strand string. */
+static void move_strands(MVMThreadContext *tc, const MVMString *from, MVMuint16 from_offset,
+        MVMString *to, MVMuint16 to_offset, MVMuint16 num_strands) {
+    assert(from->body.storage_type == MVM_STRING_STRAND);
+    assert(to->body.storage_type == MVM_STRING_STRAND);
+    memmove(
         to->body.storage.strands + to_offset,
         from->body.storage.strands + from_offset,
         num_strands * sizeof(MVMStringStrand));
@@ -453,10 +463,13 @@ static MVMint32 final_strand_matches(MVMThreadContext *tc, MVMString *a, MVMStri
     return 0;
 }
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    MVMString *result;
+    MVMString *result = NULL, *renormalized_section = NULL;
+    int renormalized_section_graphs = 0, consumed_a = 0, consumed_b = 0;
     MVMuint32  agraphs, bgraphs;
     MVMuint64  total_graphs;
-
+    int lost_strands          = 0;
+    int is_concat_stable      = 0;
+    int index_ss_b;
     MVM_string_check_arg(tc, a, "concatenate");
     MVM_string_check_arg(tc, b, "concatenate");
 
@@ -468,6 +481,25 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     if (bgraphs == 0)
         return a;
 
+    is_concat_stable = MVM_nfg_is_concat_stable(tc, a, b);
+    if (is_concat_stable == 0) {
+        MVMCodepoint last_a_first_b[2] = {
+            MVM_string_get_grapheme_at_nocheck(tc, a, a->body.num_graphs - 1),
+            MVM_string_get_grapheme_at_nocheck(tc, b, 0)
+        };
+        /* Needing both to be CCC = 0 can probably be relaxed some, but be careful optimizing */
+        if (0 <= last_a_first_b[0] && 0 <= last_a_first_b[1] && MVM_unicode_relative_ccc(tc, last_a_first_b[0]) == 0 && MVM_unicode_relative_ccc(tc, last_a_first_b[1]) == 0) {
+            MVMROOT(tc, a, {
+            MVMROOT(tc, b, {
+                renormalized_section = MVM_unicode_codepoints_c_array_to_nfg_string(tc, last_a_first_b, 2);
+                consumed_a = 1; consumed_b = 1;
+            });
+            });
+            if (agraphs == consumed_a && bgraphs == consumed_b)
+                return renormalized_section;
+            renormalized_section_graphs = MVM_string_graphs_nocheck(tc, renormalized_section);
+        }
+    }
     /* Total size of the resulting string can't be bigger than an MVMString is allowed to be. */
     total_graphs = (MVMuint64)agraphs + (MVMuint64)bgraphs;
     if (total_graphs > MAX_GRAPHEMES)
@@ -478,6 +510,8 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     /* Otherwise, we'll assemble a result string. */
     MVMROOT(tc, a, {
     MVMROOT(tc, b, {
+    MVMROOT(tc, renormalized_section, {
+
         /* Allocate it. */
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
 
@@ -522,36 +556,93 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
                     }
                 });
             }
-
             /* Assemble the result. */
-            result->body.num_strands = strands_a + strands_b;
-            result->body.storage.strands = allocate_strands(tc, strands_a + strands_b);
+            result->body.num_strands = strands_a + strands_b + (renormalized_section_graphs ? 1 : 0);
+            result->body.storage.strands = allocate_strands(tc, result->body.num_strands);
+            /* START 1 */
             if (effective_a->body.storage_type == MVM_STRING_STRAND) {
                 copy_strands(tc, effective_a, 0, result, 0, strands_a);
             }
             else {
-                MVMStringStrand *ss = &(result->body.storage.strands[0]);
-                ss->blob_string = effective_a;
-                ss->start       = 0;
-                ss->end         = effective_a->body.num_graphs;
-                ss->repetitions = 0;
+                int index_ss_a = 0;
+                MVMStringStrand *ss_a = &(result->body.storage.strands[index_ss_a]);
+                ss_a->blob_string = effective_a;
+                ss_a->start       = 0;
+                ss_a->end         = effective_a->body.num_graphs;
+                ss_a->repetitions = 0;
             }
+            if (renormalized_section) {
+                int index_ss_re;
+                int index_ss_a = strands_a - 1;
+                /* Tweak the end of the last strand of string a. Since if a is made up of multiple strands, we can't just refer to index 0 and instead erfer to strands_a - 1 */
+                MVMStringStrand *ss_a = &(result->body.storage.strands[index_ss_a]);
+                MVMStringStrand *ss_re = NULL;
+                ss_a->end -= consumed_a;
+                /* If the strands ends up to be zero length we need to reduce the number of strand_index and also incease lost_strands so the next operation writes over it */
+                if (ss_a->start == ss_a->end)
+                    lost_strands++;
+            /* END 1 */
+            /* START 1.5 (only triggered in some cases) */
+                index_ss_re = strands_a - lost_strands;
+                ss_re = &(result->body.storage.strands[index_ss_re]);
+
+                /* Add the renormalized section in as a strand */
+                ss_re->blob_string = renormalized_section;
+                ss_re->start       = 0;
+                ss_re->end         = renormalized_section->body.num_graphs;
+                ss_re->repetitions = 0;
+                if (ss_re->start == ss_re->end) {
+                    MVM_exception_throw_adhoc(tc, "Unexpected error in concatenation: renormalized_section is 0 graphemes.\n");
+                    /* renormalized_section should always be at least one grapheme
+                     * in length so throw if it does not (zero length is an error
+                     * we shouldn't lost_strands++ unlike the other strands */
+                }
+            /* END 1.5 */
+            }
+            /* START 2 */
+            index_ss_b = strands_a - lost_strands + (renormalized_section_graphs ? 1 : 0 );
             if (effective_b->body.storage_type == MVM_STRING_STRAND) {
-                copy_strands(tc, effective_b, 0, result, strands_a, strands_b);
+                copy_strands(tc, effective_b, 0, result, index_ss_b, strands_b);
             }
             else {
-                MVMStringStrand *ss = &(result->body.storage.strands[strands_a]);
-                ss->blob_string = effective_b;
-                ss->start       = 0;
-                ss->end         = effective_b->body.num_graphs;
-                ss->repetitions = 0;
+                MVMStringStrand *ss_b = &(result->body.storage.strands[index_ss_b]);
+                ss_b->blob_string = effective_b;
+                ss_b->start       = 0;
+                ss_b->end         = effective_b->body.num_graphs;
+                ss_b->repetitions = 0;
+            }
+            if (renormalized_section_graphs) {
+                /* Tweak the beginning of the first strand of string b */
+                MVMStringStrand *ss_b = &(result->body.storage.strands[index_ss_b]);
+                ss_b->start += consumed_b;
+                if (ss_b->start == ss_b->end) {
+                    lost_strands++;
+                    move_strands(tc, result, index_ss_b + 1, result, index_ss_b, strands_b - 1);
+                }
+            /* END 2 */
+            /* Adjust result->num_strands */
+                if (lost_strands)
+                    result->body.num_strands -= lost_strands;
+                /* Adjust result->num_graphs */
+                result->body.num_graphs += renormalized_section_graphs - consumed_b - consumed_a;
             }
         }
     });
     });
-
+    });
     STRAND_CHECK(tc, result);
-    return MVM_nfg_is_concat_stable(tc, a, b) ? result : re_nfg(tc, result);
+    if (is_concat_stable == 1) {
+        return result;
+    }
+    /* If it's regional indicator */
+    else if (is_concat_stable == 2) {
+        return re_nfg(tc, result);
+    }
+    else if (is_concat_stable == 0 && renormalized_section) {
+        return result;
+    }
+    /* We should have returned by now, but if we did not, return re_nfg */
+    return re_nfg(tc, result);
 }
 
 MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count) {
