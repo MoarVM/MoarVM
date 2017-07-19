@@ -46,7 +46,7 @@ typedef enum {
      * used to put certain specializations up front rather than having to
      * replicate them throughout the tree; it also means there will be a way
      * in the future to get both certain and speculative specializations out
-     * of the arg guard tree, which would be useful in that we cold deopt into
+     * of the arg guard tree, which would be useful in that we could deopt into
      * the latter rather than falling back to the interpreter. Always follows
      * the "yes" branch if there is one. */
     MVM_SPESH_GUARD_OP_CERTAIN_RESULT,
