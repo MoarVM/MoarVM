@@ -264,14 +264,15 @@ sub parse_file {
             # Validate template for consistency with expr.h node definitions
             validate_template($template);
             my $compiled = compile_template($template);
-            push @templates, @{$compiled->{template}};
+
             $info{$opcode} = {
-                idx => $#templates,
+                idx => scalar @templates,
                 info => $compiled->{desc},
                 root => $compiled->{root},
                 len => length($compiled->{desc}),
                 flags => $flags
             };
+            push @templates, @{$compiled->{template}};
         } elsif ($keyword eq 'include:') {
             my $file = shift @$tree;
             $file =~ s/^"|"$//g;
