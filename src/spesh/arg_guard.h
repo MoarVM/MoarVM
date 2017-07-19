@@ -41,6 +41,16 @@ typedef enum {
      * rw-ness test of a container.) */
     MVM_SPESH_GUARD_OP_DEREF_RW,
 
+    /* Indicates a certain specialization that can be used as a result, should
+     * a better one not be reached by further evaluation of the tree. This is
+     * used to put certain specializations up front rather than having to
+     * replicate them throughout the tree; it also means there will be a way
+     * in the future to get both certain and speculative specializations out
+     * of the arg guard tree, which would be useful in that we cold deopt into
+     * the latter rather than falling back to the interpreter. Always follows
+     * the "yes" branch if there is one. */
+    MVM_SPESH_GUARD_OP_CERTAIN_RESULT,
+
     /* Selects a specialization, if this node is reached. Ignores yes/no;
      * terminates execution of the guard check. */
     MVM_SPESH_GUARD_OP_RESULT

@@ -234,8 +234,13 @@ static MVMint32 try_add_guard(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMCal
                               MVMSpeshStatsType *types, MVMuint32 candidate) {
     MVMuint32 current_node = get_callsite_node(tc, ag, cs);
     if (types) {
+        /* We're adding a type-based result, and thus for a speculative
+         * specialization. Certain specializations come ahead of those, and
+         * hang off the callsite node; skip over any such node. */
         MVMuint16 arg_idx = 0;
         MVMuint16 i;
+        if (ag->nodes[ag->nodes[current_node].yes].op == MVM_SPESH_GUARD_OP_CERTAIN_RESULT)
+            current_node = ag->nodes[current_node].yes;
         for (i = 0; i < cs->flag_count; i++) {
             if (cs->arg_flags[i] & MVM_CALLSITE_ARG_NAMED)
                 arg_idx++; /* Skip over name */
@@ -246,13 +251,25 @@ static MVMint32 try_add_guard(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMCal
             }
             arg_idx++;
         }
+        if (ag->nodes[current_node].yes)
+            return 0;
+        ag->nodes[ag->used_nodes].op = MVM_SPESH_GUARD_OP_RESULT;
+        ag->nodes[ag->used_nodes].yes = 0;
+        ag->nodes[ag->used_nodes].no = 0;
     }
-    if (ag->nodes[current_node].yes)
-        return 0;
-    ag->nodes[ag->used_nodes].op = MVM_SPESH_GUARD_OP_RESULT;
+    else {
+        /* We're adding a certain result. If there already is such a node, we
+         * already have that specialization. Otherwise, we need to insert it
+         * and redirect the current_node's .yes to point to it, and it to
+         * point to whatever current_node's .yes used to point to (so it goes
+         * in ahead of type guards etc.). */
+        if (ag->nodes[ag->nodes[current_node].yes].op == MVM_SPESH_GUARD_OP_CERTAIN_RESULT)
+            return 0;
+        ag->nodes[ag->used_nodes].op = MVM_SPESH_GUARD_OP_CERTAIN_RESULT;
+        ag->nodes[ag->used_nodes].yes = ag->nodes[current_node].yes;
+        ag->nodes[ag->used_nodes].no = 0;
+    }
     ag->nodes[ag->used_nodes].result = candidate;
-    ag->nodes[ag->used_nodes].yes = 0;
-    ag->nodes[ag->used_nodes].no = 0;
     ag->nodes[current_node].yes = ag->used_nodes++;
     return 1;
 }
@@ -299,6 +316,7 @@ MVMint32 MVM_spesh_arg_guard_run_types(MVMThreadContext *tc, MVMSpeshArgGuard *a
     MVMuint32 current_node = 0;
     MVMSpeshStatsType *test = NULL;
     MVMuint32 use_decont_type = 0;
+    MVMint32 current_result = -1;
     if (!ag)
         return -1;
     do {
@@ -353,11 +371,15 @@ MVMint32 MVM_spesh_arg_guard_run_types(MVMThreadContext *tc, MVMSpeshArgGuard *a
                     ? agn->yes
                     : agn->no;
                 break;
+            case MVM_SPESH_GUARD_OP_CERTAIN_RESULT:
+                current_result = agn->result;
+                current_node = agn->yes;
+                break;
             case MVM_SPESH_GUARD_OP_RESULT:
                 return agn->result;
         }
     } while (current_node != 0);
-    return -1;
+    return current_result;
 }
 
 /* Evaluates the argument guards. Returns >= 0 if there is a matching spesh
@@ -366,6 +388,7 @@ MVMint32 MVM_spesh_arg_guard_run(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
                                  MVMCallsite *cs, MVMRegister *args) {
     MVMuint32 current_node = 0;
     MVMObject *test = NULL;
+    MVMint32 current_result = -1;
     if (!ag)
         return -1;
     do {
@@ -402,11 +425,15 @@ MVMint32 MVM_spesh_arg_guard_run(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
                     ? agn->yes
                     : agn->no;
                 break;
+            case MVM_SPESH_GUARD_OP_CERTAIN_RESULT:
+                current_result = agn->result;
+                current_node = agn->yes;
+                break;
             case MVM_SPESH_GUARD_OP_RESULT:
                 return agn->result;
         }
     } while (current_node != 0);
-    return -1;
+    return current_result;
 }
 
 /* Runs the guards using call information gathered by the optimizer. This is
@@ -416,6 +443,7 @@ MVMint32 MVM_spesh_arg_guard_run_callinfo(MVMThreadContext *tc, MVMSpeshArgGuard
     MVMuint32 current_node = 0;
     MVMSpeshFacts *facts = NULL;
     MVMuint8 use_decont_facts = 0;
+    MVMint32 current_result = -1;
     if (!ag)
         return -1;
     do {
@@ -478,11 +506,15 @@ MVMint32 MVM_spesh_arg_guard_run_callinfo(MVMThreadContext *tc, MVMSpeshArgGuard
                     ? agn->yes
                     : agn->no;
                 break;
+            case MVM_SPESH_GUARD_OP_CERTAIN_RESULT:
+                current_result = agn->result;
+                current_node = agn->yes;
+                break;
             case MVM_SPESH_GUARD_OP_RESULT:
                 return agn->result;
         }
     } while (current_node != 0);
-    return -1;
+    return current_result;
 }
 
 /* Marks any objects held by an argument guard. */
