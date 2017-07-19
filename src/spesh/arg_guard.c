@@ -509,8 +509,8 @@ void MVM_spesh_arg_guard_destroy(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVM
         size_t total_size = sizeof(MVMSpeshArgGuard) +
             ag->num_nodes * sizeof(MVMSpeshArgGuardNode);
         if (safe)
-            MVM_fixed_size_free(tc, tc->instance->fsa, total_size, ag);
-        else
             MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, total_size, ag);
+        else
+            MVM_fixed_size_free(tc, tc->instance->fsa, total_size, ag);
     }
 }
