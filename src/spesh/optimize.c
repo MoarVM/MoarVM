@@ -936,6 +936,35 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
     }
 }
 
+/* Transforms a late-bound lexical lookup into a constant. */
+static void lex_to_constant(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+                            MVMObject *log_obj) {
+    MVMSpeshFacts *facts;
+
+    /* Place in a spesh slot. */
+    MVMuint16 ss = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+        (MVMCollectable *)log_obj);
+
+    /* Transform lookup instruction into spesh slot read. */
+    MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
+    ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+    ins->operands[1].lit_i16 = ss;
+
+    /* Set up facts. */
+    facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+    facts->flags  |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_KNOWN_VALUE;
+    facts->type    = STABLE(log_obj)->WHAT;
+    facts->value.o = log_obj;
+    if (IS_CONCRETE(log_obj)) {
+        facts->flags |= MVM_SPESH_FACT_CONCRETE;
+        if (!STABLE(log_obj)->container_spec)
+            facts->flags |= MVM_SPESH_FACT_DECONTED;
+    }
+    else {
+        facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
+    }
+}
+
 /* Optimizes away a lexical lookup when we know the value won't change from
  * the logged one. */
 static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -955,33 +984,47 @@ static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
         for (i = 0; i < n; i++) {
             if (ss->static_values[i].bytecode_offset == ann->data.bytecode_offset) {
                 MVMObject *log_obj = ss->static_values[i].value;
-                if (log_obj) {
-                   MVMSpeshFacts *facts;
-
-                    /* Place in a spesh slot. */
-                    MVMuint16 ss = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
-                        (MVMCollectable *)log_obj);
-
-                    /* Transform lookup instruction into spesh slot read. */
-                    MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
-                    ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
-                    ins->operands[1].lit_i16 = ss;
-
-                    /* Set up facts. */
-                    facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
-                    facts->flags  |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_KNOWN_VALUE;
-                    facts->type    = STABLE(log_obj)->WHAT;
-                    facts->value.o = log_obj;
-                    if (IS_CONCRETE(log_obj)) {
-                        facts->flags |= MVM_SPESH_FACT_CONCRETE;
-                        if (!STABLE(log_obj)->container_spec)
-                            facts->flags |= MVM_SPESH_FACT_DECONTED;
-                    }
-                    else {
-                        facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
-                    }
-                }
+                if (log_obj)
+                    lex_to_constant(tc, g, ins, log_obj);
                 return;
+            }
+        }
+    }
+}
+
+/* Optimizes away a lexical lookup when we know the value won't change for a
+ * given invocant type (this relies on us being in a typed specialization). */
+static void optimize_getlex_per_invocant(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                         MVMSpeshBB *bb, MVMSpeshIns *ins,
+                                         MVMSpeshPlanned *p) {
+    MVMSpeshAnn *ann;
+
+    /* Can only do this when we've specialized on the first argument type. */
+    if (!g->specialized_on_invocant)
+        return;
+
+    /* Try to find logged offset. */
+    ann = ins->annotations;
+    while (ann) {
+        if (ann->type == MVM_SPESH_ANN_LOGGED)
+            break;
+        ann = ann->next;
+    }
+    if (ann) {
+        MVMuint32 i;
+        for (i = 0; i < p->num_type_stats; i++) {
+            MVMSpeshStatsByType *ts = p->type_stats[i];
+            MVMuint32 j;
+            for (j = 0; j < ts->num_by_offset; j++) {
+                if (ts->by_offset[j].bytecode_offset == ann->data.bytecode_offset) {
+                    if (ts->by_offset[j].num_types) {
+                        MVMObject *log_obj = ts->by_offset[j].types[0].type;
+                        if (log_obj && !ts->by_offset[j].types[0].type_concrete)
+                            lex_to_constant(tc, g, ins, log_obj);
+                        return;
+                    }
+                    break;
+                }
             }
         }
     }
@@ -1612,8 +1655,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             optimize_getlex_known(tc, g, bb, ins);
             break;
         case MVM_OP_getlexperinvtype_o:
-            if (g->specialized_on_invocant)
-                optimize_getlex_known(tc, g, bb, ins);
+            optimize_getlex_per_invocant(tc, g, bb, ins, p);
             break;
         case MVM_OP_isrwcont:
             optimize_container_check(tc, g, bb, ins);
