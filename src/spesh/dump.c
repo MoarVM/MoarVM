@@ -643,7 +643,7 @@ char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     /* Dump reasoning. */
     switch (p->kind) {
         case MVM_SPESH_PLANNED_CERTAIN:
-            if (p->cs_stats->hits >= MVM_SPESH_PLAN_CS_MIN)
+            if (p->cs_stats->hits >= MVM_spesh_threshold(tc, p->sf))
                 appendf(&ds,
                     "It was planned due to the callsite receiving %u hits.\n",
                     p->cs_stats->hits);

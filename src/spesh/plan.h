@@ -1,14 +1,11 @@
-/* The minimum number of hits or OSR hits a static frame as a whole has to
- * receive (across all callsites and type tuples) before it is hot enough to
- * further consider. */
-#define MVM_SPESH_PLAN_SF_MIN       10
+/* The minimum number OSR hits a static frame as a whole has to receive
+ * (across all callsites and type tuples) before it is hot enough to further
+ * consider. */
 #define MVM_SPESH_PLAN_SF_MIN_OSR   100
 
 /* The minimum number of hits or OSR hits a given static frame and interned
  * callsite combination have to have before it is hot enough to further
- * consider. (The lack of an interned callsite counts as a callsite, for
- * these purposes.) */
-#define MVM_SPESH_PLAN_CS_MIN       10
+ * consider. */
 #define MVM_SPESH_PLAN_CS_MIN_OSR   100
 
 /* The percentage of hits or OSR hits that a type tuple should receive, out of

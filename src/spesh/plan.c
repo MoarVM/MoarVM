@@ -47,51 +47,53 @@ MVMSpeshStatsType * copy_type_tuple(MVMThreadContext *tc, MVMCallsite *cs,
  * plans specializations to produce for it. */
 void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
                  MVMSpeshStatsByCallsite *by_cs) {
-    if (by_cs->hits >= MVM_SPESH_PLAN_CS_MIN || by_cs->osr_hits >= MVM_SPESH_PLAN_CS_MIN_OSR) {
-        /* This callsite is hot enough. See if any types tuples are hot
-         * enough. */
-        MVMuint32 i;
-        MVMuint32 unaccounted_hits = by_cs->hits;
-        MVMuint32 unaccounted_osr_hits = by_cs->osr_hits;
-        for (i = 0; i < by_cs->num_by_type; i++) {
-            MVMSpeshStatsByType *by_type = &(by_cs->by_type[i]);
-            MVMuint32 hit_percent = by_cs->hits
-               ? (100 * by_type->hits) / by_cs->hits
-               : 0;
-            MVMuint32 osr_hit_percent = by_cs->osr_hits
-                ? (100 * by_type->osr_hits) / by_cs->osr_hits
-                : 0;
-            if (by_cs->cs && (hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT ||
-                    osr_hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT_OSR)) {
-                MVMSpeshStatsByType **evidence = MVM_malloc(sizeof(MVMSpeshStatsByType *));
-                evidence[0] = by_type;
-                add_planned(tc, plan, MVM_SPESH_PLANNED_OBSERVED_TYPES, sf, by_cs,
-                    copy_type_tuple(tc, by_cs->cs, by_type->arg_types), evidence, 1);
-                unaccounted_hits -= by_type->hits;
-                unaccounted_osr_hits -= by_type->osr_hits;
-            }
-            else {
-                /* TODO derived specialization planning */
-            }
+    /* See if any types tuples are hot enough. */
+    MVMuint32 i;
+    MVMuint32 unaccounted_hits = by_cs->hits;
+    MVMuint32 unaccounted_osr_hits = by_cs->osr_hits;
+    for (i = 0; i < by_cs->num_by_type; i++) {
+        MVMSpeshStatsByType *by_type = &(by_cs->by_type[i]);
+        MVMuint32 hit_percent = by_cs->hits
+           ? (100 * by_type->hits) / by_cs->hits
+           : 0;
+        MVMuint32 osr_hit_percent = by_cs->osr_hits
+            ? (100 * by_type->osr_hits) / by_cs->osr_hits
+            : 0;
+        if (by_cs->cs && (hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT ||
+                osr_hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT_OSR)) {
+            MVMSpeshStatsByType **evidence = MVM_malloc(sizeof(MVMSpeshStatsByType *));
+            evidence[0] = by_type;
+            add_planned(tc, plan, MVM_SPESH_PLANNED_OBSERVED_TYPES, sf, by_cs,
+                copy_type_tuple(tc, by_cs->cs, by_type->arg_types), evidence, 1);
+            unaccounted_hits -= by_type->hits;
+            unaccounted_osr_hits -= by_type->osr_hits;
         }
-
-        /* If there are enough unaccounted for hits by type specializations, then
-         * plan a certain specialization. */
-        if (unaccounted_hits >= MVM_SPESH_PLAN_CS_MIN ||
-                unaccounted_osr_hits >= MVM_SPESH_PLAN_CS_MIN_OSR)
-            add_planned(tc, plan, MVM_SPESH_PLANNED_CERTAIN, sf, by_cs, NULL, NULL, 0);
+        else {
+            /* TODO derived specialization planning */
+        }
     }
+
+    /* If there are enough unaccounted for hits by type specializations, then
+     * plan a certain specialization. */
+    if (unaccounted_hits && unaccounted_hits >= MVM_spesh_threshold(tc, sf) ||
+            unaccounted_osr_hits >= MVM_SPESH_PLAN_CS_MIN_OSR)
+        add_planned(tc, plan, MVM_SPESH_PLANNED_CERTAIN, sf, by_cs, NULL, NULL, 0);
 }
 
 /* Considers the statistics of a given static frame and plans specializtions
  * to produce for it. */
 void plan_for_sf(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf) {
     MVMSpeshStats *ss = sf->body.spesh_stats;
-    if (ss->hits >= MVM_SPESH_PLAN_SF_MIN || ss->osr_hits >= MVM_SPESH_PLAN_SF_MIN_OSR) {
-        /* The frame is hot enough; look through its callsites. */
+    MVMuint32 threshold = MVM_spesh_threshold(tc, sf);
+    if (ss->hits >= threshold || ss->osr_hits >= MVM_SPESH_PLAN_SF_MIN_OSR) {
+        /* The frame is hot enough; look through its callsites to see if any
+         * of those are. */
         MVMuint32 i;
-        for (i = 0; i < ss->num_by_callsite; i++)
-            plan_for_cs(tc, plan, sf, &(ss->by_callsite[i]));
+        for (i = 0; i < ss->num_by_callsite; i++) {
+            MVMSpeshStatsByCallsite *by_cs = &(ss->by_callsite[i]);
+            if (by_cs->hits >= threshold || by_cs->osr_hits >= MVM_SPESH_PLAN_CS_MIN_OSR)
+                plan_for_cs(tc, plan, sf, by_cs);
+        }
     }
 }
 

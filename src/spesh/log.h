@@ -18,8 +18,9 @@ struct MVMSpeshLogGuard {
 #define MVM_SPESH_LOG_QUOTA 3
 
 /* The number of logged invocations before we decide we've enough data for
- * the time being. */
-#define MVM_SPESH_LOG_LOGGED_ENOUGH 100
+ * the time being; should be at least the maximum threshold value in
+ * thresholds.c. */
+#define MVM_SPESH_LOG_LOGGED_ENOUGH 350
 
 void MVM_spesh_log_initialize_thread(MVMThreadContext *tc);
 MVMSpeshLog * MVM_spesh_log_create(MVMThreadContext *tc, MVMThread *target_thread);
