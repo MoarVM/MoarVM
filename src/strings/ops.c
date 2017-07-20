@@ -25,6 +25,20 @@ static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
 #define STRAND_CHECK(tc, s)
 #endif
 
+#ifndef MIN
+    #define MIN(x,y) ((x)<(y)?(x):(y))
+#endif
+
+MVM_STATIC_INLINE void adjust_nursery(MVMThreadContext *tc, MVMStringBody *body) {
+    int used = body->num_graphs;
+    int multiplicator = body->storage_type == MVM_STRING_GRAPHEME_32 ? 8 :
+                        body->storage_type == MVM_STRING_STRAND ? sizeof(MVMStringStrand) : 1;
+    int adjustment = MIN(used * multiplicator, 32768) & ~0x7;
+    if (adjustment && (char *)tc->nursery_alloc_limit - adjustment > (char *)tc->nursery_alloc) {
+        tc->nursery_alloc_limit = (char *)(tc->nursery_alloc_limit) - adjustment;
+    }
+}
+
 MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle_fc, MVMint64 H_start, MVMint64 H_graphs, MVMint64 n_fc_graphs, int ignoremark, int ignorecase);
 
 /* Allocates strand storage. */
@@ -104,6 +118,7 @@ static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
     /* If we get here, we didn't see any cp's lower than -127 or higher than 127
      * so turn it into an 8 bit string */
     turn_32bit_into_8bit_unchecked(tc, result);
+    adjust_nursery(tc, &result->body);
     return result;
 }
 
@@ -159,6 +174,7 @@ static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in) {
     out->body.storage.blob_32 = out_buffer;
     out->body.storage_type    = MVM_STRING_GRAPHEME_32;
     out->body.num_graphs      = out_pos;
+    adjust_nursery(tc, &out->body);
     return out;
 }
 
@@ -428,6 +444,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
     });
 
     STRAND_CHECK(tc, result);
+    adjust_nursery(tc, &result->body);
     return result;
 }
 
@@ -449,6 +466,7 @@ MVMString * MVM_string_replace(MVMThreadContext *tc, MVMString *original, MVMint
     MVM_gc_root_temp_pop_n(tc, 3);
 
     STRAND_CHECK(tc, result);
+    adjust_nursery(tc, &result->body);
     return result;
 }
 
@@ -703,6 +721,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
     });
 
     STRAND_CHECK(tc, result);
+    adjust_nursery(tc, &result->body);
     return result;
 }
 
@@ -1494,7 +1513,12 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
 
     MVM_free(pieces);
     STRAND_CHECK(tc, result);
-    return concats_stable ? result : re_nfg(tc, result);
+    if (concats_stable) {
+        adjust_nursery(tc, &result->body);
+        return result;
+    }
+    else
+        return re_nfg(tc, result);
 }
 
 /* Returning nonzero means it found the char at the position specified in 'a' in 'b'.
@@ -1648,6 +1672,7 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
         turn_32bit_into_8bit_unchecked(tc, res);
 
     STRAND_CHECK(tc, res);
+    adjust_nursery(tc, &res->body);
     return res;
 }
 
@@ -1691,6 +1716,7 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
     res->body.num_graphs      = sgraphs;
 
     STRAND_CHECK(tc, res);
+    adjust_nursery(tc, &res->body);
     return res;
 }
 
@@ -1750,6 +1776,7 @@ MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b) 
     res->body.num_graphs      = sgraphs;
 
     STRAND_CHECK(tc, res);
+    adjust_nursery(tc, &res->body);
     return res;
 }
 
@@ -1787,6 +1814,7 @@ MVMString * MVM_string_bitor(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     res->body.num_graphs      = sgraphs;
 
     STRAND_CHECK(tc, res);
+    adjust_nursery(tc, &res->body);
     return res;
 }
 
@@ -1824,6 +1852,7 @@ MVMString * MVM_string_bitxor(MVMThreadContext *tc, MVMString *a, MVMString *b) 
     res->body.num_graphs      = sgraphs;
 
     STRAND_CHECK(tc, res);
+    adjust_nursery(tc, &res->body);
     return res;
 }
 
