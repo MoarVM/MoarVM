@@ -86,24 +86,37 @@ static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
     });
     ographs                      = MVM_string_graphs(tc, orig);
     result->body.num_graphs      = ographs;
-    result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-    result->body.storage.blob_32 = MVM_malloc(ographs * sizeof(MVMGrapheme32));
+    result->body.storage_type    = MVM_STRING_GRAPHEME_8;
+    result->body.storage.blob_8  = MVM_malloc(ographs * sizeof(MVMGrapheme8));
 
     MVM_string_gi_init(tc, &gi, orig);
     for (i = 0; i < ographs; i++) {
         MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
-        result->body.storage.blob_32[i] = g;
+        result->body.storage.blob_8[i] = g;
         if (!can_fit_into_8bit(g)) {
-            /* If we know we can't fit into 8 bits, enter a tighter loop for maximum speed */
-            for (i++; i < ographs; i++) {
+            /* If we get here, we saw a codepoint lower than -127 or higher than 127
+             * so turn it into a 32 bit string instead */
+            /* Store the old string pointer and previous value of i */
+            MVMGrapheme8 *old_ref = result->body.storage.blob_8;
+            MVMStringIndex prev_i = i;
+            /* Set up the string as 32bit now and allocate space for it */
+            result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+            result->body.storage.blob_32 = MVM_malloc(ographs * sizeof(MVMGrapheme32));
+            /* Copy the data so far copied from the 8bit blob since it's faster than
+             * setting up the grapheme iterator again */
+            for (i = 0; i < prev_i; i++) {
+                result->body.storage.blob_32[i] = old_ref[i];
+            }
+            MVM_free(old_ref);
+            /* Store the grapheme which interupted the sequence. After that we can
+             * continue from where we left off using the grapheme iterator */
+            result->body.storage.blob_32[prev_i] = g;
+            for (i = prev_i + 1; i < ographs; i++) {
                 result->body.storage.blob_32[i] = MVM_string_gi_get_grapheme(tc, &gi);
             }
             return result;
         }
     }
-    /* If we get here, we didn't see any cp's lower than -127 or higher than 127
-     * so turn it into an 8 bit string */
-    turn_32bit_into_8bit_unchecked(tc, result);
     return result;
 }
 
