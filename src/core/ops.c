@@ -427,7 +427,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         1,
-        0,
+        1,
         0,
         0,
         { MVM_operand_write_reg | MVM_operand_type_var, MVM_operand_read_lex | MVM_operand_type_var }
@@ -487,7 +487,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         1,
-        0,
+        1,
         1,
         0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str }
@@ -1674,7 +1674,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         3,
-        0,
+        1,
         0,
         0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
@@ -3342,7 +3342,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         5,
         0,
         1,
-        0,
+        1,
         0,
         0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str, MVM_operand_int16 }
@@ -3390,7 +3390,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         4,
         0,
         1,
-        0,
+        1,
         0,
         0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
