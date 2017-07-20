@@ -495,20 +495,38 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         return a;
 
     is_concat_stable = MVM_nfg_is_concat_stable(tc, a, b);
+
     if (is_concat_stable == 0) {
         MVMCodepoint last_a_first_b[2] = {
             MVM_string_get_grapheme_at_nocheck(tc, a, a->body.num_graphs - 1),
             MVM_string_get_grapheme_at_nocheck(tc, b, 0)
         };
+        MVMROOT(tc, a, {
+        MVMROOT(tc, b, {
         /* Needing both to be CCC = 0 can probably be relaxed some, but be careful optimizing */
-        if (0 <= last_a_first_b[0] && 0 <= last_a_first_b[1]
-            && MVM_unicode_relative_ccc(tc, last_a_first_b[0]) == 0) {
-            MVMROOT(tc, a, {
-            MVMROOT(tc, b, {
-                renormalized_section = MVM_unicode_codepoints_c_array_to_nfg_string(tc, last_a_first_b, 2);
-                consumed_a = 1; consumed_b = 1;
-            });
-            });
+        if (0 <= last_a_first_b[0] && 0 <= last_a_first_b[1]) {
+            renormalized_section = MVM_unicode_codepoints_c_array_to_nfg_string(tc, last_a_first_b, 2);
+            consumed_a = 1; consumed_b = 1;
+        }
+        else {
+            MVMCodepointIter last_a_ci;
+            MVMCodepointIter first_b_ci;
+            MVMuint32 a_codes = MVM_string_grapheme_ci_init(tc, &last_a_ci,  last_a_first_b[0]);
+            MVMuint32 b_codes = MVM_string_grapheme_ci_init(tc, &first_b_ci, last_a_first_b[1]);
+            MVMCodepoint thing[a_codes + b_codes];
+            MVMuint32 i = 0;
+            for (; MVM_string_grapheme_ci_has_more(tc, &last_a_ci); i++) {
+                thing[i] = MVM_string_grapheme_ci_get_codepoint(tc, &last_a_ci);
+            }
+            for (; MVM_string_grapheme_ci_has_more(tc, &first_b_ci); i++) {
+                thing[i] = MVM_string_grapheme_ci_get_codepoint(tc, &first_b_ci);
+            }
+            renormalized_section = MVM_unicode_codepoints_c_array_to_nfg_string(tc, thing, a_codes + b_codes);
+            consumed_a = 1; consumed_b = 1;
+        }
+        });
+        });
+        if (renormalized_section) {
             if (agraphs == consumed_a && bgraphs == consumed_b)
                 return renormalized_section;
             renormalized_section_graphs = MVM_string_graphs_nocheck(tc, renormalized_section);
