@@ -12,7 +12,7 @@ struct MVMSpeshCallInfo {
     MVMSpeshIns   *arg_ins[MAX_ARGS_FOR_OPT];
 };
 
-void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g);
+void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p);
 MVM_PUBLIC MVMint16 MVM_spesh_add_spesh_slot(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCollectable *c);
 MVM_PUBLIC MVMSpeshFacts * MVM_spesh_get_and_use_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o);
 MVM_PUBLIC MVMSpeshFacts * MVM_spesh_get_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o);

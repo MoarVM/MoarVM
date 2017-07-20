@@ -1413,7 +1413,8 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
     }
 }
 /* Visits the blocks in dominator tree order, recursively. */
-static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
+static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                        MVMSpeshPlanned *p) {
     MVMSpeshCallInfo arg_info;
     MVMint32 i;
 
@@ -1635,7 +1636,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
 
     /* Visit children. */
     for (i = 0; i < bb->num_children; i++)
-        optimize_bb(tc, g, bb->children[i]);
+        optimize_bb(tc, g, bb->children[i], p);
 }
 
 /* Eliminates any unused instructions. */
@@ -1847,11 +1848,11 @@ static void eliminate_pointless_gotos(MVMThreadContext *tc, MVMSpeshGraph *g) {
 }
 
 /* Drives the overall optimization work taking place on a spesh graph. */
-void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
+void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p) {
     /* Before starting, we eliminate dead basic blocks that were tossed by
      * arg spesh, to simplify the graph. */
     eliminate_dead_bbs(tc, g);
-    optimize_bb(tc, g, g->entry);
+    optimize_bb(tc, g, g->entry, p);
     eliminate_dead_bbs(tc, g);
     eliminate_unused_log_guards(tc, g);
     eliminate_pointless_gotos(tc, g);

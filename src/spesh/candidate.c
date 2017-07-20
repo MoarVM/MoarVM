@@ -57,7 +57,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     if (p->cs_stats->cs)
         MVM_spesh_args(tc, sg, p->cs_stats->cs, p->type_tuple);
     MVM_spesh_facts_discover(tc, sg, p);
-    MVM_spesh_optimize(tc, sg);
+    MVM_spesh_optimize(tc, sg, p);
     if (tc->instance->spesh_log_fh) {
         char *after = MVM_spesh_dump(tc, sg);
         fprintf(tc->instance->spesh_log_fh, "After:\n%s", after);
