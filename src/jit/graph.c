@@ -422,8 +422,8 @@ static void jgb_append_guard(MVMThreadContext *tc, JitGraphBuilder *jgb,
         ann = ann->next;
     }
     if (!ann) {
-        MVM_oops(tc, "Can't find deopt idx annotation"
-                                  " on spesh ins <%s>", ins->info->name);
+        MVM_oops(tc, "Can't find deopt idx annotation on spesh ins <%s>",
+            ins->info->name);
     }
     node->u.guard.deopt_target = jgb->sg->deopt_addrs[2 * deopt_idx];
     node->u.guard.deopt_offset = jgb->sg->deopt_addrs[2 * deopt_idx + 1];
@@ -2819,12 +2819,9 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_branch(tc, jgb, MVM_JIT_BRANCH_EXIT, NULL);
         break;
     }
+    case MVM_OP_sp_guard:
     case MVM_OP_sp_guardconc:
     case MVM_OP_sp_guardtype:
-    case MVM_OP_sp_guardcontconc:
-    case MVM_OP_sp_guardconttype:
-    case MVM_OP_sp_guardrwconc:
-    case MVM_OP_sp_guardrwtype:
         jgb_append_guard(tc, jgb, ins);
         break;
     case MVM_OP_prepargs: {
