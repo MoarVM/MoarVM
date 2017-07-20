@@ -2,6 +2,7 @@
 #ifndef _WIN32
 #include <dlfcn.h>
 #endif
+#include <platform/threads.h>
 
 /* Maps a calling convention name to an ID. */
 MVMint16 MVM_nativecall_get_calling_convention(MVMThreadContext *tc, MVMString *name) {
@@ -179,7 +180,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
 
         MVM_callsite_try_intern(tc, &cs);
 
-        callback_data->tc        = tc;
+        callback_data->instance  = tc->instance;
         callback_data->cs        = cs;
         callback_data->target    = callback;
         callback_data->cb        = dcbNewCallback(signature, (DCCallbackHandler *)callback_handler, callback_data);
@@ -212,10 +213,24 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     MVMRegister res;
     MVMRegister *args;
     unsigned int interval_id;
+    MVMint32 was_blocked;
+
+    /* Locate the thread. */
+    MVMThreadContext *tc = NULL;
+    MVMThread *thread = data->instance->threads;
+    MVMint64 wanted_thread_id = MVM_platform_thread_id();
+    while (thread) {
+        if (thread->body.native_thread_id == wanted_thread_id) {
+            tc = thread->body.tc;
+            break;
+        }
+        thread = thread->body.next;
+    }
+    if (!tc)
+        MVM_panic(1, "native callback ran on thread unknown to MoarVM");
 
     /* Unblock GC if needed, so this thread can do work. */
-    MVMThreadContext *tc = data->tc;
-    MVMint32 was_blocked = MVM_gc_is_thread_blocked(tc);
+    was_blocked = MVM_gc_is_thread_blocked(tc);
     if (was_blocked)
         MVM_gc_mark_thread_unblocked(tc);
 
@@ -351,73 +366,73 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     if (res.o) {
         MVMContainerSpec const *contspec = STABLE(res.o)->container_spec;
         if (contspec && contspec->fetch_never_invokes)
-            contspec->fetch(data->tc, res.o, &res);
+            contspec->fetch(tc, res.o, &res);
     }
     switch (data->typeinfos[0] & MVM_NATIVECALL_ARG_TYPE_MASK) {
         case MVM_NATIVECALL_ARG_VOID:
             break;
         case MVM_NATIVECALL_ARG_CHAR:
-            cb_result->c = (signed char)MVM_nativecall_unmarshal_char(data->tc, res.o);
+            cb_result->c = (signed char)MVM_nativecall_unmarshal_char(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_SHORT:
-            cb_result->s = MVM_nativecall_unmarshal_short(data->tc, res.o);
+            cb_result->s = MVM_nativecall_unmarshal_short(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_INT:
-            cb_result->i = MVM_nativecall_unmarshal_int(data->tc, res.o);
+            cb_result->i = MVM_nativecall_unmarshal_int(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_LONG:
-            cb_result->j = MVM_nativecall_unmarshal_long(data->tc, res.o);
+            cb_result->j = MVM_nativecall_unmarshal_long(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_LONGLONG:
-            cb_result->l = MVM_nativecall_unmarshal_longlong(data->tc, res.o);
+            cb_result->l = MVM_nativecall_unmarshal_longlong(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_FLOAT:
-            cb_result->f = MVM_nativecall_unmarshal_float(data->tc, res.o);
+            cb_result->f = MVM_nativecall_unmarshal_float(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_DOUBLE:
-            cb_result->d = MVM_nativecall_unmarshal_double(data->tc, res.o);
+            cb_result->d = MVM_nativecall_unmarshal_double(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_ASCIISTR:
         case MVM_NATIVECALL_ARG_UTF8STR:
         case MVM_NATIVECALL_ARG_UTF16STR:
-            cb_result->Z = MVM_nativecall_unmarshal_string(data->tc, res.o, data->typeinfos[0], NULL);
+            cb_result->Z = MVM_nativecall_unmarshal_string(tc, res.o, data->typeinfos[0], NULL);
             break;
         case MVM_NATIVECALL_ARG_CSTRUCT:
-            cb_result->p = MVM_nativecall_unmarshal_cstruct(data->tc, res.o);
+            cb_result->p = MVM_nativecall_unmarshal_cstruct(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_CPOINTER:
-            cb_result->p = MVM_nativecall_unmarshal_cpointer(data->tc, res.o);
+            cb_result->p = MVM_nativecall_unmarshal_cpointer(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_CARRAY:
-            cb_result->p = MVM_nativecall_unmarshal_carray(data->tc, res.o);
+            cb_result->p = MVM_nativecall_unmarshal_carray(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_CUNION:
-            cb_result->p = MVM_nativecall_unmarshal_cunion(data->tc, res.o);
+            cb_result->p = MVM_nativecall_unmarshal_cunion(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_VMARRAY:
-            cb_result->p = MVM_nativecall_unmarshal_vmarray(data->tc, res.o);
+            cb_result->p = MVM_nativecall_unmarshal_vmarray(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_CALLBACK:
-            cb_result->p = unmarshal_callback(data->tc, res.o, data->types[0]);
+            cb_result->p = unmarshal_callback(tc, res.o, data->types[0]);
             break;
         case MVM_NATIVECALL_ARG_UCHAR:
-            cb_result->c = MVM_nativecall_unmarshal_uchar(data->tc, res.o);
+            cb_result->c = MVM_nativecall_unmarshal_uchar(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_USHORT:
-            cb_result->s = MVM_nativecall_unmarshal_ushort(data->tc, res.o);
+            cb_result->s = MVM_nativecall_unmarshal_ushort(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_UINT:
-            cb_result->i = MVM_nativecall_unmarshal_uint(data->tc, res.o);
+            cb_result->i = MVM_nativecall_unmarshal_uint(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_ULONG:
-            cb_result->j = MVM_nativecall_unmarshal_ulong(data->tc, res.o);
+            cb_result->j = MVM_nativecall_unmarshal_ulong(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_ULONGLONG:
-            cb_result->l = MVM_nativecall_unmarshal_ulonglong(data->tc, res.o);
+            cb_result->l = MVM_nativecall_unmarshal_ulonglong(tc, res.o);
             break;
         default:
             MVM_telemetry_interval_stop(tc, interval_id, "nativecall callback handler failed");
-            MVM_exception_throw_adhoc(data->tc,
+            MVM_exception_throw_adhoc(tc,
                 "Internal error: unhandled dyncall callback return type");
     }
 

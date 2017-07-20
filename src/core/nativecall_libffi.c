@@ -1,4 +1,5 @@
 #include "moar.h"
+#include <platform/threads.h>
 
 //~ ffi_type * MVM_nativecall_get_ffi_type(MVMThreadContext *tc, MVMuint64 type_id, void **values, MVMuint64 offset) {
 ffi_type * MVM_nativecall_get_ffi_type(MVMThreadContext *tc, MVMuint64 type_id) {
@@ -172,7 +173,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
 
         MVM_callsite_try_intern(tc, &cs);
 
-        callback_data->tc        = tc;
+        callback_data->instance  = tc->instance;
         callback_data->cs        = cs;
         callback_data->target    = callback;
         status                   = ffi_prep_cif(cif, callback_data->convention, (unsigned int)cs->arg_count,
@@ -211,10 +212,24 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
     MVMNativeCallback *data = (MVMNativeCallback *)cb_data;
     void           **values = MVM_malloc(sizeof(void *) * (data->cs->arg_count ? data->cs->arg_count : 1));
     unsigned int interval_id;
+    MVMint32 was_blocked;
+
+    /* Locate the thread. */
+    MVMThreadContext *tc = NULL;
+    MVMThread *thread = data->instance->threads;
+    MVMint64 wanted_thread_id = MVM_platform_thread_id();
+    while (thread) {
+        if (thread->body.native_thread_id == wanted_thread_id) {
+            tc = thread->body.tc;
+            break;
+        }
+        thread = thread->body.next;
+    }
+    if (!tc)
+        MVM_panic(1, "native callback ran on thread unknown to MoarVM");
 
     /* Unblock GC if needed, so this thread can do work. */
-    MVMThreadContext *tc = data->tc;
-    MVMint32 was_blocked = MVM_gc_is_thread_blocked(tc);
+    was_blocked = MVM_gc_is_thread_blocked(tc);
     if (was_blocked)
         MVM_gc_mark_thread_unblocked(tc);
 
@@ -344,73 +359,73 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
     if (res.o) {
         MVMContainerSpec const *contspec = STABLE(res.o)->container_spec;
         if (contspec && contspec->fetch_never_invokes)
-            contspec->fetch(data->tc, res.o, &res);
+            contspec->fetch(tc, res.o, &res);
     }
     switch (data->typeinfos[0] & MVM_NATIVECALL_ARG_TYPE_MASK) {
         case MVM_NATIVECALL_ARG_VOID:
             break;
         case MVM_NATIVECALL_ARG_CHAR:
-            *(signed char *)cb_result = MVM_nativecall_unmarshal_char(data->tc, res.o);
+            *(signed char *)cb_result = MVM_nativecall_unmarshal_char(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_SHORT:
-            *(signed short *)cb_result = MVM_nativecall_unmarshal_short(data->tc, res.o);
+            *(signed short *)cb_result = MVM_nativecall_unmarshal_short(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_INT:
-            *(signed int *)cb_result = MVM_nativecall_unmarshal_int(data->tc, res.o);
+            *(signed int *)cb_result = MVM_nativecall_unmarshal_int(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_LONG:
-            *(signed long *)cb_result = MVM_nativecall_unmarshal_long(data->tc, res.o);
+            *(signed long *)cb_result = MVM_nativecall_unmarshal_long(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_LONGLONG:
-            *(signed long long *)cb_result = MVM_nativecall_unmarshal_longlong(data->tc, res.o);
+            *(signed long long *)cb_result = MVM_nativecall_unmarshal_longlong(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_FLOAT:
-            *(float *)cb_result = MVM_nativecall_unmarshal_float(data->tc, res.o);
+            *(float *)cb_result = MVM_nativecall_unmarshal_float(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_DOUBLE:
-            *(double *)cb_result = MVM_nativecall_unmarshal_double(data->tc, res.o);
+            *(double *)cb_result = MVM_nativecall_unmarshal_double(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_ASCIISTR:
         case MVM_NATIVECALL_ARG_UTF8STR:
         case MVM_NATIVECALL_ARG_UTF16STR:
-            *(void **)cb_result = MVM_nativecall_unmarshal_string(data->tc, res.o, data->typeinfos[0], NULL);
+            *(void **)cb_result = MVM_nativecall_unmarshal_string(tc, res.o, data->typeinfos[0], NULL);
             break;
         case MVM_NATIVECALL_ARG_CSTRUCT:
-            *(void **)cb_result = MVM_nativecall_unmarshal_cstruct(data->tc, res.o);
+            *(void **)cb_result = MVM_nativecall_unmarshal_cstruct(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_CPOINTER:
-            *(void **)cb_result = MVM_nativecall_unmarshal_cpointer(data->tc, res.o);
+            *(void **)cb_result = MVM_nativecall_unmarshal_cpointer(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_CARRAY:
-            *(void **)cb_result = MVM_nativecall_unmarshal_carray(data->tc, res.o);
+            *(void **)cb_result = MVM_nativecall_unmarshal_carray(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_CUNION:
-            *(void **)cb_result = MVM_nativecall_unmarshal_cunion(data->tc, res.o);
+            *(void **)cb_result = MVM_nativecall_unmarshal_cunion(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_VMARRAY:
-            *(void **)cb_result = MVM_nativecall_unmarshal_vmarray(data->tc, res.o);
+            *(void **)cb_result = MVM_nativecall_unmarshal_vmarray(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_CALLBACK:
-            *(void **)cb_result = unmarshal_callback(data->tc, res.o, data->types[0]);
+            *(void **)cb_result = unmarshal_callback(tc, res.o, data->types[0]);
             break;
         case MVM_NATIVECALL_ARG_UCHAR:
-            *(unsigned char *)cb_result = MVM_nativecall_unmarshal_uchar(data->tc, res.o);
+            *(unsigned char *)cb_result = MVM_nativecall_unmarshal_uchar(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_USHORT:
-            *(unsigned short *)cb_result = MVM_nativecall_unmarshal_ushort(data->tc, res.o);
+            *(unsigned short *)cb_result = MVM_nativecall_unmarshal_ushort(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_UINT:
-            *(unsigned int *)cb_result = MVM_nativecall_unmarshal_uint(data->tc, res.o);
+            *(unsigned int *)cb_result = MVM_nativecall_unmarshal_uint(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_ULONG:
-            *(unsigned long *)cb_result = MVM_nativecall_unmarshal_ulong(data->tc, res.o);
+            *(unsigned long *)cb_result = MVM_nativecall_unmarshal_ulong(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_ULONGLONG:
-            *(unsigned long long *)cb_result = MVM_nativecall_unmarshal_ulonglong(data->tc, res.o);
+            *(unsigned long long *)cb_result = MVM_nativecall_unmarshal_ulonglong(tc, res.o);
             break;
         default:
                 MVM_telemetry_interval_stop(tc, interval_id, "nativecall callback handler failed");
-            MVM_exception_throw_adhoc(data->tc,
+            MVM_exception_throw_adhoc(tc,
                 "Internal error: unhandled libffi callback return type");
     }
 
