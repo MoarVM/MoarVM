@@ -501,7 +501,8 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             MVM_string_get_grapheme_at_nocheck(tc, b, 0)
         };
         /* Needing both to be CCC = 0 can probably be relaxed some, but be careful optimizing */
-        if (0 <= last_a_first_b[0] && 0 <= last_a_first_b[1] && MVM_unicode_relative_ccc(tc, last_a_first_b[0]) == 0 && MVM_unicode_relative_ccc(tc, last_a_first_b[1]) == 0) {
+        if (0 <= last_a_first_b[0] && 0 <= last_a_first_b[1]
+            && MVM_unicode_relative_ccc(tc, last_a_first_b[0]) == 0) {
             MVMROOT(tc, a, {
             MVMROOT(tc, b, {
                 renormalized_section = MVM_unicode_codepoints_c_array_to_nfg_string(tc, last_a_first_b, 2);
