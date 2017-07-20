@@ -256,10 +256,120 @@ static void discover_extop(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *
         }
     }
 }
-/* Allocates space for keeping track of guards inserted from logging, and
- * their usage. */
-static void allocate_log_guard_table(MVMThreadContext *tc, MVMSpeshGraph *g) {
-    /* TODO Replace this with use of the new spesh log */
+
+/* Considers logged types and, if they are stable, adds facts and a guard. */
+static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                      MVMSpeshIns *ins, MVMSpeshPlanned *p,
+                      MVMSpeshAnn *deopt_one_ann, MVMSpeshAnn *logged_ann) {
+    /* See if we have stable type information. For now, we need consistent
+     * types, since a mis-match will force a deopt. In the future we may be
+     * able to do Basic Block Versioning inspired tricks, like producing two
+     * different code paths ahead when there are a small number of options. */
+    MVMObject *agg_type = NULL;
+    MVMuint32 agg_type_object = 0;
+    MVMuint32 agg_concrete = 0;
+    MVMuint32 i;
+    for (i = 0; i < p->num_type_stats; i++) {
+        MVMSpeshStatsByType *ts = p->type_stats[i];
+        MVMuint32 j;
+        for (j = 0; j < ts->num_by_offset; j++) {
+            if (ts->by_offset[j].bytecode_offset == logged_ann->data.bytecode_offset) {
+                /* Go over the logged types. */
+                MVMuint32 num_types = ts->by_offset[j].num_types;
+                MVMuint32 k;
+                for (k = 0; k < num_types; k++) {
+                    /* If it's inconsistent with the aggregated type, then
+                     * bail out; too unstable. Otherwise, take it as the
+                     * aggregated type and tot up type object vs. concrete (we
+                     * assess facts about that at the end) */
+                    MVMObject *cur_type = ts->by_offset[j].types[k].type;
+                    if (agg_type) {
+                        if (agg_type != cur_type)
+                            return;
+                    }
+                    else {
+                        agg_type = cur_type;
+                    }
+                    if (ts->by_offset[j].types[k].type_concrete)
+                        agg_concrete++;
+                    else
+                        agg_type_object++;
+                }
+
+                /* No need to consider searching after this offset. */
+                break;
+            }
+        }
+    }
+    if (agg_type) {
+        MVMSpeshIns *guard;
+        MVMSpeshAnn *ann;
+        MVMuint16 guard_op;
+
+        /* Add facts and choose guard op. */
+        MVMSpeshFacts *facts = &g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i];
+        facts->type = agg_type;
+        facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+        if (agg_concrete && !agg_type_object) {
+            facts->flags |= MVM_SPESH_FACT_CONCRETE;
+            if (!agg_type->st->container_spec)
+                facts->flags |= MVM_SPESH_FACT_DECONTED;
+            guard_op = MVM_OP_sp_guardconc;
+        }
+        else if (agg_type_object && !agg_concrete) {
+            facts->flags |= MVM_SPESH_FACT_TYPEOBJ | MVM_SPESH_FACT_DECONTED;
+            guard_op = MVM_OP_sp_guardtype;
+        }
+        else {
+            if (!agg_type->st->container_spec)
+                facts->flags |= MVM_SPESH_FACT_DECONTED;
+            guard_op = MVM_OP_sp_guard;
+        }
+
+        /* Insert guard instruction. */
+        guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        guard->info = MVM_op_get_op(guard_op);
+        guard->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+        guard->operands[0] = ins->operands[0];
+        guard->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+            (MVMCollectable *)agg_type->st);
+        if (ins->next)
+            MVM_spesh_manipulate_insert_ins(tc, bb, ins, guard);
+        else
+            MVM_spesh_manipulate_insert_ins(tc, bb->linear_next, NULL, guard);
+
+        /* Move deopt annotation to the guard instruction. */
+        ann = ins->annotations;
+        if (ann == deopt_one_ann) {
+            ins->annotations = ann->next;
+        }
+        else {
+            while (ann) {
+                if (ann->next == deopt_one_ann) {
+                    ann->next = deopt_one_ann->next;
+                    break;
+                }
+                ann = ann->next;
+            }
+        }
+        deopt_one_ann->next = NULL;
+        guard->annotations = deopt_one_ann;
+
+        /* Add entry in log guards table, and mark facts as depending on it. */
+        if (g->num_log_guards % 16 == 0) {
+            MVMSpeshLogGuard *orig_log_guards = g->log_guards;
+            g->log_guards = MVM_spesh_alloc(tc, g,
+                (g->num_log_guards + 16) * sizeof(MVMSpeshLogGuard));
+            if (orig_log_guards)
+                memcpy(g->log_guards, orig_log_guards,
+                    g->num_log_guards * sizeof(MVMSpeshLogGuard));
+        }
+        g->log_guards[g->num_log_guards].ins = guard;
+        g->log_guards[g->num_log_guards].bb = ins->next ? bb : bb->linear_next;
+        facts->flags |= MVM_SPESH_FACT_FROM_LOG_GUARD;
+        facts->log_guard = g->num_log_guards;
+        g->num_log_guards++;
+    }
 }
 
 /* Visits the blocks in dominator tree order, recursively. */
@@ -270,16 +380,27 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
     /* Look for instructions that provide or propagate facts. */
     MVMSpeshIns *ins = bb->first_ins;
     while (ins) {
-        /* See if there's a deopt annotation, and sync cur_deopt_idx. */
+        /* See if there's deopt and logged annotations. Sync cur_deopt_idx
+         * and, for logged+deopt-one, add logged facts and guards. */
         MVMSpeshAnn *ann = ins->annotations;
+        MVMSpeshAnn *ann_deopt_one = NULL;
+        MVMSpeshAnn *ann_logged = NULL;
         while (ann) {
-            if (ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS ||
-                    ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS) {
-                cur_deopt_idx = ann->data.deopt_idx;
-                break;
+            switch (ann->type) {
+                case MVM_SPESH_ANN_DEOPT_ONE_INS:
+                    ann_deopt_one = ann;
+                    cur_deopt_idx = ann->data.deopt_idx;
+                    break;
+                case MVM_SPESH_ANN_DEOPT_ALL_INS:
+                    cur_deopt_idx = ann->data.deopt_idx;
+                    break;
+                case MVM_SPESH_ANN_LOGGED:
+                    ann_logged = ann;
             }
             ann = ann->next;
         }
+        if (ann_deopt_one && ann_logged)
+            log_facts(tc, g, bb, ins, p, ann_deopt_one, ann_logged);
 
         /* Look through operands for reads and writes. */
         is_phi = ins->info->opcode == MVM_SSA_PHI;
@@ -538,7 +659,6 @@ static void tweak_block_handler_usage(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
 /* Kicks off fact discovery from the top of the (dominator) tree. */
 void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p) {
-    allocate_log_guard_table(tc, g);
     add_bb_facts(tc, g, g->entry, p, -1);
     tweak_block_handler_usage(tc, g);
 }
