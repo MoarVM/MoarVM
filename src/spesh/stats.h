@@ -129,6 +129,11 @@ struct MVMSpeshStatsStatic {
     MVMint32 bytecode_offset;
 };
 
+/* The maximum number of spesh stats updates before we consider a frame's
+ * stats out of date and throw them out. */
+#define MVM_SPESH_STATS_MAX_AGE 10
+
 void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf_updated);
+void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames);
 void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorklist *worklist);
 void MVM_spesh_stats_destroy(MVMThreadContext *tc, MVMSpeshStats *ss);

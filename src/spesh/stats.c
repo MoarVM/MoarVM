@@ -390,6 +390,30 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
 #endif
 }
 
+/* Takes an array of frames we recently updated the stats in. If they weren't
+ * updated in a while, clears them out. */
+void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames) {
+    MVMint64 elems = MVM_repr_elems(tc, check_frames);
+    MVMint64 insert_pos = 0;
+    MVMint64 i;
+    for (i = 0; i < elems; i++) {
+        MVMStaticFrame *sf = (MVMStaticFrame *)MVM_repr_at_pos_o(tc, check_frames, i);
+        MVMSpeshStats *ss = sf->body.spesh_stats;
+        if (!ss) {
+            /* No stats; already destroyed, don't keep this frame under
+             * consideration. */
+        }
+        else if (tc->instance->spesh_stats_version - ss->last_update > MVM_SPESH_STATS_MAX_AGE) {
+            MVM_spesh_stats_destroy(tc, ss);
+            sf->body.spesh_stats = NULL;
+        }
+        else {
+            MVM_repr_bind_pos_o(tc, check_frames, insert_pos++, (MVMObject *)sf);
+        }
+    }
+    MVM_repr_pos_set_elems(tc, check_frames, insert_pos);
+}
+
 void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorklist *worklist) {
     if (ss) {
         MVMuint32 i, j, k, l;

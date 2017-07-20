@@ -8,9 +8,13 @@
 static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject *updated_static_frames = MVM_repr_alloc_init(tc,
         tc->instance->boot_types.BOOTArray);
+    MVMObject *previous_static_frames = MVM_repr_alloc_init(tc,
+        tc->instance->boot_types.BOOTArray);
     MVMROOT(tc, updated_static_frames, {
+    MVMROOT(tc, previous_static_frames, {
         while (1) {
             MVMObject *log_obj = MVM_repr_shift_o(tc, tc->instance->spesh_queue);
+            tc->instance->spesh_stats_version++;
             if (log_obj->st->REPR->ID == MVM_REPR_ID_MVMSpeshLog) {
                 MVMSpeshLog *sl = (MVMSpeshLog *)log_obj;
                 MVMROOT(tc, sl, {
@@ -69,6 +73,15 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                     MVM_spesh_plan_destroy(tc, tc->instance->spesh_plan);
                     tc->instance->spesh_plan = NULL;
 
+                    /* Clear up stats that didn't get updated for a while,
+                     * then add frames updated this time into the previously
+                     * updated array. */
+                    MVM_spesh_stats_cleanup(tc, previous_static_frames);
+                    n = MVM_repr_elems(tc, updated_static_frames);
+                    for (i = 0; i < n; i++)
+                        MVM_repr_push_o(tc, previous_static_frames,
+                            MVM_repr_at_pos_o(tc, updated_static_frames, i));
+
                     /* Clear updated static frames array. */
                     MVM_repr_pos_set_elems(tc, updated_static_frames, 0);
 
@@ -92,6 +105,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                 MVM_panic(1, "Unexpected object sent to specialization worker");
             }
         }
+    });
     });
 }
 
