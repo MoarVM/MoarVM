@@ -187,7 +187,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_spesh_arg_guard_destroy(tc, body->spesh_arg_guard, 0);
     for (i = 0; i < body->num_spesh_candidates; i++)
         MVM_spesh_candidate_destroy(tc, body->spesh_candidates[i]);
-    MVM_free(body->spesh_candidates);
+    if (body->spesh_candidates)
+        MVM_fixed_size_free(tc, tc->instance->fsa,
+            body->num_spesh_candidates * sizeof(MVMSpeshCandidate *),
+            body->spesh_candidates);
 }
 
 static const MVMStorageSpec storage_spec = {
