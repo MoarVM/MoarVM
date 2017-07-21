@@ -53,6 +53,23 @@ sub compile_template {
     };
 }
 
+my %EXPR_OP_TYPES = (
+    flagval => 'flag',
+    all => 'flag',
+    any => 'flag',
+    do => 'void,reg',
+    dov => 'void',
+    when => 'flag,void',
+    if => 'flag,reg,reg',
+    ifv => 'flag,void,void',
+    call => 'reg,c_args',
+    callv => 'reg,c_args',
+    arglist => 'void',
+    guard => 'void',
+);
+
+
+
 sub validate_template {
     my $template = shift;
     my $node = $template->[0];
@@ -67,6 +84,7 @@ sub validate_template {
     }
 
     die "Unknown node type $node" unless exists $EXPR_OPS{$node};
+
     my ($nchild, $narg) = @{$EXPR_OPS{$node}}{qw(num_childs num_args)};;
     my $offset = 1;
     if ($nchild < 0) {
@@ -78,12 +96,32 @@ sub validate_template {
         my $txt = sexpr::encode($template);
         die "Node $txt is too short";
     }
+
+    my @types = split /,/, ($EXPR_OP_TYPES{$node} // 'reg');
+    if (@types < $nchild) {
+        if (@types == 1) {
+            @types = (@types) x $nchild;
+        } elsif (@types == 2) {
+            @types = (($types[0]) x ($nchild-1), $types[1]);
+        } else {
+            die "Can't match up types";
+        }
+    }
+
     for (my $i = 0; $i < $nchild; $i++) {
         my $child = $template->[$offset+$i];
         if (ref($child) eq 'ARRAY' and substr($child->[0], 0, 1) ne '&') {
+            unless ((my $op = $child->[0]) eq 'let:') {
+                my $type = lc $EXPR_OPS{$op}{type};
+                die sprintf('Expected %s but got %s in template %s child %d', $types[$i],
+                            $type, sexpr::encode($template), $i)
+                    unless $types[$i] eq $type;
+            }
             validate_template($child);
         } elsif (substr($child, 0, 1) eq '$') {
             # OK!
+            die sprintf('Expected type %s but got %s', $types[$i], $child)
+                unless $types[$i] eq 'reg';
         } else {
             my $txt = sexpr::encode($template);
             die "Child $i of $txt is not a expression";

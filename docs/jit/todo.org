@@ -73,18 +73,6 @@ this out.
 
 
 
-* Better template validation
-
-Like, DOV taking non-void things...  This should not crash at runtime,
-it should crash at compile time.
-
-Challenge is to specify the information in a way that the expr
-template compiler (perl) and the expr tree processing code can use.
-Ideally, I'd want to use it in such a way as to solve the 'casting'
-issues, but that might be too much to ask.
-
-Matter of fact, we can also just ignore the C expr tree builder, in
-the first place, and just do it for perl-side validation first.
 
 * REPR-Specialized expression code
 
@@ -257,6 +245,36 @@ the allocator itself, so it doesn't need last-minute patchup.
   spilling has a single definition, and that definition is a constant,
   copy it)
 - It might be more effective to do it in the expression optimizer
+
+* DONE Better template validation
+
+Like, DOV taking non-void things...  This should not crash at runtime,
+it should crash at compile time.
+
+Challenge is to specify the information in a way that the expr
+template compiler (perl) and the expr tree processing code can use.
+Ideally, I'd want to use it in such a way as to solve the 'casting'
+issues, but that might be too much to ask.
+Matter of fact, we can also just ignore the C expr tree builder, in
+the first place, and just do it for perl-side validation first.
+
+Basically, everything accepts a register, except for:
+
+
+| op      | type           |
+|---------+----------------|
+| FLAGVAL | flag           |
+| ALL     | flag+          |
+| ANY     | flag           |
+| DO      | void+,reg      |
+| DOV     | void+          |
+| WHEN    | flag           |
+| IF      | flag,reg+      |
+| IFV     | flag,void,void |
+| CALL    | reg,arglist    |
+| CALLV   | arglist        |
+| ARGLIST | carg           |
+| GUARD   | void,void      |
 
 
 * DONE 'Optimistic' insertion of STORE
