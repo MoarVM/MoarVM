@@ -498,7 +498,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
 
     /* If is_concat_stable equals 0 and a and b are not repetitions. */
     if (is_concat_stable == 0 && !(a->body.storage_type == MVM_STRING_STRAND && a->body.storage.strands[a->body.num_strands - 1].repetitions)
-    && !(b->body.storage_type == MVM_STRING_STRAND && b->body.storage.strands[b->body.num_strands - 1].repetitions)) {
+    && !(b->body.storage_type == MVM_STRING_STRAND && b->body.storage.strands[0].repetitions)) {
         MVMCodepoint last_a_first_b[2] = {
             MVM_string_get_grapheme_at_nocheck(tc, a, a->body.num_graphs - 1),
             MVM_string_get_grapheme_at_nocheck(tc, b, 0)
