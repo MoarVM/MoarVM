@@ -508,7 +508,10 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             renormalized_section = MVM_unicode_codepoints_c_array_to_nfg_string(tc, last_a_first_b, 2);
             consumed_a = 1; consumed_b = 1;
         }
-        else {
+        /* Otherwise, make sure that a and b are not repetitions. If repetitions contain a non-starter
+         * then we won't be able to use this shortcut */
+        else if (!(a->body.storage_type == MVM_STRING_STRAND && a->body.storage.strands[a->body.num_strands - 1].repetitions)
+        && !(b->body.storage_type == MVM_STRING_STRAND && b->body.storage.strands[b->body.num_strands - 1].repetitions)) {
             MVMCodepointIter last_a_ci;
             MVMCodepointIter first_b_ci;
             MVMuint32 a_codes = MVM_string_grapheme_ci_init(tc, &last_a_ci,  last_a_first_b[0]);
