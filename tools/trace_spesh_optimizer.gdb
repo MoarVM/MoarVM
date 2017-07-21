@@ -2,6 +2,23 @@ define trace_spesh_optimize
     dont-repeat
     python
 
+#
+# This script lets you see a step-by-step listing of what spesh
+# does to one particular frame.
+#
+# How to use it
+# =============
+#
+# source this from your ~/.gdbinit or directly from your gdb shell
+#
+# Reach the beginning of MVM_spesh_candidate_specialize (for example by setting
+# a breakpoint to that function)
+#
+# call trace_spesh_optimize from your gdb commandline
+#
+# Wait for a little bit.
+#
+
 import tempfile
 import os
 import gdb

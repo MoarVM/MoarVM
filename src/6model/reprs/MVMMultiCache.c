@@ -169,8 +169,8 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
 
     /* Ensure we got a capture in to cache on; bail if not interned. */
     if (REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) {
-        cs         = ((MVMCallCapture *)capture)->body.effective_callsite;
         apc        = ((MVMCallCapture *)capture)->body.apc;
+        cs         = apc->callsite;
         if (!cs->is_interned)
             return cache_obj;
     }
@@ -375,8 +375,8 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
 /* Does a lookup in a multi-dispatch cache using a capture. */
 MVMObject * MVM_multi_cache_find(MVMThreadContext *tc, MVMObject *cache_obj, MVMObject *capture) {
     if (REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) {
-        MVMCallsite       *cs  = ((MVMCallCapture *)capture)->body.effective_callsite;
         MVMArgProcContext *apc = ((MVMCallCapture *)capture)->body.apc;
+        MVMCallsite       *cs  = apc->callsite;
         return MVM_multi_cache_find_callsite_args(tc, cache_obj, cs, apc->args);
     }
     else {

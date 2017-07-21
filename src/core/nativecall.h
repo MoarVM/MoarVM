@@ -43,8 +43,8 @@ struct MVMNativeCallback {
     /* The routine that we will call. */
     MVMObject *target;
 
-    /* Thread context we expect to run the callback on. */
-    MVMThreadContext *tc;
+    /* The VM instance. */
+    MVMInstance *instance;
 
     /* Return and argument type flags. */
     MVMint16 *typeinfos;

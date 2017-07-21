@@ -523,6 +523,22 @@ static void write_code_ref(MVMThreadContext *tc, MVMSerializationWriter *writer,
     write_locate_sc_and_index(tc, writer, sc_id, idx);
 }
 
+void throw_closure_serialization_error(MVMThreadContext *tc, MVMCode *closure, const char *message) {
+    MVMString *file;
+    MVMint32 line;
+    MVM_gc_enter_from_allocator(tc); /* opportunity for creating a heap snapshot for debugging */
+    MVM_code_location_out(tc, (MVMObject *)closure, &file, &line);
+    {
+        char *c_name = MVM_string_utf8_encode_C_string(tc,
+                (closure->body.sf)->body.name);
+        char *c_file = MVM_string_utf8_encode_C_string(tc, file);
+        char *waste[] = { c_name, c_file, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
+            "Serialization Error: %s '%s' (%s:%d)",
+            message, c_name, c_file, line);
+    }
+}
+
 /* Given a closure, locate the static code reference it was originally cloned
  * from. */
 static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *closure, MVMint64 fatal) {
@@ -530,18 +546,11 @@ static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *c
 
     if (scr == NULL || MVM_sc_get_obj_sc(tc, scr) == NULL) {
         if (fatal) {
-            MVMString *file;
-            MVMint32 line;
-            MVM_code_location_out(tc, closure, &file, &line);
-            {
-                char *c_name = MVM_string_utf8_encode_C_string(tc,
-                        (((MVMCode *)closure)->body.sf)->body.name);
-                char *c_file = MVM_string_utf8_encode_C_string(tc, file);
-                char *waste[] = { c_name, c_file, NULL };
-                MVM_exception_throw_adhoc_free(tc, waste,
-                    "Serialization Error: missing static code ref for closure '%s' (%s:%d)",
-                    c_name, c_file, line);
-            }
+            throw_closure_serialization_error(
+                tc,
+                (MVMCode *)closure,
+                "missing static code ref for closure"
+            );
         }
         return NULL;
     }
@@ -550,7 +559,7 @@ static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *c
 
 /* Takes an outer context that is potentially to be serialized. Checks if it
  * is of interest, and if so sets it up to be serialized. */
-static MVMint32 get_serialized_context_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMFrame *ctx) {
+static MVMint32 get_serialized_context_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMFrame *ctx, MVMCode *closure) {
      if (OBJ_IS_NULL(MVM_sc_get_frame_sc(tc, ctx))) {
         /* Make sure we should chase a level down. */
         if (OBJ_IS_NULL(closure_to_static_code_ref(tc, ctx->code_ref, 0))) {
@@ -570,14 +579,19 @@ static MVMint32 get_serialized_context_idx(MVMThreadContext *tc, MVMSerializatio
     else {
         MVMint64 i, c;
         if (MVM_sc_get_frame_sc(tc, ctx) != writer->root.sc)
-            MVM_exception_throw_adhoc(tc,
-                "Serialization Error: reference to context outside of SC");
+            throw_closure_serialization_error(tc,
+                closure,
+                "reference to context outside of SC for"
+            );
         c = writer->num_contexts;
         for (i = 0; i < c; i++)
             if (writer->contexts_list[i] == ctx)
                 return (MVMint32)i + 1;
-        MVM_exception_throw_adhoc(tc,
-            "Serialization Error: could not locate outer context in current SC");
+        throw_closure_serialization_error(
+            tc,
+            closure,
+            "could not locate outer context in current SC for"
+        );
     }
 }
 
@@ -588,7 +602,7 @@ static MVMint32 get_serialized_outer_context_idx(MVMThreadContext *tc, MVMSerial
         return 0;
     if (((MVMCode *)closure)->body.outer == NULL)
         return 0;
-    return get_serialized_context_idx(tc, writer, ((MVMCode *)closure)->body.outer);
+    return get_serialized_context_idx(tc, writer, ((MVMCode *)closure)->body.outer, (MVMCode *)closure);
 }
 
 /* Takes a closure that needs to be serialized. Makes an entry in the closures
@@ -1226,7 +1240,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
      * be serialized. */
     if (frame->outer)
         write_int32(writer->root.contexts_table, offset + 12,
-            get_serialized_context_idx(tc, writer, frame->outer));
+            get_serialized_context_idx(tc, writer, frame->outer, NULL));
     else
         write_int32(writer->root.contexts_table, offset + 12, 0);
 

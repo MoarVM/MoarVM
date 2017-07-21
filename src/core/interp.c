@@ -1403,8 +1403,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     tc->cur_frame->return_type = MVM_RETURN_OBJ;
                     cur_op += 6;
                     tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cc->body.effective_callsite,
+                    STABLE(code)->invoke(tc, code, cc->body.apc->callsite,
                         cc->body.apc->args);
+                    tc->cur_frame->invoked_call_capture = cobj;
                     goto NEXT;
                 }
                 else {
@@ -4718,10 +4719,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(ctxcode): {
                 MVMObject *this_ctx = GET_REG(cur_op, 2).o;
-                if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext)
+                if (IS_CONCRETE(this_ctx) && REPR(this_ctx)->ID == MVM_REPR_ID_MVMContext) {
+                    MVMObject *code_obj = ((MVMContext *)this_ctx)->body.context->code_ref;
+                    GET_REG(cur_op, 0).o = code_obj ? code_obj : tc->instance->VMNull;
+                    cur_op += 4;
+                }
+                else {
                     MVM_exception_throw_adhoc(tc, "ctxcode needs an MVMContext");
-                GET_REG(cur_op, 0).o = ((MVMContext *)this_ctx)->body.context->code_ref;
-                cur_op += 4;
+                }
                 goto NEXT;
             }
             OP(isrwcont): {
@@ -4996,7 +5001,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *decoder = GET_REG(cur_op, 2).o;
                 MVM_decoder_ensure_decoder(tc, decoder, "decodertakechars");
                 GET_REG(cur_op, 0).s = MVM_decoder_take_chars(tc, (MVMDecoder *)decoder,
-                    GET_REG(cur_op, 4).i64);
+                    GET_REG(cur_op, 4).i64, 0);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -5064,6 +5069,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(cpucores): {
                 GET_REG(cur_op, 0).i32 = MVM_platform_cpu_count();
                 cur_op += 2;
+                goto NEXT;
+            }
+            OP(decodertakecharseof): {
+                MVMObject *decoder = GET_REG(cur_op, 2).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decodertakecharseof");
+                GET_REG(cur_op, 0).s = MVM_decoder_take_chars(tc, (MVMDecoder *)decoder,
+                    GET_REG(cur_op, 4).i64, 1);
+                cur_op += 6;
                 goto NEXT;
             }
             OP(sp_log):

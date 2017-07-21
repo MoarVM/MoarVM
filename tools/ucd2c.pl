@@ -17,7 +17,7 @@ $Data::Dumper::Maxdepth = 1;
 my $DEBUG = $ENV{UCD2CDEBUG} // 0;
 
 my @name_lines;
-if $DEBUG {
+if ($DEBUG) {
     open(LOG, ">extents") or die "can't create extents: $!";
     binmode LOG, ':encoding(UTF-8)';
 }
@@ -124,16 +124,16 @@ sub main {
     tweak_nfg_qc();
 
     # Allocate all the things
-    progress "done.\nallocating bitfield...";
+    progress("done.\nallocating bitfield...");
     my $allocated_properties = allocate_bitfield();
     # Compute all the things
-    progress "done.\ncomputing all properties...";
+    progress("done.\ncomputing all properties...");
     compute_properties($allocated_properties);
     # Make the things less
-    progress "...done.\ncomputing collapsed properties table...";
+    progress("...done.\ncomputing collapsed properties table...");
     compute_bitfield($first_point);
     # Emit all the things
-    progress "...done.\nemitting unicode_db.c...";
+    progress("...done.\nemitting unicode_db.c...");
     emit_bitfield($first_point);
     $extents = emit_codepoints_and_planes($first_point);
     emit_case_changes($first_point);
@@ -338,7 +338,7 @@ sub least_int_ge_lg2 {
 
 sub each_line {
     my ($fname, $fn, $force) = @_;
-    progress "done.\nprocessing $fname.txt...";
+    progress("done.\nprocessing $fname.txt...");
     map {
         chomp;
         $fn->($_) unless !$force && /^(?:#|\s*$)/;
@@ -632,22 +632,22 @@ sub emit_codepoint_row_lookup {
         }
         $i++;
     }
-    my $out = "static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepoint) {\n
+    my $out = "static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint64 codepoint) {\n
     MVMint32 plane = codepoint >> 16;
 
     if (codepoint < 0) {
-        MVM_exception_throw_adhoc(tc, \"Error, MoarVM cannot get Unicode codepoint property for synthetic codepoint %i", codepoint);
+        MVM_exception_throw_adhoc(tc, \"Error, MoarVM cannot get Unicode codepoint property for synthetic codepoint \%\"PRId64\"\", codepoint);
     }
 
     if (plane == 0) {"
-    .emit_binary_search_algorithm($extents, 0, 1, $SMP_start - 1, "        ")."
+    . emit_binary_search_algorithm($extents, 0, 1, $SMP_start - 1, "        ") . "
     }
     else {
         if (plane < 0 || plane > 16 || codepoint > 0x10FFFD) {
             return -1;
         }
-        else {".emit_binary_search_algorithm($extents, $SMP_start,
-            int(($SMP_start + scalar(@$extents)-1)/2), scalar(@$extents) - 1, "            ")."
+        else {" . emit_binary_search_algorithm($extents, $SMP_start,
+            int(($SMP_start + scalar(@$extents)-1)/2), scalar(@$extents) - 1, "            ") . "
         }
     }
 }";
@@ -724,7 +724,7 @@ sub emit_property_value_lookup {
     my $enumtables = "\n\n";
     our $hout = "typedef enum {\n";
     my $out = "
-static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code) {
+static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
     MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
     MVMuint16 bitfield_row;
@@ -738,11 +738,11 @@ static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint32 code
         case 0: return 0;";
 
     my $eout = "
-static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepoint);
+static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint64 codepoint);
 
 static const char *bogus = \"<BOGUS>\"; /* only for table too short; return null string for no mapping */
 
-static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code) {
+static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
     MVMint32 result_val = 0; /* we'll never have negatives, but so */
     MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
