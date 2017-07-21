@@ -490,7 +490,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     agraphs = MVM_string_graphs_nocheck(tc, a);
     if (agraphs == 0)
         return b;
-    bgraphs = MVM_string_graphs(tc, b);
+    bgraphs = MVM_string_graphs_nocheck(tc, b);
     if (bgraphs == 0)
         return a;
 
