@@ -808,8 +808,6 @@ static void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             case MVM_OP_arg_n:
             case MVM_OP_arg_s:
             case MVM_OP_arg_o:
-                MVM_spesh_get_facts(tc, inliner, arg_ins->operands[1])->usages--;
-                /* fallthrough */
             case MVM_OP_argconst_i:
             case MVM_OP_argconst_n:
             case MVM_OP_argconst_s:
