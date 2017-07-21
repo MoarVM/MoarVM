@@ -1660,6 +1660,11 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         case MVM_OP_isrwcont:
             optimize_container_check(tc, g, bb, ins);
             break;
+        case MVM_OP_osrpoint:
+            /* We don't need to poll for OSR in hot loops. (This also moves
+             * the OSR annotation onto the next instruction.) */
+            MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+            break;
         case MVM_OP_prof_enter:
             /* Profiling entered from spesh should indicate so. */
             ins->info = MVM_op_get_op(MVM_OP_prof_enterspesh);
