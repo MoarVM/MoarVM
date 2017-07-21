@@ -189,6 +189,13 @@ struct MVMThreadContext {
     MVMint32 in_spesh;
 #endif
 
+    /* State to cheaply determine if we should look again for the availability
+     * of optimzied code at an OSR point. When the current state seen by the
+     * interpreter of frame number of spesh candidates matches, we know there
+     * was no change since the last OSR point. */
+    MVMint32 osr_hunt_frame_nr;
+    MVMint32 osr_hunt_num_spesh_candidates;
+
     /************************************************************************
      * Per-thread state held by assorted VM subsystems
      ************************************************************************/

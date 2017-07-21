@@ -15,15 +15,10 @@ static MVMint32 get_osr_deopt_index(MVMThreadContext *tc, MVMSpeshCandidate *can
     MVM_oops(tc, "Spesh: get_osr_deopt_index failed");
 }
 
-/* Polls for an optimization and, when one is produced, jumps into it. */
-void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
+/* Does the jump into the optimized code. */
+void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
     MVMJitCode *jc;
     MVMint32 osr_index;
-
-    /* TODO implement this to get OSR working again */
-    MVMSpeshCandidate *specialized = NULL;
-    if (!specialized)
-        return;
 
     /* Resize work area if needed. */
     if (specialized->num_locals > tc->cur_frame->static_info->body.num_locals) {
@@ -85,4 +80,24 @@ void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
             MVM_profiler_log_osr(tc, 0);
     }
     *(tc->interp_reg_base) = tc->cur_frame->work;
+}
+
+/* Polls for an optimization and, when one is produced, jumps into it. */
+void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
+    MVMint32 seq_nr = tc->cur_frame->sequence_nr;
+    MVMint32 num_cands = tc->cur_frame->static_info->body.num_spesh_candidates;
+    if (seq_nr != tc->osr_hunt_frame_nr || num_cands != tc->osr_hunt_num_spesh_candidates) {
+        /* Check if there's a candidate available and install it if so. */
+        MVMCallsite *cs = tc->cur_frame->caller->cur_args_callsite;
+        MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
+            tc->cur_frame->static_info->body.spesh_arg_guard,
+            (cs && cs->is_interned ? cs : NULL),
+            tc->cur_frame->caller->args);
+        if (ag_result >= 0)
+            perform_osr(tc, tc->cur_frame->static_info->body.spesh_candidates[ag_result]);
+
+        /* Update state for avoiding checks in the common case. */
+        tc->osr_hunt_frame_nr = seq_nr;
+        tc->osr_hunt_num_spesh_candidates = num_cands;
+    }
 }
