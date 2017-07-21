@@ -25,13 +25,16 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
         /* Resize work area. */
         MVMRegister *new_work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
             specialized->work_size);
+        MVMRegister *new_args = new_work + specialized->num_locals;
         memcpy(new_work, tc->cur_frame->work,
             tc->cur_frame->static_info->body.num_locals * sizeof(MVMRegister));
+        memcpy(new_args, tc->cur_frame->args,
+            specialized->work_size - (specialized->num_locals * sizeof(MVMRegister)));
         MVM_fixed_size_free(tc, tc->instance->fsa, tc->cur_frame->allocd_work,
             tc->cur_frame->work);
         tc->cur_frame->work = new_work;
         tc->cur_frame->allocd_work = specialized->work_size;
-        tc->cur_frame->args = tc->cur_frame->work + specialized->num_locals;
+        tc->cur_frame->args = new_args;
     }
 
     /* Resize environment if needed. */
