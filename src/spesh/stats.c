@@ -65,15 +65,31 @@ MVMuint32 by_callsite_idx(MVMThreadContext *tc, MVMSpeshStats *ss, MVMCallsite *
     return found;
 }
 
+/* Checks if a type tuple is incomplete (no types logged for some passed
+ * objects). */
+MVMint32 incomplete_type_tuple(MVMThreadContext *tc, MVMCallsite *cs,
+                               MVMSpeshStatsType *arg_types) {
+    MVMuint32 i;
+    for (i = 0; i < cs->flag_count; i++)
+        if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ && !arg_types[i].type)
+            return 1;
+    return 0;
+}
+
 /* Gets the stats by type, adding it if it's missing. Frees arg_types. */
 MVMSpeshStatsByType * by_type(MVMThreadContext *tc, MVMSpeshStats *ss, MVMuint32 callsite_idx,
                               MVMSpeshStatsType *arg_types) {
-    /* Resolve the by callsite level info. If this is the no-callsite
+    /* Resolve type by callsite level info. If this is the no-callsite
      * specialization, nothing further to do. */
     MVMSpeshStatsByCallsite *css = &(ss->by_callsite[callsite_idx]);
     MVMCallsite *cs = css->cs;
     if (!cs) {
         MVM_free(arg_types);
+        return NULL;
+    }
+    else if (incomplete_type_tuple(tc, cs, arg_types)) {
+        /* Type tuple is incomplete, maybe because the log buffer ended prior
+         * to having all the type information. Discard. */
         return NULL;
     }
     else {
