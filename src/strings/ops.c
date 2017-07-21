@@ -513,15 +513,15 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             MVMCodepointIter first_b_ci;
             MVMuint32 a_codes = MVM_string_grapheme_ci_init(tc, &last_a_ci,  last_a_first_b[0]);
             MVMuint32 b_codes = MVM_string_grapheme_ci_init(tc, &first_b_ci, last_a_first_b[1]);
-            MVMCodepoint thing[a_codes + b_codes];
+            MVMCodepoint last_a_first_b_codes[a_codes + b_codes];
             MVMuint32 i = 0;
             for (; MVM_string_grapheme_ci_has_more(tc, &last_a_ci); i++) {
-                thing[i] = MVM_string_grapheme_ci_get_codepoint(tc, &last_a_ci);
+                last_a_first_b_codes[i] = MVM_string_grapheme_ci_get_codepoint(tc, &last_a_ci);
             }
             for (; MVM_string_grapheme_ci_has_more(tc, &first_b_ci); i++) {
-                thing[i] = MVM_string_grapheme_ci_get_codepoint(tc, &first_b_ci);
+                last_a_first_b_codes[i] = MVM_string_grapheme_ci_get_codepoint(tc, &first_b_ci);
             }
-            renormalized_section = MVM_unicode_codepoints_c_array_to_nfg_string(tc, thing, a_codes + b_codes);
+            renormalized_section = MVM_unicode_codepoints_c_array_to_nfg_string(tc, last_a_first_b_codes, a_codes + b_codes);
             consumed_a = 1; consumed_b = 1;
         }
         });
