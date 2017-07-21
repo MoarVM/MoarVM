@@ -309,7 +309,8 @@ MVMSpeshStatsType * param_type(MVMThreadContext *tc, SimStackFrame *simf, MVMSpe
             : cs->num_pos + (((idx - 1) - cs->num_pos) / 2);
         if (flag_idx >= cs->flag_count)
             MVM_panic(1, "Spesh stats: argument flag index out of bounds");
-        return &(simf->arg_types[flag_idx]);
+        if (cs->arg_flags[flag_idx] & MVM_CALLSITE_ARG_OBJ)
+            return &(simf->arg_types[flag_idx]);
     }
     return NULL;
 }
