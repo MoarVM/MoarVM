@@ -485,9 +485,24 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     append(&ds, "\nFacts:\n");
     dump_facts(tc, &ds, g);
 
+    /* Dump spesh slots. */
     if (g->num_spesh_slots) {
-        append(&ds, "\nStats:\n");
-        appendf(&ds, "    %d spesh slots\n", g->num_spesh_slots);
+        MVMuint32 i;
+        append(&ds, "\nSpesh slots:\n");
+        for (i = 0; i < g->num_spesh_slots; i++) {
+            MVMCollectable *value = g->spesh_slots[i];
+            if (value == NULL)
+                appendf(&ds, "    %d = NULL\n", i);
+            else if (value->flags & MVM_CF_STABLE)
+                appendf(&ds, "    %d = STable (%s)\n", i,
+                    ((MVMSTable *)value)->debug_name);
+            else if (value->flags & MVM_CF_TYPE_OBJECT)
+                appendf(&ds, "    %d = Type Object (%s)\n", i,
+                    ((MVMObject *)value)->st->debug_name);
+            else
+                appendf(&ds, "    %d = Instance (%s)\n", i,
+                    ((MVMObject *)value)->st->debug_name);
+        }
     }
 
     append(&ds, "\n");
