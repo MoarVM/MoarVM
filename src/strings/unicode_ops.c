@@ -255,7 +255,7 @@ int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepoin
         collation_key Block_Tangut_and_Tangut_Components[2] = {
             {0xFB00, 0x20, 0x2, 0}, {((cp - 0x17000) | 0x8000), 0x0, 0x0, 0}
         };
-        push_onto_stack (tc, stack, &Block_Tangut_and_Tangut_Components, 2, name);
+        push_onto_stack (tc, stack, Block_Tangut_and_Tangut_Components, 2, name);
         fprintf(stderr, "PUSHED Block_Tangut_and_Tangut_Components ONTO THE STACK\n");
     }
     /* Assigned_Block=Nushu 0x1B170..1B2FF (*/
@@ -263,7 +263,7 @@ int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepoin
         collation_key Asigned_Block_Nushu[2] = {
             {0xFB01, 0x20, 0x2, 0}, {((cp - 0x1B170) | 0x8000), 0x0, 0x0, 0}
         };
-        push_onto_stack(tc, stack, &Asigned_Block_Nushu, 2, name);
+        push_onto_stack(tc, stack, Asigned_Block_Nushu, 2, name);
         fprintf(stderr, "PUSHED Asigned_Block_Nushu ONTO THE STACK\n");
     }
     /* Unified_Ideograph=True */
@@ -274,7 +274,7 @@ int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepoin
             collation_key Ideograph_CJK_Compatibility_OR_Unified[2] = {
                 {(0xFB40+ (cp >> 15)), 0x20, 0x2, 0}, {((cp - 0x1B170) | 0x8000), 0x0, 0x0, 0}
             };
-            push_onto_stack(tc, stack, &Ideograph_CJK_Compatibility_OR_Unified, 2, name);
+            push_onto_stack(tc, stack, Ideograph_CJK_Compatibility_OR_Unified, 2, name);
             fprintf(stderr, "PUSHED Ideograph_CJK_Compatibility_OR_Unified onto stack\n");
         }
         /* All other Unified_Ideograph's */
@@ -366,36 +366,23 @@ MVMint64 MVM_unicode_string_compare
     collation_stack stack_b = {
 {-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1},{-1,-1,-1,-1}
 };
-    if (collation_mode & 1) {
-        level_eval_settings[0][0] += -1;
-        level_eval_settings[0][1] +=  0;
-        level_eval_settings[0][2] +=  1;
-    }
-    if (collation_mode & 2) {
-        level_eval_settings[0][0] +=  1;
-        level_eval_settings[0][1] +=  0;
-        level_eval_settings[0][2] += -1;
-    }
-    if (collation_mode & 4) {
-        level_eval_settings[1][0] += -1;
-        level_eval_settings[1][1] +=  0;
-        level_eval_settings[1][2] +=  1;
-    }
-    if (collation_mode & 8) {
-        level_eval_settings[1][0] +=  1;
-        level_eval_settings[1][1] +=  0;
-        level_eval_settings[1][2] += -1;
-    }
-    if (collation_mode & 16) {
-        level_eval_settings[2][0] += -1;
-        level_eval_settings[2][1] +=  0;
-        level_eval_settings[2][2] +=  1;
-    }
-    if (collation_mode & 32) {
-        level_eval_settings[2][0] +=  1;
-        level_eval_settings[2][1] +=  0;
-        level_eval_settings[2][2] += -1;
-    }
+#define setmodeup(mode, level, Less, Same, More) {\
+    if (collation_mode & mode) {\
+        level_eval_settings[level][0] +=  Less;\
+        level_eval_settings[level][1] +=  Same;\
+        level_eval_settings[level][2] +=  More;\
+    }\
+}
+    /* Primary */
+    setmodeup( 1, 0,   -1, 0,  1);
+    setmodeup( 2, 0,    1, 0, -1);
+    /* Secondary */
+    setmodeup( 4, 1,   -1, 0,  1);
+    setmodeup( 8, 1,    1, 0, -1);
+    /* Tertiary */
+    setmodeup(16, 2,   -1, 0,  1);
+    setmodeup(32, 2,    1, 0, -1);
+
     fprintf(stderr, "Setting: %li\n", collation_mode);
     fprintf(stderr, "Setting primary {%i,%i,%i}\n", level_eval_settings[0][0], level_eval_settings[0][1], level_eval_settings[0][2]);
     fprintf(stderr, "Setting secondary {%i,%i,%i}\n", level_eval_settings[1][0], level_eval_settings[1][1], level_eval_settings[1][2]);
