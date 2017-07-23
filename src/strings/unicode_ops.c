@@ -407,12 +407,12 @@ MVMint64 MVM_unicode_string_compare
     int a_level = 0;
     int b_level = 0;
     while (rtrn == 0) {
-        while (pos_a < a_keys_pushed && pos_b < b_keys_pushed) {
+        while (pos_a <= stack_a.stack_top && pos_b <= stack_b.stack_top) {
             int skip = 0;
             fprintf(stderr, "stack_a index %i is value %X\n", pos_a, stack_a.keys[pos_a].s.primary);
             fprintf(stderr, "stack_b index %i is value %X\n", pos_b, stack_b.keys[pos_b].s.primary);
 
-            fprintf(stderr, "checking a_level %i at pos_a %i b_level %i at pos_b %i\n", a_level, pos_a, b_level, pos_b);
+            fprintf(stderr, ">> checking a_level %i at pos_a %i b_level %i at pos_b %i\n", a_level, pos_a, b_level, pos_b);
             /* Collation values are set as 1 higher than what Unicode designates. So a collation value of 1 is able to be
              * skipped. Whereas a collation value of 0 cannot be skipped and exists in this implementation to force it to
              * be evaluated and compared to the other string. */
@@ -463,11 +463,11 @@ MVMint64 MVM_unicode_string_compare
             }
         }
         /* Here we wrap to the next level of collation elements */
-        if (grab_a_done && a_keys_pushed < pos_a + 1) {
+        if (grab_a_done && stack_a.stack_top < pos_a) {
             if (a_level < 2) {
                 pos_a = 0;
                 a_level++;
-                fprintf(stderr, "Setting a_level to %i and pos_a to %i\n", a_level, pos_a);
+                fprintf(stderr, "Setting a_level to %i and pos_a to %i. a_keys_pushed: %i\n", a_level, pos_a, a_keys_pushed);
             }
             else {
                 fprintf(stderr, "Can't wrap a anymore so breaking\n");
@@ -476,7 +476,7 @@ MVMint64 MVM_unicode_string_compare
                 break;
             }
         }
-        if (grab_b_done && b_keys_pushed < pos_b + 1) {
+        if (grab_b_done && stack_b.stack_top < pos_b) {
             if (b_level < 2) {
                 pos_b = 0;
                 b_level++;
