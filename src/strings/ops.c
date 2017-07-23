@@ -74,17 +74,6 @@ static void turn_32bit_into_8bit_unchecked(MVMThreadContext *tc, MVMString *str)
     MVM_free(old_buf);
 }
 
-/* Collapses a bunch of strands into a single blob string. */
-static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
-    MVMString      *result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-    MVMGraphemeIter gi;
-    MVMROOT(tc, orig, {
-        MVM_string_gi_init(tc, &gi, orig);
-        result->body.num_graphs = MVM_string_graphs(tc, orig);
-        iterate_gi_into_string(tc, &gi, result);
-    });
-    return result;
-}
 /* Accepts an allocated string that should have body.num_graphs set but the blob
  * unallocated. This function will allocate the space for the blob and iterate
  * the supplied grapheme iterator for the length of body.num_graphs */
@@ -118,6 +107,18 @@ static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MV
             }
         }
     }
+}
+
+/* Collapses a bunch of strands into a single blob string. */
+static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
+    MVMString      *result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    MVMGraphemeIter gi;
+    MVMROOT(tc, orig, {
+        MVM_string_gi_init(tc, &gi, orig);
+        result->body.num_graphs = MVM_string_graphs(tc, orig);
+        iterate_gi_into_string(tc, &gi, result);
+    });
+    return result;
 }
 
 /* Takes a string that is no longer in NFG form after some concatenation-style
