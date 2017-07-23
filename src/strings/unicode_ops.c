@@ -31,22 +31,6 @@ MVMint32 MVM_unicode_collation_quickcheck (MVMThreadContext *tc, MVMint32 codepo
     return MVM_unicode_codepoint_get_property_int(tc, codepoint, MVM_UNICODE_PROPERTY_MVM_COLLATION_QC);
 }
 
-/* coll_val is where the collation value will be placed. In the case the
- * collation order is reversed for that level, it will be placed in coll_val_rev */
-#define collation_adjust(tc, coll_val, coll_val_rev, collation_mode, cp) {\
-    if (collation_mode & 1)\
-        coll_val.s.primary       += MVM_unicode_collation_primary(tc, cp);\
-    if (collation_mode & 2)\
-        coll_val_rev.s.primary   += MVM_unicode_collation_primary(tc, cp);\
-    if (collation_mode & 4)\
-        coll_val.s.secondary     += MVM_unicode_collation_secondary(tc, cp);\
-    if (collation_mode & 8)\
-        coll_val_rev.s.secondary += MVM_unicode_collation_secondary(tc, cp);\
-    if (collation_mode & 16)\
-        coll_val.s.tertiary      += MVM_unicode_collation_tertiary(tc, cp);\
-    if (collation_mode & 32)\
-        coll_val_rev.s.tertiary  += MVM_unicode_collation_tertiary(tc, cp);\
-}
 struct collation_key_s {
     MVMuint32 primary, secondary, tertiary, index;
 };
@@ -192,9 +176,7 @@ int process_terminal_node (MVMThreadContext *tc, int num_processed, sub_node nod
 }
 #define collation_push_from_iter -1
 /* Returns the number of added collation keys */
-//int coll_push (MVMThreadContext, *tc, *coll_key,
 int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepointIter *ci, int cp_maybe, char *name) {
-    //int i = stack->stack_top;
     int j;
     int rtrn = 0;
     int cp = cp_maybe == collation_push_from_iter ? MVM_string_ci_get_codepoint(tc, ci) : cp_maybe;
