@@ -394,12 +394,24 @@ MVMint64 MVM_unicode_string_compare
     int b_level = 0;
     while (rtrn == 0) {
         while (pos_a < a_keys_pushed && pos_b < b_keys_pushed) {
+            int skip = 0;
             fprintf(stderr, "stack_a index %i is value %X\n", pos_a, stack_a.keys[pos_a].s.primary);
             fprintf(stderr, "stack_b index %i is value %X\n", pos_b, stack_b.keys[pos_b].s.primary);
 
             fprintf(stderr, "checking a_level %i at pos_a %i b_level %i at pos_b %i\n", a_level, pos_a, b_level, pos_b);
+            /* Collation values are set as 1 higher than what Unicode designates. So a collation value of 1 is able to be
+             * skipped. Whereas a collation value of 0 cannot be skipped and exists in this implementation to force it to
+             * be evaluated and compared to the other string. */
+            if (stack_a.keys[pos_a].a[a_level] == 1) {
+                pos_a++;
+                skip = 1;
+            }
+            if (stack_b.keys[pos_b].a[b_level] == 1) {
+                pos_b++;
+                skip = 1;
+            }
             /* If collation values are not equal */
-            if (stack_a.keys[pos_a].a[a_level] != stack_b.keys[pos_b].a[b_level]) {
+            if (skip == 0 && stack_a.keys[pos_a].a[a_level] != stack_b.keys[pos_b].a[b_level]) {
                 rtrn = stack_a.keys[pos_a].a[a_level] < stack_b.keys[pos_b].a[b_level] ?  level_eval_settings[0][0] :
                        stack_a.keys[pos_a].a[a_level] > stack_b.keys[pos_b].a[b_level] ?  level_eval_settings[0][2] :
                                                                                           level_eval_settings[0][1] ;
@@ -410,8 +422,10 @@ MVMint64 MVM_unicode_string_compare
                 fprintf(stderr, "\nDONE decided rtrn=%i\npos_a=%i pos_b=%i a_keys_pushed=%i b_keys_pushed=%i\n", rtrn, pos_a, pos_b, a_keys_pushed, b_keys_pushed);
                 return rtrn;
             }
-            pos_a++;
-            pos_b++;
+            if (skip == 0) {
+                pos_a++;
+                pos_b++;
+            }
         }
         if (!grab_b_done) {
             fprintf(stderr, "Pushing b NON_INITIAL collation elements to the stack\n");
