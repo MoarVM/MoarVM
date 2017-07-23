@@ -43,12 +43,12 @@ MVMint32 MVM_unicode_collation_quickcheck (MVMThreadContext *tc, MVMint32 codepo
     if (collation_mode & 8)\
         coll_val_rev.s.secondary += MVM_unicode_collation_secondary(tc, cp);\
     if (collation_mode & 16)\
-        coll_val.s.tetriary      += MVM_unicode_collation_tertiary(tc, cp);\
+        coll_val.s.tertiary      += MVM_unicode_collation_tertiary(tc, cp);\
     if (collation_mode & 32)\
-        coll_val_rev.s.tetriary  += MVM_unicode_collation_tertiary(tc, cp);\
+        coll_val_rev.s.tertiary  += MVM_unicode_collation_tertiary(tc, cp);\
 }
 struct collation_key_s {
-    MVMuint32 primary, secondary, tetriary, index;
+    MVMuint32 primary, secondary, tertiary, index;
 };
 union collation_key_u {
     struct collation_key_s s;
@@ -72,19 +72,19 @@ int stack_is_empty (MVMThreadContext *tc, collation_stack *stack) {
 #define set_key(key, a, b, c) {\
     key.s.primary = a;\
     key.s.secondary = b;\
-    key.s.tetriary = c;\
+    key.s.tertiary = c;\
 }
 int print_stack (MVMThreadContext *tc, collation_stack *stack, char *name) {
     int i = 0;
     fprintf(stderr, "stack_%s print_stack() stack elems: %i\n", name, stack->stack_top + 1);
     for (i = 0; i < stack->stack_top + 1; i++) {
-        fprintf(stderr, "stack_%s i: %i [%.4X.%.4X.%.4X]\n", name, i, stack->keys[i].s.primary, stack->keys[i].s.secondary, stack->keys[i].s.tetriary);
+        fprintf(stderr, "stack_%s i: %i [%.4X.%.4X.%.4X]\n", name, i, stack->keys[i].s.primary, stack->keys[i].s.secondary, stack->keys[i].s.tertiary);
     }
     return 0;
 }
 int collation_push_int (MVMThreadContext *tc, collation_stack *stack, int *count, int primary, int secondary, int tertiary, char *name) {
     int i = stack->stack_top;
-    fprintf(stderr, "stack_%s Before CLEAR\n", name);
+    fprintf(stderr, "stack_%s Before collation_push_int (maybe CLEAR)\n", name);
     print_stack(tc, stack, name);
     i++;
     set_key(stack->keys[i],
@@ -94,7 +94,7 @@ int collation_push_int (MVMThreadContext *tc, collation_stack *stack, int *count
     );
     stack->stack_top = i;
     *count += 1;
-    fprintf(stderr, "stack_%s After CLEAR\n", name);
+    fprintf(stderr, "stack_%s After collation_push_int (maybe CLEAR)\n", name);
     print_stack(tc, stack, name);
     return 1;
 }
@@ -110,13 +110,35 @@ int push_special_collation_onto_stack (MVMThreadContext *tc, collation_stack *st
     {
         i++;
         set_key(stack->keys[i],
-            special_collation_keys[j].primary,
-            special_collation_keys[j].secondary,
-            special_collation_keys[j].tertiary
+            special_collation_keys[j].primary   + 1,
+            special_collation_keys[j].secondary + 1,
+            special_collation_keys[j].tertiary  + 1
         );
     }
     stack->stack_top = i;
     fprintf(stderr, "stack_%s push_special_collation_onto_stack() stack_top %i After\n", name, stack->stack_top);
+    print_stack(tc, stack, name);
+    return 1;
+}
+int push_onto_stack (MVMThreadContext *tc, collation_stack *stack, collation_key *keys, int keys_to_push, char *name) {
+    int j;
+    int i = stack->stack_top;
+    fprintf(stderr, "stack_%s push_onto_stack() stack_top %i Before\n", name, stack->stack_top);
+    print_stack(tc, stack, name);
+    for (j = 0;
+         j < keys_to_push;
+         j++
+        )
+    {
+        i++;
+        set_key(stack->keys[i],
+            keys[j].s.primary + 1,
+            keys[j].s.secondary + 1,
+            keys[j].s.tertiary + 1
+        );
+    }
+    stack->stack_top = i;
+    fprintf(stderr, "stack_%s push_onto_stack() stack_top %i After\n", name, stack->stack_top);
     print_stack(tc, stack, name);
     return 1;
 }
@@ -126,7 +148,7 @@ int push_MVM_collation_values (MVMThreadContext *tc, int cp, collation_stack *st
     };
     fprintf(stderr, "stack_%s getting value from MVMDATA\n", name);
     if (coll[0] <= 0 || coll[1] <= 0 || coll[2] <= 0) {
-        MVM_exception_throw_adhoc(tc, "Can't find colation data!!!\n");
+        return 0;
     }
     stack->stack_top++;
     set_key(stack->keys[stack->stack_top],
@@ -147,15 +169,18 @@ int process_terminal_node (MVMThreadContext *tc, int num_processed, sub_node nod
         {
             stack->stack_top++;
             set_key(stack->keys[stack->stack_top],
-                special_collation_keys[j].primary + 1,
+                special_collation_keys[j].primary   + 1,
                 special_collation_keys[j].secondary + 1,
-                special_collation_keys[j].tertiary + 1
+                special_collation_keys[j].tertiary  + 1
             );
         }
     }
     else {
         if (num_processed == 1) {
-            push_MVM_collation_values(tc, node.codepoint, stack, name);
+            int mvm_rtrn = push_MVM_collation_values(tc, node.codepoint, stack, name);
+            if (!mvm_rtrn) {
+                MVM_exception_throw_adhoc(tc, "Can't find colation data!!!\n");
+            }
         }
         else {
             // XXX TODO this won't push previous codepoitns only the last?
@@ -225,7 +250,44 @@ int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepoin
         );
         rtrn = 2;
     }
-    /* If query was not -1 we were able to find a main_nodes element to match the
+    /* Block=Tangut+Block=Tangut_Components 0x17000..0x18AFF */
+    else if (0x17000 <= cp && cp <= 0x18AFF) {
+        collation_key Block_Tangut_and_Tangut_Components[2] = {
+            {0xFB00, 0x20, 0x2, 0}, {((cp - 0x17000) | 0x8000), 0x0, 0x0, 0}
+        };
+        push_onto_stack (tc, stack, &Block_Tangut_and_Tangut_Components, 2, name);
+        fprintf(stderr, "PUSHED Block_Tangut_and_Tangut_Components ONTO THE STACK\n");
+    }
+    /* Assigned_Block=Nushu 0x1B170..1B2FF (*/
+    else if (0x1B170 <= cp && cp <=0x1B2FF) {
+        collation_key Asigned_Block_Nushu[2] = {
+            {0xFB01, 0x20, 0x2, 0}, {((cp - 0x1B170) | 0x8000), 0x0, 0x0, 0}
+        };
+        push_onto_stack(tc, stack, &Asigned_Block_Nushu, 2, name);
+        fprintf(stderr, "PUSHED Asigned_Block_Nushu ONTO THE STACK\n");
+    }
+    /* Unified_Ideograph=True */
+    else if (MVM_unicode_get_property_int(tc, cp, MVM_UNICODE_PROPERTY_UNIFIED_IDEOGRAPH)) {
+        /* F900..FAFF; CJK Compatibility Ideographs */
+        /* 4E00..9FFF; CJK Unified Ideographs */
+        if (0x4E00 <= cp && cp <= 0x9FFF || cp <= 0xF900 && cp <= 0xFAFF) {
+            collation_key Ideograph_CJK_Compatibility_OR_Unified[2] = {
+                {(0xFB40+ (cp >> 15)), 0x20, 0x2, 0}, {((cp - 0x1B170) | 0x8000), 0x0, 0x0, 0}
+            };
+            push_onto_stack(tc, stack, &Ideograph_CJK_Compatibility_OR_Unified, 2, name);
+            fprintf(stderr, "PUSHED Ideograph_CJK_Compatibility_OR_Unified onto stack\n");
+        }
+        /* All other Unified_Ideograph's */
+        else {
+            collation_key Ideograph_NOT_CJK_Compatibility_OR_Unified[2] = {
+                {(0xFBC0+ (cp >> 15)), 0x20, 0x2, 0}, {((cp - 0x1B170) | 0x8000), 0x0, 0x0, 0}
+            };
+            push_onto_stack(tc, stack,
+                &Ideograph_NOT_CJK_Compatibility_OR_Unified, 2, name);
+            fprintf(stderr, "PUSHED Ideograph_NOT_CJK_Compatibility_OR_Unified onto stack\n");
+        }
+    }
+      /* If query was not -1 we were able to find a main_nodes element to match the
      * first codepoint */
     else if (query != -1) {
         fprintf(stderr, "stack_%s getting value from special_collation_keys\n", name);
@@ -279,23 +341,6 @@ int grab_from_stack
     *keys_pushed += collation_push_cp(tc, stack, ci, collation_push_from_iter, name);
     fprintf(stderr, "Finished one grapheme grab to stack. %s_keys_pushed %i, stack_elems %i\n", name, *keys_pushed, stack->stack_top +1);
     return 1;
-}
-/* These are not found in the collation data and must be synthesized */
-int synthesize_values (int cp) {
-    /* ASSIGNED Block=Tangut/Tangut_Components */
-    int collation_key_Tangut[2][3] = {
-        {0xFB00, 0x20, 0x2}, {((cp - 0x17000) | 0x8000), 0x0, 0x0}
-    };
-    /* ASSIGNED Block=Nushu */
-    int collation_key_Nushu[2][3] = {
-        {0xFB01, 0x20, 0x2}, {((cp - 0x1B170) | 0x8000), 0x0, 0x0}
-    };
-    /* Unified_Ideograph=True AND ((Block=CJK_Unified_Ideograph) OR (Block=CJK_Compatibility_Ideographs)) */
-    int collation_key_Ideograph[2][3] = {
-        {(0xFB40+ (cp >> 15)), 0x20, 0x2}, {((cp - 0x1B170) | 0x8000), 0x0, 0x0}
-    };
-
-    return 0;
 }
 /* MVM_unicode_string_compare supports synthetic graphemes but in case we have
  * a codepoint without any collation value, we do not yet decompose it and
@@ -402,13 +447,15 @@ MVMint64 MVM_unicode_string_compare
             /* Collation values are set as 1 higher than what Unicode designates. So a collation value of 1 is able to be
              * skipped. Whereas a collation value of 0 cannot be skipped and exists in this implementation to force it to
              * be evaluated and compared to the other string. */
-            if (stack_a.keys[pos_a].a[a_level] == 1) {
+            if (stack_a.keys[pos_a].a[a_level] == collation_zero) {
                 pos_a++;
                 skip = 1;
+                fprintf(stderr, "Skipping a because it was 0001 in value\n");
             }
-            if (stack_b.keys[pos_b].a[b_level] == 1) {
+            if (stack_b.keys[pos_b].a[b_level] == collation_zero) {
                 pos_b++;
                 skip = 1;
+                fprintf(stderr, "Skipping b because it was 0001 in value\n");
             }
             /* If collation values are not equal */
             if (skip == 0 && stack_a.keys[pos_a].a[a_level] != stack_b.keys[pos_b].a[b_level]) {
@@ -441,8 +488,8 @@ MVMint64 MVM_unicode_string_compare
             grab_a_rtrn = grab_from_stack(tc, &a_keys_pushed, &a_ci, &stack_a, "a");
             if (!grab_a_rtrn) {
                 fprintf(stderr, "Pushing null value collation array to stack_a\n");
-                /* No collation seperator needed for tertiary so have a real 0 for this */
-                collation_push_int(tc, &stack_a, &a_keys_pushed, collation_zero, collation_zero, 0, "a");
+                /* No collation separator needed for tertiary so have it be a skip (collation_zero) */
+                collation_push_int(tc, &stack_a, &a_keys_pushed, 0, 0, collation_zero, "a");
                 grab_a_done = 1;
             }
         }
@@ -455,6 +502,8 @@ MVMint64 MVM_unicode_string_compare
             }
             else {
                 fprintf(stderr, "Can't wrap a anymore so breaking\n");
+                print_stack(tc, &stack_a, "a");
+                print_stack(tc, &stack_b, "b");
                 break;
             }
         }
@@ -466,6 +515,8 @@ MVMint64 MVM_unicode_string_compare
             }
             else {
                 fprintf(stderr, "Can't wrap b anymore so breaking\n");
+                print_stack(tc, &stack_a, "a");
+                print_stack(tc, &stack_b, "b");
                 break;
             }
         }
