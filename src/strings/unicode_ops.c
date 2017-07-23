@@ -184,56 +184,9 @@ int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepoin
     int *cps_thing[3];
     fprintf(stderr, "push orig stack_top %i\n", stack->stack_top);
     query = get_main_node(cp);
-    // specialcase æ TODO have them all use normal queries
-    if (cp == 230) {
-        fprintf(stderr, "stack_%s getting value from specailcase\n", name);
-        stack->stack_top++;
-        //[.1C47.0020.0004][.0000.0110.0004][.1CAA.0020.0004]
-        set_key(stack->keys[stack->stack_top],
-            0x1C47 + 1,
-            0x0020 + 1,
-            0x0004 + 1
-        );
-        /*stack->stack_top++;
-        set_key(stack->keys[stack->stack_top],
-            0x0000 + 1,
-            0x0110 + 1,
-            0x0004 + 1
-        );
-        */
-        stack->stack_top++;
-        set_key(stack->keys[stack->stack_top],
-            0x1CAA + 1,
-            0x0020 + 1,
-            0x0004 + 1
-        );
-        rtrn = 2;
-    }
-    else if (cp == 198) {
-        //[.1C47.0020.000A][.0000.0110.0004][.1CAA.0020.000A]
-        stack->stack_top++;
-        set_key(stack->keys[stack->stack_top],
-            0x1C47 + 1,
-            0x0020 + 1,
-            0x000A + 1
-        );
-        /*
-        set_key(stack->keys[stack->stack_top],
-           0x0000 + 1,
-           0x0110 + 1,
-           0x0004 + 1
-        );
-        */
-        stack->stack_top++;
-        set_key(stack->keys[stack->stack_top],
-            0x1CAA + 1,
-            0x0020 + 1,
-            0x000A + 1
-        );
-        rtrn = 2;
-    }
+
     /* Block=Tangut+Block=Tangut_Components 0x17000..0x18AFF */
-    else if (0x17000 <= cp && cp <= 0x18AFF) {
+    if (0x17000 <= cp && cp <= 0x18AFF) {
         collation_key Block_Tangut_and_Tangut_Components[2] = {
             {0xFB00, 0x20, 0x2, 0}, {((cp - 0x17000) | 0x8000), 0x0, 0x0, 0}
         };
