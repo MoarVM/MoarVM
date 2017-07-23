@@ -76,32 +76,34 @@ static void turn_32bit_into_8bit_unchecked(MVMThreadContext *tc, MVMString *str)
 
 /* Collapses a bunch of strands into a single blob string. */
 static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
-    MVMString       *result;
-    MVMStringIndex   i;
-    MVMuint32        ographs;
-    MVMGraphemeIter  gi;
-
+    MVMString      *result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    MVMGraphemeIter gi;
     MVMROOT(tc, orig, {
-        result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+        MVM_string_gi_init(tc, &gi, orig);
+        result->body.num_graphs = MVM_string_graphs(tc, orig);
+        iterate_gi_into_string(tc, &gi, result);
     });
-    ographs                      = MVM_string_graphs(tc, orig);
-    result->body.num_graphs      = ographs;
+    return result;
+}
+/* Accepts an allocated string that should have body.num_graphs set but the blob
+ * unallocated. This function will allocate the space for the blob and iterate
+ * the supplied grapheme iterator for the length of body.num_graphs */
+static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MVMString *result) {
+    MVMuint64 i;
     result->body.storage_type    = MVM_STRING_GRAPHEME_8;
-    result->body.storage.blob_8  = MVM_malloc(ographs * sizeof(MVMGrapheme8));
-
-    MVM_string_gi_init(tc, &gi, orig);
-    for (i = 0; i < ographs; i++) {
-        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+    result->body.storage.blob_8  = MVM_malloc(result->body.num_graphs * sizeof(MVMGrapheme8));
+    for (i = 0; i < result->body.num_graphs; i++) {
+        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, gi);
         result->body.storage.blob_8[i] = g;
         if (!can_fit_into_8bit(g)) {
             /* If we get here, we saw a codepoint lower than -127 or higher than 127
              * so turn it into a 32 bit string instead */
             /* Store the old string pointer and previous value of i */
             MVMGrapheme8 *old_ref = result->body.storage.blob_8;
-            MVMStringIndex prev_i = i;
+            MVMuint64 prev_i = i;
             /* Set up the string as 32bit now and allocate space for it */
             result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-            result->body.storage.blob_32 = MVM_malloc(ographs * sizeof(MVMGrapheme32));
+            result->body.storage.blob_32 = MVM_malloc(result->body.num_graphs * sizeof(MVMGrapheme32));
             /* Copy the data so far copied from the 8bit blob since it's faster than
              * setting up the grapheme iterator again */
             for (i = 0; i < prev_i; i++) {
@@ -111,13 +113,11 @@ static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
             /* Store the grapheme which interupted the sequence. After that we can
              * continue from where we left off using the grapheme iterator */
             result->body.storage.blob_32[prev_i] = g;
-            for (i = prev_i + 1; i < ographs; i++) {
-                result->body.storage.blob_32[i] = MVM_string_gi_get_grapheme(tc, &gi);
+            for (i = prev_i + 1; i < result->body.num_graphs; i++) {
+                result->body.storage.blob_32[i] = MVM_string_gi_get_grapheme(tc, gi);
             }
-            return result;
         }
     }
-    return result;
 }
 
 /* Takes a string that is no longer in NFG form after some concatenation-style
@@ -423,20 +423,9 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
         else {
             /* Produce a new blob string, collapsing the strands. */
             MVMGraphemeIter gi;
-            MVMint32 i;
-            MVMint8  can_fit_into_8 = 1;
-            result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-            result->body.storage.blob_32 = MVM_malloc(result->body.num_graphs * sizeof(MVMGrapheme32));
             MVM_string_gi_init(tc, &gi, a);
             MVM_string_gi_move_to(tc, &gi, start_pos);
-            for (i = 0; i < result->body.num_graphs; i++) {
-                MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
-                if (!can_fit_into_8bit(g))
-                    can_fit_into_8 = 0;
-                result->body.storage.blob_32[i] = g;
-            }
-            if (can_fit_into_8)
-                turn_32bit_into_8bit_unchecked(tc, result);
+            iterate_gi_into_string(tc, &gi, result);
         }
     });
 
