@@ -21,12 +21,14 @@ static MVMint32 get_osr_deopt_index(MVMThreadContext *tc, MVMSpeshCandidate *can
 /* Does the jump into the optimized code. */
 void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
     MVMJitCode *jc;
-    MVMint32 osr_index;
 
+    /* Work out the OSR deopt index, to locate the entry point. */
+    MVMint32 osr_index = get_osr_deopt_index(tc, specialized);
 #if MVM_LOG_OSR
-    fprintf(stderr, "Performing OSR of frame '%s' (cuid: %s)\n",
+    fprintf(stderr, "Performing OSR of frame '%s' (cuid: %s) at index %d\n",
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
-        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid),
+        osr_index);
 #endif
 
     /* Resize work area if needed. */
@@ -44,6 +46,11 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
         tc->cur_frame->work = new_work;
         tc->cur_frame->allocd_work = specialized->work_size;
         tc->cur_frame->args = new_args;
+#if MVM_LOG_OSR
+    fprintf(stderr, "OSR resized work area of frame '%s' (cuid: %s)\n",
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+#endif
     }
 
     /* Resize environment if needed. */
@@ -58,6 +65,11 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
         }
         tc->cur_frame->env = new_env;
         tc->cur_frame->allocd_env = specialized->env_size;
+#if MVM_LOG_OSR
+    fprintf(stderr, "OSR resized environment of frame '%s' (cuid: %s)\n",
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+#endif
     }
 
     /* Set up frame to point to specialized code. */
@@ -66,9 +78,7 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
     tc->cur_frame->effective_spesh_slots = specialized->spesh_slots;
     tc->cur_frame->spesh_cand            = specialized;
 
-    /* Work out deopt index that applies, and move interpreter the optimized
-     * (and maybe JIT-compiled) code. */
-    osr_index = get_osr_deopt_index(tc, specialized);
+    /* Move into the optimized (and maybe JIT-compiled) code. */
     jc = specialized->jitcode;
     if (jc && jc->num_deopts) {
         MVMint32 i;
