@@ -3136,7 +3136,7 @@ int print_sub_node (sub_node subnode) {
         int collation_key_elems;
         int collation_key_link;
     };*/
-    printf("{%i,%i,%i,%i,%i,%i,%i}\n", subnode.codepoint, min(subnode), max(subnode), subnode.sub_node_elems, subnode.sub_node_link,
+    printf("{codepoint 0x%X, min 0x%X,max 0x%X,sub_node_elems %i,sub_node_link %i,collation_key_elems %i,collation_key_link %i}\n", subnode.codepoint, min(subnode), max(subnode), subnode.sub_node_elems, subnode.sub_node_link,
     subnode.collation_key_elems, subnode.collation_key_link);
     return 0;
 }
