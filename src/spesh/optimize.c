@@ -1049,7 +1049,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             /* Already have a code object we know we'll call. */
             target = code;
         }
-        else if (STABLE(code)->invocation_spec) {
+        else if (IS_CONCRETE(code) && STABLE(code)->invocation_spec) {
             /* What kind of invocation will it be? */
             MVMInvocationSpec *is = STABLE(code)->invocation_spec;
             if (!MVM_is_null(tc, is->md_class_handle)) {
@@ -1111,10 +1111,12 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                     target = dest.o;
             }
         }
+        if (!target || !IS_CONCRETE(target))
+            return;
 
         /* If we resolved to something better than the code object, then add
          * the resolved item in a spesh slot and insert a lookup. */
-        if (target && target != code && !((MVMCode *)target)->body.is_compiler_stub) {
+        if (target != code && !((MVMCode *)target)->body.is_compiler_stub) {
             MVMSpeshIns *pa_ins = arg_info->prepargs_ins;
             MVMSpeshIns *ss_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
             ss_ins->info        = MVM_op_get_op(MVM_OP_sp_getspeshslot);
@@ -1141,7 +1143,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         }
 
         /* See if we can point the call at a particular specialization. */
-        if (target && ((MVMCode *)target)->body.sf->body.instrumentation_level == tc->instance->instrumentation_level) {
+        if (((MVMCode *)target)->body.sf->body.instrumentation_level == tc->instance->instrumentation_level) {
             MVMCode *target_code  = (MVMCode *)target;
             MVMint32 spesh_cand = try_find_spesh_candidate(tc, target_code, arg_info);
             if (spesh_cand >= 0) {
