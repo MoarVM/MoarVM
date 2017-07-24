@@ -379,6 +379,14 @@ void MVM_sc_disclaim(MVMThreadContext *tc, MVMSerializationContext *sc) {
     sc->body->root_codes = NULL;
 }
 
+/* SC repossession barrier. */
+void MVM_SC_WB_OBJ(MVMThreadContext *tc, MVMObject *obj) {
+    assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
+    assert(MVM_sc_get_idx_of_sc(&obj->header) != ~0);
+    if (MVM_sc_get_idx_of_sc(&obj->header) > 0)
+        MVM_sc_wb_hit_obj(tc, obj);
+}
+
 /* Called when an object triggers the SC repossession write barrier. */
 void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
     MVMSerializationContext *comp_sc;
