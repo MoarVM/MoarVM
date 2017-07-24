@@ -1,5 +1,8 @@
 #include "moar.h"
 
+/* Writes to stderr about each OSR that we perform. */
+#define MVM_LOG_OSR 0
+
 /* Locates deopt index matching OSR point. */
 static MVMint32 get_osr_deopt_index(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
     /* Calculate offset. */
@@ -19,6 +22,12 @@ static MVMint32 get_osr_deopt_index(MVMThreadContext *tc, MVMSpeshCandidate *can
 void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
     MVMJitCode *jc;
     MVMint32 osr_index;
+
+#if MVM_LOG_OSR
+    fprintf(stderr, "Performing OSR of frame '%s' (cuid: %s)\n",
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+#endif
 
     /* Resize work area if needed. */
     if (specialized->work_size > tc->cur_frame->allocd_work) {
