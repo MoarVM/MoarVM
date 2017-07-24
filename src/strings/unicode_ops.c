@@ -264,7 +264,7 @@ int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepoin
             fprintf(stderr, "main_nodes[query] = ");
             print_sub_node(main_nodes[query]);
             cps_thing[0] = &cp2;
-            fprintf(stderr, "cp2 = %i, cps_thing[0] = %i\n", cp2, *cps_thing[0]);
+            fprintf(stderr, "cp2 = 0x%X, cps_thing[0] = 0x%X\n", cp2, *cps_thing[0]);
             fprintf(stderr, "get no recurse %i\n", result );
             if (result < 0) {
                 fprintf(stderr, "Couldn't find cp, cp2: {0x%X,0x%X}, running push_MVM_collation_values for cp and running collation_push_cp for cp2\n", cp, cp2);
@@ -272,7 +272,7 @@ int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepoin
                 collation_push_cp(tc, stack, ci, cp2, name);
             }
             else if (sub_nodes[result].sub_node_elems < 1) {
-                fprintf(stderr, "Pushing {%i, %i}'s collation onto the stack\n", cp, cp2);
+                fprintf(stderr, "Pushing {0x%X, 0x%X}'s collation onto the stack\n", cp, cp2);
                 push_special_collation_onto_stack(tc, stack, sub_nodes[result], name);
             }
         }
