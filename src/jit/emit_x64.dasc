@@ -1745,17 +1745,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         } else {
             | mov ARG3, 0;
         }
-        | callp &MVM_string_get_grapheme_at;
-        | cmp RV, 0;
-        | jge >1;
-        /* NB - I see no reason why this should be incorrect, but I
-           haven't been able to trigger it yet. */
-        | mov ARG1, TC;
-        | mov ARG2, RV;
-        | callp &MVM_nfg_get_synthetic_info;
-        /* base is only 32 bit wide */
-        | mov RVd, dword NFGSYNTH:RV->base;
-        |1:
+        | callp &MVM_string_ord_at;
         | mov qword WORK[dst], RV;
         break;
     }
