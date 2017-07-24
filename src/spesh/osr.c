@@ -52,6 +52,11 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
 #endif
     }
+    else if (specialized->work_size > tc->cur_frame->static_info->body.work_size) {
+        size_t keep_bytes = tc->cur_frame->static_info->body.num_locals * sizeof(MVMRegister);
+        size_t to_null = specialized->work_size - keep_bytes;
+        memset((char *)tc->cur_frame->work + keep_bytes, 0, to_null);
+    }
 
     /* Resize environment if needed. */
     if (specialized->num_lexicals > tc->cur_frame->static_info->body.num_lexicals) {
@@ -70,6 +75,11 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
 #endif
+    }
+    else if (specialized->env_size > tc->cur_frame->static_info->body.env_size) {
+        size_t keep_bytes = tc->cur_frame->static_info->body.num_lexicals * sizeof(MVMRegister);
+        size_t to_null = specialized->env_size - keep_bytes;
+        memset((char *)tc->cur_frame->env + keep_bytes, 0, to_null);
     }
 
     /* Set up frame to point to specialized code. */
