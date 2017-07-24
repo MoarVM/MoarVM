@@ -66,13 +66,20 @@ MVMuint32 by_callsite_idx(MVMThreadContext *tc, MVMSpeshStats *ss, MVMCallsite *
 }
 
 /* Checks if a type tuple is incomplete (no types logged for some passed
- * objects). */
+ * objects, or no decont type logged for a container type). */
 MVMint32 incomplete_type_tuple(MVMThreadContext *tc, MVMCallsite *cs,
                                MVMSpeshStatsType *arg_types) {
     MVMuint32 i;
-    for (i = 0; i < cs->flag_count; i++)
-        if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ && !arg_types[i].type)
-            return 1;
+    for (i = 0; i < cs->flag_count; i++) {
+        if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ) {
+            MVMObject *type = arg_types[i].type;
+            if (!type)
+                return 1;
+            if (arg_types[i].type_concrete && type->st->container_spec)
+                if (!arg_types[i].decont_type)
+                    return 1;
+        }
+    }
     return 0;
 }
 
