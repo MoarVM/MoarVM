@@ -30,7 +30,7 @@ void MVM_gc_debug_find_region(MVMThreadContext *tc, void *ptr) {
                         size_t page_size = MVM_GEN2_PAGE_ITEMS * ((bin + 1) << MVM_GEN2_BIN_BITS);
                         char *page_end = page_start + page_size;
                         if (ptr >= (void*)page_start && ptr < (void*)page_end) {
-                            printf("In gen2 bin of thread %d", cur_thread->body.thread_id);
+                            printf("In gen2 bin of thread %d\n", cur_thread->body.thread_id);
                             return;
                         }
                     }
