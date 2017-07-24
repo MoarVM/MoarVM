@@ -126,21 +126,72 @@ int push_onto_stack (MVMThreadContext *tc, collation_stack *stack, collation_key
     print_stack(tc, stack, name);
     return 1;
 }
+/* Returns the number of collation elements pushed onto the stack */
 int push_MVM_collation_values (MVMThreadContext *tc, int cp, collation_stack *stack, char *name) {
     int coll[3] = {
         MVM_unicode_collation_primary(tc, cp), MVM_unicode_collation_secondary(tc, cp), MVM_unicode_collation_tertiary(tc, cp)
     };
-    fprintf(stderr, "stack_%s getting value from MVMDATA\n", name);
+    fprintf(stderr, "stack_%s getting value from MVMDATA cp: 0x%X\n", name, cp);
     if (coll[0] <= 0 || coll[1] <= 0 || coll[2] <= 0) {
-        return 0;
+        /* Block=Tangut+Block=Tangut_Components 0x17000..0x18AFF */
+        if (0x17000 <= cp && cp <= 0x18AFF) {
+            collation_key Block_Tangut_and_Tangut_Components[2] = {
+                {0xFB00, 0x20, 0x2, 0}, {((cp - 0x17000) | 0x8000), 0x0, 0x0, 0}
+            };
+            push_onto_stack (tc, stack, Block_Tangut_and_Tangut_Components, 2, name);
+            fprintf(stderr, "PUSHED Block_Tangut_and_Tangut_Components ONTO THE STACK\n");
+            return 2;
+        }
+        /* Assigned_Block=Nushu 0x1B170..1B2FF (*/
+        else if (0x1B170 <= cp && cp <=0x1B2FF) {
+            collation_key Asigned_Block_Nushu[2] = {
+                {0xFB01, 0x20, 0x2, 0}, {((cp - 0x1B170) | 0x8000), 0x0, 0x0, 0}
+            };
+            push_onto_stack(tc, stack, Asigned_Block_Nushu, 2, name);
+            fprintf(stderr, "PUSHED Asigned_Block_Nushu ONTO THE STACK\n");
+            return 2;
+        }
+        /* Unified_Ideograph=True */
+        else if (MVM_unicode_get_property_int(tc, cp, MVM_UNICODE_PROPERTY_UNIFIED_IDEOGRAPH)) {
+            /* F900..FAFF; CJK Compatibility Ideographs */
+            /* 4E00..9FFF; CJK Unified Ideographs */
+            if (0x4E00 <= cp && cp <= 0x9FFF || cp <= 0xF900 && cp <= 0xFAFF) {
+                collation_key Ideograph_CJK_Compatibility_OR_Unified[2] = {
+                    {(0xFB40 + (cp >> 15)), 0x20, 0x2, 0}, {((cp & 0x7FFF) | 0x8000), 0x0, 0x0, 0}
+                };
+                push_onto_stack(tc, stack, Ideograph_CJK_Compatibility_OR_Unified, 2, name);
+                fprintf(stderr, "PUSHED Ideograph_CJK_Compatibility_OR_Unified onto stack\n");
+            }
+            /* All other Unified_Ideograph's */
+            else {
+                collation_key Ideograph_NOT_CJK_Compatibility_OR_Unified[2] = {
+                    {(0xFBC0 + (cp >> 15)), 0x20, 0x2, 0}, {((cp & 0x7FFF) | 0x8000), 0x0, 0x0, 0}
+                };
+                push_onto_stack(tc, stack,
+                    Ideograph_NOT_CJK_Compatibility_OR_Unified, 2, name);
+                fprintf(stderr, "PUSHED UNASSIGNED onto stack\n");
+            }
+            return 2;
+        }
+        else {
+            collation_key Unassigned[2] = {
+                {(0xFBC0 + (cp >> 15)), 0x20, 0x2, 0}, {((cp & 0x7FFF) | 0x8000), 0x0, 0x0, 0}
+            };
+            push_onto_stack(tc, stack,
+                Unassigned, 2, name);
+            fprintf(stderr, "PUSHED Unassigned onto stack\n");
+            return 2;
+        }
     }
-    stack->stack_top++;
-    set_key(stack->keys[stack->stack_top],
-        MVM_unicode_collation_primary(tc, cp),
-        MVM_unicode_collation_secondary(tc, cp),
-        MVM_unicode_collation_tertiary(tc, cp)
-    );
-    return 1;
+    else {
+        stack->stack_top++;
+            set_key(stack->keys[stack->stack_top],
+                MVM_unicode_collation_primary(tc, cp),
+                MVM_unicode_collation_secondary(tc, cp),
+                MVM_unicode_collation_tertiary(tc, cp)
+            );
+        return 1;
+    }
 }
 int process_terminal_node (MVMThreadContext *tc, int num_processed, sub_node node, collation_stack *stack, char *name) {
     int j;
@@ -179,52 +230,25 @@ int process_terminal_node (MVMThreadContext *tc, int num_processed, sub_node nod
 int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepointIter *ci, int cp_maybe, char *name) {
     int j;
     int rtrn = 0;
-    int cp = cp_maybe == collation_push_from_iter ? MVM_string_ci_get_codepoint(tc, ci) : cp_maybe;
+    int cp;
     int query = -1;
     int *cps_thing[3];
+    /* If supplied -1 that means we need to grab it from the codepoint iterator. Otherwise
+     * the value we were passed is the codepoint we should proces */
+    if (cp_maybe == collation_push_from_iter) {
+        cp = MVM_string_ci_get_codepoint(tc, ci);
+        fprintf(stderr, "stack_%s collation_push_cp grabbing codepoint 0x%X from iterator\n",name, cp);
+    }
+    else {
+        cp = cp_maybe;
+        fprintf(stderr, "stack_%s collation_push_cp was supplied codepoint 0x%X\n", name, cp);
+    }
     fprintf(stderr, "push orig stack_top %i\n", stack->stack_top);
     query = get_main_node(cp);
 
-    /* Block=Tangut+Block=Tangut_Components 0x17000..0x18AFF */
-    if (0x17000 <= cp && cp <= 0x18AFF) {
-        collation_key Block_Tangut_and_Tangut_Components[2] = {
-            {0xFB00, 0x20, 0x2, 0}, {((cp - 0x17000) | 0x8000), 0x0, 0x0, 0}
-        };
-        push_onto_stack (tc, stack, Block_Tangut_and_Tangut_Components, 2, name);
-        fprintf(stderr, "PUSHED Block_Tangut_and_Tangut_Components ONTO THE STACK\n");
-    }
-    /* Assigned_Block=Nushu 0x1B170..1B2FF (*/
-    else if (0x1B170 <= cp && cp <=0x1B2FF) {
-        collation_key Asigned_Block_Nushu[2] = {
-            {0xFB01, 0x20, 0x2, 0}, {((cp - 0x1B170) | 0x8000), 0x0, 0x0, 0}
-        };
-        push_onto_stack(tc, stack, Asigned_Block_Nushu, 2, name);
-        fprintf(stderr, "PUSHED Asigned_Block_Nushu ONTO THE STACK\n");
-    }
-    /* Unified_Ideograph=True */
-    else if (MVM_unicode_get_property_int(tc, cp, MVM_UNICODE_PROPERTY_UNIFIED_IDEOGRAPH)) {
-        /* F900..FAFF; CJK Compatibility Ideographs */
-        /* 4E00..9FFF; CJK Unified Ideographs */
-        if (0x4E00 <= cp && cp <= 0x9FFF || cp <= 0xF900 && cp <= 0xFAFF) {
-            collation_key Ideograph_CJK_Compatibility_OR_Unified[2] = {
-                {(0xFB40+ (cp >> 15)), 0x20, 0x2, 0}, {((cp - 0x1B170) | 0x8000), 0x0, 0x0, 0}
-            };
-            push_onto_stack(tc, stack, Ideograph_CJK_Compatibility_OR_Unified, 2, name);
-            fprintf(stderr, "PUSHED Ideograph_CJK_Compatibility_OR_Unified onto stack\n");
-        }
-        /* All other Unified_Ideograph's */
-        else {
-            collation_key Ideograph_NOT_CJK_Compatibility_OR_Unified[2] = {
-                {(0xFBC0+ (cp >> 15)), 0x20, 0x2, 0}, {((cp - 0x1B170) | 0x8000), 0x0, 0x0, 0}
-            };
-            push_onto_stack(tc, stack,
-                &Ideograph_NOT_CJK_Compatibility_OR_Unified, 2, name);
-            fprintf(stderr, "PUSHED Ideograph_NOT_CJK_Compatibility_OR_Unified onto stack\n");
-        }
-    }
       /* If query was not -1 we were able to find a main_nodes element to match the
      * first codepoint */
-    else if (query != -1) {
+    if (query != -1) {
         fprintf(stderr, "stack_%s getting value from special_collation_keys\n", name);
         /* If there are no sub_node_elems that means we don't need to look at
          * the next codepoint, we are already at the correct node
@@ -243,7 +267,8 @@ int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepoin
             fprintf(stderr, "cp2 = %i, cps_thing[0] = %i\n", cp2, *cps_thing[0]);
             fprintf(stderr, "get no recurse %i\n", result );
             if (result < 0) {
-                fprintf(stderr, "Couldn't find {%i,%i}, running collation_push_cp for this cp\n", cp, cp2);
+                fprintf(stderr, "Couldn't find cp, cp2: {0x%X,0x%X}, running push_MVM_collation_values for cp and running collation_push_cp for cp2\n", cp, cp2);
+                push_MVM_collation_values(tc, cp, stack, name);
                 collation_push_cp(tc, stack, ci, cp2, name);
             }
             else if (sub_nodes[result].sub_node_elems < 1) {
