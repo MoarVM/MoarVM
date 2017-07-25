@@ -109,7 +109,7 @@ int push_onto_stack (MVMThreadContext *tc, collation_stack *stack, collation_key
 }
 /* TODO write a script to generate this code */
 int is_unified_ideograph (MVMThreadContext *tc, int cp) {
-    return (0x3400 <= cp && cp <= 0x4DB5) /*  3400..4DB5  */
+    return (0x3400 <= cp && cp <= 0x4DB5) /*  3400..4DB5  d*/
     || (0x4E00 <= cp && cp <= 0x9FEA)     /*  4E00..9FEA  */
     || (0xFA0E <= cp && cp <= 0xFA0F)     /*  FA0E..FA0F  */
     || (cp == 0xFA11)                     /*  FA11        */
@@ -133,6 +133,16 @@ int compute_BBBB_offset(int cp, int offset) {
 int compute_BBBB_and(int cp) {
     return ((cp & 0x7FFF) | 0x8000);
 }
+int is_Assigned_Block_Nushu(int cp) {
+    return (0x1B170 <= cp && cp <=0x1B2FF);
+}
+int is_Block_Tangut(int cp) {
+    return (0x17000 <= cp && cp <= 0x18AFF);
+}
+int is_Block_CJK_Unified_Ideographs_OR_CJK_Compatibility_Ideographs(int cp) {
+    return (0x4E00 <= cp && cp <= 0x9FFF)    /* 4E00..9FFF; CJK Unified Ideographs */
+       ||  (0xF900 <= cp && cp <= 0xFAFF);  /* F900..FAFF; CJK Compatibility Ideographs */
+}
 /* Returns the number of collation elements pushed onto the stack */
 int push_MVM_collation_values (MVMThreadContext *tc, int cp, collation_stack *stack, char *name) {
     int coll[3] = {
@@ -140,84 +150,54 @@ int push_MVM_collation_values (MVMThreadContext *tc, int cp, collation_stack *st
     };
     fprintf(stderr, "stack_%s in push_MVM_collatio_values()\n", name);
     if (coll[0] <= 0 || coll[1] <= 0 || coll[2] <= 0) {
-        int AAAA = -1, BBBB  = -1;
+        int AAAA, BBBB;
         collation_key calculated_key[2] = {
             {0, 0x20, 0x2, 0},
             {0, 0x00, 0x0, 0}
         };
+        char *block_pushed = NULL;
         /* Block=Tangut+Block=Tangut_Components 0x17000..0x18AFF */
-        if (0x17000 <= cp && cp <= 0x18AFF) {
+        if (is_Block_Tangut(cp)) {
             AAAA = 0xFB00;
             BBBB = compute_BBBB_offset(cp, 0x17000);
-            collation_key Block_Tangut_and_Tangut_Components[2] = {
-                {0xFB00, 0x20, 0x2, 0},
-                {((cp - 0x17000) | 0x8000), 0x0, 0x0, 0}
-            };
-            note_special_pushed("Block_Tangut_and_Tangut_Components", name, cp);
+            block_pushed = "Block_Tangut_and_Tangut_Components";
         }
         /* Assigned_Block=Nushu 0x1B170..1B2FF (*/
-        else if (0x1B170 <= cp && cp <=0x1B2FF) {
+        else if (is_Assigned_Block_Nushu(cp)) {
             AAAA = 0xFB01;
             BBBB = compute_BBBB_offset(cp, 0x1B170);
-            collation_key Asigned_Block_Nushu[2] = {
-                {0xFB01, 0x20, 0x2, 0},
-                {((cp - 0x1B170) | 0x8000), 0x0, 0x0, 0}
-            };
-            note_special_pushed("Assigned_Block_Nushu", name, cp);
+            block_pushed = "Assigned_Block_Nushu";
         }
         /* Unified_Ideograph=True */
         else if (is_unified_ideograph(tc, cp)) {
-            /* F900..FAFF; CJK Compatibility Ideographs # in conditional
-             * 4E00..9FFF; CJK Unified Ideographs # in conditional
-             * 3400..4DBF; CJK Unified Ideographs Extension A
-             * 20000..2A6DF; CJK Unified Ideographs Extension B
-             * 2A700..2B73F; CJK Unified Ideographs Extension C
-             * 2B740..2B81F; CJK Unified Ideographs Extension D
-             * 2B820..2CEAF; CJK Unified Ideographs Extension E */
-            if (
-                   (0x4E00 <= cp && cp <= 0x9FFF) /* 4E00..9FFF; CJK Unified Ideographs */
-                || (0xF900 <= cp && cp <= 0xFAFF) /* F900..FAFF; CJK Compatibility Ideographs */
-               ) {
+            if (is_Block_CJK_Unified_Ideographs_OR_CJK_Compatibility_Ideographs(cp)) {
                 AAAA = compute_AAAA(cp, 0xFB40);
                 BBBB = compute_BBBB_and(cp);
-                collation_key Ideograph_CJK_Compatibility_OR_Unified[2] = {
-                    {(0xFB40 + (cp >> 15)), 0x20 , 0x2  , 0},
-                    {((cp & 0x7FFF) | 0x8000) , 0x0  , 0x0 , 0}
-                };
-                note_special_pushed("Ideograph_CJK_Compatibility_OR_Unified", name, cp);
+                block_pushed = "Ideograph_CJK_Compatibility_OR_Unified";
             }
             /* All other Unified_Ideograph's */
             else {
                 AAAA = compute_AAAA(cp, 0xFB80);
                 BBBB = compute_BBBB_and(cp);
-                collation_key Ideograph_NOT_CJK_Compatibility_OR_Unified[2] = {
-                    {(0xFBC0 + (cp >> 15)) , 0x20 , 0x2 , 0},
-                    {((cp & 0x7FFF) | 0x8000), 0x0 , 0x0, 0}
-                };
-                note_special_pushed("Ideograph_NOT_CJK_Compatibility_OR_Unified", name, cp);
+                block_pushed = "Ideograph_NOT_CJK_Compatibility_OR_Unified";
             }
         }
         else {
             AAAA = compute_AAAA(cp, 0xFBC0);
             BBBB = compute_BBBB_and(cp);
-            collation_key Unassigned[2] = {
-                {(0xFBC0 + (cp >> 15)), 0x20, 0x2, 0}, {((cp & 0x7FFF) | 0x8000), 0x0, 0x0, 0}
-            };
-            note_special_pushed("Unassigned", name, cp);
+            block_pushed = "Unassigned";
         }
         calculated_key[0].s.primary = AAAA;
         calculated_key[1].s.primary = BBBB;
+        note_special_pushed(block_pushed, name, cp);
         push_onto_stack(tc, stack, calculated_key, 2, name);
         return 2;
     }
     else {
         fprintf(stderr, "Adding MVM_unicode_collation values to stack from cp 0x%X\n", cp);
         stack->stack_top++;
-            set_key(stack->keys[stack->stack_top],
-                MVM_unicode_collation_primary(tc, cp),
-                MVM_unicode_collation_secondary(tc, cp),
-                MVM_unicode_collation_tertiary(tc, cp)
-            );
+        set_key(stack->keys[stack->stack_top],
+            coll[0], coll[1], coll[2]);
         return 1;
     }
 }
