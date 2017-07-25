@@ -101,33 +101,56 @@ static void start_thread(void *data) {
 /* Begins execution of a thread. */
 void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
     MVMThread *child = (MVMThread *)thread_obj;
-    int status;
+    int status, added;
     ThreadStart *ts;
 
     if (REPR(child)->ID == MVM_REPR_ID_MVMThread) {
-        MVMThread * volatile *threads;
         MVMThreadContext *child_tc = child->body.tc;
 
         /* Move thread to starting stage. */
         child->body.stage = MVM_thread_stage_starting;
 
-        /* Create thread state, to pass to the thread start callback. */
-        ts = MVM_malloc(sizeof(ThreadStart));
-        ts->tc = child_tc;
-        ts->thread_obj = thread_obj;
-
-        /* Push this to the *child* tc's temp roots. */
-        MVM_gc_root_temp_push(child_tc, (MVMCollectable **)&ts->thread_obj);
-
         /* Mark thread as GC blocked until the thread actually starts. */
         MVM_gc_mark_thread_blocked(child_tc);
 
-        /* Push to starting threads list */
-        threads = &tc->instance->threads;
-        do {
-            MVMThread *curr = *threads;
-            MVM_ASSIGN_REF(tc, &(child->common.header), child->body.next, curr);
-        } while (MVM_casptr(threads, child->body.next, child) != child->body.next);
+        /* Create thread state, to pass to the thread start callback. */
+        ts = MVM_malloc(sizeof(ThreadStart));
+        ts->tc = child_tc;
+
+        /* Push to starting threads list. We may need to retry this if we are
+         * asked to join a GC run at this point (since the GC would already
+         * have taken a snapshot of the thread list, so it's not safe to add
+         * another at this point). */
+        added = 0;
+        while (!added) {
+            uv_mutex_lock(&tc->instance->mutex_threads);
+            if (MVM_load(&tc->gc_status) == MVMGCStatus_NONE) {
+                /* Insert into list. */
+                MVM_ASSIGN_REF(tc, &(child->common.header), child->body.next,
+                    tc->instance->threads);
+                tc->instance->threads = child;
+
+                /* Store the thread object in the thread start information and
+                 * keep it alive by putting it in the *child* tc's temp roots. */
+                ts->thread_obj = thread_obj;
+                MVM_gc_root_temp_push(child_tc, (MVMCollectable **)&ts->thread_obj);
+
+                /* Mark us done and unlock the mutex; any GC run will now have
+                 * a consistent view of the thread list and can safely run. */
+                added = 1;
+                uv_mutex_unlock(&tc->instance->mutex_threads);
+            }
+            else {
+                /* Another thread decided we'll GC now. Release mutex, and
+                 * do the GC, making sure thread_obj and child are marked. */
+                uv_mutex_unlock(&tc->instance->mutex_threads);
+                MVMROOT(tc, thread_obj, {
+                MVMROOT(tc, child, {
+                    GC_SYNC_POINT(tc);
+                });
+                });
+            }
+        }
 
         /* Do the actual thread creation. */
         status = uv_thread_create(&child->body.thread, start_thread, ts);

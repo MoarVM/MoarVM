@@ -77,7 +77,6 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Create the main thread's ThreadContext and stash it. */
     instance->main_thread = MVM_tc_create(NULL, instance);
-
     instance->main_thread->thread_id = 1;
 
     /* Next thread to be created gets ID 2 (the main thread got ID 1). */
@@ -144,15 +143,15 @@ MVMInstance * MVM_vm_create_instance(void) {
     init_mutex(instance->mutex_event_loop_start, "event loop thread start");
 
     /* Create main thread object, and also make it the start of the all threads
-     * linked list. */
-    MVM_store(&instance->threads,
-        (instance->main_thread->thread_obj = (MVMThread *)
-            REPR(instance->boot_types.BOOTThread)->allocate(
-                instance->main_thread, STABLE(instance->boot_types.BOOTThread))));
+     * linked list. Set up the mutex to protect it. */
+    instance->threads = instance->main_thread->thread_obj = (MVMThread *)
+        REPR(instance->boot_types.BOOTThread)->allocate(
+            instance->main_thread, STABLE(instance->boot_types.BOOTThread));
     instance->threads->body.stage = MVM_thread_stage_started;
     instance->threads->body.tc = instance->main_thread;
     instance->threads->body.native_thread_id = MVM_platform_thread_id();
     instance->threads->body.thread_id = instance->main_thread->thread_id;
+    init_mutex(instance->mutex_threads, "threads list");
 
     /* Create compiler registry */
     instance->compiler_registry = MVM_repr_alloc_init(instance->main_thread, instance->boot_types.BOOTHash);
@@ -502,8 +501,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up event loop starting mutex. */
     uv_mutex_destroy(&instance->mutex_event_loop_start);
 
-    /* Destroy main thread contexts. */
+    /* Destroy main thread contexts and thread list mutex. */
     MVM_tc_destroy(instance->main_thread);
+    uv_mutex_destroy(&instance->mutex_threads);
 
     /* Clear up VM instance memory. */
     MVM_free(instance);

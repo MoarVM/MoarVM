@@ -59,21 +59,17 @@ static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_si
         }
     }
 }
-static MVMuint32 signal_all_but(MVMThreadContext *tc, MVMThread *t, MVMThread *tail) {
+static MVMuint32 signal_all(MVMThreadContext *tc, MVMThread *threads) {
+    MVMThread *t = threads;
     MVMuint32 count = 0;
-    MVMThread *next;
-    if (!t) {
-        return 0;
-    }
-    do {
-        next = t->body.next;
+    while (t) {
         switch (MVM_load(&t->body.stage)) {
             case MVM_thread_stage_starting:
             case MVM_thread_stage_waiting:
             case MVM_thread_stage_started:
-                if (t->body.tc != tc) {
+                /* Don't signal ourself. */
+                if (t->body.tc != tc)
                     count += signal_one_thread(tc, t->body.tc);
-                }
                 break;
             case MVM_thread_stage_exited:
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : queueing to clear nursery of thread %d\n", t->body.tc->thread_id);
@@ -91,10 +87,8 @@ static MVMuint32 signal_all_but(MVMThreadContext *tc, MVMThread *t, MVMThread *t
             default:
                 MVM_panic(MVM_exitcode_gcorch, "Corrupted MVMThread or running threads list: invalid thread stage %"MVM_PRSz"", MVM_load(&t->body.stage));
         }
-    } while (next && (t = next));
-    if (tail)
-        MVM_gc_write_barrier(tc, (MVMCollectable *)t, (MVMCollectable *)tail);
-    t->body.next = tail;
+        t = t->body.next;
+    }
     return count;
 }
 
@@ -412,34 +406,23 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         add_work(tc, tc);
 
         /* Find other threads, and signal or steal. */
-        do {
-            MVMThread *threads = (MVMThread *)MVM_load(&tc->instance->threads);
-            if (threads && threads != last_starter) {
-                MVMThread *head = threads;
-                MVMuint32 add;
-                while ((threads = (MVMThread *)MVM_casptr(&tc->instance->threads, head, NULL)) != head) {
-                    head = threads;
-                }
+        uv_mutex_lock(&tc->instance->mutex_threads);
+        num_threads = signal_all(tc, tc->instance->threads);
+        MVM_add(&tc->instance->gc_start, num_threads);
+        uv_mutex_unlock(&tc->instance->mutex_threads);
 
-                add = signal_all_but(tc, head, last_starter);
-                last_starter = head;
-                if (add) {
-                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Found %d other threads\n", add);
-                    MVM_add(&tc->instance->gc_start, add);
-                    num_threads += add;
-                }
-            }
+        /* If there's an event loop thread, wake it up to participate. */
+        if (tc->instance->event_loop_wakeup)
+            uv_async_send(tc->instance->event_loop_wakeup);
 
-            /* If there's an event loop thread, wake it up to participate. */
-            if (tc->instance->event_loop_wakeup)
-                uv_async_send(tc->instance->event_loop_wakeup);
-        } while (MVM_load(&tc->instance->gc_start) > 1);
+        /* Wait for other threads to be ready. */
+        while (MVM_load(&tc->instance->gc_start) > 1)
+            MVM_platform_thread_yield();
 
-        /* Sanity checks. */
-        if (!MVM_trycas(&tc->instance->threads, NULL, last_starter))
-            MVM_panic(MVM_exitcode_gcorch, "threads list corrupted\n");
+        /* Sanity checks finish votes. */
         if (MVM_load(&tc->instance->gc_finish) != 0)
-            MVM_panic(MVM_exitcode_gcorch, "Finish votes was %"MVM_PRSz"\n", MVM_load(&tc->instance->gc_finish));
+            MVM_panic(MVM_exitcode_gcorch, "Finish votes was %"MVM_PRSz"\n",
+                MVM_load(&tc->instance->gc_finish));
 
         /* gc_ack gets an extra so the final acknowledger
          * can also free the STables. */

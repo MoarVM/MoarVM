@@ -123,9 +123,10 @@ struct MVMInstance {
     /* The ID to allocate the next-created thread. */
     AO_t next_user_thread_id;
 
-    /* MVMThreads completed starting, running, and/or exited. */
-    /* note: used atomically */
+    /* MVMThreads completed starting, running, and/or exited. Modifications
+     * and walks that need an accurate picture of it protected by mutex. */
     MVMThread *threads;
+    uv_mutex_t mutex_threads;
 
     /************************************************************************
      * Garbage collection and memory management
