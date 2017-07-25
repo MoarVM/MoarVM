@@ -446,9 +446,3 @@ struct MVMInstance {
     /* Flag for if NFA debugging is enabled. */
     MVMint8 nfa_debug_enabled;
 };
-
-/* Returns a true value if we have created user threads (and so are running a
- * multi-threaded application). */
-MVM_STATIC_INLINE MVMint32 MVM_instance_have_user_threads(MVMThreadContext *tc) {
-    return tc->instance->next_user_thread_id != 2;
-}
