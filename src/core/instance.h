@@ -162,13 +162,13 @@ struct MVMInstance {
     AO_t gc_finish;
     uv_cond_t cond_gc_finish;
 
-    /* Whether the coordinator considers all in-trays clear. */
+    /* Whether the coordinator considers all in-trays clear, and condition
+     * variable for when it changes. */
     AO_t gc_intrays_clearing;
+    uv_cond_t cond_gc_intrays_clearing;
 
-    /* The number of threads that have yet to acknowledge the finish, and
-     * condition variable for when it changes. */
+    /* The number of threads that have yet to acknowledge the finish. */
     AO_t gc_ack;
-    uv_cond_t cond_gc_ack;
 
     /* Linked list (via forwarder) of STables to free. */
     MVMSTable *stables_to_free;

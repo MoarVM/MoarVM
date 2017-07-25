@@ -100,7 +100,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     init_mutex(instance->mutex_gc_orchestrate, "GC orchestration");
     init_cond(instance->cond_gc_start, "GC start");
     init_cond(instance->cond_gc_finish, "GC finish");
-    init_cond(instance->cond_gc_ack, "GC ack");
+    init_cond(instance->cond_gc_intrays_clearing, "GC intrays clearing");
 
     /* Create fixed size allocator. */
     instance->fsa = MVM_fixed_size_create(instance->main_thread);
@@ -442,7 +442,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_free(instance->permroot_descriptions);
     uv_cond_destroy(&instance->cond_gc_start);
     uv_cond_destroy(&instance->cond_gc_finish);
-    uv_cond_destroy(&instance->cond_gc_ack);
+    uv_cond_destroy(&instance->cond_gc_intrays_clearing);
     uv_mutex_destroy(&instance->mutex_gc_orchestrate);
 
     /* Clean up Hash of HLLConfig. */

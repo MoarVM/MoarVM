@@ -180,14 +180,18 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
 
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
             "Thread %d run %d : Co-ordinator signalling in-trays clear\n");
+        uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
         MVM_store(&tc->instance->gc_intrays_clearing, 0);
+        uv_cond_broadcast(&tc->instance->cond_gc_intrays_clearing);
+        uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
     }
     else {
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
             "Thread %d run %d : Waiting for in-tray clearing completion\n");
+        uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
         while (MVM_load(&tc->instance->gc_intrays_clearing))
-            for (i = 0; i < 1000; i++)
-                ; /* XXX Something HT-efficienter. */
+            uv_cond_wait(&tc->instance->cond_gc_intrays_clearing, &tc->instance->mutex_gc_orchestrate);
+        uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
             "Thread %d run %d : Got in-tray clearing complete notice\n");
     }
