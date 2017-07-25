@@ -13,7 +13,18 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
     MVMROOT(tc, updated_static_frames, {
     MVMROOT(tc, previous_static_frames, {
         while (1) {
-            MVMObject *log_obj = MVM_repr_shift_o(tc, tc->instance->spesh_queue);
+            MVMObject *log_obj;
+            MVMuint64 start_time;
+            if (tc->instance->spesh_log_fh)
+                start_time = uv_hrtime();
+            log_obj = MVM_repr_shift_o(tc, tc->instance->spesh_queue);
+            if (tc->instance->spesh_log_fh) {
+                fprintf(tc->instance->spesh_log_fh,
+                    "Received Logs\n"
+                    "=============\n\n"
+                    "Was waiting %dus for logs on the log queue.\n\n",
+                    (int)((uv_hrtime() - start_time) / 1000));
+            }
             tc->instance->spesh_stats_version++;
             if (log_obj->st->REPR->ID == MVM_REPR_ID_MVMSpeshLog) {
                 MVMSpeshLog *sl = (MVMSpeshLog *)log_obj;
@@ -21,7 +32,6 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                     MVMThreadContext *stc;
                     MVMuint32 i;
                     MVMuint32 n;
-                    MVMuint64 start_time;
 
                     /* Update stats, and if we're logging dump each of them. */
                     tc->instance->spesh_stats_version++;
