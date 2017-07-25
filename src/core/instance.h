@@ -177,6 +177,7 @@ struct MVMInstance {
      * real motivation to have it more fine-grained at present). */
     uv_mutex_t mutex_multi_cache_add;
     uv_mutex_t mutex_spesh_install;
+    uv_mutex_t mutex_parameterization_add;
 
     /* Log file for specializations, if we're to log them. */
     FILE *spesh_log_fh;
