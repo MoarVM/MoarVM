@@ -3302,7 +3302,7 @@ int get_collation_elements (int *cp, int cp_elems, int *collation_key_link, int 
         *collation_key_link = main_nodes[main_node_elem].collation_key_link;
         /* We have iterated over only one codeponit */
         collation_element_elems = main_nodes[main_node_elem].collation_key_elems;
-        
+
         *collation_key_elems =  main_nodes[main_node_elem].collation_key_elems;
         /* Return the number of elements */
         return 1;

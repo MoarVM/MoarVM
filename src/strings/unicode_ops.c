@@ -104,8 +104,8 @@ int push_onto_stack (MVMThreadContext *tc, collation_stack *stack, collation_key
     print_stack(tc, stack, name);
     return 1;
 }
-#define note_special_pushed(what, name) {\
-    fprintf(stderr, "PUSHED %s onto stack_%s\n", what, name);\
+#define note_special_pushed(what, name, cp) {\
+    fprintf(stderr, "PUSHED 0x%X %s onto stack_%s\n", cp, what, name);\
 }
 /* Returns the number of collation elements pushed onto the stack */
 int push_MVM_collation_values (MVMThreadContext *tc, int cp, collation_stack *stack, char *name) {
@@ -120,7 +120,7 @@ int push_MVM_collation_values (MVMThreadContext *tc, int cp, collation_stack *st
                 {0xFB00 + 1, 0x20 + 1, 0x2 + 1, 0}, {((cp - 0x17000) | 0x8000) + 1, 0x0 + 1, 0x0 + 1, 0}
             };
             push_onto_stack (tc, stack, Block_Tangut_and_Tangut_Components, 2, name);
-            note_special_pushed("Block_Tangut_and_Tangut_Components", name);
+            note_special_pushed("Block_Tangut_and_Tangut_Components", name, cp);
             return 2;
         }
         /* Assigned_Block=Nushu 0x1B170..1B2FF (*/
@@ -129,7 +129,7 @@ int push_MVM_collation_values (MVMThreadContext *tc, int cp, collation_stack *st
                 {0xFB01 + 1, 0x20 + 1, 0x2 + 1, 0}, {((cp - 0x1B170) | 0x8000) + 1, 0x0 + 1, 0x0 + 1, 0}
             };
             push_onto_stack(tc, stack, Asigned_Block_Nushu, 2, name);
-            note_special_pushed("Assigned_Block_Nushu", name);
+            note_special_pushed("Assigned_Block_Nushu", name, cp);
             return 2;
         }
         /* Unified_Ideograph=True */
@@ -142,7 +142,7 @@ int push_MVM_collation_values (MVMThreadContext *tc, int cp, collation_stack *st
                     {((cp & 0x7FFF) | 0x8000) + 1, 0x0  + 1 , 0x0 + 1, 0}
                 };
                 push_onto_stack(tc, stack, Ideograph_CJK_Compatibility_OR_Unified, 2, name);
-                note_special_pushed("Ideograph_CJK_Compatibility_OR_Unified", name);
+                note_special_pushed("Ideograph_CJK_Compatibility_OR_Unified", name, cp);
             }
             /* All other Unified_Ideograph's */
             else {
@@ -152,7 +152,7 @@ int push_MVM_collation_values (MVMThreadContext *tc, int cp, collation_stack *st
                 };
                 push_onto_stack(tc, stack,
                     Ideograph_NOT_CJK_Compatibility_OR_Unified, 2, name);
-                note_special_pushed("Unassigned", name);
+                note_special_pushed("Ideograph_NOT_CJK_Compatibility_OR_Unified", name, cp);
             }
             return 2;
         }
@@ -162,7 +162,7 @@ int push_MVM_collation_values (MVMThreadContext *tc, int cp, collation_stack *st
             };
             push_onto_stack(tc, stack,
                 Unassigned, 2, name);
-            fprintf(stderr, "PUSHED Unassigned onto stack_%s\n", name);
+            note_special_pushed("Unassigned", name, cp);
             return 2;
         }
     }
@@ -179,11 +179,11 @@ int push_MVM_collation_values (MVMThreadContext *tc, int cp, collation_stack *st
 }
 /* This is passed the terminal node and it adds the collation elements linked from
  * that node to the collation stack */
-int process_terminal_node (MVMThreadContext *tc, sub_node node, collation_stack *stack, char *name) {
+int process_terminal_node (MVMThreadContext *tc, sub_node node, collation_stack *stack, char *name, int fallback_cp) {
     int j;
     fprintf(stderr, "stack_%s in process_terminal_node() collation_key_link %i collation_key_elems %i\n", name, node.collation_key_link, node.collation_key_elems);
     /* If the collation link exists */
-    /* First collation_key is 1. I think it subtracts one from this for whatever reason... */
+    /* First collation_key is 1. TODO ?? I think it subtracts one from this for whatever reason... */
     if (0 < node.collation_key_link) {
         for (j = node.collation_key_link;
              j < node.collation_key_link + node.collation_key_elems;
@@ -197,12 +197,10 @@ int process_terminal_node (MVMThreadContext *tc, sub_node node, collation_stack 
                 special_collation_keys[j].tertiary  + 1
             );
         }
+        return 1;
     }
-    else {
-        fprintf(stderr, "Terminal node doesn't have any collation data. Using MVM_collation_values\n");
-        push_MVM_collation_values(tc, node.codepoint, stack, name);
-        //MVM_exception_throw_adhoc(tc, "Terminal node did not have any collation data!!!\n");
-    }
+    fprintf(stderr, "Terminal node doesn't have any collation data. Using MVM_collation_values for fallback_cp 0x%X\n", fallback_cp);
+    push_MVM_collation_values(tc, fallback_cp, stack, name);
     return 0;
 
 }
@@ -229,52 +227,66 @@ int find_next_node (MVMThreadContext *tc, sub_node node, int next_cp) {
 }
 #define collation_push_from_iter -1
 /* Returns the number of added collation keys */
-int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepointIter *ci, int cp_maybe, char *name) {
+int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepointIter *ci, int *cp_maybe, int cp_num, char *name) {
     int j;
     int rtrn = 0;
-    int cp;
+    int cps[10];
     int query = -1;
     int *cps_thing[3];
     /* If supplied -1 that means we need to grab it from the codepoint iterator. Otherwise
      * the value we were passed is the codepoint we should proces */
-    if (cp_maybe == collation_push_from_iter) {
-        cp = MVM_string_ci_get_codepoint(tc, ci);
-        fprintf(stderr, "stack_%s collation_push_cp grabbing codepoint 0x%X from iterator\n",name, cp);
+    if (cp_num == 0) {
+        cps[0] = MVM_string_ci_get_codepoint(tc, ci);
+        cp_num = 1;
+        fprintf(stderr, "stack_%s collation_push_cp grabbing codepoint 0x%X from iterator\n",name, cps[0]);
     }
     else {
-        cp = cp_maybe;
-        fprintf(stderr, "stack_%s collation_push_cp was supplied codepoint 0x%X\n", name, cp);
+        int i;
+        fprintf(stderr, "stack_%s collation_push_cp was supplied cp_num: %i codepoints ", name, cp_num);
+        for (i = 0; i < cp_num; i++) {
+            cps[i] = cp_maybe[i];
+            fprintf(stderr, "0x%X ", cps[i]);
+        }
+        //memcpy(cp_maybe, cps, sizeof(int) * cp_num);
+        fprintf(stderr, "\n");
     }
-    query = get_main_node(cp);
-    fprintf(stderr, "push orig stack_top %i. get_main_node(cp) returned with %i\n", stack->stack_top, query);
-
-    if (query != -1 && cp != 0x5BC && cp != 0x5D5 && cp != 0x5D9) {
+    query = get_main_node(cps[0]);
+    fprintf(stderr, "push orig stack_top %i. get_main_node(cps[0]) returned with %i\n", stack->stack_top, query);
+                            /* These blacklisted codepoints are just due to incorrect data in main_nodes and sub_nodes
+                             * eventually should be removed */
+    if (query != -1 && cps[0] != 0x5BC && cps[0] != 0x5D5 && cps[0] != 0x5D9 && cps[0] != 18837) {
         fprintf(stderr, "query = -1 stack_%s getting value from special_collation_keys\n", name);
         /* If there are no sub_node_elems that means we don't need to look at
          * the next codepoint, we are already at the correct node
          * If there's no more codepoints in the iterator we also are done here */
-        if (main_nodes[query].sub_node_elems < 1 || !MVM_string_ci_has_more(tc, ci)) {
+        if (main_nodes[query].sub_node_elems < 1 || cp_num < 2 && !MVM_string_ci_has_more(tc, ci)) {
             fprintf(stderr, "stack_%s main_node collation_key_link %i collation_key_elems %i\n", name, main_nodes[query].collation_key_link, main_nodes[query].collation_key_elems);
-            process_terminal_node(tc, main_nodes[query], stack, name);
+            process_terminal_node(tc, main_nodes[query], stack, name, cps[0]);
         }
         /* Otherwise we need to check the next codepoint(s) (0 < sub_node_elems) */
         else {
-            int cps[10];
-            int i, result = query;
+            int i, result;
             int last_good_i = 0;
             int last_good_result = -1;
-            cps[0] = cp;
             fprintf(stderr, "stack_%s main node: ", name);
             print_sub_node(main_nodes[query]);
             for (i = 0; result != -1 && MVM_string_ci_has_more(tc, ci) && i < 10;) {
-                cps[++i] = MVM_string_ci_get_codepoint(tc, ci);
-                fprintf(stderr, "cps[++i] -> cps[%i] = MVM_string_ci_get_codepoint. result: %i\n", i, result);
-                result = find_next_node(tc, (i == 1 ? main_nodes[result] : sub_nodes[result]), cps[i]);
+                i++;
+                /* Only grab a codepoint if it doesn't already exist in the array */
+                if (cp_num <= i) {
+                    cps[i] = MVM_string_ci_get_codepoint(tc, ci);
+                    fprintf(stderr, "grabbed cp\n");
+                }
+                else {
+                    fprintf(stderr, "existing cp\n");
+                }
+                fprintf(stderr, "cps[++i] -> cps[%i] = MVM_string_ci_get_codepoint = 0x%X. result: %i\n", i, cps[i], result);
+                result = find_next_node(tc, (i == 1 ? main_nodes[query] : sub_nodes[result]), cps[i]);
                 fprintf(stderr, "result %i i %i\n", result, i);
                 /* If we got something other than -1 and it has collation elements
                  * store the value so we know how far is valid */
                 if (result != -1 && sub_nodes[result].collation_key_elems != 0) {
-                    last_good_i = i;
+                    last_good_i      = i;
                     last_good_result = result;
                 }
                 if (result != -1)
@@ -282,53 +294,56 @@ int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepoin
             }
             fprintf(stderr, "stack_%s last_good_i %i i=%i\n", name, last_good_i, i);
             fprintf(stderr, "stack_%s settled on : ", name);
-            if (last_good_i) {
-                print_sub_node(sub_nodes[last_good_result]);
-                process_terminal_node(tc, sub_nodes[last_good_result], stack, name);
+            /* If there is no last_good_result we should return a value from main_nodes */
+            print_sub_node( (last_good_result == -1 ? main_nodes[query] : sub_nodes[last_good_result]) );
+            /* If the terminal_subnode can't be processed then that means it will push the starter codepoint ( cp[0] )'s value onto
+             * the stack, and we must set last_good_i to 0 since it didn't work out */
+            if (!process_terminal_node(tc, (last_good_result == -1 ? main_nodes[query] : sub_nodes[last_good_result]), stack, name, cps[0])) {
+                /* TODO last_good_i needs to be only set to 0 if main_node has collation elements
+                 * and we must also fallback to the main_node's collation elements if they exist
+                 * instead of falling back to MVM_collation_values */
+                last_good_i = 0;
             }
             fprintf(stderr, "On the stack have: ");
-            for (j = (last_good_i ? last_good_i + 1 : 0); j <= i; j++) {
+            for (j = last_good_i + 1; j <= i; j++) {
                 /* TODO this should be able to go through the collation_push_cp again
                  * with an arbitrary number of codepoints */
                 fprintf(stderr, "cps[%i] 0x%X ", j, cps[j]);
             }
             fprintf(stderr, "\n");
-            for (j = (last_good_i ? last_good_i + 1 : 0); j <= i; j++) {
-                /* TODO this should be able to go through the collation_push_cp again
-                 * with an arbitrary number of codepoints */
-                push_MVM_collation_values(tc, cps[j], stack, name);
+            if (last_good_i != i) {
+                //last_good_i + 1 - i + 1 // i - (last_good_i + 1) + 1
+                fprintf(stderr, "Calling collation_push_cp with remainder. cps[%i] to cps[%i]\n", last_good_i + 1, i);
+                /* Call collation_push_cp on the remainder of the unprocessed codepoints */
+                collation_push_cp(tc, stack, ci, cps + last_good_i + 1, i - (last_good_i + 1) + 1, name);
+            }
+            else {
+                fprintf(stderr, "last_good_i == i so we should be done here\n");
             }
         }
     }
     else {
-        rtrn = push_MVM_collation_values(tc, cp, stack, name);
+        rtrn = push_MVM_collation_values(tc, cps[0], stack, name);
     }
     return rtrn;
 }
 #define onexit_stack fprintf(stderr, "Grabbing from the stack. a_pushed %i b_pushed %i\n", *a_keys_pushed, *b_keys_pushed)
 
-int grab_from_stack
-(
-    MVMThreadContext *tc,
-    int *keys_pushed,
-    MVMCodepointIter *ci,
-    collation_stack *stack,
-    char *name
-)
-{
+int grab_from_stack(MVMThreadContext *tc, int *keys_pushed, MVMCodepointIter *ci,
+    collation_stack *stack, char *name) {
+
     fprintf(stderr, "Grabbing from the stack. %s_keys_pushed %i. stack_elems %i\n", name, *keys_pushed, stack->stack_top +1);
     if (!MVM_string_ci_has_more(tc, ci)) {
         return 0;
     }
-    *keys_pushed += collation_push_cp(tc, stack, ci, collation_push_from_iter, name);
+    *keys_pushed += collation_push_cp(tc, stack, ci, NULL, 0, name);
     fprintf(stderr, "Finished one grapheme grab to stack. %s_keys_pushed %i, stack_elems %i\n", name, *keys_pushed, stack->stack_top +1);
     return 1;
 }
 /* MVM_unicode_string_compare supports synthetic graphemes but in case we have
  * a codepoint without any collation value, we do not yet decompose it and
  * then use the decomposed codepoint's weights. */
-MVMint64 MVM_unicode_string_compare
-        (MVMThreadContext *tc, MVMString *a, MVMString *b,
+MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b,
          MVMint64 collation_mode, MVMint64 lang_mode, MVMint64 country_mode) {
     MVMStringIndex alen, blen;
     /* Iteration variables */
