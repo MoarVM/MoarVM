@@ -1575,7 +1575,10 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_sp_deref_get_n:
     case MVM_OP_set:
     case MVM_OP_getlex:
+    case MVM_OP_sp_getlex_o:
+    case MVM_OP_sp_getlex_ins:
     case MVM_OP_getlex_no:
+    case MVM_OP_sp_getlex_no:
     case MVM_OP_bindlex:
     case MVM_OP_getwhat:
     case MVM_OP_getwho:
@@ -1589,6 +1592,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_sp_fastcreate:
     case MVM_OP_iscont:
     case MVM_OP_decont:
+    case MVM_OP_sp_decont:
     case MVM_OP_sp_namedarg_used:
     case MVM_OP_sp_findmeth:
     case MVM_OP_hllboxtype_i:

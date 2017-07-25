@@ -94,7 +94,9 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
                 goto not_inlinable;
 
             /* If we have lexical access, make sure it's within the frame. */
-            if (ins->info->opcode == MVM_OP_getlex) {
+            if (ins->info->opcode == MVM_OP_getlex ||
+                    ins->info->opcode == MVM_OP_sp_getlex_o ||
+                    ins->info->opcode == MVM_OP_sp_getlex_ins) {
                 if (ins->operands[1].lex.outers > 0)
                     goto not_inlinable;
             }

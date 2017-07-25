@@ -596,13 +596,13 @@ static void optimize_hllize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
 static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     if (obj_facts->flags & (MVM_SPESH_FACT_DECONTED | MVM_SPESH_FACT_TYPEOBJ)) {
+        /* Know that we don't need to decont. */
         ins->info = MVM_op_get_op(MVM_OP_set);
-
         MVM_spesh_use_facts(tc, g, obj_facts);
-
         copy_facts(tc, g, ins->operands[0], ins->operands[1]);
     }
     else {
+        /* Can try to specialize the fetch if we know the type. */
         if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && obj_facts->type) {
             MVMSTable *stable = STABLE(obj_facts->type);
             MVMContainerSpec const *contspec = stable->container_spec;
@@ -612,6 +612,12 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
             }
         }
 
+        /* If the op is still a decont, then turn it into sp_decont, which
+         * will at least not write log entries. */
+        if (ins->info->opcode == MVM_OP_decont)
+            ins->info = MVM_op_get_op(MVM_OP_sp_decont);
+
+        /* Propagate facts. */
         if (!MVM_spesh_facts_decont_blocked_by_alias(tc, g, ins)) {
             MVMSpeshFacts *res_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
             int set_facts = 0;
@@ -934,6 +940,22 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
 
         MVM_spesh_use_facts(tc, g, facts);
     }
+}
+
+/* Turns a getlex instruction into getlex_o or getlex_ins depending on type;
+ * these get rid of some branching as well as don't log. */
+static void optimize_getlex(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMuint16 *lexical_types;
+    MVMuint16 i;
+    MVMStaticFrame *sf = g->sf;
+    for (i = 0; i < ins->operands[1].lex.outers; i++)
+        sf = sf->body.outer;
+    lexical_types = sf == g->sf && g->lexical_types
+        ? g->lexical_types
+        : sf->body.lexical_types;
+    ins->info = MVM_op_get_op(lexical_types[ins->operands[1].lex.idx] == MVM_reg_obj
+        ? MVM_OP_sp_getlex_o
+        : MVM_OP_sp_getlex_ins);
 }
 
 /* Transforms a late-bound lexical lookup into a constant. */
@@ -1652,6 +1674,13 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             break;
         case MVM_OP_assertparamcheck:
             optimize_assertparamcheck(tc, g, bb, ins);
+            break;
+        case MVM_OP_getlex:
+            optimize_getlex(tc, g, ins);
+            break;
+        case MVM_OP_getlex_no:
+            /* Use non-logging variant. */
+            ins->info = MVM_op_get_op(MVM_OP_sp_getlex_no);
             break;
         case MVM_OP_getlexstatic_o:
             optimize_getlex_known(tc, g, bb, ins);

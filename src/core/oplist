@@ -817,6 +817,13 @@ sp_guard         .s r(obj) sslot
 sp_guardconc     .s r(obj) sslot
 sp_guardtype     .s r(obj) sslot
 
+# These are variants of the normal interpreted ops that do not log. Used for
+# the case where we can't JIT-compile, but don't want to keep on logging.
+sp_decont        .s w(obj) r(obj) :pure :invokish
+sp_getlex_o      .s w(obj) rl(obj) :pure
+sp_getlex_ins    .s w(`1) rl(`1) :pure
+sp_getlex_no     .s w(obj) str :pure :noinline
+
 # Following are for fast, unchecked grabbing of args from the arg buffer.
 sp_getarg_o      .s w(obj) int16 :pure
 sp_getarg_i      .s w(obj) int16 :pure

@@ -433,7 +433,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], TMP1;
         break;
     }
-    case MVM_OP_getlex: {
+    case MVM_OP_getlex:
+    case MVM_OP_sp_getlex_o:
+    case MVM_OP_sp_getlex_ins: {
         MVMuint16 *lexical_types;
         MVMStaticFrame * sf = jg->sg->sf;
         MVMint16 dst = ins->operands[0].reg.orig;
@@ -482,7 +484,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], TMP5;
         break;
     }
-    case MVM_OP_getlex_no: {
+    case MVM_OP_getlex_no:
+    case MVM_OP_sp_getlex_no: {
         MVMint16  dst = ins->operands[0].reg.orig;
         MVMuint32 idx = ins->operands[1].lit_str_idx;
         | mov ARG1, TC;
@@ -1383,7 +1386,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov aword WORK[dst], RV; // store in local register
         break;
     }
-    case MVM_OP_decont: {
+    case MVM_OP_decont:
+    case MVM_OP_sp_decont: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
         | mov TMP5, WORK[src];

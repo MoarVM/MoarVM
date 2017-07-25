@@ -5166,6 +5166,55 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_spesh_deopt_one(tc);
                 goto NEXT;
             }
+            OP(sp_decont): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVMRegister *r = &GET_REG(cur_op, 0);
+                cur_op += 4;
+                if (obj && IS_CONCRETE(obj) && STABLE(obj)->container_spec)
+                    STABLE(obj)->container_spec->fetch(tc, obj, r);
+                else
+                    r->o = obj;
+                goto NEXT;
+            }
+            OP(sp_getlex_o): {
+                MVMFrame *f = tc->cur_frame;
+                MVMuint16 idx = GET_UI16(cur_op, 2);
+                MVMuint16 outers = GET_UI16(cur_op, 4);
+                MVMRegister found;
+                while (outers) {
+                    if (!f->outer)
+                        MVM_exception_throw_adhoc(tc, "getlex: outer index out of range");
+                    f = f->outer;
+                    outers--;
+                }
+                found = GET_LEX(cur_op, 2, f);
+                GET_REG(cur_op, 0).o = found.o == NULL
+                    ? MVM_frame_vivify_lexical(tc, f, idx)
+                    : found.o;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_getlex_ins): {
+                MVMFrame *f = tc->cur_frame;
+                MVMuint16 idx = GET_UI16(cur_op, 2);
+                MVMuint16 outers = GET_UI16(cur_op, 4);
+                while (outers) {
+                    if (!f->outer)
+                        MVM_exception_throw_adhoc(tc, "getlex: outer index out of range");
+                    f = f->outer;
+                    outers--;
+                }
+                GET_REG(cur_op, 0) = GET_LEX(cur_op, 2, f);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_getlex_no): {
+                MVMRegister *found = MVM_frame_find_lexical_by_name(tc,
+                    MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)), MVM_reg_obj);
+                GET_REG(cur_op, 0).o = found ? found->o : tc->instance->VMNull;
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_getarg_o):
                 GET_REG(cur_op, 0).o = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].o;
                 cur_op += 4;
