@@ -83,6 +83,8 @@ MVMint16 MVM_nativecall_get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMi
         result = MVM_NATIVECALL_ARG_CPOINTER | get_rw_flag(tc, info);
     else if (strcmp(ctypename, "carray") == 0)
         result = MVM_NATIVECALL_ARG_CARRAY;
+    else if (strcmp(ctypename, "cstructarray") == 0)
+        result = MVM_NATIVECALL_ARG_CSTRUCTARRAY;
     else if (strcmp(ctypename, "cunion") == 0)
         result = MVM_NATIVECALL_ARG_CUNION;
     else if (strcmp(ctypename, "vmarray") == 0)
@@ -212,6 +214,19 @@ MVMObject * MVM_nativecall_make_carray(MVMThreadContext *tc, MVMObject *type, vo
     return result;
 }
 
+/* Constructs a boxed result using a CStructArray REPR type. */
+MVMObject * MVM_nativecall_make_cstructarray(MVMThreadContext *tc, MVMObject *type, void *cstructarray) {
+    MVMObject *result = type;
+    if (cstructarray && type) {
+        if (REPR(type)->ID != MVM_REPR_ID_MVMCStructArray)
+            MVM_exception_throw_adhoc(tc,
+                "Native call expected return type with CStructArray representation, but got a %s (%s)", REPR(type)->name, STABLE(type)->debug_name);
+        result = REPR(type)->allocate(tc, STABLE(type));
+        ((MVMCStructArray *)result)->body.storage = cstructarray;
+    }
+    return result;
+}
+
 signed char MVM_nativecall_unmarshal_char(MVMThreadContext *tc, MVMObject *value) {
     return (signed char)MVM_repr_get_int(tc, value);
 }
@@ -333,6 +348,17 @@ void * MVM_nativecall_unmarshal_carray(MVMThreadContext *tc, MVMObject *value) {
         MVM_exception_throw_adhoc(tc,
             "Native call expected return type with CArray representation, but got a %s (%s)", REPR(value)->name, STABLE(value)->debug_name);
 }
+
+void * MVM_nativecall_unmarshal_cstructarray(MVMThreadContext *tc, MVMObject *value) {
+    if (!IS_CONCRETE(value))
+        return NULL;
+    else if (REPR(value)->ID == MVM_REPR_ID_MVMCStructArray)
+        return ((MVMCStructArray *)value)->body.storage;
+    else
+        MVM_exception_throw_adhoc(tc,
+            "Native call expected return type with CStructArray representation, but got a %s (%s)", REPR(value)->name, STABLE(value)->debug_name);
+}
+
 
 void * MVM_nativecall_unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value) {
     if (!IS_CONCRETE(value))
@@ -592,6 +618,10 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
                     result = MVM_nativecall_make_carray(tc, target_type, (void *)cpointer_body);
                     break;
                 }
+                case MVM_REPR_ID_MVMCStructArray: {
+                    result = MVM_nativecall_make_cstructarray(tc, target_type, (void *)cpointer_body);
+                    break;
+                }
                 default:
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled target type");
             }
@@ -654,11 +684,13 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
         data_body = MVM_nativecall_unmarshal_cpointer(tc, source);
     else if (REPR(source)->ID == MVM_REPR_ID_MVMCArray)
         data_body = MVM_nativecall_unmarshal_carray(tc, source);
+    else if (REPR(source)->ID == MVM_REPR_ID_MVMCStructArray)
+        data_body = MVM_nativecall_unmarshal_cstructarray(tc, source);
     else if (REPR(source)->ID == MVM_REPR_ID_VMArray)
         data_body = MVM_nativecall_unmarshal_vmarray(tc, source);
     else
         MVM_exception_throw_adhoc(tc,
-            "Native call expected return type with CPointer, CStruct, CArray, or VMArray representation, but got a %s (%s)", REPR(source)->name, STABLE(source)->debug_name);
+            "Native call expected return type with CPointer, CStruct, CArray, CStructArray, or VMArray representation, but got a %s (%s)", REPR(source)->name, STABLE(source)->debug_name);
     return nativecall_cast(tc, target_spec, target_type, data_body);
 }
 
@@ -675,12 +707,13 @@ MVMint64 MVM_nativecall_sizeof(MVMThreadContext *tc, MVMObject *obj) {
         return ((MVMP6numREPRData *)STABLE(obj)->REPR_data)->bits / 8;
     else if (REPR(obj)->ID == MVM_REPR_ID_MVMCPointer
           || REPR(obj)->ID == MVM_REPR_ID_MVMCArray
+          || REPR(obj)->ID == MVM_REPR_ID_MVMCStructArray
           || REPR(obj)->ID == MVM_REPR_ID_MVMCStr
           || REPR(obj)->ID == MVM_REPR_ID_P6str)
         return sizeof(void *);
     else
         MVM_exception_throw_adhoc(tc,
-            "NativeCall op sizeof expected type with CPointer, CStruct, CArray, P6int or P6num representation, but got a %s (%s)",
+            "NativeCall op sizeof expected type with CPointer, CStruct, CArray, CStructArray, P6int or P6num representation, but got a %s (%s)",
             REPR(obj)->name, STABLE(obj)->debug_name);
 }
 
@@ -714,6 +747,9 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                 switch (repr_data->elem_kind) {
                     case MVM_CARRAY_ELEM_KIND_CARRAY:
                         objptr = ((MVMCArrayBody *)OBJECT_BODY(body->child_objs[i]))->storage;
+                        break;
+                    case MVM_CARRAY_ELEM_KIND_CSTRUCTARRAY:
+                        objptr = ((MVMCStructArrayBody *)OBJECT_BODY(body->child_objs[i]))->storage;
                         break;
                     case MVM_CARRAY_ELEM_KIND_CPOINTER:
                         objptr = ((MVMCPointerBody *)OBJECT_BODY(body->child_objs[i]))->ptr;
@@ -764,6 +800,9 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                     case MVM_CSTRUCT_ATTR_CARRAY:
                         objptr = ((MVMCArrayBody *)OBJECT_BODY(body->child_objs[slot]))->storage;
                         break;
+                    case MVM_CSTRUCT_ATTR_CSTRUCTARRAY:
+                        objptr = ((MVMCStructArrayBody *)OBJECT_BODY(body->child_objs[slot]))->storage;
+                        break;
                     case MVM_CSTRUCT_ATTR_CPTR:
                         objptr = ((MVMCPointerBody *)OBJECT_BODY(body->child_objs[slot]))->ptr;
                         break;
@@ -812,6 +851,9 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                 switch (kind) {
                     case MVM_CPPSTRUCT_ATTR_CARRAY:
                         objptr = ((MVMCArrayBody *)OBJECT_BODY(body->child_objs[slot]))->storage;
+                        break;
+                    case MVM_CPPSTRUCT_ATTR_CSTRUCTARRAY:
+                        objptr = ((MVMCStructArrayBody *)OBJECT_BODY(body->child_objs[slot]))->storage;
                         break;
                     case MVM_CPPSTRUCT_ATTR_CPTR:
                         objptr = ((MVMCPointerBody *)OBJECT_BODY(body->child_objs[slot]))->ptr;

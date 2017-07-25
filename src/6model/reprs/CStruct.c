@@ -196,6 +196,12 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CSTRUCT_ATTR_SHIFT) | MVM_CSTRUCT_ATTR_CARRAY;
                     repr_data->member_types[i] = type;
                 }
+                else if (type_id == MVM_REPR_ID_MVMCStructArray) {
+                    /* It's a CStructArray of some kind.  */
+                    repr_data->num_child_objs++;
+                    repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CSTRUCT_ATTR_SHIFT) | MVM_CSTRUCT_ATTR_CSTRUCTARRAY;
+                    repr_data->member_types[i] = type;
+                }
                 else if (type_id == MVM_REPR_ID_MVMCStruct) {
                     /* It's a CStruct. */
                     repr_data->num_child_objs++;
@@ -242,7 +248,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     MVM_exception_throw_adhoc(tc,
                         "CStruct representation only handles attributes of type:\n"
                         "  (u)int8, (u)int16, (u)int32, (u)int64, (u)long, (u)longlong, num32, num64, (s)size_t, bool, Str\n"
-                        "  and types with representation: CArray, CPointer, CStruct, CPPStruct and CUnion");
+                        "  and types with representation: CArray, CStructArray, CPointer, CStruct, CPPStruct and CUnion");
                 }
             }
             else {
@@ -410,6 +416,9 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                         if (type == MVM_CSTRUCT_ATTR_CARRAY) {
                             obj = MVM_nativecall_make_carray(tc, typeobj, cobj);
                         }
+                        else if (type == MVM_CSTRUCT_ATTR_CSTRUCTARRAY) {
+                            obj = MVM_nativecall_make_cstructarray(tc, typeobj, cobj);
+                        }
                         else if(type == MVM_CSTRUCT_ATTR_CSTRUCT) {
                             if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
                                 obj = MVM_nativecall_make_cstruct(tc, typeobj,
@@ -523,6 +532,12 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                             MVM_exception_throw_adhoc(tc,
                                 "Can only store CArray attribute in CArray slot in CStruct");
                         cobj = ((MVMCArray *)value)->body.storage;
+                    }
+                    if (type == MVM_CSTRUCT_ATTR_CSTRUCTARRAY) {
+                        if (REPR(value)->ID != MVM_REPR_ID_MVMCStructArray)
+                            MVM_exception_throw_adhoc(tc,
+                                "Can only store CStructArray attribute in CStructArray slot in CStruct");
+                        cobj = ((MVMCStructArray *)value)->body.storage;
                     }
                     else if (type == MVM_CSTRUCT_ATTR_CSTRUCT) {
                         if (REPR(value)->ID != MVM_REPR_ID_MVMCStruct)

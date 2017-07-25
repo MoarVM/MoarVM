@@ -57,6 +57,7 @@ static char get_signature_char(MVMint16 type_id) {
         case MVM_NATIVECALL_ARG_CSTRUCT:
         case MVM_NATIVECALL_ARG_CPOINTER:
         case MVM_NATIVECALL_ARG_CARRAY:
+        case MVM_NATIVECALL_ARG_CSTRUCTARRAY:
         case MVM_NATIVECALL_ARG_CUNION:
         case MVM_NATIVECALL_ARG_VMARRAY:
         case MVM_NATIVECALL_ARG_CALLBACK:
@@ -290,6 +291,11 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
                 num_roots++;
                 break;
+            case MVM_NATIVECALL_ARG_CSTRUCTARRAY:
+                args[i - 1].o = MVM_nativecall_make_cstructarray(tc, type,
+                    dcbArgPointer(cb_args));
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
+                num_roots++;
             case MVM_NATIVECALL_ARG_CUNION:
                 args[i - 1].o = MVM_nativecall_make_cunion(tc, type,
                     dcbArgPointer(cb_args));
@@ -405,6 +411,9 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
             break;
         case MVM_NATIVECALL_ARG_CARRAY:
             cb_result->p = MVM_nativecall_unmarshal_carray(tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_CSTRUCTARRAY:
+            cb_result->p = MVM_nativecall_unmarshal_cstructarray(data->tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_CUNION:
             cb_result->p = MVM_nativecall_unmarshal_cunion(tc, res.o);
@@ -582,6 +591,9 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
             case MVM_NATIVECALL_ARG_CARRAY:
                 dcArgPointer(vm, MVM_nativecall_unmarshal_carray(tc, value));
                 break;
+            case MVM_NATIVECALL_ARG_CSTRUCTARRAY:
+                dcArgPointer(vm, MVM_nativecall_unmarshal_cstructarray(tc, value));
+                break;
             case MVM_NATIVECALL_ARG_CUNION:
                 dcArgPointer(vm, MVM_nativecall_unmarshal_cunion(tc, value));
                 break;
@@ -701,6 +713,12 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     void *native_result = dcCallPointer(vm, body->entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_carray(tc, res_type, native_result);
+                    break;
+                }
+                case MVM_NATIVECALL_ARG_CSTRUCTARRAY: {
+                    void *native_result = dcCallPointer(vm, body->entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_cstructarray(tc, res_type, native_result);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CUNION: {

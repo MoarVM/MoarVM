@@ -227,6 +227,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(CPointer);
     register_core_repr(CStr);
     register_core_repr(CArray);
+    register_core_repr(CStructArray);
     register_core_repr(CStruct);
     register_core_repr(CUnion);
     register_core_repr(ReentrantMutex);
