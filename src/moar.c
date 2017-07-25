@@ -18,6 +18,13 @@
         exit(1); \
     } \
 } while (0)
+#define init_cond(loc, name) do { \
+    if ((init_stat = uv_cond_init(&loc)) < 0) { \
+        fprintf(stderr, "MoarVM: Initialization of " name " condition variable failed\n    %s\n", \
+            uv_strerror(init_stat)); \
+        exit(1); \
+    } \
+} while (0)
 
 static void setup_std_handles(MVMThreadContext *tc);
 
@@ -88,6 +95,12 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->permroots             = MVM_malloc(sizeof(MVMCollectable **) * instance->alloc_permroots);
     instance->permroot_descriptions = MVM_malloc(sizeof(char *) * instance->alloc_permroots);
     init_mutex(instance->mutex_permroots, "permanent roots");
+
+    /* GC orchestration state. */
+    init_mutex(instance->mutex_gc_orchestrate, "GC orchestration");
+    init_cond(instance->cond_gc_start, "GC start");
+    init_cond(instance->cond_gc_finish, "GC finish");
+    init_cond(instance->cond_gc_ack, "GC ack");
 
     /* Create fixed size allocator. */
     instance->fsa = MVM_fixed_size_create(instance->main_thread);
@@ -423,10 +436,14 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_HASH_DESTROY(hash_handle, MVMReprRegistry, instance->repr_hash);
     MVM_free(instance->repr_list);
 
-    /* Clean up GC permanent roots related resources. */
+    /* Clean up GC related resources. */
     uv_mutex_destroy(&instance->mutex_permroots);
     MVM_free(instance->permroots);
     MVM_free(instance->permroot_descriptions);
+    uv_cond_destroy(&instance->cond_gc_start);
+    uv_cond_destroy(&instance->cond_gc_finish);
+    uv_cond_destroy(&instance->cond_gc_ack);
+    uv_mutex_destroy(&instance->mutex_gc_orchestrate);
 
     /* Clean up Hash of HLLConfig. */
     uv_mutex_destroy(&instance->mutex_hllconfigs);

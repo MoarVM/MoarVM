@@ -148,17 +148,27 @@ struct MVMInstance {
      * is fine since only equality ever matters. */
     AO_t gc_seq_number;
 
-    /* The number of threads that vote for starting GC. */
-    AO_t gc_start;
+    /* Mutex used to protect GC orchestration state, and held to wait on or
+     * signal condition variable changes. */
+    uv_mutex_t mutex_gc_orchestrate;
 
-    /* The number of threads that still need to vote for considering GC done. */
+    /* The number of threads that vote for starting GC, and condition variable
+     * for when it changes. */
+    AO_t gc_start;
+    uv_cond_t cond_gc_start;
+
+    /* The number of threads that still need to vote for considering GC done,
+     * and condition variable for when it changes. */
     AO_t gc_finish;
+    uv_cond_t cond_gc_finish;
 
     /* Whether the coordinator considers all in-trays clear. */
     AO_t gc_intrays_clearing;
 
-    /* The number of threads that have yet to acknowledge the finish. */
+    /* The number of threads that have yet to acknowledge the finish, and
+     * condition variable for when it changes. */
     AO_t gc_ack;
+    uv_cond_t cond_gc_ack;
 
     /* Linked list (via forwarder) of STables to free. */
     MVMSTable *stables_to_free;
