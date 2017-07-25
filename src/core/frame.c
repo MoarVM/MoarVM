@@ -452,7 +452,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
         /* If we should be spesh logging, set the correlation ID. */
         frame->spesh_correlation_id = 0;
-        if (tc->instance->spesh_enabled) {
+        if (tc->instance->spesh_enabled && tc->spesh_log) {
             if (static_frame->body.spesh_entries_recorded++ < MVM_SPESH_LOG_LOGGED_ENOUGH) {
                 MVMint32 id = ++tc->spesh_cid;
                 frame->spesh_correlation_id = id;
