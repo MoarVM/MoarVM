@@ -135,13 +135,12 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
 
     /* Decrement gc_finish to say we're done, and wait for termination. */
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Voting to finish\n");
+    uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
     MVM_decr(&tc->instance->gc_finish);
-    while (MVM_load(&tc->instance->gc_finish)) {
-        for (i = 0; i < 1000; i++)
-            ; /* XXX Something HT-efficienter. */
-        /* XXX Here we can look to see if we got passed any work, and if so
-         * try to un-vote. */
-    }
+    uv_cond_broadcast(&tc->instance->cond_gc_finish);
+    while (MVM_load(&tc->instance->gc_finish))
+        uv_cond_wait(&tc->instance->cond_gc_finish, &tc->instance->mutex_gc_orchestrate);
+    uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Termination agreed\n");
 
     /* Co-ordinator should do final check over all the in-trays, and trigger
@@ -426,7 +425,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
             uv_cond_wait(&tc->instance->cond_gc_start, &tc->instance->mutex_gc_orchestrate);
         uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
 
-        /* Sanity checks finish votes. */
+        /* Sanity check finish votes. */
         if (MVM_load(&tc->instance->gc_finish) != 0)
             MVM_panic(MVM_exitcode_gcorch, "Finish votes was %"MVM_PRSz"\n",
                 MVM_load(&tc->instance->gc_finish));
