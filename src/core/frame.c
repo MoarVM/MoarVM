@@ -317,6 +317,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand) {
     MVMFrame *frame;
     MVMuint32 found_spesh;
+    MVMuint8 *chosen_bytecode;
 
     /* If the frame was never invoked before, or never before at the current
      * instrumentation level, we need to trigger the instrumentation level
@@ -411,11 +412,11 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMSpeshCandidate *chosen_cand = static_frame->body.spesh_candidates[spesh_cand];
         frame = allocate_frame(tc, static_frame, chosen_cand);
         if (chosen_cand->jitcode) {
-            frame->effective_bytecode = chosen_cand->jitcode->bytecode;
-            frame->jit_entry_label    = chosen_cand->jitcode->labels[0];
+            chosen_bytecode = frame->effective_bytecode = chosen_cand->jitcode->bytecode;
+            frame->jit_entry_label = chosen_cand->jitcode->labels[0];
         }
         else {
-            frame->effective_bytecode = chosen_cand->bytecode;
+            chosen_bytecode = frame->effective_bytecode = chosen_cand->bytecode;
         }
         frame->effective_spesh_slots = chosen_cand->spesh_slots;
         frame->spesh_cand            = chosen_cand;
@@ -431,11 +432,11 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         if (chosen_cand) {
             frame = allocate_frame(tc, static_frame, chosen_cand);
             if (chosen_cand->jitcode) {
-                frame->effective_bytecode = chosen_cand->jitcode->bytecode;
+                chosen_bytecode = frame->effective_bytecode = chosen_cand->jitcode->bytecode;
                 frame->jit_entry_label    = chosen_cand->jitcode->labels[0];
             }
             else {
-                frame->effective_bytecode = chosen_cand->bytecode;
+                chosen_bytecode = frame->effective_bytecode = chosen_cand->bytecode;
             }
             frame->effective_spesh_slots = chosen_cand->spesh_slots;
             frame->spesh_cand            = chosen_cand;
@@ -444,7 +445,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     }
     if (!found_spesh) {
         frame = allocate_frame(tc, static_frame, NULL);
-        frame->effective_bytecode = static_frame->body.bytecode;
+        chosen_bytecode = frame->effective_bytecode = static_frame->body.bytecode;
 
         /* If we should be spesh logging, set the correlation ID. */
         frame->spesh_correlation_id = 0;
@@ -482,8 +483,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
      * frame. */
     tc->cur_frame = frame;
     tc->current_frame_nr = frame->sequence_nr;
-    *(tc->interp_cur_op) = frame->effective_bytecode;
-    *(tc->interp_bytecode_start) = frame->effective_bytecode;
+    *(tc->interp_cur_op) = chosen_bytecode;
+    *(tc->interp_bytecode_start) = chosen_bytecode;
     *(tc->interp_reg_base) = frame->work;
     *(tc->interp_cu) = static_frame->body.cu;
 
