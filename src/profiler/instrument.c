@@ -245,6 +245,10 @@ void MVM_profile_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
          * instrumented versions. */
         sf->body.num_spesh_candidates = 0;
         sf->body.spesh_candidates     = NULL;
+        if (sf->body.spesh_arg_guard) {
+            MVM_spesh_arg_guard_destroy(tc, sf->body.spesh_arg_guard, 1);
+            sf->body.spesh_arg_guard = NULL;
+        }
     }
 }
 
