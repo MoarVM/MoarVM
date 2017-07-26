@@ -92,7 +92,7 @@ static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
     MVMuint32  i;
     if (f->spesh_cand && f->spesh_cand->jitcode && f->jit_entry_label) {
         MVMJitHandler    *jhs = f->spesh_cand->jitcode->handlers;
-        MVMFrameHandler  *fhs = f->effective_handlers;
+        MVMFrameHandler  *fhs = MVM_frame_effective_handlers(f);
         MVMint32 num_handlers = f->spesh_cand->jitcode->num_handlers;
         void         **labels = f->spesh_cand->jitcode->labels;
         void       *cur_label = f->jit_entry_label;
@@ -119,7 +119,7 @@ static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
         else
             pc = (MVMuint32)(f->return_address - f->effective_bytecode);
         for (i = 0; i < num_handlers; i++) {
-            MVMFrameHandler  *fh = &f->effective_handlers[i];
+            MVMFrameHandler  *fh = &(MVM_frame_effective_handlers(f)[i]);
             if (mode == MVM_EX_THROW_LEX && fh->inlined_and_not_lexical)
                 continue;
             if (!handler_can_handle(f, fh, cat, payload))
@@ -702,13 +702,13 @@ MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset) {
     MVMFrame       *f     = tc->cur_frame;
     MVMStaticFrame *sf    = f->static_info;
     MVMint32 handler_idx  = -1;
+    MVMFrameHandler *fhs = MVM_frame_effective_handlers(f);
     MVMint32 num_handlers = f->spesh_cand
         ? f->spesh_cand->num_handlers
         : sf->body.num_handlers;
     MVMuint32 i;
     for (i = 0; i < num_handlers; i++) {
-        if (f->effective_handlers[i].action == MVM_EX_ACTION_GOTO &&
-                f->effective_handlers[i].goto_offset == offset) {
+        if (fhs[i].action == MVM_EX_ACTION_GOTO && fhs[i].goto_offset == offset) {
             handler_idx = i;
             break;
         }
@@ -726,10 +726,10 @@ MVMObject * MVM_exception_newlexotic_from_jit(MVMThreadContext *tc, MVMint32 lab
     MVMint32 handler_idx    = -1;
     MVMint32 num_handlers   = f->spesh_cand->jitcode->num_handlers;
     MVMJitHandler *handlers = f->spesh_cand->jitcode->handlers;
+    MVMFrameHandler *fhs = MVM_frame_effective_handlers(f);
     MVMuint32 i;
     for (i = 0; i < num_handlers; i++) {
-        if (f->effective_handlers[i].action == MVM_EX_ACTION_GOTO &&
-            handlers[i].goto_label == label) {
+        if (fhs[i].action == MVM_EX_ACTION_GOTO && handlers[i].goto_label == label) {
             handler_idx = i;
             break;
         }
@@ -759,7 +759,7 @@ void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMint32 handler_idx, MVMSt
     if (f && in_caller_chain(tc, f)) {
         LocatedHandler lh;
         lh.frame = f;
-        lh.handler = &(f->effective_handlers[handler_idx]);
+        lh.handler = &(MVM_frame_effective_handlers(f)[handler_idx]);
         if (f->spesh_cand && f->spesh_cand->jitcode)
             lh.jit_handler = &(f->spesh_cand->jitcode->handlers[handler_idx]);
         else
