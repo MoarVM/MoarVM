@@ -36,7 +36,7 @@ static const MVMOpInfo * get_op_info(MVMThreadContext *tc, MVMCompUnit *cu, MVMu
 /* Records a de-optimization annotation and mapping pair. */
 static void add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins_node,
                                  MVMuint8 *pc, MVMint32 type) {
-    /* Add an the annotations. */
+    /* Add an annotations. */
     MVMSpeshAnn *ann      = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
     ann->type             = type;
     ann->data.deopt_idx   = g->num_deopt_addrs;
@@ -54,6 +54,17 @@ static void add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     }
     g->deopt_addrs[2 * g->num_deopt_addrs] = pc - g->bytecode;
     g->num_deopt_addrs++;
+}
+
+/* Records the current bytecode position as a logged annotation. Used for
+ * resolving logged values. */
+static void add_logged_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins_node,
+                                  MVMuint8 *pc) {
+    MVMSpeshAnn *ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+    ann->type = MVM_SPESH_ANN_LOGGED;
+    ann->data.bytecode_offset = pc - g->bytecode;
+    ann->next = ins_node->annotations;
+    ins_node->annotations = ann;
 }
 
 /* Finds the linearly previous basic block (not cheap, but uncommon). */
@@ -107,6 +118,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     MVMuint32    ins_idx  = 0;
     MVMuint8     next_bbs = 1; /* Next iteration (here, first) starts a BB. */
     MVMuint32    lineno_ann_offs = 0;
+    MVMuint32    num_osr_points = 0;
 
     MVMBytecodeAnnotation *ann_ptr = MVM_bytecode_resolve_annotation(tc, &sf->body, sf->body.bytecode - pc);
 
@@ -263,7 +275,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
         }
 
-        /* Invocations, returns, and throws are basic block ends. */
+        /* Invocations, returns, and throws are basic block ends. OSR points
+         * are basic block starts. */
         switch (opcode) {
         case MVM_OP_invoke_v:
         case MVM_OP_invoke_i:
@@ -287,6 +300,15 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
             next_bbs = 1;
             break;
+        case MVM_OP_osrpoint:
+            byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_START;
+            if (pc - g->bytecode > 0) {
+                MVMuint32 prev = pc - g->bytecode;
+                while (!byte_to_ins_flags[--prev]);
+                byte_to_ins_flags[prev] |= MVM_CFG_BB_END;
+            }
+            num_osr_points++;
+            break;
         default:
             break;
         }
@@ -294,6 +316,11 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         /* Final instruction is basic block end. */
         if (pc + 2 + arg_size == end)
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
+
+        /* If the instruction is logged, store its program counter so we can
+         * associate it with a static value later. */
+        if (info->logged)
+            add_logged_annotation(tc, g, ins_node, pc);
 
         /* Caculate next instruction's PC. */
         pc += 2 + arg_size;
@@ -432,14 +459,23 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     cur_bb = g->entry;
     while (cur_bb) {
         /* If it's the first block, it's a special case; successors are the
-         * real successor and all exception handlers. */
+         * real successor, all exception handlers, and all OSR points. */
         if (cur_bb == g->entry) {
-            cur_bb->num_succ = 1 + g->num_handlers;
+            MVMint32 insert_pos = 1;
+            cur_bb->num_succ = 1 + g->num_handlers + num_osr_points;
             cur_bb->succ     = MVM_spesh_alloc(tc, g, cur_bb->num_succ * sizeof(MVMSpeshBB *));
             cur_bb->succ[0]  = cur_bb->linear_next;
             for (i = 0; i < g->num_handlers; i++) {
                 MVMuint32 offset = g->handlers[i].goto_offset;
-                cur_bb->succ[i + 1] = ins_to_bb[byte_to_ins_flags[offset] >> 3];
+                cur_bb->succ[insert_pos++] = ins_to_bb[byte_to_ins_flags[offset] >> 3];
+            }
+            if (num_osr_points > 0) {
+                MVMSpeshBB *search_bb = cur_bb->linear_next;
+                while (search_bb) {
+                    if (search_bb->first_ins->info->opcode == MVM_OP_osrpoint)
+                        cur_bb->succ[insert_pos++] = search_bb;
+                    search_bb = search_bb->linear_next;
+                }
             }
         }
 

@@ -596,13 +596,13 @@ static void optimize_hllize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
 static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     if (obj_facts->flags & (MVM_SPESH_FACT_DECONTED | MVM_SPESH_FACT_TYPEOBJ)) {
+        /* Know that we don't need to decont. */
         ins->info = MVM_op_get_op(MVM_OP_set);
-
         MVM_spesh_use_facts(tc, g, obj_facts);
-
         copy_facts(tc, g, ins->operands[0], ins->operands[1]);
     }
     else {
+        /* Can try to specialize the fetch if we know the type. */
         if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && obj_facts->type) {
             MVMSTable *stable = STABLE(obj_facts->type);
             MVMContainerSpec const *contspec = stable->container_spec;
@@ -612,6 +612,12 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
             }
         }
 
+        /* If the op is still a decont, then turn it into sp_decont, which
+         * will at least not write log entries. */
+        if (ins->info->opcode == MVM_OP_decont)
+            ins->info = MVM_op_get_op(MVM_OP_sp_decont);
+
+        /* Propagate facts. */
         if (!MVM_spesh_facts_decont_blocked_by_alias(tc, g, ins)) {
             MVMSpeshFacts *res_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
             int set_facts = 0;
@@ -936,51 +942,111 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
     }
 }
 
-/* Checks if we have specialized on the invocant - useful to know for some
- * optimizations. */
-static MVMint32 specialized_on_invocant(MVMThreadContext *tc, MVMSpeshGraph *g) {
-    MVMint32 i;
-    for (i = 0; i < g->num_arg_guards; i++)
-        if (g->arg_guards[i].slot == 0)
-            return 1;
-    return 0;
+/* Turns a getlex instruction into getlex_o or getlex_ins depending on type;
+ * these get rid of some branching as well as don't log. */
+static void optimize_getlex(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMuint16 *lexical_types;
+    MVMuint16 i;
+    MVMStaticFrame *sf = g->sf;
+    for (i = 0; i < ins->operands[1].lex.outers; i++)
+        sf = sf->body.outer;
+    lexical_types = sf == g->sf && g->lexical_types
+        ? g->lexical_types
+        : sf->body.lexical_types;
+    ins->info = MVM_op_get_op(lexical_types[ins->operands[1].lex.idx] == MVM_reg_obj
+        ? MVM_OP_sp_getlex_o
+        : MVM_OP_sp_getlex_ins);
+}
+
+/* Transforms a late-bound lexical lookup into a constant. */
+static void lex_to_constant(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+                            MVMObject *log_obj) {
+    MVMSpeshFacts *facts;
+
+    /* Place in a spesh slot. */
+    MVMuint16 ss = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+        (MVMCollectable *)log_obj);
+
+    /* Transform lookup instruction into spesh slot read. */
+    MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
+    ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+    ins->operands[1].lit_i16 = ss;
+
+    /* Set up facts. */
+    facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+    facts->flags  |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_KNOWN_VALUE;
+    facts->type    = STABLE(log_obj)->WHAT;
+    facts->value.o = log_obj;
+    if (IS_CONCRETE(log_obj)) {
+        facts->flags |= MVM_SPESH_FACT_CONCRETE;
+        if (!STABLE(log_obj)->container_spec)
+            facts->flags |= MVM_SPESH_FACT_DECONTED;
+    }
+    else {
+        facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
+    }
 }
 
 /* Optimizes away a lexical lookup when we know the value won't change from
  * the logged one. */
 static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                   MVMSpeshIns *ins) {
-    /* Ensure we have a log instruction following this one. */
-    if (ins->next && ins->next->info->opcode == MVM_OP_sp_log) {
-        /* Locate logged object. */
-        MVMuint16       log_slot = ins->next->operands[1].lit_i16 * MVM_SPESH_LOG_RUNS;
-        MVMCollectable *log_obj  = g->log_slots[log_slot];
-        if (log_obj) {
-            MVMSpeshFacts *facts;
-
-            /* Place in a spesh slot. */
-            MVMuint16 ss = MVM_spesh_add_spesh_slot_try_reuse(tc, g, log_obj);
-
-            /* Delete logging instruction. */
-            MVM_spesh_manipulate_delete_ins(tc, g, bb, ins->next);
-
-            /* Transform lookup instruction into spesh slot read. */
-            MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
-            ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
-            ins->operands[1].lit_i16 = ss;
-
-            /* Set up facts. */
-            facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
-            facts->flags  |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_KNOWN_VALUE;
-            facts->type    = STABLE(log_obj)->WHAT;
-            facts->value.o = (MVMObject *)log_obj;
-            if (IS_CONCRETE(log_obj)) {
-                facts->flags |= MVM_SPESH_FACT_CONCRETE;
-                if (!STABLE(log_obj)->container_spec)
-                    facts->flags |= MVM_SPESH_FACT_DECONTED;
+    /* Try to find logged offset. */
+    MVMSpeshAnn *ann = ins->annotations;
+    while (ann) {
+        if (ann->type == MVM_SPESH_ANN_LOGGED)
+            break;
+        ann = ann->next;
+    }
+    if (ann) {
+        /* See if we can find a logged static value. */
+        MVMSpeshStats *ss = g->sf->body.spesh_stats;
+        MVMuint32 n = ss->num_static_values;
+        MVMuint32 i;
+        for (i = 0; i < n; i++) {
+            if (ss->static_values[i].bytecode_offset == ann->data.bytecode_offset) {
+                MVMObject *log_obj = ss->static_values[i].value;
+                if (log_obj)
+                    lex_to_constant(tc, g, ins, log_obj);
+                return;
             }
-            else {
-                facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
+        }
+    }
+}
+
+/* Optimizes away a lexical lookup when we know the value won't change for a
+ * given invocant type (this relies on us being in a typed specialization). */
+static void optimize_getlex_per_invocant(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                         MVMSpeshBB *bb, MVMSpeshIns *ins,
+                                         MVMSpeshPlanned *p) {
+    MVMSpeshAnn *ann;
+
+    /* Can only do this when we've specialized on the first argument type. */
+    if (!g->specialized_on_invocant)
+        return;
+
+    /* Try to find logged offset. */
+    ann = ins->annotations;
+    while (ann) {
+        if (ann->type == MVM_SPESH_ANN_LOGGED)
+            break;
+        ann = ann->next;
+    }
+    if (ann) {
+        MVMuint32 i;
+        for (i = 0; i < p->num_type_stats; i++) {
+            MVMSpeshStatsByType *ts = p->type_stats[i];
+            MVMuint32 j;
+            for (j = 0; j < ts->num_by_offset; j++) {
+                if (ts->by_offset[j].bytecode_offset == ann->data.bytecode_offset) {
+                    if (ts->by_offset[j].num_types) {
+                        MVMObject *log_obj = ts->by_offset[j].types[0].type;
+                        if (log_obj && !ts->by_offset[j].types[0].type_concrete)
+                            lex_to_constant(tc, g, ins, log_obj);
+                        return;
+                    }
+                    break;
+                }
             }
         }
     }
@@ -990,73 +1056,7 @@ static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
  * set of argument info. */
 static MVMint32 try_find_spesh_candidate(MVMThreadContext *tc, MVMCode *code, MVMSpeshCallInfo *arg_info) {
     MVMStaticFrameBody *sfb = &(code->body.sf->body);
-    MVMint32 num_spesh      = sfb->num_spesh_candidates;
-    MVMint32 i, j;
-    for (i = 0; i < num_spesh; i++) {
-        MVMSpeshCandidate *cand = &sfb->spesh_candidates[i];
-        if (cand->cs == arg_info->cs) {
-            /* Matching callsite, now see if we have enough information to
-             * test the guards. */
-            MVMint32 guard_failed = 0;
-            for (j = 0; j < cand->num_guards; j++) {
-                MVMint32       slot    = cand->guards[j].slot;
-                MVMSpeshFacts *facts   = slot < MAX_ARGS_FOR_OPT ? arg_info->arg_facts[slot] : NULL;
-                MVMSTable     *want_st = (MVMSTable *)cand->guards[j].match;
-                if (!facts) {
-                    guard_failed = 1;
-                    break;
-                }
-                switch (cand->guards[j].kind) {
-                case MVM_SPESH_GUARD_CONC:
-                    if (!(facts->flags & MVM_SPESH_FACT_CONCRETE) ||
-                            !(facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) ||
-                            STABLE(facts->type) != want_st)
-                        guard_failed = 1;
-                    break;
-                case MVM_SPESH_GUARD_TYPE:
-                    if (!(facts->flags & MVM_SPESH_FACT_TYPEOBJ) ||
-                            !(facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) ||
-                            STABLE(facts->type) != want_st)
-                        guard_failed = 1;
-                    break;
-                case MVM_SPESH_GUARD_DC_CONC:
-                    if (!(facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE) ||
-                            !(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) ||
-                            STABLE(facts->decont_type) != want_st)
-                        guard_failed = 1;
-                    break;
-                case MVM_SPESH_GUARD_DC_TYPE:
-                    if (!(facts->flags & MVM_SPESH_FACT_DECONT_TYPEOBJ) ||
-                            !(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) ||
-                            STABLE(facts->decont_type) != want_st)
-                        guard_failed = 1;
-                    break;
-                case MVM_SPESH_GUARD_DC_CONC_RW:
-                    if (!(facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE) ||
-                            !(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) ||
-                            STABLE(facts->decont_type) != want_st ||
-                            !(facts->flags & MVM_SPESH_FACT_RW_CONT))
-                        guard_failed = 1;
-                    break;
-                case MVM_SPESH_GUARD_DC_TYPE_RW:
-                    if (!(facts->flags & MVM_SPESH_FACT_DECONT_TYPEOBJ) ||
-                            !(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) ||
-                            STABLE(facts->decont_type) != want_st ||
-                            !(facts->flags & MVM_SPESH_FACT_RW_CONT))
-                        guard_failed = 1;
-                    break;
-                default:
-                    guard_failed = 1;
-                    break;
-                }
-                if (guard_failed)
-                    break;
-            }
-            if (!guard_failed)
-                return i;
-        }
-    }
-    return -1;
+    return MVM_spesh_arg_guard_run_callinfo(tc, sfb->spesh_arg_guard, arg_info);
 }
 
 /* Drives optimization of a call. */
@@ -1071,7 +1071,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             /* Already have a code object we know we'll call. */
             target = code;
         }
-        else if (STABLE(code)->invocation_spec) {
+        else if (IS_CONCRETE(code) && STABLE(code)->invocation_spec) {
             /* What kind of invocation will it be? */
             MVMInvocationSpec *is = STABLE(code)->invocation_spec;
             if (!MVM_is_null(tc, is->md_class_handle)) {
@@ -1133,10 +1133,12 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                     target = dest.o;
             }
         }
+        if (!target || !IS_CONCRETE(target))
+            return;
 
         /* If we resolved to something better than the code object, then add
          * the resolved item in a spesh slot and insert a lookup. */
-        if (target && target != code && !((MVMCode *)target)->body.is_compiler_stub) {
+        if (target != code && !((MVMCode *)target)->body.is_compiler_stub) {
             MVMSpeshIns *pa_ins = arg_info->prepargs_ins;
             MVMSpeshIns *ss_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
             ss_ins->info        = MVM_op_get_op(MVM_OP_sp_getspeshslot);
@@ -1163,13 +1165,13 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         }
 
         /* See if we can point the call at a particular specialization. */
-        if (target && ((MVMCode *)target)->body.sf->body.instrumentation_level == tc->instance->instrumentation_level) {
+        if (((MVMCode *)target)->body.sf->body.instrumentation_level == tc->instance->instrumentation_level) {
             MVMCode *target_code  = (MVMCode *)target;
             MVMint32 spesh_cand = try_find_spesh_candidate(tc, target_code, arg_info);
             if (spesh_cand >= 0) {
                 /* Yes. Will we be able to inline? */
                 MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
-                    target_code, &target_code->body.sf->body.spesh_candidates[spesh_cand]);
+                    target_code, target_code->body.sf->body.spesh_candidates[spesh_cand]);
 #if MVM_LOG_INLINES
                 {
                     char *c_name_i = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.name);
@@ -1478,7 +1480,8 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
     }
 }
 /* Visits the blocks in dominator tree order, recursively. */
-static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
+static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                        MVMSpeshPlanned *p) {
     MVMSpeshCallInfo arg_info;
     MVMint32 i;
 
@@ -1672,20 +1675,25 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_assertparamcheck:
             optimize_assertparamcheck(tc, g, bb, ins);
             break;
+        case MVM_OP_getlex:
+            optimize_getlex(tc, g, ins);
+            break;
+        case MVM_OP_getlex_no:
+            /* Use non-logging variant. */
+            ins->info = MVM_op_get_op(MVM_OP_sp_getlex_no);
+            break;
         case MVM_OP_getlexstatic_o:
             optimize_getlex_known(tc, g, bb, ins);
             break;
         case MVM_OP_getlexperinvtype_o:
-            if (specialized_on_invocant(tc, g))
-                optimize_getlex_known(tc, g, bb, ins);
+            optimize_getlex_per_invocant(tc, g, bb, ins, p);
             break;
         case MVM_OP_isrwcont:
             optimize_container_check(tc, g, bb, ins);
             break;
-        case MVM_OP_sp_log:
-        case MVM_OP_sp_osrfinalize:
-            /* Left-over log instruction that didn't become a guard, or OSR
-             * finalize instruction; just delete it. */
+        case MVM_OP_osrpoint:
+            /* We don't need to poll for OSR in hot loops. (This also moves
+             * the OSR annotation onto the next instruction.) */
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
             break;
         case MVM_OP_prof_enter:
@@ -1706,7 +1714,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
 
     /* Visit children. */
     for (i = 0; i < bb->num_children; i++)
-        optimize_bb(tc, g, bb->children[i]);
+        optimize_bb(tc, g, bb->children[i], p);
 }
 
 /* Eliminates any unused instructions. */
@@ -1796,13 +1804,9 @@ static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         } else if (ins->prev && ins->info->opcode == MVM_OP_sp_getspeshslot && ins->prev->info->opcode == ins->info->opcode) {
             /* Sometimes we emit two getspeshslots in a row that write into the
              * exact same register. that's clearly wasteful and we can save a
-             * tiny shred of code size here.
-             * However, since spesh slots are also involved in GC, we can also
-             * null the spesh slot that we throw out. */
-            if (ins->operands[0].reg.orig == ins->prev->operands[0].reg.orig) {
-               g->spesh_slots[ins->prev->operands[1].lit_i16] = NULL;
+             * tiny shred of code size here. */
+            if (ins->operands[0].reg.orig == ins->prev->operands[0].reg.orig)
                MVM_spesh_manipulate_delete_ins(tc, g, bb, ins->prev);
-            }
         } else if (ins->info->opcode == MVM_OP_prof_allocated) {
             optimize_prof_allocated(tc, g, bb, ins);
         }
@@ -1918,11 +1922,11 @@ static void eliminate_pointless_gotos(MVMThreadContext *tc, MVMSpeshGraph *g) {
 }
 
 /* Drives the overall optimization work taking place on a spesh graph. */
-void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
+void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p) {
     /* Before starting, we eliminate dead basic blocks that were tossed by
      * arg spesh, to simplify the graph. */
     eliminate_dead_bbs(tc, g);
-    optimize_bb(tc, g, g->entry);
+    optimize_bb(tc, g, g->entry, p);
     eliminate_dead_bbs(tc, g);
     eliminate_unused_log_guards(tc, g);
     eliminate_pointless_gotos(tc, g);

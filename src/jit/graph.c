@@ -422,8 +422,8 @@ static void jgb_append_guard(MVMThreadContext *tc, JitGraphBuilder *jgb,
         ann = ann->next;
     }
     if (!ann) {
-        MVM_oops(tc, "Can't find deopt idx annotation"
-                                  " on spesh ins <%s>", ins->info->name);
+        MVM_oops(tc, "Can't find deopt idx annotation on spesh ins <%s>",
+            ins->info->name);
     }
     node->u.guard.deopt_target = jgb->sg->deopt_addrs[2 * deopt_idx];
     node->u.guard.deopt_offset = jgb->sg->deopt_addrs[2 * deopt_idx + 1];
@@ -745,6 +745,12 @@ static void jgb_after_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     }
 }
 
+static void jgb_sc_wb(MVMThreadContext *tc, JitGraphBuilder *jgb, MVMSpeshOperand check) {
+    MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                             { MVM_JIT_REG_VAL,     check.reg.orig } };
+    jgb_append_call_c(tc, jgb, &MVM_SC_WB_OBJ, 2, args, MVM_JIT_RV_VOID, -1);
+}
+
 static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                    MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMint16 op = ins->info->opcode;
@@ -826,7 +832,8 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
 
     type_facts = MVM_spesh_get_facts(tc, jgb->sg, type_operand);
 
-    if (type_facts && type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && type_facts->type) {
+    if (type_facts && type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && type_facts->type &&
+            type_facts->flags & MVM_SPESH_FACT_CONCRETE) {
         switch(op) {
             case MVM_OP_atkey_i:
             case MVM_OP_atkey_n:
@@ -910,6 +917,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                                                     MVM_reg_obj } };
                 jgb_append_call_c(tc, jgb, function, 7, args, MVM_JIT_RV_VOID, -1);
                 MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
+                jgb_sc_wb(tc, jgb, ins->operands[0]);
                 return 1;
             }
             case MVM_OP_elems: {
@@ -1067,7 +1075,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                                                         MVM_reg_obj } };
                     MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
                     jgb_append_call_c(tc, jgb, function, 9, args, MVM_JIT_RV_VOID, -1);
-
+                    jgb_sc_wb(tc, jgb, ins->operands[0]);
                     return 1;
                 } else {
                     MVM_jit_log(tc, "devirt: couldn't %s; concreteness not sure\n", ins->info->name);
@@ -1125,6 +1133,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                                                     MVM_reg_obj } };
                 jgb_append_call_c(tc, jgb, function, 6, args, MVM_JIT_RV_VOID, -1);
                 MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
+                jgb_sc_wb(tc, jgb, ins->operands[0]);
                 return 1;
             }
             case MVM_OP_pop_i:
@@ -1211,6 +1220,7 @@ skipdevirt:
                                  { MVM_JIT_REG_VAL, invocant },
                                  { MVM_JIT_REG_VAL, value } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
+        jgb_sc_wb(tc, jgb, ins->operands[0]);
         break;
     }
     case MVM_OP_unshift_n:
@@ -1337,6 +1347,7 @@ skipdevirt:
                                  { MVM_JIT_REG_VAL, key_pos },
                                  { op == MVM_OP_bindpos_n || op == MVM_OP_bindkey_n ? MVM_JIT_REG_VAL_F : MVM_JIT_REG_VAL, value } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+        jgb_sc_wb(tc, jgb, ins->operands[0]);
         break;
     }
     case MVM_OP_getattr_i:
@@ -1415,6 +1426,7 @@ skipdevirt:
                                  { MVM_JIT_REG_VAL, val }, /* Takes MVMRegister, so no _F needed. */
                                  { MVM_JIT_LITERAL, kind } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 7, args, MVM_JIT_RV_VOID, -1);
+        jgb_sc_wb(tc, jgb, ins->operands[0]);
         break;
     }
     case MVM_OP_bindattrs_i:
@@ -1438,6 +1450,7 @@ skipdevirt:
                                  { MVM_JIT_REG_VAL, val }, /* Takes MVMRegister, so no _F needed. */
                                  { MVM_JIT_LITERAL, kind } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 7, args, MVM_JIT_RV_VOID, -1);
+        jgb_sc_wb(tc, jgb, ins->operands[0]);
         break;
     }
     case MVM_OP_hintfor: {
@@ -1562,7 +1575,10 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_sp_deref_get_n:
     case MVM_OP_set:
     case MVM_OP_getlex:
+    case MVM_OP_sp_getlex_o:
+    case MVM_OP_sp_getlex_ins:
     case MVM_OP_getlex_no:
+    case MVM_OP_sp_getlex_no:
     case MVM_OP_bindlex:
     case MVM_OP_getwhat:
     case MVM_OP_getwho:
@@ -1576,6 +1592,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_sp_fastcreate:
     case MVM_OP_iscont:
     case MVM_OP_decont:
+    case MVM_OP_sp_decont:
     case MVM_OP_sp_namedarg_used:
     case MVM_OP_sp_findmeth:
     case MVM_OP_hllboxtype_i:
@@ -2819,12 +2836,9 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_branch(tc, jgb, MVM_JIT_BRANCH_EXIT, NULL);
         break;
     }
+    case MVM_OP_sp_guard:
     case MVM_OP_sp_guardconc:
     case MVM_OP_sp_guardtype:
-    case MVM_OP_sp_guardcontconc:
-    case MVM_OP_sp_guardconttype:
-    case MVM_OP_sp_guardrwconc:
-    case MVM_OP_sp_guardrwtype:
         jgb_append_guard(tc, jgb, ins);
         break;
     case MVM_OP_prepargs: {

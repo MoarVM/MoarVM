@@ -433,7 +433,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], TMP1;
         break;
     }
-    case MVM_OP_getlex: {
+    case MVM_OP_getlex:
+    case MVM_OP_sp_getlex_o:
+    case MVM_OP_sp_getlex_ins: {
         MVMuint16 *lexical_types;
         MVMStaticFrame * sf = jg->sg->sf;
         MVMint16 dst = ins->operands[0].reg.orig;
@@ -482,7 +484,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], TMP5;
         break;
     }
-    case MVM_OP_getlex_no: {
+    case MVM_OP_getlex_no:
+    case MVM_OP_sp_getlex_no: {
         MVMint16  dst = ins->operands[0].reg.orig;
         MVMuint32 idx = ins->operands[1].lit_str_idx;
         | mov ARG1, TC;
@@ -1383,7 +1386,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov aword WORK[dst], RV; // store in local register
         break;
     }
-    case MVM_OP_decont: {
+    case MVM_OP_decont:
+    case MVM_OP_sp_decont: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
         | mov TMP5, WORK[src];
@@ -1745,17 +1749,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         } else {
             | mov ARG3, 0;
         }
-        | callp &MVM_string_get_grapheme_at;
-        | cmp RV, 0;
-        | jge >1;
-        /* NB - I see no reason why this should be incorrect, but I
-           haven't been able to trigger it yet. */
-        | mov ARG1, TC;
-        | mov ARG2, RV;
-        | callp &MVM_nfg_get_synthetic_info;
-        /* base is only 32 bit wide */
-        | mov RVd, dword NFGSYNTH:RV->base;
-        |1:
+        | callp &MVM_string_ord_at;
         | mov qword WORK[dst], RV;
         break;
     }
@@ -2144,8 +2138,19 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
     /* load object and spesh slot value */
     | mov TMP1, WORK[obj];
     | get_spesh_slot TMP2, spesh_idx;
-    if (op == MVM_OP_sp_guardtype) {
-        /* object in queston should be a type object, so it shouldn't
+    if (op == MVM_OP_sp_guard) {
+        /* object in question should just match the type, so it shouldn't
+         * be zero, and the STABLE should be equal to the value in the spesh
+         * slot */
+        /* check for null */
+        | test TMP1, TMP1;
+        | jz >1;
+        /* get stable and compare */
+        | cmp TMP2, OBJECT:TMP1->st;
+        | jne >1;
+        /* we're good, no need to deopt */
+    } else if (op == MVM_OP_sp_guardtype) {
+        /* object in question should be a type object, so it shouldn't
          * be zero, should not be concrete, and the STABLE should be
          * equal to the value in the spesh slot */
         /* check for null */
@@ -2168,132 +2173,6 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
         | jnz >1;
         /* should have our stable */
         | cmp TMP2, OBJECT:TMP1->st;
-        | jne >1;
-    } else if (op == MVM_OP_sp_guardcontconc) {
-        MVMint16 val_spesh_idx = guard->ins->operands[2].lit_i16;
-        | test TMP1, TMP1;
-        | jz >1;
-        | is_type_object TMP1;
-        | jnz >1;
-        | mov FUNCTION, OBJECT:TMP1->st;
-        | cmp TMP2, FUNCTION;
-        | jne >1;
-        | mov FUNCTION, STABLE:FUNCTION->container_spec;
-        | mov FUNCTION, CONTAINERSPEC:FUNCTION->fetch;
-        | mov ARG2, TMP1;
-        | mov ARG1, TC;
-        | lea ARG3, [rbp-0x28]; // hurray for scratch space
-        | call FUNCTION;
-        | mov TMP3, aword [rbp-0x28];
-        | test TMP3, TMP3;
-        | jz >1;
-        | is_type_object TMP3;
-        | jnz >1;
-        | mov TMP2, OBJECT:TMP3->st;
-        | get_spesh_slot TMP1, val_spesh_idx;
-        | cmp TMP1, TMP2;
-        | jne >1;
-    } else if (op == MVM_OP_sp_guardconttype) {
-        MVMint16 val_spesh_idx = guard->ins->operands[2].lit_i16;
-        | test TMP1, TMP1;
-        | jz >1;
-        | is_type_object TMP1;
-        | jnz >1;
-        | mov FUNCTION, OBJECT:TMP1->st;
-        | cmp TMP2, FUNCTION;
-        | jne >1;
-        | mov FUNCTION, STABLE:FUNCTION->container_spec;
-        | mov FUNCTION, CONTAINERSPEC:FUNCTION->fetch;
-        | mov ARG2, TMP1;
-        | mov ARG1, TC;
-        | lea ARG3, [rbp-0x28]; // hurray for scratch space
-        | call FUNCTION;
-        | mov TMP3, aword [rbp-0x28];
-        | test TMP3, TMP3;
-        | jz >1;
-        | is_type_object TMP3;
-        // all of this is the same as for guardcontconc, but this time
-        // we want to have a type object instead of a concrete object.
-        | jz >1;
-        | mov TMP2, OBJECT:TMP3->st;
-        | get_spesh_slot TMP1, val_spesh_idx;
-        | cmp TMP1, TMP2;
-        | jne >1;
-    } else if (op == MVM_OP_sp_guardrwconc) {
-        MVMint16 val_spesh_idx  = guard->ins->operands[2].lit_i16;
-        /* if (check && IS_CONCRETE(check) */
-        | test TMP1, TMP1;
-        | jz >1;
-        | is_type_object TMP1;
-        | jnz >1;
-        /* && STABLE(check) == (want_c = cur_frame->effective_spesh_slots[GET_UI16(cur_op,2)] */
-        | mov FUNCTION, OBJECT:TMP1->st;
-        | cmp TMP2, FUNCTION;
-        | jne >1;
-        | mov FUNCTION, STABLE:FUNCTION->container_spec;
-        | mov FUNCTION, CONTAINERSPEC:FUNCTION->can_store;
-        | mov ARG2, TMP1;
-        | mov ARG1, TC;
-        | call FUNCTION;
-        /* if (constspec->can_store(tc, check) */
-        | test RV, RV;
-        | jz >1;
-        /* restore TMP1 */
-        | mov TMP1, WORK[obj];
-        | mov FUNCTION, OBJECT:TMP1->st; // restore FUNCTION to the st as before
-        | mov FUNCTION, STABLE:FUNCTION->container_spec;
-        | mov FUNCTION, CONTAINERSPEC:FUNCTION->fetch;
-        /* constpec->fetch(tc, check, &r) */
-        | mov ARG2, TMP1;
-        | mov ARG1, TC;
-        | lea ARG3, [rbp-0x28]; // hurray for scratch space
-        | call FUNCTION;
-        /* if (r.o && IS_CONCRETE(r.o) && STABLE(r.o) == want_v) */
-        | mov TMP3, aword [rbp-0x28];
-        | test TMP3, TMP3;
-        | jz >1;
-        | is_type_object TMP3;
-        | jnz >1;
-        | mov TMP2, OBJECT:TMP3->st;
-        | get_spesh_slot TMP1, val_spesh_idx;
-        | cmp TMP1, TMP2;
-        | jne >1;
-    } else if (op == MVM_OP_sp_guardrwtype) {
-        MVMint16 val_spesh_idx  = guard->ins->operands[2].lit_i16;
-        /* if (check && IS_CONCRETE(check) && STABLE(check) == want_c) */
-        | test TMP1, TMP1;
-        | jz >1;
-        | is_type_object TMP1;
-        | jnz >1;
-        | mov FUNCTION, OBJECT:TMP1->st;
-        | cmp TMP2, FUNCTION;
-        | jne >1;
-        /* if (constpect->can_store(tc, check)) */
-        | mov FUNCTION, STABLE:FUNCTION->container_spec;
-        | mov FUNCTION, CONTAINERSPEC:FUNCTION->can_store;
-        | mov ARG2, TMP1;
-        | mov ARG1, TC;
-        | call FUNCTION;
-        | test RV, RV;
-        | jz >1;
-        | mov TMP1, WORK[obj];
-        | mov FUNCTION, OBJECT:TMP1->st; // restore FUNCTION to the st as before
-        | mov FUNCTION, STABLE:FUNCTION->container_spec;
-        | mov FUNCTION, CONTAINERSPEC:FUNCTION->fetch;
-        | mov ARG2, TMP1;
-        | mov ARG1, TC;
-        | lea ARG3, [rbp-0x28];
-        /* contspec->fetch(tc, check, &r); */
-        | call FUNCTION;
-        | mov TMP3, aword [rbp-0x28];
-        /* if (r.o && !IS_CONCRETE(r.o) && STABLE(r.o) == want_v) */
-        | test TMP3, TMP3;
-        | jz >1;
-        | is_type_object TMP3;
-        | jz >1;
-        | mov TMP2, OBJECT:TMP3->st;
-        | get_spesh_slot TMP1, val_spesh_idx;
-        | cmp TMP1, TMP2;
         | jne >1;
     }
     /* if we're here, we didn't jump to deopt, so skip it */

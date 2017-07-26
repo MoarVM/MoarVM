@@ -32,12 +32,6 @@ struct MVMSpeshGraph {
     /* Number of fact entries per local. */
     MVMuint16 *fact_counts;
 
-    /* Argument guards added. */
-    MVMSpeshGuard *arg_guards;
-
-    /* Number of argument guards we have. */
-    MVMint32 num_arg_guards;
-
     /* Log-based guards added. */
     MVMSpeshLogGuard *log_guards;
 
@@ -70,10 +64,6 @@ struct MVMSpeshGraph {
     MVMSpeshInline *inlines;
     MVMint32 num_inlines;
 
-    /* Logging slots, along with the number of them. */
-    MVMint32 num_log_slots;
-    MVMCollectable **log_slots;
-
     /* Number of basic blocks we have. */
     MVMint32 num_bbs;
 
@@ -105,6 +95,9 @@ struct MVMSpeshGraph {
     /* If this graph was formed from a spesh candidate rather than an
      * original static frame, the candidate will be stored here. */
     MVMSpeshCandidate *cand;
+
+    /* Did we specialize on the invocant type? */
+    MVMuint8 specialized_on_invocant;
 };
 
 /* A temporary register, added to support transformations. */
@@ -223,6 +216,7 @@ struct MVMSpeshAnn {
         MVMint32 frame_handler_index;
         MVMint32 deopt_idx;
         MVMint32 inline_idx;
+        MVMuint32 bytecode_offset;
         struct {
             MVMuint32 filename_string_index;
             MVMuint32 line_number;
@@ -241,6 +235,7 @@ struct MVMSpeshAnn {
 #define MVM_SPESH_ANN_DEOPT_INLINE  8
 #define MVM_SPESH_ANN_DEOPT_OSR     9
 #define MVM_SPESH_ANN_LINENO        10
+#define MVM_SPESH_ANN_LOGGED        11
 
 /* Functions to create/destroy the spesh graph. */
 MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,

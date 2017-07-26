@@ -102,12 +102,12 @@ MVMString * MVM_repr_at_pos_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx
 
 MVMObject * MVM_repr_at_pos_o(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
     if (IS_CONCRETE(obj)) {
-            MVMRegister value;
-            REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        MVMRegister value;
+        REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
                                         idx, &value, MVM_reg_obj);
-            return value.o;
+        return value.o;
     }
-    return NULL;
+    return tc->instance->VMNull;
 }
 
 static void at_pos_multidim(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices, MVMRegister *value, MVMuint16 kind) {
@@ -451,7 +451,7 @@ MVMObject * MVM_repr_at_key_o(MVMThreadContext *tc, MVMObject *obj, MVMString *k
                                     (MVMObject *)key, &value, MVM_reg_obj);
         return value.o;
     }
-    return NULL;
+    return tc->instance->VMNull;
 }
 
 void MVM_repr_bind_key_i(MVMThreadContext *tc, MVMObject *obj, MVMString *key, MVMint64 val) {

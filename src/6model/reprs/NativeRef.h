@@ -3,7 +3,7 @@ struct MVMNativeRefBody {
     union {
         struct {
             MVMFrame *frame;
-            MVMRegister *var;
+            MVMuint16 env_idx;
             MVMuint16 type;
         } lex;
         struct {

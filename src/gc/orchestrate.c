@@ -59,21 +59,17 @@ static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_si
         }
     }
 }
-static MVMuint32 signal_all_but(MVMThreadContext *tc, MVMThread *t, MVMThread *tail) {
+static MVMuint32 signal_all(MVMThreadContext *tc, MVMThread *threads) {
+    MVMThread *t = threads;
     MVMuint32 count = 0;
-    MVMThread *next;
-    if (!t) {
-        return 0;
-    }
-    do {
-        next = t->body.next;
+    while (t) {
         switch (MVM_load(&t->body.stage)) {
             case MVM_thread_stage_starting:
             case MVM_thread_stage_waiting:
             case MVM_thread_stage_started:
-                if (t->body.tc != tc) {
+                /* Don't signal ourself. */
+                if (t->body.tc != tc)
                     count += signal_one_thread(tc, t->body.tc);
-                }
                 break;
             case MVM_thread_stage_exited:
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : queueing to clear nursery of thread %d\n", t->body.tc->thread_id);
@@ -91,10 +87,8 @@ static MVMuint32 signal_all_but(MVMThreadContext *tc, MVMThread *t, MVMThread *t
             default:
                 MVM_panic(MVM_exitcode_gcorch, "Corrupted MVMThread or running threads list: invalid thread stage %"MVM_PRSz"", MVM_load(&t->body.stage));
         }
-    } while (next && (t = next));
-    if (tail)
-        MVM_gc_write_barrier(tc, (MVMCollectable *)t, (MVMCollectable *)tail);
-    t->body.next = tail;
+        t = t->body.next;
+    }
     return count;
 }
 
@@ -141,13 +135,12 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
 
     /* Decrement gc_finish to say we're done, and wait for termination. */
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Voting to finish\n");
+    uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
     MVM_decr(&tc->instance->gc_finish);
-    while (MVM_load(&tc->instance->gc_finish)) {
-        for (i = 0; i < 1000; i++)
-            ; /* XXX Something HT-efficienter. */
-        /* XXX Here we can look to see if we got passed any work, and if so
-         * try to un-vote. */
-    }
+    uv_cond_broadcast(&tc->instance->cond_gc_finish);
+    while (MVM_load(&tc->instance->gc_finish))
+        uv_cond_wait(&tc->instance->cond_gc_finish, &tc->instance->mutex_gc_orchestrate);
+    uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Termination agreed\n");
 
     /* Co-ordinator should do final check over all the in-trays, and trigger
@@ -187,14 +180,18 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
 
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
             "Thread %d run %d : Co-ordinator signalling in-trays clear\n");
+        uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
         MVM_store(&tc->instance->gc_intrays_clearing, 0);
+        uv_cond_broadcast(&tc->instance->cond_gc_intrays_clearing);
+        uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
     }
     else {
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
             "Thread %d run %d : Waiting for in-tray clearing completion\n");
+        uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
         while (MVM_load(&tc->instance->gc_intrays_clearing))
-            for (i = 0; i < 1000; i++)
-                ; /* XXX Something HT-efficienter. */
+            uv_cond_wait(&tc->instance->cond_gc_intrays_clearing, &tc->instance->mutex_gc_orchestrate);
+        uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
             "Thread %d run %d : Got in-tray clearing complete notice\n");
     }
@@ -412,34 +409,30 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         add_work(tc, tc);
 
         /* Find other threads, and signal or steal. */
-        do {
-            MVMThread *threads = (MVMThread *)MVM_load(&tc->instance->threads);
-            if (threads && threads != last_starter) {
-                MVMThread *head = threads;
-                MVMuint32 add;
-                while ((threads = (MVMThread *)MVM_casptr(&tc->instance->threads, head, NULL)) != head) {
-                    head = threads;
-                }
+        uv_mutex_lock(&tc->instance->mutex_threads);
+        num_threads = signal_all(tc, tc->instance->threads);
+        uv_mutex_unlock(&tc->instance->mutex_threads);
 
-                add = signal_all_but(tc, head, last_starter);
-                last_starter = head;
-                if (add) {
-                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Found %d other threads\n", add);
-                    MVM_add(&tc->instance->gc_start, add);
-                    num_threads += add;
-                }
-            }
+        /* Bump the thread count and signal any threads waiting for that. */
+        uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
+        MVM_add(&tc->instance->gc_start, num_threads);
+        uv_cond_broadcast(&tc->instance->cond_gc_start);
+        uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
 
-            /* If there's an event loop thread, wake it up to participate. */
-            if (tc->instance->event_loop_wakeup)
-                uv_async_send(tc->instance->event_loop_wakeup);
-        } while (MVM_load(&tc->instance->gc_start) > 1);
+        /* If there's an event loop thread, wake it up to participate. */
+        if (tc->instance->event_loop_wakeup)
+            uv_async_send(tc->instance->event_loop_wakeup);
 
-        /* Sanity checks. */
-        if (!MVM_trycas(&tc->instance->threads, NULL, last_starter))
-            MVM_panic(MVM_exitcode_gcorch, "threads list corrupted\n");
+        /* Wait for other threads to be ready. */
+        uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
+        while (MVM_load(&tc->instance->gc_start) > 1)
+            uv_cond_wait(&tc->instance->cond_gc_start, &tc->instance->mutex_gc_orchestrate);
+        uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
+
+        /* Sanity check finish votes. */
         if (MVM_load(&tc->instance->gc_finish) != 0)
-            MVM_panic(MVM_exitcode_gcorch, "Finish votes was %"MVM_PRSz"\n", MVM_load(&tc->instance->gc_finish));
+            MVM_panic(MVM_exitcode_gcorch, "Finish votes was %"MVM_PRSz"\n",
+                MVM_load(&tc->instance->gc_finish));
 
         /* gc_ack gets an extra so the final acknowledger
          * can also free the STables. */
@@ -462,8 +455,11 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
 
         /* Signal to the rest to start */
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : coordinator signalling start\n");
+        uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
         if (MVM_decr(&tc->instance->gc_start) != 1)
             MVM_panic(MVM_exitcode_gcorch, "Start votes was %"MVM_PRSz"\n", MVM_load(&tc->instance->gc_start));
+        uv_cond_broadcast(&tc->instance->cond_gc_start);
+        uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
 
         /* Start collecting. */
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : coordinator entering run_gc\n");
@@ -507,16 +503,19 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
      * greater (0 should never happen; 1 means the coordinator is still counting
      * up how many threads will join in, so we should wait until it decides to
      * decrement.) */
-    while ((curr = MVM_load(&tc->instance->gc_start)) < 2
-            || !MVM_trycas(&tc->instance->gc_start, curr, curr - 1)) {
-        /* MVM_platform_thread_yield();*/
-    }
+    uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
+    while (MVM_load(&tc->instance->gc_start) < 2)
+        uv_cond_wait(&tc->instance->cond_gc_start, &tc->instance->mutex_gc_orchestrate);
+    MVM_decr(&tc->instance->gc_start);
+    uv_cond_broadcast(&tc->instance->cond_gc_start);
+    uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
 
     /* Wait for all threads to indicate readiness to collect. */
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Waiting for other threads\n");
-    while (MVM_load(&tc->instance->gc_start)) {
-        /* MVM_platform_thread_yield();*/
-    }
+    uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
+    while (MVM_load(&tc->instance->gc_start))
+        uv_cond_wait(&tc->instance->cond_gc_start, &tc->instance->mutex_gc_orchestrate);
+    uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
 
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entering run_gc\n");
     run_gc(tc, MVMGCWhatToDo_NoInstance);

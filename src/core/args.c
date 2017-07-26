@@ -321,6 +321,7 @@ MVMArgInfo MVM_args_get_pos_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, M
             result.arg    = ctx->args[arg_pos + 1]; \
             result.flags  = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[flag_pos]; \
             result.exists = 1; \
+            result.arg_idx = arg_pos + 1; \
             ctx->named_used[(arg_pos - ctx->num_pos)/2] = 1; \
             break; \
         } \
@@ -411,6 +412,8 @@ void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 f
                 break;
             case MVM_RETURN_OBJ:
                 target->return_value->o = result;
+                if (!target->spesh_cand)
+                    MVM_spesh_log_return_type(tc, target);
                 break;
             case MVM_RETURN_INT:
                 target->return_value->i64 = MVM_repr_get_int(tc, decont_result(tc, result));

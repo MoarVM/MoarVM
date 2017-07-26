@@ -72,12 +72,12 @@ unless_s0           r(str) ins
 if_o                r(obj) ins
 unless_o            r(obj) ins
 jumplist         :j int64 r(int64)
-getlex              w(`1) rl(`1) :pure :deoptonepoint
+getlex              w(`1) rl(`1) :pure :deoptonepoint :logged
 bindlex             wl(`1) r(`1)
 getlex_ni           w(int64) str :pure :noinline
 getlex_nn           w(num64) str :pure :noinline
 getlex_ns           w(str) str :pure :noinline
-getlex_no           w(obj) str :pure :deoptonepoint :noinline
+getlex_no           w(obj) str :pure :deoptonepoint :logged :noinline
 bindlex_ni          str r(int64) :noinline
 bindlex_nn          str r(num64) :noinline
 bindlex_ns          str r(str) :noinline
@@ -176,7 +176,7 @@ invoke_v         -a r(obj) :deoptallpoint
 invoke_i         -a w(int64) r(obj) :deoptallpoint
 invoke_n         -a w(num64) r(obj) :deoptallpoint
 invoke_s         -a w(str) r(obj) :deoptallpoint
-invoke_o         -a w(obj) r(obj) :deoptallpoint :deoptonepoint
+invoke_o         -a w(obj) r(obj) :deoptallpoint :deoptonepoint :logged
 checkarity          int16 int16
 param_rp_i       .p w(int64) int16 :pure :noinline
 param_rp_n       .p w(num64) int16 :pure :noinline
@@ -316,11 +316,11 @@ bindattrs_o         r(obj) r(obj) r(str) r(obj)
 getattr_i           w(int64) r(obj) r(obj) str int16
 getattr_n           w(num64) r(obj) r(obj) str int16
 getattr_s           w(str) r(obj) r(obj) str int16
-getattr_o           w(obj) r(obj) r(obj) str int16 :deoptonepoint
+getattr_o           w(obj) r(obj) r(obj) str int16 :deoptonepoint :logged
 getattrs_i          w(int64) r(obj) r(obj) r(str)
 getattrs_n          w(num64) r(obj) r(obj) r(str)
 getattrs_s          w(str) r(obj) r(obj) r(str)
-getattrs_o          w(obj) r(obj) r(obj) r(str) :deoptonepoint
+getattrs_o          w(obj) r(obj) r(obj) r(str) :deoptonepoint :logged
 attrinited          w(int64) r(obj) r(obj) r(str)
 box_i               w(obj) r(int64) r(obj) :pure
 box_n               w(obj) r(num64) r(obj) :pure
@@ -633,8 +633,8 @@ DEPRECATED_14       w(obj) r(obj) r(obj) r(obj) r(str) r(obj)
 asyncwritebytes     w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
 DEPRECATED_16       w(obj) r(obj) r(obj) r(obj) r(obj)
 asyncreadbytes      w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
-getlexstatic_o      w(obj) r(str) :pure :noinline
-getlexperinvtype_o  w(obj) r(str) :pure :noinline
+getlexstatic_o      w(obj) r(str) :pure :noinline :logged
+getlexperinvtype_o  w(obj) r(str) :pure :noinline :logged
 execname            w(str)
 const_i64_16        w(int64) int16 :pure
 const_i64_32        w(int64) int32 :pure
@@ -809,32 +809,20 @@ decodertakecharseof w(str) r(obj) r(int64)
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
 
-# Used for logging what objects we saw during execution, which is used to do
-# speculative optimizations.
-sp_log           .s r(obj) int16
-
-# If we're doing OSR, the logging phase replaces the osrpoint with this op, to
-# trigger the finalization of the optimization process once we do enough loops
-# to gather logging information.
-sp_osrfinalize   .s
-
 # Guard operations. Trigger de-optimization if the guard is violated.
-#   guardconc = guard on concrete type; index is spesh slot with type
-#   guardtype = guard on type object; index is spesh slot with type
-#   guardcontconc = guard on container holding concrete type; indexes are
-#                   spesh slots with container type and then value type
-#   guardconttype = guard on container holding type object; indexes are
-#                   spesh slots with container type and then value type
-#   guardrwconc   = guard on rw container holding concrete type; indexes are
-#                   spesh slots with container type and then value type
-#   guardrwtype   = guard on rw container holding type object; indexes are
-#                   spesh slots with container type and then value type
+#   guard = guard on type only; index is spesh slot with type
+#   guardconc = guard on type + concrete; index is spesh slot with type
+#   guardtype = guard on type + type object; index is spesh slot with type
+sp_guard         .s r(obj) sslot
 sp_guardconc     .s r(obj) sslot
 sp_guardtype     .s r(obj) sslot
-sp_guardcontconc .s r(obj) sslot sslot
-sp_guardconttype .s r(obj) sslot sslot
-sp_guardrwconc   .s r(obj) sslot sslot
-sp_guardrwtype   .s r(obj) sslot sslot
+
+# These are variants of the normal interpreted ops that do not log. Used for
+# the case where we can't JIT-compile, but don't want to keep on logging.
+sp_decont        .s w(obj) r(obj) :pure :invokish
+sp_getlex_o      .s w(obj) rl(obj) :pure
+sp_getlex_ins    .s w(`1) rl(`1) :pure
+sp_getlex_no     .s w(obj) str :pure :noinline
 
 # Following are for fast, unchecked grabbing of args from the arg buffer.
 sp_getarg_o      .s w(obj) int16 :pure
