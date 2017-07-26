@@ -209,6 +209,7 @@ int wmain(int argc, wchar_t *wargv[])
 #ifdef HAVE_TELEMEH
     if (getenv("MVM_TELEMETRY_LOG")) {
         char path[256];
+        FILE *fp;
         snprintf(path, 255, "%s.%d", getenv("MVM_TELEMETRY_LOG"),
 #ifdef _WIN32
              _getpid()
@@ -216,7 +217,7 @@ int wmain(int argc, wchar_t *wargv[])
              getpid()
 #endif
              );
-        FILE *fp = fopen(path, "w");
+        fp = fopen(path, "w");
         if (fp) {
             MVM_telemetry_init(fp);
             telemeh_inited = 1;
