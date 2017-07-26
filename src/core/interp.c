@@ -3022,9 +3022,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                     MVM_exception_throw_adhoc(tc,
                         "Must provide an SCRef operand to scsetcode");
+                MVM_sc_set_obj_sc(tc, code, (MVMSerializationContext *)sc);
                 MVM_sc_set_code(tc, (MVMSerializationContext *)sc,
                     GET_REG(cur_op, 2).i64, code);
-                MVM_sc_set_obj_sc(tc, code, (MVMSerializationContext *)sc);
                 cur_op += 6;
                 goto NEXT;
             }

@@ -128,6 +128,9 @@ MVMint64 MVM_sc_find_stable_idx(MVMThreadContext *tc, MVMSerializationContext *s
 MVMint64 MVM_sc_find_code_idx(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *obj) {
     MVMObject *roots;
     MVMint64   i, count;
+    MVMuint32 cached = MVM_sc_get_idx_in_sc(&obj->header);
+    if (cached != ~0 && MVM_sc_get_collectable_sc(tc, &obj->header) == sc)
+        return cached;
     roots = sc->body->root_codes;
     count = MVM_repr_elems(tc, roots);
     for (i = 0; i < count; i++) {
