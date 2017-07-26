@@ -56,9 +56,3 @@ struct MVMSpeshCandidate {
 /* Functions for creating and clearing up specializations. */
 void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p);
 void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candidate);
-
-/* Function for getting effective (specialized or not) bytecode. */
-MVM_STATIC_INLINE MVMuint8 * MVM_frame_effective_bytecode(MVMFrame *f) {
-    MVMSpeshCandidate *spesh_cand = f->spesh_cand;
-    return spesh_cand ? spesh_cand->bytecode : f->static_info->body.bytecode;
-}
