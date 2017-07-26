@@ -15,6 +15,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
         while (1) {
             MVMObject *log_obj;
             MVMuint64 start_time;
+            unsigned int interval_id;
             if (tc->instance->spesh_log_fh)
                 start_time = uv_hrtime();
             log_obj = MVM_repr_shift_o(tc, tc->instance->spesh_queue);
@@ -26,6 +27,8 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                     (int)((uv_hrtime() - start_time) / 1000));
             }
 
+            interval_id = MVM_telemetry_interval_start(tc, "spesh worker consuming a log");
+
             uv_mutex_lock(&(tc->instance->mutex_spesh_sync));
             tc->instance->spesh_working = 1;
             uv_mutex_unlock(&(tc->instance->mutex_spesh_sync));
@@ -33,6 +36,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
             tc->instance->spesh_stats_version++;
             if (log_obj->st->REPR->ID == MVM_REPR_ID_MVMSpeshLog) {
                 MVMSpeshLog *sl = (MVMSpeshLog *)log_obj;
+                MVM_telemetry_interval_annotate((uintptr_t)sl->body.thread->body.tc, interval_id, "from this thread");
                 MVMROOT(tc, sl, {
                     MVMThreadContext *stc;
                     MVMuint32 i;
@@ -43,8 +47,8 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                     if (tc->instance->spesh_log_fh)
                         start_time = uv_hrtime();
                     MVM_spesh_stats_update(tc, sl, updated_static_frames);
+                    n = MVM_repr_elems(tc, updated_static_frames);
                     if (tc->instance->spesh_log_fh) {
-                        n = MVM_repr_elems(tc, updated_static_frames);
                         fprintf(tc->instance->spesh_log_fh,
                             "Statistics Updated\n"
                             "==================\n"
@@ -57,6 +61,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                             MVM_free(dump);
                         }
                     }
+                    MVM_telemetry_interval_annotate((uintptr_t)n, interval_id, "stats for this many frames");
                     GC_SYNC_POINT(tc);
 
                     /* Form a specialization plan. */
@@ -77,6 +82,8 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                             MVM_free(dump);
                         }
                     }
+                    MVM_telemetry_interval_annotate((uintptr_t)tc->instance->spesh_plan->num_planned, interval_id,
+                            "this many specializations planned");
                     GC_SYNC_POINT(tc);
 
                     /* Implement the plan and then discard it. */
@@ -119,6 +126,8 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
             else {
                 MVM_panic(1, "Unexpected object sent to specialization worker");
             }
+
+            MVM_telemetry_interval_stop(tc, interval_id, "spesh worker finished");
 
             uv_mutex_lock(&(tc->instance->mutex_spesh_sync));
             tc->instance->spesh_working = 0;
