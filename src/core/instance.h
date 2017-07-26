@@ -252,6 +252,14 @@ struct MVMInstance {
      * received by the worker thread). */
     MVMuint32 spesh_stats_version;
 
+    /* Lock and condition variable for when something needs to wait for the
+     * specialization worker to finish what it's doing before continuing.
+     * Used by the profiler, which doesn't want the specializer tripping over
+     * frame bytecode changing to instrumented versions. */
+    uv_mutex_t mutex_spesh_sync;
+    uv_cond_t cond_spesh_sync;
+    MVMuint32 spesh_working;
+
     /************************************************************************
      * JIT compilation
      ************************************************************************/

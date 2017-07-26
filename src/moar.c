@@ -247,6 +247,10 @@ MVMInstance * MVM_vm_create_instance(void) {
     }
     instance->jit_seq_nr = 0;
 
+    /* Spesh thread syncing. */
+    init_mutex(instance->mutex_spesh_sync, "spesh sync");
+    init_cond(instance->cond_spesh_sync, "spesh sync");
+
     /* Various kinds of debugging that can be enabled. */
     dynvar_log = getenv("MVM_DYNVAR_LOG");
     if (dynvar_log && strlen(dynvar_log)) {
@@ -491,8 +495,10 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Release this interpreter's hold on Unicode database */
     MVM_unicode_release(instance->main_thread);
 
-    /* Clean up spesh install mutex and close any log. */
+    /* Clean up spesh mutexes and close any log. */
     uv_mutex_destroy(&instance->mutex_spesh_install);
+    uv_cond_destroy(&instance->cond_spesh_sync);
+    uv_mutex_destroy(&instance->mutex_spesh_sync);
     if (instance->spesh_log_fh)
         fclose(instance->spesh_log_fh);
     if (instance->jit_log_fh)

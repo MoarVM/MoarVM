@@ -25,6 +25,11 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                     "Was waiting %dus for logs on the log queue.\n\n",
                     (int)((uv_hrtime() - start_time) / 1000));
             }
+
+            uv_mutex_lock(&(tc->instance->mutex_spesh_sync));
+            tc->instance->spesh_working = 1;
+            uv_mutex_unlock(&(tc->instance->mutex_spesh_sync));
+
             tc->instance->spesh_stats_version++;
             if (log_obj->st->REPR->ID == MVM_REPR_ID_MVMSpeshLog) {
                 MVMSpeshLog *sl = (MVMSpeshLog *)log_obj;
@@ -114,6 +119,11 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
             else {
                 MVM_panic(1, "Unexpected object sent to specialization worker");
             }
+
+            uv_mutex_lock(&(tc->instance->mutex_spesh_sync));
+            tc->instance->spesh_working = 0;
+            uv_cond_broadcast(&(tc->instance->cond_spesh_sync));
+            uv_mutex_unlock(&(tc->instance->mutex_spesh_sync));
         }
     });
     });
