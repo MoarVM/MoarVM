@@ -95,6 +95,8 @@ void MVM_frame_destroy(MVMThreadContext *tc, MVMFrame *frame) {
         MVM_args_proc_cleanup(tc, &frame->params);
         MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_work,
             frame->work);
+        if (frame->extra)
+            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), frame->extra);
     }
     if (frame->env)
         MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_env, frame->env);
@@ -660,6 +662,12 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     MVMFrame *returner = tc->cur_frame;
     MVMFrame *caller   = returner->caller;
 
+    /* Clear up any extra frame data. */
+    if (returner->extra) {
+        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), returner->extra);
+        returner->extra = NULL;
+    }
+
     /* Clear up any continuation tags. */
     if (returner->continuation_tags)
         MVM_continuation_free_tags(tc, returner);
@@ -701,18 +709,21 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         *(tc->interp_cu) = caller->static_info->body.cu;
 
         /* Handle any special return hooks. */
-        if (caller->special_return || caller->special_unwind) {
-            MVMSpecialReturn  sr  = caller->special_return;
-            MVMSpecialReturn  su  = caller->special_unwind;
-            void             *srd = caller->special_return_data;
-            caller->special_return           = NULL;
-            caller->special_unwind           = NULL;
-            caller->special_return_data      = NULL;
-            caller->mark_special_return_data = NULL;
-            if (unwind && su)
-                su(tc, srd);
-            else if (!unwind && sr)
-                sr(tc, srd);
+        if (caller->extra) {
+            MVMFrameExtra *e = caller->extra;
+            if (e->special_return || e->special_unwind) {
+                MVMSpecialReturn  sr  = e->special_return;
+                MVMSpecialReturn  su  = e->special_unwind;
+                void             *srd = e->special_return_data;
+                e->special_return           = NULL;
+                e->special_unwind           = NULL;
+                e->special_return_data      = NULL;
+                e->mark_special_return_data = NULL;
+                if (unwind && su)
+                    su(tc, srd);
+                else if (!unwind && sr)
+                    sr(tc, srd);
+            }
         }
 
         return 1;
@@ -800,7 +811,7 @@ typedef struct {
     MVMuint32  rel_addr;
 } MVMUnwindData;
 static void mark_unwind_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
-    MVMUnwindData *ud  = (MVMUnwindData *)frame->special_return_data;
+    MVMUnwindData *ud  = (MVMUnwindData *)frame->extra->special_return_data;
     MVM_gc_worklist_add(tc, worklist, &(ud->frame));
 }
 static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
@@ -1665,14 +1676,33 @@ MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
     return ctx;
 }
 
+/* Gets, allocating if needed, the frame extra data structure for the given
+ * frame. This is used to hold data that only a handful of frames need. */
+MVMFrameExtra * MVM_frame_extra(MVMThreadContext *tc, MVMFrame *f) {
+    if (!f->extra)
+        f->extra = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMFrameExtra));
+    return f->extra;
+}
+
 /* Set up special return data on a frame. */
 void MVM_frame_special_return(MVMThreadContext *tc, MVMFrame *f,
                                MVMSpecialReturn special_return,
                                MVMSpecialReturn special_unwind,
                                void *special_return_data,
                                MVMSpecialReturnDataMark mark_special_return_data) {
-    f->special_return = special_return;
-    f->special_unwind = special_unwind;
-    f->special_return_data = special_return_data;
-    f->mark_special_return_data = mark_special_return_data;
+    MVMFrameExtra *e = MVM_frame_extra(tc, f);
+    e->special_return = special_return;
+    e->special_unwind = special_unwind;
+    e->special_return_data = special_return_data;
+    e->mark_special_return_data = mark_special_return_data;
+}
+
+/* Clears any special return data on a frame. */
+void MVM_frame_clear_special_return(MVMThreadContext *tc, MVMFrame *f) {
+    if (f->extra) {
+        f->extra->special_return = NULL;
+        f->extra->special_unwind = NULL;
+        f->extra->special_return_data = NULL;
+        f->extra->mark_special_return_data = NULL;
+    }
 }

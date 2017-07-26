@@ -645,7 +645,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     target = ex->body.origin;
     if (!target)
         MVM_exception_throw_adhoc(tc, "This exception is not resumable");
-    if (target->special_return != unwind_after_handler)
+    if (!target->extra || target->extra->special_return != unwind_after_handler)
         MVM_exception_throw_adhoc(tc, "This exception is not resumable");
     if (!in_caller_chain(tc, target))
         MVM_exception_throw_adhoc(tc, "Too late to resume this exception");
@@ -657,8 +657,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
         MVM_exception_throw_adhoc(tc, "Can only resume the current exception");
 
     /* Clear special return handler; we'll do its work here. */
-    target->special_return = NULL;
-    target->special_unwind = NULL;
+    MVM_frame_clear_special_return(tc, target);
 
     /* Clear the current active handler. */
     ah = tc->active_handlers;

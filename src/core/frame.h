@@ -95,20 +95,6 @@ struct MVMFrame {
     /* The type of return value that is expected. */
     MVMReturnType return_type;
 
-    /* If we want to invoke a special handler upon a return to this
-     * frame, this function pointer is set. */
-    MVMSpecialReturn special_return;
-
-    /* If we want to invoke a special handler upon unwinding past a
-     * frame, this function pointer is set. */
-    MVMSpecialReturn special_unwind;
-
-    /* Data slot for the special return handler function. */
-    void *special_return_data;
-
-    /* Flag for if special_return_data need to be GC marked. */
-    MVMSpecialReturnDataMark mark_special_return_data;
-
     /* Address of the last op executed that threw an exeption; used just
      * for error reporting. */
     MVMuint8 *throw_address;
@@ -142,6 +128,28 @@ struct MVMFrame {
     /* If we were invoked with a call capture, that call capture, so we can
      * keep its callsite alive. */
     MVMObject *invoked_call_capture;
+
+    /* Extra data that some frames need, allocated on demand. If allocated,
+     * lives for the dynamic scope of the frame. */
+    MVMFrameExtra *extra;
+};
+
+/* Extra data that a handful of call frames optionally need. It is needed
+ * only while the frame is in dynamic scope; after that it can go away. */
+struct MVMFrameExtra {
+    /* If we want to invoke a special handler upon a return to this
+     * frame, this function pointer is set. */
+    MVMSpecialReturn special_return;
+
+    /* If we want to invoke a special handler upon unwinding past a
+     * frame, this function pointer is set. */
+    MVMSpecialReturn special_unwind;
+
+    /* Data slot for the special return handler function. */
+    void *special_return_data;
+
+    /* Flag for if special_return_data need to be GC marked. */
+    MVMSpecialReturnDataMark mark_special_return_data;
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for
@@ -202,6 +210,8 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
 MVM_PUBLIC MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs);
 MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs, MVMRegister *args);
 MVM_PUBLIC MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f);
+MVMFrameExtra * MVM_frame_extra(MVMThreadContext *tc, MVMFrame *f);
 MVM_PUBLIC void MVM_frame_special_return(MVMThreadContext *tc, MVMFrame *f,
     MVMSpecialReturn special_return, MVMSpecialReturn special_unwind,
     void *special_return_data, MVMSpecialReturnDataMark mark_special_return_data);
+MVM_PUBLIC void MVM_frame_clear_special_return(MVMThreadContext *tc, MVMFrame *f);

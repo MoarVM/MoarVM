@@ -5,7 +5,7 @@
  * is triggered by the special_return mechanism. */
 static void run_load(MVMThreadContext *tc, void *sr_data);
 static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
-    MVM_gc_worklist_add(tc, worklist, &frame->special_return_data);
+    MVM_gc_worklist_add(tc, worklist, &frame->extra->special_return_data);
 }
 static void run_comp_unit(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* If there's a deserialization frame, need to run that. */

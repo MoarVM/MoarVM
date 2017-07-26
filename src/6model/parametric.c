@@ -56,7 +56,7 @@ static void finish_parameterizing(MVMThreadContext *tc, void *sr_data) {
     MVM_free(prd);
 }
 static void mark_parameterize_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
-    ParameterizeReturnData *prd = (ParameterizeReturnData *)frame->special_return_data;
+    ParameterizeReturnData *prd = (ParameterizeReturnData *)frame->extra->special_return_data;
     MVM_gc_worklist_add(tc, worklist, &(prd->parametric_type));
     MVM_gc_worklist_add(tc, worklist, &(prd->parameters));
 }

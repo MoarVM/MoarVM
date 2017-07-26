@@ -73,7 +73,7 @@ static void late_bound_find_method_return(MVMThreadContext *tc, void *sr_data) {
     }
 }
 static void mark_find_method_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
-    FindMethodSRData *fm = (FindMethodSRData *)frame->special_return_data;
+    FindMethodSRData *fm = (FindMethodSRData *)frame->extra->special_return_data;
     MVM_gc_worklist_add(tc, worklist, &fm->obj);
     MVM_gc_worklist_add(tc, worklist, &fm->name);
 }
@@ -319,7 +319,7 @@ static void accepts_type_sr(MVMThreadContext *tc, void *sr_data) {
 }
 
 static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
-    AcceptsTypeSRData *atd = (AcceptsTypeSRData *)frame->special_return_data;
+    AcceptsTypeSRData *atd = (AcceptsTypeSRData *)frame->extra->special_return_data;
     MVM_gc_worklist_add(tc, worklist, &atd->obj);
     MVM_gc_worklist_add(tc, worklist, &atd->type);
 }

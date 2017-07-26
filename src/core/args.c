@@ -834,7 +834,7 @@ static void bind_error_return(MVMThreadContext *tc, void *sr_data) {
     MVM_frame_try_return(tc);
 }
 static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
-    MVMRegister *r = (MVMRegister *)frame->special_return_data;
+    MVMRegister *r = (MVMRegister *)frame->extra->special_return_data;
     MVM_gc_worklist_add(tc, worklist, &r->o);
 }
 void MVM_args_bind_failed(MVMThreadContext *tc) {

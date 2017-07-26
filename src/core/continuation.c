@@ -116,8 +116,7 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
 
     /* Clear special return handler, given we didn't just fall out of the
      * reset. */
-    tc->cur_frame->special_return = NULL;
-    tc->cur_frame->special_return_data = NULL;
+    MVM_frame_clear_special_return(tc, tc->cur_frame);
 
     /* If we're not protecting the follow-up call, remove the tag record. */
     if (!protect)

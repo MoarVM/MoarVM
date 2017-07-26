@@ -453,9 +453,12 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                     (MVMCollectable *)frame->dynlex_cache_name,
                     "Dynamic lexical cache name");
 
-                if (frame->special_return_data && frame->mark_special_return_data) {
-                    frame->mark_special_return_data(tc, frame, ss->gcwl);
-                    process_gc_worklist(tc, ss, "Special return data");
+                if (frame->extra) {
+                    MVMFrameExtra *e = frame->extra;
+                    if (e->special_return_data && e->mark_special_return_data) {
+                        e->mark_special_return_data(tc, frame, ss->gcwl);
+                        process_gc_worklist(tc, ss, "Special return data");
+                    }
                 }
 
                 if (frame->continuation_tags) {
