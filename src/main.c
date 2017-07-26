@@ -141,6 +141,7 @@ int wmain(int argc, wchar_t *wargv[])
     int flag;
 
     unsigned int interval_id;
+    char telemeh_inited = 0;
 
     for (; (flag = parse_flag(argv[argi])) != NOT_A_FLAG; ++argi) {
         switch (flag) {
@@ -215,8 +216,12 @@ int wmain(int argc, wchar_t *wargv[])
              getpid()
 #endif
              );
-        MVM_telemetry_init(fopen(path, "w"));
-        interval_id = MVM_telemetry_interval_start(0, "moarvm startup");
+        FILE *fp = fopen(path, "w");
+        if (fp) {
+            MVM_telemetry_init(fp);
+            telemeh_inited = 1;
+            interval_id = MVM_telemetry_interval_start(0, "moarvm startup");
+        }
     }
 #endif
 
@@ -246,7 +251,7 @@ int wmain(int argc, wchar_t *wargv[])
     if (dump) MVM_vm_dump_file(instance, input_file);
     else MVM_vm_run_file(instance, input_file);
 
-    if (getenv("MVM_TELEMETRY_LOG")) {
+    if (getenv("MVM_TELEMETRY_LOG") && telemeh_inited) {
         MVM_telemetry_interval_stop(0, interval_id, "moarvm teardown");
         MVM_telemetry_finish();
     }
