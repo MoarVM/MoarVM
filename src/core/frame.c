@@ -775,7 +775,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
         MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, two_args_callsite);
         cur_frame->args[0].o = cur_frame->code_ref;
         cur_frame->args[1].o = result;
-        cur_frame->special_return = remove_after_handler;
+        MVM_frame_special_return(tc, cur_frame, remove_after_handler, NULL, NULL, NULL);
         cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
         STABLE(handler)->invoke(tc, handler, two_args_callsite, cur_frame->args);
         return 1;
@@ -847,8 +847,6 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
             MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, two_args_callsite);
             cur_frame->args[0].o = cur_frame->code_ref;
             cur_frame->args[1].o = tc->instance->VMNull;
-            cur_frame->special_return = continue_unwind;
-            cur_frame->mark_special_return_data = mark_unwind_data;
             {
                 MVMUnwindData *ud = MVM_malloc(sizeof(MVMUnwindData));
                 ud->frame = frame;
@@ -856,7 +854,8 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                 ud->rel_addr = rel_addr;
                 if (return_value)
                     MVM_exception_throw_adhoc(tc, "return_value + exit_handler case NYI");
-                cur_frame->special_return_data = ud;
+                MVM_frame_special_return(tc, cur_frame, continue_unwind, NULL, ud,
+                    mark_unwind_data);
             }
             cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
             STABLE(handler)->invoke(tc, handler, two_args_callsite, cur_frame->args);
@@ -1664,4 +1663,16 @@ MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
         MVM_ASSIGN_REF(tc, &(ctx->header), ((MVMContext *)ctx)->body.context, f);
     });
     return ctx;
+}
+
+/* Set up special return data on a frame. */
+void MVM_frame_special_return(MVMThreadContext *tc, MVMFrame *f,
+                               MVMSpecialReturn special_return,
+                               MVMSpecialReturn special_unwind,
+                               void *special_return_data,
+                               MVMSpecialReturnDataMark mark_special_return_data) {
+    f->special_return = special_return;
+    f->special_unwind = special_unwind;
+    f->special_return_data = special_return_data;
+    f->mark_special_return_data = mark_special_return_data;
 }

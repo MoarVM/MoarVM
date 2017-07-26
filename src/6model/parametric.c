@@ -83,9 +83,8 @@ void MVM_6model_parametric_parameterize(MVMThreadContext *tc, MVMObject *type, M
     prd->parametric_type                    = type;
     prd->parameters                         = params;
     prd->result                             = result;
-    tc->cur_frame->special_return           = finish_parameterizing;
-    tc->cur_frame->special_return_data      = prd;
-    tc->cur_frame->mark_special_return_data = mark_parameterize_sr_data;
+    MVM_frame_special_return(tc, tc->cur_frame, finish_parameterizing, NULL,
+        prd, mark_parameterize_sr_data);
     MVM_args_setup_thunk(tc, result, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ));
     tc->cur_frame->args[0].o = st->WHAT;
     tc->cur_frame->args[1].o = params;

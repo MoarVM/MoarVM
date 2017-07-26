@@ -853,9 +853,7 @@ void MVM_args_bind_failed(MVMThreadContext *tc) {
     res = MVM_calloc(1, sizeof(MVMRegister));
     inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
     MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, inv_arg_callsite);
-    cur_frame->special_return           = bind_error_return;
-    cur_frame->special_return_data      = res;
-    cur_frame->mark_special_return_data = mark_sr_data;
+    MVM_frame_special_return(tc, cur_frame, bind_error_return, NULL, res, mark_sr_data);
     cur_frame->args[0].o = cc_obj;
     STABLE(bind_error)->invoke(tc, bind_error, inv_arg_callsite, cur_frame->args);
 }

@@ -54,7 +54,8 @@ static void setup_finalize_handler_call(MVMThreadContext *tc) {
         install_on = install_on->caller;
     }
     if (install_on)
-        install_on->special_return = finalize_handler_caller;
+        MVM_frame_special_return(tc, install_on, finalize_handler_caller, NULL,
+            NULL, NULL);
 }
 
 /* Walks through the per-thread finalize queues, identifying objects that

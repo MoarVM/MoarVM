@@ -250,11 +250,10 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
 
         /* Set up special return to unwinding after running the
          * handler. */
-        cur_frame->return_value        = (MVMRegister *)&tc->last_handler_result;
-        cur_frame->return_type         = MVM_RETURN_OBJ;
-        cur_frame->special_return      = unwind_after_handler;
-        cur_frame->special_unwind      = cleanup_active_handler;
-        cur_frame->special_return_data = ah;
+        cur_frame->return_value = (MVMRegister *)&tc->last_handler_result;
+        cur_frame->return_type = MVM_RETURN_OBJ;
+        MVM_frame_special_return(tc, cur_frame, unwind_after_handler, cleanup_active_handler,
+            ah, NULL);
 
         /* Invoke the handler frame and return to runloop. */
         STABLE(handler_code)->invoke(tc, handler_code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS),

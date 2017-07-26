@@ -31,8 +31,7 @@ void MVM_continuation_reset(MVMThreadContext *tc, MVMObject *tag,
         MVMCallsite *null_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS);
         code = MVM_frame_find_invokee(tc, code, NULL);
         MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, null_args_callsite);
-        tc->cur_frame->special_return = clear_tag;
-        tc->cur_frame->special_return_data = tag_record;
+        MVM_frame_special_return(tc, tc->cur_frame, clear_tag, NULL, tag_record, NULL);
         STABLE(code)->invoke(tc, code, null_args_callsite, tc->cur_frame->args);
     }
 }
