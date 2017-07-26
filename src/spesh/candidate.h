@@ -56,9 +56,3 @@ struct MVMSpeshCandidate {
 /* Functions for creating and clearing up specializations. */
 void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p);
 void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candidate);
-
-/* Functions for getting effective (specialized or not) frame handlers. */
-MVM_STATIC_INLINE MVMFrameHandler * MVM_frame_effective_handlers(MVMFrame *f) {
-    MVMSpeshCandidate *spesh_cand = f->spesh_cand;
-    return spesh_cand ? spesh_cand->handlers : f->static_info->body.handlers;
-}
