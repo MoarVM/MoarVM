@@ -59,7 +59,6 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                 /* Yes; multi-level un-inline. Switch it back to deopt'd
                  * code. */
                 uf->effective_bytecode    = uf->static_info->body.bytecode;
-                uf->effective_handlers    = uf->static_info->body.handlers;
                 uf->effective_spesh_slots = NULL;
                 uf->spesh_cand            = NULL;
 
@@ -176,7 +175,6 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
             uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, NULL);
         });
         f->effective_bytecode    = f->static_info->body.bytecode;
-        f->effective_handlers    = f->static_info->body.handlers;
         f->effective_spesh_slots = NULL;
         f->spesh_cand            = NULL;
 #if MVM_LOG_DEOPTS
@@ -188,7 +186,6 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
     else {
         /* No inlining; simple case. Switch back to the original code. */
         f->effective_bytecode        = f->static_info->body.bytecode;
-        f->effective_handlers        = f->static_info->body.handlers;
         *(tc->interp_cur_op)         = f->effective_bytecode + deopt_target;
         *(tc->interp_bytecode_start) = f->effective_bytecode;
         f->effective_spesh_slots     = NULL;
@@ -275,7 +272,6 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
 
                         /* Switch frame itself back to the original code. */
                         f->effective_bytecode    = f->static_info->body.bytecode;
-                        f->effective_handlers    = f->static_info->body.handlers;
 
                         /* Re-create any frames needed if we're in an inline; if not,
                         * just update return address. */
@@ -312,7 +308,6 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                     if (f->spesh_cand->deopts[i + 1] == ret_offset) {
                         /* Switch frame itself back to the original code. */
                         f->effective_bytecode    = f->static_info->body.bytecode;
-                        f->effective_handlers    = f->static_info->body.handlers;
 
                         /* Re-create any frames needed if we're in an inline; if not,
                         * just update return address. */

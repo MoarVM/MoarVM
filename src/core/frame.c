@@ -119,10 +119,9 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
     });
     });
 
-    /* Set static frame, code ref, and handlers. */
+    /* Set static frame and code ref. */
     MVM_ASSIGN_REF(tc, &(frame->header), frame->static_info, static_frame);
     MVM_ASSIGN_REF(tc, &(frame->header), frame->code_ref, code_ref);
-    frame->effective_handlers = static_frame->body.handlers;
 
     /* Allocate space for lexicals, copying the default lexical environment
      * into place and, if we're auto-closing, making sure anything we'd clone
@@ -418,7 +417,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         else {
             frame->effective_bytecode = chosen_cand->bytecode;
         }
-        frame->effective_handlers    = chosen_cand->handlers;
         frame->effective_spesh_slots = chosen_cand->spesh_slots;
         frame->spesh_cand            = chosen_cand;
         found_spesh                  = 1;
@@ -439,7 +437,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             else {
                 frame->effective_bytecode = chosen_cand->bytecode;
             }
-            frame->effective_handlers    = chosen_cand->handlers;
             frame->effective_spesh_slots = chosen_cand->spesh_slots;
             frame->spesh_cand            = chosen_cand;
             found_spesh                  = 1;
@@ -448,7 +445,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (!found_spesh) {
         frame = allocate_frame(tc, static_frame, NULL);
         frame->effective_bytecode = static_frame->body.bytecode;
-        frame->effective_handlers = static_frame->body.handlers;
 
         /* If we should be spesh logging, set the correlation ID. */
         frame->spesh_correlation_id = 0;
@@ -651,8 +647,7 @@ MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *stat
         frame = allocate_heap_frame(tc, static_frame, NULL);
     });
     });
-    frame->effective_bytecode       = static_frame->body.bytecode;
-    frame->effective_handlers       = static_frame->body.handlers;
+    frame->effective_bytecode = static_frame->body.bytecode;
     MVM_ASSIGN_REF(tc, &(frame->header), frame->static_info, static_frame);
     MVM_ASSIGN_REF(tc, &(frame->header), frame->code_ref, code_ref);
     MVM_ASSIGN_REF(tc, &(frame->header), frame->outer, code_ref->body.outer);

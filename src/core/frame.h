@@ -84,9 +84,6 @@ struct MVMFrame {
      * specialization of it). */
     MVMuint8 *effective_bytecode;
 
-    /* Effective set of frame handlers (to go with the effective bytecode). */
-    MVMFrameHandler *effective_handlers;
-
     /* Effective set of spesh slots, if any. */
     MVMCollectable **effective_spesh_slots;
 
