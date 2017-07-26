@@ -111,7 +111,7 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
     tc->current_frame_nr = jump_frame->sequence_nr;
 
     *(tc->interp_cur_op) = tc->cur_frame->return_address;
-    *(tc->interp_bytecode_start) = tc->cur_frame->effective_bytecode;
+    *(tc->interp_bytecode_start) = MVM_frame_effective_bytecode(tc->cur_frame);
     *(tc->interp_reg_base) = tc->cur_frame->work;
     *(tc->interp_cu) = tc->cur_frame->static_info->body.cu;
 
@@ -158,7 +158,7 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
     tc->current_frame_nr = cont->body.top->sequence_nr;
 
     *(tc->interp_cur_op) = cont->body.addr;
-    *(tc->interp_bytecode_start) = tc->cur_frame->effective_bytecode;
+    *(tc->interp_bytecode_start) = MVM_frame_effective_bytecode(tc->cur_frame);
     *(tc->interp_reg_base) = tc->cur_frame->work;
     *(tc->interp_cu) = tc->cur_frame->static_info->body.cu;
 

@@ -123,7 +123,7 @@ static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
         if (f == tc->cur_frame)
             pc = (MVMuint32)(*tc->interp_cur_op - *tc->interp_bytecode_start);
         else
-            pc = (MVMuint32)(f->return_address - f->effective_bytecode);
+            pc = (MVMuint32)(f->return_address - MVM_frame_effective_bytecode(f));
         for (i = 0; i < num_handlers; i++) {
             MVMFrameHandler  *fh = &(MVM_frame_effective_handlers(f)[i]);
             if (mode == MVM_EX_THROW_LEX && fh->inlined_and_not_lexical)
@@ -326,7 +326,7 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
      * we can update it if necessary, and the caller can cache it. */
     char *o = MVM_malloc(1024);
     MVMuint8 *cur_op = not_top ? cur_frame->return_address : cur_frame->throw_address;
-    MVMuint32 offset = cur_op - cur_frame->effective_bytecode;
+    MVMuint32 offset = cur_op - MVM_frame_effective_bytecode(cur_frame);
     MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body,
                                         offset > 0 ? offset - 1 : 0);
 
@@ -395,7 +395,7 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
 
     while (cur_frame != NULL) {
         MVMuint8             *cur_op = count ? cur_frame->return_address : cur_frame->throw_address;
-        MVMuint32             offset = cur_op - cur_frame->effective_bytecode;
+        MVMuint32             offset = cur_op - MVM_frame_effective_bytecode(cur_frame);
         MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body,
                                             offset > 0 ? offset - 1 : 0);
         MVMint32              fshi   = annot ? (MVMint32)annot->filename_string_heap_index : -1;

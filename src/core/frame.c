@@ -696,7 +696,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         tc->current_frame_nr = caller->sequence_nr;
 
         *(tc->interp_cur_op) = caller->return_address;
-        *(tc->interp_bytecode_start) = caller->effective_bytecode;
+        *(tc->interp_bytecode_start) = MVM_frame_effective_bytecode(caller);
         *(tc->interp_reg_base) = caller->work;
         *(tc->interp_cu) = caller->static_info->body.cu;
 
@@ -1300,7 +1300,8 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                     }
                 }
             } else {
-                MVMint32 ret_offset = cur_frame->return_address - cur_frame->effective_bytecode;
+                MVMint32 ret_offset = cur_frame->return_address -
+                    MVM_frame_effective_bytecode(cur_frame);
                 MVMint32 i;
                 for (i = 0; i < cand->num_inlines; i++) {
                     icost++;

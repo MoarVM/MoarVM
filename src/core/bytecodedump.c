@@ -483,7 +483,7 @@ void MVM_dump_bytecode_staticframe(MVMThreadContext *tc, MVMStaticFrame *frame) 
 
 void MVM_dump_bytecode(MVMThreadContext *tc) {
     MVMStaticFrame *sf = tc->cur_frame->static_info;
-    MVMuint8 *effective_bytecode = tc->cur_frame->effective_bytecode;
+    MVMuint8 *effective_bytecode = MVM_frame_effective_bytecode(tc->cur_frame);
     if (effective_bytecode == sf->body.bytecode) {
         MVM_dump_bytecode_of(tc, tc->cur_frame, NULL);
     } else {
@@ -512,7 +512,7 @@ void MVM_dump_bytecode_stackframe(MVMThreadContext *tc, MVMint32 depth) {
         frame = frame->caller;
     }
     sf = frame->static_info;
-    effective_bytecode = frame->effective_bytecode;
+    effective_bytecode = MVM_frame_effective_bytecode(frame);
     if (effective_bytecode == sf->body.bytecode) {
         MVM_dump_bytecode_of(tc, frame, NULL);
     } else {
