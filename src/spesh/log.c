@@ -44,8 +44,10 @@ void commit_entry(MVMThreadContext *tc, MVMSpeshLog *sl) {
         }
         if (MVM_decr(&(tc->spesh_log_quota)) > 1)
             tc->spesh_log = MVM_spesh_log_create(tc, tc->thread_obj);
-        else
+        else {
+            MVM_telemetry_timestamp(tc, "ran out of spesh log quota");
             tc->spesh_log = NULL;
+        }
     }
 }
 
