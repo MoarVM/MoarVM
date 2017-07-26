@@ -82,8 +82,7 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
         memset((char *)tc->cur_frame->env + keep_bytes, 0, to_null);
     }
 
-    /* Set up frame to point to specialized code. */
-    tc->cur_frame->effective_bytecode    = specialized->bytecode;
+    /* Set up frame to point to spesh candidate/slots. */
     tc->cur_frame->effective_spesh_slots = specialized->spesh_slots;
     tc->cur_frame->spesh_cand            = specialized;
 

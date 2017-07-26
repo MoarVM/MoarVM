@@ -80,10 +80,6 @@ struct MVMFrame {
     /* Parameters received by this frame. */
     MVMArgProcContext params;
 
-    /* Effective bytecode for the frame (either the original bytecode or a
-     * specialization of it). */
-    MVMuint8 *effective_bytecode;
-
     /* Effective set of spesh slots, if any. */
     MVMCollectable **effective_spesh_slots;
 

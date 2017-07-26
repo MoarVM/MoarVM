@@ -412,11 +412,11 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMSpeshCandidate *chosen_cand = static_frame->body.spesh_candidates[spesh_cand];
         frame = allocate_frame(tc, static_frame, chosen_cand);
         if (chosen_cand->jitcode) {
-            chosen_bytecode = frame->effective_bytecode = chosen_cand->jitcode->bytecode;
+            chosen_bytecode = chosen_cand->jitcode->bytecode;
             frame->jit_entry_label = chosen_cand->jitcode->labels[0];
         }
         else {
-            chosen_bytecode = frame->effective_bytecode = chosen_cand->bytecode;
+            chosen_bytecode = chosen_cand->bytecode;
         }
         frame->effective_spesh_slots = chosen_cand->spesh_slots;
         frame->spesh_cand            = chosen_cand;
@@ -432,11 +432,11 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         if (chosen_cand) {
             frame = allocate_frame(tc, static_frame, chosen_cand);
             if (chosen_cand->jitcode) {
-                chosen_bytecode = frame->effective_bytecode = chosen_cand->jitcode->bytecode;
+                chosen_bytecode = chosen_cand->jitcode->bytecode;
                 frame->jit_entry_label    = chosen_cand->jitcode->labels[0];
             }
             else {
-                chosen_bytecode = frame->effective_bytecode = chosen_cand->bytecode;
+                chosen_bytecode = chosen_cand->bytecode;
             }
             frame->effective_spesh_slots = chosen_cand->spesh_slots;
             frame->spesh_cand            = chosen_cand;
@@ -445,7 +445,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     }
     if (!found_spesh) {
         frame = allocate_frame(tc, static_frame, NULL);
-        chosen_bytecode = frame->effective_bytecode = static_frame->body.bytecode;
+        chosen_bytecode = static_frame->body.bytecode;
 
         /* If we should be spesh logging, set the correlation ID. */
         frame->spesh_correlation_id = 0;
@@ -648,7 +648,6 @@ MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *stat
         frame = allocate_heap_frame(tc, static_frame, NULL);
     });
     });
-    frame->effective_bytecode = static_frame->body.bytecode;
     MVM_ASSIGN_REF(tc, &(frame->header), frame->static_info, static_frame);
     MVM_ASSIGN_REF(tc, &(frame->header), frame->code_ref, code_ref);
     MVM_ASSIGN_REF(tc, &(frame->header), frame->outer, code_ref->body.outer);

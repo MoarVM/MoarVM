@@ -58,7 +58,6 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
             if (last_uninlined) {
                 /* Yes; multi-level un-inline. Switch it back to deopt'd
                  * code. */
-                uf->effective_bytecode    = usf->body.bytecode;
                 uf->effective_spesh_slots = NULL;
                 uf->spesh_cand            = NULL;
 
@@ -174,7 +173,6 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
         MVMROOT(tc, f, {
             uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, NULL);
         });
-        f->effective_bytecode    = f->static_info->body.bytecode;
         f->effective_spesh_slots = NULL;
         f->spesh_cand            = NULL;
 #if MVM_LOG_DEOPTS
@@ -185,7 +183,6 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
     }
     else {
         /* No inlining; simple case. Switch back to the original code. */
-        f->effective_bytecode        = f->static_info->body.bytecode;
         *(tc->interp_cur_op)         = f->static_info->body.bytecode + deopt_target;
         *(tc->interp_bytecode_start) = f->static_info->body.bytecode;
         f->effective_spesh_slots     = NULL;
@@ -257,14 +254,10 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                         MVMint32 deopt_idx    = deopts[i].idx;
                         MVMint32 deopt_offset = f->spesh_cand->deopts[2 * deopt_idx + 1];
                         MVMint32 deopt_target = f->spesh_cand->deopts[2 * deopt_idx];
-
 #if MVM_LOG_DEOPTS
                         fprintf(stderr, "Found deopt label for JIT (%d) (label %d idx %d)\n", i,
                                 deopts[i].label, deopts[i].idx);
 #endif
-
-                        /* Switch frame itself back to the original code. */
-                        f->effective_bytecode    = f->static_info->body.bytecode;
 
                         /* Re-create any frames needed if we're in an inline; if not,
                         * just update return address. */
@@ -299,9 +292,6 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                 MVMint32 i;
                 for (i = 0; i < f->spesh_cand->num_deopts * 2; i += 2) {
                     if (f->spesh_cand->deopts[i + 1] == ret_offset) {
-                        /* Switch frame itself back to the original code. */
-                        f->effective_bytecode    = f->static_info->body.bytecode;
-
                         /* Re-create any frames needed if we're in an inline; if not,
                         * just update return address. */
                         if (f->spesh_cand->inlines) {
