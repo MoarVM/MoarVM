@@ -6,7 +6,7 @@
 # IMPORTANT NOTE: MoarVM is meant to be able to read bytecode files
 # from some number of versions back. This means that new ops should,
 # in general, always be added *at the end* of this file, so they get
-# new numbers. Similarly, do not remove an op; rename it DEPCRATED_n
+# new numbers. Similarly, do not remove an op; rename it DEPRECATED_n
 # (where n is unique for each one). Otherwise the numbering of those
 # after it will be broken. The alternative is writing a bunch of very
 # boring mapping code and rendering old bytecode impossible to simply
