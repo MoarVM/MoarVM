@@ -1759,6 +1759,26 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov aword WORK[dst], TMP3;
         break;
     }
+    case MVM_OP_param_sp: {
+        MVMuint16 dst = ins->operands[0].reg.orig;
+        MVMuint16 off = ins->operands[1].lit_ui16;
+        | mov ARG1, TC
+        | mov ARG2, TC:ARG1->cur_frame
+        | lea ARG2, FRAME:ARG2->params
+        | mov ARG3, off
+        | callp &MVM_args_slurpy_positional;
+        | mov qword WORK[dst], RV;
+        break;
+    }
+    case MVM_OP_param_sn: {
+        MVMuint16 dst = ins->operands[0].reg.orig;
+        | mov ARG1, TC
+        | mov ARG2, TC:ARG1->cur_frame
+        | lea ARG2, FRAME:ARG2->params
+        | callp &MVM_args_slurpy_named;
+        | mov qword WORK[dst], RV;
+        break;
+    }
     default:
         MVM_panic(1, "Can't JIT opcode <%s>", ins->info->name);
     }
