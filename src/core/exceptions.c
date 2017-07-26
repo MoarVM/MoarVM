@@ -7,7 +7,7 @@
 
 static int crash_on_error = 0;
 
-/* Functions for getting effective (specialized or not) frame handlers. */
+/* Function for getting effective (specialized or not) frame handlers. */
 MVM_STATIC_INLINE MVMFrameHandler * MVM_frame_effective_handlers(MVMFrame *f) {
     MVMSpeshCandidate *spesh_cand = f->spesh_cand;
     return spesh_cand ? spesh_cand->handlers : f->static_info->body.handlers;
