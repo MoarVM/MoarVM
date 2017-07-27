@@ -99,9 +99,6 @@ struct MVMFrame {
      * for error reporting. */
     MVMuint8 *throw_address;
 
-    /* Linked list of any continuation tags we have. */
-    MVMContinuationTag *continuation_tags;
-
     /* Cache for dynlex lookup; if the name is non-null, the cache is valid
      * and the register can be accessed directly to find the contextual. */
     MVMString   *dynlex_cache_name;
@@ -150,6 +147,9 @@ struct MVMFrameExtra {
 
     /* Flag for if special_return_data need to be GC marked. */
     MVMSpecialReturnDataMark mark_special_return_data;
+
+    /* Linked list of any continuation tags we have. */
+    MVMContinuationTag *continuation_tags;
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for

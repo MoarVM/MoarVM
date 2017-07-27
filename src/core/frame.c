@@ -95,13 +95,15 @@ void MVM_frame_destroy(MVMThreadContext *tc, MVMFrame *frame) {
         MVM_args_proc_cleanup(tc, &frame->params);
         MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_work,
             frame->work);
-        if (frame->extra)
-            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), frame->extra);
+        if (frame->extra) {
+            MVMFrameExtra *e = frame->extra;
+            if (e->continuation_tags)
+                MVM_continuation_free_tags(tc, frame);
+            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
+        }
     }
     if (frame->env)
         MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_env, frame->env);
-    if (frame->continuation_tags)
-        MVM_continuation_free_tags(tc, frame);
 }
 
 /* Creates a frame for usage as a context only, possibly forcing all of the
@@ -664,13 +666,12 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
 
     /* Clear up any extra frame data. */
     if (returner->extra) {
-        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), returner->extra);
+        MVMFrameExtra *e = returner->extra;
+        if (e->continuation_tags)
+            MVM_continuation_free_tags(tc, returner);
+        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
         returner->extra = NULL;
     }
-
-    /* Clear up any continuation tags. */
-    if (returner->continuation_tags)
-        MVM_continuation_free_tags(tc, returner);
 
     /* Clean up frame working space. */
     if (returner->work) {

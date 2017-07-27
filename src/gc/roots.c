@@ -373,14 +373,12 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
         MVMFrameExtra *e = cur_frame->extra;
         if (e->special_return_data && e->mark_special_return_data)
             e->mark_special_return_data(tc, cur_frame, worklist);
-    }
-
-    /* Mark any continuation tags. */
-    if (cur_frame->continuation_tags) {
-        MVMContinuationTag *tag = cur_frame->continuation_tags;
-        while (tag) {
-            MVM_gc_worklist_add(tc, worklist, &tag->tag);
-            tag = tag->next;
+        if (e->continuation_tags) {
+            MVMContinuationTag *tag = e->continuation_tags;
+            while (tag) {
+                MVM_gc_worklist_add(tc, worklist, &tag->tag);
+                tag = tag->next;
+            }
         }
     }
 

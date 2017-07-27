@@ -1,7 +1,7 @@
 #include "moar.h"
 
 static void clear_tag(MVMThreadContext *tc, void *sr_data) {
-    MVMContinuationTag **update = &tc->cur_frame->continuation_tags;
+    MVMContinuationTag **update = &tc->cur_frame->extra->continuation_tags;
     while (*update) {
         if (*update == sr_data) {
             *update = (*update)->next;
@@ -15,11 +15,12 @@ static void clear_tag(MVMThreadContext *tc, void *sr_data) {
 void MVM_continuation_reset(MVMThreadContext *tc, MVMObject *tag,
                             MVMObject *code, MVMRegister *res_reg) {
     /* Save the tag. */
+    MVMFrameExtra *e = MVM_frame_extra(tc, tc->cur_frame);
     MVMContinuationTag *tag_record = MVM_malloc(sizeof(MVMContinuationTag));
     tag_record->tag = tag;
     tag_record->active_handlers = tc->active_handlers;
-    tag_record->next = tc->cur_frame->continuation_tags;
-    tc->cur_frame->continuation_tags = tag_record;
+    tag_record->next = e->continuation_tags;
+    e->continuation_tags = tag_record;
 
     /* Were we passed code or a continuation? */
     if (REPR(code)->ID == MVM_REPR_ID_MVMContinuation) {
@@ -55,7 +56,7 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
     });
     while (jump_frame) {
         jump_frame->dynlex_cache_name = NULL;
-        tag_record = jump_frame->continuation_tags;
+        tag_record = jump_frame->extra ? jump_frame->extra->continuation_tags : NULL;
         while (tag_record) {
             if (MVM_is_null(tc, tag) || tag_record->tag == tag)
                 break;
@@ -191,11 +192,11 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
 }
 
 void MVM_continuation_free_tags(MVMThreadContext *tc, MVMFrame *f) {
-    MVMContinuationTag *tag = f->continuation_tags;
+    MVMContinuationTag *tag = f->extra->continuation_tags;
     while (tag) {
         MVMContinuationTag *next = tag->next;
         MVM_free(tag);
         tag = next;
     }
-    f->continuation_tags = NULL;
+    f->extra->continuation_tags = NULL;
 }
