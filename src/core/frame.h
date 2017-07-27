@@ -95,10 +95,6 @@ struct MVMFrame {
     /* The type of return value that is expected. */
     MVMReturnType return_type;
 
-    /* Address of the last op executed that threw an exeption; used just
-     * for error reporting. */
-    MVMuint8 *throw_address;
-
     /* The allocated work/env sizes. */
     MVMuint16 allocd_work;
     MVMuint16 allocd_env;

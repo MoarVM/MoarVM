@@ -98,8 +98,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 #if MVM_TRACING
         if (tracing_enabled) {
             char *trace_line;
-            tc->cur_frame->throw_address = cur_op;
-            trace_line = MVM_exception_backtrace_line(tc, tc->cur_frame, 0);
+            trace_line = MVM_exception_backtrace_line(tc, tc->cur_frame, 0, cur_op);
             fprintf(stderr, "Op %d%s\n", (int)*((MVMuint16 *)cur_op), trace_line);
             /* slow tracing is slow. Feel free to speed it. */
             MVM_free(trace_line);
