@@ -51,3 +51,12 @@ void MVM_jit_compile_memory_copy(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                  MVMJitTile *tile, MVMJitExprTree *tree);
 void MVM_jit_compile_guard(MVMThreadContext *tc, MVMJitCompiler *compiler,
                            MVMJitTile *tile, MVMJitExprTree *tree);
+
+/* Function for getting effective (JIT/specialized/original) bytecode. */
+MVM_STATIC_INLINE MVMuint8 * MVM_frame_effective_bytecode(MVMFrame *f) {
+    MVMSpeshCandidate *spesh_cand = f->spesh_cand;
+    if (spesh_cand)
+        return spesh_cand->jitcode ? spesh_cand->jitcode->bytecode : spesh_cand->bytecode;
+    return f->static_info->body.bytecode;
+}
+

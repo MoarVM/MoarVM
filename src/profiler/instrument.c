@@ -241,10 +241,10 @@ void MVM_profile_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
         sf->body.handlers      = sf->body.instrumentation->instrumented_handlers;
         sf->body.bytecode_size = sf->body.instrumentation->instrumented_bytecode_size;
 
-        /* Throw away any specializations; we'll need to reproduce them as
-         * instrumented versions. */
-        sf->body.num_spesh_candidates = 0;
-        sf->body.spesh_candidates     = NULL;
+        /* Throw away any argument guard so we'll never resolve prior
+         * specializations again. */
+        if (sf->body.spesh_arg_guard)
+            sf->body.spesh_arg_guard = NULL;
     }
 }
 
@@ -257,8 +257,7 @@ void MVM_profile_ensure_uninstrumented(MVMThreadContext *tc, MVMStaticFrame *sf)
         sf->body.bytecode_size = sf->body.instrumentation->uninstrumented_bytecode_size;
 
         /* Throw away specializations, which may also be instrumented. */
-        sf->body.num_spesh_candidates = 0;
-        sf->body.spesh_candidates     = NULL;
+        sf->body.spesh_arg_guard = NULL;
 
         /* XXX For now, due to bugs, disable spesh here. */
         tc->instance->spesh_enabled = 0;
@@ -267,9 +266,14 @@ void MVM_profile_ensure_uninstrumented(MVMThreadContext *tc, MVMStaticFrame *sf)
 
 /* Starts instrumted profiling. */
 void MVM_profile_instrumented_start(MVMThreadContext *tc, MVMObject *config) {
-    /* Enable profiling. */
+    /* Wait for specialization thread to stop working, so it won't trip over
+     * bytecode instrumentation, then enable profiling. */
+    uv_mutex_lock(&(tc->instance->mutex_spesh_sync));
+    while (tc->instance->spesh_working != 0)
+        uv_cond_wait(&(tc->instance->cond_spesh_sync), &(tc->instance->mutex_spesh_sync));
     tc->instance->profiling = 1;
     tc->instance->instrumentation_level++;
+    uv_mutex_unlock(&(tc->instance->mutex_spesh_sync));
 }
 
 /* Simple allocation functions. */
@@ -558,9 +562,12 @@ MVMObject * MVM_profile_instrumented_end(MVMThreadContext *tc) {
     }
 
     /* Disable profiling. */
-    /* XXX Needs to account for multiple threads. */
+    uv_mutex_lock(&(tc->instance->mutex_spesh_sync));
+    while (tc->instance->spesh_working != 0)
+        uv_cond_wait(&(tc->instance->cond_spesh_sync), &(tc->instance->mutex_spesh_sync));
     tc->instance->profiling = 0;
     tc->instance->instrumentation_level++;
+    uv_mutex_unlock(&(tc->instance->mutex_spesh_sync));
 
     /* Build and return result data structure. */
     return dump_data(tc);

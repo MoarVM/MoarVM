@@ -1,5 +1,8 @@
 #include "moar.h"
 
+/* Writes to stderr about each OSR that we perform. */
+#define MVM_LOG_OSR 0
+
 /* Locates deopt index matching OSR point. */
 static MVMint32 get_osr_deopt_index(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
     /* Calculate offset. */
@@ -15,91 +18,49 @@ static MVMint32 get_osr_deopt_index(MVMThreadContext *tc, MVMSpeshCandidate *can
     MVM_oops(tc, "Spesh: get_osr_deopt_index failed");
 }
 
-/* Locates deopt index matching OSR finalize point. */
-static MVMint32 get_osr_deopt_finalize_index(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
-    /* Calculate offset. */
-    MVMint32 offset = ((*(tc->interp_cur_op) - *(tc->interp_bytecode_start))) - 2;
-
-    /* Locate it in the deopt table. */
-    MVMint32 i;
-    for (i = 0; i < cand->num_deopts; i++)
-        if (cand->deopts[2 * i + 1] == offset)
-            return i;
-
-    /* If we couldn't locate it, something is really very wrong. */
-    MVM_oops(tc, "Spesh: get_osr_deopt_finalize_index failed");
-}
-
-/* Called to start OSR. Switches us over to logging runs of spesh'd code, to
- * collect extra type info. */
-void MVM_spesh_osr(MVMThreadContext *tc) {
-    MVMSpeshCandidate *specialized;
-    MVMint32 osr_index;
-
-    /* Check OSR is enabled. */
-    if (!tc->instance->spesh_osr_enabled)
-        return;
-
-    /* Ensure that we are in a position to specialize. */
-    if (!tc->cur_frame->caller)
-        return;
-    if (!tc->cur_frame->params.callsite->is_interned)
-        return;
-    if (tc->cur_frame->static_info->body.num_spesh_candidates == MVM_SPESH_LIMIT)
-        return;
-
-    /* Produce logging spesh candidate. */
-    specialized = MVM_spesh_candidate_setup(tc, tc->cur_frame->static_info,
-        tc->cur_frame->params.callsite, tc->cur_frame->params.args, 1);
-    if (specialized) {
-        /* Set up frame to point to specialized logging code. */
-        tc->cur_frame->effective_bytecode    = specialized->bytecode;
-        tc->cur_frame->effective_handlers    = specialized->handlers;
-        tc->cur_frame->effective_spesh_slots = specialized->spesh_slots;
-        tc->cur_frame->spesh_log_slots       = specialized->log_slots;
-        tc->cur_frame->spesh_cand            = specialized;
-        tc->cur_frame->spesh_log_idx         = 0;
-        specialized->log_enter_idx           = 1;
-
-        /* Work out deopt index that applies, and move interpreter into the
-         * logging version of the code. */
-        osr_index = get_osr_deopt_index(tc, specialized);
-        *(tc->interp_bytecode_start) = specialized->bytecode;
-        *(tc->interp_cur_op)         = specialized->bytecode +
-                                       specialized->deopts[2 * osr_index + 1] +
-                                       2; /* Pass over sp_osrfianlize this first time */;
-    }
-}
-
-/* Finalizes OSR. */
-void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
-    /* Find deopt index using existing deopt table, for entering the updated
-     * code later. */
-    MVMStaticFrame *static_info = tc->cur_frame->static_info;
-    MVMSpeshCandidate *specialized = tc->cur_frame->spesh_cand;
-    MVMint32 osr_index = get_osr_deopt_finalize_index(tc, specialized);
+/* Does the jump into the optimized code. */
+void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
     MVMJitCode *jit_code;
     MVMint32 num_locals;
-
-    /* Finish up the specialization. */
-    MVM_spesh_candidate_specialize(tc, static_info, specialized);
+    /* Work out the OSR deopt index, to locate the entry point. */
+    MVMint32 osr_index = get_osr_deopt_index(tc, specialized);
+#if MVM_LOG_OSR
+    fprintf(stderr, "Performing OSR of frame '%s' (cuid: %s) at index %d\n",
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid),
+        osr_index);
+#endif
 
     jit_code = specialized->jitcode;
     num_locals = jit_code && jit_code->local_types ?
         jit_code->num_locals : specialized->num_locals;
 
     /* Resize work area if needed. */
-    if (num_locals > static_info->body.num_locals) {
+    if (specialized->work_size > tc->cur_frame->allocd_work) {
         /* Resize work area. */
         MVMRegister *new_work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-                                                            specialized->work_size);
+            specialized->work_size);
+        MVMRegister *new_args = new_work + num_locals;
         memcpy(new_work, tc->cur_frame->work,
-               static_info->body.num_locals * sizeof(MVMRegister));
+            tc->cur_frame->static_info->body.num_locals * sizeof(MVMRegister));
+        memcpy(new_args, tc->cur_frame->args,
+            tc->cur_frame->static_info->body.cu->body.max_callsite_size * sizeof(MVMRegister));
+
         MVM_fixed_size_free(tc, tc->instance->fsa, tc->cur_frame->allocd_work,
             tc->cur_frame->work);
         tc->cur_frame->work = new_work;
         tc->cur_frame->allocd_work = specialized->work_size;
-        tc->cur_frame->args = tc->cur_frame->work + num_locals;
+        tc->cur_frame->args = new_args;
+#if MVM_LOG_OSR
+    fprintf(stderr, "OSR resized work area of frame '%s' (cuid: %s)\n",
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+#endif
+    }
+    else if (specialized->work_size > tc->cur_frame->static_info->body.work_size) {
+        size_t keep_bytes = tc->cur_frame->static_info->body.num_locals * sizeof(MVMRegister);
+        size_t to_null = specialized->work_size - keep_bytes;
+        memset((char *)tc->cur_frame->work + keep_bytes, 0, to_null);
     }
 
     /* Resize environment if needed. */
@@ -114,16 +75,23 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
         }
         tc->cur_frame->env = new_env;
         tc->cur_frame->allocd_env = specialized->env_size;
+#if MVM_LOG_OSR
+    fprintf(stderr, "OSR resized environment of frame '%s' (cuid: %s)\n",
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+#endif
+    }
+    else if (specialized->env_size > tc->cur_frame->static_info->body.env_size) {
+        size_t keep_bytes = tc->cur_frame->static_info->body.num_lexicals * sizeof(MVMRegister);
+        size_t to_null = specialized->env_size - keep_bytes;
+        memset((char *)tc->cur_frame->env + keep_bytes, 0, to_null);
     }
 
-    /* Sync frame with updates. */
-    tc->cur_frame->effective_bytecode    = specialized->bytecode;
-    tc->cur_frame->effective_handlers    = specialized->handlers;
+    /* Set up frame to point to spesh candidate/slots. */
     tc->cur_frame->effective_spesh_slots = specialized->spesh_slots;
-    tc->cur_frame->spesh_log_slots       = NULL;
-    tc->cur_frame->spesh_log_idx         = -1;
+    tc->cur_frame->spesh_cand            = specialized;
 
-    /* Sync interpreter with updates. */
+    /* Move into the optimized (and maybe JIT-compiled) code. */
 
     if (jit_code && jit_code->num_deopts) {
         MVMint32 i;
@@ -148,9 +116,27 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
             MVM_profiler_log_osr(tc, 0);
     }
     *(tc->interp_reg_base) = tc->cur_frame->work;
-
-    /* Tweak frame invocation count so future invocations will use the code
-     * produced by OSR. */
-    static_info->body.invocations += static_info->body.spesh_threshold;
 }
 
+/* Polls for an optimization and, when one is produced, jumps into it. */
+void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
+    MVMint32 seq_nr = tc->cur_frame->sequence_nr;
+    MVMint32 num_cands = tc->cur_frame->static_info->body.num_spesh_candidates;
+    if (seq_nr != tc->osr_hunt_frame_nr || num_cands != tc->osr_hunt_num_spesh_candidates) {
+        /* Provided OSR is enabled... */
+        if (tc->instance->spesh_osr_enabled) {
+            /* Check if there's a candidate available and install it if so. */
+            MVMCallsite *cs = tc->cur_frame->caller->cur_args_callsite;
+            MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
+                tc->cur_frame->static_info->body.spesh_arg_guard,
+                (cs && cs->is_interned ? cs : NULL),
+                tc->cur_frame->caller->args);
+            if (ag_result >= 0)
+                perform_osr(tc, tc->cur_frame->static_info->body.spesh_candidates[ag_result]);
+        }
+
+        /* Update state for avoiding checks in the common case. */
+        tc->osr_hunt_frame_nr = seq_nr;
+        tc->osr_hunt_num_spesh_candidates = num_cands;
+    }
+}

@@ -157,12 +157,7 @@ MVM_STATIC_INLINE void MVM_sc_push_object(MVMThreadContext *tc, MVMSerialization
 void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj);
 void MVM_sc_wb_hit_st(MVMThreadContext *tc, MVMSTable *st);
 
-MVM_STATIC_INLINE void MVM_SC_WB_OBJ(MVMThreadContext *tc, MVMObject *obj) {
-    assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
-    assert(MVM_sc_get_idx_of_sc(&obj->header) != ~0);
-    if (MVM_sc_get_idx_of_sc(&obj->header) > 0)
-        MVM_sc_wb_hit_obj(tc, obj);
-}
+void MVM_SC_WB_OBJ(MVMThreadContext *tc, MVMObject *obj);
 
 MVM_STATIC_INLINE void MVM_SC_WB_ST(MVMThreadContext *tc, MVMSTable *st) {
     assert(!(st->header.flags & MVM_CF_FORWARDER_VALID));

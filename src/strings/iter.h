@@ -155,7 +155,8 @@ struct MVMCodepointIter {
     MVMCodepoint  *synth_codes;
     MVMint32       visited_synth_codes;
     MVMint32       total_synth_codes;
-
+    /* base_code is only used for string_grapheme_ci functions */
+    MVMCodepoint   base_code;
     /* If we should translate newline \n into \r\n. */
     MVMint32       translate_newlines;
 };
@@ -171,12 +172,42 @@ MVM_STATIC_INLINE void MVM_string_ci_init(MVMThreadContext *tc, MVMCodepointIter
     ci->synth_codes = NULL;
     ci->translate_newlines = translate_newlines;
 };
+/* Iterates on a grapheme. Returns the number of codepoints in the grapheme */
+MVM_STATIC_INLINE MVMGrapheme32 MVM_string_grapheme_ci_init(MVMThreadContext *tc, MVMCodepointIter *ci, MVMGrapheme32 g) {
+    if (g < 0) {
+        /* Get the synthetics info. */
+        MVMNFGSynthetic *synth = MVM_nfg_get_synthetic_info(tc, g);
+        /* Set up the iterator so in the next iteration we will start to
+        * hand back combiners. */
+        ci->synth_codes         =  synth->combs;
+        ci->visited_synth_codes = -1;
+        ci->total_synth_codes   =  synth->num_combs;
+        ci->base_code           =  synth->base;
+    }
+    else {
+        ci->synth_codes         =  NULL;
+        ci->visited_synth_codes = -1;
+        ci->total_synth_codes   =  0;
+        ci->base_code           =  g;
+    }
+    return ci->total_synth_codes + 1;
+}
+MVM_STATIC_INLINE MVMCodepoint MVM_string_grapheme_ci_get_codepoint(MVMThreadContext *tc, MVMCodepointIter *ci) {
+    MVMCodepoint result = ci->visited_synth_codes < 0
+        ? ci->base_code
+        : ci->synth_codes[ci->visited_synth_codes];
+    ci->visited_synth_codes++;
+    return result;
+}
 
 /* Checks if there is more to read from a code point iterator; this is the
  * case if we're still walking through a synthetic or we have more things
  * available from the underlying grapheme iterator. */
 MVM_STATIC_INLINE MVMint32 MVM_string_ci_has_more(MVMThreadContext *tc, MVMCodepointIter *ci) {
     return ci->synth_codes || MVM_string_gi_has_more(tc, &(ci->gi));
+}
+MVM_STATIC_INLINE MVMint32 MVM_string_grapheme_ci_has_more(MVMThreadContext *tc, MVMCodepointIter *ci) {
+    return ci->visited_synth_codes < ci->total_synth_codes;
 }
 
 /* Gets the next code point. */

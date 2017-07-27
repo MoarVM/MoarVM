@@ -58,9 +58,6 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
                     break;
                 }
         }
-
-        /* Set its spesh threshold. */
-        static_frame_body->spesh_threshold = MVM_spesh_threshold(tc, static_frame);
     }
 
     /* Unlock, now we're finished. */
@@ -122,10 +119,9 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
     });
     });
 
-    /* Set static frame, code ref, and handlers. */
+    /* Set static frame and code ref. */
     MVM_ASSIGN_REF(tc, &(frame->header), frame->static_info, static_frame);
     MVM_ASSIGN_REF(tc, &(frame->header), frame->code_ref, code_ref);
-    frame->effective_handlers = static_frame->body.handlers;
 
     /* Allocate space for lexicals, copying the default lexical environment
      * into place and, if we're auto-closing, making sure anything we'd clone
@@ -324,6 +320,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand) {
     MVMFrame *frame;
     MVMuint32 found_spesh;
+    MVMuint8 *chosen_bytecode;
 
     /* If the frame was never invoked before, or never before at the current
      * instrumentation level, we need to trigger the instrumentation level
@@ -415,153 +412,59 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* See if any specializations apply. */
     found_spesh = 0;
     if (spesh_cand >= 0 && spesh_cand < static_frame->body.num_spesh_candidates) {
-        MVMSpeshCandidate *chosen_cand = &static_frame->body.spesh_candidates[spesh_cand];
-        if (!chosen_cand->sg) {
+        MVMSpeshCandidate *chosen_cand = static_frame->body.spesh_candidates[spesh_cand];
+        frame = allocate_frame(tc, static_frame, chosen_cand);
+        if (chosen_cand->jitcode) {
+            chosen_bytecode = chosen_cand->jitcode->bytecode;
+            frame->jit_entry_label = chosen_cand->jitcode->labels[0];
+        }
+        else {
+            chosen_bytecode = chosen_cand->bytecode;
+        }
+        frame->effective_spesh_slots = chosen_cand->spesh_slots;
+        frame->spesh_cand            = chosen_cand;
+        found_spesh                  = 1;
+    }
+    if (!found_spesh) {
+        /* Look for specialized bytecode and run it if it exists. */
+        MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
+            static_frame->body.spesh_arg_guard, callsite, args);
+        MVMSpeshCandidate *chosen_cand = ag_result >= 0
+            ? static_frame->body.spesh_candidates[ag_result]
+            : NULL;
+        if (chosen_cand) {
             frame = allocate_frame(tc, static_frame, chosen_cand);
             if (chosen_cand->jitcode) {
-                frame->effective_bytecode = chosen_cand->jitcode->bytecode;
+                chosen_bytecode = chosen_cand->jitcode->bytecode;
                 frame->jit_entry_label    = chosen_cand->jitcode->labels[0];
             }
             else {
-                frame->effective_bytecode = chosen_cand->bytecode;
+                chosen_bytecode = chosen_cand->bytecode;
             }
-            frame->effective_handlers    = chosen_cand->handlers;
             frame->effective_spesh_slots = chosen_cand->spesh_slots;
             frame->spesh_cand            = chosen_cand;
-            frame->spesh_log_idx         = -1;
             found_spesh                  = 1;
-        }
-    }
-    if (!found_spesh && ++static_frame->body.invocations >= static_frame->body.spesh_threshold && callsite->is_interned) {
-        /* Look for specialized bytecode. */
-        MVMint32 num_spesh = static_frame->body.num_spesh_candidates;
-        MVMSpeshCandidate *chosen_cand = NULL;
-        MVMint32 i, j;
-        for (i = 0; i < num_spesh; i++) {
-            MVMSpeshCandidate *cand = &static_frame->body.spesh_candidates[i];
-            if (cand->cs == callsite) {
-                MVMint32 match = 1;
-                for (j = 0; j < cand->num_guards; j++) {
-                    MVMint32   pos = cand->guards[j].slot;
-                    MVMSTable *st  = (MVMSTable *)cand->guards[j].match;
-                    MVMObject *arg = args[pos].o;
-                    if (!arg) {
-                        match = 0;
-                        break;
-                    }
-                    switch (cand->guards[j].kind) {
-                    case MVM_SPESH_GUARD_CONC:
-                        if (!IS_CONCRETE(arg) || STABLE(arg) != st)
-                            match = 0;
-                        break;
-                    case MVM_SPESH_GUARD_TYPE:
-                        if (IS_CONCRETE(arg) || STABLE(arg) != st)
-                            match = 0;
-                        break;
-                    case MVM_SPESH_GUARD_DC_CONC: {
-                        MVMRegister dc;
-                        STABLE(arg)->container_spec->fetch(tc, arg, &dc);
-                        if (!dc.o || !IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
-                            match = 0;
-                        break;
-                    }
-                    case MVM_SPESH_GUARD_DC_TYPE: {
-                        MVMRegister dc;
-                        STABLE(arg)->container_spec->fetch(tc, arg, &dc);
-                        if (!dc.o || IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
-                            match = 0;
-                        break;
-                    }
-                    case MVM_SPESH_GUARD_DC_CONC_RW: {
-                        if (STABLE(arg)->container_spec->can_store(tc, arg)) {
-                            MVMRegister dc;
-                            STABLE(arg)->container_spec->fetch(tc, arg, &dc);
-                            if (!dc.o || !IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
-                                match = 0;
-                        }
-                        else {
-                            match = 0;
-                        }
-                        break;
-                    }
-                    case MVM_SPESH_GUARD_DC_TYPE_RW: {
-                        if (STABLE(arg)->container_spec->can_store(tc, arg)) {
-                            MVMRegister dc;
-                            STABLE(arg)->container_spec->fetch(tc, arg, &dc);
-                            if (!dc.o || IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
-                                match = 0;
-                        }
-                        else {
-                            match = 0;
-                        }
-                        break;
-                    }
-                    }
-                    if (!match)
-                        break;
-                }
-                if (match) {
-                    chosen_cand = cand;
-                    break;
-                }
-            }
-        }
-
-        /* If we didn't find any, and we're below the limit, can set up a
-         * specialization. */
-        if (!chosen_cand && num_spesh < MVM_SPESH_LIMIT && tc->instance->spesh_enabled)
-            chosen_cand = MVM_spesh_candidate_setup(tc, static_frame,
-                callsite, args, 0);
-
-        /* Now try to use specialized bytecode. We may need to compete to
-         * be a logging run of it. */
-        if (chosen_cand) {
-            if (chosen_cand->sg) {
-                /* In the logging phase. Try to get a logging index; ensure it
-                 * is not being used as an OSR logging candidate elsewhere. */
-                AO_t cur_idx = MVM_load(&(chosen_cand->log_enter_idx));
-                if (!chosen_cand->osr_logging && cur_idx < MVM_SPESH_LOG_RUNS) {
-                    if (MVM_cas(&(chosen_cand->log_enter_idx), cur_idx, cur_idx + 1) == cur_idx) {
-                        /* We get to log. */
-                        frame = allocate_frame(tc, static_frame, chosen_cand);
-                        frame->effective_bytecode    = chosen_cand->bytecode;
-                        frame->effective_handlers    = chosen_cand->handlers;
-                        frame->effective_spesh_slots = chosen_cand->spesh_slots;
-                        frame->spesh_log_slots       = chosen_cand->log_slots;
-                        frame->spesh_cand            = chosen_cand;
-                        frame->spesh_log_idx         = (MVMint8)cur_idx;
-                        found_spesh                  = 1;
-                    }
-                }
-            }
-            else {
-                /* In the post-specialize phase; can safely used the code. */
-                frame = allocate_frame(tc, static_frame, chosen_cand);
-                if (chosen_cand->jitcode) {
-                    MVMJitCode *code = chosen_cand->jitcode;
-                    frame->effective_bytecode = code->bytecode;
-                    frame->jit_entry_label    = code->labels[0];
-                    if (frame->jit_entry_label == NULL ||
-                        (char*)frame->jit_entry_label - (char*)code->func_ptr > code->size ||
-                        (char*)frame->jit_entry_label - (char*)code->func_ptr < 0) {
-                        MVM_oops(tc, "Label not correctly initialized!");
-                    }
-                }
-                else {
-                    frame->effective_bytecode = chosen_cand->bytecode;
-                }
-                frame->effective_handlers    = chosen_cand->handlers;
-                frame->effective_spesh_slots = chosen_cand->spesh_slots;
-                frame->spesh_cand            = chosen_cand;
-                frame->spesh_log_idx         = -1;
-                found_spesh                  = 1;
-            }
         }
     }
     if (!found_spesh) {
         frame = allocate_frame(tc, static_frame, NULL);
-        frame->effective_bytecode = static_frame->body.bytecode;
-        frame->effective_handlers = static_frame->body.handlers;
+        chosen_bytecode = static_frame->body.bytecode;
+
+        /* If we should be spesh logging, set the correlation ID. */
+        frame->spesh_correlation_id = 0;
+        if (tc->instance->spesh_enabled && tc->spesh_log) {
+            if (static_frame->body.spesh_entries_recorded++ < MVM_SPESH_LOG_LOGGED_ENOUGH) {
+                MVMint32 id = ++tc->spesh_cid;
+                frame->spesh_correlation_id = id;
+                MVMROOT(tc, static_frame, {
+                    MVM_spesh_log_entry(tc, id, static_frame, callsite);
+                });
+            }
+        }
+    }
+    else {
+        /* TODO Should not need this after full spesh changes to worker thread. */
+        frame->spesh_correlation_id = 0;
     }
 
     /* Set static frame. */
@@ -583,13 +486,10 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
      * frame. */
     tc->cur_frame = frame;
     tc->current_frame_nr = frame->sequence_nr;
-
-    *(tc->interp_cur_op) = frame->effective_bytecode;
-    *(tc->interp_bytecode_start) = frame->effective_bytecode;
+    *(tc->interp_cur_op) = chosen_bytecode;
+    *(tc->interp_bytecode_start) = chosen_bytecode;
     *(tc->interp_reg_base) = frame->work;
     *(tc->interp_cu) = static_frame->body.cu;
-
-
 
     /* If we need to do so, make clones of things in the lexical environment
      * that need it. Note that we do this after tc->cur_frame became the
@@ -666,7 +566,7 @@ MVMFrame * MVM_frame_force_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
                     (char *)cur_to_promote + sizeof(MVMCollectable),
                     sizeof(MVMFrame) - sizeof(MVMCollectable));
 
-                /* Update caller of previously promtoed frame, if any. This is the
+                /* Update caller of previously promoted frame, if any. This is the
                  * only reference that might point to a non-heap frame. */
                 if (update_caller) {
                     MVM_ASSIGN_REF(tc, &(update_caller->header),
@@ -751,8 +651,6 @@ MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *stat
         frame = allocate_heap_frame(tc, static_frame, NULL);
     });
     });
-    frame->effective_bytecode       = static_frame->body.bytecode;
-    frame->effective_handlers       = static_frame->body.handlers;
     MVM_ASSIGN_REF(tc, &(frame->header), frame->static_info, static_frame);
     MVM_ASSIGN_REF(tc, &(frame->header), frame->code_ref, code_ref);
     MVM_ASSIGN_REF(tc, &(frame->header), frame->outer, code_ref->body.outer);
@@ -764,24 +662,6 @@ MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *stat
 static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     MVMFrame *returner = tc->cur_frame;
     MVMFrame *caller   = returner->caller;
-
-    /* See if we were in a logging spesh frame, and need to complete the
-     * specialization. */
-    if (returner->spesh_cand && returner->spesh_log_idx >= 0) {
-        if (returner->spesh_cand->osr_logging) {
-            /* Didn't achieve enough log entries to complete the OSR, but
-             * clearly hot, so specialize anyway. This also avoids races
-             * when the candidate is called again later and still has
-             * sp_osrfinalize instructions in it. */
-            returner->spesh_cand->osr_logging = 0;
-            MVM_spesh_candidate_specialize(tc, returner->static_info,
-                returner->spesh_cand);
-        }
-        else if (MVM_decr(&(returner->spesh_cand->log_exits_remaining)) == 1) {
-            MVM_spesh_candidate_specialize(tc, returner->static_info,
-                returner->spesh_cand);
-        }
-    }
 
     /* Clear up any continuation tags. */
     if (returner->continuation_tags)
@@ -819,10 +699,9 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         tc->current_frame_nr = caller->sequence_nr;
 
         *(tc->interp_cur_op) = caller->return_address;
-        *(tc->interp_bytecode_start) = caller->effective_bytecode;
+        *(tc->interp_bytecode_start) = MVM_frame_effective_bytecode(caller);
         *(tc->interp_reg_base) = caller->work;
         *(tc->interp_cu) = caller->static_info->body.cu;
-
 
         /* Handle any special return hooks. */
         if (caller->special_return || caller->special_unwind) {
@@ -873,6 +752,8 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
 
         if (caller->return_type == MVM_RETURN_OBJ) {
             result = caller->return_value->o;
+            if (!result)
+                result = tc->instance->VMNull;
         }
         else {
             MVMROOT(tc, cur_frame, {
@@ -887,7 +768,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
                         result = MVM_repr_box_str(tc, hll->str_box_type, caller->return_value->s);
                         break;
                     default:
-                        result = NULL;
+                        result = tc->instance->VMNull;
                 }
             });
         }
@@ -968,7 +849,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
             two_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ);
             MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, two_args_callsite);
             cur_frame->args[0].o = cur_frame->code_ref;
-            cur_frame->args[1].o = NULL;
+            cur_frame->args[1].o = tc->instance->VMNull;
             cur_frame->special_return = continue_unwind;
             cur_frame->mark_special_return_data = mark_unwind_data;
             {
@@ -1374,13 +1255,13 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
 
     while (cur_frame != NULL) {
         MVMLexicalRegistry *lexical_names;
-        MVMSpeshCandidate  *cand     = cur_frame->spesh_cand;
+        MVMSpeshCandidate  *cand = cur_frame->spesh_cand;
         /* See if we are inside an inline. Note that this isn't actually
          * correct for a leaf frame, but those aren't inlined and don't
          * use getdynlex for their own lexicals since the compiler already
          * knows where to find them */
         if (cand && cand->num_inlines) {
-            if (cand->jitcode && cur_frame->effective_bytecode == cand->jitcode->bytecode) {
+            if (cand->jitcode) {
                 void      **labels = cand->jitcode->labels;
                 void *return_label = cur_frame->jit_entry_label;
                 MVMJitInline *inls = cand->jitcode->inlines;
@@ -1422,7 +1303,8 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                     }
                 }
             } else {
-                MVMint32 ret_offset = cur_frame->return_address - cur_frame->effective_bytecode;
+                MVMint32 ret_offset = cur_frame->return_address -
+                    MVM_frame_effective_bytecode(cur_frame);
                 MVMint32 i;
                 for (i = 0; i < cand->num_inlines; i++) {
                     icost++;

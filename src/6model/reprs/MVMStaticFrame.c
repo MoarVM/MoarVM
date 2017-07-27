@@ -146,21 +146,16 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
                 MVM_gc_worklist_add(tc, worklist, &body->static_env[i].o);
     }
 
-    /* Spesh slots. */
+    /* Spesh statistics and slots. */
+    MVM_spesh_stats_gc_mark(tc, body->spesh_stats, worklist);
+    MVM_spesh_arg_guard_gc_mark(tc, body->spesh_arg_guard, worklist);
     if (body->num_spesh_candidates) {
         MVMint32 i, j;
         for (i = 0; i < body->num_spesh_candidates; i++) {
-            for (j = 0; j < body->spesh_candidates[i].num_guards; j++)
-                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].guards[j].match);
-            for (j = 0; j < body->spesh_candidates[i].num_spesh_slots; j++)
-                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].spesh_slots[j]);
-            if (body->spesh_candidates[i].log_slots)
-                for (j = 0; j < body->spesh_candidates[i].num_log_slots * MVM_SPESH_LOG_RUNS; j++)
-                    MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].log_slots[j]);
-            for (j = 0; j < body->spesh_candidates[i].num_inlines; j++)
-                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].inlines[j].code);
-            if (body->spesh_candidates[i].sg)
-                MVM_spesh_graph_mark(tc, body->spesh_candidates[i].sg, worklist);
+            for (j = 0; j < body->spesh_candidates[i]->num_spesh_slots; j++)
+                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i]->spesh_slots[j]);
+            for (j = 0; j < body->spesh_candidates[i]->num_inlines; j++)
+                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i]->inlines[j].code);
         }
     }
 }
@@ -188,9 +183,14 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(body->lexical_names_list);
     MVM_HASH_DESTROY(hash_handle, MVMLexicalRegistry, body->lexical_names);
 
+    MVM_spesh_stats_destroy(tc, body->spesh_stats);
+    MVM_spesh_arg_guard_destroy(tc, body->spesh_arg_guard, 0);
     for (i = 0; i < body->num_spesh_candidates; i++)
-        MVM_spesh_candidate_destroy(tc, &body->spesh_candidates[i]);
-    MVM_free(body->spesh_candidates);
+        MVM_spesh_candidate_destroy(tc, body->spesh_candidates[i]);
+    if (body->spesh_candidates)
+        MVM_fixed_size_free(tc, tc->instance->fsa,
+            body->num_spesh_candidates * sizeof(MVMSpeshCandidate *),
+            body->spesh_candidates);
 }
 
 static const MVMStorageSpec storage_spec = {
@@ -243,8 +243,7 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
         size += body->num_lexicals; /* static_env_flags */
 
         for (spesh_idx = 0; spesh_idx < body->num_spesh_candidates; spesh_idx++) {
-            MVMSpeshCandidate *cand = &body->spesh_candidates[spesh_idx];
-            size += sizeof(MVMSpeshGuard) * cand->num_guards;
+            MVMSpeshCandidate *cand = body->spesh_candidates[spesh_idx];
 
             size += cand->bytecode_size;
 
@@ -253,12 +252,6 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
             size += sizeof(MVMCollectable *) * cand->num_spesh_slots;
 
             size += sizeof(MVMint32) * cand->num_deopts;
-
-            if (cand->sg)
-                /* XXX we ought to descend into the speshgraph, too. */
-                size += sizeof(MVMSpeshGraph);
-
-            size += sizeof(MVMCollectable *) * cand->num_log_slots;
 
             size += sizeof(MVMSpeshInline) * cand->num_inlines;
 
@@ -336,32 +329,14 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
     if (body->num_spesh_candidates) {
         MVMint32 i, j;
         for (i = 0; i < body->num_spesh_candidates; i++) {
-            for (j = 0; j < body->spesh_candidates[i].num_guards; j++)
+            for (j = 0; j < body->spesh_candidates[i]->num_spesh_slots; j++)
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->spesh_candidates[i].guards[j].match,
-                    "Spesh guard match");
-            for (j = 0; j < body->spesh_candidates[i].num_spesh_slots; j++)
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->spesh_candidates[i].spesh_slots[j],
+                    (MVMCollectable *)body->spesh_candidates[i]->spesh_slots[j],
                     "Spesh slot entry");
-            if (body->spesh_candidates[i].log_slots)
-                for (j = 0; j < body->spesh_candidates[i].num_log_slots * MVM_SPESH_LOG_RUNS; j++)
+            for (j = 0; j < body->spesh_candidates[i]->num_inlines; j++)
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->spesh_candidates[i].log_slots[j],
-                    "Spesh log slots");
-            for (j = 0; j < body->spesh_candidates[i].num_inlines; j++)
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->spesh_candidates[i].inlines[j].code,
+                    (MVMCollectable *)body->spesh_candidates[i]->inlines[j].code,
                     "Spesh inlined code object");
-            if (body->spesh_candidates[i].sg) {
-                MVMCollectable **c_ptr;
-                MVM_spesh_graph_mark(tc, body->spesh_candidates[i].sg, ss->gcwl);
-                while (( c_ptr = MVM_gc_worklist_get(tc, ss->gcwl) )) {
-                    MVMCollectable *c = *c_ptr;
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, c,
-                        "Object held by spesh graph");
-                }
-            }
         }
     }
 }

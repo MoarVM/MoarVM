@@ -424,7 +424,7 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                     MVMuint16 *type_map;
                     MVMuint16  name_count = frame->static_info->body.num_lexicals;
                     MVMLexicalRegistry **names = frame->static_info->body.lexical_names_list;
-                    if (frame->spesh_cand && frame->spesh_log_idx == -1 && frame->spesh_cand->lexical_types) {
+                    if (frame->spesh_cand && frame->spesh_cand->lexical_types) {
                         type_map = frame->spesh_cand->lexical_types;
                         count    = frame->spesh_cand->num_lexicals;
                     }

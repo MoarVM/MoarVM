@@ -18,6 +18,13 @@
         exit(1); \
     } \
 } while (0)
+#define init_cond(loc, name) do { \
+    if ((init_stat = uv_cond_init(&loc)) < 0) { \
+        fprintf(stderr, "MoarVM: Initialization of " name " condition variable failed\n    %s\n", \
+            uv_strerror(init_stat)); \
+        exit(1); \
+    } \
+} while (0)
 
 static void setup_std_handles(MVMThreadContext *tc);
 
@@ -68,7 +75,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
 
     char *spesh_log, *spesh_nodelay, *spesh_disable, *spesh_inline_disable,
-         *spesh_osr_disable, *spesh_limit;
+         *spesh_osr_disable, *spesh_limit, *spesh_blocking;
     char *jit_log, *jit_expr_disable, *jit_disable, *jit_bytecode_dir, *jit_last_frame, *jit_last_bb;
     char *dynvar_log;
     int init_stat;
@@ -78,7 +85,6 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Create the main thread's ThreadContext and stash it. */
     instance->main_thread = MVM_tc_create(NULL, instance);
-
     instance->main_thread->thread_id = 1;
 
     /* Next thread to be created gets ID 2 (the main thread got ID 1). */
@@ -90,6 +96,12 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->permroots             = MVM_malloc(sizeof(MVMCollectable **) * instance->alloc_permroots);
     instance->permroot_descriptions = MVM_malloc(sizeof(char *) * instance->alloc_permroots);
     init_mutex(instance->mutex_permroots, "permanent roots");
+
+    /* GC orchestration state. */
+    init_mutex(instance->mutex_gc_orchestrate, "GC orchestration");
+    init_cond(instance->cond_gc_start, "GC start");
+    init_cond(instance->cond_gc_finish, "GC finish");
+    init_cond(instance->cond_gc_intrays_clearing, "GC intrays clearing");
 
     /* Create fixed size allocator. */
     instance->fsa = MVM_fixed_size_create(instance->main_thread);
@@ -145,15 +157,15 @@ MVMInstance * MVM_vm_create_instance(void) {
     init_mutex(instance->mutex_event_loop_start, "event loop thread start");
 
     /* Create main thread object, and also make it the start of the all threads
-     * linked list. */
-    MVM_store(&instance->threads,
-        (instance->main_thread->thread_obj = (MVMThread *)
-            REPR(instance->boot_types.BOOTThread)->allocate(
-                instance->main_thread, STABLE(instance->boot_types.BOOTThread))));
+     * linked list. Set up the mutex to protect it. */
+    instance->threads = instance->main_thread->thread_obj = (MVMThread *)
+        REPR(instance->boot_types.BOOTThread)->allocate(
+            instance->main_thread, STABLE(instance->boot_types.BOOTThread));
     instance->threads->body.stage = MVM_thread_stage_started;
     instance->threads->body.tc = instance->main_thread;
     instance->threads->body.native_thread_id = MVM_platform_thread_id();
     instance->threads->body.thread_id = instance->main_thread->thread_id;
+    init_mutex(instance->mutex_threads, "threads list");
 
     /* Create compiler registry */
     instance->compiler_registry = MVM_repr_alloc_init(instance->main_thread, instance->boot_types.BOOTHash);
@@ -212,6 +224,13 @@ MVMInstance * MVM_vm_create_instance(void) {
     if (spesh_limit && strlen(spesh_limit))
         instance->spesh_limit = atoi(spesh_limit);
 
+    /* Should we enforce that a thread, when sending work to the specialzation
+     * worker, block until the specialization worker is done? This is useful
+     * for getting more predictable behavior when debugging. */
+    spesh_blocking = getenv("MVM_SPESH_BLOCKING");
+    if (spesh_blocking && strlen(spesh_blocking))
+        instance->spesh_blocking = 1;
+
     /* JIT environment/logging setup. */
     jit_disable = getenv("MVM_JIT_DISABLE");
     if (!jit_disable || strlen(jit_disable) == 0)
@@ -269,6 +288,11 @@ MVMInstance * MVM_vm_create_instance(void) {
         }
     }
 
+    /* Spesh thread syncing. */
+    init_mutex(instance->mutex_spesh_sync, "spesh sync");
+    init_cond(instance->cond_spesh_sync, "spesh sync");
+
+
     /* Various kinds of debugging that can be enabled. */
     dynvar_log = getenv("MVM_DYNVAR_LOG");
     if (dynvar_log && strlen(dynvar_log)) {
@@ -307,6 +331,10 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Create std[in/out/err]. */
     setup_std_handles(instance->main_thread);
+
+    /* Set up the specialization worker thread and a log for the main thread. */
+    MVM_spesh_worker_setup(instance->main_thread);
+    MVM_spesh_log_initialize_thread(instance->main_thread);
 
     /* Back to nursery allocation, now we're set up. */
     MVM_gc_allocate_gen2_default_clear(instance->main_thread);
@@ -348,9 +376,14 @@ void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
         MVMString *const str = MVM_string_utf8_c8_decode(tc, instance->VMString, filename, strlen(filename));
         cu->body.filename = str;
 
-        /* Run deserialization frame, if there is one. */
+        /* Run deserialization frame, if there is one. Disable specialization
+         * during this time, so we don't waste time logging one-shot setup
+         * code. */
         if (cu->body.deserialize_frame) {
+            MVMint8 spesh_enabled_orig = tc->instance->spesh_enabled;
+            tc->instance->spesh_enabled = 0;
             MVM_interp_run(tc, toplevel_initial_invoke, cu->body.deserialize_frame);
+            tc->instance->spesh_enabled = spesh_enabled_orig;
         }
     });
 
@@ -449,10 +482,14 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_HASH_DESTROY(hash_handle, MVMReprRegistry, instance->repr_hash);
     MVM_free(instance->repr_list);
 
-    /* Clean up GC permanent roots related resources. */
+    /* Clean up GC related resources. */
     uv_mutex_destroy(&instance->mutex_permroots);
     MVM_free(instance->permroots);
     MVM_free(instance->permroot_descriptions);
+    uv_cond_destroy(&instance->cond_gc_start);
+    uv_cond_destroy(&instance->cond_gc_finish);
+    uv_cond_destroy(&instance->cond_gc_intrays_clearing);
+    uv_mutex_destroy(&instance->mutex_gc_orchestrate);
 
     /* Clean up Hash of HLLConfig. */
     uv_mutex_destroy(&instance->mutex_hllconfigs);
@@ -500,8 +537,10 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Release this interpreter's hold on Unicode database */
     MVM_unicode_release(instance->main_thread);
 
-    /* Clean up spesh install mutex and close any log. */
+    /* Clean up spesh mutexes and close any log. */
     uv_mutex_destroy(&instance->mutex_spesh_install);
+    uv_cond_destroy(&instance->cond_spesh_sync);
+    uv_mutex_destroy(&instance->mutex_spesh_sync);
     if (instance->spesh_log_fh)
         fclose(instance->spesh_log_fh);
     if (instance->jit_log_fh)
@@ -531,8 +570,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up event loop starting mutex. */
     uv_mutex_destroy(&instance->mutex_event_loop_start);
 
-    /* Destroy main thread contexts. */
+    /* Destroy main thread contexts and thread list mutex. */
     MVM_tc_destroy(instance->main_thread);
+    uv_mutex_destroy(&instance->mutex_threads);
 
     /* Clear up VM instance memory. */
     MVM_free(instance);

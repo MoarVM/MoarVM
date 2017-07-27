@@ -159,6 +159,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/6model/reprs/NativeRef@obj@ \
           src/6model/reprs/MultiDimArray@obj@ \
           src/6model/reprs/Decoder@obj@ \
+          src/6model/reprs/MVMSpeshLog@obj@ \
           src/6model/6model@obj@ \
           src/6model/bootstrap@obj@ \
           src/6model/sc@obj@ \
@@ -180,6 +181,10 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/osr@obj@ \
           src/spesh/lookup@obj@ \
           src/spesh/iterator@obj@ \
+          src/spesh/worker@obj@ \
+          src/spesh/stats@obj@ \
+          src/spesh/plan@obj@ \
+          src/spesh/arg_guard@obj@ \
           src/jit/graph@obj@ \
           src/jit/label@obj@ \
           src/jit/compile@obj@ \
@@ -315,6 +320,7 @@ HEADERS = src/moar.h \
           src/6model/reprs/NativeRef.h \
           src/6model/reprs/MultiDimArray.h \
           src/6model/reprs/Decoder.h \
+          src/6model/reprs/MVMSpeshLog.h \
           src/6model/sc.h \
           src/mast/compiler.h \
           src/mast/driver.h \
@@ -334,6 +340,10 @@ HEADERS = src/moar.h \
           src/spesh/osr.h \
           src/spesh/lookup.h \
           src/spesh/iterator.h \
+          src/spesh/worker.h \
+          src/spesh/stats.h \
+          src/spesh/plan.h \
+          src/spesh/arg_guard.h \
           src/strings/unicode_gen.h \
           src/strings/normalize.h \
           src/strings/decode_stream.h \

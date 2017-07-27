@@ -83,6 +83,10 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
         "Event loop cancel queue");
     add_collectable(tc, worklist, snapshot, tc->instance->event_loop_active, "Event loop active");
 
+    add_collectable(tc, worklist, snapshot, tc->instance->spesh_queue,
+        "Specialization log queue");
+    MVM_spesh_plan_gc_mark(tc, tc->instance->spesh_plan, worklist);
+
     int_to_str_cache = tc->instance->int_to_str_cache;
     for (i = 0; i < MVM_INT_TO_STR_CACHE_SIZE; i++)
         add_collectable(tc, worklist, snapshot, int_to_str_cache[i],
@@ -182,6 +186,9 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     /* Serialized string heap, if any. */
     add_collectable(tc, worklist, snapshot, tc->serialized_string_heap,
         "Serialized string heap");
+
+    /* Specialization log. */
+    add_collectable(tc, worklist, snapshot, tc->spesh_log, "Specialization log");
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */
@@ -394,12 +401,13 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
     /* We only need to do any of this work if the frame is in dynamic scope. */
     if (frame->work) {
         /* Scan locals. */
+
         MVMSpeshCandidate *spesh_cand = frame->spesh_cand;
         MVMJitCode *jitcode = spesh_cand ? spesh_cand->jitcode : NULL;
         if (jitcode && jitcode->local_types) {
             type_map = jitcode->local_types;
             count    = jitcode->num_locals;
-        } else if (spesh_cand && frame->spesh_log_idx == -1 && spesh_cand->local_types) {
+        } else if (frame->spesh_cand && frame->spesh_cand->local_types) {
             type_map = frame->spesh_cand->local_types;
             count    = frame->spesh_cand->num_locals;
         }
@@ -450,7 +458,7 @@ static void scan_lexicals(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFram
     if (frame->env) {
         MVMuint16  i, count;
         MVMuint16 *type_map;
-        if (frame->spesh_cand && frame->spesh_log_idx == -1 && frame->spesh_cand->lexical_types) {
+        if (frame->spesh_cand && frame->spesh_cand->lexical_types) {
             type_map = frame->spesh_cand->lexical_types;
             count    = frame->spesh_cand->num_lexicals;
         }

@@ -80,18 +80,8 @@ struct MVMFrame {
     /* Parameters received by this frame. */
     MVMArgProcContext params;
 
-    /* Effective bytecode for the frame (either the original bytecode or a
-     * specialization of it). */
-    MVMuint8 *effective_bytecode;
-
-    /* Effective set of frame handlers (to go with the effective bytecode). */
-    MVMFrameHandler *effective_handlers;
-
     /* Effective set of spesh slots, if any. */
     MVMCollectable **effective_spesh_slots;
-
-    /* Effective set of spesh logging slots, if any. */
-    MVMCollectable **spesh_log_slots;
 
     /* The spesh candidate information, if we're in one. */
     MVMSpeshCandidate *spesh_cand;
@@ -139,14 +129,10 @@ struct MVMFrame {
     /* Assorted frame flags. */
     MVMuint8 flags;
 
-    /* If we're in a logging spesh run, the index to log at in this
-     * invocation. -1 if we're not in a logging spesh run, junk if no
-     * spesh_cand is set in this frame at all. */
-    MVMint8 spesh_log_idx;
-
-    /* On Stack Replacement iteration counter; incremented in loops, and will
-     * trigger if the limit is hit. */
-    MVMuint8 osr_counter;
+    /* The current spesh correlation ID, if we're interpreting code and
+     * recording logs. Zero if interpreting unspecialized and not recording.
+     * Junk if running specialized code. */
+    MVMint32 spesh_correlation_id;
 
     /* A sequence number to indicate our place in the call stack */
     MVMint32 sequence_nr;
