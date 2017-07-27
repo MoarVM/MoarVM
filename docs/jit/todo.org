@@ -71,7 +71,28 @@ label_018:  cmp QWORD PTR [rbx+0x50],0x0
 Seems strawberry has given me gdb? So I can at least try and figure
 this out.
 
+What I've found so far:
++ This is a bug because the restore for the CALLV overwrites the ref
+  to an ARGLIST argument
++ The ovewrritten live range starts at 5 (or 10) (which is live
+  range 3)
++ The live range that overwrites the other one is 11
++ The overwritten live range is released just prior to the allocating
+  of the spilled value
++ There are three fixes I can see
+  + One, we insert the loaded value before the ARGLIST values go out of scope
+  + Two, we extend the lifetime of the ARGLIST values to include the
+    CALL(V?) (arguably the correct solution)
+  + Three, we do not insert a load for a use in a CALL(V?) node,
+    instead handling the uses 'by hand'
 
++ advantage of 1: it's maybe really relatively easy to do
++ advantage of 2: it's conceptually correct and doesn't rely on
+  evaluation order of CALL node
++ advantage of 3: it reuses a concept we're already using
+
+I'm going to go for 2, with the added notion of /materializing/ the
+first ref / last ref of a value.
 
 
 * REPR-Specialized expression code

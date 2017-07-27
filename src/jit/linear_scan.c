@@ -875,18 +875,19 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
             spilled_args[spilled_args_top++] = i;
         } else if (storage_refs[i]._cls == MVM_JIT_STORAGE_GPR) {
             MVMint8 reg_num = storage_refs[i]._pos;
-            _DEBUG("Transfer Rq(%d) -> Rq(%d)", reg_num, v->reg_num);
             if (reg_num != v->reg_num) {
+                _DEBUG("Transfer Rq(%d) -> Rq(%d)", reg_num, v->reg_num);
                 topological_map[reg_num].in_reg = v->reg_num;
                 topological_map[v->reg_num].num_out++;
                 transfers_required++;
+            } else {
+                _DEBUG("Transfer Rq(%d) not required", reg_num);
             }
         } else if (storage_refs[i]._cls == MVM_JIT_STORAGE_STACK) {
             /* enqueue for stack transfer */
             stack_transfer[stack_transfer_top].reg_num = v->reg_num;
             stack_transfer[stack_transfer_top].stack_pos = storage_refs[i]._pos;
             stack_transfer_top++;
-            transfers_required++;
             /* count the outbound edge */
             topological_map[v->reg_num].num_out++;
         } else {
@@ -942,10 +943,6 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         /* add edge */
         topological_map[dst].in_reg = src;
         topological_map[src].num_out++;
-
-        /* enqueue directly (dst is free by definition) */
-        transfer_queue[transfer_queue_top++] = dst;
-        transfers_required++;
 
         /* update bitmap */
         call_bitmap = (call_bitmap & (~(1 << src))) | (1 << dst);
