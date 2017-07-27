@@ -972,13 +972,21 @@ MVMGrapheme32 MVM_string_ord_basechar_at(MVMThreadContext *tc, MVMString *s, MVM
 
 /* Compares two strings for equality. */
 MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+    MVMStringIndex agraphs, bgraphs;
+
     MVM_string_check_arg(tc, a, "equal");
     MVM_string_check_arg(tc, b, "equal");
+
     if (a == b)
         return 1;
-    if (MVM_string_graphs_nocheck(tc, a) != MVM_string_graphs_nocheck(tc, b))
+
+    agraphs = MVM_string_graphs_nocheck(tc, a);
+    bgraphs = MVM_string_graphs_nocheck(tc, b);
+
+    if (agraphs != bgraphs)
         return 0;
-    return MVM_string_equal_at(tc, a, b, 0);
+
+    return MVM_string_substrings_equal_nocheck(tc, a, 0, bgraphs, b, 0);
 }
 
 /* more general form of has_at; compares two substrings for equality */
