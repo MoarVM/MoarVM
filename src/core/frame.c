@@ -224,7 +224,10 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
         stack = MVM_callstack_region_next(tc);
     frame = (MVMFrame *)stack->alloc;
     stack->alloc += sizeof(MVMFrame);
-    memset(frame, 0, sizeof(MVMFrame));
+
+    /* Ensure collectable header flags are zeroed, which means we'll never try
+     * to mark or root the frame. */
+    frame->header.flags = 0;
 
     /* Allocate space for lexicals and work area. */
     static_frame_body = &(static_frame->body);
@@ -232,6 +235,9 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
     if (env_size) {
         frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, env_size);
         frame->allocd_env = env_size;
+    }
+    else {
+        frame->env = NULL;
     }
     work_size = spesh_cand ? spesh_cand->work_size : static_frame_body->work_size;
     if (work_size) {
@@ -253,9 +259,18 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
             ? spesh_cand->num_locals
             : static_frame_body->num_locals);
     }
+    else {
+        frame->work = NULL;
+    }
 
     /* Assign a sequence nr */
     frame->sequence_nr = tc->next_frame_nr++;
+
+    /* Current arguments callsite must be NULL as it's used in GC. Extra must
+     * be NULL so we know we don't have it. Flags should be zeroed. */
+    frame->cur_args_callsite = NULL;
+    frame->extra = NULL;
+    frame->flags = 0;
 
     return frame;
 }
@@ -408,6 +423,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             });
             });
         }
+        else {
+            outer = NULL;
+        }
     }
 
     /* See if any specializations apply. */
@@ -450,6 +468,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (!found_spesh) {
         frame = allocate_frame(tc, static_frame, NULL);
         chosen_bytecode = static_frame->body.bytecode;
+        frame->spesh_cand = NULL;
+        frame->effective_spesh_slots = NULL;
 
         /* If we should be spesh logging, set the correlation ID. */
         frame->spesh_correlation_id = 0;
@@ -464,7 +484,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         }
     }
     else {
-        /* TODO Should not need this after full spesh changes to worker thread. */
         frame->spesh_correlation_id = 0;
     }
 
