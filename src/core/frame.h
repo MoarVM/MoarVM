@@ -122,10 +122,6 @@ struct MVMFrame {
     /* The 'entry label' is a sort of indirect return address for the JIT */
     void * jit_entry_label;
 
-    /* If we were invoked with a call capture, that call capture, so we can
-     * keep its callsite alive. */
-    MVMObject *invoked_call_capture;
-
     /* Extra data that some frames need, allocated on demand. If allocated,
      * lives for the dynamic scope of the frame. */
     MVMFrameExtra *extra;
@@ -150,6 +146,10 @@ struct MVMFrameExtra {
 
     /* Linked list of any continuation tags we have. */
     MVMContinuationTag *continuation_tags;
+
+    /* If we were invoked with a call capture, that call capture, so we can
+     * keep its callsite alive. */
+    MVMObject *invoked_call_capture;
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for

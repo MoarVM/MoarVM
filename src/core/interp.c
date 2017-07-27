@@ -1435,6 +1435,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (IS_CONCRETE(cobj) && REPR(cobj)->ID == MVM_REPR_ID_MVMCallCapture) {
                     MVMObject *code = GET_REG(cur_op, 2).o;
                     MVMCallCapture *cc = (MVMCallCapture *)cobj;
+                    MVMFrameExtra *e = MVM_frame_extra(tc, tc->cur_frame);
                     code = MVM_frame_find_invokee(tc, code, NULL);
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                     tc->cur_frame->return_type = MVM_RETURN_OBJ;
@@ -1442,7 +1443,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     tc->cur_frame->return_address = cur_op;
                     STABLE(code)->invoke(tc, code, cc->body.apc->callsite,
                         cc->body.apc->args);
-                    tc->cur_frame->invoked_call_capture = cobj;
+                    e->invoked_call_capture = cobj;
                     goto NEXT;
                 }
                 else {
