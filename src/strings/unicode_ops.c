@@ -58,6 +58,19 @@ int stack_is_empty (MVMThreadContext *tc, collation_stack *stack) {
     key.s.secondary = b;\
     key.s.tertiary = c;\
 }
+int print_sub_node (sub_node subnode) {
+    /*
+    struct sub_node {
+        unsigned int codepoint;
+        int sub_node_elems;
+        int sub_node_link;
+        int collation_key_elems;
+        int collation_key_link;
+    };*/
+    fprintf(stderr, "{codepoint 0x%X, min 0x%X,max 0x%X,sub_node_elems %i,sub_node_link %i,collation_key_elems %i,collation_key_link %i}\n", subnode.codepoint, min(subnode), max(subnode), subnode.sub_node_elems, subnode.sub_node_link,
+    subnode.collation_key_elems, subnode.collation_key_link);
+    return 0;
+}
 int print_stack (MVMThreadContext *tc, collation_stack *stack, char *name) {
     int i = 0;
     fprintf(stderr, "stack_%s print_stack() stack elems: %i\n", name, stack->stack_top + 1);
@@ -67,16 +80,14 @@ int print_stack (MVMThreadContext *tc, collation_stack *stack, char *name) {
     return 0;
 }
 int collation_push_int (MVMThreadContext *tc, collation_stack *stack, int *count, int primary, int secondary, int tertiary, char *name) {
-    int i = stack->stack_top;
     fprintf(stderr, "stack_%s Before collation_push_int (maybe CLEAR)\n", name);
     print_stack(tc, stack, name);
-    i++;
-    set_key(stack->keys[i],
+    stack->stack_top++;
+    set_key(stack->keys[stack->stack_top],
         primary,
         secondary,
         tertiary
     );
-    stack->stack_top = i;
     *count += 1;
     fprintf(stderr, "stack_%s After collation_push_int (maybe CLEAR)\n", name);
     print_stack(tc, stack, name);
@@ -94,9 +105,9 @@ int push_onto_stack (MVMThreadContext *tc, collation_stack *stack, collation_key
     {
         i++;
         set_key(stack->keys[i],
-            keys[j].s.primary + 1,
+            keys[j].s.primary   + 1,
             keys[j].s.secondary + 1,
-            keys[j].s.tertiary + 1
+            keys[j].s.tertiary  + 1
         );
     }
     stack->stack_top = i;
@@ -243,9 +254,18 @@ int find_next_node (MVMThreadContext *tc, sub_node node, int next_cp) {
         return -1;
     for (i = node.sub_node_link; i < node.sub_node_link + node.sub_node_elems; i++) {
         //fprintf(stderr, "i is %i ", i);
-        //fprintf(stderr, "Checking cp 0x%X\n", sub_nodes[i].codepoint);
-        if (sub_nodes[i].codepoint == next_cp)
+        //fprintf(stderr, "Checking cp 0x%X\n", main_nodes[i].codepoint);
+        if (main_nodes[i].codepoint == next_cp)
             return i;
+    }
+    return -1;
+}
+int get_main_node (MVMThreadContext *tc, int cp) {
+    int i;
+    for (i = 0; i < starter_main_nodes_elems; i++) {
+        if (main_nodes[i].codepoint == cp) {
+            return i;
+        }
     }
     return -1;
 }
@@ -274,9 +294,9 @@ int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepoin
         //memcpy(cp_maybe, cps, sizeof(int) * cp_num);
         fprintf(stderr, "\n");
     }
-    query = get_main_node(cps[0]);
+    query = get_main_node(tc, cps[0]);
     fprintf(stderr, "push orig stack_top %i. get_main_node(cps[0]) returned with %i\n", stack->stack_top, query);
-                            /* These blacklisted codepoints are just due to incorrect data in main_nodes and sub_nodes
+                            /* These blacklisted codepoints are just due to incorrect data in main_nodes and main_nodes
                              * eventually should be removed */
     if (query != -1 && cps[0] != 0x5BC && cps[0] != 0x5D5 && cps[0] != 0x5D9 && cps[0] != 18837) {
         fprintf(stderr, "query = -1 stack_%s getting value from special_collation_keys\n", name);
@@ -305,24 +325,24 @@ int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepoin
                     fprintf(stderr, "existing cp\n");
                 }
                 fprintf(stderr, "cps[++i] -> cps[%i] = MVM_string_ci_get_codepoint = 0x%X. result: %i\n", i, cps[i], result);
-                result = find_next_node(tc, (i == 1 ? main_nodes[query] : sub_nodes[result]), cps[i]);
+                result = find_next_node(tc, (i == 1 ? main_nodes[query] : main_nodes[result]), cps[i]);
                 fprintf(stderr, "result %i i %i\n", result, i);
                 /* If we got something other than -1 and it has collation elements
                  * store the value so we know how far is valid */
-                if (result != -1 && sub_nodes[result].collation_key_elems != 0) {
+                if (result != -1 && main_nodes[result].collation_key_elems != 0) {
                     last_good_i      = i;
                     last_good_result = result;
                 }
                 if (result != -1)
-                    print_sub_node(sub_nodes[result]);
+                    print_sub_node(main_nodes[result]);
             }
             fprintf(stderr, "stack_%s last_good_i %i i=%i\n", name, last_good_i, i);
             fprintf(stderr, "stack_%s settled on : ", name);
             /* If there is no last_good_result we should return a value from main_nodes */
-            print_sub_node( (last_good_result == -1 ? main_nodes[query] : sub_nodes[last_good_result]) );
+            print_sub_node( (last_good_result == -1 ? main_nodes[query] : main_nodes[last_good_result]) );
             /* If the terminal_subnode can't be processed then that means it will push the starter codepoint ( cp[0] )'s value onto
              * the stack, and we must set last_good_i to 0 since it didn't work out */
-            if (!process_terminal_node(tc, (last_good_result == -1 ? main_nodes[query] : sub_nodes[last_good_result]), stack, name, cps[0])) {
+            if (!process_terminal_node(tc, (last_good_result == -1 ? main_nodes[query] : main_nodes[last_good_result]), stack, name, cps[0])) {
                 /* TODO last_good_i needs to be only set to 0 if main_node has collation elements
                  * and we must also fallback to the main_node's collation elements if they exist
                  * instead of falling back to MVM_collation_values */
@@ -496,7 +516,7 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
             if (!grab_a_rtrn) {
                 fprintf(stderr, "Pushing null value collation array to stack_a\n");
                 /* No collation separator needed for tertiary so have it be a skip (collation_zero) */
-                collation_push_int(tc, &stack_a, &a_keys_pushed, 0, 0, collation_zero, "a");
+                collation_push_int(tc, &stack_a, &a_keys_pushed, collation_zero, collation_zero, 0, "a");
                 grab_a_done = 1;
             }
         }
