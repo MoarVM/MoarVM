@@ -829,6 +829,7 @@ atomicload_i        w(int64) r(obj)
 atomicstore_o       r(obj) r(obj)
 atomicstore_i       r(obj) r(int64)
 barrierfull
+coveragecontrol     w(int64)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

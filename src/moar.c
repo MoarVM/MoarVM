@@ -282,6 +282,13 @@ MVMInstance * MVM_vm_create_instance(void) {
             instance->coverage_log_fh = fopen_perhaps_with_pid(coverage_log, "a");
         else
             instance->coverage_log_fh = stderr;
+
+        instance->coverage_control = 0;
+        if (getenv("MVM_COVERAGE_CONTROL")) {
+            char *coverage_control = getenv("MVM_COVERAGE_CONTROL");
+            if (coverage_control && strlen(coverage_control))
+                instance->coverage_control = 1;
+        }
     }
     else {
         instance->coverage_logging = 0;
