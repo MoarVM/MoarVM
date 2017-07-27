@@ -239,10 +239,10 @@ struct MVMThreadContext {
     MVMuint64 rand_state[2];
 
     /* NFA evaluator memory cache, to avoid many allocations; see NFA.c. */
-    MVMint64 *nfa_done;
-    MVMint64 *nfa_curst;
-    MVMint64 *nfa_nextst;
-    MVMint64  nfa_alloc_states;
+    MVMuint32 *nfa_done;
+    MVMuint32 *nfa_curst;
+    MVMuint32 *nfa_nextst;
+    MVMint64   nfa_alloc_states;
     MVMint64 *nfa_fates;
     MVMint64  nfa_fates_len;
     MVMint64 *nfa_longlit;
