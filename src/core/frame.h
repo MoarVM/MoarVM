@@ -99,12 +99,6 @@ struct MVMFrame {
      * for error reporting. */
     MVMuint8 *throw_address;
 
-    /* Cache for dynlex lookup; if the name is non-null, the cache is valid
-     * and the register can be accessed directly to find the contextual. */
-    MVMString   *dynlex_cache_name;
-    MVMRegister *dynlex_cache_reg;
-    MVMuint16    dynlex_cache_type;
-
     /* The allocated work/env sizes. */
     MVMuint16 allocd_work;
     MVMuint16 allocd_env;
@@ -150,6 +144,12 @@ struct MVMFrameExtra {
     /* If we were invoked with a call capture, that call capture, so we can
      * keep its callsite alive. */
     MVMObject *invoked_call_capture;
+
+    /* Cache for dynlex lookup; if the name is non-null, the cache is valid
+     * and the register can be accessed directly to find the contextual. */
+    MVMString   *dynlex_cache_name;
+    MVMRegister *dynlex_cache_reg;
+    MVMuint16    dynlex_cache_type;
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for

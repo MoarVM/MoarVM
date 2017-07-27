@@ -449,9 +449,6 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                     (MVMCollectable *)frame->code_ref, "Code reference");
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                     (MVMCollectable *)frame->static_info, "Static frame");
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)frame->dynlex_cache_name,
-                    "Dynamic lexical cache name");
 
                 if (frame->extra) {
                     MVMFrameExtra *e = frame->extra;
@@ -468,6 +465,9 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                             tag = tag->next;
                         }
                     }
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                        (MVMCollectable *)e->dynlex_cache_name,
+                        "Dynamic lexical cache name");
                 }
 
                 break;

@@ -55,15 +55,18 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
     });
     });
     while (jump_frame) {
-        jump_frame->dynlex_cache_name = NULL;
-        tag_record = jump_frame->extra ? jump_frame->extra->continuation_tags : NULL;
-        while (tag_record) {
-            if (MVM_is_null(tc, tag) || tag_record->tag == tag)
+        MVMFrameExtra *e = jump_frame->extra;
+        if (e) {
+            e->dynlex_cache_name = NULL;
+            tag_record = e->continuation_tags;
+            while (tag_record) {
+                if (MVM_is_null(tc, tag) || tag_record->tag == tag)
+                    break;
+                tag_record = tag_record->next;
+            }
+            if (tag_record)
                 break;
-            tag_record = tag_record->next;
         }
-        if (tag_record)
-            break;
         root_frame = jump_frame;
         jump_frame = jump_frame->caller;
     }

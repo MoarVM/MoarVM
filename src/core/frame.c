@@ -1224,10 +1224,11 @@ static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to,
     while (from && from != to) {
         frames++;
         if (frames >= next) {
-            if (!from->dynlex_cache_name || (desperation && frames > 1)) {
-                MVM_ASSIGN_REF(tc, &(from->header), from->dynlex_cache_name, name);
-                from->dynlex_cache_reg  = reg;
-                from->dynlex_cache_type = type;
+            if (!from->extra || !from->extra->dynlex_cache_name || (desperation && frames > 1)) {
+                MVMFrameExtra *e = MVM_frame_extra(tc, from);
+                MVM_ASSIGN_REF(tc, &(from->header), e->dynlex_cache_name, name);
+                e->dynlex_cache_reg  = reg;
+                e->dynlex_cache_type = type;
                 if (desperation && next == 3) {
                     next = fcost / 2;
                 }
@@ -1264,6 +1265,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     while (cur_frame != NULL) {
         MVMLexicalRegistry *lexical_names;
         MVMSpeshCandidate  *cand = cur_frame->spesh_cand;
+        MVMFrameExtra *e;
         /* See if we are inside an inline. Note that this isn't actually
          * correct for a leaf frame, but those aren't inlined and don't
          * use getdynlex for their own lexicals since the compiler already
@@ -1352,10 +1354,11 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
         }
 
         /* See if we've got it cached at this level. */
-        if (cur_frame->dynlex_cache_name) {
-            if (MVM_string_equal(tc, name, cur_frame->dynlex_cache_name)) {
-                MVMRegister *result = cur_frame->dynlex_cache_reg;
-                *type = cur_frame->dynlex_cache_type;
+        e = cur_frame->extra;
+        if (e && e->dynlex_cache_name) {
+            if (MVM_string_equal(tc, name, e->dynlex_cache_name)) {
+                MVMRegister *result = e->dynlex_cache_reg;
+                *type = e->dynlex_cache_type;
                 if (fcost+icost > 5)
                     try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
                 if (dlog) {
