@@ -1,20 +1,10 @@
 #include "moar.h"
 
 static void init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 num) {
-    if (ctx->named_used && ctx->named_used_size >= num) { /* reuse the old one */
-        memset(ctx->named_used, 0, ctx->named_used_size * sizeof(MVMuint8));
-    }
-    else {
-        if (ctx->named_used) {
-            MVM_fixed_size_free(tc, tc->instance->fsa, ctx->named_used_size,
-                ctx->named_used);
-            ctx->named_used = NULL;
-        }
-        ctx->named_used_size = num;
-        ctx->named_used = ctx->named_used_size
-            ? MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, num)
-            : NULL;
-    }
+    ctx->named_used_size = num;
+    ctx->named_used = ctx->named_used_size
+        ? MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, num)
+        : NULL;
 }
 
 /* Initialize arguments processing context. */
