@@ -189,7 +189,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
             if (st->container_spec && IS_CONCRETE(arg.o)) {
                 MVMContainerSpec const *contspec = st->container_spec;
                 if (!contspec->fetch_never_invokes)
-                    goto DONE; /* Impossible to cache. */
+                    return cache_obj; /* Impossible to cache. */
                 if (REPR(arg.o)->ID != MVM_REPR_ID_NativeRef) {
                     is_rw = contspec->can_store(tc, arg.o);
                     contspec->fetch(tc, arg.o, &arg);
