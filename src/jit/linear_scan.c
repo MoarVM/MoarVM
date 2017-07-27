@@ -583,13 +583,16 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
             alc->sets[node].key  = value_set_union(alc->sets, alc->values, left_cond, right_cond);
             num_phi++;
         } else if (tile->op == MVM_JIT_ARGLIST) {
-            MVMint32 num_args = list->tree->nodes[tile->node + 1];
-            MVMJitExprNode *refs = list->tree->nodes + tile->node + 2;
+            MVMint32 num_args = tree->nodes[tile->node + 1];
+            MVMJitExprNode *refs = tree->nodes + tile->node + 2;
             for (j = 0; j < num_args; j++) {
                 MVMint32 carg  = refs[j];
                 MVMint32 value = list->tree->nodes[carg+1];
                 MVMint32 idx   = value_set_find(alc->sets, value)->idx;
                 live_range_add_ref(alc, alc->values + idx, i, j + 1);
+                /* include the CALL node into the arglist child range, so we
+                 * don't release them too early */
+                alc->values[idx].end = MAX(alc->values[idx].end, order_nr(i + 1));
             }
         } else {
             /* create a live range if necessary */
@@ -913,7 +916,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
 #define INSERT_COPY_TO_STACK(_s, _r) INSERT_NEXT_TILE(MAKE_TILE(store, 2, 2, MVM_JIT_STORAGE_STACK, _s, 0, _r))
 #define INSERT_LOAD_LOCAL(_r, _l)    INSERT_NEXT_TILE(MAKE_TILE(load, 2, 1, MVM_JIT_STORAGE_LOCAL, _l, _r))
 #define INSERT_LOCAL_STACK_COPY(_s, _l) \
-    INSERT_NEXT_TILE(MAKE_TILE(memory_copy, 4, 1, MVM_JIT_STORAGE_STACK, _s, MVM_JIT_STORAGE_LOCAL, _l, 0, spare_register))
+    INSERT_NEXT_TILE(MAKE_TILE(memory_copy, 4, 2, MVM_JIT_STORAGE_STACK, _s, MVM_JIT_STORAGE_LOCAL, _l, 0, spare_register))
 
 #define ENQUEUE_TRANSFER(_r) do { \
          MVMint8 _c = (_r); \
