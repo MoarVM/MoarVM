@@ -10,10 +10,13 @@ struct MVMArgProcContext {
     /* The arguments. */
     MVMRegister *args;
 
-    /* Bytemap of indexes of used nameds, so the
-     * named slurpy knows which ones not to grab.
-     * XXX cache and free this at the proper times. */
-    MVMuint8 *named_used;
+    /* Indexes of used nameds. If named_used_size is less than or equal to
+     * 64, it will be a bit field. Otherwise, it will be a pointer to a
+     * byte array. */
+    union {
+        MVMuint8 *byte_array;
+        MVMuint64 bit_field;
+    } named_used;
     MVMuint16 named_used_size;
 
     /* The total argument count (including 2 for each
@@ -52,6 +55,7 @@ MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ct
 MVMCallsite * MVM_args_copy_uninterned_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx);
 MVM_PUBLIC MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f);
 MVM_PUBLIC MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *f);
+void MVM_args_marked_named_used(MVMThreadContext *tc, MVMuint32 idx);
 
 /* Argument access by position. */
 MVMArgInfo MVM_args_get_pos_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required);

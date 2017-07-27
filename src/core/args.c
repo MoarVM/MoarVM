@@ -1,10 +1,29 @@
 #include "moar.h"
 
+MVM_STATIC_INLINE MVMint32 is_named_used(MVMArgProcContext *ctx, MVMuint32 idx) {
+    return ctx->named_used_size > 64
+        ? ctx->named_used.byte_array[idx]
+        : ctx->named_used.bit_field & ((MVMuint64)1 << idx);
+}
+
+MVM_STATIC_INLINE void mark_named_used(MVMArgProcContext *ctx, MVMuint32 idx) {
+    if (ctx->named_used_size > 64)
+        ctx->named_used.byte_array[idx] = 1;
+    else
+        ctx->named_used.bit_field |= (MVMuint64)1 << idx;
+}
+
+/* Marks a named used in the current callframe. */
+void MVM_args_marked_named_used(MVMThreadContext *tc, MVMuint32 idx) {
+    mark_named_used(&(tc->cur_frame->params), idx);
+}
+
 static void init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 num) {
     ctx->named_used_size = num;
-    ctx->named_used = ctx->named_used_size
-        ? MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, num)
-        : NULL;
+    if (num > 64)
+        ctx->named_used.byte_array = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, num); 
+    else
+        ctx->named_used.bit_field = 0;
 }
 
 /* Initialize arguments processing context. */
@@ -25,10 +44,10 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
         MVM_free(ctx->arg_flags);
         MVM_free(ctx->args);
     }
-    if (ctx->named_used) {
+    if (ctx->named_used_size > 64) {
         MVM_fixed_size_free(tc, tc->instance->fsa, ctx->named_used_size,
-            ctx->named_used);
-        ctx->named_used = NULL;
+            ctx->named_used.byte_array);
+        ctx->named_used_size = 0;
     }
 }
 
@@ -303,7 +322,7 @@ MVMArgInfo MVM_args_get_pos_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, M
      \
     for (flag_pos = arg_pos = ctx->num_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2) { \
         if (MVM_string_equal(tc, ctx->args[arg_pos].s, name)) { \
-            if (ctx->named_used[(arg_pos - ctx->num_pos)/2]) { \
+            if (is_named_used(ctx, (arg_pos - ctx->num_pos)/2)) { \
                 char *c_name = MVM_string_utf8_encode_C_string(tc, name); \
                 char *waste[] = { c_name, NULL }; \
                 MVM_exception_throw_adhoc_free(tc, waste, "Named argument '%s' already used", c_name); \
@@ -312,7 +331,7 @@ MVMArgInfo MVM_args_get_pos_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, M
             result.flags  = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[flag_pos]; \
             result.exists = 1; \
             result.arg_idx = arg_pos + 1; \
-            ctx->named_used[(arg_pos - ctx->num_pos)/2] = 1; \
+            mark_named_used(ctx, (arg_pos - ctx->num_pos)/2); \
             break; \
         } \
     } \
@@ -361,11 +380,22 @@ MVMint64 MVM_args_has_named(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMStr
     return 0;
 }
 void MVM_args_assert_nameds_used(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    if (ctx->named_used) {
-        MVMuint16 size = (ctx->arg_count - ctx->num_pos) / 2;
-        MVMuint16 i;
+    MVMuint16 size = ctx->named_used_size;
+    MVMuint16 i;
+    if (size > 64) {
         for (i = 0; i < size; i++)
-            if (!ctx->named_used[i]) {
+            if (!ctx->named_used.byte_array[i]) {
+                char *c_param = MVM_string_utf8_encode_C_string(tc,
+                    ctx->args[ctx->num_pos + 2 * i].s);
+                char *waste[] = { c_param, NULL };
+                MVM_exception_throw_adhoc_free(tc, waste,
+                    "Unexpected named argument '%s' passed",
+                    c_param);
+            }
+    }
+    else {
+        for (i = 0; i < size; i++)
+            if (!(ctx->named_used.bit_field & ((MVMuint64)1 << i))) {
                 char *c_param = MVM_string_utf8_encode_C_string(tc,
                     ctx->args[ctx->num_pos + 2 * i].s);
                 char *waste[] = { c_param, NULL };
@@ -609,7 +639,8 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
     for (flag_pos = arg_pos = ctx->num_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2) {
         MVMString *key;
 
-        if (ctx->named_used[flag_pos - ctx->num_pos]) continue;
+        if (is_named_used(ctx, flag_pos - ctx->num_pos))
+            continue;
 
         key = ctx->args[arg_pos].s;
 
@@ -793,6 +824,8 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
         }
     }
 
+    if (ctx->named_used_size > 64)
+        MVM_fixed_size_free(tc, tc->instance->fsa, ctx->named_used_size, ctx->named_used.byte_array);
     init_named_used(tc, ctx, (new_arg_pos - new_num_pos) / 2);
     ctx->args = new_args;
     ctx->arg_count = new_arg_pos;

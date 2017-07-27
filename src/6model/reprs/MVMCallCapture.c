@@ -60,10 +60,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
             MVM_free(cs->arg_flags);
             MVM_free(cs);
         }
-        if (ctx->body.apc->named_used)
+        if (ctx->body.apc->named_used_size > 64)
             MVM_fixed_size_free(tc, tc->instance->fsa,
                 ctx->body.apc->named_used_size,
-                ctx->body.apc->named_used);
+                ctx->body.apc->named_used.byte_array);
         MVM_free(ctx->body.apc->args);
         MVM_free(ctx->body.apc);
     }

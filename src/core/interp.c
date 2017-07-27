@@ -5292,7 +5292,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_namedarg_used):
-                tc->cur_frame->params.named_used[GET_UI16(cur_op, 0)] = 1;
+                MVM_args_marked_named_used(tc, GET_UI16(cur_op, 0));
                 cur_op += 2;
                 goto NEXT;
             OP(sp_getspeshslot):
