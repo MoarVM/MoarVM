@@ -9,8 +9,11 @@
 /* Uninlining can invalidate what the dynlex cache points to, so we'll
  * clear it in various caches. */
 MVM_STATIC_INLINE void clear_dynlex_cache(MVMThreadContext *tc, MVMFrame *f) {
-    f->dynlex_cache_name = NULL;
-    f->dynlex_cache_reg = NULL;
+    MVMFrameExtra *e = f->extra;
+    if (e) {
+        e->dynlex_cache_name = NULL;
+        e->dynlex_cache_reg = NULL;
+    }
 }
 
 /* If we have to deopt inside of a frame containing inlines, and we're in

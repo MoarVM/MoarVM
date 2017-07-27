@@ -98,8 +98,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 #if MVM_TRACING
         if (tracing_enabled) {
             char *trace_line;
-            tc->cur_frame->throw_address = cur_op;
-            trace_line = MVM_exception_backtrace_line(tc, tc->cur_frame, 0);
+            trace_line = MVM_exception_backtrace_line(tc, tc->cur_frame, 0, cur_op);
             fprintf(stderr, "Op %d%s\n", (int)*((MVMuint16 *)cur_op), trace_line);
             /* slow tracing is slow. Feel free to speed it. */
             MVM_free(trace_line);
@@ -1435,6 +1434,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (IS_CONCRETE(cobj) && REPR(cobj)->ID == MVM_REPR_ID_MVMCallCapture) {
                     MVMObject *code = GET_REG(cur_op, 2).o;
                     MVMCallCapture *cc = (MVMCallCapture *)cobj;
+                    MVMFrameExtra *e = MVM_frame_extra(tc, tc->cur_frame);
                     code = MVM_frame_find_invokee(tc, code, NULL);
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                     tc->cur_frame->return_type = MVM_RETURN_OBJ;
@@ -1442,7 +1442,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     tc->cur_frame->return_address = cur_op;
                     STABLE(code)->invoke(tc, code, cc->body.apc->callsite,
                         cc->body.apc->args);
-                    tc->cur_frame->invoked_call_capture = cobj;
+                    e->invoked_call_capture = cobj;
                     goto NEXT;
                 }
                 else {
@@ -5292,7 +5292,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_namedarg_used):
-                tc->cur_frame->params.named_used[GET_UI16(cur_op, 0)] = 1;
+                MVM_args_marked_named_used(tc, GET_UI16(cur_op, 0));
                 cur_op += 2;
                 goto NEXT;
             OP(sp_getspeshslot):

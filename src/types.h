@@ -51,6 +51,7 @@ typedef struct MVMFixedSizeAllocSizeClass MVMFixedSizeAllocSizeClass;
 typedef struct MVMFixedSizeAllocThread MVMFixedSizeAllocThread;
 typedef struct MVMFixedSizeAllocThreadSizeClass MVMFixedSizeAllocThreadSizeClass;
 typedef struct MVMFrame MVMFrame;
+typedef struct MVMFrameExtra MVMFrameExtra;
 typedef struct MVMFrameHandler MVMFrameHandler;
 typedef struct MVMGen2Allocator MVMGen2Allocator;
 typedef struct MVMGen2SizeClass MVMGen2SizeClass;

@@ -10,7 +10,7 @@ static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite
          * processing may box. */
         MVMROOT(tc, invokee, {
             MVMObject *result;
-            MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
+            MVMArgProcContext arg_ctx;
             MVM_args_proc_init(tc, &arg_ctx, callsite, args);
             result = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o;
             MVM_ASSIGN_REF(tc, &(invokee->header), ((MVMLexotic *)invokee)->body.result, result);

@@ -5,7 +5,7 @@
  * is triggered by the special_return mechanism. */
 static void run_load(MVMThreadContext *tc, void *sr_data);
 static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
-    MVM_gc_worklist_add(tc, worklist, &frame->special_return_data);
+    MVM_gc_worklist_add(tc, worklist, &frame->extra->special_return_data);
 }
 static void run_comp_unit(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* If there's a deserialization frame, need to run that. */
@@ -14,9 +14,7 @@ static void run_comp_unit(MVMThreadContext *tc, MVMCompUnit *cu) {
          * if any. */
         tc->cur_frame->return_value             = NULL;
         tc->cur_frame->return_type              = MVM_RETURN_VOID;
-        tc->cur_frame->special_return           = run_load;
-        tc->cur_frame->special_return_data      = cu;
-        tc->cur_frame->mark_special_return_data = mark_sr_data;
+        MVM_frame_special_return(tc, tc->cur_frame, run_load, NULL, cu, mark_sr_data);
 
         /* Invoke the deserialization frame and return to the runloop. */
         MVM_frame_invoke(tc, cu->body.deserialize_frame, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS),

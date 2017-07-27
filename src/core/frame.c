@@ -95,11 +95,15 @@ void MVM_frame_destroy(MVMThreadContext *tc, MVMFrame *frame) {
         MVM_args_proc_cleanup(tc, &frame->params);
         MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_work,
             frame->work);
+        if (frame->extra) {
+            MVMFrameExtra *e = frame->extra;
+            if (e->continuation_tags)
+                MVM_continuation_free_tags(tc, frame);
+            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
+        }
     }
     if (frame->env)
         MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_env, frame->env);
-    if (frame->continuation_tags)
-        MVM_continuation_free_tags(tc, frame);
 }
 
 /* Creates a frame for usage as a context only, possibly forcing all of the
@@ -221,7 +225,10 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
         stack = MVM_callstack_region_next(tc);
     frame = (MVMFrame *)stack->alloc;
     stack->alloc += sizeof(MVMFrame);
-    memset(frame, 0, sizeof(MVMFrame));
+
+    /* Ensure collectable header flags are zeroed, which means we'll never try
+     * to mark or root the frame. */
+    frame->header.flags = 0;
 
     /* Allocate space for lexicals and work area. */
     static_frame_body = &(static_frame->body);
@@ -233,6 +240,9 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
     if (env_size) {
         frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, env_size);
         frame->allocd_env = env_size;
+    }
+    else {
+        frame->env = NULL;
     }
     work_size = spesh_cand ? spesh_cand->work_size : static_frame_body->work_size;
     if (work_size) {
@@ -252,9 +262,18 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
         /* Calculate args buffer position. */
         frame->args = frame->work + num_locals;
     }
+    else {
+        frame->work = NULL;
+    }
 
     /* Assign a sequence nr */
     frame->sequence_nr = tc->next_frame_nr++;
+
+    /* Current arguments callsite must be NULL as it's used in GC. Extra must
+     * be NULL so we know we don't have it. Flags should be zeroed. */
+    frame->cur_args_callsite = NULL;
+    frame->extra = NULL;
+    frame->flags = 0;
 
     return frame;
 }
@@ -407,6 +426,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             });
             });
         }
+        else {
+            outer = NULL;
+        }
     }
 
     /* See if any specializations apply. */
@@ -449,6 +471,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (!found_spesh) {
         frame = allocate_frame(tc, static_frame, NULL);
         chosen_bytecode = static_frame->body.bytecode;
+        frame->spesh_cand = NULL;
+        frame->effective_spesh_slots = NULL;
 
         /* If we should be spesh logging, set the correlation ID. */
         frame->spesh_correlation_id = 0;
@@ -463,7 +487,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         }
     }
     else {
-        /* TODO Should not need this after full spesh changes to worker thread. */
         frame->spesh_correlation_id = 0;
     }
 
@@ -663,9 +686,14 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     MVMFrame *returner = tc->cur_frame;
     MVMFrame *caller   = returner->caller;
 
-    /* Clear up any continuation tags. */
-    if (returner->continuation_tags)
-        MVM_continuation_free_tags(tc, returner);
+    /* Clear up any extra frame data. */
+    if (returner->extra) {
+        MVMFrameExtra *e = returner->extra;
+        if (e->continuation_tags)
+            MVM_continuation_free_tags(tc, returner);
+        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
+        returner->extra = NULL;
+    }
 
     /* Clean up frame working space. */
     if (returner->work) {
@@ -704,18 +732,21 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         *(tc->interp_cu) = caller->static_info->body.cu;
 
         /* Handle any special return hooks. */
-        if (caller->special_return || caller->special_unwind) {
-            MVMSpecialReturn  sr  = caller->special_return;
-            MVMSpecialReturn  su  = caller->special_unwind;
-            void             *srd = caller->special_return_data;
-            caller->special_return           = NULL;
-            caller->special_unwind           = NULL;
-            caller->special_return_data      = NULL;
-            caller->mark_special_return_data = NULL;
-            if (unwind && su)
-                su(tc, srd);
-            else if (!unwind && sr)
-                sr(tc, srd);
+        if (caller->extra) {
+            MVMFrameExtra *e = caller->extra;
+            if (e->special_return || e->special_unwind) {
+                MVMSpecialReturn  sr  = e->special_return;
+                MVMSpecialReturn  su  = e->special_unwind;
+                void             *srd = e->special_return_data;
+                e->special_return           = NULL;
+                e->special_unwind           = NULL;
+                e->special_return_data      = NULL;
+                e->mark_special_return_data = NULL;
+                if (unwind && su)
+                    su(tc, srd);
+                else if (!unwind && sr)
+                    sr(tc, srd);
+            }
         }
 
         return 1;
@@ -778,7 +809,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
         MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, two_args_callsite);
         cur_frame->args[0].o = cur_frame->code_ref;
         cur_frame->args[1].o = result;
-        cur_frame->special_return = remove_after_handler;
+        MVM_frame_special_return(tc, cur_frame, remove_after_handler, NULL, NULL, NULL);
         cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
         STABLE(handler)->invoke(tc, handler, two_args_callsite, cur_frame->args);
         return 1;
@@ -803,7 +834,7 @@ typedef struct {
     MVMuint32  rel_addr;
 } MVMUnwindData;
 static void mark_unwind_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
-    MVMUnwindData *ud  = (MVMUnwindData *)frame->special_return_data;
+    MVMUnwindData *ud  = (MVMUnwindData *)frame->extra->special_return_data;
     MVM_gc_worklist_add(tc, worklist, &(ud->frame));
 }
 static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
@@ -850,8 +881,6 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
             MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, two_args_callsite);
             cur_frame->args[0].o = cur_frame->code_ref;
             cur_frame->args[1].o = tc->instance->VMNull;
-            cur_frame->special_return = continue_unwind;
-            cur_frame->mark_special_return_data = mark_unwind_data;
             {
                 MVMUnwindData *ud = MVM_malloc(sizeof(MVMUnwindData));
                 ud->frame = frame;
@@ -859,7 +888,8 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                 ud->rel_addr = rel_addr;
                 if (return_value)
                     MVM_exception_throw_adhoc(tc, "return_value + exit_handler case NYI");
-                cur_frame->special_return_data = ud;
+                MVM_frame_special_return(tc, cur_frame, continue_unwind, NULL, ud,
+                    mark_unwind_data);
             }
             cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
             STABLE(handler)->invoke(tc, handler, two_args_callsite, cur_frame->args);
@@ -1216,10 +1246,11 @@ static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to,
     while (from && from != to) {
         frames++;
         if (frames >= next) {
-            if (!from->dynlex_cache_name || (desperation && frames > 1)) {
-                MVM_ASSIGN_REF(tc, &(from->header), from->dynlex_cache_name, name);
-                from->dynlex_cache_reg  = reg;
-                from->dynlex_cache_type = type;
+            if (!from->extra || !from->extra->dynlex_cache_name || (desperation && frames > 1)) {
+                MVMFrameExtra *e = MVM_frame_extra(tc, from);
+                MVM_ASSIGN_REF(tc, &(from->header), e->dynlex_cache_name, name);
+                e->dynlex_cache_reg  = reg;
+                e->dynlex_cache_type = type;
                 if (desperation && next == 3) {
                     next = fcost / 2;
                 }
@@ -1256,6 +1287,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     while (cur_frame != NULL) {
         MVMLexicalRegistry *lexical_names;
         MVMSpeshCandidate  *cand = cur_frame->spesh_cand;
+        MVMFrameExtra *e;
         /* See if we are inside an inline. Note that this isn't actually
          * correct for a leaf frame, but those aren't inlined and don't
          * use getdynlex for their own lexicals since the compiler already
@@ -1344,10 +1376,11 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
         }
 
         /* See if we've got it cached at this level. */
-        if (cur_frame->dynlex_cache_name) {
-            if (MVM_string_equal(tc, name, cur_frame->dynlex_cache_name)) {
-                MVMRegister *result = cur_frame->dynlex_cache_reg;
-                *type = cur_frame->dynlex_cache_type;
+        e = cur_frame->extra;
+        if (e && e->dynlex_cache_name) {
+            if (MVM_string_equal(tc, name, e->dynlex_cache_name)) {
+                MVMRegister *result = e->dynlex_cache_reg;
+                *type = e->dynlex_cache_type;
                 if (fcost+icost > 5)
                     try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
                 if (dlog) {
@@ -1667,4 +1700,35 @@ MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
         MVM_ASSIGN_REF(tc, &(ctx->header), ((MVMContext *)ctx)->body.context, f);
     });
     return ctx;
+}
+
+/* Gets, allocating if needed, the frame extra data structure for the given
+ * frame. This is used to hold data that only a handful of frames need. */
+MVMFrameExtra * MVM_frame_extra(MVMThreadContext *tc, MVMFrame *f) {
+    if (!f->extra)
+        f->extra = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMFrameExtra));
+    return f->extra;
+}
+
+/* Set up special return data on a frame. */
+void MVM_frame_special_return(MVMThreadContext *tc, MVMFrame *f,
+                               MVMSpecialReturn special_return,
+                               MVMSpecialReturn special_unwind,
+                               void *special_return_data,
+                               MVMSpecialReturnDataMark mark_special_return_data) {
+    MVMFrameExtra *e = MVM_frame_extra(tc, f);
+    e->special_return = special_return;
+    e->special_unwind = special_unwind;
+    e->special_return_data = special_return_data;
+    e->mark_special_return_data = mark_special_return_data;
+}
+
+/* Clears any special return data on a frame. */
+void MVM_frame_clear_special_return(MVMThreadContext *tc, MVMFrame *f) {
+    if (f->extra) {
+        f->extra->special_return = NULL;
+        f->extra->special_unwind = NULL;
+        f->extra->special_return_data = NULL;
+        f->extra->mark_special_return_data = NULL;
+    }
 }

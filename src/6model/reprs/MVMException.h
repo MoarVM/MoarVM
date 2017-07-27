@@ -14,6 +14,7 @@ struct MVMExceptionBody {
 
     /* Where was the exception thrown from? */
     MVMFrame *origin;
+    MVMuint8 *throw_address;
 
     /* Where should we resume to, if it's possible? */
     MVMuint8 *resume_addr;

@@ -368,25 +368,22 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
     MVM_gc_worklist_add(tc, worklist, &cur_frame->code_ref);
     MVM_gc_worklist_add(tc, worklist, &cur_frame->static_info);
 
-    /* Mark special return data, if needed. */
-    if (cur_frame->special_return_data && cur_frame->mark_special_return_data)
-        cur_frame->mark_special_return_data(tc, cur_frame, worklist);
-
-    /* Mark any continuation tags. */
-    if (cur_frame->continuation_tags) {
-        MVMContinuationTag *tag = cur_frame->continuation_tags;
-        while (tag) {
-            MVM_gc_worklist_add(tc, worklist, &tag->tag);
-            tag = tag->next;
+    /* Mark frame extras if needed. */
+    if (cur_frame->extra) {
+        MVMFrameExtra *e = cur_frame->extra;
+        if (e->special_return_data && e->mark_special_return_data)
+            e->mark_special_return_data(tc, cur_frame, worklist);
+        if (e->continuation_tags) {
+            MVMContinuationTag *tag = e->continuation_tags;
+            while (tag) {
+                MVM_gc_worklist_add(tc, worklist, &tag->tag);
+                tag = tag->next;
+            }
         }
+        MVM_gc_worklist_add(tc, worklist, &e->invoked_call_capture);
+        if (e->dynlex_cache_name)
+            MVM_gc_worklist_add(tc, worklist, &e->dynlex_cache_name);
     }
-
-    /* Mark any dyn lex cache. */
-    if (cur_frame->dynlex_cache_name)
-        MVM_gc_worklist_add(tc, worklist, &cur_frame->dynlex_cache_name);
-
-    /* Mark invoking call capture, if any. */
-    MVM_gc_worklist_add(tc, worklist, &cur_frame->invoked_call_capture);
 
     /* Scan the registers. */
     MVM_gc_root_add_frame_registers_to_worklist(tc, worklist, cur_frame);

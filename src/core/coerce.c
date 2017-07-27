@@ -41,10 +41,9 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                      * the register. */
                     MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_INT, inv_arg_callsite);
                     tc->cur_frame->args[0].o = obj;
-                    if (flip) {
-                        tc->cur_frame->special_return      = flip_return;
-                        tc->cur_frame->special_return_data = res_reg;
-                    }
+                    if (flip)
+                        MVM_frame_special_return(tc, tc->cur_frame, flip_return, NULL,
+                            res_reg, NULL);
                     STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
                 }
                 else {
@@ -53,8 +52,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                     data->true_addr  = true_addr;
                     data->false_addr = false_addr;
                     data->flip       = flip;
-                    tc->cur_frame->special_return      = boolify_return;
-                    tc->cur_frame->special_return_data = data;
+                    MVM_frame_special_return(tc, tc->cur_frame, boolify_return, NULL, data, NULL);
                     MVM_args_setup_thunk(tc, &data->res_reg, MVM_RETURN_INT, inv_arg_callsite);
                     tc->cur_frame->args[0].o = obj;
                     STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);

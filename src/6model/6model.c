@@ -73,7 +73,7 @@ static void late_bound_find_method_return(MVMThreadContext *tc, void *sr_data) {
     }
 }
 static void mark_find_method_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
-    FindMethodSRData *fm = (FindMethodSRData *)frame->special_return_data;
+    FindMethodSRData *fm = (FindMethodSRData *)frame->extra->special_return_data;
     MVM_gc_worklist_add(tc, worklist, &fm->obj);
     MVM_gc_worklist_add(tc, worklist, &fm->name);
 }
@@ -138,9 +138,8 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
         fm->obj  = obj;
         fm->name = name;
         fm->res  = res;
-        tc->cur_frame->special_return           = late_bound_find_method_return;
-        tc->cur_frame->special_return_data      = fm;
-        tc->cur_frame->mark_special_return_data = mark_find_method_sr_data;
+        MVM_frame_special_return(tc, tc->cur_frame, late_bound_find_method_return,
+            NULL, fm, mark_find_method_sr_data);
     }
     tc->cur_frame->args[0].o = HOW;
     tc->cur_frame->args[1].o = obj;
@@ -264,8 +263,7 @@ void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name
     code = MVM_frame_find_invokee(tc, find_method, NULL);
     findmeth_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_FIND_METHOD);
     MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, findmeth_callsite);
-    tc->cur_frame->special_return      = late_bound_can_return;
-    tc->cur_frame->special_return_data = res;
+    MVM_frame_special_return(tc, tc->cur_frame, late_bound_can_return, NULL, res, NULL);
     tc->cur_frame->args[0].o = HOW;
     tc->cur_frame->args[1].o = obj;
     tc->cur_frame->args[2].s = name;
@@ -321,7 +319,7 @@ static void accepts_type_sr(MVMThreadContext *tc, void *sr_data) {
 }
 
 static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
-    AcceptsTypeSRData *atd = (AcceptsTypeSRData *)frame->special_return_data;
+    AcceptsTypeSRData *atd = (AcceptsTypeSRData *)frame->extra->special_return_data;
     MVM_gc_worklist_add(tc, worklist, &atd->obj);
     MVM_gc_worklist_add(tc, worklist, &atd->type);
 }
@@ -388,9 +386,8 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
                 atd->obj = obj;
                 atd->type = type;
                 atd->res = res;
-                tc->cur_frame->special_return           = accepts_type_sr;
-                tc->cur_frame->special_return_data      = atd;
-                tc->cur_frame->mark_special_return_data = mark_sr_data;
+                MVM_frame_special_return(tc, tc->cur_frame, accepts_type_sr, NULL,
+                    atd, mark_sr_data);
             }
             STABLE(code)->invoke(tc, code, typecheck_callsite, tc->cur_frame->args);
             return;
