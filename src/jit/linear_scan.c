@@ -84,6 +84,8 @@ struct Hole {
 typedef struct {
     /* double-ended queue of value refs */
     ValueRef *first, *last;
+    /* order number of first and last refs */
+    MVMint32 start, end;
 
     /* list of holes in ascending order */
     struct Hole *holes;
@@ -91,7 +93,6 @@ typedef struct {
     /* We can have at most two synthetic tiles, one attached to the first
      * definition and one to the last use... we could also point directly into
      * the values array of the tile, but it is not directly necessary */
-    MVMint32    synth_pos[2];
     MVMJitTile *synthetic[2];
 
     MVMint8            register_spec;
@@ -153,19 +154,6 @@ MVM_STATIC_INLINE MVMint32 order_nr(MVMint32 tile_idx) {
 }
 
 
-/* quick accessors for common checks */
-MVM_STATIC_INLINE MVMint32 first_ref(LiveRange *r) {
-    MVMint32 a = r->first == NULL        ? INT32_MAX : order_nr(r->first->tile_idx);
-    MVMint32 b = r->synthetic[0] == NULL ? INT32_MAX : order_nr(r->synth_pos[0]) - 1;
-    return MIN(a,b);
-}
-
-MVM_STATIC_INLINE MVMint32 last_ref(LiveRange *r) {
-    MVMint32 a = r->last == NULL         ? -1 : order_nr(r->last->tile_idx);
-    MVMint32 b = r->synthetic[1] == NULL ? -1 : order_nr(r->synth_pos[1]) + 1;
-    return MAX(a,b);
-}
-
 MVM_STATIC_INLINE MVMint32 is_definition(ValueRef *v) {
     return (v->value_idx == 0);
 }
@@ -174,19 +162,21 @@ MVM_STATIC_INLINE MVMint32 is_arglist_ref(MVMJitTileList *list, ValueRef *v) {
     return (list->items[v->tile_idx]->op == MVM_JIT_ARGLIST);
 }
 
+
+MVM_STATIC_INLINE MVMint32 live_range_is_empty(LiveRange *range) {
+    return (range->first == NULL &&
+            range->synthetic[0] == NULL &&
+            range->synthetic[1] == NULL);
+}
+
 /* allocate a new live range value by pointer-bumping */
 MVMint32 live_range_init(RegisterAllocator *alc) {
     LiveRange *range;
     MVMint32 idx = alc->values_num++;
     MVM_VECTOR_ENSURE_SIZE(alc->values, idx);
     alc->values[idx].spill_idx = INT32_MAX;
+    alc->values[idx].start     = INT32_MAX;
     return idx;
-}
-
-MVM_STATIC_INLINE MVMint32 live_range_is_empty(LiveRange *range) {
-    return (range->first == NULL &&
-            range->synthetic[0] == NULL &&
-            range->synthetic[1] == NULL);
 }
 
 
@@ -205,6 +195,9 @@ static void live_range_add_ref(RegisterAllocator *alc, LiveRange *range, MVMint3
     }
     range->last = ref;
     ref->next   = NULL;
+
+    range->start = MIN(order_nr(tile_idx), range->start);
+    range->end   = MAX(order_nr(tile_idx), range->end);
 }
 
 
@@ -213,8 +206,8 @@ static void live_range_merge(LiveRange *a, LiveRange *b) {
     ValueRef *head = NULL, *tail = NULL;
     MVMint32 i;
     _DEBUG("Merging live ranges (%d-%d) and (%d-%d)",
-           first_ref(a), last_ref(a), first_ref(b), last_ref(b));
-    if (first_ref(a) <= first_ref(b)) {
+           (a)->start, (a)->end, (b)->start, (b)->end);
+    if (a->start <= b->start) {
         head = a->first;
         a->first = a->first->next;
     } else {
@@ -253,9 +246,12 @@ static void live_range_merge(LiveRange *a, LiveRange *b) {
         if (a->synthetic[i] != NULL) {
             MVM_panic(1, "Can't merge the same synthetic!");
         }
-        a->synthetic[i] = b->synthetic[i];
-        a->synth_pos[i] = b->synth_pos[i];
     }
+    a->start = MIN(a->start, b->start);
+    a->end   = MAX(a->end, b->end);
+    /* deinitialize the live range */
+    b->start = INT32_MAX;
+    b->end   = 0;
 }
 
 static struct Hole * live_range_has_hole(LiveRange *value, MVMint32 order_nr) {
@@ -286,7 +282,7 @@ MVMint32 value_set_union(UnionFind *sets, LiveRange *values, MVMint32 a, MVMint3
          * IF, COPY, and DO. */
         return a;
     }
-    if (first_ref(values + sets[b].idx) < first_ref(values + sets[a].idx)) {
+    if (values[sets[b].idx].start < values[sets[a].idx].start) {
         /* ensure we're picking the first one to start so that we maintain the
          * first-definition heap order */
         MVMint32 t = a; a = b; b = t;
@@ -367,11 +363,11 @@ void live_range_heapify(LiveRange *values, MVMint32 *heap, MVMint32 top,
 
 
 MVMint32 values_cmp_first_ref(LiveRange *values, MVMint32 a, MVMint32 b) {
-    return first_ref(values + a) - first_ref(values + b);
+    return values[a].start - values[b].start;
 }
 
 MVMint32 values_cmp_last_ref(LiveRange *values, MVMint32 a, MVMint32 b) {
-    return last_ref(values + a) - last_ref(values + b);
+    return values[a].end - values[b].end;
 }
 
 /* register assignment logic */
@@ -459,7 +455,7 @@ MVM_STATIC_INLINE void close_hole(RegisterAllocator *alc, MVMint32 ref, MVMint32
 
 MVM_STATIC_INLINE void open_hole(RegisterAllocator *alc, MVMint32 ref, MVMint32 tile_idx) {
     LiveRange *v = alc->values + ref;
-    if (first_ref(v) < order_nr(tile_idx) &&
+    if (v->start < order_nr(tile_idx) &&
         (v->holes == NULL || v->holes->start > order_nr(tile_idx))) {
         struct Hole *hole = alc->holes + alc->holes_top++;
         hole->next  = v->holes;
@@ -662,7 +658,7 @@ static void active_set_add(MVMThreadContext *tc, RegisterAllocator *alc, MVMint3
     MVMint32 i;
     for (i = 0; i < alc->active_top; i++) {
         MVMint32 b = alc->active[i];
-        if (last_ref(&alc->values[b]) > last_ref(&alc->values[a])) {
+        if (alc->values[b].end > alc->values[a].end) {
             /* insert a before b */
             memmove(alc->active + i + 1, alc->active + i, sizeof(MVMint32)*(alc->active_top - i));
             alc->active[i] = a;
@@ -682,11 +678,11 @@ static void active_set_expire(MVMThreadContext *tc, RegisterAllocator *alc, MVMi
     for (i = 0; i < alc->active_top; i++) {
         MVMint32 v = alc->active[i];
         MVMint8 reg_num = alc->values[v].reg_num;
-        if (last_ref(&alc->values[v]) > order_nr) {
+        if (alc->values[v].end > order_nr) {
             break;
         } else {
             _DEBUG("Live range %d is out of scope (last ref %d, %d) and releasing register %d",
-                    v, last_ref(alc->values + v), order_nr, reg_num);
+                    v, values[v].end, order_nr, reg_num);
             free_register(tc, alc, MVM_JIT_STORAGE_GPR, reg_num);
         }
     }
@@ -713,7 +709,7 @@ static void active_set_splice(MVMThreadContext *tc, RegisterAllocator *alc, MVMi
 }
 
 static void spill_set_release(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 order_nr) {
-    while (alc->spilled_num > 0 && last_ref(alc->values + alc->spilled[0]) <= order_nr) {
+    while (alc->spilled_num > 0 && alc->values[alc->spilled[0]].end <= order_nr) {
         MVMint32 spilled = live_range_heap_pop(alc->values, alc->spilled, &alc->spilled_num,
                                                values_cmp_last_ref);
         LiveRange *value = alc->values + spilled;
@@ -728,10 +724,13 @@ static MVMint32 insert_load_before_use(MVMThreadContext *tc, RegisterAllocator *
     MVMint32 n = live_range_init(alc);
     MVMJitTile *tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_load, 2, 1,
                                          MVM_JIT_STORAGE_LOCAL, load_pos, 0);
+    LiveRange *range = alc->values + n;
     MVM_jit_tile_list_insert(tc, list, tile, ref->tile_idx - 1, +1); /* insert just prior to use */
-    alc->values[n].synthetic[0] = tile;
-    alc->values[n].synth_pos[0] = ref->tile_idx;
-    alc->values[n].first = alc->values[n].last = ref;
+    range->synthetic[0] = tile;
+    range->first = range->last = ref;
+
+    range->start = order_nr(ref->tile_idx) - 1;
+    range->end   = order_nr(ref->tile_idx);
     return n;
 }
 
@@ -740,10 +739,13 @@ static MVMint32 insert_store_after_definition(MVMThreadContext *tc, RegisterAllo
     MVMint32 n       = live_range_init(alc);
     MVMJitTile *tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_store, 2, 2,
                                          MVM_JIT_STORAGE_LOCAL, store_pos, 0, 0);
+    LiveRange *range  = alc->values + n;
     MVM_jit_tile_list_insert(tc, list, tile, ref->tile_idx, -1); /* insert just after storage */
-    alc->values[n].synthetic[1] = tile;
-    alc->values[n].synth_pos[1] = ref->tile_idx;
-    alc->values[n].first = alc->values[n].last = ref;
+    range->synthetic[1] = tile;
+    range->first = range->last = ref;
+
+    range->start = order_nr(ref->tile_idx);
+    range->end   = order_nr(ref->tile_idx) + 1;
     return n;
 }
 
@@ -853,7 +855,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     for (i = 0, j = 0; i < alc->active_top; i++) {
         LiveRange *v = alc->values + alc->active[i];
         MVMint32 code_pos = order_nr(call_idx);
-        if (last_ref(v) > code_pos && live_range_has_hole(v, code_pos) == NULL) {
+        if (v->end > code_pos && live_range_has_hole(v, code_pos) == NULL) {
             /* surviving values need to be spilled */
             MVMint32 spill_pos = MVM_jit_spill_memory_select(tc, alc->compiler, v->reg_type);
             /* spilling at the CALL idx will mean that the spiller inserts a
@@ -1089,9 +1091,9 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
 
     while (alc->worklist_num > 0) {
         MVMint32 v             = live_range_heap_pop(alc->values, alc->worklist, &alc->worklist_num, values_cmp_first_ref);
-        MVMint32 tile_order_nr = first_ref(alc->values + v);
+        MVMint32 tile_order_nr = alc->values[v].start;
         MVMint8 reg;
-        _DEBUG("Processing live range %d (first ref %d, last ref %d)", v, first_ref(alc->values + v), last_ref(alc->values + v));
+        _DEBUG("Processing live range %d (first ref %d, last ref %d)", v, alc->values[v].start, alc->values[v].end);
 
         /* deal with 'special' requirements */
         for (; order_nr(tile_cursor) <= tile_order_nr; tile_cursor++) {
