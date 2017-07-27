@@ -95,12 +95,12 @@ struct MVMFrame {
     /* The type of return value that is expected. */
     MVMReturnType return_type;
 
+    /* Assorted frame flags. */
+    MVMuint8 flags;
+
     /* The allocated work/env sizes. */
     MVMuint16 allocd_work;
     MVMuint16 allocd_env;
-
-    /* Assorted frame flags. */
-    MVMuint8 flags;
 
     /* The current spesh correlation ID, if we're interpreting code and
      * recording logs. Zero if interpreting unspecialized and not recording.
@@ -109,6 +109,7 @@ struct MVMFrame {
 
     /* A sequence number to indicate our place in the call stack */
     MVMint32 sequence_nr;
+
     /* The 'entry label' is a sort of indirect return address for the JIT */
     void * jit_entry_label;
 

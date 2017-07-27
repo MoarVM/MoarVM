@@ -1661,7 +1661,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov TMP6, aword TC->cur_frame;
         | mov aword FRAME:TMP6->return_value, ARG1;
         /* tc->cur_frame->return_type = MVM_RETURN_OBJ */
-        | mov dword FRAME:TMP6->return_type, MVM_RETURN_OBJ;
+        | mov byte FRAME:TMP6->return_type, MVM_RETURN_OBJ;
         /* tc->cur_frame->return_address = cur_op */
         | get_cur_op ARG1;
         | mov aword FRAME:TMP6->return_address, ARG1;
@@ -2224,8 +2224,8 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
     | mov FRAME:TMP5->cur_args_callsite, TMP6;
 
     /* Setup the frame for returning to our current position */
-    if (sizeof(MVMReturnType) == 4) {
-        | mov dword FRAME:TMP5->return_type, invoke->return_type;
+    if (sizeof(MVMReturnType) == 1) {
+        | mov byte FRAME:TMP5->return_type, invoke->return_type;
     } else {
         MVM_panic(1, "JIT: MVMReturnType has unexpected size");
     }

@@ -28,22 +28,12 @@ struct MVMArgProcContext {
 };
 
 /* Expected return type flags. */
-typedef enum {
-    /* Argument is an object. */
-    MVM_RETURN_VOID = 0,
-
-    /* Argument is an object. */
-    MVM_RETURN_OBJ = 1,
-
-    /* Argument is a native integer, signed. */
-    MVM_RETURN_INT = 2,
-
-    /* Argument is a native floating point number. */
-    MVM_RETURN_NUM = 4,
-
-    /* Argument is a native NFG string (MVMString REPR). */
-    MVM_RETURN_STR = 8,
-} MVMReturnType;
+typedef MVMuint8 MVMReturnType;
+#define MVM_RETURN_VOID     0
+#define MVM_RETURN_OBJ      1
+#define MVM_RETURN_INT      2
+#define MVM_RETURN_NUM      4
+#define MVM_RETURN_STR      8
 
 /* Struct used for returning information about an argument. */
 struct MVMArgInfo {
