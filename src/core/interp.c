@@ -2963,11 +2963,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 MVMRegister *r = &GET_REG(cur_op, 0);
                 cur_op += 4;
-                if (obj && IS_CONCRETE(obj) && STABLE(obj)->container_spec)
+                if (obj && IS_CONCRETE(obj) && STABLE(obj)->container_spec) {
                     STABLE(obj)->container_spec->fetch(tc, obj, r);
-                else
+                    MVM_spesh_log_decont(tc, prev_op, r->o);
+                }
+                else {
                     r->o = obj;
-                MVM_spesh_log_decont(tc, prev_op, r->o);
+                }
                 goto NEXT;
             }
             OP(setcontspec): {
