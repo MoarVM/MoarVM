@@ -154,6 +154,36 @@ int is_Block_CJK_Unified_Ideographs_OR_CJK_Compatibility_Ideographs(int cp) {
     return (0x4E00 <= cp && cp <= 0x9FFF)    /* 4E00..9FFF; CJK Unified Ideographs */
        ||  (0xF900 <= cp && cp <= 0xFAFF);  /* F900..FAFF; CJK Compatibility Ideographs */
 }
+int NFD_and_push_collation_values (MVMThreadContext *tc, int cp, collation_stack *stack, MVMCodepointIter *ci, char *name) {
+    MVMNormalizer norm;
+    MVMCodepoint cp_;
+    int ready, result_pos = 0;
+    int got_ready;
+    MVMCodepoint  result[10];
+    MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
+    fprintf(stderr, "Going new path\n");
+    ready = MVM_unicode_normalizer_process_codepoint(tc, &norm, cp, &cp_);
+    fprintf(stderr, "ready = %i\n", ready);
+    if (ready) {
+        result[result_pos++] = cp_;
+        while (--ready > 0)
+            result[result_pos++] = MVM_unicode_normalizer_get_codepoint(tc, &norm);
+    }
+    MVM_unicode_normalizer_eof(tc, &norm);
+    ready = MVM_unicode_normalizer_available(tc, &norm);
+    fprintf(stderr, "Got ready2 = %i\n", ready);
+    while (ready--)
+        result[result_pos++] = MVM_unicode_normalizer_get_codepoint(tc, &norm);
+
+    if (result[0] != cp || 1 > result_pos) {
+        for (ready = 0; ready < result_pos; ready++) {
+            fprintf(stderr, "XXX Got codepoint 0x%X\n", result[ready]);
+        }
+        fprintf(stderr, "calling collation_push_cp on those new cp's\n");
+        return collation_push_cp(tc, stack, ci, result, result_pos, name);
+    }
+    return 0;
+}
 /* Returns the number of collation elements pushed onto the stack */
 int push_MVM_collation_values (MVMThreadContext *tc, int cp, collation_stack *stack, MVMCodepointIter *ci, char *name) {
     int coll[3] = {
@@ -194,39 +224,15 @@ int push_MVM_collation_values (MVMThreadContext *tc, int cp, collation_stack *st
             }
         }
         else {
-            MVMNormalizer norm;
-            MVMCodepoint cp_;
-            int ready, result_pos = 0;
-            int got_ready;
-            MVMCodepoint  result[10];
-            MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
-            fprintf(stderr, "Going new path\n");
-            ready = MVM_unicode_normalizer_process_codepoint(tc, &norm, cp, &cp_);
-            fprintf(stderr, "ready = %i\n", ready);
-            if (ready) {
-                result[result_pos++] = cp_;
-                while (--ready > 0)
-                    result[result_pos++] = MVM_unicode_normalizer_get_codepoint(tc, &norm);
-            }
-            MVM_unicode_normalizer_eof(tc, &norm);
-            ready = MVM_unicode_normalizer_available(tc, &norm);
-            fprintf(stderr, "Got ready2 = %i\n", ready);
-            while (ready--)
-                result[result_pos++] = MVM_unicode_normalizer_get_codepoint(tc, &norm);
-
-            if (result[0] != cp || 1 > result_pos) {
-                for (ready = 0; ready < result_pos; ready++) {
-                    fprintf(stderr, "XXX Got codepoint 0x%X\n", result[ready]);
-                }
-                fprintf(stderr, "calling collation_push_cp on those new cp's\n");
-                return collation_push_cp(tc, stack, ci, result, result_pos, name);
+            int NFD_rtrn = NFD_and_push_collation_values(tc, cp, stack, ci, name);
+            if (NFD_rtrn) {
+                return NFD_rtrn;
             }
             else {
                 AAAA = compute_AAAA(cp, 0xFBC0);
                 BBBB = compute_BBBB_and(cp);
                 block_pushed = "Unassigned";
             }
-
         }
         calculated_key[0].s.primary = AAAA;
         calculated_key[1].s.primary = BBBB;
@@ -262,7 +268,7 @@ int process_terminal_node (MVMThreadContext *tc, sub_node node, collation_stack 
                 special_collation_keys[j].tertiary  + 1
             );
         }
-        return 1;
+        return node.collation_key_elems;
     }
     fprintf(stderr, "Terminal node doesn't have any collation data. Using MVM_collation_values for fallback_cp 0x%X\n", fallback_cp);
     push_MVM_collation_values(tc, fallback_cp, stack, ci, name);
@@ -326,11 +332,9 @@ int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepoin
         //memcpy(cp_maybe, cps, sizeof(int) * cp_num);
         fprintf(stderr, "\n");
     }
-    query = get_main_node(tc, cps[0]);
     fprintf(stderr, "push orig stack_top %i. get_main_node(cps[0]) returned with %i\n", stack->stack_top, query);
-                            /* These blacklisted codepoints are just due to incorrect data in main_nodes and main_nodes
-                             * eventually should be removed */
-    if (query != -1 && cps[0] != 0x5BC && cps[0] != 0x5D5 && cps[0] != 0x5D9 && cps[0] != 18837) {
+    query = get_main_node(tc, cps[0]);
+    if (query != -1) {
         fprintf(stderr, "query = -1 stack_%s getting value from special_collation_keys\n", name);
         /* If there are no sub_node_elems that means we don't need to look at
          * the next codepoint, we are already at the correct node
@@ -396,7 +400,6 @@ int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepoin
         /* Push the first codepoint onto the stack */
         rtrn = push_MVM_collation_values(tc, cps[0], stack, ci, name);
         num_cps_processed = 1;
-
     }
     fprintf(stderr, "stack_%s num_cps_processed = %i cp_num = %i\n", name, num_cps_processed, cp_num);
     /* If there are any more codepoints remaining call collation_push_cp on the remaining */
@@ -518,11 +521,17 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
                 skip = 1;
                 fprintf(stderr, "Skipping b because it was 0001 in value\n");
             }
+            if (skip == 0) {
+                fprintf(stderr, "stack_a pos_a %i a_level %i = %i. stack_b pos_b %i b_level %i = %i\n",
+                pos_a, a_level, stack_a.keys[pos_a].a[a_level],
+                pos_b, b_level, stack_b.keys[pos_b].a[b_level]);
+            }
             /* If collation values are not equal */
             if (skip == 0 && stack_a.keys[pos_a].a[a_level] != stack_b.keys[pos_b].a[b_level]) {
                 rtrn = stack_a.keys[pos_a].a[a_level] < stack_b.keys[pos_b].a[b_level] ?  level_eval_settings[0][0] :
                        stack_a.keys[pos_a].a[a_level] > stack_b.keys[pos_b].a[b_level] ?  level_eval_settings[0][2] :
                                                                                           level_eval_settings[0][1] ;
+
                   print_stack(tc, &stack_a, "a");
                   print_stack(tc, &stack_b, "b");
             }
