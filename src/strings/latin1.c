@@ -143,9 +143,8 @@ char * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str, MVM
         MVMString *replacement, MVMint32 translate_newlines) {
     /* Latin-1 is a single byte encoding, but \r\n is a 2-byte grapheme, so we
      * may have to resize as we go. */
-    MVMuint32 startu = (MVMuint32)start;
     MVMStringIndex strgraphs = MVM_string_graphs(tc, str);
-    MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - startu : length);
+    MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - (MVMuint32)start : length);
     MVMuint8 *result;
     size_t result_alloc;
     MVMuint8 *repl_bytes = NULL;
