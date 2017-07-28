@@ -101,7 +101,6 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     dest_body->handlers     = MVM_malloc(src_body->num_handlers * sizeof(MVMFrameHandler));
     memcpy(dest_body->handlers, src_body->handlers, src_body->num_handlers * sizeof(MVMFrameHandler));
     dest_body->instrumentation_level = 0;
-    dest_body->pool_index            = src_body->pool_index;
     dest_body->num_annotations       = src_body->num_annotations;
     dest_body->annotations_data      = src_body->annotations_data;
     dest_body->fully_deserialized    = 1;

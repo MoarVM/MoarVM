@@ -37,9 +37,6 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
         /* Validate the bytecode. */
         MVM_validate_static_frame(tc, static_frame);
 
-        /* Obtain an index to each threadcontext's lexotic pool table */
-        static_frame_body->pool_index = MVM_incr(&tc->instance->num_frames_run);
-
         /* Compute work area initial state that we can memcpy into place each
          * time. */
         if (static_frame_body->num_locals)

@@ -97,9 +97,6 @@ struct MVMStaticFrameBody {
     /* the static coderef */
     MVMCode *static_code;
 
-    /* Index into each threadcontext's table of frame pools. */
-    MVMuint32 pool_index;
-
     /* Annotation details */
     MVMuint32              num_annotations;
     MVMuint8              *annotations_data;
