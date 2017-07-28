@@ -231,7 +231,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
     frame = (MVMFrame *)stack->alloc;
     stack->alloc += sizeof(MVMFrame);
 
-    /* Ensure collectable header flags are and owner zeroed, which means we'll
+    /* Ensure collectable header flags and owner are zeroed, which means we'll
      * never try to mark or root the frame. */
     frame->header.flags = 0;
     frame->header.owner = 0;
