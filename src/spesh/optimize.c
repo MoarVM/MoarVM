@@ -1000,7 +1000,7 @@ static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
     }
     if (ann) {
         /* See if we can find a logged static value. */
-        MVMSpeshStats *ss = g->sf->body.spesh_stats;
+        MVMSpeshStats *ss = g->sf->body.spesh->body.spesh_stats;
         MVMuint32 n = ss->num_static_values;
         MVMuint32 i;
         for (i = 0; i < n; i++) {

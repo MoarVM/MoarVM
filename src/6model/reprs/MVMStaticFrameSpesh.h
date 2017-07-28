@@ -18,6 +18,10 @@ struct MVMStaticFrameSpeshBody {
      * to be a bit racey between threads; it's not a problem if we get an
      * extra recording or so. */
     MVMuint32 spesh_entries_recorded;
+
+    /* Specialization statistics assembled by the specialization worker thread
+     * from logs. */
+    MVMSpeshStats *spesh_stats;
 };
 struct MVMStaticFrameSpesh {
     MVMObject common;

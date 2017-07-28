@@ -39,10 +39,6 @@ struct MVMStaticFrameBody {
      * inter-generational roots leads to a lot more marking work. */
     MVMStaticFrameSpesh *spesh;
 
-    /* Specialization statistics assembled by the specialization worker thread
-     * from logs. */
-    MVMSpeshStats *spesh_stats;
-
     /* The size in bytes to allocate for the lexical environment. */
     MVMuint32 env_size;
 

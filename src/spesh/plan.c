@@ -83,7 +83,7 @@ void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
 /* Considers the statistics of a given static frame and plans specializtions
  * to produce for it. */
 void plan_for_sf(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf) {
-    MVMSpeshStats *ss = sf->body.spesh_stats;
+    MVMSpeshStats *ss = sf->body.spesh->body.spesh_stats;
     MVMuint32 threshold = MVM_spesh_threshold(tc, sf);
     if (ss->hits >= threshold || ss->osr_hits >= MVM_SPESH_PLAN_SF_MIN_OSR) {
         /* The frame is hot enough; look through its callsites to see if any

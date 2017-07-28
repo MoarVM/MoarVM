@@ -141,7 +141,6 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 
     /* Spesh. */
     MVM_gc_worklist_add(tc, worklist, &body->spesh);
-    MVM_spesh_stats_gc_mark(tc, body->spesh_stats, worklist);
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -165,8 +164,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(body->lexical_types);
     MVM_free(body->lexical_names_list);
     MVM_HASH_DESTROY(hash_handle, MVMLexicalRegistry, body->lexical_names);
-
-    MVM_spesh_stats_destroy(tc, body->spesh_stats);
 }
 
 static const MVMStorageSpec storage_spec = {

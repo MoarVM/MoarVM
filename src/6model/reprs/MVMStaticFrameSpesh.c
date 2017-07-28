@@ -25,6 +25,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Called by the VM to mark any GCable items. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMStaticFrameSpeshBody *body = (MVMStaticFrameSpeshBody *)data;
+    MVM_spesh_stats_gc_mark(tc, body->spesh_stats, worklist);
     MVM_spesh_arg_guard_gc_mark(tc, body->spesh_arg_guard, worklist);
     if (body->num_spesh_candidates) {
         MVMint32 i, j;
@@ -41,6 +42,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMStaticFrameSpesh *sfs = (MVMStaticFrameSpesh *)obj;
     MVMint32 i;
+    MVM_spesh_stats_destroy(tc, sfs->body.spesh_stats);
     MVM_spesh_arg_guard_destroy(tc, sfs->body.spesh_arg_guard, 0);
     for (i = 0; i < sfs->body.num_spesh_candidates; i++)
         MVM_spesh_candidate_destroy(tc, sfs->body.spesh_candidates[i]);
