@@ -55,6 +55,15 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
                     break;
                 }
         }
+
+        /* Allocate the frame's spesh data structure; do it in gen2, both for
+         * the sake of not triggering GC here to avoid a deadlock risk, but
+         * also because then it can be ssigned into the gen2 static frame
+         * without causing it to become an inter-gen root. */
+        MVM_gc_allocate_gen2_default_set(tc);
+        MVM_ASSIGN_REF(tc, &(static_frame->common.header), static_frame_body->spesh,
+            MVM_repr_alloc_init(tc, tc->instance->StaticFrameSpesh));
+        MVM_gc_allocate_gen2_default_clear(tc);
     }
 
     /* Unlock, now we're finished. */

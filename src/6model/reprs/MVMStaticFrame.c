@@ -139,7 +139,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
                 MVM_gc_worklist_add(tc, worklist, &body->static_env[i].o);
     }
 
-    /* Spesh statistics and slots. */
+    /* Spesh. */
+    MVM_gc_worklist_add(tc, worklist, &body->spesh);
     MVM_spesh_stats_gc_mark(tc, body->spesh_stats, worklist);
     MVM_spesh_arg_guard_gc_mark(tc, body->spesh_arg_guard, worklist);
     if (body->num_spesh_candidates) {
@@ -318,6 +319,10 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                     (MVMCollectable *)body->static_env[i].o, "Static Environment Entry");
     }
+
+    /* Spesh data */
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->spesh, "Specializer Data");
 
     /* Spesh slots. */
     if (body->num_spesh_candidates) {

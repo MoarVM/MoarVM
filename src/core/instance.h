@@ -369,8 +369,10 @@ struct MVMInstance {
     /* Thread type, representing a VM-level thread. */
     MVMObject *Thread;
 
-    /* SpeshLog type, for passing specialization logs between threads. */
+    /* SpeshLog type, for passing specialization logs between threads, and
+     * StaticFrameSpesh type for hanging spesh data off frames. */
     MVMObject *SpeshLog;
+    MVMObject *StaticFrameSpesh;
 
     /* Set of bootstrapping types. */
     MVMBootTypes boot_types;

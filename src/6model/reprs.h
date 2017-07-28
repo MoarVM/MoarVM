@@ -43,6 +43,7 @@
 #include "6model/reprs/MultiDimArray.h"
 #include "6model/reprs/Decoder.h"
 #include "6model/reprs/MVMSpeshLog.h"
+#include "6model/reprs/MVMStaticFrameSpesh.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -96,6 +97,7 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MultiDimArray           41
 #define MVM_REPR_ID_MVMCPPStruct            42
 #define MVM_REPR_ID_Decoder                 43
+#define MVM_REPR_ID_MVMStaticFrameSpesh     44
 
 #define MVM_REPR_CORE_COUNT                 45
 #define MVM_REPR_MAX_COUNT                  64

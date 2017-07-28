@@ -31,6 +31,14 @@ struct MVMStaticFrameBody {
      * the VM instance wide field for this. */
     MVMuint32 instrumentation_level;
 
+    /* Specialization-related information. Attached when a frame is first
+     * verified. Held in a separate object rather than the MVMStaticFrame
+     * itself partly to decrease the size of this object for frames that
+     * we never even call, but also because we sample nursery objects and
+     * they end up in the statistics; forcing the static frame into the
+     * inter-generational roots leads to a lot more marking work. */
+    MVMStaticFrameSpesh *spesh;
+
     /* Recorded count for data recording for the specializer. Incremented
      * until the recording threshold is reached, and may be cleared by the
      * specialization worker later if it wants more data recorded. Allowed
