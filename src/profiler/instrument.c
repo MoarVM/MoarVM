@@ -594,7 +594,9 @@ void MVM_profile_instrumented_mark_data(MVMThreadContext *tc, MVMGCWorklist *wor
         add_node(tc, &nodelist, tc->prof_data->call_graph);
 
         while (nodelist.items) {
-            mark_call_graph_node(tc, take_node(tc, &nodelist), &nodelist, worklist);
+            MVMProfileCallNode *node = take_node(tc, &nodelist);
+            if (node)
+                mark_call_graph_node(tc, node, &nodelist, worklist);
         }
 
         MVM_free(nodelist.list);
