@@ -1274,21 +1274,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
-            OP(newlexotic): {
-                GET_REG(cur_op, 0).o = MVM_exception_newlexotic(tc,
-                    GET_UI32(cur_op, 2));
-                cur_op += 6;
-                goto NEXT;
-            }
-            OP(lexoticresult): {
-                MVMObject *lex = GET_REG(cur_op, 2).o;
-                if (IS_CONCRETE(lex) && REPR(lex)->ID == MVM_REPR_ID_Lexotic)
-                    GET_REG(cur_op, 0).o = ((MVMLexotic *)lex)->body.result;
-                else
-                    MVM_exception_throw_adhoc(tc, "lexoticresult needs a Lexotic");
-                cur_op += 4;
-                goto NEXT;
-            }
             OP(backtracestrings):
                 GET_REG(cur_op, 0).o = MVM_exception_backtrace_strings(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
@@ -5637,6 +5622,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "The syncpipe op was removed in MoarVM 2017.07.");
             OP(DEPRECATED_32):
                 MVM_exception_throw_adhoc(tc, "The close_fhi op was removed in MoarVM 2017.07.");
+            OP(DEPRECATED_33):
+                MVM_exception_throw_adhoc(tc, "The newlexotic op was removed in MoarVM 2017.08.");
+            OP(DEPRECATED_34):
+                MVM_exception_throw_adhoc(tc, "The lexoticresult op was removed in MoarVM 2017.08.");
             OP(coverage_log): {
                 MVMString *filename = MVM_cu_string(tc, cu, GET_UI32(cur_op, 0));
                 MVMuint32 lineno    = GET_UI32(cur_op, 4);

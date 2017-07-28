@@ -181,8 +181,8 @@
 #define MVM_OP_rethrow 177
 #define MVM_OP_resume 178
 #define MVM_OP_takehandlerresult 179
-#define MVM_OP_newlexotic 180
-#define MVM_OP_lexoticresult 181
+#define MVM_OP_DEPRECATED_33 180
+#define MVM_OP_DEPRECATED_34 181
 #define MVM_OP_backtracestrings 182
 #define MVM_OP_usecapture 183
 #define MVM_OP_savecapture 184
