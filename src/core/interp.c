@@ -3104,15 +3104,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(wval): {
-                MVMint16 dep = GET_I16(cur_op, 2);
-                MVMint16 idx = GET_I16(cur_op, 4);
+                MVMuint16 dep = GET_UI16(cur_op, 2);
+                MVMuint16 idx = GET_UI16(cur_op, 4);
                 GET_REG(cur_op, 0).o = MVM_sc_get_sc_object(tc, cu, dep, idx);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(wval_wide): {
-                MVMint16 dep = GET_I16(cur_op, 2);
-                MVMint64 idx = MVM_BC_get_I64(cur_op, 4);
+                MVMuint16 dep = GET_UI16(cur_op, 2);
+                MVMuint64 idx = MVM_BC_get_I64(cur_op, 4);
                 GET_REG(cur_op, 0).o = MVM_sc_get_sc_object(tc, cu, dep, idx);
                 cur_op += 12;
                 goto NEXT;

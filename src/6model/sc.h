@@ -19,7 +19,7 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
 MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString *handle);
 MVMSerializationContext * MVM_sc_get_sc_slow(MVMThreadContext *tc, MVMCompUnit *cu, MVMint16 dep);
 MVMObject * MVM_sc_get_sc_object(MVMThreadContext *tc, MVMCompUnit *cu,
-                                 MVMint16 dep, MVMint64 idx);
+                                 MVMuint16 dep, MVMuint64 idx);
 void MVM_sc_disclaim(MVMThreadContext *tc, MVMSerializationContext *sc);
 
 MVM_STATIC_INLINE MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc,
