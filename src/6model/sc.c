@@ -152,8 +152,9 @@ MVMint64 MVM_sc_find_code_idx(MVMThreadContext *tc, MVMSerializationContext *sc,
     }
 }
 
-/* Given a compilation unit and dependency index, returns that SC. */
-MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, MVMint16 dep) {
+/* Given a compilation unit and dependency index, returns that SC. Slow path
+ * for when the SC may be NULL. */
+MVMSerializationContext * MVM_sc_get_sc_slow(MVMThreadContext *tc, MVMCompUnit *cu, MVMint16 dep) {
     MVMSerializationContext *sc = cu->body.scs[dep];
     if (sc == NULL) {
         MVMSerializationContextBody *scb = cu->body.scs_to_resolve[dep];
