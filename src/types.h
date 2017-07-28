@@ -73,8 +73,6 @@ typedef struct MVMKnowHOWAttributeREPRBody MVMKnowHOWAttributeREPRBody;
 typedef struct MVMKnowHOWREPR MVMKnowHOWREPR;
 typedef struct MVMKnowHOWREPRBody MVMKnowHOWREPRBody;
 typedef struct MVMLexicalRegistry MVMLexicalRegistry;
-typedef struct MVMLexotic MVMLexotic;
-typedef struct MVMLexoticBody MVMLexoticBody;
 typedef struct MVMLoadedCompUnitName MVMLoadedCompUnitName;
 typedef struct MVMNFA MVMNFA;
 typedef struct MVMNFABody MVMNFABody;

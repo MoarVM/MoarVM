@@ -94,7 +94,6 @@
 |.type COLLECTABLE, MVMCollectable
 |.type STABLE, MVMSTable
 |.type REPR, MVMREPROps
-|.type LEXOTIC, MVMLexotic
 |.type STRING, MVMString*
 |.type OBJECTPTR, MVMObject*
 |.type CONTAINERSPEC, MVMContainerSpec

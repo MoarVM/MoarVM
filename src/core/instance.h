@@ -367,9 +367,6 @@ struct MVMInstance {
      * serialization context itself). */
     MVMObject *SCRef;
 
-    /* Lexotic type, used in implementing return handling. */
-    MVMObject *Lexotic;
-
     /* CallCapture type, used by custom dispatchers. */
     MVMObject *CallCapture;
 

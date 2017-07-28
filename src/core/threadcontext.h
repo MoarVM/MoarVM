@@ -214,11 +214,6 @@ struct MVMThreadContext {
     char         *serialized;
     MVMObject    *serialized_string_heap;
 
-    /* Pool of Lexotics for various static frames, held per thread since the
-     * result being returned is per thread. */
-    MVMLexotic **lexotic_cache;
-    MVMuint32    lexotic_cache_size;
-
     /* Serialization context write barrier disabled depth (anything non-zero
      * means disabled). */
     MVMint32           sc_wb_disable_depth;
