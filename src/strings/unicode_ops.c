@@ -49,8 +49,8 @@ typedef union collation_key_u collation_key;
 #define collation_zero 1
 struct collation_stack {
     collation_key *keys;
-    int stack_top;
-    int stack_size;
+    MVMint64 stack_top;
+    MVMint64 stack_size;
 };
 typedef struct collation_stack collation_stack;
 int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepointIter *ci, int *cp_maybe, int cp_num, char *name);
@@ -60,12 +60,13 @@ void init_stack (MVMThreadContext *tc, collation_stack *stack) {
     stack->stack_size = initial_stack_size;
 }
 void cleanup_stack (MVMThreadContext *tc, collation_stack *stack) {
-    MVM_realloc(stack->keys, 0);
+    stack->keys = MVM_realloc(stack->keys, 0);
+    /* If we get NULL then realloc has freed the memory */
+    /* If we get a pointer back, realloc spec says it should then be freed */
+    if (stack->keys != NULL)
+        MVM_free(stack->keys);
 }
-int stack_is_empty (MVMThreadContext *tc, collation_stack *stack) {
-    return -1 == stack->stack_top;
-}
-void push_key_to_stack(collation_stack *stack, int primary, int secondary, int tertiary) {\
+void push_key_to_stack(collation_stack *stack, MVMuint32 primary, MVMuint32 secondary, MVMuint32 tertiary) {\
     stack->stack_top++;
     if (stack->stack_size <= stack->stack_top) {
         stack->keys = MVM_realloc(stack->keys,
@@ -83,30 +84,29 @@ int print_sub_node (sub_node subnode) {
 }
 int print_stack (MVMThreadContext *tc, collation_stack *stack, char *name) {
     int i = 0;
-    dfprintf(stderr, "stack_%s print_stack() stack elems: %i\n", name, stack->stack_top + 1);
+    dfprintf(stderr, "stack_%s print_stack() stack elems: %li\n", name, stack->stack_top + 1);
     for (i = 0; i < stack->stack_top + 1; i++) {
         dfprintf(stderr, "stack_%s i: %i [%.4X.%.4X.%.4X]\n", name, i, stack->keys[i].s.primary, stack->keys[i].s.secondary, stack->keys[i].s.tertiary);
     }
     return 0;
 }
-int collation_push_level_separator (MVMThreadContext *tc, collation_stack *stack, int *count, char *name) {
+MVMint64 collation_push_level_separator (MVMThreadContext *tc, collation_stack *stack, char *name) {
     dfprintf(stderr, "stack_%s collation_push_level_separator() level separator [%i.%i.%i] pushed onto stack_%s\n", name, collation_zero, collation_zero, 0, name);
     push_key_to_stack(stack, collation_zero, collation_zero, 0);
-    *count += 1;
     dfprintf(stderr, "stack_%s After collation_push_level_separator (maybe CLEAR)\n", name);
     print_stack(tc, stack, name);
     return 1;
 }
 /* Pushes collation keys from a collation_key struct and adds 1 to each level. (This is for places where
  * we store the native DUCET values and we add one because values on the stack are one more) */
-int push_onto_stack (MVMThreadContext *tc, collation_stack *stack, collation_key *keys, int keys_to_push, char *name) {
+MVMint64 push_onto_stack (MVMThreadContext *tc, collation_stack *stack, collation_key *keys, int keys_to_push, char *name) {
     int j;
-    dfprintf(stderr, "stack_%s push_onto_stack() stack_top %i Before\n", name, stack->stack_top);
+    dfprintf(stderr, "stack_%s push_onto_stack() stack_top %li Before\n", name, stack->stack_top);
     print_stack(tc, stack, name);
     for (j = 0; j < keys_to_push; j++)
         push_key_to_stack(stack, keys[j].s.primary + 1, keys[j].s.secondary + 1, keys[j].s.tertiary + 1);
 
-    dfprintf(stderr, "stack_%s push_onto_stack() stack_top %i After\n", name, stack->stack_top);
+    dfprintf(stderr, "stack_%s push_onto_stack() stack_top %li After\n", name, stack->stack_top);
     print_stack(tc, stack, name);
     return 1;
 }
@@ -341,7 +341,7 @@ int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepoin
         }
         dfprintf(stderr, "\n");
     }
-    dfprintf(stderr, "push orig stack_top %i. get_main_node(cps[0]) returned with %i\n", stack->stack_top, query);
+    dfprintf(stderr, "push orig stack_top %li. get_main_node(cps[0]) returned with %i\n", stack->stack_top, query);
     query = get_main_node(tc, cps[0]);
     if (query != -1) {
         dfprintf(stderr, "query = -1 stack_%s getting value from special_collation_keys\n", name);
@@ -412,16 +412,16 @@ int collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepoin
     }
     return num_cps_processed;
 }
-#define onexit_stack dfprintf(stderr, "Grabbing from the stack. a_pushed %i b_pushed %i\n", *a_keys_pushed, *b_keys_pushed)
+#define onexit_stack dfprintf(stderr, "Grabbing from the stack. a_pushed %i b_pushed %i\n", stack_a.stack_top + 1, stack_b.stack_top + 1)
 
-int grab_from_stack(MVMThreadContext *tc, int *keys_pushed, MVMCodepointIter *ci,
+int grab_from_stack(MVMThreadContext *tc, MVMCodepointIter *ci,
     collation_stack *stack, char *name) {
 
-    dfprintf(stderr, "Grabbing from the stack. %s_keys_pushed %i. stack_elems %i\n", name, *keys_pushed, stack->stack_top +1);
+    dfprintf(stderr, "Grabbing from the stack. stack_%s stack_elems %li\n", name, stack->stack_top + 1);
     if (!MVM_string_ci_has_more(tc, ci))
         return 0;
-    *keys_pushed += collation_push_cp(tc, stack, ci, NULL, 0, name);
-    dfprintf(stderr, "Finished one grapheme grab to stack. %s_keys_pushed %i, stack_elems %i\n", name, *keys_pushed, stack->stack_top +1);
+    collation_push_cp(tc, stack, ci, NULL, 0, name);
+    dfprintf(stderr, "Finished one grapheme grab to stack. stack_%s stack_elems %li\n", name, stack->stack_top + 1);
     return 1;
 }
 /* MVM_unicode_string_compare supports synthetic graphemes but in case we have
@@ -434,8 +434,6 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
     MVMCodepointIter a_ci, b_ci;
     MVMGraphemeIter *s_has_more_gi;
     MVMGrapheme32 ai, bi;
-    int a_keys_pushed = 0;
-    int b_keys_pushed = 0;
     /* default of everything being off */
     int level_eval_settings[3][3] = {
          {0,0,0}, {0,0,0}, {0,0,0}
@@ -471,7 +469,6 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
 
     init_stack(tc, &stack_a);
     init_stack(tc, &stack_b);
-    dfprintf(stderr, "is_empty? %d\n", stack_is_empty(tc, &stack_a));
     MVM_string_check_arg(tc, a, "compare");
     MVM_string_check_arg(tc, b, "compare");
     /* Simple cases when one or both are zero length. */
@@ -492,10 +489,10 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
 
     /* Otherwise, need to iterate by codepoint */
     dfprintf(stderr, "Pushing initial collation elements to the stack\n");
-    grab_from_stack(tc, &b_keys_pushed, &b_ci, &stack_b, "b");
+    grab_from_stack(tc, &b_ci, &stack_b, "b");
     dfprintf(stderr, "After Initial grab b\n");
     print_stack(tc, &stack_b, "b");
-    grab_from_stack(tc, &a_keys_pushed, &a_ci, &stack_a, "a");
+    grab_from_stack(tc, &a_ci, &stack_a, "a");
     dfprintf(stderr, "After Initial grab a\n");
     print_stack(tc, &stack_a, "a");
 
@@ -536,7 +533,7 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
                   print_stack(tc, &stack_a, "a"); print_stack(tc, &stack_b, "b");
             }
             if (rtrn != 0) {
-                dfprintf(stderr, "\nDONE decided rtrn=%i\npos_a=%i pos_b=%i a_keys_pushed=%i b_keys_pushed=%i\n", rtrn, pos_a, pos_b, a_keys_pushed, b_keys_pushed);
+                dfprintf(stderr, "\nDONE decided rtrn=%i\npos_a=%i pos_b=%i a_keys_pushed=%li b_keys_pushed=%li\n", rtrn, pos_a, pos_b, stack_a.stack_top + 1, stack_b.stack_top + 1);
                 cleanup_stack(tc, &stack_a);
                 cleanup_stack(tc, &stack_b);
                 return rtrn;
@@ -544,14 +541,14 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
             pos_a++;
             pos_b++;
         }
-        #define if_grab_done(grab_done, stack, pos, level, name, keys_pushed) {\
+        #define if_grab_done(grab_done, stack, pos, level, name) {\
             /* Here we wrap to the next level of collation elements */\
             if (grab_done && stack.stack_top < pos) {\
                 if (level < 2) {\
                     pos = 0;\
                     level++;\
-                    dfprintf(stderr, "Setting level_%s to %i and pos_%s to %i. %s_keys_pushed: %i\n",\
-                                            name,      level,   name, pos,name, keys_pushed);\
+                    dfprintf(stderr, "Setting level_%s to %i and pos_%s to %i. %s_keys_pushed: %li\n",\
+                                            name,      level,   name, pos,name, stack.stack_top + 1);\
                 }\
                 else {\
                     dfprintf(stderr, "Can't wrap string_%s anymore so breaking\n", name);\
@@ -562,24 +559,24 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
         }
         if (!grab_b_done) {
             dfprintf(stderr, "Pushing b NON_INITIAL collation elements to the stack\n");
-            if (!grab_from_stack(tc, &b_keys_pushed, &b_ci, &stack_b, "b")) {
+            if (!grab_from_stack(tc, &b_ci, &stack_b, "b")) {
                 dfprintf(stderr, "Pushing null value collation array to stack_b\n");
-                collation_push_level_separator(tc, &stack_b, &b_keys_pushed, "b");
+                collation_push_level_separator(tc, &stack_b, "b");
                 grab_b_done = 1;
             }
         }
-        if_grab_done(grab_b_done, stack_b, pos_b, level_b, "b", b_keys_pushed);
+        if_grab_done(grab_b_done, stack_b, pos_b, level_b, "b");
         if (!grab_a_done) {
             dfprintf(stderr, "Pushing a NON_INITIAL collation elements to the stack\n");
-            if (!grab_from_stack(tc, &a_keys_pushed, &a_ci, &stack_a, "a")) {
+            if (!grab_from_stack(tc, &a_ci, &stack_a, "a")) {
                 dfprintf(stderr, "Pushing null value collation array to stack_a\n");
                 /* No collation separator needed for tertiary so have it be a skip (collation_zero) */
-                collation_push_level_separator(tc, &stack_a, &a_keys_pushed, "a");
+                collation_push_level_separator(tc, &stack_a, "a");
                 grab_a_done = 1;
             }
         }
         /* Here we wrap to the next level of collation elements if needed */
-        if_grab_done(grab_a_done, stack_a, pos_a, level_a, "a", a_keys_pushed);
+        if_grab_done(grab_a_done, stack_a, pos_a, level_a, "a");
 
     }
     cleanup_stack(tc, &stack_a);
