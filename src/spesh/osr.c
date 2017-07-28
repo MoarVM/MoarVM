@@ -123,7 +123,7 @@ void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
             /* Check if there's a candidate available and install it if so. */
             MVMCallsite *cs = tc->cur_frame->caller->cur_args_callsite;
             MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
-                tc->cur_frame->static_info->body.spesh_arg_guard,
+                spesh->body.spesh_arg_guard,
                 (cs && cs->is_interned ? cs : NULL),
                 tc->cur_frame->caller->args);
             if (ag_result >= 0)

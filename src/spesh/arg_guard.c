@@ -551,3 +551,13 @@ void MVM_spesh_arg_guard_destroy(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVM
             MVM_fixed_size_free(tc, tc->instance->fsa, total_size, ag);
     }
 }
+
+/* Discards an arg guard held on a static frame, if any, NULLing it out so the
+ * candidates will no longer be reachable. */
+void MVM_spesh_arg_guard_discard(MVMThreadContext *tc, MVMStaticFrame *sf) {
+    MVMStaticFrameSpesh *spesh = sf->body.spesh;
+    if (spesh && spesh->body.spesh_arg_guard) {
+        MVM_spesh_arg_guard_destroy(tc, spesh->body.spesh_arg_guard, 1);
+        spesh->body.spesh_arg_guard = NULL;
+    }
+}

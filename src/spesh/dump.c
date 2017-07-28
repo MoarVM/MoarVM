@@ -700,7 +700,7 @@ char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
 
 /* Dumps a static frame's guard set into a string. */
 char * MVM_spesh_dump_arg_guard(MVMThreadContext *tc, MVMStaticFrame *sf) {
-    MVMSpeshArgGuard *ag = sf->body.spesh_arg_guard;
+    MVMSpeshArgGuard *ag = sf->body.spesh->body.spesh_arg_guard;
 
     DumpStr ds;
     ds.alloc  = 8192;

@@ -130,7 +130,7 @@ void MVM_cross_thread_write_instrument(MVMThreadContext *tc, MVMStaticFrame *sf)
 
         /* Throw away any argument guard so we'll never resolve prior
          * specializations again. */
-        sf->body.spesh_arg_guard = NULL;
+        MVM_spesh_arg_guard_discard(tc, sf);
     }
 }
 

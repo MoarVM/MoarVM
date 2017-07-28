@@ -456,7 +456,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (!found_spesh) {
         /* Look for specialized bytecode and run it if it exists. */
         MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
-            static_frame->body.spesh_arg_guard, callsite, args);
+            spesh->body.spesh_arg_guard, callsite, args);
         MVMSpeshCandidate *chosen_cand = ag_result >= 0
             ? spesh->body.spesh_candidates[ag_result]
             : NULL;

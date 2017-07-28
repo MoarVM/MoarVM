@@ -1055,8 +1055,8 @@ static void optimize_getlex_per_invocant(MVMThreadContext *tc, MVMSpeshGraph *g,
 /* Determines if there's a matching spesh candidate for a callee and a given
  * set of argument info. */
 static MVMint32 try_find_spesh_candidate(MVMThreadContext *tc, MVMCode *code, MVMSpeshCallInfo *arg_info) {
-    MVMStaticFrameBody *sfb = &(code->body.sf->body);
-    return MVM_spesh_arg_guard_run_callinfo(tc, sfb->spesh_arg_guard, arg_info);
+    MVMStaticFrameSpesh *spesh = code->body.sf->body.spesh;
+    return MVM_spesh_arg_guard_run_callinfo(tc, spesh->body.spesh_arg_guard, arg_info);
 }
 
 /* Drives optimization of a call. */

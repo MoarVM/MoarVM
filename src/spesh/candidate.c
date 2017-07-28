@@ -130,7 +130,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
 
     /* Install the new candidate by bumping the number of candidates in
      * order to make it available, and then updating the guards. */
-    MVM_spesh_arg_guard_add(tc, &(p->sf->body.spesh_arg_guard),
+    MVM_spesh_arg_guard_add(tc, &(spesh->body.spesh_arg_guard),
         p->cs_stats->cs, p->type_tuple, spesh->body.num_spesh_candidates++);
 
     /* If we're logging, dump the updated arg guards also. */

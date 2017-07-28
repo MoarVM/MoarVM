@@ -8,7 +8,7 @@ void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlannedKind k
                  MVMSpeshStatsType *type_tuple, MVMSpeshStatsByType **type_stats,
                  MVMuint32 num_type_stats) {
     MVMSpeshPlanned *p;
-    if (MVM_spesh_arg_guard_exists(tc, sf->body.spesh_arg_guard, cs_stats->cs, type_tuple))
+    if (MVM_spesh_arg_guard_exists(tc, sf->body.spesh->body.spesh_arg_guard, cs_stats->cs, type_tuple))
         return;
     if (plan->num_planned == plan->alloc_planned) {
         plan->alloc_planned += 16;

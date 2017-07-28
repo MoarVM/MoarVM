@@ -3,6 +3,9 @@
  * so forth). */
 
 struct MVMStaticFrameSpeshBody {
+    /* Specialization argument guard tree, for selecting a specialization. */
+    MVMSpeshArgGuard *spesh_arg_guard;
+
     /* Specializations array, if there are any. Candidates themselves never
      * move in memory; the array of pointers to them is managed using the
      * fixed size allocator and freed at the next safepoint. */

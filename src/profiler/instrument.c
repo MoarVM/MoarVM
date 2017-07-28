@@ -243,7 +243,7 @@ void MVM_profile_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
 
         /* Throw away any argument guard so we'll never resolve prior
          * specializations again. */
-        sf->body.spesh_arg_guard = NULL;
+        MVM_spesh_arg_guard_discard(tc, sf);
     }
 }
 
@@ -256,7 +256,7 @@ void MVM_profile_ensure_uninstrumented(MVMThreadContext *tc, MVMStaticFrame *sf)
         sf->body.bytecode_size = sf->body.instrumentation->uninstrumented_bytecode_size;
 
         /* Throw away specializations, which may also be instrumented. */
-        sf->body.spesh_arg_guard = NULL;
+        MVM_spesh_arg_guard_discard(tc, sf);
 
         /* XXX For now, due to bugs, disable spesh here. */
         tc->instance->spesh_enabled = 0;
