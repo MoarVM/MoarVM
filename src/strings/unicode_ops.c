@@ -541,7 +541,15 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
             pos_a++;
             pos_b++;
         }
-        #define if_grab_done(grab_done, stack, pos, level, name) {\
+        #define if_grab_done(grab_done, stack, ci, pos, level, name) {\
+            if (!grab_done) {\
+                dfprintf(stderr, "Pushing %s NON_INITIAL collation elements to the stack\n", name);\
+                if (!grab_from_stack(tc, &ci, &stack, name)) {\
+                    dfprintf(stderr, "Pushing level separator to stack_%s\n", name);\
+                    collation_push_level_separator(tc, &stack, name);\
+                    grab_done = 1;\
+                }\
+            }\
             /* Here we wrap to the next level of collation elements */\
             if (grab_done && stack.stack_top < pos) {\
                 if (level < 2) {\
@@ -557,26 +565,10 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
                 }\
             }\
         }
-        if (!grab_b_done) {
-            dfprintf(stderr, "Pushing b NON_INITIAL collation elements to the stack\n");
-            if (!grab_from_stack(tc, &b_ci, &stack_b, "b")) {
-                dfprintf(stderr, "Pushing null value collation array to stack_b\n");
-                collation_push_level_separator(tc, &stack_b, "b");
-                grab_b_done = 1;
-            }
-        }
-        if_grab_done(grab_b_done, stack_b, pos_b, level_b, "b");
-        if (!grab_a_done) {
-            dfprintf(stderr, "Pushing a NON_INITIAL collation elements to the stack\n");
-            if (!grab_from_stack(tc, &a_ci, &stack_a, "a")) {
-                dfprintf(stderr, "Pushing null value collation array to stack_a\n");
-                /* No collation separator needed for tertiary so have it be a skip (collation_zero) */
-                collation_push_level_separator(tc, &stack_a, "a");
-                grab_a_done = 1;
-            }
-        }
         /* Here we wrap to the next level of collation elements if needed */
-        if_grab_done(grab_a_done, stack_a, pos_a, level_a, "a");
+        if_grab_done(grab_b_done, stack_b, b_ci, pos_b, level_b, "b");
+        if_grab_done(grab_a_done, stack_a, a_ci, pos_a, level_a, "a");
+
 
     }
     cleanup_stack(tc, &stack_a);
