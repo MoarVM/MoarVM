@@ -676,37 +676,6 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     MVM_frame_unwind_to(tc, target, ex->body.resume_addr, 0, NULL);
 }
 
-/* Unwinds to a lexotic captured handler. */
-void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMint32 handler_idx, MVMStaticFrame *sf) {
-    MVMFrame *f, *search;
-    f = NULL;
-    search = tc->cur_frame;
-    while (search) {
-        f = search;
-        while (f) {
-            if (f->static_info == sf)
-                break;
-            f = f->outer;
-        }
-        if (f)
-            break;
-        search = search->caller;
-    }
-    if (f && in_caller_chain(tc, f)) {
-        LocatedHandler lh;
-        lh.frame = f;
-        lh.handler = &(MVM_frame_effective_handlers(f)[handler_idx]);
-        if (f->spesh_cand && f->spesh_cand->jitcode)
-            lh.jit_handler = &(f->spesh_cand->jitcode->handlers[handler_idx]);
-        else
-            lh.jit_handler = NULL;
-        run_handler(tc, lh, NULL, MVM_EX_CAT_RETURN, NULL);
-    }
-    else {
-        MVM_exception_throw_adhoc(tc, "Too late to invoke lexotic return");
-    }
-}
-
 /* Panics and shuts down the VM. Don't do this unless it's something quite
  * unrecoverable, and a thread context is either not available or stands a
  * good chance of being too corrupt to print (or is not relevant information).
