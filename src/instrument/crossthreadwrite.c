@@ -128,10 +128,9 @@ void MVM_cross_thread_write_instrument(MVMThreadContext *tc, MVMStaticFrame *sf)
         sf->body.handlers      = sf->body.instrumentation->instrumented_handlers;
         sf->body.bytecode_size = sf->body.instrumentation->instrumented_bytecode_size;
 
-        /* Throw away any specializations; we'll need to reproduce them as
-         * instrumented versions. */
-        sf->body.num_spesh_candidates = 0;
-        sf->body.spesh_candidates     = NULL;
+        /* Throw away any argument guard so we'll never resolve prior
+         * specializations again. */
+        sf->body.spesh_arg_guard = NULL;
     }
 }
 

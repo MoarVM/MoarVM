@@ -243,8 +243,7 @@ void MVM_profile_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
 
         /* Throw away any argument guard so we'll never resolve prior
          * specializations again. */
-        if (sf->body.spesh_arg_guard)
-            sf->body.spesh_arg_guard = NULL;
+        sf->body.spesh_arg_guard = NULL;
     }
 }
 

@@ -114,8 +114,9 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
 
 /* Polls for an optimization and, when one is produced, jumps into it. */
 void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
+    MVMStaticFrameSpesh *spesh = tc->cur_frame->static_info->body.spesh;
+    MVMint32 num_cands = spesh->body.num_spesh_candidates;
     MVMint32 seq_nr = tc->cur_frame->sequence_nr;
-    MVMint32 num_cands = tc->cur_frame->static_info->body.num_spesh_candidates;
     if (seq_nr != tc->osr_hunt_frame_nr || num_cands != tc->osr_hunt_num_spesh_candidates) {
         /* Provided OSR is enabled... */
         if (tc->instance->spesh_osr_enabled) {
@@ -126,7 +127,7 @@ void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
                 (cs && cs->is_interned ? cs : NULL),
                 tc->cur_frame->caller->args);
             if (ag_result >= 0)
-                perform_osr(tc, tc->cur_frame->static_info->body.spesh_candidates[ag_result]);
+                perform_osr(tc, spesh->body.spesh_candidates[ag_result]);
         }
 
         /* Update state for avoiding checks in the common case. */

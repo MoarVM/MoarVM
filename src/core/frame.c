@@ -344,6 +344,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     MVMFrame *frame;
     MVMuint32 found_spesh;
     MVMuint8 *chosen_bytecode;
+    MVMStaticFrameSpesh *spesh;
 
     /* If the frame was never invoked before, or never before at the current
      * instrumentation level, we need to trigger the instrumentation level
@@ -436,9 +437,10 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     }
 
     /* See if any specializations apply. */
+    spesh = static_frame->body.spesh;
     found_spesh = 0;
-    if (spesh_cand >= 0 && spesh_cand < static_frame->body.num_spesh_candidates) {
-        MVMSpeshCandidate *chosen_cand = static_frame->body.spesh_candidates[spesh_cand];
+    if (spesh_cand >= 0 && spesh_cand < spesh->body.num_spesh_candidates) {
+        MVMSpeshCandidate *chosen_cand = spesh->body.spesh_candidates[spesh_cand];
         frame = allocate_frame(tc, static_frame, chosen_cand);
         if (chosen_cand->jitcode) {
             chosen_bytecode = chosen_cand->jitcode->bytecode;
@@ -456,7 +458,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
             static_frame->body.spesh_arg_guard, callsite, args);
         MVMSpeshCandidate *chosen_cand = ag_result >= 0
-            ? static_frame->body.spesh_candidates[ag_result]
+            ? spesh->body.spesh_candidates[ag_result]
             : NULL;
         if (chosen_cand) {
             frame = allocate_frame(tc, static_frame, chosen_cand);
@@ -481,7 +483,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         /* If we should be spesh logging, set the correlation ID. */
         frame->spesh_correlation_id = 0;
         if (tc->instance->spesh_enabled && tc->spesh_log) {
-            if (static_frame->body.spesh_entries_recorded++ < MVM_SPESH_LOG_LOGGED_ENOUGH) {
+            if (spesh->body.spesh_entries_recorded++ < MVM_SPESH_LOG_LOGGED_ENOUGH) {
                 MVMint32 id = ++tc->spesh_cid;
                 frame->spesh_correlation_id = id;
                 MVMROOT(tc, static_frame, {

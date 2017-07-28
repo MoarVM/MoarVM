@@ -25,11 +25,27 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Called by the VM to mark any GCable items. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMStaticFrameSpeshBody *body = (MVMStaticFrameSpeshBody *)data;
+    if (body->num_spesh_candidates) {
+        MVMint32 i, j;
+        for (i = 0; i < body->num_spesh_candidates; i++) {
+            for (j = 0; j < body->spesh_candidates[i]->num_spesh_slots; j++)
+                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i]->spesh_slots[j]);
+            for (j = 0; j < body->spesh_candidates[i]->num_inlines; j++)
+                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i]->inlines[j].code);
+        }
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMStaticFrameSpesh *sfs = (MVMStaticFrameSpesh *)obj;
+    MVMint32 i;
+    for (i = 0; i < sfs->body.num_spesh_candidates; i++)
+        MVM_spesh_candidate_destroy(tc, sfs->body.spesh_candidates[i]);
+    if (sfs->body.spesh_candidates)
+        MVM_fixed_size_free(tc, tc->instance->fsa,
+            sfs->body.num_spesh_candidates * sizeof(MVMSpeshCandidate *),
+            sfs->body.spesh_candidates);
 }
 
 static const MVMStorageSpec storage_spec = {
@@ -55,6 +71,64 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 /* Set the size of the STable. */
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     st->size = sizeof(MVMStaticFrameSpesh);
+}
+
+/* Calculates the non-GC-managed memory we hold on to. */
+static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    MVMStaticFrameSpeshBody *body = (MVMStaticFrameSpeshBody *)data;
+    MVMuint64 size = 0;
+    MVMuint32 spesh_idx;
+    for (spesh_idx = 0; spesh_idx < body->num_spesh_candidates; spesh_idx++) {
+        MVMSpeshCandidate *cand = body->spesh_candidates[spesh_idx];
+
+        size += cand->bytecode_size;
+
+        size += sizeof(MVMFrameHandler) * cand->num_handlers;
+
+        size += sizeof(MVMCollectable *) * cand->num_spesh_slots;
+
+        size += sizeof(MVMint32) * cand->num_deopts;
+
+        size += sizeof(MVMSpeshInline) * cand->num_inlines;
+
+        size += sizeof(MVMuint16) * (cand->num_locals + cand->num_lexicals);
+
+        /* XXX probably don't need to measure the bytecode size here,
+         * as it's probably just a pointer to the same bytecode we have in
+         * the static frame anyway. */
+
+        /* Dive into the jit code */
+        if (cand->jitcode) {
+            MVMJitCode *code = cand->jitcode;
+
+            size += sizeof(MVMJitCode);
+
+            size += sizeof(void *) * code->num_labels;
+
+            size += sizeof(MVMint32) * code->num_bbs;
+            size += sizeof(MVMJitDeopt) * code->num_deopts;
+            size += sizeof(MVMJitInline) * code->num_inlines;
+            size += sizeof(MVMJitHandler) * code->num_handlers;
+        }
+    }
+    return size;
+}
+
+static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data) {
+    MVMStaticFrameSpeshBody *body = (MVMStaticFrameSpeshBody *)data;
+    if (body->num_spesh_candidates) {
+        MVMint32 i, j;
+        for (i = 0; i < body->num_spesh_candidates; i++) {
+            for (j = 0; j < body->spesh_candidates[i]->num_spesh_slots; j++)
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->spesh_candidates[i]->spesh_slots[j],
+                    "Spesh slot entry");
+            for (j = 0; j < body->spesh_candidates[i]->num_inlines; j++)
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->spesh_candidates[i]->inlines[j].code,
+                    "Spesh inlined code object");
+        }
+    }
 }
 
 /* Initializes the representation. */
@@ -88,6 +162,6 @@ static const MVMREPROps StaticFrameSpesh_this_repr = {
     NULL, /* spesh */
     "MVMStaticFrameSpesh", /* name */
     MVM_REPR_ID_MVMStaticFrameSpesh,
-    NULL, /* unmanaged_size */
-    NULL, /* describe_refs */
+    unmanaged_size,
+    describe_refs
 };
