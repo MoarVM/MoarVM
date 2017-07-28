@@ -336,10 +336,6 @@ struct MVMInstance {
     /* Cached backend config hash. */
     MVMObject *cached_backend_config;
 
-    /* Atomically-incremented counter of newly invoked frames, used for
-     * lexotic caching. */
-    AO_t num_frames_run;
-
     /* Interned callsites. */
     MVMCallsiteInterns *callsite_interns;
     uv_mutex_t          mutex_callsite_interns;
