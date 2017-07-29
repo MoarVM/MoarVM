@@ -403,6 +403,15 @@ static void validate_operands(Validator *val) {
 
             break;
         }
+        case MVM_OP_wval:
+        case MVM_OP_wval_wide: {
+            validate_reg_operand(val, operands[0]);
+            if (GET_UI16(val->cur_op, 0) >= val->cu->body.num_scs)
+                fail(val, MSG(val, "out of range SC index %u"), GET_UI16(val->cur_op, 0));
+            validate_literal_operand(val, operands[1]);
+            validate_literal_operand(val, operands[2]);
+            break;
+        }
 
         default: {
             int i;

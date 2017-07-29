@@ -349,10 +349,6 @@ struct MVMInstance {
     /* Cached backend config hash. */
     MVMObject *cached_backend_config;
 
-    /* Atomically-incremented counter of newly invoked frames, used for
-     * lexotic caching. */
-    AO_t num_frames_run;
-
     /* Interned callsites. */
     MVMCallsiteInterns *callsite_interns;
     uv_mutex_t          mutex_callsite_interns;
@@ -380,17 +376,16 @@ struct MVMInstance {
      * serialization context itself). */
     MVMObject *SCRef;
 
-    /* Lexotic type, used in implementing return handling. */
-    MVMObject *Lexotic;
-
     /* CallCapture type, used by custom dispatchers. */
     MVMObject *CallCapture;
 
     /* Thread type, representing a VM-level thread. */
     MVMObject *Thread;
 
-    /* SpeshLog type, for passing specialization logs between threads. */
+    /* SpeshLog type, for passing specialization logs between threads, and
+     * StaticFrameSpesh type for hanging spesh data off frames. */
     MVMObject *SpeshLog;
+    MVMObject *StaticFrameSpesh;
 
     /* Set of bootstrapping types. */
     MVMBootTypes boot_types;

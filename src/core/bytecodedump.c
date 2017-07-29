@@ -517,8 +517,9 @@ void MVM_dump_bytecode_stackframe(MVMThreadContext *tc, MVMint32 depth) {
         MVM_dump_bytecode_of(tc, frame, NULL);
     } else {
         MVMint32 spesh_cand_idx;
-        for (spesh_cand_idx = 0; spesh_cand_idx < sf->body.num_spesh_candidates; spesh_cand_idx++) {
-            MVMSpeshCandidate *cand = sf->body.spesh_candidates[spesh_cand_idx];
+        MVMStaticFrameSpesh *spesh = sf->body.spesh;
+        for (spesh_cand_idx = 0; spesh_cand_idx < spesh->body.num_spesh_candidates; spesh_cand_idx++) {
+            MVMSpeshCandidate *cand = spesh->body.spesh_candidates[spesh_cand_idx];
             if (cand->bytecode == effective_bytecode) {
                 MVM_dump_bytecode_of(tc, frame, cand);
             }

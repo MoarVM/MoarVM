@@ -243,8 +243,7 @@ void MVM_profile_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
 
         /* Throw away any argument guard so we'll never resolve prior
          * specializations again. */
-        if (sf->body.spesh_arg_guard)
-            sf->body.spesh_arg_guard = NULL;
+        MVM_spesh_arg_guard_discard(tc, sf);
     }
 }
 
@@ -257,7 +256,7 @@ void MVM_profile_ensure_uninstrumented(MVMThreadContext *tc, MVMStaticFrame *sf)
         sf->body.bytecode_size = sf->body.instrumentation->uninstrumented_bytecode_size;
 
         /* Throw away specializations, which may also be instrumented. */
-        sf->body.spesh_arg_guard = NULL;
+        MVM_spesh_arg_guard_discard(tc, sf);
 
         /* XXX For now, due to bugs, disable spesh here. */
         tc->instance->spesh_enabled = 0;
@@ -595,7 +594,9 @@ void MVM_profile_instrumented_mark_data(MVMThreadContext *tc, MVMGCWorklist *wor
         add_node(tc, &nodelist, tc->prof_data->call_graph);
 
         while (nodelist.items) {
-            mark_call_graph_node(tc, take_node(tc, &nodelist), &nodelist, worklist);
+            MVMProfileCallNode *node = take_node(tc, &nodelist);
+            if (node)
+                mark_call_graph_node(tc, node, &nodelist, worklist);
         }
 
         MVM_free(nodelist.list);

@@ -217,8 +217,8 @@ die                 w(obj) r(str) :throwish
 rethrow             r(obj) :throwish
 resume              r(obj) :throwish
 takehandlerresult   w(obj)
-newlexotic          w(obj) ins
-lexoticresult       w(obj) r(obj)
+DEPRECATED_33       w(obj) ins
+DEPRECATED_34       w(obj) r(obj)
 backtracestrings    w(obj) r(obj) :pure
 usecapture          w(obj) :noinline
 savecapture         w(obj) :noinline

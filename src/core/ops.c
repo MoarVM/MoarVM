@@ -2160,8 +2160,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_newlexotic,
-        "newlexotic",
+        MVM_OP_DEPRECATED_33,
+        "DEPRECATED_33",
         "  ",
         2,
         0,
@@ -2172,8 +2172,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_ins }
     },
     {
-        MVM_OP_lexoticresult,
-        "lexoticresult",
+        MVM_OP_DEPRECATED_34,
+        "DEPRECATED_34",
         "  ",
         2,
         0,

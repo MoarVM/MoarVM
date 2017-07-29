@@ -26,6 +26,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     MVMSpeshCode *sc;
     MVMSpeshCandidate *candidate;
     MVMSpeshCandidate **new_candidate_list;
+    MVMStaticFrameSpesh *spesh;
     MVMuint64 start_time;
 
     /* If we've reached our specialization limit, don't continue. */
@@ -101,10 +102,6 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     candidate->num_spesh_slots = sg->num_spesh_slots;
     candidate->spesh_slots     = sg->spesh_slots;
 
-    /* May now be referencing nursery objects, so barrier just in case. */
-    if (p->sf->common.header.flags & MVM_CF_SECOND_GEN)
-        MVM_gc_write_barrier_hit(tc, (MVMCollectable *)p->sf);
-
     /* Clean up after specialization work. */
     if (candidate->num_inlines) {
         MVMint32 i;
@@ -118,21 +115,26 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
 
     /* Create a new candidate list and copy any existing ones. Free memory
      * using the FSA safepoint mechanism. */
+    spesh = p->sf->body.spesh;
     new_candidate_list = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-        (p->sf->body.num_spesh_candidates + 1) * sizeof(MVMSpeshCandidate *));
-    if (p->sf->body.num_spesh_candidates) {
-        size_t orig_size = p->sf->body.num_spesh_candidates * sizeof(MVMSpeshCandidate *);
-        memcpy(new_candidate_list, p->sf->body.spesh_candidates, orig_size);
+        (spesh->body.num_spesh_candidates + 1) * sizeof(MVMSpeshCandidate *));
+    if (spesh->body.num_spesh_candidates) {
+        size_t orig_size = spesh->body.num_spesh_candidates * sizeof(MVMSpeshCandidate *);
+        memcpy(new_candidate_list, spesh->body.spesh_candidates, orig_size);
         MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, orig_size,
-            p->sf->body.spesh_candidates);
+            spesh->body.spesh_candidates);
     }
-    new_candidate_list[p->sf->body.num_spesh_candidates] = candidate;
-    p->sf->body.spesh_candidates = new_candidate_list;
+    new_candidate_list[spesh->body.num_spesh_candidates] = candidate;
+    spesh->body.spesh_candidates = new_candidate_list;
+
+    /* May now be referencing nursery objects, so barrier just in case. */
+    if (spesh->common.header.flags & MVM_CF_SECOND_GEN)
+        MVM_gc_write_barrier_hit(tc, (MVMCollectable *)spesh);
 
     /* Install the new candidate by bumping the number of candidates in
      * order to make it available, and then updating the guards. */
-    MVM_spesh_arg_guard_add(tc, &(p->sf->body.spesh_arg_guard),
-        p->cs_stats->cs, p->type_tuple, p->sf->body.num_spesh_candidates++);
+    MVM_spesh_arg_guard_add(tc, &(spesh->body.spesh_arg_guard),
+        p->cs_stats->cs, p->type_tuple, spesh->body.num_spesh_candidates++);
 
     /* If we're logging, dump the updated arg guards also. */
     if (tc->instance->spesh_log_fh) {

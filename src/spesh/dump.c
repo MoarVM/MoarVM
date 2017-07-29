@@ -574,6 +574,8 @@ void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCa
 
 /* Dumps the statistics associated with a static frame into a string. */
 char * MVM_spesh_dump_stats(MVMThreadContext *tc, MVMStaticFrame *sf) {
+    MVMSpeshStats *ss = sf->body.spesh->body.spesh_stats;
+
     DumpStr ds;
     ds.alloc  = 8192;
     ds.buffer = MVM_malloc(ds.alloc);
@@ -589,8 +591,7 @@ char * MVM_spesh_dump_stats(MVMThreadContext *tc, MVMStaticFrame *sf) {
     append(&ds, ")\n\n");
 
     /* Dump the spesh stats if present. */
-    if (sf->body.spesh_stats) {
-        MVMSpeshStats *ss = sf->body.spesh_stats;
+    if (ss) {
         MVMuint32 i;
 
         appendf(&ds, "Total hits: %d\n", ss->hits);
@@ -700,7 +701,7 @@ char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
 
 /* Dumps a static frame's guard set into a string. */
 char * MVM_spesh_dump_arg_guard(MVMThreadContext *tc, MVMStaticFrame *sf) {
-    MVMSpeshArgGuard *ag = sf->body.spesh_arg_guard;
+    MVMSpeshArgGuard *ag = sf->body.spesh->body.spesh_arg_guard;
 
     DumpStr ds;
     ds.alloc  = 8192;

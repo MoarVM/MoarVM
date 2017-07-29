@@ -94,7 +94,6 @@
 |.type COLLECTABLE, MVMCollectable
 |.type STABLE, MVMSTable
 |.type REPR, MVMREPROps
-|.type LEXOTIC, MVMLexotic
 |.type STRING, MVMString*
 |.type OBJECTPTR, MVMObject*
 |.type CONTAINERSPEC, MVMContainerSpec
@@ -1489,28 +1488,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov TMP1, aword TC->last_handler_result;
         | mov aword WORK[dst], TMP1;
         | mov aword TC->last_handler_result, 0;
-        break;
-    }
-    case MVM_OP_lexoticresult: {
-        MVMint16 src = ins->operands[1].reg.orig;
-        MVMint16 dst = ins->operands[0].reg.orig;
-        | mov TMP1, aword WORK[src];
-        | test TMP1, TMP1;
-        | jz >1;
-        | is_type_object TMP1;
-        | jnz >1;
-        | mov TMP2, aword OBJECT:TMP1->st;
-        | mov TMP2, aword STABLE:TMP2->REPR;
-        | cmp aword REPR:TMP2->ID, MVM_REPR_ID_Lexotic;
-        | jnz >1;
-        | mov TMP2, aword LEXOTIC:TMP1->body.result;
-        | mov WORK[dst], TMP2;
-        | jmp >2;
-        |1:
-        /* throw an exception */
-        | throw_adhoc "lexoticresult needs a Lexotic";
-        /* we never return from an adhoc exception, so no need to deal with that */
-        |2:
         break;
     }
     case MVM_OP_exception: {

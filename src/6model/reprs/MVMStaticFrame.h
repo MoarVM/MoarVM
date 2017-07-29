@@ -31,25 +31,13 @@ struct MVMStaticFrameBody {
      * the VM instance wide field for this. */
     MVMuint32 instrumentation_level;
 
-    /* Recorded count for data recording for the specializer. Incremented
-     * until the recording threshold is reached, and may be cleared by the
-     * specialization worker later if it wants more data recorded. Allowed
-     * to be a bit racey between threads; it's not a problem if we get an
-     * extra recording or so. */
-    MVMuint32 spesh_entries_recorded;
-
-    /* Specialization statistics assembled by the specialization worker thread
-     * from logs. */
-    MVMSpeshStats *spesh_stats;
-
-    /* Specialization argument guard tree, for selecting a specialization. */
-    MVMSpeshArgGuard *spesh_arg_guard;
-
-    /* Specializations array, if there are any. Candidates themselves never
-     * move in memory; the array of pointers to them is managed using the
-     * fixed size allocator and freed at the next safepoint. */
-    MVMSpeshCandidate **spesh_candidates;
-    MVMuint32 num_spesh_candidates;
+    /* Specialization-related information. Attached when a frame is first
+     * verified. Held in a separate object rather than the MVMStaticFrame
+     * itself partly to decrease the size of this object for frames that
+     * we never even call, but also because we sample nursery objects and
+     * they end up in the statistics; forcing the static frame into the
+     * inter-generational roots leads to a lot more marking work. */
+    MVMStaticFrameSpesh *spesh;
 
     /* The size in bytes to allocate for the lexical environment. */
     MVMuint32 env_size;
@@ -96,9 +84,6 @@ struct MVMStaticFrameBody {
 
     /* the static coderef */
     MVMCode *static_code;
-
-    /* Index into each threadcontext's table of frame pools. */
-    MVMuint32 pool_index;
 
     /* Annotation details */
     MVMuint32              num_annotations;

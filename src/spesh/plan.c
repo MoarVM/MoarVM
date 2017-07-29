@@ -8,7 +8,7 @@ void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlannedKind k
                  MVMSpeshStatsType *type_tuple, MVMSpeshStatsByType **type_stats,
                  MVMuint32 num_type_stats) {
     MVMSpeshPlanned *p;
-    if (MVM_spesh_arg_guard_exists(tc, sf->body.spesh_arg_guard, cs_stats->cs, type_tuple))
+    if (MVM_spesh_arg_guard_exists(tc, sf->body.spesh->body.spesh_arg_guard, cs_stats->cs, type_tuple))
         return;
     if (plan->num_planned == plan->alloc_planned) {
         plan->alloc_planned += 16;
@@ -83,7 +83,7 @@ void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
 /* Considers the statistics of a given static frame and plans specializtions
  * to produce for it. */
 void plan_for_sf(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf) {
-    MVMSpeshStats *ss = sf->body.spesh_stats;
+    MVMSpeshStats *ss = sf->body.spesh->body.spesh_stats;
     MVMuint32 threshold = MVM_spesh_threshold(tc, sf);
     if (ss->hits >= threshold || ss->osr_hits >= MVM_SPESH_PLAN_SF_MIN_OSR) {
         /* The frame is hot enough; look through its callsites to see if any

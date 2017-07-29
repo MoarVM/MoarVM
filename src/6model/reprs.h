@@ -17,7 +17,6 @@
 #include "6model/reprs/MVMIter.h"
 #include "6model/reprs/MVMContext.h"
 #include "6model/reprs/SCRef.h"
-#include "6model/reprs/Lexotic.h"
 #include "6model/reprs/MVMCallCapture.h"
 #include "6model/reprs/P6bigint.h"
 #include "6model/reprs/NFA.h"
@@ -44,6 +43,7 @@
 #include "6model/reprs/MultiDimArray.h"
 #include "6model/reprs/Decoder.h"
 #include "6model/reprs/MVMSpeshLog.h"
+#include "6model/reprs/MVMStaticFrameSpesh.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -71,7 +71,7 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMIter                 15
 #define MVM_REPR_ID_MVMContext              16
 #define MVM_REPR_ID_SCRef                   17
-#define MVM_REPR_ID_Lexotic                 18
+#define MVM_REPR_ID_MVMSpeshLog             18
 #define MVM_REPR_ID_MVMCallCapture          19
 #define MVM_REPR_ID_P6bigint                20
 #define MVM_REPR_ID_NFA                     21
@@ -97,7 +97,7 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MultiDimArray           41
 #define MVM_REPR_ID_MVMCPPStruct            42
 #define MVM_REPR_ID_Decoder                 43
-#define MVM_REPR_ID_MVMSpeshLog             44
+#define MVM_REPR_ID_MVMStaticFrameSpesh     44
 
 #define MVM_REPR_CORE_COUNT                 45
 #define MVM_REPR_MAX_COUNT                  64

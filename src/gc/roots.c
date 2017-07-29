@@ -150,15 +150,6 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     /* compunit variable pointer (and be null if thread finished) */
     if (tc->interp_cu)
         add_collectable(tc, worklist, snapshot, *(tc->interp_cu), "Current interpreter compilation unit");
-
-    /* Lexotics cache. */
-    if (tc->lexotic_cache_size) {
-        MVMuint32 i;
-        for (i = 0; i < tc->lexotic_cache_size; i++)
-            if (tc->lexotic_cache[i])
-                add_collectable(tc, worklist, snapshot, tc->lexotic_cache[i], "Lexotic cache entry");
-    }
-
     /* Current dispatcher. */
     add_collectable(tc, worklist, snapshot, tc->cur_dispatcher, "Current dispatcher");
     add_collectable(tc, worklist, snapshot, tc->cur_dispatcher_for, "Current dispatcher for");

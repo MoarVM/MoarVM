@@ -41,9 +41,10 @@ typedef struct SimStack {
 
 /* Gets the statistics for a static frame, creating them if needed. */
 MVMSpeshStats * stats_for(MVMThreadContext *tc, MVMStaticFrame *sf) {
-    if (!sf->body.spesh_stats)
-        sf->body.spesh_stats = MVM_calloc(1, sizeof(MVMSpeshStats));
-    return sf->body.spesh_stats;
+    MVMStaticFrameSpesh *spesh = sf->body.spesh;
+    if (!spesh->body.spesh_stats)
+        spesh->body.spesh_stats = MVM_calloc(1, sizeof(MVMSpeshStats));
+    return spesh->body.spesh_stats;
 }
 
 /* Gets the stats by callsite, adding it if it's missing. */
@@ -170,7 +171,7 @@ void add_type_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
     found = oss->num_types;
     oss->num_types++;
     oss->types = MVM_realloc(oss->types, oss->num_types * sizeof(MVMSpeshStatsTypeCount));
-    MVM_ASSIGN_REF(tc, &(sf->common.header), oss->types[found].type, type);
+    MVM_ASSIGN_REF(tc, &(sf->body.spesh->common.header), oss->types[found].type, type);
     oss->types[found].type_concrete = concrete;
     oss->types[found].count = 1;
 }
@@ -192,7 +193,7 @@ void add_value_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
     found = oss->num_values;
     oss->num_values++;
     oss->values = MVM_realloc(oss->values, oss->num_values * sizeof(MVMSpeshStatsValueCount));
-    MVM_ASSIGN_REF(tc, &(sf->common.header), oss->values[found].value, value);
+    MVM_ASSIGN_REF(tc, &(sf->body.spesh->common.header), oss->values[found].value, value);
     oss->values[found].count = 1;
 }
 
@@ -334,7 +335,7 @@ void add_static_value(MVMThreadContext *tc, SimStackFrame *simf, MVMint32 byteco
     ss->static_values = MVM_realloc(ss->static_values,
         ss->num_static_values * sizeof(MVMSpeshStatsStatic));
     ss->static_values[id].bytecode_offset = bytecode_offset;
-    MVM_ASSIGN_REF(tc, &(simf->sf->common.header), ss->static_values[id].value, value);
+    MVM_ASSIGN_REF(tc, &(simf->sf->body.spesh->common.header), ss->static_values[id].value, value);
 }
 
 /* Receives a spesh log and updates static frame statistics. Each static frame
@@ -368,8 +369,8 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                 if (simf) {
                     MVMSpeshStatsType *type_slot = param_type(tc, simf, e);
                     if (type_slot) {
-                        MVM_ASSIGN_REF(tc, &(simf->sf->common.header), type_slot->type,
-                            e->param.type);
+                        MVM_ASSIGN_REF(tc, &(simf->sf->body.spesh->common.header),
+                            type_slot->type, e->param.type);
                         type_slot->type_concrete =
                             e->param.flags & MVM_SPESH_LOG_TYPE_FLAG_CONCRETE;
                     }
@@ -381,8 +382,8 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                 if (simf) {
                     MVMSpeshStatsType *type_slot = param_type(tc, simf, e);
                     if (type_slot) {
-                        MVM_ASSIGN_REF(tc, &(simf->sf->common.header), type_slot->decont_type,
-                            e->param.type);
+                        MVM_ASSIGN_REF(tc, &(simf->sf->body.spesh->common.header),
+                            type_slot->decont_type, e->param.type);
                         type_slot->decont_type_concrete =
                             e->param.flags & MVM_SPESH_LOG_TYPE_FLAG_CONCRETE;
                     }
@@ -433,14 +434,15 @@ void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames) {
     MVMint64 i;
     for (i = 0; i < elems; i++) {
         MVMStaticFrame *sf = (MVMStaticFrame *)MVM_repr_at_pos_o(tc, check_frames, i);
-        MVMSpeshStats *ss = sf->body.spesh_stats;
+        MVMStaticFrameSpesh *spesh = sf->body.spesh;
+        MVMSpeshStats *ss = spesh->body.spesh_stats;
         if (!ss) {
             /* No stats; already destroyed, don't keep this frame under
              * consideration. */
         }
         else if (tc->instance->spesh_stats_version - ss->last_update > MVM_SPESH_STATS_MAX_AGE) {
             MVM_spesh_stats_destroy(tc, ss);
-            sf->body.spesh_stats = NULL;
+            spesh->body.spesh_stats = NULL;
         }
         else {
             MVM_repr_bind_pos_o(tc, check_frames, insert_pos++, (MVMObject *)sf);

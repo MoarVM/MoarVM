@@ -598,7 +598,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     MVM_repr_initialize_registry(tc);
 
     /* Create stub VMNull, BOOTInt, BOOTNum, BOOTStr, BOOTArray, BOOTHash,
-     * BOOTCCode, BOOTCode, BOOTThread, BOOTIter, BOOTContext, SCRef, Lexotic,
+     * BOOTCCode, BOOTCode, BOOTThread, BOOTIter, BOOTContext, SCRef,
      * CallCapture, BOOTIO, BOOTException, BOOTQueue, BOOTAsync,
      * and BOOTReentrantMutex types. */
 #define create_stub_boot_type(tc, reprid, slot, makeboolspec, boolspec) do { \
@@ -624,7 +624,6 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     create_stub_boot_type(tc, MVM_REPR_ID_MVMIter, boot_types.BOOTIter, 1, MVM_BOOL_MODE_ITER);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMContext, boot_types.BOOTContext, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_SCRef, SCRef, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
-    create_stub_boot_type(tc, MVM_REPR_ID_Lexotic, Lexotic, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMCallCapture, CallCapture, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMOSHandle, boot_types.BOOTIO, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMException, boot_types.BOOTException, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
@@ -637,6 +636,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     create_stub_boot_type(tc, MVM_REPR_ID_MVMAsyncTask, boot_types.BOOTAsync, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_ReentrantMutex, boot_types.BOOTReentrantMutex, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMSpeshLog, SpeshLog, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
+    create_stub_boot_type(tc, MVM_REPR_ID_MVMStaticFrameSpesh, StaticFrameSpesh, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
 
     /* Bootstrap the KnowHOW type, giving it a meta-object. */
     bootstrap_KnowHOW(tc);
@@ -659,7 +659,6 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     meta_objectifier(tc, boot_types.BOOTIter, "BOOTIter");
     meta_objectifier(tc, boot_types.BOOTContext, "BOOTContext");
     meta_objectifier(tc, SCRef, "SCRef");
-    meta_objectifier(tc, Lexotic, "Lexotic");
     meta_objectifier(tc, CallCapture, "CallCapture");
     meta_objectifier(tc, boot_types.BOOTIO, "BOOTIO");
     meta_objectifier(tc, boot_types.BOOTException, "BOOTException");

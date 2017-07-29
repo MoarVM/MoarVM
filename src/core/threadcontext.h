@@ -214,11 +214,6 @@ struct MVMThreadContext {
     char         *serialized;
     MVMObject    *serialized_string_heap;
 
-    /* Pool of Lexotics for various static frames, held per thread since the
-     * result being returned is per thread. */
-    MVMLexotic **lexotic_cache;
-    MVMuint32    lexotic_cache_size;
-
     /* Serialization context write barrier disabled depth (anything non-zero
      * means disabled). */
     MVMint32           sc_wb_disable_depth;
@@ -239,10 +234,10 @@ struct MVMThreadContext {
     MVMuint64 rand_state[2];
 
     /* NFA evaluator memory cache, to avoid many allocations; see NFA.c. */
-    MVMint64 *nfa_done;
-    MVMint64 *nfa_curst;
-    MVMint64 *nfa_nextst;
-    MVMint64  nfa_alloc_states;
+    MVMuint32 *nfa_done;
+    MVMuint32 *nfa_curst;
+    MVMuint32 *nfa_nextst;
+    MVMint64   nfa_alloc_states;
     MVMint64 *nfa_fates;
     MVMint64  nfa_fates_len;
     MVMint64 *nfa_longlit;
