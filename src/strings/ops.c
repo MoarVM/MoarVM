@@ -1744,17 +1744,48 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
         return 1;
 
     /* Otherwise, need to scan them. */
-    scanlen = alen > blen ? blen : alen;
+    scanlen = blen < alen ? blen : alen;
     for (i = 0; i < scanlen; i++) {
-        MVMGrapheme32 ai = MVM_string_get_grapheme_at_nocheck(tc, a, i);
-        MVMGrapheme32 bi = MVM_string_get_grapheme_at_nocheck(tc, b, i);
-        if (ai != bi)
-            return ai < bi ? -1 : 1;
+        MVMGrapheme32 g_a = MVM_string_get_grapheme_at_nocheck(tc, a, i);
+        MVMGrapheme32 g_b = MVM_string_get_grapheme_at_nocheck(tc, b, i);
+        if (g_a != g_b) {
+            MVMint64 rtrn;
+            /* If one of the deciding graphemes is a synthetic then we need to
+             * iterate the codepoints inside it */
+            if (g_a < 0 || g_b < 0) {
+                MVMCodepointIter ci_a, ci_b;
+                MVM_string_grapheme_ci_init(tc, &ci_a, g_a);
+                MVM_string_grapheme_ci_init(tc, &ci_b, g_b);
+                while (MVM_string_grapheme_ci_has_more(tc, &ci_a) && MVM_string_grapheme_ci_has_more(tc, &ci_b)) {
+                    g_a = MVM_string_grapheme_ci_get_codepoint(tc, &ci_a);
+                    g_b = MVM_string_grapheme_ci_get_codepoint(tc, &ci_b);
+                    if (g_a != g_b)
+                        break;
+                }
+                rtrn = g_a < g_b ? -1 :
+                       g_b < g_a ?  1 :
+                                    0 ;
+                /* If we get here, all the codepoints in the synthetics have matched
+                 * so go based on which has more codepoints left in that grapheme */
+                if (!rtrn) {
+                    MVMint32 a_has_more = MVM_string_grapheme_ci_has_more(tc, &ci_a),
+                             b_has_more = MVM_string_grapheme_ci_has_more(tc, &ci_b);
+
+                    return a_has_more < b_has_more ? -1 :
+                           b_has_more < a_has_more ?  1 :
+                                                      0 ;
+                }
+                return rtrn;
+            }
+            return g_a < g_b ? -1 :
+                   g_b < g_a ?  1 :
+                                0 ;
+        }
     }
 
     /* All shared chars equal, so go on length. */
     return alen < blen ? -1 :
-           alen > blen ?  1 :
+           blen < alen ?  1 :
                           0 ;
 }
 
