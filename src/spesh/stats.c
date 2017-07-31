@@ -393,7 +393,7 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
             case MVM_SPESH_LOG_TYPE:
             case MVM_SPESH_LOG_INVOKE: {
                 /* We only incorporate these into the model later, and only
-                 * then if we need to. For now, just mkeep references to
+                 * then if we need to. For now, just keep references to
                  * them. */
                 SimStackFrame *simf = sim_stack_find(tc, &sims, e->id);
                 if (simf) {
