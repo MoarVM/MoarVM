@@ -33,9 +33,17 @@
 # '-a' for invoke_o with ops like arg_i or arg_o annotated as '*a'
 # inbetween. Note that '*' ops must not appear outside such blocks.
 #
-# Some operations may have no side-effects, and so if their result is
-# never used they can be tossed. Such operations may be marked with
-# :pure.
+# A number of adverbs may follow an operation:
+# * :pure means that the op has no side-effects and so can safely be
+#   thrown away if the result is unused
+# * :logged means type or value logging for specialization happens at this
+#   op
+# * :deoptonepoint means that we may deoptimize (fall back to slow-path code)
+#   at this point, but just locally within the current frame
+# * :deoptallpoint means that we may globally deoptimize at this point
+# * :noinline means it is never safe to inline this op
+# * :invokish means the op may invoke (used by the JIT)
+# * :throwish means the op may throw (used by the JIT)
 
 no_op
 const_i8            w(int8) int8 :pure
