@@ -1600,16 +1600,30 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
 }
 
 static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs, MVMInvocationSpec *is) {
-    if (!MVM_is_null(tc, is->class_handle)) {
+    /* Fast path when we have an offset directly into a P6opaque. */
+    if (is->code_ref_offset) {
+        if (!IS_CONCRETE(code))
+            MVM_exception_throw_adhoc(tc, "Can not invoke a code type object");
+        code = MVM_p6opaque_read_object(tc, code, is->code_ref_offset);
+    }
+
+    /* Otherwise, if there is a class handle, fall back to the slow path
+     * lookup, but set up code_ref_offset if applicable. */
+    else if (!MVM_is_null(tc, is->class_handle)) {
         MVMRegister dest;
         if (!IS_CONCRETE(code))
             MVM_exception_throw_adhoc(tc, "Can not invoke a code type object");
+        if (code->st->REPR->ID == MVM_REPR_ID_P6opaque)
+            is->code_ref_offset = MVM_p6opaque_attr_offset(tc, code->st->WHAT,
+                is->class_handle, is->attr_name);
         REPR(code)->attr_funcs.get_attribute(tc,
             STABLE(code), code, OBJECT_BODY(code),
             is->class_handle, is->attr_name,
             is->hint, &dest, MVM_reg_obj);
         code = dest.o;
     }
+
+    /* Failing that, it must be an invocation handler. */
     else {
         /* Need to tweak the callsite and args to include the code object
          * being invoked. */
@@ -1669,12 +1683,32 @@ MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *cod
         if (!is) {
             MVM_exception_throw_adhoc(tc, "Cannot invoke this object (REPR: %s; %s)", REPR(code)->name, STABLE(code)->debug_name);
         }
-        if (!MVM_is_null(tc, is->md_class_handle)) {
+        if (is->md_cache_offset && is->md_valid_offset) {
+            if (!IS_CONCRETE(code))
+                MVM_exception_throw_adhoc(tc, "Can not invoke a code type object");
+            if (MVM_p6opaque_read_int64(tc, code, is->md_valid_offset)) {
+                MVMObject *md_cache = MVM_p6opaque_read_object(tc, code, is->md_cache_offset);
+                if (!MVM_is_null(tc, md_cache)) {
+                    MVMObject *result = MVM_multi_cache_find_callsite_args(tc,
+                        md_cache, *tweak_cs, args);
+                    if (result)
+                        return MVM_frame_find_invokee(tc, result, tweak_cs);
+                }
+            }
+        }
+        else if (!MVM_is_null(tc, is->md_class_handle)) {
             /* We might be able to dig straight into the multi cache and not
-             * have to invoke the proto. */
+             * have to invoke the proto. Also on this path set up the offsets
+             * so we can be faster in the future. */
             MVMRegister dest;
             if (!IS_CONCRETE(code))
                 MVM_exception_throw_adhoc(tc, "Can not invoke a code type object");
+            if (code->st->REPR->ID == MVM_REPR_ID_P6opaque) {
+                is->md_valid_offset = MVM_p6opaque_attr_offset(tc, code->st->WHAT,
+                    is->md_class_handle, is->md_valid_attr_name);
+                is->md_cache_offset = MVM_p6opaque_attr_offset(tc, code->st->WHAT,
+                    is->md_class_handle, is->md_cache_attr_name);
+            }
             REPR(code)->attr_funcs.get_attribute(tc,
                 STABLE(code), code, OBJECT_BODY(code),
                 is->md_class_handle, is->md_valid_attr_name,

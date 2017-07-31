@@ -5393,8 +5393,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sp_p6oget_o): {
                 MVMObject *o     = GET_REG(cur_op, 2).o;
-                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
-                MVMObject *val   = *((MVMObject **)(data + GET_UI16(cur_op, 4)));
+                MVMObject *val = MVM_p6opaque_read_object(tc, o, GET_UI16(cur_op, 4));
                 GET_REG(cur_op, 0).o = val ? val : tc->instance->VMNull;
                 cur_op += 6;
                 goto NEXT;

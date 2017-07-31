@@ -153,13 +153,19 @@ struct MVMFrameExtra {
  * an invokable thing, a method to call, and maybe a multi-dispatch cache to
  * look in first for an answer. */
 struct MVMInvocationSpec {
+    /* Offsets for fast access; placed first as they are what will be most
+     * often needed. */
+    size_t code_ref_offset;
+    size_t md_cache_offset;
+    size_t md_valid_offset;
+
+    /* Function that handles invocation, if any. */
+    MVMObject *invocation_handler;
+
     /* Class handle, name and hint for attribute holding code to invoke. */
     MVMObject *class_handle;
     MVMString *attr_name;
     MVMint64   hint;
-
-    /* Thing that handles invocation. */
-    MVMObject *invocation_handler;
 
     /* Multi-dispatch info class handle, and name/hint of attribute that
      * holds the cache itself and a flag to check if it's allowed to

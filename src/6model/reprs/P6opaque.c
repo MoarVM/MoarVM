@@ -1616,6 +1616,15 @@ static const MVMREPROps P6opaque_this_repr = {
     NULL, /* describe_refs */
 };
 
+/* Get the pointer offset of an attribute. Used for optimizing access to it on
+ * precisely known types. */
+size_t MVM_p6opaque_attr_offset(MVMThreadContext *tc, MVMObject *type,
+                                MVMObject *class_handle, MVMString *name) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)type->st->REPR_data;
+    size_t slot = try_get_slot(tc, repr_data, class_handle, name);
+    return slot >= 0 ? repr_data->attribute_offsets[slot] : 0;
+}
+
 #ifdef DEBUG_HELPERS
 /* This is meant to be called in a debugging session and not used anywhere else.
  * Plese don't delete. */
