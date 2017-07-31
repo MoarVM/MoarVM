@@ -342,7 +342,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
                       MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand) {
     MVMFrame *frame;
-    MVMuint32 found_spesh;
     MVMuint8 *chosen_bytecode;
     MVMStaticFrameSpesh *spesh;
 
@@ -438,8 +437,10 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
     /* See if any specializations apply. */
     spesh = static_frame->body.spesh;
-    found_spesh = 0;
-    if (spesh_cand >= 0 && spesh_cand < spesh->body.num_spesh_candidates) {
+    if (spesh_cand < 0)
+        spesh_cand = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
+            callsite, args);
+    if (spesh_cand >= 0) {
         MVMSpeshCandidate *chosen_cand = spesh->body.spesh_candidates[spesh_cand];
         frame = allocate_frame(tc, static_frame, chosen_cand);
         if (chosen_cand->jitcode) {
@@ -450,31 +451,10 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             chosen_bytecode = chosen_cand->bytecode;
         }
         frame->effective_spesh_slots = chosen_cand->spesh_slots;
-        frame->spesh_cand            = chosen_cand;
-        found_spesh                  = 1;
+        frame->spesh_cand = chosen_cand;
+        frame->spesh_correlation_id = 0;
     }
-    if (!found_spesh) {
-        /* Look for specialized bytecode and run it if it exists. */
-        MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
-            spesh->body.spesh_arg_guard, callsite, args);
-        MVMSpeshCandidate *chosen_cand = ag_result >= 0
-            ? spesh->body.spesh_candidates[ag_result]
-            : NULL;
-        if (chosen_cand) {
-            frame = allocate_frame(tc, static_frame, chosen_cand);
-            if (chosen_cand->jitcode) {
-                chosen_bytecode = chosen_cand->jitcode->bytecode;
-                frame->jit_entry_label    = chosen_cand->jitcode->labels[0];
-            }
-            else {
-                chosen_bytecode = chosen_cand->bytecode;
-            }
-            frame->effective_spesh_slots = chosen_cand->spesh_slots;
-            frame->spesh_cand            = chosen_cand;
-            found_spesh                  = 1;
-        }
-    }
-    if (!found_spesh) {
+    else {
         frame = allocate_frame(tc, static_frame, NULL);
         chosen_bytecode = static_frame->body.bytecode;
         frame->spesh_cand = NULL;
@@ -491,9 +471,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                 });
             }
         }
-    }
-    else {
-        frame->spesh_correlation_id = 0;
     }
 
     /* Set static frame. */
