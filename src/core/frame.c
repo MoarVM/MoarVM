@@ -552,102 +552,98 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     }
 }
 
-/* Forces the specified frame from the stack and on to the heap, if it's not
- * already there. */
-MVMFrame * MVM_frame_force_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
-    if (MVM_FRAME_IS_ON_CALLSTACK(tc, frame)) {
-        /* To keep things simple, we'll promote the entire stack. */
-        MVMFrame *cur_to_promote = tc->cur_frame;
-        MVMFrame *new_cur_frame = NULL;
-        MVMFrame *update_caller = NULL;
-        MVMFrame *result = NULL;
-        MVMROOT(tc, new_cur_frame, {
-        MVMROOT(tc, update_caller, {
-        MVMROOT(tc, result, {
-            while (cur_to_promote) {
-                /* Allocate a heap frame. */
-                MVMFrame *promoted = MVM_gc_allocate_frame(tc);
+/* Moves the specified frame from the stack and on to the heap. Must only
+ * be called if the frame is already there. Use MVM_frame_force_to_heap when
+ * not sure. */ 
+MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
+    /* To keep things simple, we'll promote the entire stack. */
+    MVMFrame *cur_to_promote = tc->cur_frame;
+    MVMFrame *new_cur_frame = NULL;
+    MVMFrame *update_caller = NULL;
+    MVMFrame *result = NULL;
+    MVMROOT(tc, new_cur_frame, {
+    MVMROOT(tc, update_caller, {
+    MVMROOT(tc, result, {
+        while (cur_to_promote) {
+            /* Allocate a heap frame. */
+            MVMFrame *promoted = MVM_gc_allocate_frame(tc);
 
-                /* Copy current frame's body to it. */
-                memcpy(
-                    (char *)promoted + sizeof(MVMCollectable),
-                    (char *)cur_to_promote + sizeof(MVMCollectable),
-                    sizeof(MVMFrame) - sizeof(MVMCollectable));
+            /* Copy current frame's body to it. */
+            memcpy(
+                (char *)promoted + sizeof(MVMCollectable),
+                (char *)cur_to_promote + sizeof(MVMCollectable),
+                sizeof(MVMFrame) - sizeof(MVMCollectable));
 
-                /* Update caller of previously promoted frame, if any. This is the
-                 * only reference that might point to a non-heap frame. */
-                if (update_caller) {
-                    MVM_ASSIGN_REF(tc, &(update_caller->header),
-                        update_caller->caller, promoted);
+            /* Update caller of previously promoted frame, if any. This is the
+             * only reference that might point to a non-heap frame. */
+            if (update_caller) {
+                MVM_ASSIGN_REF(tc, &(update_caller->header),
+                    update_caller->caller, promoted);
+            }
+
+            /* If we're the first time through the lopo, then we're instead
+             * replacing the current stack top. Note we do it at the end,
+             * so that the GC can still walk unpromoted frames if it runs
+             * in this loop. */
+            else {
+                new_cur_frame = promoted;
+            }
+
+            /* If the frame we're promoting was in the active handlers list,
+             * update the address there. */
+            if (tc->active_handlers) {
+                MVMActiveHandler *ah = tc->active_handlers;
+                while (ah) {
+                    if (ah->frame == cur_to_promote)
+                        ah->frame = promoted;
+                    ah = ah->next_handler;
                 }
+            }
 
-                /* If we're the first time through the lopo, then we're instead
-                 * replacing the current stack top. Note we do it at the end,
-                 * so that the GC can still walk unpromoted frames if it runs
-                 * in this loop. */
-                else {
-                    new_cur_frame = promoted;
-                }
+            /* If we're replacing the frame we were asked to promote, that will
+             * become our result. */
+            if (cur_to_promote == frame)
+                result = promoted;
 
-                /* If the frame we're promoting was in the active handlers list,
-                 * update the address there. */
-                if (tc->active_handlers) {
-                    MVMActiveHandler *ah = tc->active_handlers;
-                    while (ah) {
-                        if (ah->frame == cur_to_promote)
-                            ah->frame = promoted;
-                        ah = ah->next_handler;
-                    }
-                }
-
-                /* If we're replacing the frame we were asked to promote, that will
-                 * become our result. */
-                if (cur_to_promote == frame)
-                    result = promoted;
-
-                /* Check if there's a caller, or if we reached the end of the
-                 * chain. */
-                if (cur_to_promote->caller) {
-                    /* If the caller is on the stack then it needs promotion too.
-                     * If not, we're done. */
-                    if (MVM_FRAME_IS_ON_CALLSTACK(tc, cur_to_promote->caller)) {
-                        /* Clear caller in promoted frame, to avoid a heap -> stack
-                         * reference if we GC during this loop. */
-                        promoted->caller = NULL;
-                        update_caller = promoted;
-                        cur_to_promote = cur_to_promote->caller;
-                    }
-                    else {
-                        if (cur_to_promote == tc->thread_entry_frame)
-                            tc->thread_entry_frame = promoted;
-                        cur_to_promote = NULL;
-                    }
+            /* Check if there's a caller, or if we reached the end of the
+             * chain. */
+            if (cur_to_promote->caller) {
+                /* If the caller is on the stack then it needs promotion too.
+                 * If not, we're done. */
+                if (MVM_FRAME_IS_ON_CALLSTACK(tc, cur_to_promote->caller)) {
+                    /* Clear caller in promoted frame, to avoid a heap -> stack
+                     * reference if we GC during this loop. */
+                    promoted->caller = NULL;
+                    update_caller = promoted;
+                    cur_to_promote = cur_to_promote->caller;
                 }
                 else {
-                    /* End of caller chain; check if we promoted the entry
-                     * frame */
                     if (cur_to_promote == tc->thread_entry_frame)
                         tc->thread_entry_frame = promoted;
                     cur_to_promote = NULL;
                 }
             }
-        });
-        });
-        });
+            else {
+                /* End of caller chain; check if we promoted the entry
+                 * frame */
+                if (cur_to_promote == tc->thread_entry_frame)
+                    tc->thread_entry_frame = promoted;
+                cur_to_promote = NULL;
+            }
+        }
+    });
+    });
+    });
 
-        /* All is promoted. Update thread's current frame and reset the thread
-         * local callstack. */
-        tc->cur_frame = new_cur_frame;
-        MVM_callstack_reset(tc);
+    /* All is promoted. Update thread's current frame and reset the thread
+     * local callstack. */
+    tc->cur_frame = new_cur_frame;
+    MVM_callstack_reset(tc);
 
-        /* Hand back new location of promoted frame. */
-        if (!result)
-            MVM_panic(1, "Failed to find frame to promote on call stack");
-        return result;
-    }
-    else {
-        return frame;
-    }
+    /* Hand back new location of promoted frame. */
+    if (!result)
+        MVM_panic(1, "Failed to find frame to promote on call stack");
+    return result;
 }
 
 /* Creates a frame for de-optimization purposes. */

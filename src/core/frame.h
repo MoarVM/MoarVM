@@ -177,6 +177,22 @@ struct MVMInvocationSpec {
     MVMString *md_valid_attr_name;
 };
 
+/* Checks if a frame is allocated on a call stack or on the heap. If it is on
+ * the call stack, then it will have zeroed flags (since heap-allocated frames
+ * always have the "I'm a heap frame" bit set). */
+MVM_STATIC_INLINE MVMuint32 MVM_FRAME_IS_ON_CALLSTACK(MVMThreadContext *tc, MVMFrame *frame) {
+    return frame->header.flags == 0;
+}
+
+/* Forces a frame to the callstack if needed. Done as a static inline to make
+ * the quite common case where nothing is needed cheaper. */
+MVM_PUBLIC MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame);
+MVM_STATIC_INLINE MVMFrame * MVM_frame_force_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
+    return MVM_FRAME_IS_ON_CALLSTACK(tc, frame)
+        ? frame
+        : MVM_frame_move_to_heap(tc, frame);
+}
+
 MVMRegister * MVM_frame_initial_work(MVMThreadContext *tc, MVMuint16 *local_types,
                                      MVMuint16 num_locals);
 void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code,
@@ -184,7 +200,6 @@ void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code,
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
                       MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand);
-MVM_PUBLIC MVMFrame * MVM_frame_force_to_heap(MVMThreadContext *tc, MVMFrame *frame);
 MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMObject *code_ref);
 MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *static_frame,
