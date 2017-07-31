@@ -1382,7 +1382,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         MVMString     *name     = spesh_attr_name(tc, g, ins->operands[3], opcode == MVM_OP_getattrs_o);
         if (name && ch_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && ch_facts->type) {
             MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type, name);
-            if (slot >= 0 && !repr_data->mi && !repr_data->flattened_stables[slot]) {
+            if (slot >= 0 && !repr_data->flattened_stables[slot]) {
                 if (repr_data->auto_viv_values && repr_data->auto_viv_values[slot]) {
                     MVMObject *av_value = repr_data->auto_viv_values[slot];
                     if (IS_CONCRETE(av_value)) {
