@@ -245,6 +245,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
     }
     else {
         frame->env = NULL;
+        frame->allocd_env = 0;
     }
     work_size = spesh_cand ? spesh_cand->work_size : static_frame_body->work_size;
     if (work_size) {
@@ -268,6 +269,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
     }
     else {
         frame->work = NULL;
+        frame->allocd_work = 0;
     }
 
     /* Assign a sequence nr */
