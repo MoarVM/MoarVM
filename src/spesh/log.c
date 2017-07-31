@@ -105,7 +105,7 @@ void MVM_spesh_log_parameter(MVMThreadContext *tc, MVMuint16 arg_idx, MVMObject 
     MVMROOT(tc, param, {
         log_param_type(tc, cid, arg_idx, param, MVM_SPESH_LOG_PARAMETER);
     });
-    if (IS_CONCRETE(param)) {
+    if (tc->spesh_log && IS_CONCRETE(param)) {
         MVMContainerSpec const *cs = STABLE(param)->container_spec;
         if (cs && cs->fetch_never_invokes) {
             MVMRegister r;
