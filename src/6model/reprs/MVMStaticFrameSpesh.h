@@ -22,6 +22,11 @@ struct MVMStaticFrameSpeshBody {
     /* Specialization statistics assembled by the specialization worker thread
      * from logs. */
     MVMSpeshStats *spesh_stats;
+
+    /* Number of times the frame was promoted to the heap, when it was not
+     * specialized. Used to decide whether we'll directly allocate this frame
+     * on the heap. */
+    MVMuint32 num_heap_promotions;
 };
 struct MVMStaticFrameSpesh {
     MVMObject common;

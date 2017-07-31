@@ -219,22 +219,38 @@ static MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
 
 /* Obtains memory for a frame on the thread-local call stack. */
 static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame,
-                                 MVMSpeshCandidate *spesh_cand) {
+                                 MVMSpeshCandidate *spesh_cand, MVMint32 heap) {
     MVMFrame *frame;
     MVMint32  env_size, work_size;
     MVMStaticFrameBody *static_frame_body;
 
-    /* Allocate the frame. */
-    MVMCallStackRegion *stack = tc->stack_current;
-    if (stack->alloc + sizeof(MVMFrame) >= stack->alloc_limit)
-        stack = MVM_callstack_region_next(tc);
-    frame = (MVMFrame *)stack->alloc;
-    stack->alloc += sizeof(MVMFrame);
+    if (heap) {
+        /* Allocate frame on the heap. We know it's already zeroed. */
+        MVMROOT(tc, static_frame, {
+            if (tc->cur_frame)
+                MVM_frame_force_to_heap(tc, tc->cur_frame);
+            frame = MVM_gc_allocate_frame(tc);
+        });
+    }
+    else {
+        /* Allocate the frame on the call stack. */
+        MVMCallStackRegion *stack = tc->stack_current;
+        if (stack->alloc + sizeof(MVMFrame) >= stack->alloc_limit)
+            stack = MVM_callstack_region_next(tc);
+        frame = (MVMFrame *)stack->alloc;
+        stack->alloc += sizeof(MVMFrame);
 
-    /* Ensure collectable header flags and owner are zeroed, which means we'll
-     * never try to mark or root the frame. */
-    frame->header.flags = 0;
-    frame->header.owner = 0;
+        /* Ensure collectable header flags and owner are zeroed, which means we'll
+         * never try to mark or root the frame. */
+        frame->header.flags = 0;
+        frame->header.owner = 0;
+
+        /* Current arguments callsite must be NULL as it's used in GC. Extra must
+         * be NULL so we know we don't have it. Flags should be zeroed. */
+        frame->cur_args_callsite = NULL;
+        frame->extra = NULL;
+        frame->flags = 0;
+    }
 
     /* Allocate space for lexicals and work area. */
     static_frame_body = &(static_frame->body);
@@ -274,12 +290,6 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
 
     /* Assign a sequence nr */
     frame->sequence_nr = tc->next_frame_nr++;
-
-    /* Current arguments callsite must be NULL as it's used in GC. Extra must
-     * be NULL so we know we don't have it. Flags should be zeroed. */
-    frame->cur_args_callsite = NULL;
-    frame->extra = NULL;
-    frame->flags = 0;
 
     return frame;
 }
@@ -444,7 +454,19 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             callsite, args);
     if (spesh_cand >= 0) {
         MVMSpeshCandidate *chosen_cand = spesh->body.spesh_candidates[spesh_cand];
-        frame = allocate_frame(tc, static_frame, chosen_cand);
+        if (static_frame->body.allocate_on_heap) {
+            MVMROOT(tc, static_frame, {
+            MVMROOT(tc, code_ref, {
+            MVMROOT(tc, outer, {
+                frame = allocate_frame(tc, static_frame, chosen_cand, 1);
+            });
+            });
+            });
+        }
+        else {
+            frame = allocate_frame(tc, static_frame, chosen_cand, 0);
+            frame->spesh_correlation_id = 0;
+        }
         if (chosen_cand->jitcode) {
             chosen_bytecode = chosen_cand->jitcode->bytecode;
             frame->jit_entry_label = chosen_cand->jitcode->labels[0];
@@ -454,22 +476,34 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         }
         frame->effective_spesh_slots = chosen_cand->spesh_slots;
         frame->spesh_cand = chosen_cand;
-        frame->spesh_correlation_id = 0;
     }
     else {
-        frame = allocate_frame(tc, static_frame, NULL);
+        if (static_frame->body.allocate_on_heap) {
+            MVMROOT(tc, static_frame, {
+            MVMROOT(tc, code_ref, {
+            MVMROOT(tc, outer, {
+                frame = allocate_frame(tc, static_frame, NULL, 1);
+            });
+            });
+            });
+        }
+        else {
+            frame = allocate_frame(tc, static_frame, NULL, 0);
+            frame->spesh_cand = NULL;
+            frame->effective_spesh_slots = NULL;
+            frame->spesh_correlation_id = 0;
+        }
         chosen_bytecode = static_frame->body.bytecode;
-        frame->spesh_cand = NULL;
-        frame->effective_spesh_slots = NULL;
 
         /* If we should be spesh logging, set the correlation ID. */
-        frame->spesh_correlation_id = 0;
         if (tc->instance->spesh_enabled && tc->spesh_log) {
             if (spesh->body.spesh_entries_recorded++ < MVM_SPESH_LOG_LOGGED_ENOUGH) {
                 MVMint32 id = ++tc->spesh_cid;
                 frame->spesh_correlation_id = id;
                 MVMROOT(tc, static_frame, {
+                MVMROOT(tc, frame, {
                     MVM_spesh_log_entry(tc, id, static_frame, callsite);
+                });
                 });
             }
         }
@@ -567,6 +601,19 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
         while (cur_to_promote) {
             /* Allocate a heap frame. */
             MVMFrame *promoted = MVM_gc_allocate_frame(tc);
+
+            /* Bump heap promotion counter, to encourage allocating this kind
+             * of frame directly on the heap in the future. If the frame was
+             * entered at least ten times, and over  60% of the entries lead
+             * to an eventual heap promotion, them we'll mark it to allocated
+             * right away on the heap. */
+            MVMStaticFrame *sf = cur_to_promote->static_info;
+            if (!sf->body.allocate_on_heap && !cur_to_promote->spesh_cand) {
+                MVMuint32 promos = sf->body.spesh->body.num_heap_promotions++;
+                MVMuint32 entries = sf->body.spesh->body.spesh_entries_recorded;
+                if (entries > 10 && promos > (2 * entries) / 3)
+                    sf->body.allocate_on_heap = 1;
+            }
 
             /* Copy current frame's body to it. */
             memcpy(

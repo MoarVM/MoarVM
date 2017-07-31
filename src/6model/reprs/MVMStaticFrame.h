@@ -73,6 +73,12 @@ struct MVMStaticFrameBody {
     /* Does the frame have an exit handler we need to run? */
     MVMuint8 has_exit_handler;
 
+    /* Should we allocate the frame directly on the heap? Doing so may avoid
+     * needing to promote it there later. Set by measuring the number of times
+     * the frame is promoted to the heap relative to the number of times it is
+     * invoked, and then only pre-specialization. */
+    MVMuint8 allocate_on_heap;
+
     /* The compilation unit unique ID of this frame. */
     MVMString *cuuid;
 
