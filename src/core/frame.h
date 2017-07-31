@@ -189,8 +189,8 @@ MVM_STATIC_INLINE MVMuint32 MVM_FRAME_IS_ON_CALLSTACK(MVMThreadContext *tc, MVMF
 MVM_PUBLIC MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame);
 MVM_STATIC_INLINE MVMFrame * MVM_frame_force_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     return MVM_FRAME_IS_ON_CALLSTACK(tc, frame)
-        ? frame
-        : MVM_frame_move_to_heap(tc, frame);
+        ? MVM_frame_move_to_heap(tc, frame)
+        : frame;
 }
 
 MVMRegister * MVM_frame_initial_work(MVMThreadContext *tc, MVMuint16 *local_types,
