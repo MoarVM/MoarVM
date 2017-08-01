@@ -566,6 +566,13 @@ void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCa
                         oss->values[k].count,
                         oss->values[k].value,
                         oss->values[k].value->st->debug_name);
+                for (k = 0; k < oss->num_type_tuples; k++) {
+                    appendf(ds, "                %d x type tuple:\n",
+                        oss->type_tuples[k].count);
+                    dump_stats_type_tuple(tc, ds, oss->type_tuples[k].cs,
+                        oss->type_tuples[k].arg_types,
+                        "                    ");
+                }
             }
         }
         append(ds, "\n");
