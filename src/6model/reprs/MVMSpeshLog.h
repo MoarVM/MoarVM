@@ -17,7 +17,9 @@ typedef enum {
     /* Invoked code object. */
     MVM_SPESH_LOG_INVOKE,
     /* OSR point. */
-    MVM_SPESH_LOG_OSR
+    MVM_SPESH_LOG_OSR,
+    /* Return from a callframe, possibly with a logged type. */
+    MVM_SPESH_LOG_RETURN
 } MVMSpeshLogEntryKind;
 
 /* Flags on types. */
@@ -45,7 +47,7 @@ struct MVMSpeshLogEntry {
             MVMuint16 arg_idx;
         } param;
 
-        /* Observed type (TYPE). */
+        /* Observed type (TYPE, RETURN). */
         struct {
             MVMObject *type;
             MVMint32 flags;

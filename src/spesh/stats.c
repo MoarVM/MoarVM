@@ -337,7 +337,8 @@ void sim_stack_pop(MVMThreadContext *tc, SimStack *sims) {
         for (i = 0; i < simf->offset_logs_used; i++) {
             MVMSpeshLogEntry *e = simf->offset_logs[i];
             switch (e->kind) {
-                case MVM_SPESH_LOG_TYPE: {
+                case MVM_SPESH_LOG_TYPE:
+                case MVM_SPESH_LOG_RETURN: {
                     MVMSpeshStatsByOffset *oss = by_offset(tc, tss,
                         e->type.bytecode_offset);
                     add_type_at_offset(tc, oss, simf->sf, e->type.type,
@@ -527,6 +528,29 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                 SimStackFrame *simf = sim_stack_find(tc, &sims, e->id);
                 if (simf)
                     add_static_value(tc, simf, e->value.bytecode_offset, e->value.value);
+                break;
+            }
+            case MVM_SPESH_LOG_RETURN: {
+                SimStackFrame *simf = sim_stack_find(tc, &sims, e->id);
+                if (simf) {
+                    MVMStaticFrame *called_sf = simf->sf;
+                    sim_stack_pop(tc, &sims);
+                    if (e->type.type && sims.used) {
+                        SimStackFrame *caller = &(sims.frames[sims.used - 1]);
+                        MVMObject *lic = caller->last_invoke_code;
+                        if (lic && IS_CONCRETE(lic) && REPR(lic)->ID == MVM_REPR_ID_MVMCode) {
+                            if (called_sf == ((MVMCode *)lic)->body.sf) {
+                                if (caller->offset_logs_used == caller->offset_logs_limit) {
+                                    caller->offset_logs_limit += 32;
+                                    caller->offset_logs = MVM_realloc(caller->offset_logs,
+                                        caller->offset_logs_limit * sizeof(MVMSpeshLogEntry *));
+                                }
+                                e->type.bytecode_offset = caller->last_invoke_offset;
+                                caller->offset_logs[caller->offset_logs_used++] = e;
+                            }
+                        }
+                    }
+                }
                 break;
             }
         }
