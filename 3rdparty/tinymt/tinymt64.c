@@ -36,7 +36,7 @@
 #define TINYMT64_SH1 11
 #define TINYMT64_SH8 8
 #define TINYMT64_MASK UINT64_C(0x7fffffffffffffff)
-#define TINYMT64_MUL (1.0 / 18446744073709551616.0)
+#define TINYMT64_MUL (1.0 / 9007199254740992.0)
 
 /*
  * tinymt64 default parameters
@@ -112,7 +112,7 @@ uint64_t tinymt64_generate_uint64(uint64_t * random) {
  */
 double tinymt64_generate_double(uint64_t * random) {
     tinymt64_next_state(random);
-    return uint64_temper(random) * TINYMT64_MUL;
+    return (uint64_temper(random) >> 11) * TINYMT64_MUL;
 }
 
 /**

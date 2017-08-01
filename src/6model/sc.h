@@ -17,10 +17,17 @@ void MVM_sc_set_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
 void MVM_sc_push_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMSTable *st);
 MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx);
 MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString *handle);
-MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, MVMint16 dep);
+MVMSerializationContext * MVM_sc_get_sc_slow(MVMThreadContext *tc, MVMCompUnit *cu, MVMint16 dep);
 MVMObject * MVM_sc_get_sc_object(MVMThreadContext *tc, MVMCompUnit *cu,
-                                 MVMint16 dep, MVMint64 idx);
+                                 MVMuint16 dep, MVMuint64 idx);
 void MVM_sc_disclaim(MVMThreadContext *tc, MVMSerializationContext *sc);
+
+MVM_STATIC_INLINE MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc,
+                                                          MVMCompUnit *cu, MVMint16 dep) {
+    MVMSerializationContext *sc = cu->body.scs[dep];
+    return sc ? sc : MVM_sc_get_sc_slow(tc, cu, dep);
+}
+
 MVM_STATIC_INLINE MVMuint32 MVM_sc_get_idx_of_sc(MVMCollectable *col) {
     assert(!(col->flags & MVM_CF_FORWARDER_VALID));
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
@@ -157,12 +164,7 @@ MVM_STATIC_INLINE void MVM_sc_push_object(MVMThreadContext *tc, MVMSerialization
 void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj);
 void MVM_sc_wb_hit_st(MVMThreadContext *tc, MVMSTable *st);
 
-MVM_STATIC_INLINE void MVM_SC_WB_OBJ(MVMThreadContext *tc, MVMObject *obj) {
-    assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
-    assert(MVM_sc_get_idx_of_sc(&obj->header) != ~0);
-    if (MVM_sc_get_idx_of_sc(&obj->header) > 0)
-        MVM_sc_wb_hit_obj(tc, obj);
-}
+void MVM_SC_WB_OBJ(MVMThreadContext *tc, MVMObject *obj);
 
 MVM_STATIC_INLINE void MVM_SC_WB_ST(MVMThreadContext *tc, MVMSTable *st) {
     assert(!(st->header.flags & MVM_CF_FORWARDER_VALID));

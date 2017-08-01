@@ -7,6 +7,12 @@
 
 static int crash_on_error = 0;
 
+/* Function for getting effective (specialized or not) frame handlers. */
+MVM_STATIC_INLINE MVMFrameHandler * MVM_frame_effective_handlers(MVMFrame *f) {
+    MVMSpeshCandidate *spesh_cand = f->spesh_cand;
+    return spesh_cand ? spesh_cand->handlers : f->static_info->body.handlers;
+}
+
 /* Maps ID of exception category to its name. */
 static const char * cat_name(MVMThreadContext *tc, MVMint32 cat) {
     switch (cat) {
@@ -92,7 +98,7 @@ static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
     MVMuint32  i;
     if (f->spesh_cand && f->spesh_cand->jitcode && f->jit_entry_label) {
         MVMJitHandler    *jhs = f->spesh_cand->jitcode->handlers;
-        MVMFrameHandler  *fhs = f->effective_handlers;
+        MVMFrameHandler  *fhs = MVM_frame_effective_handlers(f);
         MVMint32 num_handlers = f->spesh_cand->jitcode->num_handlers;
         void         **labels = f->spesh_cand->jitcode->labels;
         void       *cur_label = f->jit_entry_label;
@@ -117,9 +123,9 @@ static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
         if (f == tc->cur_frame)
             pc = (MVMuint32)(*tc->interp_cur_op - *tc->interp_bytecode_start);
         else
-            pc = (MVMuint32)(f->return_address - f->effective_bytecode);
+            pc = (MVMuint32)(f->return_address - MVM_frame_effective_bytecode(f));
         for (i = 0; i < num_handlers; i++) {
-            MVMFrameHandler  *fh = &f->effective_handlers[i];
+            MVMFrameHandler  *fh = &(MVM_frame_effective_handlers(f)[i]);
             if (mode == MVM_EX_THROW_LEX && fh->inlined_and_not_lexical)
                 continue;
             if (!handler_can_handle(f, fh, cat, payload))
@@ -244,11 +250,10 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
 
         /* Set up special return to unwinding after running the
          * handler. */
-        cur_frame->return_value        = (MVMRegister *)&tc->last_handler_result;
-        cur_frame->return_type         = MVM_RETURN_OBJ;
-        cur_frame->special_return      = unwind_after_handler;
-        cur_frame->special_unwind      = cleanup_active_handler;
-        cur_frame->special_return_data = ah;
+        cur_frame->return_value = (MVMRegister *)&tc->last_handler_result;
+        cur_frame->return_type = MVM_RETURN_OBJ;
+        MVM_frame_special_return(tc, cur_frame, unwind_after_handler, cleanup_active_handler,
+            ah, NULL);
 
         /* Invoke the handler frame and return to runloop. */
         STABLE(handler_code)->invoke(tc, handler_code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS),
@@ -313,14 +318,15 @@ static void cleanup_active_handler(MVMThreadContext *tc, void *sr_data) {
     MVM_free(ah);
 }
 
-char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, MVMuint16 not_top) {
+char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame,
+                                    MVMuint16 not_top, MVMuint8 *throw_address) {
     MVMString *filename = cur_frame->static_info->body.cu->body.filename;
     MVMString *name = cur_frame->static_info->body.name;
     /* XXX TODO: make the caller pass in a char ** and a length pointer so
      * we can update it if necessary, and the caller can cache it. */
     char *o = MVM_malloc(1024);
-    MVMuint8 *cur_op = not_top ? cur_frame->return_address : cur_frame->throw_address;
-    MVMuint32 offset = cur_op - cur_frame->effective_bytecode;
+    MVMuint8 *cur_op = not_top ? cur_frame->return_address : throw_address;
+    MVMuint32 offset = cur_op - MVM_frame_effective_bytecode(cur_frame);
     MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body,
                                         offset > 0 ? offset - 1 : 0);
 
@@ -364,11 +370,15 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
     MVMObject *arr = NULL, *annotations = NULL, *row = NULL, *value = NULL;
     MVMuint32 count = 0;
     MVMString *k_file = NULL, *k_line = NULL, *k_sub = NULL, *k_anno = NULL;
+    MVMuint8 *throw_address;
 
-    if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
+    if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException) {
         cur_frame = ((MVMException *)ex_obj)->body.origin;
-    else
+        throw_address = ((MVMException *)ex_obj)->body.throw_address;
+    }
+    else {
         MVM_exception_throw_adhoc(tc, "Op 'backtrace' needs an exception object");
+    }
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&arr);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&annotations);
@@ -388,8 +398,8 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
     arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
 
     while (cur_frame != NULL) {
-        MVMuint8             *cur_op = count ? cur_frame->return_address : cur_frame->throw_address;
-        MVMuint32             offset = cur_op - cur_frame->effective_bytecode;
+        MVMuint8             *cur_op = count ? cur_frame->return_address : throw_address;
+        MVMuint32             offset = cur_op - MVM_frame_effective_bytecode(cur_frame);
         MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body,
                                             offset > 0 ? offset - 1 : 0);
         MVMint32              fshi   = annot ? (MVMint32)annot->filename_string_heap_index : -1;
@@ -451,7 +461,8 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
     MVMROOT(tc, cur_frame, {
         MVMuint32 count = 0;
         while (cur_frame != NULL) {
-            char      *line     = MVM_exception_backtrace_line(tc, cur_frame, count++);
+            char *line = MVM_exception_backtrace_line(tc, cur_frame, count++,
+                ex->body.throw_address);
             MVMString *line_str = MVM_string_utf8_decode(tc, tc->instance->VMString, line, strlen(line));
             MVMObject *line_obj = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, line_str);
             MVM_repr_push_o(tc, arr, line_obj);
@@ -470,7 +481,8 @@ void MVM_dump_backtrace(MVMThreadContext *tc) {
     MVMuint32 count = 0;
     MVMROOT(tc, cur_frame, {
         while (cur_frame != NULL) {
-            char *line = MVM_exception_backtrace_line(tc, cur_frame, count++);
+            char *line = MVM_exception_backtrace_line(tc, cur_frame, count++,
+                *(tc->interp_cur_op));
             fprintf(stderr, "%s\n", line);
             MVM_free(line);
             cur_frame = cur_frame->caller;
@@ -604,7 +616,7 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
 
     if (!ex->body.origin) {
         MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.origin, tc->cur_frame);
-        tc->cur_frame->throw_address = *(tc->interp_cur_op);
+        ex->body.throw_address = *(tc->interp_cur_op);
     }
 
     run_handler(tc, lh, ex_obj, 0, NULL);
@@ -640,7 +652,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     target = ex->body.origin;
     if (!target)
         MVM_exception_throw_adhoc(tc, "This exception is not resumable");
-    if (target->special_return != unwind_after_handler)
+    if (!target->extra || target->extra->special_return != unwind_after_handler)
         MVM_exception_throw_adhoc(tc, "This exception is not resumable");
     if (!in_caller_chain(tc, target))
         MVM_exception_throw_adhoc(tc, "Too late to resume this exception");
@@ -652,8 +664,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
         MVM_exception_throw_adhoc(tc, "Can only resume the current exception");
 
     /* Clear special return handler; we'll do its work here. */
-    target->special_return = NULL;
-    target->special_unwind = NULL;
+    MVM_frame_clear_special_return(tc, target);
 
     /* Clear the current active handler. */
     ah = tc->active_handlers;
@@ -663,112 +674,6 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     /* Unwind to the thrower of the exception; set PC and jit entry label. */
     target->jit_entry_label = ex->body.jit_resume_label;
     MVM_frame_unwind_to(tc, target, ex->body.resume_addr, 0, NULL);
-}
-
-static MVMObject* get_lexotic_for_handler_idx(MVMThreadContext *tc, MVMint32 handler_idx) {
-    MVMLexotic *lexotic;
-    MVMStaticFrame  *sf = tc->cur_frame->static_info;
-    /* See if we've got this lexotic cached; return it if so. */
-    if (sf->body.pool_index < tc->lexotic_cache_size) {
-        lexotic = tc->lexotic_cache[sf->body.pool_index];
-        if (lexotic && lexotic->body.handler_idx == handler_idx)
-            return (MVMObject *)lexotic;
-    }
-
-    /* Allocate lexotic object, set it up, and cache it. */
-    MVMROOT(tc, sf, {
-        lexotic = (MVMLexotic *)MVM_repr_alloc_init(tc, tc->instance->Lexotic);
-    });
-    lexotic->body.handler_idx = handler_idx;
-    MVM_ASSIGN_REF(tc, &(lexotic->common.header), lexotic->body.sf, sf);
-    if (sf->body.pool_index >= tc->lexotic_cache_size) {
-        MVMuint32 orig_size = tc->lexotic_cache_size;
-        tc->lexotic_cache_size = sf->body.pool_index + 1;
-        tc->lexotic_cache = orig_size
-            ? MVM_realloc(tc->lexotic_cache, tc->lexotic_cache_size * sizeof(MVMLexotic *))
-            : MVM_malloc(tc->lexotic_cache_size * sizeof(MVMLexotic *));
-        memset(tc->lexotic_cache + orig_size, 0,
-            (tc->lexotic_cache_size - orig_size) * sizeof(MVMLexotic *));
-    }
-    if (!tc->lexotic_cache[sf->body.pool_index])
-        tc->lexotic_cache[sf->body.pool_index] = lexotic;
-
-    return (MVMObject *)lexotic;
-}
-
-/* Creates a new lexotic. */
-MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset) {
-    /* Locate handler associated with the specified label. */
-    MVMFrame       *f     = tc->cur_frame;
-    MVMStaticFrame *sf    = f->static_info;
-    MVMint32 handler_idx  = -1;
-    MVMint32 num_handlers = f->spesh_cand
-        ? f->spesh_cand->num_handlers
-        : sf->body.num_handlers;
-    MVMuint32 i;
-    for (i = 0; i < num_handlers; i++) {
-        if (f->effective_handlers[i].action == MVM_EX_ACTION_GOTO &&
-                f->effective_handlers[i].goto_offset == offset) {
-            handler_idx = i;
-            break;
-        }
-    }
-    if (handler_idx < 0)
-        MVM_exception_throw_adhoc(tc, "Label with no handler passed to newlexotic");
-    return get_lexotic_for_handler_idx(tc, handler_idx);
-}
-
-/* Creates a new lexotic from the JIT. The JIT doesn't have access to
- * the offset, so we can't find it from within there. */
-MVMObject * MVM_exception_newlexotic_from_jit(MVMThreadContext *tc, MVMint32 label) {
-    /* Locate handler associated with the specified label. */
-    MVMFrame       *f       = tc->cur_frame;
-    MVMint32 handler_idx    = -1;
-    MVMint32 num_handlers   = f->spesh_cand->jitcode->num_handlers;
-    MVMJitHandler *handlers = f->spesh_cand->jitcode->handlers;
-    MVMuint32 i;
-    for (i = 0; i < num_handlers; i++) {
-        if (f->effective_handlers[i].action == MVM_EX_ACTION_GOTO &&
-            handlers[i].goto_label == label) {
-            handler_idx = i;
-            break;
-        }
-    }
-    if (handler_idx < 0)
-        MVM_exception_throw_adhoc(tc, "Label with no handler passed to newlexotic");
-    return get_lexotic_for_handler_idx(tc, handler_idx);
-}
-
-
-/* Unwinds to a lexotic captured handler. */
-void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMint32 handler_idx, MVMStaticFrame *sf) {
-    MVMFrame *f, *search;
-    f = NULL;
-    search = tc->cur_frame;
-    while (search) {
-        f = search;
-        while (f) {
-            if (f->static_info == sf)
-                break;
-            f = f->outer;
-        }
-        if (f)
-            break;
-        search = search->caller;
-    }
-    if (f && in_caller_chain(tc, f)) {
-        LocatedHandler lh;
-        lh.frame = f;
-        lh.handler = &(f->effective_handlers[handler_idx]);
-        if (f->spesh_cand && f->spesh_cand->jitcode)
-            lh.jit_handler = &(f->spesh_cand->jitcode->handlers[handler_idx]);
-        else
-            lh.jit_handler = NULL;
-        run_handler(tc, lh, NULL, MVM_EX_CAT_RETURN, NULL);
-    }
-    else {
-        MVM_exception_throw_adhoc(tc, "Too late to invoke lexotic return");
-    }
 }
 
 /* Panics and shuts down the VM. Don't do this unless it's something quite
@@ -866,7 +771,7 @@ void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const
         MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.message, message);
         if (tc->cur_frame) {
             ex->body.origin = tc->cur_frame;
-            tc->cur_frame->throw_address = *(tc->interp_cur_op);
+            ex->body.throw_address = *(tc->interp_cur_op);
         }
         else {
             ex->body.origin = NULL;

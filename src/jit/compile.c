@@ -68,7 +68,14 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     memory = MVM_platform_alloc_pages(codesize, MVM_PAGE_READ|MVM_PAGE_WRITE);
     dasm_encode(&state, memory);
     /* set memory readable + executable */
-    MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC);
+    if (!MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC)) {
+        MVM_jit_log(tc, "Setting jit page executable failed or was denied. deactivating jit.\n");
+
+        dasm_free(&state);
+        MVM_free(dasm_globals);
+        tc->instance->jit_enabled = 0;
+        return NULL;
+    }
 
 
     MVM_jit_log(tc, "Bytecode size: %"MVM_PRSz"\n", codesize);

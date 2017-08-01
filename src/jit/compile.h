@@ -33,3 +33,11 @@ MVMint32 MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
 
 #define MVM_JIT_CTRL_DEOPT -1
 #define MVM_JIT_CTRL_NORMAL 0
+
+/* Function for getting effective (JIT/specialized/original) bytecode. */
+MVM_STATIC_INLINE MVMuint8 * MVM_frame_effective_bytecode(MVMFrame *f) {
+    MVMSpeshCandidate *spesh_cand = f->spesh_cand;
+    if (spesh_cand)
+        return spesh_cand->jitcode ? spesh_cand->jitcode->bytecode : spesh_cand->bytecode;
+    return f->static_info->body.bytecode;
+}

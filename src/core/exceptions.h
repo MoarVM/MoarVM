@@ -84,9 +84,6 @@ void MVM_exception_die(MVMThreadContext *tc, MVMString *str, MVMRegister *rr);
 void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *exObj, MVMRegister *resume_result);
 void MVM_exception_throwpayload(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, MVMObject *payload, MVMRegister *resume_result);
 void MVM_exception_resume(MVMThreadContext *tc, MVMObject *exObj);
-MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset);
-MVMObject * MVM_exception_newlexotic_from_jit(MVMThreadContext *tc, MVMint32 label);
-void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMint32 handler_idx, MVMStaticFrame *sf);
 MVM_PUBLIC MVM_NO_RETURN void MVM_panic_allocation_failed(size_t len) MVM_NO_RETURN_GCC;
 MVM_PUBLIC MVM_NO_RETURN void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) MVM_NO_RETURN_GCC MVM_FORMAT(printf, 2, 3);
 MVM_PUBLIC MVM_NO_RETURN void MVM_oops(MVMThreadContext *tc, const char *messageFormat, ...) MVM_NO_RETURN_GCC MVM_FORMAT(printf, 2, 3);
@@ -95,8 +92,7 @@ MVM_NO_RETURN void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char
 MVM_PUBLIC MVM_NO_RETURN void MVM_exception_throw_adhoc_free(MVMThreadContext *tc, char **waste, const char *messageFormat, ...) MVM_NO_RETURN_GCC MVM_FORMAT(printf, 3, 4);
 MVM_NO_RETURN void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const char *messageFormat, va_list args) MVM_NO_RETURN_GCC;
 MVM_PUBLIC void MVM_crash_on_error(void);
-char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, MVMuint16 not_top);
-
+char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, MVMuint16 not_top, MVMuint8 *throw_address);
 
 /* Exit codes for panic. */
 #define MVM_exitcode_NYI            12

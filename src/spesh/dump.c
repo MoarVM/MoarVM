@@ -146,6 +146,10 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                     MVM_free(cstr);
                     break;
                 }
+                case MVM_SPESH_ANN_LOGGED:
+                    appendf(ds, "      [Annotation: Logged (bytecode offset %d]\n",
+                        ann->data.bytecode_offset);
+                    break;
                 default:
                     appendf(ds, "      [Annotation: %d (unknown)]\n", ann->type);
             }
@@ -396,90 +400,20 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
     }
 }
 
-/* Dumps a table of all logged values */
-static void dump_log_values(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
-    MVMint16 log_index;
-    MVMint16 seen_table_size =  g->num_log_slots * MVM_SPESH_LOG_RUNS;
-    size_t   ds_pos_before = tell_ds(ds);
-    MVMint16 interesting = 0;
-
-    MVMCollectable **seen_table = alloca(sizeof(MVMCollectable *) *seen_table_size);
-    memset(seen_table, 0, sizeof(MVMCollectable *) * seen_table_size);
-
-    append(ds, "Logged values:\n");
-
-    for (log_index = 0; log_index < g->num_log_slots; log_index++) {
-        MVMint16 run_index;
-
-        appendf(ds, "    % 3d ", log_index);
-
-        for (run_index = 0; run_index < MVM_SPESH_LOG_RUNS; run_index++) {
-            MVMuint16       log_slot = log_index * MVM_SPESH_LOG_RUNS + run_index;
-            MVMCollectable *log_obj  = g->log_slots[log_slot];
-            MVMint16        log_obj_idx;
-
-            if (log_obj) {
-                for (log_obj_idx = 0; log_obj_idx < seen_table_size; log_obj_idx++) {
-                    if (seen_table[log_obj_idx] == log_obj) {
-                        break;
-                    } else if (seen_table[log_obj_idx] == 0) {
-                        seen_table[log_obj_idx] = log_obj;
-                        break;
-                    }
-                }
-
-                appendf(ds, "% 4d  ", log_obj_idx + 1);
-                interesting = 1;
-            } else {
-                appendf(ds, "%4s  ", "_");
-            }
-
-        }
-
-        append(ds, "\n");
-    }
-    append(ds, "\n");
-
-    for (log_index = 0; log_index < seen_table_size && seen_table[log_index]; log_index++) {
-        appendf(ds, "    %d: %p", log_index + 1, seen_table[log_index]);
-        if (STABLE(seen_table[log_index])->REPR->ID == MVM_REPR_ID_P6int) {
-            if (IS_CONCRETE(seen_table[log_index]))
-                appendf(ds, " P6int(%"PRId64")", MVM_repr_get_int(tc, (MVMObject*)seen_table[log_index]));
-            else
-                append(ds, " P6int(type object)");
-        } else {
-            append(ds, " ");
-            append(ds, (char *)STABLE(seen_table[log_index])->REPR->name);
-            if (!IS_CONCRETE(seen_table[log_index]))
-                append(ds, "(type object)");
-            if (STABLE(seen_table[log_index])->debug_name) {
-                appendf(ds, " debugname: %s", STABLE(seen_table[log_index])->debug_name);
-            }
-        }
-        append(ds, "\n");
-    }
-
-    append(ds, "\n");
-
-    if (!interesting) {
-        rewind_ds(ds, ds_pos_before);
-    }
-}
-
-static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
+static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMCallsite *cs) {
     MVMuint16 i;
-    appendf(ds, "Callsite %p (%d args, %d pos)\n", g->cs, g->cs->arg_count, g->cs->num_pos);
-    for (i = 0; i < (g->cs->arg_count - g->cs->num_pos) / 2; i++) {
-        if (g->cs->arg_names[i]) {
-            char * argname_utf8 = MVM_string_utf8_encode_C_string(tc, g->cs->arg_names[i]);
+    appendf(ds, "Callsite %p (%d args, %d pos)\n", cs, cs->arg_count, cs->num_pos);
+    for (i = 0; i < (cs->arg_count - cs->num_pos) / 2; i++) {
+        if (cs->arg_names[i]) {
+            char * argname_utf8 = MVM_string_utf8_encode_C_string(tc, cs->arg_names[i]);
             appendf(ds, "  - %s\n", argname_utf8);
             MVM_free(argname_utf8);
         }
     }
-    if (g->cs->num_pos)
+    if (cs->num_pos)
         append(ds, "Positional flags: ");
-    for (i = 0; i < g->cs->num_pos; i++) {
-        MVMCallsiteEntry arg_flag = g->cs->arg_flags[i];
+    for (i = 0; i < cs->num_pos; i++) {
+        MVMCallsiteEntry arg_flag = cs->arg_flags[i];
 
         if (i)
             append(ds, ", ");
@@ -494,56 +428,14 @@ static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
             append(ds, "str");
         }
     }
-    if (g->cs->num_pos)
+    if (cs->num_pos)
         append(ds, "\n");
     append(ds, "\n");
 }
 
-static void dump_arg_guards(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
-    MVMuint16 i;
-    appendf(ds, "%d argument guards\n", g->num_arg_guards);
-
-    for (i = 0; i < g->num_arg_guards; i++) {
-        MVMSpeshGuard *guard = &g->arg_guards[i];
-        switch (guard->kind) {
-        case MVM_SPESH_GUARD_CONC:
-            appendf(ds, "  concrete(%d)\n", guard->slot);
-            break;
-        case MVM_SPESH_GUARD_TYPE:
-            appendf(ds, "  type(%d, %p)", guard->slot, guard->match);
-            if (((MVMSTable*)(guard->match))->debug_name) {
-                appendf(ds, " debugname: %s", ((MVMSTable*)(guard->match))->debug_name);
-            }
-            append(ds, "\n");
-            break;
-        case MVM_SPESH_GUARD_DC_CONC:
-            appendf(ds, "  deconted_concrete(%d)\n", guard->slot);
-            break;
-        case MVM_SPESH_GUARD_DC_TYPE:
-            appendf(ds, "  deconted_type(%d, %p)", guard->slot, guard->match);
-            if (((MVMSTable*)(guard->match))->debug_name) {
-                appendf(ds, " debugname: %s", ((MVMSTable*)(guard->match))->debug_name);
-            }
-            append(ds, "\n");
-            break;
-        case MVM_SPESH_GUARD_DC_CONC_RW:
-            appendf(ds, "  deconted_concrete_rw(%d)\n", guard->slot);
-            break;
-        case MVM_SPESH_GUARD_DC_TYPE_RW:
-            appendf(ds, "  deconted_type_rw(%d, %p)", guard->slot, guard->match);
-            if (((MVMSTable*)(guard->match))->debug_name) {
-                appendf(ds, " debugname: %s", ((MVMSTable*)(guard->match))->debug_name);
-            }
-            append(ds, "\n");
-            break;
-        }
-    }
-    append(ds, "\n");
-}
-
-static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
-    MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &g->sf->body, 0);
-    MVMCompUnit            *cu = g->sf->body.cu;
+static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMStaticFrame *sf) {
+    MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &sf->body, 0);
+    MVMCompUnit            *cu = sf->body.cu;
     MVMint32           str_idx = ann ? ann->filename_string_heap_index : 0;
     MVMint32           line_nr = ann ? ann->line_number : 1;
     MVMString        *filename = cu->body.filename;
@@ -575,13 +467,11 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     append(&ds, "' (cuid: ");
     append_str(tc, &ds, g->sf->body.cuuid);
     append(&ds, ", file: ");
-    dump_fileinfo(tc, &ds, g);
+    dump_fileinfo(tc, &ds, g->sf);
     append(&ds, ")\n");
     if (g->cs)
-        dump_callsite(tc, &ds, g);
-    if (g->num_arg_guards)
-        dump_arg_guards(tc, &ds, g);
-    if (!g->cs && !g->num_arg_guards)
+        dump_callsite(tc, &ds, g->cs);
+    if (!g->cs)
         append(&ds, "\n");
 
     /* Go over all the basic blocks and dump them. */
@@ -595,14 +485,283 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     append(&ds, "\nFacts:\n");
     dump_facts(tc, &ds, g);
 
-    if (g->num_spesh_slots || g->num_log_slots) {
-        append(&ds, "\nStats:\n");
-        appendf(&ds, "    %d spesh slots\n", g->num_spesh_slots);
-        appendf(&ds, "    %d log slots\n", g->num_log_slots);
+    /* Dump spesh slots. */
+    if (g->num_spesh_slots) {
+        MVMuint32 i;
+        append(&ds, "\nSpesh slots:\n");
+        for (i = 0; i < g->num_spesh_slots; i++) {
+            MVMCollectable *value = g->spesh_slots[i];
+            if (value == NULL)
+                appendf(&ds, "    %d = NULL\n", i);
+            else if (value->flags & MVM_CF_STABLE)
+                appendf(&ds, "    %d = STable (%s)\n", i,
+                    ((MVMSTable *)value)->debug_name);
+            else if (value->flags & MVM_CF_TYPE_OBJECT)
+                appendf(&ds, "    %d = Type Object (%s)\n", i,
+                    ((MVMObject *)value)->st->debug_name);
+            else
+                appendf(&ds, "    %d = Instance (%s)\n", i,
+                    ((MVMObject *)value)->st->debug_name);
+        }
     }
 
-    if (g->num_log_slots) {
-        dump_log_values(tc, &ds, g);
+    append(&ds, "\n");
+    append_null(&ds);
+    return ds.buffer;
+}
+
+/* Dumps a spesh stats type typle. */
+void dump_stats_type_tuple(MVMThreadContext *tc, DumpStr *ds, MVMCallsite *cs,
+                           MVMSpeshStatsType *type_tuple, char *prefix) {
+    MVMuint32 j;
+    for (j = 0; j < cs->flag_count; j++) {
+        MVMObject *type = type_tuple[j].type;
+        if (type) {
+            MVMObject *decont_type = type_tuple[j].decont_type;
+            appendf(ds, "%sType %d: %s (%s)",
+                prefix, j, type->st->debug_name,
+                (type_tuple[j].type_concrete ? "Conc" : "TypeObj"));
+            if (decont_type)
+                appendf(ds, " of %s (%s)",
+                    decont_type->st->debug_name,
+                    (type_tuple[j].decont_type_concrete ? "Conc" : "TypeObj"));
+            append(ds, "\n");
+        }
+    }
+}
+
+/* Dumps the statistics associated with a particular callsite object. */
+void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCallsite *css) {
+    MVMuint32 i, j, k;
+
+    if (css->cs)
+        dump_callsite(tc, ds, css->cs);
+    else
+        append(ds, "No interned callsite\n");
+    appendf(ds, "    Callsite hits: %d\n\n", css->hits);
+    if (css->osr_hits)
+        appendf(ds, "    OSR hits: %d\n\n", css->osr_hits);
+    appendf(ds, "    Maximum stack depth: %d\n\n", css->max_depth);
+
+    for (i = 0; i < css->num_by_type; i++) {
+        MVMSpeshStatsByType *tss = &(css->by_type[i]);
+        appendf(ds, "    Type tuple %d\n", i);
+        dump_stats_type_tuple(tc, ds, css->cs, tss->arg_types, "        ");
+        appendf(ds, "        Hits: %d\n", tss->hits);
+        if (tss->osr_hits)
+            appendf(ds, "        OSR hits: %d\n", tss->osr_hits);
+        appendf(ds, "        Maximum stack depth: %d\n", tss->max_depth);
+        if (tss->num_by_offset) {
+            append(ds, "        Logged at offset:\n");
+            for (j = 0; j < tss->num_by_offset; j++) {
+                MVMSpeshStatsByOffset *oss = &(tss->by_offset[j]);
+                appendf(ds, "            %d:\n", oss->bytecode_offset);
+                for (k = 0; k < oss->num_types; k++)
+                    appendf(ds, "                %d x type %s (%s)\n",
+                        oss->types[k].count,
+                        oss->types[k].type->st->debug_name,
+                        (oss->types[k].type_concrete ? "Conc" : "TypeObj"));
+                for (k = 0; k < oss->num_values; k++)
+                    appendf(ds, "                %d x value at %p of type %s\n",
+                        oss->values[k].count,
+                        oss->values[k].value,
+                        oss->values[k].value->st->debug_name);
+                for (k = 0; k < oss->num_type_tuples; k++) {
+                    appendf(ds, "                %d x type tuple:\n",
+                        oss->type_tuples[k].count);
+                    dump_stats_type_tuple(tc, ds, oss->type_tuples[k].cs,
+                        oss->type_tuples[k].arg_types,
+                        "                    ");
+                }
+            }
+        }
+        append(ds, "\n");
+    }
+} 
+
+/* Dumps the statistics associated with a static frame into a string. */
+char * MVM_spesh_dump_stats(MVMThreadContext *tc, MVMStaticFrame *sf) {
+    MVMSpeshStats *ss = sf->body.spesh->body.spesh_stats;
+
+    DumpStr ds;
+    ds.alloc  = 8192;
+    ds.buffer = MVM_malloc(ds.alloc);
+    ds.pos    = 0;
+
+    /* Dump name and CUID. */
+    append(&ds, "Latest statistics for '");
+    append_str(tc, &ds, sf->body.name);
+    append(&ds, "' (cuid: ");
+    append_str(tc, &ds, sf->body.cuuid);
+    append(&ds, ", file: ");
+    dump_fileinfo(tc, &ds, sf);
+    append(&ds, ")\n\n");
+
+    /* Dump the spesh stats if present. */
+    if (ss) {
+        MVMuint32 i;
+
+        appendf(&ds, "Total hits: %d\n", ss->hits);
+        if (ss->osr_hits)
+            appendf(&ds, "OSR hits: %d\n", ss->osr_hits);
+        append(&ds, "\n");
+
+        for (i = 0; i < ss->num_by_callsite; i++)
+            dump_stats_by_callsite(tc, &ds, &(ss->by_callsite[i]));
+
+        if (ss->num_static_values) {
+            append(&ds, "Static values:\n");
+            for (i = 0; i < ss->num_static_values; i++)
+                appendf(&ds, "    - %s (%p) @ %d\n",
+                    ss->static_values[i].value->st->debug_name,
+                    ss->static_values[i].value,
+                    ss->static_values[i].bytecode_offset);
+        }
+    }
+    else {
+        append(&ds, "No spesh stats for this static frame\n");
+    }
+
+    append(&ds, "\n");
+    append_null(&ds);
+    return ds.buffer;
+}
+
+/* Dumps a planned specialization into a string. */
+char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
+    DumpStr ds;
+    ds.alloc  = 8192;
+    ds.buffer = MVM_malloc(ds.alloc);
+    ds.pos    = 0;
+
+    /* Dump kind of specialization and target. */
+    switch (p->kind) {
+        case MVM_SPESH_PLANNED_CERTAIN:
+            append(&ds, "Certain");
+            break;
+        case MVM_SPESH_PLANNED_OBSERVED_TYPES:
+            append(&ds, "Observed type");
+            break;
+        case MVM_SPESH_PLANNED_DERIVED_TYPES:
+            append(&ds, "Derived type");
+            break;
+    }
+    append(&ds, " specialization of '");
+    append_str(tc, &ds, p->sf->body.name);
+    append(&ds, "' (cuid: ");
+    append_str(tc, &ds, p->sf->body.cuuid);
+    append(&ds, ", file: ");
+    dump_fileinfo(tc, &ds, p->sf);
+    append(&ds, ")\n\n");
+
+    /* Dump the callsite of the specialization. */
+    if (p->cs_stats->cs) {
+        append(&ds, "The specialization is for the callsite:\n");
+        dump_callsite(tc, &ds, p->cs_stats->cs);
+    }
+    else {
+        append(&ds, "The specialization is for when there is no interned callsite.\n");
+    }
+
+    /* Dump reasoning. */
+    switch (p->kind) {
+        case MVM_SPESH_PLANNED_CERTAIN:
+            if (p->cs_stats->hits >= MVM_spesh_threshold(tc, p->sf))
+                appendf(&ds,
+                    "It was planned due to the callsite receiving %u hits.\n",
+                    p->cs_stats->hits);
+            else if (p->cs_stats->osr_hits >= MVM_SPESH_PLAN_CS_MIN_OSR)
+                appendf(&ds,
+                    "It was planned due to the callsite receiving %u OSR hits.\n",
+                    p->cs_stats->osr_hits);
+            else
+                append(&ds, "It was planned for unknown reasons.\n");
+            break;
+        case MVM_SPESH_PLANNED_OBSERVED_TYPES: {
+            MVMCallsite *cs = p->cs_stats->cs;
+            MVMuint32 hit_percent = p->cs_stats->hits
+               ? (100 * p->type_stats[0]->hits) / p->cs_stats->hits
+               : 0;
+            MVMuint32 osr_hit_percent = p->cs_stats->osr_hits
+               ? (100 * p->type_stats[0]->osr_hits) / p->cs_stats->osr_hits
+               : 0;
+            append(&ds, "It was planned for the type tuple:\n");
+            dump_stats_type_tuple(tc, &ds, cs, p->type_tuple, "    ");
+            if (osr_hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT_OSR)
+                appendf(&ds, "Which received %u OSR hits (%u%% of the %u callsite OSR hits).\n",
+                    p->type_stats[0]->osr_hits, osr_hit_percent, p->cs_stats->osr_hits);
+            else if (hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT)
+                appendf(&ds, "Which received %u hits (%u%% of the %u callsite hits).\n",
+                    p->type_stats[0]->hits, hit_percent, p->cs_stats->hits);
+            else
+                append(&ds, "For unknown reasons.\n");
+            break;
+        }
+        case MVM_SPESH_PLANNED_DERIVED_TYPES:
+            break;
+    }
+
+    appendf(&ds, "\nThe maximum stack depth is %d.\n\n", p->max_depth);
+    append_null(&ds);
+    return ds.buffer;
+}
+
+/* Dumps a static frame's guard set into a string. */
+char * MVM_spesh_dump_arg_guard(MVMThreadContext *tc, MVMStaticFrame *sf) {
+    MVMSpeshArgGuard *ag = sf->body.spesh->body.spesh_arg_guard;
+
+    DumpStr ds;
+    ds.alloc  = 8192;
+    ds.buffer = MVM_malloc(ds.alloc);
+    ds.pos    = 0;
+
+    /* Dump name and CUID. */
+    append(&ds, "Latest guard tree for '");
+    append_str(tc, &ds, sf->body.name);
+    append(&ds, "' (cuid: ");
+    append_str(tc, &ds, sf->body.cuuid);
+    append(&ds, ", file: ");
+    dump_fileinfo(tc, &ds, sf);
+    append(&ds, ")\n\n");
+
+    /* Dump nodes. */
+    if (ag) {
+        MVMuint32 i = 0;
+        for (i = 0; i < ag->used_nodes; i++) {
+            MVMSpeshArgGuardNode *agn = &(ag->nodes[i]);
+            switch (agn->op) {
+                case MVM_SPESH_GUARD_OP_CALLSITE:
+                    appendf(&ds, "%u: CALLSITE %p | Y: %u, N: %u\n",
+                        i, agn->cs, agn->yes, agn->no);
+                    break;
+                case MVM_SPESH_GUARD_OP_LOAD_ARG:
+                    appendf(&ds, "%u: LOAD ARG %d | Y: %u\n",
+                        i, agn->arg_index, agn->yes);
+                    break;
+                case MVM_SPESH_GUARD_OP_STABLE_CONC:
+                    appendf(&ds, "%u: STABLE CONC %s | Y: %u, N: %u\n",
+                        i, agn->st->debug_name, agn->yes, agn->no);
+                    break;
+                case MVM_SPESH_GUARD_OP_STABLE_TYPE:
+                    appendf(&ds, "%u: STABLE CONC %s | Y: %u, N: %u\n",
+                        i, agn->st->debug_name, agn->yes, agn->no);
+                    break;
+                case MVM_SPESH_GUARD_OP_DEREF_VALUE:
+                    appendf(&ds, "%u: DEREF_VALUE %u | Y: %u, N: %u\n",
+                        i, agn->offset, agn->yes, agn->no);
+                    break;
+                case MVM_SPESH_GUARD_OP_DEREF_RW:
+                    appendf(&ds, "%u: DEREF_RW %u | Y: %u, N: %u\n",
+                        i, agn->offset, agn->yes, agn->no);
+                    break;
+                case MVM_SPESH_GUARD_OP_RESULT:
+                    appendf(&ds, "%u: RESULT %u\n", i, agn->result);
+                    break;
+            }
+        }
+    }
+    else {
+        append(&ds, "No argument guard nodes\n");
     }
 
     append(&ds, "\n");

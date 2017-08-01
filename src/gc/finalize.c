@@ -48,13 +48,14 @@ static void finalize_handler_caller(MVMThreadContext *tc, void *sr_data) {
 static void setup_finalize_handler_call(MVMThreadContext *tc) {
     MVMFrame *install_on = tc->cur_frame;
     while (install_on) {
-        if (!install_on->special_return)
+        if (!install_on->extra || !install_on->extra->special_return)
             if (install_on->static_info->body.cu->body.hll_config)
                 break;
         install_on = install_on->caller;
     }
     if (install_on)
-        install_on->special_return = finalize_handler_caller;
+        MVM_frame_special_return(tc, install_on, finalize_handler_caller, NULL,
+            NULL, NULL);
 }
 
 /* Walks through the per-thread finalize queues, identifying objects that

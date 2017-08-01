@@ -74,12 +74,13 @@ USAGE: moar [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [program args]
 The following environment variables are respected:\n\
 \n\
     MVM_SPESH_DISABLE           Disables all dynamic optimization\n\
-    MVM_SPESH_NODELAY           Run dynamic optimization even for cold frames\n\
     MVM_SPESH_INLINE_DISABLE    Disables inlining\n\
     MVM_SPESH_OSR_DISABLE       Disables on-stack replacement\n\
+    MVM_SPESH_BLOCKING          Blocks log-sending thread while specializer runs\n\
+    MVM_SPESH_LOG               Specifies a dynamic optimizer log file\n\
+    MVM_SPESH_NODELAY           Run dynamic optimization even for cold frames\n\
     MVM_SPESH_LIMIT             Limit the maximum number of specializations\n\
     MVM_JIT_DISABLE             Disables JITting to machine code\n\
-    MVM_SPESH_LOG               Specifies a dynamic optimizer log file\n\
     MVM_JIT_LOG                 Specifies a JIT-compiler log file\n\
     MVM_JIT_BYTECODE_DIR        Specifies a directory for JIT bytecode dumps\n\
     MVM_CROSS_THREAD_WRITE_LOG  Log unprotected cross-thread object writes to stderr\n\
@@ -140,6 +141,7 @@ int wmain(int argc, wchar_t *wargv[])
     int flag;
 
     unsigned int interval_id;
+    char telemeh_inited = 0;
 
     for (; (flag = parse_flag(argv[argi])) != NOT_A_FLAG; ++argi) {
         switch (flag) {
@@ -207,6 +209,7 @@ int wmain(int argc, wchar_t *wargv[])
 #ifdef HAVE_TELEMEH
     if (getenv("MVM_TELEMETRY_LOG")) {
         char path[256];
+        FILE *fp;
         snprintf(path, 255, "%s.%d", getenv("MVM_TELEMETRY_LOG"),
 #ifdef _WIN32
              _getpid()
@@ -214,8 +217,12 @@ int wmain(int argc, wchar_t *wargv[])
              getpid()
 #endif
              );
-        MVM_telemetry_init(fopen(path, "w"));
-        interval_id = MVM_telemetry_interval_start(0, "moarvm startup");
+        fp = fopen(path, "w");
+        if (fp) {
+            MVM_telemetry_init(fp);
+            telemeh_inited = 1;
+            interval_id = MVM_telemetry_interval_start(0, "moarvm startup");
+        }
     }
 #endif
 
@@ -245,7 +252,7 @@ int wmain(int argc, wchar_t *wargv[])
     if (dump) MVM_vm_dump_file(instance, input_file);
     else MVM_vm_run_file(instance, input_file);
 
-    if (getenv("MVM_TELEMETRY_LOG")) {
+    if (getenv("MVM_TELEMETRY_LOG") && telemeh_inited) {
         MVM_telemetry_interval_stop(0, interval_id, "moarvm teardown");
         MVM_telemetry_finish();
     }

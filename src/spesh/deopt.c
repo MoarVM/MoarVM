@@ -9,8 +9,11 @@
 /* Uninlining can invalidate what the dynlex cache points to, so we'll
  * clear it in various caches. */
 MVM_STATIC_INLINE void clear_dynlex_cache(MVMThreadContext *tc, MVMFrame *f) {
-    f->dynlex_cache_name = NULL;
-    f->dynlex_cache_reg = NULL;
+    MVMFrameExtra *e = f->extra;
+    if (e) {
+        e->dynlex_cache_name = NULL;
+        e->dynlex_cache_reg = NULL;
+    }
 }
 
 /* If we have to deopt inside of a frame containing inlines, and we're in
@@ -58,13 +61,11 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
             if (last_uninlined) {
                 /* Yes; multi-level un-inline. Switch it back to deopt'd
                  * code. */
-                uf->effective_bytecode    = uf->static_info->body.bytecode;
-                uf->effective_handlers    = uf->static_info->body.handlers;
                 uf->effective_spesh_slots = NULL;
                 uf->spesh_cand            = NULL;
 
                 /* Set up the return location. */
-                uf->return_address = uf->static_info->body.bytecode +
+                uf->return_address = usf->body.bytecode +
                     cand->deopts[2 * last_return_deopt_idx];
 
                 /* Set result type and register. */
@@ -86,7 +87,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                     MVM_ASSIGN_REF(tc, &(callee->header), callee->caller, uf);
 
                     /* Copy over the return location. */
-                    uf->return_address = uf->effective_bytecode + deopt_offset;
+                    uf->return_address = usf->body.bytecode + deopt_offset;
 
                     /* Set result type and register. */
                     uf->return_type = f->return_type;
@@ -104,8 +105,8 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                      * the interpreter. */
                     tc->cur_frame                = uf;
                     tc->current_frame_nr         = uf->sequence_nr;
-                    *(tc->interp_cur_op)         = uf->effective_bytecode + deopt_offset;
-                    *(tc->interp_bytecode_start) = uf->effective_bytecode;
+                    *(tc->interp_cur_op)         = usf->body.bytecode + deopt_offset;
+                    *(tc->interp_bytecode_start) = usf->body.bytecode;
                     *(tc->interp_reg_base)       = uf->work;
                     *(tc->interp_cu)             = usf->body.cu;
                 }
@@ -139,7 +140,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
         /* Weren't in an inline after all. What kind of deopt? */
         if (callee) {
             /* Deopt all. Move return address. */
-            f->return_address = f->effective_bytecode + deopt_offset;
+            f->return_address = f->static_info->body.bytecode + deopt_offset;
         }
         else {
             /* Deopt one. Move interpreter. */
@@ -175,8 +176,6 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
         MVMROOT(tc, f, {
             uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, NULL);
         });
-        f->effective_bytecode    = f->static_info->body.bytecode;
-        f->effective_handlers    = f->static_info->body.handlers;
         f->effective_spesh_slots = NULL;
         f->spesh_cand            = NULL;
 #if MVM_LOG_DEOPTS
@@ -187,10 +186,8 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
     }
     else {
         /* No inlining; simple case. Switch back to the original code. */
-        f->effective_bytecode        = f->static_info->body.bytecode;
-        f->effective_handlers        = f->static_info->body.handlers;
-        *(tc->interp_cur_op)         = f->effective_bytecode + deopt_target;
-        *(tc->interp_bytecode_start) = f->effective_bytecode;
+        *(tc->interp_cur_op)         = f->static_info->body.bytecode + deopt_target;
+        *(tc->interp_bytecode_start) = f->static_info->body.bytecode;
         f->effective_spesh_slots     = NULL;
         f->spesh_cand                = NULL;
 #if MVM_LOG_DEOPTS
@@ -214,8 +211,8 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc) {
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
 #endif
     clear_dynlex_cache(tc, f);
-    if (f->effective_bytecode != f->static_info->body.bytecode) {
-        MVMint32 deopt_offset = *(tc->interp_cur_op) - f->effective_bytecode;
+    if (f->spesh_cand) {
+        MVMint32 deopt_offset = *(tc->interp_cur_op) - f->spesh_cand->bytecode;
         MVMint32 deopt_target = find_deopt_target(tc, f, deopt_offset);
         deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
     }
@@ -233,14 +230,7 @@ void MVM_spesh_deopt_one_direct(MVMThreadContext *tc, MVMint32 deopt_offset,
     if (tc->instance->profiling)
         MVM_profiler_log_deopt_one(tc);
     clear_dynlex_cache(tc, f);
-    if (f->effective_bytecode != f->static_info->body.bytecode) {
-        deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
-    } else {
-        MVM_oops(tc, "deopt_one_direct failed for %s (%s)",
-            MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
-            MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
-    }
-    
+    deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
 }
 
 /* De-optimizes all specialized frames on the call stack. Used when a change
@@ -254,7 +244,7 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
         MVM_profiler_log_deopt_all(tc);
     while (f) {
         clear_dynlex_cache(tc, f);
-        if (f->effective_bytecode != f->static_info->body.bytecode && f->spesh_log_idx < 0) {
+        if (f->spesh_cand) {
             /* Found one. Is it JITted code? */
             if (f->spesh_cand->jitcode && f->jit_entry_label) {
                 MVMint32 num_deopts = f->spesh_cand->jitcode->num_deopts;
@@ -267,15 +257,10 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                         MVMint32 deopt_idx    = deopts[i].idx;
                         MVMint32 deopt_offset = f->spesh_cand->deopts[2 * deopt_idx + 1];
                         MVMint32 deopt_target = f->spesh_cand->deopts[2 * deopt_idx];
-
 #if MVM_LOG_DEOPTS
                         fprintf(stderr, "Found deopt label for JIT (%d) (label %d idx %d)\n", i,
                                 deopts[i].label, deopts[i].idx);
 #endif
-
-                        /* Switch frame itself back to the original code. */
-                        f->effective_bytecode    = f->static_info->body.bytecode;
-                        f->effective_handlers    = f->static_info->body.handlers;
 
                         /* Re-create any frames needed if we're in an inline; if not,
                         * just update return address. */
@@ -287,7 +272,7 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                             });
                         }
                         else {
-                            f->return_address = f->effective_bytecode + deopt_target;
+                            f->return_address = f->static_info->body.bytecode + deopt_target;
                         }
 
                         /* No spesh cand/slots needed now. */
@@ -306,14 +291,10 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
 
             else {
                 /* Not JITted; see if we can find the return address in the deopt table. */
-                MVMint32 ret_offset = f->return_address - f->effective_bytecode;
+                MVMint32 ret_offset = f->return_address - f->spesh_cand->bytecode;
                 MVMint32 i;
                 for (i = 0; i < f->spesh_cand->num_deopts * 2; i += 2) {
                     if (f->spesh_cand->deopts[i + 1] == ret_offset) {
-                        /* Switch frame itself back to the original code. */
-                        f->effective_bytecode    = f->static_info->body.bytecode;
-                        f->effective_handlers    = f->static_info->body.handlers;
-
                         /* Re-create any frames needed if we're in an inline; if not,
                         * just update return address. */
                         if (f->spesh_cand->inlines) {
@@ -324,7 +305,7 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                             });
                         }
                         else {
-                            f->return_address = f->effective_bytecode + f->spesh_cand->deopts[i];
+                            f->return_address = f->static_info->body.bytecode + f->spesh_cand->deopts[i];
                         }
 
                         /* No spesh cand/slots needed now. */

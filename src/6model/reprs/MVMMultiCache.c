@@ -155,7 +155,6 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
     size_t             new_size;
     MVMMultiCacheNode *new_head;
     MVMObject        **new_results;
-    int                unlock_necessary = 0;
 
     /* Allocate a cache if needed. */
     if (MVM_is_null(tc, cache_obj) || !IS_CONCRETE(cache_obj) || REPR(cache_obj)->ID != MVM_REPR_ID_MVMMultiCache) {
@@ -190,7 +189,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
             if (st->container_spec && IS_CONCRETE(arg.o)) {
                 MVMContainerSpec const *contspec = st->container_spec;
                 if (!contspec->fetch_never_invokes)
-                    goto DONE; /* Impossible to cache. */
+                    return cache_obj; /* Impossible to cache. */
                 if (REPR(arg.o)->ID != MVM_REPR_ID_NativeRef) {
                     is_rw = contspec->can_store(tc, arg.o);
                     contspec->fetch(tc, arg.o, &arg);
@@ -207,15 +206,11 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
         }
     }
 
-    /* If we're in a multi-threaded context, obtain the cache additions
-     * lock, and then do another lookup to ensure nobody beat us to
-     * making this entry. */
-    if (MVM_instance_have_user_threads(tc)) {
-        uv_mutex_lock(&(tc->instance->mutex_multi_cache_add));
-        unlock_necessary = 1;
-        if (MVM_multi_cache_find(tc, cache_obj, capture))
-            goto DONE;
-    }
+    /* Oobtain the cache addition lock, and then do another lookup to ensure
+     * nobody beat us to making this entry. */
+    uv_mutex_lock(&(tc->instance->mutex_multi_cache_add));
+    if (MVM_multi_cache_find(tc, cache_obj, capture))
+        goto DONE;
 
     /* We're now udner the insertion lock and know nobody else can tweak the
      * cache. First, see if there's even a current version and search tree. */
@@ -363,10 +358,9 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
     }
 #endif
 
-    /* Release lock if needed. */
+    /* Release lock. */
   DONE:
-    if (unlock_necessary)
-        uv_mutex_unlock(&(tc->instance->mutex_multi_cache_add));
+    uv_mutex_unlock(&(tc->instance->mutex_multi_cache_add));
 
     /* Hand back the created/updated cache. */
     return cache_obj;

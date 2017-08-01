@@ -31,17 +31,13 @@ struct MVMStaticFrameBody {
      * the VM instance wide field for this. */
     MVMuint32 instrumentation_level;
 
-    /* Rough call count. May be hit up by multiple threads, and lose the odd
-     * count, but that's fine; it's just a rough indicator, used to make
-     * decisions about optimization. */
-    MVMuint32 invocations;
-
-    /* Number of times we should invoke before spesh applies. */
-    MVMuint32 spesh_threshold;
-
-    /* Specializations array, if there are any. */
-    MVMSpeshCandidate *spesh_candidates;
-    MVMuint32          num_spesh_candidates;
+    /* Specialization-related information. Attached when a frame is first
+     * verified. Held in a separate object rather than the MVMStaticFrame
+     * itself partly to decrease the size of this object for frames that
+     * we never even call, but also because we sample nursery objects and
+     * they end up in the statistics; forcing the static frame into the
+     * inter-generational roots leads to a lot more marking work. */
+    MVMStaticFrameSpesh *spesh;
 
     /* The size in bytes to allocate for the lexical environment. */
     MVMuint32 env_size;
@@ -77,6 +73,12 @@ struct MVMStaticFrameBody {
     /* Does the frame have an exit handler we need to run? */
     MVMuint8 has_exit_handler;
 
+    /* Should we allocate the frame directly on the heap? Doing so may avoid
+     * needing to promote it there later. Set by measuring the number of times
+     * the frame is promoted to the heap relative to the number of times it is
+     * invoked, and then only pre-specialization. */
+    MVMuint8 allocate_on_heap;
+
     /* The compilation unit unique ID of this frame. */
     MVMString *cuuid;
 
@@ -88,9 +90,6 @@ struct MVMStaticFrameBody {
 
     /* the static coderef */
     MVMCode *static_code;
-
-    /* Index into each threadcontext's table of frame pools. */
-    MVMuint32 pool_index;
 
     /* Annotation details */
     MVMuint32              num_annotations;

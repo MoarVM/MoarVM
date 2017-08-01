@@ -121,10 +121,8 @@ static void add_page(MVMFixedSizeAlloc *al, MVMuint32 bin) {
 static void * alloc_slow_path(MVMThreadContext *tc, MVMFixedSizeAlloc *al, MVMuint32 bin) {
     void *result;
 
-    /* Lock, unless single-threaded. */
-    MVMint32 lock = MVM_instance_have_user_threads(tc);
-    if (lock)
-        uv_mutex_lock(&(al->complex_alloc_mutex));
+    /* Lock. */
+    uv_mutex_lock(&(al->complex_alloc_mutex));
 
     /* If we've no pages yet, never encountered this bin; set it up. */
     if (al->size_classes[bin].pages == NULL)
@@ -141,9 +139,8 @@ static void * alloc_slow_path(MVMThreadContext *tc, MVMFixedSizeAlloc *al, MVMui
 
     VALGRIND_MEMPOOL_ALLOC(&al->size_classes[bin], result, (bin + 1) << MVM_FSA_BIN_BITS);
 
-    /* Unlock if we locked. */
-    if (lock)
-        uv_mutex_unlock(&(al->complex_alloc_mutex));
+    /* Unlock. */
+    uv_mutex_unlock(&(al->complex_alloc_mutex));
 
     return result;
 }
@@ -151,30 +148,22 @@ static void * alloc_from_global(MVMThreadContext *tc, MVMFixedSizeAlloc *al, MVM
     /* Try and take from the global free list (fast path). */
     MVMFixedSizeAllocSizeClass     *bin_ptr = &(al->size_classes[bin]);
     MVMFixedSizeAllocFreeListEntry *fle = NULL;
-    if (MVM_instance_have_user_threads(tc)) {
-        /* Multi-threaded; take a lock. Note that the lock is needed in
-         * addition to the atomic operations: the atomics allow us to add
-         * to the free list in a lock-free way, and the lock allows us to
-         * avoid the ABA issue we'd have with only the atomics. */
-        while (!MVM_trycas(&(al->freelist_spin), 0, 1)) {
-            MVMint32 i = 0;
-            while (i < 1024)
-                i++;
-        }
-        do {
-            fle = bin_ptr->free_list;
-            if (!fle)
-                break;
-        } while (!MVM_trycas(&(bin_ptr->free_list), fle, fle->next));
-        MVM_barrier();
-        al->freelist_spin = 0;
+    /* Multi-threaded, so take a lock. Note that the lock is needed in
+     * addition to the atomic operations: the atomics allow us to add
+     * to the free list in a lock-free way, and the lock allows us to
+     * avoid the ABA issue we'd have with only the atomics. */
+    while (!MVM_trycas(&(al->freelist_spin), 0, 1)) {
+        MVMint32 i = 0;
+        while (i < 1024)
+            i++;
     }
-    else {
-        /* Single-threaded; just take it. */
+    do {
         fle = bin_ptr->free_list;
-        if (fle)
-            bin_ptr->free_list = fle->next;
-    }
+        if (!fle)
+            break;
+    } while (!MVM_trycas(&(bin_ptr->free_list), fle, fle->next));
+    MVM_barrier();
+    al->freelist_spin = 0;
     if (fle) {
         VALGRIND_MEMPOOL_ALLOC(&al->size_classes[bin], ((void *)fle),
                 (bin + 1) << MVM_FSA_BIN_BITS);
@@ -224,18 +213,11 @@ static void add_to_global_bin_freelist(MVMThreadContext *tc, MVMFixedSizeAlloc *
     VALGRIND_MEMPOOL_FREE(bin_ptr, to_add);
     VALGRIND_MAKE_MEM_DEFINED(to_add, sizeof(MVMFixedSizeAllocFreeListEntry));
 
-    if (MVM_instance_have_user_threads(tc)) {
-        /* Multi-threaded; race to add it. */
-        do {
-            orig = bin_ptr->free_list;
-            to_add->next = orig;
-        } while (!MVM_trycas(&(bin_ptr->free_list), orig, to_add));
-    }
-    else {
-        /* Single-threaded; just add it. */
-        to_add->next       = bin_ptr->free_list;
-        bin_ptr->free_list = to_add;
-    }
+    /* Multi-threaded; race to add it. */
+    do {
+        orig = bin_ptr->free_list;
+        to_add->next = orig;
+    } while (!MVM_trycas(&(bin_ptr->free_list), orig, to_add));
 }
 static void add_to_bin_freelist(MVMThreadContext *tc, MVMFixedSizeAlloc *al,
                                 MVMint32 bin, void *to_free) {
@@ -291,45 +273,25 @@ void MVM_fixed_size_free_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *a
     MVMFixedSizeAllocDebug *dbg = (MVMFixedSizeAllocDebug *)((char *)to_free - 8);
     if (dbg->alloc_size != bytes)
         MVM_panic(1, "Fixed size allocator: wrong size in free");
-    if (MVM_instance_have_user_threads(tc))
-        add_to_overflows_safepoint_free_list(tc, al, dbg);
-    else
-        MVM_free(dbg);
+    add_to_overflows_safepoint_free_list(tc, al, dbg);
 #else
     MVMuint32 bin = bin_for(bytes);
     if (bin < MVM_FSA_BINS) {
-        /* Came from a bin; put into free list. */
+        /* Came from a bin; race to add it to the "free at next safe point"
+         * list. */
         MVMFixedSizeAllocSizeClass     *bin_ptr = &(al->size_classes[bin]);
-        if (MVM_instance_have_user_threads(tc)) {
-            /* Multi-threaded; race to add it to the "free at next safe point"
-             * list. */
-            MVMFixedSizeAllocSafepointFreeListEntry *orig;
-            MVMFixedSizeAllocSafepointFreeListEntry *to_add = MVM_fixed_size_alloc(
-                tc, al, sizeof(MVMFixedSizeAllocSafepointFreeListEntry));
-            to_add->to_free = to_free;
-            do {
-                orig = bin_ptr->free_at_next_safepoint_list;
-                to_add->next = orig;
-            } while (!MVM_trycas(&(bin_ptr->free_at_next_safepoint_list), orig, to_add));
-        }
-        else {
-            /* Single-threaded, so no global safepoint issues to care for; put
-             * it on the free list right away. */
-            MVMFixedSizeAllocFreeListEntry *to_add = (MVMFixedSizeAllocFreeListEntry *)to_free;
-
-            VALGRIND_MEMPOOL_FREE(bin_ptr, to_add);
-            VALGRIND_MAKE_MEM_DEFINED(to_add, sizeof(MVMFixedSizeAllocFreeListEntry));
-
-            to_add->next       = bin_ptr->free_list;
-            bin_ptr->free_list = to_add;
-        }
+        MVMFixedSizeAllocSafepointFreeListEntry *orig;
+        MVMFixedSizeAllocSafepointFreeListEntry *to_add = MVM_fixed_size_alloc(
+            tc, al, sizeof(MVMFixedSizeAllocSafepointFreeListEntry));
+        to_add->to_free = to_free;
+        do {
+            orig = bin_ptr->free_at_next_safepoint_list;
+            to_add->next = orig;
+        } while (!MVM_trycas(&(bin_ptr->free_at_next_safepoint_list), orig, to_add));
     }
     else {
         /* Was malloc'd due to being oversize. */
-        if (MVM_instance_have_user_threads(tc))
-            add_to_overflows_safepoint_free_list(tc, al, to_free);
-        else
-            MVM_free(to_free);
+        add_to_overflows_safepoint_free_list(tc, al, to_free);
     }
 #endif
 }

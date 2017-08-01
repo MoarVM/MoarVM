@@ -6,81 +6,34 @@
 /* Maximum number of named args we'll consider for optimization purposes. */
 #define MAX_NAMED_ARGS 8
 
-/* Adds guards and facts for an object arg. */
-static void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
-                          MVMObject *arg, MVMSpeshIns *arg_ins) {
-    /* Grab type and concreteness. */
-    MVMObject *type     = STABLE(arg)->WHAT;
-    MVMint32   concrete = IS_CONCRETE(arg);
-    MVMint32   is_cont  = 0;
-
-    /* Add appropriate facts from arg itself. */
+/* Adds facts for an object arg. */
+static void add_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
+                      MVMSpeshStatsType type_tuple_entry, MVMSpeshIns *arg_ins) {
+    /* Add appropriate facts from the arg type tuple. */
     MVMint16 orig = arg_ins->operands[0].reg.orig;
-    MVMint16 i    = arg_ins->operands[0].reg.i;
-    g->facts[orig][i].type   = type;
+    MVMint16 i = arg_ins->operands[0].reg.i;
+    MVMObject *type = type_tuple_entry.type;
+    g->facts[orig][i].type = type;
     g->facts[orig][i].flags |= MVM_SPESH_FACT_KNOWN_TYPE;
-    if (concrete) {
+    if (type_tuple_entry.type_concrete) {
         g->facts[orig][i].flags |= MVM_SPESH_FACT_CONCRETE;
-        if (!STABLE(type)->container_spec)
+        if (!type->st->container_spec)
             g->facts[orig][i].flags |= MVM_SPESH_FACT_DECONTED;
-        else
-            is_cont = 1;
     }
     else {
         g->facts[orig][i].flags |= MVM_SPESH_FACT_TYPEOBJ | MVM_SPESH_FACT_DECONTED;
     }
 
-    /* Add guard record for the arg type. */
-    g->arg_guards[g->num_arg_guards].slot  = slot;
-    g->arg_guards[g->num_arg_guards].match = (MVMCollectable *)STABLE(type);
-    if (concrete)
-        g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_CONC;
-    else
-        g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_TYPE;
-    g->num_arg_guards++;
-
-    /* If we know it's a container, might be able to look inside it to
-     * further optimize. */
-    if (is_cont && STABLE(type)->container_spec->fetch_never_invokes &&
-            REPR(type)->ID != MVM_REPR_ID_NativeRef) {
-        /* See if it's an rw container. */
-        MVMint32 is_rw = STABLE(type)->container_spec->can_store(tc, arg);
-
-        /* Fetch argument from the container. */
-        MVMRegister r;
-        STABLE(type)->container_spec->fetch(tc, arg, &r);
-        arg = r.o;
-        if (!arg)
-            return;
-
-        /* Add facts about it. */
-        type                           = STABLE(arg)->WHAT;
-        concrete                       = IS_CONCRETE(arg);
-        g->facts[orig][i].decont_type  = type;
+    /* Add any decontainerized type info. */
+    if (type_tuple_entry.decont_type) {
+        g->facts[orig][i].decont_type  = type_tuple_entry.decont_type;
         g->facts[orig][i].flags       |= MVM_SPESH_FACT_KNOWN_DECONT_TYPE;
-        if (concrete)
+        if (type_tuple_entry.decont_type_concrete)
             g->facts[orig][i].flags |= MVM_SPESH_FACT_DECONT_CONCRETE;
         else
             g->facts[orig][i].flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
-        if (is_rw)
+        if (type_tuple_entry.rw_cont)
             g->facts[orig][i].flags |= MVM_SPESH_FACT_RW_CONT;
-
-        /* Add guard for contained value. */
-        g->arg_guards[g->num_arg_guards].slot  = slot;
-        g->arg_guards[g->num_arg_guards].match = (MVMCollectable *)STABLE(type);
-        if (is_rw) {
-            if (concrete)
-                g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_DC_CONC_RW;
-            else
-                g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_DC_TYPE_RW;
-        }
-        else {
-            if (concrete)
-                g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_DC_CONC;
-            else
-                g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_DC_TYPE;
-        }
-        g->num_arg_guards++;
     }
 }
 
@@ -147,7 +100,8 @@ static void pos_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
 }
 
 /* Gets the primitive boxed by a type. */
-static MVMuint16 prim_spec(MVMThreadContext *tc, MVMObject *type) {
+static MVMuint16 prim_spec(MVMThreadContext *tc, MVMSpeshStatsType *type_tuple, MVMint32 i) {
+    MVMObject *type = type_tuple ? type_tuple[i].type : NULL;
     return type
         ? REPR(type)->get_storage_spec(tc, STABLE(type))->boxed_primitive
         : 0;
@@ -155,7 +109,8 @@ static MVMuint16 prim_spec(MVMThreadContext *tc, MVMObject *type) {
 
 /* Takes information about the incoming callsite and arguments, and performs
  * various optimizations based on that information. */
-void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVMRegister *args) {
+void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
+                    MVMSpeshStatsType *type_tuple) {
     /* We need to identify the various arg-related instructions in the graph,
      * then manipulate them as a whole. */
     MVMSpeshIns  *checkarity_ins     = NULL;
@@ -306,21 +261,21 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             case MVM_OP_param_op_i:
                 if (arg_flag != MVM_CALLSITE_ARG_INT)
                     if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
-                            prim_spec(tc, args[i].o) != MVM_STORAGE_SPEC_BP_INT)
+                            prim_spec(tc, type_tuple, i) != MVM_STORAGE_SPEC_BP_INT)
                         goto cleanup;
                 break;
             case MVM_OP_param_rp_n:
             case MVM_OP_param_op_n:
                 if (arg_flag != MVM_CALLSITE_ARG_NUM)
                     if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
-                            prim_spec(tc, args[i].o) != MVM_STORAGE_SPEC_BP_NUM)
+                            prim_spec(tc, type_tuple, i) != MVM_STORAGE_SPEC_BP_NUM)
                         goto cleanup;
                 break;
             case MVM_OP_param_rp_s:
             case MVM_OP_param_op_s:
                 if (arg_flag != MVM_CALLSITE_ARG_STR)
                     if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
-                            prim_spec(tc, args[i].o) != MVM_STORAGE_SPEC_BP_STR)
+                            prim_spec(tc, type_tuple, i) != MVM_STORAGE_SPEC_BP_STR)
                         goto cleanup;
                 break;
             case MVM_OP_param_rp_o:
@@ -337,10 +292,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
         /* We can optimize. Toss checkarity. */
         MVM_spesh_manipulate_delete_ins(tc, g, checkarity_bb, checkarity_ins);
 
-        /* Re-write the passed required positionals to spesh ops, and store
-         * any gurads. */
-        if (cs->arg_count)
-            g->arg_guards = MVM_malloc(2 * cs->arg_count * sizeof(MVMSpeshGuard));
+        /* Re-write the passed required positionals to spesh ops, and add any
+         * facts. */
         for (i = 0; i < cs->num_pos; i++) {
             MVMCallsiteEntry arg_flag = cs->arg_flags[i];
             switch (pos_ins[i]->info->opcode) {
@@ -352,8 +305,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 else {
                     pos_unbox(tc, g, pos_bb[i], pos_ins[i], MVM_op_get_op(MVM_OP_unbox_i));
                     pos_added[i]++;
-                    if (args[i].o)
-                        add_guards_and_facts(tc, g, i, args[i].o, pos_ins[i]);
+                    if (type_tuple && type_tuple[i].type)
+                        add_facts(tc, g, i, type_tuple[i], pos_ins[i]);
                 }
                 break;
             case MVM_OP_param_rp_n:
@@ -364,8 +317,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 else {
                     pos_unbox(tc, g, pos_bb[i], pos_ins[i], MVM_op_get_op(MVM_OP_unbox_n));
                     pos_added[i]++;
-                    if (args[i].o)
-                        add_guards_and_facts(tc, g, i, args[i].o, pos_ins[i]);
+                    if (type_tuple && type_tuple[i].type)
+                        add_facts(tc, g, i, type_tuple[i], pos_ins[i]);
                 }
                 break;
             case MVM_OP_param_rp_s:
@@ -376,16 +329,19 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 else {
                     pos_unbox(tc, g, pos_bb[i], pos_ins[i], MVM_op_get_op(MVM_OP_unbox_s));
                     pos_added[i]++;
-                    if (args[i].o)
-                        add_guards_and_facts(tc, g, i, args[i].o, pos_ins[i]);
+                    if (type_tuple && type_tuple[i].type)
+                        add_facts(tc, g, i, type_tuple[i], pos_ins[i]);
                 }
                 break;
             case MVM_OP_param_rp_o:
             case MVM_OP_param_op_o:
                 if (arg_flag == MVM_CALLSITE_ARG_OBJ) {
                     pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
-                    if (args[i].o)
-                        add_guards_and_facts(tc, g, i, args[i].o, pos_ins[i]);
+                    if (type_tuple && type_tuple[i].type) {
+                        add_facts(tc, g, i, type_tuple[i], pos_ins[i]);
+                        if (i == 0)
+                            g->specialized_on_invocant = 1;
+                    }
                 }
                 else if (arg_flag == MVM_CALLSITE_ARG_INT) {
                     pos_box(tc, g, pos_bb[i], pos_ins[i],
@@ -442,16 +398,18 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
         /* Now consider any nameds. */
         for (i = 0; i < num_named; i++) {
             /* See if the arg was passed. */
-            MVMString *arg_name      = MVM_spesh_get_string(tc, g, named_ins[i]->operands[1]);
-            MVMint32   cur_idx       = 0;
-            MVMint32   cur_named     = 0;
-            MVMuint8   found_flag    = 0;
-            MVMint32   found_idx     = -1;
+            MVMString *arg_name       = MVM_spesh_get_string(tc, g, named_ins[i]->operands[1]);
+            MVMint32   cur_idx        = 0;
+            MVMint32   cur_named      = 0;
+            MVMuint8   found_flag     = 0;
+            MVMint32   found_idx      = -1;
+            MVMint32   found_flag_idx = -1;
             MVMint32   j;
             for (j = 0; j < cs_flags; j++) {
                 if (cs->arg_flags[j] & MVM_CALLSITE_ARG_NAMED) {
                     if (MVM_string_equal(tc, arg_name, cs->arg_names[cur_named])) {
                         /* Found it. */
+                        found_flag_idx = j;
                         found_flag = cs->arg_flags[j];
                         found_idx  = cur_idx;
                         break;
@@ -475,7 +433,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_OBJ
-                        && prim_spec(tc, args[found_idx].o) == MVM_STORAGE_SPEC_BP_INT) {
+                        && prim_spec(tc, type_tuple, found_flag_idx) == MVM_STORAGE_SPEC_BP_INT) {
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
                     pos_unbox(tc, g, named_bb[i], named_ins[i], MVM_op_get_op(MVM_OP_unbox_i));
                     used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i]->next, cur_named);
@@ -491,7 +449,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_OBJ
-                        && prim_spec(tc, args[found_idx].o) == MVM_STORAGE_SPEC_BP_NUM) {
+                        && prim_spec(tc, type_tuple, found_flag_idx) == MVM_STORAGE_SPEC_BP_NUM) {
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
                     pos_unbox(tc, g, named_bb[i], named_ins[i], MVM_op_get_op(MVM_OP_unbox_n));
                     used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i]->next, cur_named);
@@ -507,7 +465,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_OBJ
-                        && prim_spec(tc, args[found_idx].o) == MVM_STORAGE_SPEC_BP_STR) {
+                        && prim_spec(tc, type_tuple, found_flag_idx) == MVM_STORAGE_SPEC_BP_STR) {
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
                     pos_unbox(tc, g, named_bb[i], named_ins[i], MVM_op_get_op(MVM_OP_unbox_s));
                     used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i]->next, cur_named);
@@ -522,8 +480,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
                     named_ins[i]->operands[1].lit_i16 = arg_idx;
                     used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
-                    if (args[arg_idx].o)
-                        add_guards_and_facts(tc, g, arg_idx, args[arg_idx].o, named_ins[i]);
+                    if (type_tuple && type_tuple[found_flag_idx].type)
+                        add_facts(tc, g, arg_idx, type_tuple[found_flag_idx], named_ins[i]);
                 }
                 else if (found_flag & (MVM_CALLSITE_ARG_INT | MVM_CALLSITE_ARG_NUM | MVM_CALLSITE_ARG_STR)) {
                     MVMuint16 arg_idx = found_idx + 1;
@@ -560,7 +518,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     named_used++;
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_OBJ
-                        && prim_spec(tc, args[found_idx].o) == MVM_STORAGE_SPEC_BP_INT) {
+                        && prim_spec(tc, type_tuple, found_flag_idx) == MVM_STORAGE_SPEC_BP_INT) {
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
                     pos_unbox(tc, g, named_bb[i], named_ins[i], MVM_op_get_op(MVM_OP_unbox_i));
                     MVM_spesh_manipulate_insert_goto(tc, g, named_bb[i], named_ins[i]->next,
@@ -587,7 +545,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     named_used++;
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_OBJ
-                        && prim_spec(tc, args[found_idx].o) == MVM_STORAGE_SPEC_BP_NUM) {
+                        && prim_spec(tc, type_tuple, found_flag_idx) == MVM_STORAGE_SPEC_BP_NUM) {
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
                     pos_unbox(tc, g, named_bb[i], named_ins[i], MVM_op_get_op(MVM_OP_unbox_n));
                     MVM_spesh_manipulate_insert_goto(tc, g, named_bb[i], named_ins[i]->next,
@@ -614,7 +572,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     named_used++;
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_OBJ
-                        && prim_spec(tc, args[found_idx].o) == MVM_STORAGE_SPEC_BP_STR) {
+                        && prim_spec(tc, type_tuple, found_flag_idx) == MVM_STORAGE_SPEC_BP_STR) {
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
                     pos_unbox(tc, g, named_bb[i], named_ins[i], MVM_op_get_op(MVM_OP_unbox_s));
                     MVM_spesh_manipulate_insert_goto(tc, g, named_bb[i], named_ins[i]->next,
@@ -639,8 +597,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     MVM_spesh_manipulate_remove_successor(tc, named_bb[i],
                         named_bb[i]->linear_next);
                     used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
-                    if (args[arg_idx].o)
-                        add_guards_and_facts(tc, g, arg_idx, args[arg_idx].o, named_ins[i]);
+                    if (type_tuple && type_tuple[found_flag_idx].type)
+                        add_facts(tc, g, arg_idx, type_tuple[found_flag_idx], named_ins[i]);
                     named_used++;
                 }
                 else if (found_flag & (MVM_CALLSITE_ARG_INT | MVM_CALLSITE_ARG_NUM | MVM_CALLSITE_ARG_STR)) {

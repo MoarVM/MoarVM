@@ -74,34 +74,25 @@ static void turn_32bit_into_8bit_unchecked(MVMThreadContext *tc, MVMString *str)
     MVM_free(old_buf);
 }
 
-/* Collapses a bunch of strands into a single blob string. */
-static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
-    MVMString       *result;
-    MVMStringIndex   i;
-    MVMuint32        ographs;
-    MVMGraphemeIter  gi;
-
-    MVMROOT(tc, orig, {
-        result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-    });
-    ographs                      = MVM_string_graphs(tc, orig);
-    result->body.num_graphs      = ographs;
+/* Accepts an allocated string that should have body.num_graphs set but the blob
+ * unallocated. This function will allocate the space for the blob and iterate
+ * the supplied grapheme iterator for the length of body.num_graphs */
+static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MVMString *result) {
+    MVMuint64 i;
     result->body.storage_type    = MVM_STRING_GRAPHEME_8;
-    result->body.storage.blob_8  = MVM_malloc(ographs * sizeof(MVMGrapheme8));
-
-    MVM_string_gi_init(tc, &gi, orig);
-    for (i = 0; i < ographs; i++) {
-        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+    result->body.storage.blob_8  = MVM_malloc(result->body.num_graphs * sizeof(MVMGrapheme8));
+    for (i = 0; i < result->body.num_graphs; i++) {
+        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, gi);
         result->body.storage.blob_8[i] = g;
         if (!can_fit_into_8bit(g)) {
             /* If we get here, we saw a codepoint lower than -127 or higher than 127
              * so turn it into a 32 bit string instead */
             /* Store the old string pointer and previous value of i */
             MVMGrapheme8 *old_ref = result->body.storage.blob_8;
-            MVMStringIndex prev_i = i;
+            MVMuint64 prev_i = i;
             /* Set up the string as 32bit now and allocate space for it */
             result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-            result->body.storage.blob_32 = MVM_malloc(ographs * sizeof(MVMGrapheme32));
+            result->body.storage.blob_32 = MVM_malloc(result->body.num_graphs * sizeof(MVMGrapheme32));
             /* Copy the data so far copied from the 8bit blob since it's faster than
              * setting up the grapheme iterator again */
             for (i = 0; i < prev_i; i++) {
@@ -111,12 +102,22 @@ static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
             /* Store the grapheme which interupted the sequence. After that we can
              * continue from where we left off using the grapheme iterator */
             result->body.storage.blob_32[prev_i] = g;
-            for (i = prev_i + 1; i < ographs; i++) {
-                result->body.storage.blob_32[i] = MVM_string_gi_get_grapheme(tc, &gi);
+            for (i = prev_i + 1; i < result->body.num_graphs; i++) {
+                result->body.storage.blob_32[i] = MVM_string_gi_get_grapheme(tc, gi);
             }
-            return result;
         }
     }
+}
+
+/* Collapses a bunch of strands into a single blob string. */
+static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
+    MVMString      *result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    MVMGraphemeIter gi;
+    MVMROOT(tc, orig, {
+        MVM_string_gi_init(tc, &gi, orig);
+        result->body.num_graphs = MVM_string_graphs(tc, orig);
+        iterate_gi_into_string(tc, &gi, result);
+    });
     return result;
 }
 
@@ -423,20 +424,9 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
         else {
             /* Produce a new blob string, collapsing the strands. */
             MVMGraphemeIter gi;
-            MVMint32 i;
-            MVMint8  can_fit_into_8 = 1;
-            result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-            result->body.storage.blob_32 = MVM_malloc(result->body.num_graphs * sizeof(MVMGrapheme32));
             MVM_string_gi_init(tc, &gi, a);
             MVM_string_gi_move_to(tc, &gi, start_pos);
-            for (i = 0; i < result->body.num_graphs; i++) {
-                MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
-                if (!can_fit_into_8bit(g))
-                    can_fit_into_8 = 0;
-                result->body.storage.blob_32[i] = g;
-            }
-            if (can_fit_into_8)
-                turn_32bit_into_8bit_unchecked(tc, result);
+            iterate_gi_into_string(tc, &gi, result);
         }
     });
 
@@ -982,13 +972,21 @@ MVMGrapheme32 MVM_string_ord_basechar_at(MVMThreadContext *tc, MVMString *s, MVM
 
 /* Compares two strings for equality. */
 MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+    MVMStringIndex agraphs, bgraphs;
+
     MVM_string_check_arg(tc, a, "equal");
     MVM_string_check_arg(tc, b, "equal");
+
     if (a == b)
         return 1;
-    if (MVM_string_graphs_nocheck(tc, a) != MVM_string_graphs_nocheck(tc, b))
+
+    agraphs = MVM_string_graphs_nocheck(tc, a);
+    bgraphs = MVM_string_graphs_nocheck(tc, b);
+
+    if (agraphs != bgraphs)
         return 0;
-    return MVM_string_equal_at(tc, a, b, 0);
+
+    return MVM_string_substrings_equal_nocheck(tc, a, 0, bgraphs, b, 0);
 }
 
 /* more general form of has_at; compares two substrings for equality */
@@ -1746,17 +1744,48 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
         return 1;
 
     /* Otherwise, need to scan them. */
-    scanlen = alen > blen ? blen : alen;
+    scanlen = blen < alen ? blen : alen;
     for (i = 0; i < scanlen; i++) {
-        MVMGrapheme32 ai = MVM_string_get_grapheme_at_nocheck(tc, a, i);
-        MVMGrapheme32 bi = MVM_string_get_grapheme_at_nocheck(tc, b, i);
-        if (ai != bi)
-            return ai < bi ? -1 : 1;
+        MVMGrapheme32 g_a = MVM_string_get_grapheme_at_nocheck(tc, a, i);
+        MVMGrapheme32 g_b = MVM_string_get_grapheme_at_nocheck(tc, b, i);
+        if (g_a != g_b) {
+            MVMint64 rtrn;
+            /* If one of the deciding graphemes is a synthetic then we need to
+             * iterate the codepoints inside it */
+            if (g_a < 0 || g_b < 0) {
+                MVMCodepointIter ci_a, ci_b;
+                MVM_string_grapheme_ci_init(tc, &ci_a, g_a);
+                MVM_string_grapheme_ci_init(tc, &ci_b, g_b);
+                while (MVM_string_grapheme_ci_has_more(tc, &ci_a) && MVM_string_grapheme_ci_has_more(tc, &ci_b)) {
+                    g_a = MVM_string_grapheme_ci_get_codepoint(tc, &ci_a);
+                    g_b = MVM_string_grapheme_ci_get_codepoint(tc, &ci_b);
+                    if (g_a != g_b)
+                        break;
+                }
+                rtrn = g_a < g_b ? -1 :
+                       g_b < g_a ?  1 :
+                                    0 ;
+                /* If we get here, all the codepoints in the synthetics have matched
+                 * so go based on which has more codepoints left in that grapheme */
+                if (!rtrn) {
+                    MVMint32 a_has_more = MVM_string_grapheme_ci_has_more(tc, &ci_a),
+                             b_has_more = MVM_string_grapheme_ci_has_more(tc, &ci_b);
+
+                    return a_has_more < b_has_more ? -1 :
+                           b_has_more < a_has_more ?  1 :
+                                                      0 ;
+                }
+                return rtrn;
+            }
+            return g_a < g_b ? -1 :
+                   g_b < g_a ?  1 :
+                                0 ;
+        }
     }
 
     /* All shared chars equal, so go on length. */
     return alen < blen ? -1 :
-           alen > blen ?  1 :
+           blen < alen ?  1 :
                           0 ;
 }
 

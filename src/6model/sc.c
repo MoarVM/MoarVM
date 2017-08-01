@@ -128,6 +128,9 @@ MVMint64 MVM_sc_find_stable_idx(MVMThreadContext *tc, MVMSerializationContext *s
 MVMint64 MVM_sc_find_code_idx(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *obj) {
     MVMObject *roots;
     MVMint64   i, count;
+    MVMuint32 cached = MVM_sc_get_idx_in_sc(&obj->header);
+    if (cached != ~0 && MVM_sc_get_collectable_sc(tc, &obj->header) == sc)
+        return cached;
     roots = sc->body->root_codes;
     count = MVM_repr_elems(tc, roots);
     for (i = 0; i < count; i++) {
@@ -149,8 +152,9 @@ MVMint64 MVM_sc_find_code_idx(MVMThreadContext *tc, MVMSerializationContext *sc,
     }
 }
 
-/* Given a compilation unit and dependency index, returns that SC. */
-MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, MVMint16 dep) {
+/* Given a compilation unit and dependency index, returns that SC. Slow path
+ * for when the SC may be NULL. */
+MVMSerializationContext * MVM_sc_get_sc_slow(MVMThreadContext *tc, MVMCompUnit *cu, MVMint16 dep) {
     MVMSerializationContext *sc = cu->body.scs[dep];
     if (sc == NULL) {
         MVMSerializationContextBody *scb = cu->body.scs_to_resolve[dep];
@@ -190,16 +194,11 @@ MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc,
 }
 
 MVMObject * MVM_sc_get_sc_object(MVMThreadContext *tc, MVMCompUnit *cu,
-                                 MVMint16 dep, MVMint64 idx) {
-    if (dep >= 0 && dep < cu->body.num_scs) {
-        MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, dep);
-        if (sc == NULL)
-            MVM_exception_throw_adhoc(tc, "SC not yet resolved; lookup failed");
-        return MVM_sc_get_object(tc, sc, idx);
-    }
-    else {
-        MVM_exception_throw_adhoc(tc, "Invalid SC index in bytecode stream");
-    }
+                                 MVMuint16 dep, MVMuint64 idx) {
+    MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, dep);
+    if (sc == NULL)
+        MVM_exception_throw_adhoc(tc, "SC not yet resolved; lookup failed");
+    return MVM_sc_get_object(tc, sc, idx);
 }
 
 /* Given an SC and an index, fetch the object stored there, or return NULL if
@@ -377,6 +376,14 @@ void MVM_sc_disclaim(MVMThreadContext *tc, MVMSerializationContext *sc) {
         col->sc_forward_u.sc.sc_idx = 0;
     }
     sc->body->root_codes = NULL;
+}
+
+/* SC repossession barrier. */
+void MVM_SC_WB_OBJ(MVMThreadContext *tc, MVMObject *obj) {
+    assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
+    assert(MVM_sc_get_idx_of_sc(&obj->header) != ~0);
+    if (MVM_sc_get_idx_of_sc(&obj->header) > 0)
+        MVM_sc_wb_hit_obj(tc, obj);
 }
 
 /* Called when an object triggers the SC repossession write barrier. */

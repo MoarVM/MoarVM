@@ -397,12 +397,21 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
 
 /* Does a run of the NFA. Produces a list of integers indicating the
  * chosen ordering. */
+static MVMint32 in_done(MVMuint32 *done, MVMuint32 numdone, MVMuint32 st) {
+    MVMuint32 i = 0;
+    for (i = 0; i < numdone; i++)
+        if (done[i] == st)
+            return 1;
+    return 0;
+}
 static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *target, MVMint64 offset, MVMint64 *total_fates_out) {
     MVMint64  eos     = MVM_string_graphs(tc, target);
-    MVMint64  gen     = 1;
+    MVMuint32 gen     = 1;
     MVMint64  numcur  = 0;
     MVMint64  numnext = 0;
-    MVMint64 *done, *fates, *curst, *nextst, *longlit;
+    MVMint64  numdone = 0;
+    MVMuint32 *done, *curst, *nextst;
+    MVMint64  *fates, *longlit;
     MVMint64  i, fate_arr_len, num_states, total_fates, prev_fates, usedlonglit;
     MVMint64  orig_offset = offset;
     int nfadeb = tc->instance->nfa_debug_enabled;
@@ -411,16 +420,15 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
      * states" arrays. */
     num_states = nfa->num_states;
     if (tc->nfa_alloc_states < num_states) {
-        size_t alloc   = (num_states + 1) * sizeof(MVMint64);
-        tc->nfa_done   = (MVMint64 *)MVM_realloc(tc->nfa_done, alloc);
-        tc->nfa_curst  = (MVMint64 *)MVM_realloc(tc->nfa_curst, alloc);
-        tc->nfa_nextst = (MVMint64 *)MVM_realloc(tc->nfa_nextst, alloc);
+        size_t alloc   = (num_states + 1) * sizeof(MVMuint32);
+        tc->nfa_done   = (MVMuint32 *)MVM_realloc(tc->nfa_done, alloc);
+        tc->nfa_curst  = (MVMuint32 *)MVM_realloc(tc->nfa_curst, alloc);
+        tc->nfa_nextst = (MVMuint32 *)MVM_realloc(tc->nfa_nextst, alloc);
         tc->nfa_alloc_states = num_states;
     }
     done   = tc->nfa_done;
     curst  = tc->nfa_curst;
     nextst = tc->nfa_nextst;
-    memset(done, 0, (num_states + 1) * sizeof(MVMint64));
 
     /* Allocate fates array. */
     fate_arr_len = 1 + MVM_repr_elems(tc, nfa->fates);
@@ -444,11 +452,12 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     nextst[numnext++] = 1;
     while (numnext && offset <= eos) {
         /* Swap next and current */
-        MVMint64 *temp = curst;
+        MVMuint32 *temp = curst;
         curst   = nextst;
         nextst  = temp;
         numcur  = numnext;
         numnext = 0;
+        numdone = 0;
 
         /* Save how many fates we have before this position is considered. */
         prev_fates = total_fates;
@@ -468,9 +477,9 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
 
             MVMint64 st = curst[--numcur];
             if (st <= num_states) {
-                if (done[st] == gen)
+                if (in_done(done, numdone, st))
                     continue;
-                done[st] = gen;
+                done[numdone++] = st;
             }
 
             edge_info = nfa->states[st - 1];
@@ -528,7 +537,8 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         fates[++j] = arg;
                         continue;
                     }
-                    else if (act == MVM_NFA_EDGE_EPSILON && to <= num_states && done[to] != gen) {
+                    else if (act == MVM_NFA_EDGE_EPSILON && to <= num_states &&
+                            !in_done(done, numdone, to)) {
                         if (to)
                             curst[numcur++] = to;
                         else if (nfadeb)  /* XXX should turn into a "can't happen" after rebootstrap */
