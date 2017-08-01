@@ -1097,7 +1097,7 @@ set, or a double-ended priority queue, etc.
 
 The optimizer is probably simpler.
 
-** TODO Guards, flushing, optimistic stores
+** DONE Guards, flushing, optimistic stores
 
 Currently our inserting of stores is pessimistic, i.e. stores are
 always inserted where they would be expected from the MoarVM bytecode.

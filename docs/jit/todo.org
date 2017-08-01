@@ -3,98 +3,6 @@
 Before merging the expression JIT, there are numerous standing issues
 to resolve, sorted by priority.
 
-* Win32 call args bug
-
-#+BEGIN_SRC asm
-
-label_016:  mov rcx,0x0
-            mov QWORD PTR [rbx+0x48],rcx
-            mov rdx,0x0
-            mov QWORD PTR [rbx+0x78],rdx
-            mov r8,QWORD PTR [rbx+0x10]
-            test WORD PTR [r8+0xc],0x1
-            je label_017
-            mov r9,QWORD PTR [r14+0x98]
-            mov r10,QWORD PTR [r9+0x70]
-            mov QWORD PTR [rbx+0x50],r10 ;(store $0 (^vmnull) ptr_sz)
-            jmp label_018
-label_017:  mov r11,QWORD PTR [r8+0x10] 
-            mov rcx,QWORD PTR [r11+0x10] ;(^repr $1)
-            mov QWORD PTR [rbx+0xb0],rcx ;spill, i think?
-            mov r9,QWORD PTR [r8+0x10] ; stable $0
-            lea r10,[r8+0x18]	       ; (^body $1)
-            lea r11,[rbx+0x50]	       ; $0
-            mov rcx,0x8		       ; (const MVM_reg_obj)
-            mov rdx,QWORD PTR [rbx+0xb0] ; restore...
-            mov QWORD PTR [rsp+0x20],rdx ; (i think this is supposed to be $2, but it's not)
-            mov QWORD PTR [rsp+0x28],r11 ; $0
-            mov QWORD PTR [rsp+0x30],rcx ; (const MVM_reg_obj)
-            mov rax,rdx			 ; also this?
-            mov rax,rdx			 ; and this?
-            mov rcx,r14			 ; arg1
-            mov rdx,r9			 ; r9 = (^sstable $1), at least that's correct
-            mov r9,r10			 ; r10 = (^body $1)
-	;;  r8 is in the right place
-            call QWORD PTR [rax+0x88] ; (call (getf ..))
-label_018:  cmp QWORD PTR [rbx+0x50],0x0
-            je label_019
-            mov r8,QWORD PTR [rbx+0x50]
-            mov r9,QWORD PTR [r14+0x98]
-            mov r10,QWORD PTR [r9+0x70]
-            cmp r8,r10 		; ifnonnull
-            je label_019
-            jmp label_022
-
-#+END_SRC
-
-- I can't explain the two mov rax, rdx, so that requires some logging to be installed
-- The $2 below (which is supposed to be const 0 in this case) is overwritten by the restore of (^repr $1)
-- and at that point, the restore isn't even necesary
-
-#+BEGIN_SRC scheme
-(template: atpos_o!
-  (ifv (^is_type_obj $1)
-   (store $0 (^vmnull) ptr_sz)
-   (callv
-      (^getf (^repr $1) MVMREPROps pos_funcs.at_pos)
-      (arglist 7
-        (carg (tc) ptr)
-        (carg (^stable $1) ptr)
-        (carg $1 ptr)
-        (carg (^body $1) ptr)
-        (carg $2 int)
-        (carg $0 ptr)
-        (carg (const (&QUOTE MVM_reg_obj) int_sz) int)))))
-
-#+END_SRC
-
-Seems strawberry has given me gdb? So I can at least try and figure
-this out.
-
-What I've found so far:
-+ This is a bug because the restore for the CALLV overwrites the ref
-  to an ARGLIST argument
-+ The ovewrritten live range starts at 5 (or 10) (which is live
-  range 3)
-+ The live range that overwrites the other one is 11
-+ The overwritten live range is released just prior to the allocating
-  of the spilled value
-+ There are three fixes I can see
-  + One, we insert the loaded value before the ARGLIST values go out of scope
-  + Two, we extend the lifetime of the ARGLIST values to include the
-    CALL(V?) (arguably the correct solution)
-  + Three, we do not insert a load for a use in a CALL(V?) node,
-    instead handling the uses 'by hand'
-
-+ advantage of 1: it's maybe really relatively easy to do
-+ advantage of 2: it's conceptually correct and doesn't rely on
-  evaluation order of CALL node
-+ advantage of 3: it reuses a concept we're already using
-
-I'm going to go for 2, with the added notion of /materializing/ the
-first ref / last ref of a value.
-
-
 * REPR-Specialized expression code
 
 Parts needed:
@@ -266,6 +174,97 @@ the allocator itself, so it doesn't need last-minute patchup.
   spilling has a single definition, and that definition is a constant,
   copy it)
 - It might be more effective to do it in the expression optimizer
+
+* DONE Win32 call args bug
+
+#+BEGIN_SRC asm
+
+label_016:  mov rcx,0x0
+            mov QWORD PTR [rbx+0x48],rcx
+            mov rdx,0x0
+            mov QWORD PTR [rbx+0x78],rdx
+            mov r8,QWORD PTR [rbx+0x10]
+            test WORD PTR [r8+0xc],0x1
+            je label_017
+            mov r9,QWORD PTR [r14+0x98]
+            mov r10,QWORD PTR [r9+0x70]
+            mov QWORD PTR [rbx+0x50],r10 ;(store $0 (^vmnull) ptr_sz)
+            jmp label_018
+label_017:  mov r11,QWORD PTR [r8+0x10] 
+            mov rcx,QWORD PTR [r11+0x10] ;(^repr $1)
+            mov QWORD PTR [rbx+0xb0],rcx ;spill, i think?
+            mov r9,QWORD PTR [r8+0x10] ; stable $0
+            lea r10,[r8+0x18]	       ; (^body $1)
+            lea r11,[rbx+0x50]	       ; $0
+            mov rcx,0x8		       ; (const MVM_reg_obj)
+            mov rdx,QWORD PTR [rbx+0xb0] ; restore...
+            mov QWORD PTR [rsp+0x20],rdx ; (i think this is supposed to be $2, but it's not)
+            mov QWORD PTR [rsp+0x28],r11 ; $0
+            mov QWORD PTR [rsp+0x30],rcx ; (const MVM_reg_obj)
+            mov rax,rdx			 ; also this?
+            mov rax,rdx			 ; and this?
+            mov rcx,r14			 ; arg1
+            mov rdx,r9			 ; r9 = (^sstable $1), at least that's correct
+            mov r9,r10			 ; r10 = (^body $1)
+	;;  r8 is in the right place
+            call QWORD PTR [rax+0x88] ; (call (getf ..))
+label_018:  cmp QWORD PTR [rbx+0x50],0x0
+            je label_019
+            mov r8,QWORD PTR [rbx+0x50]
+            mov r9,QWORD PTR [r14+0x98]
+            mov r10,QWORD PTR [r9+0x70]
+            cmp r8,r10 		; ifnonnull
+            je label_019
+            jmp label_022
+
+#+END_SRC
+
+- I can't explain the two mov rax, rdx, so that requires some logging to be installed
+- The $2 below (which is supposed to be const 0 in this case) is overwritten by the restore of (^repr $1)
+- and at that point, the restore isn't even necesary
+
+#+BEGIN_SRC scheme
+(template: atpos_o!
+  (ifv (^is_type_obj $1)
+   (store $0 (^vmnull) ptr_sz)
+   (callv
+      (^getf (^repr $1) MVMREPROps pos_funcs.at_pos)
+      (arglist 7
+        (carg (tc) ptr)
+        (carg (^stable $1) ptr)
+        (carg $1 ptr)
+        (carg (^body $1) ptr)
+        (carg $2 int)
+        (carg $0 ptr)
+        (carg (const (&QUOTE MVM_reg_obj) int_sz) int)))))
+
+#+END_SRC
+
+Seems strawberry has given me gdb? So I can at least try and figure
+this out.
+
+What I've found so far:
++ This is a bug because the restore for the CALLV overwrites the ref
+  to an ARGLIST argument
++ The ovewrritten live range starts at 5 (or 10) (which is live
+  range 3)
++ The live range that overwrites the other one is 11
++ The overwritten live range is released just prior to the allocating
+  of the spilled value
++ There are three fixes I can see
+  + One, we insert the loaded value before the ARGLIST values go out of scope
+  + Two, we extend the lifetime of the ARGLIST values to include the
+    CALL(V?) (arguably the correct solution)
+  + Three, we do not insert a load for a use in a CALL(V?) node,
+    instead handling the uses 'by hand'
+
++ advantage of 1: it's maybe really relatively easy to do
++ advantage of 2: it's conceptually correct and doesn't rely on
+  evaluation order of CALL node
++ advantage of 3: it reuses a concept we're already using
+
+I'm going to go for 2, with the added notion of /materializing/ the
+first ref / last ref of a value.
 
 * DONE Better template validation
 
