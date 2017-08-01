@@ -79,6 +79,11 @@ struct MVMSpeshLogBody {
     MVMuint32 used;
     MVMuint32 limit;
 
+    /* If this was created due to a new compilation unit (heuristic to do
+     * better at outer-loop OSR); we go over-quota for those, and this is
+     * to help us restore it again. */
+    MVMuint8 was_compunit_bumped;
+
     /* When in debug mode, mutex and condition variable used to block the
      * thread sending a log until the spesh worker has processed it. */
     uv_mutex_t *block_mutex;
