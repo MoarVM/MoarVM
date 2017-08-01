@@ -206,7 +206,7 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc) {
     if (tc->instance->profiling)
         MVM_profiler_log_deopt_one(tc);
 #if MVM_LOG_DEOPTS
-    fprintf(stderr, "deopt_one requested in frame '%s' (cuid '%s')\n",
+    fprintf(stderr, "Deopt one requested by interpreter in frame '%s' (cuid '%s')\n",
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
 #endif
@@ -214,6 +214,9 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc) {
     if (f->spesh_cand) {
         MVMint32 deopt_offset = *(tc->interp_cur_op) - f->spesh_cand->bytecode;
         MVMint32 deopt_target = find_deopt_target(tc, f, deopt_offset);
+#if MVM_LOG_DEOPTS
+    fprintf(stderr, "Will deopt %d -> %d\n", deopt_offset, deopt_target);
+#endif
         deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
     }
     else {
@@ -227,6 +230,12 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc) {
 void MVM_spesh_deopt_one_direct(MVMThreadContext *tc, MVMint32 deopt_offset,
                                 MVMint32 deopt_target) {
     MVMFrame *f = tc->cur_frame;
+#if MVM_LOG_DEOPTS
+    fprintf(stderr, "Deopt one requested by JIT in frame '%s' (cuid '%s') (%d -> %d)\n",
+        MVM_string_utf8_encode_C_string(tc, f->static_info->body.name),
+        MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid),
+        deopt_offset, deopt_target);
+#endif
     if (tc->instance->profiling)
         MVM_profiler_log_deopt_one(tc);
     clear_dynlex_cache(tc, f);
