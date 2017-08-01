@@ -25,6 +25,17 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
     if (!static_frame_body->fully_deserialized)
         MVM_bytecode_finish_frame(tc, cu, static_frame, 0);
 
+    /* If we never invoked this compilation unit before, and we have spesh
+     * enabled, but also have no spesh log, then we may miss an opportunity to
+     * OSR the main loop. We grant ourselves a bonus log. Take care not to
+     * lose a log the spesh worker may grant us. */
+    if (!cu->body.invoked) {
+        cu->body.invoked = 1;
+        if (!tc->spesh_log && tc->instance->spesh_enabled)
+            if (MVM_incr(&(tc->spesh_log_quota)) == 0)
+                tc->spesh_log = MVM_spesh_log_create(tc, tc->thread_obj);
+    }
+
     /* Take compilation unit lock, to make sure we don't race to do the
      * frame preparation/verification work. */
     MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
