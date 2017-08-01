@@ -604,14 +604,16 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
 
             /* Bump heap promotion counter, to encourage allocating this kind
              * of frame directly on the heap in the future. If the frame was
-             * entered at least ten times, and over  60% of the entries lead
-             * to an eventual heap promotion, them we'll mark it to allocated
-             * right away on the heap. */
+             * entered at least 50 times, and over 80% of the entries lead to
+             * an eventual heap promotion, them we'll mark it to be allocated
+             * right away on the heap. Note that entries is only bumped when
+             * spesh logging is taking place, so we only bump the number of
+             * heap promotions in that case too. */
             MVMStaticFrame *sf = cur_to_promote->static_info;
-            if (!sf->body.allocate_on_heap && !cur_to_promote->spesh_cand) {
+            if (!sf->body.allocate_on_heap && cur_to_promote->spesh_correlation_id) {
                 MVMuint32 promos = sf->body.spesh->body.num_heap_promotions++;
                 MVMuint32 entries = sf->body.spesh->body.spesh_entries_recorded;
-                if (entries > 10 && promos > (2 * entries) / 3)
+                if (entries > 50 && promos > (4 * entries) / 5)
                     sf->body.allocate_on_heap = 1;
             }
 
