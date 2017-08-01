@@ -437,7 +437,7 @@ takedispatcher      w(obj)
 assign              r(obj) r(obj) :invokish
 assignunchecked     r(obj) r(obj) :invokish
 iscont              w(int64) r(obj) :pure
-decont              w(obj) r(obj) :pure :invokish
+decont              w(obj) r(obj) :pure :invokish :deoptonepoint
 setcontspec         r(obj) r(str) r(obj)
 sha1                w(str) r(str) :pure
 createsc            w(obj) r(str)
