@@ -59,13 +59,15 @@ void commit_entry(MVMThreadContext *tc, MVMSpeshLog *sl) {
  * enough data recorded for a tight outer loop in a benchmark. Either grant a
  * bonus log or send the log early so we can have a fresh one. */
 void MVM_spesh_log_new_compunit(MVMThreadContext *tc) {
-    if (tc->spesh_log)
-        if (tc->spesh_log->body.used > tc->spesh_log->body.limit / 4)
-            send_log(tc, tc->spesh_log);
-    if (!tc->spesh_log) {
-        if (MVM_incr(&(tc->spesh_log_quota)) == 0) {
-            tc->spesh_log = MVM_spesh_log_create(tc, tc->thread_obj);
-            tc->spesh_log->body.was_compunit_bumped = 1;
+    if (tc->num_compunit_extra_logs++ < 5) {
+        if (tc->spesh_log)
+            if (tc->spesh_log->body.used > tc->spesh_log->body.limit / 4)
+                send_log(tc, tc->spesh_log);
+        if (!tc->spesh_log) {
+            if (MVM_incr(&(tc->spesh_log_quota)) == 0) {
+                tc->spesh_log = MVM_spesh_log_create(tc, tc->thread_obj);
+                tc->spesh_log->body.was_compunit_bumped = 1;
+            }
         }
     }
 }
