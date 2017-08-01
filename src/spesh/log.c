@@ -21,34 +21,50 @@ MVMSpeshLog * MVM_spesh_log_create(MVMThreadContext *tc, MVMThread *target_threa
 
 /* Increments the used count and - if it hits the limit - sends the log off
  * to the worker thread and NULLs it out. */
+void send_log(MVMThreadContext *tc, MVMSpeshLog *sl) {
+    if (tc->instance->spesh_blocking) {
+        sl->body.block_mutex = MVM_malloc(sizeof(uv_mutex_t));
+        uv_mutex_init(sl->body.block_mutex);
+        sl->body.block_condvar = MVM_malloc(sizeof(uv_cond_t));
+        uv_cond_init(sl->body.block_condvar);
+        uv_mutex_lock(sl->body.block_mutex);
+        MVMROOT(tc, sl, {
+            MVM_repr_push_o(tc, tc->instance->spesh_queue, (MVMObject *)sl);
+            MVM_gc_mark_thread_blocked(tc);
+            while (!MVM_load(&(sl->body.completed)))
+                uv_cond_wait(sl->body.block_condvar, sl->body.block_mutex);
+            MVM_gc_mark_thread_unblocked(tc);
+        });
+        uv_mutex_unlock(sl->body.block_mutex);
+    }
+    else {
+        MVM_repr_push_o(tc, tc->instance->spesh_queue, (MVMObject *)sl);
+    }
+    if (MVM_decr(&(tc->spesh_log_quota)) > 1) {
+        tc->spesh_log = MVM_spesh_log_create(tc, tc->thread_obj);
+    }
+    else {
+        MVM_telemetry_timestamp(tc, "ran out of spesh log quota");
+        tc->spesh_log = NULL;
+    }
+}
 void commit_entry(MVMThreadContext *tc, MVMSpeshLog *sl) {
     sl->body.used++;
-    if (sl->body.used == sl->body.limit) {
-        if (tc->instance->spesh_blocking) {
-            sl->body.block_mutex = MVM_malloc(sizeof(uv_mutex_t));
-            uv_mutex_init(sl->body.block_mutex);
-            sl->body.block_condvar = MVM_malloc(sizeof(uv_cond_t));
-            uv_cond_init(sl->body.block_condvar);
-            uv_mutex_lock(sl->body.block_mutex);
-            MVMROOT(tc, sl, {
-                MVM_repr_push_o(tc, tc->instance->spesh_queue, (MVMObject *)sl);
-                MVM_gc_mark_thread_blocked(tc);
-                while (!MVM_load(&(sl->body.completed)))
-                    uv_cond_wait(sl->body.block_condvar, sl->body.block_mutex);
-                MVM_gc_mark_thread_unblocked(tc);
-            });
-            uv_mutex_unlock(sl->body.block_mutex);
-        }
-        else {
-            MVM_repr_push_o(tc, tc->instance->spesh_queue, (MVMObject *)sl);
-        }
-        if (MVM_decr(&(tc->spesh_log_quota)) > 1)
+    if (sl->body.used == sl->body.limit)
+        send_log(tc, sl);
+}
+
+/* Handles the case where we enter a new compilation unit and have either no
+ * spesh log or a spesh log that's quite full. This might hinder us in getting
+ * enough data recorded for a tight outer loop in a benchmark. Either grant a
+ * bonus log or send the log early so we can have a fresh one. */
+void MVM_spesh_log_new_compunit(MVMThreadContext *tc) {
+    if (tc->spesh_log)
+        if (tc->spesh_log->body.used > tc->spesh_log->body.limit / 4)
+            send_log(tc, tc->spesh_log);
+    if (!tc->spesh_log)
+        if (MVM_incr(&(tc->spesh_log_quota)) == 0)
             tc->spesh_log = MVM_spesh_log_create(tc, tc->thread_obj);
-        else {
-            MVM_telemetry_timestamp(tc, "ran out of spesh log quota");
-            tc->spesh_log = NULL;
-        }
-    }
 }
 
 /* Log the entry to a call frame. */

@@ -29,6 +29,7 @@ MVM_STATIC_INLINE MVMint32 MVM_spesh_log_is_logging(MVMThreadContext *tc) {
 
 void MVM_spesh_log_initialize_thread(MVMThreadContext *tc);
 MVMSpeshLog * MVM_spesh_log_create(MVMThreadContext *tc, MVMThread *target_thread);
+void MVM_spesh_log_new_compunit(MVMThreadContext *tc);
 void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf, MVMCallsite *cs);
 void MVM_spesh_log_osr(MVMThreadContext *tc);
 void MVM_spesh_log_parameter(MVMThreadContext *tc, MVMuint16 arg_idx, MVMObject *param);
