@@ -3,6 +3,23 @@
 Before merging the expression JIT, there are numerous standing issues
 to resolve, sorted by priority.
 
+* inc_i/dec_i bug
+
+Root problem:
+- inc_i/dec_i have one operand acting as input and output
+- because it is acting as output, we do not attempt to load it from the table
+  - we do correctly write it to the table though
+- when any of inc_i / dec_i on the same register are therefore in a
+  sequence within the same basic block, we will never lookup the
+  previously defined value
+- however, under optimistic store insertion, we write only the *last*
+  value to be defined before a barrier
+  - so all but the last updates to the value are lost
+
+The suggested solution:
+- special-case those opcodes, to have separate input/output operands
+  - and lookup the input operand from the table
+
 * REPR-Specialized expression code
 
 Parts needed:
