@@ -1186,6 +1186,7 @@ static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     decont->operands[1] = arg_info->arg_ins[arg_idx]->operands[1];
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, decont);
+    MVM_spesh_get_facts(tc, g, temp)->usages++;
     optimize_decont(tc, g, arg_info->prepargs_bb, decont);
 
     /* Guard the decontainerized value. */
