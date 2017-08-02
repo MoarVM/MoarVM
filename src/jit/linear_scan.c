@@ -42,17 +42,17 @@ static const MVMint64 AVAILABLE_GPR_BITMAP = MVM_JIT_ARCH_AVAILABLE_GPR(SHIFT);
  * else on other architectures. */
 #ifdef __GNUC__
 /* also works for clang and friends */
-#define FFS(x) __builtin_ffs(x)
+#define FFS(x) __builtin_ffsll(x)
 #elif defined(_MSC_VER)
-MVM_STATIC_INLINE MVMuint32 FFS(MVMuint32 x) {
+MVM_STATIC_INLINE MVMuint32 FFS(MVMuint64 x) {
     MVMuint32 i = 0;
-    if (_BitScanForward(&i, x) == 0)
+    if (_BitScanForward64(&i, x) == 0)
         return 0;
     return i + 1;
 }
 #else
 /* fallback, note that i=0 if no bits are set */
-MVM_STATIC_INLINE MVMuint32 FFS(MVMuint32 x) {
+MVM_STATIC_INLINE MVMuint32 FFS(MVMuint64 x) {
     MVMuint32 i = 0;
     while (x) {
         if (x & (1 << i++))
@@ -426,15 +426,15 @@ void assign_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileLis
 /* NB - make this a separate 'library', use it for register bitmap */
 /* Witness the elegance of the bitmap for our purposes. */
 MVM_STATIC_INLINE void bitmap_set(MVMuint64 *bits, MVMint32 idx) {
-    bits[idx >> 6] |= (1 << (idx & 0x3f));
+    bits[idx >> 6] |= (UINT64_C(1) << (idx & 0x3f));
 }
 
 MVM_STATIC_INLINE MVMuint64 bitmap_get(MVMuint64 *bits, MVMint32 idx) {
-    return bits[idx >> 6] & (1 << (idx & 0x3f));
+    return bits[idx >> 6] & (UINT64_C(1) << (idx & 0x3f));
 }
 
 MVM_STATIC_INLINE void bitmap_delete(MVMuint64 *bits, MVMint32 idx) {
-    bits[idx >> 6] &= ~(1 << (idx & 0x3f));
+    bits[idx >> 6] &= ~(UINT64_C(1) << (idx & 0x3f));
 }
 
 MVM_STATIC_INLINE void bitmap_union_and_diff(MVMuint64 *u, MVMuint64 *d, MVMuint64 *a, MVMuint64 *b, MVMint32 n) {
@@ -496,7 +496,7 @@ static void find_holes(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileL
                 while (additions) {
                     MVMint32 bit = FFS(additions) - 1;
                     MVMint32 val = (k << 6) + bit;
-                    additions &= ~(1 << bit);
+                    additions &= ~(UINT64_C(1) << bit);
                     close_hole(alc, val, end);
                 }
             }
