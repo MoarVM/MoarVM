@@ -48,8 +48,12 @@
 
 
 (macro: ^repr (,obj) (^getf (^stable ,obj) MVMSTable REPR))
+
 (macro: ^is_type_obj (,a)
     (nz (and (^getf ,a MVMObject header.flags) (^objflag MVM_CF_TYPE_OBJECT))))
+(macro: ^is_conc_obj (,a)
+    (zr (and (^getf ,a MVMObject header.flags) (^objflag MVM_CF_TYPE_OBJECT))))
+
 (macro: ^stable_cont_func (,obj ,func)
     (^getf
           (^getf (^stable ,obj) MVMSTable container_spec)

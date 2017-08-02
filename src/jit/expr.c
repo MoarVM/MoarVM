@@ -743,7 +743,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             case MVM_SPESH_ANN_DEOPT_ONE_INS:
                 /* we should only see this in guards, which we don't do just
                  * yet, although we will. At the very least, this implies a flush. */
-                MVM_jit_log(tc, "WARNING expr tree is asked to handle DEOPT_ONE / DEOPT_INLINE (ins=%s) and can't really",
+                MVM_jit_log(tc, "WARNING expr tree is asked to handle DEOPT_ONE / DEOPT_INLINE (ins=%s) and can't really\n",
                             ins->info->name);
                 break;
             case MVM_SPESH_ANN_DEOPT_ALL_INS:
