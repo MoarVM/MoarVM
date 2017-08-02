@@ -27,7 +27,7 @@ delete @ENV{qw(
     MVM_JIT_DISABLE
     MVM_JIT_EXPR_DISABLE
 )};
-
+$ENV{MVM_SPESH_BLOCKING} = 1;
 
 die "--frame and --block required" unless $OPTIONS{frame} and $OPTIONS{block};
 my @command = @ARGV;

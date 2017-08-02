@@ -151,7 +151,7 @@ delete @ENV{qw(
     MVM_JIT_DISABLE
     MVM_SPESH_DISABLE
 )};
-
+$ENV{MVM_SPESH_BLOCKING} = 1;
 
 quietly { run_with(\@command, {}, $timeout) } or do {
     die "This program is quite alright";
