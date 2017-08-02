@@ -1054,9 +1054,13 @@ static void optimize_getlex_per_invocant(MVMThreadContext *tc, MVMSpeshGraph *g,
 
 /* Determines if there's a matching spesh candidate for a callee and a given
  * set of argument info. */
-static MVMint32 try_find_spesh_candidate(MVMThreadContext *tc, MVMCode *code, MVMSpeshCallInfo *arg_info) {
-    MVMStaticFrameSpesh *spesh = code->body.sf->body.spesh;
-    return MVM_spesh_arg_guard_run_callinfo(tc, spesh->body.spesh_arg_guard, arg_info);
+static MVMint32 try_find_spesh_candidate(MVMThreadContext *tc, MVMCode *code,
+                                         MVMSpeshCallInfo *arg_info,
+                                         MVMSpeshStatsType *type_tuple) {
+    MVMSpeshArgGuard *ag = code->body.sf->body.spesh->body.spesh_arg_guard;
+    return type_tuple
+        ? MVM_spesh_arg_guard_run_types(tc, ag, arg_info->cs, type_tuple)
+        : MVM_spesh_arg_guard_run_callinfo(tc, ag, arg_info);
 }
 
 /* Given a callsite instruction, finds the type tuples there and checks if
@@ -1373,7 +1377,8 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
     /* See if we can point the call at a particular specialization. */
     if (((MVMCode *)target)->body.sf->body.instrumentation_level == tc->instance->instrumentation_level) {
         MVMCode *target_code  = (MVMCode *)target;
-        MVMint32 spesh_cand = try_find_spesh_candidate(tc, target_code, arg_info);
+        MVMint32 spesh_cand = try_find_spesh_candidate(tc, target_code, arg_info,
+            stable_type_tuple);
         if (spesh_cand >= 0) {
             /* Yes. Will we be able to inline? */
             MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
