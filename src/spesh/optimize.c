@@ -1299,7 +1299,8 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                     is->md_class_handle, is->md_cache_attr_name,
                     is->md_cache_hint, &dest, MVM_reg_obj);
                 if (!MVM_is_null(tc, dest.o)) {
-                    MVMObject *found = MVM_multi_cache_find_spesh(tc, dest.o, arg_info);
+                    MVMObject *found = MVM_multi_cache_find_spesh(tc, dest.o,
+                        arg_info, stable_type_tuple);
                     if (found) {
                         /* Found it. Is it a code object already, or do we
                          * have futher unpacking to do? */

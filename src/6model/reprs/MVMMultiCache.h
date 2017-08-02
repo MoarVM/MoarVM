@@ -82,4 +82,4 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache, MVMObjec
 MVMObject * MVM_multi_cache_find(MVMThreadContext *tc, MVMObject *cache, MVMObject *capture);
 MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *cache,
     MVMCallsite *cs, MVMRegister *args);
-MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache, MVMSpeshCallInfo *arg_info);
+MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache, MVMSpeshCallInfo *arg_info, MVMSpeshStatsType *type_tuple);
