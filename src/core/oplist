@@ -821,9 +821,9 @@ decodertakecharseof w(str) r(obj) r(int64)
 #   guard = guard on type only; index is spesh slot with type
 #   guardconc = guard on type + concrete; index is spesh slot with type
 #   guardtype = guard on type + type object; index is spesh slot with type
-sp_guard         .s r(obj) sslot
-sp_guardconc     .s r(obj) sslot
-sp_guardtype     .s r(obj) sslot
+sp_guard         .s r(obj) sslot uint32
+sp_guardconc     .s r(obj) sslot uint32
+sp_guardtype     .s r(obj) sslot uint32
 
 # These are variants of the normal interpreted ops that do not log. Used for
 # the case where we can't JIT-compile, but don't want to keep on logging.

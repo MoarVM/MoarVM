@@ -329,10 +329,11 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         /* Insert guard instruction. */
         guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
         guard->info = MVM_op_get_op(guard_op);
-        guard->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+        guard->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
         guard->operands[0] = ins->operands[0];
         guard->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
             (MVMCollectable *)agg_type->st);
+        guard->operands[2].lit_ui32 = g->deopt_addrs[2 * deopt_one_ann->data.deopt_idx];
         if (ins->next)
             MVM_spesh_manipulate_insert_ins(tc, bb, ins, guard);
         else

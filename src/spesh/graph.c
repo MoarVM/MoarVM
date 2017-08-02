@@ -200,6 +200,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                     ins_node->operands[i].lit_i32 = GET_I32(args, arg_size);
                     arg_size += 4;
                     break;
+                case MVM_operand_uint32:
+                    ins_node->operands[i].lit_ui32 = GET_UI32(args, arg_size);
+                    arg_size += 4;
+                    break;
                 case MVM_operand_int64:
                     ins_node->operands[i].lit_i64 = MVM_BC_get_I64(args, arg_size);
                     arg_size += 8;

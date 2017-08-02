@@ -150,18 +150,6 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
     }
 }
 
-static MVMint32 find_deopt_target(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset) {
-    MVMint32 i;
-    for (i = 0; i < f->spesh_cand->num_deopts * 2; i += 2) {
-        if (f->spesh_cand->deopts[i + 1] == deopt_offset) {
-            return f->spesh_cand->deopts[i];
-        }
-    }
-    MVM_oops(tc, "find_deopt_target failed for %s (%s)",
-        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
-        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
-}
-
 static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset, MVMint32 deopt_target) {
     /* Found it; are we in an inline? */
     MVMSpeshInline *inlines = f->spesh_cand->inlines;
@@ -201,7 +189,7 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
 
 /* De-optimizes the currently executing frame, provided it is specialized and
  * at a valid de-optimization point. Typically used when a guard fails. */
-void MVM_spesh_deopt_one(MVMThreadContext *tc) {
+void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_target) {
     MVMFrame *f = tc->cur_frame;
     if (tc->instance->profiling)
         MVM_profiler_log_deopt_one(tc);
@@ -212,10 +200,9 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc) {
 #endif
     clear_dynlex_cache(tc, f);
     if (f->spesh_cand) {
-        MVMint32 deopt_offset = *(tc->interp_cur_op) - f->spesh_cand->bytecode;
-        MVMint32 deopt_target = find_deopt_target(tc, f, deopt_offset);
+        MVMuint32 deopt_offset = *(tc->interp_cur_op) - f->spesh_cand->bytecode;
 #if MVM_LOG_DEOPTS
-    fprintf(stderr, "Will deopt %d -> %d\n", deopt_offset, deopt_target);
+    fprintf(stderr, "Will deopt %u -> %u\n", deopt_offset, deopt_target);
 #endif
         deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
     }
@@ -227,11 +214,11 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc) {
 }
 
 /* De-optimizes the current frame by directly specifying the addresses */
-void MVM_spesh_deopt_one_direct(MVMThreadContext *tc, MVMint32 deopt_offset,
-                                MVMint32 deopt_target) {
+void MVM_spesh_deopt_one_direct(MVMThreadContext *tc, MVMuint32 deopt_offset,
+                                MVMuint32 deopt_target) {
     MVMFrame *f = tc->cur_frame;
 #if MVM_LOG_DEOPTS
-    fprintf(stderr, "Deopt one requested by JIT in frame '%s' (cuid '%s') (%d -> %d)\n",
+    fprintf(stderr, "Deopt one requested by JIT in frame '%s' (cuid '%s') (%u -> %u)\n",
         MVM_string_utf8_encode_C_string(tc, f->static_info->body.name),
         MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid),
         deopt_offset, deopt_target);

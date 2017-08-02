@@ -184,6 +184,7 @@ struct MVMSpeshIns {
 union MVMSpeshOperand {
     MVMint64     lit_i64;
     MVMint32     lit_i32;
+    MVMuint16    lit_ui32;
     MVMint16     lit_i16;
     MVMuint16    lit_ui16;
     MVMint8      lit_i8;
