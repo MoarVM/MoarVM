@@ -1148,7 +1148,7 @@ static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     guard->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
     guard->operands[0] = arg_info->arg_ins[arg_idx]->operands[1];
     guard->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
-        (MVMCollectable *)type_info->type);
+        (MVMCollectable *)type_info->type->st);
     guard->operands[2].lit_ui32 = deopt_target;
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, guard);
@@ -1198,7 +1198,7 @@ static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     guard->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
     guard->operands[0] = temp;
     guard->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
-        (MVMCollectable *)type_info->decont_type);
+        (MVMCollectable *)type_info->decont_type->st);
     guard->operands[2].lit_ui32 = deopt_target;
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, guard);
