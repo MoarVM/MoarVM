@@ -424,7 +424,7 @@ static void jgb_append_guard(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVM_oops(tc, "Can't find deopt idx annotation on spesh ins <%s>",
             ins->info->name);
     }
-    node->u.guard.deopt_target = jgb->sg->deopt_addrs[2 * deopt_idx];
+    node->u.guard.deopt_target = ins->operands[2].lit_ui32;
     node->u.guard.deopt_offset = jgb->sg->deopt_addrs[2 * deopt_idx + 1];
     jgb_append_node(jgb, node);
 }
