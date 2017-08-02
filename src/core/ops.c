@@ -1529,7 +1529,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "+a",
         1,
         0,
-        0,
+        8,
         0,
         0,
         0,

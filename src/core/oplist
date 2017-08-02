@@ -39,8 +39,11 @@
 # * :logged means type or value logging for specialization happens at this
 #   op
 # * :deoptonepoint means that we may deoptimize (fall back to slow-path code)
-#   at this point, but just locally within the current frame
-# * :deoptallpoint means that we may globally deoptimize at this point
+#   after this instruction, but just locally within the current frame
+# * :predeoptonepoint means that we may deoptimize (fall back to slow-path
+#   code) before this instruction, but just locally within the current frame
+# * :deoptallpoint means that we may globally deoptimize (this goes only on an
+#   invoke; the callsite address will be rewritten)
 # * :noinline means it is never safe to inline this op
 # * :invokish means the op may invoke (used by the JIT)
 # * :throwish means the op may throw (used by the JIT)
@@ -172,7 +175,7 @@ coerce_si           w(int64) r(str) :pure
 coerce_sn           w(num64) r(str) :pure
 smrt_numify         w(num64) r(obj) :pure :invokish
 smrt_strify         w(str) r(obj) :pure :invokish
-prepargs         +a callsite
+prepargs         +a callsite :predeoptonepoint
 arg_i            *a int16 r(int64)
 arg_n            *a int16 r(num64)
 arg_s            *a int16 r(str)

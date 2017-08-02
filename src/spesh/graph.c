@@ -156,6 +156,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         /* Store opcode */
         ins_node->info = info;
 
+        /* If this is a pre-instruction deopt point opcode, annotate. */
+        if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_ONE_PRE))
+            add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_ONE_INS);
+
         /* Let's see if we have a line-number annotation */
         if (ann_ptr && pc - sf->body.bytecode == ann_ptr->bytecode_offset) {
             MVMSpeshAnn *lineno_ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
@@ -329,7 +333,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         /* Caculate next instruction's PC. */
         pc += 2 + arg_size;
 
-        /* If this is a deopt point opcode... */
+        /* If this is a post-instruction deopt point opcode... */
         if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_ONE))
             add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_ONE_INS);
         if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_ALL))

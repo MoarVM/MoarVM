@@ -31,9 +31,10 @@ union MVMRegister {
 #define MVM_MAX_OPERANDS 8
 
 /* Kind of de-opt mark. */
-#define MVM_DEOPT_MARK_ONE 1
-#define MVM_DEOPT_MARK_ALL 2
-#define MVM_DEOPT_MARK_OSR 4
+#define MVM_DEOPT_MARK_ONE      1
+#define MVM_DEOPT_MARK_ALL      2
+#define MVM_DEOPT_MARK_OSR      4
+#define MVM_DEOPT_MARK_ONE_PRE  8
 
 /* Information about an opcode. */
 struct MVMOpInfo {
