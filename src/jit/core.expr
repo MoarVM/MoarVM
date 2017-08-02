@@ -21,8 +21,8 @@
 
 (template: add_i (add $1 $2))
 (template: sub_i (sub $1 $2))
-(template: inc_i (add (load $0 int_sz) (const 1 int_sz)))
-(template: dec_i (sub (load $0 int_sz) (const 1 int_sz)))
+(template: inc_i (add $1 (const 1 int_sz)))
+(template: dec_i (sub $1 (const 1 int_sz)))
 
 (template: gt_i (flagval (gt $1 $2)))
 (template: ge_i (flagval (ge $1 $2)))

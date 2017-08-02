@@ -244,6 +244,19 @@ static MVMint32 can_getlex(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns *i
     return lexical_types[idx] != MVM_reg_obj;
 }
 
+static MVMint32 ins_has_single_input_output_operand(MVMSpeshIns *ins) {
+    switch (ins->info->opcode) {
+    case MVM_OP_inc_i:
+    case MVM_OP_inc_u:
+    case MVM_OP_dec_i:
+    case MVM_OP_dec_u:
+        return 1;
+      default:
+          break;
+    }
+    return 0;
+}
+
 void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree, MVMSpeshIns *ins,
                                 struct ValueDefinition *values, MVMint32 *operands) {
     MVMint32 i;
@@ -285,6 +298,28 @@ void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree, MVMS
             MVM_oops(tc, "JIT: something is wrong with operand loading");
         }
     }
+
+    /* A HACK.
+     *
+     * dec_i and inc_i have a single operand that acts both as input and output.
+     * This is marked only as an output operand, though. Thus, we load the
+     * address here, and define the value later. However, if we have multiple of
+     * these in sequence, each will load the old value from memory, disregarding
+     * the value that an earlier operator has defined, i.e. losing the update.
+     * That's a bug, and this tries to fix it, by forcing a 'split' between the
+     * input and the output operand.
+     */
+    if (ins_has_single_input_output_operand(ins)) {
+        MVMuint16 reg = ins->operands[0].reg.orig;
+        if (values[reg].node >= 0) {
+            operands[1] = values[reg].node;
+        } else {
+            /* operands[0] has the address */
+            operands[1] = MVM_jit_expr_add_load(tc, tree, operands[0]);
+            /* no need to insert it in the table since it will be directly
+             * overwritten */
+        }
+    }
 }
 
 /* This function is to check the internal consistency of a template
@@ -302,7 +337,9 @@ static void check_template(MVMThreadContext *tc, const MVMJitExprTemplate *templ
                 MVM_oops(tc, "JIT: Template link out of bounds (instruction: %s)", ins->info->name);
             break;
         case 'f':
-            if (template->code[i] >= ins->info->num_operands || template->code[i] < 0)
+            if (template->code[i] < 0 ||
+                (template->code[i] >= ins->info->num_operands &&
+                 !ins_has_single_input_output_operand(ins)))
                 MVM_oops(tc, "JIT: Operand access out of bounds (instruction: %s)", ins->info->name);
             break;
         default:
