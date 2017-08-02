@@ -25,7 +25,13 @@
 (template: dec_i (sub (load $0 int_sz) (const 1 int_sz)))
 
 (template: gt_i (flagval (gt $1 $2)))
+(template: ge_i (flagval (ge $1 $2)))
 (template: eq_i (flagval (eq $1 $2)))
+(template: ne_i (flagval (ne $1 $2)))
+(template: le_i (flagval (le $1 $2)))
+(template: lt_i (flagval (lt $1 $2)))
+(template: eqaddr (flagval (eq $1 $2)))
+
 
 (template: sp_getarg_o (load (^parg $1) ptr_sz))
 (template: sp_getarg_s (load (^parg $1) ptr_sz))
