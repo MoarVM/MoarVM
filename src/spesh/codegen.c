@@ -178,7 +178,11 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                         write_int32(ws, ins->operands[i].lit_str_idx);
                         break;
                     case MVM_operand_ins: {
-                        MVMint32 offset = ws->bb_offsets[ins->operands[i].ins_bb->idx];
+                        MVMint32 bb_idx = ins->operands[i].ins_bb->idx;
+                        MVMint32 offset;
+                        if (bb_idx >= g->num_bbs)
+                            MVM_panic(1, "Spesh codegen: out of range BB index %d", bb_idx);
+                        offset = ws->bb_offsets[bb_idx];
                         if (offset >= 0) {
                             /* Already know where it is, so just write it. */
                             write_int32(ws, offset);
