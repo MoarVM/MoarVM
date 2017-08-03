@@ -1592,7 +1592,6 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_iscont:
     case MVM_OP_decont:
     case MVM_OP_sp_decont:
-    case MVM_OP_sp_namedarg_used:
     case MVM_OP_sp_findmeth:
     case MVM_OP_hllboxtype_i:
     case MVM_OP_hllboxtype_n:
