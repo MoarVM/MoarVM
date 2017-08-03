@@ -316,6 +316,17 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         }
     }
 
+    /* Make all of the inlinee's entry block's successors (except the linear
+     * next) also be successors of the inliner's entry block; this keeps any
+     * exception handlers alive in the graph. */
+    while (inlinee->entry->num_succ > 1) {
+        MVMSpeshBB *move = inlinee->entry->succ[0] == inlinee->entry->linear_next
+            ? inlinee->entry->succ[1]
+            : inlinee->entry->succ[0];
+        MVM_spesh_manipulate_remove_successor(tc, inlinee->entry, move);
+        MVM_spesh_manipulate_add_successor(tc, inliner, inliner->entry, move);
+    }
+
     /* Merge facts. */
     merged_facts = MVM_spesh_alloc(tc, inliner,
         (inliner->num_locals + inlinee->num_locals) * sizeof(MVMSpeshFacts *));

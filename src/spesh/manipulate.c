@@ -121,6 +121,27 @@ void MVM_spesh_manipulate_insert_goto(MVMThreadContext *tc, MVMSpeshGraph *g, MV
     MVM_spesh_manipulate_insert_ins(tc, bb, ins, inserted_goto);
 }
 
+void MVM_spesh_manipulate_add_successor(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                        MVMSpeshBB *bb, MVMSpeshBB *succ) {
+    MVMSpeshBB **new_succ, **new_pred;
+
+    /* Add to successors. */
+    new_succ = MVM_spesh_alloc(tc, g, (bb->num_succ + 1) * sizeof(MVMSpeshBB *));
+    if (bb->num_succ)
+        memcpy(new_succ, bb->succ, bb->num_succ * sizeof(MVMSpeshBB *));
+    new_succ[bb->num_succ] = succ;
+    bb->succ = new_succ;
+    bb->num_succ++;
+
+    /* And to successor's predocessors. */
+    new_pred = MVM_spesh_alloc(tc, g, (succ->num_pred + 1) * sizeof(MVMSpeshBB *));
+    if (succ->num_pred)
+        memcpy(new_pred, succ->pred, succ->num_pred * sizeof(MVMSpeshBB *));
+    new_pred[succ->num_pred] = bb;
+    succ->pred = new_pred;
+    succ->num_pred++;
+}
+
 void MVM_spesh_manipulate_remove_successor(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *succ) {
     MVMSpeshBB ** const   bb_succ = bb->succ;
     MVMSpeshBB ** const succ_pred = succ->pred;
