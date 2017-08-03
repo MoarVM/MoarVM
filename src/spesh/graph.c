@@ -627,7 +627,7 @@ static void eliminate_dead(MVMThreadContext *tc, MVMSpeshGraph *g) {
         /* Second pass: eliminate dead BBs from consideration. */
         death = 0;
         cur_bb = g->entry;
-        while (cur_bb->linear_next) {
+        while (cur_bb && cur_bb->linear_next) {
             if (!seen[cur_bb->linear_next->idx]) {
                 cur_bb->linear_next = cur_bb->linear_next->linear_next;
                 g->num_bbs--;

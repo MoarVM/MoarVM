@@ -2080,7 +2080,7 @@ static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
          * annotations. */
         death = 0;
         cur_bb = g->entry;
-        while (cur_bb->linear_next) {
+        while (cur_bb && cur_bb->linear_next) {
             MVMSpeshBB *death_cand = cur_bb->linear_next;
             if (!seen[death_cand->idx]) {
                 if (!death_cand->inlined && !has_handler_anns(tc, death_cand)) {
