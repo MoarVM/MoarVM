@@ -16,7 +16,7 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
     else
         bb->last_ins = prev;
 
-    /* Move it's annotations. */
+    /* Move its annotations. */
     while (ins->annotations) {
         MVMSpeshAnn *ann      = ins->annotations;
         MVMSpeshAnn *ann_next = ann->next;
@@ -25,6 +25,7 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
             case MVM_SPESH_ANN_FH_GOTO:
             case MVM_SPESH_ANN_INLINE_START:
             case MVM_SPESH_ANN_DEOPT_OSR:
+                /* These move to the next instruction. */
                 if (!next && bb->linear_next)
                     next = bb->linear_next->first_ins;
                 if (next) {
@@ -33,7 +34,7 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
                 }
                 break;
             case MVM_SPESH_ANN_FH_END:
-            case MVM_SPESH_ANN_DEOPT_ONE_INS:
+                /* This moves to the previous instruction. */
                 if (!prev) {
                     MVMSpeshBB *prev_bb = MVM_spesh_graph_linear_prev(tc, g, bb);
                     if (prev_bb)
@@ -42,6 +43,24 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
                 if (prev) {
                     ann->next = prev->annotations;
                     prev->annotations = ann;
+                }
+                break;
+            case MVM_SPESH_ANN_DEOPT_ONE_INS:
+                /* This moves to the previous instruction, but we need to put
+                 * it on the end of the list, so the earlier deopt point will
+                 * win when searching for deopt points. Otherwise, we can
+                 * deopt to a later place than we should have. */
+                if (!prev) {
+                    MVMSpeshBB *prev_bb = MVM_spesh_graph_linear_prev(tc, g, bb);
+                    if (prev_bb)
+                        prev = prev_bb->last_ins;
+                }
+                if (prev) {
+                    MVMSpeshAnn *append_to = prev->annotations;
+                    while (append_to && append_to->next)
+                        append_to = append_to->next;
+                    append_to = ann;
+                    ann->next = NULL;
                 }
                 break;
         }

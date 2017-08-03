@@ -42,8 +42,17 @@ MVM_STATIC_INLINE MVMuint32 MVM_string_graphs_nocheck(MVMThreadContext *tc, MVMS
     return s->body.num_graphs;
 }
 MVM_STATIC_INLINE MVMuint32 MVM_string_codes(MVMThreadContext *tc, MVMString *s) {
+    MVMCodepointIter ci;
+    MVMint64 codes = 0;
     MVM_string_check_arg(tc, s, "codes");
-    return s->body.num_graphs; /* Don't do NFG yet; this will do us. */
+    if (MVM_string_graphs_nocheck(tc, s) == 0)
+        return 0;
+    MVM_string_ci_init(tc, &ci, s, 0);
+    while(MVM_string_ci_has_more(tc, &ci)) {
+        MVM_string_ci_get_codepoint(tc, &ci);
+        codes++;
+    }
+    return codes;
 }
 
 MVMGrapheme32 MVM_string_get_grapheme_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index);

@@ -1,5 +1,5 @@
 /* Maximum args a call can take for us to consider it for optimization. */
-#define MAX_ARGS_FOR_OPT    4
+#define MAX_ARGS_FOR_OPT 8
 
 /* Information we've gathered about the current call we're optimizing, and the
  * arguments it will take. */

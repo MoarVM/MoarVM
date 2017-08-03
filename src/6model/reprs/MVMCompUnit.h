@@ -141,6 +141,9 @@ struct MVMCompUnitBody {
 
     /* Version of the bytecode format we deserialized this comp unit from. */
     MVMuint16 bytecode_version;
+
+    /* Was a frame in this compilation unit invoked yet? */
+    MVMuint8 invoked;
 };
 struct MVMCompUnit {
     MVMObject common;

@@ -99,6 +99,12 @@ struct MVMSpeshStatsByOffset {
     /* Number of values recorded, with counts. */
     MVMuint32 num_values;
     MVMSpeshStatsValueCount *values;
+
+    /* Number of type tuples recorded, with counts. (Type tuples are actually
+     * recorded by the callee, and then also accumulated at the callsite of
+     * the caller.) */
+    MVMuint32 num_type_tuples;
+    MVMSpeshStatsTypeTupleCount *type_tuples;
 };
 
 /* Counts of a given type that has shown up at a bytecode offset. */
@@ -115,6 +121,19 @@ struct MVMSpeshStatsTypeCount {
 struct MVMSpeshStatsValueCount {
     /* The value. */
     MVMObject *value;
+
+    /* The number of times we've seen it. */
+    MVMuint32 count;
+};
+
+/* Counts of a given type tuple has shown up at the callsite at a bytecode
+ * offset. */
+struct MVMSpeshStatsTypeTupleCount {
+    /* The callsite. */
+    MVMCallsite *cs;
+
+    /* The type tuple. */
+    MVMSpeshStatsType *arg_types;
 
     /* The number of times we've seen it. */
     MVMuint32 count;

@@ -107,3 +107,19 @@ MVM_STATIC_INLINE void * MVM_p6opaque_real_data(MVMThreadContext *tc, void *data
     MVMP6opaqueBody *body = (MVMP6opaqueBody *)data;
     return body->replaced ? body->replaced : data;
 }
+
+/* Reads an attribute using an offset. This is only safe on an exact type
+ * match. */
+MVM_STATIC_INLINE MVMObject * MVM_p6opaque_read_object(MVMThreadContext *tc,
+                                                       MVMObject *o, size_t offset) {
+    char *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+    return *((MVMObject **)(data + offset));
+}
+MVM_STATIC_INLINE MVMint64 MVM_p6opaque_read_int64(MVMThreadContext *tc,
+                                                   MVMObject *o, size_t offset) {
+    char *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+    return *((MVMint64 *)(data + offset));
+}
+
+size_t MVM_p6opaque_attr_offset(MVMThreadContext *tc, MVMObject *type,
+    MVMObject *class_handle, MVMString *name);

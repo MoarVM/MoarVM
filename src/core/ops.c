@@ -1529,7 +1529,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "+a",
         1,
         0,
-        0,
+        8,
         0,
         0,
         0,
@@ -4695,7 +4695,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
-        0,
+        1,
         0,
         0,
         1,
@@ -9189,37 +9189,37 @@ static const MVMOpInfo MVM_op_infos[] = {
         MVM_OP_sp_guard,
         "sp_guard",
         ".s",
-        2,
+        3,
         0,
         0,
         0,
         0,
         0,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot }
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot, MVM_operand_uint32 }
     },
     {
         MVM_OP_sp_guardconc,
         "sp_guardconc",
         ".s",
-        2,
+        3,
         0,
         0,
         0,
         0,
         0,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot }
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot, MVM_operand_uint32 }
     },
     {
         MVM_OP_sp_guardtype,
         "sp_guardtype",
         ".s",
-        2,
+        3,
         0,
         0,
         0,
         0,
         0,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot }
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot, MVM_operand_uint32 }
     },
     {
         MVM_OP_sp_decont,

@@ -339,7 +339,7 @@ static void jg_append_guard(MVMThreadContext *tc, MVMJitGraph *jg,
         MVM_oops(tc, "Can't find deopt idx annotation on spesh ins <%s>",
             ins->info->name);
     }
-    node->u.guard.deopt_target = jg->sg->deopt_addrs[2 * deopt_idx];
+    node->u.guard.deopt_target = ins->operands[2].lit_ui32;
     node->u.guard.deopt_offset = jg->sg->deopt_addrs[2 * deopt_idx + 1];
     jg_append_node(jg, node);
 }

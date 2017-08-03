@@ -118,7 +118,12 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
         MVM_oops(tc, "dynasm could not encode :-(");
 
     /* set memory readable + executable */
-    MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC);
+    if (!MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC)) {
+        MVM_jit_log(tc, "Setting jit page executable failed or was denied. deactivating jit.\n");
+        /* our caller allocated the compiler and our caller must clean it up */
+        tc->instance->jit_enabled = 0;
+        return NULL;
+    }
 
     MVM_jit_log(tc, "Bytecode size: %"MVM_PRSz"\n", codesize);
 

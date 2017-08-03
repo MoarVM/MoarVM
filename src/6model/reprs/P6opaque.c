@@ -1382,7 +1382,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         MVMString     *name     = spesh_attr_name(tc, g, ins->operands[3], opcode == MVM_OP_getattrs_o);
         if (name && ch_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && ch_facts->type) {
             MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type, name);
-            if (slot >= 0 && !repr_data->mi && !repr_data->flattened_stables[slot]) {
+            if (slot >= 0 && !repr_data->flattened_stables[slot]) {
                 if (repr_data->auto_viv_values && repr_data->auto_viv_values[slot]) {
                     MVMObject *av_value = repr_data->auto_viv_values[slot];
                     if (IS_CONCRETE(av_value)) {
@@ -1615,6 +1615,15 @@ static const MVMREPROps P6opaque_this_repr = {
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
 };
+
+/* Get the pointer offset of an attribute. Used for optimizing access to it on
+ * precisely known types. */
+size_t MVM_p6opaque_attr_offset(MVMThreadContext *tc, MVMObject *type,
+                                MVMObject *class_handle, MVMString *name) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)type->st->REPR_data;
+    size_t slot = try_get_slot(tc, repr_data, class_handle, name);
+    return slot >= 0 ? repr_data->attribute_offsets[slot] : 0;
+}
 
 #ifdef DEBUG_HELPERS
 /* This is meant to be called in a debugging session and not used anywhere else.

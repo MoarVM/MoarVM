@@ -34,8 +34,9 @@ static const MVMOpInfo * get_op_info(MVMThreadContext *tc, MVMCompUnit *cu, MVMu
 }
 
 /* Records a de-optimization annotation and mapping pair. */
-static void add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins_node,
-                                 MVMuint8 *pc, MVMint32 type) {
+void MVM_spesh_graph_add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                          MVMSpeshIns *ins_node, MVMuint32 deopt_target,
+                                          MVMint32 type) {
     /* Add an annotations. */
     MVMSpeshAnn *ann      = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
     ann->type             = type;
@@ -52,7 +53,7 @@ static void add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
         else
             g->deopt_addrs = MVM_malloc(g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
     }
-    g->deopt_addrs[2 * g->num_deopt_addrs] = pc - g->bytecode;
+    g->deopt_addrs[2 * g->num_deopt_addrs] = deopt_target;
     g->num_deopt_addrs++;
 }
 
@@ -156,6 +157,11 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         /* Store opcode */
         ins_node->info = info;
 
+        /* If this is a pre-instruction deopt point opcode, annotate. */
+        if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_ONE_PRE))
+            MVM_spesh_graph_add_deopt_annotation(tc, g, ins_node,
+                pc - g->bytecode, MVM_SPESH_ANN_DEOPT_ONE_INS);
+
         /* Let's see if we have a line-number annotation */
         if (ann_ptr && pc - sf->body.bytecode == ann_ptr->bytecode_offset) {
             MVMSpeshAnn *lineno_ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
@@ -198,6 +204,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                     break;
                 case MVM_operand_int32:
                     ins_node->operands[i].lit_i32 = GET_I32(args, arg_size);
+                    arg_size += 4;
+                    break;
+                case MVM_operand_uint32:
+                    ins_node->operands[i].lit_ui32 = GET_UI32(args, arg_size);
                     arg_size += 4;
                     break;
                 case MVM_operand_int64:
@@ -325,13 +335,16 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         /* Caculate next instruction's PC. */
         pc += 2 + arg_size;
 
-        /* If this is a deopt point opcode... */
+        /* If this is a post-instruction deopt point opcode... */
         if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_ONE))
-            add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_ONE_INS);
+            MVM_spesh_graph_add_deopt_annotation(tc, g, ins_node,
+                pc - g->bytecode, MVM_SPESH_ANN_DEOPT_ONE_INS);
         if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_ALL))
-            add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_ALL_INS);
+            MVM_spesh_graph_add_deopt_annotation(tc, g, ins_node,
+                pc - g->bytecode, MVM_SPESH_ANN_DEOPT_ALL_INS);
         if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_OSR))
-            add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_OSR);
+            MVM_spesh_graph_add_deopt_annotation(tc, g, ins_node,
+                pc - g->bytecode, MVM_SPESH_ANN_DEOPT_OSR);
 
         /* Go to next instruction. */
         ins_idx++;

@@ -17,7 +17,9 @@ typedef enum {
     /* Invoked code object. */
     MVM_SPESH_LOG_INVOKE,
     /* OSR point. */
-    MVM_SPESH_LOG_OSR
+    MVM_SPESH_LOG_OSR,
+    /* Return from a callframe, possibly with a logged type. */
+    MVM_SPESH_LOG_RETURN
 } MVMSpeshLogEntryKind;
 
 /* Flags on types. */
@@ -45,7 +47,7 @@ struct MVMSpeshLogEntry {
             MVMuint16 arg_idx;
         } param;
 
-        /* Observed type (TYPE). */
+        /* Observed type (TYPE, RETURN). */
         struct {
             MVMObject *type;
             MVMint32 flags;
@@ -76,6 +78,11 @@ struct MVMSpeshLogBody {
     /* Number of log entries so far and limit. */
     MVMuint32 used;
     MVMuint32 limit;
+
+    /* If this was created due to a new compilation unit (heuristic to do
+     * better at outer-loop OSR); we go over-quota for those, and this is
+     * to help us restore it again. */
+    MVMuint8 was_compunit_bumped;
 
     /* When in debug mode, mutex and condition variable used to block the
      * thread sending a log until the spesh worker has processed it. */

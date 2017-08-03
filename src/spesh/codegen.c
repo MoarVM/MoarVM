@@ -156,6 +156,9 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                     case MVM_operand_int32:
                         write_int32(ws, ins->operands[i].lit_i32);
                         break;
+                    case MVM_operand_uint32:
+                        write_int32(ws, ins->operands[i].lit_ui32);
+                        break;
                     case MVM_operand_int64:
                         write_int64(ws, ins->operands[i].lit_i64);
                         break;
