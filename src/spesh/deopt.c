@@ -57,6 +57,11 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                 memcpy(uf->env, f->env + cand->inlines[i].lexicals_start,
                     usf->body.num_lexicals * sizeof(MVMRegister));
 
+            /* Store the named argument used bit field, since if we deopt in
+             * argument handling code we may have missed some. */
+            if (cand->inlines[i].deopt_named_used_bit_field)
+                uf->params.named_used.bit_field = cand->inlines[i].deopt_named_used_bit_field;
+
             /* Did we already uninline a frame? */
             if (last_uninlined) {
                 /* Yes; multi-level un-inline. Switch it back to deopt'd
@@ -150,9 +155,15 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
     }
 }
 
+static void deopt_named_args_used(MVMThreadContext *tc, MVMFrame *f) {
+    if (f->spesh_cand->deopt_named_used_bit_field)
+        f->params.named_used.bit_field = f->spesh_cand->deopt_named_used_bit_field;
+}
+
 static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset, MVMint32 deopt_target) {
     /* Found it; are we in an inline? */
     MVMSpeshInline *inlines = f->spesh_cand->inlines;
+    deopt_named_args_used(tc, f);
     if (inlines) {
         /* Yes, going to have to re-create the frames; uninline
          * moves the interpreter, so we can just tweak the last
@@ -272,6 +283,7 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                         }
 
                         /* No spesh cand/slots needed now. */
+                        deopt_named_args_used(tc, f);
                         f->effective_spesh_slots = NULL;
                         f->spesh_cand            = NULL;
                         f->jit_entry_label       = NULL;

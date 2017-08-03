@@ -60,6 +60,10 @@ struct MVMSpeshGraph {
     MVMint32  num_deopt_addrs;
     MVMint32  alloc_deopt_addrs;
 
+    /* Bit field of named args used to put in place during deopt, since we
+     * don't typically don't update the array in specialized code. */
+    MVMuint64 deopt_named_used_bit_field;
+
     /* Table of information about inlines, laid out in order of nesting
      * depth. Thus, going through the table in order and finding when we
      * are within the bounds will show up each call frame that needs to

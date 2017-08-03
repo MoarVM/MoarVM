@@ -76,6 +76,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     candidate->num_handlers  = sg->num_handlers;
     candidate->num_deopts    = sg->num_deopt_addrs;
     candidate->deopts        = sg->deopt_addrs;
+    candidate->deopt_named_used_bit_field = sg->deopt_named_used_bit_field;
     candidate->num_locals    = sg->num_locals;
     candidate->num_lexicals  = sg->num_lexicals;
     candidate->num_inlines   = sg->num_inlines;

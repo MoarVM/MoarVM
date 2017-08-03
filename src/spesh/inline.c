@@ -423,6 +423,8 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     }
     inliner->inlines[total_inlines - 1].return_deopt_idx = return_deopt_idx(tc, invoke_ins);
     inliner->inlines[total_inlines - 1].unreachable = 0;
+    inliner->inlines[total_inlines - 1].deopt_named_used_bit_field =
+        inlinee->deopt_named_used_bit_field;
     inliner->num_inlines = total_inlines;
 
     /* Create/update per-specialization local and lexical type maps. */

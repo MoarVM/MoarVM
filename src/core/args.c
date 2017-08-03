@@ -401,6 +401,14 @@ void MVM_args_assert_nameds_used(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     }
 }
 
+void MVM_args_throw_named_unused_error(MVMThreadContext *tc, MVMString *name) {
+    char *c_param = MVM_string_utf8_encode_C_string(tc, name);
+    char *waste[] = { c_param, NULL };
+    MVM_exception_throw_adhoc_free(tc, waste,
+        "Unexpected named argument '%s' passed",
+        c_param);
+}
+
 /* Result setting. The frameless flag indicates that the currently
  * executing code does not have a MVMFrame of its own. */
 static MVMObject * decont_result(MVMThreadContext *tc, MVMObject *result) {

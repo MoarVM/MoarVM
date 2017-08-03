@@ -5317,6 +5317,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_args_marked_named_used(tc, GET_UI16(cur_op, 0));
                 cur_op += 2;
                 goto NEXT;
+            OP(sp_paramnamesused):
+                MVM_args_throw_named_unused_error(tc, (MVMString *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 0)]);
+                cur_op += 2;
+                goto NEXT;
             OP(sp_getspeshslot):
                 GET_REG(cur_op, 0).o = (MVMObject *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 2)];

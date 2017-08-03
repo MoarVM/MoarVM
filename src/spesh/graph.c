@@ -1210,6 +1210,7 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     g->deopt_addrs       = cand->deopts;
     g->num_deopt_addrs   = cand->num_deopts;
     g->alloc_deopt_addrs = cand->num_deopts;
+    g->deopt_named_used_bit_field = cand->deopt_named_used_bit_field;
     g->local_types       = cand->local_types;
     g->lexical_types     = cand->lexical_types;
     g->spesh_slots       = cand->spesh_slots;
