@@ -422,6 +422,7 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         MVM_oops(tc, "Spesh inline: unknown invoke instruction");
     }
     inliner->inlines[total_inlines - 1].return_deopt_idx = return_deopt_idx(tc, invoke_ins);
+    inliner->inlines[total_inlines - 1].unreachable = 0;
     inliner->num_inlines = total_inlines;
 
     /* Create/update per-specialization local and lexical type maps. */
@@ -447,6 +448,18 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         memcpy(inliner->lexical_types + inliner->num_lexicals,
             inlinee->lexical_types ? inlinee->lexical_types : inlinee->sf->body.lexical_types,
             inlinee->num_lexicals * sizeof(MVMuint16));
+
+    /* Merge unreachable handlers array if needed. */
+    if (inliner->unreachable_handlers || inlinee->unreachable_handlers) {
+        MVMuint32 total_handlers = inliner->num_handlers + inlinee->num_handlers;
+        MVMint8 *new_uh = MVM_spesh_alloc(tc, inliner, total_handlers);
+        if (inliner->unreachable_handlers)
+            memcpy(new_uh, inliner->unreachable_handlers, inliner->num_handlers);
+        if (inlinee->unreachable_handlers)
+            memcpy(new_uh + inliner->num_handlers, inlinee->unreachable_handlers,
+                inlinee->num_handlers);
+        inliner->unreachable_handlers = new_uh;
+    }
 
     /* Merge handlers from inlinee. */
     if (inlinee->num_handlers) {

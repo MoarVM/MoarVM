@@ -352,45 +352,57 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
 
     /* Annotate instructions that are handler-significant. */
     for (i = 0; i < g->num_handlers; i++) {
-        MVMSpeshIns *start_ins = ins_flat[byte_to_ins_flags[g->handlers[i].start_offset] >> 3];
-        MVMSpeshIns *end_ins   = ins_flat[byte_to_ins_flags[g->handlers[i].end_offset] >> 3];
+        /* We can rely on handlers always surviving, for now. */
         MVMSpeshIns *goto_ins  = ins_flat[byte_to_ins_flags[g->handlers[i].goto_offset] >> 3];
-        MVMSpeshAnn *start_ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
-        MVMSpeshAnn *end_ann   = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
         MVMSpeshAnn *goto_ann  = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
-
-        start_ann->next = start_ins->annotations;
-        start_ann->type = MVM_SPESH_ANN_FH_START;
-        start_ann->data.frame_handler_index = i;
-        start_ins->annotations = start_ann;
-
-        end_ann->next = end_ins->annotations;
-        end_ann->type = MVM_SPESH_ANN_FH_END;
-        end_ann->data.frame_handler_index = i;
-        end_ins->annotations = end_ann;
-
         goto_ann->next = goto_ins->annotations;
         goto_ann->type = MVM_SPESH_ANN_FH_GOTO;
         goto_ann->data.frame_handler_index = i;
         goto_ins->annotations = goto_ann;
+
+        /* Start and end may be -1 if they the code they covered became
+         * dead. If so, mark the handler as removed. */
+        if (g->handlers[i].start_offset == -1) {
+            if (!g->unreachable_handlers)
+                g->unreachable_handlers = MVM_spesh_alloc(tc, g, g->num_handlers);
+            g->unreachable_handlers[i] = 1;
+        }
+        else {
+            MVMSpeshIns *start_ins = ins_flat[byte_to_ins_flags[g->handlers[i].start_offset] >> 3];
+            MVMSpeshIns *end_ins   = ins_flat[byte_to_ins_flags[g->handlers[i].end_offset] >> 3];
+            MVMSpeshAnn *start_ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+            MVMSpeshAnn *end_ann   = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+
+            start_ann->next = start_ins->annotations;
+            start_ann->type = MVM_SPESH_ANN_FH_START;
+            start_ann->data.frame_handler_index = i;
+            start_ins->annotations = start_ann;
+
+            end_ann->next = end_ins->annotations;
+            end_ann->type = MVM_SPESH_ANN_FH_END;
+            end_ann->data.frame_handler_index = i;
+            end_ins->annotations = end_ann;
+        }
     }
 
     /* Annotate instructions that are inline start/end points. */
     for (i = 0; i < g->num_inlines; i++) {
-        MVMSpeshIns *start_ins = ins_flat[byte_to_ins_flags[g->inlines[i].start] >> 3];
-        MVMSpeshIns *end_ins   = ins_flat[byte_to_ins_flags[g->inlines[i].end] >> 3];
-        MVMSpeshAnn *start_ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
-        MVMSpeshAnn *end_ann   = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+        if (!g->inlines[i].unreachable) {
+            MVMSpeshIns *start_ins = ins_flat[byte_to_ins_flags[g->inlines[i].start] >> 3];
+            MVMSpeshIns *end_ins   = ins_flat[byte_to_ins_flags[g->inlines[i].end] >> 3];
+            MVMSpeshAnn *start_ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+            MVMSpeshAnn *end_ann   = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
 
-        start_ann->next = start_ins->annotations;
-        start_ann->type = MVM_SPESH_ANN_INLINE_START;
-        start_ann->data.inline_idx = i;
-        start_ins->annotations = start_ann;
+            start_ann->next = start_ins->annotations;
+            start_ann->type = MVM_SPESH_ANN_INLINE_START;
+            start_ann->data.inline_idx = i;
+            start_ins->annotations = start_ann;
 
-        end_ann->next = end_ins->annotations;
-        end_ann->type = MVM_SPESH_ANN_INLINE_END;
-        end_ann->data.inline_idx = i;
-        end_ins->annotations = end_ann;
+            end_ann->next = end_ins->annotations;
+            end_ann->type = MVM_SPESH_ANN_INLINE_END;
+            end_ann->data.inline_idx = i;
+            end_ins->annotations = end_ann;
+        }
     }
 
     /* Now for the second pass, where we assemble the basic blocks. Also we

@@ -289,8 +289,10 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
         *((MVMuint32 *)(ws->bytecode + ws->fixup_locations[i])) =
             ws->bb_offsets[ws->fixup_bbs[i]->idx];
 
-    /* Ensure all handlers got fixed up. */
+    /* Ensure all handlers that are reachable got fixed up. */
     for (i = 0; i < g->num_handlers; i++) {
+        if (g->unreachable_handlers && g->unreachable_handlers[i])
+            continue;
         if (ws->handlers[i].start_offset == -1 ||
             ws->handlers[i].end_offset   == -1 ||
             ws->handlers[i].goto_offset  == -1)
@@ -302,8 +304,9 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
     /* Ensure all inlines got fixed up. */
     for (i = 0; i < g->num_inlines; i++)
-        if (g->inlines[i].start == -1 || g->inlines[i].end == -1)
-            MVM_oops(tc, "Spesh: failed to fix up inline %d", i);
+        if (!g->inlines[i].unreachable)
+            if (g->inlines[i].start == -1 || g->inlines[i].end == -1)
+                MVM_oops(tc, "Spesh: failed to fix up inline %d", i);
 
     /* Produce result data structure. */
     res                = MVM_malloc(sizeof(MVMSpeshCode));

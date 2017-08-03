@@ -16,6 +16,9 @@ struct MVMSpeshGraph {
     /* Exception handler map for that bytecode. */
     MVMFrameHandler *handlers;
 
+    /* Handlers that have become unreachable due to dead code removal. */
+    MVMint8 *unreachable_handlers;
+
     /* The size of the bytecode we're building the graph out of. */
     MVMuint32 bytecode_size;
 
