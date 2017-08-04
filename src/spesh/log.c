@@ -111,27 +111,32 @@ void MVM_spesh_log_type(MVMThreadContext *tc, MVMObject *value) {
 
 /* Log a parameter type and, maybe, decontainerized type. */
 static void log_param_type(MVMThreadContext *tc, MVMint32 cid, MVMuint16 arg_idx,
-                           MVMObject *value, MVMSpeshLogEntryKind kind) {
+                           MVMObject *value, MVMSpeshLogEntryKind kind, MVMint32 rw_cont) {
     MVMSpeshLog *sl = tc->spesh_log;
     MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
     entry->kind = kind;
     entry->id = cid;
     MVM_ASSIGN_REF(tc, &(sl->common.header), entry->param.type, value->st->WHAT);
     entry->param.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_TYPE_FLAG_CONCRETE : 0;
+    if (rw_cont)
+        entry->param.flags |= MVM_SPESH_LOG_TYPE_FLAG_RW_CONT;
     entry->param.arg_idx = arg_idx;
     commit_entry(tc, sl);
 }
 void MVM_spesh_log_parameter(MVMThreadContext *tc, MVMuint16 arg_idx, MVMObject *param) {
     MVMint32 cid = tc->cur_frame->spesh_correlation_id;
+    MVMContainerSpec const *cs = STABLE(param)->container_spec;
     MVMROOT(tc, param, {
-        log_param_type(tc, cid, arg_idx, param, MVM_SPESH_LOG_PARAMETER);
+        log_param_type(tc, cid, arg_idx, param, MVM_SPESH_LOG_PARAMETER,
+            cs && IS_CONCRETE(param) && cs->fetch_never_invokes
+                ? cs->can_store(tc, param)
+                : 0);
     });
     if (tc->spesh_log && IS_CONCRETE(param)) {
-        MVMContainerSpec const *cs = STABLE(param)->container_spec;
         if (cs && cs->fetch_never_invokes) {
             MVMRegister r;
             cs->fetch(tc, param, &r);
-            log_param_type(tc, cid, arg_idx, r.o, MVM_SPESH_LOG_PARAMETER_DECONT);
+            log_param_type(tc, cid, arg_idx, r.o, MVM_SPESH_LOG_PARAMETER_DECONT, 0);
         }
     }
 }

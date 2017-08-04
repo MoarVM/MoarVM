@@ -518,8 +518,10 @@ void dump_stats_type_tuple(MVMThreadContext *tc, DumpStr *ds, MVMCallsite *cs,
         MVMObject *type = type_tuple[j].type;
         if (type) {
             MVMObject *decont_type = type_tuple[j].decont_type;
-            appendf(ds, "%sType %d: %s (%s)",
-                prefix, j, type->st->debug_name,
+            appendf(ds, "%sType %d: %s%s (%s)",
+                prefix, j,
+                (type_tuple[j].rw_cont ? "RW " : ""),
+                type->st->debug_name,
                 (type_tuple[j].type_concrete ? "Conc" : "TypeObj"));
             if (decont_type)
                 appendf(ds, " of %s (%s)",

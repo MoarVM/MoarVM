@@ -24,6 +24,7 @@ typedef enum {
 
 /* Flags on types. */
 #define MVM_SPESH_LOG_TYPE_FLAG_CONCRETE 1
+#define MVM_SPESH_LOG_TYPE_FLAG_RW_CONT  2
 
 /* An entry in the spesh log. */
 struct MVMSpeshLogEntry {

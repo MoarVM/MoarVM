@@ -511,7 +511,9 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                         MVM_ASSIGN_REF(tc, &(simf->sf->body.spesh->common.header),
                             type_slot->type, e->param.type);
                         type_slot->type_concrete =
-                            e->param.flags & MVM_SPESH_LOG_TYPE_FLAG_CONCRETE;
+                            e->param.flags & MVM_SPESH_LOG_TYPE_FLAG_CONCRETE ? 1 : 0;
+                        type_slot->rw_cont =
+                            e->param.flags & MVM_SPESH_LOG_TYPE_FLAG_RW_CONT ? 1 : 0;
                     }
                 }
                 break;
