@@ -155,6 +155,67 @@ struct MVMSpeshStatsStatic {
  * stats out of date and throw them out. */
 #define MVM_SPESH_STATS_MAX_AGE 10
 
+/* Logs are linear recordings marked with frame correlation IDs. We need to
+ * simulate the call stack as part of the analysis. This is the model for the
+ * stack simulation. */
+struct MVMSpeshSimStack {
+    /* Array of frames. */
+    MVMSpeshSimStackFrame *frames;
+
+    /* Current frame index and allocated space. */
+    MVMuint32 used;
+    MVMuint32 limit;
+
+    /* Current stack depth. */
+    MVMuint32 depth;
+};
+
+/* This is the model of a frame on the simulated stack. */
+struct MVMSpeshSimStackFrame {
+    /* The static frame. */
+    MVMStaticFrame *sf;
+
+    /* Spesh stats for the stack frame. */
+    MVMSpeshStats *ss;
+
+    /* Correlation ID. */
+    MVMuint32 cid;
+
+    /* Callsite stats index (not pointer in case of realloc). */
+    MVMuint32 callsite_idx;
+
+    /* Argument types logged. Sized by number of callsite flags. */
+    MVMSpeshStatsType *arg_types;
+
+    /* Spesh log entries for types and values, for later processing. */
+    MVMSpeshLogEntry **offset_logs;
+    MVMuint32 offset_logs_used;
+    MVMuint32 offset_logs_limit;
+
+    /* Type tuples observed at a given callsite offset, for later
+     * processing. */
+    MVMSpeshSimCallType *call_type_info;
+    MVMuint32 call_type_info_used;
+    MVMuint32 call_type_info_limit;
+
+    /* Number of types we crossed an OSR point. */
+    MVMuint32 osr_hits;
+
+    /* The last bytecode offset and static frame seen in an invoke recording;
+     * used for producing callsite type stats based on callee type tuples. */
+    MVMuint32 last_invoke_offset;
+    MVMStaticFrame *last_invoke_sf;
+};
+
+/* We associate recoded type tuples in callees with their caller's callsites.
+ * This is kept as a flat view, and then folded in when the caller's sim
+ * frame (see next) is popped. */
+struct MVMSpeshSimCallType {
+    MVMuint32 bytecode_offset;
+    MVMCallsite *cs;
+    MVMSpeshStatsType *arg_types;
+};
+
 void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf_updated);
 void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames);
 void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorklist *worklist);
