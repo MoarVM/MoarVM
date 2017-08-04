@@ -59,20 +59,36 @@ MVMint32 cs_without_object_args(MVMThreadContext *tc, MVMCallsite *cs) {
 MVMint32 by_type(MVMThreadContext *tc, MVMSpeshStats *ss, MVMuint32 callsite_idx,
                   MVMSpeshStatsType *arg_types) {
     /* Resolve type by callsite level info. If this is the no-callsite
-     * specialization or this callsite has no object arguments, there is
-     * nothing further to do. */
+     * specialization there is nothing further to do. */
     MVMSpeshStatsByCallsite *css = &(ss->by_callsite[callsite_idx]);
     MVMCallsite *cs = css->cs;
-    if (!cs || cs_without_object_args(tc, cs)) {
+    if (!cs) {
         MVM_free(arg_types);
         return -1;
     }
+
+    /* Otherwise if there's no object args, then we'll use a single "by type"
+     * specialization, so we can have data tracked by offset at least. */
+    else if (cs_without_object_args(tc, cs)) {
+        if (css->num_by_type == 0) {
+            css->num_by_type++;
+            css->by_type = MVM_calloc(1, sizeof(MVMSpeshStatsByType));
+            css->by_type[0].arg_types = arg_types;
+        }
+        else {
+            MVM_free(arg_types);
+        }
+        return 0;
+    }
+
+    /* Maybe the type tuple is incomplete, maybe because the log buffer ended
+     * prior to having all the type information. Discard. */
     else if (incomplete_type_tuple(tc, cs, arg_types)) {
-        /* Type tuple is incomplete, maybe because the log buffer ended prior
-         * to having all the type information. Discard. */
         MVM_free(arg_types);
         return -1;
     }
+
+    /* Can produce by-type stats. */
     else {
         /* See if we already have it. */
         size_t args_length = cs->flag_count * sizeof(MVMSpeshStatsType);
