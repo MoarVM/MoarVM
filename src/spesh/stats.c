@@ -42,10 +42,10 @@ typedef struct SimStackFrame {
     /* Number of types we crossed an OSR point. */
     MVMuint32 osr_hits;
 
-    /* The last bytecode offset and code object seen in an invoke recording;
+    /* The last bytecode offset and static frame seen in an invoke recording;
      * used for producing callsite type stats based on callee type tuples. */
     MVMuint32 last_invoke_offset;
-    MVMObject *last_invoke_code;
+    MVMStaticFrame *last_invoke_sf;
 } SimStackFrame;
 typedef struct SimStack {
     /* Array of frames. */
@@ -196,25 +196,31 @@ void add_type_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
     oss->types[found].count = 1;
 }
 
-/* Adds/increments the count of a certain value seen at the given offset. */
-void add_value_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
-                         MVMStaticFrame *sf, MVMObject *value) {
+/* Adds/increments the count of a certain invocation target seen at the given
+ * offset. */
+void add_invoke_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
+                          MVMStaticFrame *sf, MVMStaticFrame *target_sf,
+                          MVMint32 caller_is_outer) {
     /* If we have it already, increment the count. */
     MVMuint32 found;
-    MVMuint32 n = oss->num_values;
+    MVMuint32 n = oss->num_invokes;
     for (found = 0; found < n; found++) {
-        if (oss->values[found].value == value) {
-            oss->values[found].count++;
+        if (oss->invokes[found].sf == target_sf) {
+            oss->invokes[found].count++;
+            if (caller_is_outer)
+                oss->invokes[found].caller_is_outer_count++;
             return;
         }
     }
 
     /* Otherwise, add it to the list. */
-    found = oss->num_values;
-    oss->num_values++;
-    oss->values = MVM_realloc(oss->values, oss->num_values * sizeof(MVMSpeshStatsValueCount));
-    MVM_ASSIGN_REF(tc, &(sf->body.spesh->common.header), oss->values[found].value, value);
-    oss->values[found].count = 1;
+    found = oss->num_invokes;
+    oss->num_invokes++;
+    oss->invokes = MVM_realloc(oss->invokes,
+        oss->num_invokes * sizeof(MVMSpeshStatsInvokeCount));
+    MVM_ASSIGN_REF(tc, &(sf->body.spesh->common.header), oss->invokes[found].sf, target_sf);
+    oss->invokes[found].count = 1;
+    oss->invokes[found].caller_is_outer_count = caller_is_outer ? 1 : 0;
 }
 
 /* Adds/increments the count of a type tuple seen at the given offset. */
@@ -286,7 +292,7 @@ void sim_stack_push(MVMThreadContext *tc, SimStack *sims, MVMStaticFrame *sf,
     frame->call_type_info = NULL;
     frame->call_type_info_used = frame->call_type_info_limit = 0;
     frame->last_invoke_offset = 0;
-    frame->last_invoke_code = NULL;
+    frame->last_invoke_sf = NULL;
     sims->depth++;
 }
 
@@ -347,8 +353,9 @@ void sim_stack_pop(MVMThreadContext *tc, SimStack *sims) {
                 }
                 case MVM_SPESH_LOG_INVOKE: {
                     MVMSpeshStatsByOffset *oss = by_offset(tc, tss,
-                        e->value.bytecode_offset);
-                    add_value_at_offset(tc, oss, simf->sf, e->value.value);
+                        e->invoke.bytecode_offset);
+                    add_invoke_at_offset(tc, oss, simf->sf, e->invoke.sf,
+                        e->invoke.caller_is_outer);
                     break;
                 }
             }
@@ -372,14 +379,10 @@ void sim_stack_pop(MVMThreadContext *tc, SimStack *sims) {
          * then log the type tuple against the callsite. */
         if (sims->used) {
             SimStackFrame *caller = &(sims->frames[sims->used - 1]);
-            MVMObject *lic = caller->last_invoke_code;
-            if (lic && IS_CONCRETE(lic) && REPR(lic)->ID == MVM_REPR_ID_MVMCode) {
-                MVMStaticFrame *called_sf = ((MVMCode *)lic)->body.sf;
-                if (called_sf == simf->sf)
-                    add_sim_call_type_info(tc, caller, caller->last_invoke_offset,
-                        simf->ss->by_callsite[simf->callsite_idx].cs,
-                        tss->arg_types);
-            }
+            if (caller->last_invoke_sf == simf->sf)
+                add_sim_call_type_info(tc, caller, caller->last_invoke_offset,
+                    simf->ss->by_callsite[simf->callsite_idx].cs,
+                    tss->arg_types);
         }
     }
 
@@ -512,8 +515,8 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                     }
                     simf->offset_logs[simf->offset_logs_used++] = e;
                     if (e->kind == MVM_SPESH_LOG_INVOKE) {
-                        simf->last_invoke_offset = e->value.bytecode_offset;
-                        simf->last_invoke_code = e->value.value;
+                        simf->last_invoke_offset = e->invoke.bytecode_offset;
+                        simf->last_invoke_sf = e->invoke.sf;
                     }
                 }
                 break;
@@ -537,17 +540,14 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                     sim_stack_pop(tc, &sims);
                     if (e->type.type && sims.used) {
                         SimStackFrame *caller = &(sims.frames[sims.used - 1]);
-                        MVMObject *lic = caller->last_invoke_code;
-                        if (lic && IS_CONCRETE(lic) && REPR(lic)->ID == MVM_REPR_ID_MVMCode) {
-                            if (called_sf == ((MVMCode *)lic)->body.sf) {
-                                if (caller->offset_logs_used == caller->offset_logs_limit) {
-                                    caller->offset_logs_limit += 32;
-                                    caller->offset_logs = MVM_realloc(caller->offset_logs,
-                                        caller->offset_logs_limit * sizeof(MVMSpeshLogEntry *));
-                                }
-                                e->type.bytecode_offset = caller->last_invoke_offset;
-                                caller->offset_logs[caller->offset_logs_used++] = e;
+                        if (called_sf == caller->last_invoke_sf) {
+                            if (caller->offset_logs_used == caller->offset_logs_limit) {
+                                caller->offset_logs_limit += 32;
+                                caller->offset_logs = MVM_realloc(caller->offset_logs,
+                                    caller->offset_logs_limit * sizeof(MVMSpeshLogEntry *));
                             }
+                            e->type.bytecode_offset = caller->last_invoke_offset;
+                            caller->offset_logs[caller->offset_logs_used++] = e;
                         }
                     }
                 }
@@ -602,8 +602,8 @@ void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorkl
                     MVMSpeshStatsByOffset *by_offset = &(by_type->by_offset[k]);
                     for (l = 0; l < by_offset->num_types; l++)
                         MVM_gc_worklist_add(tc, worklist, &(by_offset->types[l].type));
-                    for (l = 0; l < by_offset->num_values; l++)
-                        MVM_gc_worklist_add(tc, worklist, &(by_offset->values[l].value));
+                    for (l = 0; l < by_offset->num_invokes; l++)
+                        MVM_gc_worklist_add(tc, worklist, &(by_offset->invokes[l].sf));
                     for (l = 0; l < by_offset->num_type_tuples; l++) {
                         MVMSpeshStatsType *off_types = by_offset->type_tuples[l].arg_types;
                         MVMuint32 num_off_types = by_offset->type_tuples[l].cs->flag_count;
@@ -630,7 +630,7 @@ void MVM_spesh_stats_destroy(MVMThreadContext *tc, MVMSpeshStats *ss) {
                 for (k = 0; k < by_type->num_by_offset; k++) {
                     MVMSpeshStatsByOffset *by_offset = &(by_type->by_offset[k]);
                     MVM_free(by_offset->types);
-                    MVM_free(by_offset->values);
+                    MVM_free(by_offset->invokes);
                     for (l = 0; l < by_offset->num_type_tuples; l++)
                         MVM_free(by_offset->type_tuples[l].arg_types);
                     MVM_free(by_offset->type_tuples);

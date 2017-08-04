@@ -96,9 +96,9 @@ struct MVMSpeshStatsByOffset {
     MVMuint32 num_types;
     MVMSpeshStatsTypeCount *types;
 
-    /* Number of values recorded, with counts. */
-    MVMuint32 num_values;
-    MVMSpeshStatsValueCount *values;
+    /* Number of invocation targets recorded, with counts. */
+    MVMuint32 num_invokes;
+    MVMSpeshStatsInvokeCount *invokes;
 
     /* Number of type tuples recorded, with counts. (Type tuples are actually
      * recorded by the callee, and then also accumulated at the callsite of
@@ -117,10 +117,13 @@ struct MVMSpeshStatsTypeCount {
     MVMuint32 count;
 };
 
-/* Counts of a given value that has shown up at a bytecode offset. */
-struct MVMSpeshStatsValueCount {
-    /* The value. */
-    MVMObject *value;
+/* Counts of a given static frame that was invoked at a bytecode offset. */
+struct MVMSpeshStatsInvokeCount {
+    /* The static frame. */
+    MVMStaticFrame *sf;
+
+    /* The number of times the caller frame was also the outer frame. */
+    MVMuint32 caller_is_outer_count;
 
     /* The number of times we've seen it. */
     MVMuint32 count;

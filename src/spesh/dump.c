@@ -561,11 +561,13 @@ void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCa
                         oss->types[k].count,
                         oss->types[k].type->st->debug_name,
                         (oss->types[k].type_concrete ? "Conc" : "TypeObj"));
-                for (k = 0; k < oss->num_values; k++)
-                    appendf(ds, "                %d x value at %p of type %s\n",
-                        oss->values[k].count,
-                        oss->values[k].value,
-                        oss->values[k].value->st->debug_name);
+                for (k = 0; k < oss->num_invokes; k++)
+                    appendf(ds,
+                        "                %d x static frame '%s' (%s) (caller is outer: %d)\n",
+                        oss->invokes[k].count,
+                        MVM_string_utf8_encode_C_string(tc, oss->invokes[k].sf->body.name),
+                        MVM_string_utf8_encode_C_string(tc, oss->invokes[k].sf->body.cuuid),
+                        oss->invokes[k].caller_is_outer_count);
                 for (k = 0; k < oss->num_type_tuples; k++) {
                     appendf(ds, "                %d x type tuple:\n",
                         oss->type_tuples[k].count);

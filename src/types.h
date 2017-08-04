@@ -182,7 +182,7 @@ typedef struct MVMSpeshStatsByType MVMSpeshStatsByType;
 typedef struct MVMSpeshStatsType MVMSpeshStatsType;
 typedef struct MVMSpeshStatsByOffset MVMSpeshStatsByOffset;
 typedef struct MVMSpeshStatsTypeCount MVMSpeshStatsTypeCount;
-typedef struct MVMSpeshStatsValueCount MVMSpeshStatsValueCount;
+typedef struct MVMSpeshStatsInvokeCount MVMSpeshStatsInvokeCount;
 typedef struct MVMSpeshStatsTypeTupleCount MVMSpeshStatsTypeTupleCount;
 typedef struct MVMSpeshStatsStatic MVMSpeshStatsStatic;
 typedef struct MVMSpeshPlan MVMSpeshPlan;

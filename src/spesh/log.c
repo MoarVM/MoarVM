@@ -163,16 +163,21 @@ void MVM_spesh_log_decont(MVMThreadContext *tc, MVMuint8 *prev_op, MVMObject *va
     }
 }
 
-/* Log the target of an invocation. */
+/* Log the target of an invocation; we log the static frame and whether the
+ * outer of the code object is the current frame. */
 void MVM_spesh_log_invoke_target(MVMThreadContext *tc, MVMObject *invoke_target) {
-    MVMSpeshLog *sl = tc->spesh_log;
-    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
-    MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
-    entry->kind = MVM_SPESH_LOG_INVOKE;
-    entry->id = cid;
-    MVM_ASSIGN_REF(tc, &(sl->common.header), entry->value.value, invoke_target);
-    entry->value.bytecode_offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start)) - 2;
-    commit_entry(tc, sl);
+    if (REPR(invoke_target)->ID == MVM_REPR_ID_MVMCode && IS_CONCRETE(invoke_target)) {
+        MVMCode *invoke_code = (MVMCode *)invoke_target;
+        MVMSpeshLog *sl = tc->spesh_log;
+        MVMint32 cid = tc->cur_frame->spesh_correlation_id;
+        MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
+        entry->kind = MVM_SPESH_LOG_INVOKE;
+        entry->id = cid;
+        MVM_ASSIGN_REF(tc, &(sl->common.header), entry->invoke.sf, invoke_code->body.sf);
+        entry->invoke.caller_is_outer = invoke_code->body.outer == tc->cur_frame;
+        entry->invoke.bytecode_offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start)) - 2;
+        commit_entry(tc, sl);
+    }
 }
 
 /* Log the type returned to a frame after an invocation. */
