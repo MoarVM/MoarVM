@@ -184,6 +184,11 @@ struct MVMSpeshSimStackFrame {
     /* Callsite stats index (not pointer in case of realloc). */
     MVMuint32 callsite_idx;
 
+    /* Type stats index (not pointer in case of realloc); -1 if not yet set.
+     * This is resolved once using arg_types, and then remembered, so we can
+     * correlate the statistics across spesh log buffers. */
+    MVMint32 type_idx;
+
     /* Argument types logged. Sized by number of callsite flags. */
     MVMSpeshStatsType *arg_types;
 
@@ -198,7 +203,7 @@ struct MVMSpeshSimStackFrame {
     MVMuint32 call_type_info_used;
     MVMuint32 call_type_info_limit;
 
-    /* Number of types we crossed an OSR point. */
+    /* Number of times we crossed an OSR point. */
     MVMuint32 osr_hits;
 
     /* The last bytecode offset and static frame seen in an invoke recording;
@@ -220,3 +225,5 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
 void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames);
 void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorklist *worklist);
 void MVM_spesh_stats_destroy(MVMThreadContext *tc, MVMSpeshStats *ss);
+void MVM_spesh_sim_stack_gc_mark(MVMThreadContext *tc, MVMSpeshSimStack *sims,
+    MVMGCWorklist *worklist);

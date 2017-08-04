@@ -178,8 +178,9 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     add_collectable(tc, worklist, snapshot, tc->serialized_string_heap,
         "Serialized string heap");
 
-    /* Specialization log. */
+    /* Specialization log and stack simulation. */
     add_collectable(tc, worklist, snapshot, tc->spesh_log, "Specialization log");
+    MVM_spesh_sim_stack_gc_mark(tc, tc->spesh_sim_stack, worklist);
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */
