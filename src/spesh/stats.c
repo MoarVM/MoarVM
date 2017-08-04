@@ -258,9 +258,16 @@ void add_sim_call_type_info(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
 
 /* Incorporate information collected into a sim stack frame. */
 void incorporate_stats(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
-                       MVMuint32 frame_depth, MVMSpeshSimStackFrame *caller) {
+                       MVMuint32 frame_depth, MVMSpeshSimStackFrame *caller,
+                       MVMObject *sf_updated) {
     MVMSpeshStatsByType *tss;
     MVMint32 first_type_hit = 0;
+
+    /* Bump version if needed. */
+    if (simf->ss->last_update != tc->instance->spesh_stats_version) {
+        simf->ss->last_update = tc->instance->spesh_stats_version;
+        MVM_repr_push_o(tc, sf_updated, (MVMObject *)simf->sf);
+    }
 
     /* Add OSR hits at callsite level and update depth. */
     if (simf->osr_hits) {
@@ -339,7 +346,7 @@ void incorporate_stats(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
 }
 
 /* Pops the top frame from the sim stack. */
-void sim_stack_pop(MVMThreadContext *tc, MVMSpeshSimStack *sims) {
+void sim_stack_pop(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMObject *sf_updated) {
     MVMSpeshSimStackFrame *simf;
     MVMuint32 frame_depth;
 
@@ -353,14 +360,16 @@ void sim_stack_pop(MVMThreadContext *tc, MVMSpeshSimStack *sims) {
 
     /* Incorporate logged data into the statistics model. */
     incorporate_stats(tc, simf, frame_depth,
-        sims->used > 0 ? &(sims->frames[sims->used - 1]) : NULL);
+        sims->used > 0 ? &(sims->frames[sims->used - 1]) : NULL,
+        sf_updated);
 }
 
 /* Gets the simulation stack frame for the specified correlation ID. If it is
  * not on the top, searches to see if it's further down. If it is, then pops
  * off the top to reach it. If it's not found at all, returns NULL and does
  * nothing to the simulation stack. */
-MVMSpeshSimStackFrame * sim_stack_find(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMuint32 cid) {
+MVMSpeshSimStackFrame * sim_stack_find(MVMThreadContext *tc, MVMSpeshSimStack *sims,
+                                       MVMuint32 cid, MVMObject *sf_updated) {
     MVMuint32 found_at = sims->used;
     while (found_at != 0) {
         found_at--;
@@ -368,7 +377,7 @@ MVMSpeshSimStackFrame * sim_stack_find(MVMThreadContext *tc, MVMSpeshSimStack *s
             MVMint32 pop = (sims->used - found_at) - 1;
             MVMint32 i;
             for (i = 0; i < pop; i++)
-                sim_stack_pop(tc, sims);
+                sim_stack_pop(tc, sims, sf_updated);
             return &(sims->frames[found_at]);
         }
     }
@@ -376,9 +385,9 @@ MVMSpeshSimStackFrame * sim_stack_find(MVMThreadContext *tc, MVMSpeshSimStack *s
 }
 
 /* Destroys the stack simulation. */
-void sim_stack_destroy(MVMThreadContext *tc, MVMSpeshSimStack *sims) {
+void sim_stack_destroy(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMObject *sf_updated) {
     while (sims->used)
-        sim_stack_pop(tc, sims);
+        sim_stack_pop(tc, sims, sf_updated);
     MVM_free(sims->frames);
 }
 
@@ -417,7 +426,7 @@ void add_static_value(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf, MVMint3
 
 /* Decides whether to save or free the simulation stack. */
 static void save_or_free_sim_stack(MVMThreadContext *tc, MVMSpeshSimStack *sims,
-                                   MVMThreadContext *save_on_tc) {
+                                   MVMThreadContext *save_on_tc, MVMObject *sf_updated) {
     MVMint32 first_survivor = -1;
     MVMint32 i;
     if (save_on_tc) {
@@ -443,7 +452,8 @@ static void save_or_free_sim_stack(MVMThreadContext *tc, MVMSpeshSimStack *sims,
         i = sims->used - 1;
         while (i >= 0) {
             incorporate_stats(tc, &(sims->frames[i]), first_survivor + i,
-                i > 0 ? &(sims->frames[i - 1]) : NULL);
+                i > 0 ? &(sims->frames[i - 1]) : NULL,
+                sf_updated);
             i--;
         }
 
@@ -452,7 +462,7 @@ static void save_or_free_sim_stack(MVMThreadContext *tc, MVMSpeshSimStack *sims,
     }
     else {
         /* Everything on the simulated stack is too old; throw it away. */
-        sim_stack_destroy(tc, sims);
+        sim_stack_destroy(tc, sims, sf_updated);
         MVM_free(sims);
     }
 }
@@ -507,7 +517,7 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                 break;
             }
             case MVM_SPESH_LOG_PARAMETER: {
-                MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id);
+                MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id, sf_updated);
                 if (simf) {
                     MVMSpeshStatsType *type_slot = param_type(tc, simf, e);
                     if (type_slot) {
@@ -522,7 +532,7 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                 break;
             }
             case MVM_SPESH_LOG_PARAMETER_DECONT: {
-                MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id);
+                MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id, sf_updated);
                 if (simf) {
                     MVMSpeshStatsType *type_slot = param_type(tc, simf, e);
                     if (type_slot) {
@@ -539,7 +549,7 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                 /* We only incorporate these into the model later, and only
                  * then if we need to. For now, just keep references to
                  * them. */
-                MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id);
+                MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id, sf_updated);
                 if (simf) {
                     if (simf->offset_logs_used == simf->offset_logs_limit) {
                         simf->offset_logs_limit += 32;
@@ -555,22 +565,22 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                 break;
             }
             case MVM_SPESH_LOG_OSR: {
-                MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id);
+                MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id, sf_updated);
                 if (simf)
                     simf->osr_hits++;
                 break;
             }
             case MVM_SPESH_LOG_STATIC: {
-                MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id);
+                MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id, sf_updated);
                 if (simf)
                     add_static_value(tc, simf, e->value.bytecode_offset, e->value.value);
                 break;
             }
             case MVM_SPESH_LOG_RETURN: {
-                MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id);
+                MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id, sf_updated);
                 if (simf) {
                     MVMStaticFrame *called_sf = simf->sf;
-                    sim_stack_pop(tc, sims);
+                    sim_stack_pop(tc, sims, sf_updated);
                     if (e->type.type && sims->used) {
                         MVMSpeshSimStackFrame *caller = &(sims->frames[sims->used - 1]);
                         if (called_sf == caller->last_invoke_sf) {
@@ -588,7 +598,7 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
             }
         }
     }
-    save_or_free_sim_stack(tc, sims, log_from_tc);
+    save_or_free_sim_stack(tc, sims, log_from_tc, sf_updated);
 #if MVM_GC_DEBUG
     tc->in_spesh = 0;
 #endif
