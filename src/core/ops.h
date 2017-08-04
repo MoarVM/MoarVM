@@ -783,7 +783,7 @@
 #define MVM_OP_sp_fastinvoke_n 779
 #define MVM_OP_sp_fastinvoke_s 780
 #define MVM_OP_sp_fastinvoke_o 781
-#define MVM_OP_sp_namedarg_used 782
+#define MVM_OP_sp_paramnamesused 782
 #define MVM_OP_sp_getspeshslot 783
 #define MVM_OP_sp_findmeth 784
 #define MVM_OP_sp_fastcreate 785

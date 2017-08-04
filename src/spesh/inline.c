@@ -316,6 +316,17 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         }
     }
 
+    /* Make all of the inlinee's entry block's successors (except the linear
+     * next) also be successors of the inliner's entry block; this keeps any
+     * exception handlers alive in the graph. */
+    while (inlinee->entry->num_succ > 1) {
+        MVMSpeshBB *move = inlinee->entry->succ[0] == inlinee->entry->linear_next
+            ? inlinee->entry->succ[1]
+            : inlinee->entry->succ[0];
+        MVM_spesh_manipulate_remove_successor(tc, inlinee->entry, move);
+        MVM_spesh_manipulate_add_successor(tc, inliner, inliner->entry, move);
+    }
+
     /* Merge facts. */
     merged_facts = MVM_spesh_alloc(tc, inliner,
         (inliner->num_locals + inlinee->num_locals) * sizeof(MVMSpeshFacts *));
@@ -411,6 +422,9 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         MVM_oops(tc, "Spesh inline: unknown invoke instruction");
     }
     inliner->inlines[total_inlines - 1].return_deopt_idx = return_deopt_idx(tc, invoke_ins);
+    inliner->inlines[total_inlines - 1].unreachable = 0;
+    inliner->inlines[total_inlines - 1].deopt_named_used_bit_field =
+        inlinee->deopt_named_used_bit_field;
     inliner->num_inlines = total_inlines;
 
     /* Create/update per-specialization local and lexical type maps. */
@@ -436,6 +450,18 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         memcpy(inliner->lexical_types + inliner->num_lexicals,
             inlinee->lexical_types ? inlinee->lexical_types : inlinee->sf->body.lexical_types,
             inlinee->num_lexicals * sizeof(MVMuint16));
+
+    /* Merge unreachable handlers array if needed. */
+    if (inliner->unreachable_handlers || inlinee->unreachable_handlers) {
+        MVMuint32 total_handlers = inliner->num_handlers + inlinee->num_handlers;
+        MVMint8 *new_uh = MVM_spesh_alloc(tc, inliner, total_handlers);
+        if (inliner->unreachable_handlers)
+            memcpy(new_uh, inliner->unreachable_handlers, inliner->num_handlers);
+        if (inlinee->unreachable_handlers)
+            memcpy(new_uh + inliner->num_handlers, inlinee->unreachable_handlers,
+                inlinee->num_handlers);
+        inliner->unreachable_handlers = new_uh;
+    }
 
     /* Merge handlers from inlinee. */
     if (inlinee->num_handlers) {

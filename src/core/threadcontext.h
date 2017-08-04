@@ -180,6 +180,9 @@ struct MVMThreadContext {
      * change to produce some specializations. */
     AO_t spesh_log_quota;
 
+    /* The spesh stack simulation, perserved between processing logs. */
+    MVMSpeshSimStack *spesh_sim_stack;
+
     /* We try to do better at OSR by creating a fresh log when we enter a new
      * compilation unit. However, for things that EVAL or do a ton of BEGIN,
      * this does more harm than good. Use this to throttle it back. */

@@ -24,6 +24,10 @@ struct MVMSpeshCandidate {
     /* Deoptimization mappings. */
     MVMint32 *deopts;
 
+    /* Bit field of named args used to put in place during deopt, since we
+     * don't typically don't update the array in specialized code. */
+    MVMuint64 deopt_named_used_bit_field;
+
     /* Number of inlines and inlines table; see graph.h for description of
      * the table format. */
     MVMint32 num_inlines;

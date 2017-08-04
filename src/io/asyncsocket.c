@@ -146,6 +146,17 @@ static void read_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_t
     }
 }
 
+/* Stops reading. */
+static void read_cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
+    ReadInfo *ri = (ReadInfo *)data;
+    if (ri->work_idx >= 0) {
+        MVMIOAsyncSocketData *handle_data = (MVMIOAsyncSocketData *)ri->handle->body.data;
+        if (handle_data->handle && !uv_is_closing((uv_handle_t *)handle_data->handle))
+            uv_read_stop(handle_data->handle);
+        MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
+    }
+}
+
 /* Marks objects for a read task. */
 static void read_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
     ReadInfo *ri = (ReadInfo *)data;
@@ -163,7 +174,7 @@ static void read_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
 static const MVMAsyncTaskOps read_op_table = {
     read_setup,
     NULL,
-    NULL,
+    read_cancel,
     read_gc_mark,
     read_gc_free
 };

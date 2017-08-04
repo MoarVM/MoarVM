@@ -14,7 +14,7 @@ typedef enum {
     MVM_SPESH_LOG_TYPE,
     /* Static lexical lookup (bytecode says we can cache the result). */
     MVM_SPESH_LOG_STATIC,
-    /* Invoked code object. */
+    /* Invoked static frame, and whether we are its outer. */
     MVM_SPESH_LOG_INVOKE,
     /* OSR point. */
     MVM_SPESH_LOG_OSR,
@@ -24,6 +24,7 @@ typedef enum {
 
 /* Flags on types. */
 #define MVM_SPESH_LOG_TYPE_FLAG_CONCRETE 1
+#define MVM_SPESH_LOG_TYPE_FLAG_RW_CONT  2
 
 /* An entry in the spesh log. */
 struct MVMSpeshLogEntry {
@@ -54,11 +55,18 @@ struct MVMSpeshLogEntry {
             MVMint32 bytecode_offset;
         } type;
 
-        /* Observed value (STATIC, INVOKE). */
+        /* Observed value (STATIC). */
         struct {
             MVMObject *value;
             MVMint32 bytecode_offset;
         } value;
+
+        /* Observed invocation (INVOKE). */
+        struct {
+            MVMStaticFrame *sf;
+            MVMint32 caller_is_outer;
+            MVMint32 bytecode_offset;
+        } invoke;
 
         /* Observed OSR point (OSR). */
         struct {

@@ -280,6 +280,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_acos_n: return acos;
     case MVM_OP_atan_n: return atan;
     case MVM_OP_atan2_n: return atan2;
+    case MVM_OP_pow_I: return MVM_bigint_pow;
     case MVM_OP_pow_n: return pow;
     case MVM_OP_time_n: return MVM_proc_time_n;
     case MVM_OP_randscale_n: return MVM_proc_randscale_n;
@@ -1530,7 +1531,6 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_iscont:
     case MVM_OP_decont:
     case MVM_OP_sp_decont:
-    case MVM_OP_sp_namedarg_used:
     case MVM_OP_sp_findmeth:
     case MVM_OP_hllboxtype_i:
     case MVM_OP_hllboxtype_n:
@@ -2454,6 +2454,21 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_REG_VAL, { src_b } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args,
                           MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_pow_I: {
+        MVMint16 src_a  = ins->operands[1].reg.orig;
+        MVMint16 src_b  = ins->operands[2].reg.orig;
+        MVMint16 type_n = ins->operands[3].reg.orig;
+        MVMint16 type_I = ins->operands[4].reg.orig;
+        MVMint16 dst    = ins->operands[0].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { src_a } },
+                                 { MVM_JIT_REG_VAL, { src_b } },
+                                 { MVM_JIT_REG_VAL, { type_n } },
+                                 { MVM_JIT_REG_VAL, { type_I } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 5, args,
+                         MVM_JIT_RV_PTR, dst);
         break;
     }
     case MVM_OP_div_In: {

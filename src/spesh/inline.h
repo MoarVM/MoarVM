@@ -23,6 +23,14 @@ struct MVMSpeshInline {
     /* Deopt index used to find return address. */
     MVMuint32 return_deopt_idx;
 
+    /* If the inline became unreachable after being made, we'll mark it as
+     * such, so we won't try and fix it up later. */
+    MVMuint8 unreachable;
+
+    /* Bit field of named args used to put in place during deopt, since we
+     * don't typically don't update the array in specialized code. */
+    MVMuint64 deopt_named_used_bit_field;
+
     /* Inlinee's spesh graph, so we can free it up after code-gen. */
     MVMSpeshGraph *g;
 };

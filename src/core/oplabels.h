@@ -783,7 +783,7 @@ static const void * const LABELS[] = {
     &&OP_sp_fastinvoke_n,
     &&OP_sp_fastinvoke_s,
     &&OP_sp_fastinvoke_o,
-    &&OP_sp_namedarg_used,
+    &&OP_sp_paramnamesused,
     &&OP_sp_getspeshslot,
     &&OP_sp_findmeth,
     &&OP_sp_fastcreate,

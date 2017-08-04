@@ -111,27 +111,32 @@ void MVM_spesh_log_type(MVMThreadContext *tc, MVMObject *value) {
 
 /* Log a parameter type and, maybe, decontainerized type. */
 static void log_param_type(MVMThreadContext *tc, MVMint32 cid, MVMuint16 arg_idx,
-                           MVMObject *value, MVMSpeshLogEntryKind kind) {
+                           MVMObject *value, MVMSpeshLogEntryKind kind, MVMint32 rw_cont) {
     MVMSpeshLog *sl = tc->spesh_log;
     MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
     entry->kind = kind;
     entry->id = cid;
     MVM_ASSIGN_REF(tc, &(sl->common.header), entry->param.type, value->st->WHAT);
     entry->param.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_TYPE_FLAG_CONCRETE : 0;
+    if (rw_cont)
+        entry->param.flags |= MVM_SPESH_LOG_TYPE_FLAG_RW_CONT;
     entry->param.arg_idx = arg_idx;
     commit_entry(tc, sl);
 }
 void MVM_spesh_log_parameter(MVMThreadContext *tc, MVMuint16 arg_idx, MVMObject *param) {
     MVMint32 cid = tc->cur_frame->spesh_correlation_id;
+    MVMContainerSpec const *cs = STABLE(param)->container_spec;
     MVMROOT(tc, param, {
-        log_param_type(tc, cid, arg_idx, param, MVM_SPESH_LOG_PARAMETER);
+        log_param_type(tc, cid, arg_idx, param, MVM_SPESH_LOG_PARAMETER,
+            cs && IS_CONCRETE(param) && cs->fetch_never_invokes
+                ? cs->can_store(tc, param)
+                : 0);
     });
     if (tc->spesh_log && IS_CONCRETE(param)) {
-        MVMContainerSpec const *cs = STABLE(param)->container_spec;
         if (cs && cs->fetch_never_invokes) {
             MVMRegister r;
             cs->fetch(tc, param, &r);
-            log_param_type(tc, cid, arg_idx, r.o, MVM_SPESH_LOG_PARAMETER_DECONT);
+            log_param_type(tc, cid, arg_idx, r.o, MVM_SPESH_LOG_PARAMETER_DECONT, 0);
         }
     }
 }
@@ -163,16 +168,21 @@ void MVM_spesh_log_decont(MVMThreadContext *tc, MVMuint8 *prev_op, MVMObject *va
     }
 }
 
-/* Log the target of an invocation. */
+/* Log the target of an invocation; we log the static frame and whether the
+ * outer of the code object is the current frame. */
 void MVM_spesh_log_invoke_target(MVMThreadContext *tc, MVMObject *invoke_target) {
-    MVMSpeshLog *sl = tc->spesh_log;
-    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
-    MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
-    entry->kind = MVM_SPESH_LOG_INVOKE;
-    entry->id = cid;
-    MVM_ASSIGN_REF(tc, &(sl->common.header), entry->value.value, invoke_target);
-    entry->value.bytecode_offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start)) - 2;
-    commit_entry(tc, sl);
+    if (REPR(invoke_target)->ID == MVM_REPR_ID_MVMCode && IS_CONCRETE(invoke_target)) {
+        MVMCode *invoke_code = (MVMCode *)invoke_target;
+        MVMSpeshLog *sl = tc->spesh_log;
+        MVMint32 cid = tc->cur_frame->spesh_correlation_id;
+        MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
+        entry->kind = MVM_SPESH_LOG_INVOKE;
+        entry->id = cid;
+        MVM_ASSIGN_REF(tc, &(sl->common.header), entry->invoke.sf, invoke_code->body.sf);
+        entry->invoke.caller_is_outer = invoke_code->body.outer == tc->cur_frame;
+        entry->invoke.bytecode_offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start)) - 2;
+        commit_entry(tc, sl);
+    }
 }
 
 /* Log the type returned to a frame after an invocation. */

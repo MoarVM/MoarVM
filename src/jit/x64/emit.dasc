@@ -1425,13 +1425,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov qword WORK[dst], TMP1;
         break;
     }
-    case MVM_OP_sp_namedarg_used: {
-        MVMuint16 param = ins->operands[0].lit_i16;
-        | mov ARG1, TC;
-        | mov ARG2, param
-        | callp &MVM_args_marked_named_used
-        break;
-    }
     case MVM_OP_sp_findmeth: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[1].reg.orig;
