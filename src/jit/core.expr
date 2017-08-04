@@ -226,5 +226,5 @@
        (all 3
            (nz $1) (^is_conc_obj $1) (nz (^getf (^stable $1) MVMSTable container_spec)))
        (callv (^getf (^getf (^stable $1) MVMSTable container_spec) MVMContainerSpec fetch)
-              (arglist 3 (carg (tc) reg) (carg $1 reg) (carg $0 reg)))
+              (arglist 3 (carg (tc) ptr) (carg $1 ptr) (carg $0 ptr)))
        (store $0 $1 ptr_sz)))

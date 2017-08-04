@@ -39,13 +39,15 @@ void MVM_jit_arch_storage_for_arglist(MVMThreadContext *tc, MVMJitCompiler *comp
     for (i = 0; i < narg; i++) {
         MVMint32 carg_node = tree->nodes[arglist_node + 2 + i];
         MVMint32 carg_type = tree->nodes[carg_node + 2];
-        if ((carg_type == MVM_JIT_PTR || carg_type == MVM_JIT_INT) &&
-            (ngpr < sizeof(arg_gpr))) {
-            storage[i]._cls = MVM_JIT_STORAGE_GPR;
-            storage[i]._pos = arg_gpr[ngpr++];
-        } else if (carg_type == MVM_JIT_NUM && nfpr < sizeof(arg_fpr)) {
+        /* posix stores numeric args in floating point registers, everything
+         * else in general purpose registers, until it doesn't fit anymore, in
+         * which case it stores them on the stack */
+        if (carg_type == MVM_JIT_NUM && nfpr < sizeof(arg_fpr)) {
             storage[i]._cls = MVM_JIT_STORAGE_FPR;
             storage[i]._pos = arg_fpr[nfpr++];
+        } else if (ngpr < sizeof(arg_gpr)) {
+            storage[i]._cls = MVM_JIT_STORAGE_GPR;
+            storage[i]._pos = arg_gpr[ngpr++];
         } else {
             storage[i]._cls = MVM_JIT_STORAGE_STACK;
             storage[i]._pos = 8 * nstack++;
@@ -78,12 +80,12 @@ void MVM_jit_arch_storage_for_arglist(MVMThreadContext *tc, MVMJitCompiler *comp
     for (i = 0; i < MIN(narg, 4); i++) {
         MVMint32 carg_node = tree->nodes[arglist_node + 2 + i];
         MVMint32 carg_type = tree->nodes[carg_node + 2];
-        if (carg_type == MVM_JIT_PTR || carg_type == MVM_JIT_INT) {
-            storage[i]._cls = MVM_JIT_STORAGE_GPR;
-            storage[i]._pos = arg_gpr[i];
-        } else {
+        if (carg_type == MVM_JIT_NUM) {
             storage[i]._cls = MVM_JIT_STORAGE_FPR;
             storage[i]._pos = arg_fpr[i];
+        } else {
+            storage[i]._cls = MVM_JIT_STORAGE_GPR;
+            storage[i]._pos = arg_gpr[i];
         }
     }
     /* rest of arguments is passed on stack. first 4 quadwords (32 bytes) are

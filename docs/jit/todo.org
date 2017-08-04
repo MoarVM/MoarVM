@@ -3,22 +3,25 @@
 Before merging the expression JIT, there are numerous standing issues
 to resolve, sorted by priority.
 
-* inc_i/dec_i bug
 
-Root problem:
-- inc_i/dec_i have one operand acting as input and output
-- because it is acting as output, we do not attempt to load it from the table
-  - we do correctly write it to the table though
-- when any of inc_i / dec_i on the same register are therefore in a
-  sequence within the same basic block, we will never lookup the
-  previously defined value
-- however, under optimistic store insertion, we write only the *last*
-  value to be defined before a barrier
-  - so all but the last updates to the value are lost
+* Make jit-dump work on windows
 
-The suggested solution:
-- special-case those opcodes, to have separate input/output operands
-  - and lookup the input operand from the table
+This should be doable, really, if rather than pipe-and-fork, we simply
+use a temporary file and use that as an intermediate.
+
+* Right-to-left evaluation
+
+E.g. (STORE addr value sz) - it usually makes sense to calculate value
+before address. There are a bunch of these things, and then again, a
+bunch of things that rely on left-to-right evaluation:
+
++ IF/IFV
++ ALL/ANY
++ DO/DOV
+
+So the thing is probably to:
++ store a preference per op
++ add a policy for the traverser (default,left-to-right,right-to-left)
 
 * REPR-Specialized expression code
 
@@ -191,6 +194,50 @@ the allocator itself, so it doesn't need last-minute patchup.
   spilling has a single definition, and that definition is a constant,
   copy it)
 - It might be more effective to do it in the expression optimizer
+
+* FLAGVAL ALL/ANY
+
+Basically, flagval all/any is legal according to the type system, it
+will just never work. We should translate it to (IF (ALL|ANY ..)
+(CONST 1 1) (CONST 0 1))
+
+The problem is, replacing all references to the node. (This is common
+with the optimizer, which also needs it).
+
+We don't actually need this yet, but we don't guard against it
+either. (So maybe install an oops in analyze first).
+
+* DONE sp_decont related bug
+
+First weird thing I see, I see arguments 1,2,3 going to the stack,
+what's up with that.
+
+- answer; i had marked these things as 'reg', while src/jit/x64/arch.c
+  only recognized 'ptr' or 'int', which is really, really silly, and
+  not at all guarded against by the expr template compiler.
+
+But the bug seems to be in adding stuff to the worklist that isn't
+actually a pointer. And more worrisome, this happens before I'm
+hitting a breakpoint. (Not when we have MVM_SPESH_BLOCKING, though).
+
+- so, we take the branch because we're a type object
+
+* DONE inc_i/dec_i bug
+
+Root problem:
+- inc_i/dec_i have one operand acting as input and output
+- because it is acting as output, we do not attempt to load it from the table
+  - we do correctly write it to the table though
+- when any of inc_i / dec_i on the same register are therefore in a
+  sequence within the same basic block, we will never lookup the
+  previously defined value
+- however, under optimistic store insertion, we write only the *last*
+  value to be defined before a barrier
+  - so all but the last updates to the value are lost
+
+The suggested solution:
+- special-case those opcodes, to have separate input/output operands
+  - and lookup the input operand from the table
 
 * DONE Win32 call args bug
 
