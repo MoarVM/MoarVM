@@ -260,6 +260,7 @@ void add_sim_call_type_info(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
 void incorporate_stats(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
                        MVMuint32 frame_depth, MVMSpeshSimStackFrame *caller) {
     MVMSpeshStatsByType *tss;
+    MVMint32 first_type_hit = 0;
 
     /* Add OSR hits at callsite level and update depth. */
     if (simf->osr_hits) {
@@ -273,6 +274,7 @@ void incorporate_stats(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
     if (simf->type_idx < 0 && simf->arg_types) {
         simf->type_idx = by_type(tc, simf->ss, simf->callsite_idx, simf->arg_types);
         simf->arg_types = NULL;
+        first_type_hit = 1;
     }
     tss = simf->type_idx >= 0
         ? &(simf->ss->by_callsite[simf->callsite_idx].by_type[simf->type_idx])
@@ -310,7 +312,8 @@ void incorporate_stats(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
         }
 
         /* Incorporate OSR hits and bump max depth. */
-        tss->hits++;
+        if (first_type_hit)
+            tss->hits++;
         tss->osr_hits += simf->osr_hits;
         if (frame_depth > tss->max_depth)
             tss->max_depth = frame_depth;
