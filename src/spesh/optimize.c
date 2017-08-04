@@ -1121,7 +1121,7 @@ static MVMSpeshStatsType * find_invokee_type_tuple(MVMThreadContext *tc, MVMSpes
     }
 
     /* If the type tuple is used consistently enough, return it. */
-    return total_hits && (100 * best_result_hits) / total_hits > MVM_SPESH_CALLSITE_STABLE_PERCENT
+    return total_hits && (100 * best_result_hits) / total_hits >= MVM_SPESH_CALLSITE_STABLE_PERCENT
         ? best_result
         : NULL;
 }
