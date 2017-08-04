@@ -208,7 +208,7 @@ static void store_bigint_result(MVMP6bigintBody *body, mp_int *i) {
     }
 }
 
-/* Bitops on libtomath (no 2s compliment API) are horrendously inefficient and
+/* Bitops on libtomath (no two's complement API) are horrendously inefficient and
  * really should be hand-coded to work DIGIT-by-DIGIT with in-loop carry
  * handling.  For now we have these fixups.
  *
@@ -260,7 +260,7 @@ static void two_complement_bitop(mp_int *a, mp_int *b, mp_int *c,
         g = &e;
     }
     /* f and g now guaranteed to each point to positive bigints containing
-     * a 2s compliment representation of the values in a and b.  If either
+     * a two's complement representation of the values in a and b.  If either
      * a or b was negative, the representation is one tomath "digit" longer
      * than it need be and sign extended.
      */
