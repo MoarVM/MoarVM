@@ -366,6 +366,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_atan_n: return atan;
     case MVM_OP_atan2_n: return atan2;
     case MVM_OP_pow_I: return MVM_bigint_pow;
+    case MVM_OP_rand_I: return MVM_bigint_rand;
     case MVM_OP_pow_n: return pow;
     case MVM_OP_time_n: return MVM_proc_time_n;
     case MVM_OP_randscale_n: return MVM_proc_randscale_n;
@@ -2607,6 +2608,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, dst);
         break;
     }
+    case MVM_OP_rand_I:
     case MVM_OP_bnot_I: {
         MVMint16 dst      = ins->operands[0].reg.orig;
         MVMint32 invocant = ins->operands[1].reg.orig;
