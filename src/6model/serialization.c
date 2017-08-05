@@ -86,6 +86,14 @@
 #define STABLE_HAS_HLL_OWNER                0x40
 #define STABLE_HAS_HLL_ROLE                 0x80
 
+#define GROW_TABLE(table, alloc) \
+        table = (char *)MVM_recalloc( \
+            table, \
+            alloc, \
+            alloc * 2 \
+        ); \
+        alloc *= 2;
+
 /* Endian translation (file format is little endian, so on big endian we need
  * to twiddle. */
 #ifdef MVM_BIGENDIAN
@@ -276,8 +284,7 @@ static MVMuint32 get_sc_id(MVMThreadContext *tc, MVMSerializationWriter *writer,
      * space in the dependencies table; grow if not. */
     offset = num_deps * DEP_TABLE_ENTRY_SIZE;
     if (offset + DEP_TABLE_ENTRY_SIZE > writer->dependencies_table_alloc) {
-        writer->dependencies_table_alloc *= 2;
-        writer->root.dependencies_table = (char *)MVM_realloc(writer->root.dependencies_table, writer->dependencies_table_alloc);
+        GROW_TABLE(writer->root.dependencies_table, writer->dependencies_table_alloc);
     }
 
     /* Add dependency. */
@@ -618,8 +625,7 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
     /* Ensure there's space in the closures table; grow if not. */
     MVMint32 offset = writer->root.num_closures * CLOSURES_TABLE_ENTRY_SIZE;
     if (offset + CLOSURES_TABLE_ENTRY_SIZE > writer->closures_table_alloc) {
-        writer->closures_table_alloc *= 2;
-        writer->root.closures_table = (char *)MVM_realloc(writer->root.closures_table, writer->closures_table_alloc);
+        GROW_TABLE(writer->root.closures_table, writer->closures_table_alloc);
     }
 
     /* Get the index of the context (which will add it to the todo list if
@@ -978,8 +984,7 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     /* Ensure there's space in the STables table; grow if not. */
     MVMint32 offset = writer->root.num_stables * STABLES_TABLE_ENTRY_SIZE;
     if (offset + STABLES_TABLE_ENTRY_SIZE > writer->stables_table_alloc) {
-        writer->stables_table_alloc *= 2;
-        writer->root.stables_table = (char *)MVM_realloc(writer->root.stables_table, writer->stables_table_alloc);
+        GROW_TABLE(writer->root.stables_table, writer->stables_table_alloc);
     }
 
     /* Make STables table entry. */
@@ -1166,8 +1171,7 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
     /* Ensure there's space in the objects table; grow if not. */
     offset = writer->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE;
     if (offset + OBJECTS_TABLE_ENTRY_SIZE > writer->objects_table_alloc) {
-        writer->objects_table_alloc *= 2;
-        writer->root.objects_table = (char *)MVM_realloc(writer->root.objects_table, writer->objects_table_alloc);
+        GROW_TABLE(writer->root.objects_table, writer->objects_table_alloc);
     }
 
     /* Increment count of objects in the table. */
@@ -1227,8 +1231,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     /* Ensure there's space in the STables table; grow if not. */
     offset = writer->root.num_contexts * CONTEXTS_TABLE_ENTRY_SIZE;
     if (offset + CONTEXTS_TABLE_ENTRY_SIZE > writer->contexts_table_alloc) {
-        writer->contexts_table_alloc *= 2;
-        writer->root.contexts_table = (char *)MVM_realloc(writer->root.contexts_table, writer->contexts_table_alloc);
+        GROW_TABLE(writer->root.contexts_table, writer->contexts_table_alloc);
     }
 
     /* Make contexts table entry. */
