@@ -1372,28 +1372,28 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     writer->root.sc             = sc;
     writer->codes_list          = sc->body->root_codes;
     writer->root.string_heap    = empty_string_heap;
-    writer->root.dependent_scs  = MVM_malloc(sizeof(MVMSerializationContext *));
+    writer->root.dependent_scs  = MVM_calloc(1, sizeof(MVMSerializationContext *));
     writer->seen_strings        = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
 
     /* Allocate initial memory space for storing serialized tables and data. */
     writer->dependencies_table_alloc = DEP_TABLE_ENTRY_SIZE * 4;
-    writer->root.dependencies_table  = (char *)MVM_malloc(writer->dependencies_table_alloc);
+    writer->root.dependencies_table  = (char *)MVM_calloc(1, writer->dependencies_table_alloc);
     writer->stables_table_alloc      = STABLES_TABLE_ENTRY_SIZE * STABLES_TABLE_ENTRIES_GUESS;
-    writer->root.stables_table       = (char *)MVM_malloc(writer->stables_table_alloc);
+    writer->root.stables_table       = (char *)MVM_calloc(1, writer->stables_table_alloc);
     writer->objects_table_alloc      = OBJECTS_TABLE_ENTRY_SIZE * MAX(sc_elems, 1);
-    writer->root.objects_table       = (char *)MVM_malloc(writer->objects_table_alloc);
+    writer->root.objects_table       = (char *)MVM_calloc(1, writer->objects_table_alloc);
     writer->stables_data_alloc       = DEFAULT_STABLE_DATA_SIZE;
-    writer->root.stables_data        = (char *)MVM_malloc(writer->stables_data_alloc);
+    writer->root.stables_data        = (char *)MVM_calloc(1, writer->stables_data_alloc);
     writer->objects_data_alloc       = OBJECT_SIZE_GUESS * MAX(sc_elems, 1);
-    writer->root.objects_data        = (char *)MVM_malloc(writer->objects_data_alloc);
+    writer->root.objects_data        = (char *)MVM_calloc(1, writer->objects_data_alloc);
     writer->closures_table_alloc     = CLOSURES_TABLE_ENTRY_SIZE * CLOSURES_TABLE_ENTRIES_GUESS;
-    writer->root.closures_table      = (char *)MVM_malloc(writer->closures_table_alloc);
+    writer->root.closures_table      = (char *)MVM_calloc(1, writer->closures_table_alloc);
     writer->contexts_table_alloc     = CONTEXTS_TABLE_ENTRY_SIZE * CONTEXTS_TABLE_ENTRIES_GUESS;
-    writer->root.contexts_table      = (char *)MVM_malloc(writer->contexts_table_alloc);
+    writer->root.contexts_table      = (char *)MVM_calloc(1, writer->contexts_table_alloc);
     writer->contexts_data_alloc      = DEFAULT_CONTEXTS_DATA_SIZE;
-    writer->root.contexts_data       = (char *)MVM_malloc(writer->contexts_data_alloc);
+    writer->root.contexts_data       = (char *)MVM_calloc(1, writer->contexts_data_alloc);
     writer->param_interns_data_alloc = DEFAULT_PARAM_INTERNS_DATA_SIZE;
-    writer->root.param_interns_data  = (char *)MVM_malloc(writer->param_interns_data_alloc);
+    writer->root.param_interns_data  = (char *)MVM_calloc(1, writer->param_interns_data_alloc);
 
     /* Initialize MVMString heap so first entry is the NULL MVMString. */
     MVM_repr_push_s(tc, empty_string_heap, NULL);
