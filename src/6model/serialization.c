@@ -804,7 +804,7 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     output_size += MVM_ALIGN_SECTION(writer->param_interns_data_offset);
 
     /* Allocate a buffer that size. */
-    output = (char *)MVM_malloc(output_size);
+    output = (char *)MVM_calloc(1, output_size);
 
     /* Write version into header. */
     write_int32(output, 0, CURRENT_VERSION);
