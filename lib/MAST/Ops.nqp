@@ -3616,6 +3616,7 @@ BEGIN {
     57,
     57,
     33,
+<<<<<<< HEAD
     66,
     65,
     65,
@@ -3640,6 +3641,9 @@ BEGIN {
     65,
     33,
     34,
+=======
+    33,
+>>>>>>> Argument to coveragecontrol should be 'r', not 'w'
     65,
     128,
     152,
