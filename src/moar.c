@@ -287,7 +287,7 @@ MVMInstance * MVM_vm_create_instance(void) {
         if (getenv("MVM_COVERAGE_CONTROL")) {
             char *coverage_control = getenv("MVM_COVERAGE_CONTROL");
             if (coverage_control && strlen(coverage_control))
-                instance->coverage_control = 1;
+                instance->coverage_control = atoi(coverage_control);
         }
     }
     else {
