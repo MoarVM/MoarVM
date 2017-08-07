@@ -3,7 +3,9 @@
 /* This file contains various routines for manipulating a spesh graph, such
  * as adding/removing/replacing instructions. */
 
-void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+/* Deletes an instruction, and does any fact changes as a result. */
+void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                     MVMSpeshBB *bb, MVMSpeshIns *ins) {
     /* Remove it from the double linked list. */
     MVMSpeshIns *prev = ins->prev;
     MVMSpeshIns *next = ins->next;
@@ -102,6 +104,8 @@ void MVM_spesh_manipulate_cleanup_ins_deps(MVMThreadContext *tc, MVMSpeshGraph *
     }
 }
 
+/* Inserts an instruction after the specified instruciton, or at the start of
+ * the basic block if the instruction is NULL. */
 void MVM_spesh_manipulate_insert_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshIns *previous, MVMSpeshIns *to_insert) {
     MVMSpeshIns *next;
     if (previous) {
@@ -130,6 +134,8 @@ void MVM_spesh_manipulate_insert_goto(MVMThreadContext *tc, MVMSpeshGraph *g, MV
     MVM_spesh_manipulate_insert_ins(tc, bb, ins, inserted_goto);
 }
 
+/* Adds a successor to a basic block, also adding to the list of
+ * predocessors of the added successor. */
 void MVM_spesh_manipulate_add_successor(MVMThreadContext *tc, MVMSpeshGraph *g,
                                         MVMSpeshBB *bb, MVMSpeshBB *succ) {
     MVMSpeshBB **new_succ, **new_pred;
@@ -151,6 +157,8 @@ void MVM_spesh_manipulate_add_successor(MVMThreadContext *tc, MVMSpeshGraph *g,
     succ->num_pred++;
 }
 
+/* Removes a successor to a basic block, also removing it from the list of
+ * predocessors. */
 void MVM_spesh_manipulate_remove_successor(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *succ) {
     MVMSpeshBB ** const   bb_succ = bb->succ;
     MVMSpeshBB ** const succ_pred = succ->pred;
