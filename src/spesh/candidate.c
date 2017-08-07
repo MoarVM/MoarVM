@@ -52,6 +52,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
         MVM_free(c_name);
         MVM_free(c_cuid);
         MVM_free(before);
+        fflush(tc->instance->spesh_log_fh);
     }
 
     /* Perform the optimization and, if we're logging, dump out the result. */
@@ -65,6 +66,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
         fprintf(tc->instance->spesh_log_fh, "Specialization took %dus\n\n========\n\n",
             (int)((uv_hrtime() - start_time) / 1000));
         MVM_free(after);
+        fflush(tc->instance->spesh_log_fh);
     }
 
     /* Generate code and install it into the candidate. */
