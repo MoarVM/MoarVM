@@ -59,9 +59,14 @@ PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
 DASM_FLAGS   = @dasm_flags@
 JIT_ARCH_X64 = src/jit/x64/emit@obj@
 JIT_STUB     = src/jit/stub@obj@
+JIT_OBJECTS  = src/jit/graph@obj@ \
+               src/jit/label@obj@ \
+               src/jit/compile@obj@ \
+               src/jit/log@obj@
 
 
 MAIN_OBJECTS = src/main@obj@
+
 
 OBJECTS = src/core/callsite@obj@ \
           src/core/args@obj@ \
@@ -186,10 +191,6 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/stats@obj@ \
           src/spesh/plan@obj@ \
           src/spesh/arg_guard@obj@ \
-          src/jit/graph@obj@ \
-          src/jit/label@obj@ \
-          src/jit/compile@obj@ \
-          src/jit/log@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/parse_num@obj@ \
@@ -214,7 +215,6 @@ OBJECTS = src/core/callsite@obj@ \
           src/moar@obj@ \
           @platform@ \
           @jit_obj@
-
 
 HEADERS = src/moar.h \
           src/types.h \

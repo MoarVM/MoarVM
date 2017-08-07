@@ -402,12 +402,12 @@ if ($args{'jit'}) {
     if ($config{ptr_size} != 8) {
         print "JIT isn't supported on platforms with $config{ptr_size} byte pointers.\n";
     } elsif ($Config{archname} =~ m/^x86_64|^amd64|^darwin(-thread)?(-multi)?-2level/) {
-        $config{jit_obj}      = '$(JIT_ARCH_X64)';
+        $config{jit_obj}      = '$(JIT_OBJECTS) $(JIT_ARCH_X64)';
         $config{dasm_flags}   = '-D POSIX=1';
         $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
         $config{jit_platform} = 'MVM_JIT_PLATFORM_POSIX';
     } elsif ($Config{archname} =~ /^MSWin32-x64/) {
-        $config{jit_obj}      = '$(JIT_ARCH_X64)';
+        $config{jit_obj}      = '$(JIT_OBJECTS) $(JIT_ARCH_X64)';
         $config{dasm_flags}   = '-D WIN32=1';
         $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
         $config{jit_platform} = 'MVM_JIT_PLATFORM_WIN32';
