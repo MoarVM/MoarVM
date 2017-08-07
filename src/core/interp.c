@@ -947,7 +947,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     if (MVM_spesh_log_is_logging(tc)) {
                         MVMROOT(tc, code, {
                             MVM_spesh_log_invoke_target(tc, code);
-                        }); 
+                        });
                     }
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                     tc->cur_frame->return_type = MVM_RETURN_STR;
@@ -1533,6 +1533,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 6).i64);
                 cur_op += 8;
                 goto NEXT;
+            OP(eqatim_s):
+                GET_REG(cur_op, 0).i64 = MVM_string_equal_at_ignore_mark(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
+                    GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
             OP(eqaticim_s):
                 GET_REG(cur_op, 0).i64 = MVM_string_equal_at_ignore_case_ignore_mark(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
@@ -1569,6 +1575,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(indexic_s):
                 GET_REG(cur_op, 0).i64 = MVM_string_index_ignore_case(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            OP(indexim_s):
+                GET_REG(cur_op, 0).i64 = MVM_string_index_ignore_mark(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
                 cur_op += 8;
                 goto NEXT;
@@ -4635,15 +4646,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getcodelocation):
                 GET_REG(cur_op, 0).o = MVM_code_location(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
-                goto NEXT;
-            OP(eqatim_s):
-                if (MVM_string_graphs(tc, GET_REG(cur_op, 2).s) <= GET_REG(cur_op, 6).i64)
-                    GET_REG(cur_op, 0).i64 = 0;
-                else
-                    GET_REG(cur_op, 0).i64 = MVM_string_ord_basechar_at(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 6).i64)
-                                          == MVM_string_ord_basechar_at(tc, GET_REG(cur_op, 4).s, 0)
-                                           ? 1 : 0;
-                cur_op += 8;
                 goto NEXT;
             OP(ordbaseat):
                 GET_REG(cur_op, 0).i64 = MVM_string_ord_basechar_at(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
