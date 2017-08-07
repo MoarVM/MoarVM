@@ -26,8 +26,13 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
             case MVM_SPESH_ANN_INLINE_START:
             case MVM_SPESH_ANN_DEOPT_OSR:
                 /* These move to the next instruction. */
-                if (!next && bb->linear_next)
-                    next = bb->linear_next->first_ins;
+                if (!next) {
+                    MVMSpeshBB *dest_bb = bb->linear_next;
+                    while (dest_bb && !dest_bb->first_ins)
+                        dest_bb = dest_bb->linear_next;
+                    if (dest_bb)
+                        next = dest_bb->first_ins;
+                }
                 if (next) {
                     ann->next = next->annotations;
                     next->annotations = ann;
@@ -37,6 +42,8 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
                 /* This moves to the previous instruction. */
                 if (!prev) {
                     MVMSpeshBB *prev_bb = MVM_spesh_graph_linear_prev(tc, g, bb);
+                    while (prev_bb && !prev_bb->last_ins)
+                        prev_bb = MVM_spesh_graph_linear_prev(tc, g, prev_bb);
                     if (prev_bb)
                         prev = prev_bb->last_ins;
                 }
@@ -52,6 +59,8 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
                  * deopt to a later place than we should have. */
                 if (!prev) {
                     MVMSpeshBB *prev_bb = MVM_spesh_graph_linear_prev(tc, g, bb);
+                    while (prev_bb && !prev_bb->last_ins)
+                        prev_bb = MVM_spesh_graph_linear_prev(tc, g, prev_bb);
                     if (prev_bb)
                         prev = prev_bb->last_ins;
                 }
