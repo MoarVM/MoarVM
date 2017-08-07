@@ -577,13 +577,17 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 /* Tweak the successor of a BB, also updating the target BBs pred. */
 static void tweak_succ(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshBB *new_succ) {
     if (bb->num_succ == 0) {
+        /* It had no successors, so we'll add one. */
         bb->succ = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
         bb->num_succ = 1;
-    }
-    if (bb->num_succ == 1)
         bb->succ[0] = new_succ;
-    else
-        MVM_oops(tc, "Spesh inline: unexpected num_succ");
+    }
+    else {
+        /* Otherwise, we can assume that the first successor is the one to
+         * update; others will be there as a result of control handlers, but
+         * these are always added last. */
+        bb->succ[0] = new_succ;
+    }
     if (new_succ->num_pred == 0) {
         new_succ->pred = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
         new_succ->num_pred = 1;
