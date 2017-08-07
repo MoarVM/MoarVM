@@ -285,8 +285,9 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
         }
 
-        /* Invocations, returns, and throws are basic block ends. OSR points
-         * are basic block starts. */
+        /* Invoke and return end a basic block. Anything that is marked as
+         * invokish and throwish are also basic block ends. OSR points are
+         * basic block starts. */
         switch (opcode) {
         case MVM_OP_invoke_v:
         case MVM_OP_invoke_i:
@@ -298,15 +299,6 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         case MVM_OP_return_s:
         case MVM_OP_return_o:
         case MVM_OP_return:
-        case MVM_OP_throwdyn:
-        case MVM_OP_throwlex:
-        case MVM_OP_throwlexotic:
-        case MVM_OP_throwcatdyn:
-        case MVM_OP_throwcatlex:
-        case MVM_OP_throwcatlexotic:
-        case MVM_OP_die:
-        case MVM_OP_rethrow:
-        case MVM_OP_resume:
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
             next_bbs = 1;
             break;
@@ -320,6 +312,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             num_osr_points++;
             break;
         default:
+            if (info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
+                byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
+                next_bbs = 1;
+            }
             break;
         }
 
