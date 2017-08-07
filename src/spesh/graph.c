@@ -615,53 +615,6 @@ static void insert_object_null_instructions(MVMThreadContext *tc, MVMSpeshGraph 
     }
 }
 
-/* Eliminates any unreachable basic blocks (that is, dead code). Not having
- * to consider them any further simplifies all that follows. */
-static void eliminate_dead(MVMThreadContext *tc, MVMSpeshGraph *g) {
-    /* Iterate to fixed point. */
-    MVMint8  *seen     = MVM_malloc(g->num_bbs);
-    MVMint32  orig_bbs = g->num_bbs;
-    MVMint8   death    = 1;
-    while (death) {
-        /* First pass: mark every basic block that is the entry point or the
-         * successor of some other block. */
-        MVMSpeshBB *cur_bb = g->entry;
-        memset(seen, 0, g->num_bbs);
-        seen[0] = 1;
-        while (cur_bb) {
-            MVMuint16 i;
-            for (i = 0; i < cur_bb->num_succ; i++)
-                seen[cur_bb->succ[i]->idx] = 1;
-            cur_bb = cur_bb->linear_next;
-        }
-
-        /* Second pass: eliminate dead BBs from consideration. */
-        death = 0;
-        cur_bb = g->entry;
-        while (cur_bb && cur_bb->linear_next) {
-            if (!seen[cur_bb->linear_next->idx]) {
-                cur_bb->linear_next = cur_bb->linear_next->linear_next;
-                g->num_bbs--;
-                death = 1;
-            }
-            cur_bb = cur_bb->linear_next;
-        }
-    }
-    MVM_free(seen);
-
-    /* If we removed some, need to re-number so they're consecutive, for the
-     * post-order and dominance calcs to be happy. */
-    if (g->num_bbs != orig_bbs) {
-        MVMint32    new_idx  = 0;
-        MVMSpeshBB *cur_bb   = g->entry;
-        while (cur_bb) {
-            cur_bb->idx = new_idx;
-            new_idx++;
-            cur_bb = cur_bb->linear_next;
-        }
-    }
-}
-
 /* Annotates the control flow graph with predecessors. */
 static void add_predecessors(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *cur_bb = g->entry;
@@ -1183,7 +1136,7 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
     if (insert_object_nulls)
         insert_object_null_instructions(tc, g);
     if (!cfg_only) {
-        eliminate_dead(tc, g);
+        MVM_spesh_eliminate_dead_bbs(tc, g, 0);
         add_predecessors(tc, g);
         ssa(tc, g);
     }
@@ -1226,7 +1179,7 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     /* Build the CFG out of the static frame, and transform it to SSA. */
     build_cfg(tc, g, sf, cand->deopts, cand->num_deopts);
     if (!cfg_only) {
-        eliminate_dead(tc, g);
+        MVM_spesh_eliminate_dead_bbs(tc, g, 0);
         add_predecessors(tc, g);
         ssa(tc, g);
     }
