@@ -95,44 +95,6 @@ static void object_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 tgt_o
     }
 }
 
-/* Checks if there's a possible aliasing operation that could cause the
- * facts about the contents of a container to be invalid by the instruction
- * under consideration. Assumes the instruction is a decont with argument 1
- * being the thing to decontainerize. */
-MVMint32 MVM_spesh_facts_decont_blocked_by_alias(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
-    /* No facts or no writer means we can't know it's safe; block. */
-    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
-    if (!facts || !facts->writer)
-        return 1;
-
-    /* Walk backwards over instructions. */
-    while (ins->prev) {
-        ins = ins->prev;
-
-        /* If we found the writer without anything blocking, we're good. */
-        if (ins == facts->writer)
-            return 0;
-
-        /* If there's an operation that may alias, blocked. */
-        switch (ins->info->opcode) {
-            case MVM_OP_bindattr_o:
-            case MVM_OP_bindattrs_o:
-            case MVM_OP_assign:
-            case MVM_OP_assignunchecked:
-            case MVM_OP_assign_i:
-            case MVM_OP_assign_n:
-            case MVM_OP_assign_s:
-            case MVM_OP_sp_bind_o:
-            case MVM_OP_sp_p6obind_o:
-                return 1;
-        }
-    }
-
-    /* We didn't find the writer in this basic block, meaning an invocation
-     * may have made it unsafe. Block. */
-    return 1;
-}
-
 /* Propagates information relating to decontainerization. */
 static void decont_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
                          MVMuint16 out_orig, MVMuint16 out_i, MVMuint16 in_orig,
@@ -151,20 +113,18 @@ static void decont_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *in
 
     /* We may also know the original was containerized, and have some facts
      * about its contents. */
-    if (!MVM_spesh_facts_decont_blocked_by_alias(tc, g, ins)) {
-        if (in_flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) {
-            out_facts->type = in_facts->decont_type;
-            out_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
-        }
-        if (in_flags & MVM_SPESH_FACT_DECONT_CONCRETE)
-            out_facts->flags |= MVM_SPESH_FACT_CONCRETE;
-        else if (in_flags & MVM_SPESH_FACT_DECONT_TYPEOBJ)
-            out_facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
-        if (in_flags & (MVM_SPESH_FACT_KNOWN_DECONT_TYPE |
-                        MVM_SPESH_FACT_DECONT_CONCRETE |
-                        MVM_SPESH_FACT_DECONT_TYPEOBJ))
-            MVM_spesh_facts_depend(tc, g, out_facts, in_facts);
+    if (in_flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) {
+        out_facts->type = in_facts->decont_type;
+        out_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
     }
+    if (in_flags & MVM_SPESH_FACT_DECONT_CONCRETE)
+        out_facts->flags |= MVM_SPESH_FACT_CONCRETE;
+    else if (in_flags & MVM_SPESH_FACT_DECONT_TYPEOBJ)
+        out_facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
+    if (in_flags & (MVM_SPESH_FACT_KNOWN_DECONT_TYPE |
+                    MVM_SPESH_FACT_DECONT_CONCRETE |
+                    MVM_SPESH_FACT_DECONT_TYPEOBJ))
+        MVM_spesh_facts_depend(tc, g, out_facts, in_facts);
 }
 
 /* Looks up a wval and adds information based on it. */

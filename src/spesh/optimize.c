@@ -602,6 +602,25 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
         copy_facts(tc, g, ins->operands[0], ins->operands[1]);
     }
     else {
+        /* Propagate facts. */
+        MVMSpeshFacts *res_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+        int set_facts = 0;
+        if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) {
+            res_facts->type   = obj_facts->decont_type;
+            res_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+            set_facts = 1;
+        }
+        if (obj_facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE) {
+            res_facts->flags |= MVM_SPESH_FACT_CONCRETE;
+            set_facts = 1;
+        }
+        else if (obj_facts->flags & MVM_SPESH_FACT_DECONT_TYPEOBJ) {
+            res_facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
+            set_facts = 1;
+        }
+        if (set_facts)
+            MVM_spesh_facts_depend(tc, g, res_facts, obj_facts);
+
         /* Can try to specialize the fetch if we know the type. */
         if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && obj_facts->type) {
             MVMSTable *stable = STABLE(obj_facts->type);
@@ -616,27 +635,6 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
          * will at least not write log entries. */
         if (ins->info->opcode == MVM_OP_decont)
             ins->info = MVM_op_get_op(MVM_OP_sp_decont);
-
-        /* Propagate facts. */
-        if (!MVM_spesh_facts_decont_blocked_by_alias(tc, g, ins)) {
-            MVMSpeshFacts *res_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
-            int set_facts = 0;
-            if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) {
-                res_facts->type   = obj_facts->decont_type;
-                res_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
-                set_facts = 1;
-            }
-            if (obj_facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE) {
-                res_facts->flags |= MVM_SPESH_FACT_CONCRETE;
-                set_facts = 1;
-            }
-            else if (obj_facts->flags & MVM_SPESH_FACT_DECONT_TYPEOBJ) {
-                res_facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
-                set_facts = 1;
-            }
-            if (set_facts)
-                MVM_spesh_facts_depend(tc, g, res_facts, obj_facts);
-        }
     }
 }
 
