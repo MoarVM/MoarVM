@@ -54,11 +54,8 @@ static void cleanup_dead_bb_instructions(MVMThreadContext *tc, MVMSpeshGraph *g,
                     break;
                 }
                 case MVM_SPESH_ANN_FH_GOTO:
-                    /* All handlers should be linked from the entry block, so
-                     * we should never find ourselves in the situation of
-                     * deleting the handler go. */
-                    MVM_panic(1,
-                        "Spesh: handler target address should never become unreachable");
+                    mark_handler_unreachable(tc, g, ann->data.frame_handler_index);
+                    break;
             }
             ann = next_ann;
         }
