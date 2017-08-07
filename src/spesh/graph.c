@@ -123,8 +123,11 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
 
     MVMBytecodeAnnotation *ann_ptr = MVM_bytecode_resolve_annotation(tc, &sf->body, sf->body.bytecode - pc);
 
-    for (i = 0; i < g->num_handlers; i++)
+    for (i = 0; i < g->num_handlers; i++) {
+        byte_to_ins_flags[g->handlers[i].start_offset] |= MVM_CFG_BB_START;
+        byte_to_ins_flags[g->handlers[i].end_offset] |= MVM_CFG_BB_START;
         byte_to_ins_flags[g->handlers[i].goto_offset] |= MVM_CFG_BB_START;
+    }
     while (pc < end) {
         /* Look up op info. */
         MVMuint16  opcode     = *(MVMuint16 *)pc;
