@@ -143,9 +143,11 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     MVMBytecodeAnnotation *ann_ptr = MVM_bytecode_resolve_annotation(tc, &sf->body, sf->body.bytecode - pc);
 
     for (i = 0; i < g->num_handlers; i++) {
-        byte_to_ins_flags[g->handlers[i].start_offset] |= MVM_CFG_BB_START;
-        byte_to_ins_flags[g->handlers[i].end_offset] |= MVM_CFG_BB_START;
-        byte_to_ins_flags[g->handlers[i].goto_offset] |= MVM_CFG_BB_START;
+        if (g->handlers[i].start_offset != -1 && g->handlers[i].goto_offset != -1) {
+            byte_to_ins_flags[g->handlers[i].start_offset] |= MVM_CFG_BB_START;
+            byte_to_ins_flags[g->handlers[i].end_offset] |= MVM_CFG_BB_START;
+            byte_to_ins_flags[g->handlers[i].goto_offset] |= MVM_CFG_BB_START;
+        }
     }
     while (pc < end) {
         /* Look up op info. */
@@ -370,9 +372,9 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
 
     /* Annotate instructions that are handler-significant. */
     for (i = 0; i < g->num_handlers; i++) {
-        /* Start may be -1 if they the code the handler covered became dead.
-         * If so, mark the handler as removed. */
-        if (g->handlers[i].start_offset == -1) {
+        /* Start or got may be -1 if they the code the handler covered became
+         * dead. If so, mark the handler as removed. */
+        if (g->handlers[i].start_offset == -1 || g->handlers[i].goto_offset == -1) {
             if (!g->unreachable_handlers)
                 g->unreachable_handlers = MVM_spesh_alloc(tc, g, g->num_handlers);
             g->unreachable_handlers[i] = 1;
