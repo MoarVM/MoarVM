@@ -53,7 +53,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         MVMuint16 *local_types = MVM_malloc(sizeof(MVMuint16) * src_body->num_locals);
         MVMuint16 *lexical_types = MVM_malloc(sizeof(MVMuint16) * src_body->num_lexicals);
         memcpy(local_types, src_body->local_types, sizeof(MVMuint16) * src_body->num_locals);
-        memcpy(lexical_types, src_body->lexical_types, sizeof(MVMuint16) * src_body->num_lexicals);
+        if (src_body->num_lexicals)
+            memcpy(lexical_types, src_body->lexical_types,
+                sizeof(MVMuint16) * src_body->num_lexicals);
         dest_body->local_types = local_types;
         dest_body->lexical_types = lexical_types;
     }
@@ -99,7 +101,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
     dest_body->num_handlers = src_body->num_handlers;
     dest_body->handlers     = MVM_malloc(src_body->num_handlers * sizeof(MVMFrameHandler));
-    memcpy(dest_body->handlers, src_body->handlers, src_body->num_handlers * sizeof(MVMFrameHandler));
+    if (src_body->num_handlers)
+        memcpy(dest_body->handlers, src_body->handlers,
+            src_body->num_handlers * sizeof(MVMFrameHandler));
     dest_body->instrumentation_level = 0;
     dest_body->num_annotations       = src_body->num_annotations;
     dest_body->annotations_data      = src_body->annotations_data;
