@@ -100,3 +100,12 @@ enum {
 };
 /* it's a ridiculous, dangerous macro and it shouldn't escape */
 #undef __COMMA__
+
+/* We need max and min macros, they used to be in libtommath, but aren't anymore */
+#ifndef MAX
+#define MAX(a,b) ((a) > (b) ? (a) : (b));
+#endif
+
+#ifndef MIN
+#define MIN(a,b) ((a) < (b) ? (a) : (b));
+#endif

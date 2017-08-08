@@ -111,6 +111,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "core/threads.h"
 #include "core/hll.h"
 #include "core/loadbytecode.h"
+#include "core/bitmap.h"
 #include "math/num.h"
 #include "core/coerce.h"
 #include "core/ext.h"

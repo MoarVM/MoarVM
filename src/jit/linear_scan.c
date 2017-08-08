@@ -12,8 +12,8 @@ static MVMint8 available_num[] = {
 #undef __COMMA__
 #define __COMMA__ |
 #define SHIFT(x) (1 << (MVM_JIT_REG(x)))
-static const MVMint64 NVR_GPR_BITMAP = MVM_JIT_ARCH_NONVOLATILE_GPR(SHIFT);
-static const MVMint64 AVAILABLE_GPR_BITMAP = MVM_JIT_ARCH_AVAILABLE_GPR(SHIFT);
+static const MVMBitmap NVR_GPR_BITMAP = MVM_JIT_ARCH_NONVOLATILE_GPR(SHIFT);
+static const MVMBitmap AVAILABLE_GPR_BITMAP = MVM_JIT_ARCH_AVAILABLE_GPR(SHIFT);
 #undef SHIFT
 #undef __COMMA__
 
@@ -27,41 +27,6 @@ static const MVMint64 AVAILABLE_GPR_BITMAP = MVM_JIT_ARCH_AVAILABLE_GPR(SHIFT);
 #else
 #define _DEBUG(fmt, ...) do {} while(0)
 #endif
-
-/* We need max and min macro's */
-#ifndef MAX
-#define MAX(a,b) ((a) > (b) ? (a) : (b));
-#endif
-
-#ifndef MIN
-#define MIN(a,b) ((a) < (b) ? (a) : (b));
-#endif
-
-
-/* Efficient find-first-set; on x86, using `bsf` primitive operation; something
- * else on other architectures. */
-#ifdef __GNUC__
-/* also works for clang and friends */
-#define FFS(x) __builtin_ffsll(x)
-#elif defined(_MSC_VER)
-MVM_STATIC_INLINE MVMuint32 FFS(MVMuint64 x) {
-    MVMuint32 i = 0;
-    if (_BitScanForward64(&i, x) == 0)
-        return 0;
-    return i + 1;
-}
-#else
-/* fallback, note that i=0 if no bits are set */
-MVM_STATIC_INLINE MVMuint32 FFS(MVMuint64 x) {
-    MVMuint32 i = 0;
-    while (x) {
-        if (x & (1 << i++))
-            break;
-    }
-    return i;
-}
-#endif
-
 
 
 typedef struct {
@@ -423,27 +388,6 @@ void assign_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileLis
     }
 }
 
-/* NB - make this a separate 'library', use it for register bitmap */
-/* Witness the elegance of the bitmap for our purposes. */
-MVM_STATIC_INLINE void bitmap_set(MVMuint64 *bits, MVMint32 idx) {
-    bits[idx >> 6] |= (UINT64_C(1) << (idx & 0x3f));
-}
-
-MVM_STATIC_INLINE MVMuint64 bitmap_get(MVMuint64 *bits, MVMint32 idx) {
-    return bits[idx >> 6] & (UINT64_C(1) << (idx & 0x3f));
-}
-
-MVM_STATIC_INLINE void bitmap_delete(MVMuint64 *bits, MVMint32 idx) {
-    bits[idx >> 6] &= ~(UINT64_C(1) << (idx & 0x3f));
-}
-
-MVM_STATIC_INLINE void bitmap_union_and_diff(MVMuint64 *u, MVMuint64 *d, MVMuint64 *a, MVMuint64 *b, MVMint32 n) {
-    MVMint32 i;
-    for (i = 0; i < n; i++) {
-        u[i] = a[i] | b[i];
-        d[i] = a[i] ^ b[i];
-    }
-}
 
 MVM_STATIC_INLINE void close_hole(RegisterAllocator *alc, MVMint32 ref, MVMint32 tile_idx) {
     LiveRange *v = alc->values + ref;
@@ -480,29 +424,33 @@ static void find_holes(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileL
 #define _BITMAP(_a)   (bitmaps + (_a)*bitmap_size)
 #define _SUCC(_a, _z) (list->blocks[(_a)].succ[(_z)])
 
-    MVMuint64 *bitmaps = MVM_calloc(list->blocks_num + 1, sizeof(MVMuint64) * bitmap_size);
+    MVMBitmap *bitmaps = MVM_calloc(list->blocks_num + 1, sizeof(MVMBitmap) * bitmap_size);
     /* last bitmap is allocated to hold diff, which is how we know which live
      * ranges holes potentially need to be closed */
-    MVMuint64 *diff    = _BITMAP(list->blocks_num);
+    MVMBitmap *diff    = _BITMAP(list->blocks_num);
 
     for (j = list->blocks_num - 1; j >= 0; j--) {
-        MVMuint64 *live_in = _BITMAP(j);
+        MVMBitmap *live_in = _BITMAP(j);
         MVMint32 start = list->blocks[j].start, end = list->blocks[j].end;
         if (list->blocks[j].num_succ == 2) {
             /* live out is union of successors' live_in */
-            bitmap_union_and_diff(live_in, diff, _BITMAP(_SUCC(j, 0)), _BITMAP(_SUCC(j, 1)), bitmap_size);
+            MVMBitmap *a = _BITMAP(_SUCC(j, 0)), *b =  _BITMAP(_SUCC(j, 1));
+
+            MVM_bitmap_union(live_in, a, b, bitmap_size);
+            MVM_bitmap_difference(diff, a, b, bitmap_size);
+
             for (k = 0; k < bitmap_size; k++) {
-                MVMuint64 additions = diff[k];
+                MVMBitmap additions = diff[k];
                 while (additions) {
-                    MVMint32 bit = FFS(additions) - 1;
+                    MVMint32 bit = MVM_FFS(additions) - 1;
                     MVMint32 val = (k << 6) + bit;
-                    additions &= ~(UINT64_C(1) << bit);
                     close_hole(alc, val, end);
+                    MVM_bitmap_delete(&additions, bit);
                 }
             }
         } else if (list->blocks[j].num_succ == 1) {
             memcpy(live_in, _BITMAP(_SUCC(j, 0)),
-                   sizeof(MVMuint64) * bitmap_size);
+                   sizeof(MVMBitmap) * bitmap_size);
         }
 
         for (i = end - 1; i >= start; i--) {
@@ -513,8 +461,8 @@ static void find_holes(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileL
                 for (k = 0; k < nchild; k++) {
                     MVMint32 carg = list->tree->nodes[tile->node + 2 + k];
                     MVMint32 ref  = value_set_find(alc->sets, list->tree->nodes[carg + 1])->idx;
-                    if (!bitmap_get(live_in, ref)) {
-                        bitmap_set(live_in, ref);
+                    if (!MVM_bitmap_get(live_in, ref)) {
+                        MVM_bitmap_set(live_in, ref);
                         close_hole(alc, ref, i);
                     }
                 }
@@ -528,13 +476,13 @@ static void find_holes(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileL
                 if (MVM_JIT_TILE_YIELDS_VALUE(tile)) {
                     MVMint32 ref = value_set_find(alc->sets, tile->node)->idx;
                     open_hole(alc, ref, i);
-                    bitmap_delete(live_in, ref);
+                    MVM_bitmap_delete(live_in, ref);
                 }
                 for (k = 0; k < tile->num_refs; k++) {
                     if (MVM_JIT_REGISTER_IS_USED(MVM_JIT_REGISTER_FETCH(tile->register_spec, k+1))) {
                         MVMint32 ref = value_set_find(alc->sets, tile->refs[k])->idx;
-                        if (!bitmap_get(live_in, ref)) {
-                            bitmap_set(live_in, ref);
+                        if (!MVM_bitmap_get(live_in, ref)) {
+                            MVM_bitmap_set(live_in, ref);
                             close_hole(alc, ref, i);
                         }
                     }
@@ -831,7 +779,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     MVMint8 spilled_args[16];
     MVMint32 spilled_args_top = 0;
 
-    MVMuint32 call_bitmap = 0, arg_bitmap = 0;
+    MVMBitmap call_bitmap = 0, arg_bitmap = 0;
 
     MVMint8 spare_register;
 
@@ -902,7 +850,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         /* set bitmap */
         if (storage_refs[i]._cls == MVM_JIT_STORAGE_GPR) {
             MVMint8 reg_num = storage_refs[i]._pos;
-            arg_bitmap |= (1 << reg_num);
+            MVM_bitmap_set(&arg_bitmap, reg_num);
         }
     }
 
@@ -933,15 +881,15 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         MVMint8 spec = MVM_JIT_REGISTER_FETCH(call_tile->register_spec, i + 1);
         if (MVM_JIT_REGISTER_IS_USED(spec)) {
             MVMint8 reg = call_tile->values[i+1];
-            call_bitmap |= (1 << reg);
+            MVM_bitmap_set(&call_bitmap, reg);
         }
     }
 
     while (call_bitmap & arg_bitmap) {
         MVMuint32 free_reg = ~(call_bitmap | arg_bitmap | NVR_GPR_BITMAP);
         /* FFS counts registers starting from 1 */
-        MVMuint8 src = FFS(call_bitmap & arg_bitmap) - 1;
-        MVMuint8 dst = FFS(free_reg) - 1;
+        MVMuint8 src = MVM_FFS(call_bitmap & arg_bitmap) - 1;
+        MVMuint8 dst = MVM_FFS(free_reg) - 1;
 
         _ASSERT(free_reg != 0, "JIT: need to move a register but nothing is free");
 
@@ -950,7 +898,8 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         topological_map[src].num_out++;
 
         /* update bitmap */
-        call_bitmap = (call_bitmap & (~(1 << src))) | (1 << dst);
+        MVM_bitmap_delete(&call_bitmap, src);
+        MVM_bitmap_set(&call_bitmap, dst);
 
         /* update CALL args */
         for (i = 0; i < call_tile->num_refs; i++) {
@@ -974,7 +923,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     /* with call_bitmap and arg_bitmap given, we can determine the spare
      * register used for allocation; NB this may only be necessary in some
      * cases */
-    spare_register = FFS(~(call_bitmap | arg_bitmap | NVR_GPR_BITMAP)) - 1;
+    spare_register = MVM_FFS(~(call_bitmap | arg_bitmap | NVR_GPR_BITMAP)) - 1;
     _ASSERT(spare_register >= 0, "JIT: No spare register for moves");
 
     for (i = 0; i < stack_transfer_top; i++) {
@@ -1109,7 +1058,7 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
 
         if (MVM_JIT_REGISTER_HAS_REQUIREMENT(alc->values[v].register_spec)) {
             reg = MVM_JIT_REGISTER_REQUIREMENT(alc->values[v].register_spec);
-            if (NVR_GPR_BITMAP & (1 << reg)) {
+            if (MVM_bitmap_get((MVMBitmap*)&NVR_GPR_BITMAP, reg)) {
                 assign_register(tc, alc, list, v, MVM_JIT_STORAGE_NVR, reg);
             } else {
                 /* TODO; might require swapping / spilling */

@@ -240,6 +240,7 @@ HEADERS = src/moar.h \
           src/core/threads.h \
           src/core/hll.h \
           src/core/loadbytecode.h \
+          src/core/bitmap.h \
           src/math/num.h \
           src/core/coerce.h \
           src/core/dll.h \
