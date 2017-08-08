@@ -821,13 +821,25 @@ indexim_s           w(int64) r(str) r(str) r(int64) :pure
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
 
-# Guard operations. Trigger de-optimization if the guard is violated.
+# Type guard operations. Trigger de-optimization if the guard is violated.
 #   guard = guard on type only; index is spesh slot with type
 #   guardconc = guard on type + concrete; index is spesh slot with type
 #   guardtype = guard on type + type object; index is spesh slot with type
 sp_guard         .s r(obj) sslot uint32
 sp_guardconc     .s r(obj) sslot uint32
 sp_guardtype     .s r(obj) sslot uint32
+
+# Code guard operations. Trigger de-optimization if the guard is violated.
+#   guardsf = guard on being an MVMCode with specified static frame inside
+#   guardsfouter = as with guardsf but also ensures its ->outer is equal to
+#   the currently executing frame
+sp_guardsf       .s r(obj) sslot uint32
+sp_guardsfouter  .s r(obj) sslot uint32
+
+# Resolves an invokee into an MVMCode object, or returns VMNull when that is
+# not possible. Doesn't do multiple dispatch cache handling (since that needs
+# the args buffer set up).
+sp_resolvecode   .s w(obj) r(obj)
 
 # These are variants of the normal interpreted ops that do not log. Used for
 # the case where we can't JIT-compile, but don't want to keep on logging.
