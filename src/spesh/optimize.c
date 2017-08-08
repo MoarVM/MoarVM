@@ -1061,6 +1061,31 @@ static MVMint32 try_find_spesh_candidate(MVMThreadContext *tc, MVMCode *code,
         : MVM_spesh_arg_guard_run_callinfo(tc, ag, arg_info);
 }
 
+/* Given an invoke instruction, find its logging bytecode offset. Returns 0
+ * if not found. */
+MVMuint32 find_invoke_offset(MVMThreadContext *tc, MVMSpeshIns *ins) {
+    MVMSpeshAnn *ann = ins->annotations;
+    while (ann) {
+        if (ann->type == MVM_SPESH_ANN_LOGGED)
+            return ann->data.bytecode_offset;
+        ann = ann->next;
+    }
+    return 0;
+}
+
+/* Given an instruction, finds the deopt target on it. Panics if there is not
+ * one there. */
+MVMuint32 find_deopt_target(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMuint32 deopt_target;
+    MVMSpeshAnn *deopt_ann = ins->annotations;
+    while (deopt_ann) {
+        if (deopt_ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS)
+            return g->deopt_addrs[2 * deopt_ann->data.deopt_idx];
+        deopt_ann = deopt_ann->next;
+    }
+    MVM_panic(1, "Spesh: unexpectedly missing deopt annotation on prepargs");
+}
+
 /* Given a callsite instruction, finds the type tuples there and checks if
  * there is a relatively stable one. */
 static MVMSpeshStatsType * find_invokee_type_tuple(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -1073,15 +1098,7 @@ static MVMSpeshStatsType * find_invokee_type_tuple(MVMThreadContext *tc, MVMSpes
     size_t tt_size = expect_cs->flag_count * sizeof(MVMSpeshStatsType);
 
     /* First try to find logging bytecode offset. */
-    MVMuint32 invoke_offset = 0;
-    MVMSpeshAnn *ann = ins->annotations;
-    while (ann) {
-        if (ann->type == MVM_SPESH_ANN_LOGGED) {
-            invoke_offset = ann->data.bytecode_offset;
-            break;
-        }
-        ann = ann->next;
-    }
+    MVMuint32 invoke_offset = find_invoke_offset(tc, ins);
     if (!invoke_offset)
         return NULL;
 
@@ -1128,22 +1145,9 @@ static MVMSpeshStatsType * find_invokee_type_tuple(MVMThreadContext *tc, MVMSpes
 static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
                                   MVMSpeshStatsType *type_info,
                                   MVMSpeshCallInfo *arg_info, MVMuint32 arg_idx) {
-    MVMSpeshIns *guard;
-    MVMuint32 deopt_target;
-
-    /* Find deopt index (should never be missing on prepargs). */
-    MVMSpeshAnn *deopt_ann = arg_info->prepargs_ins->annotations;
-    while (deopt_ann) {
-        if (deopt_ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS)
-            break;
-        deopt_ann = deopt_ann->next;
-    }
-    if (!deopt_ann)
-        MVM_panic(1, "Spesh: unexpectedly missing deopt annotation on prepargs");
-
     /* Insert gaurd before prepargs (this means they stack up in order). */
-    deopt_target = g->deopt_addrs[2 * deopt_ann->data.deopt_idx];
-    guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    MVMuint32 deopt_target = find_deopt_target(tc, g, arg_info->prepargs_ins);
+    MVMSpeshIns *guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     guard->info = MVM_op_get_op(type_info->type_concrete
         ? MVM_OP_sp_guardconc
         : MVM_OP_sp_guardtype);
@@ -1164,21 +1168,11 @@ static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
 static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
                                          MVMSpeshStatsType *type_info,
                                          MVMSpeshCallInfo *arg_info, MVMuint32 arg_idx) {
-    MVMuint32 deopt_target;
     MVMSpeshIns *decont, *guard;
+    MVMuint32 deopt_target;
 
     /* We need a temporary register to decont into. */
     MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
-
-    /* Find deopt index (should never be missing on prepargs). */
-    MVMSpeshAnn *deopt_ann = arg_info->prepargs_ins->annotations;
-    while (deopt_ann) {
-        if (deopt_ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS)
-            break;
-        deopt_ann = deopt_ann->next;
-    }
-    if (!deopt_ann)
-        MVM_panic(1, "Spesh: unexpectedly missing deopt annotation on prepargs");
 
     /* Insert the decont, then try to optimize it into something cheaper. */
     decont = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
@@ -1192,7 +1186,7 @@ static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     optimize_decont(tc, g, arg_info->prepargs_bb, decont);
 
     /* Guard the decontainerized value. */
-    deopt_target = g->deopt_addrs[2 * deopt_ann->data.deopt_idx];
+    deopt_target = find_deopt_target(tc, g, arg_info->prepargs_ins);
     guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     guard->info = MVM_op_get_op(type_info->decont_type_concrete
         ? MVM_OP_sp_guardconc
