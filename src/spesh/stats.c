@@ -400,8 +400,8 @@ MVMSpeshSimStackFrame * sim_stack_find(MVMThreadContext *tc, MVMSpeshSimStack *s
     return NULL;
 }
 
-/* Destroys the stack simulation. */
-void sim_stack_destroy(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMObject *sf_updated) {
+/* Pops all the frames in the stack simulation and frees the frames storage. */
+void sim_stack_teardown(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMObject *sf_updated) {
     while (sims->used)
         sim_stack_pop(tc, sims, sf_updated);
     MVM_free(sims->frames);
@@ -478,7 +478,7 @@ static void save_or_free_sim_stack(MVMThreadContext *tc, MVMSpeshSimStack *sims,
     }
     else {
         /* Everything on the simulated stack is too old; throw it away. */
-        sim_stack_destroy(tc, sims, sf_updated);
+        sim_stack_teardown(tc, sims, sf_updated);
         MVM_free(sims);
     }
 }
@@ -712,5 +712,12 @@ void MVM_spesh_sim_stack_gc_mark(MVMThreadContext *tc, MVMSpeshSimStack *sims,
         MVMSpeshSimStackFrame *simf = &(sims->frames[i]);
         MVM_gc_worklist_add(tc, worklist, &(simf->sf));
         MVM_gc_worklist_add(tc, worklist, &(simf->last_invoke_sf));
+    }
+}
+
+void MVM_spesh_sim_stack_destroy(MVMThreadContext *tc, MVMSpeshSimStack *sims) {
+    if (sims) {
+        MVM_free(sims->frames);
+        MVM_free(sims);
     }
 }

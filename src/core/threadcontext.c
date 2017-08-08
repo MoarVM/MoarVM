@@ -73,6 +73,9 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     /* We run once again (non-blocking) to eventually close filehandles. */
     uv_run(tc->loop, UV_RUN_NOWAIT);
 
+    /* Free specialization state. */
+    MVM_spesh_sim_stack_destroy(tc, tc->spesh_sim_stack);
+
     /* Free the nursery and finalization queue. */
     MVM_free(tc->nursery_fromspace);
     MVM_free(tc->nursery_tospace);
