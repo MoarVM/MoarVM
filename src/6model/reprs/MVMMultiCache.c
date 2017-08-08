@@ -484,7 +484,9 @@ MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_ob
         MVMuint64      arg_match = tree[cur_node].action.arg_match;
         MVMuint64      arg_idx   = arg_match & MVM_MULTICACHE_ARG_IDX_FILTER;
         MVMuint64      type_id   = arg_match & MVM_MULTICACHE_TYPE_ID_FILTER;
-        MVMSpeshFacts *facts     = arg_info->arg_facts[arg_idx];
+        MVMSpeshFacts *facts     = arg_idx < MAX_ARGS_FOR_OPT
+            ? arg_info->arg_facts[arg_idx]
+            : NULL;
         if (type_tuple) {
             MVMuint64 tt_offset = arg_idx >= arg_info->cs->num_pos
                 ? (arg_idx - arg_info->cs->num_pos) / 2
