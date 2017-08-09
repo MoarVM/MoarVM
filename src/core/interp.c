@@ -5209,22 +5209,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
                 goto NEXT;
             }
-            OP(sp_resolvecode): {
-                MVMObject *invokee = GET_REG(cur_op, 2).o;
-                if (REPR(invokee)->ID == MVM_REPR_ID_MVMCode) {
-                    GET_REG(cur_op, 0).o = invokee;
-                }
-                else {
-                    MVMInvocationSpec *is = STABLE(invokee)->invocation_spec;
-                    if (is && is->code_ref_offset && IS_CONCRETE(invokee))
-                        GET_REG(cur_op, 0).o = MVM_p6opaque_read_object(tc, invokee,
-                            is->code_ref_offset);
-                    else
-                        GET_REG(cur_op, 0).o = tc->instance->VMNull;
-                }
+            OP(sp_resolvecode):
+                GET_REG(cur_op, 0).o = MVM_frame_resolve_invokee_spesh(tc,
+                    GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            }
             OP(sp_decont): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 MVMRegister *r = &GET_REG(cur_op, 0);
