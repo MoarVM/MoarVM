@@ -307,10 +307,16 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     }
 
     /* Ensure all inlines got fixed up. */
-    for (i = 0; i < g->num_inlines; i++)
-        if (!g->inlines[i].unreachable)
+    for (i = 0; i < g->num_inlines; i++) {
+        if (g->inlines[i].unreachable) {
+            g->inlines[i].start = -1;
+            g->inlines[i].end = -1;
+        }
+        else {
             if (g->inlines[i].start == -1 || g->inlines[i].end == -1)
                 MVM_oops(tc, "Spesh: failed to fix up inline %d", i);
+        }
+    }
 
     /* Produce result data structure. */
     res                = MVM_malloc(sizeof(MVMSpeshCode));
