@@ -224,7 +224,6 @@ static void add_to_bin_freelist(MVMThreadContext *tc, MVMFixedSizeAlloc *al,
     MVMFixedSizeAllocThreadSizeClass *bin_ptr = &(tc->thread_fsa->size_classes[bin]);
     if (bin_ptr->items < MVM_FSA_THREAD_FREELIST_LIMIT) {
         MVMFixedSizeAllocFreeListEntry *to_add  = (MVMFixedSizeAllocFreeListEntry *)to_free;
-        MVMFixedSizeAllocFreeListEntry *orig;
         to_add->next = bin_ptr->free_list;
         bin_ptr->free_list = to_add;
         bin_ptr->items++;

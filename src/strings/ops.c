@@ -844,7 +844,7 @@ MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadCo
  * Sometimes there is a difference in length of a string before and after foldcase,
  * because of this we must compare this differently than just foldcasing both
  * strings to ensure the offset is correct */
-static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 H_offset, int ignoremark) {
+static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 H_offset, int ignoremark, int ignorecase) {
     /* Foldcase version of needle */
     MVMString *needle_fc;
     MVMStringIndex H_graphs = MVM_string_graphs(tc, Haystack);
@@ -868,12 +868,12 @@ static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Hay
         needle_fc = MVM_string_fc(tc, needle);
     });
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
-    H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, Haystack, needle_fc, H_offset, H_graphs, n_fc_graphs, ignoremark, 1);
+    H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, Haystack, needle_fc, H_offset, H_graphs, n_fc_graphs, ignoremark, ignorecase);
     if (H_expansion >= 0)
         return H_graphs + H_expansion - H_offset >= n_fc_graphs  ? 1 : 0;
     return 0;
 }
-static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 start, int ignoremark) {
+static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 start, int ignoremark, int ignorecase) {
     /* Foldcase version of needle */
     MVMString *needle_fc;
     MVMStringIndex n_fc_graphs;
@@ -908,7 +908,7 @@ static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haysta
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
     /* brute force for now. horrible, yes. halp. */
     while (index <= H_graphs) {
-        H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, Haystack, needle_fc, index, H_graphs, n_fc_graphs, ignoremark, 1);
+        H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, Haystack, needle_fc, index, H_graphs, n_fc_graphs, ignoremark, ignorecase);
         if (H_expansion >= 0)
             return H_graphs + H_expansion - index >= n_fc_graphs  ? (MVMint64)index : -1;
         index++;
@@ -917,16 +917,22 @@ static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haysta
 }
 
 MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 H_offset) {
-    return string_equal_at_ignore_case(tc, Haystack, needle, H_offset, 0);
-}
-MVMint64 MVM_string_equal_at_ignore_case_ignore_mark(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 H_offset) {
-    return string_equal_at_ignore_case(tc, Haystack, needle, H_offset, 1);
+    return string_equal_at_ignore_case(tc, Haystack, needle, H_offset, 0, 1);
 }
 MVMint64 MVM_string_index_ignore_case(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 start) {
-    return string_index_ignore_case(tc, Haystack, needle, start, 0);
+    return string_index_ignore_case(tc, Haystack, needle, start, 0, 1);
+}
+MVMint64 MVM_string_equal_at_ignore_mark(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 H_offset) {
+    return string_equal_at_ignore_case(tc, Haystack, needle, H_offset, 1, 0);
+}
+MVMint64 MVM_string_index_ignore_mark(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 start) {
+    return string_index_ignore_case(tc, Haystack, needle, start, 1, 0);
+}
+MVMint64 MVM_string_equal_at_ignore_case_ignore_mark(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 H_offset) {
+    return string_equal_at_ignore_case(tc, Haystack, needle, H_offset, 1, 1);
 }
 MVMint64 MVM_string_index_ignore_case_ignore_mark(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 start) {
-    return string_index_ignore_case(tc, Haystack, needle, start, 1);
+    return string_index_ignore_case(tc, Haystack, needle, start, 1, 1);
 }
 
 MVMGrapheme32 MVM_string_ord_at(MVMThreadContext *tc, MVMString *s, MVMint64 offset) {

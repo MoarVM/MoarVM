@@ -442,7 +442,6 @@ static const MVMAsyncTaskOps close_op_table = {
 };
 
 static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
-    MVMIOAsyncSocketData *data = (MVMIOAsyncSocketData *)h->body.data;
     MVMAsyncTask *task;
     CloseInfo *ci;
 

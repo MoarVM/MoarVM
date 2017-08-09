@@ -223,6 +223,9 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         case MVM_operand_int32:
                             appendf(ds, "liti32(%"PRId32")", cur_ins->operands[i].lit_i32);
                             break;
+                        case MVM_operand_uint32:
+                            appendf(ds, "litui32(%"PRIu32")", cur_ins->operands[i].lit_ui32);
+                            break;
                         case MVM_operand_int64:
                             appendf(ds, "liti64(%"PRId64")", cur_ins->operands[i].lit_i64);
                             break;
@@ -482,8 +485,10 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     }
 
     /* Dump facts. */
-    append(&ds, "\nFacts:\n");
-    dump_facts(tc, &ds, g);
+    if (g->facts) {
+        append(&ds, "\nFacts:\n");
+        dump_facts(tc, &ds, g);
+    }
 
     /* Dump spesh slots. */
     if (g->num_spesh_slots) {
@@ -757,6 +762,9 @@ char * MVM_spesh_dump_arg_guard(MVMThreadContext *tc, MVMStaticFrame *sf) {
                 case MVM_SPESH_GUARD_OP_DEREF_RW:
                     appendf(&ds, "%u: DEREF_RW %u | Y: %u, N: %u\n",
                         i, agn->offset, agn->yes, agn->no);
+                    break;
+                case MVM_SPESH_GUARD_OP_CERTAIN_RESULT:
+                    appendf(&ds, "%u: CERTAIN RESULT %u\n", i, agn->result);
                     break;
                 case MVM_SPESH_GUARD_OP_RESULT:
                     appendf(&ds, "%u: RESULT %u\n", i, agn->result);

@@ -281,6 +281,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_atan_n: return atan;
     case MVM_OP_atan2_n: return atan2;
     case MVM_OP_pow_I: return MVM_bigint_pow;
+    case MVM_OP_rand_I: return MVM_bigint_rand;
     case MVM_OP_pow_n: return pow;
     case MVM_OP_time_n: return MVM_proc_time_n;
     case MVM_OP_randscale_n: return MVM_proc_randscale_n;
@@ -316,6 +317,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_sp_boolify_iter: return MVM_iter_istrue;
     case MVM_OP_prof_allocated: return MVM_profile_log_allocated;
     case MVM_OP_prof_exit: return MVM_profile_log_exit;
+    case MVM_OP_sp_resolvecode: return MVM_frame_resolve_invokee_spesh;
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
     }
@@ -2555,6 +2557,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, dst);
         break;
     }
+    case MVM_OP_rand_I:
     case MVM_OP_bnot_I: {
         MVMint16 dst      = ins->operands[0].reg.orig;
         MVMint32 invocant = ins->operands[1].reg.orig;
@@ -2797,8 +2800,17 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_guard:
     case MVM_OP_sp_guardconc:
     case MVM_OP_sp_guardtype:
+    case MVM_OP_sp_guardsf:
         jg_append_guard(tc, jg, ins);
         break;
+    case MVM_OP_sp_resolvecode: {
+        MVMint16 dst     = ins->operands[0].reg.orig;
+        MVMint16 obj     = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
     case MVM_OP_prepargs: {
         return consume_invoke(tc, jg, iter, ins);
     }

@@ -101,11 +101,11 @@
 |.type HLLCONFIG, MVMHLLConfig;
 |.type SCREFBODY, MVMSerializationContextBody
 |.type NFGSYNTH, MVMNFGSynthetic
+|.type CODE, MVMCode
 |.type U8, MVMuint8
 |.type U16, MVMuint16
 |.type U32, MVMuint32
 |.type U64, MVMuint64
-
 
 
 /* Static allocation of relevant types to registers. I pick
@@ -2193,6 +2193,15 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
         | jnz >1;
         /* should have our stable */
         | cmp TMP2, OBJECT:TMP1->st;
+        | jne >1;
+    } else if (op == MVM_OP_sp_guardsf) {
+        /* Should be an MVMCode */
+        MVMint32 reprid = MVM_REPR_ID_MVMCode;
+        | mov TMP3, OBJECT:TMP1->st;
+        | mov TMP3, STABLE:TMP3->REPR;
+        | cmp qword REPR:TMP3->ID, reprid;
+        | jne >1;
+        | cmp TMP2, CODE:TMP1->body.sf;
         | jne >1;
     }
     /* if we're here, we didn't jump to deopt, so skip it */
