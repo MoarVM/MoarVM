@@ -763,6 +763,9 @@ char * MVM_spesh_dump_arg_guard(MVMThreadContext *tc, MVMStaticFrame *sf) {
                     appendf(&ds, "%u: DEREF_RW %u | Y: %u, N: %u\n",
                         i, agn->offset, agn->yes, agn->no);
                     break;
+                case MVM_SPESH_GUARD_OP_CERTAIN_RESULT:
+                    appendf(&ds, "%u: CERTAIN RESULT %u\n", i, agn->result);
+                    break;
                 case MVM_SPESH_GUARD_OP_RESULT:
                     appendf(&ds, "%u: RESULT %u\n", i, agn->result);
                     break;
