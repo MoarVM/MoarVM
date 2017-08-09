@@ -402,6 +402,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_sp_boolify_iter: return MVM_iter_istrue;
     case MVM_OP_prof_allocated: return MVM_profile_log_allocated;
     case MVM_OP_prof_exit: return MVM_profile_log_exit;
+    case MVM_OP_sp_resolvecode: return MVM_frame_resolve_invokee_spesh;
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
     }
@@ -2848,8 +2849,17 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_sp_guard:
     case MVM_OP_sp_guardconc:
     case MVM_OP_sp_guardtype:
+    case MVM_OP_sp_guardsf:
         jgb_append_guard(tc, jgb, ins);
         break;
+    case MVM_OP_sp_resolvecode: {
+        MVMint16 dst     = ins->operands[0].reg.orig;
+        MVMint16 obj     = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
     case MVM_OP_prepargs: {
         return jgb_consume_invoke(tc, jgb, ins);
     }
