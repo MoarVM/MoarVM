@@ -16,6 +16,9 @@ struct MVMSpeshGraph {
     /* Exception handler map for that bytecode. */
     MVMFrameHandler *handlers;
 
+    /* Handlers that have become unreachable due to dead code removal. */
+    MVMint8 *unreachable_handlers;
+
     /* The size of the bytecode we're building the graph out of. */
     MVMuint32 bytecode_size;
 
@@ -56,6 +59,10 @@ struct MVMSpeshGraph {
     MVMint32 *deopt_addrs;
     MVMint32  num_deopt_addrs;
     MVMint32  alloc_deopt_addrs;
+
+    /* Bit field of named args used to put in place during deopt, since we
+     * don't typically don't update the array in specialized code. */
+    MVMuint64 deopt_named_used_bit_field;
 
     /* Table of information about inlines, laid out in order of nesting
      * depth. Thus, going through the table in order and finding when we
@@ -184,6 +191,7 @@ struct MVMSpeshIns {
 union MVMSpeshOperand {
     MVMint64     lit_i64;
     MVMint32     lit_i32;
+    MVMuint16    lit_ui32;
     MVMint16     lit_i16;
     MVMuint16    lit_ui16;
     MVMint8      lit_i8;
@@ -244,6 +252,8 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
 MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStaticFrame *sf,
     MVMSpeshCandidate *cand, MVMuint32 cfg_only);
 MVMSpeshBB * MVM_spesh_graph_linear_prev(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *search);
+void MVM_spesh_graph_add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g,
+    MVMSpeshIns *ins_node, MVMuint32 deopt_target, MVMint32 type);
 void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist *worklist);
 void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g);
 MVM_PUBLIC void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes);

@@ -56,6 +56,7 @@ MVMCallsite * MVM_args_copy_uninterned_callsite(MVMThreadContext *tc, MVMArgProc
 MVM_PUBLIC MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f);
 MVM_PUBLIC MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *f);
 void MVM_args_marked_named_used(MVMThreadContext *tc, MVMuint32 idx);
+void MVM_args_throw_named_unused_error(MVMThreadContext *tc, MVMString *name);
 
 /* Argument access by position. */
 MVMArgInfo MVM_args_get_pos_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required);

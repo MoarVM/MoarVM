@@ -25,6 +25,17 @@ MVM_STATIC_INLINE void * MVM_realloc(void *p, size_t size) {
     return ptr;
 }
 
+MVM_STATIC_INLINE void * MVM_recalloc(void *p, size_t old_size, size_t size) {
+    void *ptr = realloc(p, size);
+
+    if (!ptr && size > 0)
+        MVM_panic_allocation_failed(size);
+
+    memset((char *)ptr + old_size, 0, size - old_size);
+
+    return ptr;
+}
+
 MVM_STATIC_INLINE void MVM_free(void *p) {
     free(p);
 }

@@ -208,7 +208,7 @@ static void store_bigint_result(MVMP6bigintBody *body, mp_int *i) {
     }
 }
 
-/* Bitops on libtomath (no 2s compliment API) are horrendously inefficient and
+/* Bitops on libtomath (no two's complement API) are horrendously inefficient and
  * really should be hand-coded to work DIGIT-by-DIGIT with in-loop carry
  * handling.  For now we have these fixups.
  *
@@ -260,7 +260,7 @@ static void two_complement_bitop(mp_int *a, mp_int *b, mp_int *c,
         g = &e;
     }
     /* f and g now guaranteed to each point to positive bigints containing
-     * a 2s compliment representation of the values in a and b.  If either
+     * a two's complement representation of the values in a and b.  If either
      * a or b was negative, the representation is one tomath "digit" longer
      * than it need be and sign extended.
      */
@@ -926,21 +926,69 @@ MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     return c;
 }
 
-void MVM_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
-    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b) {
+    MVMObject *result;
+    MVMP6bigintBody *ba;
     MVMP6bigintBody *bb = get_bigint_body(tc, b);
 
-    mp_int *tmp[1] = { NULL };
-    mp_int *rnd = MVM_malloc(sizeof(mp_int));
-    mp_int *max = force_bigint(bb, tmp);
+    MVMint8 use_small_arithmetic = 0;
+    MVMint8 have_to_negate = 0;
+    MVMint32 smallint_max = 0;
 
-    mp_init(rnd);
-    mp_rand(rnd, USED(max) + 1);
+    if (MVM_BIGINT_IS_BIG(bb)) {
+        if (can_be_smallint(bb->u.bigint)) {
+            use_small_arithmetic = 1;
+            smallint_max = DIGIT(bb->u.bigint, 0);
+            have_to_negate = SIGN(bb->u.bigint) == MP_NEG;
+        }
+    } else {
+        use_small_arithmetic = 1;
+        smallint_max = bb->u.smallint.value;
+    }
 
-    mp_mod(rnd, max, rnd);
-    store_bigint_result(ba, rnd);
-    clear_temp_bigints(tmp, 1);
-    adjust_nursery(tc, ba);
+    if (use_small_arithmetic) {
+        if (MP_GEN_RANDOM_MAX >= abs(smallint_max)) {
+            mp_digit result_int = MP_GEN_RANDOM();
+            result_int = result_int % smallint_max;
+            if(have_to_negate)
+                result_int *= -1;
+
+            MVMROOT(tc, type, {
+                MVMROOT(tc, b, {
+                    result = MVM_repr_alloc_init(tc, type);
+                });
+            });
+
+            ba = get_bigint_body(tc, result);
+            store_int64_result(ba, result_int);
+        } else {
+            use_small_arithmetic = 0;
+        }
+    }
+
+    if (!use_small_arithmetic) {
+        mp_int *tmp[1] = { NULL };
+        mp_int *rnd = MVM_malloc(sizeof(mp_int));
+        mp_int *max = force_bigint(bb, tmp);
+
+        MVMROOT(tc, type, {
+            MVMROOT(tc, b, {
+                result = MVM_repr_alloc_init(tc, type);
+            });
+        });
+
+        ba = get_bigint_body(tc, result);
+
+        mp_init(rnd);
+        mp_rand(rnd, USED(max) + 1);
+
+        mp_mod(rnd, max, rnd);
+        store_bigint_result(ba, rnd);
+        clear_temp_bigints(tmp, 1);
+        adjust_nursery(tc, ba);
+    }
+
+    return result;
 }
 
 MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 b) {

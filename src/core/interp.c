@@ -450,30 +450,41 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(return_i):
+                if (MVM_spesh_log_is_logging(tc))
+                    MVM_spesh_log_return_type(tc, NULL);
                 MVM_args_set_result_int(tc, GET_REG(cur_op, 0).i64,
                     MVM_RETURN_CALLER_FRAME);
                 if (MVM_frame_try_return(tc) == 0)
                     goto return_label;
                 goto NEXT;
             OP(return_n):
+                if (MVM_spesh_log_is_logging(tc))
+                    MVM_spesh_log_return_type(tc, NULL);
                 MVM_args_set_result_num(tc, GET_REG(cur_op, 0).n64,
                     MVM_RETURN_CALLER_FRAME);
                 if (MVM_frame_try_return(tc) == 0)
                     goto return_label;
                 goto NEXT;
             OP(return_s):
+                if (MVM_spesh_log_is_logging(tc))
+                    MVM_spesh_log_return_type(tc, NULL);
                 MVM_args_set_result_str(tc, GET_REG(cur_op, 0).s,
                     MVM_RETURN_CALLER_FRAME);
                 if (MVM_frame_try_return(tc) == 0)
                     goto return_label;
                 goto NEXT;
-            OP(return_o):
-                MVM_args_set_result_obj(tc, GET_REG(cur_op, 0).o,
-                    MVM_RETURN_CALLER_FRAME);
+            OP(return_o): {
+                MVMObject *value = GET_REG(cur_op, 0).o;
+                if (MVM_spesh_log_is_logging(tc))
+                    MVM_spesh_log_return_type(tc, value);
+                MVM_args_set_result_obj(tc, value, MVM_RETURN_CALLER_FRAME);
                 if (MVM_frame_try_return(tc) == 0)
                     goto return_label;
                 goto NEXT;
+            }
             OP(return):
+                if (MVM_spesh_log_is_logging(tc))
+                    MVM_spesh_log_return_type(tc, NULL);
                 MVM_args_assert_void_return_ok(tc, MVM_RETURN_CALLER_FRAME);
                 if (MVM_frame_try_return(tc) == 0)
                     goto return_label;
@@ -936,7 +947,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     if (MVM_spesh_log_is_logging(tc)) {
                         MVMROOT(tc, code, {
                             MVM_spesh_log_invoke_target(tc, code);
-                        }); 
+                        });
                     }
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                     tc->cur_frame->return_type = MVM_RETURN_STR;
@@ -1522,6 +1533,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 6).i64);
                 cur_op += 8;
                 goto NEXT;
+            OP(eqatim_s):
+                GET_REG(cur_op, 0).i64 = MVM_string_equal_at_ignore_mark(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
+                    GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
             OP(eqaticim_s):
                 GET_REG(cur_op, 0).i64 = MVM_string_equal_at_ignore_case_ignore_mark(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
@@ -1558,6 +1575,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(indexic_s):
                 GET_REG(cur_op, 0).i64 = MVM_string_index_ignore_case(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            OP(indexim_s):
+                GET_REG(cur_op, 0).i64 = MVM_string_index_ignore_mark(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
                 cur_op += 8;
                 goto NEXT;
@@ -3477,9 +3499,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(rand_I): {
                 MVMObject * const type = GET_REG(cur_op, 4).o;
-                MVMObject *  const rnd = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_rand(tc, rnd, GET_REG(cur_op, 2).o);
-                GET_REG(cur_op, 0).o = rnd;
+                GET_REG(cur_op, 0).o = MVM_bigint_rand(tc, type, GET_REG(cur_op, 2).o);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -4627,15 +4647,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = MVM_code_location(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            OP(eqatim_s):
-                if (MVM_string_graphs(tc, GET_REG(cur_op, 2).s) <= GET_REG(cur_op, 6).i64)
-                    GET_REG(cur_op, 0).i64 = 0;
-                else
-                    GET_REG(cur_op, 0).i64 = MVM_string_ord_basechar_at(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 6).i64)
-                                          == MVM_string_ord_basechar_at(tc, GET_REG(cur_op, 4).s, 0)
-                                           ? 1 : 0;
-                cur_op += 8;
-                goto NEXT;
             OP(ordbaseat):
                 GET_REG(cur_op, 0).i64 = MVM_string_ord_basechar_at(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
                 cur_op += 6;
@@ -5154,27 +5165,64 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 2)];
-                cur_op += 4;
+                cur_op += 8;
                 if (!check || STABLE(check) != want)
-                    MVM_spesh_deopt_one(tc);
+                    MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
                 goto NEXT;
             }
             OP(sp_guardconc): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 2)];
-                cur_op += 4;
+                cur_op += 8;
                 if (!check || !IS_CONCRETE(check) || STABLE(check) != want)
-                    MVM_spesh_deopt_one(tc);
+                    MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
                 goto NEXT;
             }
             OP(sp_guardtype): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 2)];
-                cur_op += 4;
+                cur_op += 8;
                 if (!check || IS_CONCRETE(check) || STABLE(check) != want)
-                    MVM_spesh_deopt_one(tc);
+                    MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                goto NEXT;
+            }
+            OP(sp_guardsf): {
+                MVMObject *check = GET_REG(cur_op, 0).o;
+                MVMStaticFrame *want = (MVMStaticFrame *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                cur_op += 8;
+                if (REPR(check)->ID != MVM_REPR_ID_MVMCode ||
+                        ((MVMCode *)check)->body.sf != want)
+                    MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                goto NEXT;
+            }
+            OP(sp_guardsfouter): {
+                MVMObject *check = GET_REG(cur_op, 0).o;
+                MVMStaticFrame *want = (MVMStaticFrame *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                cur_op += 8;
+                if (REPR(check)->ID != MVM_REPR_ID_MVMCode ||
+                        ((MVMCode *)check)->body.sf != want ||
+                        ((MVMCode *)check)->body.outer != tc->cur_frame)
+                    MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                goto NEXT;
+            }
+            OP(sp_resolvecode): {
+                MVMObject *invokee = GET_REG(cur_op, 2).o;
+                if (REPR(invokee)->ID == MVM_REPR_ID_MVMCode) {
+                    GET_REG(cur_op, 0).o = invokee;
+                }
+                else {
+                    MVMInvocationSpec *is = STABLE(invokee)->invocation_spec;
+                    if (is && is->code_ref_offset && IS_CONCRETE(invokee))
+                        GET_REG(cur_op, 0).o = MVM_p6opaque_read_object(tc, invokee,
+                            is->code_ref_offset);
+                    else
+                        GET_REG(cur_op, 0).o = tc->instance->VMNull;
+                }
+                cur_op += 4;
                 goto NEXT;
             }
             OP(sp_decont): {
@@ -5302,8 +5350,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     code->body.outer, (MVMObject *)code, spesh_cand);
                 goto NEXT;
             }
-            OP(sp_namedarg_used):
-                MVM_args_marked_named_used(tc, GET_UI16(cur_op, 0));
+            OP(sp_paramnamesused):
+                MVM_args_throw_named_unused_error(tc, (MVMString *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 0)]);
                 cur_op += 2;
                 goto NEXT;
             OP(sp_getspeshslot):

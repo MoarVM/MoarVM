@@ -448,7 +448,9 @@ MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *
 }
 
 /* Do a multi cache lookup based upon spesh arg facts. */
-MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_obj, MVMSpeshCallInfo *arg_info) {
+MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_obj,
+                                       MVMSpeshCallInfo *arg_info,
+                                       MVMSpeshStatsType *type_tuple) {
     MVMMultiCacheBody *cache;
     MVMMultiCacheNode *tree;
     MVMint32 cur_node;
@@ -482,8 +484,39 @@ MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_ob
         MVMuint64      arg_match = tree[cur_node].action.arg_match;
         MVMuint64      arg_idx   = arg_match & MVM_MULTICACHE_ARG_IDX_FILTER;
         MVMuint64      type_id   = arg_match & MVM_MULTICACHE_TYPE_ID_FILTER;
-        MVMSpeshFacts *facts     = arg_info->arg_facts[arg_idx];
-        if (facts) {
+        MVMSpeshFacts *facts     = arg_idx < MAX_ARGS_FOR_OPT
+            ? arg_info->arg_facts[arg_idx]
+            : NULL;
+        if (type_tuple) {
+            MVMuint64 tt_offset = arg_idx >= arg_info->cs->num_pos
+                ? (arg_idx - arg_info->cs->num_pos) / 2
+                : arg_idx;
+            MVMuint32 is_rw = type_tuple[tt_offset].rw_cont;
+            MVMSTable *known_type_st;
+            MVMuint32 is_conc;
+            if (type_tuple[tt_offset].decont_type) {
+                known_type_st = type_tuple[tt_offset].decont_type->st;
+                is_conc = type_tuple[tt_offset].decont_type_concrete;
+            }
+            else {
+                known_type_st = type_tuple[tt_offset].type->st;
+                is_conc = type_tuple[tt_offset].type_concrete;
+            }
+
+            /* Now check if what we have matches what we need. */
+            if (known_type_st->type_cache_id == type_id) {
+                MVMuint32 need_concrete = (arg_match & MVM_MULTICACHE_ARG_CONC_FILTER) ? 1 : 0;
+                if (is_conc == need_concrete) {
+                    MVMuint32 need_rw = (arg_match & MVM_MULTICACHE_ARG_RW_FILTER) ? 1 : 0;
+                    if (need_rw == is_rw) {
+                        cur_node = tree[cur_node].match;
+                        continue;
+                    }
+                }
+            }
+            cur_node = tree[cur_node].no_match;
+        }
+        else if (facts) {
             /* Figure out type, concreteness, and rw-ness from facts. */
             MVMSTable *known_type_st;
             MVMuint32  is_conc;

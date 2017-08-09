@@ -25,6 +25,15 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
     if (!static_frame_body->fully_deserialized)
         MVM_bytecode_finish_frame(tc, cu, static_frame, 0);
 
+    /* If we never invoked this compilation unit before, and we have spesh
+     * enabled, we might either have no spesh log or a nearly full one. This
+     * will cause problems with gathering data to OSR hot loops. */
+    if (!cu->body.invoked) {
+        cu->body.invoked = 1;
+        if (tc->instance->spesh_enabled)
+            MVM_spesh_log_new_compunit(tc);
+    }
+
     /* Take compilation unit lock, to make sure we don't race to do the
      * frame preparation/verification work. */
     MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);

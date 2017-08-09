@@ -1,5 +1,10 @@
 /* Maximum args a call can take for us to consider it for optimization. */
-#define MAX_ARGS_FOR_OPT    4
+#define MAX_ARGS_FOR_OPT 8
+
+/* Percentage of type tuples that we expect to match at a callsite in order to
+ * consider those what we should guard agaisnt (causing a deopt on mismatch).
+ * So if this is 99, then we expect 1% of calls may deopt. */
+#define MVM_SPESH_CALLSITE_STABLE_PERCENT 99
 
 /* Information we've gathered about the current call we're optimizing, and the
  * arguments it will take. */

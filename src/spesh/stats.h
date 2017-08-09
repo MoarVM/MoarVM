@@ -96,9 +96,9 @@ struct MVMSpeshStatsByOffset {
     MVMuint32 num_types;
     MVMSpeshStatsTypeCount *types;
 
-    /* Number of values recorded, with counts. */
-    MVMuint32 num_values;
-    MVMSpeshStatsValueCount *values;
+    /* Number of invocation targets recorded, with counts. */
+    MVMuint32 num_invokes;
+    MVMSpeshStatsInvokeCount *invokes;
 
     /* Number of type tuples recorded, with counts. (Type tuples are actually
      * recorded by the callee, and then also accumulated at the callsite of
@@ -117,10 +117,13 @@ struct MVMSpeshStatsTypeCount {
     MVMuint32 count;
 };
 
-/* Counts of a given value that has shown up at a bytecode offset. */
-struct MVMSpeshStatsValueCount {
-    /* The value. */
-    MVMObject *value;
+/* Counts of a given static frame that was invoked at a bytecode offset. */
+struct MVMSpeshStatsInvokeCount {
+    /* The static frame. */
+    MVMStaticFrame *sf;
+
+    /* The number of times the caller frame was also the outer frame. */
+    MVMuint32 caller_is_outer_count;
 
     /* The number of times we've seen it. */
     MVMuint32 count;
@@ -152,7 +155,76 @@ struct MVMSpeshStatsStatic {
  * stats out of date and throw them out. */
 #define MVM_SPESH_STATS_MAX_AGE 10
 
+/* Logs are linear recordings marked with frame correlation IDs. We need to
+ * simulate the call stack as part of the analysis. This is the model for the
+ * stack simulation. */
+struct MVMSpeshSimStack {
+    /* Array of frames. */
+    MVMSpeshSimStackFrame *frames;
+
+    /* Current frame index and allocated space. */
+    MVMuint32 used;
+    MVMuint32 limit;
+
+    /* Current stack depth. */
+    MVMuint32 depth;
+};
+
+/* This is the model of a frame on the simulated stack. */
+struct MVMSpeshSimStackFrame {
+    /* The static frame. */
+    MVMStaticFrame *sf;
+
+    /* Spesh stats for the stack frame. */
+    MVMSpeshStats *ss;
+
+    /* Correlation ID. */
+    MVMuint32 cid;
+
+    /* Callsite stats index (not pointer in case of realloc). */
+    MVMuint32 callsite_idx;
+
+    /* Type stats index (not pointer in case of realloc); -1 if not yet set.
+     * This is resolved once using arg_types, and then remembered, so we can
+     * correlate the statistics across spesh log buffers. */
+    MVMint32 type_idx;
+
+    /* Argument types logged. Sized by number of callsite flags. */
+    MVMSpeshStatsType *arg_types;
+
+    /* Spesh log entries for types and values, for later processing. */
+    MVMSpeshLogEntry **offset_logs;
+    MVMuint32 offset_logs_used;
+    MVMuint32 offset_logs_limit;
+
+    /* Type tuples observed at a given callsite offset, for later
+     * processing. */
+    MVMSpeshSimCallType *call_type_info;
+    MVMuint32 call_type_info_used;
+    MVMuint32 call_type_info_limit;
+
+    /* Number of times we crossed an OSR point. */
+    MVMuint32 osr_hits;
+
+    /* The last bytecode offset and static frame seen in an invoke recording;
+     * used for producing callsite type stats based on callee type tuples. */
+    MVMuint32 last_invoke_offset;
+    MVMStaticFrame *last_invoke_sf;
+};
+
+/* We associate recoded type tuples in callees with their caller's callsites.
+ * This is kept as a flat view, and then folded in when the caller's sim
+ * frame (see next) is popped. */
+struct MVMSpeshSimCallType {
+    MVMuint32 bytecode_offset;
+    MVMCallsite *cs;
+    MVMSpeshStatsType *arg_types;
+};
+
 void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf_updated);
 void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames);
 void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorklist *worklist);
 void MVM_spesh_stats_destroy(MVMThreadContext *tc, MVMSpeshStats *ss);
+void MVM_spesh_sim_stack_gc_mark(MVMThreadContext *tc, MVMSpeshSimStack *sims,
+    MVMGCWorklist *worklist);
+void MVM_spesh_sim_stack_destroy(MVMThreadContext *tc, MVMSpeshSimStack *sims);

@@ -37,19 +37,6 @@ static void add_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
     }
 }
 
-/* Adds an instruction marking a name arg as being used (if we turned its
- * fetching into a positional). */
-static MVMSpeshIns * add_named_used_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-                               MVMSpeshIns *ins, MVMint32 idx) {
-    MVMSpeshIns *inserted_ins = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
-    MVMSpeshOperand *operands = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ));
-    inserted_ins->info        = MVM_op_get_op(MVM_OP_sp_namedarg_used);
-    inserted_ins->operands    = operands;
-    operands[0].lit_i16       = (MVMint16)idx;
-    MVM_spesh_manipulate_insert_ins(tc, bb, ins, inserted_ins);
-    return inserted_ins;
-}
-
 /* Handles a pos arg that needs unboxing. */
 static void pos_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                       MVMSpeshIns *ins, const MVMOpInfo *unbox_op) {
@@ -107,6 +94,117 @@ static MVMuint16 prim_spec(MVMThreadContext *tc, MVMSpeshStatsType *type_tuple, 
         : 0;
 }
 
+/* Puts a single named argument into a slurpy hash, boxing if needed. */
+static void slurp_named_arg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                            MVMSpeshIns *hash_ins, MVMint32 named_idx) {
+    MVMSpeshIns *key_ins;
+
+    /* Look up arg flags and name, and compute index. */
+    MVMCallsiteFlags flags = g->cs->arg_flags[g->cs->num_pos + named_idx];
+    MVMString *name = g->cs->arg_names[named_idx];
+    MVMuint16 arg_idx = g->cs->num_pos + 2 * named_idx + 1;
+
+    /* Allocate temporary registers for the key and value. */
+    MVMSpeshOperand key_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_str);
+    MVMSpeshOperand value_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+
+    /* Insert bind key instruction after slurpy hash creation instruction (we
+     * do it first as below we prepend instructions to obtain the key and the
+     * value. */
+    MVMSpeshIns *bindkey_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    bindkey_ins->info = MVM_op_get_op(MVM_OP_bindkey_o);
+    bindkey_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+    bindkey_ins->operands[0] = hash_ins->operands[0];
+    bindkey_ins->operands[1] = key_temp;
+    bindkey_ins->operands[2] = value_temp;
+    MVM_spesh_manipulate_insert_ins(tc, bb, hash_ins, bindkey_ins);
+
+    /* Instruction to get value depends on argument type. */
+    if ((flags & MVM_CALLSITE_ARG_MASK) == MVM_CALLSITE_ARG_OBJ) {
+        /* It's already a boxed object, so just fetch it into the value
+         * register. */
+        MVMSpeshIns *fetch_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        fetch_ins->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
+        fetch_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+        fetch_ins->operands[0] = value_temp;
+        fetch_ins->operands[1].lit_ui16 = arg_idx;
+        MVM_spesh_manipulate_insert_ins(tc, bb, hash_ins, fetch_ins);
+    }
+    else {
+        MVMSpeshIns *box_ins, *hlltype_ins, *fetch_ins;
+
+        /* We need to box it. Get a temporary register to box into. To
+         * only use one extra register, we will re-use the temp value
+         * one to load the box type into, and only add a temporary for. */
+        MVMSpeshOperand unboxed_temp;
+        MVMuint16 box_op;
+        MVMuint16 hlltype_op;
+        MVMuint16 fetch_op;
+        switch (flags & MVM_CALLSITE_ARG_MASK) {
+            case MVM_CALLSITE_ARG_INT:
+                unboxed_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+                box_op = MVM_OP_box_i;
+                hlltype_op = MVM_OP_hllboxtype_i;
+                fetch_op = MVM_OP_sp_getarg_i;
+                break;
+            case MVM_CALLSITE_ARG_NUM:
+                unboxed_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_num64);
+                box_op = MVM_OP_box_n;
+                hlltype_op = MVM_OP_hllboxtype_n;
+                fetch_op = MVM_OP_sp_getarg_n;
+                break;
+            case MVM_CALLSITE_ARG_STR:
+                unboxed_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_str);
+                box_op = MVM_OP_box_s;
+                hlltype_op = MVM_OP_hllboxtype_s;
+                fetch_op = MVM_OP_sp_getarg_s;
+                break;
+            default:
+                MVM_panic(1, "Spesh args: unexpected named argument type %d", flags);
+        }
+
+        /* Emit instruction to box value. */
+        box_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        box_ins->info = MVM_op_get_op(box_op);
+        box_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+        box_ins->operands[0] = value_temp;
+        box_ins->operands[1] = unboxed_temp;
+        box_ins->operands[2] = value_temp;
+        MVM_spesh_manipulate_insert_ins(tc, bb, hash_ins, box_ins);
+
+        /* Prepend the instruction get box type. */
+        hlltype_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        hlltype_ins->info = MVM_op_get_op(hlltype_op);
+        hlltype_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand));
+        hlltype_ins->operands[0] = value_temp;
+        MVM_spesh_manipulate_insert_ins(tc, bb, hash_ins, hlltype_ins);
+
+        /* Prepend fetch instruction. */
+        fetch_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        fetch_ins->info = MVM_op_get_op(fetch_op);
+        fetch_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+        fetch_ins->operands[0] = unboxed_temp;
+        fetch_ins->operands[1].lit_ui16 = arg_idx;
+        MVM_spesh_manipulate_insert_ins(tc, bb, hash_ins, fetch_ins);
+
+        /* Can release the temporary register now. */
+        MVM_spesh_manipulate_release_temp_reg(tc, g, unboxed_temp);
+    }
+
+    /* Insert key fetching instruciton; we just store the string in a spesh
+     * slot. */
+    key_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    key_ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+    key_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+    key_ins->operands[0] = key_temp;
+    key_ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)name);
+    MVM_spesh_manipulate_insert_ins(tc, bb, hash_ins, key_ins);
+
+    /* Release temporary registers after. */
+    MVM_spesh_manipulate_release_temp_reg(tc, g, key_temp);
+    MVM_spesh_manipulate_release_temp_reg(tc, g, value_temp);
+}
+
 /* Takes information about the incoming callsite and arguments, and performs
  * various optimizations based on that information. */
 void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
@@ -118,13 +216,13 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
     MVMSpeshIns  *paramnamesused_ins = NULL;
     MVMSpeshBB   *paramnamesused_bb  = NULL;
     MVMSpeshIns  *param_sn_ins       = NULL;
+    MVMSpeshBB   *param_sn_bb        = NULL;
 
     MVMSpeshIns **pos_ins    = MVM_calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
     MVMSpeshBB  **pos_bb     = MVM_calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
     MVMuint8     *pos_added  = MVM_calloc(MAX_POS_ARGS, sizeof(MVMuint8));
     MVMSpeshIns **named_ins  = MVM_calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshIns *));
     MVMSpeshBB  **named_bb   = MVM_calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshBB *));
-    MVMSpeshIns **used_ins   = MVM_calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshIns *));
     MVMint32      req_max    = -1;
     MVMint32      opt_min    = -1;
     MVMint32      opt_max    = -1;
@@ -132,34 +230,25 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
     MVMint32      named_used = 0;
     MVMint32      named_passed = (cs->arg_count - cs->num_pos) / 2;
     MVMint32      cs_flags   = cs->num_pos + named_passed;
-    MVMint32      first_deopt_ins = -1;
-    MVMint32      last_param_ins = -1;
     MVMint32      cur_ins = 0;
 
-    MVMSpeshBB *bb = g->entry;
+    /* We use a bit field to track named argument use; on deopt we will put it
+     * into the deoptimized frame. */
+    MVMuint64 named_used_bit_field = 0;
 
+    MVMSpeshBB *bb = g->entry;
     g->cs = cs;
 
     /* Walk through the graph, looking for arg related instructions. */
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
-            if (first_deopt_ins == -1) {
-                MVMSpeshAnn *ann = ins->annotations;
-                while (ann) {
-                    if (ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS ||
-                            ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS)
-                        first_deopt_ins = cur_ins;
-                    ann = ann->next;
-                }
-            }
             switch (ins->info->opcode) {
             case MVM_OP_checkarity:
                 if (checkarity_ins)
                     goto cleanup; /* Dupe; weird; bail out! */
                 checkarity_ins = ins;
                 checkarity_bb  = bb;
-                last_param_ins = cur_ins;
                 break;
             case MVM_OP_param_rp_i:
             case MVM_OP_param_rp_n:
@@ -175,7 +264,6 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 pos_bb[idx]  = bb;
                 if (idx > req_max)
                     req_max = idx;
-                last_param_ins = cur_ins;
                 break;
             }
             case MVM_OP_param_op_i:
@@ -194,7 +282,6 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     opt_max = idx;
                 if (opt_min == -1 || idx < opt_min)
                     opt_min = idx;
-                last_param_ins = cur_ins;
                 break;
             }
             case MVM_OP_param_on_i:
@@ -211,13 +298,12 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 named_ins[num_named] = ins;
                 named_bb[num_named]  = bb;
                 num_named++;
-                last_param_ins = cur_ins;
                 break;
             case MVM_OP_param_sp:
                 break;
             case MVM_OP_param_sn:
                 param_sn_ins = ins;
-                last_param_ins = cur_ins;
+                param_sn_bb = bb;
                 break;
             case MVM_OP_usecapture:
             case MVM_OP_savecapture:
@@ -228,7 +314,6 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     goto cleanup; /* Dupe; weird; bail out! */
                 paramnamesused_ins = ins;
                 paramnamesused_bb  = bb;
-                last_param_ins = cur_ins;
                 break;
             default:
                 break;
@@ -430,13 +515,13 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 if (found_flag & MVM_CALLSITE_ARG_INT) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
-                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                    named_used_bit_field |= (MVMuint64)1 << cur_named;
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_OBJ
                         && prim_spec(tc, type_tuple, found_flag_idx) == MVM_STORAGE_SPEC_BP_INT) {
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
                     pos_unbox(tc, g, named_bb[i], named_ins[i], MVM_op_get_op(MVM_OP_unbox_i));
-                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i]->next, cur_named);
+                    named_used_bit_field |= (MVMuint64)1 << cur_named;
                 }
                 named_used++;
                 break;
@@ -446,13 +531,13 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 if (found_flag & MVM_CALLSITE_ARG_NUM) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_n);
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
-                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                    named_used_bit_field |= (MVMuint64)1 << cur_named;
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_OBJ
                         && prim_spec(tc, type_tuple, found_flag_idx) == MVM_STORAGE_SPEC_BP_NUM) {
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
                     pos_unbox(tc, g, named_bb[i], named_ins[i], MVM_op_get_op(MVM_OP_unbox_n));
-                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i]->next, cur_named);
+                    named_used_bit_field |= (MVMuint64)1 << cur_named;
                 }
                 named_used++;
                 break;
@@ -462,13 +547,13 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 if (found_flag & MVM_CALLSITE_ARG_STR) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_s);
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
-                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                    named_used_bit_field |= (MVMuint64)1 << cur_named;
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_OBJ
                         && prim_spec(tc, type_tuple, found_flag_idx) == MVM_STORAGE_SPEC_BP_STR) {
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
                     pos_unbox(tc, g, named_bb[i], named_ins[i], MVM_op_get_op(MVM_OP_unbox_s));
-                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i]->next, cur_named);
+                    named_used_bit_field |= (MVMuint64)1 << cur_named;
                 }
                 named_used++;
                 break;
@@ -479,7 +564,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     MVMuint16 arg_idx = found_idx + 1;
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
                     named_ins[i]->operands[1].lit_i16 = arg_idx;
-                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                    named_used_bit_field |= (MVMuint64)1 << cur_named;
                     if (type_tuple && type_tuple[found_flag_idx].type)
                         add_facts(tc, g, arg_idx, type_tuple[found_flag_idx], named_ins[i]);
                 }
@@ -498,7 +583,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                         pos_box(tc, g, named_bb[i], named_ins[i],
                             MVM_op_get_op(MVM_OP_hllboxtype_s), MVM_op_get_op(MVM_OP_box_s),
                             MVM_op_get_op(MVM_OP_sp_getarg_s), MVM_reg_str);
-                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i]->next->next, cur_named);
+                    named_used_bit_field |= (MVMuint64)1 << cur_named;
                 }
                 named_used++;
                 break;
@@ -514,7 +599,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                         named_ins[i]->operands[2].ins_bb);
                     MVM_spesh_manipulate_remove_successor(tc, named_bb[i],
                         named_bb[i]->linear_next);
-                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                    named_used_bit_field |= (MVMuint64)1 << cur_named;
                     named_used++;
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_OBJ
@@ -525,7 +610,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                         named_ins[i]->operands[2].ins_bb);
                     MVM_spesh_manipulate_remove_successor(tc, named_bb[i],
                         named_bb[i]->linear_next);
-                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i]->next, cur_named);
+                    named_used_bit_field |= (MVMuint64)1 << cur_named;
                     named_used++;
                 }
                 break;
@@ -541,7 +626,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                         named_ins[i]->operands[2].ins_bb);
                     MVM_spesh_manipulate_remove_successor(tc, named_bb[i],
                         named_bb[i]->linear_next);
-                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                    named_used_bit_field |= (MVMuint64)1 << cur_named;
                     named_used++;
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_OBJ
@@ -552,7 +637,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                         named_ins[i]->operands[2].ins_bb);
                     MVM_spesh_manipulate_remove_successor(tc, named_bb[i],
                         named_bb[i]->linear_next);
-                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i]->next, cur_named);
+                    named_used_bit_field |= (MVMuint64)1 << cur_named;
                     named_used++;
                 }
                 break;
@@ -568,7 +653,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                         named_ins[i]->operands[2].ins_bb);
                     MVM_spesh_manipulate_remove_successor(tc, named_bb[i],
                         named_bb[i]->linear_next);
-                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                    named_used_bit_field |= (MVMuint64)1 << cur_named;
                     named_used++;
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_OBJ
@@ -579,7 +664,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                         named_ins[i]->operands[2].ins_bb);
                     MVM_spesh_manipulate_remove_successor(tc, named_bb[i],
                         named_bb[i]->linear_next);
-                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i]->next, cur_named);
+                    named_used_bit_field |= (MVMuint64)1 << cur_named;
                     named_used++;
                 }
                 break;
@@ -596,7 +681,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                         named_ins[i]->operands[2].ins_bb);
                     MVM_spesh_manipulate_remove_successor(tc, named_bb[i],
                         named_bb[i]->linear_next);
-                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                    named_used_bit_field |= (MVMuint64)1 << cur_named;
                     if (type_tuple && type_tuple[found_flag_idx].type)
                         add_facts(tc, g, arg_idx, type_tuple[found_flag_idx], named_ins[i]);
                     named_used++;
@@ -620,7 +705,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                         named_ins[i]->operands[2].ins_bb);
                     MVM_spesh_manipulate_remove_successor(tc, named_bb[i],
                         named_bb[i]->linear_next);
-                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i]->next->next, cur_named);
+                    named_used_bit_field |= (MVMuint64)1 << cur_named;
                     named_used++;
                 }
                 break;
@@ -629,38 +714,58 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
             }
         }
 
-        /* If all of the passed named arguments have been eaten up by named
-         * parameteters, then we can:
-         * 1. Toss the instructions that mark them used, provided there is
-         *    no chance of deoptimization.
-         * 2. Toss the instruction to check there aren't any unused ones.
-         * 3. Turn a slurpy param capturer into an empty hash (which may be
-         *    further optimized away later).
-         */
-        if (named_passed == named_used) {
-            if (first_deopt_ins == -1 || first_deopt_ins > last_param_ins) {
-                for (i = 0; i < num_named; i++)
-                    if (used_ins[i])
-                        MVM_spesh_manipulate_delete_ins(tc, g, named_bb[i], used_ins[i]);
-            }
-            if (paramnamesused_ins)
+        /* If we have an instruction to check all nameds were used... */
+        if (paramnamesused_ins) {
+            /* Delete it if they were. */
+            if (named_passed == named_used) {
                 MVM_spesh_manipulate_delete_ins(tc, g, paramnamesused_bb, paramnamesused_ins);
-            if (param_sn_ins) {
-                MVMObject *hash_type = g->sf->body.cu->body.hll_config->slurpy_hash_type;
-                if (REPR(hash_type)->ID == MVM_REPR_ID_MVMHash) {
-                    MVMSpeshOperand target    = param_sn_ins->operands[0];
-                    param_sn_ins->info        = MVM_op_get_op(MVM_OP_sp_fastcreate);
-                    param_sn_ins->operands    = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-                    param_sn_ins->operands[0] = target;
-                    param_sn_ins->operands[1].lit_i16 = sizeof(MVMHash);
-                    param_sn_ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g,
-                        (MVMCollectable *)STABLE(hash_type));
-                }
-                else {
-                    MVM_oops(tc, "Arg spesh: slurpy hash type was not a VMHash as expected");
+            }
+
+            /* Otherwise, we have unexpected named arguments. Turn it into an
+             * error. */
+            else {
+                MVMuint16 i;
+                for (i = 0; i < named_passed; i++) {
+                    if (!(named_used_bit_field & ((MVMuint64)1 << i))) {
+                        paramnamesused_ins->info = MVM_op_get_op(MVM_OP_sp_paramnamesused);
+                        paramnamesused_ins->operands = MVM_spesh_alloc(tc,
+                            g, sizeof(MVMSpeshOperand));
+                        paramnamesused_ins->operands[0].lit_i16 = MVM_spesh_add_spesh_slot(tc,
+                            g, (MVMCollectable *)g->cs->arg_names[i]);
+                        break;
+                    }
                 }
             }
         }
+
+        /* If we have a slurpy hash... */
+        if (param_sn_ins) {
+            /* Construct it as a hash. */
+            MVMObject *hash_type = g->sf->body.cu->body.hll_config->slurpy_hash_type;
+            if (REPR(hash_type)->ID == MVM_REPR_ID_MVMHash) {
+                MVMSpeshOperand target    = param_sn_ins->operands[0];
+                param_sn_ins->info        = MVM_op_get_op(MVM_OP_sp_fastcreate);
+                param_sn_ins->operands    = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                param_sn_ins->operands[0] = target;
+                param_sn_ins->operands[1].lit_i16 = sizeof(MVMHash);
+                param_sn_ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g,
+                    (MVMCollectable *)STABLE(hash_type));
+            }
+            else {
+                MVM_oops(tc, "Arg spesh: slurpy hash type was not a VMHash as expected");
+            }
+
+            /* Populate it with unused named args, if needed, boxing them on
+             * the way. */
+            if (named_passed > named_used)
+                for (i = 0; i < named_passed; i++)
+                    if (!(named_used_bit_field & ((MVMuint64)1 << i)))
+                        slurp_named_arg(tc, g, param_sn_bb, param_sn_ins, i);
+        }
+
+        /* Stash the named used bit field in the graph; will need to make it
+         * into the candidate and all the way to deopt. */
+        g->deopt_named_used_bit_field = named_used_bit_field;
     }
 
   cleanup:
@@ -669,5 +774,4 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
     MVM_free(pos_added);
     MVM_free(named_ins);
     MVM_free(named_bb);
-    MVM_free(used_ins);
 }

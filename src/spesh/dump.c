@@ -223,6 +223,9 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         case MVM_operand_int32:
                             appendf(ds, "liti32(%"PRId32")", cur_ins->operands[i].lit_i32);
                             break;
+                        case MVM_operand_uint32:
+                            appendf(ds, "litui32(%"PRIu32")", cur_ins->operands[i].lit_ui32);
+                            break;
                         case MVM_operand_int64:
                             appendf(ds, "liti64(%"PRId64")", cur_ins->operands[i].lit_i64);
                             break;
@@ -482,8 +485,10 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     }
 
     /* Dump facts. */
-    append(&ds, "\nFacts:\n");
-    dump_facts(tc, &ds, g);
+    if (g->facts) {
+        append(&ds, "\nFacts:\n");
+        dump_facts(tc, &ds, g);
+    }
 
     /* Dump spesh slots. */
     if (g->num_spesh_slots) {
@@ -518,8 +523,10 @@ void dump_stats_type_tuple(MVMThreadContext *tc, DumpStr *ds, MVMCallsite *cs,
         MVMObject *type = type_tuple[j].type;
         if (type) {
             MVMObject *decont_type = type_tuple[j].decont_type;
-            appendf(ds, "%sType %d: %s (%s)",
-                prefix, j, type->st->debug_name,
+            appendf(ds, "%sType %d: %s%s (%s)",
+                prefix, j,
+                (type_tuple[j].rw_cont ? "RW " : ""),
+                type->st->debug_name,
                 (type_tuple[j].type_concrete ? "Conc" : "TypeObj"));
             if (decont_type)
                 appendf(ds, " of %s (%s)",
@@ -561,11 +568,13 @@ void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCa
                         oss->types[k].count,
                         oss->types[k].type->st->debug_name,
                         (oss->types[k].type_concrete ? "Conc" : "TypeObj"));
-                for (k = 0; k < oss->num_values; k++)
-                    appendf(ds, "                %d x value at %p of type %s\n",
-                        oss->values[k].count,
-                        oss->values[k].value,
-                        oss->values[k].value->st->debug_name);
+                for (k = 0; k < oss->num_invokes; k++)
+                    appendf(ds,
+                        "                %d x static frame '%s' (%s) (caller is outer: %d)\n",
+                        oss->invokes[k].count,
+                        MVM_string_utf8_encode_C_string(tc, oss->invokes[k].sf->body.name),
+                        MVM_string_utf8_encode_C_string(tc, oss->invokes[k].sf->body.cuuid),
+                        oss->invokes[k].caller_is_outer_count);
                 for (k = 0; k < oss->num_type_tuples; k++) {
                     appendf(ds, "                %d x type tuple:\n",
                         oss->type_tuples[k].count);

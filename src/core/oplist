@@ -39,8 +39,11 @@
 # * :logged means type or value logging for specialization happens at this
 #   op
 # * :deoptonepoint means that we may deoptimize (fall back to slow-path code)
-#   at this point, but just locally within the current frame
-# * :deoptallpoint means that we may globally deoptimize at this point
+#   after this instruction, but just locally within the current frame
+# * :predeoptonepoint means that we may deoptimize (fall back to slow-path
+#   code) before this instruction, but just locally within the current frame
+# * :deoptallpoint means that we may globally deoptimize (this goes only on an
+#   invoke; the callsite address will be rewritten)
 # * :noinline means it is never safe to inline this op
 # * :invokish means the op may invoke (used by the JIT)
 # * :throwish means the op may throw (used by the JIT)
@@ -77,8 +80,8 @@ if_s                r(str) ins
 unless_s            r(str) ins
 if_s0               r(str) ins
 unless_s0           r(str) ins
-if_o                r(obj) ins
-unless_o            r(obj) ins
+if_o                r(obj) ins :invokish
+unless_o            r(obj) ins :invokish
 jumplist         :j int64 r(int64)
 getlex              w(`1) rl(`1) :pure :deoptonepoint :logged
 bindlex             wl(`1) r(`1)
@@ -172,7 +175,7 @@ coerce_si           w(int64) r(str) :pure
 coerce_sn           w(num64) r(str) :pure
 smrt_numify         w(num64) r(obj) :pure :invokish
 smrt_strify         w(str) r(obj) :pure :invokish
-prepargs         +a callsite
+prepargs         +a callsite :predeoptonepoint
 arg_i            *a int16 r(int64)
 arg_n            *a int16 r(num64)
 arg_s            *a int16 r(str)
@@ -437,7 +440,7 @@ takedispatcher      w(obj)
 assign              r(obj) r(obj) :invokish
 assignunchecked     r(obj) r(obj) :invokish
 iscont              w(int64) r(obj) :pure
-decont              w(obj) r(obj) :pure :invokish
+decont              w(obj) r(obj) :pure :invokish :deoptonepoint
 setcontspec         r(obj) r(str) r(obj)
 sha1                w(str) r(str) :pure
 createsc            w(obj) r(str)
@@ -459,9 +462,9 @@ scwbenable          w(int64)
 pushcompsc          r(obj)
 popcompsc           w(obj)
 scgetdesc           w(str) r(obj)
-loadbytecode        w(str) r(str)
+loadbytecode        w(str) r(str) :invokish
 masttofile          r(obj) r(obj) r(str)
-masttocu            w(obj) r(obj) r(obj)
+masttocu            w(obj) r(obj) r(obj) :invokish
 iscompunit          w(int64) r(obj) :pure
 compunitmainline    w(obj) r(obj)
 compunitcodes       w(obj) r(obj)
@@ -600,7 +603,7 @@ DEPRECATED_13       w(obj) r(obj)
 continuationreset   w(obj) r(obj) r(obj) :invokish
 # this op isn't actually invokish, but it requires the cur_op to be set before doing its work
 continuationcontrol w(obj) r(int64) r(obj) r(obj) :invokish
-continuationinvoke  w(obj) r(obj) r(obj)
+continuationinvoke  w(obj) r(obj) r(obj) :invokish
 randscale_n         w(num64) r(num64) :pure
 uniisblock          w(int64) r(str) r(int64) r(str) :pure
 assertparamcheck    r(int64) :noinline :invokish
@@ -667,7 +670,7 @@ force_gc
 nativecallglobal    w(obj) r(str) r(str) r(obj) r(obj)
 DEPRECATED_32       w(int64) r(obj)
 setparameterizer    r(obj) r(obj)
-parameterizetype    w(obj) r(obj) r(obj)
+parameterizetype    w(obj) r(obj) r(obj) :invokish
 typeparameterized   w(obj) r(obj)
 typeparameters      w(obj) r(obj)
 typeparameterat     w(obj) r(obj) r(int64)
@@ -786,8 +789,8 @@ param_on2_u         w(uint64) str str ins :noinline
 stat_time           w(num64) r(str) r(int64)
 lstat_time          w(num64) r(str) r(int64)
 setdebugtypename    r(obj) r(str)
-loadbytecodebuffer  r(obj)
-loadbytecodefh      r(obj) r(str)
+loadbytecodebuffer  r(obj) :invokish
+loadbytecodefh      r(obj) r(str) :invokish
 throwpayloadlex     w(obj) int64 r(obj) :noinline :throwish
 throwpayloadlexcaller w(obj) int64 r(obj) :throwish
 lastexpayload       w(obj) :noinline
@@ -813,17 +816,30 @@ cpucores            w(int64) :pure
 eqaticim_s          w(int64) r(str) r(str) r(int64) :pure
 indexicim_s         w(int64) r(str) r(str) r(int64) :pure
 decodertakecharseof w(str) r(obj) r(int64)
+indexim_s           w(int64) r(str) r(str) r(int64) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
 
-# Guard operations. Trigger de-optimization if the guard is violated.
+# Type guard operations. Trigger de-optimization if the guard is violated.
 #   guard = guard on type only; index is spesh slot with type
 #   guardconc = guard on type + concrete; index is spesh slot with type
 #   guardtype = guard on type + type object; index is spesh slot with type
-sp_guard         .s r(obj) sslot
-sp_guardconc     .s r(obj) sslot
-sp_guardtype     .s r(obj) sslot
+sp_guard         .s r(obj) sslot uint32
+sp_guardconc     .s r(obj) sslot uint32
+sp_guardtype     .s r(obj) sslot uint32
+
+# Code guard operations. Trigger de-optimization if the guard is violated.
+#   guardsf = guard on being an MVMCode with specified static frame inside
+#   guardsfouter = as with guardsf but also ensures its ->outer is equal to
+#   the currently executing frame
+sp_guardsf       .s r(obj) sslot uint32
+sp_guardsfouter  .s r(obj) sslot uint32
+
+# Resolves an invokee into an MVMCode object, or returns VMNull when that is
+# not possible. Doesn't do multiple dispatch cache handling (since that needs
+# the args buffer set up).
+sp_resolvecode   .s w(obj) r(obj)
 
 # These are variants of the normal interpreted ops that do not log. Used for
 # the case where we can't JIT-compile, but don't want to keep on logging.
@@ -845,8 +861,8 @@ sp_fastinvoke_n  .s w(num64) r(obj) int16
 sp_fastinvoke_s  .s w(str) r(obj) int16
 sp_fastinvoke_o  .s w(obj) r(obj) int16
 
-# Marking named params used.
-sp_namedarg_used .s int16 :noinline
+# Error generation if a named param is unused (name goes in spesh slot).
+sp_paramnamesused   sslot
 
 # Look up a spesh slot.
 sp_getspeshslot  .s w(obj) sslot :pure

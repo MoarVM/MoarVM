@@ -134,9 +134,8 @@ MVMuint32 MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *d
 char * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement, MVMint32 translate_newlines) {
     /* ASCII is a single byte encoding, but \r\n is a 2-byte grapheme, so we
      * may have to resize as we go. */
-    MVMuint32      startu    = (MVMuint32)start;
     MVMStringIndex strgraphs = MVM_string_graphs(tc, str);
-    MVMuint32      lengthu   = (MVMuint32)(length == -1 ? strgraphs - startu : length);
+    MVMuint32      lengthu   = (MVMuint32)(length == -1 ? strgraphs - (MVMuint32)start : length);
     MVMuint8      *result;
     size_t         result_alloc;
     MVMuint8      *repl_bytes = NULL;
