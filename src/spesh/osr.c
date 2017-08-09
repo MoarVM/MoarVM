@@ -125,7 +125,7 @@ void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
             MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
                 spesh->body.spesh_arg_guard,
                 (cs && cs->is_interned ? cs : NULL),
-                tc->cur_frame->caller->args);
+                tc->cur_frame->caller->args, NULL);
             if (ag_result >= 0)
                 perform_osr(tc, spesh->body.spesh_candidates[ag_result]);
         }

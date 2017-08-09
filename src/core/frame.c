@@ -3,6 +3,9 @@
 /* This allows the dynlex cache to be disabled when bug hunting, if needed. */
 #define MVM_DYNLEX_CACHE_ENABLED 1
 
+/* Check spesh candidate pre-selections match the guards. */
+#define MVM_SPESH_CHECK_PRESELECTION 0
+
 /* Computes the initial work area for a frame or a specialization of a frame. */
 MVMRegister * MVM_frame_initial_work(MVMThreadContext *tc, MVMuint16 *local_types,
                                      MVMuint16 num_locals) {
@@ -460,7 +463,21 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     spesh = static_frame->body.spesh;
     if (spesh_cand < 0)
         spesh_cand = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
-            callsite, args);
+            callsite, args, NULL);
+#if MVM_SPESH_CHECK_PRESELECTION
+    else {
+        MVMint32 certain = -1;
+        MVMint32 correct = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
+            callsite, args, &certain);
+        if (spesh_cand != correct && spesh_cand != certain) {
+            fprintf(stderr, "Inconsistent spesh preselection of '%s' (%s): got %d, not %d\n",
+                MVM_string_utf8_encode_C_string(tc, static_frame->body.name),
+                MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid),
+                spesh_cand, correct);
+            MVM_dump_backtrace(tc);
+        }
+    }
+#endif
     if (spesh_cand >= 0) {
         MVMSpeshCandidate *chosen_cand = spesh->body.spesh_candidates[spesh_cand];
         if (static_frame->body.allocate_on_heap) {
