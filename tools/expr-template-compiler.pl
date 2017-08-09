@@ -88,8 +88,8 @@ sub validate_template {
     my ($nchild, $narg) = @{$EXPR_OPS{$node}}{qw(num_childs num_args)};;
     my $offset = 1;
     if ($nchild < 0) {
-        die "First child of variadic node should be a number" unless $template->[1] =~ m/^\d+$/;
-        $nchild = $template->[1];
+        $nchild = @$template - 1;
+        splice @$template, 1, 0, $nchild;
         $offset = 2;
     }
     unless (($offset+$nchild+$narg) == @$template) {

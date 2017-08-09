@@ -39,12 +39,12 @@
 (macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
 (macro: ^objflag (,cv) (const (&QUOTE ,cv) (&SIZEOF_MEMBER MVMObject header.flags)))
 (macro: ^write_barrier (,obj ,ref)
-   (when (all 3 (nz (and (^getf ,obj MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN)))
-                (nz ,ref)
-                (zr (and (^getf ,ref MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN))))
+   (when (all (nz (and (^getf ,obj MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN)))
+              (nz ,ref)
+              (zr (and (^getf ,ref MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN))))
          (callv (^func &MVM_gc_write_barrier_hit)
-                (arglist 2 (carg (tc) ptr)
-                           (carg ,obj ptr)))))
+                (arglist (carg (tc) ptr)
+                         (carg ,obj ptr)))))
 
 
 (macro: ^repr (,obj) (^getf (^stable ,obj) MVMSTable REPR))
