@@ -306,7 +306,7 @@ can_s               w(int64) r(obj) r(str) :pure :invokish
 create              w(obj) r(obj) :pure
 clone               w(obj) r(obj) :pure
 isconcrete          w(int64) r(obj) :pure
-rebless             w(obj) r(obj) r(obj)
+rebless             w(obj) r(obj) r(obj) :deoptonepoint
 istype              w(int64) r(obj) r(obj) :pure :invokish
 objprimspec         w(int64) r(obj) :pure
 gethow              w(obj) r(obj) :pure
@@ -835,6 +835,10 @@ sp_guardtype     .s r(obj) sslot uint32
 #   the currently executing frame
 sp_guardsf       .s r(obj) sslot uint32
 sp_guardsfouter  .s r(obj) sslot uint32
+
+# Specialized form of rebless that will always do a deopt one out of the
+# current code as well as a deopt all.
+sp_rebless       .s w(obj) r(obj) r(obj) uint32
 
 # Resolves an invokee into an MVMCode object, or returns VMNull when that is
 # not possible. Doesn't do multiple dispatch cache handling (since that needs

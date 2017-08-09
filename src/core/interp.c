@@ -5209,6 +5209,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
                 goto NEXT;
             }
+            OP(sp_rebless):
+                if (!REPR(GET_REG(cur_op, 2).o)->change_type) {
+                    MVM_exception_throw_adhoc(tc, "This REPR cannot change type");
+                }
+                REPR(GET_REG(cur_op, 2).o)->change_type(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
+                MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o);
+                cur_op += 10;
+                MVM_spesh_deopt_all(tc);
+                MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                goto NEXT;
             OP(sp_resolvecode):
                 GET_REG(cur_op, 0).o = MVM_frame_resolve_invokee_spesh(tc,
                     GET_REG(cur_op, 2).o);

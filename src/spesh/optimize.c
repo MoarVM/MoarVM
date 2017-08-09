@@ -1700,6 +1700,18 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
     MVM_free(handlers_found);
 }
 
+/* Updates rebless with rebless_sp, which will deopt from the current code. */
+static void tweak_rebless(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMuint32 deopt_target = find_deopt_target(tc, g, ins);
+    MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
+    new_operands[0] = ins->operands[0];
+    new_operands[1] = ins->operands[1];
+    new_operands[2] = ins->operands[2];
+    new_operands[3].lit_ui32 = deopt_target;
+    ins->info = MVM_op_get_op(MVM_OP_sp_rebless);
+    ins->operands = new_operands;
+}
+
 static void eliminate_phi_dead_reads(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMuint32 operand = 1;
     MVMuint32 insert_pos = 1;
@@ -2019,6 +2031,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             /* We don't need to poll for OSR in hot loops. (This also moves
              * the OSR annotation onto the next instruction.) */
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+            break;
+        case MVM_OP_rebless:
+            tweak_rebless(tc, g, ins);
             break;
         case MVM_OP_prof_enter:
             /* Profiling entered from spesh should indicate so. */
