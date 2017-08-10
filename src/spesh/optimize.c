@@ -1347,6 +1347,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
     MVMSpeshFacts *callee_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[callee_idx]);
     MVMObject *code = NULL;
     MVMStaticFrame *target_sf = NULL;
+    MVMint32 have_code_temp = 0;
     if (callee_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
         /* Already know the target code object based on existing guards or
          * a static value. */
@@ -1355,11 +1356,12 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
     else {
         /* See if there is a stable static frame at the callsite. If so, add
          * the resolution and guard instruction. Note that we must keep the
-         * temporary alive throughout the whole guard sequence, so release it
-         * after those have been inserted. */
+         * temporary alive throughout the whole guard and invocation sequence,
+         * as an inline may use it during deopt to find the code ref. */
         target_sf = find_invokee_static_frame(tc, p, ins);
         if (target_sf) {
             code_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+            have_code_temp = 1;
             tweak_for_target_sf(tc, g, target_sf, ins, arg_info, code_temp);
         }
     }
@@ -1377,15 +1379,9 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
     if (stable_type_tuple)
         check_and_tweak_arg_guards(tc, g, stable_type_tuple, arg_info);
 
-    /* If we have a speculated target static frame, then it's now safe to
-     * release the code temporary. */
-    if (target_sf) {
-        MVM_spesh_manipulate_release_temp_reg(tc, g, code_temp);
-    }
-
-    /* Otherwise, check on what we're going to be invoking and see if we can
-     * further resolve it. */
-    else {
+    /* If we don't have a target static frame from speculation, check on what
+     * we're going to be invoking and see if we can further resolve it. */
+    if (!target_sf) {
         if (REPR(code)->ID == MVM_REPR_ID_MVMCode) {
             /* Already have a code object we know we'll call. */
             target = code;
@@ -1513,8 +1509,15 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             }
 #endif
             if (inline_graph) {
-                /* Yes, have inline graph, so go ahead and do it. */
-                MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf);
+                /* Yes, have inline graph, so go ahead and do it. Make sure we
+                 * keep the code ref reg alive by giving it a usage count as
+                 * it will be referenced from the deopt table. */
+                MVMSpeshOperand code_ref_reg = ins->info->opcode == MVM_OP_invoke_v
+                        ? ins->operands[0]
+                        : ins->operands[1];
+                MVM_spesh_get_facts(tc, g, code_ref_reg)->usages++;
+                MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
+                    code_ref_reg);
             }
             else {
                 /* Can't inline, so just identify candidate. */
@@ -1550,6 +1553,11 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             }
         }
     }
+
+    /* If we have a speculated target static frame, then it's now safe to
+     * release the code temporary (need to keep it. */
+    if (have_code_temp)
+        MVM_spesh_manipulate_release_temp_reg(tc, g, code_temp);
 }
 
 static void optimize_coverage_log(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {

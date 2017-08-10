@@ -212,7 +212,7 @@ static void resize_handlers_table(MVMThreadContext *tc, MVMSpeshGraph *inliner, 
 /* Merges the inlinee's spesh graph into the inliner. */
 static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
-                 MVMSpeshIns *invoke_ins) {
+                 MVMSpeshIns *invoke_ins, MVMSpeshOperand code_ref_reg) {
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
     MVMint32        i, total_inlines, orig_deopt_addrs;
@@ -391,12 +391,13 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         memcpy(inliner->inlines + inliner->num_inlines, inlinee->inlines,
             inlinee->num_inlines * sizeof(MVMSpeshInline));
     for (i = inliner->num_inlines; i < total_inlines - 1; i++) {
+        inliner->inlines[i].code_ref_reg += inliner->num_locals;
         inliner->inlines[i].locals_start += inliner->num_locals;
         inliner->inlines[i].lexicals_start += inliner->num_lexicals;
         inliner->inlines[i].return_deopt_idx += orig_deopt_addrs;
     }
     inliner->inlines[total_inlines - 1].sf             = inlinee_sf;
-    inliner->inlines[total_inlines - 1].code           = inlinee_sf->body.static_code;
+    inliner->inlines[total_inlines - 1].code_ref_reg   = code_ref_reg.reg.orig;
     inliner->inlines[total_inlines - 1].g              = inlinee;
     inliner->inlines[total_inlines - 1].locals_start   = inliner->num_locals;
     inliner->inlines[total_inlines - 1].lexicals_start = inliner->num_lexicals;
@@ -895,9 +896,9 @@ static void annotate_inline_start_end(MVMThreadContext *tc, MVMSpeshGraph *inlin
 void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                       MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
                       MVMSpeshIns *invoke_ins, MVMSpeshGraph *inlinee,
-                      MVMStaticFrame *inlinee_sf) {
+                      MVMStaticFrame *inlinee_sf, MVMSpeshOperand code_ref_reg) {
     /* Merge inlinee's graph into the inliner. */
-    merge_graph(tc, inliner, inlinee, inlinee_sf, invoke_ins);
+    merge_graph(tc, inliner, inlinee, inlinee_sf, invoke_ins, code_ref_reg);
 
     /* If we're profiling, note it's an inline. */
     if (inlinee->entry->linear_next->first_ins->info->opcode == MVM_OP_prof_enterspesh) {
