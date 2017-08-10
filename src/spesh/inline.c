@@ -68,6 +68,11 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
     if (target_sf->body.cu->body.hll_config != inliner->sf->body.cu->body.hll_config)
         return NULL;
 
+    /* Ensure it has no state vars (these need the setup code in frame
+     * invoke). */
+    if (target_sf->body.has_state_vars)
+        return NULL;
+
     /* Build graph from the already-specialized bytecode. */
     ig = MVM_spesh_graph_create_from_cand(tc, target_sf, cand, 0);
 
