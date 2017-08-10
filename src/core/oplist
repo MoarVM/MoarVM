@@ -915,6 +915,12 @@ sp_deref_get_n        .s w(num64) r(obj) int16 :pure
 sp_deref_bind_i64     .s r(obj) r(int64) int16
 sp_deref_bind_n       .s r(obj) r(num64) int16
 
+# These read a lexical via. a code ref held in a register. Used for closure
+# inlining. The outers count must be at least 1 (e.g. these must never be used
+# for lexicals that are in the current scope).
+sp_getlexvia_o        .s w(obj) int16 int16 r(obj) :pure
+sp_getlexvia_ins      .s w(`1) int16 int16 r(obj) :pure
+
 # Enter the JIT
 sp_jit_enter     .s w(obj)
 

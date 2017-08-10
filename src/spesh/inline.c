@@ -99,20 +99,14 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
             if (!is_phi && ins->info->no_inline)
                 goto not_inlinable;
 
-            /* If we have lexical access, make sure it's within the frame. */
-            if (ins->info->opcode == MVM_OP_getlex ||
-                    ins->info->opcode == MVM_OP_sp_getlex_o ||
-                    ins->info->opcode == MVM_OP_sp_getlex_ins) {
-                if (ins->operands[1].lex.outers > 0)
-                    goto not_inlinable;
-            }
-            else if (ins->info->opcode == MVM_OP_bindlex) {
+            /* If we have lexical bind, make sure it's within the frame. */
+            if (ins->info->opcode == MVM_OP_bindlex) {
                 if (ins->operands[0].lex.outers > 0)
                     goto not_inlinable;
             }
 
             /* Check we don't have too many args for inlining to work out. */
-            if (ins->info->opcode == MVM_OP_sp_getarg_o ||
+            else if (ins->info->opcode == MVM_OP_sp_getarg_o ||
                     ins->info->opcode == MVM_OP_sp_getarg_i ||
                     ins->info->opcode == MVM_OP_sp_getarg_n ||
                     ins->info->opcode == MVM_OP_sp_getarg_s) {
@@ -214,6 +208,21 @@ static void resize_handlers_table(MVMThreadContext *tc, MVMSpeshGraph *inliner, 
     }
 }
 
+/* Rewrites a lexical lookup to an outer to be done via. a register holding
+ * the outer coderef. */
+static void rewrite_outer_lookup(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                 MVMSpeshIns *ins, MVMuint16 num_locals,
+                                 MVMuint16 op, MVMSpeshOperand code_ref_reg) {
+    MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
+    new_operands[0] = ins->operands[0];
+    new_operands[0].reg.orig += num_locals;
+    new_operands[1].lit_ui16 = ins->operands[1].lex.idx;
+    new_operands[2].lit_ui16 = ins->operands[1].lex.outers;
+    new_operands[3] = code_ref_reg;
+    ins->info = MVM_op_get_op(op);
+    ins->operands = new_operands;
+}
+
 /* Merges the inlinee's spesh graph into the inliner. */
 static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
@@ -257,6 +266,26 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             if (opcode == MVM_SSA_PHI) {
                 for (i = 0; i < ins->info->num_operands; i++)
                     ins->operands[i].reg.orig += inliner->num_locals;
+            }
+            else if (opcode == MVM_OP_sp_getlex_o && ins->operands[1].lex.outers > 0) {
+                rewrite_outer_lookup(tc, inliner, ins, inliner->num_locals,
+                    MVM_OP_sp_getlexvia_o, code_ref_reg);
+            }
+            else if (opcode == MVM_OP_sp_getlex_ins && ins->operands[1].lex.outers > 0) {
+                rewrite_outer_lookup(tc, inliner, ins, inliner->num_locals,
+                    MVM_OP_sp_getlexvia_ins, code_ref_reg);
+            }
+            else if (opcode == MVM_OP_getlex && ins->operands[1].lex.outers > 0) {
+                MVMuint16 outers = ins->operands[1].lex.outers;
+                MVMStaticFrame *outer = inlinee_sf;
+                while (outers--)
+                    outer = outer->body.outer;
+                if (outer->body.lexical_types[ins->operands[1].lex.idx] == MVM_reg_obj)
+                    rewrite_outer_lookup(tc, inliner, ins, inliner->num_locals,
+                        MVM_OP_sp_getlexvia_o, code_ref_reg);
+                else
+                    rewrite_outer_lookup(tc, inliner, ins, inliner->num_locals,
+                        MVM_OP_sp_getlexvia_ins, code_ref_reg);
             }
             else {
                 for (i = 0; i < ins->info->num_operands; i++) {

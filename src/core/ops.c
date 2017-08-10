@@ -9822,6 +9822,30 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_int16 }
     },
     {
+        MVM_OP_sp_getlexvia_o,
+        "sp_getlexvia_o",
+        ".s",
+        4,
+        1,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_sp_getlexvia_ins,
+        "sp_getlexvia_ins",
+        ".s",
+        4,
+        1,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_type_var, MVM_operand_int16, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
         MVM_OP_sp_jit_enter,
         "sp_jit_enter",
         ".s",
@@ -9964,7 +9988,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 831;
+static const unsigned short MVM_op_counts = 833;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

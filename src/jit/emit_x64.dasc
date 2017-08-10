@@ -483,6 +483,40 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], TMP5;
         break;
     }
+    case MVM_OP_sp_getlexvia_o:
+    case MVM_OP_sp_getlexvia_ins: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 idx = ins->operands[1].lit_ui16;
+        MVMint16 out = ins->operands[2].lit_ui16;
+        MVMint16 via = ins->operands[3].reg.orig;
+        MVMint16 i;
+        /* Resolve the frame. */
+        | mov TMP6, WORK[via];
+        | mov TMP6, CODE:TMP6->body.outer;
+        for (i = 1; i < out; i++) /* From 1 as we are already at outer */
+            | mov TMP6, FRAME:TMP6->outer;
+        /* get array of lexicals */
+        | mov TMP5, FRAME:TMP6->env;
+        /* read value */
+        | mov TMP5, REGISTER:TMP5[idx];
+        if (op == MVM_OP_sp_getlexvia_o) {
+            MVM_jit_log(tc, "Emit lex vifivy check for via code-ref lookup\n");
+            /* if it is zero, check if we need to auto-vivify */
+            | test TMP5, TMP5;
+            | jnz >1;
+            /* setup args */
+            | mov ARG1, TC;
+            | mov ARG2, TMP6;
+            | mov ARG3, idx;
+            | callp &MVM_frame_vivify_lexical;
+            /* use return value for the result */
+            | mov TMP5, RV;
+            |1:
+        }
+        /* store the value */
+        | mov WORK[dst], TMP5;
+        break;
+    }
     case MVM_OP_getlex_no:
     case MVM_OP_sp_getlex_no: {
         MVMint16  dst = ins->operands[0].reg.orig;
