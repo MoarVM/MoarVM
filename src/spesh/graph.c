@@ -516,7 +516,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             for (i = 0; i < g->num_handlers; i++) {
                 if (is_catch_handler(tc, g, i)) {
                     MVMuint32 offset = g->handlers[i].goto_offset;
-                    cur_bb->succ[insert_pos++] = ins_to_bb[byte_to_ins_flags[offset] >> 3];
+                    if (offset != -1)
+                        cur_bb->succ[insert_pos++] = ins_to_bb[byte_to_ins_flags[offset] >> 3];
                 }
             }
             if (num_osr_points > 0) {
