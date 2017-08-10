@@ -542,7 +542,7 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         if (active_handlers_at_invoke) {
             MVMuint32 insert_pos = inliner->num_handlers + inlinee->num_handlers;
             resize_handlers_table(tc, inliner, insert_pos + active_handlers_at_invoke);
-            for (i = orig_handlers - 1; i >= 0; i--) {
+            for (i = 0; i < orig_handlers; i++) {
                 if (active[i]) {
                     /* Add handler start annotation to first inlinee instruction. */
                     MVMSpeshAnn *new_ann = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshAnn));
