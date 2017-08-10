@@ -32,7 +32,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
         if (offset >= cand->inlines[i].start && offset < cand->inlines[i].end) {
             /* Create the frame. */
             MVMCode        *ucode = cand->inlines[i].code;
-            MVMStaticFrame *usf   = ucode->body.sf;
+            MVMStaticFrame *usf   = cand->inlines[i].sf;
             MVMFrame       *uf;
             MVMROOT(tc, f, {
             MVMROOT(tc, callee, {

@@ -395,6 +395,7 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         inliner->inlines[i].lexicals_start += inliner->num_lexicals;
         inliner->inlines[i].return_deopt_idx += orig_deopt_addrs;
     }
+    inliner->inlines[total_inlines - 1].sf             = inlinee_sf;
     inliner->inlines[total_inlines - 1].code           = inlinee_sf->body.static_code;
     inliner->inlines[total_inlines - 1].g              = inlinee;
     inliner->inlines[total_inlines - 1].locals_start   = inliner->num_locals;

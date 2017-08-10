@@ -32,8 +32,10 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         for (i = 0; i < body->num_spesh_candidates; i++) {
             for (j = 0; j < body->spesh_candidates[i]->num_spesh_slots; j++)
                 MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i]->spesh_slots[j]);
-            for (j = 0; j < body->spesh_candidates[i]->num_inlines; j++)
+            for (j = 0; j < body->spesh_candidates[i]->num_inlines; j++) {
+                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i]->inlines[j].sf);
                 MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i]->inlines[j].code);
+            }
         }
     }
 }
@@ -128,6 +130,9 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
                     (MVMCollectable *)body->spesh_candidates[i]->spesh_slots[j],
                     "Spesh slot entry");
             for (j = 0; j < body->spesh_candidates[i]->num_inlines; j++)
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->spesh_candidates[i]->inlines[j].sf,
+                    "Spesh inlined static frame");
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                     (MVMCollectable *)body->spesh_candidates[i]->inlines[j].code,
                     "Spesh inlined code object");

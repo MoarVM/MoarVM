@@ -1082,7 +1082,7 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
         MVMint32 i;
         flags = NULL;
         for (i = 0; i < f->spesh_cand->num_inlines; i++) {
-            MVMStaticFrame *isf = f->spesh_cand->inlines[i].code->body.sf;
+            MVMStaticFrame *isf = f->spesh_cand->inlines[i].sf;
             effective_idx = idx - f->spesh_cand->inlines[i].lexicals_start;
             if (effective_idx < isf->body.num_lexicals) {
                 flags        = isf->body.static_env_flags;
@@ -1359,7 +1359,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 for (i = 0; i < cand->jitcode->num_inlines; i++) {
                     icost++;
                     if (return_label >= labels[inls[i].start_label] && return_label <= labels[inls[i].end_label]) {
-                        MVMStaticFrame *isf = cand->inlines[i].code->body.sf;
+                        MVMStaticFrame *isf = cand->inlines[i].sf;
                         if ((lexical_names = isf->body.lexical_names)) {
                             MVMLexicalRegistry *entry;
                             MVM_HASH_GET(tc, lexical_names, name, entry);
@@ -1397,7 +1397,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 for (i = 0; i < cand->num_inlines; i++) {
                     icost++;
                     if (ret_offset >= cand->inlines[i].start && ret_offset < cand->inlines[i].end) {
-                        MVMStaticFrame *isf = cand->inlines[i].code->body.sf;
+                        MVMStaticFrame *isf = cand->inlines[i].sf;
                         if ((lexical_names = isf->body.lexical_names)) {
                             MVMLexicalRegistry *entry;
                             MVM_HASH_GET(tc, lexical_names, name, entry);

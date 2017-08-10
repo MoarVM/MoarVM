@@ -10,7 +10,7 @@ static void calculate_work_env_sizes(MVMThreadContext *tc, MVMStaticFrame *sf,
     max_callsite_size = sf->body.cu->body.max_callsite_size;
 
     for (i = 0; i < c->num_inlines; i++) {
-        MVMuint32 cs = c->inlines[i].code->body.sf->body.cu->body.max_callsite_size;
+        MVMuint32 cs = c->inlines[i].sf->body.cu->body.max_callsite_size;
         if (cs > max_callsite_size)
             max_callsite_size = cs;
     }

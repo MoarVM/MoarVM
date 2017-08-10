@@ -636,7 +636,7 @@ static MVMuint16 * try_fake_extop_regs(MVMThreadContext *tc, MVMSpeshGraph *sg, 
 }
 
 static void log_inline(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMint32 inline_idx, MVMint32 is_entry) {
-    MVMStaticFrame *sf = sg->inlines[inline_idx].code->body.sf;
+    MVMStaticFrame *sf = sg->inlines[inline_idx].sf;
     char *name         = MVM_string_utf8_encode_C_string(tc, sf->body.name);
     char *cuuid        = MVM_string_utf8_encode_C_string(tc, sf->body.cuuid);
     MVM_jit_log(tc, "%s inline %d (name: %s, cuuid: %s)\n", is_entry ? "Entering" : "Leaving",

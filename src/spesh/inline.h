@@ -8,7 +8,10 @@ struct MVMSpeshInline {
     MVMuint32 start;
     MVMuint32 end;
 
-    /* The inlined code ref. */
+    /* The static frame that was inlined. */
+    MVMStaticFrame *sf;
+
+    /* The register holding the inlined code ref. */
     MVMCode *code;
 
     /* Start position of the locals and lexicals, so we can extract them
