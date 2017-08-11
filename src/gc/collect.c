@@ -254,7 +254,8 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : copying an object %p of size %d to gen2 %p\n",
                     item, item->size, new_addr);
                 memcpy(new_addr, item, item->size);
-                new_addr->flags ^= MVM_CF_NURSERY_SEEN;
+                if (new_addr->flags & MVM_CF_NURSERY_SEEN)
+                    new_addr->flags ^= MVM_CF_NURSERY_SEEN;
                 new_addr->flags |= MVM_CF_SECOND_GEN;
 
                 /* If it's a frame with an active work area, we need to keep
