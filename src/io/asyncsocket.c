@@ -788,7 +788,10 @@ static void on_listen_cancelled(uv_handle_t *handle) {
 }
 static void listen_cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     ListenInfo *li = (ListenInfo *)data;
-    uv_close((uv_handle_t *)li->socket, on_listen_cancelled);
+    if (li->socket) {
+        uv_close((uv_handle_t *)li->socket, on_listen_cancelled);
+        li->socket = NULL;
+    }
 }
 
 /* Frees info for a listen task. */
