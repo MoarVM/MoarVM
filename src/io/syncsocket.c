@@ -6,6 +6,8 @@
 #else
     #include "unistd.h"
     #include <sys/socket.h>
+    #include <sys/un.h>
+
     typedef int Socket;
     #define closesocket close
 #endif
@@ -228,27 +230,63 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVM_free(data);
 }
 
+static size_t get_struct_size_for_family(sa_family_t family) {
+    switch (family) {
+        case AF_INET6:
+            return sizeof(struct sockaddr_in6);
+        case AF_INET:
+            return sizeof(struct sockaddr_in);
+#ifndef _WIN32
+        case AF_UNIX:
+            return sizeof(struct sockaddr_un);
+#endif
+        default:
+            return sizeof(struct sockaddr);
+    }
+}
+
 /* Actually, it may return sockaddr_in6 as well; it's not a problem for us, because we just
  * pass is straight to uv, and the first thing it does is it looks at the address family,
  * but it's a thing to remember if someone feels like peeking inside the returned struct. */
 struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host, MVMint64 port) {
     char *host_cstr = MVM_string_utf8_encode_C_string(tc, host);
     struct sockaddr *dest;
-    struct addrinfo *result;
     int error;
+    int flags = 0;
+    struct addrinfo *result;
+#ifndef _WIN32
+    struct sockaddr_un *result_un = MVM_malloc(sizeof(struct sockaddr_un));
+#endif
     char port_cstr[8];
+
+    if (port > 65535) {
+        flags = (port >> 16);
+    }
+
+#ifndef _WIN32
+    if (flags & AF_UNIX) {
+        if (strlen(host_cstr) > 108) {
+            MVM_exception_throw_adhoc(tc, "Socket path can only be maximal 107 characters long");
+        }
+
+        dest = MVM_malloc(sizeof(struct sockaddr_un));
+        result_un->sun_family = AF_UNIX;
+        strcpy(result_un->sun_path, host_cstr);
+        MVM_free(host_cstr);
+
+        memcpy(dest, result_un, sizeof(struct sockaddr_un));
+        return dest;
+    }
+#endif
+
     snprintf(port_cstr, 8, "%d", (int)port);
 
     error = getaddrinfo(host_cstr, port_cstr, NULL, &result);
     if (error == 0) {
         MVM_free(host_cstr);
-        if (result->ai_addr->sa_family == AF_INET6) {
-            dest = MVM_malloc(sizeof(struct sockaddr_in6));
-            memcpy(dest, result->ai_addr, sizeof(struct sockaddr_in6));
-        } else {
-            dest = MVM_malloc(sizeof(struct sockaddr));
-            memcpy(dest, result->ai_addr, sizeof(struct sockaddr));
-        }
+        size_t size = get_struct_size_for_family(result->ai_addr->sa_family);
+        dest = MVM_malloc(size);
+        memcpy(dest, result->ai_addr, size);
     }
     else {
         char *waste[] = { host_cstr, NULL };
@@ -278,9 +316,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
         }
 
         MVM_gc_mark_thread_blocked(tc);
-        r = connect(s, dest, dest->sa_family == AF_INET6
-                ? sizeof(struct sockaddr_in6)
-                : sizeof(struct sockaddr));
+        r = connect(s, dest, (socklen_t)get_struct_size_for_family(dest->sa_family));
         MVM_gc_mark_thread_unblocked(tc);
         MVM_free(dest);
         if (MVM_IS_SOCKET_ERROR(r)) {
@@ -321,9 +357,7 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
         }
 #endif
 
-        r = bind(s, dest, dest->sa_family == AF_INET6
-                ? sizeof(struct sockaddr_in6)
-                : sizeof(struct sockaddr));
+        r = bind(s, dest, (socklen_t)get_struct_size_for_family(dest->sa_family));
         MVM_free(dest);
         if (MVM_IS_SOCKET_ERROR(r))
             throw_error(tc, s, "bind socket");
