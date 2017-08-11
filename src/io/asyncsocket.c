@@ -495,6 +495,11 @@ static void push_name_and_port(MVMThreadContext *tc, struct sockaddr_storage *na
             port = ((struct sockaddr_in*)name)->sin_port;
             break;
         }
+        default:
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
+            return;
+            break;
     }
     MVMROOT(tc, arr, {
         port_o = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, port);
