@@ -1642,6 +1642,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_lastexpayload:
         /* Parameters */
     case MVM_OP_param_sp:
+    case MVM_OP_trunc_i32:
     case MVM_OP_param_sn:
         jgb_append_primitive(tc, jgb, ins);
         break;
