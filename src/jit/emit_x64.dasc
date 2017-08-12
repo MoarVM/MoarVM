@@ -1041,8 +1041,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
         | mov TMP1, WORK[src];
-	| and TMP1, 0x00000000FFFFFFFF;
-        | mov WORK[dst], TMP1;
+        /* x86-64 auto-truncates the upper 32 bits when using registers in 32
+         * bit mode */
+        | mov TMP2d, TMP1d;
+        | mov WORK[dst], TMP2;
         break;
     }
     case MVM_OP_add_n:
