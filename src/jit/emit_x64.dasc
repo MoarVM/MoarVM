@@ -1029,6 +1029,14 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], TMP1;
         break;
     }
+    case MVM_OP_extend_i32: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        | mov TMP1, WORK[src];
+	| and TMP1, 0x00000000FFFFFFFF;
+        | mov WORK[dst], TMP1;
+        break;
+    }
     case MVM_OP_trunc_i32: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
