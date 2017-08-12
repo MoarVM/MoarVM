@@ -184,6 +184,7 @@ typedef struct {
     ProcessState       state;
     int                using;
     int                merge;
+    size_t             last_read;
 } SpawnInfo;
 
 /* Info we convey about a write task. */
@@ -505,9 +506,17 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
 
 /* Allocates a buffer of the suggested size. */
 static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
-    size_t size = suggested_size > 0 ? suggested_size : 4;
-    buf->base   = MVM_malloc(size);
-    buf->len    = size;
+    SpawnInfo *si = (SpawnInfo *)handle->data;
+    size_t size   = si->last_read ? si->last_read : 64;
+    size |= size >> 1;
+    size |= size >> 2;
+    size |= size >> 4;
+    size |= size >> 8;
+    size |= size >> 16;
+    size |= size >> 32;
+    size++;
+    buf->base = MVM_malloc(size);
+    buf->len  = size;
 }
 
 /* Read functions for stdout/stderr/merged. */
@@ -543,6 +552,9 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
 
             /* Finally, no error. */
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+
+            /* Update handle with amount read. */
+            si->last_read = nread;
 
             /* Update permit count, stop reading if we run out. */
             if (permit > 0) {
