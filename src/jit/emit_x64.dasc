@@ -1033,7 +1033,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
         | mov TMP1, WORK[src];
-	| and TMP1, 0x00000000FFFFFFFF;
+        | and TMP1, 0x00000000FFFFFFFF;
         | mov WORK[dst], TMP1;
         break;
     }
