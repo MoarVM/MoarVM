@@ -265,16 +265,16 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
         struct sockaddr_un *result_un = MVM_malloc(sizeof(struct sockaddr_un));
 
         if (strlen(host_cstr) > 108) {
+            MVM_free(result_un);
+            MVM_free(host_cstr);
             MVM_exception_throw_adhoc(tc, "Socket path can only be maximal 107 characters long");
         }
 
-        dest = MVM_malloc(sizeof(struct sockaddr_un));
         result_un->sun_family = AF_UNIX;
         strcpy(result_un->sun_path, host_cstr);
         MVM_free(host_cstr);
 
-        memcpy(dest, result_un, sizeof(struct sockaddr_un));
-        return dest;
+        return (struct sockaddr *)result_un;
     }
 #endif
 
