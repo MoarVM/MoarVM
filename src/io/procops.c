@@ -1,6 +1,7 @@
 #include "moar.h"
 #include "platform/time.h"
 #include "tinymt64.h"
+#include "bithacks.h"
 
 /* concatenating with "" ensures that only literal strings are accepted as argument. */
 #define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
@@ -513,14 +514,7 @@ static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) 
         size = 128;
     }
     else {
-        /* Equivalent to `size = pow(2, ceil(log2(size + 1)))`, but C89 compatible. */
-        size |= size >> 1;
-        size |= size >> 2;
-        size |= size >> 4;
-        size |= size >> 8;
-        size |= size >> 16;
-        size |= size >> 32;
-        size++;
+        size = MVM_bithacks_next_greater_pow2(size + 1);
     }
 
     buf->base = MVM_malloc(size);
