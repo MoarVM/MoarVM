@@ -13,11 +13,27 @@ typedef struct {
     int               seq_number;
     MVMThreadContext *tc;
     int               work_idx;
+    size_t            last_read;
 } ReadInfo;
 
 /* Allocates a buffer of the suggested size. */
 static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
-    size_t size = suggested_size > 0 ? suggested_size : 4;
+    ReadInfo *ri = (ReadInfo *)handle->data;
+    size_t size  = ri->last_read ? ri->last_read : 64;
+
+    if (size < 128) {
+        size = 128;
+    }
+    else {
+        /* Equivalent to `size = pow(2, ceil(log2(size + 1)))`, but C89 compatible. */
+        size |= size >> 1;
+        size |= size >> 2;
+        size |= size >> 4;
+        size |= size >> 8;
+        size |= size >> 16;
+        size |= size >> 32;
+        size++;
+    }
     buf->base   = MVM_malloc(size);
     buf->len    = size;
 }
@@ -54,6 +70,9 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
 
             /* Finally, no error. */
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+
+            /* Update handle with amount read. */
+            ri->last_read = nread;
         });
         });
     }
