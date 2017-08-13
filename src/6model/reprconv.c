@@ -9,6 +9,10 @@ void MVM_repr_init(MVMThreadContext *tc, MVMObject *obj) {
         REPR(obj)->initialize(tc, STABLE(obj), obj, OBJECT_BODY(obj));
 }
 
+MVMObject * MVM_repr_alloc(MVMThreadContext *tc, MVMObject *type) {
+    return REPR(type)->allocate(tc, STABLE(type));
+}
+
 MVMObject * MVM_repr_alloc_init(MVMThreadContext *tc, MVMObject *type) {
     MVMObject *obj = REPR(type)->allocate(tc, STABLE(type));
 
