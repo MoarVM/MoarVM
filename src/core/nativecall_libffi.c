@@ -432,7 +432,6 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
     /* Clean up. */
     MVM_gc_root_temp_pop_n(tc, num_roots);
     MVM_free(args);
-    MVM_free(cif);
 
     /* Re-block GC if needed, so other threads will be able to collect. */
     if (was_blocked)
