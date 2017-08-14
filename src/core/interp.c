@@ -5191,8 +5191,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(atomicstore_i):
-            OP(barrierfull):
                 MVM_exception_throw_adhoc(tc, "Atomic ops NYI");
+            OP(barrierfull):
+                MVM_barrier();
+                goto NEXT;
             OP(sp_guard): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
