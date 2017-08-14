@@ -123,6 +123,9 @@ static const MVMContainerSpec code_pair_spec = {
     code_pair_serialize,
     code_pair_deserialize,
     code_pair_can_store,
+    NULL, /* cas */
+    NULL, /* atomic_load */
+    NULL, /* atomic_store */
     0
 };
 
@@ -367,6 +370,9 @@ static const MVMContainerSpec native_ref_spec = {
     native_ref_serialize,
     native_ref_deserialize,
     native_ref_can_store,
+    NULL, /* cas */
+    NULL, /* atomic_load */
+    NULL, /* atomic_store */
     1
 };
 

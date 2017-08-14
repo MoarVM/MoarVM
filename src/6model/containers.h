@@ -47,6 +47,12 @@ struct MVMContainerSpec {
     /* Returns a non-zero value if we can store to the container. */
     MVMint32 (*can_store) (MVMThreadContext *tc, MVMObject *cont);
 
+    /* If available, reference atomic compare and swap operation, atomic load
+     * operation, and atomic store operation. */
+    MVMObject * (*cas) (MVMThreadContext *tc, MVMObject *cont, MVMObject *expected, MVMObject *value);
+    MVMObject * (*atomic_load) (MVMThreadContext *tc, MVMObject *cont);
+    void (*atomic_store) (MVMThreadContext *tc, MVMObject *cont, MVMObject *value);
+
     /* Set this to a non-zero value if a fetch promises to never invoke any
      * code. This means the VM knows it can safely decontainerize in places
      * it would not be safe or practical to return to the interpreter. */
