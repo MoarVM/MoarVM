@@ -582,7 +582,7 @@ void MVM_6model_container_atomic_store(MVMThreadContext *tc, MVMObject *cont, MV
     if (IS_CONCRETE(cont)) {
         MVMContainerSpec const *cs = cont->st->container_spec;
         if (cs) {
-            if (cs->atomic_load)
+            if (cs->atomic_store)
                 cs->atomic_store(tc, cont, value);
             else
                 MVM_exception_throw_adhoc(tc,
