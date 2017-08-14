@@ -817,6 +817,18 @@ eqaticim_s          w(int64) r(str) r(str) r(int64) :pure
 indexicim_s         w(int64) r(str) r(str) r(int64) :pure
 decodertakecharseof w(str) r(obj) r(int64)
 indexim_s           w(int64) r(str) r(str) r(int64) :pure
+cas_o               w(obj) r(obj) r(obj) r(obj)
+cas_i               w(int64) r(obj) r(int64) r(int64)
+atomicinc_i         w(int64) r(obj)
+atomicdec_i         w(int64) r(obj)
+atomicadd_i         w(int64) r(obj) r(int64)
+# Following two are *not* :pure (even though just loads); their memory barrier
+# counts as a side-effect that should be retained.
+atomicload_o        w(obj) r(obj)
+atomicload_i        w(int64) r(obj)
+atomicstore_o       r(obj) r(obj)
+atomicstore_i       r(obj) r(int64)
+barrierfull
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

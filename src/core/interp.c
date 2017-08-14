@@ -5162,6 +5162,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(cas_o):
+            OP(cas_i):
+            OP(atomicinc_i):
+            OP(atomicdec_i):
+            OP(atomicadd_i):
+            OP(atomicload_o):
+            OP(atomicload_i):
+            OP(atomicstore_o):
+            OP(atomicstore_i):
+            OP(barrierfull):
+                MVM_exception_throw_adhoc(tc, "Atomic ops NYI");
             OP(sp_guard): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
