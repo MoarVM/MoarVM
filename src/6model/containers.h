@@ -49,7 +49,7 @@ struct MVMContainerSpec {
 
     /* If available, reference atomic compare and swap operation, atomic load
      * operation, and atomic store operation. */
-    MVMObject * (*cas) (MVMThreadContext *tc, MVMObject *cont, MVMObject *expected,
+    void (*cas) (MVMThreadContext *tc, MVMObject *cont, MVMObject *expected,
         MVMObject *value, MVMRegister *result);
     MVMObject * (*atomic_load) (MVMThreadContext *tc, MVMObject *cont);
     void (*atomic_store) (MVMThreadContext *tc, MVMObject *cont, MVMObject *value);
@@ -94,7 +94,7 @@ void MVM_6model_container_decont_u(MVMThreadContext *tc, MVMObject *cont, MVMReg
 void MVM_6model_container_assign_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value);
 void MVM_6model_container_assign_n(MVMThreadContext *tc, MVMObject *cont, MVMnum64 value);
 void MVM_6model_container_assign_s(MVMThreadContext *tc, MVMObject *cont, MVMString *value);
-MVMObject * MVM_6model_container_cas(MVMThreadContext *tc, MVMObject *cont,
+void MVM_6model_container_cas(MVMThreadContext *tc, MVMObject *cont,
     MVMObject *expected, MVMObject *value, MVMRegister *result);
 MVMObject * MVM_6model_container_atomic_load(MVMThreadContext *tc, MVMObject *cont);
 void MVM_6model_container_atomic_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *value);

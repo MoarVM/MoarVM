@@ -5163,7 +5163,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(cas_o): {
-                MVMRegister *result = &GET_REG(cur_op, 0).o;
+                MVMRegister *result = &GET_REG(cur_op, 0);
                 MVMObject *target = GET_REG(cur_op, 2).o;
                 MVMObject *expected = GET_REG(cur_op, 4).o;
                 MVMObject *value = GET_REG(cur_op, 6).o;

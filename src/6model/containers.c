@@ -528,14 +528,14 @@ void MVM_6model_container_assign_s(MVMThreadContext *tc, MVMObject *cont, MVMStr
  * Native container atomic operations
  * ***************************************************************************/
 
-MVMObject * MVM_6model_container_cas(MVMThreadContext *tc, MVMObject *cont,
-                                     MVMObject *expected, MVMObject *value,
-                                     MVMRegister *result) {
+void MVM_6model_container_cas(MVMThreadContext *tc, MVMObject *cont,
+                              MVMObject *expected, MVMObject *value,
+                              MVMRegister *result) {
     if (IS_CONCRETE(cont)) {
         MVMContainerSpec const *cs = cont->st->container_spec;
         if (cs) {
             if (cs->cas)
-                return cs->cas(tc, cont, expected, value, result);
+                cs->cas(tc, cont, expected, value, result);
             else
                 MVM_exception_throw_adhoc(tc,
                     "A %s container does not know how to do atomic compare and swap",
