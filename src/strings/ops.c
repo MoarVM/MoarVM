@@ -748,17 +748,22 @@ void MVM_string_print(MVMThreadContext *tc, MVMString *a) {
 }
 /* Meant to be pased in a MVMNormalizer of type MVM_NORMALIZE_NFD */
 static MVMGrapheme32 ord_getbasechar (MVMThreadContext *tc, MVMGrapheme32 g) {
-    MVMGrapheme32 return_g;
-    MVMint32 ready;
-    MVMNormalizer norm;
-    MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
+    /* If we get a synthetic, extract the base codepoint and call ord_getbasechar again */
+    if (g < 0)
+        return ord_getbasechar(tc, MVM_nfg_get_synthetic_info(tc, g)->base);
+    else {
+        MVMGrapheme32 return_g;
+        MVMint32 ready;
+        MVMNormalizer norm;
+        MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
 
-    ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, g, &return_g);
-    MVM_unicode_normalizer_eof(tc, &norm);
-    if (!ready)
-        return_g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
-    MVM_unicode_normalizer_cleanup(tc, &norm);
-    return return_g;
+        ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, g, &return_g);
+        MVM_unicode_normalizer_eof(tc, &norm);
+        if (!ready)
+            return_g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+        MVM_unicode_normalizer_cleanup(tc, &norm);
+        return return_g;
+    }
 }
 /* Tests whether one string a has the other string b as a substring at that index */
 MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset) {
@@ -953,7 +958,6 @@ MVMGrapheme32 MVM_string_ord_at(MVMThreadContext *tc, MVMString *s, MVMint64 off
 /* Gets the base character at a grapheme position, ignoring things like diacritics */
 MVMGrapheme32 MVM_string_ord_basechar_at(MVMThreadContext *tc, MVMString *s, MVMint64 offset) {
     MVMStringIndex agraphs;
-    MVMGrapheme32 g;
     MVMint32 ready;
 
     MVM_string_check_arg(tc, s, "ord_basechar_at");
@@ -962,17 +966,7 @@ MVMGrapheme32 MVM_string_ord_basechar_at(MVMThreadContext *tc, MVMString *s, MVM
     if (offset < 0 || offset >= agraphs)
         return -1;  /* fixes RT #126771 */
 
-    g = MVM_string_get_grapheme_at_nocheck(tc, s, offset);
-
-    if (g < 0) {
-        MVMNFGSynthetic *si = MVM_nfg_get_synthetic_info(tc, g);
-        g = si->base;
-    }
-    else {
-        g = ord_getbasechar(tc, g);
-    }
-
-    return g;
+    return ord_getbasechar(tc, MVM_string_get_grapheme_at_nocheck(tc, s, offset));
 }
 
 
