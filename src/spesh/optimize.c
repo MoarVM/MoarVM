@@ -1245,7 +1245,7 @@ static void check_and_tweak_arg_guards(MVMThreadContext *tc, MVMSpeshGraph *g,
 MVMStaticFrame * find_invokee_static_frame(MVMThreadContext *tc, MVMSpeshPlanned *p,
                                            MVMSpeshIns *ins) {
     MVMuint32 i;
-    MVMStaticFrame *best_result;
+    MVMStaticFrame *best_result = NULL;
     MVMuint32 best_result_hits = 0;
     MVMuint32 total_hits = 0;
 
