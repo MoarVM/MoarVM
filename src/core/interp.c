@@ -5162,14 +5162,34 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(cas_o):
+            OP(cas_o): {
+                MVMRegister *result = &GET_REG(cur_op, 0).o;
+                MVMObject *target = GET_REG(cur_op, 2).o;
+                MVMObject *expected = GET_REG(cur_op, 4).o;
+                MVMObject *value = GET_REG(cur_op, 6).o;
+                cur_op += 8;
+                MVM_6model_container_cas(tc, target, expected, value, result);
+                goto NEXT;
+            }
             OP(cas_i):
             OP(atomicinc_i):
             OP(atomicdec_i):
             OP(atomicadd_i):
+                MVM_exception_throw_adhoc(tc, "Atomic ops NYI");
             OP(atomicload_o):
+                GET_REG(cur_op, 0).o = MVM_6model_container_atomic_load(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(atomicload_i):
-            OP(atomicstore_o):
+                MVM_exception_throw_adhoc(tc, "Atomic ops NYI");
+            OP(atomicstore_o): {
+                MVMObject *target = GET_REG(cur_op, 0).o;
+                MVMObject *value = GET_REG(cur_op, 2).o;
+                cur_op += 4;
+                MVM_6model_container_atomic_store(tc, target, value);
+                goto NEXT;
+            }
             OP(atomicstore_i):
             OP(barrierfull):
                 MVM_exception_throw_adhoc(tc, "Atomic ops NYI");

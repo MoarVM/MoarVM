@@ -523,3 +523,81 @@ void MVM_6model_container_assign_s(MVMThreadContext *tc, MVMObject *cont, MVMStr
     else
         MVM_exception_throw_adhoc(tc, "Cannot assign to an immutable value");
 }
+
+/* ***************************************************************************
+ * Native container atomic operations
+ * ***************************************************************************/
+
+MVMObject * MVM_6model_container_cas(MVMThreadContext *tc, MVMObject *cont,
+                                     MVMObject *expected, MVMObject *value,
+                                     MVMRegister *result) {
+    if (IS_CONCRETE(cont)) {
+        MVMContainerSpec const *cs = cont->st->container_spec;
+        if (cs) {
+            if (cs->cas)
+                return cs->cas(tc, cont, expected, value, result);
+            else
+                MVM_exception_throw_adhoc(tc,
+                    "A %s container does not know how to do atomic compare and swap",
+                    cont->st->debug_name);
+        }
+        else {
+            MVM_exception_throw_adhoc(tc,
+                "Cannot perform atomic compare and swap on non-container value of type %s",
+                cont->st->debug_name);
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Cannot perform atomic compare and swap on %s type object",
+            cont->st->debug_name);
+    }
+}
+
+MVMObject * MVM_6model_container_atomic_load(MVMThreadContext *tc, MVMObject *cont) {
+    if (IS_CONCRETE(cont)) {
+        MVMContainerSpec const *cs = cont->st->container_spec;
+        if (cs) {
+            if (cs->atomic_load)
+                return cs->atomic_load(tc, cont);
+            else
+                MVM_exception_throw_adhoc(tc,
+                    "A %s container does not know how to do an atomic load",
+                    cont->st->debug_name);
+        }
+        else {
+            MVM_exception_throw_adhoc(tc,
+                "Cannot perform atomic load from a non-container value of type %s",
+                cont->st->debug_name);
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Cannot perform atomic load from %s type object",
+            cont->st->debug_name);
+    }
+}
+
+void MVM_6model_container_atomic_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *value) {
+    if (IS_CONCRETE(cont)) {
+        MVMContainerSpec const *cs = cont->st->container_spec;
+        if (cs) {
+            if (cs->atomic_load)
+                cs->atomic_store(tc, cont, value);
+            else
+                MVM_exception_throw_adhoc(tc,
+                    "A %s container does not know how to do an atomic store",
+                    cont->st->debug_name);
+        }
+        else {
+            MVM_exception_throw_adhoc(tc,
+                "Cannot perform atomic store to a non-container value of type %s",
+                cont->st->debug_name);
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Cannot perform atomic store to %s type object",
+            cont->st->debug_name);
+    }
+}
