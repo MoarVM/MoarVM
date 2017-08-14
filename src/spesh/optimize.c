@@ -19,12 +19,12 @@ MVMSpeshFacts * MVM_spesh_get_and_use_facts(MVMThreadContext *tc, MVMSpeshGraph 
     return facts;
 }
 
-/* Obtains facts for an operand, but doesn't (yet) indicate usefulness */
+/* Obtains facts for an operand, but doesn't (yet) indicate usefulness. */
 MVMSpeshFacts * MVM_spesh_get_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
     return get_facts_direct(tc, g, o);
 }
 
-/* Mark facts for an operand as being relied upon */
+/* Mark facts for an operand as being relied upon. */
 void MVM_spesh_use_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *facts) {
     if (facts->flags & MVM_SPESH_FACT_FROM_LOG_GUARD)
         g->log_guards[facts->log_guard].used = 1;
@@ -56,7 +56,7 @@ static void copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand t
 }
 
 /* Adds a value into a spesh slot and returns its index.
- * If a spesh slot already holds this value, return that instead */
+ * If a spesh slot already holds this value, return that instead. */
 MVMint16 MVM_spesh_add_spesh_slot_try_reuse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCollectable *c) {
     MVMint16 prev_slot;
     for (prev_slot = 0; prev_slot < g->num_spesh_slots; prev_slot++) {
@@ -398,15 +398,15 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
 
         truthvalue = truthvalue ? 1 : 0;
         if (truthvalue != negated_op) {
-            /* this conditional can be turned into an unconditional jump */
+            /* This conditional can be turned into an unconditional jump. */
             ins->info = MVM_op_get_op(MVM_OP_goto);
             ins->operands[0] = ins->operands[1];
 
-            /* since we have an unconditional jump now, we can remove the successor
-             * that's in the linear_next */
+            /* Since we have an unconditional jump now, we can remove the successor
+             * that's in the linear_next. */
             MVM_spesh_manipulate_remove_successor(tc, bb, bb->linear_next);
         } else {
-            /* this conditional can be dropped completely */
+            /* This conditional can be dropped completely. */
             MVM_spesh_manipulate_remove_successor(tc, bb, ins->operands[1].ins_bb);
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
         }
@@ -429,7 +429,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             MVMuint8 orig_operand_type = cur->info->operands[1] & MVM_operand_type_mask;
             MVMuint8 succ = 0;
 
-            /* now we have to be extra careful. any operation that writes to
+            /* Now we have to be extra careful. Any operation that writes to
              * our "unboxed flag" register (in any register version) will be
              * trouble. Also, we'd have to take more care with PHI nodes,
              * which we'll just consider immediate failure for now. */
@@ -450,7 +450,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
                 if (((safety_cur->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg)
                     && (safety_cur->operands[0].reg.orig == cur->operands[1].reg.orig)) {
                     /* Someone's clobbering our register between the boxing and
-                     * our attempt to unbox it. we shall give up.
+                     * our attempt to unbox it. We shall give up.
                      * Maybe in the future we can be clever/sneaky and use
                      * some other register for bridging the gap? */
                     safety_cur = NULL;
@@ -513,7 +513,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
                         return;
                     new_ins->info = MVM_op_get_op(MVM_OP_unbox_i);
                     break;
-                /* we need to change the register type for our temporary register for this.
+                /* We need to change the register type for our temporary register for this.
                 case MVM_BOOL_MODE_UNBOX_NUM:
                     new_ins->info = MVM_op_get_op(MVM_OP_unbox_i);
                     break;
@@ -638,7 +638,7 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     }
 }
 
-/* Checks like iscont, iscont_[ins] and isrwcont can be done at spesh time */
+/* Checks like iscont, iscont_[ins] and isrwcont can be done at spesh time. */
 static void optimize_container_check(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     if (ins->info->opcode == MVM_OP_isrwcont) {
         MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
@@ -749,8 +749,7 @@ static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB 
 /* smrt_strify and smrt_numify can turn into unboxes, but at least
  * for smrt_numify it's "complicated". Also, later when we know how
  * to put new invocations into spesh'd code, we could make direct
- * invoke calls to the .Str and .Num methods.
- */
+ * invoke calls to the .Str and .Num methods. */
 static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
 
@@ -920,7 +919,7 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
 
             /* This is a bit naughty with regards to the SSA form, but
              * we'll hopefully get away with it until we have a proper
-             * way to get new registers crammed in the middle of things */
+             * way to get new registers crammed in the middle of things. */
             new_ins->info = MVM_op_get_op(MVM_OP_not_i);
             new_ins->operands = operands;
             operands[0] = orig;
@@ -1145,7 +1144,7 @@ static MVMSpeshStatsType * find_invokee_type_tuple(MVMThreadContext *tc, MVMSpes
 static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
                                   MVMSpeshStatsType *type_info,
                                   MVMSpeshCallInfo *arg_info, MVMuint32 arg_idx) {
-    /* Insert gaurd before prepargs (this means they stack up in order). */
+    /* Insert guard before prepargs (this means they stack up in order). */
     MVMuint32 deopt_target = find_deopt_target(tc, g, arg_info->prepargs_ins);
     MVMSpeshIns *guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     guard->info = MVM_op_get_op(type_info->type_concrete
@@ -1240,7 +1239,7 @@ static void check_and_tweak_arg_guards(MVMThreadContext *tc, MVMSpeshGraph *g,
     }
 }
 
-/* Sees if any static frames were logged for at this invoke instruction, and
+/* Sees if any static frames were logged for this invoke instruction, and
  * if so checks if there was a stable one. */
 MVMStaticFrame * find_invokee_static_frame(MVMThreadContext *tc, MVMSpeshPlanned *p,
                                            MVMSpeshIns *ins) {
@@ -1555,7 +1554,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
     }
 
     /* If we have a speculated target static frame, then it's now safe to
-     * release the code temporary (need to keep it. */
+     * release the code temporary (no need to keep it). */
     if (have_code_temp)
         MVM_spesh_manipulate_release_temp_reg(tc, g, code_temp);
 }
@@ -1610,8 +1609,7 @@ static void optimize_uniprop_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 }
 
 /* If something is only kept alive because we log its allocation, kick out
- * the allocation logging and let the op that creates it die.
- */
+ * the allocation logging and let the op that creates it die. */
 static void optimize_prof_allocated(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshFacts *logee_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
     if (logee_facts->usages == 1) {
@@ -2111,7 +2109,7 @@ static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             /* We may have turned some complex instruction into a simple set
              * in the big switch/case up there, but we wouldn't have called
              * "copy_facts" on the registers yet, so we have to do it here
-             * unless we want to lose some important facts */
+             * unless we want to lose some important facts. */
             copy_facts(tc, g, ins->operands[0], ins->operands[1]);
 
             /* Due to shoddy code-gen followed by spesh discarding lots of ops,
@@ -2150,7 +2148,7 @@ static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             }
         } else if (ins->prev && ins->info->opcode == MVM_OP_sp_getspeshslot && ins->prev->info->opcode == ins->info->opcode) {
             /* Sometimes we emit two getspeshslots in a row that write into the
-             * exact same register. that's clearly wasteful and we can save a
+             * exact same register. That's clearly wasteful and we can save a
              * tiny shred of code size here. */
             if (ins->operands[0].reg.orig == ins->prev->operands[0].reg.orig)
                MVM_spesh_manipulate_delete_ins(tc, g, bb, ins->prev);
@@ -2166,7 +2164,7 @@ static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
 }
 
 /* Goes through the various log-based guard instructions and removes any that
- * are not being made use of. */
+ * are not being used. */
 static void eliminate_unused_log_guards(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMint32 i;
     for (i = 0; i < g->num_log_guards; i++)
