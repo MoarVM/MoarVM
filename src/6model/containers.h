@@ -49,7 +49,8 @@ struct MVMContainerSpec {
 
     /* If available, reference atomic compare and swap operation, atomic load
      * operation, and atomic store operation. */
-    MVMObject * (*cas) (MVMThreadContext *tc, MVMObject *cont, MVMObject *expected, MVMObject *value);
+    MVMObject * (*cas) (MVMThreadContext *tc, MVMObject *cont, MVMObject *expected,
+        MVMObject *value, MVMRegister *result);
     MVMObject * (*atomic_load) (MVMThreadContext *tc, MVMObject *cont);
     void (*atomic_store) (MVMThreadContext *tc, MVMObject *cont, MVMObject *value);
 
