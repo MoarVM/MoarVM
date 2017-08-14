@@ -135,7 +135,7 @@ void MVM_spesh_manipulate_insert_goto(MVMThreadContext *tc, MVMSpeshGraph *g, MV
 }
 
 /* Adds a successor to a basic block, also adding to the list of
- * predocessors of the added successor. */
+ * predecessors of the added successor. */
 void MVM_spesh_manipulate_add_successor(MVMThreadContext *tc, MVMSpeshGraph *g,
                                         MVMSpeshBB *bb, MVMSpeshBB *succ) {
     MVMSpeshBB **new_succ, **new_pred;
@@ -148,7 +148,7 @@ void MVM_spesh_manipulate_add_successor(MVMThreadContext *tc, MVMSpeshGraph *g,
     bb->succ = new_succ;
     bb->num_succ++;
 
-    /* And to successor's predocessors. */
+    /* And to successor's predecessors. */
     new_pred = MVM_spesh_alloc(tc, g, (succ->num_pred + 1) * sizeof(MVMSpeshBB *));
     if (succ->num_pred)
         memcpy(new_pred, succ->pred, succ->num_pred * sizeof(MVMSpeshBB *));
@@ -158,7 +158,7 @@ void MVM_spesh_manipulate_add_successor(MVMThreadContext *tc, MVMSpeshGraph *g,
 }
 
 /* Removes a successor to a basic block, also removing it from the list of
- * predocessors. */
+ * predecessors. */
 void MVM_spesh_manipulate_remove_successor(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *succ) {
     MVMSpeshBB ** const   bb_succ = bb->succ;
     MVMSpeshBB ** const succ_pred = succ->pred;
@@ -176,14 +176,14 @@ void MVM_spesh_manipulate_remove_successor(MVMThreadContext *tc, MVMSpeshBB *bb,
         MVM_oops(tc, "Didn't find the successor to remove from a Spesh Basic Block");
     }
 
-    /* Remove the succ from the list, shuffle other successors back in place */
+    /* Remove the succ from the list, shuffle other successors back in place. */
     for (k = i; k < bb_num_succ; k++) {
         bb_succ[k] = bb_succ[k + 1];
     }
 
     bb_succ[bb_num_succ] = NULL;
 
-    /* Now hunt the bb in the succ's pred, so that we remove all traces of the connection */
+    /* Now hunt the bb in the succ's pred, so that we remove all traces of the connection. */
     for (i = 0; i <= succ_num_pred; i++) {
         if (succ_pred[i] == bb) {
             break;
@@ -202,7 +202,7 @@ void MVM_spesh_manipulate_remove_successor(MVMThreadContext *tc, MVMSpeshBB *bb,
 }
 
 /* Gets a temporary register of the specified kind to use in some transform.
- * Will only actaully extend the frame if needed; if an existing temproary
+ * Will only actually extend the frame if needed; if an existing temporary
  * was requested and then released, then it will just use a new version of
  * that. */
 MVMSpeshOperand MVM_spesh_manipulate_get_temp_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 kind) {
@@ -223,7 +223,7 @@ MVMSpeshOperand MVM_spesh_manipulate_get_temp_reg(MVMThreadContext *tc, MVMSpesh
             g->facts[orig] = new_fact_row;
             g->fact_counts[orig]++;
 
-            /* Mark it in use an add extra version. */
+            /* Mark it in use and add extra version. */
             g->temps[i].in_use++;
             g->temps[i].i++;
 
@@ -296,7 +296,7 @@ MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph
     MVMSpeshBB *new_bb = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB));
     MVMSpeshBB *linear_next = bb->linear_next;
 
-    /* Step one: insert the new BB into the linear order */
+    /* Step one: insert the new BB into the linear order. */
     bb->linear_next = new_bb;
     new_bb->linear_next = linear_next;
 
@@ -310,7 +310,7 @@ MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph
         }
     }
 
-    /* Step three: fix up the dominator tree */
+    /* Step three: fix up the dominator tree. */
     new_bb->children = bb->children;
     new_bb->num_children = bb->num_children;
 
@@ -323,7 +323,7 @@ MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph
     bb->children[0] = new_bb;
     bb->children[1] = 0;
 
-    /* Step three: fix up succs and preds */
+    /* Step three: fix up succs and preds. */
     new_bb->pred = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
     new_bb->num_pred = 1;
     new_bb->pred[0] = bb;
@@ -331,7 +331,7 @@ MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph
     new_bb->succ = bb->succ;
 
     /* We assume the reason for the split is to add a new succ in the middle
-     * which is why we allocate two slots instead of 1 */
+     * which is why we allocate two slots instead of 1. */
     bb->succ = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *) * 2);
     bb->num_succ = 2;
     bb->succ[0] = new_bb;
@@ -341,7 +341,7 @@ MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph
 
     new_bb->num_df = 0;
 
-    /* Last step: Transfer over the instructions after the split point */
+    /* Last step: Transfer over the instructions after the split point. */
     new_bb->last_ins = bb->last_ins;
     bb->last_ins = ins->prev;
     new_bb->first_ins = ins;
