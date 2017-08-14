@@ -25,7 +25,7 @@ struct MVMSpeshCandidate {
     MVMint32 *deopts;
 
     /* Bit field of named args used to put in place during deopt, since we
-     * don't typically don't update the array in specialized code. */
+     * typically don't update the array in specialized code. */
     MVMuint64 deopt_named_used_bit_field;
 
     /* Number of inlines and inlines table; see graph.h for description of
@@ -53,7 +53,7 @@ struct MVMSpeshCandidate {
     /* Number of handlers. */
     MVMuint32 num_handlers;
 
-    /* JIT-code structure */
+    /* JIT-code structure. */
     MVMJitCode *jitcode;
 };
 
