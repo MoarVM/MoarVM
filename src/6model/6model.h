@@ -384,7 +384,7 @@ struct MVMREPROps_Attribute {
         MVMint64 hint);
 
     /* Provides the attribute is a native integer of the architecture's atomic
-     * size, returns at AO_t * referencing it. This is only valid until the
+     * size, returns an AO_t * referencing it. This is only valid until the
      * next safepoint. If rebless is called on the object, updates may be lost
      * although memory safety must not be violated. */
     AO_t * (*attribute_as_atomic) (MVMThreadContext *tc, MVMSTable *st,
