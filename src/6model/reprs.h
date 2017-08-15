@@ -108,7 +108,8 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
     MVM_REPR_DEFAULT_GET_ATTRIBUTE, \
     MVM_REPR_DEFAULT_BIND_ATTRIBUTE, \
     MVM_REPR_DEFAULT_HINT_FOR, \
-    MVM_REPR_DEFAULT_IS_ATTRIBUTE_INITIALIZED \
+    MVM_REPR_DEFAULT_IS_ATTRIBUTE_INITIALIZED, \
+    MVM_REPR_DEFAULT_ATTRIBUTE_AS_ATOMIC \
 }
 
 /* Default boxing functions for a REPR that lacks them. */
@@ -170,6 +171,7 @@ void MVM_REPR_DEFAULT_GET_ATTRIBUTE(MVMThreadContext *tc, MVMSTable *st, MVMObje
 void MVM_REPR_DEFAULT_BIND_ATTRIBUTE(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, MVMRegister value, MVMuint16 kind);
 MVMint64 MVM_REPR_DEFAULT_IS_ATTRIBUTE_INITIALIZED(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint);
 MVMint64 MVM_REPR_DEFAULT_HINT_FOR(MVMThreadContext *tc, MVMSTable *st, MVMObject *class_handle, MVMString *name);
+AO_t * MVM_REPR_DEFAULT_ATTRIBUTE_AS_ATOMIC(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name);
 
 /* Default boxing REPR function for a REPR that lacks it. */
 void MVM_REPR_DEFAULT_SET_INT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value);

@@ -801,7 +801,8 @@ static const MVMREPROps CStruct_this_repr = {
         get_attribute,
         bind_attribute,
         hint_for,
-        is_attribute_initialized
+        is_attribute_initialized,
+        MVM_REPR_DEFAULT_ATTRIBUTE_AS_ATOMIC
     },   /* attr_funcs */
     MVM_REPR_DEFAULT_BOX_FUNCS,
     MVM_REPR_DEFAULT_POS_FUNCS,

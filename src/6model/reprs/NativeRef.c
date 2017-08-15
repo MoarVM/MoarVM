@@ -595,7 +595,10 @@ AO_t * MVM_nativeref_as_atomic_lex_i(MVMThreadContext *tc, MVMObject *ref_obj) {
         "Cannot atomic load from an integer lexical not of the machine's native size");
 }
 AO_t * MVM_nativeref_as_atomic_attribute_i(MVMThreadContext *tc, MVMObject *ref_obj) {
-    MVM_exception_throw_adhoc(tc, "Attribute as_atomic NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVMObject *obj = ref->body.u.attribute.obj;
+    return REPR(obj)->attr_funcs.attribute_as_atomic(tc, STABLE(obj), OBJECT_BODY(obj),
+        ref->body.u.attribute.class_handle, ref->body.u.attribute.name);
 }
 AO_t * MVM_nativeref_as_atomic_positional_i(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVM_exception_throw_adhoc(tc, "Positional as_atomic NYI");
