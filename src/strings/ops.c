@@ -868,9 +868,8 @@ static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Hay
      * can't assume too much. If optimizing this be careful */
     if (H_offset >= H_graphs)
         return 0;
-
     MVMROOT(tc, Haystack, {
-        needle_fc = MVM_string_fc(tc, needle);
+        needle_fc = ignorecase ? MVM_string_fc(tc, needle) : needle;
     });
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
     H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, Haystack, needle_fc, H_offset, H_graphs, n_fc_graphs, ignoremark, ignorecase);
@@ -908,7 +907,7 @@ static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haysta
         return -1;
 
     MVMROOT(tc, Haystack, {
-        needle_fc = MVM_string_fc(tc, needle);
+        needle_fc = ignorecase ? MVM_string_fc(tc, needle) : needle;
     });
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
     /* brute force for now. horrible, yes. halp. */
