@@ -5751,6 +5751,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 20;
                 goto NEXT;
             }
+            OP(coveragecontrol): {
+                MVMuint32 cc = (MVMuint32)GET_REG(cur_op, 0).i64;
+                if (tc->instance->coverage_control && (cc == 0 || cc == 1))
+                    tc->instance->coverage_control = cc + 1;
+                cur_op += 2;
+                goto NEXT;
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */
