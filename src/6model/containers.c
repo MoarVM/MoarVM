@@ -525,7 +525,7 @@ void MVM_6model_container_assign_s(MVMThreadContext *tc, MVMObject *cont, MVMStr
 }
 
 /* ***************************************************************************
- * Native container atomic operations
+ * Container atomic operations
  * ***************************************************************************/
 
 void MVM_6model_container_cas(MVMThreadContext *tc, MVMObject *cont,
@@ -600,4 +600,34 @@ void MVM_6model_container_atomic_store(MVMThreadContext *tc, MVMObject *cont, MV
             "Cannot perform atomic store to %s type object",
             cont->st->debug_name);
     }
+}
+
+static AO_t * native_ref_as_atomic_i(MVMThreadContext *tc, MVMObject *cont) {
+    if (REPR(cont)->ID == MVM_REPR_ID_NativeRef && IS_CONCRETE(cont)) {
+        MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
+        if (repr_data->primitive_type == MVM_STORAGE_SPEC_BP_INT) {
+            switch (repr_data->ref_kind) {
+                case MVM_NATIVEREF_LEX:
+                    return MVM_nativeref_as_atomic_lex_i(tc, cont);
+                case MVM_NATIVEREF_ATTRIBUTE:
+                    return MVM_nativeref_as_atomic_attribute_i(tc, cont);
+                case MVM_NATIVEREF_POSITIONAL:
+                    return MVM_nativeref_as_atomic_positional_i(tc, cont);
+                case MVM_NATIVEREF_MULTIDIM:
+                    return MVM_nativeref_as_atomic_multidim_i(tc, cont);
+                default:
+                    MVM_exception_throw_adhoc(tc, "Unknown native int reference kind");
+            }
+        }
+    }
+    MVM_exception_throw_adhoc(tc,
+        "Can only do integer atomic operations on a container referencing a native integer");
+}
+
+MVMint64 MVM_6model_container_atomic_load_i(MVMThreadContext *tc, MVMObject *cont) {
+    return (MVMint64)MVM_load(native_ref_as_atomic_i(tc, cont));
+}
+
+void MVM_6model_container_atomic_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value) {
+    MVM_store(native_ref_as_atomic_i(tc, cont), value);
 }

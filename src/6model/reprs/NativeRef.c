@@ -580,3 +580,26 @@ void MVM_nativeref_write_multidim_s(MVMThreadContext *tc, MVMObject *ref_obj, MV
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
     MVM_repr_bind_pos_multidim_s(tc, ref->body.u.multidim.obj, ref->body.u.multidim.indices, value);
 }
+
+/* Functions to turn native integer references into an AO_t * that can be used
+ * in an atomic operation. The reference *must* be used and discarded *before*
+ * the next safepoint, after which it could become invalidated. */
+AO_t * MVM_nativeref_as_atomic_lex_i(MVMThreadContext *tc, MVMObject *ref_obj) {
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVMRegister *var = &(ref->body.u.lex.frame->env[ref->body.u.lex.env_idx]);
+    if (sizeof(AO_t) == 8 && ref->body.u.lex.type == MVM_reg_int64)
+        return (AO_t *)&(var->i64);
+    if (sizeof(AO_t) == 4 && ref->body.u.lex.type == MVM_reg_int32)
+        return (AO_t *)&(var->i32);
+    MVM_exception_throw_adhoc(tc,
+        "Cannot atomic load from an integer lexical not of the machine's native size");
+}
+AO_t * MVM_nativeref_as_atomic_attribute_i(MVMThreadContext *tc, MVMObject *ref_obj) {
+    MVM_exception_throw_adhoc(tc, "Attribute as_atomic NYI");
+}
+AO_t * MVM_nativeref_as_atomic_positional_i(MVMThreadContext *tc, MVMObject *ref_obj) {
+    MVM_exception_throw_adhoc(tc, "Positional as_atomic NYI");
+}
+AO_t * MVM_nativeref_as_atomic_multidim_i(MVMThreadContext *tc, MVMObject *ref_obj) {
+    MVM_exception_throw_adhoc(tc, "Multidim as_atomic NYI");
+}
