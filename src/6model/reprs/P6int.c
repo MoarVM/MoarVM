@@ -144,6 +144,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 #else
                 case MVM_P6INT_C_TYPE_BOOL:     repr_data->bits = 8 * sizeof(char);      break;
 #endif
+                case MVM_P6INT_C_TYPE_ATOMIC:   repr_data->bits = 8 * sizeof(AO_t);      break;
             }
 
             if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
