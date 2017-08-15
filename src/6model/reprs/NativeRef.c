@@ -601,8 +601,16 @@ AO_t * MVM_nativeref_as_atomic_attribute_i(MVMThreadContext *tc, MVMObject *ref_
         ref->body.u.attribute.class_handle, ref->body.u.attribute.name);
 }
 AO_t * MVM_nativeref_as_atomic_positional_i(MVMThreadContext *tc, MVMObject *ref_obj) {
-    MVM_exception_throw_adhoc(tc, "Positional as_atomic NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVMObject *obj = ref->body.u.positional.obj;
+    return REPR(obj)->pos_funcs.pos_as_atomic(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        ref->body.u.positional.idx);
 }
 AO_t * MVM_nativeref_as_atomic_multidim_i(MVMThreadContext *tc, MVMObject *ref_obj) {
-    MVM_exception_throw_adhoc(tc, "Multidim as_atomic NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVMObject *obj = ref->body.u.multidim.obj;
+    MVMint64 num_indices;
+    MVM_repr_populate_indices_array(tc, ref->body.u.multidim.indices, &num_indices);
+    return REPR(obj)->pos_funcs.pos_as_atomic_multidim(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        num_indices, tc->multi_dim_indices);
 }

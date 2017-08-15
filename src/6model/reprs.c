@@ -109,6 +109,15 @@ GCC_DIAG_OFF(return-type)
 MVMStorageSpec MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC(MVMThreadContext *tc, MVMSTable *st) {
     die_no_pos(tc, st->REPR->name, st->debug_name);
 }
+AO_t * MVM_REPR_DEFAULT_POS_AS_ATOMIC(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+                                      void *data, MVMint64 index) {
+    die_no_pos(tc, st->REPR->name, st->debug_name);
+}
+AO_t * MVM_REPR_DEFAULT_POS_AS_ATOMIC_MULTIDIM(MVMThreadContext *tc, MVMSTable *st,
+                                               MVMObject *root, void *data,
+                                               MVMint64 num_indices, MVMint64 *indices) {
+    die_no_pos(tc, st->REPR->name, st->debug_name);
+}
 GCC_DIAG_ON(return-type)
 void MVM_REPR_DEFAULT_SPLICE(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMint64 offset, MVMuint64 elems) {
     die_no_pos(tc, st->REPR->name, st->debug_name);

@@ -383,7 +383,7 @@ struct MVMREPROps_Attribute {
         void *data, MVMObject *class_handle, MVMString *name,
         MVMint64 hint);
 
-    /* Provides the attribute is a native integer of the architecture's atomic
+    /* Provided the attribute is a native integer of the architecture's atomic
      * size, returns at AO_t * referencing it. This is only valid until the
      * next safepoint. If rebless is called on the object, updates may be lost
      * although memory safety must not be violated. */
@@ -505,6 +505,16 @@ struct MVMREPROps_Positional {
 
     /* Gets the STable representing the declared element type. */
     MVMStorageSpec (*get_elem_storage_spec) (MVMThreadContext *tc, MVMSTable *st);
+
+    /* Provided the array consists of integers of the architecture's atomic
+     * size, gets an AO_t * pointing to that element and valid until the next
+     * safepoint. */
+    AO_t * (*pos_as_atomic) (MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+        void *data, MVMint64 index);
+
+    /* Multi-dim version of as_atomic. */
+    AO_t * (*pos_as_atomic_multidim) (MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+        void *data, MVMint64 num_indices, MVMint64 *indices);
 };
 struct MVMREPROps_Associative {
     /* Gets the value at the specified key and places it in the passed

@@ -1614,7 +1614,13 @@ static const MVMREPROps P6opaque_this_repr = {
         unshift,
         shift,
         osplice,
-        NULL
+        MVM_REPR_DEFAULT_AT_POS_MULTIDIM,
+        MVM_REPR_DEFAULT_BIND_POS_MULTIDIM,
+        MVM_REPR_DEFAULT_DIMENSIONS,
+        MVM_REPR_DEFAULT_SET_DIMENSIONS,
+        MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC,
+        MVM_REPR_DEFAULT_POS_AS_ATOMIC,
+        MVM_REPR_DEFAULT_POS_AS_ATOMIC_MULTIDIM
     },    /* pos_funcs */
     {
         at_key,
