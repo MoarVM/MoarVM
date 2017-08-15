@@ -180,6 +180,8 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
             callback_data->ffi_ret_type, callback_data->ffi_arg_types);
 
         closure                  = ffi_closure_alloc(sizeof(ffi_closure), &cb);
+        if (!closure)
+            MVM_panic(1, "Unable to allocate memory for callback closure");
         ffi_prep_closure_loc(closure, cif, callback_handler, callback_data, cb);
         callback_data->cb        = cb;
 
