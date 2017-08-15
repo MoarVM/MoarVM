@@ -98,6 +98,8 @@ void MVM_6model_container_cas(MVMThreadContext *tc, MVMObject *cont,
     MVMObject *expected, MVMObject *value, MVMRegister *result);
 MVMObject * MVM_6model_container_atomic_load(MVMThreadContext *tc, MVMObject *cont);
 void MVM_6model_container_atomic_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *value);
+MVMint64 MVM_6model_container_cas_i(MVMThreadContext *tc, MVMObject *cont,
+    MVMint64 expected, MVMint64 value);
 MVMint64 MVM_6model_container_atomic_load_i(MVMThreadContext *tc, MVMObject *cont);
 void MVM_6model_container_atomic_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value);
 MVMint64 MVM_6model_container_atomic_inc(MVMThreadContext *tc, MVMObject *cont);

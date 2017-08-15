@@ -5172,6 +5172,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(cas_i):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_cas_i(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
             OP(atomicinc_i):
                 GET_REG(cur_op, 0).i64 = MVM_6model_container_atomic_inc(tc,
                     GET_REG(cur_op, 2).o);

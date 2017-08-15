@@ -624,6 +624,11 @@ static AO_t * native_ref_as_atomic_i(MVMThreadContext *tc, MVMObject *cont) {
         "Can only do integer atomic operations on a container referencing a native integer");
 }
 
+MVMint64 MVM_6model_container_cas_i(MVMThreadContext *tc, MVMObject *cont,
+                                    MVMint64 expected, MVMint64 value) {
+    return (MVMint64)MVM_cas(native_ref_as_atomic_i(tc, cont), (AO_t)expected, (AO_t)value);
+}
+
 MVMint64 MVM_6model_container_atomic_load_i(MVMThreadContext *tc, MVMObject *cont) {
     return (MVMint64)MVM_load(native_ref_as_atomic_i(tc, cont));
 }
