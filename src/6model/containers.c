@@ -631,3 +631,15 @@ MVMint64 MVM_6model_container_atomic_load_i(MVMThreadContext *tc, MVMObject *con
 void MVM_6model_container_atomic_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value) {
     MVM_store(native_ref_as_atomic_i(tc, cont), value);
 }
+
+MVMint64 MVM_6model_container_atomic_inc(MVMThreadContext *tc, MVMObject *cont) {
+    return (MVMint64)MVM_incr(native_ref_as_atomic_i(tc, cont));
+}
+
+MVMint64 MVM_6model_container_atomic_dec(MVMThreadContext *tc, MVMObject *cont) {
+    return (MVMint64)MVM_decr(native_ref_as_atomic_i(tc, cont));
+}
+
+MVMint64 MVM_6model_container_atomic_add(MVMThreadContext *tc, MVMObject *cont, MVMint64 value) {
+    return (MVMint64)MVM_add(native_ref_as_atomic_i(tc, cont), (AO_t)value);
+}

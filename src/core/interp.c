@@ -5173,9 +5173,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(cas_i):
             OP(atomicinc_i):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_atomic_inc(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(atomicdec_i):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_atomic_dec(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(atomicadd_i):
-                MVM_exception_throw_adhoc(tc, "Atomic ops NYI");
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_atomic_add(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
+                cur_op += 6;
+                goto NEXT;
             OP(atomicload_o):
                 GET_REG(cur_op, 0).o = MVM_6model_container_atomic_load(tc,
                     GET_REG(cur_op, 2).o);

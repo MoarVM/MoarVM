@@ -100,3 +100,6 @@ MVMObject * MVM_6model_container_atomic_load(MVMThreadContext *tc, MVMObject *co
 void MVM_6model_container_atomic_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *value);
 MVMint64 MVM_6model_container_atomic_load_i(MVMThreadContext *tc, MVMObject *cont);
 void MVM_6model_container_atomic_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value);
+MVMint64 MVM_6model_container_atomic_inc(MVMThreadContext *tc, MVMObject *cont);
+MVMint64 MVM_6model_container_atomic_dec(MVMThreadContext *tc, MVMObject *cont);
+MVMint64 MVM_6model_container_atomic_add(MVMThreadContext *tc, MVMObject *cont, MVMint64 value);
