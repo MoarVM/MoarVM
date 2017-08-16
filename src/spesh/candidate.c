@@ -10,7 +10,7 @@ static void calculate_work_env_sizes(MVMThreadContext *tc, MVMStaticFrame *sf,
     max_callsite_size = sf->body.cu->body.max_callsite_size;
 
     for (i = 0; i < c->num_inlines; i++) {
-        MVMuint32 cs = c->inlines[i].code->body.sf->body.cu->body.max_callsite_size;
+        MVMuint32 cs = c->inlines[i].sf->body.cu->body.max_callsite_size;
         if (cs > max_callsite_size)
             max_callsite_size = cs;
     }
@@ -129,10 +129,18 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     if (spesh->common.header.flags & MVM_CF_SECOND_GEN)
         MVM_gc_write_barrier_hit(tc, (MVMCollectable *)spesh);
 
-    /* Install the new candidate by bumping the number of candidates in
-     * order to make it available, and then updating the guards. */
+    /* Update the guards, and bump the candidate count. This means there is a
+     * period when we can read, in another thread, a candidate ahead of the
+     * count being updated. Since we set it up above, that's fine enough. The
+     * updating of the count *after* this, plus the barrier, is to make sure
+     * the guards are in place before the count is bumped, since OSR will
+     * watch the number of candidates to see if there's one for it to try and
+     * jump in to, and if the guards aren't in place first will see there is
+     * not, and not bother checking again. */
     MVM_spesh_arg_guard_add(tc, &(spesh->body.spesh_arg_guard),
-        p->cs_stats->cs, p->type_tuple, spesh->body.num_spesh_candidates++);
+        p->cs_stats->cs, p->type_tuple, spesh->body.num_spesh_candidates);
+    MVM_barrier();
+    spesh->body.num_spesh_candidates++;
 
     /* If we're logging, dump the updated arg guards also. */
     if (tc->instance->spesh_log_fh) {

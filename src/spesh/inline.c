@@ -47,7 +47,8 @@ static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUn
  * already identify a spesh candidate. Returns NULL if no inlining is possible
  * or a graph ready to be merged if it will be possible. */
 MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
-                                               MVMCode *target, MVMSpeshCandidate *cand) {
+                                               MVMStaticFrame *target_sf,
+                                               MVMSpeshCandidate *cand) {
     MVMSpeshGraph *ig;
     MVMSpeshBB    *bb;
 
@@ -60,15 +61,20 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
         return NULL;
 
     /* Ensure that this isn't a recursive inlining. */
-    if (target->body.sf == inliner->sf)
+    if (target_sf == inliner->sf)
         return NULL;
 
     /* Ensure they're from the same HLL. */
-    if (target->body.sf->body.cu->body.hll_config != inliner->sf->body.cu->body.hll_config)
+    if (target_sf->body.cu->body.hll_config != inliner->sf->body.cu->body.hll_config)
+        return NULL;
+
+    /* Ensure it has no state vars (these need the setup code in frame
+     * invoke). */
+    if (target_sf->body.has_state_vars)
         return NULL;
 
     /* Build graph from the already-specialized bytecode. */
-    ig = MVM_spesh_graph_create_from_cand(tc, target->body.sf, cand, 0);
+    ig = MVM_spesh_graph_create_from_cand(tc, target_sf, cand, 0);
 
     /* Traverse graph, looking for anything that might prevent inlining and
      * also building usage counts up. */
@@ -93,20 +99,14 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
             if (!is_phi && ins->info->no_inline)
                 goto not_inlinable;
 
-            /* If we have lexical access, make sure it's within the frame. */
-            if (ins->info->opcode == MVM_OP_getlex ||
-                    ins->info->opcode == MVM_OP_sp_getlex_o ||
-                    ins->info->opcode == MVM_OP_sp_getlex_ins) {
-                if (ins->operands[1].lex.outers > 0)
-                    goto not_inlinable;
-            }
-            else if (ins->info->opcode == MVM_OP_bindlex) {
+            /* If we have lexical bind, make sure it's within the frame. */
+            if (ins->info->opcode == MVM_OP_bindlex) {
                 if (ins->operands[0].lex.outers > 0)
                     goto not_inlinable;
             }
 
             /* Check we don't have too many args for inlining to work out. */
-            if (ins->info->opcode == MVM_OP_sp_getarg_o ||
+            else if (ins->info->opcode == MVM_OP_sp_getarg_o ||
                     ins->info->opcode == MVM_OP_sp_getarg_i ||
                     ins->info->opcode == MVM_OP_sp_getarg_n ||
                     ins->info->opcode == MVM_OP_sp_getarg_s) {
@@ -117,7 +117,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
             /* Ext-ops need special care in inter-comp-unit inlines. */
             if (ins->info->opcode == (MVMuint16)-1) {
                 MVMCompUnit *target_cu = inliner->sf->body.cu;
-                MVMCompUnit *source_cu = target->body.sf->body.cu;
+                MVMCompUnit *source_cu = target_sf->body.cu;
                 if (source_cu != target_cu)
                     demand_extop(tc, target_cu, source_cu, ins->info);
             }
@@ -208,10 +208,25 @@ static void resize_handlers_table(MVMThreadContext *tc, MVMSpeshGraph *inliner, 
     }
 }
 
+/* Rewrites a lexical lookup to an outer to be done via. a register holding
+ * the outer coderef. */
+static void rewrite_outer_lookup(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                 MVMSpeshIns *ins, MVMuint16 num_locals,
+                                 MVMuint16 op, MVMSpeshOperand code_ref_reg) {
+    MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
+    new_operands[0] = ins->operands[0];
+    new_operands[0].reg.orig += num_locals;
+    new_operands[1].lit_ui16 = ins->operands[1].lex.idx;
+    new_operands[2].lit_ui16 = ins->operands[1].lex.outers;
+    new_operands[3] = code_ref_reg;
+    ins->info = MVM_op_get_op(op);
+    ins->operands = new_operands;
+}
+
 /* Merges the inlinee's spesh graph into the inliner. */
 static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
-                 MVMSpeshGraph *inlinee, MVMCode *inlinee_code,
-                 MVMSpeshIns *invoke_ins) {
+                 MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
+                 MVMSpeshIns *invoke_ins, MVMSpeshOperand code_ref_reg) {
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
     MVMint32        i, total_inlines, orig_deopt_addrs;
@@ -251,6 +266,26 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             if (opcode == MVM_SSA_PHI) {
                 for (i = 0; i < ins->info->num_operands; i++)
                     ins->operands[i].reg.orig += inliner->num_locals;
+            }
+            else if (opcode == MVM_OP_sp_getlex_o && ins->operands[1].lex.outers > 0) {
+                rewrite_outer_lookup(tc, inliner, ins, inliner->num_locals,
+                    MVM_OP_sp_getlexvia_o, code_ref_reg);
+            }
+            else if (opcode == MVM_OP_sp_getlex_ins && ins->operands[1].lex.outers > 0) {
+                rewrite_outer_lookup(tc, inliner, ins, inliner->num_locals,
+                    MVM_OP_sp_getlexvia_ins, code_ref_reg);
+            }
+            else if (opcode == MVM_OP_getlex && ins->operands[1].lex.outers > 0) {
+                MVMuint16 outers = ins->operands[1].lex.outers;
+                MVMStaticFrame *outer = inlinee_sf;
+                while (outers--)
+                    outer = outer->body.outer;
+                if (outer->body.lexical_types[ins->operands[1].lex.idx] == MVM_reg_obj)
+                    rewrite_outer_lookup(tc, inliner, ins, inliner->num_locals,
+                        MVM_OP_sp_getlexvia_o, code_ref_reg);
+                else
+                    rewrite_outer_lookup(tc, inliner, ins, inliner->num_locals,
+                        MVM_OP_sp_getlexvia_ins, code_ref_reg);
             }
             else {
                 for (i = 0; i < ins->info->num_operands; i++) {
@@ -390,11 +425,13 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         memcpy(inliner->inlines + inliner->num_inlines, inlinee->inlines,
             inlinee->num_inlines * sizeof(MVMSpeshInline));
     for (i = inliner->num_inlines; i < total_inlines - 1; i++) {
+        inliner->inlines[i].code_ref_reg += inliner->num_locals;
         inliner->inlines[i].locals_start += inliner->num_locals;
         inliner->inlines[i].lexicals_start += inliner->num_lexicals;
         inliner->inlines[i].return_deopt_idx += orig_deopt_addrs;
     }
-    inliner->inlines[total_inlines - 1].code           = inlinee_code;
+    inliner->inlines[total_inlines - 1].sf             = inlinee_sf;
+    inliner->inlines[total_inlines - 1].code_ref_reg   = code_ref_reg.reg.orig;
     inliner->inlines[total_inlines - 1].g              = inlinee;
     inliner->inlines[total_inlines - 1].locals_start   = inliner->num_locals;
     inliner->inlines[total_inlines - 1].lexicals_start = inliner->num_lexicals;
@@ -534,7 +571,7 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         if (active_handlers_at_invoke) {
             MVMuint32 insert_pos = inliner->num_handlers + inlinee->num_handlers;
             resize_handlers_table(tc, inliner, insert_pos + active_handlers_at_invoke);
-            for (i = orig_handlers - 1; i >= 0; i--) {
+            for (i = 0; i < orig_handlers; i++) {
                 if (active[i]) {
                     /* Add handler start annotation to first inlinee instruction. */
                     MVMSpeshAnn *new_ann = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshAnn));
@@ -893,9 +930,9 @@ static void annotate_inline_start_end(MVMThreadContext *tc, MVMSpeshGraph *inlin
 void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                       MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
                       MVMSpeshIns *invoke_ins, MVMSpeshGraph *inlinee,
-                      MVMCode *inlinee_code) {
+                      MVMStaticFrame *inlinee_sf, MVMSpeshOperand code_ref_reg) {
     /* Merge inlinee's graph into the inliner. */
-    merge_graph(tc, inliner, inlinee, inlinee_code, invoke_ins);
+    merge_graph(tc, inliner, inlinee, inlinee_sf, invoke_ins, code_ref_reg);
 
     /* If we're profiling, note it's an inline. */
     if (inlinee->entry->linear_next->first_ins->info->opcode == MVM_OP_prof_enterspesh) {

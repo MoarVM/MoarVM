@@ -1533,12 +1533,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 6).i64);
                 cur_op += 8;
                 goto NEXT;
-            OP(eqatim_s):
-                GET_REG(cur_op, 0).i64 = MVM_string_equal_at_ignore_mark(tc,
-                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
-                    GET_REG(cur_op, 6).i64);
-                cur_op += 8;
-                goto NEXT;
             OP(eqaticim_s):
                 GET_REG(cur_op, 0).i64 = MVM_string_equal_at_ignore_case_ignore_mark(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
@@ -1575,11 +1569,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(indexic_s):
                 GET_REG(cur_op, 0).i64 = MVM_string_index_ignore_case(tc,
-                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
-                cur_op += 8;
-                goto NEXT;
-            OP(indexim_s):
-                GET_REG(cur_op, 0).i64 = MVM_string_index_ignore_mark(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
                 cur_op += 8;
                 goto NEXT;
@@ -4647,6 +4636,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = MVM_code_location(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
+            OP(eqatim_s):
+                GET_REG(cur_op, 0).i64 = MVM_string_equal_at_ignore_mark(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
+                    GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
             OP(ordbaseat):
                 GET_REG(cur_op, 0).i64 = MVM_string_ord_basechar_at(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
                 cur_op += 6;
@@ -5087,6 +5082,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(indexim_s): {
+                GET_REG(cur_op, 0).i64 = MVM_string_index_ignore_mark(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            }
             OP(decodertakeallchars): {
                 MVMObject *decoder = GET_REG(cur_op, 2).o;
                 MVM_decoder_ensure_decoder(tc, decoder, "decodertakeallchars");
@@ -5161,6 +5162,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(cas_o):
+            OP(cas_i):
+            OP(atomicinc_i):
+            OP(atomicdec_i):
+            OP(atomicadd_i):
+            OP(atomicload_o):
+            OP(atomicload_i):
+            OP(atomicstore_o):
+            OP(atomicstore_i):
+            OP(barrierfull):
+                MVM_exception_throw_adhoc(tc, "Atomic ops NYI");
             OP(sp_guard): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
@@ -5209,22 +5221,22 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
                 goto NEXT;
             }
-            OP(sp_resolvecode): {
-                MVMObject *invokee = GET_REG(cur_op, 2).o;
-                if (REPR(invokee)->ID == MVM_REPR_ID_MVMCode) {
-                    GET_REG(cur_op, 0).o = invokee;
+            OP(sp_rebless):
+                if (!REPR(GET_REG(cur_op, 2).o)->change_type) {
+                    MVM_exception_throw_adhoc(tc, "This REPR cannot change type");
                 }
-                else {
-                    MVMInvocationSpec *is = STABLE(invokee)->invocation_spec;
-                    if (is && is->code_ref_offset && IS_CONCRETE(invokee))
-                        GET_REG(cur_op, 0).o = MVM_p6opaque_read_object(tc, invokee,
-                            is->code_ref_offset);
-                    else
-                        GET_REG(cur_op, 0).o = tc->instance->VMNull;
-                }
+                REPR(GET_REG(cur_op, 2).o)->change_type(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
+                MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o);
+                cur_op += 10;
+                MVM_spesh_deopt_all(tc);
+                MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                goto NEXT;
+            OP(sp_resolvecode):
+                GET_REG(cur_op, 0).o = MVM_frame_resolve_invokee_spesh(tc,
+                    GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            }
             OP(sp_decont): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 MVMRegister *r = &GET_REG(cur_op, 0);
@@ -5577,6 +5589,38 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_getlexvia_o): {
+                MVMFrame *f = ((MVMCode *)GET_REG(cur_op, 6).o)->body.outer;
+                MVMuint16 idx = GET_UI16(cur_op, 2);
+                MVMuint16 outers = GET_UI16(cur_op, 4) - 1; /* - 1 as already in outer */
+                MVMRegister found;
+                while (outers) {
+                    if (!f->outer)
+                        MVM_exception_throw_adhoc(tc, "getlex: outer index out of range");
+                    f = f->outer;
+                    outers--;
+                }
+                found = GET_LEX(cur_op, 2, f);
+                GET_REG(cur_op, 0).o = found.o == NULL
+                    ? MVM_frame_vivify_lexical(tc, f, idx)
+                    : found.o;
+                cur_op += 8;
+                goto NEXT;
+            }
+            OP(sp_getlexvia_ins): {
+                MVMFrame *f = ((MVMCode *)GET_REG(cur_op, 6).o)->body.outer;
+                MVMuint16 idx = GET_UI16(cur_op, 2);
+                MVMuint16 outers = GET_UI16(cur_op, 4) - 1; /* - 1 as already in outer */
+                while (outers) {
+                    if (!f->outer)
+                        MVM_exception_throw_adhoc(tc, "getlex: outer index out of range");
+                    f = f->outer;
+                    outers--;
+                }
+                GET_REG(cur_op, 0) = GET_LEX(cur_op, 2, f);
+                cur_op += 8;
+                goto NEXT;
+            }
             OP(sp_jit_enter): {
                 if (tc->cur_frame->spesh_cand->jitcode == NULL) {
                     MVM_exception_throw_adhoc(tc, "Try to enter NULL jitcode");
@@ -5705,6 +5749,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 char      *cache    = (char *)MVM_BC_get_I64(cur_op, 12);
                 MVM_line_coverage_report(tc, filename, lineno, cacheidx, cache);
                 cur_op += 20;
+                goto NEXT;
+            }
+            OP(coveragecontrol): {
+                MVMuint32 cc = (MVMuint32)GET_REG(cur_op, 0).i64;
+                if (tc->instance->coverage_control && (cc == 0 || cc == 1))
+                    tc->instance->coverage_control = cc + 1;
+                cur_op += 2;
                 goto NEXT;
             }
 #if MVM_CGOTO

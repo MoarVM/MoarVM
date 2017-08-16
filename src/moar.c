@@ -197,48 +197,48 @@ MVMInstance * MVM_vm_create_instance(void) {
      * should log specializations to. */
     init_mutex(instance->mutex_spesh_install, "spesh installations");
     spesh_log = getenv("MVM_SPESH_LOG");
-    if (spesh_log && strlen(spesh_log))
+    if (spesh_log && spesh_log[0])
         instance->spesh_log_fh = fopen_perhaps_with_pid(spesh_log, "w");
     spesh_disable = getenv("MVM_SPESH_DISABLE");
-    if (!spesh_disable || strlen(spesh_disable) == 0) {
+    if (!spesh_disable || !spesh_disable[0]) {
         instance->spesh_enabled = 1;
         spesh_inline_disable = getenv("MVM_SPESH_INLINE_DISABLE");
-        if (!spesh_inline_disable || strlen(spesh_inline_disable) == 0)
+        if (!spesh_inline_disable || !spesh_inline_disable[0])
             instance->spesh_inline_enabled = 1;
         spesh_osr_disable = getenv("MVM_SPESH_OSR_DISABLE");
-        if (!spesh_osr_disable || strlen(spesh_osr_disable) == 0)
+        if (!spesh_osr_disable || !spesh_osr_disable[0])
             instance->spesh_osr_enabled = 1;
     }
 
     /* Should we specialize without warm up delays? Used to find bugs in the
      * specializer and JIT. */
     spesh_nodelay = getenv("MVM_SPESH_NODELAY");
-    if (spesh_nodelay && strlen(spesh_nodelay)) {
+    if (spesh_nodelay && spesh_nodelay[0]) {
         instance->spesh_nodelay = 1;
     }
 
     /* Should we limit the number of specialized frames produced? (This is
      * mostly useful for building spesh bug bisect tools.) */
     spesh_limit = getenv("MVM_SPESH_LIMIT");
-    if (spesh_limit && strlen(spesh_limit))
+    if (spesh_limit && spesh_limit[0])
         instance->spesh_limit = atoi(spesh_limit);
 
     /* Should we enforce that a thread, when sending work to the specialzation
      * worker, block until the specialization worker is done? This is useful
      * for getting more predictable behavior when debugging. */
     spesh_blocking = getenv("MVM_SPESH_BLOCKING");
-    if (spesh_blocking && strlen(spesh_blocking))
+    if (spesh_blocking && spesh_blocking[0])
         instance->spesh_blocking = 1;
 
     /* JIT environment/logging setup. */
     jit_disable = getenv("MVM_JIT_DISABLE");
-    if (!jit_disable || strlen(jit_disable) == 0)
+    if (!jit_disable || !jit_disable[0])
         instance->jit_enabled = 1;
     jit_log = getenv("MVM_JIT_LOG");
-    if (jit_log && strlen(jit_log))
+    if (jit_log && jit_log[0])
         instance->jit_log_fh = fopen_perhaps_with_pid(jit_log, "w");
     jit_bytecode_dir = getenv("MVM_JIT_BYTECODE_DIR");
-    if (jit_bytecode_dir && strlen(jit_bytecode_dir)) {
+    if (jit_bytecode_dir && jit_bytecode_dir[0]) {
         char *bytecode_map_name = MVM_malloc(strlen(jit_bytecode_dir) + strlen("/jit-map.txt") + 1);
         sprintf(bytecode_map_name, "%s/jit-map.txt", jit_bytecode_dir);
         instance->jit_bytecode_map = fopen(bytecode_map_name, "w");
@@ -253,7 +253,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Various kinds of debugging that can be enabled. */
     dynvar_log = getenv("MVM_DYNVAR_LOG");
-    if (dynvar_log && strlen(dynvar_log)) {
+    if (dynvar_log && dynvar_log[0]) {
         instance->dynvar_log_fh = fopen_perhaps_with_pid(dynvar_log, "w");
         fprintf(instance->dynvar_log_fh, "+ x 0 0 0 0 0 %"PRIu64"\n", uv_hrtime());
         fflush(instance->dynvar_log_fh);
@@ -278,10 +278,17 @@ MVMInstance * MVM_vm_create_instance(void) {
         char *coverage_log = getenv("MVM_COVERAGE_LOG");
         instance->coverage_logging = 1;
         instance->instrumentation_level++;
-        if (strlen(coverage_log))
+        if (coverage_log[0])
             instance->coverage_log_fh = fopen_perhaps_with_pid(coverage_log, "a");
         else
             instance->coverage_log_fh = stderr;
+
+        instance->coverage_control = 0;
+        if (getenv("MVM_COVERAGE_CONTROL")) {
+            char *coverage_control = getenv("MVM_COVERAGE_CONTROL");
+            if (coverage_control && coverage_control[0])
+                instance->coverage_control = atoi(coverage_control);
+        }
     }
     else {
         instance->coverage_logging = 0;

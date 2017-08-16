@@ -103,7 +103,7 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
     MVM_gc_worklist_add(tc, worklist, &repr_data->elem_type);
 }
 
-/* Marks the representation data in an STable.*/
+/* Frees the representation data in an STable.*/
 static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
     MVM_free(st->REPR_data);
 }

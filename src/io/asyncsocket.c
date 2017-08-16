@@ -479,6 +479,39 @@ static const MVMIOOps op_table = {
     NULL
 };
 
+static void push_name_and_port(MVMThreadContext *tc, struct sockaddr_storage *name, MVMObject *arr) {
+    char addrstr[INET6_ADDRSTRLEN + 1];
+    in_port_t port;
+    MVMObject *host_o;
+    MVMObject *port_o;
+    switch (name->ss_family) {
+        case AF_INET6: {
+            uv_ip6_name((struct sockaddr_in6*)name, addrstr, INET6_ADDRSTRLEN + 1);
+            port = ((struct sockaddr_in6*)name)->sin6_port;
+            break;
+        }
+        case AF_INET: {
+            uv_ip4_name((struct sockaddr_in*)name, addrstr, INET6_ADDRSTRLEN + 1);
+            port = ((struct sockaddr_in*)name)->sin_port;
+            break;
+        }
+        default:
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
+            return;
+            break;
+    }
+    MVMROOT(tc, arr, {
+        port_o = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, port);
+        MVMROOT(tc, port, {
+            host_o = (MVMObject *)MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr,
+                    MVM_string_ascii_decode_nt(tc, tc->instance->VMString, addrstr));
+        });
+    });
+    MVM_repr_push_o(tc, arr, host_o);
+    MVM_repr_push_o(tc, arr, port_o);
+}
+
 /* Info we convey about a connection attempt task. */
 typedef struct {
     struct sockaddr  *dest;
@@ -506,6 +539,17 @@ static void on_connect(uv_connect_t* req, int status) {
             result->body.data            = data;
             MVM_repr_push_o(tc, arr, (MVMObject *)result);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+
+            MVMROOT(tc, result, {
+                struct sockaddr_storage sockaddr;
+                int name_len = sizeof(struct sockaddr_storage);
+
+                uv_tcp_getpeername(ci->socket, (struct sockaddr *)&sockaddr, &name_len);
+                push_name_and_port(tc, &sockaddr, arr);
+
+                uv_tcp_getsockname(ci->socket, (struct sockaddr *)&sockaddr, &name_len);
+                push_name_and_port(tc, &sockaddr, arr);
+            });
         });
         });
     }
@@ -518,6 +562,10 @@ static void on_connect(uv_connect_t* req, int status) {
             MVMObject *msg_box = MVM_repr_box_str(tc,
                 tc->instance->boot_types.BOOTStr, msg_str);
             MVM_repr_push_o(tc, arr, msg_box);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
         });
         });
     }
@@ -633,6 +681,7 @@ typedef struct {
     int               backlog;
 } ListenInfo;
 
+
 /* Handles an incoming connection. */
 static void on_connection(uv_stream_t *server, int status) {
     ListenInfo       *li     = (ListenInfo *)server->data;
@@ -654,8 +703,20 @@ static void on_connection(uv_stream_t *server, int status) {
             data->handle                 = (uv_stream_t *)client;
             result->body.ops             = &op_table;
             result->body.data            = data;
+
             MVM_repr_push_o(tc, arr, (MVMObject *)result);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+
+            MVMROOT(tc, result, {
+                struct sockaddr_storage sockaddr;
+                int name_len = sizeof(struct sockaddr_storage);
+
+                uv_tcp_getpeername(client, (struct sockaddr *)&sockaddr, &name_len);
+                push_name_and_port(tc, &sockaddr, arr);
+
+                uv_tcp_getsockname(client, (struct sockaddr *)&sockaddr, &name_len);
+                push_name_and_port(tc, &sockaddr, arr);
+            });
         });
         });
     }
@@ -670,6 +731,10 @@ static void on_connection(uv_stream_t *server, int status) {
             MVMObject *msg_box = MVM_repr_box_str(tc,
                 tc->instance->boot_types.BOOTStr, msg_str);
             MVM_repr_push_o(tc, arr, msg_box);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
         });
         });
     }
@@ -702,7 +767,12 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
                     tc->instance->VMString, uv_strerror(r));
                 MVMObject *msg_box = MVM_repr_box_str(tc,
                     tc->instance->boot_types.BOOTStr, msg_str);
+
                 MVM_repr_push_o(tc, arr, msg_box);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             });
             MVM_repr_push_o(tc, t->body.queue, arr);
         });
@@ -723,7 +793,10 @@ static void on_listen_cancelled(uv_handle_t *handle) {
 }
 static void listen_cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     ListenInfo *li = (ListenInfo *)data;
-    uv_close((uv_handle_t *)li->socket, on_listen_cancelled);
+    if (li->socket) {
+        uv_close((uv_handle_t *)li->socket, on_listen_cancelled);
+        li->socket = NULL;
+    }
 }
 
 /* Frees info for a listen task. */

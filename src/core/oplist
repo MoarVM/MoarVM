@@ -306,7 +306,7 @@ can_s               w(int64) r(obj) r(str) :pure :invokish
 create              w(obj) r(obj) :pure
 clone               w(obj) r(obj) :pure
 isconcrete          w(int64) r(obj) :pure
-rebless             w(obj) r(obj) r(obj)
+rebless             w(obj) r(obj) r(obj) :deoptonepoint
 istype              w(int64) r(obj) r(obj) :pure :invokish
 objprimspec         w(int64) r(obj) :pure
 gethow              w(obj) r(obj) :pure
@@ -817,6 +817,19 @@ eqaticim_s          w(int64) r(str) r(str) r(int64) :pure
 indexicim_s         w(int64) r(str) r(str) r(int64) :pure
 decodertakecharseof w(str) r(obj) r(int64)
 indexim_s           w(int64) r(str) r(str) r(int64) :pure
+cas_o               w(obj) r(obj) r(obj) r(obj)
+cas_i               w(int64) r(obj) r(int64) r(int64)
+atomicinc_i         w(int64) r(obj)
+atomicdec_i         w(int64) r(obj)
+atomicadd_i         w(int64) r(obj) r(int64)
+# Following two are *not* :pure (even though just loads); their memory barrier
+# counts as a side-effect that should be retained.
+atomicload_o        w(obj) r(obj)
+atomicload_i        w(int64) r(obj)
+atomicstore_o       r(obj) r(obj)
+atomicstore_i       r(obj) r(int64)
+barrierfull
+coveragecontrol     r(int64)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
@@ -835,6 +848,10 @@ sp_guardtype     .s r(obj) sslot uint32
 #   the currently executing frame
 sp_guardsf       .s r(obj) sslot uint32
 sp_guardsfouter  .s r(obj) sslot uint32
+
+# Specialized form of rebless that will always do a deopt one out of the
+# current code as well as a deopt all.
+sp_rebless       .s w(obj) r(obj) r(obj) uint32
 
 # Resolves an invokee into an MVMCode object, or returns VMNull when that is
 # not possible. Doesn't do multiple dispatch cache handling (since that needs
@@ -910,6 +927,12 @@ sp_deref_get_i64      .s w(int64) r(obj) int16 :pure
 sp_deref_get_n        .s w(num64) r(obj) int16 :pure
 sp_deref_bind_i64     .s r(obj) r(int64) int16
 sp_deref_bind_n       .s r(obj) r(num64) int16
+
+# These read a lexical via. a code ref held in a register. Used for closure
+# inlining. The outers count must be at least 1 (e.g. these must never be used
+# for lexicals that are in the current scope).
+sp_getlexvia_o        .s w(obj) int16 int16 r(obj) :pure
+sp_getlexvia_ins      .s w(`1) int16 int16 r(obj) :pure
 
 # Enter the JIT
 sp_jit_enter     .s w(obj)

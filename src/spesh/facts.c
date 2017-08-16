@@ -346,11 +346,13 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         MVMSpeshAnn *ann = ins->annotations;
         MVMSpeshAnn *ann_deopt_one = NULL;
         MVMSpeshAnn *ann_logged = NULL;
+        MVMint32 is_deopt_ins = 0;
         while (ann) {
             switch (ann->type) {
                 case MVM_SPESH_ANN_DEOPT_ONE_INS:
                     ann_deopt_one = ann;
                     cur_deopt_idx = ann->data.deopt_idx;
+                    is_deopt_ins = 1;
                     break;
                 case MVM_SPESH_ANN_DEOPT_ALL_INS:
                     cur_deopt_idx = ann->data.deopt_idx;
@@ -375,12 +377,15 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             }
 
             /* Writes need the current deopt index and the writing instruction
-             * to be specified. */
+             * to be specified. A write that's on a deopt instruction bumps
+             * the usage too. */
             if ((is_phi && i == 0)
                 || (!is_phi && (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_write_reg)) {
                 MVMSpeshFacts *facts = &(g->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i]);
                 facts->deopt_idx = cur_deopt_idx;
                 facts->writer    = ins;
+                if (is_deopt_ins)
+                    facts->usages++;
             }
         }
 

@@ -1,4 +1,5 @@
 void MVM_repr_init(MVMThreadContext *tc, MVMObject *obj);
+MVM_PUBLIC MVMObject * MVM_repr_alloc(MVMThreadContext *tc, MVMObject *type);
 MVM_PUBLIC MVMObject * MVM_repr_alloc_init(MVMThreadContext *tc, MVMObject *type);
 MVM_PUBLIC MVMObject * MVM_repr_clone(MVMThreadContext *tc, MVMObject *obj);
 void MVM_repr_compose(MVMThreadContext *tc, MVMObject *type, MVMObject *obj);

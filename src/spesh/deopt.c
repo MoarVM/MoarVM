@@ -31,9 +31,11 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
     for (i = 0; i < cand->num_inlines; i++) {
         if (offset >= cand->inlines[i].start && offset < cand->inlines[i].end) {
             /* Create the frame. */
-            MVMCode        *ucode = cand->inlines[i].code;
-            MVMStaticFrame *usf   = ucode->body.sf;
+            MVMCode        *ucode = (MVMCode *)f->work[cand->inlines[i].code_ref_reg].o;
+            MVMStaticFrame *usf   = cand->inlines[i].sf;
             MVMFrame       *uf;
+            if (REPR(ucode)->ID != MVM_REPR_ID_MVMCode)
+                MVM_panic(1, "Deopt: did not find code object when uninlining");
             MVMROOT(tc, f, {
             MVMROOT(tc, callee, {
             MVMROOT(tc, last_uninlined, {
@@ -247,6 +249,11 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
     /* Walk frames looking for any callers in specialized bytecode. */
     MVMFrame *l = MVM_frame_force_to_heap(tc, tc->cur_frame);
     MVMFrame *f = tc->cur_frame->caller;
+#if MVM_LOG_DEOPTS
+    fprintf(stderr, "Deopt all requested in frame '%s' (cuid '%s')\n",
+        MVM_string_utf8_encode_C_string(tc, l->static_info->body.name),
+        MVM_string_utf8_encode_C_string(tc, l->static_info->body.cuuid));
+#endif
     if (tc->instance->profiling)
         MVM_profiler_log_deopt_all(tc);
     while (f) {
@@ -293,15 +300,16 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                 }
 #if MVM_LOG_DEOPTS
                 if (i == num_deopts)
-                    fprintf(stderr, "JIT: can't find deopt all idx");
+                    fprintf(stderr, "JIT: can't find deopt all idx\n");
 #endif
             }
 
             else {
                 /* Not JITted; see if we can find the return address in the deopt table. */
                 MVMint32 ret_offset = f->return_address - f->spesh_cand->bytecode;
+                MVMint32 n = f->spesh_cand->num_deopts * 2;
                 MVMint32 i;
-                for (i = 0; i < f->spesh_cand->num_deopts * 2; i += 2) {
+                for (i = 0; i < n; i += 2) {
                     if (f->spesh_cand->deopts[i + 1] == ret_offset) {
                         /* Re-create any frames needed if we're in an inline; if not,
                         * just update return address. */
@@ -323,6 +331,10 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                         break;
                     }
                 }
+#if MVM_LOG_DEOPTS
+                if (i == n)
+                    fprintf(stderr, "Interpreter: can't find deopt all idx\n");
+#endif
             }
         }
         l = f;

@@ -390,7 +390,8 @@ MVMint32 MVM_spesh_arg_guard_run_types(MVMThreadContext *tc, MVMSpeshArgGuard *a
 /* Evaluates the argument guards. Returns >= 0 if there is a matching spesh
  * candidate, or -1 if there is not. */
 MVMint32 MVM_spesh_arg_guard_run(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
-                                 MVMCallsite *cs, MVMRegister *args) {
+                                 MVMCallsite *cs, MVMRegister *args,
+                                 MVMint32 *certain) {
     MVMuint32 current_node = 0;
     MVMObject *test = NULL;
     MVMint32 current_result = -1;
@@ -432,6 +433,8 @@ MVMint32 MVM_spesh_arg_guard_run(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
                 break;
             case MVM_SPESH_GUARD_OP_CERTAIN_RESULT:
                 current_result = agn->result;
+                if (certain)
+                    *certain = agn->result;
                 current_node = agn->yes;
                 break;
             case MVM_SPESH_GUARD_OP_RESULT:
