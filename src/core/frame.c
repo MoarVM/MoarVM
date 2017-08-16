@@ -709,6 +709,15 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     });
     });
     });
+#if MVM_GC_DEBUG
+    {
+        MVMFrame *check = new_cur_frame;
+        while (check) {
+            MVM_ASSERT_NOT_FROMSPACE(tc, check);
+            check = check->caller;
+        }
+    }
+#endif
 
     /* All is promoted. Update thread's current frame and reset the thread
      * local callstack. */
