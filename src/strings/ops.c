@@ -896,10 +896,11 @@ static void knuth_morris_pratt_process_pattern (MVMThreadContext *tc, MVMString 
     }
 }
 static MVMint64 knuth_morris_pratt_index (MVMThreadContext *tc, MVMString *pat, MVMString *MVM_text, MVMint64 H_offset) {
-    MVMGrapheme32 next[knuth_morris_pratt_max_pattern_length];
     MVMint64 pat_offset = 0, text_offset = H_offset;
     MVMStringIndex MVM_text_graphs = MVM_string_graphs(tc, MVM_text);
     MVMStringIndex pat_graphs      = MVM_string_graphs(tc, pat);
+    MVMGrapheme32 *next = alloca(pat_graphs * sizeof(MVMGrapheme32));
+
     if (knuth_morris_pratt_max_pattern_length < pat_graphs) {
         MVM_exception_throw_adhoc(tc, "Tried to search a pattern %i long but can only do %i\n", pat_graphs, knuth_morris_pratt_max_pattern_length);
     }
