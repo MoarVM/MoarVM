@@ -46,6 +46,7 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g,
                     next->annotations = ann;
                 }
                 break;
+            case MVM_SPESH_ANN_INLINE_END:
             case MVM_SPESH_ANN_FH_END:
                 /* This moves to the previous instruction. */
                 if (!prev) {
