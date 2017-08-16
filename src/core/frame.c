@@ -714,6 +714,11 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
         MVMFrame *check = new_cur_frame;
         while (check) {
             MVM_ASSERT_NOT_FROMSPACE(tc, check);
+            if ((check->header.flags & MVM_CF_SECOND_GEN) &&
+                    check->caller &&
+                    !(check->caller->header.flags & MVM_CF_SECOND_GEN) &&
+                    !(check->header.flags & MVM_CF_IN_GEN2_ROOT_LIST))
+                MVM_panic(1, "Gen2 -> Nursery after promotion without inter-gen set entry");
             check = check->caller;
         }
     }
