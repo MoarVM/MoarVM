@@ -26,7 +26,9 @@ MVMObject * MVM_thread_new(MVMThreadContext *tc, MVMObject *invokee, MVMint64 ap
 
     /* Try to create the new threadcontext. Can throw if libuv can't
      * create a loop for it for some reason (i.e. too many open files) */
-    child_tc = MVM_tc_create(tc, tc->instance);
+    MVMROOT(tc, thread, {
+        child_tc = MVM_tc_create(tc, tc->instance);
+    });
 
     /* Set up the new threadcontext a little. */
     child_tc->thread_obj = thread;
