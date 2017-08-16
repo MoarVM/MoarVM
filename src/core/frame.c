@@ -613,8 +613,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 }
 
 /* Moves the specified frame from the stack and on to the heap. Must only
- * be called if the frame is already there. Use MVM_frame_force_to_heap when
- * not sure. */ 
+ * be called if the frame is not already there. Use MVM_frame_force_to_heap
+ * when not sure. */
 MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     /* To keep things simple, we'll promote the entire stack. */
     MVMFrame *cur_to_promote = tc->cur_frame;
