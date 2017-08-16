@@ -115,9 +115,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                 }
             }
 
-            /* Update tracking variables for last uninline. Note that we know
-             * an inline ends with a goto, which is how we're able to find a
-             * return address offset. */
+            /* Update tracking variables for last uninline. */
             last_uninlined        = uf;
             last_res_reg          = cand->inlines[i].res_reg;
             last_res_type         = cand->inlines[i].res_type;

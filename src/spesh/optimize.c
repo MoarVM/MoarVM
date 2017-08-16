@@ -2396,9 +2396,16 @@ static void eliminate_pointless_gotos(MVMThreadContext *tc, MVMSpeshGraph *g) {
     while (cur_bb) {
         if (!cur_bb->jumplist) {
             MVMSpeshIns *last_ins = cur_bb->last_ins;
-            if (last_ins && last_ins->info->opcode == MVM_OP_goto)
-                if (last_ins->operands[0].ins_bb == cur_bb->linear_next)
+            if (
+                last_ins
+                && last_ins->info->opcode == MVM_OP_goto
+                && last_ins->operands[0].ins_bb == cur_bb->linear_next
+            ) {
+                if (last_ins == cur_bb->first_ins) // May not throw away the only instruction
+                    last_ins->info = MVM_op_get_op(MVM_OP_no_op);
+                else
                     MVM_spesh_manipulate_delete_ins(tc, g, cur_bb, last_ins);
+            }
         }
         cur_bb = cur_bb->linear_next;
     }
