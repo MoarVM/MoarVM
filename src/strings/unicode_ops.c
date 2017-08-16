@@ -322,14 +322,34 @@ int find_next_node (MVMThreadContext *tc, sub_node node, MVMCodepoint next_cp) {
     }
     return -1;
 }
-int get_main_node (MVMThreadContext *tc, int cp) {
+int get_main_node (MVMThreadContext *tc, int cp, int range_min, int range_max) {
+    /* Decrement range_min because binary search defaults to 1..* not 0..* */
+    range_min--;
     MVMint64 i;
-    for (i = 0; i < starter_main_nodes_elems; i++) {
-        if (main_nodes[i].codepoint == cp) {
-            return i;
+    MVMint64 rtrn = -1;
+    int counter   = 0;
+    dfprintf("starter_main_nodes_elems = %i\n", starter_main_nodes_elems);
+    dfprintf("lowest/highest starter nodes codepoints: %i/%i\n", main_nodes[0].codepoint, main_nodes[starter_main_nodes_elems - 1].codepoint);
+    dfprintf("range_min = %i range_max = %i\n", range_min, range_max);
+    for (range_min = -1, range_max = starter_main_nodes_elems; 1 < range_max - range_min;) {
+        i = (range_min + range_max) / 2;
+        dfprintf("Setting i to %"PRIi64"\n", i);
+        dfprintf("Checking node %"PRIi64" codepoint = %i\n", i, main_nodes[i].codepoint);
+        if (cp  <= main_nodes[i].codepoint) {
+            dfprintf("cp< Setting range_max to i → %"PRIi64" before range_min = %i range_max = %i\n", i, range_min, range_max);
+            range_max = i;
+        }
+        else {
+            dfprintf("cp> Setting range_min to i → %"PRIi64" before range_min = %i range_max = %i\n", range_min, range_min, range_max);
+            range_min = i;
         }
     }
-    return -1;
+    dfprintf("Final check: node: %i codepoint: %i\n", range_max, main_nodes[range_max].codepoint);
+    if (main_nodes[range_max].codepoint == cp) {
+        rtrn = range_max;
+    }
+    dfprintf("Returning i as %i\n", -1);
+    return rtrn;
 }
 void print_cps_array (MVMCodepoint *cps, int start_at, MVMCodepoint cp_num) {
     MVMint64 j;
@@ -364,9 +384,9 @@ static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack,
         dfprintf("\n");
     }
     dfprintf("push orig stack_top %li. get_main_node(cps[0]) returned with %i\n", stack->stack_top, query);
-    query = get_main_node(tc, cps[0]);
+    query = get_main_node(tc, cps[0], 0, starter_main_nodes_elems);
     if (query != -1) {
-        dfprintf("query = -1 stack_%s getting value from special_collation_keys\n", name);
+        dfprintf("query != -1 (%i) stack_%s getting value from special_collation_keys\n", query, name);
         /* If there are no sub_node_elems that means we don't need to look at
          * the next codepoint, we are already at the correct node
          * If there's no more codepoints in the iterator we also are done here */
