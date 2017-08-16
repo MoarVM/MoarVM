@@ -1452,9 +1452,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     tc->cur_frame->return_type = MVM_RETURN_OBJ;
                     cur_op += 6;
                     tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cc->body.apc->callsite,
-                        cc->body.apc->args);
-                    e->invoked_call_capture = cobj;
+                    MVMROOT(tc, cobj, {
+                        STABLE(code)->invoke(tc, code, cc->body.apc->callsite,
+                            cc->body.apc->args);
+                    });
+                    if (MVM_FRAME_IS_ON_CALLSTACK(tc, tc->cur_frame)) {
+                        e->invoked_call_capture = cobj;
+                    }
+                    else {
+                        MVM_ASSIGN_REF(tc, &(tc->cur_frame->header),
+                            e->invoked_call_capture, cobj);
+                    }
                     goto NEXT;
                 }
                 else {
