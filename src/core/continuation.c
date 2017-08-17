@@ -148,7 +148,7 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
         MVM_frame_force_to_heap(tc, tc->cur_frame);
     });
     });
-    MVM_ASSIGN_REF(tc, &(cont->common.header), cont->body.root->caller, tc->cur_frame);
+    MVM_ASSIGN_REF(tc, &(cont->body.root->header), cont->body.root->caller, tc->cur_frame);
 
     /* Set up current frame to receive result. */
     tc->cur_frame->return_value = res_reg;

@@ -753,6 +753,36 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
     return spec;
 }
 
+AO_t * pos_as_atomic_multidim(MVMThreadContext *tc, MVMSTable *st,
+                              MVMObject *root, void *data,
+                              MVMint64 num_indices, MVMint64 *indices) {
+    MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
+    if (num_indices == repr_data->num_dimensions) {
+        MVMMultiDimArrayBody *body = (MVMMultiDimArrayBody *)data;
+        size_t flat_index = indices_to_flat_index(tc, repr_data->num_dimensions,
+            body->dimensions, indices);
+        if (sizeof(AO_t) == 8 && (repr_data->slot_type == MVM_ARRAY_I64 ||
+                repr_data->slot_type == MVM_ARRAY_U64))
+            return (AO_t *)&(body->slots.i64[flat_index]);
+        if (sizeof(AO_t) == 4 && (repr_data->slot_type == MVM_ARRAY_I32 ||
+                repr_data->slot_type == MVM_ARRAY_U32))
+            return (AO_t *)&(body->slots.i32[flat_index]);
+        MVM_exception_throw_adhoc(tc,
+            "Can only do integer atomic operation on native integer array element of atomic size");
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Cannot access %"PRId64" dimension array with %"PRId64" indices",
+            repr_data->num_dimensions, num_indices);
+    }
+}
+
+static AO_t * pos_as_atomic(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+                            void *data, MVMint64 index) {
+    return pos_as_atomic_multidim(tc, st, root, data, 1, &index);
+}
+
+
 /* Initializes the representation. */
 const MVMREPROps * MVMMultiDimArray_initialize(MVMThreadContext *tc) {
     return &MultiDimArray_this_repr;
@@ -778,7 +808,9 @@ static const MVMREPROps MultiDimArray_this_repr = {
         bind_pos_multidim,
         dimensions,
         set_dimensions,
-        get_elem_storage_spec
+        get_elem_storage_spec,
+        pos_as_atomic,
+        pos_as_atomic_multidim
     },
     MVM_REPR_DEFAULT_ASS_FUNCS,
     elems,

@@ -613,8 +613,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 }
 
 /* Moves the specified frame from the stack and on to the heap. Must only
- * be called if the frame is already there. Use MVM_frame_force_to_heap when
- * not sure. */ 
+ * be called if the frame is not already there. Use MVM_frame_force_to_heap
+ * when not sure. */
 MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     /* To keep things simple, we'll promote the entire stack. */
     MVMFrame *cur_to_promote = tc->cur_frame;
@@ -709,6 +709,20 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     });
     });
     });
+#if MVM_GC_DEBUG
+    {
+        MVMFrame *check = new_cur_frame;
+        while (check) {
+            MVM_ASSERT_NOT_FROMSPACE(tc, check);
+            if ((check->header.flags & MVM_CF_SECOND_GEN) &&
+                    check->caller &&
+                    !(check->caller->header.flags & MVM_CF_SECOND_GEN) &&
+                    !(check->header.flags & MVM_CF_IN_GEN2_ROOT_LIST))
+                MVM_panic(1, "Gen2 -> Nursery after promotion without inter-gen set entry");
+            check = check->caller;
+        }
+    }
+#endif
 
     /* All is promoted. Update thread's current frame and reset the thread
      * local callstack. */

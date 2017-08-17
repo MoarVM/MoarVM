@@ -5,6 +5,7 @@
 #define MVM_P6INT_C_TYPE_LONGLONG  -5
 #define MVM_P6INT_C_TYPE_SIZE_T    -6
 #define MVM_P6INT_C_TYPE_BOOL      -7
+#define MVM_P6INT_C_TYPE_ATOMIC    -8
 
 /* Representation used by P6 native ints. */
 struct MVMP6intBody {

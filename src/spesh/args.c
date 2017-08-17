@@ -315,6 +315,22 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 paramnamesused_ins = ins;
                 paramnamesused_bb  = bb;
                 break;
+            case MVM_OP_param_rn2_i:
+            case MVM_OP_param_rn2_n:
+            case MVM_OP_param_rn2_s:
+            case MVM_OP_param_rn2_o:
+            case MVM_OP_param_on2_i:
+            case MVM_OP_param_on2_n:
+            case MVM_OP_param_on2_s:
+            case MVM_OP_param_on2_o:
+            case MVM_OP_param_rp_u:
+            case MVM_OP_param_op_u:
+            case MVM_OP_param_rn_u:
+            case MVM_OP_param_on_u:
+            case MVM_OP_param_rn2_u:
+            case MVM_OP_param_on2_u:
+                /* Don't understand how to specialize these yet. */
+                goto cleanup;
             default:
                 break;
             }

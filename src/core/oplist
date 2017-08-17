@@ -817,7 +817,7 @@ eqaticim_s          w(int64) r(str) r(str) r(int64) :pure
 indexicim_s         w(int64) r(str) r(str) r(int64) :pure
 decodertakecharseof w(str) r(obj) r(int64)
 indexim_s           w(int64) r(str) r(str) r(int64) :pure
-cas_o               w(obj) r(obj) r(obj) r(obj)
+cas_o               w(obj) r(obj) r(obj) r(obj) :invokish
 cas_i               w(int64) r(obj) r(int64) r(int64)
 atomicinc_i         w(int64) r(obj)
 atomicdec_i         w(int64) r(obj)
@@ -826,7 +826,7 @@ atomicadd_i         w(int64) r(obj) r(int64)
 # counts as a side-effect that should be retained.
 atomicload_o        w(obj) r(obj)
 atomicload_i        w(int64) r(obj)
-atomicstore_o       r(obj) r(obj)
+atomicstore_o       r(obj) r(obj) :invokish
 atomicstore_i       r(obj) r(int64)
 barrierfull
 coveragecontrol     r(int64)
