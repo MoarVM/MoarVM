@@ -10,7 +10,8 @@ static const MVMuint16 MAGIC_BYTECODE[] = { MVM_OP_sp_jit_enter, 0 };
 
 MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     dasm_State *state;
-    char * memory;
+    char * memory;       /* writable */
+    char * exec_memory;  /* executable but not writable */
     size_t codesize;
     /* Space for globals */
     MVMint32  num_globals = MVM_jit_num_globals();
@@ -65,8 +66,20 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
 
     /* compile the function */
     dasm_link(&state, &codesize);
+#ifdef HAVE_LIBFFI
+    /* Map one area of memory at two addresses, one writable and one
+     * executable */
+    memory = ffi_closure_alloc(codesize, (void **) &exec_memory);
+    if (!memory)
+        MVM_panic(1, "Unable to allocate memory for jit");
+#else
+    /* Map memory that starts writable and is later made executable */
     memory = MVM_platform_alloc_pages(codesize, MVM_PAGE_READ|MVM_PAGE_WRITE);
+    exec_memory = memory;
+#endif
     dasm_encode(&state, memory);
+
+#ifndef HAVE_LIBFFI
     /* set memory readable + executable */
     if (!MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC)) {
         MVM_jit_log(tc, "Setting jit page executable failed or was denied. deactivating jit.\n");
@@ -76,15 +89,18 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
         tc->instance->jit_enabled = 0;
         return NULL;
     }
-
+#endif
 
     MVM_jit_log(tc, "Bytecode size: %"MVM_PRSz"\n", codesize);
     /* Create code segment */
     code = MVM_malloc(sizeof(MVMJitCode));
-    code->func_ptr   = (MVMJitFunc)memory;
-    code->size       = codesize;
-    code->bytecode   = (MVMuint8*)MAGIC_BYTECODE;
-    code->sf         = jg->sg->sf;
+    code->func_ptr        = (MVMJitFunc)exec_memory;
+#ifdef HAVE_LIBFFI
+    code->writable_memory = memory;
+#endif
+    code->size            = codesize;
+    code->bytecode        = (MVMuint8*)MAGIC_BYTECODE;
+    code->sf              = jg->sg->sf;
 
     /* Get the basic block labels */
     code->num_labels = jg->num_labels;
@@ -93,7 +109,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
         MVMint32 offset = dasm_getpclabel(&state, i);
         if (offset < 0)
             MVM_jit_log(tc, "Got negative offset for dynamic label %d\n", i);
-        code->labels[i] = memory + offset;
+        code->labels[i] = exec_memory + offset;
     }
 
     /* Copy the deopts, inlines, and handlers. Because these use the label index
@@ -123,7 +139,11 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
 }
 
 void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
+#ifdef HAVE_LIBFFI
+    ffi_closure_free(code->writable_memory);
+#else
     MVM_platform_free_pages(code->func_ptr, code->size);
+#endif
     MVM_free(code->labels);
     MVM_free(code->bb_labels);
     MVM_free(code->deopts);

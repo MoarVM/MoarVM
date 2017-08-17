@@ -2,6 +2,9 @@ typedef MVMint32 (*MVMJitFunc)(MVMThreadContext *tc, MVMCompUnit *cu, void * lab
 
 struct MVMJitCode {
     MVMJitFunc func_ptr;
+#ifdef HAVE_LIBFFI
+    char      *writable_memory;
+#endif
     size_t     size;
     MVMuint8  *bytecode;
 
