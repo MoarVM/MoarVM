@@ -481,7 +481,10 @@ static const MVMIOOps op_table = {
 
 static void push_name_and_port(MVMThreadContext *tc, struct sockaddr_storage *name, MVMObject *arr) {
     char addrstr[INET6_ADDRSTRLEN + 1];
-    in_port_t port;
+    /* XXX windows support kludge. 64 bit is much too big, but we'll
+     * get the proper data from the struct anyway, however windows
+     * decides to declare it. */
+    MVMuint64 port;
     MVMObject *host_o;
     MVMObject *port_o;
     switch (name->ss_family) {
