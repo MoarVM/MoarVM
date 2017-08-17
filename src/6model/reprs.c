@@ -24,6 +24,9 @@ GCC_DIAG_OFF(return-type)
 MVMint64 MVM_REPR_DEFAULT_IS_ATTRIBUTE_INITIALIZED(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
     die_no_attrs(tc, st->REPR->name, st->debug_name);
 }
+AO_t * MVM_REPR_DEFAULT_ATTRIBUTE_AS_ATOMIC(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name) {
+    die_no_attrs(tc, st->REPR->name, st->debug_name);
+}
 GCC_DIAG_ON(return-type)
 MVMint64 MVM_REPR_DEFAULT_HINT_FOR(MVMThreadContext *tc, MVMSTable *st, MVMObject *class_handle, MVMString *name) {
     return MVM_NO_HINT;
@@ -104,6 +107,15 @@ void MVM_REPR_DEFAULT_SET_DIMENSIONS(MVMThreadContext *tc, MVMSTable *st, MVMObj
 }
 GCC_DIAG_OFF(return-type)
 MVMStorageSpec MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC(MVMThreadContext *tc, MVMSTable *st) {
+    die_no_pos(tc, st->REPR->name, st->debug_name);
+}
+AO_t * MVM_REPR_DEFAULT_POS_AS_ATOMIC(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+                                      void *data, MVMint64 index) {
+    die_no_pos(tc, st->REPR->name, st->debug_name);
+}
+AO_t * MVM_REPR_DEFAULT_POS_AS_ATOMIC_MULTIDIM(MVMThreadContext *tc, MVMSTable *st,
+                                               MVMObject *root, void *data,
+                                               MVMint64 num_indices, MVMint64 *indices) {
     die_no_pos(tc, st->REPR->name, st->debug_name);
 }
 GCC_DIAG_ON(return-type)

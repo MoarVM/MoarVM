@@ -1452,9 +1452,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     tc->cur_frame->return_type = MVM_RETURN_OBJ;
                     cur_op += 6;
                     tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cc->body.apc->callsite,
-                        cc->body.apc->args);
-                    e->invoked_call_capture = cobj;
+                    MVMROOT(tc, cobj, {
+                        STABLE(code)->invoke(tc, code, cc->body.apc->callsite,
+                            cc->body.apc->args);
+                    });
+                    if (MVM_FRAME_IS_ON_CALLSTACK(tc, tc->cur_frame)) {
+                        e->invoked_call_capture = cobj;
+                    }
+                    else {
+                        MVM_ASSIGN_REF(tc, &(tc->cur_frame->header),
+                            e->invoked_call_capture, cobj);
+                    }
                     goto NEXT;
                 }
                 else {
@@ -5162,17 +5170,61 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(cas_o):
+            OP(cas_o): {
+                MVMRegister *result = &GET_REG(cur_op, 0);
+                MVMObject *target = GET_REG(cur_op, 2).o;
+                MVMObject *expected = GET_REG(cur_op, 4).o;
+                MVMObject *value = GET_REG(cur_op, 6).o;
+                cur_op += 8;
+                MVM_6model_container_cas(tc, target, expected, value, result);
+                goto NEXT;
+            }
             OP(cas_i):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_cas_i(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
             OP(atomicinc_i):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_atomic_inc(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(atomicdec_i):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_atomic_dec(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(atomicadd_i):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_atomic_add(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
+                cur_op += 6;
+                goto NEXT;
             OP(atomicload_o):
+                GET_REG(cur_op, 0).o = MVM_6model_container_atomic_load(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(atomicload_i):
-            OP(atomicstore_o):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_atomic_load_i(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
+            OP(atomicstore_o): {
+                MVMObject *target = GET_REG(cur_op, 0).o;
+                MVMObject *value = GET_REG(cur_op, 2).o;
+                cur_op += 4;
+                MVM_6model_container_atomic_store(tc, target, value);
+                goto NEXT;
+            }
             OP(atomicstore_i):
+                MVM_6model_container_atomic_store_i(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64);
+                cur_op += 4;
+                goto NEXT;
             OP(barrierfull):
-                MVM_exception_throw_adhoc(tc, "Atomic ops NYI");
+                MVM_barrier();
+                goto NEXT;
             OP(sp_guard): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame

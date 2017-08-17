@@ -580,3 +580,37 @@ void MVM_nativeref_write_multidim_s(MVMThreadContext *tc, MVMObject *ref_obj, MV
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
     MVM_repr_bind_pos_multidim_s(tc, ref->body.u.multidim.obj, ref->body.u.multidim.indices, value);
 }
+
+/* Functions to turn native integer references into an AO_t * that can be used
+ * in an atomic operation. The reference *must* be used and discarded *before*
+ * the next safepoint, after which it could become invalidated. */
+AO_t * MVM_nativeref_as_atomic_lex_i(MVMThreadContext *tc, MVMObject *ref_obj) {
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVMRegister *var = &(ref->body.u.lex.frame->env[ref->body.u.lex.env_idx]);
+    if (sizeof(AO_t) == 8 && ref->body.u.lex.type == MVM_reg_int64)
+        return (AO_t *)&(var->i64);
+    if (sizeof(AO_t) == 4 && ref->body.u.lex.type == MVM_reg_int32)
+        return (AO_t *)&(var->i32);
+    MVM_exception_throw_adhoc(tc,
+        "Cannot atomic load from an integer lexical not of the machine's native size");
+}
+AO_t * MVM_nativeref_as_atomic_attribute_i(MVMThreadContext *tc, MVMObject *ref_obj) {
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVMObject *obj = ref->body.u.attribute.obj;
+    return REPR(obj)->attr_funcs.attribute_as_atomic(tc, STABLE(obj), OBJECT_BODY(obj),
+        ref->body.u.attribute.class_handle, ref->body.u.attribute.name);
+}
+AO_t * MVM_nativeref_as_atomic_positional_i(MVMThreadContext *tc, MVMObject *ref_obj) {
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVMObject *obj = ref->body.u.positional.obj;
+    return REPR(obj)->pos_funcs.pos_as_atomic(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        ref->body.u.positional.idx);
+}
+AO_t * MVM_nativeref_as_atomic_multidim_i(MVMThreadContext *tc, MVMObject *ref_obj) {
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVMObject *obj = ref->body.u.multidim.obj;
+    MVMint64 num_indices;
+    MVM_repr_populate_indices_array(tc, ref->body.u.multidim.indices, &num_indices);
+    return REPR(obj)->pos_funcs.pos_as_atomic_multidim(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        num_indices, tc->multi_dim_indices);
+}
