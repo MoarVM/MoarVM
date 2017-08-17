@@ -61,11 +61,6 @@ union level_eval_u {
     struct level_eval_s s;
     union  level_eval_u2 a[3];
 };
-/*
-obj.s.primary.a2[0]
-obj.a[0].s2.Less
-obj.s.primary.s2.Less
-obj.a[0].a2.[0]*/
 typedef union level_eval_u level_eval;
 #define initial_stack_size 100
 #define collation_zero 1
@@ -77,14 +72,18 @@ struct collation_stack {
 typedef struct collation_stack collation_stack;
 static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepointIter *ci, int *cp_maybe, int cp_num, char *name);
 static void init_stack (MVMThreadContext *tc, collation_stack *stack) {
-    stack->keys = MVM_malloc(sizeof(collation_key) * initial_stack_size);
-    stack->stack_top = -1;
+    stack->keys       = MVM_malloc(sizeof(collation_key) * initial_stack_size);
+    stack->stack_top  = -1;
     stack->stack_size = initial_stack_size;
 }
 static void cleanup_stack (MVMThreadContext *tc, collation_stack *stack) {
-    stack->keys = MVM_realloc(stack->keys, 0);
-    /* If we get NULL then realloc has freed the memory */
-    /* If we get a pointer back, realloc spec says it should then be freed */
+    /* Must realloc to 0 in case we ended up resizing the stack */
+    if (stack->stack_size != initial_stack_size)
+        stack->keys = MVM_realloc(stack->keys, 0);
+    /* If we get NULL then realloc has freed the memory.
+     * If we have a pointer, either we didn't run realloc and need to free, or
+     * realloc returned a pointer. realloc spec says if we get a pointer back we
+     * must then free it using free. */
     if (stack->keys != NULL)
         MVM_free(stack->keys);
 }
@@ -306,13 +305,11 @@ MVMint64 collation_add_keys_from_node (MVMThreadContext *tc, sub_node *last_node
 int find_next_node (MVMThreadContext *tc, sub_node node, MVMCodepoint next_cp) {
     MVMint64 next_node_min, next_node_max;
     MVMint64 i;
-    dfprintf("In find_next_node. Next cp 0x%X\n", next_cp);
     /* There is nowhere else to go */
     if (node.sub_node_link == -1)
         return -1;
     next_node_min = min(node);
     next_node_max = max(node);
-    dfprintf("curr codepoint 0x%X next min 0x%lX next max 0x%lX. m 0x%X M 0x%X\n", node.codepoint, next_node_min, next_node_max, min(node), max(node));
     /* It's not within bounds */
     if (next_cp < next_node_min || next_node_max < next_cp)
         return -1;
@@ -323,11 +320,11 @@ int find_next_node (MVMThreadContext *tc, sub_node node, MVMCodepoint next_cp) {
     return -1;
 }
 int get_main_node (MVMThreadContext *tc, int cp, int range_min, int range_max) {
-    /* Decrement range_min because binary search defaults to 1..* not 0..* */
-    range_min--;
     MVMint64 i;
     MVMint64 rtrn = -1;
     int counter   = 0;
+    /* Decrement range_min because binary search defaults to 1..* not 0..* */
+    range_min--;
     dfprintf("starter_main_nodes_elems = %i\n", starter_main_nodes_elems);
     dfprintf("lowest/highest starter nodes codepoints: %i/%i\n", main_nodes[0].codepoint, main_nodes[starter_main_nodes_elems - 1].codepoint);
     dfprintf("range_min = %i range_max = %i\n", range_min, range_max);
@@ -345,9 +342,8 @@ int get_main_node (MVMThreadContext *tc, int cp, int range_min, int range_max) {
         }
     }
     dfprintf("Final check: node: %i codepoint: %i\n", range_max, main_nodes[range_max].codepoint);
-    if (main_nodes[range_max].codepoint == cp) {
+    if (main_nodes[range_max].codepoint == cp)
         rtrn = range_max;
-    }
     dfprintf("Returning i as %i\n", -1);
     return rtrn;
 }
