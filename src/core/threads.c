@@ -77,7 +77,7 @@ static void start_thread(void *data) {
     tc->thread_obj->body.stage = MVM_thread_stage_started;
 
     /* Create a spesh log for this thread. */
-    MVM_spesh_log_initialize_thread(tc);
+    MVM_spesh_log_initialize_thread(tc, 0);
 
     /* Enter the interpreter, to run code. */
     MVM_interp_run(tc, thread_initial_invoke, ts);

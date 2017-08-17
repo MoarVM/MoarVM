@@ -2,10 +2,12 @@
 
 /* Provided spesh is enabled, set up specialization data logging for the
  * current thread. */
-void MVM_spesh_log_initialize_thread(MVMThreadContext *tc) {
+void MVM_spesh_log_initialize_thread(MVMThreadContext *tc, MVMint32 main_thread) {
     if (tc->instance->spesh_enabled) {
         tc->spesh_log = MVM_spesh_log_create(tc, tc->thread_obj);
-        tc->spesh_log_quota = MVM_SPESH_LOG_QUOTA;
+        tc->spesh_log_quota = main_thread
+            ? MVM_SPESH_LOG_QUOTA_MAIN_THREAD
+            : MVM_SPESH_LOG_QUOTA;
     }
 }
 
