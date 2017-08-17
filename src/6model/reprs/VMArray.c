@@ -304,10 +304,6 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
     MVMuint64   ssize = body->ssize;
     void       *slots = body->slots.any;
 
-    if (n < 0)
-        MVM_exception_throw_adhoc(tc,
-            "MVMArray: Can't resize to negative elements");
-
     if (n == elems)
         return;
 
