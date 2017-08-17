@@ -908,7 +908,7 @@ static MVMint64 knuth_morris_pratt_index (MVMThreadContext *tc, MVMString *pat, 
     if (pat_graphs == 0)
         return (0);
     knuth_morris_pratt_process_pattern(tc, pat, next, pat_graphs);
-    while (text_offset != MVM_text_graphs) {
+    while (text_offset < MVM_text_graphs && pat_offset < pat_graphs) {
         if (pat_offset == -1 || MVM_string_get_grapheme_at_nocheck(tc, pat, pat_offset) == MVM_string_get_grapheme_at_nocheck(tc, MVM_text, text_offset)) {
             text_offset++; pat_offset++;
             if (pat_offset == pat_graphs)
