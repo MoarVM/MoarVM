@@ -1,7 +1,7 @@
 #include "platform/memmem.h"
 #include "moar.h"
 #define MVM_DEBUG_STRANDS 0
-#define knuth_morris_pratt_max_pattern_length 100
+#define MVM_string_KMP_max_pattern_length 100
 /* Max value possible for MVMuint32 MVMStringBody.num_graphs */
 #define MAX_GRAPHEMES     0xFFFFFFFFLL
 
@@ -26,7 +26,7 @@ static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
 #endif
 
 MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle_fc, MVMint64 H_start, MVMint64 H_graphs, MVMint64 n_fc_graphs, int ignoremark, int ignorecase);
-static MVMint64 knuth_morris_pratt_index (MVMThreadContext *tc, MVMString *pat, MVMString *MVM_text, MVMint64 H_offset);
+static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString *needle, MVMString *Haystack, MVMint64 H_offset);
 
 /* Allocates strand storage. */
 static MVMStringStrand * allocate_strands(MVMThreadContext *tc, MVMuint16 num_strands) {
@@ -297,10 +297,10 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *
             }
             break;
     }
-    if (1 < n_graphs && n_graphs <= knuth_morris_pratt_max_pattern_length)
-        return knuth_morris_pratt_index(tc, needle, Haystack, start);
+    if (1 < n_graphs && n_graphs <= MVM_string_KMP_max_pattern_length)
+        return knuth_morris_pratt_string_index(tc, needle, Haystack, start);
     /* brute force is slightly faster for needles of size 1
-     * For needles > knuth_morris_pratt_max_pattern_length we must revert to brute force for now.
+     * For needles > MVM_string_KMP_max_pattern_length we must revert to brute force for now.
      * Eventually we can implement brute force after it matches the whole needle OR
      * allocate more space for the pattern on reaching the end of the pattern */
     while (index <= H_graphs - n_graphs) {
@@ -895,26 +895,26 @@ static void knuth_morris_pratt_process_pattern (MVMThreadContext *tc, MVMString 
         else j = next[j];
     }
 }
-static MVMint64 knuth_morris_pratt_index (MVMThreadContext *tc, MVMString *pat, MVMString *MVM_text, MVMint64 H_offset) {
-    MVMint64 pat_offset = 0, text_offset = H_offset;
-    MVMStringIndex MVM_text_graphs = MVM_string_graphs(tc, MVM_text);
-    MVMStringIndex pat_graphs      = MVM_string_graphs(tc, pat);
-    MVMGrapheme32 *next = alloca(pat_graphs * sizeof(MVMGrapheme32));
+static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString *needle, MVMString *Haystack, MVMint64 H_offset) {
+    MVMint64 needle_offset = 0, text_offset = H_offset;
+    MVMStringIndex Haystack_graphs = MVM_string_graphs(tc, Haystack);
+    MVMStringIndex needle_graphs      = MVM_string_graphs(tc, needle);
+    MVMGrapheme32 *next = alloca(needle_graphs * sizeof(MVMGrapheme32));
 
-    if (knuth_morris_pratt_max_pattern_length < pat_graphs) {
-        MVM_exception_throw_adhoc(tc, "Tried to search a pattern %i long but can only do %i\n", pat_graphs, knuth_morris_pratt_max_pattern_length);
+    if (MVM_string_KMP_max_pattern_length < needle_graphs) {
+        MVM_exception_throw_adhoc(tc, "Tried to search a pattern %i long but can only do %i\n", needle_graphs, MVM_string_KMP_max_pattern_length);
     }
     /* Empty string is found at start of string */
-    if (pat_graphs == 0)
+    if (needle_graphs == 0)
         return (0);
-    knuth_morris_pratt_process_pattern(tc, pat, next, pat_graphs);
-    while (text_offset < MVM_text_graphs && pat_offset < pat_graphs) {
-        if (pat_offset == -1 || MVM_string_get_grapheme_at_nocheck(tc, pat, pat_offset) == MVM_string_get_grapheme_at_nocheck(tc, MVM_text, text_offset)) {
-            text_offset++; pat_offset++;
-            if (pat_offset == pat_graphs)
-                return text_offset - pat_offset;
+    knuth_morris_pratt_process_pattern(tc, needle, next, needle_graphs);
+    while (text_offset < Haystack_graphs && needle_offset < needle_graphs) {
+        if (needle_offset == -1 || MVM_string_get_grapheme_at_nocheck(tc, needle, needle_offset) == MVM_string_get_grapheme_at_nocheck(tc, Haystack, text_offset)) {
+            text_offset++; needle_offset++;
+            if (needle_offset == needle_graphs)
+                return text_offset - needle_offset;
         }
-        else pat_offset = next[pat_offset];
+        else needle_offset = next[needle_offset];
     }
     return -1;
 }
