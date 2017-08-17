@@ -170,7 +170,8 @@ void MVM_spesh_log_decont(MVMThreadContext *tc, MVMuint8 *prev_op, MVMObject *va
 
 /* Log the target of an invocation; we log the static frame and whether the
  * outer of the code object is the current frame. */
-void MVM_spesh_log_invoke_target(MVMThreadContext *tc, MVMObject *invoke_target) {
+void MVM_spesh_log_invoke_target(MVMThreadContext *tc, MVMObject *invoke_target,
+                                 MVMint16 was_multi) {
     if (REPR(invoke_target)->ID == MVM_REPR_ID_MVMCode && IS_CONCRETE(invoke_target)) {
         MVMCode *invoke_code = (MVMCode *)invoke_target;
         MVMSpeshLog *sl = tc->spesh_log;
@@ -180,6 +181,7 @@ void MVM_spesh_log_invoke_target(MVMThreadContext *tc, MVMObject *invoke_target)
         entry->id = cid;
         MVM_ASSIGN_REF(tc, &(sl->common.header), entry->invoke.sf, invoke_code->body.sf);
         entry->invoke.caller_is_outer = invoke_code->body.outer == tc->cur_frame;
+        entry->invoke.was_multi = was_multi;
         entry->invoke.bytecode_offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start)) - 2;
         commit_entry(tc, sl);
     }

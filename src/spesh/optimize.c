@@ -1240,12 +1240,15 @@ static void check_and_tweak_arg_guards(MVMThreadContext *tc, MVMSpeshGraph *g,
 }
 
 /* Sees if any static frames were logged for this invoke instruction, and
- * if so checks if there was a stable one. */
+ * if so checks if there was a stable one. A static frame chosen by multi
+ * dispatch will for now never count as stable, as we don't have a good way
+ * to handle this situation yet and trying results in deopts. */
 MVMStaticFrame * find_invokee_static_frame(MVMThreadContext *tc, MVMSpeshPlanned *p,
                                            MVMSpeshIns *ins) {
     MVMuint32 i;
     MVMStaticFrame *best_result = NULL;
     MVMuint32 best_result_hits = 0;
+    MVMuint32 best_result_was_multi_hits = 0;
     MVMuint32 total_hits = 0;
 
     /* First try to find logging bytecode offset. */
@@ -1270,17 +1273,23 @@ MVMStaticFrame * find_invokee_static_frame(MVMThreadContext *tc, MVMSpeshPlanned
                     /* If it's the same as the best so far, add hits. */
                     if (best_result && ic->sf == best_result) {
                         best_result_hits += ic->count;
+                        best_result_was_multi_hits += ic->was_multi_count;
                     }
 
                     /* Otherwise, if it beats the best result in hits, use. */
                     else if (ic->count > best_result_hits) {
                         best_result = ic->sf;
                         best_result_hits = ic->count;
+                        best_result_was_multi_hits = ic->was_multi_count;
                     }
                 }
             }
         }
     }
+
+    /* If the chosen frame was a multi, give up. */
+    if (best_result_was_multi_hits)
+        return NULL;
 
     /* If the static frame is consistent enough, return it. */
     return total_hits && (100 * best_result_hits) / total_hits >= MVM_SPESH_CALLSITE_STABLE_PERCENT

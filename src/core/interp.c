@@ -892,10 +892,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 {
                     MVMObject   *code = GET_REG(cur_op, 0).o;
                     MVMRegister *args = tc->cur_frame->args;
-                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
+                    MVMint16 was_multi = 0;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
+                        &was_multi);
                     if (MVM_spesh_log_is_logging(tc)) {
                         MVMROOT(tc, code, {
-                            MVM_spesh_log_invoke_target(tc, code);
+                            MVM_spesh_log_invoke_target(tc, code, was_multi);
                         });
                     }
                     tc->cur_frame->return_value = NULL;
@@ -909,10 +911,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 {
                     MVMObject   *code = GET_REG(cur_op, 2).o;
                     MVMRegister *args = tc->cur_frame->args;
-                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
+                    MVMint16 was_multi = 0;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
+                        &was_multi);
                     if (MVM_spesh_log_is_logging(tc)) {
                         MVMROOT(tc, code, {
-                            MVM_spesh_log_invoke_target(tc, code);
+                            MVM_spesh_log_invoke_target(tc, code, was_multi);
                         });
                     }
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
@@ -926,10 +930,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 {
                     MVMObject   *code = GET_REG(cur_op, 2).o;
                     MVMRegister *args = tc->cur_frame->args;
-                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
+                    MVMint16 was_multi = 0;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
+                        &was_multi);
                     if (MVM_spesh_log_is_logging(tc)) {
                         MVMROOT(tc, code, {
-                            MVM_spesh_log_invoke_target(tc, code);
+                            MVM_spesh_log_invoke_target(tc, code, was_multi);
                         });
                     }
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
@@ -943,10 +949,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 {
                     MVMObject   *code = GET_REG(cur_op, 2).o;
                     MVMRegister *args = tc->cur_frame->args;
-                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
+                    MVMint16 was_multi = 0;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
+                        &was_multi);
                     if (MVM_spesh_log_is_logging(tc)) {
                         MVMROOT(tc, code, {
-                            MVM_spesh_log_invoke_target(tc, code);
+                            MVM_spesh_log_invoke_target(tc, code, was_multi);
                         });
                     }
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
@@ -960,10 +968,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 {
                     MVMObject   *code = GET_REG(cur_op, 2).o;
                     MVMRegister *args = tc->cur_frame->args;
-                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
+                    MVMint16 was_multi = 0;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
+                        &was_multi);
                     if (MVM_spesh_log_is_logging(tc)) {
                         MVMROOT(tc, code, {
-                            MVM_spesh_log_invoke_target(tc, code);
+                            MVM_spesh_log_invoke_target(tc, code, was_multi);
                         });
                     }
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);

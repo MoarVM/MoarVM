@@ -2321,6 +2321,7 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
         | mov ARG2, WORK[invoke->code_register]; // code object
         | lea ARG3, [rbp-0x30];                  // &cur_callsite
         | mov ARG4, TMP5;                        // args
+        | mov ARG5, 0;                           // NULL to &was_multi
         | callp &MVM_frame_find_invokee_multi_ok;
         /* restore callsite, args, RV now holds code object */
         | mov TMP6, [rbp-0x30]; // callsite
