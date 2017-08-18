@@ -21,8 +21,8 @@ struct MVMSpeshLogGuard {
 
 /* The number of logged invocations before we decide we've enough data for
  * the time being; should be at least the maximum threshold value in
- * thresholds.c. */
-#define MVM_SPESH_LOG_LOGGED_ENOUGH 350
+ * thresholds.c, but we set it higher to allow more data collection. */
+#define MVM_SPESH_LOG_LOGGED_ENOUGH 1000
 
 /* Quick check if we are logging, to save function call overhead. */
 MVM_STATIC_INLINE MVMint32 MVM_spesh_log_is_logging(MVMThreadContext *tc) {
