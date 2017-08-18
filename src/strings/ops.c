@@ -882,13 +882,16 @@ static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Hay
         return H_graphs + H_expansion - H_offset >= n_fc_graphs  ? 1 : 0;
     return 0;
 }
-static void knuth_morris_pratt_process_pattern (MVMThreadContext *tc, MVMString *pat, MVMGrapheme32 next[], MVMStringIndex pat_graphs) {
+static void knuth_morris_pratt_process_pattern (MVMThreadContext *tc, MVMString *pat, MVMGrapheme32 *next, MVMStringIndex pat_graphs) {
     MVMint64 i = 0;
     MVMint64 j = next[0] = -1;
     while (i < pat_graphs) {
-        if (j == -1 || MVM_string_get_grapheme_at_nocheck(tc, pat, i) == MVM_string_get_grapheme_at_nocheck(tc, pat, j)) {
+        if (j == -1 || MVM_string_get_grapheme_at_nocheck(tc, pat, i)
+                    == MVM_string_get_grapheme_at_nocheck(tc, pat, j)) {
             i++; j++;
-            next[i] = (i < pat_graphs && MVM_string_get_grapheme_at_nocheck(tc, pat, j) == MVM_string_get_grapheme_at_nocheck(tc, pat, i))
+            next[i] = (i < pat_graphs
+            && MVM_string_get_grapheme_at_nocheck(tc, pat, j)
+            == MVM_string_get_grapheme_at_nocheck(tc, pat, i))
                 ? next[j]
                 : j;
         }
@@ -896,20 +899,20 @@ static void knuth_morris_pratt_process_pattern (MVMThreadContext *tc, MVMString 
     }
 }
 static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString *needle, MVMString *Haystack, MVMint64 H_offset) {
-    MVMint64 needle_offset = 0, text_offset = H_offset;
+    MVMint64 needle_offset = 0;
+    MVMint64 text_offset   = H_offset;
     MVMStringIndex Haystack_graphs = MVM_string_graphs(tc, Haystack);
-    MVMStringIndex needle_graphs      = MVM_string_graphs(tc, needle);
+    MVMStringIndex needle_graphs   = MVM_string_graphs(tc, needle);
     MVMGrapheme32 *next = alloca(needle_graphs * sizeof(MVMGrapheme32));
 
-    if (MVM_string_KMP_max_pattern_length < needle_graphs) {
-        MVM_exception_throw_adhoc(tc, "Tried to search a pattern %i long but can only do %i\n", needle_graphs, MVM_string_KMP_max_pattern_length);
-    }
     /* Empty string is found at start of string */
     if (needle_graphs == 0)
         return (0);
+    /* Process the needle into a jump table put into variable 'next' */
     knuth_morris_pratt_process_pattern(tc, needle, next, needle_graphs);
     while (text_offset < Haystack_graphs && needle_offset < needle_graphs) {
-        if (needle_offset == -1 || MVM_string_get_grapheme_at_nocheck(tc, needle, needle_offset) == MVM_string_get_grapheme_at_nocheck(tc, Haystack, text_offset)) {
+        if (needle_offset == -1 || MVM_string_get_grapheme_at_nocheck(tc, needle, needle_offset)
+                                == MVM_string_get_grapheme_at_nocheck(tc, Haystack, text_offset)) {
             text_offset++; needle_offset++;
             if (needle_offset == needle_graphs)
                 return text_offset - needle_offset;
