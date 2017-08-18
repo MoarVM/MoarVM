@@ -5716,6 +5716,28 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(sp_cas_o): {
+                MVMRegister *result = &GET_REG(cur_op, 0);
+                MVMObject *target = GET_REG(cur_op, 2).o;
+                MVMObject *expected = GET_REG(cur_op, 4).o;
+                MVMObject *value = GET_REG(cur_op, 6).o;
+                cur_op += 8;
+                target->st->container_spec->cas(tc, target, expected, value, result);
+                goto NEXT;
+            }
+            OP(sp_atomicload_o): {
+                MVMObject *target = GET_REG(cur_op, 2).o;
+                GET_REG(cur_op, 0).o = target->st->container_spec->atomic_load(tc, target);
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(sp_atomicstore_o): {
+                MVMObject *target = GET_REG(cur_op, 0).o;
+                MVMObject *value = GET_REG(cur_op, 2).o;
+                cur_op += 4;
+                target->st->container_spec->atomic_store(tc, target, value);
+                goto NEXT;
+            }
             OP(prof_enter):
                 MVM_profile_log_enter(tc, tc->cur_frame->static_info,
                     MVM_PROFILE_ENTER_NORMAL);

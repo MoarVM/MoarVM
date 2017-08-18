@@ -1801,6 +1801,46 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov qword WORK[dst], RV;
         break;
     }
+    case MVM_OP_sp_cas_o: {
+        MVMint16 target = ins->operands[1].reg.orig;
+        MVMint16 expected = ins->operands[2].reg.orig;
+        MVMint16 value = ins->operands[3].reg.orig;
+        MVMint16 result = ins->operands[0].reg.orig;
+        | mov ARG1, TC;
+        | mov ARG2, aword WORK[target];
+        | mov ARG3, aword WORK[expected];
+        | mov ARG4, aword WORK[value];
+        | lea ARG5, WORK[result]
+        | mov FUNCTION, OBJECT:ARG2->st;
+        | mov FUNCTION, STABLE:FUNCTION->container_spec;
+        | mov FUNCTION, CONTAINERSPEC:FUNCTION->cas;
+        | call FUNCTION;
+        break;
+    }
+    case MVM_OP_sp_atomicload_o: {
+        MVMint16 target = ins->operands[1].reg.orig;
+        MVMint16 result = ins->operands[0].reg.orig;
+        | mov ARG1, TC;
+        | mov ARG2, aword WORK[target];
+        | mov FUNCTION, OBJECT:ARG2->st;
+        | mov FUNCTION, STABLE:FUNCTION->container_spec;
+        | mov FUNCTION, CONTAINERSPEC:FUNCTION->atomic_load;
+        | call FUNCTION;
+        | mov WORK[result], RV
+        break;
+    }
+    case MVM_OP_sp_atomicstore_o: {
+        MVMint16 target = ins->operands[0].reg.orig;
+        MVMint16 value = ins->operands[1].reg.orig;
+        | mov ARG1, TC;
+        | mov ARG2, aword WORK[target];
+        | mov ARG3, aword WORK[value];
+        | mov FUNCTION, OBJECT:ARG2->st;
+        | mov FUNCTION, STABLE:FUNCTION->container_spec;
+        | mov FUNCTION, CONTAINERSPEC:FUNCTION->atomic_store;
+        | call FUNCTION;
+        break;
+    }
     default:
         MVM_panic(1, "Can't JIT opcode <%s>", ins->info->name);
     }

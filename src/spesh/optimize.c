@@ -1727,6 +1727,36 @@ static void tweak_rebless(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
     ins->operands = new_operands;
 }
 
+/* Replaces atomic ops with a version that needs no checking of the target's
+ * container spec and concreteness, when we have the facts to hand. */
+static void optimize_container_atomic(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                      MVMSpeshIns *ins, MVMuint16 target_reg) {
+    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[target_reg]);
+    if ((facts->flags & MVM_SPESH_FACT_CONCRETE) && (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE)) {
+        MVMContainerSpec const *cs = facts->type->st->container_spec;
+        if (!cs)
+            return;
+        switch (ins->info->opcode) {
+            case MVM_OP_cas_o:
+                if (!cs->cas)
+                    return;
+                ins->info = MVM_op_get_op(MVM_OP_sp_cas_o);
+                break;
+            case MVM_OP_atomicstore_o:
+                if (!cs->atomic_store)
+                    return;
+                ins->info = MVM_op_get_op(MVM_OP_sp_atomicstore_o);
+                break;
+            case MVM_OP_atomicload_o:
+                if (!cs->cas)
+                    return;
+                ins->info = MVM_op_get_op(MVM_OP_sp_atomicload_o);
+                break;
+        }
+        MVM_spesh_use_facts(tc, g, facts);
+    }
+}
+
 static void eliminate_phi_dead_reads(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMuint32 operand = 1;
     MVMuint32 insert_pos = 1;
@@ -2049,6 +2079,13 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             break;
         case MVM_OP_rebless:
             tweak_rebless(tc, g, ins);
+            break;
+        case MVM_OP_cas_o:
+        case MVM_OP_atomicload_o:
+            optimize_container_atomic(tc, g, ins, 1);
+            break;
+        case MVM_OP_atomicstore_o:
+            optimize_container_atomic(tc, g, ins, 0);
             break;
         case MVM_OP_prof_enter:
             /* Profiling entered from spesh should indicate so. */

@@ -1649,6 +1649,10 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         /* Parameters */
     case MVM_OP_param_sp:
     case MVM_OP_param_sn:
+        /* Specialized atomics */
+    case MVM_OP_sp_cas_o:
+    case MVM_OP_sp_atomicload_o:
+    case MVM_OP_sp_atomicstore_o:
         jgb_append_primitive(tc, jgb, ins);
         break;
     case MVM_OP_param_rp_i: {
