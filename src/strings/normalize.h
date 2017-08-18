@@ -189,7 +189,7 @@ MVM_STATIC_INLINE MVMint32 fast_atoi( const char * dec_str ) {
 MVMint64 MVM_unicode_relative_ccc(MVMThreadContext *tc, MVMCodepoint cp);
 MVMint32 MVM_unicode_normalize_should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b, MVMNormalizer *norm);
 MVMint64 MVM_unicode_relative_ccc(MVMThreadContext *tc, MVMCodepoint cp);
-
+MVMint32 MVM_string_is_control_full(MVMThreadContext *tc, MVMCodepoint in);
 /* Function for choosing the appropriate line-ending grapheme depending on if
  * newline translation is enabled. */
 MVM_STATIC_INLINE MVMGrapheme32 MVM_unicode_normalizer_translated_crlf(MVMThreadContext *tc, MVMNormalizer *n) {

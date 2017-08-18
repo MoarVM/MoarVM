@@ -25,6 +25,80 @@ static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
 #define STRAND_CHECK(tc, s)
 #endif
 
+/* If MVM_DEBUG_NFG is 1, calls to NFG_CHECK will re_nfg the given string
+ * and compare num_graphs before and after the normalization.
+ * If it is different debug information will be printed out.
+#define MVM_DEBUG_NFG 0 */
+/* MVM_DEBUG_NFG_STRICT does as above but does not only rely on num_graphs. It
+ * always checks every grapheme manually. Slower. (requires MVM_DEBUG_NFG)
+#define MVM_DEBUG_NFG_STRICT 0 */
+
+static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in);
+#if MVM_DEBUG_NFG
+char * NFG_make_string (MVMThreadContext *tc, MVMGrapheme32 g) {
+    char *result = NULL;
+    char *picked = NULL;
+    if (g == '\r')
+        picked = "\\r";
+    else if (g == '\n')
+        picked = "\\n";
+    else if (g == MVM_nfg_crlf_grapheme(tc))
+        picked = "\\r\\n";
+    else if (!MVM_string_is_control_full(tc, g))
+        result = MVM_string_utf8_encode_C_string(tc, MVM_string_chr(tc, g));
+    else
+        picked = "[Control]";
+    if (picked) {
+        result = MVM_malloc(sizeof(char) * (strlen(picked) + 1));
+        strcpy(result, picked);
+    }
+    if (!result) {
+        result = MVM_malloc(sizeof(char) * 1);
+        result[0] = 0;
+    }
+    return result;
+}
+static void NFG_check (MVMThreadContext *tc, MVMString *orig) {
+    MVMString *renorm;
+    MVMStringIndex orig_graphs = MVM_string_graphs(tc, orig),
+                   renorm_graphs = -1;
+    MVMROOT(tc, orig, {
+    MVMROOT(tc, renorm, {
+        renorm = re_nfg(tc, orig);
+        renorm_graphs = MVM_string_graphs(tc, renorm);
+    });
+    });
+    if (MVM_DEBUG_NFG_STRICT || orig_graphs != renorm_graphs) {
+        MVMGraphemeIter orig_gi, renorm_gi;
+        MVMint64 index = 0;
+        MVM_string_gi_init(tc, &orig_gi, orig);
+        MVM_string_gi_init(tc, &renorm_gi, renorm);
+        while (MVM_string_gi_has_more(tc,  &orig_gi) && MVM_string_gi_has_more(tc,  &renorm_gi)) {
+            MVMGrapheme32 orig_g   = MVM_string_gi_get_grapheme(tc, &orig_gi),
+                          renorm_g = MVM_string_gi_get_grapheme(tc, &renorm_gi);
+            if (orig_g != renorm_g) {
+                char *orig_render = NFG_make_string(tc, orig_g), *renorm_render = NFG_make_string(tc, renorm_g);
+                char *waste[3] = {orig_render, renorm_render, NULL};
+                orig_render   = NFG_make_string(tc, orig_g);
+                renorm_render = NFG_make_string(tc, renorm_g);
+                MVM_exception_throw_adhoc_free(tc, waste,
+                    "NFG failure. Got different grapheme count. "
+                        "Got %i but after re_nfg got %i\n"
+                            "First differing grapheme was at index %"PRIi64"\n"
+                                "orig: %"PRIi32"  (%s)  after re_nfg: %"PRIi32"  (%s)\n",
+                        orig_graphs, renorm_graphs,
+                            index,
+                                orig_g, orig_render, renorm_g, renorm_render);
+            }
+            index++;
+        }
+    }
+}
+#define NFG_CHECK(tc, s) NFG_check(tc, s);
+#else
+#define NFG_CHECK(tc, s)
+#endif
+
 MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle_fc, MVMint64 H_start, MVMint64 H_graphs, MVMint64 n_fc_graphs, int ignoremark, int ignorecase);
 
 /* Allocates strand storage. */
@@ -520,8 +594,10 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         });
         });
         if (renormalized_section) {
-            if (agraphs == consumed_a && bgraphs == consumed_b)
+            if (agraphs == consumed_a && bgraphs == consumed_b) {
+                NFG_CHECK(tc, renormalized_section);
                 return renormalized_section;
+            }
             renormalized_section_graphs = MVM_string_graphs_nocheck(tc, renormalized_section);
         }
     }
@@ -657,6 +733,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     });
     STRAND_CHECK(tc, result);
     if (is_concat_stable == 1) {
+        NFG_CHECK(tc, result);
         return result;
     }
     /* If it's regional indicator */
@@ -664,6 +741,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         return re_nfg(tc, result);
     }
     else if (is_concat_stable == 0 && renormalized_section) {
+        NFG_CHECK(tc, result);
         return result;
     }
     /* We should have returned by now, but if we did not, return re_nfg */

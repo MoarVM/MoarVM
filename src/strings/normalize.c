@@ -359,7 +359,7 @@ MVMint64 MVM_unicode_relative_ccc(MVMThreadContext *tc, MVMCodepoint cp) {
 /* Checks if the thing we have is a control character (for the definition in
  * the Unicode Standard Annex #29). Full path. Fast path checks for controls
  * in the Latin-1 range. This works for those as well but needs a property lookup */
-static MVMint32 is_control_full(MVMThreadContext *tc, MVMCodepoint in) {
+MVMint32 MVM_string_is_control_full(MVMThreadContext *tc, MVMCodepoint in) {
     /* U+200C ZERO WIDTH NON-JOINER and U+200D ZERO WIDTH JOINER are excluded. */
     if (in != UNI_CP_ZERO_WIDTH_NON_JOINER && in != UNI_CP_ZERO_WIDTH_JOINER) {
         /* Consider general property. */
@@ -549,7 +549,7 @@ MVMint32 MVM_unicode_normalize_should_break(MVMThreadContext *tc, MVMCodepoint a
         /* Don't break after Prepend Grapheme_Cluster_Break=Prepend */
         case MVM_UNICODE_PVALUE_GCB_PREPEND:
             /* If it's a control character remember to break */
-            if (is_control_full(tc, b )) {
+            if (MVM_string_is_control_full(tc, b )) {
                 return 1;
             }
             /* Otherwise don't break */
@@ -674,7 +674,7 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
 
     /* If it's a control character (outside of the range we checked in the
      * fast path) then it's a normalization terminator. */
-    if (in > 0xFF && is_control_full(tc, in) && !is_prepend) {
+    if (in > 0xFF && MVM_string_is_control_full(tc, in) && !is_prepend) {
         return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, norm, in, out);
     }
 
