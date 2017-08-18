@@ -639,20 +639,61 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
 }
 
 /* Checks like iscont, iscont_[ins] and isrwcont can be done at spesh time. */
-static void optimize_container_check(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+static void optimize_container_check(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                     MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+    MVMint32 known_result = -1;
     if (ins->info->opcode == MVM_OP_isrwcont) {
-        MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
-
-        if (facts->flags & MVM_SPESH_FACT_RW_CONT) {
-            MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
-            ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
-            result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
-            result_facts->value.i       = 1;
-            ins->operands[1].lit_i16    = 1;
-
-            MVM_spesh_use_facts(tc, g, facts);
-            facts->usages--;
+        if (facts->flags & MVM_SPESH_FACT_RW_CONT)
+            known_result = 1;
+    }
+    else {
+        if (facts->flags & MVM_SPESH_FACT_TYPEOBJ) {
+            /* Type object can never be a container. */
+            known_result = 0;
         }
+        else if ((facts->flags & MVM_SPESH_FACT_CONCRETE) &&
+                (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE)) {
+            /* Know the type and know it's concrete. */
+            MVMContainerSpec const *cs = facts->type->st->container_spec;
+            if (!cs) {
+                /* No container spec, so can be sure it's not a container. */
+                known_result = 0;
+            }
+            else if (ins->info->opcode == MVM_OP_iscont) {
+                /* General is container check, so answer is yes. */
+                known_result == 1;
+            }
+            else {
+                if (REPR(facts->type)->ID == MVM_REPR_ID_NativeRef) {
+                    /* Which native ref primitive? */
+                    switch (((MVMNativeRefREPRData *)STABLE(facts->type)->REPR_data)->primitive_type) {
+                        case MVM_STORAGE_SPEC_BP_INT:
+                            known_result = ins->info->opcode == MVM_OP_iscont_i;
+                            break;
+                        case MVM_STORAGE_SPEC_BP_NUM:
+                            known_result = ins->info->opcode == MVM_OP_iscont_n;
+                            break;
+                        case MVM_STORAGE_SPEC_BP_STR:
+                            known_result = ins->info->opcode == MVM_OP_iscont_s;
+                            break;
+                    }
+                }
+                else {
+                    /* Need a native ref but don't have one, so certain no. */
+                    known_result = 0;
+                }
+            }
+        }
+    }
+    if (known_result != -1) {
+        ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
+        result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
+        result_facts->value.i       = known_result;
+        ins->operands[1].lit_i16    = known_result;
+        MVM_spesh_use_facts(tc, g, facts);
+        facts->usages--;
     }
 }
 
@@ -2069,7 +2110,11 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         case MVM_OP_getlexperinvtype_o:
             optimize_getlex_per_invocant(tc, g, bb, ins, p);
             break;
+        case MVM_OP_iscont:
         case MVM_OP_isrwcont:
+        case MVM_OP_iscont_i:
+        case MVM_OP_iscont_n:
+        case MVM_OP_iscont_s:
             optimize_container_check(tc, g, bb, ins);
             break;
         case MVM_OP_osrpoint:
