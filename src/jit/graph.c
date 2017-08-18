@@ -406,8 +406,14 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_prof_exit: return MVM_profile_log_exit;
     case MVM_OP_sp_resolvecode: return MVM_frame_resolve_invokee_spesh;
     case MVM_OP_cas_o: return MVM_6model_container_cas;
+    case MVM_OP_cas_i: return MVM_6model_container_cas_i;
+    case MVM_OP_atomicinc_i: return MVM_6model_container_atomic_inc;
+    case MVM_OP_atomicdec_i: return MVM_6model_container_atomic_dec;
+    case MVM_OP_atomicadd_i: return MVM_6model_container_atomic_add;
     case MVM_OP_atomicload_o: return MVM_6model_container_atomic_load;
+    case MVM_OP_atomicload_i: return MVM_6model_container_atomic_load_i;
     case MVM_OP_atomicstore_o: return MVM_6model_container_atomic_store;
+    case MVM_OP_atomicstore_i: return MVM_6model_container_atomic_store_i;
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
     }
@@ -1998,6 +2004,38 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 5, args, MVM_JIT_RV_VOID, -1);
         break;
     }
+    case MVM_OP_cas_i: {
+        MVMint16 result = ins->operands[0].reg.orig;
+        MVMint16 target = ins->operands[1].reg.orig;
+        MVMint16 expected = ins->operands[2].reg.orig;
+        MVMint16 value = ins->operands[3].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { target } },
+                                 { MVM_JIT_REG_VAL, { expected } },
+                                 { MVM_JIT_REG_VAL, { value } } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_INT, result);
+        break;
+    }
+    case MVM_OP_atomicinc_i:
+    case MVM_OP_atomicdec_i:
+    case MVM_OP_atomicload_i: {
+        MVMint16 result = ins->operands[0].reg.orig;
+        MVMint16 target = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { target } } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, result);
+        break;
+    }
+    case MVM_OP_atomicadd_i: {
+        MVMint16 result = ins->operands[0].reg.orig;
+        MVMint16 target = ins->operands[1].reg.orig;
+        MVMint16 increment = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { target } },
+                                 { MVM_JIT_REG_VAL, { increment } } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_INT, result);
+        break;
+    }
     case MVM_OP_atomicload_o: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 target = ins->operands[1].reg.orig;
@@ -2006,7 +2044,8 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
     }
-    case MVM_OP_atomicstore_o: {
+    case MVM_OP_atomicstore_o:
+    case MVM_OP_atomicstore_i: {
         MVMint16 target = ins->operands[0].reg.orig;
         MVMint16 value = ins->operands[1].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
