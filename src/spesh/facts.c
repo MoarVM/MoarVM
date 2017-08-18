@@ -600,6 +600,12 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[4].reg.orig, ins->operands[4].reg.i);
             break;
+        case MVM_OP_cas_o:
+        case MVM_OP_atomicload_o: {
+            MVMSpeshOperand result = ins->operands[0];
+            g->facts[result.reg.orig][result.reg.i].flags |= MVM_SPESH_FACT_DECONTED;
+            break;
+        }
         default:
             if (ins->info->opcode == (MVMuint16)-1)
                 discover_extop(tc, g, ins);
