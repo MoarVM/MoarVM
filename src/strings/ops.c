@@ -683,7 +683,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
 
         /* Detect the wonderful case where we're repeatedly concating the same
          * string again and again, and thus can just bump a repetition. */
-        if (final_strand_matches(tc, a, b)) {
+        if (is_concat_stable == 1 && final_strand_matches(tc, a, b)) {
             /* We have it; just copy the strands to a new string and bump the
              * repetitions count of the last one. */
             result->body.storage.strands = allocate_strands(tc, a->body.num_strands);
