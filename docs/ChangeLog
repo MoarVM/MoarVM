@@ -14,7 +14,7 @@ New in 2017.08
     + Frames carry a correlation ID to allow reconstruction of call stack and
       analysis on the specialization worker thread
     + Produce specializations based upon most common occurring types, not just
-      those sampled immediately after passing a thershold
+      those sampled immediately after passing a threshold
     + Megamorphic code gets a non-type specialization and may be JIT-compiled
     + Remove hard limit on spesh candidate count
     + MVM_SPESH_DUMP updated to show statistics and planned specializations
@@ -29,7 +29,7 @@ New in 2017.08
 + Avoid passing a real NULL as an object argument in stack unwind handling
 + Disable spesh in initial load/deserialize; there's no useful data at this
   point
-+ Add thread ID range check to GC debug mode.
++ Add thread ID range check to GC debug mode
 + Deduplicate code from MVM_string_indexing_optimized
 + Start off collapsing strands as 8bit instead of 32bit
 + Concatenation improvements
@@ -59,7 +59,7 @@ New in 2017.08
     + Simplify handling of the thread list
     + Introduce GC orchestration mutex/condvars, and use them to avoid busy
       waiting when synchronizing threads for GC
-+ Avoid many array searches for SC code refs.
++ Avoid many array searches for SC code refs
 + JIT param_sp and param_sn
 + Inability to open telemeh log shall not be fatal
 + Output spesh worker info on telemetry channel
@@ -110,10 +110,10 @@ New in 2017.08
 + When inlining, replace receive instruction instead of send instruction, to
   better cope with register re-use
 + JIT pow_I
-+ Validate range of branch target in spesh code-gen.
++ Validate range of branch target in spesh code-gen
 + Anchor inlinee handlers to inliner entry
 + Fix and expand dead basic block removal
-+ Remove duplicate use of named arg checking.
++ Remove duplicate use of named arg checking
 + More sophisticated named arg handling in spesh, removing sp_namedarg_used op
 + Make it possible to cancel an async socket reader
 + JIT rand_I and also give it a smallbigint path
@@ -129,7 +129,7 @@ New in 2017.08
 + Ensure frame handler start/ends are BB boundaries
 + Don't explode on spesh dump when no facts
 + Cope with extra successors when inlining
-+ Factor out and re-use dead BB elimination.
++ Factor out and re-use dead BB elimination
 + Allow for GOTO handler to become unreachable
 + More precise CFGs for control exception handlers
 + Add indexim_s op and improve/fix bugs in eqatim_s
