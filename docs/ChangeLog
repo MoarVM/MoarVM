@@ -78,7 +78,7 @@ New in 2017.08
     + Remove historical, now-unrequired, nullings
     + Use a bit field for named args used when possible
 + Improve NFA memory performance
-+ Small optimazation to string_equal, remove repeated checks
++ Small optimization to string_equal, remove repeated checks
 + Remove two invoke handler functions we don't need
 + Remove long-unused newlexotic/lexoticresult ops
 + Remove now-dead newlexotic functions
