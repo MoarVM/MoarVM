@@ -1826,7 +1826,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov ARG2, aword WORK[target];
         | mov ARG3, aword WORK[expected];
         | mov ARG4, aword WORK[value];
+        |.if WIN32;
+        | lea TMP6, WORK[result]
+        | mov qword [rsp+0x20], TMP6
+        |.else;
         | lea ARG5, WORK[result]
+        |.endif
         | mov FUNCTION, OBJECT:ARG2->st;
         | mov FUNCTION, STABLE:FUNCTION->container_spec;
         | mov FUNCTION, CONTAINERSPEC:FUNCTION->cas;
@@ -2377,7 +2382,11 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
         | mov ARG2, WORK[invoke->code_register]; // code object
         | lea ARG3, [rbp-0x30];                  // &cur_callsite
         | mov ARG4, TMP5;                        // args
+        |.if WIN32;
+        | mov qword [rsp+0x20], 0
+        |.else;
         | mov ARG5, 0;                           // NULL to &was_multi
+        |.endif
         | callp &MVM_frame_find_invokee_multi_ok;
         /* restore callsite, args, RV now holds code object */
         | mov TMP6, [rbp-0x30]; // callsite
