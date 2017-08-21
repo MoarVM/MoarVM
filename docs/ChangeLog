@@ -1,3 +1,8 @@
+New in 2017.08.1
+
++ Fix regression in Windows JIT build
++ Remove broken JIT of parameter operations
+
 New in 2017.08
 
 + Dynamic optimization moved to a worker thread
