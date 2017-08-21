@@ -2139,6 +2139,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         case MVM_OP_coverage_log:
             /* A coverage_log op that has already fired can be thrown out. */
             optimize_coverage_log(tc, g, bb, ins);
+            break;
         default:
             if (ins->info->opcode == (MVMuint16)-1)
                 optimize_extop(tc, g, bb, ins);
