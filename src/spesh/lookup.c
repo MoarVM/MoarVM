@@ -29,3 +29,17 @@ MVMint64 MVM_spesh_try_can_method(MVMThreadContext *tc, MVMObject *obj, MVMStrin
         ? MVM_6model_can_method_cache_only(tc, obj, name)
         : -1;
 }
+
+MVMint8 MVM_spesh_get_reg_type(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMuint16 reg) {
+    return sg->local_types ? sg->local_types[reg] : sg->sf->body.local_types[reg];
+}
+
+MVMint8 MVM_spesh_get_lex_type(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMuint16 outers, MVMuint16 idx) {
+    if (outers == 0) {
+        return sg->lexical_types ? sg->lexical_types[idx] : sg->sf->body.lexical_types[idx];
+    } else {
+        MVMStaticFrame *sf;
+        for (sf = sg->sf; sf != NULL && outers--; sf = sf->body.outer);
+        return sf->body.lexical_types[idx];
+    }
+}

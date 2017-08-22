@@ -1,0 +1,800 @@
+#+TITLE: Expression JIT TODO
+
+Before merging the expression JIT, there are numerous standing issues
+to resolve, sorted by priority.
+
+
+* Make jit-dump work on windows
+
+This should be doable, really, if rather than pipe-and-fork, we simply
+use a temporary file and use that as an intermediate.
+
+* Right-to-left evaluation
+
+E.g. (STORE addr value sz) - it usually makes sense to calculate value
+before address. There are a bunch of these things, and then again, a
+bunch of things that rely on left-to-right evaluation:
+
++ IF/IFV
++ ALL/ANY
++ DO/DOV
+
+So the thing is probably to:
++ store a preference per op
++ add a policy for the traverser (default,left-to-right,right-to-left)
+
+* REPR-Specialized expression code
+
+Parts needed:
++ A hook for instructions with operands of known repr type to insert a template
+  + So how do we know which instruction/operand this is? (Hardcode with a switch, maybe)
+  + Runtime hook should be similar to spesh hook
+  + We should probably pass the tree and let the repr do manipulations itself for maximum flexibility
+  + and have a default hook which attempts to apply a template
+  + return root if succesful, otherwise -1 (in which case we can fallback to the normal mode)
+  + should have a separate jit flags entry which is also settable by
+    the specializer (for jittivity, template destructiveness, possibly
+    other things)
+  + operands loading must be public / template apply must become 'public methods'
++ Compile-time support for arbitrary templates in the expression templates
+  + I think adding to a makefile list is acceptable, in general, but
+    it would be nice if we could have a substitution rule that would
+    make sure the expression templates are compiled 'automatically'
+
+#+BEGIN_SRC makefile
+EPXR_TEMPLATES=src/jit/core_expr.h \
+               src/6model/reprs/MMArray_expr.h \
+               src/6model/reprs/NativeRef_expr.h \
+               src/6model/reprs/MultiDimArray_expr.h \
+# preferefably, we'd match the .expr with the file name automatically
+
+src/6model/reprs/%.c: src/6model/reprs/%_expr.h # would be ideal, but this is not automatically picked up
+# Expression list tables
+%_expr_tables.h: %.expr tools/expr-template-compiler.pl src/core/oplist src/jit/expr_ops.h
+	$(PERL) -Itools/ tools/expr-template-compiler.pl -o $@ $<
+#+END_SRC
+
+
+* Expression tree code optimizer
+
+Stuff we want for this:
+
+** DONE An equivalence function
+** TODO A replacement 'function'
+
+Basically we require the possibility to update all uses of a node with
+another one, including roots, if necessary.
+
+Now, there will never be more uses than nodes, so we can build a
+'usage' table-of-linked-list from a single block of memory.
+
+Walks should be single-visit.
+
+* Stack walker for current position
+
+Currently we mark the 'current position' in the JIT entry label at the
+start of every basic block, the start-and-end of frame handlers, and
+the start-and-end of inlines. This is major code bloat, for a feature
+that is only necessary in exceptional cases,
+
+Concept of stack walker is very simple:
+#+BEGIN_SRC asm
+       mov rcx, 1 ; rsp = []
+       call foo  ; rsp = [label:],
+label: mov rcx, rax;  rsp = []
+       ...
+
+foo: ; stack (from rsp) looks like: [label:]
+     push rbp     ; [label:,rbp]
+     mov rbp, rsp ; rbp is now top of stack, so that
+     add rsp, 0xff; rsp = [label:,rbp, ? x 1]
+     ...
+     sub rsp, 0xff ; rsp = [label:,rbp]
+     pop rbp       ; rsp = [label:]
+     ret           ; rsp = []
+#+END_SRC
+
+- On POSIX, arg 0 = rdi, arg 1 = rsi, arg2 = rdx.
+- On Windows, arg0 = rcx, arg1 = rdx, arg2 = r8.
+- On linux, names are generally used as-is, mac wants them prefixed by an underscore.
+
+Desirable thing: limit the depth of stack walking to some reasonable number (say, 5 or so)
+
+#+BEGIN_SRC asm
+walk_stack_posix:
+_walk_stack_posix:
+    mov rcx, rdi ; base pointer
+    mov r8,  rdx ; maximum number of steps
+    mov rdx, rsi ; end pointer
+_walk_stack_win64:
+    # rdi = base pointer, rsi = end pointer
+    push rbp
+    mov r9, rsp
+loop:
+    dec r8 ; counter
+    jz done
+    mov rax, qword ptr [r9+0x8]
+    mov r9, qword ptr [r9]
+    cmp rax, rcx
+    jl  loop
+    cmp rax, rdx
+    jg  loop
+done:
+    ## rax is now within range by definition, or, we're to deep
+    pop rbp
+    ret
+#+END_SRC
+
+There are three things to do:
+
+- Integrate this in the build system. clang and gcc can build this
+  just fine (clang is ... whiney about comment syntax).  Microsoft
+  has: [[https://docs.microsoft.com/en-us/cpp/assembler/masm/masm-for-x64-ml64-exe][ml64]]. It also supports intel syntax. It can be a bit fuzzy
+  about directives. I don't want to ask our users to install another
+  assembler, but what I can do is use the C preprocessor to smoothen
+  out the differences (with $(CC) -E or whatever is the equivalent for
+  windows).
+- Figure out where we need it. As far as I can tell, this is separate
+  from the jit_entry_label thing, and we will never *set* the
+  jit_entry_label with the result of this value, as that might lead to
+  a jump right behind the handler, and in the case of a THROWISH_POST,
+  an infinite loop. Indeed throwish_pre and throwish_post don't change.
+  - src/exceptions.c: search_frame_handlers (we compare the current
+    jit label, but we're interested in the current position); other
+    than that, the only updates are to the goto_handlers, and/or
+    setting the resum labels, but that only ever happens with
+    throwobj, and that one is explicitly throwish anyway, so the
+    jit_entry_label will be set correct.y
+  - src/core/frame.c: assignments from predefined labels, but, also,
+    MVM_frame_find_contextual_by_name, which uses it as a location
+    marker. For frames higher in the callstack, that is correct,
+    though, so we need to distinguish the top frame from the rest.
+  - src/spesh/deopt.c: for upper frames, we use jit_entry_label as
+    current location marker.... which is correct as it relies on exact
+    matches, and anything invoking anything that could deopt_all must
+    set the label anyway.
+- Finally, configure our toolchain so they have
+  -fno-omit-frame-pointer portably, this is spelled [[https://msdn.microsoft.com/en-us/library/2kxx5t2c.aspx][/Oy]] in microsoft
+  land.
+
+This doesn't have to start in the expr JIT though.
+
+
+* Generalized 3-op to two-op conversion
+
+Already implemented for direct-memory binary ops, but needs to be
+extended to take into account indirect-access ops and memory base +
+indexed ops.
+
+More to the point, I'd like this to be a restriction we can build into
+the allocator itself, so it doesn't need last-minute patchup.
+
+* Spill reduction
+** Maintain memory backed positions
+
+ Currently, when we need to spill a value, we always treat it as if it
+ were a temporary, i.e. we store it to a *new* location in the local
+ memory buffer. We increment the local memory buffer, too.  This is
+ suboptimal for values that are not temporaries, i.e. values that are
+ stored to the local value buffer anyway.
+
+ + stored to a local value
+ + directly retrieved from a local value
+
+ There are two classes of such values:
+ There is no need to ever spill such values to memory.
+
+** Don't spill-and-load directly between definition and use
+
+** Don't spill constants
+
+- We can either do that as part of the optimizer, or as part of the
+  allocator, or both.
+- It is *simpler* to do it for the allocator (if a value we're
+  spilling has a single definition, and that definition is a constant,
+  copy it)
+- It might be more effective to do it in the expression optimizer
+
+* FLAGVAL ALL/ANY
+
+Basically, flagval all/any is legal according to the type system, it
+will just never work. We should translate it to (IF (ALL|ANY ..)
+(CONST 1 1) (CONST 0 1))
+
+The problem is, replacing all references to the node. (This is common
+with the optimizer, which also needs it).
+
+We don't actually need this yet, but we don't guard against it
+either. (So maybe install an oops in analyze first).
+
+* DONE sp_decont related bug
+
+First weird thing I see, I see arguments 1,2,3 going to the stack,
+what's up with that.
+
+- answer; i had marked these things as 'reg', while src/jit/x64/arch.c
+  only recognized 'ptr' or 'int', which is really, really silly, and
+  not at all guarded against by the expr template compiler.
+
+But the bug seems to be in adding stuff to the worklist that isn't
+actually a pointer. And more worrisome, this happens before I'm
+hitting a breakpoint. (Not when we have MVM_SPESH_BLOCKING, though).
+
+- so, we take the branch because we're a type object
+
+* DONE inc_i/dec_i bug
+
+Root problem:
+- inc_i/dec_i have one operand acting as input and output
+- because it is acting as output, we do not attempt to load it from the table
+  - we do correctly write it to the table though
+- when any of inc_i / dec_i on the same register are therefore in a
+  sequence within the same basic block, we will never lookup the
+  previously defined value
+- however, under optimistic store insertion, we write only the *last*
+  value to be defined before a barrier
+  - so all but the last updates to the value are lost
+
+The suggested solution:
+- special-case those opcodes, to have separate input/output operands
+  - and lookup the input operand from the table
+
+* DONE Win32 call args bug
+
+#+BEGIN_SRC asm
+
+label_016:  mov rcx,0x0
+            mov QWORD PTR [rbx+0x48],rcx
+            mov rdx,0x0
+            mov QWORD PTR [rbx+0x78],rdx
+            mov r8,QWORD PTR [rbx+0x10]
+            test WORD PTR [r8+0xc],0x1
+            je label_017
+            mov r9,QWORD PTR [r14+0x98]
+            mov r10,QWORD PTR [r9+0x70]
+            mov QWORD PTR [rbx+0x50],r10 ;(store $0 (^vmnull) ptr_sz)
+            jmp label_018
+label_017:  mov r11,QWORD PTR [r8+0x10] 
+            mov rcx,QWORD PTR [r11+0x10] ;(^repr $1)
+            mov QWORD PTR [rbx+0xb0],rcx ;spill, i think?
+            mov r9,QWORD PTR [r8+0x10] ; stable $0
+            lea r10,[r8+0x18]	       ; (^body $1)
+            lea r11,[rbx+0x50]	       ; $0
+            mov rcx,0x8		       ; (const MVM_reg_obj)
+            mov rdx,QWORD PTR [rbx+0xb0] ; restore...
+            mov QWORD PTR [rsp+0x20],rdx ; (i think this is supposed to be $2, but it's not)
+            mov QWORD PTR [rsp+0x28],r11 ; $0
+            mov QWORD PTR [rsp+0x30],rcx ; (const MVM_reg_obj)
+            mov rax,rdx			 ; also this?
+            mov rax,rdx			 ; and this?
+            mov rcx,r14			 ; arg1
+            mov rdx,r9			 ; r9 = (^sstable $1), at least that's correct
+            mov r9,r10			 ; r10 = (^body $1)
+	;;  r8 is in the right place
+            call QWORD PTR [rax+0x88] ; (call (getf ..))
+label_018:  cmp QWORD PTR [rbx+0x50],0x0
+            je label_019
+            mov r8,QWORD PTR [rbx+0x50]
+            mov r9,QWORD PTR [r14+0x98]
+            mov r10,QWORD PTR [r9+0x70]
+            cmp r8,r10 		; ifnonnull
+            je label_019
+            jmp label_022
+
+#+END_SRC
+
+- I can't explain the two mov rax, rdx, so that requires some logging to be installed
+- The $2 below (which is supposed to be const 0 in this case) is overwritten by the restore of (^repr $1)
+- and at that point, the restore isn't even necesary
+
+#+BEGIN_SRC scheme
+(template: atpos_o!
+  (ifv (^is_type_obj $1)
+   (store $0 (^vmnull) ptr_sz)
+   (callv
+      (^getf (^repr $1) MVMREPROps pos_funcs.at_pos)
+      (arglist 7
+        (carg (tc) ptr)
+        (carg (^stable $1) ptr)
+        (carg $1 ptr)
+        (carg (^body $1) ptr)
+        (carg $2 int)
+        (carg $0 ptr)
+        (carg (const (&QUOTE MVM_reg_obj) int_sz) int)))))
+
+#+END_SRC
+
+Seems strawberry has given me gdb? So I can at least try and figure
+this out.
+
+What I've found so far:
++ This is a bug because the restore for the CALLV overwrites the ref
+  to an ARGLIST argument
++ The ovewrritten live range starts at 5 (or 10) (which is live
+  range 3)
++ The live range that overwrites the other one is 11
++ The overwritten live range is released just prior to the allocating
+  of the spilled value
++ There are three fixes I can see
+  + One, we insert the loaded value before the ARGLIST values go out of scope
+  + Two, we extend the lifetime of the ARGLIST values to include the
+    CALL(V?) (arguably the correct solution)
+  + Three, we do not insert a load for a use in a CALL(V?) node,
+    instead handling the uses 'by hand'
+
++ advantage of 1: it's maybe really relatively easy to do
++ advantage of 2: it's conceptually correct and doesn't rely on
+  evaluation order of CALL node
++ advantage of 3: it reuses a concept we're already using
+
+I'm going to go for 2, with the added notion of /materializing/ the
+first ref / last ref of a value.
+
+* DONE Better template validation
+
+Like, DOV taking non-void things...  This should not crash at runtime,
+it should crash at compile time.
+
+Challenge is to specify the information in a way that the expr
+template compiler (perl) and the expr tree processing code can use.
+Ideally, I'd want to use it in such a way as to solve the 'casting'
+issues, but that might be too much to ask.
+Matter of fact, we can also just ignore the C expr tree builder, in
+the first place, and just do it for perl-side validation first.
+
+Basically, everything accepts a register, except for:
+
+
+| op      | type           |
+|---------+----------------|
+| FLAGVAL | flag           |
+| ALL     | flag+          |
+| ANY     | flag           |
+| DO      | void+,reg      |
+| DOV     | void+          |
+| WHEN    | flag           |
+| IF      | flag,reg+      |
+| IFV     | flag,void,void |
+| CALL    | reg,arglist    |
+| CALLV   | arglist        |
+| ARGLIST | carg           |
+| GUARD   | void,void      |
+
+
+* DONE 'Optimistic' insertion of STORE
+
+Involves delaying the insertion of STORE operations for generated
+expressions until the insertion of flush. (Currently inserted directly
+after being generated).
+
+Currently, we do the following:
+
++ Store node for a 'generated' or 'loaded' value in computed[]
++ If the template generates a value, wrap the root with a 'store'
+  node, unless template is destructive
+  + if the template is destructive, we flush the value it defines
+    (memory is authorative)
+  + the wrapping happens before we assign the root (roots are for
+    ordering)
++ When loading operands that are register values, try to use the
+  values in computed, otherwise insert a load an mark that in
+  destructive
+
+What we kind of want to do:
++ Keep storing nodes for generated values in computed[]
++ If a template generates a value
+  + if destructive, flush the value from computed[]
+    + but a store is now redundant
+  + if not destructive, record the node in computed[], also the root
+    that it represents (except that the root isn't know yet because we
+    might have to insert a label before it)
++ if we reach a instruction that forces a flush, then we iterate over
+  the current set in computed[],
+  + if something is defined, and has a 'defining root' associated with
+    it, then we wrap that root with a store and replace it
+  + if something is defined, we set it to -1
++ What to do with things that are already wrapped? (or about to be?)
+  + the bad case: we do a flush, wrap it with a STORE, update the root
+    (which wasn't actually pushed yet, so we may not even have enough
+    memory allocated), then wrap it with our guard, then overwrite the
+    root, not having the store
+  + I can't really imagine having a non-destructive value-yielding
+    invokish or throwish op. I mean, how would that even work? But
+    this can be true for dynamic label wraps.
+
+So this suggests that we need to:
+- delay inserting the new node into the computed[] array until after
+  we've inserted any possible labels (because we don't know the root)
+- distinguish between the node generating the value, and the node that
+  becomes the root (potentially wrapped)
+- maybe just insert the store directly if we're wrapping it, because
+  otherwise, we're going to have the update the wrap when we flush it.
+  - still possible to refer to the value, in principle
+  - although the invokish/throwish ops should probably flush that
+    value anyway
+
+* DONE Flatten label
+
+Currently we have (label (const ...))
+and (branch (label (const ...)))
+and (mark (label (const ...)))
+
+and the const is really redundant.
+
+** DONE Change expr_ops.h
+
+NB: label really returns a register now.
+
+** DONE Change core.expr
+** DONE Change tiles
+** DONE Change expr.c
+Both add_label and add_const
+
+* DONE Fix S-EXPR parser for tile list
+
+I think it currently counts balancing parentheses, and it doesn't
+always work when the last line doesn't end with a line. And, it
+doesn't support strings. So we should probably fix that with a proper
+parser.
+
+* DONE We 'retry' setting up the entire tree for something we couldn't compile
+
+We don't communicate non-completion to the 'driver' process.
+I think that's wasteful.
+
+* DONE Inlining problem
+
+Code looks innocent enough:
+
+#+BEGIN_EXAMPLE
+Build tree out of: [set, goto, ]
+Starting dump of JIT expression tree
+====================================
+digraph {
+  n_0000 [label="LOCAL"];
+  n_0001 [label="ADDR(0x40)"];
+    n_0001 -> n_0000;
+  n_0004 [label="LOCAL"]
+  n_0005 [label="ADDR(0x158)"];
+    n_0005 -> n_0004;
+  n_0008 [label="LOAD(0x8)"];
+    n_0008 -> n_0005;
+  n_0011 [label="COPY"];
+    n_0011 -> n_0008;
+  n_0013 [label="STORE(0x8)"];
+    n_0013 -> n_0001;
+    n_0013 -> n_0011;
+  n_0017 [label="CONST(0x2, 0x4)"];
+  n_0020 [label="LABEL"];
+    n_0020 -> n_0017;
+  n_0022 [label="BRANCH"];
+    n_0022 -> n_0020;
+}
+End dump of JIT expression tree
+#+END_EXAMPLE
+
+And is indeed indistinguishable by assembly output.
+Broken code is 3rd invocation of jit_enter_code with frame nr 1596990.
+We throw using: MVM_exception_throwobj.
+Let's see what happens next.
+(We inline 7 frames!)
+Current jit entry label is 3110.
+
+Inlines block looks weird altogether! (first inlines end label = 0)....
+
+Looking at the code:
+- we rely on doing before_ins before doing an expr build
+- we don't do after_ins though (which would be enough)
+- and if we bail out early, we're going to be doing the before_ins
+  twice
+
+Okay, we're going to go at this the other way.
+
+We're going to handle annotations in the expr tree itself.  We're
+going to extend the GUARD node to have 'wraparound' behaviour.
+
+** FH_START
+
+We mark the current position in the jit entry label.
+This is annoying but okay. (for now).
+Current-position marking is a GUARD with DYNAMIC_LABEL.
+Don't think we need a flush here.
+
+** FH_END
+
+For some reason, this is marked with a label prior to the one we start
+at. Otherwise the same as the FH_START thing.
+No flush required.
+
+** FH_GOTO
+
+This is, I think, the label we jump to.
+So it needs a mark and a flush.
+
+** DEOPT_ONE_INS
+
+- this one wants a 'special' deopt guard implemented as a function
+  call
+- we don't really need to do anything about this until we start
+  implementing the deopt opts
+- but it needs a flush anyways as always
+
+** DEOPT_ALL_INS
+
+- flush before instruction (so that the deopt has consistent state)
+- insert a label after the instruction
+- might be simpler to handle this otherwise (storing the jit deopt
+  idx prior to the invocation, much like we do with deopt_ons
+- i don't think we currently do this, so it might be best not to worry
+  yet
+
+** INLINE_START
+
+Mark the inline with label prior to instruction.. I don't think this
+needs any dynamic label since these will always be the starts of basic
+blocks, which already have a dynamic label guard.
+
+** INLINE_END
+
+Mark inline given by annotation with label posterior to instruction,
+which is always either a basic block label or the graph end label.
+
+** DEOPT_INLINE
+
+- not sure if i really need to do anything about this
+- but its treated similarly to the regular deopt guards
+
+** DEOPT_OSR
+
+This inserts a label that OSR can jump to. So it needs a flush. (It's
+similar to a FH_GOTO in that respect).
+
+** LINENO
+
+We can ignore this for now (although it would be kind of cool to keep
+it arround, and generate debugging information.
+
+Note that we can make a bitmap of annotations... but whatever.
+
+* DONE Label problem
+
+Frame: 373
+Block: 7
+
+But,
+- that block is compiled twice, what? (same frame? no, same basic block)
+- and in neither case are we talking about something that has OSR
+  sensitivity
+- but specifiying MVM_SPESH_OSR_DISABLE=1 makes the program continue
+
+- Partial problem, we're overwriting the ARGS array, and that's not
+  entirely legal, it might be overwritten by an invokish op
+  - I can fix that but it doesn't resolve this problem
+
+My label is off by one.
+I'm supposed to jump to 0x5ff, but I'm really jumping to 0x600.
+This is obviously wrong.
+This is really, really scary.
+Let's see if it is the reason for our breakage.
+
+The correct label is moving forwards, rather than backwards.
+
+Hypothesis: we're reusing the same label erroneously.
+(that doesn't seem to be the correct hypothesis here - whatever I dump, I can't see a difference.)
+
+So what is the right approach?  Let's dump the internal dynasm
+structures though.  (dumping labels doesn't make much of a differnece,
+strangely).
+But - the difference between the correct code is:
+
+#+BEGIN_SRC asm
+# correct
+ 67e:	75 67                jne    0x6e7
+# incorrect
+ 67e:	75 80                jne    0x600
+#+END_SRC
+
+Now
+- that might be an overflow, though
+- but why?
+- in one case, label 8 is 0x6e7 (0x680) = 0x67
+- in another case, label 8 is 0x700  - (0x680) = 0x80
+
+Okay, how does that work...
+- if we reference a label, either it is already defined
+  - in which case we store that location in the buffer
+  - in the other case, we create a chain
+- if we insert a label, then
+  - we collapse the chain if necessary
+  - and then assign that to the label pointer
+
+That makes sufficient sense, today.
+
+- NB: when we start off, we insert pos=795 at D->pclabels[8]
+- and when we store the label, we store pos=889
+- pass 1 offset estimate is 769
+- when we link it, we think the offset is 125 <= 128
+
+What happens during the link phase?
+- we look at all labels and compute if we expect them to be within
+  -128 to +127.
+- and if they are, we 'shrink' the size of the buffer computed for
+  them.
+- so this is obviously very suspect!
+
+* DONE Maintain 'object' status of pointers
+
+If we do spill, it is kind of important to let the GC know that the
+location we're spilling to is an object pointer, so that it can update
+it automatically.
+
+I think that is the bug that now keeps happening with sp_fastcreate,
+because it crashes inpredictably and in slightly different ways each
+time.
+
+So to fix this, we need to maintain 'object' or 'string' status and
+associate this with individual nodes, at expr node graph building time.
+
+We should then maintain this status in values
+
+** DONE Prove this is our problem
+
+- we see this problem reliably with a low nursery and not-so-reliably
+  with a big nursery
+- we see this problem start being real when we add sp_fastcreate,
+  which can affect GC directly
+- we see this problem occurs in a frame that does spilling and object
+  access
+- it is a priori a plausible problem.
+
+So I think that I'm going to consider it 'proven' so far.
+
+And lo-and-behold, when I correctly mark object registers, it works.
+
+** DONE Store associated spesh op and op type in expr node info
+
+Means we must create info array alongside the nodes
+So - we want to record the 'object status' of a node.
+
+For 'write' registers, we generate the 'address', which doesn't really
+count as it doesn't describe the object. So we need to remove
+them. However, the result node of the template *should* be tagged as
+'object' or whatever value it is.
+
+** DONE Store value 'kind' in live range
+
+Can be done during live range building....
+** DONE Refactor live range heap to support the spilled heap
+
+I want to convert the 'spilled' array to a heap, that we take from
+prior to processing in order to 'release' spilled register space.
+
+This should be easy, spilled and values are both MVMint32* arrays, so
+we need only introduce a comparison function.
+
+** DONE Register spilled value status in local_types
+
+Let's do this right for once.
+We want the ability to
+- allocate a temporary register (should be O(1))
+- free the temporary register of a given type (should be O(1))
+- update local_types and local size for the JIT code fragment
+  - and this can be O(n) on the number of temporary registers
+    allocated
+- apply this to the 'effective_local_types' array
+- and to do the setup for this once per compilation session
+
+So the (substructure) should be part of the MVMJitCompiler structure,
+and the creation of the (modified) local types array (if necessary).
+
+Because we now have a jitcode-specific local types and num_locals
+size, we can dispense with calculating the work env size for the spesh
+cand, it's different between the spesh cand and the jitcode anyway.
+
+** DONE Use local types for jit code
+
+Needs update in src/core/frame.c to use the correct num_locals,
+and update in src/gcroots.c to use this local_types.
+
+* DONE point and full spill interaction
+
+It can happen that we first point-spill a value arround a CALL, then
+allocate a register for the CALL result, full-spilling the same value,
+the point-restore then overwrites the CALL value. The program is then
+incorrect and will often crash.
+
+Alternatively, we can point-spill-and-restore a full-spilled value if
+the full-spill happens later than the point-spill, and I'm not 100%
+sure that's just redundant and not unsafe, because the place for the
+point spill isn't necessarily a pre-existing use, hence there is no
+guarantee that the value is 'live' at that point. (Although there *is*
+a guarantee that nobody else is using the register, it is kind of a
+brittle one).
+
+So while seemingly a good idea point spills don't combine so well with
+the register allocator. We can remove point spills entirely, but that
+reintroduces the complexity of dealing with full spills in the call
+argument preparation.
+
+In this particular case, we wouldn't have the problem if the 'tile
+requirement' function would iterate up-until the live range to be
+allocated, so that this allocation would happen before the CALL
+handling code would run. I'm not 100% sure that wouldn't cause other
+problems though:
+
++ Any values used by the CALL tile would be allocated, even if they'd
+  previously been spilled, which is good
+  + In case they were spilled they aren't going to be survivors
+    anyway, because such values have atomic live ranges
+  + However, if they are spilled-and-then restored, I must take care
+    that still works wtih the CALL/ARGLIST conflict resolution code
+  + Might well be allocated to a register that is 'expired' for the
+    ARGLIST.
++ The return value for the CALL tile is also allocated. Obviously, it
+  should *not* be seen as a survivor value (and point-spilled) since
+  it isn't live before the CALL node.
++ Values that are expire prior the the CALL node allocation because
+  they are last used in ARGLIST, that may well be tricky, because they
+  won't be in `active` anymore, hence might well be in the ARGLIST
+  map.
+  
+The alternative solution is to 'delay' the point spills and only do it
+for values that ultimately aren't spilled. That's not ... 100%
+satisfactory, I think, but it is certainly possible.
+
+Note that this issue comes up because we don't have an optimizer to
+remove double loads by copy insertion, and we don't maintain
+'memory-backing' either, so the code is kind of worst-case. Which is
+good for rooting out bugs, of course.
+
+The final alternative is to keep the order of allocation as-is, but
+move to full-spilling for function arguments. I liking that idea
+better now - after all, point spill is an optimization, and that goes
+after correctness.
+
+Necessary to achieve this
+- eliminate register map
+- eliminate survivors
+- insert a full spill at the CALL site
+  - code position to use? CALL or ARGLIST idx?
+    - semantically, CALL is the correct one, becuase it it there that
+      these values 'lose' their current values
+  - by definition, at ARGLIST site they are live and current
+  - if we use CALL, the spiller will insert a LOAD prior to the
+    ARGLIST use (if any)
+  - the arglist handling code currently treats spilled values as
+    'special', i.e. it will attempt to load them directly into the
+    right place
+  - we can tag the live range with the spilled code position, which
+    will allow us to use the CALL site for spillage, and yet determine
+    that the value is not yet spilled for the ARGLIST
+  - we can also collect the survivors after setting up the initial
+    topological map (i.e. not letting the ARGLIST handler 'see' that
+    we're going to spill them). I actually... don't like that so very
+    much.
+- enlist all the directly-enqueuable transfers
+  - because we no longer try to maintain an up-to-date map of
+    register-in-use state, we need to find all registers with inbound
+    edges and no outbound edges, but we need to do so after having
+    procoessed 'other' outbound edges anyway, i.e. stack registers,
+    call/arg conflict resolution
+
+* DONE destructive template wrong reference problem
+
+May be an interaction between allocation and restoring registers to
+objects, i.e. if an allocation (can) happen, pointers in registers are
+no longer valid, OR, we update the map to scan the locals for object
+pointers and have them restored automatically.
+
+I like that second option much better, as a matter of fact. (But it
+does mean we need to maintain what is an object and what is not, in
+the JIT)
+
+But to ascertain if that is it, it needs some more debugging.
+
+So, the first option, interaction bwetween spillage and GC, that is
+not this bug. What does seem to happen is that at some point, the
+object (which is a P6opaque) has its 'replacement' variable set, to
+some unreadable value. That's pretty weird! Let's have that checked
+out.... (this REPR certainly musn't be a MVMP6opaque then, but what is
+it?)

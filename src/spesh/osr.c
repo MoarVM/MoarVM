@@ -20,8 +20,8 @@ static MVMint32 get_osr_deopt_index(MVMThreadContext *tc, MVMSpeshCandidate *can
 
 /* Does the jump into the optimized code. */
 void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
-    MVMJitCode *jc;
-
+    MVMJitCode *jit_code;
+    MVMint32 num_locals;
     /* Work out the OSR deopt index, to locate the entry point. */
     MVMint32 osr_index = get_osr_deopt_index(tc, specialized);
 #if MVM_LOG_OSR
@@ -31,16 +31,21 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
         osr_index);
 #endif
 
+    jit_code = specialized->jitcode;
+    num_locals = jit_code && jit_code->local_types ?
+        jit_code->num_locals : specialized->num_locals;
+
     /* Resize work area if needed. */
     if (specialized->work_size > tc->cur_frame->allocd_work) {
         /* Resize work area. */
         MVMRegister *new_work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
             specialized->work_size);
-        MVMRegister *new_args = new_work + specialized->num_locals;
+        MVMRegister *new_args = new_work + num_locals;
         memcpy(new_work, tc->cur_frame->work,
             tc->cur_frame->static_info->body.num_locals * sizeof(MVMRegister));
         memcpy(new_args, tc->cur_frame->args,
             tc->cur_frame->static_info->body.cu->body.max_callsite_size * sizeof(MVMRegister));
+
         MVM_fixed_size_free(tc, tc->instance->fsa, tc->cur_frame->allocd_work,
             tc->cur_frame->work);
         tc->cur_frame->work = new_work;
@@ -87,18 +92,19 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
     tc->cur_frame->spesh_cand            = specialized;
 
     /* Move into the optimized (and maybe JIT-compiled) code. */
-    jc = specialized->jitcode;
-    if (jc && jc->num_deopts) {
+
+    if (jit_code && jit_code->num_deopts) {
         MVMint32 i;
-        *(tc->interp_bytecode_start)   = specialized->jitcode->bytecode;
-        *(tc->interp_cur_op)           = specialized->jitcode->bytecode;
-        for (i = 0; i < jc->num_deopts; i++) {
-            if (jc->deopts[i].idx == osr_index) {
-                tc->cur_frame->jit_entry_label = jc->labels[jc->deopts[i].label];
+        *(tc->interp_bytecode_start)   = jit_code->bytecode;
+        *(tc->interp_cur_op)           = jit_code->bytecode;
+        for (i = 0; i < jit_code->num_deopts; i++) {
+            if (jit_code->deopts[i].idx == osr_index) {
+                tc->cur_frame->jit_entry_label = jit_code->labels[jit_code->deopts[i].label];
                 break;
             }
         }
-        if (i == jc->num_deopts)
+
+        if (i == jit_code->num_deopts)
             MVM_oops(tc, "JIT: Could not find OSR label");
         if (tc->instance->profiling)
             MVM_profiler_log_osr(tc, 1);

@@ -73,9 +73,10 @@ static FILE *fopen_perhaps_with_pid(char *path, const char *mode) {
 /* Create a new instance of the VM. */
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
+
     char *spesh_log, *spesh_nodelay, *spesh_disable, *spesh_inline_disable,
          *spesh_osr_disable, *spesh_limit, *spesh_blocking;
-    char *jit_log, *jit_disable, *jit_bytecode_dir;
+    char *jit_log, *jit_expr_disable, *jit_disable, *jit_bytecode_dir, *jit_last_frame, *jit_last_bb;
     char *dynvar_log;
     int init_stat;
 
@@ -234,6 +235,12 @@ MVMInstance * MVM_vm_create_instance(void) {
     jit_disable = getenv("MVM_JIT_DISABLE");
     if (!jit_disable || !jit_disable[0])
         instance->jit_enabled = 1;
+
+    jit_expr_disable = getenv("MVM_JIT_EXPR_DISABLE");
+    if (!jit_expr_disable || strlen(jit_expr_disable) == 0)
+        instance->jit_expr_enabled = 1;
+
+
     jit_log = getenv("MVM_JIT_LOG");
     if (jit_log && jit_log[0])
         instance->jit_log_fh = fopen_perhaps_with_pid(jit_log, "w");
@@ -245,11 +252,46 @@ MVMInstance * MVM_vm_create_instance(void) {
         instance->jit_bytecode_dir = jit_bytecode_dir;
         MVM_free(bytecode_map_name);
     }
+    jit_last_frame = getenv("MVM_JIT_EXPR_LAST_FRAME");
+    jit_last_bb    = getenv("MVM_JIT_EXPR_LAST_BB");
+
+    /* what could possibly go wrong in integer formats? */
+    instance->jit_expr_last_frame = jit_last_frame != NULL ? atoi(jit_last_frame) : -1;
+    instance->jit_expr_last_bb    =    jit_last_bb != NULL ? atoi(jit_last_bb) : -1;
     instance->jit_seq_nr = 0;
+
+    /* add JIT debugging breakpoints */
+    {
+        char *jit_breakpoints_str = getenv("MVM_JIT_BREAKPOINTS");
+        if (jit_breakpoints_str != NULL) {
+            MVM_VECTOR_INIT(instance->jit_breakpoints, 4);
+        } else {
+            instance->jit_breakpoints_num = 0;
+            instance->jit_breakpoints     = NULL;
+        }
+        while (jit_breakpoints_str != NULL && *jit_breakpoints_str) {
+            MVMint32 frame_nr, block_nr, nchars;
+            MVMint32 result = sscanf(jit_breakpoints_str, "%d/%d%n",
+                                     &frame_nr, &block_nr, &nchars);
+            if (result < 2)
+                break;
+
+            MVM_VECTOR_ENSURE_SPACE(instance->jit_breakpoints, 1);
+            instance->jit_breakpoints[instance->jit_breakpoints_num].frame_nr = frame_nr;
+            instance->jit_breakpoints[instance->jit_breakpoints_num].block_nr = block_nr;
+            instance->jit_breakpoints_num++;
+
+            jit_breakpoints_str += nchars;
+            if (*jit_breakpoints_str == ':') {
+                jit_breakpoints_str++;
+            }
+        }
+    }
 
     /* Spesh thread syncing. */
     init_mutex(instance->mutex_spesh_sync, "spesh sync");
     init_cond(instance->cond_spesh_sync, "spesh sync");
+
 
     /* Various kinds of debugging that can be enabled. */
     dynvar_log = getenv("MVM_DYNVAR_LOG");
@@ -512,6 +554,10 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
         fclose(instance->jit_log_fh);
     if (instance->dynvar_log_fh)
         fclose(instance->dynvar_log_fh);
+    if (instance->jit_breakpoints) {
+        MVM_VECTOR_DESTROY(instance->jit_breakpoints);
+    }
+
 
     /* Clean up cross-thread-write-logging mutex */
     uv_mutex_destroy(&instance->mutex_cross_thread_write_logging);

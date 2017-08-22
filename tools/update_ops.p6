@@ -174,7 +174,7 @@ BEGIN {
         P6 => '
 unit module MAST::Ops;
 our %flags is export = ('~
-    join(",\n    ", $value_map.pairs.map({ $_.perl }) )~');
+    join(",\n    ", $value_map.pairs.sort(*.value).map({ $_.perl }) )~');
 our @offsets is export = '~
     join(",\n    ", @offsets)~';
 our @counts = '~

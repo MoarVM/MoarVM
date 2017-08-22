@@ -1,0 +1,229 @@
+# -*-whitespace-*-
+# SYNTAX: (keyword: opcode (tree $substitutions))
+
+# include 'standard' macros
+(include: "src/jit/macro.expr")
+
+# Number with dollar-signs stand for the arguments of the opcode.  The
+# opcode preprocessor inserts loads, and immediate nodes for arguments
+# automatically.
+
+(template: const_i16 (copy $1))
+(template: const_i64_16 (copy $1))
+(template: const_i64_32 (copy $1))
+(template: const_i64 (copy $1))
+
+(template: const_s (load (^cu_string $1) ptr_sz))
+
+(template: set (copy $1))
+(template: getlex (copy $1))
+(template: bindlex! (store $0 $1 reg_sz))
+
+(template: add_i (add $1 $2))
+(template: sub_i (sub $1 $2))
+(template: inc_i (add $1 (const 1 int_sz)))
+(template: dec_i (sub $1 (const 1 int_sz)))
+
+(template: gt_i (flagval (gt $1 $2)))
+(template: ge_i (flagval (ge $1 $2)))
+(template: eq_i (flagval (eq $1 $2)))
+(template: ne_i (flagval (ne $1 $2)))
+(template: le_i (flagval (le $1 $2)))
+(template: lt_i (flagval (lt $1 $2)))
+(template: eqaddr (flagval (eq $1 $2)))
+
+
+(template: sp_getarg_o (load (^parg $1) ptr_sz))
+(template: sp_getarg_s (load (^parg $1) ptr_sz))
+(template: sp_getarg_i (load (^parg $1) int_sz))
+(template: sp_getarg_n (load (^parg $1) int_sz))
+
+
+(template: sp_getspeshslot (load (^spesh_slot $1) ptr_sz))
+
+(template: null_s (const 0 ptr_sz))
+
+(template: null (^vmnull))
+
+(template: getwhat (^getf (^stable $1) MVMSTable WHAT))
+
+
+(template: hllboxtype_i
+    (^getf (^hllconfig) MVMHLLConfig int_box_type))
+
+(template: hllboxtype_s
+    (^getf (^hllconfig) MVMHLLConfig str_box_type))
+
+(template: hllboxtype_n
+    (^getf (^hllconfig) MVMHLLConfig num_box_type))
+
+
+(template: curcode
+    (^getf (^frame) MVMFrame code_ref))
+
+
+# Relatively harmless branches, I think
+
+(template: unless_i
+    (when
+        (zr $0)
+        (branch $1)))
+
+(template: if_i
+    (when
+        (nz $0)
+        (branch $1)))
+
+(template: ifnonnull
+    (when (all
+             (nz $0) (ne $0 (^vmnull)))
+        (branch $1)))
+
+(template: goto (branch $0))
+
+
+# since compilation of invocation is special-cased in the regular jit
+# we can't just toss this in here without also handling all of arg_*
+# and invoke_*.
+#(template: prepargs (^setf (^getf (tc) MVMThreadContext cur_frame) MVMFrame cur_args_callsite
+#                    (^cu_callsite $0)))
+
+(template: sp_p6oget_i (load (add (^p6obody $1) $2) int_sz))
+(template: sp_p6oget_n (load (add (^p6obody $1) $2) (&sizeof MVMnum64)))
+(template: sp_p6oget_s (load (add (^p6obody $1) $2) ptr_sz))
+(template: sp_p6oget_o
+           (let: (($val (load (add (^p6obody $1) $2) ptr_sz)))
+                (if (nz $val) $val (^vmnull))))
+
+(template: getwho
+   (let: (($who (^getf (^stable $1) MVMSTable WHO)))
+     (if (nz $who) $who (^vmnull))))
+
+
+(template: sp_p6obind_i (store (add (^p6obody $0) $1) $2 int_sz))
+(template: sp_p6obind_n (store (add (^p6obody $0) $1) $2 int_sz))
+
+(template: sp_p6obind_o
+    (dov (^write_barrier $0 $2)
+         (store (add (^p6obody $0) $1) $2 ptr_sz)))
+
+(template: sp_p6obind_s
+    (dov (^write_barrier $0 $2)
+         (store (add (^p6obody $0) $1) $2 ptr_sz)))
+
+(template: sp_p6ogetvt_o
+   (let: (($addr (add (^p6obody $1) $2))
+          ($val (load $addr ptr_sz)))
+       (if (nz $val)
+            $val
+            (let: (($type (load (^spesh_slot $3) ptr_sz)))
+                 (^write_barrier $1 $type)
+                 (store $addr $type ptr_sz)
+                 (copy $type)))))
+
+(template: say (callv (^func &MVM_string_say)
+                      (arglist (carg (tc) ptr)
+                               (carg $0 ptr))))
+
+(template: decont!
+    (ifv
+         (any (zr $1)
+              (^is_type_obj $1)
+              (zr (^getf (^stable $1) MVMSTable container_spec)))
+         (store $0 $1 ptr_sz)
+         (callv (^stable_cont_func $1 fetch)
+               (arglist
+                    (carg (tc) ptr)
+                    (carg $1 ptr)
+                    (carg $0 ptr)))))
+
+(template: wval
+    (call (^func MVM_sc_get_sc_object)
+        (arglist (carg (tc) ptr)
+                 (carg (cu) ptr)
+                 (carg $1 int)
+                 (carg $2 int)) ptr_sz))
+
+#  GET_REG(cur_op, 0).i64 = (MVMint64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+
+(template: elems
+  (call (^getf (^repr $1) MVMREPROps elems)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $1) ptr)
+      (carg $1 ptr)
+      (carg (^body $1) ptr)) int_sz))
+
+
+#  REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
+#       OBJECT_BODY(obj), GET_REG(cur_op, 4).i64,
+#       &GET_REG(cur_op, 0), MVM_reg_obj);
+(template: atpos_o!
+  (ifv (^is_type_obj $1)
+   (store $0 (^vmnull) ptr_sz)
+   (callv
+      (^getf (^repr $1) MVMREPROps pos_funcs.at_pos)
+      (arglist
+        (carg (tc) ptr)
+        (carg (^stable $1) ptr)
+        (carg $1 ptr)
+        (carg (^body $1) ptr)
+        (carg $2 int)
+        (carg $0 ptr)
+        (carg (const (&QUOTE MVM_reg_obj) int_sz) int)))))
+
+(template: atpos_i!
+  (callv
+     (^getf (^repr $1) MVMREPROps pos_funcs.at_pos)
+     (arglist
+       (carg (tc) ptr)
+       (carg (^stable $1) ptr)
+       (carg $1 ptr)
+       (carg (^body $1) ptr)
+       (carg $2 int)
+       (carg $0 ptr)
+       (carg (const (&QUOTE MVM_reg_int64) int_sz) int))))
+
+(template: gethow
+   (let: (($how (^getf (^stable $1) MVMSTable HOW)))
+     (if (nz $how)
+         $how
+         (call (^func MVM_6model_get_how)
+               (arglist (carg (tc) ptr)
+                        (carg (^stable $1) ptr))
+                        ptr_sz))))
+
+(template: callercode
+  (let: (($caller (^getf (^frame) MVMFrame caller)))
+        (if (nz $caller)
+            (^getf $caller MVMFrame code_ref)
+            (const 0 ptr_sz))))
+
+(template: sp_fastcreate!
+   (let: (($block
+           (call (^func &MVM_gc_allocate_zeroed)
+                 (arglist (carg (tc) ptr)
+                          (carg $1 int)) ptr_sz)))
+          (^setf $block MVMObject st (load (^spesh_slot $2) ptr_sz))
+          (^setf $block MVMObject header.size $1)
+          (^setf $block MVMObject header.owner (^getf (tc) MVMThreadContext thread_id))
+          (store $0 $block ptr_sz)))
+
+(template: return_o
+  (dov
+     (callv (^func &MVM_args_set_result_obj)
+           (arglist
+              (carg (tc) ptr)
+              (carg $0 ptr)
+              (carg (const 0 int_sz) int)))
+     (callv (^func &MVM_frame_try_return)
+           (arglist (carg (tc) ptr)))
+      (^exit)))
+
+(template: sp_decont!
+   (ifv
+       (all
+           (nz $1) (^is_conc_obj $1) (nz (^getf (^stable $1) MVMSTable container_spec)))
+       (callv (^getf (^getf (^stable $1) MVMSTable container_spec) MVMContainerSpec fetch)
+              (arglist (carg (tc) ptr) (carg $1 ptr) (carg $0 ptr)))
+       (store $0 $1 ptr_sz)))

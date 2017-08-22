@@ -81,6 +81,8 @@ The following environment variables are respected:\n\
     MVM_SPESH_NODELAY           Run dynamic optimization even for cold frames\n\
     MVM_SPESH_LIMIT             Limit the maximum number of specializations\n\
     MVM_JIT_DISABLE             Disables JITting to machine code\n\
+    MVM_JIT_EXPR_DISABLE        Disable advanced 'expression' JIT\n\
+    MVM_SPESH_LOG               Specifies a dynamic optimizer log file\n\
     MVM_JIT_LOG                 Specifies a JIT-compiler log file\n\
     MVM_JIT_BYTECODE_DIR        Specifies a directory for JIT bytecode dumps\n\
     MVM_CROSS_THREAD_WRITE_LOG  Log unprotected cross-thread object writes to stderr\n\

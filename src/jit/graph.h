@@ -5,22 +5,21 @@ struct MVMJitGraph {
     MVMJitNode    *first_node;
     MVMJitNode    *last_node;
 
-    /* total number of labels, including deopt labels, handler labels,
-       and inline start-stops labels */
+    /* Number of instruction+bb+graph+obj labels, but excluding the expression labels */
     MVMint32       num_labels;
-    /* bb labels are all basic block label numbers, indexed by basic
-       block number */
-    MVMint32       num_bbs;
-    MVMint32      *bb_labels;
-    
-    MVMint32       num_deopts;
-    MVMJitDeopt   *deopts;
+    /* Offset for instruction / data labels */
+    MVMint32       obj_label_ofs;
 
-    MVMint32       num_handlers;
-    MVMJitHandler *handlers;
-    
-    MVMint32       num_inlines;
-    MVMJitInline  *inlines;
+    /* Sequence number for expr trees */
+    MVMuint32      expr_seq_nr;
+
+    /* Although meant only for instructions they can really contain any random stuff */
+    MVM_VECTOR_DECL(void*, obj_labels);
+
+    MVM_VECTOR_DECL(MVMJitDeopt, deopts);
+    MVM_VECTOR_DECL(MVMJitHandler, handlers);
+    MVM_VECTOR_DECL(MVMJitInline, inlines);
+    MVM_VECTOR_DECL(MVMJitNode*, label_nodes);
 };
 
 struct MVMJitDeopt {
@@ -59,7 +58,7 @@ struct MVMJitGuard {
 #define MVM_JIT_INFO_THROWISH 2
 
 typedef enum {
-    MVM_JIT_CONTROL_INVOKISH,
+    MVM_JIT_CONTROL_INVOKISH = 1,
     MVM_JIT_CONTROL_DYNAMIC_LABEL,
     MVM_JIT_CONTROL_THROWISH_PRE,
     MVM_JIT_CONTROL_THROWISH_POST,
@@ -73,7 +72,7 @@ struct MVMJitControl {
 
 /* Special branch target for the exit */
 #define MVM_JIT_BRANCH_EXIT -1
-#define MVM_JIT_BRANCH_OUT  -2
+
 
 /* What does a branch need? a label to go to, an instruction to read */
 struct MVMJitBranch {
@@ -120,7 +119,7 @@ typedef enum {
     MVM_JIT_RV_VOID,
     /* ptr and int are mostly the same, but they might not be on all
        platforms */
-    MVM_JIT_RV_INT, 
+    MVM_JIT_RV_INT,
     MVM_JIT_RV_PTR,
     /* floats aren't */
     MVM_JIT_RV_NUM,
@@ -132,7 +131,7 @@ typedef enum {
 
 
 struct MVMJitCallC {
-    void       *func_ptr; 
+    void       *func_ptr;
     MVMJitCallArg  *args;
     MVMuint16   num_args;
     MVMuint16  has_vargs;
@@ -178,6 +177,7 @@ typedef enum {
     MVM_JIT_NODE_JUMPLIST,
     MVM_JIT_NODE_CONTROL,
     MVM_JIT_NODE_DATA,
+    MVM_JIT_NODE_EXPR_TREE,
 } MVMJitNodeType;
 
 struct MVMJitNode {
@@ -193,7 +193,9 @@ struct MVMJitNode {
         MVMJitJumpList  jumplist;
         MVMJitControl   control;
         MVMJitData      data;
+        MVMJitExprTree *tree;
     } u;
 };
 
 MVMJitGraph* MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg);
+void MVM_jit_graph_destroy(MVMThreadContext *tc, MVMJitGraph *graph);

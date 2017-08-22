@@ -1,0 +1,122 @@
+# -*-whitespace-*-
+# Terminals: reg, mem, flag, void, expr, lab
+#
+
+#
+# Virtual Machine Values
+#
+(define: (stack) reg:rsp)
+(define: (local) reg:rbx)
+(define: (cu)    reg:r13)
+(define: (tc)    reg:r14)
+
+#
+# CONTROL STATEMENTS
+#
+(define: (all flag) flag)
+(define: (any flag) flag)
+(define: (if flag reg) reg)
+(define: (ifv flag void) void)
+(define: (when flag void) void)
+(define: (discard reg) void)
+(define: (do void reg) reg)
+(define: (dov void void) void)
+
+
+
+# INVOKISH / THROWISH
+(define: (guard void $before $after) void)
+
+#
+# ALIASING
+#
+(define: (copy reg) reg)
+
+
+#
+# MEMORY TRAFFIC
+#
+
+(tile: addr  (addr reg $ofs) reg 2)
+(tile: idx   (idx reg reg $scl) reg 2)
+(tile: const_reg (const $val $size) reg 2)
+(tile: load_reg  (load reg $size) reg 5)
+(tile: load_addr (load (addr reg $ofs) $size) reg 5)
+(tile: load_idx  (load (idx reg reg $scale) $size) reg 5)
+
+(tile: store (store reg reg $size) void 5)
+(tile: store_addr (store (addr reg $ofs) reg $size) void 5)
+(tile: store_idx  (store (idx reg reg $scl) reg $size) void 5)
+
+
+(tile: cast           (cast reg $to_size $from_size $signed) reg 2)
+(tile: cast_load_addr (cast (load (addr reg $ofs) $src_sz) $dst_size $signed) reg 5)
+
+#
+# ARITHMETIC
+#
+
+(tile: add_reg       (add reg reg) reg 2)
+(tile: add_const     (add reg (const $val $size)) reg 3)
+(tile: add_load_addr (add reg (load (addr reg $ofs) $sz)) reg 6)
+(tile: add_load_idx  (add reg (load (idx reg reg $scale) $size)) reg 6)
+
+(tile: and_reg       (and reg reg) reg 2)
+(tile: and_const     (and reg (const $val $size)) reg 3)
+(tile: and_load_addr (and reg (load (andr reg $ofs) $sz)) reg 6)
+(tile: and_load_idx  (and reg (load (idx reg reg $scale) $size)) reg 6)
+
+(tile: sub_reg       (sub reg reg) reg 2)
+(tile: sub_const     (sub reg (const $val $size)) reg 3)
+(tile: sub_load_addr (sub reg (load (subr reg $ofs) $sz)) reg 6)
+(tile: sub_load_idx  (sub reg (load (idx reg reg $scale) $size)) reg 6)
+
+
+#
+# Tests and Comparinsons
+#
+(tile: test      (nz reg) flag 4)
+(tile: test      (zr reg) flag 4)
+(tile: test_addr (nz (load (addr reg $ofs) $size)) flag 6)
+(tile: test_addr (zr (load (addr reg $ofs) $size)) flag 6)
+(tile: test_idx  (nz (load (idx reg reg $scl) $size)) flag 6)
+(tile: test_idx  (zr (load (idx reg reg $scl) $size)) flag 6)
+(tile: test_and  (nz (and reg reg)) flag 6)
+(tile: test_and  (zr (and reg reg)) flag 6)
+
+# special tests
+(tile: test_const       (nz (and reg (const $val $size))) flag 4)
+(tile: test_const       (zr (and reg (const $val $size))) flag 4)
+# never executed, huh?
+(tile: test_addr_const  (nz (and (load (addr reg $ofs) $size) (const $val $size))) flag 4)
+(tile: test_addr_const  (zr (and (load (addr reg $ofs) $size) (const $val $size))) flag 4)
+
+
+
+(tile: cmp (eq reg reg) flag 2)
+(tile: cmp (lt reg reg) flag 2)
+(tile: cmp (gt reg reg) flag 2)
+(tile: cmp (ne reg reg) flag 2)
+(tile: cmp (le reg reg) flag 2)
+(tile: cmp (ge reg reg) flag 2)
+
+(tile: flagval (flagval flag) reg 2)
+
+# Labels and branches
+(tile: mark (mark (label $name)) void 1)
+(tile: label   (label $name) reg 2)
+# (tile: branch  (branch $reg) void 2)
+(tile: branch_label (branch (label $name)) void 2)
+
+
+# placeholder for arglist pseudotile
+(define: (arglist (carg reg)) c_args 1)
+
+(tile: call      (call  reg c_args $size) reg 4)
+(tile: call      (callv reg c_args) void 4)
+
+(tile: call_func (call  (const $ptr $sz) c_args $size) reg 4)
+(tile: call_func (callv (const $ptr $sz) c_args) void 4)
+
+(tile: call_addr (call  (load (addr reg $ofs) $sz) c_args $size) reg 4)
+(tile: call_addr (callv (load (addr reg $ofs) $sz) c_args) void 4)

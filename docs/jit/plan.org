@@ -1,0 +1,1437 @@
+#+STARTUP: showeverything
+* Register allocator
+
+Currently, multiple live ranges can inhabit the same location (due to
+copies, IF resolution, etc). This is problematic, and results from the
+fact that we only allow a single definition per live range. This
+significantly complicates handling stores and loads.
+
+The better approach is to allow multiple definitions per live range,
+which makes it stand for the entire life of a single variable. These
+definitions can be found by using the disjoint-set algorithm,
+combining values via PHI (or in our case, COPY/DO/IF nodes). This
+makes sense as (preferably) all these values use the same register.
+
+
+
+** DONE Implement IF/EITHER handling
+
+I am seeing an issue with the node of synthetic tiles. The register
+allocator observes this node to see what kind of step it has to take
+on e.g. IF nodes.  But we copy these node values into their synthetic
+tiles, which has no real value so far as I can see....
+
+Copying the node into the tile will cause issues currently because
+we cannot distinguish between the postorder 'resolution' `IF` tile and
+the synthetic inorder `IF` tiles, except that the latter has a pointer to
+a template and the former does not.
+
+
+
+** DONE Remove cruft from previous attempts
+
+- we don't need MVMJitValue anymore (yay, no more value types)
+  - instead we can assign register addresses directly to tiles (8 bits
+    is sufficient)
+- we don't need double-linked lists either, because live ranges now
+  contain their own set
+
+*** DONE Get rid of template pointers in the tile object
+
+This is a far-too-brittle construction that artificially distinguishes
+between 'real' tiles and pseudotiles, and there is no reason to have them,
+except that (in some places) we rely on the difference. An unintended
+consequence is that it is complex to add pseudotiles that refer to
+live ranges (like loads and spills) with reference to the live ranges
+they affect, because (currently) these live ranges are refered to by
+tree node extraction, and pseudotiles don't do that. It is,
+altogether, brittle.
+
+The suggested solution is to move tree extraction to an earlier tiling
+step (postorder, so the tree can't change underneath from tile
+conflict resolution) and to use the existing args buffer for this
+purpose. We can then separate live ranges from args using compaction.
+
+A further requirement is a correct way to distinguish between
+postorder and inorder tiles. We can do that by removing information
+(pointing to a synthetic node, or using a sentinel value) but it might
+be preferable to add information (signifiying the position in the tree
+the tile represents).
+
+So the rephrase, currently the template is used by the register allocator to signify:
+- value result type
+- extract refered-to nodes
+  - in ARGLIST/DO/IF cases, this is directly read from the tree
+    but these are exceptions
+
+
+Whereas the node is used to signify:
+- special data (the TC/CU/STACK/FRAME/VMNULL family)
+- data flow (DO/IF)
+- clobbering of registers (CALL)
+
+**** DONE Represent register requirements intelligently
+
+ We currently rely on inspecting the template to see if the thing
+ yields a value. However, yielding a value is specific to a tile not
+ its template.
+
+ This is also related to the issue of specifying register preferences.
+ We want to specify that a certain tile takes certain input registers
+ and yields an output register. And I think we can do this with a
+ bitmap, so let's design that.
+
+ Suppose we allow 4 register inputs (currently 8, but this is only
+ relevant for ARGLIST, which can be dealt with specifically in some
+ other context).
+
+ And suppose we allow for 32 different register locations to be
+ specified (5 bits per register).  That gives us 4 bits + 20 bits = 24
+ bits....  We can be 'richer' and allow 6 bits per register * 4 + 4
+ bits is still just 28 bits. If we allow 8 registers - no reason to,
+ but let's suppose so, then 48 + 8 = 54 bits necessary, i.e., fits in a
+ single 64 bit quadword. But I think 32 bits are quite sufficient.
+
+ Note that the 6 bits is sufficient to specify register class (on
+ x86-64) as well as register specification. This gives us a total of 8
+ bits, or one byte, per register. We can then scale linearly up to the
+ number of bits required.
+
+ #+BEGIN_SRC c
+ #define MVM_JIT_REGISTER_ENCODE(req,nr) (1 | ((req) << 1) | ((nr) << 2))
+ #define MVM_JIT_REGISTER_SPEC(a,b,c,d) ((a &0xff) | ((b &0xff) << 8) | ((c & 0xff) << 16) | ((d & 0xff) << 24))
+ #define MVM_JIT_REGISTER_FETCH(spec,n) ((spec >> (8*n))&0xff)
+ #define MVM_JIT_REGISTER_NONE 0
+ #define MVM_JIT_REGISER_ANY   1
+ #define MVM_JIT_REGISTER_IS_USED(desc) (desc & 1)
+ #define MVM_JIT_REGISTER_HAS_REQUIREMENT(desc) ((desc & 2) >> 1)
+ #define MVM_JIT_REGISTER_REQUIREMENT(desc) ((desc & 0xfc) >> 2)
+
+ /* we could also do */
+ ostruct registerspec {
+     int used : 1;
+     int has_requirement : 1;
+     int required_register : 6;
+ };
+ /* but this is 4 bytes wide */
+ #+END_SRC
+
+ So the second question is how are we going to encode this in the tile
+ texts? My initial guess was to add an extra list; but we already
+ specify which things are registers in the tile itself, and we can just
+ add it as an attribute.
+
+ So we can get (for instance):
+
+ #+BEGIN_EXAMPLE
+ (tile: div (div reg:rax reg:rcx) reg:rax)
+ (tile: mod (mod reg:rax reg:rcx) reg:rcx)
+ #+END_EXAMPLE
+
+ Fortunately, we have two-operand mul these days, so it needs no
+ specific treatment, although full-precision (i.e. two-registers
+ rax:rdx pair) can't be done.
+
+**** DONE Use the register spec for finding values
+
+This needs to be implemented in both the old (register.c) allocator
+and the new (linear_scan.c) allocator.
+
+**** DONE Move tree path resolution to tiling
+
+Needs adding a refs buffer to the tile. I think that synthetic tile
+construction still doesn't need it (yet), because we now reference
+from live range to tile, not the other way arround.
+An optimizer may change that, though.
+
+**** DONE Remove MVMJitValue as a global type
+
+The 'old' register allocator will still need it so we'll rename it to
+ValueList and make it local; tile->values will be MVMint8[4], which is
+quite sufficient for all possible registers except for arglist, but
+that needs special-casing anyway.
+
+**** DONE Legitimise 'defintiion' tiles
+
+Nodes such as TC, CU, etc. operate by defining the register which
+holds the value. So I'd like to define them as:
+
+#+BEGIN_EXAMPLE
+(define: (tc) reg:r14)
+(define: (cu) reg:r13)
+(define: (stack) reg:rsp)
+(define: (local) reg:rbx)
+#+END_EXAMPLE
+
+So to get that done, I need to extend the sexpr parser a bit, and find
+a decent way to combine the symbols. That can be done relatively
+easily:
+
+#+BEGIN_SRC C
+/* src/gen/config.h */
+#define MVM_JIT_ARCH MVM_JIT_X64
+/* src/jit/internal.h */
+#define MVM_JIT_REG_MK2(a,n) a ## _ ## n
+#define MVM_JIT_REG_MK1(a,n) MVM_JIT_REG_MK2(a,n)
+#define MVM_JIT_REG(n) MVM_JIT_REG_MK1(MVM_JIT_ARCH,n)
+
+/* src/jit/x64/arch.h */
+#define X64_GPR(_) \
+    _(RAX), \
+    _(RCX), \
+    _(RDX), \
+    _(RBX), \
+    _(RSP), \
+    _(RBP), \
+    _(RSI), \
+    _(RDI), \
+    _(R8), \
+    _(R9), \
+    _(R10), \
+    _(R11), \
+    _(R12), \
+    _(R13), \
+    _(R14), \
+    _(R15)
+
+enum {
+X64_GPR(MVM_JIT_REG)
+};
+
+/* src/jit/register.h */
+#define MVM_JIT_REQUIRE(n) (3 | ((MVM_JIT_REG(n)) << 2))
+int i = MVM_JIT_REQUIRE(RSP);
+#+END_SRC
+
+**** DONE Use register requirements on definition tiles
+
+- reading of register requirements from tile
+- look up table to detect that certain registers are non-volatile (callee-saved)
+- in single-pass allocator, predefine non-volatile register value references
+
+*** DONE tile editor code moves to tile.c
+   - keep it abstract?
+   - internalize into list? (why not?)
+
+** DONE Work on operation nodes
+
+Specifically:
+- FRAME/VMNULL are not atomic ops, but instead specific load
+  sequences, and it'd be preferable for reasons of efficiency
+  to treat them that way
+- I'd like to have a DIE node which is equivalent to a CALL node, but
+  which does not return (relevant for the purposes of register
+  allocation)
+- Similarily, signed and unsigned cast have, in the case of 4-to-8
+  byte conversions, different register requirements, and should be
+  separated for that reason alone
+  - It may actually make some sense to have an architecture-specific
+    'specialization' phase operating on the tree...
+
+
+
+** DONE Find live ranges
+
+I think we can do this in a single pass, or maybe two passes
+
+- to implmeent disjoint-set we build a union-find array
+  - each thing is initially in it's own set
+  - the key of the set is the number of the node it refers to
+  - at phis/copies, we pick the set with the lowest key / largest
+    definition set (whichever we know easier)
+- definitions and uses are tile-list indexes
+- we still need a tile-to-live-range map
+  - we can just run get_nodes() again and again...
+  - nope, we really can't; we need to insert and maintain 'synthetic' live nodes
+- we use a second pass to find all definitions and uses (maybe keep
+  counts of these)
+  - if we do it in the first pass, the uses/definitions are going to
+    refer to possibly-merged sets, so we have to resolve those during
+    the later passes; it's easier to do so earlier,
+  - if we count the number of uses and definitions in the first pass
+    we can simply store them in a single buffer in the second pass
+- to split a live range (at a given point), we must
+  - split both uses and definitions
+  - if these placed in ascending order in a single buffer, we can
+    split that buffer without copying (in most cases)
+  - the exception is if a single conditional branch of a definition is
+    split off, since it may be 'inbetween' the buffer, but we can fix
+    that by shuffling (in principle)
+  - point all the uses in the split live range to the new live range
+
+** DONE Implement linear scan
+
+The basic idea of linear scan is:
+- iterate over live ranges in order of first definition
+  - if any of the current live range is dead, remove it from the
+    current live set (so that their register becomes free for the new
+    live set)
+  - assign them to current live set
+  - if the live range has a prefered register
+    - if this prefered register is taken
+      - then we have a conflict (resolve by spilling/splitting)
+      - else assign the prefered register to that live range
+
+NB; Even though we have created the list of live ranges in sorted
+order, we'll want to use it as a binary heap, because we can cheaply
+maintain the heap property - it is already initialized that way -
+while inserting new live ranges (for loading spilled values).
+
+- assign registers in a second pass
+  - reuse the register assignment ring buffer
+  - we've already dealt with prefered-register conflicts in the
+    earlier step, so we can always assign the prefered register
+  - if the prefered register is already taken, then we can take
+    another register and swap it with its' current holder, which is
+    guaranteed to be possible.
+
+The current live set can be implemented as a heap of integers pointing
+to the live range array. This may be preferable to the current
+insertion-sorted array because spilling is rare and this pessimizes
+the expire-register case.....
+
+Maybe we should have the prefered-register thing per use/defintiion,
+but that becomes very complicated fast.
+
+
+
+*** DONE Use linked list for use/definition storage
+
+The number of definition/use references is strictly limited to
+4*num_tiles, because each tile can only define one value and use at
+most 3 values, except for ARGLIST tiles, but they need special
+handling (which isn't really a problem; we can count these
+separately, if necessary during tiling). This means we can allocate
+all nodes in a single step (even without spesh allocation).
+
+Further, it is no longer really necessary to distinguish between uses
+and definitions explicitly, since I can do it implicitly by the
+0-value-is-definition convention.
+
+I don't think I can roll in the synthetic tiles in the linked list
+structure since I still need an explicit number to identify their
+position.
+
+So we then have:
+
+#+BEGIN_SRC C
+typedef struct {
+    MVMint32 key;
+    MVMint32 idx;
+} UnionFind;
+
+typedef struct ValueRef ValueRef;
+struct ValueRef {
+    MVMint32 tile_idx;
+    MVMint32 value_idx;
+    ValueRef *next;
+};
+
+typedef struct {
+    ValueRef *first, *last;
+
+    MVMint32     synth_pos[2];
+    MVMJitTile* synth_tile[2];
+
+    /* sufficient for now */
+    MVMint8 register_spec;
+    MVMint8 register_num;
+} LiveRange;
+
+static inline MVMint32 first_ref(LiveRange *r) {
+    MVMint32 a = r->synth_tile[0] != NULL ? r->synth_pos[0]    : INT32_MAX;
+    MVMint32 b = r->first         != NULL ? r->first->tile_idx : INT32_MAX;
+    return MIN(a,b);
+}
+
+static inline MVMint32 last_ref(LiveRange *r) {
+    MVMint32 a = r->synth_tile[1] != NULL ? r->synth_pos[1]    : INT32_MAX;
+    MVMint32 b = r->last          != NULL ? r->last->tile_idx : INT32_MAX;
+}
+#+END_SRC
+
+*** DONE register assignment
+
+Register assignment should be inline with the register allocation
+step, because otherwise we simply have to iterate twice in the same
+order over the same dataset. While possible, it is redundant.
+
+Register assignment also updates the uses and definitions of tiles
+using the value reference.
+
+*** DONE Make non-volatile-register bitmap a constant
+
+The trick is to replace the literal comma ',' with a COMMA macro in
+src/jit/x64/arch.h, and then to define COMMA as '|' locally. We can
+then declare a bitmap as:
+
+#+BEGIN_SRC C
+#define SHIFT(x) (1 << (x))
+#undef COMMA
+#define COMMA |
+static const MVMint64 NVR_BITMAP = MVM_JIT_ARCH_NONVOLATILE_GPR(SHIFT);
+#undef COMMA
+#define COMMA ,
+#+END_SRC
+
+I know, right. Subject for a blog post at the very least.
+
+*** DONE Implement spilling
+
+Spilling is implemented by inserting stores (if not present) after
+every definition and loads before every use. Many operations actually
+have stores appended (I haven't optimized them away, yet), so it may
+never be necessary to insert the spill code. But we still need to
+insert loads.
+
+A byproduct of this method is that we must leave a number of registers
+free to load spilled values; three is sufficient for x86-64. (OR we
+generate new live ranges for the just-loaded values, which
+automatically does the right thing as well.)
+
+*** TODO Generalize IF nodes to PHI tilezs
+
+We append a 'definition' IF tile, but this notion of merging live
+ranges could generalize to a PHI tile, which could also be used to
+support looping constructs. So all this requires is
+
+a): the introduction of a PHI op
+b): replacing the IF node type with a PHI node type
+
+*** DONE Implement three-operand to two-operand conversion
+
+Safely translating this form (expr JIT):
+
+#+BEGIN_EXAMPLE
+r0 = r1 <op> r2
+#+END_EXAMPLE
+
+Into (x86):
+
+#+BEGIN_EXAMPLE
+r0 = r0 <op> r1
+#+END_EXAMPLE
+
+Requires, in general, at least one additional register, since if
+
+- r0 == r1, then r1 := r2, and this is equivalent so no further work is necessary
+- r0 == r2,
+  - and A <op> B == B <op> A, (<op> is /commutative/) then this is
+    also equivalent, and no further work (or aliasing) is necessary
+    - this is true for ADD, OR, AND, MUL, not true for SUB, XOR, DIV
+  - or A <op> B != B <op> A, then we first need to copy r1 to a temporary register,
+    assign r0 := rtmp, r1 := r2, and copy rtmp -> r0
+- r0 != r1 && r0 != r2, then copy r0 <- r1, r1 := r2, and we're done
+
+I suggest that rax becomes this temporary register, as there are
+already a bunch of opcodes that depend on it otherwise, and this saves
+having to spill when we enocunter one of them.
+
+There may be an alternative way to do this, but it relies either on an
+extra loop (and mapping tiles back to live ranges somehow, or using a
+rename table) or a loop 'within' linear scan.
+
+Actually, that last bit is not a bad idea per se; since we know that
+we process live ranges in order of first definition, we also know that
+all tiles prior to our current live range must be well-defined (have
+complete registers).
+
+*** TODO Implement three-op conversion for indirect instructions
+
+- We should either mark tiles as indirect, or pass it as a flag
+- Indirect ops can have up to two 'secondary' register arguments
+  - and these shouldn't be overwritten either!
+
+
+*** TODO Implement live-range splitting
+
+One might split a live range in two, for example, if a set of uses
+preceeds the point where the range would need to be spilled; the value
+may reside in the register before the spill and reside in storage
+afterwards.
+
+So in fact, splitting implies:
+- taking all definitions/uses within some range
+- creating a new live range for range splitted of, inserting it in the
+  live range heap (hence a heap!)
+- and spill the necessary registers.
+
+(When do we actually need this?)
+
+*** TODO Precoloring
+
+Comes down to:
+- maintaining a table of last-register-used to register-preferences
+- assigning a prefered register to certain live ranges
+  - if a conflict is present for a single live range, split it (and
+    insert a copy between)
+  - if a conflict is present between multiple live ranges, spill (one
+    of) them
+
+- an output register is fundamentally different from an input register:
+  - output single-live-range conflict (multiple definitions different prefered output):
+    - pick one, split off the other, insert a copy between them
+  - input single-live-range conflict (different prefered register for output/input)
+    - split off output range from input range; copy to output range
+      (if not spilled)
+
+  - multiple live-range register conflict
+    - first-defined output register /must/ be spilled in order to make room for second register
+      - exception: lifetime holes
+
+    - output-input conflict
+      - output-register must be copied off /or/ spilled
+
+** DONE Implement ARGLIST handling
+
+ARGLIST prepares arguments to function calls. This means placing
+values in their correct places, which may mean inserting COPYs, loads
+and spills.
+
+- Live ranges pointing to NVR (static) objects can be converted by
+  introducing a copy between them (generating a new live range)
+- We typically expire old live ranges prior to the start of new ones,
+  but for ARGLIST this is not a good idea, since it expires values
+  which may be last used in ARGLIST, and thus 'forgets' that these
+  values are there.
+- It is unfortunately not possible to 'afterswap' the registers, as it
+  may introduce a conflict (e.g. C lives in rax, A in rcx, B in rax
+  after C has expired; B would need to be in rcx, but swapping A and B
+  will introduce a conflict between C and B).
+- We could (attempt) to 'precolor' the register graph, but it is kind
+  of subtle, and the more I think about it, the more I believe it
+  might require an additional loop.
+
+Another design issue is how to implement it in cross-platform way,
+since it ties deeply into the register allocator.....
+
+Maybe just drive it to data. Take an arglist, return an array of {
+storage_class, storage_pos }, and use some kind of sorting, swapping,
+spilling to assign the right values to the right locations. Let the
+stack be a storage class.
+
+*** DONE Pre-count ARGLIST references
+
+Needed to allocate the correct amount of reference objects to account
+for the live range objects. Can be done simply during tiling.
+
+*** DONE Factor load-and-store insertion out of spilling
+
+Wanted to generalize spilling to support spilling-over-callsites.
+So currently we do:
+
++ Select a register + live range
++ Select a storage location
++ Iterate over all value refs in the live range and
+  + If a definition, insert a synthetic tile just after to store that value (insert_pos = ref->tile_idx, insert_order = -1)
+  + If a use, insert a synthetic tile just before to load that value (insert_pos = ref->tile_idx - 1, insert_order = +1)
+  + Create a new 'atomic' live range and
+    + Assign our newly created synthetic tile to it
+    + Assign our current value ref to it, as well, and take it from the current live range (to be processed)
+    + If prior to current position, assign given register (to live range + tile) and mark as expired
+    + If later than current position, push on worklist
+
+So how to factor this?
+- Specific live range + register + location selection is clearly
+  higher level (and prior to) than mechanics of processing the value
+  references
+- Insertion of loads and stores is a mechanism from the perspective of
+  the algorithm, which can supply different policies (e.g. group by
+  basic block)
+- Creating a new live range with our current value ref is also a
+  separate step (can also be a separate step).
+
+
+*** DONE Mark ARGLIST references
+
+In determine_live_ranges, we need to handle ARGLIST specially, since
+those references haven't been handled yet by the tiling process. It's
+a relatively straightforward step.
+
+We need this not because we need to be able to assign registers to
+those refs, but because otherwise the register allocator is allowed to
+expire values when they're still needed by ARGLIST.
+
+*** DONE Special-case ARGLIST references
+
+A reference to ARGLIST cannot be loaded by the general spilling
+mechanism, because ARGLIST may refer to more values than can be loaded
+into registers. So ARGLIST compilation should be able to deal with
+'spilled' values.
+
+Similarily, register assignment to ARGLIST tiles will not Just Work.
+
+*** DONE Convert ARGLIST spec to ABI list
+
+The basic idea is to have a function that is called as follows:
+
+#+BEGIN_SRC c
+typedef struct {
+    MVMJitStorageClass _cls;
+    MVMint32           _pos;
+} MVMJitStorageRef; /* I'll never run out of names for a cons */
+
+MVMJitStorageRef storage_refs[16];
+MVMint32 num_args = tree->nodes[tile->node + 1];, i;
+MVM_jit_arch_get_arglist_storage_refs(tc, tile, tree, storage_refs);
+for (i = 0; i < num_args; i++) {
+   /* .... */
+}
+#+END_SRC
+
+I assume that's going to be specific to the architecture (POSIX/WIN32)
+
+*** DONE Create a queue for special tiles
+
+Can be constructed at live-range determination time (since at that
+point we iterate over all live ranges). Needs to be iterated together
+with the general worklist, so that we either handle a special tile or
+a live range. E.g:
+
+#+BEGIN_SRC C
+  /* NB: the reason this code does not work as written is that it
+     compares the tile index to the live range index, and those are not
+     comparable in that way or even guaranteed to follow the same order  */
+  while (alc->worklist_num) {
+      if (alc->special_queue_idx < alc->special_queue_num &&
+          alc->special_queue[alc->special_queue_idx] < alc->worklist[0]) {
+          MVMint32 special_tile_idx = alc->special_queue[alc->special_queue_idx++];
+          /* handle special tile */
+      } else {
+          MVMint32 v = live_range_heap_pop(tc, alc->values, alc->worklist, &alc->worklist_num);
+          /* handle regular live range */
+      }
+  }
+  while(alc->special_queue_idx < alc->special_queue_num) {
+      MVMint32 special_tile_idx = alc->special_queue[alc->special_queue_idx++];
+  }
+#+END_SRC
+
+*ALTERNATIVELY*: Maintain an index `last_tile_idx'.  Prior to
+allocating for a live range, iterate over all tiles. between the
+'last_tile_idx' and the start of the next live range.
+
+The thing I like about this alternative is that this reduces the place
+where we have to take 'magic' into account into this single loop
+(rather than two), and it could also be made to deal with annoying
+restrictions (including, potentially, source-is-destination-operand,
+which is now handled later).
+
+However, there is (in both cases, in fact) a trick to it; we use the
+'order number' to order live ranges, but a tile index for indicating
+over special tiles, and we must compare them 'correctly'. The order number is:
+
++ 2 * tile index for regular tiles
++ 2 * tile index - 1 for 'prior' synthetic tiles
++ 2 * tile index + 1 for 'posterior' synthetic tiles
+
+Special tiles are always 'regular' tiles, hence their order_nr is
+always 2*tile index. So we could compare the order_nr with
+2*tile_idx. However I prefer to compare tile_idx with order_nr / 2;
+and, to properly deal with special use requirements as well as special
+compiled tiles, we include the tile of the start of the list in that.
+
+*** DONE Support query for live-range-in-register
+
+Specifically needed to support ejecting a live range from a register.
+Can be done by building a map; can also be done by looping through the
+active set. Depends a bit on the actual frequency of this happening.
+
+*** DONE Use list of storage references to compile code for ARGLIST
+
+- Requires the ability to eject values from their registers
+  - and as such a map of register -> live range
+- should sort the eviction / swapping to place values in their
+  registers first
+  - this may be a rather complicated bit
+- requires splitting the 'spill_register' code from spilling live
+  ranges code
+
+
+So... we have a list of values and a list of places they need to be
+in. How to put them in their right places?
+
++ All values that expire prior to ARGLIST start should be expired
++ All values that survive ARGLIST should be spilled to memory
+  (CALL will erase them anyway)
++ A _value_ can be either in a register, or spilled to memory.
++ An _argument_ can be in a register, or on the stack.
++ Any value that is currently spilled
+  + And that should be moved to a register, can be moved after swaps
+  + And that should be moved to a stack location, ban de done after register loading
++ Any value that is currently active (in a register)
+  + If it should be moved to stack, that should be done prior to other things
+  + If it should be moved to another register, then
+    + That register can either be inhabited by another argument, in
+      which case the move toward it should be after this argument has 'settled'
+    + Or it is inhabited by another value, in which case the move can
+      be after this value has been spilled
+    + Or it is not inhabited at all, in which case it can be executed
+      immediately
+  + We can have cycles in the 'move chain' of values, e.g. a -> b ->
+    a, c -> d -> e -> c,
+    + Cycles should be broken by moving a single value 'out of the
+      way', e.g. by spilling to a stack location
+  + No two values can 'point' to the same argument register, but a
+    value could potentially point to two other registers (e.g. due
+    to common subexpression elimination, or just using the same
+    argument twice)
+
+This seems to me like we should use a form of topological sort with a
+cycle breaking step; in which all values 'depend' on the value that is
+currently inhabiting their destination.
+
+Implementing topological sort in this way is a manner of a FIFO queue
+and a reverse dependency map. (Good bit; there can be only on
+'dependent' value / register per value, even as it may itself depend
+on multiple others before it can be ejected).
+
+We can insert the refs to 'just before the CALL', i.e. insert_pos =
+arglist_tile_idx + 1, insert_order = 2..(n+2)
+
+It is probably a good idea to consume both CALL and ARGLIST at the
+same time, and die if they do not follow each other.
+
+We need to do two more things:
++ spill live ranges that will survive this call
+  + annyoing bit; we have `spill_live_range` already;
+  + we could have 'active_set_spill` (but why)
++ resolve conflicts between any CALL and ARGLIST nodes
+  + use a bitmap to find conflicts and move values to a free registers:
+  + conflict = arg_bitmap & call_bitmap
+  + free_reg = ~(arg_bitmap | call_bitmap | NVR_GPR_BITMAP)
++ reserve registers used in the call node
+
+*** DONE Implement code emitter primitives
+
++ insert_register_move
++ insert_copy_to_stack
++ insert_memory_to_stack_copy
++ insert_register_load - we have that one, actually
+
+These ought to be order-sensitive, e.g. the stack stores go before the
+register moves which go before the memory-to-stack-copy, and CALL args
+shuffling comes before that.
+
+I've done it using macro's since these reuse most of the 'state' of
+the function.
+
+*** DONE CALL args may already be spilleed
+
++ CALL nodes may take some values
++ Those values may be spilled
++ If they're spilled, a LOAD will be inserted prior to their use
++ If that load would be inserted between the ARGLIST and the CALL
++ However, the maximum 'offset' would be +1; therefore, any operations
+  I'd insert with a higher offset would be after those
+
+*** DONE Implement scratch register selection
+
+By virtue of arg/call value resolution, we have a bitmap of values and
+their respective locations; and a bitmap of 'unallocatable' registers
+(well, actually... we could have a bitmap of allocatable registers).
+
+*** DONE Spill live values over the CALL function
+
+- things that are live only for the ARGLIST are expired in or after
+  the generation of ARGLIST code, so everything that's still in the
+  active set ought to be spilled.
+- Stuff that is spilled should not be made 'used' in the register map,
+  because we are never able to move them
+  - If something is spilled, and used in the ARGLIST, then that is
+    strictly speaking wasteful, but not necessarily incorrect, because
+    the live range is replaced by a 'spilled' live range.
+- OR the spillage is dealt with in a separate step
+  - Arguably, if the spillage is limited, we can also use a 'recovery'
+    step POST-call to restore arguments to what they were prior to the
+    CALL.
+
+So, I've decided to use separate spilling (and probably restorative
+loading loading), so that the spillage step is taken into account for
+the topological sort.
+
+#+BEGIN_SRC c
+struct {
+    MVMint32 value;
+    MVMint32 mem_pos;
+} survivors[MAX_ACTIVE], survivors_top = 0;
+for (i = 0; i < alc->active_top; i++) {
+    LiveRange *v = alc->values + alc->active[i];
+    if (last_ref(v) >= order_nr(arglist_idx)) {
+        reg_map[v->reg_num] = alc->active[i];
+    }
+    if (last_ref(v) > order_nr(call_idx)) {
+         survivors[survivors_top++].value = alc->active[i];
+         rev_map[v->regnum].dep++;
+    }
+}
+/* code for initial transfer queue building is pretty much the same */
+for (i = 0; i < survivors_top; i++) {
+    MVMint23 spill_pos = survivors[i].spill_pos = select_memory_for_spill(tc, alc, list, order_nr(call_idx), sizeof(MVMRegister));
+    /* add load and restore */
+    MVM_jit_tile_list_insert(tc, list,
+                             MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_store,
+                                               2, 2, MVM_JIT_STORAGE_LOCAL, spill_pos, 0, v->reg_num),
+                             call_idx, ins_pos++);
+    MVM_jit_tile_list_insert(tc, list,
+                             MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_load,
+                                               2, 1, MVM_JIT_STORAGE_LOCAL, spill_pos, v->reg_num),
+                             call_idx + 1, -2);
+    if (--rev_map[v->reg_num].num == 0) {
+    }
+}
+#+END_SRC
+
+*** DONE Clean register usage of variables not used in ARGLIST
+
+Something is either used in ARGLIST, CALL, or later;
+if CALL conflicts with ARGLIST, a move is added as edge and enqueued
+if used later, it's spilled and restored, if possible an inbound move is enqueued
+if last used before ARGLIST, it's disregarded
+if not conflicting, can't delay ARGLIST moves
+
+*** DONE Split ARGLIST and CALL
+
+Apparently I had rolled ARGLIST into CALL in an earlier phase....
+This has a number of advantages:
+
+- There is no way for another tile to be inserted between CALL and
+  ARGLIST; arglist is tighly bound to the call.
+- There is no need for an arglist-specific symbol in the tiler
+
+However, splitting them also has the advantage:
+- I can treat refs by the ARGLIST and refs to the CALL differently.
+
+This is pretty important, because:
+- There can be more ARGLIST refs than free registers. In the spilling
+  process, we cannot afford to insert loads prior to ARGLIST.
+- We need to find the used by ARGLIST during live-range-determination, but we don't
+- CALL refs are used for calling the function (e.g. in a dispatch
+  table), if such refs are spilled, they need to be loaded in the
+  regular way.
+
+*** DONE Use function return argument
+
+We should probably allocate the return argument to a 'allocatable'
+register, since the current register is not. (In fact, we should
+somehow deal with specific register arguments anyway).
+
+** DONE Split void from non-void nodes
+
+Already did this for IF/EITHER, now for DO / DOV,
+CALL/CALLV. Otherwise the tiler always selects the value-generating
+one. Might also be nice for numeric/non-numeric variants.
+
+** DONE Solve 'garbage restore' problem
+
+The problem:
+
+#+BEGIN_EXAMPLE
+(if (test ...) (load ...) (call ...))
+#+END_EXAMPLE
+
+Tile list:
+#+BEGIN_EXAMPLE
+0:   TEST ...
+1:   JZ ->4;
+2:   LOAD ...
+3:   GOTO ->6;
+4:   ARGLIST ...
+5:   CALL ....
+6: ....
+#+END_EXAMPLE
+
+Which will generate a live range that starts from (2) and presumably
+survives after 6.
+
+Hence, according to linear scan, the value of LOAD (possibliy in
+register %rcx) is live on the CALL tile (5), which means that according
+to it's own logic, it must spill-and-restore register %rcx arround 5, i.e.:
+
+#+BEGIN_EXAMPLE
+
+5a: STORE %rcx, ...
+5:  CALL ...
+5b: LOAD %rcx, ...
+#+END_EXAMPLE
+
+If we don't take care, it will overwrite the result value of the CALL,
+which must also be placed in %rcx eventually. This sucks because %rcx
+is only defined in
+
+The article 'linear scan allocation on SSA form' had a section about
+this very problem, and their algorithm revolves arround finding
+'lifetime holes', by scanning backwards through all basic basic blocks
+and, for every definition, if that value is not the first definition,
+inserting a hole.
+
+In our case we might be able to do this relatively cheaply, because:
+- it's SSA form, so a value is only defined once per basic block
+- at worst, it is used prior in the basic block (e.g. in a looping
+  construct, or by deriving from the alternative value, e.g.
+
+#+BEGIN_EXAMPLE
+(let (($foo ..)) (if (zr $foo) $foo (load (addr $foo ...))))
+#+END_EXAMPLE
+
+NB, not a very good example because it probably does not require a
+spill in the alternative block.  Anyway....
+
+- So the scope of the hole ends at the start of the second defintion,
+  and it starts:
+  - either at the last use within the same basic block
+  - or at the end of the last basic block in which another definition
+    'dominates' (not sure if I'm using that terminology right).
+- In other words, there exists some scope where the earlier definition
+  is still live, and some point at which that stops, and that point is
+  the hole.
+  - A conservative first-best-guesss would be from the second
+    definition to the last use or the begin of the basic block, which
+    would already help sufficiently for the garbage-restore problem.
+- It's only relevant for live ranges with multiple definitions anyway,
+  so that cuts down on the number
+- The maximum number of holes is the sum of definitions in that set
+  minus the number of live ranges; this certainty allows us to
+  preallocate a block of memory for the holes.
+
+*** DONE Determine basic blocks
+
+We want two facts for every basic block
+- the range of instructions (tiles) covered (from- and to- inclusive)
+- the basic blocks preceeding or following this block, or both
+
+The basic block structure is (fortunately) completely determined at
+tile-generation time:
+
+- We start with a single basic block starting at the beginning of the
+  tree
+- WHEN (A, B, C)
+  - basic block A ends after test (jump), followed by B and C
+  - basic block B is the conditional block (between test jump and end
+    label), followed by C and preceeded by A
+  - basic block C begins after the conditional clause (label),
+    preceeded by A and B
+- IF/IFV (A, B, C, D)
+  - A ends after test, followed by B, C
+  - B starts after conditional jump and ends at unconditional jump
+    (before alternative label), preceeded by A,
+  - C starts before alternative label (after unconditional jump),
+- ALL/ANY (A, B1 .. Bn, C)
+  - A ends after first test
+  - B1 starts after test, until next (conditional jump)
+    - All B blocks are preceeded either by A or another B block,
+  - C is preceeded by all of A, B1-Bn
+- Therefore, we start with 1 basic block; every WHEN adds 2 basic
+  blocks, every IF/IFV adds 3 basic blocks; a hypothetical LOOP
+  construct would also add 2 basic blocks, every ALL/ANY adds n basic
+  blocks.
+- Any basic block has at most 2 following basic blocks (demarcated by
+  either a jump, conditional jump, or a label)
+  - Note that `jumplist` is an exception like ARGLIST is an exception,
+    and we can deal with those separately
+
+#+BEGIN_SRC C
+struct MVMJitTileBasicBlock {
+    MVMint32 start, end;
+    MVMint32 num_successors, successors[2];
+};
+#+END_SRC
+
+So it seems we have a few primitive operations:
+- start a basic block after a branch, or before a label
+- patch up predecessor to point to a successor (either first or second
+  successor)
+
+We can find the predecessor by tagging the tree (we're tree-walking,
+after all, and we're editing the jumps and labels in the 'inorder'
+visits). But a single node can lead to multiple basic blocks; and we
+need some space for tagging each of these independently. I suggest we
+use the 'extra' nodes allocated for the references of WHEN/IF etc.
+
+Patching nodes posterior to their tiling can be a bit tricky;
+especially with ALL and ANY, since any nested ANY or nested ALL will
+need to be patched to the same block, because they have the same
+label....
+
+But, a label does not exactly equal a block, since you may have a
+'labellless-block', for instance the interior block of a WHEN node,
+and the first block of IF/IFV.
+
+Idea: do the patchup in the postorder step.
+
+*** DONE Determine live range holes
+
+We can use the algorithm defined by (Wimmer, 2010).
+
+- set last_bb.out = {}
+- for each basic block in reverse order:
+  - set bb.out = union(successors.in)
+    - if any live range is not live in both successors, that
+      means we had a hole, and we should now close it
+  - set bb.in = copy(bb.out)
+  - for each instruction in bb:
+    - if a value is defined, remove it from bb.in
+      - if this is *not* the first definition, we now have a hole
+    - if a value is used, add it to bb.in
+      - if the value has a hole associated, close it
+
+The basic idea is that
+- if a value is used, it must've been determined first
+- if a value is defined, then surely per it can't have been live
+  before
+- if a value is live in one of successors, it must've been live
+  out of this basic block
+
+**** DONE Count number of holes
+
+The number of holes equals the number of definitions minus the number
+of live ranges.
+
+A live range is initially created for each definition, and only when
+definitions are merged (PHI nodes) does the number of live ranges
+decrease. (Copies are not counted as live ranges, instead point
+directly to the original).
+
+Thus the number of holes is never more than the number of PHI
+nodes. (It may be less because some of the PHI nodes could be a 'false
+merge', e.g.. merging of a copy with its original). But an upper bound
+is good enough.
+
+**** DONE Represent set of live ranges
+
+We need three operations:
+
++ Adding
++ Removing
++ Merging
+
+Merging is necessary at basic block ends (when a basic block has two
+successors). With a single successor, a copy is allright.
+
+I'm thinking of using:
+- a sorted array for the original set
+- unsorted arrays for additions and removals
+
+After processing a basic block, we can sort the additions and
+removals, and merge them with live_out into live_in.
+
+Removals are never duplicated (it's SSA form after all). So that's
+something (it means I have an upper bound on the size of live_in:
+live_out + num_additions - num_removals).
+
+Hang on, sorting by number is never going to work... what if something
+is defined (removed) but used before that (added), then that thing
+must be in live_in. And if it is defined first but used after, then it
+must not. So we need the order information; we can't separate the
+set-construction from the code iteration order, so we might as well do
+it in the iteration.
+
+That leaves us still wanting a set structure that has cheap and
+cheerful insertions, removals, and merges. Is there a way we can
+search a binary heap with more-than-linear efficiency? Because
+addition and removal are pretty cheap.
+
+Provided the heap is min-ordered, then,
+- enqueue the root
+- while there is stuff in the queue
+  - if the node > key, then we can discard it
+  - if the node is = key, then we can stop
+  - if the node is < than key, we can enqueue it's children
+
+If we parameterize the heap code (with a data arg and a cmp
+function), then we can reuse it cheaply.
+
+But, on the other hand, heap search is worst-case O(N). Best-case is
+probably cheaper but best-case is always cheaper. If soemthing is in
+the middle of the heap we could just as well be doing a linear
+search.
+
+Binary search trees - interesting, probably not going to be
+benificial, because of the complexity involved with managing the
+memory - tree-in-array works, but you must exchange tight packing
+(memory use) with reordering complexity (CPU time), and even then you
+never get better than O(log N); moreover it's difficult to preallocate
+sufficient nodes upfront, not without being really pessimistic...
+
+Hash tables - look pretty good actually (pretty good O(1) complexity
+in most cases), but I don't like to implement one just for this
+feature. A hash table would be, without doubt, my prefered alternative
+to what I'm about to suggest, though:
+
+A bitmap.
+
+The set keys are bounded by the maximum live range. Enumerating them
+is never necessary; the union is. The size of memory required is
+ceil(max_live_range / 8) in bytes, multiplied by the number of basic
+blocks, i.e. 'strictly fixed', the way I like it. Adding stuff to the
+bitmap can never make it grow. The per-bit memory usage means that if
+we use 32 bit numbers to represent the keys, then the 'fill' of each
+basic block has to be no larger than 1/32 for the bitmap to be cheaper
+in memory than the most memory-efficient alternative, a tightly packed
+linear array. Addition, removal, search are all O(1) in worst-case,
+union is O(N), as is diff.
+
+
+**** DONE Detect holes
+
+If we find a definition which is *not* at the first ref of the live
+range, that means we have a hole.
+
+If we find a use of a variable that currently has a hole, then we
+should close it.
+
+If we find (during merge) that one of the successors has a variable in
+live_in, and the other has not, *and* that variable is in a hole, then
+we close the hole.
+
+Because we attach the holes to the live range in a linked list, we can
+always detect if the current live range is 'holed'.
+
+*** DONE Don't spill 'holes' in ARGLIST
+*** TODO Try to use 'holes' in allocation.
+
+Not 100% sure this is worth the additional complexity since it means
+that a register can have multiple occupants, which means you'll want
+to use a linked list, and a heap for maintaining the first-to-expire
+set, or a double-ended priority queue, etc.
+
+The optimizer is probably simpler.
+
+** DONE Guards, flushing, optimistic stores
+
+Currently our inserting of stores is pessimistic, i.e. stores are
+always inserted where they would be expected from the MoarVM bytecode.
+But this is not necessary if the stored value is overwritten within
+the same basic block. We can work on eliminating that, but I had
+assumed that it'd be easy to get the last-use-per-value via spesh, and
+it isn't. What we can do is:
+
+- maintain a table of the last-definition per MoarVM register (hey, we
+  do that now)
+- insert stores where necessary, which is:
+  - find all nodes that have recent definitions
+    - insert a 'store-to-moar-register' instruction (MVM_jit_expr_add_store)
+    - swap the 'root' pointing to the definition node with the store
+      node (this may require a scan through the table)
+- figure out when it is necessary
+  - before throwing (or 'throwish)
+  - before jumping to another basic block
+  - ....
+- store the spesh instruction tagged to the tree, so that we can find
+  out where it should be stored if it isn't
+
+*** DONE Implement guard nodes
+
+The basic idea:
+
+- whenever an instruction is throwish / invokish we
+  - wrap it with the appropriate guard
+  - tile with pre and post node
+  - flush the current variable->node table
+
+*** TODO Implement 'optimistic' stores
+
+Within a single basic block
+
+*** TODO Find out if a particular live range has already been stored (or if it has a fixed storage location)
+
+ #+BEGIN_SRC c
+ /* Return -1 if not a local store, 0 <= i <= frame->work_size if it is */
+ MVMint32 is_local_store(MVMJitExprTree *tree, MVMint32 node) {
+     if (tree->nodes[node] != MVM_JIT_STORE)
+         return -1;
+     node = tree->nodes[node + 1];
+     if (tree->nodes[node] != MVM_JIT_ADDR)
+         return -1;
+     if (tree->nodes[tree->nodes[node + 1]] != MVM_JIT_LOCAL)
+         return -1;
+     return tree->nodes[node+2];
+ }
+
+ MVMint32 has_local_location(MVMJitExprTree *tree, MVMint32 node) {
+     MVMSpeshIns *ins = tree->info[node].spesh_ins;
+     if (ins == NULL || ins->op_info->num_operands == 0 ||
+         (ins->info->operands[0] & MVM_operand_rw_mask) != MVM_operand_write_reg)
+         return -1;
+     return ins->op_info->operands[0].reg.orig;
+ }
+ #+END_SRC
+
+** TODO Apply register requirements
+
+Bunch of options possible:
+- it's a requirement for an output register
+  - the register is allocatable
+    - which is /free/, in which case we can just take it (how I do I
+      know it's free? by a register map, which we need to make)
+    - which is /not free/, in which case we need to /spill/ the
+      current register
+  - the register is not allocatable (e.g. %rax)
+    - I'm going to go ahead and assume that it is free nevertheless,
+      otherwise we'd have to record the set of non-allocatable
+      registers clobbered
+    - However, if the value is to live, it's probably best to copy it
+      to an allocatable register
+- it is a requirement for an input register
+  - that is not yet a problem I have (because I made %rax the spare
+    register), but most of the considerations of clobbering described
+    below apply
+  - it is an existing problem for ARGLIST compilation, but there it is
+    handled seprately (although it is fairly similar, and might generalize!)
+- it clobbers a register (not necessarily one it uses), e.g. div which
+  clobbers %rdx to store the modulo (and %rax for the quotient).
+  - if free, no problem whatever
+  - if non-free, we again need to start moving registers, but I'm not
+    sure this requires the full shuffling requirements of ARGLIST.
+
+
+
+
+* TODO Optimizer
+
+Idea is to have a tree-walking step between tree generation and
+tiling, that can optimize tree expressions.
+
+- common subexpression elimination
+  - idea: (hash) table of expr, node
+  - table is created bottom-up
+    - all children are replaced with equivalent (according to the table)
+    - then parent is itself 'hashed' to a record, an potentially
+      replaced
+- IDX CONST to ADDR conversion
+  - Uses one register less, simpler operation
+- ADD CONST to ADDR conversion
+  - only allowed if user is pointerlike (e.g. LOAD)
+- COPY insertion
+  - Values that are LOAD-ed and used from multiple operations might
+    benefit from inserting a COPY, so they don't use indirect
+    operations, e.g.
+  - Basic idea: count number of users of 'load', if > 1, insert the
+    COPY node and replace the refs
+  - Possibly a pessimization because it requires more registers!
+
+#+BEGIN_SRC asm
+add rcx, [rdx+8];
+sub rsi, [rdx+8];
+# or
+mov rax, [rdx+8];
+add rcx, rax;
+sub rsi, rax;
+#+END_SRC
+
+- COPY elimination
+  - possibly the first step, removing redundant copies
+- CONST copying
+  - A const never needs to be kept in memory, and it is just as well
+    to keep just a single reference to it.
+
+** TODO Collect references
+
+Linked-list-in-block trick; we can use exactly nodes_nun number of
+items, since there can't possibly be more references than that.
+
+* TODO REPR Specialization
+
+- Want to add a "JIT" method to on REPR add expression fragments into
+  the tree for specific REPRs of objects
+- One of the requirements is to be able to specify expression
+  fragments for specific REPRs, e.g. via repr-specific expression
+  template files.
+- We *especially* want this for nativecall, so it might be worthwhile
+  to look into that first.
+
+* General cleanups
+** TODO Reduce tree node size to 32 bits
+
+ Tree nodes are currently 64 bits wide to allow them to coexist with
+ constant pointers. This is handy, but not really required, since we
+ could use a lookup table to get the pointers (as long as we can
+ declare pointers, for which I think we can still use the '@' sigil, e.g:
+
+ #+BEGIN_EXAMPLE
+ (template: say
+    (call (const @MVM_string_say ptr_sz)
+          (arglist 2
+            (carg (tc) ptr)
+            (carg $0 ptr))
+ #+END_EXAMPLE
+
+ The @MVM_string_say pointer can be stashed in an array:
+
+ #+BEGIN_SRC C
+ static const void *MVM_jit_expr_ptrs[] = {
+    ...
+    MVM_string_say,
+    ...
+ };
+ #+END_SRC
+
+ And the pointer itself replaced by the index.
+
+ We could argue against dealing with 64 bit constants in general, but
+ unfortunately, const_i64 prevents us from doing that.... Ways of
+ dealing with that:
+
+ + A 'large constants' table per tree (into which we could copy both the
+   i64 constants and the function pointer constants)
+   + We could store this entire table in the data section, too
+ + A 'large constants' op, which could take the space to store the 64
+   bit constant directly; one of the advantages of that is that we
+   could specialise tiling to that (e.g. there is no advantage to
+   including a very large constant in the ADD tile since the underlying
+   'add' instruction cannot handle it).
+ + Or both: have a large_const op and a large_const table, and only
+   have the large_const op refer to the large_const table (i.e. not the
+   regular const)
+
+** TODO Improve logging
+
+ Currently logging is *extremely* adhoc and pretty much only
+ human-parseable. There are a bunch of things I want to improve about
+ that.
+
+*** TODO Profilers should know why stuff didn't get compiled
+
+ When something is not compiled, that's usually because there is
+ something in it the compiler can't handle. I think we should be able
+ to stash that reason in a profiler context object, serialize and
+ display it somehow.
+
+*** DONE Digraph expression logging can take parameters in node
+
+ Currently, constant parameters are displayed as separate nodes, and
+ stuff would be cleaner if we didn't do that, e.g. rather let ADDR
+ point to some constant number, write ADDR($constant).
+
+** DONE Templare value ordering
+
+ The problem:
+
+ #+BEGIN_EXAMPLE
+ (if (test $bar) $quix (derive $quix))
+ #+END_EXAMPLE
+
+ In this case, $quix is refered to in both conditional branches, but
+ might not be computed before the consequent of the `IF`. The tiler
+ will *not* insert the computation for $quix twice, meaning that in the
+ alternative block, $quix is not computed but used. This is an error.
+
+ The current solution is to use a 'let' declaration, which predeclares
+ the variable and ensures that it is compiled prior to the let block, e.g:
+
+ #+BEGIN_EXAMPLE
+ (let (($quam (copy $quix))) (if (test $bar) $quam (derive $quam)))
+ #+END_EXAMPLE
+
+ But that sucks, because a): it inserts a redundant copy, b): it relies
+ on the user doing the right thing (which is possible to detect
+ statically, for templates, though, but perhaps not so easy for
+ 'dynamically' generated tree nodes), c): it relies on a hacky
+ 'rooting' mechanism in the tree template building and application
+ step.
+
+ So the idea is to:
+ - detect if the first reference to a node is conditional
+ - and if there are other references that lie outside that conditional
+ - and if that is true, insert a root prior to the start of the
+   conditional
+
+ This makes me think of using a conditional-branch stack.  Let's
+ record, on first visitation, the top-of-the conditional branch stack.
+ If a second visit does not lead to the same top, it should be
+ unconditionalized (by adding a root).
+ - We could add an explicit stack, anyway.
+   - A stack item consist of the node and the child number.
+ - And if we have that, there's no reason to do implicit recursion
+   anymore.
+ - And if we have that, we only need to add a counter (we don't really
+   need that, but it makes stuff cheaper)
+
+*** Automatic unconditionalizing
+
+ This is documented for future reference, but not the plan I actually
+ intend to take, due to the associated complexity.
+
+**** TODO Switch tree walking to use an explicit stack
+
+  Simple, mechanical transformation. I wonder if we can have a maximum
+  depth; probably not, if we can allow revisits.
+
+**** TODO Find greatest unconditional defined block
+**** TODO Detect references beyond unconditional defined block
+**** TODO Detect if a reference is safely movable
+
+  - not all references are safey moveable, e.g. a load that is 'guarded'
+    by a check in ALL is not.
+
+**** TODO Order the reference computation to an inclusive scope 
+
+  It is probably not necessary to do repeat visits - in fact let's not!
+  But we can do a postorder analysis to see if any of the children is
+  defined first in a conditional block, and if that conditional block is
+  the same as what we're in. (Can that actually happen? probably, yes,
+  in a DO thing).
+
+  That said; if we're going to move references, we don't actually need
+  to insert a new root; we can replace the existing root with a DO or
+  DOV that contains the declaration first and the use second. (This
+  requires detecting if the expression results a REG or VOID).
+
+*** DONE Local ordering of LET
+
+ Currently the 'let' statement has an ordering purpose aside from it's
+ declaration. The weakness of this is that it uses the 'rooting'
+ mechanism which applies a *global* ordering to the *template* level,
+ i.e., /any/ LET declaration is applied prior to *any* expression
+ compilation. So, for instance, the following will not do what you
+ want:
+
+ #+BEGIN_EXAMPLE
+ (let (($foo (load ....)))
+   (if (nz $foo)
+       (let (($bar (load $foo ...)))
+            (add $foo $bar))
+       (const 0)))
+ #+END_EXAMPLE
+
+ Because it will compile as:
+
+ #+BEGIN_EXAMPLE
+ 0:  $foo = LOAD ...
+ 1:  $bar = LOAD $foo ...
+ 2:  TEST $foo
+ 3:  IFZR GOTO 6
+ 4:  $out = ADD $foo $bar
+ 5:  GOTO 7
+ 6:  $out = CONST 0
+ 7:  ...
+ #+END_EXAMPLE
+
+ However, what we want is equivalent to:
+
+ #+BEGIN_EXAMPLE
+ (do
+    (declare $foo (load ...))
+    (if (nz $foo)
+       (do
+         (declare $bar (load $foo ...))
+         (add $foo $bar))
+       (const 0)))
+ #+END_EXAMPLE
+
+ Which, owing to the 'natural' ordering effect of DO, will compile as:
+
+ #+BEGIN_EXAMPLE
+ 0: $foo = LOAD ...
+ 1: TEST $foo
+ 2: IFZR GOTO 6
+ 3: $bar = LOAD $foo ...
+ 4: $out = ADD $foo $bar
+ 5: GOTO 7
+ 6: $out = CONTST 0
+ 7: ...
+ #+END_EXAMPLE
+
+ However, this is essentially a template-compile time step, to
+ translate the LET statements into DO (or DOV) statements.
+
