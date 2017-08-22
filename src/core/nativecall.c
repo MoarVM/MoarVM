@@ -388,7 +388,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
 
     /* Try to load the library. */
     body->lib_name = lib_name;
-    body->lib_handle = MVM_nativecall_load_lib(strlen(lib_name) ? lib_name : NULL);
+    body->lib_handle = MVM_nativecall_load_lib(lib_name[0] ? lib_name : NULL);
 
     if (!body->lib_handle) {
         char *waste[] = { lib_name, NULL };
@@ -609,7 +609,7 @@ MVMObject * MVM_nativecall_global(MVMThreadContext *tc, MVMString *lib, MVMStrin
     MVMObject *ret = NULL;
 
     /* Try to load the library. */
-    lib_handle = MVM_nativecall_load_lib(strlen(lib_name) ? lib_name : NULL);
+    lib_handle = MVM_nativecall_load_lib(lib_name[0] ? lib_name : NULL);
     if (!lib_handle) {
         char *waste[] = { lib_name, NULL };
         MVM_free(sym_name);

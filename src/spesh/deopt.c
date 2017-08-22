@@ -31,9 +31,11 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
     for (i = 0; i < cand->num_inlines; i++) {
         if (offset >= cand->inlines[i].start && offset < cand->inlines[i].end) {
             /* Create the frame. */
-            MVMCode        *ucode = cand->inlines[i].code;
-            MVMStaticFrame *usf   = ucode->body.sf;
+            MVMCode        *ucode = (MVMCode *)f->work[cand->inlines[i].code_ref_reg].o;
+            MVMStaticFrame *usf   = cand->inlines[i].sf;
             MVMFrame       *uf;
+            if (REPR(ucode)->ID != MVM_REPR_ID_MVMCode)
+                MVM_panic(1, "Deopt: did not find code object when uninlining");
             MVMROOT(tc, f, {
             MVMROOT(tc, callee, {
             MVMROOT(tc, last_uninlined, {

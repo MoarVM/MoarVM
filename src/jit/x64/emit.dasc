@@ -480,6 +480,40 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], TMP5;
         break;
     }
+    case MVM_OP_sp_getlexvia_o:
+    case MVM_OP_sp_getlexvia_ins: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 idx = ins->operands[1].lit_ui16;
+        MVMint16 out = ins->operands[2].lit_ui16;
+        MVMint16 via = ins->operands[3].reg.orig;
+        MVMint16 i;
+        /* Resolve the frame. */
+        | mov TMP6, WORK[via];
+        | mov TMP6, CODE:TMP6->body.outer;
+        for (i = 1; i < out; i++) /* From 1 as we are already at outer */
+            | mov TMP6, FRAME:TMP6->outer;
+        /* get array of lexicals */
+        | mov TMP5, FRAME:TMP6->env;
+        /* read value */
+        | mov TMP5, REGISTER:TMP5[idx];
+        if (op == MVM_OP_sp_getlexvia_o) {
+            MVM_jit_log(tc, "Emit lex vifivy check for via code-ref lookup\n");
+            /* if it is zero, check if we need to auto-vivify */
+            | test TMP5, TMP5;
+            | jnz >1;
+            /* setup args */
+            | mov ARG1, TC;
+            | mov ARG2, TMP6;
+            | mov ARG3, idx;
+            | callp &MVM_frame_vivify_lexical;
+            /* use return value for the result */
+            | mov TMP5, RV;
+            |1:
+        }
+        /* store the value */
+        | mov WORK[dst], TMP5;
+        break;
+    }
     case MVM_OP_getlex_no:
     case MVM_OP_sp_getlex_no: {
         MVMint16  dst = ins->operands[0].reg.orig;
@@ -990,6 +1024,24 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov TMP1, WORK[src];
         | neg TMP1;
         | mov WORK[dst], TMP1;
+        break;
+    }
+    case MVM_OP_extend_i32: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        | mov RV, WORK[src];
+        | cdqe
+        | mov WORK[dst], RV;
+        break;
+    }
+    case MVM_OP_trunc_i32: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        | mov TMP1, WORK[src];
+        /* x86-64 auto-truncates the upper 32 bits when using registers in 32
+         * bit mode */
+        | mov TMP2d, TMP1d;
+        | mov WORK[dst], TMP2;
         break;
     }
     case MVM_OP_add_n:
@@ -1720,6 +1772,22 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov qword WORK[dst], RV;
         break;
     }
+    case MVM_OP_setcodeobj: {
+        MVMint16 obj  = ins->operands[0].reg.orig;
+        MVMint16 code = ins->operands[1].reg.orig;
+        | mov TMP1, aword WORK[obj];
+        /* if (REPR(obj)->ID == MVM_REPR_ID_MVMCode) */
+        | mov TMP2, OBJECT:TMP1->st;
+        | mov TMP2, STABLE:TMP2->REPR;
+        | cmp dword REPR:TMP2->ID, MVM_REPR_ID_MVMCode;
+        | je >1;
+        /* else throw */
+        | throw_adhoc "setcodeobj needs a code ref";
+        |1:
+        | mov TMP2, aword WORK[code];
+        | mov aword CODE:TMP1->body.code_object, TMP2;
+        break;
+    }
     case MVM_OP_lastexpayload: {
         MVMint16 dst = ins->operands[0].reg.orig;
         | mov TMP3, aword TC->last_payload;
@@ -1744,6 +1812,51 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | lea ARG2, FRAME:ARG2->params
         | callp &MVM_args_slurpy_named;
         | mov qword WORK[dst], RV;
+        break;
+    }
+    case MVM_OP_sp_cas_o: {
+        MVMint16 target = ins->operands[1].reg.orig;
+        MVMint16 expected = ins->operands[2].reg.orig;
+        MVMint16 value = ins->operands[3].reg.orig;
+        MVMint16 result = ins->operands[0].reg.orig;
+        | mov ARG1, TC;
+        | mov ARG2, aword WORK[target];
+        | mov ARG3, aword WORK[expected];
+        | mov ARG4, aword WORK[value];
+        |.if WIN32;
+        | lea TMP6, WORK[result]
+        | mov qword [rsp+0x20], TMP6
+        |.else;
+        | lea ARG5, WORK[result]
+        |.endif
+        | mov FUNCTION, OBJECT:ARG2->st;
+        | mov FUNCTION, STABLE:FUNCTION->container_spec;
+        | mov FUNCTION, CONTAINERSPEC:FUNCTION->cas;
+        | call FUNCTION;
+        break;
+    }
+    case MVM_OP_sp_atomicload_o: {
+        MVMint16 target = ins->operands[1].reg.orig;
+        MVMint16 result = ins->operands[0].reg.orig;
+        | mov ARG1, TC;
+        | mov ARG2, aword WORK[target];
+        | mov FUNCTION, OBJECT:ARG2->st;
+        | mov FUNCTION, STABLE:FUNCTION->container_spec;
+        | mov FUNCTION, CONTAINERSPEC:FUNCTION->atomic_load;
+        | call FUNCTION;
+        | mov WORK[result], RV
+        break;
+    }
+    case MVM_OP_sp_atomicstore_o: {
+        MVMint16 target = ins->operands[0].reg.orig;
+        MVMint16 value = ins->operands[1].reg.orig;
+        | mov ARG1, TC;
+        | mov ARG2, aword WORK[target];
+        | mov ARG3, aword WORK[value];
+        | mov FUNCTION, OBJECT:ARG2->st;
+        | mov FUNCTION, STABLE:FUNCTION->container_spec;
+        | mov FUNCTION, CONTAINERSPEC:FUNCTION->atomic_store;
+        | call FUNCTION;
         break;
     }
     default:
@@ -2297,6 +2410,11 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
         | mov ARG2, WORK[invoke->code_register]; // code object
         | lea ARG3, [rbp-0x30];                  // &cur_callsite
         | mov ARG4, TMP5;                        // args
+        |.if WIN32;
+        | mov qword [rsp+0x20], 0
+        |.else;
+        | mov ARG5, 0;                           // NULL to &was_multi
+        |.endif
         | callp &MVM_frame_find_invokee_multi_ok;
         /* restore callsite, args, RV now holds code object */
         | mov TMP6, [rbp-0x30]; // callsite

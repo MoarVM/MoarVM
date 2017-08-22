@@ -64,17 +64,15 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         process_worklist(tc, worklist, &wtp, gen);
     }
     else {
-        /* Main collection run. We:
-         * 1) Free any existing fromspace; we could clear it, but asking the
-         *    OS for a new block of zeroed memory seems to be cheaper than
-         *    memset on a block we already have, plus that block will be
-         *    cache cold anyway.
-         * 2) Make tospace the new fromspace.
-         * 3) Allocate a new empty tospace. */
-        void *tospace = MVM_calloc(1, MVM_NURSERY_SIZE);
-        MVM_free(tc->nursery_fromspace);
-        tc->nursery_fromspace = tc->nursery_tospace;
-        tc->nursery_tospace = tospace;
+        /* Main collection run. Swap fromspace and tospace, allocating the
+         * new tospace if that didn't yet happen (we don't allocate it at
+         * startup, to cut memory use for threads that quit before a GC). */
+        void *fromspace = tc->nursery_tospace;
+        void *tospace   = tc->nursery_fromspace;
+        if (!tospace)
+            tospace = MVM_calloc(1, MVM_NURSERY_SIZE);
+        tc->nursery_fromspace = fromspace;
+        tc->nursery_tospace   = tospace;
 
         /* Reset nursery allocation pointers to the new tospace. */
         tc->nursery_alloc       = tospace;
@@ -135,6 +133,11 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         add_in_tray_to_worklist(tc, worklist);
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from in tray \n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
+
+        /* At this point, we have probably done most of the work we will
+         * need to (only get more if another thread passes us more); zero
+         * out the remaining tospace. */
+        memset(tc->nursery_alloc, 0, (char *)tc->nursery_alloc_limit - (char *)tc->nursery_alloc);
     }
 
     /* Destroy the worklist. */
@@ -254,7 +257,8 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : copying an object %p of size %d to gen2 %p\n",
                     item, item->size, new_addr);
                 memcpy(new_addr, item, item->size);
-                new_addr->flags ^= MVM_CF_NURSERY_SEEN;
+                if (new_addr->flags & MVM_CF_NURSERY_SEEN)
+                    new_addr->flags ^= MVM_CF_NURSERY_SEEN;
                 new_addr->flags |= MVM_CF_SECOND_GEN;
 
                 /* If it's a frame with an active work area, we need to keep

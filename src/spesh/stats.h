@@ -125,6 +125,9 @@ struct MVMSpeshStatsInvokeCount {
     /* The number of times the caller frame was also the outer frame. */
     MVMuint32 caller_is_outer_count;
 
+    /* The number of times it was resolved from a multi-dispatch. */
+    MVMuint32 was_multi_count;
+
     /* The number of times we've seen it. */
     MVMuint32 count;
 };

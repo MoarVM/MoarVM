@@ -9,6 +9,10 @@ void MVM_repr_init(MVMThreadContext *tc, MVMObject *obj) {
         REPR(obj)->initialize(tc, STABLE(obj), obj, OBJECT_BODY(obj));
 }
 
+MVMObject * MVM_repr_alloc(MVMThreadContext *tc, MVMObject *type) {
+    return REPR(type)->allocate(tc, STABLE(type));
+}
+
 MVMObject * MVM_repr_alloc_init(MVMThreadContext *tc, MVMObject *type) {
     MVMObject *obj = REPR(type)->allocate(tc, STABLE(type));
 
@@ -44,7 +48,7 @@ MVM_PUBLIC void MVM_repr_pos_set_elems(MVMThreadContext *tc, MVMObject *obj, MVM
         OBJECT_BODY(obj), elems);
 }
 
-static void populate_indices_array(MVMThreadContext *tc, MVMObject *arr, MVMint64 *elems) {
+void MVM_repr_populate_indices_array(MVMThreadContext *tc, MVMObject *arr, MVMint64 *elems) {
     MVMint64 i;
     *elems = MVM_repr_elems(tc, arr);
     if (*elems > tc->num_multi_dim_indices)
@@ -57,7 +61,7 @@ static void populate_indices_array(MVMThreadContext *tc, MVMObject *arr, MVMint6
 void MVM_repr_set_dimensions(MVMThreadContext *tc, MVMObject *obj, MVMObject *dims) {
     if (IS_CONCRETE(obj)) {
         MVMint64 num_dims;
-        populate_indices_array(tc, dims, &num_dims);
+        MVM_repr_populate_indices_array(tc, dims, &num_dims);
         REPR(obj)->pos_funcs.set_dimensions(tc, STABLE(obj), obj,
             OBJECT_BODY(obj), num_dims, tc->multi_dim_indices);
     }
@@ -112,7 +116,7 @@ MVMObject * MVM_repr_at_pos_o(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx
 
 static void at_pos_multidim(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices, MVMRegister *value, MVMuint16 kind) {
     MVMint64 num_indices;
-    populate_indices_array(tc, indices, &num_indices);
+    MVM_repr_populate_indices_array(tc, indices, &num_indices);
     REPR(obj)->pos_funcs.at_pos_multidim(tc, STABLE(obj), obj,
         OBJECT_BODY(obj), num_indices, tc->multi_dim_indices, value, kind);
 }
@@ -231,7 +235,7 @@ void MVM_repr_bind_pos_o(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx, MVM
 
 static void bind_pos_multidim(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices, MVMRegister value, MVMuint16 kind) {
     MVMint64 num_indices;
-    populate_indices_array(tc, indices, &num_indices);
+    MVM_repr_populate_indices_array(tc, indices, &num_indices);
     REPR(obj)->pos_funcs.bind_pos_multidim(tc, STABLE(obj), obj,
         OBJECT_BODY(obj), num_indices, tc->multi_dim_indices, value, kind);
 }

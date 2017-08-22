@@ -1,9 +1,11 @@
 void MVM_repr_init(MVMThreadContext *tc, MVMObject *obj);
+MVM_PUBLIC MVMObject * MVM_repr_alloc(MVMThreadContext *tc, MVMObject *type);
 MVM_PUBLIC MVMObject * MVM_repr_alloc_init(MVMThreadContext *tc, MVMObject *type);
 MVM_PUBLIC MVMObject * MVM_repr_clone(MVMThreadContext *tc, MVMObject *obj);
 void MVM_repr_compose(MVMThreadContext *tc, MVMObject *type, MVMObject *obj);
 
 MVM_PUBLIC void MVM_repr_pos_set_elems(MVMThreadContext *tc, MVMObject *obj, MVMint64 elems);
+void MVM_repr_populate_indices_array(MVMThreadContext *tc, MVMObject *arr, MVMint64 *elems);
 MVM_PUBLIC void MVM_repr_set_dimensions(MVMThreadContext *tc, MVMObject *obj, MVMObject *dims);
 MVM_PUBLIC void MVM_repr_pos_splice(MVMThreadContext *tc, MVMObject *obj, MVMObject *replacement, MVMint64 offset, MVMint64 count);
 

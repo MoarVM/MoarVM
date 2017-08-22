@@ -18,7 +18,7 @@ static void cleanup_dead_bb_instructions(MVMThreadContext *tc, MVMSpeshGraph *g,
             switch (ann->type) {
                 case MVM_SPESH_ANN_INLINE_START:
                     /* If an inline's entrypoint becomes impossible to reach
-                     * the the whole inline will too. Just mark it as being
+                     * the whole inline will too. Just mark it as being
                      * unreachable. */
                     g->inlines[ann->data.inline_idx].unreachable = 1;
                     break;
@@ -77,7 +77,7 @@ static void mark_bb_seen(MVMThreadContext *tc, MVMSpeshBB *bb, MVMint8 *seen) {
     }
 }
 
-/* Elimiantes dead basic blocks, optionally cleaning up facts. (In the case
+/* Eliminates dead basic blocks, optionally cleaning up facts. (In the case
  * this is called during spesh graph construction, the facts do not yet
  * exist). */
 void MVM_spesh_eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 update_facts) {

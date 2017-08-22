@@ -25,6 +25,139 @@ static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
 #define STRAND_CHECK(tc, s)
 #endif
 
+/* If MVM_DEBUG_NFG is 1, calls to NFG_CHECK will re_nfg the given string
+ * and compare num_graphs before and after the normalization.
+ * If it is different debug information will be printed out.
+#define MVM_DEBUG_NFG 0 */
+/* MVM_DEBUG_NFG_STRICT does as above but does not only rely on num_graphs. It
+ * always checks every grapheme manually. Slower. (requires MVM_DEBUG_NFG)
+#define MVM_DEBUG_NFG_STRICT 0 */
+
+static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in);
+#if MVM_DEBUG_NFG
+static char * NFG_check_make_debug_string (MVMThreadContext *tc, MVMGrapheme32 g) {
+    char *result = NULL;
+    char *picked = NULL;
+    if (g == '\r')
+        picked = "\\r";
+    else if (g == '\n')
+        picked = "\\n";
+    else if (g == MVM_nfg_crlf_grapheme(tc))
+        picked = "\\r\\n";
+    else if (!MVM_string_is_control_full(tc, g))
+        result = MVM_string_utf8_encode_C_string(tc, MVM_string_chr(tc, g));
+    else
+        picked = "[Control]";
+    if (picked) {
+        result = MVM_malloc(sizeof(char) * (strlen(picked) + 1));
+        strcpy(result, picked);
+    }
+    if (!result) {
+        result = MVM_malloc(sizeof(char) * 1);
+        result[0] = 0;
+    }
+    return result;
+}
+static char * NFG_checker (MVMThreadContext *tc, MVMString *orig, char *varname);
+static void NFG_check (MVMThreadContext *tc, MVMString *orig, char *varname) {
+    char *out = NFG_checker(tc, orig, varname);
+    char *waste[2] = { out, NULL };
+    if (!out)
+        return;
+    MVM_exception_throw_adhoc_free(tc, waste, "%s", out);
+}
+static char * NFG_checker (MVMThreadContext *tc, MVMString *orig, char *varname) {
+    MVMString *renorm;
+    MVMStringIndex orig_graphs = MVM_string_graphs(tc, orig),
+                   renorm_graphs = -1;
+    MVMROOT(tc, orig, {
+    MVMROOT(tc, renorm, {
+        renorm = re_nfg(tc, orig);
+        renorm_graphs = MVM_string_graphs(tc, renorm);
+    });
+    });
+    if (MVM_DEBUG_NFG_STRICT || orig_graphs != renorm_graphs) {
+        MVMGraphemeIter orig_gi, renorm_gi;
+        MVMint64 index = 0;
+        MVM_string_gi_init(tc, &orig_gi, orig);
+        MVM_string_gi_init(tc, &renorm_gi, renorm);
+        while (MVM_string_gi_has_more(tc,  &orig_gi) && MVM_string_gi_has_more(tc,  &renorm_gi)) {
+            MVMGrapheme32 orig_g   = MVM_string_gi_get_grapheme(tc, &orig_gi),
+                          renorm_g = MVM_string_gi_get_grapheme(tc, &renorm_gi);
+            if (orig_g != renorm_g) {
+                char *orig_render   = NFG_check_make_debug_string(tc, orig_g),
+                     *renorm_render = NFG_check_make_debug_string(tc, renorm_g);
+                char *format = "NFG failure. Got different grapheme count of %s. "
+                    "Got %i but after re_nfg got %i\n"
+                        "Differing grapheme at index %"PRIi64"\n"
+                            "orig: %"PRIi32"  (%s)  after re_nfg: %"PRIi32"  (%s)\n";
+                char *out = MVM_malloc(sizeof(char) * (
+                    strlen(orig_render) + strlen(renorm_render)
+                    + strlen(varname) + strlen(format) + (5 * 7)
+                ) + 1);
+                char *waste[] = {orig_render, renorm_render, NULL};
+                char **w = waste;
+                sprintf(out,
+                    format,
+                    varname,
+                        orig_graphs, renorm_graphs,
+                            index,
+                                orig_g, orig_render, renorm_g, renorm_render);
+                MVM_free(orig_render);
+                MVM_free(renorm_render);
+                return out;
+            }
+            index++;
+        }
+    }
+    return NULL;
+}
+static void NFG_check_concat (MVMThreadContext *tc, MVMString *result, MVMString *a, MVMString *b, char *varname) {
+    char *a_out = NFG_checker(tc, a, "string ‘a’");
+    char *b_out = NFG_checker(tc, b, "string ‘b’");
+    char *out = NFG_checker(tc, result, varname);
+    char *strings[] = { a_out, b_out, out };
+    char *names[]   = { "\nconcat string ‘a’: ", "\nconcat string ‘b’: ", "\nconcat result: " };
+    int i = 0, elems = 4;
+    int rtrn = 0;
+    char * empty = "";
+    if (!a_out && !b_out && !out)
+        return;
+    else {
+        MVMGrapheme32 last_a  =  MVM_string_get_grapheme_at_nocheck(tc, a, a->body.num_graphs - 1),
+                      first_b = MVM_string_get_grapheme_at_nocheck(tc, b, 0);
+        char   *debug_a = NFG_check_make_debug_string(tc, last_a),
+               *debug_b = NFG_check_make_debug_string(tc, first_b),
+             *escaped_a = MVM_string_utf8_encode_C_string(tc, MVM_string_escape(tc, a)),
+             *escaped_b = MVM_string_utf8_encode_C_string(tc, MVM_string_escape(tc, b)),
+        *escaped_result = MVM_string_utf8_encode_C_string(tc, MVM_string_escape(tc, result));
+        char *waste[] = { out, debug_a, debug_b, escaped_a, escaped_b, escaped_result, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
+            "In concat: a graphs: %"PRIi32" b graphs: %"PRIi32"\n"
+            "last_a: %"PRIi32" (%s)  first_b %"PRIi32"  (%s)\n"
+            "a: “%s”\n"
+            "b: “%s”\n"
+            "result: “%s”\n"
+            "%s%s%s%s%s%s",
+            MVM_string_graphs(tc, a), MVM_string_graphs(tc, b),
+            last_a, debug_a, first_b, debug_b,
+            escaped_a,
+            escaped_b,
+            escaped_result,
+            (a_out?names[0]:""), (a_out?a_out:""),
+            (b_out?names[1]:""), (b_out?b_out:""),
+            (out?names[2]:""), (out?out:""));
+        }
+
+
+}
+#define NFG_CHECK(tc, s, varname)              NFG_check(tc, s, varname);
+#define NFG_CHECK_CONCAT(tc, s, a, b, varname) NFG_check_concat(tc, s, a, b, varname);
+#else
+#define NFG_CHECK(tc, s, varname)
+#define NFG_CHECK_CONCAT(tc, s, a, b, varname)
+#endif
+
 MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle_fc, MVMint64 H_start, MVMint64 H_graphs, MVMint64 n_fc_graphs, int ignoremark, int ignorecase);
 
 /* Allocates strand storage. */
@@ -520,8 +653,10 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         });
         });
         if (renormalized_section) {
-            if (agraphs == consumed_a && bgraphs == consumed_b)
+            if (agraphs == consumed_a && bgraphs == consumed_b) {
+                NFG_CHECK_CONCAT(tc, renormalized_section, a, b, "renormalized_section");
                 return renormalized_section;
+            }
             renormalized_section_graphs = MVM_string_graphs_nocheck(tc, renormalized_section);
         }
     }
@@ -548,7 +683,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
 
         /* Detect the wonderful case where we're repeatedly concating the same
          * string again and again, and thus can just bump a repetition. */
-        if (final_strand_matches(tc, a, b)) {
+        if (is_concat_stable == 1 && final_strand_matches(tc, a, b)) {
             /* We have it; just copy the strands to a new string and bump the
              * repetitions count of the last one. */
             result->body.storage.strands = allocate_strands(tc, a->body.num_strands);
@@ -657,6 +792,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     });
     STRAND_CHECK(tc, result);
     if (is_concat_stable == 1) {
+        NFG_CHECK_CONCAT(tc, result, a, b, "'result' w/ is_concat_stable = 1");
         return result;
     }
     /* If it's regional indicator */
@@ -664,6 +800,8 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         return re_nfg(tc, result);
     }
     else if (is_concat_stable == 0 && renormalized_section) {
+        NFG_CHECK_CONCAT(tc, renormalized_section, a, b, "renormalized_section");
+        NFG_CHECK_CONCAT(tc, result, a, b, "'result' w/ is_concat_stable = 0");
         return result;
     }
     /* We should have returned by now, but if we did not, return re_nfg */
@@ -748,17 +886,22 @@ void MVM_string_print(MVMThreadContext *tc, MVMString *a) {
 }
 /* Meant to be pased in a MVMNormalizer of type MVM_NORMALIZE_NFD */
 static MVMGrapheme32 ord_getbasechar (MVMThreadContext *tc, MVMGrapheme32 g) {
-    MVMGrapheme32 return_g;
-    MVMint32 ready;
-    MVMNormalizer norm;
-    MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
+    /* If we get a synthetic, extract the base codepoint and call ord_getbasechar again */
+    if (g < 0)
+        return ord_getbasechar(tc, MVM_nfg_get_synthetic_info(tc, g)->base);
+    else {
+        MVMGrapheme32 return_g;
+        MVMint32 ready;
+        MVMNormalizer norm;
+        MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
 
-    ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, g, &return_g);
-    MVM_unicode_normalizer_eof(tc, &norm);
-    if (!ready)
-        return_g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
-    MVM_unicode_normalizer_cleanup(tc, &norm);
-    return return_g;
+        ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, g, &return_g);
+        MVM_unicode_normalizer_eof(tc, &norm);
+        if (!ready)
+            return_g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+        MVM_unicode_normalizer_cleanup(tc, &norm);
+        return return_g;
+    }
 }
 /* Tests whether one string a has the other string b as a substring at that index */
 MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset) {
@@ -863,9 +1006,8 @@ static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Hay
      * can't assume too much. If optimizing this be careful */
     if (H_offset >= H_graphs)
         return 0;
-
     MVMROOT(tc, Haystack, {
-        needle_fc = MVM_string_fc(tc, needle);
+        needle_fc = ignorecase ? MVM_string_fc(tc, needle) : needle;
     });
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
     H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, Haystack, needle_fc, H_offset, H_graphs, n_fc_graphs, ignoremark, ignorecase);
@@ -903,7 +1045,7 @@ static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haysta
         return -1;
 
     MVMROOT(tc, Haystack, {
-        needle_fc = MVM_string_fc(tc, needle);
+        needle_fc = ignorecase ? MVM_string_fc(tc, needle) : needle;
     });
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
     /* brute force for now. horrible, yes. halp. */
@@ -953,7 +1095,6 @@ MVMGrapheme32 MVM_string_ord_at(MVMThreadContext *tc, MVMString *s, MVMint64 off
 /* Gets the base character at a grapheme position, ignoring things like diacritics */
 MVMGrapheme32 MVM_string_ord_basechar_at(MVMThreadContext *tc, MVMString *s, MVMint64 offset) {
     MVMStringIndex agraphs;
-    MVMGrapheme32 g;
     MVMint32 ready;
 
     MVM_string_check_arg(tc, s, "ord_basechar_at");
@@ -962,17 +1103,7 @@ MVMGrapheme32 MVM_string_ord_basechar_at(MVMThreadContext *tc, MVMString *s, MVM
     if (offset < 0 || offset >= agraphs)
         return -1;  /* fixes RT #126771 */
 
-    g = MVM_string_get_grapheme_at_nocheck(tc, s, offset);
-
-    if (g < 0) {
-        MVMNFGSynthetic *si = MVM_nfg_get_synthetic_info(tc, g);
-        g = si->base;
-    }
-    else {
-        g = ord_getbasechar(tc, g);
-    }
-
-    return g;
+    return ord_getbasechar(tc, MVM_string_get_grapheme_at_nocheck(tc, s, offset));
 }
 
 

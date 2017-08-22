@@ -177,7 +177,7 @@ void MVM_line_coverage_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
 }
 
 void MVM_line_coverage_report(MVMThreadContext *tc, MVMString *filename, MVMuint32 line_number, MVMuint16 cache_slot, char *cache) {
-    if (cache[cache_slot] == 0) {
+    if (tc->instance->coverage_control == 2 || (!tc->instance->coverage_control && cache[cache_slot] == 0)) {
         char *encoded_filename;
         char composed_line[256];
         size_t length;

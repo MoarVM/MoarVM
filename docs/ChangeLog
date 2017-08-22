@@ -1,3 +1,187 @@
+New in 2017.08.1
+
++ Fix regression in Windows JIT build
++ Remove broken JIT of parameter operations
+
+New in 2017.08
+
++ Dynamic optimization moved to a worker thread
+    + Threads now write sequential logs into a log buffer, and send it to the
+      worker thread in a concurrent queue
+    + Quota of logs to avoid excessive memory use, with a boost when entering
+      a new compilation unit for the sake of OSR
+    + Added MVM_SPESH_BLOCKING environment variable to allow for reproducible
+      specialization results when debugging
+    + Reworked installation of specializations
+    + Reworked OSR implementation to account for specialization being done on
+      a worker thread
++ New statistics model for making better specialization decisions
+    + Frames carry a correlation ID to allow reconstruction of call stack and
+      analysis on the specialization worker thread
+    + Produce specializations based upon most common occurring types, not just
+      those sampled immediately after passing a threshold
+    + Megamorphic code gets a non-type specialization and may be JIT-compiled
+    + Remove hard limit on spesh candidate count
+    + MVM_SPESH_DUMP updated to show statistics and planned specializations
+    + Updated log analysis and guard insertion to use the new statistics model
++ New argument guard, based around a tree, which means less checks need to be
+  performed when deciding on with specialization to run
++ Add dumping of new argument guard structure
++ Log time that specialization work consumes
++ Add a script to sum up logged spesh times
++ Better organization of MVMInstance and MVMThreadContext fields
++ Removed now-unused cur_usecapture field
++ Avoid passing a real NULL as an object argument in stack unwind handling
++ Disable spesh in initial load/deserialize; there's no useful data at this
+  point
++ Add thread ID range check to GC debug mode
++ Deduplicate code from MVM_string_indexing_optimized
++ Start off collapsing strands as 8bit instead of 32bit
++ Concatenation improvements
+    + When concat needs normalization only normalize one section
+    + Don't trigger re_nfg on concat for base character + combiner
+    + Add functions for iterating the codepoints of a grapheme
+    + Don't re_nfg when last_a or first_b are synthetics in concat
+    + Don't take the no re_nfg shortcut if a repetition contains a synthetic
+    + Don't do re_nfg shortcut if either a or b are repeats
+    + Use MVM_string_graphs_nocheck when able in concat
+    + Fix conditional to check first instead of last strand of string b
++ Enable native callbacks on different threads
++ Fix double-decrement of unused args in inlining
++ More detailed dump of spesh slots
++ Don't NULL out spesh slots; they may be re-used
++ Make JIT include SC write barriers
++ Stronger validation of code objects in optimizer
++ Refactor code into iterate_gi_into_string() to reduce code duplication
++ Move collapse_strands() after iterate_gi_into_string()
++ NULL out registers on re-OSR
++ Only devirtualize REPR funcs in JIT when concreteness is known
++ Fix JIT of nqp::ordat and nqp::ordfirst
++ Update TinyMT to version 1.1
++ We always have threads now (thanks to specializer worker), so remove single
+  threaded VM instance lock avoidance paths
++ Improve GC thread sync-up
+    + Simplify handling of the thread list
+    + Introduce GC orchestration mutex/condvars, and use them to avoid busy
+      waiting when synchronizing threads for GC
++ Avoid many array searches for SC code refs
++ JIT param_sp and param_sn
++ Inability to open telemeh log shall not be fatal
++ Output spesh worker info on telemetry channel
++ Size of MVMFrame reduced
+    + Eliminate effective_handlers field in MVMFrame
+    + Eliminate effective_bytecode field in MVMFrame
+    + Add function to encapsulate special return setup
+    + Move special return into a frame extras
+    + Move continuation tags into frame extras
+    + Move invoked_call_capture to frame extras
+    + Move dynamic lexical cache to frame extras
+    + Eliminate throw_address from frames
+    + Force MVMReturnType to be a single byte
+    + Toss never-used nameds re-use logic
+    + Eliminate need to memset MVMFrame
+    + Remove historical, now-unrequired, nullings
+    + Use a bit field for named args used when possible
++ Improve NFA memory performance
++ Small optimization to string_equal, remove repeated checks
++ Remove two invoke handler functions we don't need
++ Remove long-unused newlexotic/lexoticresult ops
++ Remove now-dead newlexotic functions
++ Remove now-unused pool_index in MVMStaticFrame
++ Eliminate now-unused Lexotic REPR, lexotic cache
++ Remove a dead field
++ Remove unused gotolexotic function
++ Move spesh data into a separate object from MVMStaticFrame, for less memory
+  use and better GC performance
++ Break MVM_sc_get_sc into inline and slow path
++ Delete unused var in MVM_string_ascii_encode_substr
++ Avoid range check on every SC object access
++ Delete unused var in MVM_string_latin1_encode_substr
++ Fix MVM_string_compare to support deterministic comparing of synthetics
++ Disable JIT when we're not allowed to make memory executable
++ Have MVM_string_codes iterate the string with codepoint iterator
++ Speed up attribute reads during invocation
++ Document the various op adverbs
++ Reduce duplication and simplify logic in invoke
++ Move checking part of force_to_heap into an inline
++ Allocate frames on heap that tend to need promotion anyway
++ Improve deopt logging output
++ Append, not prepend, moved deopt one annotations
++ Turn decont into a deoptonepoint and insert guards after decont
++ Store deopt one target directly in bytecode rather than calculating it each
+  time
++ Implement speculative pre-selection of specializations and inlining based on
+  guarding against the invocation target
++ When inlining, replace receive instruction instead of send instruction, to
+  better cope with register re-use
++ JIT pow_I
++ Validate range of branch target in spesh code-gen
++ Anchor inlinee handlers to inliner entry
++ Fix and expand dead basic block removal
++ Remove duplicate use of named arg checking
++ More sophisticated named arg handling in spesh, removing sp_namedarg_used op
++ Make it possible to cancel an async socket reader
++ JIT rand_I and also give it a smallbigint path
++ Ensure that serialized padding bytes are 0
++ Avoid uninitialized bytes in default tables
++ Avoid uninitialized bytes at the end of serialized tables
++ Add -Werror=pointer-arith for gcc
++ Put hard upper limit on bytecode size to optimize
++ Move annotations multiple basic blocks if needed
++ Eliminate "blocked by alias" propagation checks
++ End basic blocks after all throwish/invokish
++ Extra fflush so spesh log is written before crash
++ Ensure frame handler start/ends are BB boundaries
++ Don't explode on spesh dump when no facts
++ Cope with extra successors when inlining
++ Factor out and re-use dead BB elimination
++ Allow for GOTO handler to become unreachable
++ More precise CFGs for control exception handlers
++ Add indexim_s op and improve/fix bugs in eqatim_s
++ Further harden against removed handlers
++ Add debugging aid for spesh preselection
++ Make rebless deopt stack top frame also
++ Bump usage of writers in deopt instructions
++ Start storing/using static frame in inline table
++ Use register holding code ref for deopt purposes
++ Can never inline frames declaring state vars
++ Correct handler order when inlining
++ Implement inlining of basic lexical lookups
++ Tune the inline size
++ The listen callback shall also push socket and peer IP and port
++ Don't set a bit we're meant to be clearing in GC gen2 promotion
++ Harden listen_cancel against dupe calls
++ JIT nativecallcast, trunc_i32, extend_i32
++ Make sure the libffi callback can be reused
++ JIT the create op
++ Check ffi_closure_alloc() return value
++ Implement atomic ops
+    + Provide a way to have an int type sized to the architecture's atomic
+      size
+    + Implement cas for Scalar references and native integer references
+    + Implement atomic load and store for Scalar references and native integer
+      references
+    + Implement atomic increment, decrement, and add for native integer
+      references
+    + Provide an op for doing a full memory barrier
+    + JIT of the new atomic ops
++ Fix a bug in index/eqat(im) and in ord_getbasechar
++ Add nqp::coveragecontrol op
++ Remove two more unneeded strlen from nativecall.c
++ Only foldcase the needle for ignorecase operations
++ Remove impossible less than zero checks on unsigneds
++ Add GC debug check on frame heap promotion
++ Correct an MVM_ASSIGN to barrier the right target in continuation invocation
++ Root thread object while creating thread context
++ Correct invokewithcapture GC handling
++ Extra GC debug checks after frame promotion
++ Blacklist unhandled param ops in spesh args handling
++ Add hostname to failed to resolve error
++ JIT param_rp_o and param_rp_i
++ Introduce NFG_CHECK which checks string is in NFG form
++ Fix concatenation bug when renormalization needed
++ JIT setcodeobj and captureinnerlex
+
 New in 2017.07
 
 + Full Unicode 9.0 and Emoji 4.0 text segmentation support

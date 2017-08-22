@@ -47,6 +47,13 @@ struct MVMContainerSpec {
     /* Returns a non-zero value if we can store to the container. */
     MVMint32 (*can_store) (MVMThreadContext *tc, MVMObject *cont);
 
+    /* If available, reference atomic compare and swap operation, atomic load
+     * operation, and atomic store operation. */
+    void (*cas) (MVMThreadContext *tc, MVMObject *cont, MVMObject *expected,
+        MVMObject *value, MVMRegister *result);
+    MVMObject * (*atomic_load) (MVMThreadContext *tc, MVMObject *cont);
+    void (*atomic_store) (MVMThreadContext *tc, MVMObject *cont, MVMObject *value);
+
     /* Set this to a non-zero value if a fetch promises to never invoke any
      * code. This means the VM knows it can safely decontainerize in places
      * it would not be safe or practical to return to the interpreter. */
@@ -87,3 +94,14 @@ void MVM_6model_container_decont_u(MVMThreadContext *tc, MVMObject *cont, MVMReg
 void MVM_6model_container_assign_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value);
 void MVM_6model_container_assign_n(MVMThreadContext *tc, MVMObject *cont, MVMnum64 value);
 void MVM_6model_container_assign_s(MVMThreadContext *tc, MVMObject *cont, MVMString *value);
+void MVM_6model_container_cas(MVMThreadContext *tc, MVMObject *cont,
+    MVMObject *expected, MVMObject *value, MVMRegister *result);
+MVMObject * MVM_6model_container_atomic_load(MVMThreadContext *tc, MVMObject *cont);
+void MVM_6model_container_atomic_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *value);
+MVMint64 MVM_6model_container_cas_i(MVMThreadContext *tc, MVMObject *cont,
+    MVMint64 expected, MVMint64 value);
+MVMint64 MVM_6model_container_atomic_load_i(MVMThreadContext *tc, MVMObject *cont);
+void MVM_6model_container_atomic_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value);
+MVMint64 MVM_6model_container_atomic_inc(MVMThreadContext *tc, MVMObject *cont);
+MVMint64 MVM_6model_container_atomic_dec(MVMThreadContext *tc, MVMObject *cont);
+MVMint64 MVM_6model_container_atomic_add(MVMThreadContext *tc, MVMObject *cont, MVMint64 value);

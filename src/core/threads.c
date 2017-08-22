@@ -26,7 +26,9 @@ MVMObject * MVM_thread_new(MVMThreadContext *tc, MVMObject *invokee, MVMint64 ap
 
     /* Try to create the new threadcontext. Can throw if libuv can't
      * create a loop for it for some reason (i.e. too many open files) */
-    child_tc = MVM_tc_create(tc, tc->instance);
+    MVMROOT(tc, thread, {
+        child_tc = MVM_tc_create(tc, tc->instance);
+    });
 
     /* Set up the new threadcontext a little. */
     child_tc->thread_obj = thread;
@@ -75,7 +77,7 @@ static void start_thread(void *data) {
     tc->thread_obj->body.stage = MVM_thread_stage_started;
 
     /* Create a spesh log for this thread. */
-    MVM_spesh_log_initialize_thread(tc);
+    MVM_spesh_log_initialize_thread(tc, 0);
 
     /* Enter the interpreter, to run code. */
     MVM_interp_run(tc, thread_initial_invoke, ts);
@@ -107,9 +109,6 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
     if (REPR(child)->ID == MVM_REPR_ID_MVMThread) {
         MVMThreadContext *child_tc = child->body.tc;
 
-        /* Move thread to starting stage. */
-        child->body.stage = MVM_thread_stage_starting;
-
         /* Mark thread as GC blocked until the thread actually starts. */
         MVM_gc_mark_thread_blocked(child_tc);
 
@@ -134,6 +133,9 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
                  * keep it alive by putting it in the *child* tc's temp roots. */
                 ts->thread_obj = thread_obj;
                 MVM_gc_root_temp_push(child_tc, (MVMCollectable **)&ts->thread_obj);
+
+                /* Move thread to starting stage. */
+                child->body.stage = MVM_thread_stage_starting;
 
                 /* Mark us done and unlock the mutex; any GC run will now have
                  * a consistent view of the thread list and can safely run. */

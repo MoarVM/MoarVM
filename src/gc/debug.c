@@ -10,12 +10,12 @@ void MVM_gc_debug_find_region(MVMThreadContext *tc, void *ptr) {
         MVMThreadContext *thread_tc = cur_thread->body.tc;
         if (thread_tc) {
             if (ptr >= thread_tc->nursery_fromspace &&
-                    ptr < thread_tc->nursery_fromspace + MVM_NURSERY_SIZE) {
+                    (char *)ptr < (char *)thread_tc->nursery_fromspace + MVM_NURSERY_SIZE) {
                 printf("In fromspace of thread %d\n", cur_thread->body.thread_id);
                 return;
             }
             if (ptr >= thread_tc->nursery_tospace &&
-                    ptr < thread_tc->nursery_tospace + MVM_NURSERY_SIZE) {
+                    (char *)ptr < (char *)thread_tc->nursery_tospace + MVM_NURSERY_SIZE) {
                 printf("In tospace of thread %d\n", cur_thread->body.thread_id);
                 return;
             }
