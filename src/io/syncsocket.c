@@ -252,7 +252,7 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
     }
     else {
         char *waste[] = { host_cstr, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste, "Failed to resolve host name '%s'. Error was: '%s'",
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to resolve host name '%s'. Error: '%s'",
                                        host_cstr, gai_strerror(error));
     }
     freeaddrinfo(result);
