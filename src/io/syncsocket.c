@@ -236,10 +236,14 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
     struct sockaddr *dest;
     struct addrinfo *result;
     int error;
-    char port_cstr[8];
-    snprintf(port_cstr, 8, "%d", (int)port);
-
+    char* port_cstr = NULL;
+    if (port != 0) {
+        port_cstr = (char*) MVM_malloc(8);
+        snprintf(port_cstr, 8, "%d", (int)port);
+    }
     error = getaddrinfo(host_cstr, port_cstr, NULL, &result);
+    if (port != 0)
+        MVM_free(port_cstr);
     if (error == 0) {
         MVM_free(host_cstr);
         if (result->ai_addr->sa_family == AF_INET6) {
@@ -259,16 +263,20 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
     return dest;
 }
 
+#define STR_SA_FAMILY(a) a == AF_INET ? "IPv4" : "IPv6"
+
+
 /* Establishes a connection. */
-static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port) {
+static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMString* source_address) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     unsigned int interval_id;
-
+    char* source_address_str = MVM_string_utf8_encode_C_string(tc, source_address);
     interval_id = MVM_telemetry_interval_start(tc, "syncsocket connect");
+
     if (!data->handle) {
         struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port);
         int r;
-
+        int b;
         Socket s = socket(dest->sa_family , SOCK_STREAM , 0);
         if (MVM_IS_SOCKET_ERROR(s)) {
             MVM_free(dest);
@@ -276,6 +284,40 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
             throw_error(tc, s, "create socket");
         }
 
+        if (strlen(source_address_str) != 0) {
+            struct sockaddr *src = MVM_io_resolve_host_name(tc, source_address, 0);
+            struct sockaddr_in *addr;
+            addr = (struct sockaddr_in *)src; 
+            /*printf("Goind to bind plop on %s\n", inet_ntoa((struct in_addr)addr->sin_addr));
+            printf("Dest fam : %d - src Fam : %d -   v4: %d  v6: %d\n", dest->sa_family, src->sa_family, AF_INET, AF_INET6);*/
+            //FIXME or not. maybe we should let the user specificy the family he want to use and set the resolve host stuff to
+            //use the right family. For now let's just give a kinda useful error message.
+            if (src->sa_family != dest->sa_family) {
+                int sf, df;
+                sf = src->sa_family;
+                df = dest->sa_family;
+                MVM_free(source_address_str);
+                MVM_free(src);
+                MVM_free(dest);
+                MVM_exception_throw_adhoc(tc, 
+                                          "The socket won't be binded. Destination and Source address family does not match. Destination is %s. Source is %s\n",
+                                          STR_SA_FAMILY(df), STR_SA_FAMILY(sf)
+                                         );
+            }
+            MVM_gc_mark_thread_blocked(tc);
+            b = bind(s, src, src->sa_family == AF_INET6
+                  ? sizeof(struct sockaddr_in6)
+                  : sizeof(struct sockaddr));
+            MVM_gc_mark_thread_unblocked(tc);
+            if (MVM_IS_SOCKET_ERROR(b)) {
+              MVM_free(dest);
+              MVM_free(src);
+              MVM_free(source_address_str);
+              MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
+              throw_error(tc, b, "bind socket");
+            }
+        }
+        MVM_free(source_address_str);
         MVM_gc_mark_thread_blocked(tc);
         r = connect(s, dest, dest->sa_family == AF_INET6
                 ? sizeof(struct sockaddr_in6)
@@ -286,7 +328,6 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
             throw_error(tc, s, "connect socket");
         }
-
         data->handle = s;
     }
     else {
