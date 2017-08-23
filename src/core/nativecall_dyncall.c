@@ -485,9 +485,10 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     void     *ptr         = NULL;
 
     unsigned int interval_id;
+    DCCallVM *vm;
 
     /* Create and set up call VM. */
-    DCCallVM *vm = dcNewCallVM(8192);
+    vm = dcNewCallVM(8192);
     dcMode(vm, body->convention);
     dcReset(vm);
 

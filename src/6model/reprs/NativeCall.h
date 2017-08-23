@@ -15,6 +15,7 @@ struct MVMNativeCallBody {
     MVMint16    ret_type;
     MVMint16   *arg_types;
     MVMObject **arg_info;
+    MVMJitCode *jitcode;
 };
 
 struct MVMNativeCall {

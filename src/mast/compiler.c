@@ -854,9 +854,9 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
     }
     else if (ISTYPE(vm, node, ws->types->Call)) {
         MAST_Call *c           = GET_Call(node);
-        unsigned char call_op  = MVM_OP_invoke_v;
+        unsigned short call_op  = c->op == 0 ? MVM_OP_invoke_v : MVM_OP_nativeinvoke_v;
         unsigned char res_type = 0;
-        unsigned short num_flags, flag_pos, arg_pos;
+        unsigned short num_flags, flag_pos, arg_pos, arg_out_pos;
 
         /* Emit callsite (may re-use existing one) and emit loading of it. */
         unsigned short callsite_id = get_callsite_id(vm, ws, c->flags, c->args);
@@ -872,7 +872,8 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
 
         /* Set up args. */
         num_flags = (unsigned short)ELEMS(vm, c->flags);
-        arg_pos = 0;
+        arg_pos = c->op == 0 ? 0 : 1;
+        arg_out_pos = 0;
         for (flag_pos = 0; flag_pos < num_flags; flag_pos++) {
             /* Handle any special flags. */
             unsigned char flag = (unsigned char)ATPOS_I_C(vm, c->flags, flag_pos);
@@ -880,10 +881,11 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
                 ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 6);
                 write_int16(ws->bytecode_seg, ws->bytecode_pos, MVM_OP_argconst_s);
                 ws->bytecode_pos += 2;
-                write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_pos);
+                write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_out_pos);
                 ws->bytecode_pos += 2;
                 compile_operand(vm, ws, MVM_operand_str, ATPOS(vm, c->args, arg_pos));
                 arg_pos++;
+                arg_out_pos++;
             }
             else if (flag & MVM_CALLSITE_ARG_FLAT) {
                 /* don't need to do anything special */
@@ -894,7 +896,7 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             if (flag & MVM_CALLSITE_ARG_OBJ) {
                 write_int16(ws->bytecode_seg, ws->bytecode_pos, MVM_OP_arg_o);
                 ws->bytecode_pos += 2;
-                write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_pos);
+                write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_out_pos);
                 ws->bytecode_pos += 2;
                 compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_obj,
                     ATPOS(vm, c->args, arg_pos));
@@ -902,7 +904,7 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             else if (flag & MVM_CALLSITE_ARG_STR) {
                 write_int16(ws->bytecode_seg, ws->bytecode_pos, MVM_OP_arg_s);
                 ws->bytecode_pos += 2;
-                write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_pos);
+                write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_out_pos);
                 ws->bytecode_pos += 2;
                 compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_str,
                     ATPOS(vm, c->args, arg_pos));
@@ -910,7 +912,7 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             else if (flag & MVM_CALLSITE_ARG_INT) {
                 write_int16(ws->bytecode_seg, ws->bytecode_pos, MVM_OP_arg_i);
                 ws->bytecode_pos += 2;
-                write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_pos);
+                write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_out_pos);
                 ws->bytecode_pos += 2;
                 compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_int64,
                     ATPOS(vm, c->args, arg_pos));
@@ -918,7 +920,7 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             else if (flag & MVM_CALLSITE_ARG_NUM) {
                 write_int16(ws->bytecode_seg, ws->bytecode_pos, MVM_OP_arg_n);
                 ws->bytecode_pos += 2;
-                write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_pos);
+                write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_out_pos);
                 ws->bytecode_pos += 2;
                 compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_num64,
                     ATPOS(vm, c->args, arg_pos));
@@ -941,6 +943,7 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             }
 
             arg_pos++;
+            arg_out_pos++;
         }
 
         /* Select operation based on return type. */
@@ -956,19 +959,19 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             /* Go by type. */
             switch (ws->cur_frame->local_types[l->index]) {
                 case MVM_reg_int64:
-                    call_op = MVM_OP_invoke_i;
+                    call_op = c->op == 0 ? MVM_OP_invoke_i : MVM_OP_nativeinvoke_i;
                     res_type = MVM_operand_int64;
                     break;
                 case MVM_reg_num64:
-                    call_op = MVM_OP_invoke_n;
+                    call_op = c->op == 0 ? MVM_OP_invoke_n : MVM_OP_nativeinvoke_n;
                     res_type = MVM_operand_num64;
                     break;
                 case MVM_reg_str:
-                    call_op = MVM_OP_invoke_s;
+                    call_op = c->op == 0 ? MVM_OP_invoke_s : MVM_OP_nativeinvoke_s;
                     res_type = MVM_operand_str;
                     break;
                 case MVM_reg_obj:
-                    call_op = MVM_OP_invoke_o;
+                    call_op = c->op == 0 ? MVM_OP_invoke_o : MVM_OP_nativeinvoke_o;
                     res_type = MVM_operand_obj;
                     break;
                 default:
@@ -978,12 +981,14 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         }
 
         /* Emit the invocation op. */
-        ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 6);
+        ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, c->op == 0 ? 6 : 8);
         write_int16(ws->bytecode_seg, ws->bytecode_pos, call_op);
         ws->bytecode_pos += 2;
-        if (call_op != MVM_OP_invoke_v)
+        if (call_op != MVM_OP_invoke_v && call_op != MVM_OP_nativeinvoke_v)
             compile_operand(vm, ws, MVM_operand_read_reg | res_type, c->result);
         compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_obj, c->target);
+        if (c->op != 0)
+            compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_obj, ATPOS(vm, c->args, 0));
     }
     else if (ISTYPE(vm, node, ws->types->Annotated)) {
         MAST_Annotated *a = GET_Annotated(node);
