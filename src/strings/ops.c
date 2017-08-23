@@ -864,7 +864,10 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
         result->body.storage.strands[0].repetitions = count - 1;
         result->body.num_strands = 1;
     });
-
+    /* If string a is not stable under concatenation, we need to create a flat
+     * string and ensure it is normalized */
+    if (!MVM_nfg_is_concat_stable(tc, a, a))
+        result = re_nfg(tc, result);
     STRAND_CHECK(tc, result);
     return result;
 }
