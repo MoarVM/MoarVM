@@ -1,7 +1,7 @@
 #include "platform/memmem.h"
 #include "moar.h"
 #define MVM_DEBUG_STRANDS 0
-
+#define MVM_string_KMP_max_pattern_length 4096
 /* Max value possible for MVMuint32 MVMStringBody.num_graphs */
 #define MAX_GRAPHEMES     0xFFFFFFFFLL
 
@@ -159,6 +159,7 @@ static void NFG_check_concat (MVMThreadContext *tc, MVMString *result, MVMString
 #endif
 
 MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle_fc, MVMint64 H_start, MVMint64 H_graphs, MVMint64 n_fc_graphs, int ignoremark, int ignorecase);
+static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString *needle, MVMString *Haystack, MVMint64 H_offset);
 
 /* Allocates strand storage. */
 static MVMStringStrand * allocate_strands(MVMThreadContext *tc, MVMuint16 num_strands) {
@@ -429,8 +430,12 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *
             }
             break;
     }
-
-    /* brute force for now. horrible, yes. halp. */
+    if (1 < n_graphs && n_graphs <= MVM_string_KMP_max_pattern_length)
+        return knuth_morris_pratt_string_index(tc, needle, Haystack, start);
+    /* brute force is slightly faster for needles of size 1
+     * For needles > MVM_string_KMP_max_pattern_length we must revert to brute force for now.
+     * Eventually we can implement brute force after it matches the whole needle OR
+     * allocate more space for the pattern on reaching the end of the pattern */
     while (index <= H_graphs - n_graphs) {
         if (string_equal_at_ignore_case_INTERNAL_loop(tc, Haystack, needle, index, H_graphs, n_graphs, 0, 0) != -1) {
             return (MVMint64)index;
@@ -1017,6 +1022,56 @@ static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Hay
     if (H_expansion >= 0)
         return H_graphs + H_expansion - H_offset >= n_fc_graphs  ? 1 : 0;
     return 0;
+}
+static void knuth_morris_pratt_process_pattern (MVMThreadContext *tc, MVMString *pat, MVMGrapheme32 *next, MVMStringIndex pat_graphs) {
+    MVMint64 i = 0;
+    MVMint64 j = next[0] = -1;
+    while (i < pat_graphs) {
+        if (j == -1 || MVM_string_get_grapheme_at_nocheck(tc, pat, i)
+                    == MVM_string_get_grapheme_at_nocheck(tc, pat, j)) {
+            i++; j++;
+            next[i] = (i < pat_graphs
+            && MVM_string_get_grapheme_at_nocheck(tc, pat, j)
+            == MVM_string_get_grapheme_at_nocheck(tc, pat, i))
+                ? next[j]
+                : j;
+        }
+        else j = next[j];
+    }
+}
+static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString *needle, MVMString *Haystack, MVMint64 H_offset) {
+    MVMint64 needle_offset = 0;
+    MVMint64 text_offset   = H_offset;
+    MVMStringIndex Haystack_graphs = MVM_string_graphs(tc, Haystack);
+    MVMStringIndex needle_graphs   = MVM_string_graphs(tc, needle);
+    MVMGrapheme32    *next = NULL;
+    MVMString *flat_needle = NULL;
+    assert(needle_graphs <= MVM_string_KMP_max_pattern_length);
+    /* Empty string is found at start of string */
+    if (needle_graphs == 0)
+        return 0;
+    next = alloca(needle_graphs * sizeof(MVMGrapheme32));
+    /* If the needle is a strand, flatten it, otherwise use the original string */
+    if (needle->body.storage_type == MVM_STRING_STRAND) {
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&flat_needle);
+        flat_needle = collapse_strands(tc, needle);
+    }
+    else flat_needle = needle;
+    /* Process the needle into a jump table put into variable 'next' */
+    knuth_morris_pratt_process_pattern(tc, flat_needle, next, needle_graphs);
+    while (text_offset < Haystack_graphs && needle_offset < needle_graphs) {
+        if (needle_offset == -1 || MVM_string_get_grapheme_at_nocheck(tc, flat_needle, needle_offset)
+                                == MVM_string_get_grapheme_at_nocheck(tc, Haystack, text_offset)) {
+            text_offset++; needle_offset++;
+            if (needle_offset == needle_graphs) {
+                if (needle != flat_needle) MVM_gc_root_temp_pop(tc);
+                return text_offset - needle_offset;
+            }
+        }
+        else needle_offset = next[needle_offset];
+    }
+    if (needle != flat_needle) MVM_gc_root_temp_pop(tc);
+    return -1;
 }
 static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 start, int ignoremark, int ignorecase) {
     /* Foldcase version of needle */
