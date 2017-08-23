@@ -300,7 +300,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
                 MVM_free(src);
                 MVM_free(dest);
                 MVM_exception_throw_adhoc(tc, 
-                                          "The socket won't be binded. Destination and Source address family does not match. Destination is %s. Source is %s\n",
+                                          "The socket won't be bound, destination (%s) and source (%s) address family do not match.\n",
                                           STR_SA_FAMILY(df), STR_SA_FAMILY(sf)
                                          );
             }
