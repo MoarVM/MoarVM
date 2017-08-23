@@ -888,7 +888,7 @@ void MVM_string_print(MVMThreadContext *tc, MVMString *a) {
 static MVMGrapheme32 ord_getbasechar (MVMThreadContext *tc, MVMGrapheme32 g) {
     /* If we get a synthetic, extract the base codepoint and call ord_getbasechar again */
     if (g < 0)
-        return ord_getbasechar(tc, MVM_nfg_get_synthetic_info(tc, g)->base);
+        return ord_getbasechar(tc, MVM_nfg_get_synthetic_info(tc, g)->codes[0]);
     else {
         MVMGrapheme32 return_g;
         MVMint32 ready;
@@ -1089,7 +1089,7 @@ MVMGrapheme32 MVM_string_ord_at(MVMThreadContext *tc, MVMString *s, MVMint64 off
 
     g = MVM_string_get_grapheme_at_nocheck(tc, s, offset);
 
-    return g >= 0 ? g : MVM_nfg_get_synthetic_info(tc, g)->base;
+    return g >= 0 ? g : MVM_nfg_get_synthetic_info(tc, g)->codes[0];
 }
 
 /* Gets the base character at a grapheme position, ignoring things like diacritics */
@@ -1731,7 +1731,7 @@ MVMint64 MVM_string_offset_has_unicode_property_value(MVMThreadContext *tc, MVMS
     if (g >= 0)
         cp = (MVMCodepoint)g;
     else
-        cp = MVM_nfg_get_synthetic_info(tc, g)->base;
+        cp = MVM_nfg_get_synthetic_info(tc, g)->codes[0];
     return MVM_unicode_codepoint_has_property_value(tc, cp, property_code, property_value_code);
 }
 
@@ -2090,7 +2090,7 @@ static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGra
     if (g >= 0)
         cp = (MVMCodepoint)g;
     else
-        cp = MVM_nfg_get_synthetic_info(tc, g)->base;
+        cp = MVM_nfg_get_synthetic_info(tc, g)->codes[0];
 
     switch (cclass) {
         case MVM_CCLASS_ANY:

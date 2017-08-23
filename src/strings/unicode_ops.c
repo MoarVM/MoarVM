@@ -82,27 +82,10 @@ MVMint64 MVM_unicode_string_compare
             /* If it's less than zero we have a synthetic codepoint */
             if (ai < 0) {
                 MVMCodepointIter a_ci;
-                MVMGrapheme32 result_a;
-                /* It's a synthetic. Look it up. */
-                MVMNFGSynthetic *synth_a = MVM_nfg_get_synthetic_info(tc, ai);
-
-                /* Set up the iterator so in the next iteration we will start to
-                * hand back combiners. */
-                a_ci.synth_codes         = synth_a->combs;
-                a_ci.visited_synth_codes = 0;
-                a_ci.total_synth_codes   = synth_a->num_combs;
-
-                /* result_a is the base character of the grapheme. */
-                result_a = synth_a->base;
-                collation_adjust(tc, ai_coll_val, bi_coll_val, collation_mode, result_a);
-                while (a_ci.synth_codes) {
-                    /* Take the current combiner as the result_a. */
-                    result_a = a_ci.synth_codes[a_ci.visited_synth_codes];
-                    collation_adjust(tc, ai_coll_val, bi_coll_val, collation_mode, result_a);
-
-                    a_ci.visited_synth_codes++;
-                    if (a_ci.visited_synth_codes == a_ci.total_synth_codes)
-                        a_ci.synth_codes = NULL;
+                MVM_string_grapheme_ci_init(tc, &a_ci, ai);
+                while (MVM_string_grapheme_ci_has_more(tc, &a_ci)) {
+                    collation_adjust(tc, ai_coll_val, bi_coll_val, collation_mode,
+                        MVM_string_grapheme_ci_get_codepoint(tc, &a_ci));
                 }
             }
             else {
@@ -111,27 +94,10 @@ MVMint64 MVM_unicode_string_compare
 
             if (bi < 0) {
                 MVMCodepointIter b_ci;
-                MVMGrapheme32 result_b;
-                /* It's a synthetic. Look it up. */
-                MVMNFGSynthetic *synth_b = MVM_nfg_get_synthetic_info(tc, bi);
-
-                /* Set up the iterator so in the next iteration we will start to
-                * hand back combiners. */
-                b_ci.synth_codes         = synth_b->combs;
-                b_ci.visited_synth_codes = 0;
-                b_ci.total_synth_codes   = synth_b->num_combs;
-
-                /* result_b is the base character of the grapheme. */
-                result_b = synth_b->base;
-                collation_adjust(tc, bi_coll_val, ai_coll_val, collation_mode, result_b);
-
-                while (b_ci.synth_codes) {
-                    /* Take the current combiner as the result_b. */
-                    result_b = b_ci.synth_codes[b_ci.visited_synth_codes];
-                    collation_adjust(tc, bi_coll_val, ai_coll_val, collation_mode, result_b);
-                    b_ci.visited_synth_codes++;
-                    if (b_ci.visited_synth_codes == b_ci.total_synth_codes)
-                        b_ci.synth_codes = NULL;
+                MVM_string_grapheme_ci_init(tc, &b_ci, bi);
+                while (MVM_string_grapheme_ci_has_more(tc, &b_ci)) {
+                    collation_adjust(tc, bi_coll_val, ai_coll_val, collation_mode,
+                        MVM_string_grapheme_ci_get_codepoint(tc, &b_ci));
                 }
             }
             else {

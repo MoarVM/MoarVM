@@ -213,12 +213,12 @@ static int append_grapheme(MVMThreadContext *tc, DecodeState *state, MVMGrapheme
     else if (g < 0) {
         MVMNFGSynthetic *synth = MVM_nfg_get_synthetic_info(tc, g);
         int mismatch = 0;
-        if (synth->base == state->orig_codes[state->orig_codes_unnormalized]) {
+        if (synth->codes[0] == state->orig_codes[state->orig_codes_unnormalized]) {
             MVMint32 i;
-            for (i = 0; i < synth->num_combs; i++) {
+            for (i = 0; i < synth->num_codes; i++) {
                 size_t orig_idx = state->orig_codes_unnormalized + i + 1;
                 if (orig_idx >= state->orig_codes_pos ||
-                        state->orig_codes[orig_idx] != synth->combs[i]) {
+                        state->orig_codes[orig_idx] != synth->codes[i]) {
                     mismatch = 1;
                     break;
                 }
@@ -229,7 +229,7 @@ static int append_grapheme(MVMThreadContext *tc, DecodeState *state, MVMGrapheme
         }
         if (!mismatch) {
             state->result[state->result_pos++] = g;
-            state->orig_codes_unnormalized += 1 + synth->num_combs;
+            state->orig_codes_unnormalized += synth->num_codes;
             return 1;
         }
     }
@@ -675,14 +675,14 @@ char * MVM_string_utf8_c8_encode_substr(MVMThreadContext *tc,
                     result_limit *= 2;
                     result = MVM_realloc(result, result_limit + 1);
                 }
-                result[result_pos++] = (hex2int(tc, synth->combs[1]) << 4) +
-                    hex2int(tc, synth->combs[2]);
+                result[result_pos++] = (hex2int(tc, synth->codes[2]) << 4) +
+                    hex2int(tc, synth->codes[3]);
             }
             else {
                 MVMint32 i;
-                emit_cp(tc, synth->base, &result, &result_pos, &result_limit, repl_bytes, repl_length);
-                for (i = 0; i < synth->num_combs; i++)
-                    emit_cp(tc, synth->combs[i], &result, &result_pos, &result_limit, repl_bytes, repl_length);
+                emit_cp(tc, synth->codes[0], &result, &result_pos, &result_limit, repl_bytes, repl_length);
+                for (i = 0; i < synth->num_codes; i++)
+                    emit_cp(tc, synth->codes[i], &result, &result_pos, &result_limit, repl_bytes, repl_length);
             }
         }
     }

@@ -178,11 +178,13 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_grapheme_ci_init(MVMThreadContext *tc
         /* Get the synthetics info. */
         MVMNFGSynthetic *synth = MVM_nfg_get_synthetic_info(tc, g);
         /* Set up the iterator so in the next iteration we will start to
-        * hand back combiners. */
-        ci->synth_codes         =  synth->combs;
+        * hand back codepoints after the initial */
+        /* TODO: for now assumes synthetics start 1 after the first codepoint */
+        ci->synth_codes         =  synth->codes + 1;
         ci->visited_synth_codes = -1;
-        ci->total_synth_codes   =  synth->num_combs;
-        ci->base_code           =  synth->base;
+        ci->total_synth_codes   =  synth->num_codes - 1;
+        /* TODO: for now assumes index 0 is the base character */
+        ci->base_code           =  synth->codes[0];
     }
     else {
         ci->synth_codes         =  NULL;
@@ -242,13 +244,14 @@ MVM_STATIC_INLINE MVMCodepoint MVM_string_ci_get_codepoint(MVMThreadContext *tc,
             MVMNFGSynthetic *synth = MVM_nfg_get_synthetic_info(tc, g);
 
             /* Set up the iterator so in the next iteration we will start to
-            * hand back combiners. */
-            ci->synth_codes         = synth->combs;
+            * hand back codepoints. */
+            ci->synth_codes         = synth->codes + 1;
             ci->visited_synth_codes = 0;
-            ci->total_synth_codes   = synth->num_combs;
+            /* Emulate num_combs and subtract one from num_codes */
+            ci->total_synth_codes   = synth->num_codes - 1;
 
-            /* Result is the base character of the grapheme. */
-            result = synth->base;
+            /* Result is the first codepoint of the `codes` array */
+            result = synth->codes[0];
         }
     }
 
