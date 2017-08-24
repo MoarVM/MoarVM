@@ -289,11 +289,11 @@ MVMObject * MVM_args_get_required_pos_obj(MVMThreadContext *tc, MVMArgProcContex
     autobox_switch(tc, result);
     return result.arg.o;
 }
-MVMArgInfo MVM_args_get_optional_pos_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos) {
+MVMObject * MVM_args_get_optional_pos_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos) {
     MVMArgInfo result;
     args_get_pos(tc, ctx, pos, MVM_ARG_OPTIONAL, result);
     autobox_switch(tc, result);
-    return result;
+    return result.arg.o;
 }
 MVMint64 MVM_args_get_required_pos_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos) {
     MVMArgInfo result;
@@ -301,11 +301,11 @@ MVMint64 MVM_args_get_required_pos_int(MVMThreadContext *tc, MVMArgProcContext *
     autounbox(tc, MVM_CALLSITE_ARG_INT, "integer", result);
     return result.arg.i64;
 }
-MVMArgInfo MVM_args_get_optional_pos_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos) {
+MVMint64 MVM_args_get_optional_pos_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos) {
     MVMArgInfo result;
     args_get_pos(tc, ctx, pos, MVM_ARG_OPTIONAL, result);
     autounbox(tc, MVM_CALLSITE_ARG_INT, "integer", result);
-    return result;
+    return result.arg.i64;
 }
 MVMArgInfo MVM_args_get_pos_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
     MVMArgInfo result;

@@ -1013,10 +1013,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(param_op_i):
             {
-                MVMArgInfo param = MVM_args_get_optional_pos_int(tc, &tc->cur_frame->params,
+                MVMint64 param = MVM_args_get_optional_pos_int(tc, &tc->cur_frame->params,
                     GET_UI16(cur_op, 2));
-                if (param.exists) {
-                    GET_REG(cur_op, 0).i64 = param.arg.i64;
+                if (param) {
+                    GET_REG(cur_op, 0).i64 = param;
                     cur_op = bytecode_start + GET_UI32(cur_op, 4);
                 }
                 else {
@@ -1053,11 +1053,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(param_op_o):
             {
                 MVMuint16 arg_idx = GET_UI16(cur_op, 2);
-                MVMArgInfo param = MVM_args_get_optional_pos_obj(tc, &tc->cur_frame->params, arg_idx);
-                if (param.exists) {
-                    GET_REG(cur_op, 0).o = param.arg.o;
+                MVMObject *param = MVM_args_get_optional_pos_obj(tc, &tc->cur_frame->params, arg_idx);
+                if (param) {
+                    GET_REG(cur_op, 0).o = param;
                     if (MVM_spesh_log_is_logging(tc))
-                        MVM_spesh_log_parameter(tc, arg_idx, param.arg.o);
+                        MVM_spesh_log_parameter(tc, arg_idx, param);
                     cur_op = bytecode_start + GET_UI32(cur_op, 4);
                 }
                 else {

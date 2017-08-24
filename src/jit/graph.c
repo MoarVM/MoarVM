@@ -1664,6 +1664,26 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_primitive(tc, jgb, ins);
         break;
         /* Unspecialized parameter access */
+    case MVM_OP_param_op_i: {
+        MVMint16  dst     = ins->operands[0].reg.orig;
+        MVMuint16 arg_idx = ins->operands[1].lit_ui16;
+
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_PARAMS } },
+                                 { MVM_JIT_LITERAL, { arg_idx } } };
+        jgb_append_call_c(tc, jgb, MVM_args_get_optional_pos_int, 3, args, MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_param_op_o: {
+        MVMint16  dst     = ins->operands[0].reg.orig;
+        MVMuint16 arg_idx = ins->operands[1].lit_ui16;
+
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_PARAMS } },
+                                 { MVM_JIT_LITERAL, { arg_idx } } };
+        jgb_append_call_c(tc, jgb, MVM_args_get_optional_pos_obj, 3, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
     case MVM_OP_param_rp_i: {
         MVMint16  dst     = ins->operands[0].reg.orig;
         MVMuint16 arg_idx = ins->operands[1].lit_ui16;
