@@ -1,0 +1,116 @@
+= Strings in MoarVM =
+:author: Samantha McVey
+:toc:
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+
+[abstract]
+== Abstract ==
+MoarVM implements strings using NFG (Normalization Form Grapheme).
+
+This is an extension on Unicode NFC (Normalization Form Canonical).
+
+Strings have either a 32-bit signed or 8-bit signed fixed width representation,
+with negative numbers used to represent graphemes which contain more than one
+codepoint per grapheme (<<Synthetic,Synthetic>> graphemes)
+
+TIP: Remember, all input text is normalized by default.
+
+== MVMString ==
+
+Strings are represented by the `MVMString` `struct`
+(link:../src/6model/reprs/MVMString.h[source]). A string’s length is stored as
+a 32-bit unsigned integer, so the maximum number of graphemes allowed in a
+string is *32³² - 1* (4,294,967,295).
+
+For a given string `MVMString *string`,
+`string->body.storage_type` can be one of the following types:
+
+
+.MVMString types:
+1. `MVM_STRING_GRAPHEME_32`
+2. `MVM_STRING_GRAPHEME_ASCII`
+3. `MVM_STRING_GRAPHEME_8`
+4. `MVM_STRING_STRAND`
+
+[options=header]
+|=================
+|Type                       | Storage       | Notes
+|`MVM_STRING_GRAPHEME_32`   |32-bit signed  |Can contain any Synthetic
+|`MVM_STRING_GRAPHEME_ASCII`|8-bit signed   |Can contain the CRLF Synthetic
+|`MVM_STRING_GRAPHEME_8`    |8-bit signed   |
+|`MVM_STRING_STRAND`        |References other strings |Created by: concatenation, substring ops & string repeat op
+|=================
+
+=== Strands ===
+
+Strands are a type of `MVMString` which instead of being a flat string with
+contiguous data, actually contains references to other strings. Strands are
+created during concatenation or substring operations. When two flat strings are
+concatenated together, a Strand with references to both string a and string b is
+created. If string a and string b were strands themselves, the references of
+string a and references of string b are copied one after another into the
+Strand.
+
+== Grapheme Segmentation ==
+
+Graphemes are segmented (which codepoints are apart of which graphemes) follow
+Unicode’s Text Segmentation rules for Grapheme Clusters _Technical Report 29_ <<TR29>>.
+
+=== Synthetic’s ===
+
+Synthetics are graphemes which contain multiple codepoints. In MoarVM these are
+stored and accessed using a trie, while the actual data itself stores the base
+character seprately and then the combiners are stored in an array. We also store
+whether or not it is a UTF8-C8 synthetic. The struct’s source is in
+link:../src/strings/nfg.h[src/strings/nfg.h].
+
+NOTE: Currently the maximum number of combiners in a synthetic is 1024. MoarVM
+will throw an exception if you attempt to create a grapheme with more than 1024
+codepoints in it. (https://github.com/MoarVM/MoarVM/blob/master/src/strings/nfg.h#L83[source])
+
+Soon Synthetic’s codepoints will be stored in a single array, and the base character
+will be pointed to by storing the location of its index in the array. The reason
+for this is to gain compatibility with Prepend characters.
+
+=== Prepend ===
+
+Before Unicode 9.0, base characters were always the first codepoint in the grapheme.
+The `Prepend` property was added in Unicode 9.0, which does the opposite of the
+`Extend` property. Codepoints with the `Prepend` property combine with the
+codepoint which comes immediately afterward.
+
+WARNING: Currently ignoremark string ops and `ordbaseat` do not support `Prepend`.
+We do properly segment grapheme clusters with `Prepend` codepoints in them though.
+
+== Normalization ==
+
+MoarVM normalizes into NFG form all input text. This can cause the data to change
+as normalization takes place. Developers and users may be used to systems which
+treat strings as "bags of bytes" and do not ensure they are valid Unicode (or
+any other encoding for that matter). MoarVM goes beyond ensuring correct Unicode
+and also ensures correct normalization in NFC form.
+
+[glossary]
+== Glossary ==
+
+MVMString::
+    The C type used to represent strings
+NFG::
+    Normalization Form Grapheme. Similar to NFC except graphemes which contain
+    multiple codepoints are stored in Synthetic graphemes.
+NFC::
+    Normalization Form Canonical
+Grapheme::
+    Short for Grapheme Cluster. See <<TR29>> for more information.
+[[Synthetic]] Synthetic::
+    In MoarVM, a special representative to store a grapheme containing more than
+    one codepoint using the same space as a standard codepoint. Internally
+    stored using negative numbers in the C string data array.
+
+[bibliography]
+== References
+- [[[TR29]]] **Unicode Technical Report 29**. _Unicode Text Segmentation_. http://unicode.org/reports/tr29/
