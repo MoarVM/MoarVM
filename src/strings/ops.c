@@ -218,37 +218,36 @@ struct MVMGraphemeIter_cached {
 
 };
 typedef struct MVMGraphemeIter_cached MVMGraphemeIter_cached;
-static void MVM_string_gi_cached_init (MVMThreadContext *tc, MVMGraphemeIter_cached *gic, MVMString *s, MVMint64 index) {
+MVM_STATIC_INLINE void MVM_string_gi_cached_init (MVMThreadContext *tc, MVMGraphemeIter_cached *gic, MVMString *s, MVMint64 index) {
     MVM_string_gi_init(tc, &(gic->gi), s);
     if (index) MVM_string_gi_move_to(tc, &(gic->gi), index);
     gic->last_location = index;
     gic->last_g = MVM_string_gi_get_grapheme(tc, &(gic->gi));
-    gic->cache_hit = 0;
-    gic->jump = 0;
-    gic->next = 0;
     gic->string = s;
+    /*gic->cache_hit = 0;
+    gic->jump = 0;
+    gic->next = 0;*/
 }
 static void MVM_string_gi_cached_done(MVMThreadContext *tc, MVMGraphemeIter_cached *gic) {
-    fprintf(stderr, "cache_hit: %i jump: %i next: %i\n", gic->cache_hit, gic->jump, gic->next);
+    //fprintf(stderr, "cache_hit: %i jump: %i next: %i\n", gic->cache_hit, gic->jump, gic->next);
 }
-static MVMGrapheme32 MVM_string_gi_cached_get_grapheme(MVMThreadContext *tc, MVMGraphemeIter_cached *gic, MVMint64 index) {
-    if (gic->string->body.storage_type != MVM_STRING_STRAND)
-        return MVM_string_get_grapheme_at_nocheck(tc, gic->string, index);
-    if (index == gic->last_location) {
-        gic->cache_hit++;
-        return gic->last_g;
+MVM_STATIC_INLINE MVMGrapheme32 MVM_string_gi_cached_get_grapheme(MVMThreadContext *tc, MVMGraphemeIter_cached *gic, MVMint64 index) {
+    if (index == gic->last_location + 1) {
+        //gic->next++;
     }
-    else if (index == gic->last_location + 1) {
-        gic->next++;
+    else if (index == gic->last_location) {
+        //gic->cache_hit++;
+        return gic->last_g;
     }
     else if (gic->last_location < index) {
         MVM_string_gi_move_to(tc, &(gic->gi), index - gic->last_location - 1);
-        gic->jump++;
+        //gic->jump++;
     }
     /* If we have to backtrack we need to reinitialize the grapheme iterator */
     else {
-        MVM_exception_throw_adhoc(tc, "Requested an index %"PRIi64" that was less than the last_location %i", index, gic->last_location);
-        MVM_string_gi_cached_init(tc, gic, gic->gi.active_blob.any, index);
+        MVM_exception_throw_adhoc(tc, "Requested an index %"PRIi64" that was less than the last_location %"PRIu32"", index, gic->last_location);
+        /* Not yet tested, but we may be able to access previous graphemes by reinitializing
+         * MVM_string_gi_cached_init(tc, gic, gic->string, index); */
     }
     gic->last_location = index;
     return (gic->last_g = MVM_string_gi_get_grapheme(tc, &(gic->gi)));
