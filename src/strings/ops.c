@@ -430,6 +430,17 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *
             }
             break;
     }
+    if (n_graphs == 1) {
+        MVMGraphemeIter H_gi;
+        MVMGrapheme32 n_g = MVM_string_get_grapheme_at_nocheck(tc, needle, 0);
+        MVM_string_gi_init(tc, &H_gi, Haystack);
+        if (index) MVM_string_gi_move_to(tc, &H_gi, index);
+        while (index < H_graphs) {
+            if (n_g == MVM_string_gi_get_grapheme(tc, &H_gi))
+                return (MVMint64)index;
+            index++;
+        }
+    }
     if (1 < n_graphs && n_graphs <= MVM_string_KMP_max_pattern_length)
         return knuth_morris_pratt_string_index(tc, needle, Haystack, start);
     /* brute force is slightly faster for needles of size 1
