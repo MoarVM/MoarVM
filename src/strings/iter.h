@@ -254,3 +254,55 @@ MVM_STATIC_INLINE MVMCodepoint MVM_string_ci_get_codepoint(MVMThreadContext *tc,
 
     return result;
 }
+struct MVMGraphemeIter_cached {
+    MVMGraphemeIter   gi;
+    MVMGrapheme32    last_g;
+    MVMStringIndex   last_location;
+    MVMString *string;
+    /*
+    MVMint64 cache_hit;
+    MVMint64 jump;
+    MVMint64 next;
+    */
+};
+typedef struct MVMGraphemeIter_cached MVMGraphemeIter_cached;
+MVM_STATIC_INLINE void MVM_string_gi_cached_init (MVMThreadContext *tc, MVMGraphemeIter_cached *gic, MVMString *s, MVMint64 index) {
+    MVM_string_gi_init(tc, &(gic->gi), s);
+    if (index) MVM_string_gi_move_to(tc, &(gic->gi), index);
+    gic->last_location = index;
+    gic->last_g = MVM_string_gi_get_grapheme(tc, &(gic->gi));
+    gic->string = s;
+    /*
+    gic->cache_hit = 0;
+    gic->jump = 0;
+    gic->next = 0;
+    */
+}
+MVM_STATIC_INLINE void MVM_string_gi_cached_done(MVMThreadContext *tc, MVMGraphemeIter_cached *gic) {
+    //fprintf(stderr, "cache_hit: %i jump: %i next: %i\n", gic->cache_hit, gic->jump, gic->next);
+}
+MVM_STATIC_INLINE MVMGrapheme32 MVM_string_gi_cached_get_grapheme(MVMThreadContext *tc, MVMGraphemeIter_cached *gic, MVMint64 index) {
+    /* Most likely case is we are getting the next grapheme */
+    if (index == gic->last_location + 1) {
+        //gic->next++;
+    }
+    /* Second most likely is getting the cached grapheme */
+    else if (index == gic->last_location) {
+        //gic->cache_hit++;
+        return gic->last_g;
+    }
+    /* If we have to move forward */
+    else if (gic->last_location < index) {
+        MVM_string_gi_move_to(tc, &(gic->gi), index - gic->last_location - 1);
+        //gic->jump++;
+    }
+    /* If we have to backtrack we need to reinitialize the grapheme iterator */
+    else {
+        MVM_exception_throw_adhoc(tc, "Requested an index %"PRIi64" that was less than the last_location %"PRIu32"",
+            index, gic->last_location);
+        /* Not yet tested, but we may be able to access previous graphemes by reinitializing
+         * MVM_string_gi_cached_init(tc, gic, gic->string, index); */
+    }
+    gic->last_location = index;
+    return (gic->last_g = MVM_string_gi_get_grapheme(tc, &(gic->gi)));
+}
