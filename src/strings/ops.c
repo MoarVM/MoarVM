@@ -207,7 +207,52 @@ static void turn_32bit_into_8bit_unchecked(MVMThreadContext *tc, MVMString *str)
 
     MVM_free(old_buf);
 }
+struct MVMGraphemeIter_cached {
+    MVMGraphemeIter     gi;
+    MVMGrapheme32         last_g;
+    MVMStringIndex last_location; // todo name next_location instead
+    MVMint64 cache_hit;
+    MVMint64 jump;
+    MVMint64 next;
+    MVMString *string;
 
+};
+typedef struct MVMGraphemeIter_cached MVMGraphemeIter_cached;
+static void MVM_string_gi_cached_init (MVMThreadContext *tc, MVMGraphemeIter_cached *gic, MVMString *s, MVMint64 index) {
+    MVM_string_gi_init(tc, &(gic->gi), s);
+    if (index) MVM_string_gi_move_to(tc, &(gic->gi), index);
+    gic->last_location = index;
+    gic->last_g = MVM_string_gi_get_grapheme(tc, &(gic->gi));
+    gic->cache_hit = 0;
+    gic->jump = 0;
+    gic->next = 0;
+    gic->string = s;
+}
+static void MVM_string_gi_cached_done(MVMThreadContext *tc, MVMGraphemeIter_cached *gic) {
+    fprintf(stderr, "cache_hit: %i jump: %i next: %i\n", gic->cache_hit, gic->jump, gic->next);
+}
+static MVMGrapheme32 MVM_string_gi_cached_get_grapheme(MVMThreadContext *tc, MVMGraphemeIter_cached *gic, MVMint64 index) {
+    if (gic->string->body.storage_type != MVM_STRING_STRAND)
+        return MVM_string_get_grapheme_at_nocheck(tc, gic->string, index);
+    if (index == gic->last_location) {
+        gic->cache_hit++;
+        return gic->last_g;
+    }
+    else if (index == gic->last_location + 1) {
+        gic->next++;
+    }
+    else if (gic->last_location < index) {
+        MVM_string_gi_move_to(tc, &(gic->gi), index - gic->last_location - 1);
+        gic->jump++;
+    }
+    /* If we have to backtrack we need to reinitialize the grapheme iterator */
+    else {
+        MVM_exception_throw_adhoc(tc, "Requested an index %"PRIi64" that was less than the last_location %i", index, gic->last_location);
+        MVM_string_gi_cached_init(tc, gic, gic->gi.active_blob.any, index);
+    }
+    gic->last_location = index;
+    return (gic->last_g = MVM_string_gi_get_grapheme(tc, &(gic->gi)));
+}
 /* Accepts an allocated string that should have body.num_graphs set but the blob
  * unallocated. This function will allocate the space for the blob and iterate
  * the supplied grapheme iterator for the length of body.num_graphs */
@@ -1050,7 +1095,9 @@ static void knuth_morris_pratt_process_pattern (MVMThreadContext *tc, MVMString 
         else j = next[j];
     }
 }
+
 static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString *needle, MVMString *Haystack, MVMint64 H_offset) {
+    MVMGraphemeIter_cached H_gic;
     MVMint64 needle_offset = 0;
     MVMint64 text_offset   = H_offset;
     MVMStringIndex Haystack_graphs = MVM_string_graphs(tc, Haystack);
@@ -1064,24 +1111,24 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
     next = alloca(needle_graphs * sizeof(MVMGrapheme32));
     /* If the needle is a strand, flatten it, otherwise use the original string */
     if (needle->body.storage_type == MVM_STRING_STRAND) {
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&flat_needle);
         flat_needle = collapse_strands(tc, needle);
     }
     else flat_needle = needle;
+    MVM_string_gi_cached_init(tc, &H_gic, Haystack, H_offset);
     /* Process the needle into a jump table put into variable 'next' */
     knuth_morris_pratt_process_pattern(tc, flat_needle, next, needle_graphs);
     while (text_offset < Haystack_graphs && needle_offset < needle_graphs) {
         if (needle_offset == -1 || MVM_string_get_grapheme_at_nocheck(tc, flat_needle, needle_offset)
-                                == MVM_string_get_grapheme_at_nocheck(tc, Haystack, text_offset)) {
+                                == MVM_string_gi_cached_get_grapheme(tc, &H_gic, text_offset)) {
             text_offset++; needle_offset++;
             if (needle_offset == needle_graphs) {
-                if (needle != flat_needle) MVM_gc_root_temp_pop(tc);
+                MVM_string_gi_cached_done(tc, &H_gic);
                 return text_offset - needle_offset;
             }
         }
         else needle_offset = next[needle_offset];
     }
-    if (needle != flat_needle) MVM_gc_root_temp_pop(tc);
+    MVM_string_gi_cached_done(tc, &H_gic);
     return -1;
 }
 static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 start, int ignoremark, int ignorecase) {
