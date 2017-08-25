@@ -324,7 +324,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
     append(ds, "    Successors: ");
     for (i = 0; i < bb->num_succ; i++)
         appendf(ds, (i == 0 ? "%d" : ", %d"), bb->succ[i]->idx);
-    append(ds, "\n    Predeccessors: ");
+    append(ds, "\n    Predecessors: ");
     for (i = 0; i < bb->num_pred; i++)
         appendf(ds, (i == 0 ? "%d" : ", %d"), bb->pred[i]->idx);
     append(ds, "\n    Dominance children: ");
