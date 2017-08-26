@@ -25,14 +25,6 @@ static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
 #define STRAND_CHECK(tc, s)
 #endif
 
-/* If MVM_DEBUG_NFG is 1, calls to NFG_CHECK will re_nfg the given string
- * and compare num_graphs before and after the normalization.
- * If it is different debug information will be printed out.
-#define MVM_DEBUG_NFG 0 */
-/* MVM_DEBUG_NFG_STRICT does as above but does not only rely on num_graphs. It
- * always checks every grapheme manually. Slower. (requires MVM_DEBUG_NFG)
-#define MVM_DEBUG_NFG_STRICT 0 */
-
 static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in);
 #if MVM_DEBUG_NFG
 static char * NFG_check_make_debug_string (MVMThreadContext *tc, MVMGrapheme32 g) {
@@ -59,7 +51,7 @@ static char * NFG_check_make_debug_string (MVMThreadContext *tc, MVMGrapheme32 g
     return result;
 }
 static char * NFG_checker (MVMThreadContext *tc, MVMString *orig, char *varname);
-static void NFG_check (MVMThreadContext *tc, MVMString *orig, char *varname) {
+void NFG_check (MVMThreadContext *tc, MVMString *orig, char *varname) {
     char *out = NFG_checker(tc, orig, varname);
     char *waste[2] = { out, NULL };
     if (!out)
@@ -67,7 +59,7 @@ static void NFG_check (MVMThreadContext *tc, MVMString *orig, char *varname) {
     MVM_exception_throw_adhoc_free(tc, waste, "%s", out);
 }
 static char * NFG_checker (MVMThreadContext *tc, MVMString *orig, char *varname) {
-    MVMString *renorm;
+    MVMString *renorm = NULL;
     MVMStringIndex orig_graphs = MVM_string_graphs(tc, orig),
                    renorm_graphs = -1;
     MVMROOT(tc, orig, {
@@ -112,7 +104,7 @@ static char * NFG_checker (MVMThreadContext *tc, MVMString *orig, char *varname)
     }
     return NULL;
 }
-static void NFG_check_concat (MVMThreadContext *tc, MVMString *result, MVMString *a, MVMString *b, char *varname) {
+void NFG_check_concat (MVMThreadContext *tc, MVMString *result, MVMString *a, MVMString *b, char *varname) {
     char *a_out = NFG_checker(tc, a, "string ‘a’");
     char *b_out = NFG_checker(tc, b, "string ‘b’");
     char *out = NFG_checker(tc, result, varname);
@@ -151,11 +143,6 @@ static void NFG_check_concat (MVMThreadContext *tc, MVMString *result, MVMString
 
 
 }
-#define NFG_CHECK(tc, s, varname)              NFG_check(tc, s, varname);
-#define NFG_CHECK_CONCAT(tc, s, a, b, varname) NFG_check_concat(tc, s, a, b, varname);
-#else
-#define NFG_CHECK(tc, s, varname)
-#define NFG_CHECK_CONCAT(tc, s, a, b, varname)
 #endif
 
 MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle_fc, MVMint64 H_start, MVMint64 H_graphs, MVMint64 n_fc_graphs, int ignoremark, int ignorecase);
@@ -264,7 +251,7 @@ static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in) {
     MVMNormalizer norm;
     MVMCodepointIter ci;
     MVMint32 ready;
-    MVMString *out;
+    MVMString *out = NULL;
     MVMuint32 bufsize = in->body.num_graphs;
 
     /* Create the output buffer. We used to believe it can't ever be bigger
@@ -591,16 +578,17 @@ MVMString * MVM_string_replace(MVMThreadContext *tc, MVMString *original, MVMint
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&replacement);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&original);
-    first_part = MVM_string_substring(tc, original, 0, start);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&first_part);
+    first_part = MVM_string_substring(tc, original, 0, start);
 
     rest_part  = MVM_string_substring(tc, original, start + count, -1);
     rest_part  = MVM_string_concatenate(tc, replacement, rest_part);
     result     = MVM_string_concatenate(tc, first_part, rest_part);
 
-    MVM_gc_root_temp_pop_n(tc, 3);
 
     STRAND_CHECK(tc, result);
+    NFG_CHECK(tc, result, "MVM_string_replace");
+    MVM_gc_root_temp_pop_n(tc, 3);
     return result;
 }
 
