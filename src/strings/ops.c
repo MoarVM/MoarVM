@@ -1049,7 +1049,7 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
     /* Empty string is found at start of string */
     if (needle_graphs == 0)
         return 0;
-    next = alloca(needle_graphs * sizeof(MVMGrapheme32));
+    next = alloca((1 + needle_graphs) * sizeof(MVMGrapheme32));
     /* If the needle is a strand, flatten it, otherwise use the original string */
     if (needle->body.storage_type == MVM_STRING_STRAND) {
         flat_needle = collapse_strands(tc, needle);
