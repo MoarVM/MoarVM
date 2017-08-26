@@ -1065,10 +1065,9 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
         return 0;
     next = alloca(needle_graphs * sizeof(MVMGrapheme32));
     /* If the needle is a strand, flatten it, otherwise use the original string */
-    if (needle->body.storage_type == MVM_STRING_STRAND) {
-        flat_needle = collapse_strands(tc, needle);
-    }
-    else flat_needle = needle;
+    needle->body.storage_type == MVM_STRING_STRAND
+        ? collapse_strands(tc, needle)
+        : needle;
     MVM_string_gi_cached_init(tc, &H_gic, Haystack, H_offset);
     /* Process the needle into a jump table put into variable 'next' */
     knuth_morris_pratt_process_pattern(tc, flat_needle, next, needle_graphs);
@@ -1076,14 +1075,11 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
         if (needle_offset == -1 || MVM_string_get_grapheme_at_nocheck(tc, flat_needle, needle_offset)
                                 == MVM_string_gi_cached_get_grapheme(tc, &H_gic, text_offset)) {
             text_offset++; needle_offset++;
-            if (needle_offset == needle_graphs) {
-                MVM_string_gi_cached_done(tc, &H_gic);
+            if (needle_offset == needle_graphs)
                 return text_offset - needle_offset;
-            }
         }
         else needle_offset = next[needle_offset];
     }
-    MVM_string_gi_cached_done(tc, &H_gic);
     return -1;
 }
 static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 start, int ignoremark, int ignorecase) {
