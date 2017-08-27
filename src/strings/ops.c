@@ -36,7 +36,7 @@ static char * NFG_check_make_debug_string (MVMThreadContext *tc, MVMGrapheme32 g
         picked = "\\n";
     else if (g == MVM_nfg_crlf_grapheme(tc))
         picked = "\\r\\n";
-    else if (!MVM_string_is_control_full(tc, g))
+    else if (0 <= g && !MVM_string_is_control_full(tc, g))
         result = MVM_string_utf8_encode_C_string(tc, MVM_string_chr(tc, g));
     else
         picked = "[Control]";
