@@ -829,15 +829,156 @@ MVMObject * collection_to_mvm_objects(MVMThreadContext *tc, MVMHeapSnapshotColle
     return results;
 }
 
+typedef struct {
+    MVMuint64 stringheap_size;
+    MVMuint64 types_size;
+    MVMuint64 staticframes_size;
+    MVMuint64 snapshot_size_entries;
+    MVMuint64 *snapshot_sizes;
+} HeapDumpIndex;
+
+void string_heap_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, FILE *fh, HeapDumpIndex *index) {
+    MVMuint64 i;
+
+    fputs("strs", fh);
+
+    fwrite(&col->num_strings, sizeof(MVMuint64), 1, fh);
+    index->stringheap_size = sizeof(MVMuint64) + 4;
+
+    for (i = 0; i < col->num_strings; i++) {
+        char *str = col->strings[i];
+        MVMuint64 output_size = strlen(str);
+        fwrite(&output_size, sizeof(MVMuint64), 1, fh);
+        fwrite(str, sizeof(MVMuint8), output_size, fh);
+        index->stringheap_size += sizeof(MVMuint64) + sizeof(MVMuint8) * output_size;
+    }
+}
+void types_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, FILE *fh, HeapDumpIndex *index) {
+    MVMuint64 i;
+
+    fputs("type", fh);
+
+    fwrite(&col->num_types, sizeof(MVMuint64), 1, fh);
+    i = sizeof(MVMuint64) * 2;
+    fwrite(&i, sizeof(MVMuint64), 1, fh);
+
+    index->types_size = sizeof(MVMuint64) * 2 + 4 + sizeof(MVMuint64) * 2 * col->num_types;
+
+    for (i = 0; i < col->num_types; i++) {
+        MVMHeapSnapshotType *t = &col->types[i];
+
+        fwrite(&t->repr_name, sizeof(MVMuint64), 1, fh);
+        fwrite(&t->type_name, sizeof(MVMuint64), 1, fh);
+    }
+}
+void static_frames_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, FILE *fh, HeapDumpIndex *index) {
+    MVMuint64 i;
+
+    fputs("fram", fh);
+    fwrite(&col->num_static_frames, sizeof(MVMuint64), 1, fh);
+    i = sizeof(MVMuint64) * 4;
+    fwrite(&i, sizeof(MVMuint64), 1, fh);
+    index->staticframes_size = sizeof(MVMuint64) * 2 + 4 + sizeof(MVMuint64) * 4 * col->num_static_frames;
+
+    for (i = 0; i < col->num_static_frames; i++) {
+        MVMHeapSnapshotStaticFrame *sf = &col->static_frames[i];
+
+        fwrite(&sf->name, sizeof(MVMuint64), 1, fh);
+        fwrite(&sf->cuid, sizeof(MVMuint64), 1, fh);
+        fwrite(&sf->line, sizeof(MVMuint64), 1, fh);
+        fwrite(&sf->file, sizeof(MVMuint64), 1, fh);
+    }
+}
+void collectables_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshot *s, MVMuint16 idx, FILE *fh, HeapDumpIndex *index) {
+    MVMuint64 i;
+
+    fputs("coll", fh);
+    fwrite(&s->num_collectables, sizeof(MVMuint64), 1, fh);
+    i = sizeof(MVMuint16) * 2 + sizeof(MVMuint32) * 2 + sizeof(MVMuint64) * 2;
+    fwrite(&i, sizeof(MVMuint64), 1, fh);
+
+    index->snapshot_sizes[idx * 2] += s->num_collectables * i + 4 + sizeof(MVMuint64) * 2;
+
+    for (i = 0; i < s->num_collectables; i++) {
+        MVMHeapSnapshotCollectable *coll = &s->collectables[i];
+        fwrite(&coll->kind, sizeof(MVMuint16), 1, fh);
+        fwrite(&coll->type_or_frame_index, sizeof(MVMuint32), 1, fh);
+        fwrite(&coll->collectable_size, sizeof(MVMuint16), 1, fh);
+        fwrite(&coll->unmanaged_size, sizeof(MVMuint64), 1, fh);
+        if (coll->num_refs)
+            fwrite(&coll->refs_start, sizeof(MVMuint64), 1, fh);
+        else {
+            MVMuint64 refs_start = 0;
+            fwrite(&refs_start, sizeof(MVMuint64), 1, fh);
+        }
+        fwrite(&coll->num_refs, sizeof(MVMuint32), 1, fh);
+    }
+}
+void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshot *s, MVMuint16 idx, FILE *fh, HeapDumpIndex *index) {
+    MVMuint64 i;
+    
+    fputs("refs", fh);
+    fwrite(&s->num_references, sizeof(MVMuint64), 1, fh);
+    i = sizeof(MVMuint64) * 3;
+    fwrite(&i, sizeof(MVMuint64), 1, fh);
+
+    index->snapshot_sizes[idx * 2 + 1] += s->num_references * i + 4 + sizeof(MVMuint64) * 2;
+
+    for (i = 0; i < s->num_references; i++) {
+        MVMHeapSnapshotReference *ref = &s->references[i];
+        MVMuint64 descr = ref->description & ((1 << MVM_SNAPSHOT_REF_KIND_BITS) - 1);
+        fwrite(&descr, sizeof(MVMuint64), 1, fh);
+        descr = ref->description >> MVM_SNAPSHOT_REF_KIND_BITS;
+        fwrite(&descr, sizeof(MVMuint64), 1, fh);
+        fwrite(&ref->collectable_index, sizeof(MVMuint64), 1, fh);
+    }
+}
+
+void snapshot_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshot *s, MVMuint64 i, FILE *fh, HeapDumpIndex *index) {
+    index->snapshot_sizes[i * 2] = 0;
+    index->snapshot_sizes[i * 2 + 1] = 0;
+    collectables_to_filehandle(tc, s, i, fh, index);
+    references_to_filehandle(tc, s, i, fh, index);
+}
+void snapshots_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, FILE *fh, HeapDumpIndex *index) {
+    MVMuint64 i;
+    index->snapshot_size_entries = col->num_snapshots;
+    index->snapshot_sizes = MVM_calloc(col->num_snapshots * 2, sizeof(MVMuint64));
+    for (i = 0; i < col->num_snapshots; i++)
+        snapshot_to_filehandle(tc, &(col->snapshots[i]), i, fh, index);
+}
+void index_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, FILE *fh, HeapDumpIndex *index) {
+    fwrite(index->snapshot_sizes, sizeof(MVMuint64), index->snapshot_size_entries * 2, fh);
+    fwrite(&index->stringheap_size, sizeof(MVMuint64), 1, fh);
+    fwrite(&index->types_size, sizeof(MVMuint64), 1, fh);
+    fwrite(&index->staticframes_size, sizeof(MVMuint64), 1, fh);
+    fwrite(&index->snapshot_size_entries, sizeof(MVMuint64), 1, fh);
+}
+void collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, FILE *fh) {
+    HeapDumpIndex index = {0};
+    fputs("MoarHeapDumpv002", fh);
+    string_heap_to_filehandle(tc, col, fh, &index);
+    types_to_filehandle(tc, col, fh, &index);
+    static_frames_to_filehandle(tc, col, fh, &index);
+    snapshots_to_filehandle(tc, col, fh, &index);
+    index_to_filehandle(tc, col, fh, &index);
+    MVM_free(index.snapshot_sizes);
+}
+
 /* Finishes heap profiling, getting the data. */
 MVMObject * MVM_profile_heap_end(MVMThreadContext *tc) {
     MVMObject *dataset;
+    FILE *fh;
 
     /* Trigger a GC run, to ensure we get at least one heap snapshot. */
     MVM_gc_enter_from_allocator(tc);
 
     /* Process and return the data. */
     dataset = collection_to_mvm_objects(tc, tc->instance->heap_snapshots);
+
+    fh = fopen("/tmp/heapsnapshot_new_format", "w");
+    collection_to_filehandle(tc, tc->instance->heap_snapshots, fh);
     destroy_heap_snapshot_collection(tc);
+    fclose(fh);
     return dataset;
 }
