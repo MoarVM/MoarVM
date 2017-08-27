@@ -813,7 +813,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
 }
 
 MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count) {
-    MVMString *result;
+    MVMString *result = NULL;
     MVMuint32  agraphs;
     MVMuint64  total_graphs;
 
@@ -996,7 +996,7 @@ MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadCo
  * strings to ensure the offset is correct */
 static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 H_offset, int ignoremark, int ignorecase) {
     /* Foldcase version of needle */
-    MVMString *needle_fc;
+    MVMString *needle_fc = NULL;
     MVMStringIndex H_graphs = MVM_string_graphs(tc, Haystack);
     MVMStringIndex n_graphs = MVM_string_graphs(tc, needle);
     MVMStringIndex n_fc_graphs;
@@ -1071,7 +1071,7 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
 }
 static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 start, int ignoremark, int ignorecase) {
     /* Foldcase version of needle */
-    MVMString *needle_fc;
+    MVMString *needle_fc = NULL;
     MVMStringIndex n_fc_graphs;
 
     size_t index           = (size_t)start;
@@ -1552,8 +1552,8 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
 }
 
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObject *input) {
-    MVMString  *result;
-    MVMString **pieces;
+    MVMString  *result = NULL;
+    MVMString **pieces = NULL;
     MVMint64    elems, num_pieces, sgraphs, i, is_str_array, total_graphs;
     MVMuint16   sstrands, total_strands;
     MVMint32    concats_stable = 1;
@@ -1808,7 +1808,7 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
     MVMStringIndex  spos    = 0;
     MVMStringIndex  bpos    = 0;
     MVMStringIndex  sgraphs, balloc;
-    MVMGrapheme32  *buffer;
+    MVMGrapheme32  *buffer  = NULL;
     MVMGrapheme32   crlf;
     MVMint8         string_can_fit_into_8bit = 1;
 
@@ -1982,8 +1982,8 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
 
 /* Takes two strings and AND's their characters. */
 MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    MVMString      *res;
-    MVMGrapheme32  *buffer;
+    MVMString      *res    = NULL;
+    MVMGrapheme32  *buffer = NULL;
     MVMStringIndex  i, alen, blen, sgraphs;
 
     MVM_string_check_arg(tc, a, "bitwise and");
@@ -2010,8 +2010,8 @@ MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b) 
 
 /* Takes two strings and OR's their characters. */
 MVMString * MVM_string_bitor(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    MVMString      *res;
-    MVMGrapheme32  *buffer;
+    MVMString      *res    = NULL;
+    MVMGrapheme32  *buffer = NULL;
     MVMStringIndex  alen, blen, sgraphs, i, scanlen;
 
     MVM_string_check_arg(tc, a, "bitwise or");
@@ -2047,8 +2047,8 @@ MVMString * MVM_string_bitor(MVMThreadContext *tc, MVMString *a, MVMString *b) {
 
 /* Takes two strings and XOR's their characters. */
 MVMString * MVM_string_bitxor(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    MVMString      *res;
-    MVMGrapheme32  *buffer;
+    MVMString      *res    = NULL;
+    MVMGrapheme32  *buffer = NULL;
     MVMStringIndex  alen, blen, sgraphs, i, scanlen;
 
     MVM_string_check_arg(tc, a, "bitwise xor");
@@ -2374,7 +2374,7 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
  * that we get a valid NFG string (NFG is a superset of NFC, and singleton
  * decompositions exist). */
 MVMString * MVM_string_chr(MVMThreadContext *tc, MVMint64 cp) {
-    MVMString *s;
+    MVMString *s = NULL;
     MVMGrapheme32 g;
 
     if (cp < 0)
