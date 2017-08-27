@@ -394,6 +394,7 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     break;
                 }
                 case UTF8_REJECT:
+                    MVM_free(buffer);
                     MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
                     break;
                 }
@@ -440,6 +441,7 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     break;
                 }
                 case UTF8_REJECT:
+                    MVM_free(buffer);
                     MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
                     break;
                 }
@@ -493,6 +495,7 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     break;
                 }
                 case UTF8_REJECT:
+                    MVM_free(buffer);
                     MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
                     break;
                 }
