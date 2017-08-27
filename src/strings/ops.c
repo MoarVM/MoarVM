@@ -572,9 +572,9 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
 
 MVMString * MVM_string_replace(MVMThreadContext *tc, MVMString *original, MVMint64 start, MVMint64 count, MVMString *replacement) {
     /* XXX this could probably be done more efficiently directly. */
-    MVMString *first_part;
-    MVMString *rest_part;
-    MVMString *result;
+    MVMString *first_part = NULL;
+    MVMString *rest_part  = NULL;
+    MVMString *result     = NULL;
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&replacement);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&original);
