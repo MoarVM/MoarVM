@@ -675,6 +675,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     MVMROOT(tc, a, {
     MVMROOT(tc, b, {
     MVMROOT(tc, renormalized_section, {
+    MVMROOT(tc, result, {
 
         /* Allocate it. */
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
@@ -791,24 +792,16 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
                 result->body.num_graphs += renormalized_section_graphs - consumed_b - consumed_a;
             }
         }
-    });
-    });
-    });
     STRAND_CHECK(tc, result);
-    if (is_concat_stable == 1) {
-        NFG_CHECK_CONCAT(tc, result, a, b, "'result' w/ is_concat_stable = 1");
+    if (is_concat_stable == 1 || (is_concat_stable == 0 && renormalized_section))
+        NFG_CHECK_CONCAT(tc, result, a, b, "'result'");
+    });
+    });
+    });
+    });
+    if (is_concat_stable == 1 || (is_concat_stable == 0 && renormalized_section))
         return result;
-    }
-    /* If it's regional indicator */
-    else if (is_concat_stable == 2) {
-        return re_nfg(tc, result);
-    }
-    else if (is_concat_stable == 0 && renormalized_section) {
-        NFG_CHECK_CONCAT(tc, renormalized_section, a, b, "renormalized_section");
-        NFG_CHECK_CONCAT(tc, result, a, b, "'result' w/ is_concat_stable = 0");
-        return result;
-    }
-    /* We should have returned by now, but if we did not, return re_nfg */
+    /* If it's regional indicator (is_concat_stable == 2) */
     return re_nfg(tc, result);
 }
 
