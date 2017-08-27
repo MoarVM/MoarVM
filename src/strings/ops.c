@@ -576,20 +576,19 @@ MVMString * MVM_string_replace(MVMThreadContext *tc, MVMString *original, MVMint
     MVMString *rest_part;
     MVMString *result;
 
-    MVMROOT(tc, replacement, {
-    MVMROOT(tc, original, {
-    MVMROOT(tc, first_part, {
-        first_part = MVM_string_substring(tc, original, 0, start);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&replacement);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&original);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&first_part);
+    first_part = MVM_string_substring(tc, original, 0, start);
 
-        rest_part  = MVM_string_substring(tc, original, start + count, -1);
-        rest_part  = MVM_string_concatenate(tc, replacement, rest_part);
-        result     = MVM_string_concatenate(tc, first_part, rest_part);
+    rest_part  = MVM_string_substring(tc, original, start + count, -1);
+    rest_part  = MVM_string_concatenate(tc, replacement, rest_part);
+    result     = MVM_string_concatenate(tc, first_part, rest_part);
 
-        STRAND_CHECK(tc, result);
-        NFG_CHECK(tc, result, "MVM_string_replace");
-    });
-    });
-    });
+
+    STRAND_CHECK(tc, result);
+    NFG_CHECK(tc, result, "MVM_string_replace");
+    MVM_gc_root_temp_pop_n(tc, 3);
     return result;
 }
 
@@ -676,7 +675,6 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     MVMROOT(tc, a, {
     MVMROOT(tc, b, {
     MVMROOT(tc, renormalized_section, {
-    MVMROOT(tc, result, {
 
         /* Allocate it. */
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
@@ -793,13 +791,12 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
                 result->body.num_graphs += renormalized_section_graphs - consumed_b - consumed_a;
             }
         }
+    });
+    });
+    });
     STRAND_CHECK(tc, result);
-    NFG_CHECK_CONCAT(tc, result, a, b, "'result' in concat");
-    });
-    });
-    });
-    });
     if (is_concat_stable == 1) {
+        NFG_CHECK_CONCAT(tc, result, a, b, "'result' w/ is_concat_stable = 1");
         return result;
     }
     /* If it's regional indicator */
@@ -807,6 +804,8 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         return re_nfg(tc, result);
     }
     else if (is_concat_stable == 0 && renormalized_section) {
+        NFG_CHECK_CONCAT(tc, renormalized_section, a, b, "renormalized_section");
+        NFG_CHECK_CONCAT(tc, result, a, b, "'result' w/ is_concat_stable = 0");
         return result;
     }
     /* We should have returned by now, but if we did not, return re_nfg */
