@@ -12,7 +12,7 @@
 #endif
 
 #ifdef HAVE_TELEMEH
-#  define TELEMEH_USAGE "MVM_TELEMETRY_LOG           Log internal events at high precision to this file\n"
+#  define TELEMEH_USAGE "    MVM_TELEMETRY_LOG           Log internal events at high precision to this file\n"
 #else
 #  define TELEMEH_USAGE ""
 #endif
