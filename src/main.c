@@ -5,7 +5,7 @@
 
 #if MVM_TRACING
 #  define TRACING_OPT "[--tracing] "
-#  define TRACING_USAGE "\n    --tracing  output a line to stderr on every interpreter instr"
+#  define TRACING_USAGE "\n    --tracing         output a line to stderr on every interpreter instr"
 #else
 #  define TRACING_OPT ""
 #  define TRACING_USAGE ""
