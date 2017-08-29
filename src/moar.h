@@ -152,6 +152,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "spesh/threshold.h"
 #include "spesh/inline.h"
 #include "spesh/osr.h"
+#include "spesh/iterator.h"
 #include "spesh/lookup.h"
 #include "spesh/worker.h"
 #include "spesh/stats.h"

@@ -181,6 +181,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/log@obj@ \
           src/spesh/threshold@obj@ \
           src/spesh/inline@obj@ \
+          src/spesh/iterator@obj@ \
           src/spesh/osr@obj@ \
           src/spesh/lookup@obj@ \
           src/spesh/worker@obj@ \
@@ -338,6 +339,7 @@ HEADERS = src/moar.h \
           src/spesh/threshold.h \
           src/spesh/inline.h \
           src/spesh/osr.h \
+          src/spesh/iterator.h \
           src/spesh/lookup.h \
           src/spesh/worker.h \
           src/spesh/stats.h \
