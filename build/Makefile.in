@@ -67,6 +67,12 @@ JIT_OBJECTS  = src/jit/graph@obj@ \
                src/jit/tile@obj@ \
                src/jit/linear_scan@obj@
 
+# JIT intermediate files which clean should remove
+JIT_INTERMEDIATES = src/jit/x64/emit.c \
+                    src/jit/x64/tile_tables.h \
+                    src/jit/core_expr_tables.h
+
+
 
 MAIN_OBJECTS = src/main@obj@
 
@@ -452,7 +458,7 @@ DYNASM  = $(MINILUA) 3rdparty/dynasm/dynasm.lua
 DYNASM_SCRIPTS = 3rdparty/dynasm/dynasm.lua 3rdparty/dynasm/dasm_x86.lua
 DYNASM_HEADERS = 3rdparty/dynasm/dasm_proto.h 3rdparty/dynasm/dasm_x86.h
 
-.SUFFIXES: .c @obj@ .i @asm@
+.SUFFIXES: .c @obj@ .i @asm@ .dasc
 
 all: moar@exe@ pkgconfig/moar.pc
 
@@ -572,11 +578,13 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 $(MINILUA): 3rdparty/dynasm/minilua.c
 	$(CC) $(CFLAGS) $(LDFLAGS) 3rdparty/dynasm/minilua.c -o $@ $(LDLIBS)
 
+.dasc.c:
+	$(MSG) preprocessing $@
+	$(CMD)$(DYNASM) $(DASM_FLAGS) -o $@ $<
+
 src/jit/x64/emit@obj@: src/jit/x64/emit.c $(DYNASM_HEADERS)
 
 src/jit/x64/emit.c: src/jit/x64/emit.dasc src/jit/x64/tiles.dasc $(MINILUA) $(DYNASM_SCRIPTS)
-	$(DYNASM) $(DASM_FLAGS) -o $@ src/jit/x64/emit.dasc
-
 
 # Expression list tables
 src/jit/core_expr_tables.h: src/jit/core.expr src/jit/macro.expr tools/expr-template-compiler.pl src/core/oplist src/jit/expr_ops.h
@@ -591,10 +599,6 @@ src/jit/expr@obj@: src/jit/core_expr_tables.h
 src/jit/tile@obj@: src/jit/x64/tile_tables.h
 src/jit/compile@obj@ src/jit/linear_scan@obj@ src/jit/x64/arch@obj@ @jit_obj@: src/jit/internal.h src/jit/x64/arch.h
 
-# JIT intermediate files which clean should remove
-JIT_INTERMEDIATES = src/jit/x64/emit.c \
-                    src/jit/x64/tile_tables.h \
-                    src/jit/core_expr_tables.h
 
 @uvlib@: $(UV_OBJECTS)
 	$(MSG) linking $@
