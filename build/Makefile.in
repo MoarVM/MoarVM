@@ -63,6 +63,8 @@ JIT_OBJECTS  = src/jit/graph@obj@ \
                src/jit/label@obj@ \
                src/jit/compile@obj@ \
                src/jit/log@obj@
+# JIT intermediate files which clean should remove
+JIT_INTERMEDIATES = src/jit/x64/emit.c
 
 
 MAIN_OBJECTS = src/main@obj@
@@ -444,7 +446,7 @@ DYNASM  = $(MINILUA) 3rdparty/dynasm/dynasm.lua
 DYNASM_SCRIPTS = 3rdparty/dynasm/dynasm.lua 3rdparty/dynasm/dasm_x86.lua
 DYNASM_HEADERS = 3rdparty/dynasm/dasm_proto.h 3rdparty/dynasm/dasm_x86.h
 
-.SUFFIXES: .c @obj@ .i @asm@
+.SUFFIXES: .c @obj@ .i @asm@ .dasc
 
 all: moar@exe@ pkgconfig/moar.pc
 
@@ -564,15 +566,14 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 $(MINILUA): 3rdparty/dynasm/minilua.c
 	$(CC) $(CFLAGS) $(LDFLAGS) 3rdparty/dynasm/minilua.c -o $@ $(LDLIBS)
 
+.dasc.c:
+	$(MSG) preprocessing $@
+	$(CMD)$(DYNASM) $(DASM_FLAGS) -o $@ $<
+
 src/jit/x64/emit@obj@: src/jit/x64/emit.c $(DYNASM_HEADERS)
 
 src/jit/x64/emit.c: src/jit/x64/emit.dasc $(MINILUA) $(DYNASM_SCRIPTS)
-	$(DYNASM) $(DASM_FLAGS) -o $@ src/jit/x64/emit.dasc
 
-
-# JIT intermediate files which clean should remove
-JIT_INTERMEDIATES:= src/jit/x64/emit_win32.c \
-                    src/jit/x64/emit_posix.c
 
 @uvlib@: $(UV_OBJECTS)
 	$(MSG) linking $@
