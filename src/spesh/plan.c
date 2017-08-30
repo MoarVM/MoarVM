@@ -162,6 +162,29 @@ void MVM_spesh_plan_gc_mark(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMGCWorkl
     }
 }
 
+void MVM_spesh_plan_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSpeshPlan *plan) {
+    MVMuint32 i;
+    if (!plan)
+        return;
+    for (i = 0; i < plan->num_planned; i++) {
+        MVMSpeshPlanned *p = &(plan->planned[i]);
+        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+            (MVMCollectable*)(p->sf), "staticframe");
+        if (p->type_tuple) {
+            MVMCallsite *cs = p->cs_stats->cs;
+            MVMuint32 j;
+            for (j = 0; j < cs->flag_count; j++) {
+                if (cs->arg_flags[j] & MVM_CALLSITE_ARG_OBJ) {
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                        (MVMCollectable*)(p->type_tuple[j].type), "argument type");
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                        (MVMCollectable*)(p->type_tuple[j].decont_type), "argument decont type");
+                }
+            }
+        }
+    }
+}
+
 /* Frees all memory associated with a specialization plan. */
 void MVM_spesh_plan_destroy(MVMThreadContext *tc, MVMSpeshPlan *plan) {
     MVMuint32 i;

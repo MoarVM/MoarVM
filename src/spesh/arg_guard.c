@@ -541,6 +541,22 @@ void MVM_spesh_arg_guard_gc_mark(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
     }
 }
 
+void MVM_spesh_arg_guard_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
+                                     MVMSpeshArgGuard *ag) {
+    if (ag) {
+        MVMuint32 i;
+        for (i = 0; i < ag->used_nodes; i++) {
+            switch (ag->nodes[i].op) {
+                case MVM_SPESH_GUARD_OP_STABLE_CONC:
+                case MVM_SPESH_GUARD_OP_STABLE_TYPE:
+                    MVM_profile_heap_add_collectable_rel_idx(tc, ss,
+                        (MVMCollectable*)(ag->nodes[i].st), i);
+                    break;
+            }
+        }
+    }
+}
+
 /* Frees the memory associated with an argument guard. If `safe` is set to a
  * non-zero value then the memory is freed at the next safepoint. If it is set
  * to zero, the memory is freed immediately. */

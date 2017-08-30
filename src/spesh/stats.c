@@ -682,6 +682,47 @@ void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorkl
     }
 }
 
+void MVM_spesh_stats_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *snapshot, MVMSpeshStats *ss) {
+    if (ss) {
+        MVMuint32 i, j, k, l, m;
+        for (i = 0; i < ss->num_by_callsite; i++) {
+            MVMSpeshStatsByCallsite *by_cs = &(ss->by_callsite[i]);
+            for (j = 0; j < by_cs->num_by_type; j++) {
+                MVMSpeshStatsByType *by_type = &(by_cs->by_type[j]);
+                MVMuint32 num_types = by_cs->cs->flag_count;
+                for (k = 0; k < num_types; k++) {
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
+                        (MVMCollectable*)(by_type->arg_types[k].type), "type");
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
+                        (MVMCollectable*)(by_type->arg_types[k].decont_type), "decont type");
+                }
+                for (k = 0; k < by_type->num_by_offset; k++) {
+                    MVMSpeshStatsByOffset *by_offset = &(by_type->by_offset[k]);
+                    for (l = 0; l < by_offset->num_types; l++)
+                        MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
+                            (MVMCollectable*)(by_offset->types[l].type), "type at offset");
+                    for (l = 0; l < by_offset->num_invokes; l++)
+                        MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
+                            (MVMCollectable*)(by_offset->invokes[l].sf), "invoke");
+                    for (l = 0; l < by_offset->num_type_tuples; l++) {
+                        MVMSpeshStatsType *off_types = by_offset->type_tuples[l].arg_types;
+                        MVMuint32 num_off_types = by_offset->type_tuples[l].cs->flag_count;
+                        for (m = 0; m < num_off_types; m++) {
+                            MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
+                                (MVMCollectable*)(off_types[m].type), "type tuple type");
+                            MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
+                                (MVMCollectable*)(off_types[m].decont_type), "type tuple deconted type");
+                        }
+                    }
+                }
+            }
+        }
+        for (i = 0; i < ss->num_static_values; i++)
+            MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
+                (MVMCollectable*)(ss->static_values[i].value), "static value");
+    }
+}
+
 void MVM_spesh_stats_destroy(MVMThreadContext *tc, MVMSpeshStats *ss) {
     if (ss) {
         MVMuint32 i, j, k, l;
@@ -715,6 +756,18 @@ void MVM_spesh_sim_stack_gc_mark(MVMThreadContext *tc, MVMSpeshSimStack *sims,
         MVMSpeshSimStackFrame *simf = &(sims->frames[i]);
         MVM_gc_worklist_add(tc, worklist, &(simf->sf));
         MVM_gc_worklist_add(tc, worklist, &(simf->last_invoke_sf));
+    }
+}
+
+void MVM_spesh_sim_stack_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSpeshSimStack *sims) {
+    MVMuint32 n = sims ? sims->used : 0;
+    MVMuint32 i;
+    for (i = 0; i < n; i++) {
+        MVMSpeshSimStackFrame *simf = &(sims->frames[i]);
+        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+            (MVMCollectable*)(simf->sf), "staticframe");
+        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+            (MVMCollectable*)(simf->last_invoke_sf), "last invoked staticframe");
     }
 }
 
