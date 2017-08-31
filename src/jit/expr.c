@@ -17,7 +17,7 @@
 #define MSG(...) CONST_PTR(#__VA_ARGS__)
 #define SIZEOF_MEMBER(type, member) sizeof(((type*)0)->member)
 
-#include "core_expr_tables.h"
+#include "jit/core_templates.h"
 
 
 static const MVMJitExprOpInfo expr_op_info[] = {

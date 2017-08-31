@@ -458,7 +458,7 @@ DYNASM  = $(MINILUA) 3rdparty/dynasm/dynasm.lua
 DYNASM_SCRIPTS = 3rdparty/dynasm/dynasm.lua 3rdparty/dynasm/dasm_x86.lua
 DYNASM_HEADERS = 3rdparty/dynasm/dasm_proto.h 3rdparty/dynasm/dasm_x86.h
 
-.SUFFIXES: .c @obj@ .i @asm@ .dasc
+.SUFFIXES: .c @obj@ .i @asm@ .dasc .expr .tile
 
 all: moar@exe@ pkgconfig/moar.pc
 
@@ -579,24 +579,30 @@ $(MINILUA): 3rdparty/dynasm/minilua.c
 	$(CC) $(CFLAGS) $(LDFLAGS) 3rdparty/dynasm/minilua.c -o $@ $(LDLIBS)
 
 .dasc.c:
-	$(MSG) preprocessing $@
+	$(MSG) preprocessing $<
 	$(CMD)$(DYNASM) $(DASM_FLAGS) -o $@ $<
+
+.expr.h:
+	$(MSG) Precompiling templates from $<
+	$(CMD)$(PERL) -Itools/ tools/expr-template-compiler.pl -o $@ $<
+
+.tile.h:
+	$(MSG) Building tile tables from $<
+	$(CMD)$(PERL) -Itools/ tools/tiler-table-generator.pl -o $@ $<
 
 src/jit/x64/emit@obj@: src/jit/x64/emit.c $(DYNASM_HEADERS)
 
 src/jit/x64/emit.c: src/jit/x64/emit.dasc src/jit/x64/tiles.dasc $(MINILUA) $(DYNASM_SCRIPTS)
 
 # Expression list tables
-src/jit/core_expr_tables.h: src/jit/core.expr src/jit/macro.expr tools/expr-template-compiler.pl src/core/oplist src/jit/expr_ops.h
-	$(PERL) -Itools/ tools/expr-template-compiler.pl -o $@ src/jit/core.expr
+src/jit/core_templates.h: src/jit/core_templates.expr src/jit/macro.expr tools/expr-template-compiler.pl src/core/oplist src/jit/expr_ops.h
 
 # Architecture-specific tiles
-src/jit/x64/tile_tables.h: src/jit/x64/tiles.list tools/tiler-table-generator.pl src/jit/expr_ops.h
-	$(PERL) -Itools/ tools/tiler-table-generator.pl -o $@ src/jit/x64/tiles.list
+src/jit/x64/tile_pattern.h: src/jit/x64/tile_pattern.tile tools/tiler-table-generator.pl src/jit/expr_ops.h
 
-src/jit/expr@obj@: src/jit/core_expr_tables.h
-# TODO-fix stub
-src/jit/tile@obj@: src/jit/x64/tile_tables.h
+src/jit/expr@obj@: src/jit/core_templates.h
+src/jit/tile@obj@: src/jit/x64/tile_pattern.h src/jit/x64/tile_decl.h
+
 src/jit/compile@obj@ src/jit/linear_scan@obj@ src/jit/x64/arch@obj@ @jit_obj@: src/jit/internal.h src/jit/x64/arch.h
 
 
