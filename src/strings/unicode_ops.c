@@ -401,33 +401,36 @@ static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
     }
     unicode_property_values_hashes = hash_array;
 }
+static size_t length_of_num (size_t number) {
+    if (number <   10) return 1;
+    if (number <  100) return 2;
+    if (number < 1000) return 3;
+    return 1 + length_of_num(number / 10);
+}
+MVMint32 unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, const char *cname, size_t cname_length) {
+    size_t out_str_length = cname_length + length_of_num(property_code) + 1;
+    char *out_str = alloca(sizeof(char) * (out_str_length + 1));
+    MVMUnicodeNameRegistry *result;
 
+    sprintf(out_str, "%"PRIi64"-%s", property_code, cname);
+
+    HASH_FIND(hash_handle, unicode_property_values_hashes[property_code], out_str, out_str_length, result);
+    return result ? result->codepoint : 0;
+}
 MVMint32 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, MVMString *name) {
-    if (property_code <= 0 || property_code >= MVM_NUM_PROPERTY_CODES) {
+    if (property_code <= 0 || property_code >= MVM_NUM_PROPERTY_CODES)
         return 0;
-    }
     else {
-        MVMuint64 size;
-        char *cname = MVM_string_ascii_encode(tc, name, &size, 0);
-        MVMUnicodeNameRegistry *result;
-
-        HASH_FIND(hash_handle, unicode_property_values_hashes[property_code], cname, strlen((const char *)cname), result);
-        MVM_free(cname); /* not really codepoint, really just an index */
-        return result ? result->codepoint : 0;
+        MVMuint64 cname_length;
+        char *cname = MVM_string_ascii_encode(tc, name, &cname_length, 0);
+        return unicode_cname_to_property_value_code(tc, property_code, cname, cname_length);
     }
 }
-
 MVMint32 MVM_unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, const char *cname, size_t cname_length) {
-    if (property_code <= 0 || property_code >= MVM_NUM_PROPERTY_CODES) {
+    if (property_code <= 0 || property_code >= MVM_NUM_PROPERTY_CODES)
         return 0;
-    }
-    else {
-        MVMuint64 size;
-        MVMUnicodeNameRegistry *result;
-
-        HASH_FIND(hash_handle, unicode_property_values_hashes[property_code], cname, cname_length, result);
-        return result ? result->codepoint : 0;
-    }
+    else
+        return unicode_cname_to_property_value_code(tc, property_code, cname, cname_length);
 }
 
 /* Look up the primary composite for a pair of codepoints, if it exists.
