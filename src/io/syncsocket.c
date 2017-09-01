@@ -267,7 +267,7 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
 
 
 /* Establishes a connection. */
-static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMString* source_address) {
+static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMString* source_address, MVMint64 source_port) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     unsigned int interval_id;
     char* source_address_str = MVM_string_utf8_encode_C_string(tc, source_address);
@@ -285,7 +285,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
         }
 
         if (strlen(source_address_str) != 0) {
-            struct sockaddr *src = MVM_io_resolve_host_name(tc, source_address, 0);
+            struct sockaddr *src = MVM_io_resolve_host_name(tc, source_address, source_port);
             struct sockaddr_in *addr;
             addr = (struct sockaddr_in *)src; 
             /*printf("Goind to bind plop on %s\n", inet_ntoa((struct in_addr)addr->sin_addr));
@@ -300,7 +300,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
                 MVM_free(src);
                 MVM_free(dest);
                 MVM_exception_throw_adhoc(tc, 
-                                          "The socket won't be bound, destination (%s) and source (%s) address family do not match.\n",
+                                          "The socket won't be bound, destination (%s) and source (%s) address families do not match.\n",
                                           STR_SA_FAMILY(df), STR_SA_FAMILY(sf)
                                          );
             }
