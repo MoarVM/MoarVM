@@ -335,25 +335,6 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
     return 1;
 }
 
-/* Returns the codepoint without doing checks, for internal VM use only. */
-MVMGrapheme32 MVM_string_get_grapheme_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index) {
-    switch (a->body.storage_type) {
-    case MVM_STRING_GRAPHEME_32:
-        return a->body.storage.blob_32[index];
-    case MVM_STRING_GRAPHEME_ASCII:
-        return a->body.storage.blob_ascii[index];
-    case MVM_STRING_GRAPHEME_8:
-        return a->body.storage.blob_8[index];
-    case MVM_STRING_STRAND: {
-        MVMGraphemeIter gi;
-        MVM_string_gi_init(tc, &gi, a);
-        MVM_string_gi_move_to(tc, &gi, index);
-        return MVM_string_gi_get_grapheme(tc, &gi);
-    }
-    default:
-        MVM_exception_throw_adhoc(tc, "String corruption detected: bad storage type");
-    }
-}
 
 /* Returns the location of one string in another or -1  */
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 start) {
