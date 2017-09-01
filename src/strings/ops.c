@@ -300,8 +300,6 @@ static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in) {
 /* Returns nonzero if two substrings are equal, doesn't check bounds */
 MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
         MVMint64 starta, MVMint64 length, MVMString *b, MVMint64 startb) {
-    MVMGraphemeIter gia;
-    MVMGraphemeIter gib;
     MVMint64 i;
 
     /* Fast paths when storage types are identical. */
@@ -324,17 +322,47 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
         break;
     }
 
-    /* Normal path, for the rest of the time. */
-    MVM_string_gi_init(tc, &gia, a);
-    MVM_string_gi_init(tc, &gib, b);
-    MVM_string_gi_move_to(tc, &gia, starta);
-    MVM_string_gi_move_to(tc, &gib, startb);
-    for (i = 0; i < length; i++)
-        if (MVM_string_gi_get_grapheme(tc, &gia) != MVM_string_gi_get_grapheme(tc, &gib))
-            return 0;
-    return 1;
+    /* If both are flat, use MVM_string_get_grapheme_at_nocheck on both for speed */
+    if (a->body.storage_type != MVM_STRING_STRAND && b->body.storage_type != MVM_STRING_STRAND) {
+        for (i = 0; i < length; i++)
+            if (MVM_string_get_grapheme_at_nocheck(tc, a, starta + i)
+             != MVM_string_get_grapheme_at_nocheck(tc, b, startb + i))
+                return 0;
+        return 1;
+    }
+    else if (a->body.storage_type == MVM_STRING_STRAND && b->body.storage_type == MVM_STRING_STRAND) {
+        MVMGraphemeIter gia, gib;
+        /* Normal path, for the rest of the time. */
+        MVM_string_gi_init(tc, &gia, a);
+        MVM_string_gi_init(tc, &gib, b);
+        /* Move the grapheme iterator if start is not 0 */
+        if (starta) MVM_string_gi_move_to(tc, &gia, starta);
+        if (startb) MVM_string_gi_move_to(tc, &gib, startb);
+        for (i = 0; i < length; i++)
+            if (MVM_string_gi_get_grapheme(tc, &gia) != MVM_string_gi_get_grapheme(tc, &gib))
+                return 0;
+        return 1;
+    }
+    else {
+        MVMGraphemeIter gi_y;
+        MVMString *y = NULL, *z = NULL;
+        MVMint64 starty, startz;
+        if (a->body.storage_type == MVM_STRING_STRAND) {
+                 y = a;           z = b;
+            starty = starta; startz = startb;
+        }
+        else {
+                 y = b;           z = a;
+            starty = startb; startz = starta;
+        }
+        MVM_string_gi_init(tc, &gi_y, y);
+        if (starty) MVM_string_gi_move_to(tc, &gi_y, starty);
+        for (i = 0; i < length; i++)
+            if (MVM_string_gi_get_grapheme(tc, &gi_y) != MVM_string_get_grapheme_at_nocheck(tc, z, startz + i))
+                return 0;
+        return 1;
+    }
 }
-
 
 /* Returns the location of one string in another or -1  */
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 start) {
