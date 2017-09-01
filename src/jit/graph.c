@@ -320,6 +320,9 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_fc: return MVM_string_fc;
     case MVM_OP_eq_s: return MVM_string_equal;
     case MVM_OP_eqat_s: return MVM_string_equal_at;
+    case MVM_OP_eqatic_s: return MVM_string_equal_at_ignore_case;
+    case MVM_OP_eqatim_s: return MVM_string_equal_at_ignore_mark;
+    case MVM_OP_eqaticim_s: return MVM_string_equal_at_ignore_case_ignore_mark;
     case MVM_OP_chars: case MVM_OP_graphs_s: return MVM_string_graphs;
     case MVM_OP_chr: return MVM_string_chr;
     case MVM_OP_codes_s: return MVM_string_codes;
@@ -2391,6 +2394,45 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         break;
     }
     case MVM_OP_eqat_s: {
+        MVMint16 dst    = ins->operands[0].reg.orig;
+        MVMint16 src_a  = ins->operands[1].reg.orig;
+        MVMint16 src_b  = ins->operands[2].reg.orig;
+        MVMint16 offset = ins->operands[3].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { src_a } },
+                                 { MVM_JIT_REG_VAL, { src_b } },
+                                 { MVM_JIT_REG_VAL, { offset } } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args,
+                          MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_eqatic_s: {
+        MVMint16 dst    = ins->operands[0].reg.orig;
+        MVMint16 src_a  = ins->operands[1].reg.orig;
+        MVMint16 src_b  = ins->operands[2].reg.orig;
+        MVMint16 offset = ins->operands[3].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { src_a } },
+                                 { MVM_JIT_REG_VAL, { src_b } },
+                                 { MVM_JIT_REG_VAL, { offset } } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args,
+                          MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_eqatim_s: {
+        MVMint16 dst    = ins->operands[0].reg.orig;
+        MVMint16 src_a  = ins->operands[1].reg.orig;
+        MVMint16 src_b  = ins->operands[2].reg.orig;
+        MVMint16 offset = ins->operands[3].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { src_a } },
+                                 { MVM_JIT_REG_VAL, { src_b } },
+                                 { MVM_JIT_REG_VAL, { offset } } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args,
+                          MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_eqaticim_s: {
         MVMint16 dst    = ins->operands[0].reg.orig;
         MVMint16 src_a  = ins->operands[1].reg.orig;
         MVMint16 src_b  = ins->operands[2].reg.orig;
