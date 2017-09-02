@@ -83,13 +83,12 @@ static char * NFG_checker (MVMThreadContext *tc, MVMString *orig, char *varname)
                     "Got %i but after re_nfg got %i\n"
                         "Differing grapheme at index %"PRIi64"\n"
                             "orig: %"PRIi32"  (%s)  after re_nfg: %"PRIi32"  (%s)\n";
-                char *out = MVM_malloc(sizeof(char) * (
-                    strlen(orig_render) + strlen(renorm_render)
-                    + strlen(varname) + strlen(format) + (5 * 7)
-                ) + 1);
+                int out_size = strlen(orig_render) + strlen(renorm_render)
+                    + strlen(varname) + strlen(format) + (5 * 7) + 1;
+                char *out = MVM_malloc(sizeof(char) * out_size);
                 char *waste[] = {orig_render, renorm_render, NULL};
                 char **w = waste;
-                sprintf(out,
+                snprintf(out, out_length,
                     format,
                     varname,
                         orig_graphs, renorm_graphs,
