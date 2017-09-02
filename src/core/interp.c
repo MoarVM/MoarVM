@@ -15,6 +15,10 @@ MVM_STATIC_INLINE MVMuint16 check_reg(MVMThreadContext *tc, MVMRegister *reg_bas
         MVM_ASSERT_NOT_FROMSPACE(tc, reg_base[idx].o);
     return idx;
 }
+/* The bytecode stream is OPs (16 bit numbers) followed by the (16 bit numbers) of the registers
+ * the OP needs (return register + argument registers. The pc will point to the first place after
+ * the current op, i.e. the first 16 bit register number. We add the requested number to that and
+ * use the result as index into the reg_base array which stores the frame's locals. */
 #define GET_REG(pc, idx)    reg_base[check_reg(tc, reg_base, *((MVMuint16 *)(pc + idx)))]
 #else
 #define GET_REG(pc, idx)    reg_base[*((MVMuint16 *)(pc + idx))]
@@ -58,7 +62,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 #include "oplabels.h"
 #endif
 
-    /* Points to the current opcode. */
+    /* Points to the place in the bytecode right after the current opcode. */
+    /* See the NEXT_OP macro for making sense of this */
     MVMuint8 *cur_op = NULL;
 
     /* The current frame's bytecode start. */
