@@ -304,22 +304,22 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
 
     /* Fast paths when storage types are identical. */
     switch (a->body.storage_type) {
-    case MVM_STRING_GRAPHEME_32:
-        if (b->body.storage_type == MVM_STRING_GRAPHEME_32)
-            return 0 == memcmp(
-                a->body.storage.blob_32 + starta,
-                b->body.storage.blob_32 + startb,
-                length * sizeof(MVMGrapheme32));
-        break;
-    case MVM_STRING_GRAPHEME_ASCII:
-    case MVM_STRING_GRAPHEME_8:
-        if (b->body.storage_type == MVM_STRING_GRAPHEME_ASCII ||
-                b->body.storage_type == MVM_STRING_GRAPHEME_8)
-            return 0 == memcmp(
-                a->body.storage.blob_8 + starta,
-                b->body.storage.blob_8 + startb,
-                length);
-        break;
+        case MVM_STRING_GRAPHEME_32:
+            if (b->body.storage_type == MVM_STRING_GRAPHEME_32)
+                return 0 == memcmp(
+                    a->body.storage.blob_32 + starta,
+                    b->body.storage.blob_32 + startb,
+                    length * sizeof(MVMGrapheme32));
+            break;
+        case MVM_STRING_GRAPHEME_ASCII:
+        case MVM_STRING_GRAPHEME_8:
+            if (b->body.storage_type == MVM_STRING_GRAPHEME_ASCII ||
+                    b->body.storage_type == MVM_STRING_GRAPHEME_8)
+                return 0 == memcmp(
+                    a->body.storage.blob_8 + starta,
+                    b->body.storage.blob_8 + startb,
+                    length);
+            break;
     }
 
     /* If both are flat, use MVM_string_get_grapheme_at_nocheck on both for speed */
