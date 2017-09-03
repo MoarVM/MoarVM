@@ -1041,11 +1041,10 @@ static void knuth_morris_pratt_process_pattern (MVMThreadContext *tc, MVMString 
 }
 
 static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString *needle, MVMString *Haystack, MVMint64 H_offset) {
-    MVMGraphemeIter_cached H_gic;
     MVMint64 needle_offset = 0;
     MVMint64 text_offset   = H_offset;
-    MVMStringIndex Haystack_graphs = MVM_string_graphs(tc, Haystack);
-    MVMStringIndex needle_graphs   = MVM_string_graphs(tc, needle);
+    MVMStringIndex Haystack_graphs = MVM_string_graphs_nocheck(tc, Haystack);
+    MVMStringIndex needle_graphs   = MVM_string_graphs_nocheck(tc, needle);
     MVMGrapheme32    *next = NULL;
     MVMString *flat_needle = NULL;
     assert(needle_graphs <= MVM_string_KMP_max_pattern_length);
@@ -1057,12 +1056,29 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
     flat_needle = needle->body.storage_type == MVM_STRING_STRAND
         ? collapse_strands(tc, needle)
         : needle;
-    MVM_string_gi_cached_init(tc, &H_gic, Haystack, H_offset);
     /* Process the needle into a jump table put into variable 'next' */
     knuth_morris_pratt_process_pattern(tc, flat_needle, next, needle_graphs);
+    /* If the Haystack is a strand, use MVM_string_gi_cached_get_grapheme
+     * since it retains its grapheme iterator over invocations unlike
+     * MVM_string_get_grapheme_at_nocheck and caches the previous grapheme. It
+     * is slower for flat Haystacks though. */
+    if (Haystack->body.storage_type == MVM_STRING_STRAND) {
+        MVMGraphemeIter_cached H_gic;
+        MVM_string_gi_cached_init(tc, &H_gic, Haystack, H_offset);
+        while (text_offset < Haystack_graphs && needle_offset < needle_graphs) {
+            if (needle_offset == -1 || MVM_string_get_grapheme_at_nocheck(tc, flat_needle, needle_offset)
+                                    == MVM_string_gi_cached_get_grapheme(tc, &H_gic, text_offset)) {
+                text_offset++; needle_offset++;
+                if (needle_offset == needle_graphs)
+                    return text_offset - needle_offset;
+            }
+            else needle_offset = next[needle_offset];
+        }
+        return -1;
+    }
     while (text_offset < Haystack_graphs && needle_offset < needle_graphs) {
         if (needle_offset == -1 || MVM_string_get_grapheme_at_nocheck(tc, flat_needle, needle_offset)
-                                == MVM_string_gi_cached_get_grapheme(tc, &H_gic, text_offset)) {
+                                == MVM_string_get_grapheme_at_nocheck(tc, Haystack, text_offset)) {
             text_offset++; needle_offset++;
             if (needle_offset == needle_graphs)
                 return text_offset - needle_offset;

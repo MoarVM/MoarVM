@@ -278,6 +278,9 @@ MVM_STATIC_INLINE MVMCodepoint MVM_string_ci_get_codepoint(MVMThreadContext *tc,
 
     return result;
 }
+/* The MVMGraphemeIter_cached is used for the Knuth-Morris-Pratt algorithm
+ * because often it will request the same grapheme again, and our grapheme
+ * iterators only return the next grapheme */
 struct MVMGraphemeIter_cached {
     MVMGraphemeIter gi;
     MVMGrapheme32   last_g;
@@ -293,7 +296,8 @@ MVM_STATIC_INLINE void MVM_string_gi_cached_init (MVMThreadContext *tc, MVMGraph
     gic->string = s;
 }
 MVM_STATIC_INLINE MVMGrapheme32 MVM_string_gi_cached_get_grapheme(MVMThreadContext *tc, MVMGraphemeIter_cached *gic, MVMint64 index) {
-    /* Most likely case is we are getting the next grapheme */
+    /* Most likely case is we are getting the next grapheme. When that happens
+     * we will go directly to the end. */
     if (index == gic->last_location + 1) {
     }
     /* Second most likely is getting the cached grapheme */
@@ -309,7 +313,9 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_gi_cached_get_grapheme(MVMThreadConte
         MVM_exception_throw_adhoc(tc, "Internal error: Requested an index %"PRIi64" that was less than the last_location %"PRIu32"",
             index, gic->last_location);
         /* Not yet tested, but we may be able to access previous graphemes by reinitializing
-         * MVM_string_gi_cached_init(tc, gic, gic->string, index); */
+         * MVM_string_gi_cached_init(tc, gic, gic->string, index);
+         * MVM_string_gi_move_to(tc, &(gic->gi), index);
+         * MVM_string_gi_get_grapheme(tc, &(gic->gi)); */
     }
     gic->last_location = index;
     return (gic->last_g = MVM_string_gi_get_grapheme(tc, &(gic->gi)));
