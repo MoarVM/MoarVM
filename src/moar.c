@@ -239,8 +239,9 @@ MVMInstance * MVM_vm_create_instance(void) {
         instance->jit_log_fh = fopen_perhaps_with_pid(jit_log, "w");
     jit_bytecode_dir = getenv("MVM_JIT_BYTECODE_DIR");
     if (jit_bytecode_dir && jit_bytecode_dir[0]) {
-        char *bytecode_map_name = MVM_malloc(strlen(jit_bytecode_dir) + strlen("/jit-map.txt") + 1);
-        sprintf(bytecode_map_name, "%s/jit-map.txt", jit_bytecode_dir);
+        size_t bytecode_map_name_size = strlen(jit_bytecode_dir) + strlen("/jit-map.txt") + 1;
+        char *bytecode_map_name = MVM_malloc(bytecode_map_name_size);
+        snprintf(bytecode_map_name, bytecode_map_name_size, "%s/jit-map.txt", jit_bytecode_dir);
         instance->jit_bytecode_map = fopen(bytecode_map_name, "w");
         instance->jit_bytecode_dir = jit_bytecode_dir;
         MVM_free(bytecode_map_name);
