@@ -27,7 +27,6 @@ struct MVMNFGState {
 /* State held about a synthetic. */
 struct MVMNFGSynthetic {
     /* The base (non-combining) grapheme. */
-    //MVMCodepoint base;
     /* The index of the base (non-combining) grapheme
      * set to -1 if it does not exist */
     MVMint32 base_index;

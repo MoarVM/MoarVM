@@ -215,9 +215,9 @@ static int append_grapheme(MVMThreadContext *tc, DecodeState *state, MVMGrapheme
         int mismatch = 0;
         if (synth->codes[0] == state->orig_codes[state->orig_codes_unnormalized]) {
             MVMint32 i;
-            for (i = 0; i < synth->num_codes; i++) {
-                size_t orig_idx = state->orig_codes_unnormalized + i + 1;
-                if (orig_idx >= state->orig_codes_pos ||
+            for (i = 1; i < synth->num_codes; i++) {
+                size_t orig_idx = state->orig_codes_unnormalized + i;
+                if (state->orig_codes_pos <= orig_idx ||
                         state->orig_codes[orig_idx] != synth->codes[i]) {
                     mismatch = 1;
                     break;
@@ -680,7 +680,6 @@ char * MVM_string_utf8_c8_encode_substr(MVMThreadContext *tc,
             }
             else {
                 MVMint32 i;
-                emit_cp(tc, synth->codes[0], &result, &result_pos, &result_limit, repl_bytes, repl_length);
                 for (i = 0; i < synth->num_codes; i++)
                     emit_cp(tc, synth->codes[i], &result, &result_pos, &result_limit, repl_bytes, repl_length);
             }
