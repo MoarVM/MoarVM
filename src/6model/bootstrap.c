@@ -31,7 +31,7 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     MVMArgProcContext arg_ctx;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
-    self = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o;
+    self = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
     repr_arg = MVM_args_get_named_str(tc, &arg_ctx, instance->str_consts.repr, MVM_ARG_OPTIONAL);
     name_arg = MVM_args_get_named_str(tc, &arg_ctx, instance->str_consts.name, MVM_ARG_OPTIONAL);
     MVM_args_proc_cleanup(tc, &arg_ctx);
@@ -82,9 +82,9 @@ static void add_method(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister 
     MVMArgProcContext arg_ctx;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     MVM_args_checkarity(tc, &arg_ctx, 4, 4);
-    self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o;
+    self     = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
     name     = MVM_args_get_pos_str(tc, &arg_ctx, 2, MVM_ARG_REQUIRED).arg.s;
-    method   = MVM_args_get_pos_obj(tc, &arg_ctx, 3, MVM_ARG_REQUIRED).arg.o;
+    method   = MVM_args_get_required_pos_obj(tc, &arg_ctx, 3);
     MVM_args_proc_cleanup(tc, &arg_ctx);
     if (!self || !IS_CONCRETE(self) || REPR(self)->ID != MVM_REPR_ID_KnowHOWREPR)
         MVM_exception_throw_adhoc(tc, "KnowHOW methods must be called on object instance with REPR KnowHOWREPR");
@@ -105,8 +105,8 @@ static void add_attribute(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegist
     MVMArgProcContext arg_ctx;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     MVM_args_checkarity(tc, &arg_ctx, 3, 3);
-    self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o;
-    attr     = MVM_args_get_pos_obj(tc, &arg_ctx, 2, MVM_ARG_REQUIRED).arg.o;
+    self     = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    attr     = MVM_args_get_required_pos_obj(tc, &arg_ctx, 2);
     MVM_args_proc_cleanup(tc, &arg_ctx);
 
     /* Ensure we have the required representations. */
@@ -134,8 +134,8 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     MVMArgProcContext arg_ctx;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     MVM_args_checkarity(tc, &arg_ctx, 2, 2);
-    self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o;
-    type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED).arg.o;
+    self     = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    type_obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 1);
     MVM_args_proc_cleanup(tc, &arg_ctx);
     if (!self || !IS_CONCRETE(self) || REPR(self)->ID != MVM_REPR_ID_KnowHOWREPR)
         MVM_exception_throw_adhoc(tc, "KnowHOW methods must be called on object instance with REPR KnowHOWREPR");
@@ -227,8 +227,8 @@ static void member(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
     MVMArgProcContext arg_ctx; \
     MVM_args_proc_init(tc, &arg_ctx, callsite, args); \
     MVM_args_checkarity(tc, &arg_ctx, 2, 2); \
-    self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o; \
-    type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED).arg.o; \
+    self     = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0); \
+    type_obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 1); \
     MVM_args_proc_cleanup(tc, &arg_ctx); \
     if (!self || !IS_CONCRETE(self) || REPR(self)->ID != MVM_REPR_ID_KnowHOWREPR) \
         MVM_exception_throw_adhoc(tc, "KnowHOW methods must be called on object instance with REPR KnowHOWREPR"); \
@@ -343,7 +343,7 @@ static void attr_new(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     MVMArgProcContext arg_ctx;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
-    self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o;
+    self     = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
     name_arg = MVM_args_get_named_str(tc, &arg_ctx, instance->str_consts.name, MVM_ARG_REQUIRED);
     type_arg = MVM_args_get_named_obj(tc, &arg_ctx, instance->str_consts.type, MVM_ARG_OPTIONAL);
     bt_arg   = MVM_args_get_named_int(tc, &arg_ctx, instance->str_consts.box_target, MVM_ARG_OPTIONAL);
@@ -373,7 +373,7 @@ static void attr_compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegiste
     MVMArgProcContext arg_ctx;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
-    self = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o;
+    self = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
     MVM_args_proc_cleanup(tc, &arg_ctx);
     MVM_args_set_result_obj(tc, self, MVM_RETURN_CURRENT_FRAME);
 }
@@ -385,7 +385,7 @@ static void attr_name(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *
     MVMArgProcContext arg_ctx;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
-    self = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o;
+    self = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
     MVM_args_proc_cleanup(tc, &arg_ctx);
     name = ((MVMKnowHOWAttributeREPR *)self)->body.name;
     MVM_args_set_result_str(tc, name, MVM_RETURN_CURRENT_FRAME);
@@ -397,7 +397,7 @@ static void attr_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *
     MVMArgProcContext arg_ctx;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
-    self = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o;
+    self = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
     MVM_args_proc_cleanup(tc, &arg_ctx);
     type = ((MVMKnowHOWAttributeREPR *)self)->body.type;
     MVM_args_set_result_obj(tc, type, MVM_RETURN_CURRENT_FRAME);
@@ -410,7 +410,7 @@ static void attr_box_target(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegi
     MVMArgProcContext arg_ctx;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
-    self = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o;
+    self = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
     MVM_args_proc_cleanup(tc, &arg_ctx);
     box_target = ((MVMKnowHOWAttributeREPR *)self)->body.box_target;
     MVM_args_set_result_int(tc, box_target, MVM_RETURN_CURRENT_FRAME);

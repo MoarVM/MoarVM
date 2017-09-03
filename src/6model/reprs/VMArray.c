@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "limits.h"
 
 /* This representation's function pointer table. */
 static const MVMREPROps VMArray_this_repr;
@@ -337,10 +338,20 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
     else {
         ssize = (n + 0x1000) & ~0xfffUL;
     }
-    if (ssize > (1UL << (8 * sizeof(size_t) - repr_data->elem_size)))
-        MVM_exception_throw_adhoc(tc,
-            "Unable to allocate an array of %"PRIu64" elements",
-            ssize);
+    {
+        /* Our budget is 2^(
+         *     <number of bits in an array index>
+         *     - <number of bits to address individual bytes in an array element>
+         * ) */
+        size_t const elem_addr_size = repr_data->elem_size == 8 ? 4 :
+                                      repr_data->elem_size == 4 ? 3 :
+                                      repr_data->elem_size == 2 ? 2 :
+                                                                  1;
+        if (ssize > (1UL << (CHAR_BIT * sizeof(size_t) - elem_addr_size)))
+            MVM_exception_throw_adhoc(tc,
+                "Unable to allocate an array of %"PRIu64" elements",
+                ssize);
+    }
 
     /* now allocate the new slot buffer */
     slots = (slots)

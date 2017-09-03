@@ -1775,6 +1775,22 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov qword WORK[dst], RV;
         break;
     }
+    case MVM_OP_setcodeobj: {
+        MVMint16 obj  = ins->operands[0].reg.orig;
+        MVMint16 code = ins->operands[1].reg.orig;
+        | mov TMP1, aword WORK[obj];
+        /* if (REPR(obj)->ID == MVM_REPR_ID_MVMCode) */
+        | mov TMP2, OBJECT:TMP1->st;
+        | mov TMP2, STABLE:TMP2->REPR;
+        | cmp dword REPR:TMP2->ID, MVM_REPR_ID_MVMCode;
+        | je >1;
+        /* else throw */
+        | throw_adhoc "setcodeobj needs a code ref";
+        |1:
+        | mov TMP2, aword WORK[code];
+        | mov aword CODE:TMP1->body.code_object, TMP2;
+        break;
+    }
     case MVM_OP_lastexpayload: {
         MVMint16 dst = ins->operands[0].reg.orig;
         | mov TMP3, aword TC->last_payload;
@@ -1810,7 +1826,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov ARG2, aword WORK[target];
         | mov ARG3, aword WORK[expected];
         | mov ARG4, aword WORK[value];
+        |.if WIN32;
+        | lea TMP6, WORK[result]
+        | mov qword [rsp+0x20], TMP6
+        |.else;
         | lea ARG5, WORK[result]
+        |.endif
         | mov FUNCTION, OBJECT:ARG2->st;
         | mov FUNCTION, STABLE:FUNCTION->container_spec;
         | mov FUNCTION, CONTAINERSPEC:FUNCTION->cas;
@@ -2361,7 +2382,11 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
         | mov ARG2, WORK[invoke->code_register]; // code object
         | lea ARG3, [rbp-0x30];                  // &cur_callsite
         | mov ARG4, TMP5;                        // args
+        |.if WIN32;
+        | mov qword [rsp+0x20], 0
+        |.else;
         | mov ARG5, 0;                           // NULL to &was_multi
+        |.endif
         | callp &MVM_frame_find_invokee_multi_ok;
         /* restore callsite, args, RV now holds code object */
         | mov TMP6, [rbp-0x30]; // callsite

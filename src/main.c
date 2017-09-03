@@ -5,14 +5,14 @@
 
 #if MVM_TRACING
 #  define TRACING_OPT "[--tracing] "
-#  define TRACING_USAGE "\n    --tracing  output a line to stderr on every interpreter instr"
+#  define TRACING_USAGE "\n    --tracing         output a line to stderr on every interpreter instr"
 #else
 #  define TRACING_OPT ""
 #  define TRACING_USAGE ""
 #endif
 
 #ifdef HAVE_TELEMEH
-#  define TELEMEH_USAGE "MVM_TELEMETRY_LOG           Log internal events at high precision to this file\n"
+#  define TELEMEH_USAGE "    MVM_TELEMETRY_LOG           Log internal events at high precision to this file\n"
 #else
 #  define TELEMEH_USAGE ""
 #endif

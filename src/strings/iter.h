@@ -114,13 +114,13 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_gi_get_grapheme(MVMThreadContext *tc,
     while (1) {
         if (gi->pos < gi->end) {
             switch (gi->blob_type) {
-            case MVM_STRING_GRAPHEME_32:
-                return gi->active_blob.blob_32[gi->pos++];
-            case MVM_STRING_GRAPHEME_ASCII:
-                return gi->active_blob.blob_ascii[gi->pos++];
-            case MVM_STRING_GRAPHEME_8:
-                return gi->active_blob.blob_8[gi->pos++];
-            }
+                case MVM_STRING_GRAPHEME_32:
+                    return gi->active_blob.blob_32[gi->pos++];
+                case MVM_STRING_GRAPHEME_ASCII:
+                    return gi->active_blob.blob_ascii[gi->pos++];
+                case MVM_STRING_GRAPHEME_8:
+                    return gi->active_blob.blob_8[gi->pos++];
+                }
         }
         else if (gi->repetitions) {
             gi->pos = gi->start;
@@ -140,6 +140,27 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_gi_get_grapheme(MVMThreadContext *tc,
         else {
             MVM_exception_throw_adhoc(tc, "Iteration past end of grapheme iterator");
         }
+    }
+}
+
+
+/* Returns the codepoint without doing checks, for internal VM use only. */
+MVM_STATIC_INLINE MVMGrapheme32 MVM_string_get_grapheme_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index) {
+    switch (a->body.storage_type) {
+        case MVM_STRING_GRAPHEME_32:
+            return a->body.storage.blob_32[index];
+        case MVM_STRING_GRAPHEME_ASCII:
+            return a->body.storage.blob_ascii[index];
+        case MVM_STRING_GRAPHEME_8:
+            return a->body.storage.blob_8[index];
+        case MVM_STRING_STRAND: {
+            MVMGraphemeIter gi;
+            MVM_string_gi_init(tc, &gi, a);
+            MVM_string_gi_move_to(tc, &gi, index);
+            return MVM_string_gi_get_grapheme(tc, &gi);
+        }
+        default:
+            MVM_exception_throw_adhoc(tc, "String corruption detected: bad storage type");
     }
 }
 
