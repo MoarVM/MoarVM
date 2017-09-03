@@ -360,9 +360,11 @@ MVMint64 MVM_unicode_relative_ccc(MVMThreadContext *tc, MVMCodepoint cp) {
  * the Unicode Standard Annex #29). Full path. Fast path checks for controls
  * in the Latin-1 range. This works for those as well but needs a property lookup */
 MVMint32 MVM_string_is_control_full(MVMThreadContext *tc, MVMCodepoint in) {
-    /* U+200C ZERO WIDTH NON-JOINER and U+200D ZERO WIDTH JOINER are excluded. */
+    /* U+200C ZERO WIDTH NON-JOINER and U+200D ZERO WIDTH JOINER are excluded because
+     * they are Cf but not Control's */
     if (in != UNI_CP_ZERO_WIDTH_NON_JOINER && in != UNI_CP_ZERO_WIDTH_JOINER) {
-        /* Consider general property. */
+        /* Consider general property:
+         * Cc, Zl, Zp, and Cn which are also Default_Ignorable_Code_Point=True */
         const char *genprop = MVM_unicode_codepoint_get_property_cstr(tc, in,
             MVM_UNICODE_PROPERTY_GENERAL_CATEGORY);
         switch (genprop[0]) {

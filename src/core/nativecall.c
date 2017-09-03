@@ -365,7 +365,7 @@ static const char *dlerror(void)
     DWORD dw = GetLastError();
     if (dw == 0)
         return NULL;
-    sprintf(buf, "error 0x%x", (unsigned int)dw);
+    snprintf(buf, 32, "error 0x%"PRIx32"", (MVMuint32)dw);
     return buf;
 }
 #endif

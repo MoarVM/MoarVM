@@ -241,7 +241,7 @@ for lines() -> $_ is copy {
             @dominance_conns.push($current_bb => $child.Int);
         }
     }
-    when / ^ '    ' [ 'Instructions' | 'Predeccessors' ] / { }
+    when / ^ '    ' [ 'Instructions' | 'Predecessors' ] / { }
     when /^ [ 'Facts' | '='+ ] / { }
     when /^ 'Spesh of \'' $<methname>=[<[a..z 0..9 _ ' -]>*]
             '\' (cuid: ' $<cuid>=[<[a..z A..Z 0..9 _ . -]>+]

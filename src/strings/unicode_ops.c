@@ -82,27 +82,10 @@ MVMint64 MVM_unicode_string_compare
             /* If it's less than zero we have a synthetic codepoint */
             if (ai < 0) {
                 MVMCodepointIter a_ci;
-                MVMGrapheme32 result_a;
-                /* It's a synthetic. Look it up. */
-                MVMNFGSynthetic *synth_a = MVM_nfg_get_synthetic_info(tc, ai);
-
-                /* Set up the iterator so in the next iteration we will start to
-                * hand back combiners. */
-                a_ci.synth_codes         = synth_a->combs;
-                a_ci.visited_synth_codes = 0;
-                a_ci.total_synth_codes   = synth_a->num_combs;
-
-                /* result_a is the base character of the grapheme. */
-                result_a = synth_a->base;
-                collation_adjust(tc, ai_coll_val, bi_coll_val, collation_mode, result_a);
-                while (a_ci.synth_codes) {
-                    /* Take the current combiner as the result_a. */
-                    result_a = a_ci.synth_codes[a_ci.visited_synth_codes];
-                    collation_adjust(tc, ai_coll_val, bi_coll_val, collation_mode, result_a);
-
-                    a_ci.visited_synth_codes++;
-                    if (a_ci.visited_synth_codes == a_ci.total_synth_codes)
-                        a_ci.synth_codes = NULL;
+                MVM_string_grapheme_ci_init(tc, &a_ci, ai);
+                while (MVM_string_grapheme_ci_has_more(tc, &a_ci)) {
+                    collation_adjust(tc, ai_coll_val, bi_coll_val, collation_mode,
+                        MVM_string_grapheme_ci_get_codepoint(tc, &a_ci));
                 }
             }
             else {
@@ -111,27 +94,10 @@ MVMint64 MVM_unicode_string_compare
 
             if (bi < 0) {
                 MVMCodepointIter b_ci;
-                MVMGrapheme32 result_b;
-                /* It's a synthetic. Look it up. */
-                MVMNFGSynthetic *synth_b = MVM_nfg_get_synthetic_info(tc, bi);
-
-                /* Set up the iterator so in the next iteration we will start to
-                * hand back combiners. */
-                b_ci.synth_codes         = synth_b->combs;
-                b_ci.visited_synth_codes = 0;
-                b_ci.total_synth_codes   = synth_b->num_combs;
-
-                /* result_b is the base character of the grapheme. */
-                result_b = synth_b->base;
-                collation_adjust(tc, bi_coll_val, ai_coll_val, collation_mode, result_b);
-
-                while (b_ci.synth_codes) {
-                    /* Take the current combiner as the result_b. */
-                    result_b = b_ci.synth_codes[b_ci.visited_synth_codes];
-                    collation_adjust(tc, bi_coll_val, ai_coll_val, collation_mode, result_b);
-                    b_ci.visited_synth_codes++;
-                    if (b_ci.visited_synth_codes == b_ci.total_synth_codes)
-                        b_ci.synth_codes = NULL;
+                MVM_string_grapheme_ci_init(tc, &b_ci, bi);
+                while (MVM_string_grapheme_ci_has_more(tc, &b_ci)) {
+                    collation_adjust(tc, bi_coll_val, ai_coll_val, collation_mode,
+                        MVM_string_grapheme_ci_get_codepoint(tc, &b_ci));
                 }
             }
             else {
@@ -209,13 +175,13 @@ MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) 
 }
 
 MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
-    const char *name;
+    const char *name = NULL;
 
     /* Catch out-of-bounds code points. */
     if (codepoint < 0) {
         name = "<illegal>";
     }
-    else if (codepoint > 0x10ffff) {
+    else if (0x10ffff < codepoint) {
         name = "<unassigned>";
     }
 
@@ -292,7 +258,7 @@ MVMuint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint codepoi
             }
             else {
                 MVMint32 i = 3;
-                while (i > 0 && CaseFolding_grows_table[folding_index][i - 1] == 0)
+                while (0 < i && CaseFolding_grows_table[folding_index][i - 1] == 0)
                     i--;
                 *result = &(CaseFolding_grows_table[folding_index][0]);
                 return i;
@@ -304,7 +270,7 @@ MVMuint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint codepoi
             codepoint, MVM_UNICODE_PROPERTY_SPECIAL_CASING);
         if (special_casing_index) {
             MVMint32 i = 3;
-                while (i > 0 && SpecialCasing_table[special_casing_index][case_][i - 1] == 0)
+                while (0 < i && SpecialCasing_table[special_casing_index][case_][i - 1] == 0)
                     i--;
                 *result = SpecialCasing_table[special_casing_index][case_];
                 return i;
@@ -401,33 +367,40 @@ static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
     }
     unicode_property_values_hashes = hash_array;
 }
+/* Quickly determines the length of a number 6.5x faster than doing log10 after
+ * compiler optimization */
+MVM_STATIC_INLINE size_t length_of_num (size_t number) {
+    if (number < 10) return 1;
+    return 1 + length_of_num(number / 10);
+}
+MVMint32 unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, const char *cname, MVMuint64 cname_length) {
+    char *out_str = NULL;
+    MVMUnicodeNameRegistry *result = NULL;
+                                   /* number + dash + property_value + NULL */
+    MVMuint64 out_str_length = length_of_num(property_code) + 1 + cname_length + 1;
+    if (1024 < out_str_length)
+        MVM_exception_throw_adhoc(tc, "Property value or name queried is larger than allowed.");
 
+    out_str = alloca(sizeof(char) * out_str_length);
+    snprintf(out_str, out_str_length, "%"PRIi64"-%s", property_code, cname);
+
+    HASH_FIND(hash_handle, unicode_property_values_hashes[property_code], out_str, out_str_length - 1, result);
+    return result ? result->codepoint : 0;
+}
 MVMint32 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, MVMString *name) {
-    if (property_code <= 0 || property_code >= MVM_NUM_PROPERTY_CODES) {
+    if (property_code <= 0 || MVM_NUM_PROPERTY_CODES <= property_code)
         return 0;
-    }
     else {
-        MVMuint64 size;
-        char *cname = MVM_string_ascii_encode(tc, name, &size, 0);
-        MVMUnicodeNameRegistry *result;
-
-        HASH_FIND(hash_handle, unicode_property_values_hashes[property_code], cname, strlen((const char *)cname), result);
-        MVM_free(cname); /* not really codepoint, really just an index */
-        return result ? result->codepoint : 0;
+        MVMuint64 cname_length;
+        char *cname = MVM_string_ascii_encode(tc, name, &cname_length, 0);
+        return unicode_cname_to_property_value_code(tc, property_code, cname, cname_length);
     }
 }
-
 MVMint32 MVM_unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, const char *cname, size_t cname_length) {
-    if (property_code <= 0 || property_code >= MVM_NUM_PROPERTY_CODES) {
+    if (property_code <= 0 || MVM_NUM_PROPERTY_CODES <= property_code)
         return 0;
-    }
-    else {
-        MVMuint64 size;
-        MVMUnicodeNameRegistry *result;
-
-        HASH_FIND(hash_handle, unicode_property_values_hashes[property_code], cname, cname_length, result);
-        return result ? result->codepoint : 0;
-    }
+    else
+        return unicode_cname_to_property_value_code(tc, property_code, cname, cname_length);
 }
 
 /* Look up the primary composite for a pair of codepoints, if it exists.
@@ -476,8 +449,8 @@ void MVM_unicode_release(MVMThreadContext *tc)
         int i;
 
         for (i = 0; i < MVM_NUM_PROPERTY_CODES; i++) {
-            MVMUnicodeNameRegistry *entry;
-            MVMUnicodeNameRegistry *tmp;
+            MVMUnicodeNameRegistry *entry = NULL;
+            MVMUnicodeNameRegistry *tmp   = NULL;
             unsigned bucket_tmp;
             int j;
 
@@ -510,17 +483,17 @@ void MVM_unicode_release(MVMThreadContext *tc)
  sequences and looks up the sequence name */
 MVMString * MVM_unicode_string_from_name(MVMThreadContext *tc, MVMString *name) {
     MVMString * name_uc = MVM_string_uc(tc, name);
-    char * cname;
+    char * cname = NULL;
     MVMUnicodeGraphemeNameRegistry *result;
 
     MVMGrapheme32 result_graph = MVM_unicode_lookup_by_name(tc, name_uc);
     /* If it's just a codepoint, return that */
-    if (result_graph >= 0) {
+    if (0 <= result_graph) {
         return MVM_string_chr(tc, result_graph);
     }
     /* Otherwise look up the sequence */
     else {
-        const MVMint32 * uni_seq;
+        const MVMint32 *uni_seq = NULL;
         cname = MVM_string_utf8_encode_C_string(tc, name_uc);
         if (!property_codes_by_seq_names) {
             generate_property_codes_by_seq_names(tc);

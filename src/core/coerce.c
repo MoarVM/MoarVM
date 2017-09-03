@@ -149,9 +149,8 @@ static void flip_return(MVMThreadContext *tc, void *sr_data) {
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
     char buffer[64];
     int len;
-
     /* See if we can hit the cache. */
-    int cache = i >= 0 && i < MVM_INT_TO_STR_CACHE_SIZE;
+    int cache = 0 <= i && i < MVM_INT_TO_STR_CACHE_SIZE;
     if (cache) {
         MVMString *cached = tc->instance->int_to_str_cache[i];
         if (cached)
@@ -159,8 +158,8 @@ MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
     }
 
     /* Otherwise, need to do the work; cache it if in range. */
-    len = snprintf(buffer, 64, "%lld", (long long int)i);
-    if (len >= 0) {
+    len = snprintf(buffer, 64, "%"PRIi64"", i);
+    if (0 <= len) {
         MVMString *result = MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, len);
         if (cache)
             tc->instance->int_to_str_cache[i] = result;

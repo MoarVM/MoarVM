@@ -4,7 +4,7 @@ use warnings; use strict;
 use utf8;
 use feature 'unicode_strings';
 use Data::Dumper;
-use Carp qw(cluck croak);
+use Carp qw(cluck croak carp);
 $Data::Dumper::Maxdepth = 1;
 # Make C versions of the Unicode tables.
 
@@ -18,7 +18,7 @@ my $DEBUG = $ENV{UCD2CDEBUG} // 0;
 
 my @name_lines;
 if ($DEBUG) {
-    open(LOG, ">extents") or die "can't create extents: $!";
+    open(LOG, ">extents") or croak "can't create extents: $!";
     binmode LOG, ':encoding(UTF-8)';
 }
 binmode STDOUT, ':encoding(UTF-8)';
@@ -61,7 +61,15 @@ my %is_subtype = (
 );
 my $gc_alias_checkers = [];
 
-sub trim { my $s = shift; $s =~ s/^\s+|\s+$//g; return $s };
+sub trim {
+    my $s = shift;
+    $s =~ s/\s+$//g;
+    $s =~ s/^\s+//g;
+    if ($s =~ /^ / or $s =~ / $/) {
+        croak "'$s'";
+    }
+    return $s;
+}
 
 sub progress($);
 sub main {
@@ -79,6 +87,7 @@ sub main {
         derived_property('CombiningClass',
             'Canonical_Combining_Class', { Not_Reordered => 0 }, 1)
     );
+    Jamo($points_by_code);
     collation();
     BidiMirroring();
     goto skip_most if $skip_most_mode;
@@ -86,6 +95,8 @@ sub main {
     binary_props('emoji/emoji-data');
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 0, 3);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1, 1);
+    # disabled because of sub Jamo
+    #enumerated_property('Jamo', 'Jamo_Short_Name', {  }, 1, 1);
     enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1, 1);
     enumerated_property('extracted/DerivedEastAsianWidth', 'East_Asian_Width', {}, 0, 1);
     enumerated_property('ArabicShaping', 'Joining_Type', {}, 0, 2);
@@ -111,7 +122,6 @@ sub main {
         'Numeric_Type', { None => 0 }, 1, 1);
     enumerated_property('HangulSyllableType',
         'Hangul_Syllable_Type', { Not_Applicable => 0 }, 1, 1);
-    Jamo();
     LineBreak();
     NamedSequences();
     binary_props('PropList');
@@ -229,10 +239,10 @@ sub apply_to_range {
         $last_point = $point;
         $point = $point->{next_point};
     } while ($point && $point->{code} <= hex $last);
-    #die "couldn't find code ".sprintf('%x', $last_point->{code} + 1).
+    #croak "couldn't find code ".sprintf('%x', $last_point->{code} + 1).
     #    " got ".$point->{code_str}." for range $first..$last"
     #    unless $last_point->{code} == hex $last;
-    # can't die there because some ranges end on points that don't exist (Blocks)
+    # can't croak there because some ranges end on points that don't exist (Blocks)
 }
 
 sub progress($) {
@@ -349,7 +359,7 @@ sub allocate_bitfield {
     my @biggest = map { $enumerated_properties->{$_} }
         sort { $enumerated_properties->{$b}->{bit_width}
             <=> $enumerated_properties->{$a}->{bit_width} }
-            keys %$enumerated_properties;
+            sort keys %$enumerated_properties;
     for (sort keys %$binary_properties) {
         push @biggest, $binary_properties->{$_};
     }
@@ -586,7 +596,7 @@ sub emit_codepoints_and_planes {
                 $bytes += 10;
             }
 
-            die "$last_code ".Dumper($point) unless $last_code == $point->{code} - 1;
+            croak "$last_code ".Dumper($point) unless $last_code == $point->{code} - 1;
             if ($toadd && !exists($point->{fate_type})) {
                 $point->{fate_type} = $FATE_NORMAL;
                 $point->{fate_offset} = $code_offset;
@@ -713,7 +723,7 @@ sub emit_bitfield {
         ? 'MVMuint32'
         : $bitfield_cell_bitwidth == 64
         ? 'MVMuint64'
-        : die 'wut.';
+        : croak 'wut.';
     $out = "static const $val_type props_bitfield[$rows][$wide] = {\n    ".
         stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."\n};";
     $db_sections->{BBB_main_bitfield} = $out;
@@ -850,6 +860,7 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
         }
         $hout .= $GCB_h;
     }
+    gen_pvalue_defines('MVM_UNICODE_PROPERTY_GENERAL_CATEGORY', 'General_Category', 'GC');
     gen_pvalue_defines('MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK', 'Grapheme_Cluster_Break', 'GCB');
     gen_pvalue_defines('MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE', 'Decomposition_Type', 'DT');
     gen_pvalue_defines('MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS', 'Canonical_Combining_Class', 'CCC');
@@ -1009,7 +1020,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
 END
     $db_sections->{names_hash_builder} = $out;
 }#"
-
+my @v2a;
 sub emit_unicode_property_keypairs {
     my $hout = "
 struct MVMUnicodeNamedValue {
@@ -1021,16 +1032,24 @@ struct MVMUnicodeNamedValue {
         my @aliases = split /\s*[#;]\s*/;
         for my $name (@aliases) {
             if (exists $prop_names->{$name}) {
-                for (@aliases) {
-                    $prop_names->{$_} = $prop_names->{$name}
-                        unless $_ eq $name;
-                    $prop_codes->{$_} = $name;
+                for my $al (@aliases) {
+                    $prop_names->{$al} = $prop_names->{$name}
+                        unless $al eq $name;
+                    my $lc = lc $al;
+                    $prop_names->{$lc} = $prop_names->{$name}
+                        unless $lc eq $name or $lc eq $al;
+                    my $no_ = $lc;
+                    $no_ =~ s/_//g;
+                    $prop_names->{$no_} = $prop_names->{$name}
+                        unless $no_ eq $name or $no_ eq $name or $no_ eq $al;
+                    $prop_codes->{$al} = $name;
                 }
                 last;
             }
         }
     });
     my %aliases;
+    my %done;
     my %lines;
     each_line('PropertyValueAliases', sub { $_ = shift;
         if (/^# (\w+) \((\w+)\)/) {
@@ -1053,39 +1072,67 @@ struct MVMUnicodeNamedValue {
             if ($parts[-1] =~ /\|/) { # it's a union
                 pop @parts;
                 my $unionname = $parts[0];
+                my $prop_val;
                 if (exists $binary_properties->{$unionname}) {
-                    my $prop_val = $binary_properties->{$unionname}->{field_index};
-                    for (@parts) {
-                        $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
-                        $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if s/_//g;
-                        $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if y/A-Z/a-z/;
-                    }
+                    $prop_val = $binary_properties->{$unionname}->{field_index};
+                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
+                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if s/_//g;
+                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if y/A-Z/a-z/;
+                }
+                $prop_val = $prop_names->{$propname};
+                for (@parts) {
+                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
+                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if s/_//g;
+                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if y/A-Z/a-z/;
                 }
             }
-            elsif (exists $prop_names->{$propname}) {
+            else {
+                my $prop_val = $prop_names->{$propname};
                 for (@parts) {
+                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
                     push @{ $aliases{$propname} }, $_
                 }
             }
         }
     }, 1);
-    my %done;
-    for my $propname (qw(gc sc), keys %lines) {
-        for (keys %{$lines{$propname}}) {
-            $done{"$propname$_"} ||= push @lines, $lines{$propname}->{$_};
+    for my $propname (qw(_custom_ gc sc), sort keys %lines) {
+        for (sort keys %{$lines{$propname}}) {
+            # For Letter etc other unions
+            if (/[#]/) {
+                my $value = $lines{$propname}{$_};
+                my $old   = $_;
+                my $orig = $_;
+                $old =~ s/[#].*//;
+                my @a = split /\s*;\s*/, $old;
+                my $pname = shift @a;
+                for my $name (@a) {
+                    $name = trim $name;
+                    my $v2 = $value;
+                    $v2 =~ s/".*"/"$name"/;
+                    push @v2a, $v2;
+                    $lines{$propname}{$name} = $v2;
+                    # NEEDED
+                    $done{"$name"} = push @lines, $v2;
+                }
+            }
+            else {
+                $done{"$_"} ||= push @lines, $lines{$propname}->{$_};
+            }
         }
     }
-    for my $key (qw(gc sc), keys %$prop_names) {
+    for my $key (qw(gc sc), sort keys %$prop_names) {
         $_ = $key;
-        $done{"$key$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}";
-        $done{"$key$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}" if s/_//g;
-        $done{"$key$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}" if y/A-Z/a-z/;
+        $done{"$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}";
+        $done{"$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}" if s/_//g;
+        $done{"$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}" if y/A-Z/a-z/;
         for (@{ $aliases{$key} }) {
-            $done{"$key$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}";
-            $done{"$key$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}" if s/_//g;
-            $done{"$key$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}" if y/A-Z/a-z/;
+            $done{"$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}";
+            $done{"$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}" if s/_//g;
+            $done{"$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}" if y/A-Z/a-z/;
         }
     }
+    # Reverse the @lines array so that later added entries take precedence
+    @lines = reverse @lines;
     $hout .= "
 #define num_unicode_property_keypairs ".scalar(@lines)."\n";
     my $out = "
@@ -1199,29 +1246,67 @@ struct MVMUnicodeNamedAlias {
 typedef struct MVMUnicodeNamedAlias MVMUnicodeNamedAlias;
 END
 }
+my %special_data;
+sub thing {
+    my ($default, $propname, $prop_val, $hash, $maybe_propcode) = @_;
+    $_ = $default;
+    my $propcode = $maybe_propcode // $prop_names->{$propname} // $prop_names->{$default} // croak;
+    # Workaround to 'space' not getting added here
+    $hash->{$propname}->{space} = "{\"$propcode-space\",$prop_val}"
+        if $default eq 'White_Space' and $propname eq '_custom_';
+    $hash->{$propname}->{$_} = "{\"$propcode-$_\",$prop_val}";
+    $hash->{$propname}->{$_} = "{\"$propcode-$_\",$prop_val}" if s/_//g;
+    $hash->{$propname}->{$_} = "{\"$propcode-$_\",$prop_val}" if y/A-Z/a-z/;
+    $propcode;
+}
 sub emit_unicode_property_value_keypairs {
     my @lines = ();
     my $property;
-    for (keys %$enumerated_properties) {
+    my %lines;
+    my %aliases;
+    for (sort keys %$binary_properties) {
+        my $prop_val = ($prop_names->{$_} << 24) + 1;
+        my $propcode = thing($_, '_custom_', $prop_val, \%lines);
+        if (lc($_) eq 'c') {
+            thing('Other', '_custom_', $prop_val, \%lines, $propcode);
+        }
+        if (lc($_) eq 'l') {
+            thing('Letter', '_custom_', $prop_val, \%lines, $propcode);
+        }
+        if (lc($_) eq 'm') {
+            thing('Mark', '_custom_', $prop_val, \%lines, $propcode);
+            thing('Combining_Mark', '_custom_', $prop_val, \%lines, $propcode);
+        }
+        if (lc($_) eq 'n') {
+            thing('Number', '_custom_', $prop_val, \%lines, $propcode);
+        }
+        if (lc($_) eq 'p') {
+            thing('Punctuation', '_custom_', $prop_val, \%lines, $propcode);
+            thing('punct', '_custom_', $prop_val, \%lines, $propcode);
+        }
+        if (lc($_) eq 's') {
+            thing('Symbol', '_custom_', $prop_val, \%lines, $propcode);
+        }
+        if (lc($_) eq 'z') {
+            thing('Separator', '_custom_', $prop_val, \%lines, $propcode);
+        }
+    }
+    for (sort keys %$enumerated_properties) {
         my $enum = $enumerated_properties->{$_}->{enum};
         my $toadd = {};
-        for (keys %$enum) {
+        for (sort keys %$enum) {
             my $key = lc("$_");
             $key =~ s/[_\-\s]/./g;
             $toadd->{$key} = $enum->{$_};
         }
-        for (keys %$toadd) {
+        for (sort keys %$toadd) {
             $enum->{$_} = $toadd->{$_};
         }
     }
-    my %lines;
-    my %aliases;
-    for (keys %$binary_properties) {
-        my $prop_val = ($prop_names->{$_} << 24) + 1;
-        $lines{_custom_}->{$_} = "{\"$_\",$prop_val}";
-        $lines{_custom_}->{$_} = "{\"$_\",$prop_val}" if s/_//g;
-        $lines{_custom_}->{$_} = "{\"$_\",$prop_val}" if y/A-Z/a-z/;
+    if (!%lines) {
+        croak "lines didn't get anything in it";
     }
+        my %done;
     each_line('PropertyValueAliases', sub { $_ = shift;
         if (/^# (\w+) \((\w+)\)/) {
             $aliases{$2} = $1;
@@ -1229,16 +1314,24 @@ sub emit_unicode_property_value_keypairs {
         }
         return if /^(?:#|\s*$)/;
         my @parts = split /\s*[#;]\s*/;
+        my @parts2;
+        foreach my $part (@parts) {
+            $part = trim($part);
+            if ($part =~ /[;]/) {
+                croak;
+            }
+            push @parts2, trim($part);
+        }
+        @parts = @parts2;
         my $propname = shift @parts;
+        $propname = trim $propname;
         if (exists $prop_names->{$propname}) {
             my $prop_val = $prop_names->{$propname} << 24;
             # emit binary properties
             if (($parts[0] eq 'Y' || $parts[0] eq 'N') && ($parts[1] eq 'Yes' || $parts[1] eq 'No')) {
                 $prop_val++; # one bit width
                 for ($propname, ($aliases{$propname} // ())) {
-                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
-                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if s/_//g;
-                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if y/A-Z/a-z/;
+                    thing($_, $propname, $prop_val, \%lines);
                 }
                 return
             }
@@ -1249,18 +1342,22 @@ sub emit_unicode_property_value_keypairs {
                     my $prop_val = $binary_properties->{$unionname}->{field_index} << 24;
                     my $value    = $binary_properties->{$unionname}->{bit_width};
                     for (@parts) {
-                        $lines{$propname}->{$_} = "{\"$_\",".($prop_val + $value)."}";
-                        $lines{$propname}->{$_} = "{\"$_\",".($prop_val + $value)."}" if s/_//g;
-                        $lines{$propname}->{$_} = "{\"$_\",".($prop_val + $value)."}" if y/A-Z/a-z/;
+                        #croak Dumper @parts;
+                        my $i = $_;
+                        thing($i, $propname, $prop_val + $value, \%lines);
+                        $_ = $i;
+                        $done{"$propname$_"} = push @lines, $lines{$propname}->{$_};
+                        $done{"$propname$_"} = push @lines, $lines{$propname}->{$_} if s/_//g;
+                        $done{"$propname$_"} = push @lines, $lines{$propname}->{$_} if y/A-Z/a-z/;
                     }
-                    die Dumper($propname) if /^letter$/
+                    croak Dumper($propname) if /^letter$/
                 }
                 return
             }
             my $key = $prop_codes->{$propname};
             my $found = 0;
             my $enum = $all_properties->{$key}->{'enum'};
-            die $propname unless $enum;
+            croak $propname unless $enum;
             my $value;
             for (@parts) {
                 my $alias = $_;
@@ -1271,7 +1368,7 @@ sub emit_unicode_property_value_keypairs {
                     last;
                 }
             }
-            #die Dumper($enum) unless defined $value;
+            #croak Dumper($enum) unless defined $value;
             unless (defined $value) {
                 #print "warning: couldn't resolve property $propname property value alias $first\n";
                 return;
@@ -1279,16 +1376,27 @@ sub emit_unicode_property_value_keypairs {
             for (@parts) {
                 s/[\-\s]/./g;
                 next if /[\.\|]/;
-                $lines{$propname}->{$_} = "{\"$_\",".($prop_val + $value)."}";
-                $lines{$propname}->{$_} = "{\"$_\",".($prop_val + $value)."}" if s/_//g;
-                $lines{$propname}->{$_} = "{\"$_\",".($prop_val + $value)."}" if y/A-Z/a-z/;
+                thing($_, $propname, $prop_val + $value, \%lines);
             }
         }
     }, 1);
-    my %done;
+    #for my $v (@v2a) {
+        #{"punct",88}
+        #$v =~ /"(.*)"\s*,\s*(\d+)/;
+        #my $name = $1;
+        #my $num = $2;
+        #$lines{'gc'}->{$name} = q/{"$num-$name",}
+        #thing(x, 'gc',
+
+    #}
     # Aliases like L appear in several categories, but we prefere gc and sc.
-    for my $propname (qw(gc sc), keys %lines) {
-        for (keys %{$lines{$propname}}) {
+    for my $propname (qw(_custom_ gc sc), sort keys %lines) {
+        for (sort keys %{$lines{$propname}}) {
+            my $item = $_;
+            #if ($propname eq 'gc' and length $item == 1) {
+            #    my $thing = $item;
+            #    croak "item: $item " . (Dumper $prop_names->{'gc'});
+            #}
             $done{"$propname$_"} ||= push @lines, $lines{$propname}->{$_};
         }
     }
@@ -1308,7 +1416,7 @@ sub emit_composition_lookup {
     # first codepoint of the decomposition of a primary composite, mapped to
     # an array of [second codepoint, primary composite].
     my @lookup;
-    for my $point_hex (keys %$points_by_hex) {
+    for my $point_hex (sort keys %$points_by_hex) {
         # Not interested in anything in the set of full composition exclusions.
         my $point = $points_by_hex->{$point_hex};
         next if $point->{Full_Composition_Exclusion};
@@ -1323,14 +1431,14 @@ sub emit_composition_lookup {
 
         # Make an entry.
         my @decomp = split /\s+/, $decomp_spec;
-        die "Canonical decomposition only supports two codepoints" unless @decomp == 2;
+        croak "Canonical decomposition only supports two codepoints" unless @decomp == 2;
         my $plane = 0;
         if (length($decomp[0]) == 5) {
             $plane = hex(substr($decomp[0], 0, 1));
             $decomp[0] = substr($decomp[0], 1);
         }
         elsif (length($decomp[0]) != 4) {
-            die "Invalid codepoint " . $decomp[0]
+            croak "Invalid codepoint " . $decomp[0]
         }
         my ($upper, $lower) = (hex(substr($decomp[0], 0, 2)), hex(substr($decomp[0], 2, 2)));
         push @{$lookup[$plane]->[$upper]->[$lower]}, hex($decomp[1]), hex($point_hex);
@@ -1456,7 +1564,7 @@ authorization of the copyright holder. */
 '}
 sub read_file {
     my $fname = shift;
-    open FILE, $fname or die "Couldn't open file '$fname': $!";
+    open FILE, $fname or croak "Couldn't open file '$fname': $!";
     binmode FILE, ':encoding(UTF-8)';
     my @lines = ();
     while( <FILE> ) {
@@ -1468,7 +1576,7 @@ sub read_file {
 
 sub write_file {
     my ($fname, $contents) = @_;
-    open FILE, ">$fname" or die "Couldn't open file '$fname': $!";
+    open FILE, ">$fname" or croak "Couldn't open file '$fname': $!";
     binmode FILE, ':encoding(UTF-8)';
     print FILE $contents;
     close FILE;
@@ -1492,6 +1600,13 @@ sub UnicodeData {
     register_binary_property('Any');
     each_line('PropertyValueAliases', sub { $_ = shift;
         my @parts = split /\s*[#;]\s*/;
+        my @parts2;
+        foreach my $part (@parts) {
+            $part = trim $part;
+            push @parts2, $part;
+            #croak "moo\n'$part'" if ($part =~ / /);
+        }
+        @parts = @parts2;
         my $propname = shift @parts;
         return if ($parts[0] eq 'Y'   || $parts[0] eq 'N')
                && ($parts[1] eq 'Yes' || $parts[1] eq 'No');
@@ -1569,7 +1684,7 @@ sub UnicodeData {
             my $current = $ideograph_start;
             while ($current->{code} < $point->{code} - 1) {
                 my $new = { Any => 1 };
-                for (keys %$current) {
+                for (sort keys %$current) {
                     $new->{$_} = $current->{$_};
                 }
                 $new->{code}++;
@@ -1675,14 +1790,14 @@ sub DerivedNormalizationProps {
         NFD_QC => 1,
         NFKD_QC => 1
     };
-    register_binary_property($_) for ((keys %$binary),(keys %$inverted_binary));
+    register_binary_property($_) for ((sort keys %$binary),(sort keys %$inverted_binary));
     my $trinary = {
         NFC_QC => 1,
         NFKC_QC => 1,
         NFG_QC => 1,
     };
     my $trinary_values = { 'N' => 0, 'Y' => 1, 'M' => 2 };
-    register_enumerated_property($_, { enum => $trinary_values, bit_width => 2, 'keys' => ['N','Y','M'] }) for (keys %$trinary);
+    register_enumerated_property($_, { enum => $trinary_values, bit_width => 2, 'keys' => ['N','Y','M'] }) for (sort keys %$trinary);
     each_line('DerivedNormalizationProps', sub { $_ = shift;
         my ($range, $property_name, $value) = split /\s*[;#]\s*/;
         if (exists $binary->{$property_name}) {
@@ -1720,10 +1835,36 @@ sub DerivedNormalizationProps {
 }
 
 sub Jamo {
+    my $points_by_code = shift;
+    my $propname = 'Jamo_Short_Name';
     each_line('Jamo', sub { $_ = shift;
         my ($code_str, $name) = split /\s*[;#]\s*/;
-        $points_by_hex->{$code_str}->{Jamo_Short_Name} = $name;
+        apply_to_range($code_str, sub {
+            my $point = shift;
+            $point->{Jamo_Short_Name} = $name;
+        });
     });
+    my @hangul_syllables;
+    for my $key (sort keys %{$points_by_code}) {
+        if (%{$points_by_code}{$key}->{name} eq '<Hangul Syllable>') {
+            push @hangul_syllables, $key;
+        }
+    }
+    my $hs = join ',', @hangul_syllables;
+    my $out = `perl6 -e 'my \@cps = $hs; for \@cps -> \$cp { \$cp.chr.NFD.list.join(",").say };'`;
+    my @out_lines = split "\n", $out;
+    my $i = 0;
+    for my $line (@out_lines) {
+        my $final_name = 'Hangul Syllable ';
+        my $hs_cps = $hangul_syllables[$i++];
+        my @a = split ',', $line;
+        for my $cp (@a) {
+            if (exists %{$points_by_code}{$cp}->{Jamo_Short_Name}) {
+                $final_name .= %{$points_by_code}{$cp}->{Jamo_Short_Name};
+            }
+        }
+        %{$points_by_code}{$hs_cps}->{name} = $final_name;
+    }
 }
 sub BidiMirroring {
     my $file = 'BidiMirroring';
@@ -1732,7 +1873,7 @@ sub BidiMirroring {
     each_line('BidiMirroring', sub { $_ = shift;
         my $line = $_;
         my ($range, $int) = split /\s*[;#]\s*/, $line;
-        $int = hex $int or die;
+        $int = hex $int or croak;
         $max_size = $int if $max_size < $int;
         apply_to_range($range, sub {
             my $point = shift;
@@ -1801,7 +1942,7 @@ sub collation {
         }
         if ( !defined $code or !defined $weight1 or !defined $weight2 or !defined $weight3 ) {
             unless ( $implicit and defined $weight1 ) {
-                die "Line no $line_no: line:[$line] weight1:[$weight1] weight2:[$weight2] weight3:[$weight3]";
+                croak "Line no $line_no: line:[$line] weight1:[$weight1] weight2:[$weight2] weight3:[$weight3]";
             }
         }
         apply_to_range($code, sub {
@@ -1827,7 +1968,7 @@ sub collation {
     });
     for ( $primary_max, $secondary_max, $tertiary_max ) {
         if ( $_ < 1 ) {
-            die "Oh no! One of the highest collation numbers I saw is less than 0. Something is wrong" .
+            croak "Oh no! One of the highest collation numbers I saw is less than 0. Something is wrong" .
               "Primary max: $primary_max secondary max: $secondary_max tertiary_max: $tertiary_max";
         }
     }
@@ -1849,14 +1990,14 @@ sub LineBreak {
         );
     each_line('LineBreak', sub { $_ = shift;
         my ($range, $name) = split /\s*[;#]\s*/;
-        die "Can't find Line_Break property $name in the enum" unless exists $enum->{$name}; # only normative
+        croak "Can't find Line_Break property $name in the enum" unless exists $enum->{$name}; # only normative
         apply_to_range($range, sub {
             my $point = shift;
             $point->{Line_Break} = $enum->{$name};
         });
     });
     my @keys = ();
-    for my $key (keys %{$base->{enum}}) {
+    for my $key (sort keys %{$base->{enum}}) {
         $keys[$base->{enum}->{$key}] = $key;
     }
     $base->{keys} = \@keys;
@@ -1951,7 +2092,7 @@ sub register_int_property {
 
 sub register_enumerated_property {
     my ($pname, $obj) = @_;
-    die if exists $enumerated_properties->{$pname};
+    croak if exists $enumerated_properties->{$pname};
     $all_properties->{$pname} = $enumerated_properties->{$pname} = $obj;
     $obj->{name} = $pname;
     $obj->{property_index} = $property_index++;
