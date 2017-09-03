@@ -113,6 +113,11 @@ typedef enum {
        actual pointer is part of the object's data. The MVM_JIT_ARG_PTR type
        unboxes the CPointer object and passes on the contained pointer */
     MVM_JIT_ARG_PTR,
+    /* The MVM_JIT_PARAM_* types are usd when actual JIT compilation is
+       happening as part of spesh, i.e. the offset of the args buffer in WORK
+       is already known. */
+    MVM_JIT_PARAM_I64,
+    MVM_JIT_PARAM_PTR,
 } MVMJitArgType;
 
 struct MVMJitCallArg {
