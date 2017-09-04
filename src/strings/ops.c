@@ -1,7 +1,7 @@
 #include "platform/memmem.h"
 #include "moar.h"
 #define MVM_DEBUG_STRANDS 0
-#define MVM_string_KMP_max_pattern_length 4096
+#define MVM_string_KMP_max_pattern_length 8192
 /* Max value possible for MVMuint32 MVMStringBody.num_graphs */
 #define MAX_GRAPHEMES     0xFFFFFFFFLL
 
@@ -1023,7 +1023,11 @@ static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Hay
         return n_fc_graphs <= H_graphs + H_expansion - H_offset ? 1 : 0;
     return 0;
 }
-static void knuth_morris_pratt_process_pattern (MVMThreadContext *tc, MVMString *pat, MVMGrapheme32 *next, MVMStringIndex pat_graphs) {
+/* Processes the pattern. The pattern must be able to store negative and positive
+ * numbers. It must be able to store at least 1/2 the length of the needle,
+ * though possibly more (though I am not sure it's possible for it to be more than
+ * 1/2). */
+static void knuth_morris_pratt_process_pattern (MVMThreadContext *tc, MVMString *pat, MVMint16 *next, MVMStringIndex pat_graphs) {
     MVMint64 i = 0;
     MVMint64 j = next[0] = -1;
     while (i < pat_graphs) {
@@ -1045,13 +1049,21 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
     MVMint64 text_offset   = H_offset;
     MVMStringIndex Haystack_graphs = MVM_string_graphs_nocheck(tc, Haystack);
     MVMStringIndex needle_graphs   = MVM_string_graphs_nocheck(tc, needle);
-    MVMGrapheme32    *next = NULL;
+    MVMint16         *next = NULL;
     MVMString *flat_needle = NULL;
+    size_t next_size = (1 + needle_graphs) * sizeof(MVMint16);
+    int    next_is_malloced = 0;
     assert(needle_graphs <= MVM_string_KMP_max_pattern_length);
     /* Empty string is found at start of string */
     if (needle_graphs == 0)
         return 0;
-    next = alloca((1 + needle_graphs) * sizeof(MVMGrapheme32));
+    /* Allocate max 8K onto the stack, otherwise malloc */
+    if (next_size < 4096)
+        next = alloca(next_size);
+    else {
+        next = MVM_malloc(next_size);
+        next_is_malloced = 1;
+    }
     /* If the needle is a strand, flatten it, otherwise use the original string */
     flat_needle = needle->body.storage_type == MVM_STRING_STRAND
         ? collapse_strands(tc, needle)
@@ -1069,11 +1081,14 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
             if (needle_offset == -1 || MVM_string_get_grapheme_at_nocheck(tc, flat_needle, needle_offset)
                                     == MVM_string_gi_cached_get_grapheme(tc, &H_gic, text_offset)) {
                 text_offset++; needle_offset++;
-                if (needle_offset == needle_graphs)
+                if (needle_offset == needle_graphs) {
+                    if (next_is_malloced) MVM_free(next);
                     return text_offset - needle_offset;
+                }
             }
             else needle_offset = next[needle_offset];
         }
+        if (next_is_malloced) MVM_free(next);
         return -1;
     }
     while (text_offset < Haystack_graphs && needle_offset < needle_graphs) {
