@@ -1,7 +1,6 @@
 #include "moar.h"
-#include <dasm_proto.h>
-#include <dasm_x86.h>
-#include "emit.h"
+#include "jit/internal.h"
+#include "dasm_x86.h"
 
 #ifdef _MSC_VER
 #pragma warning( disable : 4129 )
@@ -285,8 +284,8 @@ const unsigned int MVM_jit_num_globals(void) {
 /* A function prologue is always the same in x86 / x64, because
  * we do not provide variable arguments, instead arguments are provided
  * via a frame. All JIT entry points receive a prologue. */
-void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
-                           dasm_State **Dst) {
+void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                           MVMJitGraph *jg) {
     |.code
     /* Setup stack */
     | push rbp; // nb, this aligns the stack to 16 bytes again
@@ -317,11 +316,8 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
 }
 
 /* And a function epilogue is also always the same */
-void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitGraph *jg,
-                           dasm_State **Dst) {
+void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg) {
     | ->exit:
-    | mov RV, 0;
-    | ->out:
     /* restore callee-save registers */
     | mov TC, [rbp-0x8];
     | mov CU, [rbp-0x10];
@@ -332,9 +328,8 @@ void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitGraph *jg,
     | ret;
 }
 
-static MVMuint64 try_emit_gen2_ref(MVMThreadContext *tc, MVMJitGraph *jg,
-                                   MVMObject *obj, MVMint16 reg,
-                                   dasm_State **Dst) {
+static MVMuint64 try_emit_gen2_ref(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                                   MVMJitGraph *jg, MVMObject *obj, MVMint16 reg) {
     if (!(obj->header.flags & MVM_CF_SECOND_GEN))
         return 0;
     | mov64 TMP1, (uintptr_t)obj;
@@ -349,8 +344,8 @@ static MVMint64 fits_in_32_bit(MVMint64 number) {
 }
 
 /* compile per instruction, can't really do any better yet */
-void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
-                            MVMJitPrimitive * prim, dasm_State **Dst) {
+void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                            MVMJitPrimitive * prim) {
     MVMSpeshIns *ins = prim->ins;
     MVMuint16 op = ins->info->opcode;
     MVM_jit_log(tc, "emit opcode: <%s>\n", ins->info->name);
@@ -403,7 +398,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
          MVMuint32 idx = ins->operands[1].lit_str_idx;
          MVMStaticFrame *sf = jg->sg->sf;
          MVMString * s = MVM_cu_string(tc, sf->body.cu, idx);
-         if (!try_emit_gen2_ref(tc, jg, (MVMObject*)s, reg, Dst)) {
+         if (!try_emit_gen2_ref(tc, compiler, jg, (MVMObject*)s, reg)) {
              | get_string TMP1, idx;
              | mov WORK[reg], TMP1;
          }
@@ -1512,7 +1507,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | callp &MVM_6model_find_method_spesh;
         | test RV, RV;
         /* fall out to interpreter */
-        | jnz ->out;
+        | jnz ->exit;
         |2:
         break;
     }
@@ -1870,8 +1865,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
 
 
 /* Call argument decoder */
-static void load_call_arg(MVMThreadContext *tc, MVMJitGraph *jg,
-                          MVMJitCallArg arg, dasm_State **Dst) {
+static void load_call_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                          MVMJitCallArg arg) {
     switch(arg.type) {
     case MVM_JIT_INTERP_VAR:
         switch (arg.v.ivar) {
@@ -1928,8 +1923,8 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitGraph *jg,
     }
 }
 
-static void emit_gpr_arg(MVMThreadContext *tc, MVMJitGraph *jg,
-                         MVMint32 i, dasm_State **Dst) {
+static void emit_gpr_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                         MVMint32 i) {
     switch (i) {
     case 0:
         | mov ARG1, TMP6;
@@ -1956,8 +1951,8 @@ static void emit_gpr_arg(MVMThreadContext *tc, MVMJitGraph *jg,
     }
 }
 
-static void emit_sse_arg(MVMThreadContext *tc, MVMJitGraph *jg,
-                         MVMint32 i, dasm_State **Dst) {
+static void emit_sse_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                         MVMint32 i) {
     switch (i) {
     case 0:
         | movd ARG1F, TMP6;
@@ -1990,9 +1985,8 @@ static void emit_sse_arg(MVMThreadContext *tc, MVMJitGraph *jg,
     }
 }
 
-static void emit_stack_arg(MVMThreadContext *tc, MVMJitGraph *jg,
-                           MVMint32 arg_size, MVMint32 pos,
-                           dasm_State **Dst) {
+static void emit_stack_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                           MVMint32 arg_size, MVMint32 pos) {
     /* basically, stack arguments are passed in right-to-left order
        on both POSIX and W64 backends, it seems. Thus the most logical
        thing to do is to count from the stack top upwards. */
@@ -2020,9 +2014,8 @@ static void emit_stack_arg(MVMThreadContext *tc, MVMJitGraph *jg,
     }
 }
 
-static void emit_posix_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
-                                MVMJitCallArg args[], MVMint32 num_args,
-                                dasm_State **Dst) {
+static void emit_posix_callargs(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                                MVMJitCallArg args[], MVMint32 num_args) {
     MVMint32 num_gpr = 0, num_fpr = 0, num_stack = 0, i;
     MVMJitCallArg in_gpr[6], in_fpr[8], *on_stack = NULL;
     if (num_args > 6)
@@ -2057,54 +2050,53 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
         }
     }
     for (i = 0; i < num_gpr; i++) {
-        load_call_arg(tc, jg, in_gpr[i], Dst);
-        emit_gpr_arg(tc, jg, i, Dst);
+        load_call_arg(tc, compiler, jg, in_gpr[i]);
+        emit_gpr_arg(tc, compiler, jg, i);
     }
     for (i = 0; i < num_fpr; i++) {
-        load_call_arg(tc, jg, in_fpr[i], Dst);
-        emit_sse_arg(tc, jg, i, Dst);
+        load_call_arg(tc, compiler, jg, in_fpr[i]);
+        emit_sse_arg(tc, compiler, jg, i);
     }
     /* push right-to-left */
     for (i = 0; i < num_stack; i++) {
-        load_call_arg(tc, jg, on_stack[i], Dst);
+        load_call_arg(tc, compiler, jg, on_stack[i]);
         // I'm not sure this is correct, btw
-        emit_stack_arg(tc, jg, 8, i*8, Dst);
+        emit_stack_arg(tc, compiler, jg, 8, i*8);
     }
     if (on_stack)
         MVM_free(on_stack);
 }
 
-static void emit_win64_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
-                                MVMJitCallArg args[], MVMint32 num_args,
-                                dasm_State **Dst) {
+static void emit_win64_callargs(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                                MVMJitCallArg args[], MVMint32 num_args) {
     MVMint32 i;
     MVMint32 num_reg_args = (num_args > 4 ? 4 : num_args);
     for (i = 0; i < num_reg_args; i++) {
-        load_call_arg(tc, jg, args[i], Dst);
+        load_call_arg(tc, compiler, jg, args[i]);
         if (args[i].type == MVM_JIT_REG_VAL_F ||
             args[i].type == MVM_JIT_LITERAL_F) {
-            emit_sse_arg(tc, jg, i, Dst);
+            emit_sse_arg(tc, compiler, jg, i);
         } else {
-            emit_gpr_arg(tc, jg, i, Dst);
+            emit_gpr_arg(tc, compiler, jg, i);
         }
     }
     for (; i < num_args; i++) {
-        load_call_arg(tc, jg, args[i], Dst);
-        emit_stack_arg(tc, jg, 8, i * 8, Dst);
+        load_call_arg(tc, compiler, jg, args[i]);
+        emit_stack_arg(tc, compiler, jg, 8, i * 8);
     }
 }
 
-void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
-                         MVMJitCallC * call_spec, dasm_State **Dst) {
+void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                         MVMJitCallC * call_spec) {
 
     MVM_jit_log(tc, "emit c call <%d args>\n", call_spec->num_args);
     if (call_spec->has_vargs) {
         MVM_oops(tc, "JIT can't handle varargs yet");
     }
     |.if WIN32;
-    || emit_win64_callargs(tc, jg, call_spec->args, call_spec->num_args, Dst);
+    || emit_win64_callargs(tc, compiler, jg, call_spec->args, call_spec->num_args);
     |.else;
-    || emit_posix_callargs(tc, jg, call_spec->args, call_spec->num_args, Dst);
+    || emit_posix_callargs(tc, compiler, jg, call_spec->args, call_spec->num_args);
     |.endif
     /* Emit the call. I think we should be able to do something smarter than
      * store the constant into the bytecode, like a data segment. But I'm
@@ -2133,8 +2125,8 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
     }
 }
 
-void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
-                         MVMJitBranch * branch, dasm_State **Dst) {
+void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                         MVMJitBranch * branch) {
     MVMSpeshIns *ins = branch->ins;
     MVMint32 name = branch->dest;
     /* move gc sync point to the front so as to not have
@@ -2227,13 +2219,13 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
     }
 }
 
-void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitGraph *jg,
-                        MVMJitLabel *label, dasm_State **Dst) {
+void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                        MVMJitLabel *label) {
     | =>(label->name):
 }
 
-void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
-                        MVMJitGuard *guard, dasm_State **Dst) {
+void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                        MVMJitGuard *guard) {
     MVMint16 op        = guard->ins->info->opcode;
     MVMint16 obj       = guard->ins->operands[0].reg.orig;
     MVMint16 spesh_idx = guard->ins->operands[1].lit_i16;
@@ -2295,14 +2287,12 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
     | mov ARG2, guard->deopt_offset;
     | mov ARG3, guard->deopt_target;
     | callp &MVM_spesh_deopt_one_direct;
-    /* tell jit driver we're deopting */
-    | mov RV, MVM_JIT_CTRL_DEOPT
-    | jmp ->out;
+    /* jump out */
+    | jmp ->exit;
     |2:
 }
 
-void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *invoke,
-                         dasm_State **Dst) {
+void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitInvoke *invoke) {
     MVMint16 i;
     MVMuint16 callsite_idx = invoke->callsite_idx;
     MVM_jit_log(tc, "Emit invoke (%d args)\n", invoke->arg_count);
@@ -2409,12 +2399,11 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
         | callp &MVM_frame_invoke_code;
     }
     /* Almost done. jump out into the interprete */
-    | mov RV, 1;
-    | jmp ->out;
+    | jmp ->exit;
 }
 
-void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitGraph *jg,
-                           MVMJitJumpList *jumplist, dasm_State **Dst) {
+void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                           MVMJitJumpList *jumplist) {
     MVMint32 i;
     MVM_jit_log(tc, "Emit jumplist (%"PRId64" labels)\n", jumplist->num_labels);
     | mov TMP1, WORK[jumplist->reg];
@@ -2436,8 +2425,8 @@ void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitGraph *jg,
     |2:
 }
 
-void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
-                          MVMJitControl *ctrl, dasm_State **Dst) {
+void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                          MVMJitControl *ctrl) {
     /* TODO - rename invokish and pre and post invokish into something that makes more sense */
     if (ctrl->type == MVM_JIT_CONTROL_INVOKISH) {
         MVM_jit_log(tc, "Emit invokish control guard\n");
@@ -2446,8 +2435,7 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov eax, dword TC->current_frame_nr;
         | cmp eax, FRAME_NR;
         | je >9;
-        | mov RV, 1;
-        | jmp ->out;
+        | jmp ->exit;
         |9:
     }
     else if (ctrl->type == MVM_JIT_CONTROL_DYNAMIC_LABEL) {
@@ -2481,8 +2469,7 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
         | jmp aword FRAME:TMP1->jit_entry_label;
         /* if not the same frame, trampoline to interpreter */
         |8:
-        | mov RV, 1;
-        | jmp ->out;
+        | jmp ->exit;
         /* I assume we *never* use a local label 9 in the code between
          * pre-and-post throwish */
         |9:
@@ -2494,7 +2481,8 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
     }
 }
 
-void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitData *data, dasm_State **Dst) {
+
+void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitData *data) {
     MVMuint8 *bytes = data->data;
     MVMint32 i;
     |.data;
@@ -2504,3 +2492,4 @@ void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitData *data, 
     }
     |.code
 }
+

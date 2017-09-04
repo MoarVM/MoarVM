@@ -6,13 +6,11 @@ PERL   = @perl@
 RM     = @rm@
 CAT    = @cat@
 SHELL  = @sh@
-LUA    = @lua@
 CP     = $(PERL) -MExtUtils::Command -e cp
 MKPATH = $(PERL) -MExtUtils::Command -e mkpath
 CHMOD  = $(PERL) -MExtUtils::Command -e chmod
 RM_RF  = $(PERL) -MExtUtils::Command -e rm_rf
 RM_F   = $(PERL) -MExtUtils::Command -e rm_f
-DYNASM = $(LUA) @dynasmlua@
 
 MINGW_UNICODE = @mingw_unicode@
 
@@ -42,6 +40,7 @@ CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO) @cc
 CINCLUDES = @cincludes@ \
             @ccinc@@shaincludedir@ \
             @ccinc@3rdparty/tinymt \
+            @ccinc@3rdparty/dynasm \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
@@ -57,14 +56,19 @@ PLATFORM_WIN32 = src/platform/win32/mmap@obj@ \
 PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
                  src/platform/posix/time@obj@
 
-DASM_FLAGS_WIN32 = -D WIN32=1
-DASM_FLAGS_POSIX = -D POSIX=1
-JIT_WIN32_X64 = src/jit/emit_win32_x64@obj@
-JIT_POSIX_X64 = src/jit/emit_posix_x64@obj@
-JIT_STUB = src/jit/stub@obj@
+DASM_FLAGS   = @dasm_flags@
+JIT_ARCH_X64 = src/jit/x64/emit@obj@
+JIT_STUB     = src/jit/stub@obj@
+JIT_OBJECTS  = src/jit/graph@obj@ \
+               src/jit/label@obj@ \
+               src/jit/compile@obj@ \
+               src/jit/log@obj@
+# JIT intermediate files which clean should remove
+JIT_INTERMEDIATES = src/jit/x64/emit.c
 
 
 MAIN_OBJECTS = src/main@obj@
+
 
 OBJECTS = src/core/callsite@obj@ \
           src/core/args@obj@ \
@@ -182,15 +186,13 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/log@obj@ \
           src/spesh/threshold@obj@ \
           src/spesh/inline@obj@ \
+          src/spesh/iterator@obj@ \
           src/spesh/osr@obj@ \
           src/spesh/lookup@obj@ \
           src/spesh/worker@obj@ \
           src/spesh/stats@obj@ \
           src/spesh/plan@obj@ \
           src/spesh/arg_guard@obj@ \
-          src/jit/graph@obj@ \
-          src/jit/compile@obj@ \
-          src/jit/log@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/parse_num@obj@ \
@@ -214,8 +216,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/platform/sys@obj@ \
           src/moar@obj@ \
           @platform@ \
-          @jit@
-
+          @jit_obj@
 
 HEADERS = src/moar.h \
           src/types.h \
@@ -228,6 +229,7 @@ HEADERS = src/moar.h \
           src/core/exceptions.h \
           src/core/interp.h \
           src/core/alloc.h \
+          src/core/vector.h \
           src/core/frame.h \
           src/core/callstack.h \
           src/core/compunit.h \
@@ -337,6 +339,7 @@ HEADERS = src/moar.h \
           src/spesh/threshold.h \
           src/spesh/inline.h \
           src/spesh/osr.h \
+          src/spesh/iterator.h \
           src/spesh/lookup.h \
           src/spesh/worker.h \
           src/spesh/stats.h \
@@ -370,6 +373,7 @@ HEADERS = src/moar.h \
           src/platform/setjmp.h \
           src/platform/memmem.h \
           src/jit/graph.h \
+          src/jit/label.h \
           src/jit/compile.h \
           src/jit/log.h \
           src/instrument/crossthreadwrite.h \
@@ -437,7 +441,12 @@ TOM_OBJECTS = @tomobjects@
 
 THIRDPARTY = @thirdpartylibs@
 
-.SUFFIXES: .c @obj@ .i @asm@
+MINILUA = 3rdparty/dynasm/minilua@exe@
+DYNASM  = $(MINILUA) 3rdparty/dynasm/dynasm.lua
+DYNASM_SCRIPTS = 3rdparty/dynasm/dynasm.lua 3rdparty/dynasm/dasm_x86.lua
+DYNASM_HEADERS = 3rdparty/dynasm/dasm_proto.h 3rdparty/dynasm/dasm_x86.h
+
+.SUFFIXES: .c @obj@ .i @asm@ .dasc
 
 all: moar@exe@ pkgconfig/moar.pc
 
@@ -554,16 +563,17 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	$(MSG) generating $@
 	$(CMD)$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c > $@ $(NOERR)
 
-3rdparty/dynasm/minilua@exe@: 3rdparty/dynasm/minilua.c
+$(MINILUA): 3rdparty/dynasm/minilua.c
 	$(CC) $(CFLAGS) $(LDFLAGS) 3rdparty/dynasm/minilua.c -o $@ $(LDLIBS)
 
-src/jit/emit_posix_x64.c: $(LUA) src/jit/emit_x64.dasc
-	$(DYNASM) $(DASM_FLAGS_POSIX) -o $@ src/jit/emit_x64.dasc
+.dasc.c:
+	$(MSG) preprocessing $@
+	$(CMD)$(DYNASM) $(DASM_FLAGS) -o $@ $<
 
-src/jit/emit_win32_x64.c: $(LUA) src/jit/emit_x64.dasc
-	$(DYNASM) $(DASM_FLAGS_WIN32) -o $@ src/jit/emit_x64.dasc
+src/jit/x64/emit@obj@: src/jit/x64/emit.c $(DYNASM_HEADERS)
 
-dasm_all: src/jit/emit_win32_x64.c src/jit/emit_posix_x64.c
+src/jit/x64/emit.c: src/jit/x64/emit.dasc $(MINILUA) $(DYNASM_SCRIPTS)
+
 
 @uvlib@: $(UV_OBJECTS)
 	$(MSG) linking $@
@@ -597,7 +607,7 @@ pkgconfig/moar.pc: build/mk-moar-pc.pl
 
 clean:
 	$(MSG) remove build files
-	-$(CMD)$(RM) $(MAIN_OBJECTS) $(OBJECTS) $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) $(MAIN_OBJECTS) $(OBJECTS) $(JIT_INTERMEDIATES) $(NOOUT) $(NOERR)
 
 realclean: clean
 	$(MSG) remove auxiliary files
@@ -616,7 +626,7 @@ distclean: realclean
 	$(MSG) remove configuration and generated files
 	-$(CMD)$(RM) Makefile src/gen/config.h src/gen/config.c src/strings/unicode.c \
 	    tools/check.mk 3rdparty/libatomic_ops/config.log 3rdparty/libatomic_ops/config.status $(NOOUT) $(NOERR)
-	-$(CMD)$(RM_RF) src/jit/emit_posix_x64.c build/mk-moar-pc.pl pkgconfig/ $(NOOUT) $(NOERR)
+	-$(CMD)$(RM_RF) build/mk-moar-pc.pl pkgconfig/ $(NOOUT) $(NOERR)
 
 release:
 	[ -n "$(VERSION)" ] || ( echo "\nTry 'make release VERSION=yyyy.mm'\n\n"; exit 1 )

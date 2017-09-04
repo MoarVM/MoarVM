@@ -277,7 +277,13 @@ struct MVMInstance {
     FILE *jit_bytecode_map;
 
     /* sequence number for JIT compiled frames */
-    AO_t  jit_seq_nr;
+    MVMint32 jit_seq_nr;
+
+    /* array of places we want the JIT to insert (hard) breakpoints */
+    MVM_VECTOR_DECL(struct {
+        MVMint32 frame_nr;
+        MVMint32 block_nr;
+    }, jit_breakpoints);
 
     /************************************************************************
      * I/O and process state

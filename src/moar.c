@@ -252,6 +252,34 @@ MVMInstance * MVM_vm_create_instance(void) {
     init_mutex(instance->mutex_spesh_sync, "spesh sync");
     init_cond(instance->cond_spesh_sync, "spesh sync");
 
+    /* add JIT debugging breakpoints */
+    {
+        char *jit_breakpoints_str = getenv("MVM_JIT_BREAKPOINTS");
+        if (jit_breakpoints_str != NULL) {
+            MVM_VECTOR_INIT(instance->jit_breakpoints, 4);
+        } else {
+            instance->jit_breakpoints_num = 0;
+            instance->jit_breakpoints     = NULL;
+        }
+        while (jit_breakpoints_str != NULL && *jit_breakpoints_str) {
+            MVMint32 frame_nr, block_nr, nchars;
+            MVMint32 result = sscanf(jit_breakpoints_str, "%d/%d%n",
+                                     &frame_nr, &block_nr, &nchars);
+            if (result < 2)
+                break;
+
+            MVM_VECTOR_ENSURE_SPACE(instance->jit_breakpoints, 1);
+            instance->jit_breakpoints[instance->jit_breakpoints_num].frame_nr = frame_nr;
+            instance->jit_breakpoints[instance->jit_breakpoints_num].block_nr = block_nr;
+            instance->jit_breakpoints_num++;
+
+            jit_breakpoints_str += nchars;
+            if (*jit_breakpoints_str == ':') {
+                jit_breakpoints_str++;
+            }
+        }
+    }
+
     /* Various kinds of debugging that can be enabled. */
     dynvar_log = getenv("MVM_DYNVAR_LOG");
     if (dynvar_log && dynvar_log[0]) {
@@ -513,6 +541,10 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
         fclose(instance->jit_log_fh);
     if (instance->dynvar_log_fh)
         fclose(instance->dynvar_log_fh);
+    if (instance->jit_breakpoints) {
+        MVM_VECTOR_DESTROY(instance->jit_breakpoints);
+    }
+
 
     /* Clean up cross-thread-write-logging mutex */
     uv_mutex_destroy(&instance->mutex_cross_thread_write_logging);
