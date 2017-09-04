@@ -1,7 +1,7 @@
 #include "platform/memmem.h"
 #include "moar.h"
 #define MVM_DEBUG_STRANDS 0
-#define MVM_string_KMP_max_pattern_length 4096
+#define MVM_string_KMP_max_pattern_length 8192
 /* Max value possible for MVMuint32 MVMStringBody.num_graphs */
 #define MAX_GRAPHEMES     0xFFFFFFFFLL
 
@@ -1023,7 +1023,11 @@ static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Hay
         return n_fc_graphs <= H_graphs + H_expansion - H_offset ? 1 : 0;
     return 0;
 }
-static void knuth_morris_pratt_process_pattern (MVMThreadContext *tc, MVMString *pat, MVMGrapheme32 *next, MVMStringIndex pat_graphs) {
+/* Processes the pattern. The pattern must be able to store negative and positive
+ * numbers. It must be able to store at least 1/2 the length of the needle,
+ * though possibly more (though I am not sure it's possible for it to be more than
+ * 1/2). */
+static void knuth_morris_pratt_process_pattern (MVMThreadContext *tc, MVMString *pat, MVMint16 *next, MVMStringIndex pat_graphs) {
     MVMint64 i = 0;
     MVMint64 j = next[0] = -1;
     while (i < pat_graphs) {
@@ -1039,32 +1043,60 @@ static void knuth_morris_pratt_process_pattern (MVMThreadContext *tc, MVMString 
         else j = next[j];
     }
 }
+
 static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString *needle, MVMString *Haystack, MVMint64 H_offset) {
     MVMint64 needle_offset = 0;
     MVMint64 text_offset   = H_offset;
-    MVMStringIndex Haystack_graphs = MVM_string_graphs(tc, Haystack);
-    MVMStringIndex needle_graphs   = MVM_string_graphs(tc, needle);
-    MVMGrapheme32    *next = NULL;
+    MVMStringIndex Haystack_graphs = MVM_string_graphs_nocheck(tc, Haystack);
+    MVMStringIndex needle_graphs   = MVM_string_graphs_nocheck(tc, needle);
+    MVMint16         *next = NULL;
     MVMString *flat_needle = NULL;
+    size_t next_size = (1 + needle_graphs) * sizeof(MVMint16);
+    int    next_is_malloced = 0;
     assert(needle_graphs <= MVM_string_KMP_max_pattern_length);
     /* Empty string is found at start of string */
     if (needle_graphs == 0)
         return 0;
-    next = alloca((1 + needle_graphs) * sizeof(MVMGrapheme32));
-    /* If the needle is a strand, flatten it, otherwise use the original string */
-    if (needle->body.storage_type == MVM_STRING_STRAND) {
-        flat_needle = collapse_strands(tc, needle);
+    /* Allocate max 8K onto the stack, otherwise malloc */
+    if (next_size < 4096)
+        next = alloca(next_size);
+    else {
+        next = MVM_malloc(next_size);
+        next_is_malloced = 1;
     }
-    else flat_needle = needle;
+    /* If the needle is a strand, flatten it, otherwise use the original string */
+    flat_needle = needle->body.storage_type == MVM_STRING_STRAND
+        ? collapse_strands(tc, needle)
+        : needle;
     /* Process the needle into a jump table put into variable 'next' */
     knuth_morris_pratt_process_pattern(tc, flat_needle, next, needle_graphs);
+    /* If the Haystack is a strand, use MVM_string_gi_cached_get_grapheme
+     * since it retains its grapheme iterator over invocations unlike
+     * MVM_string_get_grapheme_at_nocheck and caches the previous grapheme. It
+     * is slower for flat Haystacks though. */
+    if (Haystack->body.storage_type == MVM_STRING_STRAND) {
+        MVMGraphemeIter_cached H_gic;
+        MVM_string_gi_cached_init(tc, &H_gic, Haystack, H_offset);
+        while (text_offset < Haystack_graphs && needle_offset < needle_graphs) {
+            if (needle_offset == -1 || MVM_string_get_grapheme_at_nocheck(tc, flat_needle, needle_offset)
+                                    == MVM_string_gi_cached_get_grapheme(tc, &H_gic, text_offset)) {
+                text_offset++; needle_offset++;
+                if (needle_offset == needle_graphs) {
+                    if (next_is_malloced) MVM_free(next);
+                    return text_offset - needle_offset;
+                }
+            }
+            else needle_offset = next[needle_offset];
+        }
+        if (next_is_malloced) MVM_free(next);
+        return -1;
+    }
     while (text_offset < Haystack_graphs && needle_offset < needle_graphs) {
         if (needle_offset == -1 || MVM_string_get_grapheme_at_nocheck(tc, flat_needle, needle_offset)
                                 == MVM_string_get_grapheme_at_nocheck(tc, Haystack, text_offset)) {
             text_offset++; needle_offset++;
-            if (needle_offset == needle_graphs) {
+            if (needle_offset == needle_graphs)
                 return text_offset - needle_offset;
-            }
         }
         else needle_offset = next[needle_offset];
     }
