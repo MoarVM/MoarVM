@@ -927,9 +927,9 @@ void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshot *s, MVMuint1
     i = sizeof(MVMuint64) * 3;
     fwrite(&i, sizeof(MVMuint64), 1, fh);
 
-    index->snapshot_sizes[idx * 3 + 1] = sizeof(MVMuint64) * 2;
+    index->snapshot_sizes[idx * 3 + 1] = 4 + sizeof(MVMuint64) * 2;
 
-    halfway = i / 2;
+    halfway = s->num_references / 2 - 1;
 
     for (i = 0; i < s->num_references; i++) {
         MVMHeapSnapshotReference *ref = &s->references[i];
@@ -937,16 +937,16 @@ void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshot *s, MVMuint1
         MVMuint64 kind   = ref->description >> MVM_SNAPSHOT_REF_KIND_BITS;
         MVMuint64 cindex = ref->collectable_index;
 
-        MVMuint64 maxval = MAX(MAX(descr, ref->description >> MVM_SNAPSHOT_REF_KIND_BITS), cindex);
+        MVMuint64 maxval = MAX(MAX(descr, kind), cindex);
 
-        if (maxval > 1l << 32) {
+        if (maxval + 1 >= 1l << 32) {
             fputc('6', fh);
             fwrite(&descr, sizeof(MVMuint64), 1, fh);
             fwrite(&kind, sizeof(MVMuint64), 1, fh);
             fwrite(&cindex, sizeof(MVMuint64), 1, fh);
             index->snapshot_sizes[idx * 3 + 1] += sizeof(MVMuint64) * 3 + 1;
         }
-        else if (maxval > 1 << 16) {
+        else if (maxval + 1 >= 1 << 16) {
             MVMuint32 descr32, kind32, index32;
             descr32 = descr;
             kind32  = kind;
@@ -957,7 +957,7 @@ void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshot *s, MVMuint1
             fwrite(&index32, sizeof(MVMuint32), 1, fh);
             index->snapshot_sizes[idx * 3 + 1] += sizeof(MVMuint32) * 3 + 1;
         }
-        else if (maxval > 1 << 8) {
+        else if (maxval + 1 >= 1 << 8) {
             MVMuint16 descr16, kind16, index16;
             descr16 = descr;
             kind16  = kind;
@@ -980,14 +980,14 @@ void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshot *s, MVMuint1
             index->snapshot_sizes[idx * 3 + 1] += sizeof(MVMuint8) * 3 + 1;
         }
         if (i == halfway)
-            index->snapshot_sizes[idx * 3 + 2] = index->snapshot_sizes[idx * 4 + 2];
+            index->snapshot_sizes[idx * 3 + 2] = index->snapshot_sizes[idx * 3 + 1];
     }
 }
 
 void snapshot_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshot *s, MVMuint64 i, FILE *fh, HeapDumpIndex *index) {
     index->snapshot_sizes[i * 3] = 0;
+    index->snapshot_sizes[i * 3 + 1] = 0;
     index->snapshot_sizes[i * 3 + 2] = 0;
-    index->snapshot_sizes[i * 3 + 3] = 0;
     collectables_to_filehandle(tc, s, i, fh, index);
     references_to_filehandle(tc, s, i, fh, index);
 }
