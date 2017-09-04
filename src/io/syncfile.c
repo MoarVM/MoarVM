@@ -32,7 +32,10 @@ typedef struct {
     int fd;
 
     /* Is it seekable? */
-    int seekable;
+    short seekable;
+
+    /* Is it know to be writable? */
+    short known_writable;
 
     /* How many bytes have we read/written? Used to fake tell on handles that
      * are not seekable. */
@@ -82,6 +85,7 @@ static void perform_write(MVMThreadContext *tc, MVMIOFileData *data, char *buf, 
     }
     MVM_gc_mark_thread_unblocked(tc);
     data->byte_position += bytes_written;
+    data->known_writable = 1;
 }
 
 /* Flushes any existing output buffer and clears use back to 0. */
@@ -194,7 +198,7 @@ static void set_buffer_size(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 size)
 /* Writes the specified bytes to the file handle. */
 static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    if (data->output_buffer_size) {
+    if (data->output_buffer_size && data->known_writable) {
         /* If we can't fit it on the end of the buffer, flush the buffer. */
         if (data->output_buffer_used + bytes > data->output_buffer_size)
             flush_output_buffer(tc, data);
