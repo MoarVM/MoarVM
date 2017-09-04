@@ -549,13 +549,8 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             MVM_spesh_use_facts(tc, g, flag_facts);
 
             MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
-        } else {
-            return;
         }
-    } else {
-        return;
     }
-
 }
 
 /* objprimspec can be done at spesh-time if we know the type of something.
