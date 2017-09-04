@@ -412,6 +412,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
         }
         return;
     }
+
     /* Sometimes our code-gen ends up boxing an integer and immediately
      * calling if_o or unless_o on it. If we if_i/unless_i/... instead,
      * we can get rid of the unboxing and perhaps the boxing as well. */
@@ -485,70 +486,76 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             }
         }
     }
-    if (flag_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && flag_facts->type) {
-        if (ins->info->opcode == MVM_OP_if_o || ins->info->opcode == MVM_OP_unless_o) {
-            MVMObject *type            = flag_facts->type;
-            MVMBoolificationSpec *bs   = type->st->boolification_spec;
-            MVMSpeshOperand  temp      = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
 
-            MVMSpeshIns     *new_ins   = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
-            MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
-
-            MVMuint8 guaranteed_concrete = flag_facts->flags & MVM_SPESH_FACT_CONCRETE;
-
-            switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
-                case MVM_BOOL_MODE_ITER:
-                    if (!guaranteed_concrete)
-                        return;
-                    if (flag_facts->flags & MVM_SPESH_FACT_ARRAY_ITER) {
-                        new_ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter_arr);
-                    } else if (flag_facts->flags & MVM_SPESH_FACT_HASH_ITER) {
-                        new_ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter_hash);
-                    } else {
-                        new_ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter);
-                    }
-                    break;
-                case MVM_BOOL_MODE_UNBOX_INT:
-                    if (!guaranteed_concrete)
-                        return;
-                    new_ins->info = MVM_op_get_op(MVM_OP_unbox_i);
-                    break;
-                /* We need to change the register type for our temporary register for this.
-                case MVM_BOOL_MODE_UNBOX_NUM:
-                    new_ins->info = MVM_op_get_op(MVM_OP_unbox_i);
-                    break;
-                    */
-                case MVM_BOOL_MODE_BIGINT:
-                    if (!guaranteed_concrete)
-                        return;
-                    new_ins->info = MVM_op_get_op(MVM_OP_bool_I);
-                    break;
-                case MVM_BOOL_MODE_HAS_ELEMS:
-                    if (!guaranteed_concrete)
-                        return;
-                    new_ins->info = MVM_op_get_op(MVM_OP_elems);
-                    break;
-                case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
-                    new_ins->info = MVM_op_get_op(MVM_OP_isconcrete);
-                    break;
-                default:
+    /* If we know the type, we can devirtualize if_o and unless_o. */
+    if ((ins->info->opcode == MVM_OP_if_o || ins->info->opcode == MVM_OP_unless_o) &&
+            flag_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && flag_facts->type) {
+        /* Go by boolification mode to pick a new instruction, if any. */
+        MVMObject *type            = flag_facts->type;
+        MVMBoolificationSpec *bs   = type->st->boolification_spec;
+        MVMSpeshOperand  temp      = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+        MVMSpeshIns     *new_ins   = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+        MVMuint8 guaranteed_concrete = flag_facts->flags & MVM_SPESH_FACT_CONCRETE;
+        MVMuint8 mode = bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode;
+        switch (mode) {
+            case MVM_BOOL_MODE_ITER:
+                if (!guaranteed_concrete)
                     return;
-            }
+                if (flag_facts->flags & MVM_SPESH_FACT_ARRAY_ITER) {
+                    new_ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter_arr);
+                } else if (flag_facts->flags & MVM_SPESH_FACT_HASH_ITER) {
+                    new_ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter_hash);
+                } else {
+                    new_ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter);
+                }
+                break;
+            case MVM_BOOL_MODE_UNBOX_INT:
+                if (!guaranteed_concrete)
+                    return;
+                new_ins->info = MVM_op_get_op(MVM_OP_unbox_i);
+                break;
+            /* We need to change the register type for our temporary register for this.
+            case MVM_BOOL_MODE_UNBOX_NUM:
+                new_ins->info = MVM_op_get_op(MVM_OP_unbox_i);
+                break;
+                */
+            case MVM_BOOL_MODE_BIGINT:
+                if (!guaranteed_concrete)
+                    return;
+                new_ins->info = MVM_op_get_op(MVM_OP_bool_I);
+                break;
+            case MVM_BOOL_MODE_HAS_ELEMS:
+                if (!guaranteed_concrete)
+                    return;
+                new_ins->info = MVM_op_get_op(MVM_OP_elems);
+                break;
+            case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
+                new_ins->info = MVM_op_get_op(MVM_OP_isconcrete);
+                break;
+            default:
+                return;
+        }
 
-            operands[0] = temp;
-            operands[1] = ins->operands[0];
-            new_ins->operands = operands;
+        /* If we get here, we're inserting a new instruction that will do a
+         * cheaper test and put the result into the temporary register. */
+        new_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 2);
+        new_ins->operands[0] = temp;
+        new_ins->operands[1] = ins->operands[0];
+        MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, new_ins);
 
-            ins->info = MVM_op_get_op(negated_op ? MVM_OP_unless_i : MVM_OP_if_i);
-            ins->operands[0] = temp;
+        /* Tweak the new instruction into an if_i/unless_i on the temp. */
+        ins->info = MVM_op_get_op(negated_op ? MVM_OP_unless_i : MVM_OP_if_i);
+        ins->operands[0] = temp;
+        MVM_spesh_get_facts(tc, g, temp)->usages++;
+        MVM_spesh_use_facts(tc, g, flag_facts);
+        MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
 
-            MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, new_ins);
-
-            MVM_spesh_get_facts(tc, g, temp)->usages++;
-
-            MVM_spesh_use_facts(tc, g, flag_facts);
-
-            MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
+        /* If the boolification mode was "not type object" then we might know
+         * that from the facts, and may even be able to elimiante this
+         * conditional altogether. */
+        if (mode == MVM_BOOL_MODE_NOT_TYPE_OBJECT) {
+            optimize_isconcrete(tc, g, new_ins);
+            optimize_iffy(tc, g, ins, bb);
         }
     }
 }
