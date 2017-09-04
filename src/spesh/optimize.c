@@ -410,6 +410,11 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             MVM_spesh_manipulate_remove_successor(tc, bb, ins->operands[1].ins_bb);
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
         }
+
+        /* Since the CFG has changed, we may have some dead basic blocks; do
+         * an elimination pass. */
+        MVM_spesh_eliminate_dead_bbs(tc, g, 1);
+
         return;
     }
 
