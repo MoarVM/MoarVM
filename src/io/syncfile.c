@@ -216,13 +216,15 @@ static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
 }
 
 /* Flushes the file handle. */
-static void flush(MVMThreadContext *tc, MVMOSHandle *h){
+static void flush(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 sync){
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     flush_output_buffer(tc, data);
-    if (MVM_platform_fsync(data->fd) == -1) {
-        /* If this is something that can't be flushed, we let that pass. */
-        if (errno != EROFS && errno != EINVAL)
-            MVM_exception_throw_adhoc(tc, "Failed to flush filehandle: %s", strerror(errno));
+    if (sync) {
+        if (MVM_platform_fsync(data->fd) == -1) {
+            /* If this is something that can't be flushed, we let that pass. */
+            if (errno != EROFS && errno != EINVAL)
+                MVM_exception_throw_adhoc(tc, "Failed to flush filehandle: %s", strerror(errno));
+        }
     }
 }
 

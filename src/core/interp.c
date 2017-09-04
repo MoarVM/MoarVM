@@ -3635,7 +3635,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(sync_fh):
-                MVM_io_flush(tc, GET_REG(cur_op, 0).o);
+                MVM_io_flush(tc, GET_REG(cur_op, 0).o, 1);
                 cur_op += 2;
                 goto NEXT;
             OP(trunc_fh):

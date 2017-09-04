@@ -178,7 +178,7 @@ MVMint64 socket_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     return data->eof;
 }
 
-void socket_flush(MVMThreadContext *tc, MVMOSHandle *h) {
+void socket_flush(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 sync) {
     /* A no-op for sockets; we don't buffer. */
 }
 

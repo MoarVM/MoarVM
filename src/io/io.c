@@ -235,11 +235,11 @@ void MVM_io_unlock(MVMThreadContext *tc, MVMObject *oshandle) {
         MVM_exception_throw_adhoc(tc, "Cannot unlock this kind of handle");
 }
 
-void MVM_io_flush(MVMThreadContext *tc, MVMObject *oshandle) {
+void MVM_io_flush(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 sync) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "flush");
     if (handle->body.ops->sync_writable) {
         uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        handle->body.ops->sync_writable->flush(tc, handle);
+        handle->body.ops->sync_writable->flush(tc, handle, sync);
         release_mutex(tc, mutex);
     }
     else
@@ -328,6 +328,6 @@ MVMObject * MVM_io_get_async_task_handle(MVMThreadContext *tc, MVMObject *oshand
 }
 
 void MVM_io_flush_standard_handles(MVMThreadContext *tc) {
-    MVM_io_flush(tc, tc->instance->stdout_handle);
-    MVM_io_flush(tc, tc->instance->stderr_handle);
+    MVM_io_flush(tc, tc->instance->stdout_handle, 0);
+    MVM_io_flush(tc, tc->instance->stderr_handle, 0);
 }
