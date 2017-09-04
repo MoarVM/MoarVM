@@ -1,3 +1,4 @@
+
 struct MVMJitCode {
     void     (*func_ptr)(MVMThreadContext *tc, MVMCompUnit *cu, void * label);
     size_t     size;
@@ -8,12 +9,10 @@ struct MVMJitCode {
     MVMuint16 *local_types;
     MVMint32   num_locals;
 
-    /* The basic idea here is that /all/ label names are indexes into
-     * the single labels array. This isn't particularly efficient at
-     * runtime (because we need a second dereference to figure the
-     * labels out), but very simple for me now, and super-easy to
-     * optimise at a later date */
-
+    /* The basic idea here is that /all/ label names are indexes into the single
+     * labels array. This isn't particularly efficient at runtime (because we
+     * need a second dereference to figure the labels out), but very simple for
+     * me now, and super-easy to optimise at a later date */
     MVMint32   num_labels;
     void     **labels;
 

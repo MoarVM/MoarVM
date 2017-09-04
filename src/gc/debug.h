@@ -18,5 +18,5 @@
     } \
 } while (0)
 #else
-#define MVM_ASSERT_NOT_FROMSPACE
+#define MVM_ASSERT_NOT_FROMSPACE(tc, c)
 #endif

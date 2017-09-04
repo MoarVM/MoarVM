@@ -78,6 +78,7 @@ if (-d '.git') {
 $args{optimize}     = 3 if not defined $args{optimize} or $args{optimize} eq "";
 $args{debug}        = 3 if defined $args{debug} and $args{debug} eq "";
 
+
 for (qw(coverage instrument static big-endian has-libtommath has-sha has-libuv
         has-libatomic_ops asan ubsan valgrind)) {
     $args{$_} = 0 unless defined $args{$_};
@@ -400,6 +401,7 @@ else {
     build::probe::ptr_size_native(\%config, \%defaults);
 }
 
+
 if ($args{'jit'}) {
     if ($config{ptr_size} != 8) {
         print "JIT isn't supported on platforms with $config{ptr_size} byte pointers.\n";
@@ -419,10 +421,10 @@ if ($args{'jit'}) {
 }
 # fallback
 unless (defined $config{jit_obj}) {
-    $config{jit_obj} = '$(JIT_STUB)';
-    $config{jit_arch} = 'MVM_JIT_ARCH_NONE';
+    $config{jit_obj}      = '$(JIT_STUB)';
+    $config{jit_arch}     = 'MVM_JIT_ARCH_NONE';
     $config{jit_platform} = 'MVM_JIT_PLATFORM_NONE';
-    $config{dasm_flags} = '';
+    $config{dasm_flags}   = '';
 }
 
 
@@ -807,7 +809,8 @@ __END__
                    [--debug] [--optimize] [--instrument]
                    [--static] [--prefix]
                    [--has-libtommath] [--has-sha] [--has-libuv]
-                   [--has-libatomic_ops] [--asan] [--ubsan] [--no-jit]
+                   [--has-libatomic_ops]
+                   [--asan] [--ubsan] [--no-jit]
                    [--telemeh]
 
     ./Configure.pl --build <build-triple> --host <host-triple>

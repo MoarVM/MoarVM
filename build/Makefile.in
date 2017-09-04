@@ -11,6 +11,7 @@ MKPATH = $(PERL) -MExtUtils::Command -e mkpath
 CHMOD  = $(PERL) -MExtUtils::Command -e chmod
 RM_RF  = $(PERL) -MExtUtils::Command -e rm_rf
 RM_F   = $(PERL) -MExtUtils::Command -e rm_f
+
 MINGW_UNICODE = @mingw_unicode@
 
 
@@ -69,10 +70,8 @@ JIT_OBJECTS  = src/jit/graph@obj@ \
 
 # JIT intermediate files which clean should remove
 JIT_INTERMEDIATES = src/jit/x64/emit.c \
-                    src/jit/x64/tile_tables.h \
-                    src/jit/core_expr_tables.h
-
-
+                    src/jit/x64/tile_pattern.h \
+                    src/jit/core_templates.h
 
 MAIN_OBJECTS = src/main@obj@
 
@@ -604,6 +603,8 @@ src/jit/expr@obj@: src/jit/core_templates.h
 src/jit/tile@obj@: src/jit/x64/tile_pattern.h src/jit/x64/tile_decl.h
 
 src/jit/compile@obj@ src/jit/linear_scan@obj@ src/jit/x64/arch@obj@ @jit_obj@: src/jit/internal.h src/jit/x64/arch.h
+
+
 
 
 @uvlib@: $(UV_OBJECTS)

@@ -36,6 +36,7 @@ addons:
       - llvm-5.0
       - expect
       - libffi-dev
+      - gdb
 
 before_script:
   - echo "Begin ‘before_script’ section of .travis.yml"
@@ -64,15 +65,19 @@ before_script:
 
 script:
   - echo "Begin ‘script’ section of .travis.yml"
+  # Enable coredumps
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then ulimit -c unlimited; fi
   - export MOAR_PREFIX="/tmp/moar"; export MOAR_FOLDER="$TRAVIS_BUILD_DIR"
   - export NQP_FOLDER="$(resolve_folder ./nqp)"
+  # Set location for core dumps
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo bash -c "echo \"${MOAR_PREFIX}/core.%p.%E\" > /proc/sys/kernel/core_pattern"; sudo cat /proc/sys/kernel/core_pattern; fi
   - echo "perl Configure.pl --prefix=$MOAR_PREFIX $MVM_OPTIONS --cc=\"$CC\" $MVM_debug $MVM_optimize;"
   - perl Configure.pl --prefix=$MOAR_PREFIX $MVM_OPTIONS --cc="$CC" $MVM_debug $MVM_optimize;
   - make install;
   - cd -- "$NQP_FOLDER";
   - echo "perl Configure.pl --prefix=$MOAR_PREFIX --backends=moar;"
   - perl Configure.pl --prefix=$MOAR_PREFIX --backends=moar;
-  - make;
+  - make
   - make test;
   - cd -- "$MOAR_FOLDER"
   - if [ "$COVERAGE" ]; then git clone --depth 1 'https://github.com/samcv/MoarVM-cover.git' && cp -v MoarVM-cover/html-cover.sh . && cp -v MoarVM-cover/nqp-profile ./nqp/ && cp -v MoarVM-cover/merge-profraw.sh ./nqp/ && ./html-cover.sh 2; fi
@@ -83,8 +88,10 @@ after_success:
   - if [ "$COVERAGE" ]; then ./tools/update-gh-pages.sh; fi
 
 after_failure:
-# On failure, dump all ENV vars, in case we need to look at them
+# On failure, dump all ENV vars, in case we need to look at them (doesn't print if our secrets are defined)
   - if [ ! "$encrypted_b77ce3a1cc5c_key" ] && [ ! "$encrypted_b77ce3a1cc5c_iv" ]; then printenv; fi
+  # If we have any coredumps, print out the traces with gdb
+  - for i in $(find "${MOAR_PREFIX}" -maxdepth 1 -name 'core*' -print); do gdb "${MOAR_PREFIX}/bin/moar" "${i}" -ex "thread apply all bt" -ex "set pagination 0" -batch; done;
 
 branches:
    only:

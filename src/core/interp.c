@@ -15,6 +15,10 @@ MVM_STATIC_INLINE MVMuint16 check_reg(MVMThreadContext *tc, MVMRegister *reg_bas
         MVM_ASSERT_NOT_FROMSPACE(tc, reg_base[idx].o);
     return idx;
 }
+/* The bytecode stream is OPs (16 bit numbers) followed by the (16 bit numbers) of the registers
+ * the OP needs (return register + argument registers. The pc will point to the first place after
+ * the current op, i.e. the first 16 bit register number. We add the requested number to that and
+ * use the result as index into the reg_base array which stores the frame's locals. */
 #define GET_REG(pc, idx)    reg_base[check_reg(tc, reg_base, *((MVMuint16 *)(pc + idx)))]
 #else
 #define GET_REG(pc, idx)    reg_base[*((MVMuint16 *)(pc + idx))]
@@ -58,7 +62,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 #include "oplabels.h"
 #endif
 
-    /* Points to the current opcode. */
+    /* Points to the place in the bytecode right after the current opcode. */
+    /* See the NEXT_OP macro for making sense of this */
     MVMuint8 *cur_op = NULL;
 
     /* The current frame's bytecode start. */
@@ -892,11 +897,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 {
                     MVMObject   *code = GET_REG(cur_op, 0).o;
                     MVMRegister *args = tc->cur_frame->args;
-                    MVMint16 was_multi = 0;
+                    MVMuint16 was_multi = 0;
+                    /* was_multi argument is MVMuint16* */
                     code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
                         &was_multi);
                     if (MVM_spesh_log_is_logging(tc)) {
                         MVMROOT(tc, code, {
+                            /* was_multi is MVMint16 */
                             MVM_spesh_log_invoke_target(tc, code, was_multi);
                         });
                     }
@@ -911,7 +918,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 {
                     MVMObject   *code = GET_REG(cur_op, 2).o;
                     MVMRegister *args = tc->cur_frame->args;
-                    MVMint16 was_multi = 0;
+                    MVMuint16 was_multi = 0;
                     code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
                         &was_multi);
                     if (MVM_spesh_log_is_logging(tc)) {
@@ -930,7 +937,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 {
                     MVMObject   *code = GET_REG(cur_op, 2).o;
                     MVMRegister *args = tc->cur_frame->args;
-                    MVMint16 was_multi = 0;
+                    MVMuint16 was_multi = 0;
                     code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
                         &was_multi);
                     if (MVM_spesh_log_is_logging(tc)) {
@@ -949,7 +956,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 {
                     MVMObject   *code = GET_REG(cur_op, 2).o;
                     MVMRegister *args = tc->cur_frame->args;
-                    MVMint16 was_multi = 0;
+                    MVMuint16 was_multi = 0;
                     code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
                         &was_multi);
                     if (MVM_spesh_log_is_logging(tc)) {
@@ -968,7 +975,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 {
                     MVMObject   *code = GET_REG(cur_op, 2).o;
                     MVMRegister *args = tc->cur_frame->args;
-                    MVMint16 was_multi = 0;
+                    MVMuint16 was_multi = 0;
                     code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
                         &was_multi);
                     if (MVM_spesh_log_is_logging(tc)) {

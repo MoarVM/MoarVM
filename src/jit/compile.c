@@ -9,7 +9,7 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *com
 void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *graph, MVMJitExprTree *tree);
 
 
-#define COPY_ARRAY(a, n) memcpy(MVM_malloc(n * sizeof(a[0])), a, n * sizeof(a[0]))
+#define COPY_ARRAY(a, n) ((n) > 0) ? memcpy(MVM_malloc((n) * sizeof(a[0])), a, (n) * sizeof(a[0])) : NULL;
 
 static const MVMuint16 MAGIC_BYTECODE[] = { MVM_OP_sp_jit_enter, 0 };
 
@@ -110,12 +110,19 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     char * memory;
     size_t codesize;
 
+    MVMint32 dasm_error = 0;
+
    /* compile the function */
-    if (dasm_link(cl, &codesize) != 0)
-        MVM_oops(tc, "dynasm could not link :-(");
+    if ((dasm_error = dasm_link(cl, &codesize)) != 0) {
+        MVM_jit_log(tc, "DynASM could not link, error: %d\n", dasm_error);
+        return NULL;
+    }
+
     memory = MVM_platform_alloc_pages(codesize, MVM_PAGE_READ|MVM_PAGE_WRITE);
-    if (dasm_encode(cl, memory) != 0)
-        MVM_oops(tc, "dynasm could not encode :-(");
+    if ((dasm_error = dasm_encode(cl, memory)) != 0) {
+        MVM_jit_log(tc, "DynASM could not encode, error: %d\n", dasm_error);
+        return NULL;
+    }
 
     /* set memory readable + executable */
     if (!MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC)) {
@@ -166,13 +173,14 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
      * label index rather than the direct pointer, no fixup is
      * necessary */
     code->num_deopts   = jg->deopts_num;
-    code->deopts       = code->num_deopts ? COPY_ARRAY(jg->deopts, jg->deopts_num) : NULL;
+    code->deopts       = COPY_ARRAY(jg->deopts, jg->deopts_num);
     code->num_handlers = jg->handlers_num;
-    code->handlers     = code->num_handlers ? COPY_ARRAY(jg->handlers, jg->handlers_alloc) : NULL;
+    code->handlers     = COPY_ARRAY(jg->handlers, jg->handlers_alloc);
     code->num_inlines  = jg->inlines_num;
-    code->inlines      = code->num_inlines ? COPY_ARRAY(jg->inlines, jg->inlines_alloc) : NULL;
+    code->inlines      = COPY_ARRAY(jg->inlines, jg->inlines_alloc);
 
-    code->seq_nr = MVM_incr(&tc->instance->jit_seq_nr);
+    /* add sequence number */
+    code->seq_nr       = tc->instance->jit_seq_nr++;
 
     return code;
 }

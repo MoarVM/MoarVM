@@ -107,10 +107,9 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
                          * and then each of the codepoints. */
                         MVMNFGSynthetic *si = MVM_nfg_get_synthetic_info(tc, g);
                         MVMint32 k;
-                        MVM_serialization_write_int(tc, writer, -(si->num_combs + 1));
-                        MVM_serialization_write_int(tc, writer, si->base);
-                        for (k = 0; k < si->num_combs; k++)
-                            MVM_serialization_write_int(tc, writer, si->combs[k]);
+                        MVM_serialization_write_int(tc, writer, -(si->num_codes));
+                        for (k = 0; k < si->num_codes; k++)
+                            MVM_serialization_write_int(tc, writer, si->codes[k]);
                     }
                     break;
                 }

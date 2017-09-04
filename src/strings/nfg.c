@@ -148,7 +148,6 @@ static MVMGrapheme32 add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MV
     MVMNFGState     *nfg = tc->instance->nfg;
     MVMNFGSynthetic *synth;
     MVMGrapheme32    result;
-    size_t           comb_size;
 
     /* Grow the synthetics table if needed. */
     if (nfg->num_synthetics % MVM_SYNTHETIC_GROW_ELEMS == 0) {
@@ -164,11 +163,13 @@ static MVMGrapheme32 add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MV
 
     /* Set up the new synthetic entry. */
     synth            = &(nfg->synthetics[nfg->num_synthetics]);
-    synth->base      = *codes;
-    synth->num_combs = num_codes - 1;
-    comb_size        = synth->num_combs * sizeof(MVMCodepoint);
-    synth->combs     = MVM_fixed_size_alloc(tc, tc->instance->fsa, comb_size);
-    memcpy(synth->combs, codes + 1, comb_size);
+    synth->num_codes = num_codes;
+    /* Eventually this should be set to what the actual base character is,
+     * but for now we always set it to 0 */
+    synth->base_index = 0;
+    synth->codes     = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+        num_codes * sizeof(MVMCodepoint));
+    memcpy(synth->codes, codes, (synth->num_codes * sizeof(MVMCodepoint)));
     synth->case_uc    = 0;
     synth->case_lc    = 0;
     synth->case_tc    = 0;
@@ -181,7 +182,7 @@ static MVMGrapheme32 add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MV
     nfg->num_synthetics++;
 
     /* Give the synthetic an ID by negating the new number of synthetics. */
-    result = -nfg->num_synthetics;
+    result = -(nfg->num_synthetics);
 
     /* Make an entry in the lookup trie for the new synthetic, so we can use
      * it in the future when seeing the same codepoint sequence. */
@@ -256,9 +257,9 @@ static void compute_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVMNF
 
     /* Transform the base character. */
     const MVMCodepoint *result_cps;
-    MVMuint32     num_result_cps = MVM_unicode_get_case_change(tc, synth_info->base,
+    MVMuint32     num_result_cps = MVM_unicode_get_case_change(tc, synth_info->codes[0],
         case_, &result_cps);
-    if (num_result_cps == 0 || *result_cps == synth_info->base) {
+    if (num_result_cps == 0 || *result_cps == synth_info->codes[0]) {
         /* Base character does not change, so grapheme stays the same. We
          * install a non-null sentinel for this case, and set the result
          * grapheme count to zero, which indicates no change. */
@@ -279,8 +280,8 @@ static void compute_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVMNF
         MVMint32 i;
         MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
         MVM_unicode_normalizer_push_codepoints(tc, &norm, result_cps, 1);
-        MVM_unicode_normalizer_push_codepoints(tc, &norm, synth_info->combs,
-            synth_info->num_combs);
+        MVM_unicode_normalizer_push_codepoints(tc, &norm, synth_info->codes + 1,
+            synth_info->num_codes - 1);
         if (num_result_cps > 1)
             MVM_unicode_normalizer_push_codepoints(tc, &norm, result_cps + 1,
                 num_result_cps - 1);
@@ -437,8 +438,8 @@ void MVM_nfg_destroy(MVMThreadContext *tc) {
 
         for (i = 0; i < nfg->num_synthetics; i++) {
             MVM_fixed_size_free(tc, tc->instance->fsa,
-                nfg->synthetics[i].num_combs * sizeof(MVMCodepoint),
-                nfg->synthetics[i].combs);
+                nfg->synthetics[i].num_codes * sizeof(MVMCodepoint),
+                nfg->synthetics[i].codes);
             if (nfg->synthetics[i].case_uc != CASE_UNCHANGED)
                 MVM_free(nfg->synthetics[i].case_uc);
             if (nfg->synthetics[i].case_lc != CASE_UNCHANGED)

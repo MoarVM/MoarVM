@@ -663,7 +663,7 @@ static void optimize_container_check(MVMThreadContext *tc, MVMSpeshGraph *g,
             }
             else if (ins->info->opcode == MVM_OP_iscont) {
                 /* General is container check, so answer is yes. */
-                known_result == 1;
+                known_result = 1;
             }
             else {
                 if (REPR(facts->type)->ID == MVM_REPR_ID_NativeRef) {

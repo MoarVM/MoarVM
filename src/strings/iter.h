@@ -114,13 +114,13 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_gi_get_grapheme(MVMThreadContext *tc,
     while (1) {
         if (gi->pos < gi->end) {
             switch (gi->blob_type) {
-            case MVM_STRING_GRAPHEME_32:
-                return gi->active_blob.blob_32[gi->pos++];
-            case MVM_STRING_GRAPHEME_ASCII:
-                return gi->active_blob.blob_ascii[gi->pos++];
-            case MVM_STRING_GRAPHEME_8:
-                return gi->active_blob.blob_8[gi->pos++];
-            }
+                case MVM_STRING_GRAPHEME_32:
+                    return gi->active_blob.blob_32[gi->pos++];
+                case MVM_STRING_GRAPHEME_ASCII:
+                    return gi->active_blob.blob_ascii[gi->pos++];
+                case MVM_STRING_GRAPHEME_8:
+                    return gi->active_blob.blob_8[gi->pos++];
+                }
         }
         else if (gi->repetitions) {
             gi->pos = gi->start;
@@ -140,6 +140,27 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_gi_get_grapheme(MVMThreadContext *tc,
         else {
             MVM_exception_throw_adhoc(tc, "Iteration past end of grapheme iterator");
         }
+    }
+}
+
+
+/* Returns the codepoint without doing checks, for internal VM use only. */
+MVM_STATIC_INLINE MVMGrapheme32 MVM_string_get_grapheme_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index) {
+    switch (a->body.storage_type) {
+        case MVM_STRING_GRAPHEME_32:
+            return a->body.storage.blob_32[index];
+        case MVM_STRING_GRAPHEME_ASCII:
+            return a->body.storage.blob_ascii[index];
+        case MVM_STRING_GRAPHEME_8:
+            return a->body.storage.blob_8[index];
+        case MVM_STRING_STRAND: {
+            MVMGraphemeIter gi;
+            MVM_string_gi_init(tc, &gi, a);
+            MVM_string_gi_move_to(tc, &gi, index);
+            return MVM_string_gi_get_grapheme(tc, &gi);
+        }
+        default:
+            MVM_exception_throw_adhoc(tc, "String corruption detected: bad storage type");
     }
 }
 
@@ -178,11 +199,13 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_grapheme_ci_init(MVMThreadContext *tc
         /* Get the synthetics info. */
         MVMNFGSynthetic *synth = MVM_nfg_get_synthetic_info(tc, g);
         /* Set up the iterator so in the next iteration we will start to
-        * hand back combiners. */
-        ci->synth_codes         =  synth->combs;
+        * hand back codepoints after the initial */
+        /* TODO: for now assumes synthetics start 1 after the first codepoint */
+        ci->synth_codes         =  synth->codes + 1;
         ci->visited_synth_codes = -1;
-        ci->total_synth_codes   =  synth->num_combs;
-        ci->base_code           =  synth->base;
+        ci->total_synth_codes   =  synth->num_codes - 1;
+        /* TODO: for now assumes index 0 is the base character */
+        ci->base_code           =  synth->codes[0];
     }
     else {
         ci->synth_codes         =  NULL;
@@ -242,15 +265,58 @@ MVM_STATIC_INLINE MVMCodepoint MVM_string_ci_get_codepoint(MVMThreadContext *tc,
             MVMNFGSynthetic *synth = MVM_nfg_get_synthetic_info(tc, g);
 
             /* Set up the iterator so in the next iteration we will start to
-            * hand back combiners. */
-            ci->synth_codes         = synth->combs;
+            * hand back codepoints. */
+            ci->synth_codes         = synth->codes + 1;
             ci->visited_synth_codes = 0;
-            ci->total_synth_codes   = synth->num_combs;
+            /* Emulate num_combs and subtract one from num_codes */
+            ci->total_synth_codes   = synth->num_codes - 1;
 
-            /* Result is the base character of the grapheme. */
-            result = synth->base;
+            /* Result is the first codepoint of the `codes` array */
+            result = synth->codes[0];
         }
     }
 
     return result;
+}
+/* The MVMGraphemeIter_cached is used for the Knuth-Morris-Pratt algorithm
+ * because often it will request the same grapheme again, and our grapheme
+ * iterators only return the next grapheme */
+struct MVMGraphemeIter_cached {
+    MVMGraphemeIter gi;
+    MVMGrapheme32   last_g;
+    MVMStringIndex  last_location;
+    MVMString      *string;
+};
+typedef struct MVMGraphemeIter_cached MVMGraphemeIter_cached;
+MVM_STATIC_INLINE void MVM_string_gi_cached_init (MVMThreadContext *tc, MVMGraphemeIter_cached *gic, MVMString *s, MVMint64 index) {
+    MVM_string_gi_init(tc, &(gic->gi), s);
+    if (index) MVM_string_gi_move_to(tc, &(gic->gi), index);
+    gic->last_location = index;
+    gic->last_g = MVM_string_gi_get_grapheme(tc, &(gic->gi));
+    gic->string = s;
+}
+MVM_STATIC_INLINE MVMGrapheme32 MVM_string_gi_cached_get_grapheme(MVMThreadContext *tc, MVMGraphemeIter_cached *gic, MVMint64 index) {
+    /* Most likely case is we are getting the next grapheme. When that happens
+     * we will go directly to the end. */
+    if (index == gic->last_location + 1) {
+    }
+    /* Second most likely is getting the cached grapheme */
+    else if (index == gic->last_location) {
+        return gic->last_g;
+    }
+    /* If we have to move forward */
+    else if (gic->last_location < index) {
+        MVM_string_gi_move_to(tc, &(gic->gi), index - gic->last_location - 1);
+    }
+    /* If we have to backtrack we need to reinitialize the grapheme iterator */
+    else {
+        MVM_exception_throw_adhoc(tc, "Internal error: Requested an index %"PRIi64" that was less than the last_location %"PRIu32"",
+            index, gic->last_location);
+        /* Not yet tested, but we may be able to access previous graphemes by reinitializing
+         * MVM_string_gi_cached_init(tc, gic, gic->string, index);
+         * MVM_string_gi_move_to(tc, &(gic->gi), index);
+         * MVM_string_gi_get_grapheme(tc, &(gic->gi)); */
+    }
+    gic->last_location = index;
+    return (gic->last_g = MVM_string_gi_get_grapheme(tc, &(gic->gi)));
 }

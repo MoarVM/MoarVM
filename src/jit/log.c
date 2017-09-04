@@ -15,9 +15,10 @@ void MVM_jit_log_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
      * bytes, moar-jit-.bin is 13 bytes, one byte for the zero at the
      * end, one byte for the directory separator is 25 bytes, plus the
      * length of the bytecode directory itself */
-    char * filename = MVM_malloc(strlen(tc->instance->jit_bytecode_dir) + 25);
+    size_t filename_size = strlen(tc->instance->jit_bytecode_dir) + 25;
+    char * filename = MVM_malloc(filename_size);
     FILE * out;
-    sprintf(filename, "%s/moar-jit-%04d.bin", tc->instance->jit_bytecode_dir, code->seq_nr);
+    snprintf(filename, filename_size, "%s/moar-jit-%04d.bin", tc->instance->jit_bytecode_dir, code->seq_nr);
     out = fopen(filename, "w");
     if (out) {
         fwrite(code->func_ptr, sizeof(char), code->size, out);

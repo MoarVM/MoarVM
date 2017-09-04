@@ -173,7 +173,7 @@ void MVM_spesh_log_decont(MVMThreadContext *tc, MVMuint8 *prev_op, MVMObject *va
 /* Log the target of an invocation; we log the static frame and whether the
  * outer of the code object is the current frame. */
 void MVM_spesh_log_invoke_target(MVMThreadContext *tc, MVMObject *invoke_target,
-                                 MVMint16 was_multi) {
+                                 MVMuint16 was_multi) {
     if (REPR(invoke_target)->ID == MVM_REPR_ID_MVMCode && IS_CONCRETE(invoke_target)) {
         MVMCode *invoke_code = (MVMCode *)invoke_target;
         MVMSpeshLog *sl = tc->spesh_log;

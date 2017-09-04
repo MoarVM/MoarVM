@@ -5,17 +5,16 @@ struct MVMJitGraph {
     MVMJitNode    *first_node;
     MVMJitNode    *last_node;
 
-    /* Number of instruction+bb+graph+obj labels, but excluding the expression labels */
+    /* Number of instruction+bb+graph labels, but excluding the expression labels */
     MVMint32       num_labels;
-    /* Offset for instruction / data labels */
+    /* Offset for instruction labels */
     MVMint32       obj_label_ofs;
 
     /* Sequence number for expr trees */
     MVMuint32      expr_seq_nr;
 
-    /* Although meant only for instructions they can really contain any random stuff */
+    /* All labeled things */
     MVM_VECTOR_DECL(void*, obj_labels);
-
     MVM_VECTOR_DECL(MVMJitDeopt, deopts);
     MVM_VECTOR_DECL(MVMJitHandler, handlers);
     MVM_VECTOR_DECL(MVMJitInline, inlines);
