@@ -7,8 +7,7 @@ void MVM_jit_compiler_init(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
 void MVM_jit_compiler_deinit(MVMThreadContext *tc, MVMJitCompiler *compiler);
 MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg);
 
-#define COPY_ARRAY(a, n) memcpy(MVM_malloc(n * sizeof(a[0])), a, n * sizeof(a[0]))
-
+#define COPY_ARRAY(a, n) ((n) > 0) ? memcpy(MVM_malloc((n) * sizeof(a[0])), a, (n) * sizeof(a[0])) : NULL;
 
 static const MVMuint16 MAGIC_BYTECODE[] = { MVM_OP_sp_jit_enter, 0 };
 
@@ -138,11 +137,11 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
      * label index rather than the direct pointer, no fixup is
      * necessary */
     code->num_deopts   = jg->deopts_num;
-    code->deopts       = code->num_deopts ? COPY_ARRAY(jg->deopts, jg->deopts_num) : NULL;
+    code->deopts       = COPY_ARRAY(jg->deopts, jg->deopts_num);
     code->num_handlers = jg->handlers_num;
-    code->handlers     = code->num_handlers ? COPY_ARRAY(jg->handlers, jg->handlers_alloc) : NULL;
+    code->handlers     = COPY_ARRAY(jg->handlers, jg->handlers_alloc);
     code->num_inlines  = jg->inlines_num;
-    code->inlines      = code->num_inlines ? COPY_ARRAY(jg->inlines, jg->inlines_alloc) : NULL;
+    code->inlines      = COPY_ARRAY(jg->inlines, jg->inlines_alloc);
 
     /* add sequence number */
     code->seq_nr       = tc->instance->jit_seq_nr++;
