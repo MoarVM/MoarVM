@@ -326,3 +326,8 @@ MVMObject * MVM_io_get_async_task_handle(MVMThreadContext *tc, MVMObject *oshand
     else
         MVM_exception_throw_adhoc(tc, "Cannot get async task handle from this kind of handle");
 }
+
+void MVM_io_flush_standard_handles(MVMThreadContext *tc) {
+    MVM_io_flush(tc, tc->instance->stdout_handle);
+    MVM_io_flush(tc, tc->instance->stderr_handle);
+}

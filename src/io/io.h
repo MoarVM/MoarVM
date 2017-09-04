@@ -111,3 +111,4 @@ MVMObject * MVM_io_accept(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_io_getport(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_set_buffer_size(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 size);
 MVMObject * MVM_io_get_async_task_handle(MVMThreadContext *tc, MVMObject *oshandle);
+void MVM_io_flush_standard_handles(MVMThreadContext *tc);
