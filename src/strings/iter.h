@@ -320,12 +320,8 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_gi_cached_get_grapheme(MVMThreadConte
     }
     /* If we have to backtrack we need to reinitialize the grapheme iterator */
     else {
-        MVM_exception_throw_adhoc(tc, "Internal error: Requested an index %"PRIi64" that was less than the last_location %"PRIu32"",
-            index, gic->last_location);
-        /* Not yet tested, but we may be able to access previous graphemes by reinitializing
-         * MVM_string_gi_cached_init(tc, gic, gic->string, index);
-         * MVM_string_gi_move_to(tc, &(gic->gi), index);
-         * MVM_string_gi_get_grapheme(tc, &(gic->gi)); */
+        MVM_string_gi_cached_init(tc, gic, gic->string, index);
+        return gic->last_g;
     }
     gic->last_location = index;
     return (gic->last_g = MVM_string_gi_get_grapheme(tc, &(gic->gi)));
