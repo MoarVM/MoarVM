@@ -582,6 +582,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(heap, "heap");
     string_creator(translate_newlines, "translate_newlines");
     string_creator(platform_newline, MVM_TRANSLATE_NEWLINE_OUTPUT ? "\r\n" : "\n");
+    string_creator(path, "path");
 }
 
 /* Drives the overall bootstrap process. */

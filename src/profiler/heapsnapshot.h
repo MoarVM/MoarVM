@@ -1,12 +1,28 @@
+struct MVMHeapDumpIndexSnapshotEntry {
+    MVMuint64 collectables_size;
+    MVMuint64 full_refs_size;
+    MVMuint64 refs_middlepoint;
+};
+
+struct MVMHeapDumpIndex {
+    MVMuint64 stringheap_size;
+    MVMuint64 types_size;
+    MVMuint64 staticframes_size;
+
+    MVMuint64 snapshot_size_entries;
+    MVMHeapDumpIndexSnapshotEntry *snapshot_sizes;
+
+    MVMuint64 snapshot_sizes_alloced;
+};
+
 /* A collection of heap snapshots, with common type and static frame names.
  * Note that we take care to never refer to heap objects themselves in here,
  * including for types and frames, since to do so would extend their lifetime
  * for the whole program, which would render the results pretty bogus. */
 struct MVMHeapSnapshotCollection {
-    /* List of taken snapshots. */
-    MVMHeapSnapshot *snapshots;
-    MVMuint64 num_snapshots;
-    MVMuint64 alloc_snapshots;
+    /* Snapshot we are currently taking and its index */
+    MVMHeapSnapshot *snapshot;
+    MVMuint64 snapshot_idx;
 
     /* Known types/REPRs. Just a list for now, but we might like to look at a
      * hash or trie if this ends up making taking a snapshot wicked slow. */
@@ -27,6 +43,11 @@ struct MVMHeapSnapshotCollection {
     char *strings_free;
     MVMuint64 num_strings_free;
     MVMuint64 alloc_strings_free;
+
+    MVMHeapDumpIndex *index;
+
+    /* The file handle we are outputting to */
+    FILE *fh;
 };
 
 /* An individual heap snapshot. */
