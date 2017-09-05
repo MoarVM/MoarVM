@@ -661,31 +661,6 @@ static void destroy_heap_snapshot_collection(MVMThreadContext *tc) {
     tc->instance->heap_snapshots = NULL;
 }
 
-#define vmstr(tc, cstr) MVM_string_utf8_decode(tc, tc->instance->VMString, cstr, strlen(cstr))
-#define box_s(tc, str) MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, str)
-MVMObject * collection_to_mvm_objects(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
-    MVMObject *results;
-
-    /* Allocate in gen2, so as not to trigger GC. */
-    MVM_gc_allocate_gen2_default_set(tc);
-
-    /* Top-level results is a hash. */
-    results = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
-    MVM_repr_bind_key_o(tc, results, vmstr(tc, "strings"),
-        tc->instance->VMNull);
-    MVM_repr_bind_key_o(tc, results, vmstr(tc, "types"),
-        tc->instance->VMNull);
-    MVM_repr_bind_key_o(tc, results, vmstr(tc, "static_frames"),
-        tc->instance->VMNull);
-    MVM_repr_bind_key_o(tc, results, vmstr(tc, "snapshots"),
-        tc->instance->VMNull);
-
-    /* Switch off gen2 allocations now we're done. */
-    MVM_gc_allocate_gen2_default_clear(tc);
-
-    return results;
-}
-
 void string_heap_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMuint64 i;
     MVMHeapDumpIndex *index = col->index;
@@ -872,10 +847,14 @@ void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
 void snapshot_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMHeapDumpIndex *index = col->index;
     MVMuint64 i = col->snapshot_idx;
-    MVMHeapDumpIndexSnapshotEntry *entry = &(index->snapshot_sizes[i]);
+    MVMHeapDumpIndexSnapshotEntry *entry;
 
     grow_storage((void **)&(index->snapshot_sizes), &(index->snapshot_size_entries),
             &(index->snapshot_sizes_alloced), sizeof(MVMHeapDumpIndexSnapshotEntry));
+
+    index->snapshot_size_entries++;
+
+    entry = &(index->snapshot_sizes[i]);
 
     entry->collectables_size = 0;
     entry->full_refs_size    = 0;
@@ -894,7 +873,7 @@ void index_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     fwrite(&index->staticframes_size, sizeof(MVMuint64), 1, fh);
     fwrite(&index->snapshot_size_entries, sizeof(MVMuint64), 1, fh);
 }
-void collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+void finish_collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     string_heap_to_filehandle(tc, col);
     types_to_filehandle(tc, col);
     static_frames_to_filehandle(tc, col);
@@ -906,6 +885,7 @@ void collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
 void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
     if (MVM_profile_heap_profiling(tc)) {
         MVMHeapSnapshotCollection *col = tc->instance->heap_snapshots;
+        col->snapshot = MVM_calloc(1, sizeof(MVMHeapSnapshot));
 
         record_snapshot(tc, col, col->snapshot);
 
@@ -920,17 +900,14 @@ void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
 MVMObject * MVM_profile_heap_end(MVMThreadContext *tc) {
     MVMHeapSnapshotCollection *col = tc->instance->heap_snapshots;
     MVMObject *dataset;
-    FILE *fh;
 
     /* Trigger a GC run, to ensure we get at least one heap snapshot. */
     MVM_gc_enter_from_allocator(tc);
 
-    /* Process and return the data. */
-    dataset = collection_to_mvm_objects(tc, col);
+    dataset = tc->instance->VMNull;
 
-    fh = fopen("/tmp/heapsnapshot_new_format", "w");
-    collection_to_filehandle(tc, tc->instance->heap_snapshots);
+    finish_collection_to_filehandle(tc, tc->instance->heap_snapshots);
     destroy_heap_snapshot_collection(tc);
-    fclose(fh);
+    fclose(col->fh);
     return dataset;
 }
