@@ -135,7 +135,7 @@ void MVM_spesh_log_parameter(MVMThreadContext *tc, MVMuint16 arg_idx, MVMObject 
                 : 0);
     });
     if (tc->spesh_log && IS_CONCRETE(param)) {
-        if (cs && cs->fetch_never_invokes) {
+        if (cs && cs->fetch_never_invokes && REPR(param)->ID != MVM_REPR_ID_NativeRef) {
             MVMRegister r;
             cs->fetch(tc, param, &r);
             log_param_type(tc, cid, arg_idx, r.o, MVM_SPESH_LOG_PARAMETER_DECONT, 0);
