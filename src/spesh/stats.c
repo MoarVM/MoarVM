@@ -38,7 +38,7 @@ MVMint32 incomplete_type_tuple(MVMThreadContext *tc, MVMCallsite *cs,
             if (!type)
                 return 1;
             if (arg_types[i].type_concrete && type->st->container_spec)
-                if (!arg_types[i].decont_type)
+                if (!arg_types[i].decont_type && REPR(type)->ID != MVM_REPR_ID_NativeRef)
                     return 1;
         }
     }
