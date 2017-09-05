@@ -1042,11 +1042,11 @@ void collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
     HeapDumpIndex index = {0};
     fputs("MoarHeapDumpv002", fh);
 
+    snapshots_to_filehandle(tc, col, fh, &index);
+
     string_heap_to_filehandle(tc, col, fh, &index);
     types_to_filehandle(tc, col, fh, &index);
     static_frames_to_filehandle(tc, col, fh, &index);
-
-    snapshots_to_filehandle(tc, col, fh, &index);
 
     index_to_filehandle(tc, col, fh, &index);
 
