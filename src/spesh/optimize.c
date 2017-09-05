@@ -609,7 +609,7 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
         copy_facts(tc, g, ins->operands[0], ins->operands[1]);
     }
     else {
-        /* Propagate facts. */
+        /* Propagate facts if we know what this deconts to. */
         MVMSpeshFacts *res_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
         int set_facts = 0;
         if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) {
@@ -625,18 +625,48 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
             res_facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
             set_facts = 1;
         }
-        if (set_facts)
-            MVM_spesh_facts_depend(tc, g, res_facts, obj_facts);
 
-        /* Can try to specialize the fetch if we know the type. */
+        /* If it's a known type... */
         if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && obj_facts->type) {
+            /* Can try to specialize the fetch. */
             MVMSTable *stable = STABLE(obj_facts->type);
             MVMContainerSpec const *contspec = stable->container_spec;
             if (contspec && contspec->fetch_never_invokes && contspec->spesh) {
                 contspec->spesh(tc, stable, g, bb, ins);
                 MVM_spesh_use_facts(tc, g, obj_facts);
             }
+
+            /* If we didn't yet set facts, and the incoming type is a native
+             * reference, then we can set facts based on knowing what it will
+             * decont/box to. */
+           if (!set_facts && stable->REPR->ID == MVM_REPR_ID_NativeRef) {
+                MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)stable->REPR_data;
+                MVMHLLConfig *hll = stable->hll_owner;
+                MVMObject *out_type = NULL;
+                if (!hll)
+                    hll = g->sf->body.cu->body.hll_config;
+                switch (repr_data->primitive_type) {
+                    case MVM_STORAGE_SPEC_BP_INT:
+                        out_type = hll->int_box_type;
+                        break;
+                    case MVM_STORAGE_SPEC_BP_NUM:
+                        out_type = hll->num_box_type;
+                        break;
+                    case MVM_STORAGE_SPEC_BP_STR:
+                        out_type = hll->str_box_type;
+                        break;
+                }
+                if (out_type) {
+                    res_facts->type = out_type;
+                    res_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
+                    set_facts = 1;
+                }
+            }
         }
+
+        /* Depend on incoming facts if we used them. */
+        if (set_facts)
+            MVM_spesh_facts_depend(tc, g, res_facts, obj_facts);
 
         /* If the op is still a decont, then turn it into sp_decont, which
          * will at least not write log entries. */
