@@ -2234,12 +2234,6 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
 static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                               MVMSpeshIns *ins) {
     if (ins->prev) {
-        /* We may have turned some complex instruction into a simple set
-         * in the big switch/case up there, but we wouldn't have called
-         * "copy_facts" on the registers yet, so we have to do it here
-         * unless we want to lose some important facts. */
-        copy_facts(tc, g, ins->operands[0], ins->operands[1]);
-
         /* Due to shoddy code-gen followed by spesh discarding lots of ops,
          * we get quite a few redundant set instructions.
          * They are not costly, but we can easily kick them out. */
