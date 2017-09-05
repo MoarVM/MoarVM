@@ -2233,35 +2233,44 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
  * branches, and some may be from sub-optimizal original code. */
 static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                               MVMSpeshIns *ins) {
-    if (ins->prev) {
-        /* Due to shoddy code-gen followed by spesh discarding lots of ops,
-         * we get quite a few redundant set instructions.
-         * They are not costly, but we can easily kick them out. */
-        if (ins->operands[0].reg.orig == ins->operands[1].reg.orig) {
+    /* Sometimes, a set takes place between two versions of the same register.
+     * This can go.
+     * XXX Should rewrite the graph properly. */
+    if (ins->operands[0].reg.orig == ins->operands[1].reg.orig) {
+        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+    }
+
+    /* Other optimizations depend on having a previous op. */
+    else if (!ins->prev) {
+        return;
+    }
+
+    /* If we have:
+     *      set rT(j), rO(i)
+     *      set rO(i + 1), rT(j)
+     *  Then the second instruction can go away.
+     *  XXX Should rewrite the graph properly. */
+    else if (ins->prev->info->opcode == MVM_OP_set) {
+        if (ins->operands[0].reg.orig == ins->prev->operands[1].reg.orig &&
+                ins->operands[0].reg.i == ins->prev->operands[1].reg.i + 1 &&
+                ins->operands[1].reg.orig == ins->prev->operands[0].reg.orig &&
+                ins->operands[1].reg.i == ins->prev->operands[0].reg.i)
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
-        }
-        else if (ins->prev->info->opcode == MVM_OP_set) {
-            if (ins->operands[0].reg.i == ins->prev->operands[1].reg.i + 1 &&
-                    ins->operands[0].reg.orig == ins->prev->operands[1].reg.orig &&
-                    ins->operands[1].reg.i == ins->prev->operands[0].reg.i &&
-                    ins->operands[1].reg.orig == ins->prev->operands[0].reg.orig)
-                MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
-        }
-        else if ((ins->prev->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg &&
-                ins->prev->operands[0].reg.orig == ins->operands[1].reg.orig &&
-                ins->prev->operands[0].reg.i == ins->operands[1].reg.i) {
-            /* If a regular operation is immediately followed by a set,
-             * we have to look at the usages of the intermediate register
-             * and make sure it's only ever read by the set, and not, for
-             * example, required by a deopt barrier to have a copy of the
-             * value. */
-            MVMSpeshFacts *facts = get_facts_direct(tc, g, ins->operands[1]);
-            if (facts->usages <= 1) {
-                /* Cool, we can move the register into the original ins
-                 * and throw out the set instruction. */
-                ins->prev->operands[0].reg = ins->operands[0].reg;
-                MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
-            }
+    }
+
+    /* If a write operation is immediately followed by a set, we can look at
+     * the usages of the intermediate register and make sure it's only ever
+     * read by the set, and not, for example, required by a deopt barrier to
+     * have a copy of the value. In that case, we don't need the temporary
+     * and can assign the result of the instruction directly into the
+     * target register. */
+    else if ((ins->prev->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg &&
+            ins->prev->operands[0].reg.orig == ins->operands[1].reg.orig &&
+            ins->prev->operands[0].reg.i == ins->operands[1].reg.i) {
+        MVMSpeshFacts *facts = get_facts_direct(tc, g, ins->operands[1]);
+        if (facts->usages <= 1) {
+            ins->prev->operands[0].reg = ins->operands[0].reg;
+            MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
         }
     }
 }
