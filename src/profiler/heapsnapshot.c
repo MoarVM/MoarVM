@@ -846,17 +846,34 @@ void string_heap_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *
 
     fputs("strs", fh);
 
+    /* Write out the number of strings we have and record the "header" size
+     * in the index. */
+
     fwrite(&col->num_strings, sizeof(MVMuint64), 1, fh);
     index->stringheap_size = sizeof(MVMuint64) + 4;
 
     for (i = 0; i < col->num_strings; i++) {
         char *str = col->strings[i];
         MVMuint64 output_size = strlen(str);
+
+        /* Every string is stored as a 64 bit integer length followed by utf8-
+         * encoded string data. */
+
         fwrite(&output_size, sizeof(MVMuint64), 1, fh);
         fwrite(str, sizeof(MVMuint8), output_size, fh);
+
+        /* Adjust the size by how much we wrote, including the size prefix */
+
         index->stringheap_size += sizeof(MVMuint64) + sizeof(MVMuint8) * output_size;
     }
 }
+
+/* The following functions all act the exact same way:
+ *
+ * Write a little introductory text of 4 bytes for the parser to ensure
+ * the index is correct, write the number of entries and the size of each entry
+ * as 64bit integers, calculate the complete size for the index, and then
+ * just write out each entry */
 void types_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, FILE *fh, HeapDumpIndex *index) {
     MVMuint64 i;
 
@@ -893,6 +910,13 @@ void static_frames_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection
         fwrite(&sf->file, sizeof(MVMuint64), 1, fh);
     }
 }
+
+/* The collectables table gets an entry in the additional "snapshot sizes
+ * table" that ends up before the general index at the end of the file.
+ *
+ * This sizes table has three entries for each entry. The first one is the
+ * size of the collectables table.
+ */
 void collectables_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshot *s, MVMuint16 idx, FILE *fh, HeapDumpIndex *index) {
     MVMuint64 i;
 
@@ -918,6 +942,15 @@ void collectables_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshot *s, MVMuin
         fwrite(&coll->num_refs, sizeof(MVMuint32), 1, fh);
     }
 }
+
+/* The references table has extreme potential for compression by first writing
+ * out a "how many bytes per field" byte, then writing each field with the
+ * determined size.
+ *
+ * That's why there's two entries in the snapshot size table for references:
+ * so that the parser can confidently skip to the exact middle of
+ * the references table and parse it with two threads in parallel.
+ */
 void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshot *s, MVMuint16 idx, FILE *fh, HeapDumpIndex *index) {
     MVMuint64 i;
     MVMuint64 halfway;
@@ -985,13 +1018,16 @@ void snapshot_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshot *s, MVMuint64 
     index->snapshot_sizes[i * 3] = 0;
     index->snapshot_sizes[i * 3 + 1] = 0;
     index->snapshot_sizes[i * 3 + 2] = 0;
+
     collectables_to_filehandle(tc, s, i, fh, index);
     references_to_filehandle(tc, s, i, fh, index);
 }
 void snapshots_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, FILE *fh, HeapDumpIndex *index) {
     MVMuint64 i;
+
     index->snapshot_size_entries = col->num_snapshots;
     index->snapshot_sizes = MVM_calloc(col->num_snapshots * 3, sizeof(MVMuint64));
+
     for (i = 0; i < col->num_snapshots; i++)
         snapshot_to_filehandle(tc, &(col->snapshots[i]), i, fh, index);
 }
@@ -1005,11 +1041,15 @@ void index_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, F
 void collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, FILE *fh) {
     HeapDumpIndex index = {0};
     fputs("MoarHeapDumpv002", fh);
+
     string_heap_to_filehandle(tc, col, fh, &index);
     types_to_filehandle(tc, col, fh, &index);
     static_frames_to_filehandle(tc, col, fh, &index);
+
     snapshots_to_filehandle(tc, col, fh, &index);
+
     index_to_filehandle(tc, col, fh, &index);
+
     MVM_free(index.snapshot_sizes);
 }
 
