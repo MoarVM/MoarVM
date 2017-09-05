@@ -2228,65 +2228,76 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
     }
 }
 
+/* Optimization turns many things into simple set instructions, which we can
+ * often further eliminate; others may become unrequired due to eliminated
+ * branches, and some may be from sub-optimizal original code. */
+static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                              MVMSpeshIns *ins) {
+    if (ins->prev) {
+        /* We may have turned some complex instruction into a simple set
+         * in the big switch/case up there, but we wouldn't have called
+         * "copy_facts" on the registers yet, so we have to do it here
+         * unless we want to lose some important facts. */
+        copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+
+        /* Due to shoddy code-gen followed by spesh discarding lots of ops,
+         * we get quite a few redundant set instructions.
+         * They are not costly, but we can easily kick them out. */
+        if (ins->operands[0].reg.orig == ins->operands[1].reg.orig) {
+            MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+        }
+        else if (ins->prev->info->opcode == MVM_OP_set) {
+            if (ins->operands[0].reg.i == ins->prev->operands[1].reg.i + 1 &&
+                    ins->operands[0].reg.orig == ins->prev->operands[1].reg.orig &&
+                    ins->operands[1].reg.i == ins->prev->operands[0].reg.i &&
+                    ins->operands[1].reg.orig == ins->prev->operands[0].reg.orig)
+                MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+        }
+        else if ((ins->prev->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg &&
+                ins->prev->operands[0].reg.orig == ins->operands[1].reg.orig &&
+                ins->prev->operands[0].reg.i == ins->operands[1].reg.i) {
+            /* If a regular operation is immediately followed by a set,
+             * we have to look at the usages of the intermediate register
+             * and make sure it's only ever read by the set, and not, for
+             * example, required by a deopt barrier to have a copy of the
+             * value. */
+            MVMSpeshFacts *facts = get_facts_direct(tc, g, ins->operands[1]);
+            if (facts->usages <= 1) {
+                /* Cool, we can move the register into the original ins
+                 * and throw out the set instruction. */
+                ins->prev->operands[0].reg = ins->operands[0].reg;
+                MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+            }
+        }
+    }
+}
+
+/* Drives the second, post-inline, optimization pass. */
 static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
     MVMint32 i;
 
-    /* Look for instructions that are interesting to optimize. */
     MVMSpeshIns *ins = bb->first_ins;
     while (ins) {
-        if (ins->prev && ins->info->opcode == MVM_OP_set) {
-            /* We may have turned some complex instruction into a simple set
-             * in the big switch/case up there, but we wouldn't have called
-             * "copy_facts" on the registers yet, so we have to do it here
-             * unless we want to lose some important facts. */
-            copy_facts(tc, g, ins->operands[0], ins->operands[1]);
-
-            /* Due to shoddy code-gen followed by spesh discarding lots of ops,
-             * we get quite a few redundant set instructions.
-             * They are not costly, but we can easily kick them out. */
-            if (ins->operands[0].reg.orig == ins->operands[1].reg.orig) {
-                MVMSpeshIns *previous = ins->prev;
-                MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
-                ins = previous;
-            } else if (ins->prev->info->opcode == MVM_OP_set) {
-                if (ins->operands[0].reg.i == ins->prev->operands[1].reg.i + 1 &&
-                        ins->operands[0].reg.orig == ins->prev->operands[1].reg.orig &&
-                        ins->operands[1].reg.i == ins->prev->operands[0].reg.i &&
-                        ins->operands[1].reg.orig == ins->prev->operands[0].reg.orig) {
-                    MVMSpeshIns *previous = ins->prev;
-                    MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
-                    ins = previous;
-                }
-            } else if ((ins->prev->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg &&
-                       ins->prev->operands[0].reg.orig == ins->operands[1].reg.orig &&
-                       ins->prev->operands[0].reg.i == ins->operands[1].reg.i) {
-                /* If a regular operation is immediately followed by a set,
-                 * we have to look at the usages of the intermediate register
-                 * and make sure it's only ever read by the set, and not, for
-                 * example, required by a deopt barrier to have a copy of the
-                 * value. */
-                MVMSpeshFacts *facts = get_facts_direct(tc, g, ins->operands[1]);
-                if (facts->usages <= 1) {
-                    /* Cool, we can move the register into the original ins
-                     * and throw out the set instruction. */
-                    MVMSpeshIns *previous = ins->prev;
-                    ins->prev->operands[0].reg = ins->operands[0].reg;
-                    MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
-                    ins = previous;
-                }
-            }
-        } else if (ins->prev && ins->info->opcode == MVM_OP_sp_getspeshslot && ins->prev->info->opcode == ins->info->opcode) {
-            /* Sometimes we emit two getspeshslots in a row that write into the
-             * exact same register. That's clearly wasteful and we can save a
-             * tiny shred of code size here. */
-            if (ins->operands[0].reg.orig == ins->prev->operands[0].reg.orig)
-               MVM_spesh_manipulate_delete_ins(tc, g, bb, ins->prev);
-        } else if (ins->info->opcode == MVM_OP_prof_allocated) {
-            optimize_prof_allocated(tc, g, bb, ins);
+        MVMSpeshIns *next = ins->next;
+        switch (ins->info->opcode) {
+            case MVM_OP_set:
+                try_eliminate_set(tc, g, bb, ins);
+                break;
+            case MVM_OP_sp_getspeshslot:
+                /* Sometimes we emit two getspeshslots in a row that write into the
+                 * exact same register. That's clearly wasteful and we can save a
+                 * tiny shred of code size here. */
+                if (ins->prev && ins->prev->info->opcode == ins->info->opcode &&
+                        ins->operands[0].reg.orig == ins->prev->operands[0].reg.orig)
+                    MVM_spesh_manipulate_delete_ins(tc, g, bb, ins->prev);
+                break;
+            case MVM_OP_prof_allocated:
+                optimize_prof_allocated(tc, g, bb, ins);
+                break;
         }
-
-        ins = ins->next;
+        ins = next;
     }
+
     /* Visit children. */
     for (i = 0; i < bb->num_children; i++)
         second_pass(tc, g, bb->children[i]);
