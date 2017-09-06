@@ -144,7 +144,7 @@ void NFG_check_concat (MVMThreadContext *tc, MVMString *result, MVMString *a, MV
 }
 #endif
 
-MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, MVMGraphemeIter_cached *H_gic, MVMString *needle_fc, MVMint64 H_start, MVMint64 H_graphs, MVMint64 n_fc_graphs, int ignoremark, int ignorecase);
+MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, void *Hs_or_gic, MVMString *needle_fc, MVMint64 H_start, MVMint64 H_graphs, MVMint64 n_fc_graphs, int ignoremark, int ignorecase, int is_gic);
 static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString *needle, MVMString *Haystack, MVMint64 H_offset);
 
 /* Allocates strand storage. */
@@ -425,6 +425,7 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *
             }
             break;
     }
+    /* Minimal code version for needles of size 1 */
     if (n_graphs == 1) {
         MVMGraphemeIter H_gi;
         MVMGrapheme32 n_g = MVM_string_get_grapheme_at_nocheck(tc, needle, 0);
@@ -436,24 +437,27 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *
             index++;
         }
     }
-    if (1 < n_graphs && n_graphs <= MVM_string_KMP_max_pattern_length) {
+    else if (n_graphs <= MVM_string_KMP_max_pattern_length)
         return knuth_morris_pratt_string_index(tc, needle, Haystack, start);
-    }
     else {
-        /* brute force is slightly faster for needles of size 1
-         * For needles > MVM_string_KMP_max_pattern_length we must revert to brute force for now.
+        int is_gic = Haystack->body.storage_type == MVM_STRING_STRAND ? 1 : 0;
+        void *Hs_or_gic = Haystack;
+        /* If Haystack is a strand allocate space for a MVMGraphemeIter_cached
+         * and initialize it */
+        if (is_gic) {
+            Hs_or_gic = alloca(sizeof(MVMGraphemeIter_cached));
+            MVM_string_gi_cached_init(tc, Hs_or_gic, Haystack, start);
+        }
+        /* For needles > MVM_string_KMP_max_pattern_length we must revert to brute force for now.
          * Eventually we can implement brute force after it matches the whole needle OR
          * allocate more space for the pattern on reaching the end of the pattern */
-        MVMGraphemeIter_cached H_gic;
-        MVM_string_gi_cached_init(tc, &H_gic, Haystack, start);
         while (index <= H_graphs - n_graphs) {
-            if (string_equal_at_ignore_case_INTERNAL_loop(tc, &H_gic, needle, index, H_graphs, n_graphs, 0, 0) != -1) {
+            if (string_equal_at_ignore_case_INTERNAL_loop(tc, Hs_or_gic, needle, index, H_graphs, n_graphs, 0, 0, is_gic) != -1)
                 return (MVMint64)index;
-            }
             index++;
         }
-        return -1;
     }
+    return -1;
 }
 
 /* Returns the location of one string in another or -1  */
@@ -941,7 +945,7 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
  * MVMStringIndex in length, we could have some weird results. */
 
 /* ignoremark is 0 for normal operation and 1 for ignoring diacritics */
-MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, MVMGraphemeIter_cached *H_gic, MVMString *needle_fc, MVMint64 H_start, MVMint64 H_graphs, MVMint64 n_fc_graphs, int ignoremark, int ignorecase) {
+MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, void *Hs_or_gic, MVMString *needle_fc, MVMint64 H_start, MVMint64 H_graphs, MVMint64 n_fc_graphs, int ignoremark, int ignorecase, int is_gic) {
     MVMuint32 H_fc_cps;
     /* An additional needle offset which is used only when codepoints expand
      * when casefolded. The offset is the number of additional codepoints that
@@ -951,7 +955,7 @@ MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadCo
     MVMGrapheme32 H_g, n_g;
     for (i = 0; i + H_start < H_graphs && i + n_offset < n_fc_graphs; i++) {
         const MVMCodepoint* H_result_cps;
-        H_g = MVM_string_gi_cached_get_grapheme(tc, H_gic, H_start + i);
+        H_g = is_gic ? MVM_string_gi_cached_get_grapheme(tc, Hs_or_gic, H_start + i) : MVM_string_get_grapheme_at_nocheck(tc, Hs_or_gic, H_start + i);
         if (!ignorecase) {
             H_fc_cps = 0;
         }
@@ -1008,7 +1012,6 @@ static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Hay
     MVMStringIndex n_fc_graphs;
     /* H_expansion must be able to hold integers 3x larger than MVMStringIndex */
     MVMint64 H_expansion;
-    MVMGraphemeIter_cached H_gic;
 
     if (H_offset < 0) {
         H_offset += H_graphs;
@@ -1024,8 +1027,14 @@ static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Hay
         needle_fc = ignorecase ? MVM_string_fc(tc, needle) : needle;
     });
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
-    MVM_string_gi_cached_init(tc, &H_gic, Haystack, H_offset);
-    H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, &H_gic, needle_fc, H_offset, H_graphs, n_fc_graphs, ignoremark, ignorecase);
+    if (Haystack->body.storage_type == MVM_STRING_STRAND) {
+        MVMGraphemeIter_cached H_gic;
+        MVM_string_gi_cached_init(tc, &H_gic, Haystack, H_offset);
+        H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, &H_gic, needle_fc, H_offset, H_graphs, n_fc_graphs, ignoremark, ignorecase, 1);
+    }
+    else {
+        H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, Haystack, needle_fc, H_offset, H_graphs, n_fc_graphs, ignoremark, ignorecase, 0);
+    }
     if (0 <= H_expansion)
         return n_fc_graphs <= H_graphs + H_expansion - H_offset ? 1 : 0;
     return 0;
@@ -1119,7 +1128,8 @@ static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haysta
     /* H_expansion must be able to hold integers 3x larger than MVMStringIndex */
     MVMint64 H_expansion;
     MVMint64 return_val = -1;
-    MVMGraphemeIter_cached H_gic;
+    int is_gic = Haystack->body.storage_type == MVM_STRING_STRAND ? 1 : 0;
+    void *Hs_or_gic = Haystack;
     MVM_string_check_arg(tc, Haystack, ignoremark ? "index ignore case ignore mark search target" : "index ignore case search target");
     MVM_string_check_arg(tc, needle,   ignoremark ? "index ignore case ignore mark search term"   : "index ignore case search term");
     H_graphs = MVM_string_graphs_nocheck(tc, Haystack);
@@ -1143,10 +1153,13 @@ static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haysta
         needle_fc = ignorecase ? MVM_string_fc(tc, needle) : needle;
     });
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
-    MVM_string_gi_cached_init(tc, &H_gic, Haystack, start);
     /* brute force for now. horrible, yes. halp. */
+    if (is_gic) {
+        Hs_or_gic = alloca(sizeof(MVMGraphemeIter_cached));
+        MVM_string_gi_cached_init(tc, Hs_or_gic, Haystack, start);
+    }
     while (index <= H_graphs) {
-        H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, &H_gic, needle_fc, index, H_graphs, n_fc_graphs, ignoremark, ignorecase);
+        H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, Hs_or_gic, needle_fc, index, H_graphs, n_fc_graphs, ignoremark, ignorecase, is_gic);
         if (0 <= H_expansion)
             return n_fc_graphs <= H_graphs + H_expansion - index ? (MVMint64)index : -1;
         index++;
