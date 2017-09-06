@@ -2231,6 +2231,33 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
 /* Optimization turns many things into simple set instructions, which we can
  * often further eliminate; others may become unrequired due to eliminated
  * branches, and some may be from sub-optimizal original code. */
+static MVMint32 within_inline(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                              MVMSpeshOperand target) {
+    if (bb->inlined) {
+        MVMSpeshBB *check_bb = bb;
+        while (check_bb) {
+            MVMSpeshIns *last_ins = check_bb->last_ins;
+            MVMSpeshAnn *ann = last_ins->annotations;
+            MVMint32 max_inline = -1;
+            while (ann) {
+                if (ann->type == MVM_SPESH_ANN_INLINE_END)
+                    if (ann->data.inline_idx > max_inline)
+                        max_inline = ann->data.inline_idx;
+                ann = ann->next;
+            }
+            if (max_inline >= 0) {
+                /* We've found the inline that we're inside of. Check if the
+                 * register is within its range of registers. */
+                MVMuint16 locals_start = g->inlines[max_inline].locals_start;
+                MVMuint16 num_locals = g->inlines[max_inline].g->num_locals;
+                return target.reg.orig >= locals_start &&
+                    target.reg.orig < locals_start + num_locals;
+            }
+            check_bb = check_bb->linear_next;
+        }
+    }
+    return 1; /* We're not in an inline at all, so automatically yes. */
+}
 static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                               MVMSpeshIns *ins) {
     /* Sometimes, a set takes place between two versions of the same register.
@@ -2263,13 +2290,17 @@ static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
      * read by the set, and not, for example, required by a deopt barrier to
      * have a copy of the value. In that case, we don't need the temporary
      * and can assign the result of the instruction directly into the
-     * target register. */
+     * target register. We must also check, if we're in an inline, that the
+     * final target register is within the inline, since deopt depends on the
+     * target register of an invoke being within a frame. */
     else if ((ins->prev->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg &&
+            ins->prev->info->opcode != MVM_SSA_PHI &&
             ins->prev->operands[0].reg.orig == ins->operands[1].reg.orig &&
             ins->prev->operands[0].reg.i == ins->operands[1].reg.i) {
-        MVMSpeshFacts *facts = get_facts_direct(tc, g, ins->operands[1]);
-        if (facts->usages <= 1) {
+        MVMSpeshFacts *elim_facts = get_facts_direct(tc, g, ins->operands[1]);
+        if (elim_facts->usages == 1 && within_inline(tc, g, bb, ins->operands[0])) {
             ins->prev->operands[0].reg = ins->operands[0].reg;
+            get_facts_direct(tc, g, ins->prev->operands[0])->writer = ins->prev;
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
         }
     }
