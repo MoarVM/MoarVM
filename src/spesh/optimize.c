@@ -2368,10 +2368,20 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
     /* Before starting, we eliminate dead basic blocks that were tossed by
      * arg spesh, to simplify the graph. */
     MVM_spesh_eliminate_dead_bbs(tc, g, 1);
+
+    /* Perform initial optimization pass, which performs a range of opts
+     * including, most notably, inlining. */
     optimize_bb(tc, g, g->entry, p);
+
+    /* Clear up the graph after this initial pass. */
     MVM_spesh_eliminate_dead_bbs(tc, g, 1);
     eliminate_unused_log_guards(tc, g);
     eliminate_pointless_gotos(tc, g);
     eliminate_dead_ins(tc, g);
+
+    /* Make a second pass through the graph doing things that are better
+     * done after inlinings have taken place. The dominance tree is first
+     * recomputed, to account for any inlinings. */
+    MVM_spesh_graph_recompute_dominance(tc, g);
     second_pass(tc, g, g->entry);
 }

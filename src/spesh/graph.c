@@ -1259,6 +1259,32 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     return g;
 }
 
+/* Recomputes the dominance tree, after modifications to the CFG. */
+void MVM_spesh_graph_recompute_dominance(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    MVMSpeshBB **rpo;
+    MVMint32 *doms;
+
+    /* First, clear away all existing dominance tree information; we also toss
+     * out all of the predecessors, in case they got out of sync (should try
+     * and fix things up to not need this in the future). */
+    MVMSpeshBB *cur_bb = g->entry;
+    while (cur_bb) {
+        cur_bb->children = NULL;
+        cur_bb->num_children = 0;
+        cur_bb->pred = NULL;
+        cur_bb->num_pred = 0;
+        cur_bb = cur_bb->linear_next;
+    }
+
+    /* Now form the new dominance tree. */
+    add_predecessors(tc, g);
+    rpo = reverse_postorder(tc, g);
+    doms = compute_dominators(tc, g, rpo);
+    add_children(tc, g, rpo, doms);
+    MVM_free(rpo);
+    MVM_free(doms);
+}
+
 /* Marks GCables held in a spesh graph. */
 void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist *worklist) {
     MVMuint16 i, j, num_locals, num_facts, *local_types;
