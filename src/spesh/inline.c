@@ -435,6 +435,7 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     inliner->inlines[total_inlines - 1].g              = inlinee;
     inliner->inlines[total_inlines - 1].locals_start   = inliner->num_locals;
     inliner->inlines[total_inlines - 1].lexicals_start = inliner->num_lexicals;
+    inliner->inlines[total_inlines - 1].num_locals     = inlinee->num_locals;
     switch (invoke_ins->info->opcode) {
     case MVM_OP_invoke_v:
         inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_VOID;

@@ -2249,7 +2249,7 @@ static MVMint32 within_inline(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
                 /* We've found the inline that we're inside of. Check if the
                  * register is within its range of registers. */
                 MVMuint16 locals_start = g->inlines[max_inline].locals_start;
-                MVMuint16 num_locals = g->inlines[max_inline].g->num_locals;
+                MVMuint16 num_locals = g->inlines[max_inline].num_locals;
                 return target.reg.orig >= locals_start &&
                     target.reg.orig < locals_start + num_locals;
             }
