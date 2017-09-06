@@ -1713,13 +1713,13 @@ static void optimize_prof_allocated(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
  * same semantics. */
 static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     /* First, see if we have any goto handlers for this category. */
-    MVMint32 *handlers_found = MVM_malloc(g->sf->body.num_handlers * sizeof(MVMint32));
+    MVMint32 *handlers_found = MVM_malloc(g->num_handlers * sizeof(MVMint32));
     MVMint32  num_found      = 0;
     MVMuint32 category       = (MVMuint32)ins->operands[1].lit_i64;
     MVMint32  i;
-    for (i = 0; i < g->sf->body.num_handlers; i++)
-        if (g->sf->body.handlers[i].action == MVM_EX_ACTION_GOTO)
-            if (g->sf->body.handlers[i].category_mask & category)
+    for (i = 0; i < g->num_handlers; i++)
+        if (g->handlers[i].action == MVM_EX_ACTION_GOTO)
+            if (g->handlers[i].category_mask & category)
                 handlers_found[num_found++] = i;
 
     /* If we found any appropriate handlers, we'll now do a scan through the
@@ -1727,11 +1727,11 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
      * track of this in optimize_bb as it walks the dominance children, but
      * we need a linear view. */
     if (num_found) {
-        MVMint32    *in_handlers = MVM_calloc(g->sf->body.num_handlers, sizeof(MVMint32));
-        MVMSpeshBB **goto_bbs    = MVM_calloc(g->sf->body.num_handlers, sizeof(MVMSpeshBB *));
+        MVMint32    *in_handlers = MVM_calloc(g->num_handlers, sizeof(MVMint32));
+        MVMSpeshBB **goto_bbs    = MVM_calloc(g->num_handlers, sizeof(MVMSpeshBB *));
         MVMSpeshBB  *search_bb   = g->entry;
         MVMint32     picked      = -1;
-        while (search_bb && !search_bb->inlined) {
+        while (search_bb) {
             MVMSpeshIns *search_ins = search_bb->first_ins;
             while (search_ins) {
                 /* Track handlers. */
@@ -1745,7 +1745,7 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
                         in_handlers[ann->data.frame_handler_index] = 0;
                         break;
                     case MVM_SPESH_ANN_FH_GOTO:
-                        if (ann->data.frame_handler_index < g->sf->body.num_handlers) {
+                        if (ann->data.frame_handler_index < g->num_handlers) {
                             goto_bbs[ann->data.frame_handler_index] = search_bb;
                             if (picked >= 0 && ann->data.frame_handler_index == picked)
                                 goto search_over;
@@ -1780,7 +1780,7 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
 
         /* If we picked a handler and know where it should goto, we can do the
          * rewrite into a goto. */
-        if (picked >=0 && goto_bbs[picked]) {
+        if (picked >= 0 && goto_bbs[picked]) {
             ins->info               = MVM_op_get_op(MVM_OP_goto);
             ins->operands[0].ins_bb = goto_bbs[picked];
             bb->succ[0]             = goto_bbs[picked];
@@ -2009,11 +2009,6 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         case MVM_OP_invoke_o:
             optimize_call(tc, g, bb, ins, p, 1, &arg_info);
             break;
-        case MVM_OP_throwcatdyn:
-        case MVM_OP_throwcatlex:
-        case MVM_OP_throwcatlexotic:
-            optimize_throwcat(tc, g, bb, ins);
-            break;
         case MVM_OP_islist:
         case MVM_OP_ishash:
         case MVM_OP_isint:
@@ -2182,7 +2177,6 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 optimize_extop(tc, g, bb, ins);
         }
 
-
         ins = ins->next;
     }
 
@@ -2327,6 +2321,11 @@ static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
                 break;
             case MVM_OP_prof_allocated:
                 optimize_prof_allocated(tc, g, bb, ins);
+                break;
+            case MVM_OP_throwcatdyn:
+            case MVM_OP_throwcatlex:
+            case MVM_OP_throwcatlexotic:
+                optimize_throwcat(tc, g, bb, ins);
                 break;
         }
         ins = next;
