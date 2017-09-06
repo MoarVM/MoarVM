@@ -2,6 +2,7 @@ struct MVMHeapDumpIndexSnapshotEntry {
     MVMuint64 collectables_size;
     MVMuint64 full_refs_size;
     MVMuint64 refs_middlepoint;
+    MVMuint64 incremental_data;
 };
 
 struct MVMHeapDumpIndex {
@@ -43,6 +44,10 @@ struct MVMHeapSnapshotCollection {
     char *strings_free;
     MVMuint64 num_strings_free;
     MVMuint64 alloc_strings_free;
+
+    MVMuint64 types_written;
+    MVMuint64 static_frames_written;
+    MVMuint64 strings_written;
 
     MVMHeapDumpIndex *index;
 

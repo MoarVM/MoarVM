@@ -671,10 +671,12 @@ void string_heap_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *
     /* Write out the number of strings we have and record the "header" size
      * in the index. */
 
-    fwrite(&col->num_strings, sizeof(MVMuint64), 1, fh);
+    i = col->num_strings - col->strings_written;
+
+    fwrite(&i, sizeof(MVMuint64), 1, fh);
     index->stringheap_size = sizeof(MVMuint64) + 4;
 
-    for (i = 0; i < col->num_strings; i++) {
+    for (i = col->strings_written; i < col->num_strings; i++) {
         char *str = col->strings[i];
         MVMuint64 output_size = strlen(str);
 
@@ -688,6 +690,8 @@ void string_heap_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *
 
         index->stringheap_size += sizeof(MVMuint64) + sizeof(MVMuint8) * output_size;
     }
+
+    col->strings_written = col->num_strings;
 }
 
 /* The following functions all act the exact same way:
@@ -695,7 +699,11 @@ void string_heap_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *
  * Write a little introductory text of 4 bytes for the parser to ensure
  * the index is correct, write the number of entries and the size of each entry
  * as 64bit integers, calculate the complete size for the index, and then
- * just write out each entry */
+ * just write out each entry
+ *
+ * We also write a partial table after every snapshot so that if the process
+ * crashes we still have a usable file.
+ */
 void types_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMuint64 i;
     MVMHeapDumpIndex *index = col->index;
@@ -703,18 +711,22 @@ void types_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
 
     fputs("type", fh);
 
-    fwrite(&col->num_types, sizeof(MVMuint64), 1, fh);
+    i = col->num_types - col->types_written;
+
+    fwrite(&i, sizeof(MVMuint64), 1, fh);
     i = sizeof(MVMuint64) * 2;
     fwrite(&i, sizeof(MVMuint64), 1, fh);
 
-    index->types_size = sizeof(MVMuint64) * 2 + 4 + sizeof(MVMuint64) * 2 * col->num_types;
+    index->types_size = sizeof(MVMuint64) * 2 + 4 + sizeof(MVMuint64) * 2 * (col->num_types - col->types_written);
 
-    for (i = 0; i < col->num_types; i++) {
+    for (i = col->types_written; i < col->num_types; i++) {
         MVMHeapSnapshotType *t = &col->types[i];
 
         fwrite(&t->repr_name, sizeof(MVMuint64), 1, fh);
         fwrite(&t->type_name, sizeof(MVMuint64), 1, fh);
     }
+
+    col->types_written = col->num_types;
 }
 void static_frames_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMuint64 i;
@@ -722,12 +734,15 @@ void static_frames_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection
     FILE *fh = col->fh;
 
     fputs("fram", fh);
-    fwrite(&col->num_static_frames, sizeof(MVMuint64), 1, fh);
+
+    i = col->num_static_frames - col->static_frames_written;
+
+    fwrite(&i, sizeof(MVMuint64), 1, fh);
     i = sizeof(MVMuint64) * 4;
     fwrite(&i, sizeof(MVMuint64), 1, fh);
-    index->staticframes_size = sizeof(MVMuint64) * 2 + 4 + sizeof(MVMuint64) * 4 * col->num_static_frames;
+    index->staticframes_size = sizeof(MVMuint64) * 2 + 4 + sizeof(MVMuint64) * 4 * (col->num_static_frames - col->static_frames_written);
 
-    for (i = 0; i < col->num_static_frames; i++) {
+    for (i = col->static_frames_written; i < col->num_static_frames; i++) {
         MVMHeapSnapshotStaticFrame *sf = &col->static_frames[i];
 
         fwrite(&sf->name, sizeof(MVMuint64), 1, fh);
@@ -735,6 +750,8 @@ void static_frames_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection
         fwrite(&sf->line, sizeof(MVMuint64), 1, fh);
         fwrite(&sf->file, sizeof(MVMuint64), 1, fh);
     }
+
+    col->static_frames_written = col->num_static_frames;
 }
 
 /* The collectables table gets an entry in the additional "snapshot sizes
@@ -749,6 +766,7 @@ void collectables_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection 
     MVMHeapSnapshot *s = col->snapshot;
 
     fputs("coll", fh);
+
     fwrite(&s->num_collectables, sizeof(MVMuint64), 1, fh);
     i = sizeof(MVMuint16) * 2 + sizeof(MVMuint32) * 2 + sizeof(MVMuint64) * 2;
     fwrite(&i, sizeof(MVMuint64), 1, fh);
@@ -787,7 +805,7 @@ void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
 
     fputs("refs", fh);
     fwrite(&s->num_references, sizeof(MVMuint64), 1, fh);
-    i = sizeof(MVMuint64) * 3;
+    i = sizeof(MVMuint64) * 2 + 1;
     fwrite(&i, sizeof(MVMuint64), 1, fh);
 
     entry->full_refs_size = 4 + sizeof(MVMuint64) * 2;
@@ -839,8 +857,9 @@ void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
             fwrite(&index8, sizeof(MVMuint8), 1, fh);
             entry->full_refs_size += sizeof(MVMuint8) * 3 + 1;
         }
-        if (i == halfway)
+        if (i == halfway) {
             entry->refs_middlepoint = entry->full_refs_size;
+        }
     }
 }
 
@@ -859,9 +878,16 @@ void snapshot_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col
     entry->collectables_size = 0;
     entry->full_refs_size    = 0;
     entry->refs_middlepoint  = 0;
+    entry->incremental_data  = 0;
 
     collectables_to_filehandle(tc, col, entry);
     references_to_filehandle(tc, col, entry);
+
+    string_heap_to_filehandle(tc, col);
+    types_to_filehandle(tc, col);
+    static_frames_to_filehandle(tc, col);
+
+    entry->incremental_data = index->stringheap_size + index->types_size + index->staticframes_size;
 }
 void index_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMHeapDumpIndex *index = col->index;
@@ -874,6 +900,10 @@ void index_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     fwrite(&index->snapshot_size_entries, sizeof(MVMuint64), 1, fh);
 }
 void finish_collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+    col->strings_written = 0;
+    col->types_written = 0;
+    col->static_frames_written = 0;
+
     string_heap_to_filehandle(tc, col);
     types_to_filehandle(tc, col);
     static_frames_to_filehandle(tc, col);
@@ -890,6 +920,7 @@ void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
         record_snapshot(tc, col, col->snapshot);
 
         snapshot_to_filehandle(tc, col);
+        fflush(col->fh);
 
         destroy_current_heap_snapshot(tc);
         col->snapshot_idx++;
@@ -907,7 +938,7 @@ MVMObject * MVM_profile_heap_end(MVMThreadContext *tc) {
     dataset = tc->instance->VMNull;
 
     finish_collection_to_filehandle(tc, tc->instance->heap_snapshots);
-    destroy_heap_snapshot_collection(tc);
     fclose(col->fh);
+    destroy_heap_snapshot_collection(tc);
     return dataset;
 }
