@@ -257,11 +257,11 @@ void MVM_io_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset)
         MVM_exception_throw_adhoc(tc, "Cannot truncate this kind of handle");
 }
 
-void MVM_io_connect(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port) {
+void MVM_io_connect(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port, MVMString *source_address, MVMint64 source_port) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "connect");
     if (handle->body.ops->sockety) {
         uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        handle->body.ops->sockety->connect(tc, handle, host, port);
+        handle->body.ops->sockety->connect(tc, handle, host, port, source_address, source_port);
         release_mutex(tc, mutex);
     }
     else

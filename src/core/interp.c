@@ -3666,8 +3666,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(connect_sk):
                 MVM_io_connect(tc, GET_REG(cur_op, 0).o,
-                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
-                cur_op += 6;
+                GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).s, GET_REG(cur_op, 8).i64);
+                cur_op += 10;
                 goto NEXT;
             OP(socket):
                 GET_REG(cur_op, 0).o = MVM_io_socket_create(tc, GET_REG(cur_op, 2).i64);

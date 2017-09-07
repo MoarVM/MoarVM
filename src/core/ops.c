@@ -5833,13 +5833,13 @@ static const MVMOpInfo MVM_op_infos[] = {
         MVM_OP_connect_sk,
         "connect_sk",
         "  ",
-        3,
+        5,
         0,
         0,
         0,
         0,
         0,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_socket,
