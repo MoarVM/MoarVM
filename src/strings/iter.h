@@ -50,58 +50,68 @@ MVM_STATIC_INLINE void MVM_string_gi_init(MVMThreadContext *tc, MVMGraphemeIter 
         gi->repetitions       = 0;
     }
 };
+/* Gets the number of graphemes remaining in the current strand of the grapheme
+ * iterator */
+#define MVM_string_gi_graphs_left_in_strand(gi) \
+    (gi->end - gi->pos + gi->repetitions * (gi->end - gi->start))
+/* graphs left in strand + graphs left in repetitions of current strand */
 
 /* Sets the position of the iterator. (Can be optimized in many ways in the
  * repetitions and strands branches.) */
 MVM_STATIC_INLINE void MVM_string_gi_move_to(MVMThreadContext *tc, MVMGraphemeIter *gi, MVMuint32 pos) {
     MVMuint32 remaining = pos;
     MVMuint32 strand_graphs;
+    MVMStringStrand *next = NULL;
 
     /* Find the appropriate strand. */
-    while (remaining > (strand_graphs = (gi->end - gi->pos) * (gi->repetitions + 1))) {
-        MVMStringStrand *next = gi->next_strand;
-        if (!gi->strands_remaining)
-            MVM_exception_throw_adhoc(tc, "Iteration past end of grapheme iterator");
-        gi->active_blob.any = next->blob_string->body.storage.any;
-        gi->blob_type       = next->blob_string->body.storage_type;
-        gi->pos             = next->start;
-        gi->end             = next->end;
-        gi->start           = next->start;
-        gi->repetitions     = next->repetitions;
-        gi->strands_remaining--;
-        gi->next_strand++;
+    /* Set strand_graphs to the number of graphemes */
+    while (remaining > (strand_graphs = MVM_string_gi_graphs_left_in_strand(gi))) {
         remaining -= strand_graphs;
+        if (!(gi->strands_remaining--))
+            MVM_exception_throw_adhoc(tc, "Iteration past end of grapheme iterator");
+        next = (gi->next_strand)++;
+        gi->pos = gi->start = next->start;
+        gi->end             = next->end;
+        gi->repetitions     = next->repetitions;
+    }
+    if (next) {
+        gi->blob_type       = next->blob_string->body.storage_type;
+        gi->active_blob.any = next->blob_string->body.storage.any;
     }
 
     /* Now look within the strand. */
-    while (1) {
-        if (remaining == 0) {
-            return;
-        }
-        if (gi->pos < gi->end) {
-            if (gi->pos + remaining <= gi->end) {
-                gi->pos += remaining;
-                return;
-            }
-            remaining -= gi->end - gi->pos;
-            gi->pos = gi->end;
-        }
-        else if (gi->repetitions) {
-            MVMuint32 rep_graphs     = gi->end - gi->start;
-            MVMuint32 remaining_reps = remaining / rep_graphs;
-            if (remaining_reps > gi->repetitions)
-                remaining_reps = gi->repetitions;
-            gi->repetitions -= remaining_reps;
-            remaining       -= remaining_reps * rep_graphs;
-            if (gi->repetitions) {
-                gi->pos = gi->start;
-                gi->repetitions--; /* Next read will be reading *this* repetition. */
-            }
-        }
-        else {
-            MVM_exception_throw_adhoc(tc, "Iteration past end of grapheme iterator");
-        }
+    if (!remaining)
+        return;
+    /* Most common case where we move within the strand */
+    if (gi->pos + remaining <= gi->end) {
+        gi->pos += remaining;
+        return;
     }
+    /* If we are here we are encountering a repetition */
+    if (gi->repetitions) {
+        MVMuint32 rep_graphs = gi->end - gi->start;
+        MVMuint32 remaining_reps;
+        /* If we aren't at the end of the repetition, move to the end */
+        if (gi->pos < gi->end) {
+            remaining -= gi->end - gi->pos;
+            gi->pos    = gi->end;
+        }
+        remaining_reps = remaining / rep_graphs;
+        if (gi->repetitions < remaining_reps)
+            MVM_exception_throw_adhoc(tc, "Iteration past end of grapheme iterator:"
+                                          " no more repetitions remaining\n");
+        gi->repetitions -= remaining_reps;
+        /* Since we're still at the end, if there's repetitions left over
+         * we are going to have to seek forward */
+        if (remaining -= remaining_reps * rep_graphs) {
+            gi->repetitions--; /* Move to the next repetition. */
+            gi->pos = gi->start + remaining;
+            /* remaining = 0 now for all purposes not, but since we return, no
+             * need to set it */
+        }
+        return;
+    }
+    MVM_exception_throw_adhoc(tc, "Iteration past end of grapheme iterator");
 }
 
 /* Checks if there is more to read from a grapheme iterator. */
@@ -310,12 +320,8 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_gi_cached_get_grapheme(MVMThreadConte
     }
     /* If we have to backtrack we need to reinitialize the grapheme iterator */
     else {
-        MVM_exception_throw_adhoc(tc, "Internal error: Requested an index %"PRIi64" that was less than the last_location %"PRIu32"",
-            index, gic->last_location);
-        /* Not yet tested, but we may be able to access previous graphemes by reinitializing
-         * MVM_string_gi_cached_init(tc, gic, gic->string, index);
-         * MVM_string_gi_move_to(tc, &(gic->gi), index);
-         * MVM_string_gi_get_grapheme(tc, &(gic->gi)); */
+        MVM_string_gi_cached_init(tc, gic, gic->string, index);
+        return gic->last_g;
     }
     gic->last_location = index;
     return (gic->last_g = MVM_string_gi_get_grapheme(tc, &(gic->gi)));
