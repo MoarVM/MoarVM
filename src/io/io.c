@@ -178,11 +178,19 @@ MVMObject * MVM_io_read_bytes_async(MVMThreadContext *tc, MVMObject *oshandle, M
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "read bytes asynchronously");
     if (handle->body.ops->async_readable) {
         MVMObject *result;
+        MVMROOT(tc, queue, {
+        MVMROOT(tc, schedulee, {
+        MVMROOT(tc, buf_type, {
+        MVMROOT(tc, async_type, {
         MVMROOT(tc, handle, {
             uv_mutex_t *mutex = acquire_mutex(tc, handle);
             result = (MVMObject *)handle->body.ops->async_readable->read_bytes(tc,
                 handle, queue, schedulee, buf_type, async_type);
             release_mutex(tc, mutex);
+        });
+        });
+        });
+        });
         });
         return result;
     }
@@ -197,11 +205,19 @@ MVMObject * MVM_io_write_bytes_async(MVMThreadContext *tc, MVMObject *oshandle, 
         MVM_exception_throw_adhoc(tc, "Failed to write to filehandle: NULL buffer given");
     if (handle->body.ops->async_writable) {
         MVMObject *result;
+        MVMROOT(tc, queue, {
+        MVMROOT(tc, schedulee, {
+        MVMROOT(tc, buffer, {
+        MVMROOT(tc, async_type, {
         MVMROOT(tc, handle, {
             uv_mutex_t *mutex = acquire_mutex(tc, handle);
             result = (MVMObject *)handle->body.ops->async_writable->write_bytes(tc,
                 handle, queue, schedulee, buffer, async_type);
             release_mutex(tc, mutex);
+        });
+        });
+        });
+        });
         });
         return result;
     }
@@ -217,11 +233,21 @@ MVMObject * MVM_io_write_bytes_to_async(MVMThreadContext *tc, MVMObject *oshandl
         MVM_exception_throw_adhoc(tc, "Failed to write to filehandle: NULL buffer given");
     if (handle->body.ops->async_writable_to) {
         MVMObject *result;
+        MVMROOT(tc, host, {
+        MVMROOT(tc, queue, {
+        MVMROOT(tc, schedulee, {
+        MVMROOT(tc, buffer, {
+        MVMROOT(tc, async_type, {
         MVMROOT(tc, handle, {
             uv_mutex_t *mutex = acquire_mutex(tc, handle);
             result = (MVMObject *)handle->body.ops->async_writable_to->write_bytes_to(tc,
                 handle, queue, schedulee, buffer, async_type, host, port);
             release_mutex(tc, mutex);
+        });
+        });
+        });
+        });
+        });
         });
         return result;
     }
@@ -301,10 +327,12 @@ void MVM_io_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset)
 void MVM_io_connect(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "connect");
     if (handle->body.ops->sockety) {
+        MVMROOT(tc, host, {
         MVMROOT(tc, handle, {
             uv_mutex_t *mutex = acquire_mutex(tc, handle);
             handle->body.ops->sockety->connect(tc, handle, host, port);
             release_mutex(tc, mutex);
+        });
         });
     }
     else
@@ -314,10 +342,12 @@ void MVM_io_connect(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, 
 void MVM_io_bind(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port, MVMint32 backlog) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "bind");
     if (handle->body.ops->sockety) {
+        MVMROOT(tc, host, {
         MVMROOT(tc, handle, {
             uv_mutex_t *mutex = acquire_mutex(tc, handle);
             handle->body.ops->sockety->bind(tc, handle, host, port, backlog);
             release_mutex(tc, mutex);
+        });
         });
     }
     else
