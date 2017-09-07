@@ -95,5 +95,7 @@ MVMint32 MVM_spesh_arg_guard_run_callinfo(MVMThreadContext *tc, MVMSpeshArgGuard
     MVMSpeshCallInfo *info);
 void MVM_spesh_arg_guard_gc_mark(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
     MVMGCWorklist *worklist);
+void MVM_spesh_arg_guard_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
+                                     MVMSpeshArgGuard *ag);
 void MVM_spesh_arg_guard_destroy(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 safe);
 void MVM_spesh_arg_guard_discard(MVMThreadContext *tc, MVMStaticFrame *sf);
