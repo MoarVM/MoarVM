@@ -4,6 +4,8 @@ use Collation-Gram;
 use ArrayCompose;
 #use UCDlib;
 my $my_debug = False;
+# Set this to only generate a partial run, for testing purposes
+my Int $less-than;
 my $test-data = Q:to/END/;
 0F68  ; [.2E6C.0020.0002] # TIBETAN LETTER A
 0F00  ; [.2E6C.0020.0004][.2E83.0020.0004][.0000.00C4.0004] # TIBETAN SYLLABLE OM
@@ -73,12 +75,11 @@ sub uint-bitwidth (Int:D $int) {
     $int.base(2).chars;
 }
 sub parse-test-data (p6node:D $main-p6node) {
-    my $do-test-data = False;
-    my $data = $do-test-data ?? $test-data !! "UNIDATA/UCA/allkeys.txt".IO;
+    my $data = "UNIDATA/UCA/allkeys.txt".IO;
     my $line-no;
     for $data.lines -> $line {
         $line-no++;
-        #last if 10_000 < $line-no;
+        last if $less-than and 10_000 < $less-than;
         #say $line-no;
         next if $line eq '' or $line.starts-with('#');
         if $line.starts-with('@version') {
@@ -197,7 +198,10 @@ sub sub_node-add-collation-elems-from-p6node (sub_node:D $sub_node is rw, p6node
 my @main-node;
 my @collation-elements;
 my $main-p6node = p6node.new;
-
+sub debug-out-nodes {
+    use JSON::Fast;
+    spurt 'out_nodes', to-json(@main-node.map(*.build));
+}
 parse-test-data($main-p6node);
 use Data::Dump;
 #say Dump $main-p6node;
@@ -207,11 +211,6 @@ my $main-node-elems = add-main-node-to-c-data($main-p6node, @main-node);
 sub_node-flesh-out-tree-from-main-node-elems($main-p6node, @main-node, @collation-elements);
 #say Dump $main-p6node;
 #say Dump @main-node;
-use JSON::Fast;
-spurt 'out_nodes', to-json(@main-node.map(*.build));
-#for ^@main-node {
-    #say "\@main-node[$_]:\n", Dump @main-node[$_];
-#}
 say now - INIT now;
 multi sub test-it (Str:D $str) {
     test-it $str.split(' ')».parse-base(16);
@@ -256,14 +255,6 @@ say "Primary Max bitwidth: ", uint-bitwidth($max-primary),
 " Tertiary Max bitwidth: ", uint-bitwidth($max-tertiary),
 " Special Max bitwidth: ", uint-bitwidth($max-special);
 
-my $struct2 = Q:to/END/;
-struct collation_key {
-    unsigned int primary :16;
-    unsigned int secondary :9;
-    unsigned int tertiary :5;
-    unsigned int special :1;
-};
-END
 my @names =
     'primary', 'secondary', 'tertiary', 'special';
 
@@ -281,6 +272,15 @@ for @order -> $pair {
     @composed-arrays.push: ([~] "unsigned int ", @names[$pair.key], " :", $pair.value, ";").indent(4);
 }
 @composed-arrays.push: '};';
+my @names2 =
+    'codepoint', 'sub_node_elems', 'sub_node_link',
+    'collation_key_elems', 'collation_key_link';
+my @list-for-packing2 =
+    0 => uint-bitwidth($max-cp),
+    1 => uint-bitwidth(@main-node.elems - 1),
+    2 =>  int-bitwidth(@main-node.elems - 1),
+    3 => uint-bitwidth($max-collation-elems),
+    4 => int-bitwidth(@collation-elements.elems - 1);
 sub transform-array (@array, @order) {
     @array.map(-> $item {
         my @out;
@@ -306,32 +306,6 @@ int max (sub_node node) {
     return node.sub_node_link == -1 ? -1 : main_nodes[node.sub_node_link + node.sub_node_elems - 1].codepoint;
 }
 END
-spurt "src/strings/collation.h", @composed-arrays.join("\n");
+spurt "src/strings/unicode_uca.c", @composed-arrays.join("\n");
 test-it("AAB5 AA87");
 test-it("0F71 0F72");
-#say Dump @main-node;
- #`｢
-%data{20} = p6node
-p6node =
-    cp = 20,
-    collation_elements = [11890 32 2 0],
-    link = hash
-        hash{21} = p6node
-｣
-#`(
-struct collation_key_storage {
-    unsigned int primary :16;
-    unsigned int secondary :9;
-    unsigned int tertiary :5;
-    unsigned int special :1;
-};
-typedef struct collation_key_storage collation_key_storage;
-
-struct sub_node {
-    unsigned int codepoint :18;
-    unsigned int sub_node_elems :20;
-    int sub_node_link :11;
-    unsigned int collation_key_elems :5;
-    int collation_key_link :15;
-};
-)

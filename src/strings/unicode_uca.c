@@ -3089,8 +3089,12 @@ struct collation_key special_collation_keys[10435] = {
 {41874,0,0,0},{64389,2,0,32},{42496,0,0,0}};
 
 int min (sub_node node) {
-    return node.sub_node_link == -1 ? -1 : main_nodes[node.sub_node_link].codepoint;
+    return node.sub_node_elems
+        ? main_nodes[node.sub_node_link].codepoint
+        : -1;
 }
 int max (sub_node node) {
-    return node.sub_node_link == -1 ? -1 : main_nodes[node.sub_node_link + node.sub_node_elems - 1].codepoint;
+    return node.sub_node_elems
+        ? main_nodes[node.sub_node_link + node.sub_node_elems - 1].codepoint
+        : -1;
 }

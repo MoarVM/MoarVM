@@ -18,7 +18,6 @@
  *     Quaternary+ |  64
  *     Quaternary- | 128
  */
-#include "collation.h"
 //#define COLLATION_DEBUG 1
 #ifdef COLLATION_DEBUG
 #define dfprintf(...) fprintf (stderr, __VA_ARGS__)
