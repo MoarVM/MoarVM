@@ -304,7 +304,7 @@ int find_next_node (MVMThreadContext *tc, sub_node node, MVMCodepoint next_cp) {
     MVMint64 next_node_min, next_node_max;
     MVMint64 i;
     /* There is nowhere else to go */
-    if (node.sub_node_link == -1)
+    if (!node.sub_node_elems)
         return -1;
     next_node_min = min(node);
     next_node_max = max(node);

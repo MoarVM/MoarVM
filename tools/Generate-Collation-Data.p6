@@ -299,11 +299,15 @@ sub transform-array (@array, @order) {
 @composed-arrays.push: "#define special_collation_keys_elems @collation-elements.elems()";
 @composed-arrays.push: compose-array( 'struct collation_key', 'special_collation_keys', transform-array(@collation-elements, @order));
 @composed-arrays.push: Q:to/END/;
-int min (sub_node node) {
-    return node.sub_node_link == -1 ? -1 : main_nodes[node.sub_node_link].codepoint;
+static int min (sub_node node) {
+    return node.sub_node_elems
+        ? main_nodes[node.sub_node_link].codepoint
+        : -1;
 }
-int max (sub_node node) {
-    return node.sub_node_link == -1 ? -1 : main_nodes[node.sub_node_link + node.sub_node_elems - 1].codepoint;
+static int max (sub_node node) {
+    return node.sub_node_elems
+        ? main_nodes[node.sub_node_link + node.sub_node_elems - 1].codepoint
+        : -1;
 }
 END
 spurt "src/strings/unicode_uca.c", @composed-arrays.join("\n");
