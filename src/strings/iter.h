@@ -35,19 +35,16 @@ MVM_STATIC_INLINE void MVM_string_gi_init(MVMThreadContext *tc, MVMGraphemeIter 
         gi->active_blob.any      = first->body.storage.any;
         gi->blob_type            = first->body.storage_type;
         gi->strands_remaining    = s->body.num_strands - 1;
-        gi->pos                  = strands[0].start;
+        gi->pos = gi->start      = strands[0].start;
         gi->end                  = strands[0].end;
-        gi->start                = strands[0].start;
         gi->repetitions          = strands[0].repetitions;
         gi->next_strand          = strands + 1;
     }
     else {
         gi->active_blob.any   = s->body.storage.any;
         gi->blob_type         = s->body.storage_type;
-        gi->strands_remaining = 0;
-        gi->pos               = 0;
         gi->end               = s->body.num_graphs;
-        gi->repetitions       = 0;
+        gi->strands_remaining = gi->start = gi->pos = gi->repetitions = 0;
     }
 };
 /* Gets the number of graphemes remaining in the current strand of the grapheme
@@ -106,7 +103,7 @@ MVM_STATIC_INLINE void MVM_string_gi_move_to(MVMThreadContext *tc, MVMGraphemeIt
         if (remaining -= remaining_reps * rep_graphs) {
             gi->repetitions--; /* Move to the next repetition. */
             gi->pos = gi->start + remaining;
-            /* remaining = 0 now for all purposes not, but since we return, no
+            /* remaining = 0 now for all purposes now, but since we return, no
              * need to set it */
         }
         return;
