@@ -563,7 +563,11 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
     /* This value stores what the return value would be if the strings were compared
      * by codepoint. This is used to break collation value ties */
     MVMint64 compare_by_cp_rtrn = 0;
-
+    MVMint64 pos_a = 0, pos_b = 0, i = 0, rtrn = 0;
+    MVMint16 grab_a_done = 0, grab_b_done = 0;
+    /* From 0 to 2 for primary, secondary, tertiary levels */
+    MVMint16   level_a = 0,   level_b = 0;
+    MVMint64 skipped_a = 0, skipped_b = 0;
     /* This code sets up level_eval_settings based on the collation_mode */
     #define setmodeup(mode, level, Less, Same, More) {\
         if (collation_mode & mode) {\
@@ -639,11 +643,6 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
     dfprintf("After Initial grab a\n");
     print_stack(tc, &stack_a, "a");
 
-    MVMint64 pos_a = 0, pos_b = 0, i = 0, rtrn = 0;
-    MVMint16 grab_a_done = 0, grab_b_done = 0;
-    /* From 0 to 2 for primary, secondary, tertiary levels */
-    MVMint16   level_a = 0,   level_b = 0;
-    MVMint64 skipped_a = 0, skipped_b = 0;
     while (rtrn == 0) {
         while (pos_a <= stack_a.stack_top && pos_b <= stack_b.stack_top) {
             dfprintf("stack_a index %"PRIi64" is value %X\n", pos_a, stack_a.keys[pos_a].s.primary);
