@@ -1,6 +1,7 @@
 #include "moar.h"
 #include "platform/time.h"
 #include "tinymt64.h"
+#include "bithacks.h"
 
 /* concatenating with "" ensures that only literal strings are accepted as argument. */
 #define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
@@ -184,6 +185,7 @@ typedef struct {
     ProcessState       state;
     int                using;
     int                merge;
+    size_t             last_read;
 } SpawnInfo;
 
 /* Info we convey about a write task. */
@@ -505,9 +507,18 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
 
 /* Allocates a buffer of the suggested size. */
 static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
-    size_t size = suggested_size > 0 ? suggested_size : 4;
-    buf->base   = MVM_malloc(size);
-    buf->len    = size;
+    SpawnInfo *si = (SpawnInfo *)handle->data;
+    size_t size   = si->last_read ? si->last_read : 64;
+
+    if (size < 128) {
+        size = 128;
+    }
+    else {
+        size = MVM_bithacks_next_greater_pow2(size + 1);
+    }
+
+    buf->base = MVM_malloc(size);
+    buf->len  = size;
 }
 
 /* Read functions for stdout/stderr/merged. */
@@ -543,6 +554,9 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
 
             /* Finally, no error. */
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+
+            /* Update handle with amount read. */
+            si->last_read = nread;
 
             /* Update permit count, stop reading if we run out. */
             if (permit > 0) {
