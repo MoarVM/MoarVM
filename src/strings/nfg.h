@@ -27,13 +27,15 @@ struct MVMNFGState {
 /* State held about a synthetic. */
 struct MVMNFGSynthetic {
     /* The base (non-combining) grapheme. */
-    MVMCodepoint base;
+    /* The index of the base (non-combining) grapheme
+     * set to -1 if it does not exist */
+    MVMint32 base_index;
 
-    /* The number of combiners we have. */
-    MVMint32 num_combs;
+    /* The number of codepoints we have. */
+    MVMint32 num_codes;
 
-    /* Array of combiners. */
-    MVMCodepoint *combs;
+    /* Array of codepoints. */
+    MVMCodepoint *codes;
 
     /* Cached case transforms, NULL if not calculated. */
     MVMGrapheme32 *case_uc;

@@ -125,7 +125,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     MVMSpeshBB **ins_to_bb = NULL;
 
     /* Which handlers are active; used for placing edges from blocks covered
-     * by execption handlers. */
+     * by exception handlers. */
     MVMuint8 *active_handlers = MVM_calloc(1, g->num_handlers);
     MVMint32 num_active_handlers = 0;
 
@@ -178,7 +178,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             }
         }
 
-        /* Store opcode */
+        /* Store opcode. */
         ins_node->info = info;
 
         /* If this is a pre-instruction deopt point opcode, annotate. */
@@ -186,7 +186,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             MVM_spesh_graph_add_deopt_annotation(tc, g, ins_node,
                 pc - g->bytecode, MVM_SPESH_ANN_DEOPT_ONE_INS);
 
-        /* Let's see if we have a line-number annotation */
+        /* Let's see if we have a line-number annotation. */
         if (ann_ptr && pc - sf->body.bytecode == ann_ptr->bytecode_offset) {
             MVMSpeshAnn *lineno_ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
             lineno_ann->next = ins_node->annotations;
@@ -372,7 +372,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
 
     /* Annotate instructions that are handler-significant. */
     for (i = 0; i < g->num_handlers; i++) {
-        /* Start or got may be -1 if they the code the handler covered became
+        /* Start or got may be -1 if the code the handler covered became
          * dead. If so, mark the handler as removed. */
         if (g->handlers[i].start_offset == -1 || g->handlers[i].goto_offset == -1) {
             if (!g->unreachable_handlers)
@@ -659,7 +659,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
 /* Inserts nulling of object reigsters. A later stage of the optimizer will
  * throw out any that are unrequired, leaving only those that cover (rare)
  * "register read before assigned" cases. (We can thus just start off with
- * them NULL, since zeroed memory is cheaper than copying a VMNulls in to
+ * them NULL, since zeroed memory is cheaper than copying a VMNull in to
  * place). */
 static MVMint32 is_handler_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 reg) {
     MVMuint32 num_handlers = g->num_handlers;
@@ -873,7 +873,7 @@ static void add_dominance_frontiers(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
     MVMint32 j;
     MVMSpeshBB *b = g->entry;
     while (b) {
-        if (b->num_pred >= 2) { /* Thus it's a join point */
+        if (b->num_pred >= 2) { /* Thus it's a join point. */
             for (j = 0; j < b->num_pred; j++) {
                 MVMint32 runner      = b->pred[j]->rpo_idx;
                 MVMint32 finish_line = doms[b->rpo_idx];
@@ -958,7 +958,7 @@ MVMOpInfo *get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint32 nrargs) {
         MVM_panic(1, "Spesh: SSA calculation failed; cannot allocate enormous PHI node");
 
     /* Up to 64 args, almost every number is represented, but after that
-     * we have a sparse array through which we must search */
+     * we have a sparse array through which we must search. */
     if (nrargs - 2 < MVMPhiNodeCacheSparseBegin) {
         result = &g->phi_infos[nrargs - 2];
     } else {
@@ -1019,7 +1019,7 @@ static void insert_phi_functions(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarI
         for (i = 0; i < var_info[var].num_ass_nodes; i++) {
             MVMSpeshBB *bb = var_info[var].ass_nodes[i];
             work[bb->idx] = iter_count;
-            worklist[worklist_top++] = bb; /* Algo unions, but ass_nodes unique */
+            worklist[worklist_top++] = bb; /* Algo unions, but ass_nodes unique. */
         }
 
         /* Process the worklist. */
@@ -1257,6 +1257,32 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
 
     /* Hand back the completed graph. */
     return g;
+}
+
+/* Recomputes the dominance tree, after modifications to the CFG. */
+void MVM_spesh_graph_recompute_dominance(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    MVMSpeshBB **rpo;
+    MVMint32 *doms;
+
+    /* First, clear away all existing dominance tree information; we also toss
+     * out all of the predecessors, in case they got out of sync (should try
+     * and fix things up to not need this in the future). */
+    MVMSpeshBB *cur_bb = g->entry;
+    while (cur_bb) {
+        cur_bb->children = NULL;
+        cur_bb->num_children = 0;
+        cur_bb->pred = NULL;
+        cur_bb->num_pred = 0;
+        cur_bb = cur_bb->linear_next;
+    }
+
+    /* Now form the new dominance tree. */
+    add_predecessors(tc, g);
+    rpo = reverse_postorder(tc, g);
+    doms = compute_dominators(tc, g, rpo);
+    add_children(tc, g, rpo, doms);
+    MVM_free(rpo);
+    MVM_free(doms);
 }
 
 /* Marks GCables held in a spesh graph. */

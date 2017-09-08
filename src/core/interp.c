@@ -15,6 +15,10 @@ MVM_STATIC_INLINE MVMuint16 check_reg(MVMThreadContext *tc, MVMRegister *reg_bas
         MVM_ASSERT_NOT_FROMSPACE(tc, reg_base[idx].o);
     return idx;
 }
+/* The bytecode stream is OPs (16 bit numbers) followed by the (16 bit numbers) of the registers
+ * the OP needs (return register + argument registers. The pc will point to the first place after
+ * the current op, i.e. the first 16 bit register number. We add the requested number to that and
+ * use the result as index into the reg_base array which stores the frame's locals. */
 #define GET_REG(pc, idx)    reg_base[check_reg(tc, reg_base, *((MVMuint16 *)(pc + idx)))]
 #else
 #define GET_REG(pc, idx)    reg_base[*((MVMuint16 *)(pc + idx))]
@@ -58,7 +62,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 #include "oplabels.h"
 #endif
 
-    /* Points to the current opcode. */
+    /* Points to the place in the bytecode right after the current opcode. */
+    /* See the NEXT_OP macro for making sense of this */
     MVMuint8 *cur_op = NULL;
 
     /* The current frame's bytecode start. */
@@ -892,10 +897,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 {
                     MVMObject   *code = GET_REG(cur_op, 0).o;
                     MVMRegister *args = tc->cur_frame->args;
-                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
+                    MVMuint16 was_multi = 0;
+                    /* was_multi argument is MVMuint16* */
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
+                        &was_multi);
                     if (MVM_spesh_log_is_logging(tc)) {
                         MVMROOT(tc, code, {
-                            MVM_spesh_log_invoke_target(tc, code);
+                            /* was_multi is MVMint16 */
+                            MVM_spesh_log_invoke_target(tc, code, was_multi);
                         });
                     }
                     tc->cur_frame->return_value = NULL;
@@ -909,10 +918,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 {
                     MVMObject   *code = GET_REG(cur_op, 2).o;
                     MVMRegister *args = tc->cur_frame->args;
-                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
+                    MVMuint16 was_multi = 0;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
+                        &was_multi);
                     if (MVM_spesh_log_is_logging(tc)) {
                         MVMROOT(tc, code, {
-                            MVM_spesh_log_invoke_target(tc, code);
+                            MVM_spesh_log_invoke_target(tc, code, was_multi);
                         });
                     }
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
@@ -926,10 +937,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 {
                     MVMObject   *code = GET_REG(cur_op, 2).o;
                     MVMRegister *args = tc->cur_frame->args;
-                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
+                    MVMuint16 was_multi = 0;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
+                        &was_multi);
                     if (MVM_spesh_log_is_logging(tc)) {
                         MVMROOT(tc, code, {
-                            MVM_spesh_log_invoke_target(tc, code);
+                            MVM_spesh_log_invoke_target(tc, code, was_multi);
                         });
                     }
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
@@ -943,10 +956,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 {
                     MVMObject   *code = GET_REG(cur_op, 2).o;
                     MVMRegister *args = tc->cur_frame->args;
-                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
+                    MVMuint16 was_multi = 0;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
+                        &was_multi);
                     if (MVM_spesh_log_is_logging(tc)) {
                         MVMROOT(tc, code, {
-                            MVM_spesh_log_invoke_target(tc, code);
+                            MVM_spesh_log_invoke_target(tc, code, was_multi);
                         });
                     }
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
@@ -960,10 +975,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 {
                     MVMObject   *code = GET_REG(cur_op, 2).o;
                     MVMRegister *args = tc->cur_frame->args;
-                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
+                    MVMuint16 was_multi = 0;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
+                        &was_multi);
                     if (MVM_spesh_log_is_logging(tc)) {
                         MVMROOT(tc, code, {
-                            MVM_spesh_log_invoke_target(tc, code);
+                            MVM_spesh_log_invoke_target(tc, code, was_multi);
                         });
                     }
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
@@ -978,8 +995,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(param_rp_i):
-                GET_REG(cur_op, 0).i64 = MVM_args_get_pos_int(tc, &tc->cur_frame->params,
-                    GET_UI16(cur_op, 2), MVM_ARG_REQUIRED).arg.i64;
+                GET_REG(cur_op, 0).i64 = MVM_args_get_required_pos_int(tc, &tc->cur_frame->params,
+                    GET_UI16(cur_op, 2));
                 cur_op += 4;
                 goto NEXT;
             OP(param_rp_n):
@@ -994,8 +1011,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(param_rp_o): {
                 MVMuint16 arg_idx = GET_UI16(cur_op, 2);
-                MVMObject *param = MVM_args_get_pos_obj(tc, &tc->cur_frame->params,
-                    arg_idx, MVM_ARG_REQUIRED).arg.o;
+                MVMObject *param = MVM_args_get_required_pos_obj(tc, &tc->cur_frame->params, arg_idx);
                 GET_REG(cur_op, 0).o = param;
                 if (MVM_spesh_log_is_logging(tc))
                     MVM_spesh_log_parameter(tc, arg_idx, param);
@@ -1004,8 +1020,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(param_op_i):
             {
-                MVMArgInfo param = MVM_args_get_pos_int(tc, &tc->cur_frame->params,
-                    GET_UI16(cur_op, 2), MVM_ARG_OPTIONAL);
+                MVMArgInfo param = MVM_args_get_optional_pos_int(tc, &tc->cur_frame->params,
+                    GET_UI16(cur_op, 2));
                 if (param.exists) {
                     GET_REG(cur_op, 0).i64 = param.arg.i64;
                     cur_op = bytecode_start + GET_UI32(cur_op, 4);
@@ -1044,8 +1060,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(param_op_o):
             {
                 MVMuint16 arg_idx = GET_UI16(cur_op, 2);
-                MVMArgInfo param = MVM_args_get_pos_obj(tc, &tc->cur_frame->params,
-                    arg_idx, MVM_ARG_OPTIONAL);
+                MVMArgInfo param = MVM_args_get_optional_pos_obj(tc, &tc->cur_frame->params, arg_idx);
                 if (param.exists) {
                     GET_REG(cur_op, 0).o = param.arg.o;
                     if (MVM_spesh_log_is_logging(tc))
@@ -1331,8 +1346,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
                     MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    GET_REG(cur_op, 0).o = MVM_args_get_pos_obj(tc, cc->body.apc,
-                        (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED).arg.o;
+                    GET_REG(cur_op, 0).o = MVM_args_get_required_pos_obj(tc, cc->body.apc,
+                        (MVMuint32)GET_REG(cur_op, 4).i64);
                 }
                 else {
                     MVM_exception_throw_adhoc(tc, "captureposarg needs a MVMCallCapture");
@@ -1344,8 +1359,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
                     MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    GET_REG(cur_op, 0).i64 = MVM_args_get_pos_int(tc, cc->body.apc,
-                        (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED).arg.i64;
+                    GET_REG(cur_op, 0).i64 = MVM_args_get_required_pos_int(tc, cc->body.apc,
+                        (MVMuint32)GET_REG(cur_op, 4).i64);
                 }
                 else {
                     MVM_exception_throw_adhoc(tc, "captureposarg_i needs a MVMCallCapture");
@@ -1452,9 +1467,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     tc->cur_frame->return_type = MVM_RETURN_OBJ;
                     cur_op += 6;
                     tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cc->body.apc->callsite,
-                        cc->body.apc->args);
-                    e->invoked_call_capture = cobj;
+                    MVMROOT(tc, cobj, {
+                        STABLE(code)->invoke(tc, code, cc->body.apc->callsite,
+                            cc->body.apc->args);
+                    });
+                    if (MVM_FRAME_IS_ON_CALLSTACK(tc, tc->cur_frame)) {
+                        e->invoked_call_capture = cobj;
+                    }
+                    else {
+                        MVM_ASSIGN_REF(tc, &(tc->cur_frame->header),
+                            e->invoked_call_capture, cobj);
+                    }
                     goto NEXT;
                 }
                 else {
@@ -3612,7 +3635,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(sync_fh):
-                MVM_io_flush(tc, GET_REG(cur_op, 0).o);
+                MVM_io_flush(tc, GET_REG(cur_op, 0).o, 1);
                 cur_op += 2;
                 goto NEXT;
             OP(trunc_fh):
@@ -3724,6 +3747,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(exit): {
                 MVMint64 exit_code = GET_REG(cur_op, 0).i64;
+                MVM_io_flush_standard_handles(tc);
                 exit(exit_code);
             }
             OP(cwd):
@@ -5162,17 +5186,61 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(cas_o):
+            OP(cas_o): {
+                MVMRegister *result = &GET_REG(cur_op, 0);
+                MVMObject *target = GET_REG(cur_op, 2).o;
+                MVMObject *expected = GET_REG(cur_op, 4).o;
+                MVMObject *value = GET_REG(cur_op, 6).o;
+                cur_op += 8;
+                MVM_6model_container_cas(tc, target, expected, value, result);
+                goto NEXT;
+            }
             OP(cas_i):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_cas_i(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
             OP(atomicinc_i):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_atomic_inc(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(atomicdec_i):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_atomic_dec(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(atomicadd_i):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_atomic_add(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
+                cur_op += 6;
+                goto NEXT;
             OP(atomicload_o):
+                GET_REG(cur_op, 0).o = MVM_6model_container_atomic_load(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(atomicload_i):
-            OP(atomicstore_o):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_atomic_load_i(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
+            OP(atomicstore_o): {
+                MVMObject *target = GET_REG(cur_op, 0).o;
+                MVMObject *value = GET_REG(cur_op, 2).o;
+                cur_op += 4;
+                MVM_6model_container_atomic_store(tc, target, value);
+                goto NEXT;
+            }
             OP(atomicstore_i):
+                MVM_6model_container_atomic_store_i(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64);
+                cur_op += 4;
+                goto NEXT;
             OP(barrierfull):
-                MVM_exception_throw_adhoc(tc, "Atomic ops NYI");
+                MVM_barrier();
+                goto NEXT;
             OP(sp_guard): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
@@ -5627,9 +5695,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
                 /* trampoline back to this opcode */
                 cur_op -= 2;
-                if (MVM_jit_enter_code(tc, cu, tc->cur_frame->spesh_cand->jitcode)) {
-                    if (MVM_frame_try_return(tc) == 0)
-                        goto return_label;
+                MVM_jit_enter_code(tc, cu, tc->cur_frame->spesh_cand->jitcode);
+                if (!tc->cur_frame) {
+                    /* somehow unwound our top frame */
+                    goto return_label;
                 }
                 goto NEXT;
             }
@@ -5652,6 +5721,28 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = iter->body.hash_state.next != NULL ? 1 : 0;
 
                 cur_op += 4;
+                goto NEXT;
+            }
+            OP(sp_cas_o): {
+                MVMRegister *result = &GET_REG(cur_op, 0);
+                MVMObject *target = GET_REG(cur_op, 2).o;
+                MVMObject *expected = GET_REG(cur_op, 4).o;
+                MVMObject *value = GET_REG(cur_op, 6).o;
+                cur_op += 8;
+                target->st->container_spec->cas(tc, target, expected, value, result);
+                goto NEXT;
+            }
+            OP(sp_atomicload_o): {
+                MVMObject *target = GET_REG(cur_op, 2).o;
+                GET_REG(cur_op, 0).o = target->st->container_spec->atomic_load(tc, target);
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(sp_atomicstore_o): {
+                MVMObject *target = GET_REG(cur_op, 0).o;
+                MVMObject *value = GET_REG(cur_op, 2).o;
+                cur_op += 4;
+                target->st->container_spec->atomic_store(tc, target, value);
                 goto NEXT;
             }
             OP(prof_enter):

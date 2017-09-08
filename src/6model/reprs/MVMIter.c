@@ -169,7 +169,9 @@ static const MVMREPROps MVMIter_this_repr = {
         MVM_REPR_DEFAULT_BIND_POS_MULTIDIM,
         MVM_REPR_DEFAULT_DIMENSIONS,
         MVM_REPR_DEFAULT_SET_DIMENSIONS,
-        get_elem_storage_spec
+        get_elem_storage_spec,
+        MVM_REPR_DEFAULT_POS_AS_ATOMIC,
+        MVM_REPR_DEFAULT_POS_AS_ATOMIC_MULTIDIM
     },    /* pos_funcs */
     MVM_REPR_DEFAULT_ASS_FUNCS,
     MVM_REPR_DEFAULT_ELEMS,

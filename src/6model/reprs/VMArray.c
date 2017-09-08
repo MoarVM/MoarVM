@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "limits.h"
 
 /* This representation's function pointer table. */
 static const MVMREPROps VMArray_this_repr;
@@ -304,10 +305,6 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
     MVMuint64   ssize = body->ssize;
     void       *slots = body->slots.any;
 
-    if (n < 0)
-        MVM_exception_throw_adhoc(tc,
-            "MVMArray: Can't resize to negative elements");
-
     if (n == elems)
         return;
 
@@ -341,10 +338,20 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
     else {
         ssize = (n + 0x1000) & ~0xfffUL;
     }
-    if (ssize > (1UL << (8 * sizeof(size_t) - repr_data->elem_size)))
-        MVM_exception_throw_adhoc(tc,
-            "Unable to allocate an array of %"PRIu64" elements",
-            ssize);
+    {
+        /* Our budget is 2^(
+         *     <number of bits in an array index>
+         *     - <number of bits to address individual bytes in an array element>
+         * ) */
+        size_t const elem_addr_size = repr_data->elem_size == 8 ? 4 :
+                                      repr_data->elem_size == 4 ? 3 :
+                                      repr_data->elem_size == 2 ? 2 :
+                                                                  1;
+        if (ssize > (1UL << (CHAR_BIT * sizeof(size_t) - elem_addr_size)))
+            MVM_exception_throw_adhoc(tc,
+                "Unable to allocate an array of %"PRIu64" elements",
+                ssize);
+    }
 
     /* now allocate the new slot buffer */
     slots = (slots)
@@ -968,6 +975,35 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
     return spec;
 }
 
+static AO_t * pos_as_atomic(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+                            void *data, MVMint64 index) {
+    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
+    MVMArrayBody     *body      = (MVMArrayBody *)data;
+
+    /* Handle negative indexes and require in bounds. */
+    if (index < 0)
+        index += body->elems;
+    if (index < 0 || index >= body->elems)
+        MVM_exception_throw_adhoc(tc, "Index out of bounds in atomic operation on array");
+
+    if (sizeof(AO_t) == 8 && (repr_data->slot_type == MVM_ARRAY_I64 ||
+            repr_data->slot_type == MVM_ARRAY_U64))
+        return (AO_t *)&(body->slots.i64[body->start + index]);
+    if (sizeof(AO_t) == 4 && (repr_data->slot_type == MVM_ARRAY_I32 ||
+            repr_data->slot_type == MVM_ARRAY_U32))
+        return (AO_t *)&(body->slots.i32[body->start + index]);
+    MVM_exception_throw_adhoc(tc,
+        "Can only do integer atomic operation on native integer array element of atomic size");
+}
+
+static AO_t * pos_as_atomic_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+                                     void *data, MVMint64 num_indices, MVMint64 *indices) {
+    if (num_indices != 1)
+        MVM_exception_throw_adhoc(tc,
+            "A dynamic array can only be indexed with a single dimension");
+    return pos_as_atomic(tc, st, root, data, indices[0]);
+}
+
 /* Compose the representation. */
 static void spec_to_repr_data(MVMThreadContext *tc, MVMArrayREPRData *repr_data, const MVMStorageSpec *spec) {
     switch (spec->boxed_primitive) {
@@ -1294,7 +1330,9 @@ static const MVMREPROps VMArray_this_repr = {
         bind_pos_multidim,
         dimensions,
         set_dimensions,
-        get_elem_storage_spec
+        get_elem_storage_spec,
+        pos_as_atomic,
+        pos_as_atomic_multidim
     },    /* pos_funcs */
     MVM_REPR_DEFAULT_ASS_FUNCS,
     elems,

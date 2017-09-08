@@ -178,7 +178,7 @@ MVMint64 socket_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     return data->eof;
 }
 
-void socket_flush(MVMThreadContext *tc, MVMOSHandle *h) {
+void socket_flush(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 sync) {
     /* A no-op for sockets; we don't buffer. */
 }
 
@@ -240,8 +240,8 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
     snprintf(port_cstr, 8, "%d", (int)port);
 
     error = getaddrinfo(host_cstr, port_cstr, NULL, &result);
-    MVM_free(host_cstr);
     if (error == 0) {
+        MVM_free(host_cstr);
         if (result->ai_addr->sa_family == AF_INET6) {
             dest = MVM_malloc(sizeof(struct sockaddr_in6));
             memcpy(dest, result->ai_addr, sizeof(struct sockaddr_in6));
@@ -251,7 +251,9 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
         }
     }
     else {
-        MVM_exception_throw_adhoc(tc, "Failed to resolve host name");
+        char *waste[] = { host_cstr, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to resolve host name '%s'. Error: '%s'",
+                                       host_cstr, gai_strerror(error));
     }
     freeaddrinfo(result);
 

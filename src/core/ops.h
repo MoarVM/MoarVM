@@ -837,14 +837,17 @@
 #define MVM_OP_sp_boolify_iter 833
 #define MVM_OP_sp_boolify_iter_arr 834
 #define MVM_OP_sp_boolify_iter_hash 835
-#define MVM_OP_prof_enter 836
-#define MVM_OP_prof_enterspesh 837
-#define MVM_OP_prof_enterinline 838
-#define MVM_OP_prof_enternative 839
-#define MVM_OP_prof_exit 840
-#define MVM_OP_prof_allocated 841
-#define MVM_OP_ctw_check 842
-#define MVM_OP_coverage_log 843
+#define MVM_OP_sp_cas_o 836
+#define MVM_OP_sp_atomicload_o 837
+#define MVM_OP_sp_atomicstore_o 838
+#define MVM_OP_prof_enter 839
+#define MVM_OP_prof_enterspesh 840
+#define MVM_OP_prof_enterinline 841
+#define MVM_OP_prof_enternative 842
+#define MVM_OP_prof_exit 843
+#define MVM_OP_prof_allocated 844
+#define MVM_OP_ctw_check 845
+#define MVM_OP_coverage_log 846
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

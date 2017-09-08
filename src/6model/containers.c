@@ -123,6 +123,9 @@ static const MVMContainerSpec code_pair_spec = {
     code_pair_serialize,
     code_pair_deserialize,
     code_pair_can_store,
+    NULL, /* cas */
+    NULL, /* atomic_load */
+    NULL, /* atomic_store */
     0
 };
 
@@ -367,6 +370,9 @@ static const MVMContainerSpec native_ref_spec = {
     native_ref_serialize,
     native_ref_deserialize,
     native_ref_can_store,
+    NULL, /* cas */
+    NULL, /* atomic_load */
+    NULL, /* atomic_store */
     1
 };
 
@@ -516,4 +522,129 @@ void MVM_6model_container_assign_s(MVMThreadContext *tc, MVMObject *cont, MVMStr
         cs->store_s(tc, cont, value);
     else
         MVM_exception_throw_adhoc(tc, "Cannot assign to an immutable value");
+}
+
+/* ***************************************************************************
+ * Container atomic operations
+ * ***************************************************************************/
+
+void MVM_6model_container_cas(MVMThreadContext *tc, MVMObject *cont,
+                              MVMObject *expected, MVMObject *value,
+                              MVMRegister *result) {
+    if (IS_CONCRETE(cont)) {
+        MVMContainerSpec const *cs = cont->st->container_spec;
+        if (cs) {
+            if (cs->cas)
+                cs->cas(tc, cont, expected, value, result);
+            else
+                MVM_exception_throw_adhoc(tc,
+                    "A %s container does not know how to do atomic compare and swap",
+                    cont->st->debug_name);
+        }
+        else {
+            MVM_exception_throw_adhoc(tc,
+                "Cannot perform atomic compare and swap on non-container value of type %s",
+                cont->st->debug_name);
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Cannot perform atomic compare and swap on %s type object",
+            cont->st->debug_name);
+    }
+}
+
+MVMObject * MVM_6model_container_atomic_load(MVMThreadContext *tc, MVMObject *cont) {
+    if (IS_CONCRETE(cont)) {
+        MVMContainerSpec const *cs = cont->st->container_spec;
+        if (cs) {
+            if (cs->atomic_load)
+                return cs->atomic_load(tc, cont);
+            else
+                MVM_exception_throw_adhoc(tc,
+                    "A %s container does not know how to do an atomic load",
+                    cont->st->debug_name);
+        }
+        else {
+            MVM_exception_throw_adhoc(tc,
+                "Cannot perform atomic load from a non-container value of type %s",
+                cont->st->debug_name);
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Cannot perform atomic load from %s type object",
+            cont->st->debug_name);
+    }
+}
+
+void MVM_6model_container_atomic_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *value) {
+    if (IS_CONCRETE(cont)) {
+        MVMContainerSpec const *cs = cont->st->container_spec;
+        if (cs) {
+            if (cs->atomic_store)
+                cs->atomic_store(tc, cont, value);
+            else
+                MVM_exception_throw_adhoc(tc,
+                    "A %s container does not know how to do an atomic store",
+                    cont->st->debug_name);
+        }
+        else {
+            MVM_exception_throw_adhoc(tc,
+                "Cannot perform atomic store to a non-container value of type %s",
+                cont->st->debug_name);
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Cannot perform atomic store to %s type object",
+            cont->st->debug_name);
+    }
+}
+
+static AO_t * native_ref_as_atomic_i(MVMThreadContext *tc, MVMObject *cont) {
+    if (REPR(cont)->ID == MVM_REPR_ID_NativeRef && IS_CONCRETE(cont)) {
+        MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
+        if (repr_data->primitive_type == MVM_STORAGE_SPEC_BP_INT) {
+            switch (repr_data->ref_kind) {
+                case MVM_NATIVEREF_LEX:
+                    return MVM_nativeref_as_atomic_lex_i(tc, cont);
+                case MVM_NATIVEREF_ATTRIBUTE:
+                    return MVM_nativeref_as_atomic_attribute_i(tc, cont);
+                case MVM_NATIVEREF_POSITIONAL:
+                    return MVM_nativeref_as_atomic_positional_i(tc, cont);
+                case MVM_NATIVEREF_MULTIDIM:
+                    return MVM_nativeref_as_atomic_multidim_i(tc, cont);
+                default:
+                    MVM_exception_throw_adhoc(tc, "Unknown native int reference kind");
+            }
+        }
+    }
+    MVM_exception_throw_adhoc(tc,
+        "Can only do integer atomic operations on a container referencing a native integer");
+}
+
+MVMint64 MVM_6model_container_cas_i(MVMThreadContext *tc, MVMObject *cont,
+                                    MVMint64 expected, MVMint64 value) {
+    return (MVMint64)MVM_cas(native_ref_as_atomic_i(tc, cont), (AO_t)expected, (AO_t)value);
+}
+
+MVMint64 MVM_6model_container_atomic_load_i(MVMThreadContext *tc, MVMObject *cont) {
+    return (MVMint64)MVM_load(native_ref_as_atomic_i(tc, cont));
+}
+
+void MVM_6model_container_atomic_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value) {
+    MVM_store(native_ref_as_atomic_i(tc, cont), value);
+}
+
+MVMint64 MVM_6model_container_atomic_inc(MVMThreadContext *tc, MVMObject *cont) {
+    return (MVMint64)MVM_incr(native_ref_as_atomic_i(tc, cont));
+}
+
+MVMint64 MVM_6model_container_atomic_dec(MVMThreadContext *tc, MVMObject *cont) {
+    return (MVMint64)MVM_decr(native_ref_as_atomic_i(tc, cont));
+}
+
+MVMint64 MVM_6model_container_atomic_add(MVMThreadContext *tc, MVMObject *cont, MVMint64 value) {
+    return (MVMint64)MVM_add(native_ref_as_atomic_i(tc, cont), (AO_t)value);
 }

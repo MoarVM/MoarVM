@@ -19,6 +19,9 @@ struct MVMSpeshInline {
     MVMuint16 locals_start;
     MVMuint16 lexicals_start;
 
+    /* The number of locals in the inline. */
+    MVMuint16 num_locals;
+
     /* Result register and result type. */
     MVMuint16     res_reg;
     MVMReturnType res_type;

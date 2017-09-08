@@ -64,7 +64,8 @@ struct MVMSpeshLogEntry {
         /* Observed invocation (INVOKE). */
         struct {
             MVMStaticFrame *sf;
-            MVMint32 caller_is_outer;
+            MVMint16 caller_is_outer;
+            MVMuint16 was_multi;
             MVMint32 bytecode_offset;
         } invoke;
 

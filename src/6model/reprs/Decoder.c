@@ -156,7 +156,7 @@ void MVM_decoder_set_separators(MVMThreadContext *tc, MVMDecoder *decoder, MVMOb
         STABLE(seps)).boxed_primitive == MVM_STORAGE_SPEC_BP_STR;
     get_ds(tc, decoder); /* Ensure we're sufficiently initialized. */
     if (is_str_array) {
-        MVMString **c_seps;
+        MVMString **c_seps = NULL;
         MVMuint64 i;
         MVMuint64 num_seps = MVM_repr_elems(tc, seps);
         if (num_seps > 0xFFFFFF)
@@ -181,7 +181,7 @@ void MVM_decoder_add_bytes(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject 
     if (REPR(buffer)->ID == MVM_REPR_ID_VMArray) {
         /* To be safe, we need to make a copy of data in a resizable array; it
          * may change/move under us. */
-        char *output, *copy;
+        char *output = NULL, *copy = NULL;
         MVMint64 output_size;
         switch (((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type) {
             case MVM_ARRAY_U8:
@@ -218,7 +218,7 @@ void MVM_decoder_add_bytes(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject 
  * is not enough. */
 MVMString * MVM_decoder_take_chars(MVMThreadContext *tc, MVMDecoder *decoder, MVMint64 chars,
                                    MVMint64 eof) {
-    MVMString *result;
+    MVMString *result = NULL;
     enter_single_user(tc, decoder);
     MVMROOT(tc, decoder, {
         result = MVM_string_decodestream_get_chars(tc, get_ds(tc, decoder), (MVMint32)chars, eof);
@@ -229,7 +229,7 @@ MVMString * MVM_decoder_take_chars(MVMThreadContext *tc, MVMDecoder *decoder, MV
 
 /* Takes all chars from the decoder. */
 MVMString * MVM_decoder_take_all_chars(MVMThreadContext *tc, MVMDecoder *decoder) {
-    MVMString *result;
+    MVMString *result = NULL;
     enter_single_user(tc, decoder);
     MVMROOT(tc, decoder, {
         result = MVM_string_decodestream_get_all(tc, get_ds(tc, decoder));
@@ -240,7 +240,7 @@ MVMString * MVM_decoder_take_all_chars(MVMThreadContext *tc, MVMDecoder *decoder
 
 /* Takes all available chars from the decoder. */
 MVMString * MVM_decoder_take_available_chars(MVMThreadContext *tc, MVMDecoder *decoder) {
-    MVMString *result;
+    MVMString *result = NULL;
     enter_single_user(tc, decoder);
     MVMROOT(tc, decoder, {
         result = MVM_string_decodestream_get_available(tc, get_ds(tc, decoder));
@@ -254,7 +254,7 @@ MVMString * MVM_decoder_take_line(MVMThreadContext *tc, MVMDecoder *decoder,
                                   MVMint64 chomp, MVMint64 incomplete_ok) {
     MVMDecodeStream *ds = get_ds(tc, decoder);
     MVMDecodeStreamSeparators *sep_spec = get_sep_spec(tc, decoder);
-    MVMString *result;
+    MVMString *result = NULL;
     enter_single_user(tc, decoder);
     MVMROOT(tc, decoder, {
         result = incomplete_ok
@@ -280,9 +280,9 @@ MVMint64 MVM_decoder_bytes_available(MVMThreadContext *tc, MVMDecoder *decoder) 
 MVMObject * MVM_decoder_take_bytes(MVMThreadContext *tc, MVMDecoder *decoder,
                                    MVMObject *buf_type, MVMint64 bytes) {
     MVMDecodeStream *ds = get_ds(tc, decoder);
-    char *buf;
+    char *buf = NULL;
     MVMint64 read;
-    MVMObject *result;
+    MVMObject *result = NULL;
 
     /* Ensure the target is in the correct form. */
     if (REPR(buf_type)->ID != MVM_REPR_ID_VMArray)

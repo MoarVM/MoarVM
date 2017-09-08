@@ -325,10 +325,10 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
     MVMCodepoint codepoint = 0;
     MVMCodepoint lag_codepoint = -1;
     MVMint32 bufsize;
-    MVMGrapheme32 *buffer;
-    MVMDecodeStreamBytes *cur_bytes;
-    MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
-    MVMDecodeStreamBytes *lag_last_accept_bytes;
+    MVMGrapheme32 *buffer           = NULL;
+    MVMDecodeStreamBytes *cur_bytes = NULL;
+    MVMDecodeStreamBytes *last_accept_bytes     = ds->bytes_head;
+    MVMDecodeStreamBytes *lag_last_accept_bytes = NULL;
     MVMint32 last_accept_pos, lag_last_accept_pos, ready, at_start;
     MVMuint32 reached_stopper;
     MVMuint32 can_fast_path;
@@ -386,6 +386,8 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                 case UTF8_ACCEPT: {
                     if (codepoint == '\r' || codepoint >= first_significant) {
                         can_fast_path = 0;
+                        last_accept_bytes = cur_bytes;
+                        last_accept_pos = pos;
                         goto slow_path;
                     }
                     lag_codepoint = codepoint;
@@ -394,6 +396,7 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     break;
                 }
                 case UTF8_REJECT:
+                    MVM_free(buffer);
                     MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
                     break;
                 }
@@ -409,6 +412,8 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                             &lag_codepoint, 1);
                         lag_codepoint = -1; /* Invalidate, we used it. */
                         can_fast_path = 0;
+                        last_accept_bytes = cur_bytes;
+                        last_accept_pos = pos;
                         goto slow_path;
                     }
 
@@ -440,12 +445,11 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     break;
                 }
                 case UTF8_REJECT:
+                    MVM_free(buffer);
                     MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
                     break;
                 }
             }
-            lag_last_accept_bytes = cur_bytes;
-            lag_last_accept_pos = pos;
 
             /* If we fall out of the loop and have a lagged codepoint, but
              * no next buffer, then we fall into the slow path to process it
@@ -454,6 +458,8 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                 codepoint = lag_codepoint;
                 lag_codepoint = -1;
                 can_fast_path = 0;
+                last_accept_bytes = lag_last_accept_bytes;
+                last_accept_pos = lag_last_accept_pos;
                 goto slow_path;
             }
         }
@@ -463,10 +469,10 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                 case UTF8_ACCEPT: {
                     MVMGrapheme32 g;
                     MVMint32 first;
-                  slow_path:
-                    first = 1;
                     last_accept_bytes = cur_bytes;
                     last_accept_pos = pos;
+                  slow_path:
+                    first = 1;
                     ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc,
                         &(ds->norm), codepoint, &g);
                     while (ready--) {
@@ -493,6 +499,7 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     break;
                 }
                 case UTF8_REJECT:
+                    MVM_free(buffer);
                     MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
                     break;
                 }
@@ -519,10 +526,10 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
 char * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
         MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length,
         MVMString *replacement, MVMint32 translate_newlines) {
-    MVMuint8        *result;
+    MVMuint8        *result = NULL;
     size_t           result_pos, result_limit;
     MVMCodepointIter ci;
-    MVMStringIndex   strgraphs = MVM_string_graphs(tc, str);
+    MVMStringIndex   strgraphs  = MVM_string_graphs(tc, str);
     MVMuint8        *repl_bytes = NULL;
     MVMuint64        repl_length;
 
@@ -586,7 +593,7 @@ char * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *o
 /* Encodes the specified string to a UTF-8 C string. */
 char * MVM_string_utf8_encode_C_string(MVMThreadContext *tc, MVMString *str) {
     MVMuint64 output_size;
-    char * result;
+    char * result = NULL;
     char * utf8_string = MVM_string_utf8_encode(tc, str, &output_size, 0);
     /* this is almost always called from error-handling code. Don't care if it
      * contains embedded NULs. XXX TODO: Make sure all uses of this free what it returns */

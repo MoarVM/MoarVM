@@ -239,8 +239,9 @@ MVMInstance * MVM_vm_create_instance(void) {
         instance->jit_log_fh = fopen_perhaps_with_pid(jit_log, "w");
     jit_bytecode_dir = getenv("MVM_JIT_BYTECODE_DIR");
     if (jit_bytecode_dir && jit_bytecode_dir[0]) {
-        char *bytecode_map_name = MVM_malloc(strlen(jit_bytecode_dir) + strlen("/jit-map.txt") + 1);
-        sprintf(bytecode_map_name, "%s/jit-map.txt", jit_bytecode_dir);
+        size_t bytecode_map_name_size = strlen(jit_bytecode_dir) + strlen("/jit-map.txt") + 1;
+        char *bytecode_map_name = MVM_malloc(bytecode_map_name_size);
+        snprintf(bytecode_map_name, bytecode_map_name_size, "%s/jit-map.txt", jit_bytecode_dir);
         instance->jit_bytecode_map = fopen(bytecode_map_name, "w");
         instance->jit_bytecode_dir = jit_bytecode_dir;
         MVM_free(bytecode_map_name);
@@ -250,6 +251,34 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Spesh thread syncing. */
     init_mutex(instance->mutex_spesh_sync, "spesh sync");
     init_cond(instance->cond_spesh_sync, "spesh sync");
+
+    /* add JIT debugging breakpoints */
+    {
+        char *jit_breakpoints_str = getenv("MVM_JIT_BREAKPOINTS");
+        if (jit_breakpoints_str != NULL) {
+            MVM_VECTOR_INIT(instance->jit_breakpoints, 4);
+        } else {
+            instance->jit_breakpoints_num = 0;
+            instance->jit_breakpoints     = NULL;
+        }
+        while (jit_breakpoints_str != NULL && *jit_breakpoints_str) {
+            MVMint32 frame_nr, block_nr, nchars;
+            MVMint32 result = sscanf(jit_breakpoints_str, "%d/%d%n",
+                                     &frame_nr, &block_nr, &nchars);
+            if (result < 2)
+                break;
+
+            MVM_VECTOR_ENSURE_SPACE(instance->jit_breakpoints, 1);
+            instance->jit_breakpoints[instance->jit_breakpoints_num].frame_nr = frame_nr;
+            instance->jit_breakpoints[instance->jit_breakpoints_num].block_nr = block_nr;
+            instance->jit_breakpoints_num++;
+
+            jit_breakpoints_str += nchars;
+            if (*jit_breakpoints_str == ':') {
+                jit_breakpoints_str++;
+            }
+        }
+    }
 
     /* Various kinds of debugging that can be enabled. */
     dynvar_log = getenv("MVM_DYNVAR_LOG");
@@ -299,7 +328,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up the specialization worker thread and a log for the main thread. */
     MVM_spesh_worker_setup(instance->main_thread);
-    MVM_spesh_log_initialize_thread(instance->main_thread);
+    MVM_spesh_log_initialize_thread(instance->main_thread, 1);
 
     /* Back to nursery allocation, now we're set up. */
     MVM_gc_allocate_gen2_default_clear(instance->main_thread);
@@ -386,8 +415,9 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
  * will be able to do it much more swiftly than we could. This is typically
  * not the right thing for embedding; see MVM_vm_destroy_instance for that. */
 void MVM_vm_exit(MVMInstance *instance) {
-    /* Join any foreground threads. */
+    /* Join any foreground threads and flush standard handles. */
     MVM_thread_join_foreground(instance->main_thread);
+    MVM_io_flush_standard_handles(instance->main_thread);
 
     /* Close any spesh or jit log. */
     if (instance->spesh_log_fh)
@@ -435,8 +465,9 @@ static void cleanup_callsite_interns(MVMInstance *instance) {
  * should clear up all resources and free all memory; in practice, it falls
  * short of this goal at the moment. */
 void MVM_vm_destroy_instance(MVMInstance *instance) {
-    /* Join any foreground threads. */
+    /* Join any foreground threads and flush standard handles. */
     MVM_thread_join_foreground(instance->main_thread);
+    MVM_io_flush_standard_handles(instance->main_thread);
 
     /* Run the GC global destruction phase. After this,
      * no 6model object pointers should be accessed. */
@@ -512,6 +543,10 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
         fclose(instance->jit_log_fh);
     if (instance->dynvar_log_fh)
         fclose(instance->dynvar_log_fh);
+    if (instance->jit_breakpoints) {
+        MVM_VECTOR_DESTROY(instance->jit_breakpoints);
+    }
+
 
     /* Clean up cross-thread-write-logging mutex */
     uv_mutex_destroy(&instance->mutex_cross_thread_write_logging);

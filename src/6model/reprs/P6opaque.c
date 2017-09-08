@@ -432,6 +432,33 @@ static MVMint64 hint_for(MVMThreadContext *tc, MVMSTable *st, MVMObject *class_k
     return slot >= 0 ? slot : MVM_NO_HINT;
 }
 
+/* Gets an architecture atomic sized native integer attribute as an atomic
+ * reference. */
+static AO_t * attribute_as_atomic(MVMThreadContext *tc, MVMSTable *st, void *data,
+                                  MVMObject *class_handle, MVMString *name) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    MVMint64 slot;
+    data = MVM_p6opaque_real_data(tc, data);
+    if (!repr_data)
+        MVM_exception_throw_adhoc(tc,
+            "P6opaque: must compose %s before using get_attribute", st->debug_name);
+    slot = try_get_slot(tc, repr_data, class_handle, name);
+    if (slot >= 0) {
+        MVMSTable *attr_st = repr_data->flattened_stables[slot];
+        if (attr_st) {
+            const MVMStorageSpec *ss = attr_st->REPR->get_storage_spec(tc, attr_st);
+            if (ss->inlineable && ss->boxed_primitive == MVM_STORAGE_SPEC_BP_INT &&
+                    ss->bits / 8 == sizeof(AO_t))
+                return (AO_t *)((char *)data + repr_data->attribute_offsets[slot]);
+        }
+        MVM_exception_throw_adhoc(tc,
+            "Can only do an atomic integer operation on an atomicint attribute");
+    }
+    else {
+        no_such_attribute(tc, "get atomic reference to", class_handle, name);
+    }
+}
+
 /* Used with boxing. Sets an integer value, for representations that can hold
  * one. */
 static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
@@ -1564,7 +1591,8 @@ static const MVMREPROps P6opaque_this_repr = {
         get_attribute,
         bind_attribute,
         hint_for,
-        is_attribute_initialized
+        is_attribute_initialized,
+        attribute_as_atomic
     },    /* attr_funcs */
     {
         set_int,
@@ -1586,7 +1614,13 @@ static const MVMREPROps P6opaque_this_repr = {
         unshift,
         shift,
         osplice,
-        NULL
+        MVM_REPR_DEFAULT_AT_POS_MULTIDIM,
+        MVM_REPR_DEFAULT_BIND_POS_MULTIDIM,
+        MVM_REPR_DEFAULT_DIMENSIONS,
+        MVM_REPR_DEFAULT_SET_DIMENSIONS,
+        MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC,
+        MVM_REPR_DEFAULT_POS_AS_ATOMIC,
+        MVM_REPR_DEFAULT_POS_AS_ATOMIC_MULTIDIM
     },    /* pos_funcs */
     {
         at_key,
@@ -1622,7 +1656,7 @@ size_t MVM_p6opaque_attr_offset(MVMThreadContext *tc, MVMObject *type,
                                 MVMObject *class_handle, MVMString *name) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)type->st->REPR_data;
     size_t slot = try_get_slot(tc, repr_data, class_handle, name);
-    return slot >= 0 ? repr_data->attribute_offsets[slot] : 0;
+    return repr_data->attribute_offsets[slot];
 }
 
 #ifdef DEBUG_HELPERS

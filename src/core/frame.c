@@ -613,8 +613,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 }
 
 /* Moves the specified frame from the stack and on to the heap. Must only
- * be called if the frame is already there. Use MVM_frame_force_to_heap when
- * not sure. */ 
+ * be called if the frame is not already there. Use MVM_frame_force_to_heap
+ * when not sure. */
 MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     /* To keep things simple, we'll promote the entire stack. */
     MVMFrame *cur_to_promote = tc->cur_frame;
@@ -709,6 +709,20 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     });
     });
     });
+#if MVM_GC_DEBUG
+    {
+        MVMFrame *check = new_cur_frame;
+        while (check) {
+            MVM_ASSERT_NOT_FROMSPACE(tc, check);
+            if ((check->header.flags & MVM_CF_SECOND_GEN) &&
+                    check->caller &&
+                    !(check->caller->header.flags & MVM_CF_SECOND_GEN) &&
+                    !(check->header.flags & MVM_CF_IN_GEN2_ROOT_LIST))
+                MVM_panic(1, "Gen2 -> Nursery after promotion without inter-gen set entry");
+            check = check->caller;
+        }
+    }
+#endif
 
     /* All is promoted. Update thread's current frame and reset the thread
      * local callstack. */
@@ -1725,7 +1739,9 @@ MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCal
 }
 
 MVM_USED_BY_JIT
-MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs, MVMRegister *args) {
+MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *code,
+                                            MVMCallsite **tweak_cs, MVMRegister *args,
+                                            MVMuint16 *was_multi) {
     if (!code)
         MVM_exception_throw_adhoc(tc, "Cannot invoke null object");
     if (STABLE(code)->invoke == MVM_6model_invoke_default) {
@@ -1738,6 +1754,8 @@ MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *cod
                 MVM_exception_throw_adhoc(tc, "Can not invoke a code type object");
             if (MVM_p6opaque_read_int64(tc, code, is->md_valid_offset)) {
                 MVMObject *md_cache = MVM_p6opaque_read_object(tc, code, is->md_cache_offset);
+                if (was_multi)
+                    *was_multi = 1;
                 if (!MVM_is_null(tc, md_cache)) {
                     MVMObject *result = MVM_multi_cache_find_callsite_args(tc,
                         md_cache, *tweak_cs, args);
@@ -1764,6 +1782,8 @@ MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *cod
                 is->md_class_handle, is->md_valid_attr_name,
                 is->md_valid_hint, &dest, MVM_reg_int64);
             if (dest.i64) {
+                if (was_multi)
+                    *was_multi = 1;
                 REPR(code)->attr_funcs.get_attribute(tc,
                     STABLE(code), code, OBJECT_BODY(code),
                     is->md_class_handle, is->md_cache_attr_name,
