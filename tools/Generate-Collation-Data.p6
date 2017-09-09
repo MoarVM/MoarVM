@@ -6,32 +6,6 @@ use ArrayCompose;
 my $my_debug = False;
 # Set this to only generate a partial run, for testing purposes
 my Int $less-than;
-my $test-data = Q:to/END/;
-0F68  ; [.2E6C.0020.0002] # TIBETAN LETTER A
-0F00  ; [.2E6C.0020.0004][.2E83.0020.0004][.0000.00C4.0004] # TIBETAN SYLLABLE OM
-0FB8  ; [.2E6D.0020.0002] # TIBETAN SUBJOINED LETTER A
-0F88  ; [.2E6E.0020.0002] # TIBETAN SIGN LCE TSA CAN
-0F8D  ; [.2E6F.0020.0002] # TIBETAN SUBJOINED SIGN LCE TSA CAN
-0F89  ; [.2E70.0020.0002] # TIBETAN SIGN MCHU CAN
-0F8E  ; [.2E71.0020.0002] # TIBETAN SUBJOINED SIGN MCHU CAN
-0F8C  ; [.2E72.0020.0002] # TIBETAN SIGN INVERTED MCHU CAN
-0F8F  ; [.2E73.0020.0002] # TIBETAN SUBJOINED SIGN INVERTED MCHU CAN
-0F8A  ; [.2E74.0020.0002] # TIBETAN SIGN GRU CAN RGYINGS
-0F8B  ; [.2E75.0020.0002] # TIBETAN SIGN GRU MED RGYINGS
-0F71  ; [.2E76.0020.0002] # TIBETAN VOWEL SIGN AA
-0F72  ; [.2E77.0020.0002] # TIBETAN VOWEL SIGN I
-0F73  ; [.2E78.0020.0002] # TIBETAN VOWEL SIGN II
-0F71 0F72 ; [.2E78.0020.0002] # TIBETAN VOWEL SIGN II
-0F80  ; [.2E79.0020.0002] # TIBETAN VOWEL SIGN REVERSED I
-0F81  ; [.2E7A.0020.0002] # TIBETAN VOWEL SIGN REVERSED II
-AAB5 AA87 ; [.2DEA.0020.0002][.2E18.0020.0002] # <TAI VIET VOWEL E, TAI VIET LETTER HIGH GO>
-END
-#`(class collation_key {
-    has Int:D $.primary   is rw;
-    has Int:D $.secondary is rw;
-    has Int:D $.tertiary  is rw;
-    has Int:D $.special   is rw;
-})
 class p6node {
     has Int $.cp;
     has @!collation_elements;
@@ -110,15 +84,19 @@ class sub_node {
     has Int $.codepoint;
     has Int $.sub_node_elems      is rw ;
     has Int $.sub_node_link       is rw;
-    has Int $.collation_key_elems is rw =  0;
-    has Int $.collation_key_link  is rw = -1;
+    has Int $.collation_key_elems is rw = 0;
+    has Int $.collation_key_link  is rw = 0;
     has Int $.element             is rw;
     method build {
         $!codepoint,
-        $.sub_node_elems,
-        $.sub_node_link,
-        $.collation_key_elems,
-        $.collation_key_link,
+        $!sub_node_elems,
+        # To save space, set to zero if it's -1 (-1 means there's no link)
+        # we can determine there is no link by checking the collation_key_elems
+        # or sub_node_elems
+        # so we don't need to set these to -1
+        ($!sub_node_link == -1 ?? 0 !! $!sub_node_link),
+        $!collation_key_elems,
+        ($!collation_key_link == -1 ?? 0 !! $!collation_key_link),
     }
     method Str {
         "\{{$.codepoint.fmt("0x%X")}, $!sub_node_elems, $!sub_node_link, $!collation_key_elems, $!collation_key_link\}"
@@ -192,7 +170,6 @@ sub sub_node-add-collation-elems-from-p6node (sub_node:D $sub_node is rw, p6node
     my Int:D $after-elems = @collation-elements.elems;
     $sub_node.collation_key_link  = $before-elems;
     $sub_node.collation_key_elems = $after-elems - $before-elems;
-    #say "Adding collation data for $sub_node.codepoint()";
     $sub_node;
 }
 my @main-node;
@@ -203,31 +180,9 @@ sub debug-out-nodes {
     spurt 'out_nodes', to-json(@main-node.map(*.build));
 }
 parse-test-data($main-p6node);
-use Data::Dump;
-#say Dump $main-p6node;
 my $main-node-elems = add-main-node-to-c-data($main-p6node, @main-node);
-#say Dump $main-p6node;
-#exit;
 sub_node-flesh-out-tree-from-main-node-elems($main-p6node, @main-node, @collation-elements);
-#say Dump $main-p6node;
-#say Dump @main-node;
 say now - INIT now;
-multi sub test-it (Str:D $str) {
-    test-it $str.split(' ')».parse-base(16);
-}
-multi sub test-it (@list) {
-    for ^$main-node-elems -> $i {
-        if @main-node[$i].codepoint == @list[0] {
-            say "First node";
-            say @main-node[$i].Str;
-            say "Second node";
-            say @main-node[@main-node[$i].sub_node_link];
-            say "Collation linked";
-            say format-collation-Str @collation-elements[@main-node[@main-node[$i].sub_node_link].collation_key_link];
-            say "done";
-        }
-    }
-}
 sub format-collation-Str ($a) {
     my Str $out;
     for $a -> $item is copy {
@@ -238,66 +193,62 @@ sub format-collation-Str ($a) {
     $out;
 }
 my @composed-arrays;
-my $struct = qq:to/END/;
-struct sub_node \{
-    unsigned int codepoint :{uint-bitwidth($max-cp)};
-    unsigned int sub_node_elems :{uint-bitwidth(@main-node.elems - 1)};
-    int sub_node_link :{int-bitwidth(@main-node.elems -1)};
-    unsigned int collation_key_elems :{uint-bitwidth($max-collation-elems)};
-    int collation_key_link :{int-bitwidth(@collation-elements.elems - 1)};
-\};
-typedef struct sub_node sub_node;
-END
-
-say "Max primary: $max-primary max secondary $max-secondary max tertiary $max-tertiary max special $max-special";
-say "Primary Max bitwidth: ", uint-bitwidth($max-primary),
-" Secondary Max bitwidth: ", uint-bitwidth($max-secondary),
-" Tertiary Max bitwidth: ", uint-bitwidth($max-tertiary),
-" Special Max bitwidth: ", uint-bitwidth($max-special);
-
-my @names =
-    'primary', 'secondary', 'tertiary', 'special';
-
+sub make-struct (@names, @types, @list-for-packing, $struct-name) {
+    use lib 'lib';
+    use BitfieldPacking; use bitfield-rows-switch;
+    my @order = compute-packing(@list-for-packing);
+    my @out-str = "struct $struct-name \{";
+    for @order -> $pair {
+        @out-str.push: ([~] @types[$pair.key], " ", @names[$pair.key], " :", $pair.value, ";").indent(4);
+    }
+    @out-str.push: '};';
+    @out-str.join("\n"), @order;
+}
 my @list-for-packing =
     0 => uint-bitwidth($max-primary),
     1 => uint-bitwidth($max-secondary),
     2 => uint-bitwidth($max-tertiary),
     3 => uint-bitwidth($max-special);
-use lib 'lib';
-use BitfieldPacking; use bitfield-rows-switch;
-my @order = compute-packing(@list-for-packing);
-say "my order is @order.perl()";
-@composed-arrays.push: 'struct collation_key {';
-for @order -> $pair {
-    @composed-arrays.push: ([~] "unsigned int ", @names[$pair.key], " :", $pair.value, ";").indent(4);
-}
-@composed-arrays.push: '};';
+my @collation_key_names =
+    'primary', 'secondary', 'tertiary', 'special';
+my ($collation_key_struct, $collation_key_order) = make-struct(
+    @collation_key_names,
+    ("unsigned int" xx 4),
+    @list-for-packing,
+    'collation_key');
+say "my order is $collation_key_order.perl()";
+@composed-arrays.push: $collation_key_struct;
 my @names2 =
     'codepoint', 'sub_node_elems', 'sub_node_link',
     'collation_key_elems', 'collation_key_link';
+my @int-uint = 'unsigned int', 'unsigned int', 'unsigned int', 'unsigned int', 'unsigned int';
 my @list-for-packing2 =
     0 => uint-bitwidth($max-cp),
     1 => uint-bitwidth(@main-node.elems - 1),
-    2 =>  int-bitwidth(@main-node.elems - 1),
+    2 => uint-bitwidth(@main-node.elems - 1),
     3 => uint-bitwidth($max-collation-elems),
-    4 => int-bitwidth(@collation-elements.elems - 1);
+    4 => uint-bitwidth(@collation-elements.elems - 1);
+my ($sub_node_struct, $order2) = make-struct(
+    @names2,
+    @int-uint,
+    @list-for-packing2,
+    'sub_node');
+@composed-arrays.push: $sub_node_struct;
+@composed-arrays.push: "typedef struct sub_node sub_node;";
 sub transform-array (@array, @order) {
     @array.map(-> $item {
         my @out;
         for ^$item.elems -> $i {
             @out[$i] = $item[@order[$i].key];
         }
-        #say "item: ", $item, " out: ", @out;
         @out;
     });
 }
-#@composed-arrays.push: slurp-snippets('collation', 'head');
-@composed-arrays.push: $struct;
 @composed-arrays.push: "#define main_nodes_elems @main-node.elems()";
 @composed-arrays.push: "#define starter_main_nodes_elems $main-node-elems";
-@composed-arrays.push: compose-array('sub_node', 'main_nodes', @main-node».build);
+@composed-arrays.push: compose-array('sub_node', 'main_nodes', transform-array(@main-node».build, $order2));
 @composed-arrays.push: "#define special_collation_keys_elems @collation-elements.elems()";
-@composed-arrays.push: compose-array( 'struct collation_key', 'special_collation_keys', transform-array(@collation-elements, @order));
+@composed-arrays.push: compose-array( 'struct collation_key', 'special_collation_keys', transform-array(@collation-elements, $collation_key_order));
 @composed-arrays.push: Q:to/END/;
 static int min (sub_node node) {
     return node.sub_node_elems
@@ -311,5 +262,3 @@ static int max (sub_node node) {
 }
 END
 spurt "src/strings/unicode_uca.c", @composed-arrays.join("\n");
-test-it("AAB5 AA87");
-test-it("0F71 0F72");
