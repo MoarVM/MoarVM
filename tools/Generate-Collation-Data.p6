@@ -255,5 +255,5 @@ spurt $out-file, @composed-arrays.join("\n");
 print qq:to/END/;
 Done writing $out-file.
 {'=' x 70}
-MAKE SURE TO RUN `tools/CollationTest.t` to ensure there are ~88 failures only!
+MAKE SURE TO RUN `tools/CollationTest.t` to ensure there are ~82 failures only!
 END
