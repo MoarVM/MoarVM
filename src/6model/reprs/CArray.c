@@ -121,12 +121,10 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMCArrayBody *body = (MVMCArrayBody *)data;
 
-    if (body->managed) {
+    if (body->managed) 
         MVM_free(body->storage);
-
-        if (body->child_objs)
-            MVM_free(body->child_objs);
-    }
+    if (body->child_objs)
+        MVM_free(body->child_objs);
 }
 
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
