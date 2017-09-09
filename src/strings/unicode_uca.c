@@ -1,15 +1,15 @@
 struct collation_key {
-    unsigned int primary :16;
-    unsigned int tertiary :5;
-    unsigned int special :1;
-    unsigned int secondary :9;
+    MVMuint32 primary :16;
+    MVMuint32 tertiary :5;
+    MVMuint32 special :1;
+    MVMuint32 secondary :9;
 };
 struct sub_node {
-    unsigned int codepoint :18;
-    unsigned int collation_key_link :14;
-    unsigned int sub_node_link :13;
-    unsigned int sub_node_elems :13;
-    unsigned int collation_key_elems :5;
+    MVMuint32 codepoint :18;
+    MVMuint32 collation_key_link :14;
+    MVMuint32 sub_node_link :13;
+    MVMuint32 sub_node_elems :13;
+    MVMuint32 collation_key_elems :5;
 };
 typedef struct sub_node sub_node;
 #define main_nodes_elems 4697
@@ -3049,14 +3049,3 @@ struct collation_key special_collation_keys[10435] = {
 {64389,2,0,32},{39728,0,0,0},{64389,2,0,32},{41166,0,0,0},{64389,2,0,32},{41221,
 0,0,0},{64389,2,0,32},{41486,0,0,0},{64389,2,0,32},{41617,0,0,0},{64389,2,0,32},
 {41874,0,0,0},{64389,2,0,32},{42496,0,0,0}};
-
-static int min (sub_node node) {
-    return node.sub_node_elems
-        ? main_nodes[node.sub_node_link].codepoint
-        : -1;
-}
-static int max (sub_node node) {
-    return node.sub_node_elems
-        ? main_nodes[node.sub_node_link + node.sub_node_elems - 1].codepoint
-        : -1;
-}

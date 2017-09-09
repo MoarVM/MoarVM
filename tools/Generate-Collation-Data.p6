@@ -2,10 +2,10 @@
 use lib <lib tools/lib>;
 use Collation-Gram;
 use ArrayCompose;
-#use UCDlib;
 my $my_debug = False;
 # Set this to only generate a partial run, for testing purposes
 my Int $less-than;
+my $out-file = "src/strings/unicode_uca.c";
 class p6node {
     has Int $.cp;
     has @!collation_elements;
@@ -68,7 +68,6 @@ sub parse-test-data (p6node:D $main-p6node) {
         my $var = Collation-Gram.new.parse($line, :actions(Collation-Gram::Action.new)).made;
         die $line unless $var;
         next if $var<codepoints>.elems == 1 && $var<array>.elems == 1;
-        say "Adding data for cp $var<codepoints>[0]" if $var<codepoints>.any == 183;
         my $node = $main-p6node;
         say $line, "\n", $var<codepoints> if $my_debug;
         for $var<codepoints>.list -> $cp {
@@ -213,15 +212,13 @@ my @collation_key_names =
     'primary', 'secondary', 'tertiary', 'special';
 my ($collation_key_struct, $collation_key_order) = make-struct(
     @collation_key_names,
-    ("unsigned int" xx 4),
+    ("MVMuint32" xx 4),
     @list-for-packing,
     'collation_key');
 say "my order is $collation_key_order.perl()";
 @composed-arrays.push: $collation_key_struct;
-my @names2 =
-    'codepoint', 'sub_node_elems', 'sub_node_link',
-    'collation_key_elems', 'collation_key_link';
-my @int-uint = 'unsigned int', 'unsigned int', 'unsigned int', 'unsigned int', 'unsigned int';
+my @names2 = <codepoint sub_node_elems sub_node_link
+              collation_key_elems collation_key_link>;
 my @list-for-packing2 =
     0 => uint-bitwidth($max-cp),
     1 => uint-bitwidth(@main-node.elems - 1),
@@ -230,7 +227,7 @@ my @list-for-packing2 =
     4 => uint-bitwidth(@collation-elements.elems - 1);
 my ($sub_node_struct, $order2) = make-struct(
     @names2,
-    @int-uint,
+    ('MVMuint32' xx 5),
     @list-for-packing2,
     'sub_node');
 @composed-arrays.push: $sub_node_struct;
@@ -249,16 +246,5 @@ sub transform-array (@array, @order) {
 @composed-arrays.push: compose-array('sub_node', 'main_nodes', transform-array(@main-node».build, $order2));
 @composed-arrays.push: "#define special_collation_keys_elems @collation-elements.elems()";
 @composed-arrays.push: compose-array( 'struct collation_key', 'special_collation_keys', transform-array(@collation-elements, $collation_key_order));
-@composed-arrays.push: Q:to/END/;
-static int min (sub_node node) {
-    return node.sub_node_elems
-        ? main_nodes[node.sub_node_link].codepoint
-        : -1;
-}
-static int max (sub_node node) {
-    return node.sub_node_elems
-        ? main_nodes[node.sub_node_link + node.sub_node_elems - 1].codepoint
-        : -1;
-}
-END
-spurt "src/strings/unicode_uca.c", @composed-arrays.join("\n");
+spurt $out-file, @composed-arrays.join("\n");
+say "Done writing $out-file";

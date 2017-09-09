@@ -3,7 +3,9 @@
 #|
 #| :map-empty-as allows you to make undefined array items to a certain value.
 #| for example match all undefined items to -1 or 0 for example
-multi compose-array2 (
+#| function compose-array2-debug was created for debugging the creation of the arrays
+#| and adding comments between each item for manual debugging
+multi compose-array2-debug (
     Str:D   $type,
     Str:D   $name,
             @body,

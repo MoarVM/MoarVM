@@ -1,3 +1,4 @@
+# Grammar to parse the UCA collation data
 grammar Collation-Gram {
     token TOP {
         <codepoints>
@@ -32,9 +33,6 @@ class Collation-Gram::Action {
     has @!codepoints;
     method TOP ($/) {
         @!codepoints = @!codepoints.chrs.ords;
-        if $<comment> eq 'GREEK NUMERAL SIGN' {
-            say $/ ~ "\n" ~ @!codepoints;
-        }
         make %(
             array => @!array,
             comment => ~$<comment>,

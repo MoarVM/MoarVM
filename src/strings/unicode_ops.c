@@ -24,6 +24,16 @@
 #else
 #define dfprintf(...)
 #endif
+MVM_STATIC_INLINE MVMint64 next_node_min (sub_node node) {
+    return node.sub_node_elems
+        ? main_nodes[node.sub_node_link].codepoint
+        : -1;
+}
+MVM_STATIC_INLINE MVMint64 next_node_max (sub_node node) {
+    return node.sub_node_elems
+        ? main_nodes[node.sub_node_link + node.sub_node_elems - 1].codepoint
+        : -1;
+}
 MVMint32 MVM_unicode_collation_primary (MVMThreadContext *tc, MVMint32 codepoint) {
      return MVM_unicode_codepoint_get_property_int(tc, codepoint, MVM_UNICODE_PROPERTY_MVM_COLLATION_PRIMARY);
 }
@@ -96,18 +106,16 @@ static void push_key_to_stack(collation_stack *stack, MVMuint32 primary, MVMuint
     stack->keys[stack->stack_top].s.secondary = secondary;
     stack->keys[stack->stack_top].s.tertiary  = tertiary;
 }
-static int print_sub_node (sub_node subnode) {
-    dfprintf("{codepoint 0x%X, min 0x%X,max 0x%X,sub_node_elems %i,sub_node_link %i,collation_key_elems %i,collation_key_link %i}\n", subnode.codepoint, min(subnode), max(subnode), subnode.sub_node_elems, subnode.sub_node_link,
+static void print_sub_node (sub_node subnode) {
+    dfprintf("{codepoint 0x%X, next_node_min 0x%X,next_node_max 0x%X,sub_node_elems %i,sub_node_link %i,collation_key_elems %i,collation_key_link %i}\n", subnode.codepoint, next_node_min(subnode), next_node_max(subnode), subnode.sub_node_elems, subnode.sub_node_link,
     subnode.collation_key_elems, subnode.collation_key_link);
-    return 0;
 }
-static int print_stack (MVMThreadContext *tc, collation_stack *stack, char *name) {
+static void print_stack (MVMThreadContext *tc, collation_stack *stack, char *name) {
     int i = 0;
     dfprintf("stack_%s print_stack() stack elems: %li\n", name, stack->stack_top + 1);
     for (i = 0; i < stack->stack_top + 1; i++) {
         dfprintf("stack_%s i: %i [%.4X.%.4X.%.4X]\n", name, i, stack->keys[i].s.primary, stack->keys[i].s.secondary, stack->keys[i].s.tertiary);
     }
-    return 0;
 }
 static MVMint64 collation_push_level_separator (MVMThreadContext *tc, collation_stack *stack, char *name) {
     dfprintf("stack_%s collation_push_level_separator() level separator [%i.%i.%i] pushed onto stack_%s\n", name, collation_zero, collation_zero, 0, name);
@@ -133,7 +141,7 @@ static MVMint64 push_onto_stack (MVMThreadContext *tc, collation_stack *stack, c
     dfprintf("PUSHED 0x%X %s onto stack_%s\n", cp, what, name);\
 }
 /* TODO write a script to generate this code */
-MVM_STATIC_INLINE int is_unified_ideograph (MVMThreadContext *tc, int cp) {
+MVM_STATIC_INLINE MVMuint32 is_unified_ideograph (MVMThreadContext *tc, int cp) {
     return (0x3400 <= cp && cp <= 0x4DB5) /*  3400..4DB5  d*/
     || (0x4E00 <= cp && cp <= 0x9FEA)     /*  4E00..9FEA  */
     || (0xFA0E <= cp && cp <= 0xFA0F)     /*  FA0E..FA0F  */
@@ -149,26 +157,26 @@ MVM_STATIC_INLINE int is_unified_ideograph (MVMThreadContext *tc, int cp) {
     || (0x2B820 <= cp && cp <= 0x2CEA1)   /* 2B820..2CEA1 */
     || (0x2CEB0 <= cp && cp <= 0x2EBE0);  /* 2CEB0..2EBE0 */
 }
-MVM_STATIC_INLINE int compute_AAAA(MVMCodepoint cp, int offset) {
+MVM_STATIC_INLINE MVMint32 compute_AAAA(MVMCodepoint cp, int offset) {
     return (offset + (cp >> 15));
 }
-MVM_STATIC_INLINE int compute_BBBB_offset(MVMCodepoint cp, int offset) {
+MVM_STATIC_INLINE MVMint32 compute_BBBB_offset(MVMCodepoint cp, int offset) {
     return ((cp - offset) | 0x8000);
 }
-MVM_STATIC_INLINE int compute_BBBB_and(MVMCodepoint cp) {
+MVM_STATIC_INLINE MVMint32 compute_BBBB_and(MVMCodepoint cp) {
     return ((cp & 0x7FFF) | 0x8000);
 }
-MVM_STATIC_INLINE int is_Assigned_Block_Nushu(MVMCodepoint cp) {
+MVM_STATIC_INLINE MVMint32 is_Assigned_Block_Nushu(MVMCodepoint cp) {
     return (0x1B170 <= cp && cp <=0x1B2FF);
 }
-MVM_STATIC_INLINE int is_Block_Tangut(MVMCodepoint cp) {
+MVM_STATIC_INLINE MVMint32 is_Block_Tangut(MVMCodepoint cp) {
     return (0x17000 <= cp && cp <= 0x18AFF);
 }
-MVM_STATIC_INLINE int is_Block_CJK_Unified_Ideographs_OR_CJK_Compatibility_Ideographs(MVMCodepoint cp) {
+MVM_STATIC_INLINE MVMint32 is_Block_CJK_Unified_Ideographs_OR_CJK_Compatibility_Ideographs(MVMCodepoint cp) {
     return (0x4E00 <= cp && cp <= 0x9FFF)    /* 4E00..9FFF; CJK Unified Ideographs */
        ||  (0xF900 <= cp && cp <= 0xFAFF);  /* F900..FAFF; CJK Compatibility Ideographs */
 }
-static int NFD_and_push_collation_values (MVMThreadContext *tc, MVMCodepoint cp, collation_stack *stack, MVMCodepointIter *ci, char *name) {
+static MVMint32 NFD_and_push_collation_values (MVMThreadContext *tc, MVMCodepoint cp, collation_stack *stack, MVMCodepointIter *ci, char *name) {
     MVMNormalizer norm;
     MVMCodepoint cp_out;
     int ready, result_pos = 0;
@@ -199,7 +207,7 @@ static int NFD_and_push_collation_values (MVMThreadContext *tc, MVMCodepoint cp,
     return 0;
 }
 /* Returns the number of collation elements pushed onto the stack */
-static int collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp, collation_stack *stack, MVMCodepointIter *ci, char *name) {
+static MVMint32 collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp, collation_stack *stack, MVMCodepointIter *ci, char *name) {
     collation_key MVM_coll_key = {
         MVM_unicode_collation_primary(tc, cp), MVM_unicode_collation_secondary(tc, cp), MVM_unicode_collation_tertiary(tc, cp), 0
     };
@@ -300,16 +308,16 @@ MVMint64 collation_add_keys_from_node (MVMThreadContext *tc, sub_node *last_node
     collation_push_MVM_values(tc, fallback_cp, stack, ci, name);
     return rtrn;
 }
-int find_next_node (MVMThreadContext *tc, sub_node node, MVMCodepoint next_cp) {
-    MVMint64 next_node_min, next_node_max;
+MVMint64 find_next_node (MVMThreadContext *tc, sub_node node, MVMCodepoint next_cp) {
+    MVMint64 next_min, next_max;
     MVMint64 i;
     /* There is nowhere else to go */
     if (!node.sub_node_elems)
         return -1;
-    next_node_min = min(node);
-    next_node_max = max(node);
+    next_min = next_node_min(node);
+    next_max = next_node_max(node);
     /* It's not within bounds */
-    if (next_cp < next_node_min || next_node_max < next_cp)
+    if (next_cp < next_min || next_max < next_cp)
         return -1;
     for (i = node.sub_node_link; i < node.sub_node_link + node.sub_node_elems; i++) {
         if (main_nodes[i].codepoint == next_cp)
@@ -317,7 +325,7 @@ int find_next_node (MVMThreadContext *tc, sub_node node, MVMCodepoint next_cp) {
     }
     return -1;
 }
-int get_main_node (MVMThreadContext *tc, int cp, int range_min, int range_max) {
+MVMint64 get_main_node (MVMThreadContext *tc, int cp, int range_min, int range_max) {
     MVMint64 i;
     MVMint64 rtrn = -1;
     int counter   = 0;
@@ -353,7 +361,6 @@ void print_cps_array (MVMCodepoint *cps, int start_at, MVMCodepoint cp_num) {
     }
     dfprintf("\n");
 }
-#define collation_push_from_iter -1
 /* Returns the number of added collation keys */
 static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepointIter *ci, int *cp_maybe, int cp_num, char *name) {
     MVMint64 rtrn = 0;
@@ -516,7 +523,6 @@ static void ring_buffer_done(MVMThreadContext *tc, ring_buffer *buffer) {
                 buf_location = codepoint_sequence_no_max - 1;
         }
     }
-
 }
 static MVMint64 collation_return_by_length(MVMThreadContext *tc, MVMStringIndex length_a, MVMStringIndex length_b, MVMint64 collation_mode) {
     /* Quaternary both enabled and reversed. This cancels out and it is ignored */
