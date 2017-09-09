@@ -48,6 +48,7 @@ sub int-bitwidth (Int:D $int) {
 sub uint-bitwidth (Int:D $int) {
     $int.base(2).chars;
 }
+my Int:D $codepoint_sequence_no_max = 0;
 sub parse-test-data (p6node:D $main-p6node) {
     my $data = "UNIDATA/UCA/allkeys.txt".IO;
     my $line-no;
@@ -64,12 +65,16 @@ sub parse-test-data (p6node:D $main-p6node) {
             @implicit-weights.push: $line.subst('@implicitweights ', '');
             next;
         }
-        #$line ~~ / ^ [ $<codes>=( <:AHex>+ )+ % \s+ ] \s* ';' .* $ / or next;
         my $var = Collation-Gram.new.parse($line, :actions(Collation-Gram::Action.new)).made;
         die $line unless $var;
+        # skip them if it's not a sequence (only one codepoint), AND there
+        # is only one collation element. These are picked up into the main MVM
+        # UCD database
         next if $var<codepoints>.elems == 1 && $var<array>.elems == 1;
         my $node = $main-p6node;
         say $line, "\n", $var<codepoints> if $my_debug;
+        $codepoint_sequence_no_max = $var<codepoints>.elems
+            if $codepoint_sequence_no_max < $var<codepoints>.elems;
         for $var<codepoints>.list -> $cp {
             $max-cp = $cp if $max-cp < $cp;
             $node = p6node-create-or-find-node($cp, $node);
@@ -192,10 +197,10 @@ sub format-collation-Str ($a) {
     $out;
 }
 my @composed-arrays;
-sub make-struct (@names, @types, @list-for-packing, $struct-name) {
+sub make-struct (@names, @types, @collation-list-for-packing, $struct-name) {
     use lib 'lib';
     use BitfieldPacking; use bitfield-rows-switch;
-    my @order = compute-packing(@list-for-packing);
+    my @order = compute-packing(@collation-list-for-packing);
     my @out-str = "struct $struct-name \{";
     for @order -> $pair {
         @out-str.push: ([~] @types[$pair.key], " ", @names[$pair.key], " :", $pair.value, ";").indent(4);
@@ -203,7 +208,7 @@ sub make-struct (@names, @types, @list-for-packing, $struct-name) {
     @out-str.push: '};';
     @out-str.join("\n"), @order;
 }
-my @list-for-packing =
+my @collation-list-for-packing =
     0 => uint-bitwidth($max-primary),
     1 => uint-bitwidth($max-secondary),
     2 => uint-bitwidth($max-tertiary),
@@ -213,13 +218,12 @@ my @collation_key_names =
 my ($collation_key_struct, $collation_key_order) = make-struct(
     @collation_key_names,
     ("MVMuint32" xx 4),
-    @list-for-packing,
+    @collation-list-for-packing,
     'collation_key');
-say "my order is $collation_key_order.perl()";
 @composed-arrays.push: $collation_key_struct;
 my @names2 = <codepoint sub_node_elems sub_node_link
               collation_key_elems collation_key_link>;
-my @list-for-packing2 =
+my @sub_node-list-for-packing2 =
     0 => uint-bitwidth($max-cp),
     1 => uint-bitwidth(@main-node.elems - 1),
     2 => uint-bitwidth(@main-node.elems - 1),
@@ -228,7 +232,7 @@ my @list-for-packing2 =
 my ($sub_node_struct, $order2) = make-struct(
     @names2,
     ('MVMuint32' xx 5),
-    @list-for-packing2,
+    @sub_node-list-for-packing2,
     'sub_node');
 @composed-arrays.push: $sub_node_struct;
 @composed-arrays.push: "typedef struct sub_node sub_node;";
@@ -243,8 +247,13 @@ sub transform-array (@array, @order) {
 }
 @composed-arrays.push: "#define main_nodes_elems @main-node.elems()";
 @composed-arrays.push: "#define starter_main_nodes_elems $main-node-elems";
-@composed-arrays.push: compose-array('sub_node', 'main_nodes', transform-array(@main-node».build, $order2));
+@composed-arrays.push: "#define codepoint_sequence_no_max $codepoint_sequence_no_max";
 @composed-arrays.push: "#define special_collation_keys_elems @collation-elements.elems()";
+@composed-arrays.push: compose-array('sub_node', 'main_nodes', transform-array(@main-node».build, $order2));
 @composed-arrays.push: compose-array( 'struct collation_key', 'special_collation_keys', transform-array(@collation-elements, $collation_key_order));
 spurt $out-file, @composed-arrays.join("\n");
-say "Done writing $out-file";
+print qq:to/END/;
+Done writing $out-file.
+{'=' x 70}
+MAKE SURE TO RUN `tools/CollationTest.t` to ensure there are ~88 failures only!
+END

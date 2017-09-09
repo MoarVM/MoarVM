@@ -14,6 +14,8 @@ struct sub_node {
 typedef struct sub_node sub_node;
 #define main_nodes_elems 4697
 #define starter_main_nodes_elems 3803
+#define codepoint_sequence_no_max 3
+#define special_collation_keys_elems 10435
 sub_node main_nodes[4697] = {
 {76,0,3803,1,0},{108,0,3804,1,0},{188,4,0,0,3},{189,7,0,0,3},{190,10,0,0,3},
 {192,13,0,0,2},{193,15,0,0,2},{194,17,0,0,2},{195,19,0,0,2},{196,21,0,0,2},{197,
@@ -1147,7 +1149,6 @@ sub_node main_nodes[4697] = {
 0,0,3},{119151,9849,0,0,3},{119141,9852,4695,2,2},{119150,9854,0,0,3},{119151,
 9857,0,0,3}};
 
-#define special_collation_keys_elems 10435
 struct collation_key special_collation_keys[10435] = {
 {7645,8,0,32},{0,2,0,273},{7645,2,0,32},{0,2,0,273},{7332,30,0,32},{1596,30,1,
 32},{7335,30,0,32},{7332,30,0,32},{1596,30,1,32},{7333,30,0,32},{7334,30,0,32},
