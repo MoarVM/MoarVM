@@ -72,7 +72,6 @@ struct ring_buffer {
     MVMuint32    codes_out_count;
 };
 typedef struct ring_buffer ring_buffer;
-#define COLLATION_DEBUG 1
 #ifdef COLLATION_DEBUG
     static void print_sub_node (sub_node subnode) {
         MVMint64 min    = next_node_min(subnode);
@@ -94,6 +93,10 @@ typedef struct ring_buffer ring_buffer;
         fprintf(stderr, "stack_%s “%s” print_stack() stack elems: %li\n", name, details, stack->stack_top + 1);
         for (i = 0; i < stack->stack_top + 1; i++) {
             fprintf(stderr, "stack_%s i: %i [%.4X.%.4X.%.4X]\n", name, i, stack->keys[i].s.primary, stack->keys[i].s.secondary, stack->keys[i].s.tertiary);
+            if (30 < i) {
+                fprintf(stderr, "Not printing any more of the stack. Too large\n");
+                break;
+            }
         }
     }
     static void print_ring_buffer(MVMThreadContext *tc, ring_buffer *buffer) {
@@ -101,6 +104,10 @@ typedef struct ring_buffer ring_buffer;
         fprintf(stderr, "Buffer: count: %"PRIu32" location %"PRIi32"\nBuffer contents: ", buffer->count, buffer->location);
         for (i = 0; i < buffer->count && i < codepoint_sequence_no_max; i++) {
             fprintf(stderr, "i: %"PRIi64": cp: 0x%X ", i, buffer->codes[i]);
+            if (30 < i) {
+                fprintf(stderr, "Not printing any more of the buffer. Too large\n");
+                break;
+            }
         }
         fprintf(stderr, "\n");
     }
@@ -145,15 +152,10 @@ static void init_stack (MVMThreadContext *tc, collation_stack *stack) {
     stack->stack_size = initial_stack_size;
 }
 static void cleanup_stack (MVMThreadContext *tc, collation_stack *stack) {
-    /* Must realloc to 0 in case we ended up resizing the stack */
-    if (stack->stack_size != initial_stack_size)
-        stack->keys = MVM_realloc(stack->keys, 0);
-    /* If we get NULL then realloc has freed the memory.
-     * If we have a pointer, either we didn't run realloc and need to free, or
-     * realloc returned a pointer. realloc spec says if we get a pointer back we
-     * must then free it using free. */
-    if (stack->keys != NULL)
+    if (stack->keys != NULL) {
         MVM_free(stack->keys);
+        stack->keys = NULL;
+    }
 }
 static void push_key_to_stack(collation_stack *stack, MVMuint32 primary, MVMuint32 secondary, MVMuint32 tertiary) {\
     stack->stack_top++;
