@@ -16,6 +16,49 @@ typedef struct sub_node sub_node;
 #define starter_main_nodes_elems 3803
 #define codepoint_sequence_no_max 3
 #define special_collation_keys_elems 10435
+/* Data from PropList.txt */
+MVM_STATIC_INLINE MVMuint32 is_unified_ideograph (MVMCodepoint cp) {
+    return
+       (0x3400  <= cp && cp <= 0x4DB5 ) /* 3400..4DB5 Unified_Ideograph # Lo [6582] CJK UNIFIED IDEOGRAPH-3400..CJK UNIFIED IDEOGRAPH-4DB5 */
+    || (0x4E00  <= cp && cp <= 0x9FEA ) /* 4E00..9FEA Unified_Ideograph # Lo [20971] CJK UNIFIED IDEOGRAPH-4E00..CJK UNIFIED IDEOGRAPH-9FEA */
+    || (0xFA0E  <= cp && cp <= 0xFA0F ) /* FA0E..FA0F Unified_Ideograph # Lo   [2] CJK COMPATIBILITY IDEOGRAPH-FA0E..CJK COMPATIBILITY IDEOGRAPH-FA0F */
+    || (0xFA11                   == cp) /* FA11..FA11 Unified_Ideograph # Lo       CJK COMPATIBILITY IDEOGRAPH-FA11 */
+    || (0xFA13  <= cp && cp <= 0xFA14 ) /* FA13..FA14 Unified_Ideograph # Lo   [2] CJK COMPATIBILITY IDEOGRAPH-FA13..CJK COMPATIBILITY IDEOGRAPH-FA14 */
+    || (0xFA1F                   == cp) /* FA1F..FA1F Unified_Ideograph # Lo       CJK COMPATIBILITY IDEOGRAPH-FA1F */
+    || (0xFA21                   == cp) /* FA21..FA21 Unified_Ideograph # Lo       CJK COMPATIBILITY IDEOGRAPH-FA21 */
+    || (0xFA23  <= cp && cp <= 0xFA24 ) /* FA23..FA24 Unified_Ideograph # Lo   [2] CJK COMPATIBILITY IDEOGRAPH-FA23..CJK COMPATIBILITY IDEOGRAPH-FA24 */
+    || (0xFA27  <= cp && cp <= 0xFA29 ) /* FA27..FA29 Unified_Ideograph # Lo   [3] CJK COMPATIBILITY IDEOGRAPH-FA27..CJK COMPATIBILITY IDEOGRAPH-FA29 */
+    || (0x20000 <= cp && cp <= 0x2A6D6) /* 20000..2A6D6 Unified_Ideograph # Lo [42711] CJK UNIFIED IDEOGRAPH-20000..CJK UNIFIED IDEOGRAPH-2A6D6 */
+    || (0x2A700 <= cp && cp <= 0x2B734) /* 2A700..2B734 Unified_Ideograph # Lo [4149] CJK UNIFIED IDEOGRAPH-2A700..CJK UNIFIED IDEOGRAPH-2B734 */
+    || (0x2B740 <= cp && cp <= 0x2B81D) /* 2B740..2B81D Unified_Ideograph # Lo [222] CJK UNIFIED IDEOGRAPH-2B740..CJK UNIFIED IDEOGRAPH-2B81D */
+    || (0x2B820 <= cp && cp <= 0x2CEA1) /* 2B820..2CEA1 Unified_Ideograph # Lo [5762] CJK UNIFIED IDEOGRAPH-2B820..CJK UNIFIED IDEOGRAPH-2CEA1 */
+    || (0x2CEB0 <= cp && cp <= 0x2EBE0) /* 2CEB0..2EBE0 Unified_Ideograph # Lo [7473] CJK UNIFIED IDEOGRAPH-2CEB0..CJK UNIFIED IDEOGRAPH-2EBE0 */
+    ;
+}
+
+/* Data from Blocks.txt */
+MVM_STATIC_INLINE MVMuint32 is_Assigned_Block_Nushu (MVMCodepoint cp) {
+    return
+       (0x1B170 <= cp && cp <= 0x1B2FF) /* 1B170..1B2FF Nushu                              */
+    ;
+}
+
+/* Data from Blocks.txt */
+MVM_STATIC_INLINE MVMuint32 is_Block_Tangut (MVMCodepoint cp) {
+    return
+       (0x17000 <= cp && cp <= 0x187FF) /* 17000..187FF Tangut                             */
+    || (0x18800 <= cp && cp <= 0x18AFF) /* 18800..18AFF Tangut Components                  */
+    ;
+}
+
+/* Data from Blocks.txt */
+MVM_STATIC_INLINE MVMuint32 is_Block_CJK_Unified_Ideographs_OR_CJK_Compatibility_Ideographs (MVMCodepoint cp) {
+    return
+       (0x4E00  <= cp && cp <= 0x9FFF ) /* 4E00..9FFF CJK Unified Ideographs             */
+    || (0xF900  <= cp && cp <= 0xFAFF ) /* F900..FAFF CJK Compatibility Ideographs       */
+    ;
+}
+
 sub_node main_nodes[4697] = {
 {76,0,3803,1,0},{108,0,3804,1,0},{188,4,0,0,3},{189,7,0,0,3},{190,10,0,0,3},
 {192,13,0,0,2},{193,15,0,0,2},{194,17,0,0,2},{195,19,0,0,2},{196,21,0,0,2},{197,

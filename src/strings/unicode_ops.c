@@ -185,22 +185,6 @@ static MVMint64 push_onto_stack (MVMThreadContext *tc, collation_stack *stack, c
     return 1;
 }
 /* TODO write a script to generate this code */
-MVM_STATIC_INLINE MVMuint32 is_unified_ideograph (MVMThreadContext *tc, int cp) {
-    return (0x3400 <= cp && cp <= 0x4DB5) /*  3400..4DB5  d*/
-    || (0x4E00 <= cp && cp <= 0x9FEA)     /*  4E00..9FEA  */
-    || (0xFA0E <= cp && cp <= 0xFA0F)     /*  FA0E..FA0F  */
-    || (cp == 0xFA11)                     /*  FA11        */
-    || (0xFA13 <= cp && cp <= 0xFA14)     /*  FA13..FA14  */
-    || (cp == 0xFA1F)                     /*  FA1F        */
-    || (cp == 0xFA21)                     /*  FA21        */
-    || (0xFA23  <= cp && cp <= 0xFA24)     /*  FA23..FA24  */
-    || (0xFA27  <= cp && cp <= 0xFA29)     /*  FA27..FA29  */
-    || (0x20000 <= cp && cp <= 0x2A6D6)   /* 20000..2A6D6 */
-    || (0x2A700 <= cp && cp <= 0x2B734)   /* 2A700..2B734 */
-    || (0x2B740 <= cp && cp <= 0x2B81D)   /* 2B740..2B81D */
-    || (0x2B820 <= cp && cp <= 0x2CEA1)   /* 2B820..2CEA1 */
-    || (0x2CEB0 <= cp && cp <= 0x2EBE0);  /* 2CEB0..2EBE0 */
-}
 MVM_STATIC_INLINE MVMint32 compute_AAAA(MVMCodepoint cp, int offset) {
     return (offset + (cp >> 15));
 }
@@ -209,16 +193,6 @@ MVM_STATIC_INLINE MVMint32 compute_BBBB_offset(MVMCodepoint cp, int offset) {
 }
 MVM_STATIC_INLINE MVMint32 compute_BBBB_and(MVMCodepoint cp) {
     return ((cp & 0x7FFF) | 0x8000);
-}
-MVM_STATIC_INLINE MVMint32 is_Assigned_Block_Nushu(MVMCodepoint cp) {
-    return (0x1B170 <= cp && cp <=0x1B2FF);
-}
-MVM_STATIC_INLINE MVMint32 is_Block_Tangut(MVMCodepoint cp) {
-    return (0x17000 <= cp && cp <= 0x18AFF);
-}
-MVM_STATIC_INLINE MVMint32 is_Block_CJK_Unified_Ideographs_OR_CJK_Compatibility_Ideographs(MVMCodepoint cp) {
-    return (0x4E00 <= cp && cp <= 0x9FFF)    /* 4E00..9FFF; CJK Unified Ideographs */
-       ||  (0xF900 <= cp && cp <= 0xFAFF);  /* F900..FAFF; CJK Compatibility Ideographs */
 }
 #define initial_collation_norm_buf_size 5
 static MVMint32 NFD_and_push_collation_values (MVMThreadContext *tc, MVMCodepoint cp, collation_stack *stack, MVMCodepointIter *ci, char *name) {
@@ -277,7 +251,7 @@ static MVMint32 collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp
             DEBUG_SPECIAL_PUSHED(block_pushed, "Assigned_Block_Nushu");
         }
         /* Unified_Ideograph=True */
-        else if (is_unified_ideograph(tc, cp)) {
+        else if (is_unified_ideograph(cp)) {
             if (is_Block_CJK_Unified_Ideographs_OR_CJK_Compatibility_Ideographs(cp)) {
                 AAAA = compute_AAAA(cp, 0xFB40);
                 BBBB = compute_BBBB_and(cp);

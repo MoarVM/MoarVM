@@ -183,6 +183,58 @@ sub debug-out-nodes {
     use JSON::Fast;
     spurt 'out_nodes', to-json(@main-node.map(*.build));
 }
+sub process-block (Str:D $text) {
+    if $text ~~ / ^ \s* $<fullnam>=( $<start>=(<:AHex>+) ['..' $<end>=(<:AHex>+)]? \s* ';' \s* $<name>=(.*) ) \s* $ / {
+        #.say;
+        my Int:D $start = $<fullnam><start>.Str.parse-base(16);
+        my Int:D $end = $<fullnam><end> ?? $<fullnam><end>.Str.parse-base(16) !! $start;
+        my Str:D $name = $<fullnam><name>.Str;
+        my Str:D $fullname = $<fullnam>.Str;
+        return $start, $end, $name, $fullname;
+    }
+    else {
+        die;
+    }
+
+}
+sub get-block-data (Str:D $file, @looking, $funcname) {
+    die unless "UNIDATA/$file".IO.f;
+    my $myfile = slurp "UNIDATA/$file";
+    my @out = "/* Data from $file */", "MVM_STATIC_INLINE MVMuint32 $funcname " ~ '(MVMCodepoint cp) {';
+    @out.push: 'return'.indent: 4;
+    my Int:D $num = 0;
+    for $myfile.lines {
+        next if /^ \s* '#' /;
+        next if /^ \s* $/;
+        if ($file eq 'PropList.txt') {
+            my @split = .split(/[\s+|';']/, :skip-empty);
+            #say @split.perl;
+            next unless @split[1].trim eq @looking.any;
+        }
+        if ($file eq 'Blocks.txt') {
+            my $found = False;
+            for @looking -> $looking {
+                $found = True if m/^\s* <:AHex>+ '..' <:AHex>+ \s* ';' \s* $looking \s* $/;
+            }
+            next unless $found;
+        }
+        #100000..10FFFF; Supplementary Private Use Area-B
+        #(0x3400 <= cp && cp <= 0x4DB5) /*  3400..4DB5  d*/
+        my ($start, $end, $name, $fullname) = process-block $_;
+
+        my Str:D $or = $num++ ?? '||' !! '  ';
+        #say $num;
+        my Str:D $conditional = $start == $end
+            ?? "0x%-22X == cp".sprintf($start)
+            !! "0x%-5X <= cp && cp <= 0x%-5X".sprintf: $start, $end;
+        @out.push: "%s (%s) /* %4X..%-4X %-34s */".sprintf($or, $conditional, $start, $end, $name).indent: 4;
+        #say "start $start end $end name: “$name”";
+    }
+    @out.push: ';'.indent: 4;
+    @out.push: '}';
+    @out.join("\n") ~ "\n";
+
+}
 parse-test-data($main-p6node);
 my $main-node-elems = add-main-node-to-c-data($main-p6node, @main-node);
 sub_node-flesh-out-tree-from-main-node-elems($main-p6node, @main-node, @collation-elements);
@@ -249,6 +301,10 @@ sub transform-array (@array, @order) {
 @composed-arrays.push: "#define starter_main_nodes_elems $main-node-elems";
 @composed-arrays.push: "#define codepoint_sequence_no_max $codepoint_sequence_no_max";
 @composed-arrays.push: "#define special_collation_keys_elems @collation-elements.elems()";
+@composed-arrays.push: get-block-data("PropList.txt", ("Unified_Ideograph",), "is_unified_ideograph");
+@composed-arrays.push: get-block-data("Blocks.txt", ("Nushu",), "is_Assigned_Block_Nushu");
+@composed-arrays.push: get-block-data("Blocks.txt", ("Tangut","Tangut Components"), "is_Block_Tangut");
+@composed-arrays.push: get-block-data("Blocks.txt", ("CJK Unified Ideographs","CJK Compatibility Ideographs"), "is_Block_CJK_Unified_Ideographs_OR_CJK_Compatibility_Ideographs");
 @composed-arrays.push: compose-array('sub_node', 'main_nodes', transform-array(@main-node».build, $order2));
 @composed-arrays.push: compose-array( 'struct collation_key', 'special_collation_keys', transform-array(@collation-elements, $collation_key_order));
 spurt $out-file, @composed-arrays.join("\n");
