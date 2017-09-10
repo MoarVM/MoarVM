@@ -248,7 +248,7 @@ sub format-collation-Str ($a) {
     }
     $out;
 }
-my @composed-arrays;
+my @composed-arrays = "/* This file generated from tools/Generate-Collation-Data.p6 */";
 sub make-struct (@names, @types, @collation-list-for-packing, $struct-name) {
     use lib 'lib';
     use BitfieldPacking; use bitfield-rows-switch;

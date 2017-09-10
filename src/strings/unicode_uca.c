@@ -1,3 +1,4 @@
+/* This file generated from tools/Generate-Collation-Data.p6 */
 struct collation_key {
     MVMuint32 primary :16;
     MVMuint32 tertiary :5;
