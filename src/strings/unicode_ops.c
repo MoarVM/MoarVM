@@ -72,18 +72,20 @@ struct ring_buffer {
     MVMuint32    codes_out_count;
 };
 typedef struct ring_buffer ring_buffer;
-#define PRIsX "%s%X"
-#define fprisX(x) x<0?"-":"",x<0?-(unsigned)x:x)
-//printf("%s%x\n", x<0?"-":"", x<0?-(unsigned)x:x);
-//#define COLLATION_DEBUG 1
-#ifdef  COLLATION_DEBUG
-    #define dfprintf(...) fprintf (stderr, __VA_ARGS__)
+#define COLLATION_DEBUG 1
+#ifdef COLLATION_DEBUG
     static void print_sub_node (sub_node subnode) {
+        MVMint64 min    = next_node_min(subnode);
+        char * min_sign = min < 0 ? "-" : "";
+        MVMint64 max    = next_node_max(subnode);
+        char * max_sign = max < 0 ? "-" : "";
+        max = max < 0 ? -max : max;
+        min = min < 0 ? -min : min;
         fprintf(stderr,
-            "{codepoint 0x%X, next_node_min 0x%X, next_node_max 0x%X, "
+            "{codepoint 0x%X, next_node_min %s0x%"PRIX64", next_node_max %s0x%"PRIX64", "
                 "sub_node_elems %i, sub_node_link %i, "
                     "collation_key_elems %i, collation_key_link %i}\n",
-            subnode.codepoint, next_node_min(subnode), next_node_max(subnode),
+            subnode.codepoint, min_sign, min, max_sign, max,
                 subnode.sub_node_elems, subnode.sub_node_link,
                     subnode.collation_key_elems, subnode.collation_key_link);
     }
@@ -102,18 +104,27 @@ typedef struct ring_buffer ring_buffer;
         }
         fprintf(stderr, "\n");
     }
+    #define DEBUG_COLLATION_MODE_PRINT(level_eval_settings) {\
+        fprintf(stderr, "Setting collation_mode: %li\nSetting primary   {%i,%i,%i}\n"\
+            "Setting secondary {%i,%i,%i}\nSetting tertiary  {%i,%i,%i}\n", collation_mode,\
+            level_eval_settings.a[0].a2[0], level_eval_settings.a[0].a2[1], level_eval_settings.a[0].a2[2],\
+            level_eval_settings.a[1].a2[0], level_eval_settings.a[1].a2[1], level_eval_settings.a[1].a2[2],\
+            level_eval_settings.a[2].a2[0], level_eval_settings.a[2].a2[1], level_eval_settings.a[2].a2[2]);\
+    }
     #define DEBUG_PRINT_SPECIAL_PUSHED(what, name, cp) fprintf(stderr, "Special Pushed 0x%X %s onto stack_%s\n", cp, what, name);
     #define DEBUG_PRINT_SUB_NODE(subnode) print_sub_node(subnode);
     #define DEBUG_SPECIAL_PUSHED(block_pushed, name) block_pushed = name;
     #define DEBUG_PRINT_STACK(tc, stack, name, details) print_stack(tc, stack, name, details);
     #define DEBUG_PRINT_RING_BUFFER(tc, buffer) print_ring_buffer(tc, buffer);
+    #define DEBUG_PRINT(...) fprintf (stderr, __VA_ARGS__)
 #else
-    #define dfprintf(...)
     #define DEBUG_PRINT_SUB_NODE(subnode)
     #define DEBUG_PRINT_STACK(tc, stack, name, details)
     #define DEBUG_SPECIAL_PUSHED(block_pushed, name)
     #define DEBUG_PRINT_SPECIAL_PUSHED(what, name, cp)
     #define DEBUG_PRINT_RING_BUFFER(tc, buffer)
+    #define DEBUG_COLLATION_MODE_PRINT(level_eval_settings)
+    #define DEBUG_PRINT(...)
 #endif
 MVMint32 MVM_unicode_collation_primary (MVMThreadContext *tc, MVMint32 codepoint) {
      return MVM_unicode_codepoint_get_property_int(tc, codepoint, MVM_UNICODE_PROPERTY_MVM_COLLATION_PRIMARY);
@@ -255,30 +266,30 @@ static MVMint32 collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp
         if (is_Block_Tangut(cp)) {
             AAAA = 0xFB00;
             BBBB = compute_BBBB_offset(cp, 0x17000);
-            block_pushed = "Block_Tangut_and_Tangut_Components";
+            DEBUG_SPECIAL_PUSHED(block_pushed, "Block_Tangut_and_Tangut_Components");
         }
         /* Assigned_Block=Nushu 0x1B170..1B2FF (*/
         else if (is_Assigned_Block_Nushu(cp)) {
             AAAA = 0xFB01;
             BBBB = compute_BBBB_offset(cp, 0x1B170);
-            block_pushed = "Assigned_Block_Nushu";
+            DEBUG_SPECIAL_PUSHED(block_pushed, "Assigned_Block_Nushu");
         }
         /* Unified_Ideograph=True */
         else if (is_unified_ideograph(tc, cp)) {
             if (is_Block_CJK_Unified_Ideographs_OR_CJK_Compatibility_Ideographs(cp)) {
                 AAAA = compute_AAAA(cp, 0xFB40);
                 BBBB = compute_BBBB_and(cp);
-                block_pushed = "Ideograph_CJK_Compatibility_OR_Unified";
+                DEBUG_SPECIAL_PUSHED(block_pushed, "Ideograph_CJK_Compatibility_OR_Unified");
             }
             /* All other Unified_Ideograph's */
             else {
                 AAAA = compute_AAAA(cp, 0xFB80);
                 BBBB = compute_BBBB_and(cp);
-                block_pushed = "Ideograph_NOT_CJK_Compatibility_OR_Unified";
+                DEBUG_SPECIAL_PUSHED(block_pushed, "Ideograph_NOT_CJK_Compatibility_OR_Unified");
             }
         }
         else {
-            int NFD_rtrn = NFD_and_push_collation_values(tc, cp, stack, ci, name);
+            MVMint32 NFD_rtrn = NFD_and_push_collation_values(tc, cp, stack, ci, name);
             if (NFD_rtrn) {
                 return NFD_rtrn;
             }
@@ -286,7 +297,6 @@ static MVMint32 collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp
                 AAAA = compute_AAAA(cp, 0xFBC0);
                 BBBB = compute_BBBB_and(cp);
                 DEBUG_SPECIAL_PUSHED(block_pushed, "Unassigned");
-                block_pushed = "Unassigned";
             }
         }
         calculated_key[0].s.primary = AAAA;
@@ -296,7 +306,6 @@ static MVMint32 collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp
         return 2;
     }
     else {
-        dfprintf("Adding MVM_unicode_collation values to stack from cp 0x%X\n", cp);
         push_key_to_stack(stack,
             MVM_coll_key.s.primary,
             MVM_coll_key.s.secondary,
@@ -316,8 +325,6 @@ MVMint64 collation_add_keys_from_node (MVMThreadContext *tc, sub_node *last_node
     MVMint64 j;
     MVMint64 rtrn = 0;
     sub_node *choosen_node = NULL;
-    if (last_node)
-        dfprintf("stack_%s in collation_add_keys_from_node() collation_key_link %i collation_key_elems %i\n", name, last_node->collation_key_link, last_node->collation_key_elems);
     /* If there are any collation elements */
     if (last_node && last_node->collation_key_elems) {
         choosen_node = last_node;
@@ -337,7 +344,7 @@ MVMint64 collation_add_keys_from_node (MVMThreadContext *tc, sub_node *last_node
         }
         return rtrn;
     }
-    dfprintf("Terminal node doesn't have any collation data. Using MVM_collation_values for fallback_cp 0x%X\n", fallback_cp);
+    /* Terminal node doesn't have any collation data. Fall back to using collation_push_MVM_values() */
     collation_push_MVM_values(tc, fallback_cp, stack, ci, name);
     return rtrn;
 }
@@ -364,35 +371,20 @@ MVMint64 get_main_node (MVMThreadContext *tc, int cp, int range_min, int range_m
     int counter   = 0;
     /* Decrement range_min because binary search defaults to 1..* not 0..* */
     range_min--;
-    dfprintf("starter_main_nodes_elems = %i\n", starter_main_nodes_elems);
-    dfprintf("lowest/highest starter nodes codepoints: %i/%i\n", main_nodes[0].codepoint, main_nodes[starter_main_nodes_elems - 1].codepoint);
-    dfprintf("range_min = %i range_max = %i\n", range_min, range_max);
+    /* starter_main_nodes_elems are all the nodes which are the origin nodes
+     * searches using binary search */
+    /* Start range_min at -1 since the lowest node we have to find is at 0, not
+     * 1 (needed for binary search to work) */
     for (range_min = -1, range_max = starter_main_nodes_elems; 1 < range_max - range_min;) {
         i = (range_min + range_max) / 2;
-        dfprintf("Setting i to %"PRIi64"\n", i);
-        dfprintf("Checking node %"PRIi64" codepoint = %i\n", i, main_nodes[i].codepoint);
-        if (cp  <= main_nodes[i].codepoint) {
-            dfprintf("cp< Setting range_max to i → %"PRIi64" before range_min = %i range_max = %i\n", i, range_min, range_max);
+        if (cp  <= main_nodes[i].codepoint)
             range_max = i;
-        }
-        else {
-            dfprintf("cp> Setting range_min to i → %"PRIi64" before range_min = %i range_max = %i\n", range_min, range_min, range_max);
-            range_min = i;
-        }
+        else range_min = i;
     }
-    dfprintf("Final check: node: %i codepoint: %i\n", range_max, main_nodes[range_max].codepoint);
+    /* Final check is here. If we found it, it will match, otherwise not */
     if (main_nodes[range_max].codepoint == cp)
         rtrn = range_max;
-    dfprintf("Returning i as %i\n", -1);
     return rtrn;
-}
-void print_cps_array (MVMCodepoint *cps, int start_at, MVMCodepoint cp_num) {
-    MVMint64 j;
-    dfprintf("print_cps_array() called\n");
-    for (j = start_at; j <= cp_num; j++) {
-        dfprintf("cps[%"PRIi64"i] 0x%X ", j, cps[j]);
-    }
-    dfprintf("\n");
 }
 /* Returns the number of added collation keys */
 static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepointIter *ci, int *cp_maybe, int cp_num, char *name) {
@@ -406,35 +398,28 @@ static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack,
     if (cp_num == 0) {
         cps[0] = MVM_string_ci_get_codepoint(tc, ci);
         cp_num = 1;
-        dfprintf("stack_%s collation_push_cp grabbing codepoint 0x%X from iterator\n",name, cps[0]);
     }
     else {
-        int i;
-        dfprintf("stack_%s collation_push_cp was supplied cp_num: %i codepoints ", name, cp_num);
+        MVMint32 i;
         for (i = 0; i < cp_num; i++) {
             cps[i] = cp_maybe[i];
-            dfprintf("0x%X ", cps[i]);
         }
-        dfprintf("\n");
     }
-    dfprintf("push orig stack_top %li. get_main_node(cps[0]) returned with %i\n", stack->stack_top, query);
     query = get_main_node(tc, cps[0], 0, starter_main_nodes_elems);
     if (query != -1) {
-        dfprintf("query != -1 (%i) stack_%s getting value from special_collation_keys\n", query, name);
+        DEBUG_PRINT_SUB_NODE(main_nodes[query]);
         /* If there are no sub_node_elems that means we don't need to look at
          * the next codepoint, we are already at the correct node
          * If there's no more codepoints in the iterator we also are done here */
         if (main_nodes[query].sub_node_elems < 1 || cp_num < 2 && !MVM_string_ci_has_more(tc, ci)) {
-            dfprintf("stack_%s main_node collation_key_link %i collation_key_elems %i\n", name, main_nodes[query].collation_key_link, main_nodes[query].collation_key_elems);
             collation_add_keys_from_node(tc, NULL, stack, ci, name, cps[0],  &main_nodes[query]);
             num_cps_processed++;
         }
         /* Otherwise we need to check the next codepoint(s) (0 < sub_node_elems) */
         else {
-            int i, result = query;
-            int last_good_i = 0;
-            int last_good_result = -1;
-            dfprintf("stack_%s main node: ", name);
+            MVMint64 last_good_i      =  0,
+                     last_good_result = -1;
+            MVMint64 i, result = query;
             DEBUG_PRINT_SUB_NODE(main_nodes[query]);
             for (i = 0; result != -1 && MVM_string_ci_has_more(tc, ci) && i < 10;) {
                 i++;
@@ -442,14 +427,8 @@ static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack,
                 if (cp_num <= i) {
                     cps[i] = MVM_string_ci_get_codepoint(tc, ci);
                     cp_num++;
-                    dfprintf("grabbed cp\n");
                 }
-                else {
-                    dfprintf("existing cp\n");
-                }
-                dfprintf("cps[++i] -> cps[%i] = MVM_string_ci_get_codepoint = 0x%X. result: %i\n", i, cps[i], result);
                 result = find_next_node(tc, main_nodes[result], cps[i]);
-                dfprintf("result %i i %i\n", result, i);
                 /* If we got something other than -1 and it has collation elements
                  * store the value so we know how far is valid */
                 if (result != -1 && main_nodes[result].collation_key_elems != 0) {
@@ -459,8 +438,6 @@ static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack,
                 if (result != -1)
                     DEBUG_PRINT_SUB_NODE(main_nodes[result]);
             }
-            dfprintf("stack_%s last_good_i %i i=%i\n", name, last_good_i, i);
-            dfprintf("stack_%s settled on : ", name);
             /* If there is no last_good_result we should return a value from main_nodes */
             DEBUG_PRINT_SUB_NODE( (last_good_result == -1 ? main_nodes[query] : main_nodes[last_good_result]) );
             /* If the terminal_subnode can't be processed then that means it will push the starter codepoint ( cp[0] )'s value onto
@@ -470,9 +447,6 @@ static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack,
                  * a single codepoint so set last_good_i to 0 */
                 last_good_i = 0;
             }
-            dfprintf("On the stack have: ");
-            print_cps_array(cps, last_good_i + 1, i);
-            dfprintf("\n");
             num_cps_processed = last_good_i + 1;
         }
     }
@@ -481,37 +455,26 @@ static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack,
         rtrn = collation_push_MVM_values(tc, cps[0], stack, ci, name);
         num_cps_processed = 1;
     }
-    dfprintf("stack_%s num_cps_processed = %"PRIi64" cp_num = %i\n", name, num_cps_processed, cp_num);
     /* If there are any more codepoints remaining call collation_push_cp on the remaining */
     if (num_cps_processed < cp_num) {
         return num_cps_processed + collation_push_cp(tc, stack, ci, cps + num_cps_processed, cp_num - num_cps_processed, name);
     }
     return num_cps_processed;
 }
-MVMint64 grab_from_stack(MVMThreadContext *tc, MVMCodepointIter *ci,
-    collation_stack *stack, char *name) {
-
-    dfprintf("Grabbing from the stack. stack_%s stack_elems %li\n", name, stack->stack_top + 1);
+MVMint64 grab_from_stack(MVMThreadContext *tc, MVMCodepointIter *ci, collation_stack *stack, char *name) {
     if (!MVM_string_ci_has_more(tc, ci))
         return 0;
     collation_push_cp(tc, stack, ci, NULL, 0, name);
-    dfprintf("Finished one grapheme grab to stack. stack_%s stack_elems %li\n", name, stack->stack_top + 1);
     return 1;
 }
 static void init_ringbuffer (MVMThreadContext *tc,  ring_buffer *buffer) {
     MVMint64 i;
-    /* TODO remove this loop which isn't needed when merging to master */
-    for (i = 0; i < codepoint_sequence_no_max; i++) {
-        buffer->codes[i]     = -1;
-        buffer->codes_out[i] = -1;
-    }
     buffer->count           =  0;
     buffer->location        = -1;
     buffer->codes_out_count =  0;
 }
 static void add_to_ring_buffer(MVMThreadContext *tc, ring_buffer *buffer, MVMCodepoint cp) {
     buffer->location++;
-    dfprintf("Adding 0x%X to ring buffer\n", cp);
     if (codepoint_sequence_no_max <= buffer->location)
         buffer->location = 0;
     buffer->codes[buffer->location] = cp;
@@ -523,7 +486,6 @@ static void ring_buffer_done(MVMThreadContext *tc, ring_buffer *buffer) {
     /* If the buffer hasn't been wraped yet or the last codepoint was pushed onto the last buffer element,
      * use memcpy to copy it to the out buffer */
     if (buffer->count <= codepoint_sequence_no_max || buffer->location == codepoint_sequence_no_max - 1) {
-        dfprintf("using memcpy to copy buffer\n");
         memcpy(buffer->codes_out, buffer->codes, sizeof(MVMCodepoint) * buffer->codes_out_count);
     }
     /* Otherwise we need to copy it manually */
@@ -532,7 +494,6 @@ static void ring_buffer_done(MVMThreadContext *tc, ring_buffer *buffer) {
         MVMint32 out_location     = buffer->codes_out_count - 1;
         MVMint32 buf_location     = buffer->location;
         for (; 0 <= out_location; out_location--) {
-            dfprintf("buffer-codes_out[%i] = 0x%X\n", out_location, buffer->codes[buf_location]);
             buffer->codes_out[out_location] = buffer->codes[buf_location];
             buf_location--;
             if (buf_location < 0)
@@ -605,11 +566,7 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
     /* Tertiary */
     setmodeup(16, 2,   -1, 0,  1);
     setmodeup(32, 2,    1, 0, -1);
-
-    dfprintf("Setting: %li\n", collation_mode);
-    dfprintf("Setting primary   {%i,%i,%i}\n", level_eval_settings.a[0].a2[0], level_eval_settings.a[0].a2[1], level_eval_settings.a[0].a2[2]);
-    dfprintf("Setting secondary {%i,%i,%i}\n", level_eval_settings.a[1].a2[0], level_eval_settings.a[1].a2[1], level_eval_settings.a[1].a2[2]);
-    dfprintf("Setting tertiary  {%i,%i,%i}\n", level_eval_settings.a[2].a2[0], level_eval_settings.a[2].a2[1], level_eval_settings.a[2].a2[2]);
+    DEBUG_COLLATION_MODE_PRINT(level_eval_settings);
 
     init_stack(tc, &stack_a);
     init_stack(tc, &stack_b);
@@ -651,10 +608,8 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
     }
     DEBUG_PRINT_RING_BUFFER(tc, &buf_a);
     DEBUG_PRINT_RING_BUFFER(tc, &buf_b);
-
     ring_buffer_done(tc, &buf_a);
     ring_buffer_done(tc, &buf_b);
-    /* Otherwise, need to iterate by codepoint */
     collation_push_cp(tc, &stack_b, &b_ci, buf_b.codes_out, buf_b.codes_out_count, "b");
     DEBUG_PRINT_STACK(tc, &stack_b, "b", "After Initial grab b");
     collation_push_cp(tc, &stack_a, &a_ci, buf_a.codes_out, buf_a.codes_out_count, "a");
@@ -662,28 +617,19 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
 
     while (rtrn == 0) {
         while (pos_a <= stack_a.stack_top && pos_b <= stack_b.stack_top) {
-            dfprintf("stack_a index %"PRIi64" is value %X\n", pos_a, stack_a.keys[pos_a].s.primary);
-            dfprintf("stack_b index %"PRIi64" is value %X\n", pos_b, stack_b.keys[pos_b].s.primary);
-
-            dfprintf(">> checking level_a %"PRIi16" at pos_a %"PRIi64" level_b %"PRIi16" at pos_b %"PRIi64"\n", level_a, pos_a, level_b, pos_b);
             /* Collation values are set as 1 (collation_zero) higher than what Unicode designates. So a collation value of 1 is ignored as
              * a 0 in DUCET would be. Whereas a collation value of 0 cannot be skipped and is used only for the tertiary level
              * of a level separator so it is evaluated as the end of the string, causing the shorter string to win */
             if (stack_a.keys[pos_a].a[level_a] == collation_zero) {
                 pos_a++;
                 skipped_a++;
-                dfprintf("Skipping a because it was 0001 in value\n");
                 continue;
             }
             if (stack_b.keys[pos_b].a[level_b] == collation_zero) {
                 pos_b++;
                 skipped_b++;
-                dfprintf("Skipping b because it was 0001 in value\n");
                 continue;
             }
-            dfprintf("stack_a pos_a %"PRIi64" level_a %"PRIi16" = %i. stack_b pos_b %"PRIi64" level_b %"PRIi16" = %i\n",
-                pos_a, level_a, stack_a.keys[pos_a].a[level_a],
-                pos_b, level_b, stack_b.keys[pos_b].a[level_b]);
             /* If collation values are not equal */
             if (stack_a.keys[pos_a].a[level_a] != stack_b.keys[pos_b].a[level_b]) {
                 union level_eval_u2 effective_level_eval = level_eval_default;
@@ -699,7 +645,6 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
                 DEBUG_PRINT_STACK(tc, &stack_b, "b", "Collation values found not equal");
             }
             if (rtrn != 0) {
-                dfprintf("\nDONE decided rtrn=%"PRIi64"\npos_a=%"PRIi64" pos_b=%"PRIi64" a_keys_pushed=%"PRIi64" b_keys_pushed=%"PRIi64"\n", rtrn, pos_a, pos_b, stack_a.stack_top + 1, stack_b.stack_top + 1);
                 cleanup_stack(tc, &stack_a);
                 cleanup_stack(tc, &stack_b);
                 return rtrn;
@@ -710,9 +655,7 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
         #define if_grab_done(grab_done, stack, ci, pos, level, name) {\
             /* If we haven't grabbed all the collation elements we should grab them */\
             if (!grab_done) {\
-                dfprintf("Pushing %s NON_INITIAL collation elements to the stack\n", name);\
                 if (!grab_from_stack(tc, &ci, &stack, name)) {\
-                    dfprintf("Pushing level separator to stack_%s\n", name);\
                     collation_push_level_separator(tc, &stack, name);\
                     grab_done = 1;\
                 }\
@@ -725,7 +668,7 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
                 if (level < 2) {\
                     pos = 0;\
                     level++;\
-                    dfprintf("Setting level_%s to %"PRIi16" and pos_%s to %"PRIi64". %s_keys_pushed: %li\n",\
+                    DEBUG_PRINT("Setting level_%s to %"PRIi16" and pos_%s to %"PRIi64". %s_keys_pushed: %li\n",\
                                             name,      level,   name, pos,name, stack.stack_top + 1);\
                 }\
                 else {\
@@ -745,19 +688,10 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
     /* If we get here, they tied for all levels including the level separator
      * [0001.0001.0000] The primary and secondary of the level separator we push
      * get ignored, but the tertiary level value 0 is not ignored. No other values
-     * have 0, so that means those levels must have matched up.
-     * Return based on the number of 0001 values we skipped instead to make those
-     * win */
-    /*if (skipped_a != skipped_b) {
-        dfprintf("Returning by number of skipped. skipped_a %"PRIi64" skipped_b %"PRIi64"\n", skipped_a, skipped_b);
-        return stack_a.stack_top < stack_b.stack_top ? -1 :
-               stack_b.stack_top < stack_a.stack_top ?  1 :
-                                                        0 ;
-    }*/
+     * have 0, so that means those levels must have matched up.*/
 
-    /* If we get here then the tie must be broken by codepoint. Use the return
-     * value we computed at the beginning of the function when we were pushing
-     * onto the ring buffers */
+    /* The tie must be broken by codepoint. Use the return value we computed at
+     * the beginning of the function while we were pushing onto the ring buffers */
     if (compare_by_cp_rtrn)
         return compare_by_cp_rtrn;
 
