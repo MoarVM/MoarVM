@@ -559,9 +559,9 @@ src/main@obj@: src/main.c
 	$(MSG) compiling $@
 	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @mainflags@ $(CINCLUDES) @ccout@$@ $*.c
 
-src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
+src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_uca.c src/strings/unicode_ops.c
 	$(MSG) generating $@
-	$(CMD)$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c > $@ $(NOERR)
+	$(CMD) $(CAT) src/strings/unicode_db.c src/strings/unicode_uca.c src/strings/unicode_ops.c > $@ $(NOERR)
 
 $(MINILUA): 3rdparty/dynasm/minilua.c
 	$(CC) $(CFLAGS) $(LDFLAGS) 3rdparty/dynasm/minilua.c -o $@ $(LDLIBS)
