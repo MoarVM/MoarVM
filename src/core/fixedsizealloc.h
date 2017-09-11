@@ -99,6 +99,8 @@ MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc);
 void MVM_fixed_size_create_thread(MVMThreadContext *tc);
 void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes);
 void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes);
+void * MVM_fixed_size_realloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, void * p, size_t old_bytes, size_t new_bytes);
+void * MVM_fixed_size_realloc_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *al, void * p, size_t old_bytes, size_t new_bytes);
 void MVM_fixed_size_destroy(MVMFixedSizeAlloc *al);
 void MVM_fixed_size_destroy_thread(MVMThreadContext *tc);
 void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes, void *free);
