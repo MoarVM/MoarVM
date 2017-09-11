@@ -347,7 +347,7 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
                                       repr_data->elem_size == 4 ? 3 :
                                       repr_data->elem_size == 2 ? 2 :
                                                                   1;
-        if (ssize > (1UL << (CHAR_BIT * sizeof(size_t) - elem_addr_size)))
+        if (ssize > (1ULL << (CHAR_BIT * sizeof(size_t) - elem_addr_size)))
             MVM_exception_throw_adhoc(tc,
                 "Unable to allocate an array of %"PRIu64" elements",
                 ssize);
