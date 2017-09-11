@@ -164,9 +164,23 @@ static MVMGrapheme32 add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MV
     /* Set up the new synthetic entry. */
     synth            = &(nfg->synthetics[nfg->num_synthetics]);
     synth->num_codes = num_codes;
-    /* Eventually this should be set to what the actual base character is,
-     * but for now we always set it to 0 */
-    synth->base_index = 0;
+    /* Find which codepoint is the base codepoint. It is always index 0 unless
+     * there are Prepend codepoints */
+    if (!utf8_c8) {
+        MVMint64 i = 0;
+        while (i < num_codes
+            && MVM_unicode_codepoint_get_property_int(tc, codes[i], MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK)
+            == MVM_UNICODE_PVALUE_GCB_PREPEND)
+        {
+            i++;
+        }
+        /* If all the codepoints were prepend then we need to set it to 0 */
+        synth->base_index = num_codes == i ? 0 : i;
+    }
+    else {
+        synth->base_index = 0;
+    }
+
     synth->codes     = MVM_fixed_size_alloc(tc, tc->instance->fsa,
         num_codes * sizeof(MVMCodepoint));
     memcpy(synth->codes, codes, (synth->num_codes * sizeof(MVMCodepoint)));

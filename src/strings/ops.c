@@ -904,8 +904,10 @@ void MVM_string_print(MVMThreadContext *tc, MVMString *a) {
 /* Meant to be pased in a MVMNormalizer of type MVM_NORMALIZE_NFD */
 static MVMGrapheme32 ord_getbasechar (MVMThreadContext *tc, MVMGrapheme32 g) {
     /* If we get a synthetic, extract the base codepoint and call ord_getbasechar again */
-    if (g < 0)
-        return ord_getbasechar(tc, MVM_nfg_get_synthetic_info(tc, g)->codes[0]);
+    if (g < 0) {
+        MVMNFGSynthetic *synth = MVM_nfg_get_synthetic_info(tc, g);
+        return ord_getbasechar(tc, synth->codes[synth->base_index]);
+    }
     else {
         MVMGrapheme32 return_g;
         MVMint32 ready;

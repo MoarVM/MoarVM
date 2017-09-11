@@ -614,11 +614,6 @@ MVMint32 MVM_unicode_normalize_should_break(MVMThreadContext *tc, MVMCodepoint a
                     return 0;
                 case MVM_UNICODE_PVALUE_GCB_E_BASE:
                     return 0;
-                /* Don't break
-                 * when in Emoji Sequences
-                 * we don't save state so can't support this now
-                 *case MVM_UNICODE_PVALUE_GCB_EXTEND:
-                 *    return 0; */
             }
             if (MVM_unicode_codepoint_get_property_int(tc, a, MVM_UNICODE_PROPERTY_EMOJI_MODIFIER_BASE)) {
                 /* Not all emoji modifiers have E_BASE or E_BASE_GAZ, some cases we need to check the
