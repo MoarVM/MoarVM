@@ -166,20 +166,36 @@ static MVMGrapheme32 add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MV
     synth->num_codes = num_codes;
     /* Find which codepoint is the base codepoint. It is always index 0 unless
      * there are Prepend codepoints */
-    if (!utf8_c8) {
+    if (!utf8_c8 && MVM_unicode_codepoint_get_property_int(tc, codes[0], MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK)
+        == MVM_UNICODE_PVALUE_GCB_PREPEND) {
         MVMint64 i = 0;
-        while (i < num_codes
-            && MVM_unicode_codepoint_get_property_int(tc, codes[i], MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK)
-            == MVM_UNICODE_PVALUE_GCB_PREPEND)
-        {
+        MVMCodepoint cached = codes[i++];
+        MVMint64 cached_GCB = MVM_UNICODE_PVALUE_GCB_PREPEND;
+        while (i < num_codes) {
+            /* If it's the same codepoint as before, don't need to request
+             * the property value again */
+            if (cached == codes[i] || MVM_UNICODE_PVALUE_GCB_PREPEND ==
+                (cached_GCB = MVM_unicode_codepoint_get_property_int(tc, (cached = codes[i]),
+                    MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK))) {
+            }
+            else {
+                /* If we see an Extend then this is a degenerate without any
+                 * base character, so set i to num_codes so base_index gets set
+                 * to 0 */
+                if (cached_GCB == MVM_UNICODE_PVALUE_GCB_EXTEND)
+                    i = num_codes;
+                break;
+            }
             i++;
         }
         /* If all the codepoints were prepend then we need to set it to 0 */
         synth->base_index = num_codes == i ? 0 : i;
+
     }
     else {
         synth->base_index = 0;
     }
+
 
     synth->codes     = MVM_fixed_size_alloc(tc, tc->instance->fsa,
         num_codes * sizeof(MVMCodepoint));
