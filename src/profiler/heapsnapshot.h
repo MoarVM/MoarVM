@@ -16,6 +16,11 @@ struct MVMHeapDumpIndex {
     MVMuint64 snapshot_sizes_alloced;
 };
 
+typedef enum {
+    MVM_HEAP_SNAPSHOT_ALL,
+    MVM_HEAP_SNAPSHOT_MAJOR
+} MVMHeapSnapshotMode;
+
 /* A collection of heap snapshots, with common type and static frame names.
  * Note that we take care to never refer to heap objects themselves in here,
  * including for types and frames, since to do so would extend their lifetime
@@ -53,6 +58,8 @@ struct MVMHeapSnapshotCollection {
 
     /* The file handle we are outputting to */
     FILE *fh;
+
+    MVMHeapSnapshotMode snapshot_mode;
 };
 
 /* An individual heap snapshot. */

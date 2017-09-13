@@ -14,10 +14,24 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
     MVMHeapSnapshotCollection *col = MVM_calloc(1, sizeof(MVMHeapSnapshotCollection));
     char *path;
     MVMString *path_str;
+    MVMObject *collectionfilter;
+    MVMString *filter;
 
     col->index = MVM_calloc(1, sizeof(MVMHeapDumpIndex));
     col->index->snapshot_sizes = MVM_calloc(1, sizeof(MVMHeapDumpIndexSnapshotEntry));
     tc->instance->heap_snapshots = col;
+
+    filter = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "filter");
+    collectionfilter = MVM_repr_at_key_o(tc, config, filter);
+
+    if (!MVM_is_null(collectionfilter)) {
+        collectionfilter = MVM_repr_get_str(tc, collectionfilter);
+
+        filter = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "majoronly");
+        if (MVM_string_equal(tc, filter, collectionfilter)) {
+            col->snapshot_mode = MVM_HEAP_SNAPSHOT_MAJOR;
+        }
+    }
 
     path_str = MVM_repr_get_str(tc,
         MVM_repr_at_key_o(tc, config, tc->instance->str_consts.path));
@@ -915,15 +929,18 @@ void finish_collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollec
 void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
     if (MVM_profile_heap_profiling(tc)) {
         MVMHeapSnapshotCollection *col = tc->instance->heap_snapshots;
-        col->snapshot = MVM_calloc(1, sizeof(MVMHeapSnapshot));
 
-        record_snapshot(tc, col, col->snapshot);
+        if (tc->instance->gc_full_collect || col->snapshot_mode != MVM_HEAP_SNAPSHOT_MAJOR) {
+            col->snapshot = MVM_calloc(1, sizeof(MVMHeapSnapshot));
 
-        snapshot_to_filehandle(tc, col);
-        fflush(col->fh);
+            record_snapshot(tc, col, col->snapshot);
 
-        destroy_current_heap_snapshot(tc);
-        col->snapshot_idx++;
+            snapshot_to_filehandle(tc, col);
+            fflush(col->fh);
+
+            destroy_current_heap_snapshot(tc);
+            col->snapshot_idx++;
+        }
     }
 }
 
