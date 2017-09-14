@@ -21,13 +21,19 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
     col->index->snapshot_sizes = MVM_calloc(1, sizeof(MVMHeapDumpIndexSnapshotEntry));
     tc->instance->heap_snapshots = col;
 
-    filter = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "filter");
+    MVMROOT(tc, config, {
+        filter = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "filter");
+    });
     collectionfilter = MVM_repr_at_key_o(tc, config, filter);
 
     if (!MVM_is_null(tc, collectionfilter)) {
         collectionfilter = (MVMObject *)MVM_repr_get_str(tc, collectionfilter);
 
-        filter = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "majoronly");
+        MVMROOT(tc, config, {
+        MVMROOT(tc, collectionfilter, {
+            filter = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "majoronly");
+        });
+        });
         if (MVM_string_equal(tc, filter, (MVMString*)collectionfilter)) {
             col->snapshot_mode = MVM_HEAP_SNAPSHOT_MAJOR;
         }
