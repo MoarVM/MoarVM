@@ -72,19 +72,18 @@ NOTE: Currently the maximum number of combiners in a synthetic is 1024. MoarVM
 will throw an exception if you attempt to create a grapheme with more than 1024
 codepoints in it. (https://github.com/MoarVM/MoarVM/blob/master/src/strings/nfg.h#L83[source])
 
-Soon Synthetic’s codepoints will be stored in a single array, and the base character
-will be pointed to by storing the location of its index in the array. The reason
-for this is to gain compatibility with Prepend characters.
+Synthetic’s codepoints are stored in a single array, with the base character
+pointed to by storing the location of its index in the array. The reason
+for this is for compatibility with Prepend characters.
 
 === Prepend ===
 
 Before Unicode 9.0, base characters were always the first codepoint in the grapheme.
 The `Prepend` property was added in Unicode 9.0, which does the opposite of the
 `Extend` property. Codepoints with the `Prepend` property combine with the
-codepoint which comes immediately afterward.
-
-WARNING: Currently ignoremark string ops and `ordbaseat` do not support `Prepend`.
-We do properly segment grapheme clusters with `Prepend` codepoints in them though.
+codepoint which comes immediately afterward. MoarVM supports both segmentation,
+as well as getting the base codepoint out of a synthetic that starts with one or
+more Prepend codepoint(s).
 
 == Normalization ==
 

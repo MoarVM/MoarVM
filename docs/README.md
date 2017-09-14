@@ -1,6 +1,9 @@
 ## Current Docs
 
 ### [Strings](strings.asciidoc)
+
+### [Collation](collation.asciidoc)
+
 ## Historical Design Docs
 
 These documents are mostly of historical interest for the heavy design phases

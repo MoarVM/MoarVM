@@ -116,7 +116,7 @@ position to the very end of the string if we flattened the collation arrays.
 Instead we keep track of both are position in the stack, but also which level
 we are on, moving further on the stack then pushing more arrays as needed.
 If the primary values all tie, we wrap and go to the beginning of the stack but
-on the subsequent level. String a and b are not neccisarily on the same position
+on the subsequent level. String a and b are not necessarily on the same position
 in the stack, or on the same collation level.
 
 === The Data ===
@@ -128,12 +128,12 @@ in `src/strings/unicode_uca.c`. The data in `unicode_uca.c` is this:
 `main_nodes` contains a linked list representation. Although all the nodes
 are in the same `main_nodes` struct array, we `#define` how many root nodes there
 are, and this number lets us do a binary search of the root nodes. If we get a
-match, we check if there are any sub node elementns, and if none, we then use
+match, we check if there are any sub node elements, and if none, we then use
 the `collation_link` and collation_elems` values to push the specified number of
 collation elements from the correct location in the `special_collation` struct
 array onto the stack. If there _are_ more possibilities, if we don't have anymore
-codepoints passed to `push_cp_onto_stack`, we grab more and then use `subnode_link`
-and `subnode_elems` to do a linear search, stopping if we see any codepointns which
+codepoints passed to `collation_push_cp`, we grab more and then use `sub_node_link`
+and `sub_node_elems` to do a linear search, stopping if we see any codepointns which
 are higher than the one we are looking for. The reason linear search is used is
 because we have 1-18 or so subnodes from each parent node, and binary search
 is slower for small numbers of elements.
@@ -149,7 +149,7 @@ disable levels as you wish. The trick to this is knowing that for all collation
 values: `_tertiary_ *<* _secondary_ *<* _primary_`
 
 We use `level_eval_settings` to store the settings for each level, which we set
-up based on the bitmask of the collation_mode argument to the fuction. If the
+up based on the bitmask of the collation_mode argument to the function. If the
 two levels are the same we are able to compare them based on the setting. If the
 levels are not equal, we do not need to do this, since tertiary < secondary <
 primary for all values.
