@@ -3,12 +3,12 @@
  *    0   The strings are identical for the collation levels requested
  * -1/1   String a is less than string b/String a is greater than string b
  *
- * `collation_mode` acts like a bitfield. Each of primary, secondary and tertiary
+ * `collation_mode` acts like a bitmask. Each of primary, secondary and tertiary
  * collation levels can be either: disabled, enabled, reversed.
  * In the table below, where + designates sorting normal direction and
  * - indicates reversed sorting for that collation level.
  *
- * Collation level | bitfield value
+ * Collation level | bitmask value
  *        Primary+ |   1
  *        Primary- |   2
  *      Secondary+ |   4
