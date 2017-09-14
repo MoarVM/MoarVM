@@ -158,7 +158,8 @@ static MVMAsyncTask * read_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObject
     /* Validate REPRs. */
     if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
         MVM_exception_throw_adhoc(tc,
-            "asyncreadbytes target queue must have ConcBlockingQueue REPR");
+            "asyncreadbytes target queue must have ConcBlockingQueue REPR (got %s)",
+            queue->st->debug_name);
     if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask)
         MVM_exception_throw_adhoc(tc,
             "asyncreadbytes result type must have REPR AsyncTask");
