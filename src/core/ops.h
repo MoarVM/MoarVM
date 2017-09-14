@@ -636,7 +636,7 @@
 #define MVM_OP_decont_i 632
 #define MVM_OP_decont_n 633
 #define MVM_OP_decont_s 634
-#define MVM_OP_DEPRECATED_2 635
+#define MVM_OP_getrusage 635
 #define MVM_OP_DEPRECATED_3 636
 #define MVM_OP_DEPRECATED_4 637
 #define MVM_OP_getlexref_i 638

@@ -4553,6 +4553,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_6model_container_decont_s(tc, obj, r);
                 goto NEXT;
             }
+            OP(getrusage):
+                GET_REG(cur_op, 0).o = MVM_proc_getrusage(tc);
+                cur_op += 2;
+                goto NEXT;
             OP(getlexref_i):
                 GET_REG(cur_op, 0).o = MVM_nativeref_lex_i(tc,
                     GET_UI16(cur_op, 4), GET_UI16(cur_op, 2));
@@ -5777,7 +5781,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_cross_thread_write_check(tc, obj, blame);
                 goto NEXT;
             }
-            OP(DEPRECATED_2):
             OP(DEPRECATED_3):
             OP(DEPRECATED_4):
             OP(DEPRECATED_5):

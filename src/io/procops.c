@@ -1138,3 +1138,33 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
     }
     return clargs;
 }
+
+/* Gets resource usage statistics, so far as they are portably available (see
+ * libuv docs) and puts them into an integer array. */
+MVMObject * MVM_proc_getrusage(MVMThreadContext *tc) {
+    MVMObject *result;
+    uv_rusage_t usage;
+    int r;
+    if ((r = uv_getrusage(&usage)) > 0)
+        MVM_exception_throw_adhoc(tc, "Unable to getrusage: %s", uv_strerror(r));
+    result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
+    MVM_repr_bind_pos_i(tc, result, 0, usage.ru_utime.tv_sec);
+    MVM_repr_bind_pos_i(tc, result, 1, usage.ru_utime.tv_usec);
+    MVM_repr_bind_pos_i(tc, result, 2, usage.ru_stime.tv_sec);
+    MVM_repr_bind_pos_i(tc, result, 3, usage.ru_stime.tv_usec);
+    MVM_repr_bind_pos_i(tc, result, 4, usage.ru_maxrss);
+    MVM_repr_bind_pos_i(tc, result, 5, usage.ru_ixrss);
+    MVM_repr_bind_pos_i(tc, result, 6, usage.ru_idrss);
+    MVM_repr_bind_pos_i(tc, result, 7, usage.ru_isrss);
+    MVM_repr_bind_pos_i(tc, result, 8, usage.ru_minflt);
+    MVM_repr_bind_pos_i(tc, result, 9, usage.ru_majflt);
+    MVM_repr_bind_pos_i(tc, result, 10, usage.ru_nswap);
+    MVM_repr_bind_pos_i(tc, result, 11, usage.ru_inblock);
+    MVM_repr_bind_pos_i(tc, result, 12, usage.ru_oublock);
+    MVM_repr_bind_pos_i(tc, result, 13, usage.ru_msgsnd);
+    MVM_repr_bind_pos_i(tc, result, 14, usage.ru_msgrcv);
+    MVM_repr_bind_pos_i(tc, result, 15, usage.ru_nsignals);
+    MVM_repr_bind_pos_i(tc, result, 16, usage.ru_nvcsw);
+    MVM_repr_bind_pos_i(tc, result, 17, usage.ru_nivcsw);
+    return result;
+}
