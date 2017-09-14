@@ -24,12 +24,16 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
     filter = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "filter");
     collectionfilter = MVM_repr_at_key_o(tc, config, filter);
 
-    if (!MVM_is_null(collectionfilter)) {
+    if (!MVM_is_null(tc, (MVMObject*)collectionfilter)) {
         collectionfilter = MVM_repr_get_str(tc, collectionfilter);
 
         filter = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "majoronly");
         if (MVM_string_equal(tc, filter, collectionfilter)) {
             col->snapshot_mode = MVM_HEAP_SNAPSHOT_MAJOR;
+        }
+        else {
+            char *waste[] = { MVM_string_utf8_encode_C_string(tc, filter), NULL };
+            MVM_exception_throw_adhoc_free(tc, waste, "Unknown filter type for heapsnapshot profiler: %s", waste[0]);
         }
     }
 
@@ -930,7 +934,7 @@ void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
     if (MVM_profile_heap_profiling(tc)) {
         MVMHeapSnapshotCollection *col = tc->instance->heap_snapshots;
 
-        if (tc->instance->gc_full_collect || col->snapshot_mode != MVM_HEAP_SNAPSHOT_MAJOR) {
+        if (tc->instance->gc_full_collect || col->snapshot_mode != MVM_HEAP_SNAPSHOT_MAJOR || col->force_take_snapshot) {
             col->snapshot = MVM_calloc(1, sizeof(MVMHeapSnapshot));
 
             record_snapshot(tc, col, col->snapshot);
@@ -948,6 +952,8 @@ void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
 MVMObject * MVM_profile_heap_end(MVMThreadContext *tc) {
     MVMHeapSnapshotCollection *col = tc->instance->heap_snapshots;
     MVMObject *dataset;
+
+    col->force_take_snapshot = 1;
 
     /* Trigger a GC run, to ensure we get at least one heap snapshot. */
     MVM_gc_enter_from_allocator(tc);

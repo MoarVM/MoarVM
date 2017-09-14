@@ -60,6 +60,7 @@ struct MVMHeapSnapshotCollection {
     FILE *fh;
 
     MVMHeapSnapshotMode snapshot_mode;
+    MVMuint8 force_take_snapshot;
 };
 
 /* An individual heap snapshot. */
