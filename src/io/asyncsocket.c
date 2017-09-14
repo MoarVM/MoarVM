@@ -507,7 +507,7 @@ static void push_name_and_port(MVMThreadContext *tc, struct sockaddr_storage *na
     }
     MVMROOT(tc, arr, {
         port_o = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, port);
-        MVMROOT(tc, port, {
+        MVMROOT(tc, port_o, {
             host_o = (MVMObject *)MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr,
                     MVM_string_ascii_decode_nt(tc, tc->instance->VMString, addrstr));
         });
