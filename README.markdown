@@ -6,6 +6,7 @@ Perl 6, but should be able to serve as a backend for any compilers built using
 the NQP compiler toolchain.
 
 ## Get It
+Either download it from https://www.moarvm.org/ or clone it from GitHub:
 ```
 git clone https://github.com/MoarVM/MoarVM.git
 ```
