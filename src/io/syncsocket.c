@@ -343,7 +343,8 @@ MVMint64 socket_getport(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
 
     struct sockaddr_storage name;
-    int error, len = sizeof(struct sockaddr_storage);
+    int error;
+    socklen_t len = sizeof(struct sockaddr_storage);
     MVMint64 port = 0;
 
     error = getsockname(data->handle, (struct sockaddr *) &name, &len);
@@ -393,6 +394,10 @@ static const MVMIOOps op_table = {
     gc_free
 };
 
+/* since we'll throw an error in case of an error we can turn off -Wreturn-type here,
+works with GCC and clang, others will ignore this */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wreturn-type"
 static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     Socket s;
@@ -416,6 +421,7 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
         return (MVMObject *)result;
     }
 }
+#pragma GCC diagnostic pop
 
 MVMObject * MVM_io_socket_create(MVMThreadContext *tc, MVMint64 listen) {
     MVMOSHandle         * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
