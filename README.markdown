@@ -5,8 +5,15 @@ for the 6model object system. It is primarily aimed at running NQP and Rakudo
 Perl 6, but should be able to serve as a backend for any compilers built using
 the NQP compiler toolchain.
 
-## Build It
+## Get It
+Either download it from [the MoarVM site](https://www.moarvm.org/) or clone it from GitHub:
+```
+git clone https://github.com/MoarVM/MoarVM.git
+```
+If you use the automatically generated release tarballs or zip files please note that they don't
+contain the third party libraries needed to successfully build MoarVM.
 
+## Build It
 [![Build Status](https://travis-ci.org/MoarVM/MoarVM.svg?branch=master)](https://travis-ci.org/MoarVM/MoarVM)
 
 Building the VM itself takes just:
