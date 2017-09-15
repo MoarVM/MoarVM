@@ -637,7 +637,7 @@ static const void * const LABELS[] = {
     &&OP_decont_n,
     &&OP_decont_s,
     &&OP_getrusage,
-    &&OP_DEPRECATED_3,
+    &&OP_threadlockcount,
     &&OP_DEPRECATED_4,
     &&OP_getlexref_i,
     &&OP_getlexref_n,

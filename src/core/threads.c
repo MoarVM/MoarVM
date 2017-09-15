@@ -231,6 +231,18 @@ MVMObject * MVM_thread_current(MVMThreadContext *tc) {
     return (MVMObject *)tc->thread_obj;
 }
 
+/* Gets the number of locks held by a thread. */
+MVMint64 MVM_thread_lock_count(MVMThreadContext *tc, MVMObject *thread_obj) {
+    if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread && IS_CONCRETE(thread_obj)) {
+        MVMThreadContext *thread_tc = ((MVMThread *)thread_obj)->body.tc;
+        return thread_tc ? thread_tc->num_locks : 0;
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Thread handle used with threadlockcount must have representation MVMThread");
+    }
+}
+
 void MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head) {
     /* Assumed to be the only thread accessing the list.
      * must set next on every item. */
