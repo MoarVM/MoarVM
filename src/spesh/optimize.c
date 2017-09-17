@@ -2186,11 +2186,13 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
      * trash the stack. (needed on musl) */
     optimize_bb_switch(tc, g, bb, p);
     /* Optimize the case where we only have one child. This avoids having
-     * to do a recursive call to optimize_bb(). Keep following the nodes and
-     * running optimize_bb_switch() on them until we hit one with more than 1
-     * child. */
-    while (bb->num_children == 1)
-        optimize_bb_switch(tc, g, (bb = bb->children[0]), p);
+     * to do a recursive call to optimize_bb() */
+    while (bb->num_children == 1) {
+        bb = bb->children[0];
+        /* Keep following the nodes and running optimize_bb_switch() on them
+         * until we hit one with more than 1 child. */
+        optimize_bb_switch(tc, g, bb, p);
+    }
     /* Visit children. */
     for (; i < bb->num_children; i++)
         optimize_bb(tc, g, bb->children[i], p);
