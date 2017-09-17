@@ -609,19 +609,12 @@ clean:
 	$(MSG) remove build files
 	-$(CMD)$(RM) $(MAIN_OBJECTS) $(OBJECTS) $(JIT_INTERMEDIATES) $(NOOUT) $(NOERR)
 
-ifneq ("$(wildcard 3rdparty/libatomic_ops/src/Makefile)", "")
-realclean: clean_libatomic
-endif
-
-clean_libatomic:
-	$(MSG) cleaning libatomic_ops
-	-$(CMD)@laoclean@ $(NOOUT) $(NOERR)
-
 realclean: clean
 	$(MSG) remove auxiliary files
 	-$(CMD)@auxclean@ $(NOOUT) $(NOERR)
 	$(MSG) remove 3rdparty files
 	-$(CMD)@uvclean@ $(NOOUT) $(NOERR)
+	-$(CMD)@laoclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@tomclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@shaclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@mtclean@ $(NOOUT) $(NOERR)
