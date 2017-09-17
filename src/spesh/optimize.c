@@ -1938,12 +1938,9 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
         /*fprintf(stderr, "a PHI node of %d operands had no intersecting flags\n", ins->info->num_operands);*/
     }
 }
-/* Visits the blocks in dominator tree order, recursively. */
-static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                         MVMSpeshPlanned *p) {
     MVMSpeshCallInfo arg_info;
-    MVMint32 i;
-
     /* Look for instructions that are interesting to optimize. */
     MVMSpeshIns *ins = bb->first_ins;
     while (ins) {
@@ -2179,9 +2176,17 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
 
         ins = ins->next;
     }
-
+}
+/* Visits the blocks in dominator tree order, recursively. */
+static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                        MVMSpeshPlanned *p) {
+    MVMint64 i = 0;
+    /* Because this optimize_bb() can be deeply recursive, separate as much code
+     * as possible into a separate function optimize_bb_switch(), so we don't
+     * trash the stack. (needed on musl) */
+    optimize_bb_switch(tc, g, bb, p);
     /* Visit children. */
-    for (i = 0; i < bb->num_children; i++)
+    for (; i < bb->num_children; i++)
         optimize_bb(tc, g, bb->children[i], p);
 }
 
@@ -2355,7 +2360,7 @@ static void eliminate_pointless_gotos(MVMThreadContext *tc, MVMSpeshGraph *g) {
         if (!cur_bb->jumplist) {
             MVMSpeshIns *last_ins = cur_bb->last_ins;
             if (last_ins && last_ins->info->opcode == MVM_OP_goto)
-                if (last_ins->operands[0].ins_bb == cur_bb->linear_next) 
+                if (last_ins->operands[0].ins_bb == cur_bb->linear_next)
                     MVM_spesh_manipulate_delete_ins(tc, g, cur_bb, last_ins);
         }
         cur_bb = cur_bb->linear_next;
