@@ -1,3 +1,9 @@
+New in 2017.09.1
+
++ Assign variable in optimize_bb loop on its own line for clarity
++ Revert "Fix errors when running `make realclean" to unbreak build
+  using nmake
+
 New in 2017.09
 
 + Allocate async process read buffer based on amount last read, with a
