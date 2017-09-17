@@ -2181,10 +2181,16 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                         MVMSpeshPlanned *p) {
     MVMint64 i = 0;
-    /* Because this optimize_bb() can be deeply recursive, separate as much code
+    /* Because optimize_bb() can be deeply recursive, separate as much code
      * as possible into a separate function optimize_bb_switch(), so we don't
      * trash the stack. (needed on musl) */
     optimize_bb_switch(tc, g, bb, p);
+    /* Optimize the case where we only have one child. This avoids having
+     * to do a recursive call to optimize_bb(). Keep following the nodes and
+     * running optimize_bb_switch() on them until we hit one with more than 1
+     * child. */
+    while (bb->num_children == 1)
+        optimize_bb_switch(tc, g, (bb = bb->children[0]), p);
     /* Visit children. */
     for (; i < bb->num_children; i++)
         optimize_bb(tc, g, bb->children[i], p);
