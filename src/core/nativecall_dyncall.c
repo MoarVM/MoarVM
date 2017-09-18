@@ -2,8 +2,6 @@
 #ifndef _WIN32
 #include <dlfcn.h>
 #endif
-#include <platform/threads.h>
-#include <platform/time.h>
 
 /* Maps a calling convention name to an ID. */
 MVMint16 MVM_nativecall_get_calling_convention(MVMThreadContext *tc, MVMString *name) {
@@ -214,43 +212,12 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     MVMRegister res;
     MVMRegister *args;
     unsigned int interval_id;
-    MVMint32 was_blocked;
 
-    /* Locate the thread. */
-    MVMint64 wanted_thread_id = MVM_platform_thread_id();
-    MVMThreadContext *tc = NULL;
-    while (1) {
-        uv_mutex_lock(&(data->instance->mutex_threads));
-        if (data->instance->in_gc) {
-            /* VM is in GC; free lock since the GC will acquire it again to
-             * clear the in_gc flag, and sleep a bit until it's safe to read
-             * the threads list. */
-            uv_mutex_unlock(&(data->instance->mutex_threads));
-            MVM_platform_sleep(0.0001);
-        }
-        else {
-            /* Not in GC. If a GC starts while we are reading this, then we
-             * are holding mutex_threads, and the GC will block on it before
-             * it gets to a stage where it can move things. */
-            MVMThread *thread = data->instance->threads;
-            while (thread) {
-                if (thread->body.native_thread_id == wanted_thread_id) {
-                    tc = thread->body.tc;
-                    if (tc)
-                        break;
-                }
-                thread = thread->body.next;
-            }
-            if (!tc)
-                MVM_panic(1, "native callback ran on thread (%"PRId64") unknown to MoarVM",
-                    wanted_thread_id);
-            uv_mutex_unlock(&(data->instance->mutex_threads));
-            break;
-        }
-    }
+    /* Locate the MoarVM thread this callback is being run on. */
+    MVMThreadContext *tc = MVM_nativecall_find_thread_context(data->instance);
 
     /* Unblock GC if needed, so this thread can do work. */
-    was_blocked = MVM_gc_is_thread_blocked(tc);
+    MVMint32 was_blocked = MVM_gc_is_thread_blocked(tc);
     if (was_blocked)
         MVM_gc_mark_thread_unblocked(tc);
 

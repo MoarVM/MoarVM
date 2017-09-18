@@ -2,6 +2,8 @@
 #ifndef _WIN32
 #include <dlfcn.h>
 #endif
+#include <platform/threads.h>
+#include <platform/time.h>
 
 /* Grabs a NativeCall body. */
 MVMNativeCallBody * MVM_nativecall_get_nc_body(MVMThreadContext *tc, MVMObject *obj) {
@@ -838,4 +840,40 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                 MVM_nativecall_refresh(tc, body->child_objs[slot]);
         }
     }
+}
+
+/* Locate the thread that a callback should be run on. */
+MVMThreadContext * MVM_nativecall_find_thread_context(MVMInstance *instance) {
+    MVMint64 wanted_thread_id = MVM_platform_thread_id();
+    MVMThreadContext *tc = NULL;
+    while (1) {
+        uv_mutex_lock(&(instance->mutex_threads));
+        if (instance->in_gc) {
+            /* VM is in GC; free lock since the GC will acquire it again to
+             * clear the in_gc flag, and sleep a bit until it's safe to read
+             * the threads list. */
+            uv_mutex_unlock(&(instance->mutex_threads));
+            MVM_platform_sleep(0.0001);
+        }
+        else {
+            /* Not in GC. If a GC starts while we are reading this, then we
+             * are holding mutex_threads, and the GC will block on it before
+             * it gets to a stage where it can move things. */
+            MVMThread *thread = instance->threads;
+            while (thread) {
+                if (thread->body.native_thread_id == wanted_thread_id) {
+                    tc = thread->body.tc;
+                    if (tc)
+                        break;
+                }
+                thread = thread->body.next;
+            }
+            if (!tc)
+                MVM_panic(1, "native callback ran on thread (%"PRId64") unknown to MoarVM",
+                    wanted_thread_id);
+            uv_mutex_unlock(&(instance->mutex_threads));
+            break;
+        }
+    }
+    return tc;
 }
