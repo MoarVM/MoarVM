@@ -15,7 +15,16 @@ install:
   - perl Configure.pl --prefix=%APPVEYOR_BUILD_FOLDER%\buildprefix
   - nmake install
 
-build: off
+environment:
+  matrix:
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+
+branches:
+  only:
+    - master
+
+#build: off
 
 test_script:
   - cd %APPVEYOR_BUILD_FOLDER%\nqp
