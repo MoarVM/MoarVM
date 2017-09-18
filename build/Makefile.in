@@ -402,7 +402,8 @@ UV_UNIX = 3rdparty/libuv/src/fs-poll@obj@ \
           3rdparty/libuv/src/threadpool@obj@ \
           3rdparty/libuv/src/unix/timer@obj@ \
           3rdparty/libuv/src/unix/tty@obj@ \
-          3rdparty/libuv/src/unix/udp@obj@
+          3rdparty/libuv/src/unix/udp@obj@ \
+          3rdparty/libuv/src/unix/posix-hrtime.c
 
 UV_LINUX = 3rdparty/libuv/src/unix/linux-core@obj@ \
            3rdparty/libuv/src/unix/linux-inotify@obj@ \
