@@ -246,7 +246,7 @@ static size_t get_struct_size_for_family(sa_family_t family) {
 }
 
 /* This function may return any type of sockaddr e.g. sockaddr_un, sockaddr_in or sockaddr_in6
- * It shouldin't be a problem with general code as long as the port number is kept below the int16 limit: 65536
+ * It shouldn't be a problem with general code as long as the port number is kept below the int16 limit: 65536
  * After this it defines flags which may spawn non internet sockaddr's
  * These flags can be extracted by port >> 16
  *
@@ -288,8 +288,8 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
 
     error = getaddrinfo(host_cstr, port_cstr, NULL, &result);
     if (error == 0) {
-        MVM_free(host_cstr);
         size_t size = get_struct_size_for_family(result->ai_addr->sa_family);
+        MVM_free(host_cstr);
         dest = MVM_malloc(size);
         memcpy(dest, result->ai_addr, size);
     }
