@@ -251,6 +251,11 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
         /* Set it to zero (we're guaranteed the only ones trying to write to
          * it here). Actual STable free in MVM_gc_enter_from_allocator. */
         MVM_store(&tc->instance->gc_ack, 0);
+
+        /* Also clear in GC flag. */
+        uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
+        tc->instance->in_gc = 0;
+        uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
     }
 }
 
@@ -408,8 +413,9 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         /* We'll take care of our own work. */
         add_work(tc, tc);
 
-        /* Find other threads, and signal or steal. */
+        /* Find other threads, and signal or steal. Also set in GC flag. */
         uv_mutex_lock(&tc->instance->mutex_threads);
+        tc->instance->in_gc = 1;
         num_threads = signal_all(tc, tc->instance->threads);
         uv_mutex_unlock(&tc->instance->mutex_threads);
 

@@ -177,6 +177,11 @@ struct MVMInstance {
     /* Whether the current GC run is a full collection. */
     MVMuint32 gc_full_collect;
 
+    /* Are we in GC? Set by the coordinator at entry/exit of GC, and used by
+     * native callback handling to decide if it should wait before trying to
+     * lookup the current thread as the thread list may move under it. */
+    MVMuint32 in_gc;
+
     /* How many bytes of data have we promoted from the nursery to gen2
      * since we last did a full collection? */
     AO_t gc_promoted_bytes_since_last_full;
