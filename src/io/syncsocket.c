@@ -256,15 +256,13 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
     struct addrinfo *result;
     char port_cstr[8];
 
-    if (port > 65535) {
-        flags = (port >> 16);
-    }
+    flags = (port >> 16);
 
 #ifndef _WIN32
     if (flags & AF_UNIX) {
         struct sockaddr_un *result_un = MVM_malloc(sizeof(struct sockaddr_un));
 
-        if (strlen(host_cstr) > 108) {
+        if (strlen(host_cstr) > 107) {
             MVM_free(result_un);
             MVM_free(host_cstr);
             MVM_exception_throw_adhoc(tc, "Socket path can only be maximal 107 characters long");
