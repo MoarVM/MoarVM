@@ -245,20 +245,28 @@ static size_t get_struct_size_for_family(sa_family_t family) {
     }
 }
 
-/* Actually, it may return sockaddr_in6 as well; it's not a problem for us, because we just
- * pass is straight to uv, and the first thing it does is it looks at the address family,
- * but it's a thing to remember if someone feels like peeking inside the returned struct. */
+/* This function may return any type of sockaddr e.g. sockaddr_un, sockaddr_in or sockaddr_in6
+ * It shouldin't be a problem with general code as long as the port number is kept below the int16 limit: 65536
+ * After this it defines flags which may spawn non internet sockaddr's
+ * These flags can be extracted by port >> 16
+ *
+ * Current supported flags:
+ *
+ * AF_UNIX = 1
+ *   Unix domain socket, will spawn a sockaddr_un which will use the given host as path
+ *   e.g: MVM_io_resolve_host_name(tc, "/run/moarvm.sock", 1 << 16)
+ *   will spawn an unix domain socket on /run/moarvm.sock
+ */
 struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host, MVMint64 port) {
     char *host_cstr = MVM_string_utf8_encode_C_string(tc, host);
     struct sockaddr *dest;
     int error;
-    int flags = 0;
     struct addrinfo *result;
     char port_cstr[8];
-
-    flags = (port >> 16);
+    int flags = port >> 16;
 
 #ifndef _WIN32
+    /* AF_UNIX = 1 */
     if (flags & AF_UNIX) {
         struct sockaddr_un *result_un = MVM_malloc(sizeof(struct sockaddr_un));
 
