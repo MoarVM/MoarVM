@@ -69,12 +69,12 @@ static void start_thread(void *data) {
     ThreadStart *ts = (ThreadStart *)data;
     MVMThreadContext *tc = ts->tc;
 
-    /* Stash thread ID. */
-    tc->thread_obj->body.native_thread_id = MVM_platform_thread_id();
-
     /* wait for the GC to finish if it's not finished stealing us. */
     MVM_gc_mark_thread_unblocked(tc);
     tc->thread_obj->body.stage = MVM_thread_stage_started;
+
+    /* Stash thread ID. */
+    tc->thread_obj->body.native_thread_id = MVM_platform_thread_id();
 
     /* Create a spesh log for this thread. */
     MVM_spesh_log_initialize_thread(tc, 0);
