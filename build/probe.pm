@@ -104,7 +104,7 @@ EOT
 
     if ($can_compile) {
 	$ENV{LDFLAGS} //= '';
-        $command = "$config->{ld} $ENV{LDFLAGS} $config->{ldout}$leaf $obj $config->{ldlibs} 2>&1";
+        $command = "$config->{ld} $ENV{LDFLAGS} $config->{ldout}$leaf $obj 2>&1";
         $output  = `$command` || $!;
         if ($? >> 8 == 0) {
             $can_link = 1;
@@ -225,6 +225,34 @@ sub static_inline_cross {
     # might get confused by link time optimisations that only fail at run time,
     # which the system test does detect.
     $config->{static_inline} = 'static';
+}
+
+sub specific_werror {
+    my ($config) = @_;
+    my $restore = _to_probe_dir();
+
+    if ($config->{cc} ne 'gcc') {
+        $config->{can_err_decl_after_stmt} = 1;
+        return;
+    }
+
+    my $file = 'try.c';
+    _spew($file, <<'EOT');
+#include <stdlib.h>
+
+int main(int argc, char **argv) {
+     return EXIT_SUCCESS;
+}
+EOT
+
+    print ::dots('    probing support of -Werror=*');
+
+    (my $obj = $file) =~ s/\.c/$config->{obj}/;
+    my $command = "gcc -Werror=declaration-after-statement $config->{ccout}$obj try.c >$devnull 2>&1";
+    my $can_specific_werror = !( system $command );
+
+    print $can_specific_werror ? "YES\n": "NO\n";
+    $config->{can_specific_werror} = $can_specific_werror || 0
 }
 
 

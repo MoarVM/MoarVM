@@ -143,10 +143,24 @@ $config{translate_newline_output} = 0  unless defined $config{translate_newline_
 $config{ld}           = $config{cc} unless defined $config{ld};
 $config{ldout}        = $config{ccout} unless defined $config{ldout};
 $config{ldsys}        = $config{ldusr} unless defined $config{ldsys};
-$config{ldmiscflags}  = $config{ccmiscflags} unless defined $config{ldmiscflags};
 $config{ldoptiflags}  = $config{ccoptiflags} unless defined $config{ldoptiflags};
 $config{lddebugflags} = $config{ccdebugflags} unless defined $config{lddebugflags};
 $config{ldinstflags}  = $config{ccinstflags} unless defined $config{ldinstflags};
+
+# Probe the compiler.
+build::probe::compiler_usability(\%config, \%defaults);
+
+# Remove unsupported -Werror=* gcc flags if gcc doesn't support them.
+build::probe::specific_werror(\%config, \%defaults);
+if ($config{cc} eq 'gcc' && !$config{can_specific_werror}) {
+    $config{ccmiscflags} =~ s/-Werror=[^ ]+//g;
+    $config{ccmiscflags} =~ s/ +/ /g;
+    $config{ccmiscflags} =~ s/^ +$//;
+}
+
+# Set the remaining ldmiscflags. Do this after probing for gcc -Werror probe to not miss that change for the linker.
+$config{ldmiscflags}  = $config{ccmiscflags} unless defined $config{ldmiscflags};
+
 
 if ($args{'has-sha'}) {
     $config{shaincludedir} = '/usr/include/sha';
@@ -167,7 +181,7 @@ if (-e '3rdparty/libuv/src/unix/threadpool' . $defaults{obj}
 
 # test whether pkg-config works
 if (-e "$config{pkgconfig}") {
-    print("\nTesting pkgconfig ... ");
+    print dots("    Testing pkgconfig");
     system("$config{pkgconfig}", "--version");
     if ( $? == 0 ) {
         $config{pkgconfig_works} = 1;
@@ -380,18 +394,16 @@ $config{mainlibs} = '-lubsan ' . $config{mainlibs} if $args{ubsan};
 my @auxfiles = @{ $defaults{-auxfiles} };
 $config{auxclean} = @auxfiles ? '$(RM) ' . join ' ', @auxfiles : '@:';
 
-print "OK\n";
+print "OK\n\n";
 
 if ($config{crossconf}) {
     build::auto::detect_cross(\%config, \%defaults);
-    build::probe::compiler_usability(\%config, \%defaults);
     build::probe::static_inline_cross(\%config, \%defaults);
     build::probe::unaligned_access_cross(\%config, \%defaults);
     build::probe::ptr_size_cross(\%config, \%defaults);
 }
 else {
     build::auto::detect_native(\%config, \%defaults);
-    build::probe::compiler_usability(\%config, \%defaults);
     build::probe::static_inline_native(\%config, \%defaults);
     build::probe::unaligned_access(\%config, \%defaults);
     build::probe::ptr_size_native(\%config, \%defaults);
@@ -576,6 +588,7 @@ sub setup_native {
     my ($os) = @_;
 
     print dots("Configuring native build environment");
+    print "\n";
 
     $os = build::probe::win32_compiler_toolchain(\%config, \%defaults)
         if $os eq 'MSWin32';
@@ -749,8 +762,9 @@ sub generate {
 sub dots {
     my $message = shift;
     my $length = shift || 55;
-
-    return "$message ". '.' x ($length - length $message) . ' ';
+    my $dot_count = $length - length $message;
+    $dot_count = 0 if $dot_count < 0;
+    return "$message " . '.' x $dot_count . ' ';
 }
 
 # fail but continue
