@@ -24,7 +24,7 @@ branches:
   only:
     - master
 
-#build: off
+build: off
 
 test_script:
   - cd %APPVEYOR_BUILD_FOLDER%\nqp
