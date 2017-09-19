@@ -38,6 +38,7 @@ typedef struct {
 } ParameterizeReturnData;
 static void finish_parameterizing(MVMThreadContext *tc, void *sr_data) {
     ParameterizeReturnData *prd = (ParameterizeReturnData *)sr_data;
+    MVMObject *found;
 
     /* Mark parametric and stash required data. */
     MVMSTable *new_stable = STABLE(prd->result->o);
@@ -47,10 +48,23 @@ static void finish_parameterizing(MVMThreadContext *tc, void *sr_data) {
         prd->parameters);
     new_stable->mode_flags |= MVM_PARAMETERIZED_TYPE;
 
-    /* Add to lookup table. */
+    /* Add to lookup table. Multiple threads may race to do this, so after
+     * taking the lock to serialize additions we re-check for a match. If we
+     * don't find one, do a defensive copy here so that existing readers of
+     * the table won't be bitten. */
     uv_mutex_lock(&tc->instance->mutex_parameterization_add);
-    MVM_repr_push_o(tc, prd->parametric_type->st->paramet.ric.lookup, prd->parameters);
-    MVM_repr_push_o(tc, prd->parametric_type->st->paramet.ric.lookup, prd->result->o);
+    found = MVM_6model_parametric_try_find_parameterization(tc,
+        prd->parametric_type->st, prd->parameters);
+    if (found) {
+        prd->result->o = found;
+    }
+    else {
+        MVMObject *copy = MVM_repr_clone(tc, prd->parametric_type->st->paramet.ric.lookup);
+        MVM_repr_push_o(tc, copy, prd->parameters);
+        MVM_repr_push_o(tc, copy, prd->result->o);
+        MVM_ASSIGN_REF(tc, &(prd->parametric_type->st->header),
+            prd->parametric_type->st->paramet.ric.lookup, copy);
+    }
     uv_mutex_unlock(&tc->instance->mutex_parameterization_add);
 
     /* Clean up parametric return data, now we're finished with it. */
