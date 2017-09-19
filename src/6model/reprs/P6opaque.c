@@ -351,7 +351,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
             if (attr_st) {
                 MVMSTable *value_st = STABLE(value);
                 if (attr_st == value_st)
-                    st->REPR->copy_to(tc, attr_st, OBJECT_BODY(value), root,
+                    value_st->REPR->copy_to(tc, attr_st, OBJECT_BODY(value), root,
                         (char *)data + repr_data->attribute_offsets[slot]);
                 else
                     MVM_exception_throw_adhoc(tc,
