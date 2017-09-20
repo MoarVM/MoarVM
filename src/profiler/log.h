@@ -37,6 +37,9 @@ struct MVMProfileGC {
     /* How long the collection took. */
     MVMuint64 time;
 
+    /* When, relative to program start, did this GC take place? */
+    MVMuint64 abstime;
+
     /* Was it a full collection? */
     MVMuint32 full;
 

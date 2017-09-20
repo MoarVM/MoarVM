@@ -319,6 +319,7 @@ typedef struct {
     MVMString *retained_bytes;
     MVMString *promoted_bytes;
     MVMString *gen2_roots;
+    MVMString *start_time;
     MVMString *osr;
     MVMString *deopt_one;
     MVMString *deopt_all;
@@ -460,7 +461,11 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
                                     const MVMProfileThreadData *ptd) {
     MVMObject *thread_hash = new_hash(tc);
     MVMObject *thread_gcs  = new_array(tc);
+    MVMuint64 absolute_start_time;
     MVMuint32  i;
+
+    /* Use the main thread's start time for absolute timings */
+    absolute_start_time = tc->prof_data->start_time;
 
     /* Add time. */
     MVM_repr_bind_key_o(tc, thread_hash, pds->total_time,
@@ -486,6 +491,8 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
             box_i(tc, ptd->gcs[i].promoted_bytes));
         MVM_repr_bind_key_o(tc, gc_hash, pds->gen2_roots,
             box_i(tc, ptd->gcs[i].num_gen2roots));
+        MVM_repr_bind_key_o(tc, gc_hash, pds->start_time,
+            box_i(tc, (ptd->gcs[i].abstime - absolute_start_time) / 1000));
         MVM_repr_push_o(tc, thread_gcs, gc_hash);
     }
     MVM_repr_bind_key_o(tc, thread_hash, pds->gcs, thread_gcs);
@@ -532,6 +539,7 @@ static MVMObject * dump_data(MVMThreadContext *tc) {
     pds.retained_bytes  = str(tc, "retained_bytes");
     pds.promoted_bytes  = str(tc, "promoted_bytes");
     pds.gen2_roots      = str(tc, "gen2_roots");
+    pds.start_time      = str(tc, "start_time");
     pds.osr             = str(tc, "osr");
     pds.deopt_one       = str(tc, "deopt_one");
     pds.deopt_all       = str(tc, "deopt_all");
