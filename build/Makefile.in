@@ -402,8 +402,7 @@ UV_UNIX = 3rdparty/libuv/src/fs-poll@obj@ \
           3rdparty/libuv/src/threadpool@obj@ \
           3rdparty/libuv/src/unix/timer@obj@ \
           3rdparty/libuv/src/unix/tty@obj@ \
-          3rdparty/libuv/src/unix/udp@obj@ \
-          3rdparty/libuv/src/unix/posix-hrtime@obj@
+          3rdparty/libuv/src/unix/udp@obj@
 
 UV_LINUX = 3rdparty/libuv/src/unix/linux-core@obj@ \
            3rdparty/libuv/src/unix/linux-inotify@obj@ \
@@ -413,14 +412,17 @@ UV_LINUX = 3rdparty/libuv/src/unix/linux-core@obj@ \
 
 UV_OPENBSD = 3rdparty/libuv/src/unix/openbsd@obj@ \
              3rdparty/libuv/src/unix/kqueue@obj@ \
+             3rdparty/libuv/src/unix/posix-hrtime@obj@ \
              $(UV_UNIX)
 
 UV_NETBSD = 3rdparty/libuv/src/unix/netbsd@obj@ \
             3rdparty/libuv/src/unix/kqueue@obj@ \
+            3rdparty/libuv/src/unix/posix-hrtime@obj@ \
             $(UV_UNIX)
 
 UV_FREEBSD = 3rdparty/libuv/src/unix/freebsd@obj@ \
              3rdparty/libuv/src/unix/kqueue@obj@ \
+             3rdparty/libuv/src/unix/posix-hrtime@obj@ \
              $(UV_UNIX)
 
 UV_DARWIN = 3rdparty/libuv/src/unix/darwin@obj@ \
