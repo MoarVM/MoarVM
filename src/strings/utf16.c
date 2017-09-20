@@ -124,7 +124,7 @@ char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
     alloc_size = lengthu * 2;
     result = MVM_malloc(alloc_size + 2);
     result_pos = result;
-    MVM_string_ci_init(tc, &ci, str, translate_newlines);
+    MVM_string_ci_init(tc, &ci, str, translate_newlines, 0);
     while (MVM_string_ci_has_more(tc, &ci)) {
         int bytes_needed;
         MVMCodepoint value = MVM_string_ci_get_codepoint(tc, &ci);

@@ -257,10 +257,10 @@ static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in) {
      * than the initial estimate, but utf8-c8 showed us otherwise. */
     MVMGrapheme32 *out_buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
     MVMint64 out_pos = 0;
-
     /* Iterate codepoints and normalizer. */
     MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
-    MVM_string_ci_init(tc, &ci, in, 0);
+    /* Codepoint iterator that passes back utf8-c8 graphemes unchanged */
+    MVM_string_ci_init(tc, &ci, in, 0, 1);
     while (MVM_string_ci_has_more(tc, &ci)) {
         MVMGrapheme32 g;
         ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, MVM_string_ci_get_codepoint(tc, &ci), &g);
@@ -649,7 +649,8 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         };
         MVMROOT(tc, a, {
         MVMROOT(tc, b, {
-        /* Needing both to be CCC = 0 can probably be relaxed some, but be careful optimizing */
+        /* If both are not synthetics, we can can pass those values unchanged
+         * instead of iterating by codepoint */
         if (0 <= last_a_first_b[0] && 0 <= last_a_first_b[1]) {
             renormalized_section = MVM_unicode_codepoints_c_array_to_nfg_string(tc, last_a_first_b, 2);
             consumed_a = 1; consumed_b = 1;
@@ -657,8 +658,8 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         else {
             MVMCodepointIter last_a_ci;
             MVMCodepointIter first_b_ci;
-            MVMuint32 a_codes = MVM_string_grapheme_ci_init(tc, &last_a_ci,  last_a_first_b[0]);
-            MVMuint32 b_codes = MVM_string_grapheme_ci_init(tc, &first_b_ci, last_a_first_b[1]);
+            MVMuint32 a_codes = MVM_string_grapheme_ci_init(tc, &last_a_ci,  last_a_first_b[0], 1);
+            MVMuint32 b_codes = MVM_string_grapheme_ci_init(tc, &first_b_ci, last_a_first_b[1], 1);
             /* MSVC doesn't allow variable length arrays so use alloca to allocate onto the stack */
             MVMCodepoint *last_a_first_b_codes = alloca((a_codes + b_codes) * sizeof(MVMCodepoint));
             MVMuint32 i = 0;
@@ -2002,8 +2003,8 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
              * iterate the codepoints inside it */
             if (g_a < 0 || g_b < 0) {
                 MVMCodepointIter ci_a, ci_b;
-                MVM_string_grapheme_ci_init(tc, &ci_a, g_a);
-                MVM_string_grapheme_ci_init(tc, &ci_b, g_b);
+                MVM_string_grapheme_ci_init(tc, &ci_a, g_a, 0);
+                MVM_string_grapheme_ci_init(tc, &ci_b, g_b, 0);
                 while (MVM_string_grapheme_ci_has_more(tc, &ci_a) && MVM_string_grapheme_ci_has_more(tc, &ci_b)) {
                     g_a = MVM_string_grapheme_ci_get_codepoint(tc, &ci_a);
                     g_b = MVM_string_grapheme_ci_get_codepoint(tc, &ci_b);

@@ -47,7 +47,9 @@ MVM_STATIC_INLINE MVMuint32 MVM_string_codes(MVMThreadContext *tc, MVMString *s)
     MVM_string_check_arg(tc, s, "codes");
     if (MVM_string_graphs_nocheck(tc, s) == 0)
         return 0;
-    MVM_string_ci_init(tc, &ci, s, 0);
+    /* Maybe we should pass back utf-c8 graphemes unchanged so they count as 1
+     * codepoint each? For now we flatten utf8-c8 */
+    MVM_string_ci_init(tc, &ci, s, 0, 0);
     while(MVM_string_ci_has_more(tc, &ci)) {
         MVM_string_ci_get_codepoint(tc, &ci);
         codes++;

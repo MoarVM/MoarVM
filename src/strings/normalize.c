@@ -154,7 +154,7 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
     result_pos   = 0;
 
     /* Create codepoint iterator. */
-    MVM_string_ci_init(tc, &ci, s, 0);
+    MVM_string_ci_init(tc, &ci, s, 0, 0);
 
     /* If we want NFC, just iterate, since NFG is constructed out of NFC. */
     if (form == MVM_NORMALIZE_NFC) {
@@ -524,14 +524,23 @@ static MVMint32 is_grapheme_prepend(MVMThreadContext *tc, MVMCodepoint cp) {
  * we are checking two arbitrary codepoints. If we are normalizing linearly from
  * the start of the string this has no more significance than returning 1) */
 MVMint32 MVM_unicode_normalize_should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b, MVMNormalizer *norm) {
-    int GCB_a = MVM_unicode_codepoint_get_property_int(tc, a, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
-    int GCB_b = MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
+    int GCB_a, GCB_b;
+
     /* Don't break between \r and \n, but otherwise break around \r. */
     if (a == 0x0D && b == 0x0A)
         return 0;
     if (a == 0x0D || b == 0x0D)
         return 1;
-
+    /* For utf8-c8 graphemes. These we can't request property values and act like
+     * control's */
+    if (a < 0 || b < 0) {
+        if ((a < 0 && MVM_nfg_get_synthetic_info(tc, a)->is_utf8_c8) || (b < 0 && MVM_nfg_get_synthetic_info(tc, b)->is_utf8_c8)) {
+            return 0;
+        }
+        MVM_exception_throw_adhoc(tc, "Internal error: synthetic grapheme found when computing grapheme segmentation");
+    }
+    GCB_a = MVM_unicode_codepoint_get_property_int(tc, a, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
+    GCB_b = MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
     switch (GCB_a) {
         case MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR:
             if (2 <= norm->regional_indicator) {

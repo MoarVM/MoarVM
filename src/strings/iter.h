@@ -187,24 +187,34 @@ struct MVMCodepointIter {
     MVMCodepoint   base_code;
     /* If we should translate newline \n into \r\n. */
     MVMint32       translate_newlines;
+    /* Used to pass through utf8-c8 synthetics, but not any others so we can
+     * renomalize text without getting rid of utf8-c8 synthetics */
+    MVMint32       pass_utfc8_synthetics;
+
 };
 
 /* Initializes a code point iterator. */
 MVM_STATIC_INLINE void MVM_string_ci_init(MVMThreadContext *tc, MVMCodepointIter *ci, MVMString *s,
-        MVMint32 translate_newlines) {
+        MVMint32 translate_newlines, MVMint32 pass_utfc8_synthetics) {
     /* Initialize our underlying grapheme iterator. */
     MVM_string_gi_init(tc, &(ci->gi), s);
 
     /* We've no currently active synthetic codepoint (and other fields are
      * unused until we do, so leave them alone for now). */
-    ci->synth_codes = NULL;
-    ci->translate_newlines = translate_newlines;
+    ci->synth_codes           = NULL;
+    ci->translate_newlines    = translate_newlines;
+    ci->pass_utfc8_synthetics = pass_utfc8_synthetics;
 };
 /* Iterates on a grapheme. Returns the number of codepoints in the grapheme */
-MVM_STATIC_INLINE MVMGrapheme32 MVM_string_grapheme_ci_init(MVMThreadContext *tc, MVMCodepointIter *ci, MVMGrapheme32 g) {
+MVM_STATIC_INLINE MVMGrapheme32 MVM_string_grapheme_ci_init(MVMThreadContext *tc, MVMCodepointIter *ci, MVMGrapheme32 g, MVMint32 pass_utfc8_synthetics) {
+    MVMNFGSynthetic *synth = NULL;
     if (g < 0) {
         /* Get the synthetics info. */
-        MVMNFGSynthetic *synth = MVM_nfg_get_synthetic_info(tc, g);
+        synth = MVM_nfg_get_synthetic_info(tc, g);
+    }
+    /* If we got a synth, but *not* if we are supposed to pass utf8-c8 synthetics
+     * and it is a utf8-c8 synthetic */
+    if (synth && !(pass_utfc8_synthetics && synth->is_utf8_c8)) {
         /* Set up the iterator so in the next iteration we will start to
         * hand back codepoints after the initial */
         /* TODO: for now assumes synthetics start 1 after the first codepoint */
@@ -222,6 +232,7 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_grapheme_ci_init(MVMThreadContext *tc
     }
     return ci->total_synth_codes + 1;
 }
+/* Only for string_grapheme_ci ops */
 MVM_STATIC_INLINE MVMCodepoint MVM_string_grapheme_ci_get_codepoint(MVMThreadContext *tc, MVMCodepointIter *ci) {
     MVMCodepoint result = ci->visited_synth_codes < 0
         ? ci->base_code
@@ -236,6 +247,7 @@ MVM_STATIC_INLINE MVMCodepoint MVM_string_grapheme_ci_get_codepoint(MVMThreadCon
 MVM_STATIC_INLINE MVMint32 MVM_string_ci_has_more(MVMThreadContext *tc, MVMCodepointIter *ci) {
     return ci->synth_codes || MVM_string_gi_has_more(tc, &(ci->gi));
 }
+/* Only for use with string_grapheme_ci ops */
 MVM_STATIC_INLINE MVMint32 MVM_string_grapheme_ci_has_more(MVMThreadContext *tc, MVMCodepointIter *ci) {
     return ci->visited_synth_codes < ci->total_synth_codes;
 }
@@ -270,16 +282,22 @@ MVM_STATIC_INLINE MVMCodepoint MVM_string_ci_get_codepoint(MVMThreadContext *tc,
         else {
             /* It's a synthetic. Look it up. */
             MVMNFGSynthetic *synth = MVM_nfg_get_synthetic_info(tc, g);
+            /* If we have pass_utfc8_synthetics set and it's a utf_c8 codepoint
+             * pass it back unchanged */
+            if (ci->pass_utfc8_synthetics && synth->is_utf8_c8) {
+                result = g;
+            }
+            else {
+                /* Set up the iterator so in the next iteration we will start to
+                * hand back codepoints. */
+                ci->synth_codes         = synth->codes + 1;
+                ci->visited_synth_codes = 0;
+                /* Emulate num_combs and subtract one from num_codes */
+                ci->total_synth_codes   = synth->num_codes - 1;
 
-            /* Set up the iterator so in the next iteration we will start to
-            * hand back codepoints. */
-            ci->synth_codes         = synth->codes + 1;
-            ci->visited_synth_codes = 0;
-            /* Emulate num_combs and subtract one from num_codes */
-            ci->total_synth_codes   = synth->num_codes - 1;
-
-            /* Result is the first codepoint of the `codes` array */
-            result = synth->codes[0];
+                /* Result is the first codepoint of the `codes` array */
+                result = synth->codes[0];
+            }
         }
     }
 

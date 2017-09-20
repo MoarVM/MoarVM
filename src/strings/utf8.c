@@ -551,7 +551,7 @@ char * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
     result_pos   = 0;
 
     /* Iterate the codepoints and encode them. */
-    MVM_string_ci_init(tc, &ci, str, translate_newlines);
+    MVM_string_ci_init(tc, &ci, str, translate_newlines, 0);
     while (MVM_string_ci_has_more(tc, &ci)) {
         MVMint32 bytes;
         MVMCodepoint cp = MVM_string_ci_get_codepoint(tc, &ci);
