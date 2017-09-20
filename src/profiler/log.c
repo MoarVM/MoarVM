@@ -281,6 +281,7 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
 /* Logs the start of a GC run. */
 void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full) {
     MVMProfileThreadData *ptd = get_thread_data(tc);
+    MVMProfileGC *gc;
 
     /* Make a new entry in the GCs. We use the cleared_bytes to store the
      * maximum that could be cleared, and after GC is done will subtract
@@ -289,12 +290,15 @@ void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full) {
         ptd->alloc_gcs += 16;
         ptd->gcs = MVM_realloc(ptd->gcs, ptd->alloc_gcs * sizeof(MVMProfileGC));
     }
-    ptd->gcs[ptd->num_gcs].full          = full;
-    ptd->gcs[ptd->num_gcs].cleared_bytes = (char *)tc->nursery_alloc -
-                                           (char *)tc->nursery_tospace;
+    gc = &ptd->gcs[ptd->num_gcs];
+    gc->full          = full;
+    gc->cleared_bytes = (char *)tc->nursery_alloc -
+                        (char *)tc->nursery_tospace;
 
     /* Record start time. */
     ptd->cur_gc_start_time = uv_hrtime();
+    /* Also store this time in the GC data */
+    gc->abstime = ptd->cur_gc_start_time;
 }
 
 /* Logs the end of a GC run. */
