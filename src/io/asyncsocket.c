@@ -491,12 +491,12 @@ static void push_name_and_port(MVMThreadContext *tc, struct sockaddr_storage *na
     switch (name->ss_family) {
         case AF_INET6: {
             uv_ip6_name((struct sockaddr_in6*)name, addrstr, INET6_ADDRSTRLEN + 1);
-            port = ((struct sockaddr_in6*)name)->sin6_port;
+            port = ntohs(((struct sockaddr_in6*)name)->sin6_port);
             break;
         }
         case AF_INET: {
             uv_ip4_name((struct sockaddr_in*)name, addrstr, INET6_ADDRSTRLEN + 1);
-            port = ((struct sockaddr_in*)name)->sin_port;
+            port = ntohs(((struct sockaddr_in*)name)->sin_port);
             break;
         }
         default:
