@@ -248,15 +248,24 @@ static size_t get_struct_size_for_family(sa_family_t family) {
 
 /* This function may return any type of sockaddr e.g. sockaddr_un, sockaddr_in or sockaddr_in6
  * It shouldn't be a problem with general code as long as the port number is kept below the int16 limit: 65536
- * After this it defines flags which may spawn non internet sockaddr's
- * These flags can be extracted by port >> 16
+ * After this it defines the family which may spawn non internet sockaddr's
+ * The family can be extracted by (port >> 16) & USHORT_MAX
  *
- * Current supported flags:
+ * Currently supported families:
+ *
+ * AF_UNSPEC = 1
+ *   Unspecified, in most cases should be equal to AF_INET or AF_INET6
  *
  * AF_UNIX = 1
  *   Unix domain socket, will spawn a sockaddr_un which will use the given host as path
  *   e.g: MVM_io_resolve_host_name(tc, "/run/moarvm.sock", 1 << 16)
  *   will spawn an unix domain socket on /run/moarvm.sock
+ *
+ * AF_INET = 2
+ *   IPv4 socket
+ *
+ * AF_INET6 = 3
+ *   IPv6 socket
  */
 struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host, MVMint64 port) {
     char *host_cstr = MVM_string_utf8_encode_C_string(tc, host);
@@ -264,11 +273,12 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
     int error;
     struct addrinfo *result;
     char port_cstr[8];
-    int flags = port >> 16;
+    unsigned short family = (port >> 16) & USHRT_MAX;
+    struct addrinfo hints;
 
 #ifndef _WIN32
     /* AF_UNIX = 1 */
-    if (flags & AF_UNIX) {
+    if (family == AF_UNIX) {
         struct sockaddr_un *result_un = MVM_malloc(sizeof(struct sockaddr_un));
 
         if (strlen(host_cstr) > 107) {
@@ -285,9 +295,14 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
     }
 #endif
 
+    hints.ai_family = family;
+    hints.ai_socktype = 0;
+    hints.ai_flags = AI_PASSIVE;
+    hints.ai_protocol = 0;
+
     snprintf(port_cstr, 8, "%d", (int)port);
 
-    error = getaddrinfo(host_cstr, port_cstr, NULL, &result);
+    error = getaddrinfo(host_cstr, port_cstr, &hints, &result);
     if (error == 0) {
         size_t size = get_struct_size_for_family(result->ai_addr->sa_family);
         MVM_free(host_cstr);
@@ -296,8 +311,8 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
     }
     else {
         char *waste[] = { host_cstr, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste, "Failed to resolve host name '%s'. Error: '%s'",
-                                       host_cstr, gai_strerror(error));
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to resolve host name '%s' with family %d. Error: '%s'",
+                                       host_cstr, family, gai_strerror(error));
     }
     freeaddrinfo(result);
 
