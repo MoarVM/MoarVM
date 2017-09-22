@@ -986,10 +986,6 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
             NYI(storage_class);
         }
     }
-    /* Because we implement restorative loading, the values live after CALL are
-     * live again, and the values last used for either ARGLIST or CALL will be
-     * expired by other processes */
-
 }
 
 MVM_STATIC_INLINE void process_tile(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, MVMint32 tile_cursor) {

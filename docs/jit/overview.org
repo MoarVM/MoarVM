@@ -1,0 +1,632 @@
+#+TITLE: MoarVM JIT compiler overview
+
+* Introduction
+
+This document attempts to describe the structure of the MoarVM JIT
+compiler and document some of the design decisions that shape it.
+
+* Components
+
+** Dynamic optimizer
+
+This part is noteworthy because it is not, in fact, part of the JIT
+compiler at all. It is a separate subsystem that handles all of the
+type logging, graph construction and rewriting, call inlining - in
+short, all of the interesting optimizations of a dynamic language
+system. The JIT (legacy and 'expression') is a code-generation backend
+for this system. MoarVM is rather unique in this since in most
+systems, the order is reversed.
+
+In contrast to what might be called 'language-level' optimizations
+implemented by spesh, the objective of the JIT is to remove
+intepreter-level inefficiencies.
+
+** 'Lego' JIT compiler
+
+The legacy or 'lego' JIT compiler was the first to be developed back
+in 2014.  It has this name because it works by emitting independent
+fragments of machine code that are stitched together. These fragments
+are mapped directly from the 'spesh graph' (representing a MoarVM
+subroutine or 'frame') that is the input to the compiler. There are
+very few optimizations applied by the legacy compiler (one notable
+optimization is the inlining of a polymorphic REPR function pointer if
+the type of the object is known).
+
+The lego JIT produces a structure called the 'JIT graph', which, while
+a technically correct name, is a bit of a misnomer since it is really
+a singly-linked list. It uses labels rather than an explicit control
+flow graph (like spesh does) to indicate internal structure. The JIT
+graph is then compiled to JIT code. There is in fact little reason to
+maintain this two-phase setup; the legacy JIT could work just as well
+in a single phase.
+
+Even for the new JIT, the legacy JIT provides the necessary
+scaffolding to integrate with the interpreter (such as a proper
+function prologue and epilogue, support for exceptions and invokish
+operators, and the various bits and pieces required for correct
+deoptimization.
+
+** DynASM assembler
+
+DynASM is a third-party library from the [[http://www.luajit.org/][luajit]] project that we've
+modified to support register addressing on the x86-64 architecture. It
+allows you to interleave the assembly code you'd like to emit with the
+C code that does the regular compiling business. DynASM has two parts:
+
++ A lua script to preprocess a 'dasc' (which is C interleaved with
+  assembly code) file and output a C file.
++ A C header to #include into the generated C file that contains all
+  the functions to assemble and link the machine code at runtime
+
+DynASM source files are architecture-specific.
+
+** Expression trees
+
+The expression 'tree' is the intermediate format of the new
+'expression' JIT compiler. The tree is a technically incorrect
+misnomer - it actually represents a graph.
+
+The expression tree is built from a spesh graph by mapping MoarVM
+instructions to templates. These templates are written in a textual
+format by a human (or perhaps a script), that is /precompiled/ to a
+header file during MoarVM compilation. Take note that while the
+expression templates look a bit like a high-level language some may be
+familiar with, the concepts it expresses are decidedly 'low-level' and
+can be mapped more-or-less directly to the machine code of a
+hypothetical RISC CPU.
+
+*** Syntax
+
+The syntax used for expression templates is derived from LISP.
+
++ Lists are the basic constructs of the language. A list is delimited
+  by opening ='('= and closing =')'= parentheses. Lists can be
+  nested. Items in the lists are separated by whitespace.
++ A word is anything that matches the perl regular expression of =[^\s\(\)#"']=.
+  + A word that consists only of alphanumeric symobls (and possibly
+    underline) is called a /symbol/: =sp_p6oget_o=. The first symbol
+    in a list is generally it's /operator/.
+  + Suffixed by =:= is generally a /keyword/, e.g. =let:=
+  + Prefixed by =$= is a /reference/, either to a MoarVM instruction
+    operand (=$1=, =$2=) or to a declared name (=$val=).
+  + Prefixed by =^= invokes a /list macro/, which can be declared with
+    the =macro:= keyword.
+  + Macro /parameters/ are prefixed by =,= (e.g. =,obj=), and they are
+    replaced with whatever symbol or list is 'bound' to them when the
+    macro is invoked.
+  + Parameter macro's are indicated by a prefix =&=,
+    e.g. =&sizeof=. They are always substituted with a function macro:
+    =(&sizeof foo)= becomes =sizeof(foo)=. These /must/ form constant
+    expressions at compilation time.
++ A string is anything delimited by ="= - but note that /escape
+  sequences/ are not supported, so ="foo \" bar"= doesn't do what you
+  might think it does
+
+An example of a template definition would be as follows:
+
+#+BEGIN_SRC scheme
+(template: sp_p6oget_o
+    (let: (($val (load (add (^p6obody $1) $2) ptr_sz)))
+           (if (nz $val) $val (^vmnull))))
+#+END_SRC
+
+The =let:= keyword is not an operator but a special construct for the
+template precompiler. It allows the declaration of names for values
+that are computed and reused in further operators.
+
+And an example of a macro definition would be:
+
+#+BEGIN_SRC scheme
+(macro: ^getf (,object ,type ,field)
+   (load (addr ,object (&offsetof ,type ,field))
+         (&SIZEOF_MEMBER ,type ,field)))
+#+END_SRC
+
+
+
+*** Operators
+
+These are all the operators that are known by the expression language
+as of today (<2017-09-25 Mon>).
+
+| Operator  | Shape                            | Type     | Semantics                                              |
+|-----------+----------------------------------+----------+--------------------------------------------------------|
+| =LOAD=    | =(load reg $size)=               | =reg=    | Load a value from a memory address                     |
+| =STORE=   | =(store reg reg $size)=          | =void=   | Store a value to a memory address                      |
+| =CONST=   | =(const $value $size)=           | =reg=    | Load a constant value to a register                    |
+| =ADDR=    | =(addr reg $ofs)=                | =reg=    | Add a constant offset to a pointer                     |
+| =IDX=     | =(idx reg reg $scale)=           | =reg=    | Compute a pointer for an index in an array             |
+| =COPY=    | =(copy reg)=                     | =reg=    | Copy this value (opaque to tiling)                     |
+|-----------+----------------------------------+----------+--------------------------------------------------------|
+| =LT=      | =(lt reg reg)=                   | =flag=   | First operand is smaller than second                   |
+| =LE=      | =(le reg reg)=                   | =flag=   | First operand is smaller than or equal to second       |
+| =EQ=      | =(eq reg reg)=                   | =flag=   | First operand is equal to second                       |
+| =NE=      | =(ne reg reg)=                   | =flag=   | First operand is not equal to second                   |
+| =GE=      | =(ge reg reg)=                   | =flag=   | First operand is larger than or equal to second        |
+| =GT=      | =(gt reg reg)=                   | =flag=   | First operand is larger than second                    |
+| =NZ=      | =(nz reg)=                       | =flag=   | Operand is nonzero                                     |
+| =ZR=      | =(zr reg)=                       | =flag=   | Operand equals zero                                    |
+|-----------+----------------------------------+----------+--------------------------------------------------------|
+| =CAST=    | =(cast reg $from $to $sign)=     | =reg=    | Convert a value from smaller to larger representation  |
+| =FLAGVAL= | =(flagval flag)=                 | =reg=    | Binary value of comparison operator                    |
+| =DISCARD= | =(discard reg)=                  | =void=   | Discard value of child operator                        |
+|-----------+----------------------------------+----------+--------------------------------------------------------|
+| =ADD=     | =(add reg reg)=                  | =reg=    | Add two integer values                                 |
+| =SUB=     | =(sub reg reg)=                  | =reg=    | Subtract second operand from first                     |
+| =AND=     | =(and reg reg)=                  | =reg=    | Binary AND (intersection) of two operands              |
+| =OR=      | =(or reg reg)=                   | =reg=    | Binary OR (union) of two operands                      |
+| =XOR=     | =(xor reg reg)=                  | =reg=    | Binary XOR of two operands                             |
+| =NOT=     | =(not reg)=                      | =reg=    | Binary negation of operand                             |
+|-----------+----------------------------------+----------+--------------------------------------------------------|
+| =ALL=     | =(all flag+)=                    | =flag=   | Variadic short-circuit logical AND                     |
+| =ANY=     | =(any flag+)=                    | =flag=   | Variadic short-circuit logical OR                      |
+|-----------+----------------------------------+----------+--------------------------------------------------------|
+| =DO=      | =(do void* reg)=                 | =reg=    | Execute multiple statements and return last expression |
+| =DOV=     | =(do void+)=                     | =void=   | Execute multiple statements                            |
+| =WHEN=    | =(when flag void)=               | =void=   | Execute statement if condition is met                  |
+| =IF=      | =(if flag reg reg)=              | =reg=    | Yield value of conditional expression                  |
+| =IFV=     | =(ifv flag void void)=           | =void=   | Conditionally execute one of two statements            |
+|-----------+----------------------------------+----------+--------------------------------------------------------|
+| =BRANCH=  | =(branch reg)=                   | =void=   | Jump to code position                                  |
+| =LABEL=   | =(label $label)=                 | =reg=    | Load position of code                                  |
+| =MARK=    | =(mark (label $label))=          | =void=   | Mark this position                                     |
+|-----------+----------------------------------+----------+--------------------------------------------------------|
+| =CALL=    | =(call reg (arglist ...) $size)= | =reg=    | Call a function and return a value                     |
+| =CALLV=   | =(call reg (arglist ...))=       | =void=   | Call a function without a return value                 |
+| =ARGLIST= | =(arglist (carg reg $type)+)=    | =c_args= | Setup function call arguments                          |
+| =CARG=    | =(carg reg $type)=               | =void=   | Annotate value with 'parameter type'                   |
+|-----------+----------------------------------+----------+--------------------------------------------------------|
+| =GUARD=   | =(guard void $before $after)=    | =void=   | Wrap a statement with code before and after            |
+|-----------+----------------------------------+----------+--------------------------------------------------------|
+| =TC=      | =(tc)=                           | =reg=    | Refer to MoarVM thread context                         |
+| =CU=      | =(cu)=                           | =reg=    | Refer to current compilation unit                      |
+| =LOCAL=   | =(local)=                        | =reg=    | Refer to current frame working memory                  |
+| =STACK=   | =(stack)=                        | =reg=    | Refer to top of C frame stack                          |
+
+
+*** Tree iteration and manipulation
+
+
+** Instruction selection (tiler)
+
+Next to the register allocator, the instruction selection algorithm
+(or the 'tiler') is the most complex part of the JIT. It is
+fortunately fairly stable. The goal of tiling is to match the
+intermediate representation (the expression tree/graph) to the
+cheapest sequence of instructions on the target architecture (x86-64)
+that implements the semantics of the expression tree. The
+implementation is heavily based on the paper by [[http://dl.acm.org/citation.cfm?id=75700][Aho et al]] - and in
+fact, the expression tree IR was designed mostly to accomodate it.
+
+*** How tiling works
+
+The following is a necessarily incomplete description of the actual
+process - much better described by either the paper linked above or
+the source code that implements it.
+
+A 'tile' in the expression JIT describes a number of overlapping
+concepts, for which I rely on the reader to disambiguate by
+context. (Humans are good at that).
+
++ A /pattern/ that can be matched against an expression tree and which
+  is defined textually, much like the expression templates.
++ An /object/ for the JIT compiler to represent a machine instruction,
+  and
++ A /function/ that emits the this machine code to the compiler
+  buffer, with parameters substituted
+
+The textual 'tile definition' contains the name of the function that
+implements it (in the example below =store_addr= and
+=test_addr_const=), the /pattern/ that the tile matches, the /symbol/
+that is substituted for the pattern in a succesful match, and the
+/cost/ of doing so (in terms of compiled code).
+
+#+BEGIN_SRC scheme
+(tile: store_addr 
+   (store (addr reg $ofs) reg $size) void 5)
+(tile: test_addr_const  
+   (nz (and (load (addr reg $ofs) $size) (const $val $size))) flag 4)
+#+END_SRC
+
+Conceptually, tiling is a process of /reducing/ the tree structure by
+replacing nodes by the /symbols/ defined by the tiles. The following
+example may serve as an illustration. Given the following set of
+tiles:
+
+| Tile    | Pattern                 | Symbol | Assembly code            |
+|---------+-------------------------+--------+--------------------------|
+| =local= | =(local)=               | =reg=  | =rbx=                    |
+| =const= | =(const $value)=        | =reg=  | =mov reg, $value=        |
+| =addr=  | =(addr reg $offset)=    | =reg=  | =lea reg, [reg+$offset]= |
+| =load=  | =(load reg $size)=      | =reg=  | =mov out, [reg]=         |
+| =add=   | =(add reg reg)=         | =reg=  | =add reg1, reg2=         |
+| =store= | =(store reg reg $size)= | =void= | =mov [reg1], reg2=       |
+
+We can reduce a tree and generate code as follows (note that the order
+of reducing is bottom-up / postorder from left-to-right):
+
+| Tree                                         | Tile           | Code                 |
+|----------------------------------------------+----------------+----------------------|
+| =(add (load (addr (local) 0x8)) (const 17))= | =local -> reg= |                      |
+| =(add (load (addr reg 0x8)) (const 17))=     | =addr -> reg=  | =lea rax, [rbx+0x8]= |
+| =(add (load reg) (const 17))=                | =load -> reg=  | =mov rcx, [rax]=     |
+| =(add reg (const 17))=                       | =const -> reg= | =mov rdx, 17=        |
+| =(add reg reg)=                              | =add -> reg=   | =add rcx, rdx=       |
+
+Tiling /never/ takes constant parameters into account, which is a
+severe limitation - some operators are radically different between
+8-bit and 64 bit sizes on x86-64. Maybe we can implement
+architecture-specific templates to optimize our way out of this.
+
+
+*** Picking tiles
+
+The difference between the model above and the real implementation
+are:
+
++ A tile can cover more complex expression trees (see the example
+  tiles above)
++ A given subtree may be reduced by different sets of tiles, and
++ We'd like to choose the cheapest such set, and we'd like to do that
+  efficiently.
+
+Before going further, be warned: the following is rather complex and
+even now it makes my head hurt. Feel free to skip this section.
+
+In order to figure out if a certain tile can be applied to a given
+tree, we'd need to know if it's pattern matches. The pattern matches
+if it's structure matches /and/ if the expressions 'below' it can be
+matched to the symbols at its leafs. Because the tiler uses postorder
+iteration, we can ensure that symbols have been assigned to the leafs
+when we consider the head operator of the tile.
+
+To avoid having to traverse the tree to find out if the leafs match to
+the pattern, during precompilation the tile patterns are 'flattened'
+and the nested lists replaced with 'synthetic symbols'. From the
+sublist a new (partial) tile pattern is generated that reduces to this
+generated symbol and compiles to nothing). See for some examples the
+table below. Because the resulting patterns are flat, they can be
+matched by inspecting only the symbols of the direct children of the
+operator.
+
+| Original                             | Flat                        |
+|--------------------------------------+-----------------------------|
+| =(load (addr reg)) -> reg=           | =(load @sym1) -> reg=       |
+|                                      | =(addr reg) -> @sym1=       |
+| =(store (addr reg) reg) -> void=     | =(store @sym2 reg) -> void= |
+|                                      | =(addr reg) -> @sym2=       |
+| =(add reg (const)) -> reg=           | =(add reg @sym3)=           |
+|                                      | =(const) -> @sym3=          |
+| =(add reg (load (addr reg))) -> reg= | =(add reg @sym4) -> reg=    |
+|                                      | =(load @sym5) -> @sym4=     |
+|                                      | =(addr reg) -> @sym5=       |
+
+From the table it is possible to see that a single tile list pattern
+(like '(addr reg)') can be reduced to many different symbols. In fact,
+given a set of tiles and their associated costs, we can compute all
+possible combinations of symbols (symbol sets) that a tile pattern can
+be reduced to /and/ we can also compute which tile would be the most
+efficient implementation of that operator given the symbol sets of
+it's children. By precomputing this information selecting the optimal
+tile for an operator can be reduced to a table lookup at runtime.
+
+For completeness I'll try to describe how the precomputation process
+works. The central concept it is based on is that of 'symbol sets'
+(symsets). We begin by initializing a map of all symbol sets, which
+are initially just the individual symbols that are generated by all
+tile patterns (called =@rules=).
+
+#+BEGIN_SRC perl
+$sets{$_->{sym}} = [$_->{sym}] for @rules;
+#+END_SRC
+
+And a reverse lookup table is also generated, from all symbols within
+a set, to all symbol sets that they occur in. Again, initially this is
+just the symbol itself.
+
+#+BEGIN_SRC perl
+while (my ($k, $v) = each %sets) {
+   # Use a nested hash for set semantics
+   $lookup{$_}{$k} = 1 for @$v;
+}
+#+END_SRC
+
+Then for each tile pattern, we lookup all symbols that could be
+combined with the symbols in the patterns, and we store the symbol
+that this reduces to. The name '%trie' is also kind of inaccurate, but
+it gets the picture accross, which is that this is a nested associated
+lookup table. The purpose is to /combine/ all tiles (and their
+associated symbols) that map to the *same symbol sets* together -
+because that means that these tiles can cover the same tree
+structures.
+
+#+BEGIN_SRC perl
+for my $s_k1 (keys %{$lookup{$sym1}}) {
+   for my $s_k2 (keys %{$lookup{$sym2}}) {
+        $trie{$head, $s_k1, $s_k2}{$rule_nr} = $rule->{sym};
+    }
+}
+#+END_SRC
+
+Having done that, we generate new symbol sets from this lookup table -
+all the values of the generated hashes are symbols that can be
+produced by tiles that map to the same trees:
+
+#+BEGIN_SRC perl
+my %new_sets;
+for my $gen (values %trie) {
+    my @set = sort(main::uniq(values %$gen));
+    my $key = join(':', @set);
+    $new_sets{$key} = [@set];
+}
+#+END_SRC
+
+In general, we run this process multiple iterations with the new sets
+of symbols, because the symbolsets that exist influence the tile
+patterns that are considered to be equivalent. For instance, in the
+table above the tile patterns generating =@sym1=, =@sym2= and =@sym5=
+are equivalent, and so after a single iteration there will be only a
+single set containing those symbols. This means that the patterns of
+=(load @sym1)= and =(load @sym5)= are equivalent, and hence that
+=@sym4= is always combined with =reg=. So this process has to iterate
+until there are no more change in the sets, at which point it can read
+(from the same table) the all possible combinations of sets. Having
+this, it is a small matter to compute the cheapest tile of the set to
+cover a given tree [fn:cost].
+
+#+BEGIN_SRC perl
+my (%seen, @rulesets);
+for my $symset (values %trie) {
+    my @rule_nrs = main::sortn(keys %$symset);
+    my $key = join $;, @rule_nrs;
+    push @rulesets, [@rule_nrs] unless $seen{$key}++;
+}
+return @rulesets;
+#+END_SRC
+
+
+
+** Register allocation
+
+The legacy JIT compiler did not require register allocation, because
+it never persisted values in registers between fragments. The
+expression JIT compiler does, that's the whole purpose of it.
+
+*** Earlier attempts
+
+There have been three attempts at implementing a register allocator
+for the expression JIT. Ironically, all of them have been based on the
+same algorithm, which is [[https://c9x.me/compile/bib/Wimmer10a.pdf][linear scan register allocation on SSA form]].
+
+The first attempt tried to do register allocation 'online' with code
+generation, i.e. during tree walking. This does not work because
+you'll need to know the live range of the values your allocating,
+otherwise you don't know when a register can be freed, and you'll
+either run out or you might be incorrect when freeing
+them. Furthermore, you'll need to manage /aliases/, i.e. values that
+are the same (created by =COPY= operators) and nodes that 'merge'
+(created by =IF= opreators). Never mind the case where we compile a
+=CALL= node in a conditional block.
+
+The second attempt improved on that in two ways:
+
++ It made a real attempt to compute the live range extents of
+  values. Initally based on tree iteration order; however, after
+  introducing the tile list, based on tile list position (which is
+  what we use now).
++ It used a 'cross-linked-list' to identify values that either shared
+  a location or a definition. This was used to deal with aliases and
+  merged values.
+
+However, this proved still not quite sufficient. It had inherited from
+the earlier online algorithm the design of /allocating/ a register for
+a value at the first instance it is encountered, and /assigning/ that
+register to instructions that use the value when they'd be
+encountered. Hence it required the ability to determine the 'current'
+position for a value, including if that value is spilled or not. This
+is somewhat complicated when a value is represented by multiple
+different things (due to aliasing and merging, in a cross-linked
+list). What is more, it would only try to resolve aliases at
+register-assignment time, i.e. when it'd encounter the relevant =COPY=
+or =IF= operator. So that would actually change the extent of the live
+range while it was 'under operation', which further complicates
+several key functionalities such as deciding when a register can be
+freed.
+
+
+*** Current implementation
+
+The third attempt is the current one and departs from the previous two
+attempts in the following crucial ways:
+
++ Rather than have a *value* be synonymous with its *definition* (the
+  instruction and operator that created it) it represents a *set* of
+  definitions and *uses* , that are joined together by aliases and
+  merges. It uses a separate phase and a [[https://en.wikipedia.org/wiki/Disjoint-set_data_structure][union-find]] data structure to
+  implement these values (which are called 'live ranges'
+  consistently). This ensures that all uses of the 'same' value use
+  the same register location for it.
+
++ During the allocation phase, it iterates over the *values* in
+  ascending order (i.e. by first definition), rather than over the
+  /instructions/ as the second version did or over the /tree/ as the
+  first. A register can be reused only after its value has expired,
+  which is when the algorithm iterates past its last use. This means
+  that at a single point in the program, no two values can be
+  allocated to the same register, which is /the/ essential correctness
+  property for a register allocator.
+
++ Whenever a register is allocated, it is directly /assigned/ to the
+  instructions that use its value. When that register is changed for
+  whatever reason, we update it as well. Thus we never have to query
+  'what is the current location of the value of $x', which gets tricky
+  to answer in case of spilling, and the register assigned to an
+  instruction is always 'up to date'.
+
++ It is sometimes necessary to 'spill' a value from a register to
+  memory, either because we need more registers or because the ABI
+  forces us to - this is true for all register allocation algorithms.
+  At any point in the program where it is necessary to spil a value,
+  all instructions that define or use that value are wrapped with
+  instructions to move that value between register and memory. (This
+  ensures that the value is spilled to the same position in all
+  possible code paths). The single live range that covered all these
+  uses is then split into 'atomic' live ranges that cover only the
+  instruction to load or store the value and the original instruction
+  that would use or define it. The upshot is that a live range that is
+  processed always refers to a value that resides in a register.
+
++ Because of value merging and aliasing, it is sometimes possible for
+  a value to be undefined within its own life range. This can be
+  demonstrated by code below. In it, =$a= is first defined as 10, then
+  conditionally redefined as the result of =$a * 2 - 3=. So between
+  the definition of =$b= and the assignment of the 'new' value of
+  =$a=, the 'old' value of =$a = 10= is no longer valid. Hence, it
+  should *not* be stored to memory at that point. Such undefined
+  ranges are called 'live range holes', and they are an of example of
+  the 'complexity waterbed' of compiling - SSA form code doesn't have
+  them, but makes it really complicated to ensure the same register is
+  allocated for all the separate uses of a value.
+
+#+BEGIN_SRC perl
+my $a = 10;
+if (rand < 0.5) {
+    my $b = $a * 2;
+    $a = $b - 3;
+}
+printf "\$a = %d\n", $a;
+#+END_SRC
+  
+
+*** Function call ABI
+
+It is (unfortunately) necessary to have the register allocator handle
+the C function call ABI. This is because certain function arguments
+are supposed to be passed by in specific registers (meaning they have
+to be placed there) and some registers can be overwritten by the
+function that is called (in fact, all of them). So in the general
+case, the JIT needs to:
+
++ Place values in the correct registers and/or stack positions, making
+  sure not to overwrite values that are still necessary for the call.
++ Load values from memory if they are not present in registers. Note
+  that a function call can have more arguments than registers, so it
+  is not always possible to load all values into registers prior to
+  the call. So we cannot rely on the normal register allocator
+  mechanisms to ensure a value is present.
++ Ensure all values that 'survive' the call are spilled to memory.
+
+This is currently implemented by a function =prepare_arglist_and_call=
+that is over 144 lines long and implements topological sort,
+cycle-breaking and register-conflict resolution with values used by
+the =CALL= operator itself (e.g. in dynamic dispatch).
+
+I feel like this functionality - rearranging registers to deal with
+register requirements of specific operators - could be generalized,
+but I'm not sure if it is worth it. The x86-64 instruction set has
+plenty of 'irregular' instructions that have specific register
+requirements however, virtually all of them use just the single =rax=
+register, which I've decided to keep as the spare register anyway. So
+I'm not sure what the value of generalizing would be, and I'm fairly
+sure it would introduce even more complexity.
+
+*** Challenges
+
+What is still necessary for completeness is the ability to allocate
+multiple register /classes/, specifically floating point
+registers. The suggested way of handling that is by giving out
+different number ranges per class, and letting the tiles sort out the
+details of getting the correct number.
+
+Another thing that is not necessary but certainly nice-to-have is a
+way to ensure that the register assignment actually meets the
+constraints of the target architecture. Specifically, while the
+expression JIT assumes a system that operates as follows:
+
+#+BEGIN_EXAMPLE
+a = operator(b, c)
+#+END_EXAMPLE
+
+What we actually have is on x86-64 is more like:
+
+#+BEGIN_EXAMPLE
+a = operator(a, b)
+#+END_EXAMPLE
+
+The situation is actually considerably more complex due to the many
+addressing modes that are possible. (For instance, indexed memory
+access uses a third register 'c'.). Currently we handle that in tiles
+by moving values arround, but it would be much nicer if the register
+allocator could enforce this constraint. (The allocator keeps a
+'scratch' register free at all times for this purpose).
+
+Finally, the live range hole finding algorithm iterates over the basic
+blocks of the JIT code in backwards linear order, which is fine so
+long as there are no loops (the tile list control flow always flows
+forward), which is true so long as we only ever try to compile single
+basic blocks, but that is an assumption I'm explicitly trying to
+break. So I'll need to find a better, more general iteration order.
+
+** Logging
+
+To aid debugging, the JIT compiler logs to file. This logging is adhoc
+and line-based (for the most part). It is not currently useful for
+general consumption or instrumentation. Adding to that, the linear
+scan allocator has numerous debug logging statements that are
+conditionally compiled in.
+
+It would probably be a nice improvement to write 'structural' logging
+information to the JIT or spesh log (that could be useful for
+instrumentation), and use conditionally compiled 'adhoc' logging
+statements solely for debugging. And it'd be nicer still to have
+conditional compilation on the section of JIT output that you'd really
+be interested in (e.g. expression building or register allocation).
+
+The JIT log is setup at initialization time in =src/moar.c=, based on
+the environment variable =MVM_JIT_LOG=. This is arguably not a good
+design for embedding; then again, for embedding, this is not a file
+you'd want to expose anyway.
+
+Expression trees and tile lists have their own loggers, which
+implement a more structured format. An expression tree log represents
+the tree as a directed graph in the 'dot' language. There's probably
+still some formatting we could apply to that, but on the whole I'm
+satisfied with that approach. The tile list logger represents each
+tile with a debug string, which is stored when the tiler table
+generator processes the tile pttern definitions. It also lists the
+basic block structure of the program.
+
+* Tools
+
+* Notes
+
+** Memory management
+
+The JIT uses three different strategies for memory management:
+
++ Spesh region allocation for the JIT graph.
++ Dynamically allocated vectors for the expression tree, tile lists
+  and related structures.
++ Anonymous memory pages for the generated machine code.
+
+*** Spesh region allocation
+
+The =spesh= dynamic optimization framework contains a region
+allocator that is bound to the spesh graph.
+
+*** Dynamic vectors
+
+
+
+*** Memory pages
+
+Operating systems that try to provide some measure of security to C
+programs generally do not allow execution of heap-allocated memory.
+
+
+
+[fn:cost] Actually, it is not very simple at all, and this is mostly
+because we've 'flattened' the tile list, so we somehow have to
+'reconstruct' the cost of a tile set that is equivalent to the tree
+matched by the original. This part really needs to be revisited at
+some point.
