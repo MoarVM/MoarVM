@@ -264,7 +264,7 @@ static size_t get_struct_size_for_family(sa_family_t family) {
  * AF_INET = 2
  *   IPv4 socket
  *
- * AF_INET6 = 3
+ * AF_INET6 = 10
  *   IPv6 socket
  */
 struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host, MVMint64 port) {
