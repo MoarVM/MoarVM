@@ -3,6 +3,7 @@
 #ifdef _WIN32
     #include <winsock2.h>
     typedef SOCKET Socket;
+    #define sa_family_t unsigned int
 #else
     #include "unistd.h"
     #include <sys/socket.h>
