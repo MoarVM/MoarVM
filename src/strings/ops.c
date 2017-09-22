@@ -1615,6 +1615,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     MVMint64    elems, num_pieces, sgraphs, i, is_str_array, total_graphs;
     MVMuint16   sstrands, total_strands;
     MVMint32    concats_stable = 1;
+    size_t      bytes;
 
     MVM_string_check_arg(tc, separator, "join separator");
     if (!IS_CONCRETE(input))
@@ -1625,6 +1626,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     elems = MVM_repr_elems(tc, input);
     if (elems == 0)
         return tc->instance->str_consts.empty;
+    bytes = elems * sizeof(MVMString *);
     is_str_array = REPR(input)->pos_funcs.get_elem_storage_spec(tc,
         STABLE(input)).boxed_primitive == MVM_STORAGE_SPEC_BP_STR;
 
@@ -1645,7 +1647,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
             : 1;
     else
         sstrands = 1;
-    pieces        = MVM_malloc(elems * sizeof(MVMString *));
+    pieces        = MVM_fixed_size_alloc(tc, tc->instance->fsa, bytes);
     num_pieces    = 0;
     total_graphs  = 0;
     total_strands = 0;
@@ -1686,7 +1688,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
 
     /* We now know the total eventual number of graphemes. */
     if (total_graphs == 0) {
-        free(pieces);
+        MVM_fixed_size_free(tc, tc->instance->fsa, bytes, pieces);
         return tc->instance->str_consts.empty;
     }
     result->body.num_graphs = total_graphs;
@@ -1774,7 +1776,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
         }
     }
 
-    MVM_free(pieces);
+    MVM_fixed_size_free(tc, tc->instance->fsa, bytes, pieces);
     STRAND_CHECK(tc, result);
     return concats_stable ? result : re_nfg(tc, result);
 }
