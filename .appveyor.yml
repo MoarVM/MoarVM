@@ -1,4 +1,7 @@
-#os: Visual Studio 2015
+## Appveyor configuration for MoarVM
+
+# We manually build and don't use MSVC's build process so disable it
+build: off
 
 platform:
   - x64
@@ -24,8 +27,7 @@ branches:
   only:
     - master
 
-build: off
 
 test_script:
   - cd %APPVEYOR_BUILD_FOLDER%\nqp
-  - nmake m-test-loud
+  - nmake m-test
