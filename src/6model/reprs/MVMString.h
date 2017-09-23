@@ -52,7 +52,7 @@ struct MVMStringBody {
 
 /* A strand of a string. */
 struct MVMStringStrand {
-    /* Another string that must some kind of grapheme string. */
+    /* Another string that must be some kind of grapheme string. */
     MVMString *blob_string;
 
     /* Start and end indexes we refer to in the blob string. */
