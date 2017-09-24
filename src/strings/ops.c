@@ -1630,6 +1630,20 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     is_str_array = REPR(input)->pos_funcs.get_elem_storage_spec(tc,
         STABLE(input)).boxed_primitive == MVM_STORAGE_SPEC_BP_STR;
 
+    /* If there's only one element to join, just return it. */
+    if (elems == 1) {
+        if (is_str_array) {
+            MVMString *piece = MVM_repr_at_pos_s(tc, input, 0);
+            if (piece)
+                return piece;
+        }
+        else {
+            MVMObject *item = MVM_repr_at_pos_o(tc, input, 0);
+            if (item && IS_CONCRETE(item))
+                return MVM_repr_get_str(tc, item);
+        }
+    }
+
     /* Allocate result. */
     MVMROOT(tc, separator, {
     MVMROOT(tc, input, {
