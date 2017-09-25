@@ -640,8 +640,8 @@ static void active_set_expire(MVMThreadContext *tc, RegisterAllocator *alc, MVMi
 
     /* shift off the first x values from the live set. */
     if (i > 0) {
-        MVM_VECTOR_APPEND(alc->retired, alc->active, i);
-        MVM_VECTOR_SHIFT(alc->active, i);
+        MVM_VECTOR_ENSURE_SPACE(alc->retired, i);
+        MVM_VECTOR_SPLICE(alc->active, 0, i, MVM_VECTOR_TOP(alc->retired));
     }
 }
 
