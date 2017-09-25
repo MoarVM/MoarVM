@@ -15,7 +15,7 @@
 #define snprintf _snprintf
 #endif
 
-/* Assuemd maximum packet size. If ever changing this to something beyond a
+/* Assumed maximum packet size. If ever changing this to something beyond a
  * 16-bit number, then make sure to change the receive offsets in the data
  * structure below. */
 #define PACKET_SIZE 65535
