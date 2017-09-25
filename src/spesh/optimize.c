@@ -1002,6 +1002,53 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
     }
 }
 
+/* Optimize string equality if one param is the empty string */
+static void optimize_string_equality(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshFacts *a_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    MVMSpeshFacts *b_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
+    MVMuint8 was_eq = 0;
+
+    return;
+
+    if (ins->info->opcode == MVM_OP_eq_s)
+        was_eq = 1;
+
+    if (a_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE && b_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        /* Cool, we can constant-fold this. */
+        MVMSpeshFacts *target_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+
+        a_facts->usages--;
+        b_facts->usages--;
+
+        ins->operands[1].lit_i16 = MVM_string_equal(tc, a_facts->value.s, b_facts->value.s);
+        if (!was_eq)
+            ins->operands[1].lit_i16 = !ins->operands[1].lit_i16;
+        ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
+
+        target_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+        target_facts->value.i = ins->operands[1].lit_i16;
+        
+        fprintf(stderr, "turned an eq or ne into a constant\n");
+    }
+    else if (a_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE || b_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        MVMSpeshFacts *the_facts =
+            a_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE ? a_facts : b_facts;
+
+        if (MVM_string_graphs(tc, the_facts->value.s) == 0) {
+            /* Turn this into an istrue_s or isfalse_s */
+            ins->info = MVM_op_get_op(was_eq ? MVM_OP_isfalse_s : MVM_OP_istrue_s);
+
+            /* Throw out the string argument that was the empty string */
+            if (the_facts == a_facts) {
+                ins->operands[1] = ins->operands[2];
+            }
+            the_facts->usages--;
+
+            fprintf(stderr, "turned an eq or ne into an istrue/isfalse\n");
+        }
+    }
+}
+
 /* boolification has a major indirection, which we can spesh away.
  * Afterwards, we may be able to spesh even further, so we defer
  * to other optimization methods. */
@@ -2183,6 +2230,10 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_box_n:
         case MVM_OP_box_s:
             optimize_repr_op(tc, g, bb, ins, 2);
+            break;
+        case MVM_OP_ne_s:
+        case MVM_OP_eq_s:
+            optimize_string_equality(tc, g, bb, ins);
             break;
         case MVM_OP_newexception:
         case MVM_OP_bindexmessage:
