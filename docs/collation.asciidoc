@@ -200,6 +200,29 @@ In the table below, where + designates sorting normal direction and
 |==================
 
 
+== The Future ==
+
+=== Language Specific Sort ===
+:CLDRlatest: http://unicode.org/Public/cldr/latest
+:CLDRcore:   http://unicode.org/Public/cldr/latest/core.zip
+
+In the future we may support language specific sort. This data will have to be
+taken from the Unicode CLDR (Common Language Data Repository), as it is not
+part of DUCET. {CLDRcore}[`core.zip`] contains a folder `./core/collation`
+which contains XML files with notes for different languages. To read the specs
+of how to interpret these files, see the {CLDRSpec}[CLDR Spec page].
+
+=== Natural Sorting/Number based sorting ===
+:nat-sort: https://en.wikipedia.org/wiki/Natural_sort_order
+
+This is another possible addition, called {nat-sort}[Natural Sorting].
+We can sort `<12 9>` as `9, 12` instead of
+`12, 9`. Since we use a ring buffer to find where codepoints differ. I think we
+will not have to backtrack any, we only have to care about codepoints _including_
+and _after_ the differing codepoint. Since we know all codepoints before must
+have matched before this point, we should only have to see how long each number
+is from that point on.
+
 [glossary]
 == Glossary ==
 
