@@ -661,8 +661,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     if (MVM_is_null(tc, info))
         MVM_exception_throw_adhoc(tc, "P6opaque: missing attribute protocol in compose of %s", st->debug_name);
 
-    /* In this first pass, we'll over the MRO entries, looking for if
-     * there is any multiple inheritance and counting the number of
+    /* In this first pass, we'll loop over the MRO entries, looking for
+     * if there is any multiple inheritance and counting the number of
      * attributes. */
     mro_count   = REPR(info)->elems(tc, STABLE(info), info, OBJECT_BODY(info));
     mro_pos     = mro_count;
