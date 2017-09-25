@@ -30,6 +30,10 @@ struct MVMProfileThreadData {
      * often if there's a conditionally-allocating operation (like getlex)
      * that gets called multiple times with no actual allocations in between */
     MVMObject *last_counted_allocation;
+
+    /* Used to pass generated data structure from the gc-orchestrated
+     * dumping function back to the dump function that ends the profile */
+    MVMObject *collected_data;
 };
 
 /* Information collected about a GC run. */

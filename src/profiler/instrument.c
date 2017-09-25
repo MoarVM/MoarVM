@@ -465,7 +465,7 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
     MVMuint32  i;
 
     /* Use the main thread's start time for absolute timings */
-    absolute_start_time = tc->prof_data->start_time;
+    absolute_start_time = tc->instance->main_thread->prof_data->start_time;
 
     /* Add time. */
     MVM_repr_bind_key_o(tc, thread_hash, pds->total_time,
@@ -504,69 +504,107 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
     return thread_hash;
 }
 
-/* Dumps data from all threads into an array of per-thread data. */
-static MVMObject * dump_data(MVMThreadContext *tc) {
-    MVMObject *threads_array;
-    ProfDumpStrs pds;
+void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
+    if (tc->prof_data && tc->prof_data->collected_data) {
+        ProfDumpStrs pds;
+        MVMThread *thread;
 
-    /* We'll allocate the data in gen2, but as we want to keep it, but to be
-     * sure we don't trigger a GC run. */
-    MVM_gc_allocate_gen2_default_set(tc);
+        /* We'll allocate the data in gen2, but as we want to keep it, but to be
+         * sure we don't trigger a GC run. */
+        MVM_gc_allocate_gen2_default_set(tc);
 
-    /* Some string constants to re-use. */
-    pds.total_time      = str(tc, "total_time");
-    pds.call_graph      = str(tc, "call_graph");
-    pds.name            = str(tc, "name");
-    pds.id              = str(tc, "id");
-    pds.file            = str(tc, "file");
-    pds.line            = str(tc, "line");
-    pds.entries         = str(tc, "entries");
-    pds.spesh_entries   = str(tc, "spesh_entries");
-    pds.jit_entries     = str(tc, "jit_entries");
-    pds.inlined_entries = str(tc, "inlined_entries");
-    pds.inclusive_time  = str(tc, "inclusive_time");
-    pds.exclusive_time  = str(tc, "exclusive_time");
-    pds.callees         = str(tc, "callees");
-    pds.allocations     = str(tc, "allocations");
-    pds.type            = str(tc, "type");
-    pds.count           = str(tc, "count");
-    pds.spesh           = str(tc, "spesh");
-    pds.jit             = str(tc, "jit");
-    pds.gcs             = str(tc, "gcs");
-    pds.time            = str(tc, "time");
-    pds.full            = str(tc, "full");
-    pds.cleared_bytes   = str(tc, "cleared_bytes");
-    pds.retained_bytes  = str(tc, "retained_bytes");
-    pds.promoted_bytes  = str(tc, "promoted_bytes");
-    pds.gen2_roots      = str(tc, "gen2_roots");
-    pds.start_time      = str(tc, "start_time");
-    pds.osr             = str(tc, "osr");
-    pds.deopt_one       = str(tc, "deopt_one");
-    pds.deopt_all       = str(tc, "deopt_all");
-    pds.spesh_time      = str(tc, "spesh_time");
-    pds.native_lib      = str(tc, "native library");
+        /* Some string constants to re-use. */
+        pds.total_time      = str(tc, "total_time");
+        pds.call_graph      = str(tc, "call_graph");
+        pds.name            = str(tc, "name");
+        pds.id              = str(tc, "id");
+        pds.file            = str(tc, "file");
+        pds.line            = str(tc, "line");
+        pds.entries         = str(tc, "entries");
+        pds.spesh_entries   = str(tc, "spesh_entries");
+        pds.jit_entries     = str(tc, "jit_entries");
+        pds.inlined_entries = str(tc, "inlined_entries");
+        pds.inclusive_time  = str(tc, "inclusive_time");
+        pds.exclusive_time  = str(tc, "exclusive_time");
+        pds.callees         = str(tc, "callees");
+        pds.allocations     = str(tc, "allocations");
+        pds.type            = str(tc, "type");
+        pds.count           = str(tc, "count");
+        pds.spesh           = str(tc, "spesh");
+        pds.jit             = str(tc, "jit");
+        pds.gcs             = str(tc, "gcs");
+        pds.time            = str(tc, "time");
+        pds.full            = str(tc, "full");
+        pds.cleared_bytes   = str(tc, "cleared_bytes");
+        pds.retained_bytes  = str(tc, "retained_bytes");
+        pds.promoted_bytes  = str(tc, "promoted_bytes");
+        pds.gen2_roots      = str(tc, "gen2_roots");
+        pds.start_time      = str(tc, "start_time");
+        pds.osr             = str(tc, "osr");
+        pds.deopt_one       = str(tc, "deopt_one");
+        pds.deopt_all       = str(tc, "deopt_all");
+        pds.spesh_time      = str(tc, "spesh_time");
+        pds.native_lib      = str(tc, "native library");
 
-    /* Build up threads array. */
-    /* XXX Only main thread for now. */
-    threads_array = new_array(tc);
-    if (tc->prof_data)
-        MVM_repr_push_o(tc, threads_array, dump_thread_data(tc, &pds, tc->prof_data));
+        fprintf(stderr, "going to take a profiler snapshot\n");
 
-    /* Switch back to default allocation and return result; */
-    MVM_gc_allocate_gen2_default_clear(tc);
-    return threads_array;
-}
-
-/* Ends profiling, builds the result data structure, and returns it. */
-MVMObject * MVM_profile_instrumented_end(MVMThreadContext *tc) {
-    if (tc->prof_data) {
-        /* If we have any call frames still on the profile stack, exit them. */
+        MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, tc->prof_data));
         while (tc->prof_data->current_call)
             MVM_profile_log_exit(tc);
 
         /* Record end time. */
         tc->prof_data->end_time = uv_hrtime();
+        fprintf(stderr, "took data from main thread\n");
+        MVM_gc_allocate_gen2_default_clear(tc);
+
+        /* Get all thread's data */
+        thread = tc->instance->threads;
+
+        while (thread) {
+            MVMThreadContext *othertc = thread->body.tc;
+            if (othertc->prof_data) {
+                /* If we have any call frames still on the profile stack, exit them. */
+                while (othertc->prof_data->current_call)
+                    MVM_profile_log_exit(othertc);
+
+                /* Record end time. */
+                othertc->prof_data->end_time = uv_hrtime();
+
+                MVM_gc_allocate_gen2_default_set(othertc);
+                MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, othertc->prof_data));
+                fprintf(stderr, "took data from a thread\n");
+                MVM_gc_allocate_gen2_default_clear(othertc);
+            }
+            else {
+                fprintf(stderr, "skipped a thread\n");
+            }
+            thread = thread->body.next;
+        }
+        fprintf(stderr, "done taking data\n");
     }
+}
+
+/* Dumps data from all threads into an array of per-thread data. */
+static MVMObject * dump_data(MVMThreadContext *tc) {
+    MVMObject *collected_data;
+
+    /* Build up threads array. */
+    /* XXX Only main thread for now. */
+
+    tc->prof_data->collected_data = new_array(tc);
+
+    /* We rely on the GC orchestration to stop all threads and the
+     * "main" gc thread to dump all thread data for us */
+    MVM_gc_enter_from_allocator(tc);
+
+    collected_data = tc->prof_data->collected_data;
+    tc->prof_data->collected_data = NULL;
+
+    return collected_data;
+}
+
+/* Ends profiling, builds the result data structure, and returns it. */
+MVMObject * MVM_profile_instrumented_end(MVMThreadContext *tc) {
 
     /* Disable profiling. */
     uv_mutex_lock(&(tc->instance->mutex_spesh_sync));
@@ -606,6 +644,8 @@ void MVM_profile_instrumented_mark_data(MVMThreadContext *tc, MVMGCWorklist *wor
             if (node)
                 mark_call_graph_node(tc, node, &nodelist, worklist);
         }
+
+        MVM_gc_worklist_add(tc, worklist, &(tc->prof_data->collected_data));
 
         MVM_free(nodelist.list);
     }
