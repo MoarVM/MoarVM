@@ -26,6 +26,9 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                     (int)((uv_hrtime() - start_time) / 1000));
             }
 
+            if (tc->instance->main_thread->prof_data)
+                MVM_profiler_log_spesh_start(tc);
+
             interval_id = MVM_telemetry_interval_start(tc, "spesh worker consuming a log");
 
             uv_mutex_lock(&(tc->instance->mutex_spesh_sync));
@@ -129,6 +132,9 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
             }
 
             MVM_telemetry_interval_stop(tc, interval_id, "spesh worker finished");
+
+            if (tc->instance->main_thread->prof_data)
+                MVM_profiler_log_spesh_end(tc);
 
             uv_mutex_lock(&(tc->instance->mutex_spesh_sync));
             tc->instance->spesh_working = 0;
