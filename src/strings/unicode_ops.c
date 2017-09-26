@@ -693,18 +693,29 @@ MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) 
     MVM_free(cname);
     return result ? result->codepoint : -1;
 }
-
+/* Quickly determines the length of a number 6.5x faster than doing log10 after
+ * compiler optimization */
+MVM_STATIC_INLINE size_t length_of_num (size_t number) {
+    if (number < 10) return 1;
+    return 1 + length_of_num(number / 10);
+}
+MVM_STATIC_INLINE size_t length_of_num_16 (size_t number) {
+    if (number < 16) return 1;
+    return 1 + length_of_num_16(number / 16);
+}
 MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
     const char *name = NULL;
+    size_t name_len = 0;
 
     /* Catch out-of-bounds code points. */
     if (codepoint < 0) {
         name = "<illegal>";
     }
-    else if (0x10ffff < codepoint) {
+    else if (0x10FFFF < codepoint) {
         name = "<unassigned>";
     }
-
+    if (name)
+        name_len = strlen(name);
     /* Look up name. */
     else {
         MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
@@ -714,16 +725,48 @@ MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
                 while (codepoint_row && !codepoint_names[codepoint_row])
                     codepoint_row--;
                 name = codepoint_names[codepoint_row];
-                if (!name || name[0] != '<')
-                    name = "<reserved>";
+                if (name && name[0] != '<')
+                    name = NULL;
             }
         }
-        else {
-            name = "<illegal>";
+        if (!name) {
+            /* U+FDD0..U+FDEF and the last two codepoints of each block
+             * are noncharacters (U+FFFE U+FFFF U+1FFFE U+1FFFF U+2FFFE etc.) */
+            if ((0xFDD0 <= codepoint && codepoint <= 0xFDEF) || (0xFFFE & codepoint) == 0xFFFE)
+                name = "<noncharacter>";
+            else
+                name = "<reserved>";
+        }
+        name_len = strlen(name);
+        /* Turn non-unique codepoint names into unique ones by adding the
+         * codepoint
+         * i.e. <CJK Ideograph Extension B> → <CJK Ideograph Extension B-20000>
+         * The ASCII codepoints already have the hex code in them, so no need
+         * to add it */
+        if (name && name[0] == '<' && 255 < codepoint) {
+            size_t i, new_length, num_len = length_of_num_16(codepoint);
+            char *new_name = NULL;
+            /* We pad to 4 width, so make sure the number is accurate */
+            num_len = num_len < 4 ? 4 : num_len;
+            new_length = name_len + 1 + num_len * sizeof(char);
+            new_name = alloca(new_length);
+            for (i = 0; i < name_len; i++) {
+                if (name[i] == '>') {
+                    snprintf(new_name + i, new_length - i, "-%.4"PRIX32"", (MVMuint32)codepoint);
+                    /* snprintf adds a null terminator at the end. We don't need
+                     * this, so replace with a > instead of using snprintf to add
+                     * it. Note: new has no NULL terminator */
+                    new_name[new_length - 1] = '>';
+                    break;
+                }
+                new_name[i] = name[i];
+            }
+            name = new_name;
+            name_len = new_length;
         }
     }
 
-    return MVM_string_ascii_decode(tc, tc->instance->VMString, name, strlen(name));
+    return MVM_string_ascii_decode(tc, tc->instance->VMString, name, name_len);
 }
 
 MVMString * MVM_unicode_codepoint_get_property_str(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
@@ -886,12 +929,6 @@ static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
         }
     }
     unicode_property_values_hashes = hash_array;
-}
-/* Quickly determines the length of a number 6.5x faster than doing log10 after
- * compiler optimization */
-MVM_STATIC_INLINE size_t length_of_num (size_t number) {
-    if (number < 10) return 1;
-    return 1 + length_of_num(number / 10);
 }
 MVMint32 unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, const char *cname, MVMuint64 cname_length) {
     char *out_str = NULL;
