@@ -135,7 +135,7 @@ static MVMint32 MVM_jit_expr_wrap_guard(MVMThreadContext *tc, MVMJitExprTree *tr
 
 static MVMint32 MVM_jit_expr_add_label(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 label) {
     MVMint32 num = tree->nodes_num;
-    MVMJitExprNode template[] = { MVM_JIT_LABEL, label, MVM_JIT_MARK, 0 };
+    MVMJitExprNode template[] = { MVM_JIT_MARK, label };
     MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(template[0]));
     return num;
 }

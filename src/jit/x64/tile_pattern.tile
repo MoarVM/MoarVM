@@ -103,7 +103,7 @@
 (tile: flagval (flagval flag) reg 2)
 
 # Labels and branches
-(tile: mark (mark (label $name)) void 1)
+(tile: mark (mark $label) void 1)
 (tile: label   (label $name) reg 2)
 # (tile: branch  (branch $reg) void 2)
 (tile: branch_label (branch (label $name)) void 2)

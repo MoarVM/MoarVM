@@ -20,8 +20,6 @@
     _(ADDR, 1, 1, REG, UNSIGNED),  \
     _(IDX, 2, 1, REG, UNSIGNED),   \
     _(COPY, 1, 0, REG, NO_CAST),   \
-    /* type conversion */ \
-    _(CAST, 1, 3, REG, NO_CAST),   \
     /* integer comparison */ \
     _(LT, 2, 0, FLAG, SIGNED),     \
     _(LE, 2, 0, FLAG, SIGNED),     \
@@ -35,6 +33,8 @@
     _(FLAGVAL, 1, 0, REG, NO_CAST), \
     /* force compilation but discard result */ \
     _(DISCARD, 1, 0, VOID, NO_CAST),       \
+    /* type conversion */ \
+    _(CAST, 1, 3, REG, NO_CAST),   \
     /* integer arithmetic */ \
     _(ADD, 2, 0, REG, SIGNED), \
     _(SUB, 2, 0, REG, SIGNED), \
@@ -54,10 +54,7 @@
     _(IFV, 3, 0, VOID, NO_CAST), \
     _(BRANCH, 1, 0, VOID, NO_CAST), \
     _(LABEL, 0, 1, REG, NO_CAST),  \
-    _(MARK, 1, 0, VOID, NO_CAST), \
-    /* special control operators */ \
-     _(INVOKISH, 1, 0, VOID, NO_CAST), \
-     _(THROWISH, 1, 0, VOID, NO_CAST), \
+    _(MARK, 0, 1, VOID, NO_CAST), \
     /* call c functions */ \
     _(CALL, 2, 1, REG, NO_CAST),      \
     _(CALLV, 2, 0, VOID, NO_CAST), \
