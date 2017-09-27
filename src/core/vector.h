@@ -19,10 +19,10 @@
     } while (0)
 
 #define MVM_VECTOR_SIZE(x) \
-    sizeof(*x) * (x ## _alloc)
+    (sizeof(*x) * (x ## _alloc))
 
 #define MVM_VECTOR_TOP(x) \
-    (x) + (x ## _num)
+    ((x) + (x ## _num))
 
 
 #define MVM_VECTOR_GROW(x, size) do {\
