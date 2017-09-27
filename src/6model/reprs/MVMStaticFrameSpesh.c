@@ -121,6 +121,10 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
 
 static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data) {
     MVMStaticFrameSpeshBody *body = (MVMStaticFrameSpeshBody *)data;
+
+    MVM_spesh_stats_gc_describe(tc, ss, body->spesh_stats);
+    MVM_spesh_arg_guard_gc_describe(tc, ss, body->spesh_arg_guard);
+
     if (body->num_spesh_candidates) {
         MVMint32 i, j;
         for (i = 0; i < body->num_spesh_candidates; i++) {

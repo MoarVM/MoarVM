@@ -145,7 +145,7 @@ static mp_int * force_bigint(const MVMP6bigintBody *body, mp_int **tmp) {
         return body->u.bigint;
     }
     else {
-        MVMint32 value = body->u.smallint.value;
+        MVMint64 value = body->u.smallint.value;
         mp_int *i = MVM_malloc(sizeof(mp_int));
         mp_init(i);
         if (value >= 0) {
@@ -853,7 +853,7 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
             char *buf;
             MVMString *result;
 
-            MVMint32 value = body->u.smallint.value;
+            MVMint64 value = body->u.smallint.value;
             mp_init(&i);
             if (value >= 0) {
                 mp_set_long(&i, value);

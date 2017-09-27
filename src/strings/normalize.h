@@ -80,9 +80,19 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadCon
      * far in normalized form without having to consider them into the
      * normalization process. The exception is if we're computing NFG, and
      * we got \r, which can form a grapheme in the case of \r\n. */
-    if (in < 0x20 || (0x7F <= in && in <= 0x9F) || in == 0xAD)
+    if (in < 0x20 || (0x7F <= in && in <= 0x9F) || in == 0xAD) {
+        /* For utf8-c8 synthetic graphemes. May be able to be removed after
+         * changing and further testing of the TODO marked below. */
+        if (in < 0) {
+            if (MVM_nfg_get_synthetic_info(tc, in)->is_utf8_c8)
+                return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, n, in, out);
+            MVM_exception_throw_adhoc(tc, "Internal error: encountered non-utf8-c8 synthetic during normalization");
+        }
+        /* TODO this does not seem to do what the comment above shows. Likely
+         * needs changing */
         if (!(MVM_NORMALIZE_GRAPHEME(n->form) && in == 0x0D))
             return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, n, in, out);
+    }
 
     /* Fast-paths apply when the codepoint to consider is too low to have any
      * interesting properties in the target normalization form AND

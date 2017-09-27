@@ -85,7 +85,8 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 
     add_collectable(tc, worklist, snapshot, tc->instance->spesh_queue,
         "Specialization log queue");
-    MVM_spesh_plan_gc_mark(tc, tc->instance->spesh_plan, worklist);
+    if (worklist)
+        MVM_spesh_plan_gc_mark(tc, tc->instance->spesh_plan, worklist);
 
     int_to_str_cache = tc->instance->int_to_str_cache;
     for (i = 0; i < MVM_INT_TO_STR_CACHE_SIZE; i++)
@@ -180,7 +181,11 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
 
     /* Specialization log and stack simulation. */
     add_collectable(tc, worklist, snapshot, tc->spesh_log, "Specialization log");
-    MVM_spesh_sim_stack_gc_mark(tc, tc->spesh_sim_stack, worklist);
+    if (worklist)
+        MVM_spesh_sim_stack_gc_mark(tc, tc->spesh_sim_stack, worklist);
+    else {
+        MVM_spesh_sim_stack_gc_describe(tc, snapshot, tc->spesh_sim_stack);
+    }
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */

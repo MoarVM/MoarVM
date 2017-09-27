@@ -2,7 +2,7 @@
 
 #define MVM_BIGINT_32_FLAG      0xFFFFFFFF
 #define MVM_BIGINT_IS_BIG(body) ((body)->u.smallint.flag != 0xFFFFFFFF)
-#define MVM_IS_32BIT_INT(i)     (i >= -2147483648LL && i <= 2147483647LL)
+#define MVM_IS_32BIT_INT(i)     ((long long)(i) >= -2147483648LL && (long long)(i) <= 2147483647LL)
 
 /* Representation used by big integers; inlined into P6bigint. We store any
  * values in 32-bit signed range without using the big integer library. */

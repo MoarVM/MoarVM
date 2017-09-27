@@ -356,7 +356,7 @@ our %COMPILERS = (
 our %OS_WIN32 = (
     exe      => '.exe',
     defs     => [ qw( WIN32 AO_ASSUME_WINDOWS98 ) ],
-    syslibs  => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 psapi iphlpapi userenv ) ],
+    syslibs  => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 psapi iphlpapi userenv user32 ) ],
     platform => '$(PLATFORM_WIN32)',
 
     dllimport => '__declspec(dllimport)',

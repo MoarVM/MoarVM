@@ -1,6 +1,7 @@
 #include "moar.h"
 #include "platform/time.h"
 #include "tinymt64.h"
+#include "bithacks.h"
 
 /* concatenating with "" ensures that only literal strings are accepted as argument. */
 #define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
@@ -184,6 +185,7 @@ typedef struct {
     ProcessState       state;
     int                using;
     int                merge;
+    size_t             last_read;
 } SpawnInfo;
 
 /* Info we convey about a write task. */
@@ -505,9 +507,18 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
 
 /* Allocates a buffer of the suggested size. */
 static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
-    size_t size = suggested_size > 0 ? suggested_size : 4;
-    buf->base   = MVM_malloc(size);
-    buf->len    = size;
+    SpawnInfo *si = (SpawnInfo *)handle->data;
+    size_t size   = si->last_read ? si->last_read : 64;
+
+    if (size < 128) {
+        size = 128;
+    }
+    else {
+        size = MVM_bithacks_next_greater_pow2(size + 1);
+    }
+
+    buf->base = MVM_malloc(size);
+    buf->len  = size;
 }
 
 /* Read functions for stdout/stderr/merged. */
@@ -543,6 +554,9 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
 
             /* Finally, no error. */
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+
+            /* Update handle with amount read. */
+            si->last_read = nread;
 
             /* Update permit count, stop reading if we run out. */
             if (permit > 0) {
@@ -1123,4 +1137,34 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
         instance->clargs = clargs;
     }
     return clargs;
+}
+
+/* Gets resource usage statistics, so far as they are portably available (see
+ * libuv docs) and puts them into an integer array. */
+MVMObject * MVM_proc_getrusage(MVMThreadContext *tc) {
+    MVMObject *result;
+    uv_rusage_t usage;
+    int r;
+    if ((r = uv_getrusage(&usage)) > 0)
+        MVM_exception_throw_adhoc(tc, "Unable to getrusage: %s", uv_strerror(r));
+    result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
+    MVM_repr_bind_pos_i(tc, result, 0, usage.ru_utime.tv_sec);
+    MVM_repr_bind_pos_i(tc, result, 1, usage.ru_utime.tv_usec);
+    MVM_repr_bind_pos_i(tc, result, 2, usage.ru_stime.tv_sec);
+    MVM_repr_bind_pos_i(tc, result, 3, usage.ru_stime.tv_usec);
+    MVM_repr_bind_pos_i(tc, result, 4, usage.ru_maxrss);
+    MVM_repr_bind_pos_i(tc, result, 5, usage.ru_ixrss);
+    MVM_repr_bind_pos_i(tc, result, 6, usage.ru_idrss);
+    MVM_repr_bind_pos_i(tc, result, 7, usage.ru_isrss);
+    MVM_repr_bind_pos_i(tc, result, 8, usage.ru_minflt);
+    MVM_repr_bind_pos_i(tc, result, 9, usage.ru_majflt);
+    MVM_repr_bind_pos_i(tc, result, 10, usage.ru_nswap);
+    MVM_repr_bind_pos_i(tc, result, 11, usage.ru_inblock);
+    MVM_repr_bind_pos_i(tc, result, 12, usage.ru_oublock);
+    MVM_repr_bind_pos_i(tc, result, 13, usage.ru_msgsnd);
+    MVM_repr_bind_pos_i(tc, result, 14, usage.ru_msgrcv);
+    MVM_repr_bind_pos_i(tc, result, 15, usage.ru_nsignals);
+    MVM_repr_bind_pos_i(tc, result, 16, usage.ru_nvcsw);
+    MVM_repr_bind_pos_i(tc, result, 17, usage.ru_nivcsw);
+    return result;
 }

@@ -3635,7 +3635,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(sync_fh):
-                MVM_io_flush(tc, GET_REG(cur_op, 0).o);
+                MVM_io_flush(tc, GET_REG(cur_op, 0).o, 1);
                 cur_op += 2;
                 goto NEXT;
             OP(trunc_fh):
@@ -3747,6 +3747,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(exit): {
                 MVMint64 exit_code = GET_REG(cur_op, 0).i64;
+                MVM_io_flush_standard_handles(tc);
                 exit(exit_code);
             }
             OP(cwd):
@@ -4552,6 +4553,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_6model_container_decont_s(tc, obj, r);
                 goto NEXT;
             }
+            OP(getrusage):
+                GET_REG(cur_op, 0).o = MVM_proc_getrusage(tc);
+                cur_op += 2;
+                goto NEXT;
+            OP(threadlockcount):
+                GET_REG(cur_op, 0).i64 = MVM_thread_lock_count(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(getlexref_i):
                 GET_REG(cur_op, 0).o = MVM_nativeref_lex_i(tc,
                     GET_UI16(cur_op, 4), GET_UI16(cur_op, 2));
@@ -5776,8 +5786,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_cross_thread_write_check(tc, obj, blame);
                 goto NEXT;
             }
-            OP(DEPRECATED_2):
-            OP(DEPRECATED_3):
             OP(DEPRECATED_4):
             OP(DEPRECATED_5):
             OP(DEPRECATED_6):

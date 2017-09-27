@@ -128,7 +128,7 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMConcBlockingQueueBody *cbq = (MVMConcBlockingQueueBody *)data;
-    return MVM_load(cbq->elems);
+    return MVM_load(&(cbq->elems));
 }
 
 static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {

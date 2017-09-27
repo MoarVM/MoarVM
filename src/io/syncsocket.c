@@ -3,9 +3,12 @@
 #ifdef _WIN32
     #include <winsock2.h>
     typedef SOCKET Socket;
+    #define sa_family_t unsigned int
 #else
     #include "unistd.h"
     #include <sys/socket.h>
+    #include <sys/un.h>
+
     typedef int Socket;
     #define closesocket close
 #endif
@@ -178,7 +181,7 @@ MVMint64 socket_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     return data->eof;
 }
 
-void socket_flush(MVMThreadContext *tc, MVMOSHandle *h) {
+void socket_flush(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 sync) {
     /* A no-op for sockets; we don't buffer. */
 }
 
@@ -228,32 +231,88 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVM_free(data);
 }
 
-/* Actually, it may return sockaddr_in6 as well; it's not a problem for us, because we just
- * pass is straight to uv, and the first thing it does is it looks at the address family,
- * but it's a thing to remember if someone feels like peeking inside the returned struct. */
+static size_t get_struct_size_for_family(sa_family_t family) {
+    switch (family) {
+        case AF_INET6:
+            return sizeof(struct sockaddr_in6);
+        case AF_INET:
+            return sizeof(struct sockaddr_in);
+#ifndef _WIN32
+        case AF_UNIX:
+            return sizeof(struct sockaddr_un);
+#endif
+        default:
+            return sizeof(struct sockaddr);
+    }
+}
+
+/* This function may return any type of sockaddr e.g. sockaddr_un, sockaddr_in or sockaddr_in6
+ * It shouldn't be a problem with general code as long as the port number is kept below the int16 limit: 65536
+ * After this it defines the family which may spawn non internet sockaddr's
+ * The family can be extracted by (port >> 16) & USHORT_MAX
+ *
+ * Currently supported families:
+ *
+ * AF_UNSPEC = 1
+ *   Unspecified, in most cases should be equal to AF_INET or AF_INET6
+ *
+ * AF_UNIX = 1
+ *   Unix domain socket, will spawn a sockaddr_un which will use the given host as path
+ *   e.g: MVM_io_resolve_host_name(tc, "/run/moarvm.sock", 1 << 16)
+ *   will spawn an unix domain socket on /run/moarvm.sock
+ *
+ * AF_INET = 2
+ *   IPv4 socket
+ *
+ * AF_INET6 = 10
+ *   IPv6 socket
+ */
 struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host, MVMint64 port) {
     char *host_cstr = MVM_string_utf8_encode_C_string(tc, host);
     struct sockaddr *dest;
-    struct addrinfo *result;
     int error;
+    struct addrinfo *result;
     char port_cstr[8];
+    unsigned short family = (port >> 16) & USHRT_MAX;
+    struct addrinfo hints;
+
+#ifndef _WIN32
+    /* AF_UNIX = 1 */
+    if (family == AF_UNIX) {
+        struct sockaddr_un *result_un = MVM_malloc(sizeof(struct sockaddr_un));
+
+        if (strlen(host_cstr) > 107) {
+            MVM_free(result_un);
+            MVM_free(host_cstr);
+            MVM_exception_throw_adhoc(tc, "Socket path can only be maximal 107 characters long");
+        }
+
+        result_un->sun_family = AF_UNIX;
+        strcpy(result_un->sun_path, host_cstr);
+        MVM_free(host_cstr);
+
+        return (struct sockaddr *)result_un;
+    }
+#endif
+
+    hints.ai_family = family;
+    hints.ai_socktype = 0;
+    hints.ai_flags = AI_PASSIVE;
+    hints.ai_protocol = 0;
+
     snprintf(port_cstr, 8, "%d", (int)port);
 
-    error = getaddrinfo(host_cstr, port_cstr, NULL, &result);
+    error = getaddrinfo(host_cstr, port_cstr, &hints, &result);
     if (error == 0) {
+        size_t size = get_struct_size_for_family(result->ai_addr->sa_family);
         MVM_free(host_cstr);
-        if (result->ai_addr->sa_family == AF_INET6) {
-            dest = MVM_malloc(sizeof(struct sockaddr_in6));
-            memcpy(dest, result->ai_addr, sizeof(struct sockaddr_in6));
-        } else {
-            dest = MVM_malloc(sizeof(struct sockaddr));
-            memcpy(dest, result->ai_addr, sizeof(struct sockaddr));
-        }
+        dest = MVM_malloc(size);
+        memcpy(dest, result->ai_addr, size);
     }
     else {
         char *waste[] = { host_cstr, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste, "Failed to resolve host name '%s'. Error: '%s'",
-                                       host_cstr, gai_strerror(error));
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to resolve host name '%s' with family %d. Error: '%s'",
+                                       host_cstr, family, gai_strerror(error));
     }
     freeaddrinfo(result);
 
@@ -278,9 +337,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
         }
 
         MVM_gc_mark_thread_blocked(tc);
-        r = connect(s, dest, dest->sa_family == AF_INET6
-                ? sizeof(struct sockaddr_in6)
-                : sizeof(struct sockaddr));
+        r = connect(s, dest, (socklen_t)get_struct_size_for_family(dest->sa_family));
         MVM_gc_mark_thread_unblocked(tc);
         MVM_free(dest);
         if (MVM_IS_SOCKET_ERROR(r)) {
@@ -321,9 +378,7 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
         }
 #endif
 
-        r = bind(s, dest, dest->sa_family == AF_INET6
-                ? sizeof(struct sockaddr_in6)
-                : sizeof(struct sockaddr));
+        r = bind(s, dest, (socklen_t)get_struct_size_for_family(dest->sa_family));
         MVM_free(dest);
         if (MVM_IS_SOCKET_ERROR(r))
             throw_error(tc, s, "bind socket");

@@ -1,5 +1,9 @@
 #include "moar.h"
 
+#ifndef MAX
+    #define MAX(x, y) ((y) > (x) ? (y) : (x))
+#endif
+
 /* Check if we're currently taking heap snapshots. */
 MVMint32 MVM_profile_heap_profiling(MVMThreadContext *tc) {
     return tc->instance->heap_snapshots != NULL;
@@ -7,7 +11,32 @@ MVMint32 MVM_profile_heap_profiling(MVMThreadContext *tc) {
 
 /* Start heap profiling. */
 void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
-    tc->instance->heap_snapshots = MVM_calloc(1, sizeof(MVMHeapSnapshotCollection));
+    MVMHeapSnapshotCollection *col = MVM_calloc(1, sizeof(MVMHeapSnapshotCollection));
+    char *path;
+    MVMString *path_str;
+
+    col->index = MVM_calloc(1, sizeof(MVMHeapDumpIndex));
+    col->index->snapshot_sizes = MVM_calloc(1, sizeof(MVMHeapDumpIndexSnapshotEntry));
+    tc->instance->heap_snapshots = col;
+
+    path_str = MVM_repr_get_str(tc,
+        MVM_repr_at_key_o(tc, config, tc->instance->str_consts.path));
+
+    if (MVM_is_null(tc, (MVMObject*)path_str)) {
+        MVM_exception_throw_adhoc(tc, "Didn't specify a path for the heap snapshot profiler");
+    }
+
+    path = MVM_string_utf8_encode_C_string(tc, path_str);
+
+    col->fh = fopen(path, "w");
+
+    if (!col->fh) {
+        char *waste[2] = {path, NULL};
+        MVM_exception_throw_adhoc_free(tc, waste, "Couldn't open heap snapshot target file %s: %s", path, strerror(errno));
+    }
+    MVM_free(path);
+
+    fputs("MoarHeapDumpv002", col->fh);
 }
 
 /* Grows storage if it's full, zeroing the extension. Assumes it's only being
@@ -47,7 +76,7 @@ static MVMuint64 get_string_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss
     col->num_strings_free++;
     col->strings[col->num_strings] = str_mode == STR_MODE_DUP ? strdup(str) : str;
     return col->num_strings++;
- }
+}
 
 /* Gets a string index in the string heap for a VM string. */
 static MVMuint64 get_vm_string_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMString *str) {
@@ -601,29 +630,20 @@ static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col
     MVM_gc_worklist_destroy(tc, ss.gcwl);
 }
 
-/* Takes a snapshot of the heap, adding it to the current heap snapshot
- * collection. */
-void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
-    if (MVM_profile_heap_profiling(tc)) {
-        MVMHeapSnapshotCollection *col = tc->instance->heap_snapshots;
-        grow_storage(&(col->snapshots), &(col->num_snapshots), &(col->alloc_snapshots),
-            sizeof(MVMHeapSnapshot));
-        record_snapshot(tc, col, &(col->snapshots[col->num_snapshots]));
-        col->num_snapshots++;
-    }
+static void destroy_current_heap_snapshot(MVMThreadContext *tc) {
+    MVMHeapSnapshotCollection *col = tc->instance->heap_snapshots;
+
+    MVM_free(col->snapshot->collectables);
+    MVM_free(col->snapshot->references);
+    MVM_free(col->snapshot);
+
+    col->snapshot = NULL;
 }
 
 /* Frees all memory associated with the heap snapshot. */
 static void destroy_heap_snapshot_collection(MVMThreadContext *tc) {
     MVMHeapSnapshotCollection *col = tc->instance->heap_snapshots;
     MVMuint64 i;
-
-    for (i = 0; i < col->num_snapshots; i++) {
-        MVMHeapSnapshot *hs = &(col->snapshots[i]);
-        MVM_free(hs->collectables);
-        MVM_free(hs->references);
-    }
-    MVM_free(col->snapshots);
 
     for (i = 0; i < col->num_strings; i++)
         if (col->strings_free[i])
@@ -634,210 +654,291 @@ static void destroy_heap_snapshot_collection(MVMThreadContext *tc) {
     MVM_free(col->types);
     MVM_free(col->static_frames);
 
+    MVM_free(col->index->snapshot_sizes);
+    MVM_free(col->index);
+
     MVM_free(col);
     tc->instance->heap_snapshots = NULL;
 }
 
-/* Turns the collected data into MoarVM objects. */
-#define vmstr(tc, cstr) MVM_string_utf8_decode(tc, tc->instance->VMString, cstr, strlen(cstr))
-#define box_s(tc, str) MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, str)
-MVMObject * string_heap_array(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
-    MVMObject *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStrArray);
+void string_heap_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMuint64 i;
-    for (i = 0; i < col->num_strings; i++)
-        MVM_repr_bind_pos_s(tc, arr, i, vmstr(tc, col->strings[i]));
-    return arr;
-}
-MVMObject * types_str(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
-    /* Produces ; separated sequences of:
-     *   repr_string_index,type_name_string_index
-     * Both of which are integers.
-     */
-     MVMObject *result;
-     size_t buffer_size = 10 * col->num_types;
-     size_t buffer_pos  = 0;
-     char *buffer       = MVM_malloc(buffer_size);
+    MVMHeapDumpIndex *index = col->index;
+    FILE *fh = col->fh;
 
-     MVMuint64 i;
-     for (i = 0; i < col->num_types; i++) {
-         char tmp[256];
-         int item_chars = snprintf(tmp, 256,
-            "%"PRIu64",%"PRIu64";",
-            col->types[i].repr_name,
-            col->types[i].type_name);
-         if (item_chars < 0)
-             MVM_panic(1, "Failed to save type in heap snapshot");
-         if (buffer_pos + item_chars >= buffer_size) {
-             buffer_size += 4096;
-             buffer = MVM_realloc(buffer, buffer_size);
-         }
-         memcpy(buffer + buffer_pos, tmp, item_chars);
-         buffer_pos += item_chars;
-     }
-    if (buffer_pos > 1)
-        buffer[buffer_pos - 1] = 0; /* Cut off the trailing ; for ease of parsing */
-     buffer[buffer_pos] = 0;
+    fputs("strs", fh);
 
-     result = box_s(tc, vmstr(tc, buffer));
-     MVM_free(buffer);
-     return result;
-}
-MVMObject * static_frames_str(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
-    /* Produces ; separated sequences of:
-     *   name_string_index,cuid_string_index,line_number,file_string_index
-     * All of which are integers.
-     */
-     MVMObject *result;
-     size_t buffer_size = 16 * col->num_static_frames;
-     size_t buffer_pos  = 0;
-     char *buffer       = MVM_malloc(buffer_size);
+    /* Write out the number of strings we have and record the "header" size
+     * in the index. */
 
-     MVMuint64 i;
-     for (i = 0; i < col->num_static_frames; i++) {
-         char tmp[256];
-         int item_chars = snprintf(tmp, 256,
-            "%"PRId64",%"PRId64",%"PRId64",%"PRId64";",
-            col->static_frames[i].name,
-            col->static_frames[i].cuid,
-            col->static_frames[i].line,
-            col->static_frames[i].file);
-         if (item_chars < 0)
-             MVM_panic(1, "Failed to save static frame in heap snapshot");
-         if (buffer_pos + item_chars >= buffer_size) {
-             buffer_size += 4096;
-             buffer = MVM_realloc(buffer, buffer_size);
-         }
-         memcpy(buffer + buffer_pos, tmp, item_chars);
-         buffer_pos += item_chars;
-     }
-    if (buffer_pos > 1)
-        buffer[buffer_pos - 1] = 0; /* Cut off the trailing ; for ease of parsing */
-     buffer[buffer_pos] = 0;
+    i = col->num_strings - col->strings_written;
 
-     result = box_s(tc, vmstr(tc, buffer));
-     MVM_free(buffer);
-     return result;
-}
-MVMObject * collectables_str(MVMThreadContext *tc, MVMHeapSnapshot *s) {
-    /* Produces ; separated sequences of:
-     *   kind,type_or_frame_index,collectable_size,unmanaged_size,refs_start,num_refs
-     * All of which are integers.
-     */
-     MVMObject *result;
-     size_t buffer_size = 20 * s->num_collectables;
-     size_t buffer_pos  = 0;
-     char *buffer       = MVM_malloc(buffer_size);
+    fwrite(&i, sizeof(MVMuint64), 1, fh);
+    index->stringheap_size = sizeof(MVMuint64) + 4;
 
-     MVMuint64 i;
-     for (i = 0; i < s->num_collectables; i++) {
-         char tmp[256];
-         int item_chars = snprintf(tmp, 256,
-            "%"PRIu16",%"PRId32",%"PRIu16",%"PRIu64",%"PRIu64",%"PRIu32";",
-            s->collectables[i].kind,
-            s->collectables[i].type_or_frame_index,
-            s->collectables[i].collectable_size,
-            s->collectables[i].unmanaged_size,
-            s->collectables[i].num_refs ? s->collectables[i].refs_start : (MVMuint64)0,
-            s->collectables[i].num_refs);
-         if (item_chars < 0)
-             MVM_panic(1, "Failed to save collectable in heap snapshot");
-         if (buffer_pos + item_chars >= buffer_size) {
-             buffer_size += 4096;
-             buffer = MVM_realloc(buffer, buffer_size);
-         }
-         memcpy(buffer + buffer_pos, tmp, item_chars);
-         buffer_pos += item_chars;
-     }
-    if (buffer_pos > 1)
-        buffer[buffer_pos - 1] = 0; /* Cut off the trailing ; for ease of parsing */
-     buffer[buffer_pos] = 0;
+    for (i = col->strings_written; i < col->num_strings; i++) {
+        char *str = col->strings[i];
+        MVMuint64 output_size = strlen(str);
 
-     result = box_s(tc, vmstr(tc, buffer));
-     MVM_free(buffer);
-     return result;
-}
-MVMObject * references_str(MVMThreadContext *tc, MVMHeapSnapshot *s) {
-    /* Produces ; separated sequences of:
-     *   kind,idx,to
-     * All of which are integers.
-     */
-    MVMObject *result;
-    size_t buffer_size = 10 * s->num_references;
-    size_t buffer_pos  = 0;
-    char *buffer       = MVM_malloc(buffer_size);
+        /* Every string is stored as a 64 bit integer length followed by utf8-
+         * encoded string data. */
 
-    MVMuint64 i;
-    for (i = 0; i < s->num_references; i++) {
-        char tmp[128];
-        int item_chars = snprintf(tmp, 128, "%"PRIu64",%"PRIu64",%"PRIu64";",
-            s->references[i].description & ((1 << MVM_SNAPSHOT_REF_KIND_BITS) - 1),
-            s->references[i].description >> MVM_SNAPSHOT_REF_KIND_BITS,
-            s->references[i].collectable_index);
-        if (item_chars < 0)
-            MVM_panic(1, "Failed to save reference in heap snapshot");
-        if (buffer_pos + item_chars >= buffer_size) {
-            buffer_size += 4096;
-            buffer = MVM_realloc(buffer, buffer_size);
-        }
-        memcpy(buffer + buffer_pos, tmp, item_chars);
-        buffer_pos += item_chars;
+        fwrite(&output_size, sizeof(MVMuint64), 1, fh);
+        fwrite(str, sizeof(MVMuint8), output_size, fh);
+
+        /* Adjust the size by how much we wrote, including the size prefix */
+
+        index->stringheap_size += sizeof(MVMuint64) + sizeof(MVMuint8) * output_size;
     }
-    if (buffer_pos > 1)
-        buffer[buffer_pos - 1] = 0; /* Cut off the trailing ; for ease of parsing */
-    buffer[buffer_pos] = 0;
 
-    result = box_s(tc, vmstr(tc, buffer));
-    MVM_free(buffer);
-    return result;
+    col->strings_written = col->num_strings;
 }
-MVMObject * snapshot_to_mvm_object(MVMThreadContext *tc, MVMHeapSnapshot *s) {
-    MVMObject *snapshot = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
-    MVM_repr_bind_key_o(tc, snapshot, vmstr(tc, "collectables"),
-        collectables_str(tc, s));
-    MVM_repr_bind_key_o(tc, snapshot, vmstr(tc, "references"),
-        references_str(tc, s));
-    return snapshot;
-}
-MVMObject * snapshots_to_mvm_objects(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
-    MVMObject *arr = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+
+/* The following functions all act the exact same way:
+ *
+ * Write a little introductory text of 4 bytes for the parser to ensure
+ * the index is correct, write the number of entries and the size of each entry
+ * as 64bit integers, calculate the complete size for the index, and then
+ * just write out each entry
+ *
+ * We also write a partial table after every snapshot so that if the process
+ * crashes we still have a usable file.
+ */
+void types_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMuint64 i;
-    for (i = 0; i < col->num_snapshots; i++)
-        MVM_repr_bind_pos_o(tc, arr, i,
-            snapshot_to_mvm_object(tc, &(col->snapshots[i])));
-    return arr;
+    MVMHeapDumpIndex *index = col->index;
+    FILE *fh = col->fh;
+
+    fputs("type", fh);
+
+    i = col->num_types - col->types_written;
+
+    fwrite(&i, sizeof(MVMuint64), 1, fh);
+    i = sizeof(MVMuint64) * 2;
+    fwrite(&i, sizeof(MVMuint64), 1, fh);
+
+    index->types_size = sizeof(MVMuint64) * 2 + 4 + sizeof(MVMuint64) * 2 * (col->num_types - col->types_written);
+
+    for (i = col->types_written; i < col->num_types; i++) {
+        MVMHeapSnapshotType *t = &col->types[i];
+
+        fwrite(&t->repr_name, sizeof(MVMuint64), 1, fh);
+        fwrite(&t->type_name, sizeof(MVMuint64), 1, fh);
+    }
+
+    col->types_written = col->num_types;
 }
-MVMObject * collection_to_mvm_objects(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
-    MVMObject *results;
+void static_frames_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+    MVMuint64 i;
+    MVMHeapDumpIndex *index = col->index;
+    FILE *fh = col->fh;
 
-    /* Allocate in gen2, so as not to trigger GC. */
-    MVM_gc_allocate_gen2_default_set(tc);
+    fputs("fram", fh);
 
-    /* Top-level results is a hash. */
-    results = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
-    MVM_repr_bind_key_o(tc, results, vmstr(tc, "strings"),
-        string_heap_array(tc, col));
-    MVM_repr_bind_key_o(tc, results, vmstr(tc, "types"),
-        types_str(tc, col));
-    MVM_repr_bind_key_o(tc, results, vmstr(tc, "static_frames"),
-        static_frames_str(tc, col));
-    MVM_repr_bind_key_o(tc, results, vmstr(tc, "snapshots"),
-        snapshots_to_mvm_objects(tc, col));
+    i = col->num_static_frames - col->static_frames_written;
 
-    /* Switch off gen2 allocations now we're done. */
-    MVM_gc_allocate_gen2_default_clear(tc);
+    fwrite(&i, sizeof(MVMuint64), 1, fh);
+    i = sizeof(MVMuint64) * 4;
+    fwrite(&i, sizeof(MVMuint64), 1, fh);
+    index->staticframes_size = sizeof(MVMuint64) * 2 + 4 + sizeof(MVMuint64) * 4 * (col->num_static_frames - col->static_frames_written);
 
-    return results;
+    for (i = col->static_frames_written; i < col->num_static_frames; i++) {
+        MVMHeapSnapshotStaticFrame *sf = &col->static_frames[i];
+
+        fwrite(&sf->name, sizeof(MVMuint64), 1, fh);
+        fwrite(&sf->cuid, sizeof(MVMuint64), 1, fh);
+        fwrite(&sf->line, sizeof(MVMuint64), 1, fh);
+        fwrite(&sf->file, sizeof(MVMuint64), 1, fh);
+    }
+
+    col->static_frames_written = col->num_static_frames;
+}
+
+/* The collectables table gets an entry in the additional "snapshot sizes
+ * table" that ends up before the general index at the end of the file.
+ *
+ * This sizes table has three entries for each entry. The first one is the
+ * size of the collectables table.
+ */
+void collectables_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapDumpIndexSnapshotEntry *entry) {
+    MVMuint64 i;
+    FILE *fh = col->fh;
+    MVMHeapSnapshot *s = col->snapshot;
+
+    fputs("coll", fh);
+
+    fwrite(&s->num_collectables, sizeof(MVMuint64), 1, fh);
+    i = sizeof(MVMuint16) * 2 + sizeof(MVMuint32) * 2 + sizeof(MVMuint64) * 2;
+    fwrite(&i, sizeof(MVMuint64), 1, fh);
+
+    entry->collectables_size += s->num_collectables * i + 4 + sizeof(MVMuint64) * 2;
+
+    for (i = 0; i < s->num_collectables; i++) {
+        MVMHeapSnapshotCollectable *coll = &s->collectables[i];
+        fwrite(&coll->kind, sizeof(MVMuint16), 1, fh);
+        fwrite(&coll->type_or_frame_index, sizeof(MVMuint32), 1, fh);
+        fwrite(&coll->collectable_size, sizeof(MVMuint16), 1, fh);
+        fwrite(&coll->unmanaged_size, sizeof(MVMuint64), 1, fh);
+        if (coll->num_refs)
+            fwrite(&coll->refs_start, sizeof(MVMuint64), 1, fh);
+        else {
+            MVMuint64 refs_start = 0;
+            fwrite(&refs_start, sizeof(MVMuint64), 1, fh);
+        }
+        fwrite(&coll->num_refs, sizeof(MVMuint32), 1, fh);
+    }
+}
+
+/* The references table has extreme potential for compression by first writing
+ * out a "how many bytes per field" byte, then writing each field with the
+ * determined size.
+ *
+ * That's why there's two entries in the snapshot size table for references:
+ * so that the parser can confidently skip to the exact middle of
+ * the references table and parse it with two threads in parallel.
+ */
+void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapDumpIndexSnapshotEntry *entry) {
+    MVMuint64 i;
+    MVMuint64 halfway;
+    FILE *fh = col->fh;
+    MVMHeapSnapshot *s = col->snapshot;
+
+    fputs("refs", fh);
+    fwrite(&s->num_references, sizeof(MVMuint64), 1, fh);
+    i = sizeof(MVMuint64) * 2 + 1;
+    fwrite(&i, sizeof(MVMuint64), 1, fh);
+
+    entry->full_refs_size = 4 + sizeof(MVMuint64) * 2;
+
+    halfway = s->num_references / 2 - 1;
+
+    for (i = 0; i < s->num_references; i++) {
+        MVMHeapSnapshotReference *ref = &s->references[i];
+        MVMuint8  descr  = ref->description & ((1 << MVM_SNAPSHOT_REF_KIND_BITS) - 1);
+        MVMuint64 kind   = ref->description >> MVM_SNAPSHOT_REF_KIND_BITS;
+        MVMuint64 cindex = ref->collectable_index;
+
+        MVMuint64 maxval = MAX(kind, cindex);
+
+        if (maxval + 1 >= 1l << 32) {
+            fputc('6', fh);
+            fwrite(&descr, sizeof(MVMuint8), 1, fh);
+            fwrite(&kind, sizeof(MVMuint64), 1, fh);
+            fwrite(&cindex, sizeof(MVMuint64), 1, fh);
+            entry->full_refs_size += sizeof(MVMuint64) * 2 + 2;
+        }
+        else if (maxval + 1 >= 1 << 16) {
+            MVMuint32 kind32, index32;
+            kind32  = kind;
+            index32 = cindex;
+            fputc('3', fh);
+            fwrite(&descr, sizeof(MVMuint8), 1, fh);
+            fwrite(&kind32, sizeof(MVMuint32), 1, fh);
+            fwrite(&index32, sizeof(MVMuint32), 1, fh);
+            entry->full_refs_size += sizeof(MVMuint32) * 2 + 2;
+        }
+        else if (maxval + 1 >= 1 << 8) {
+            MVMuint16 kind16, index16;
+            kind16  = kind;
+            index16 = cindex;
+            fputc('1', fh);
+            fwrite(&descr, sizeof(MVMuint8), 1, fh);
+            fwrite(&kind16, sizeof(MVMuint16), 1, fh);
+            fwrite(&index16, sizeof(MVMuint16), 1, fh);
+            entry->full_refs_size += sizeof(MVMuint16) * 2 + 2;
+        }
+        else {
+            MVMuint8 descr8, kind8, index8;
+            kind8  = kind;
+            index8 = cindex;
+            fputc('0', fh);
+            fwrite(&descr, sizeof(MVMuint8), 1, fh);
+            fwrite(&kind8, sizeof(MVMuint8), 1, fh);
+            fwrite(&index8, sizeof(MVMuint8), 1, fh);
+            entry->full_refs_size += sizeof(MVMuint8) * 3 + 1;
+        }
+        if (i == halfway) {
+            entry->refs_middlepoint = entry->full_refs_size;
+        }
+    }
+}
+
+void snapshot_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+    MVMHeapDumpIndex *index = col->index;
+    MVMuint64 i = col->snapshot_idx;
+    MVMHeapDumpIndexSnapshotEntry *entry;
+
+    grow_storage((void **)&(index->snapshot_sizes), &(index->snapshot_size_entries),
+            &(index->snapshot_sizes_alloced), sizeof(MVMHeapDumpIndexSnapshotEntry));
+
+    index->snapshot_size_entries++;
+
+    entry = &(index->snapshot_sizes[i]);
+
+    entry->collectables_size = 0;
+    entry->full_refs_size    = 0;
+    entry->refs_middlepoint  = 0;
+    entry->incremental_data  = 0;
+
+    collectables_to_filehandle(tc, col, entry);
+    references_to_filehandle(tc, col, entry);
+
+    string_heap_to_filehandle(tc, col);
+    types_to_filehandle(tc, col);
+    static_frames_to_filehandle(tc, col);
+
+    entry->incremental_data = index->stringheap_size + index->types_size + index->staticframes_size;
+}
+void index_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+    MVMHeapDumpIndex *index = col->index;
+    FILE *fh = col->fh;
+
+    fwrite(index->snapshot_sizes, sizeof(MVMHeapDumpIndexSnapshotEntry), index->snapshot_size_entries, fh);
+    fwrite(&index->stringheap_size, sizeof(MVMuint64), 1, fh);
+    fwrite(&index->types_size, sizeof(MVMuint64), 1, fh);
+    fwrite(&index->staticframes_size, sizeof(MVMuint64), 1, fh);
+    fwrite(&index->snapshot_size_entries, sizeof(MVMuint64), 1, fh);
+}
+void finish_collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+    col->strings_written = 0;
+    col->types_written = 0;
+    col->static_frames_written = 0;
+
+    string_heap_to_filehandle(tc, col);
+    types_to_filehandle(tc, col);
+    static_frames_to_filehandle(tc, col);
+
+    index_to_filehandle(tc, col);
+}
+
+/* Takes a snapshot of the heap, outputting it to the filehandle */
+void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
+    if (MVM_profile_heap_profiling(tc)) {
+        MVMHeapSnapshotCollection *col = tc->instance->heap_snapshots;
+        col->snapshot = MVM_calloc(1, sizeof(MVMHeapSnapshot));
+
+        record_snapshot(tc, col, col->snapshot);
+
+        snapshot_to_filehandle(tc, col);
+        fflush(col->fh);
+
+        destroy_current_heap_snapshot(tc);
+        col->snapshot_idx++;
+    }
 }
 
 /* Finishes heap profiling, getting the data. */
 MVMObject * MVM_profile_heap_end(MVMThreadContext *tc) {
+    MVMHeapSnapshotCollection *col = tc->instance->heap_snapshots;
     MVMObject *dataset;
 
     /* Trigger a GC run, to ensure we get at least one heap snapshot. */
     MVM_gc_enter_from_allocator(tc);
 
-    /* Process and return the data. */
-    dataset = collection_to_mvm_objects(tc, tc->instance->heap_snapshots);
+    dataset = tc->instance->VMNull;
+
+    finish_collection_to_filehandle(tc, tc->instance->heap_snapshots);
+    fclose(col->fh);
     destroy_heap_snapshot_collection(tc);
     return dataset;
 }

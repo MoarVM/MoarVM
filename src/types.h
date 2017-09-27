@@ -263,6 +263,8 @@ typedef struct MVMProfileCallNode MVMProfileCallNode;
 typedef struct MVMProfileAllocationCount MVMProfileAllocationCount;
 typedef struct MVMProfileContinuationData MVMProfileContinuationData;
 typedef struct MVMHeapSnapshotCollection MVMHeapSnapshotCollection;
+typedef struct MVMHeapDumpIndex MVMHeapDumpIndex;
+typedef struct MVMHeapDumpIndexSnapshotEntry MVMHeapDumpIndexSnapshotEntry;
 typedef struct MVMHeapSnapshot MVMHeapSnapshot;
 typedef struct MVMHeapSnapshotType MVMHeapSnapshotType;
 typedef struct MVMHeapSnapshotStaticFrame MVMHeapSnapshotStaticFrame;

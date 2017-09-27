@@ -307,7 +307,12 @@ static void process_bad_bytes(MVMThreadContext *tc, DecodeState *state) {
         state->result[state->result_pos++] = synthetic_for(tc, state->utf8[i]);
     state->unaccepted_start = state->cur_byte + 1;
 }
-
+/* Check for if the codepoint is in range. Make sure it's not over 0x10FFFF
+ * and make sure it isn't a Surrogate */
+MVM_STATIC_INLINE int in_range (MVMCodepoint cp) {
+    return ( 0 <= cp && cp <= 0x10FFFF)
+        && (cp < 0xD800 || 0xDFFF < cp); /* Surrogates */
+}
 /* Decodes the specified number of bytes of utf8 into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR. */
 MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *result_type,
@@ -376,7 +381,7 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
                                           | (decode_byte & 0x3F);
                     expected_continuations--;
                     if (expected_continuations == 0) {
-                        if (state.cur_codepoint >= min_expected_codepoint)
+                        if (min_expected_codepoint <= state.cur_codepoint && in_range(state.cur_codepoint))
                             process_ok_codepoint(tc, &state);
                         else
                             process_bad_bytes(tc, &state);

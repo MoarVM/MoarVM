@@ -214,24 +214,12 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
     MVMNativeCallback *data = (MVMNativeCallback *)cb_data;
     void           **values = MVM_malloc(sizeof(void *) * (data->cs->arg_count ? data->cs->arg_count : 1));
     unsigned int interval_id;
-    MVMint32 was_blocked;
 
-    /* Locate the thread. */
-    MVMThreadContext *tc = NULL;
-    MVMThread *thread = data->instance->threads;
-    MVMint64 wanted_thread_id = MVM_platform_thread_id();
-    while (thread) {
-        if (thread->body.native_thread_id == wanted_thread_id) {
-            tc = thread->body.tc;
-            break;
-        }
-        thread = thread->body.next;
-    }
-    if (!tc)
-        MVM_panic(1, "native callback ran on thread unknown to MoarVM");
+    /* Locate the MoarVM thread this callback is being run on. */
+    MVMThreadContext *tc = MVM_nativecall_find_thread_context(data->instance);
 
     /* Unblock GC if needed, so this thread can do work. */
-    was_blocked = MVM_gc_is_thread_blocked(tc);
+    MVMint32 was_blocked = MVM_gc_is_thread_blocked(tc);
     if (was_blocked)
         MVM_gc_mark_thread_unblocked(tc);
 

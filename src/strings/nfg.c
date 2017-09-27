@@ -164,9 +164,39 @@ static MVMGrapheme32 add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MV
     /* Set up the new synthetic entry. */
     synth            = &(nfg->synthetics[nfg->num_synthetics]);
     synth->num_codes = num_codes;
-    /* Eventually this should be set to what the actual base character is,
-     * but for now we always set it to 0 */
-    synth->base_index = 0;
+    /* Find which codepoint is the base codepoint. It is always index 0 unless
+     * there are Prepend codepoints */
+    if (!utf8_c8 && MVM_unicode_codepoint_get_property_int(tc, codes[0], MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK)
+        == MVM_UNICODE_PVALUE_GCB_PREPEND) {
+        MVMint64 i = 0;
+        MVMCodepoint cached = codes[i++];
+        MVMint64 cached_GCB = MVM_UNICODE_PVALUE_GCB_PREPEND;
+        while (i < num_codes) {
+            /* If it's the same codepoint as before, don't need to request
+             * the property value again */
+            if (cached == codes[i] || MVM_UNICODE_PVALUE_GCB_PREPEND ==
+                (cached_GCB = MVM_unicode_codepoint_get_property_int(tc, (cached = codes[i]),
+                    MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK))) {
+            }
+            else {
+                /* If we see an Extend then this is a degenerate without any
+                 * base character, so set i to num_codes so base_index gets set
+                 * to 0 */
+                if (cached_GCB == MVM_UNICODE_PVALUE_GCB_EXTEND)
+                    i = num_codes;
+                break;
+            }
+            i++;
+        }
+        /* If all the codepoints were prepend then we need to set it to 0 */
+        synth->base_index = num_codes == i ? 0 : i;
+
+    }
+    else {
+        synth->base_index = 0;
+    }
+
+
     synth->codes     = MVM_fixed_size_alloc(tc, tc->instance->fsa,
         num_codes * sizeof(MVMCodepoint));
     memcpy(synth->codes, codes, (synth->num_codes * sizeof(MVMCodepoint)));
@@ -251,15 +281,14 @@ MVMNFGSynthetic * MVM_nfg_get_synthetic_info(MVMThreadContext *tc, MVMGrapheme32
 /* Gets the cached case change if we already computed it, or computes it if
  * this is the first time we're using it. */
 static MVMGrapheme32 CASE_UNCHANGED[1] = {0};
-static void compute_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVMNFGSynthetic *synth_info, MVMint32 case_) {
-    MVMGrapheme32 *result;
+static void compute_case_change(MVMThreadContext *tc, MVMGrapheme32 synth_g, MVMNFGSynthetic *synth_info, MVMint32 case_) {
     MVMint32 num_result_graphs;
-
+    MVMGrapheme32          *result = NULL;
+    const MVMCodepoint *result_cps = NULL;
     /* Transform the base character. */
-    const MVMCodepoint *result_cps;
-    MVMuint32     num_result_cps = MVM_unicode_get_case_change(tc, synth_info->codes[0],
-        case_, &result_cps);
-    if (num_result_cps == 0 || *result_cps == synth_info->codes[0]) {
+    MVMuint32 num_result_cps = MVM_unicode_get_case_change(tc,
+        synth_info->codes[synth_info->base_index], case_, &result_cps);
+    if (num_result_cps == 0 || (num_result_cps == 1 && result_cps[0] == synth_info->codes[synth_info->base_index])) {
         /* Base character does not change, so grapheme stays the same. We
          * install a non-null sentinel for this case, and set the result
          * grapheme count to zero, which indicates no change. */
@@ -270,20 +299,32 @@ static void compute_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVMNF
         /* We can potentially get multiple graphemes back. We may also get
          * into situations where we case change the base and suddenly we
          * can normalize the whole thing to a non-synthetic. So, we take
-         * a trip through the normalizer. Note we push the first thing
-         * we get back from the case change, then our combiners, and
-         * finally anything else the case change produced. This should
+         * a trip through the normalizer. We push any codepoints before the
+         * base in the synthetic (only happens with Prepend codepoints).
+          * We then push the first codepoint we get back from the case change
+         * then the codeponits after the base characters (generally Extend
+         * codepoints).
+         * Finally we push anything else the case change produced. This should
          * do about the right thing for both case changes that produce a
          * base and a combiner, and those that produce a base and a base,
-         * since the normalizer applies Unicode canonical sorting. */
+         * since the normalizer applies canonical combining class sorting. */
         MVMNormalizer norm;
         MVMint32 i;
         MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
+        if (0 < synth_info->base_index)
+            MVM_unicode_normalizer_push_codepoints(tc, &norm,
+                synth_info->codes,
+                synth_info->base_index);
+        /* Push the first result on */
         MVM_unicode_normalizer_push_codepoints(tc, &norm, result_cps, 1);
-        MVM_unicode_normalizer_push_codepoints(tc, &norm, synth_info->codes + 1,
-            synth_info->num_codes - 1);
-        if (num_result_cps > 1)
-            MVM_unicode_normalizer_push_codepoints(tc, &norm, result_cps + 1,
+        /* Push any combiners after that codepoint so the combiners attach to the
+         * first codepoint of the casechange not the second or more */
+        MVM_unicode_normalizer_push_codepoints(tc, &norm,
+            synth_info->codes     + synth_info->base_index + 1,
+            synth_info->num_codes - synth_info->base_index - 1);
+        if (1 < num_result_cps)
+            MVM_unicode_normalizer_push_codepoints(tc, &norm,
+                result_cps     + 1,
                 num_result_cps - 1);
         MVM_unicode_normalizer_eof(tc, &norm);
 
@@ -295,24 +336,24 @@ static void compute_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVMNF
     }
 
     switch (case_) {
-    case MVM_unicode_case_change_type_upper:
-        synth_info->case_uc = result;
-        synth_info->case_uc_graphs = num_result_graphs;
-        break;
-    case MVM_unicode_case_change_type_lower:
-        synth_info->case_lc = result;
-        synth_info->case_lc_graphs = num_result_graphs;
-        break;
-    case MVM_unicode_case_change_type_title:
-        synth_info->case_tc = result;
-        synth_info->case_tc_graphs = num_result_graphs;
-        break;
-    case MVM_unicode_case_change_type_fold:
-        synth_info->case_fc = result;
-        synth_info->case_fc_graphs = num_result_graphs;
-        break;
-    default:
-        MVM_panic(1, "NFG: invalid case change %d", case_);
+        case MVM_unicode_case_change_type_upper:
+            synth_info->case_uc        = result;
+            synth_info->case_uc_graphs = num_result_graphs;
+            break;
+        case MVM_unicode_case_change_type_lower:
+            synth_info->case_lc        = result;
+            synth_info->case_lc_graphs = num_result_graphs;
+            break;
+        case MVM_unicode_case_change_type_title:
+            synth_info->case_tc        = result;
+            synth_info->case_tc_graphs = num_result_graphs;
+            break;
+        case MVM_unicode_case_change_type_fold:
+            synth_info->case_fc        = result;
+            synth_info->case_fc_graphs = num_result_graphs;
+            break;
+        default:
+            MVM_panic(1, "NFG: invalid case change %d", case_);
     }
 }
 MVMuint32 MVM_nfg_get_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVMint32 case_, MVMGrapheme32 **result) {

@@ -1160,6 +1160,13 @@ sub add_unicode_sequence {
             $hex_ords = trim shift @list;
             $type = 'NamedSequences';
         }
+        #\x{23} => chr 0x24
+        # It's possible there could be hex unicode digits. In that case convert
+        # to the actual codepoints
+        while ($name =~ / \\x \{ (\d+) \} /x ) {
+            my $chr = chr hex($1);
+            $name =~ s/ \\x \{ $1 \} /$chr/xg;
+        }
         # Make sure it's uppercase since the Emoji sequences are not all in
         # uppercase.
         $name = uc $name;

@@ -1,0 +1,245 @@
+= Collation (Unicode Collation Algorithm) =
+:author: Samantha McVey
+:toc:
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+
+[abstract]
+== Abstract ==
+With Unicode applications widely deployed, multilingual data is the rule, not
+the exception. Even when there was only ASCII, a pure sort by codepoint will
+cause a capital `Z` to sort before a lowercase `a`x. With Unicode the number of
+codepoints makes it even more clear that we cannot rely on the integer assigned
+to each codepoint as a basis for how it should be sorted for text to be presented
+to the user.
+
+NOTE: The only op that uses the UCA is the `unicmp_s` op. Other forms of string
+compare such as `cmp_s` go based on codepoint differences
+
+In addition, due to Grapheme Cluster's, there may be multiple codepoints to
+represent a single user visible character. It becomes clear that there must be
+a solution for us to be able to sort this text in a way that makes sense to
+the user. The Unicode Collation Algorithm was created to solve this problem.
+It decouples both the _value_ and the _quantity_ of codepoints from the sort.
+
+
+The form of the data in the UCA consists of <<CAE,Collation Array Element's>>
+consisting of **Primary**, **Secondary** and **Tertiary** values of the form
+`[* Primary | Secondary | Tertiary ]`.
+The `*` represents whether it is something like punctuation that can be skipped
+over. MoarVM does not yet support the ability to skip punctuation and spaces
+using that value, although it supports customized sorting of each of the three
+levels (Primary, Secondary, Tertiary). Levels can be enabled, reversed or disabled.
+
+**Primary** level is the collation value for the character itself, so `a` and `A`
+have the same Primary value. **Secondary** is used for diacritics and their counterparts
+based on the script. **Tertiary** is for case as well as minor character variations.
+This is a slight simplification, but this holds true for almost all `Latin` script
+codepoints.
+
+== Data Examples ==
+
+=== DUCET Values ===
+
+For example: with the UCA we are able to sort `æ` following `ae` and `ﬁ` following
+`fi` despite them being a different number of codepoints. While most codepoints
+map to only one Collation Array Element, some single codepoints map to
+multiple. For example: `㌀` maps to 5:
+
+```
+㌀` [.3E71.0020.001C][.3E8B.0020.001C][.0000.0038.001C][.1C73.0020.001C][.3E85.0020.001C]
+```
+Compare this to the collation elements for the characters which are visually in
+this “boxed” character:
+```
+ア U+30A2 [.3E71.0020.0011] # KATAKANA LETTER A
+パ U+30D1 [.3E8B.0020.0011][.0000.0038.0002] # KATAKANA LETTER PA
+ー U+30FC [.1C73.0020.0002] # KATAKANA-HIRAGANA PROLONGED SOUND MARK
+ト U+30C8 [.3E85.0020.0011] # KATAKANA LETTER TO
+```
+As you may have guessed, this allows them to sort right next to each other, with
+the exception of the tertiary collation values (as it is a letter variation).
+
+*Multiple* codepoints can be assigned to a *single value* (as well as
+*multiple* as well):
+
+```
+ꪵꪦ U+AAB5, U+AAA6 [.2EB6.0020.0002][.2EC5.0020.0002] # <TAI VIET VOWEL E, TAI VIET LETTER LOW RO>
+```
+
+=== Computed Collation Values ===
+Some characters are on the other hand computed. This would include Unified Ideographs,
+Tangut, Nushu and Unassigned.
+
+
+== Implementation ==
+
+This is an implementation of the Unicode Collation Algorithm using DUCET values.
+We implement the standard “Non-ignorable” sort, as it does not ignore punctuation
+or spaces while sorting.
+
+We iterate by codepoint and put this into a ring buffer. The ring buffers hold the exact
+number of codepoints which comprise the longest sequence of codepoints which
+map to its own collation keys in the Unicode Collation Algorithm. As of Unicode
+9.0 this number was 3. In case future versions contain longer series of codepoints,
+`Generate-Collation-Data.p6` updates this number when generating the C data.
+
+The iteration into the ringbuffer stops as soon as a non-matching codepoint, is
+found. Whether the two codepoints are Less/More/Same compared to each other
+is saved in a variable for later in case we end up needing to break a tie by codepoint.
+#Vast majority of the time we only need to use what is in the ring buffer to .
+
+The elements in the ringbuffer are either passed into our function which finds
+and pushes the collation arrays onto the stack or reordered to be first to last
+and then pushed.
+
+We then compare by primary levels, all the keys pushed so far.
+If all the primaries match then we iterate more codepoints and push the
+collation array elements onto a stack. This stack is malloced and can expand as needed,
+but this should practically never be the case.
+
+=== The Stack ===
+
+The stack lets us do is a modified version of the UCA which lets us not
+have to push all primaries from start to end of the string onto a one
+dimensional array, and then after that push all the secondary, then all the
+tertiary.
+
+So: `[.3E8B.0020.0011][.0000.0038.0002]` would become
+    `3E8B 0000 | 0020 0038 | 0011 0002` (`|` shown between the different levels).
+
+Doing it like this would cause us to have to start pushing from our starting
+position to the very end of the string if we flattened the collation arrays.
+Instead we keep track of both are position in the stack, but also which level
+we are on, moving further on the stack then pushing more arrays as needed.
+If the primary values all tie, we wrap and go to the beginning of the stack but
+on the subsequent level. String a and b are not necessarily on the same position
+in the stack, or on the same collation level.
+
+=== The Data ===
+
+Codepoints which have single collation array elements get the data from the MVM
+UCD database created with `ucd2c.pl`. Any codepoints which have more than one
+collation array element or if it is a sequence of codepoints, that uses the data
+in `src/strings/unicode_uca.c`. The data in `unicode_uca.c` is this:
+`main_nodes` contains a linked list representation. Although all the nodes
+are in the same `main_nodes` struct array, we `#define` how many root nodes there
+are, and this number lets us do a binary search of the root nodes. If we get a
+match, we check if there are any sub node elements, and if none, we then use
+the `collation_link` and collation_elems` values to push the specified number of
+collation elements from the correct location in the `special_collation` struct
+array onto the stack. If there _are_ more possibilities, if we don't have anymore
+codepoints passed to `collation_push_cp`, we grab more and then use `sub_node_link`
+and `sub_node_elems` to do a linear search, stopping if we see any codepointns which
+are higher than the one we are looking for. The reason linear search is used is
+because we have 1-18 or so subnodes from each parent node, and binary search
+is slower for small numbers of elements.
+
+Tangut, Ideographs, Nushu and Unassigned codepoints have collation values which
+are generated algorithmically based on their codepoint. Hangul characters
+decompose before they are pushed onto the array.
+
+=== Configuration ===
+
+We support the ability to configure collation so you can reverse or
+disable levels as you wish. The trick to this is knowing that for all collation
+values: `_tertiary_ *<* _secondary_ *<* _primary_`
+
+We use `level_eval_settings` to store the settings for each level, which we set
+up based on the bitmask of the collation_mode argument to the function. If the
+two levels are the same we are able to compare them based on the setting. If the
+levels are not equal, we do not need to do this, since tertiary < secondary <
+primary for all values.
+
+Some info on our collation values. They are all 1 higher than those listed for
+DUCET (Default Unicode Collation Element Table). The reason for this is that a 0
+counts as 0 while a 1 is skipped and ignorable. This corresponds to things
+listed as 0 in DUCET, which our implementation gives a value of 1. We only use 0
+for the tertiary value of the level separator to ensure that longer strings win
+(though we also have a fallback to ensure this happens in certain cases which
+this isn't enough).
+
+== Return Value/Bitmask ==
+
+MoarVM function: `MVM_unicode_string_compare`
+[source,c]
+MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b,
+         MVMint64 collation_mode, MVMint64 lang_mode, MVMint64 country_mode)
+
+Op: `unicmp_s`
+[source,perl6]
+unicmp_s(str a, str b, int collation_mode, int lang_mode, int country_mode)
+
+
+.Return values:
+[width="75",cols="0,1"]
+|==============
+|    0 |  The strings are identical for the collation levels requested
+| -1/1  | String a is less than string b/String a is greater than string b
+|==============
+
+`collation_mode` acts like a bitmask. Each of primary, secondary and tertiary
+collation levels can be either: disabled, enabled, reversed.
+In the table below, where + designates sorting normal direction and
+- indicates reversed sorting for that collation level.
+
+[options="header",width="0"]
+|==================
+|Collation level | bitfield value
+|        Primary+ |   1
+|        Primary− |   2
+|      Secondary+ |   4
+|      Secondary− |   8
+|       Tertiary+ |  16
+|       Tertiary− |  32
+|     Quaternary+ |  64
+|     Quaternary- | 128
+|==================
+
+
+== The Future ==
+
+=== Language Specific Sort ===
+:CLDRlatest: http://unicode.org/Public/cldr/latest
+:CLDRcore:   http://unicode.org/Public/cldr/latest/core.zip
+
+In the future we may support language specific sort. This data will have to be
+taken from the Unicode CLDR (Common Language Data Repository), as it is not
+part of DUCET. {CLDRcore}[`core.zip`] contains a folder `./core/collation`
+which contains XML files with notes for different languages. To read the specs
+of how to interpret these files, see the {CLDRSpec}[CLDR Spec page].
+
+=== Natural Sorting/Number based sorting ===
+:nat-sort: https://en.wikipedia.org/wiki/Natural_sort_order
+
+This is another possible addition, called {nat-sort}[Natural Sorting].
+We can sort `<12 9>` as `9, 12` instead of
+`12, 9`. Since we use a ring buffer to find where codepoints differ. I think we
+will not have to backtrack any, we only have to care about codepoints _including_
+and _after_ the differing codepoint. Since we know all codepoints before must
+have matched before this point, we should only have to see how long each number
+is from that point on.
+
+[glossary]
+== Glossary ==
+
+[[CAE]] Collation Array Element::
+    Made up of primary, secondary, tertiary and a boolean for ignorable (whether
+    it should be ignored when ignoring punctuation is wanted).
+DUCET::
+    Default Unicode Collation Element Table. This data is provided by Unicode and
+    provides us with the collation arrays we use. See <<TR10>> for more information.
+Grapheme::
+    Short for Grapheme Cluster. See <<TR29>> for more information.
+Synthetic::
+    In MoarVM, a special representative to store a grapheme containing more than
+    one codepoint using the same space as a standard codepoint. Internally
+    stored using negative numbers in the C string data array.
+
+[bibliography]
+== References
+- [[[TR10]]] **Unicode Technical Report 10**. _Unicode Collation Algorithm_. http://unicode.org/reports/tr10/
+- [[[TR29]]] **Unicode Technical Report 29**. _Unicode Text Segmentation_. http://unicode.org/reports/tr29/

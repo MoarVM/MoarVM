@@ -69,12 +69,12 @@ static void start_thread(void *data) {
     ThreadStart *ts = (ThreadStart *)data;
     MVMThreadContext *tc = ts->tc;
 
-    /* Stash thread ID. */
-    tc->thread_obj->body.native_thread_id = MVM_platform_thread_id();
-
     /* wait for the GC to finish if it's not finished stealing us. */
     MVM_gc_mark_thread_unblocked(tc);
     tc->thread_obj->body.stage = MVM_thread_stage_started;
+
+    /* Stash thread ID. */
+    tc->thread_obj->body.native_thread_id = MVM_platform_thread_id();
 
     /* Create a spesh log for this thread. */
     MVM_spesh_log_initialize_thread(tc, 0);
@@ -106,7 +106,7 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
     int status, added;
     ThreadStart *ts;
 
-    if (REPR(child)->ID == MVM_REPR_ID_MVMThread) {
+    if (REPR(child)->ID == MVM_REPR_ID_MVMThread && IS_CONCRETE(thread_obj)) {
         MVMThreadContext *child_tc = child->body.tc;
 
         /* Mark thread as GC blocked until the thread actually starts. */
@@ -190,7 +190,7 @@ static int try_join(MVMThreadContext *tc, MVMThread *thread) {
     return status;
 }
 void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
-    if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread) {
+    if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread && IS_CONCRETE(thread_obj)) {
         int status = try_join(tc, (MVMThread *)thread_obj);
         if (status < 0)
             MVM_panic(MVM_exitcode_compunit, "Could not join thread: errorcode %d", status);
@@ -203,7 +203,7 @@ void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
 
 /* Gets the (VM-level) ID of a thread. */
 MVMint64 MVM_thread_id(MVMThreadContext *tc, MVMObject *thread_obj) {
-    if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread)
+    if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread && IS_CONCRETE(thread_obj))
         return ((MVMThread *)thread_obj)->body.thread_id;
     else
         MVM_exception_throw_adhoc(tc,
@@ -213,7 +213,7 @@ MVMint64 MVM_thread_id(MVMThreadContext *tc, MVMObject *thread_obj) {
 /* Gets the native OS ID of a thread. If it's not yet available because
  * the thread was not yet started, this will return 0. */
 MVMint64 MVM_thread_native_id(MVMThreadContext *tc, MVMObject *thread_obj) {
-    if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread)
+    if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread && IS_CONCRETE(thread_obj))
         return ((MVMThread *)thread_obj)->body.native_thread_id;
     else
         MVM_exception_throw_adhoc(tc,
@@ -229,6 +229,18 @@ void MVM_thread_yield(MVMThreadContext *tc) {
 /* Gets the object representing the current thread. */
 MVMObject * MVM_thread_current(MVMThreadContext *tc) {
     return (MVMObject *)tc->thread_obj;
+}
+
+/* Gets the number of locks held by a thread. */
+MVMint64 MVM_thread_lock_count(MVMThreadContext *tc, MVMObject *thread_obj) {
+    if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread && IS_CONCRETE(thread_obj)) {
+        MVMThreadContext *thread_tc = ((MVMThread *)thread_obj)->body.tc;
+        return thread_tc ? thread_tc->num_locks : 0;
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Thread handle used with threadlockcount must have representation MVMThread");
+    }
 }
 
 void MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head) {

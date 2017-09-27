@@ -435,6 +435,7 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     inliner->inlines[total_inlines - 1].g              = inlinee;
     inliner->inlines[total_inlines - 1].locals_start   = inliner->num_locals;
     inliner->inlines[total_inlines - 1].lexicals_start = inliner->num_lexicals;
+    inliner->inlines[total_inlines - 1].num_locals     = inlinee->num_locals;
     switch (invoke_ins->info->opcode) {
     case MVM_OP_invoke_v:
         inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_VOID;
@@ -543,10 +544,13 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                         /* Only update these to the point we found the invoke
                          * being inlined, so it serves as a snapshot of what
                          * is active. */
-                        if (ann->type == MVM_SPESH_ANN_FH_START)
-                            active[ann->data.frame_handler_index] = 1;
+                        MVMint32 fhidx = ann->data.frame_handler_index;
+                        if (ann->type == MVM_SPESH_ANN_FH_START &&
+                                (!inliner->unreachable_handlers ||
+                                 !inliner->unreachable_handlers[fhidx]))
+                            active[fhidx] = 1;
                         else if (ann->type == MVM_SPESH_ANN_FH_END)
-                            active[ann->data.frame_handler_index] = 0;
+                            active[fhidx] = 0;
                     }
                     ann = ann->next;
                 }

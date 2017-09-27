@@ -36,7 +36,7 @@ struct MVMIOSyncReadable {
 /* I/O operations on handles that can do synchronous writing. */
 struct MVMIOSyncWritable {
     MVMint64 (*write_bytes) (MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes);
-    void (*flush) (MVMThreadContext *tc, MVMOSHandle *h);
+    void (*flush) (MVMThreadContext *tc, MVMOSHandle *h, MVMint32 sync);
     void (*truncate) (MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes);
 };
 
@@ -103,7 +103,7 @@ MVMObject * MVM_io_write_bytes_to_async(MVMThreadContext *tc, MVMObject *oshandl
 MVMint64 MVM_io_eof(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_io_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag);
 void MVM_io_unlock(MVMThreadContext *tc, MVMObject *oshandle);
-void MVM_io_flush(MVMThreadContext *tc, MVMObject *oshandle);
+void MVM_io_flush(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 sync);
 void MVM_io_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset);
 void MVM_io_connect(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port);
 void MVM_io_bind(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port, MVMint32 backlog);
@@ -111,3 +111,4 @@ MVMObject * MVM_io_accept(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_io_getport(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_set_buffer_size(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 size);
 MVMObject * MVM_io_get_async_task_handle(MVMThreadContext *tc, MVMObject *oshandle);
+void MVM_io_flush_standard_handles(MVMThreadContext *tc);

@@ -284,7 +284,7 @@ char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str
     else {
         MVMuint32 i = 0;
         MVMCodepointIter ci;
-        MVM_string_ci_init(tc, &ci, str, translate_newlines);
+        MVM_string_ci_init(tc, &ci, str, translate_newlines, 0);
         while (MVM_string_ci_has_more(tc, &ci)) {
             MVMCodepoint codepoint = MVM_string_ci_get_codepoint(tc, &ci);
             if (i == result_alloc) {

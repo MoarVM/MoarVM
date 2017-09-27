@@ -545,7 +545,7 @@ MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_ob
             else {
                 known_type_st = STABLE(facts->type);
                 is_conc = (facts->flags & MVM_SPESH_FACT_CONCRETE) ? 1 : 0;
-                is_rw = 0;
+                is_rw = is_conc && REPR(facts->type)->ID == MVM_REPR_ID_NativeRef;
             }
 
             /* Now check if what we have matches what we need. */

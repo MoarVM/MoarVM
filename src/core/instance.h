@@ -83,6 +83,7 @@ struct MVMStringConsts {
     MVMString *heap;
     MVMString *translate_newlines;
     MVMString *platform_newline;
+    MVMString *path;
 };
 
 /* An entry in the representations registry. */
@@ -176,6 +177,11 @@ struct MVMInstance {
     /* Whether the current GC run is a full collection. */
     MVMuint32 gc_full_collect;
 
+    /* Are we in GC? Set by the coordinator at entry/exit of GC, and used by
+     * native callback handling to decide if it should wait before trying to
+     * lookup the current thread as the thread list may move under it. */
+    MVMuint32 in_gc;
+
     /* How many bytes of data have we promoted from the nursery to gen2
      * since we last did a full collection? */
     AO_t gc_promoted_bytes_since_last_full;
@@ -218,6 +224,10 @@ struct MVMInstance {
     MVMSerializationContextBody **all_scs;
     MVMuint32                     all_scs_next_idx;
     MVMuint32                     all_scs_alloc;
+
+    /* Mutex to serialize additions of type parameterizations. Global rather
+     * than per STable, as this doesn't happen often. */
+    uv_mutex_t mutex_parameterization_add;
 
     /************************************************************************
      * Specializer (dynamic optimization)

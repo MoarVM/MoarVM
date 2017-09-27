@@ -32,7 +32,10 @@ typedef struct {
     int fd;
 
     /* Is it seekable? */
-    int seekable;
+    short seekable;
+
+    /* Is it know to be writable? */
+    short known_writable;
 
     /* How many bytes have we read/written? Used to fake tell on handles that
      * are not seekable. */
@@ -63,11 +66,42 @@ static MVMint64 mvm_fileno(MVMThreadContext *tc, MVMOSHandle *h) {
     return (MVMint64)data->fd;
 }
 
+/* Performs a write, either because a buffer filled or because we are not
+ * buffering output. */
+static void perform_write(MVMThreadContext *tc, MVMIOFileData *data, char *buf, MVMint64 bytes) {
+    MVMint64 bytes_written = 0;
+    MVM_gc_mark_thread_blocked(tc);
+    while (bytes > 0) {
+        int r = write(data->fd, buf, (int)bytes);
+        if (r == -1) {
+            int save_errno = errno;
+            MVM_gc_mark_thread_unblocked(tc);
+            MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s",
+                strerror(save_errno));
+        }
+        bytes_written += r;
+        buf += r;
+        bytes -= r;
+    }
+    MVM_gc_mark_thread_unblocked(tc);
+    data->byte_position += bytes_written;
+    data->known_writable = 1;
+}
+
+/* Flushes any existing output buffer and clears use back to 0. */
+static void flush_output_buffer(MVMThreadContext *tc, MVMIOFileData *data) {
+    if (data->output_buffer_used) {
+        perform_write(tc, data, data->output_buffer, data->output_buffer_used);
+        data->output_buffer_used = 0;
+    }
+}
+
 /* Seek to the specified position in the file. */
 static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64 whence) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     if (!data->seekable)
         MVM_exception_throw_adhoc(tc, "It is not possible to seek this kind of handle");
+    flush_output_buffer(tc, data);
     if (MVM_platform_lseek(data->fd, offset, whence) == -1)
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
 }
@@ -75,6 +109,7 @@ static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64
 /* Get curernt position in the file. */
 static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    flush_output_buffer(tc, data);
     if (data->seekable) {
         MVMint64 r;
         if ((r = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
@@ -100,6 +135,7 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
     if (bytes > 16387 && _isatty(data->fd))
         bytes = 16387;
 #endif
+    flush_output_buffer(tc, data);
     MVM_gc_mark_thread_blocked(tc);
     if ((bytes_read = read(data->fd, buf, bytes)) == -1) {
         int save_errno = errno;
@@ -139,35 +175,6 @@ static MVMint64 mvm_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     }
 }
 
-/* Performs a write, either because a buffer filled or because we are not
- * buffering output. */
-static void perform_write(MVMThreadContext *tc, MVMIOFileData *data, char *buf, MVMint64 bytes) {
-    MVMint64 bytes_written = 0;
-    MVM_gc_mark_thread_blocked(tc);
-    while (bytes > 0) {
-        int r = write(data->fd, buf, (int)bytes);
-        if (r == -1) {
-            int save_errno = errno;
-            MVM_gc_mark_thread_unblocked(tc);
-            MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s",
-                strerror(save_errno));
-        }
-        bytes_written += r;
-        buf += r;
-        bytes -= r;
-    }
-    MVM_gc_mark_thread_unblocked(tc);
-    data->byte_position += bytes_written;
-}
-
-/* Flushes any existing output buffer and clears use back to 0. */
-static void flush_output_buffer(MVMThreadContext *tc, MVMIOFileData *data) {
-    if (data->output_buffer_used) {
-        perform_write(tc, data, data->output_buffer, data->output_buffer_used);
-        data->output_buffer_used = 0;
-    }
-}
-
 /* Sets the output buffer size; if <= 0, means no buffering. Flushes any
  * existing buffer before changing. */
 static void set_buffer_size(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 size) {
@@ -191,7 +198,7 @@ static void set_buffer_size(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 size)
 /* Writes the specified bytes to the file handle. */
 static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    if (data->output_buffer_size) {
+    if (data->output_buffer_size && data->known_writable) {
         /* If we can't fit it on the end of the buffer, flush the buffer. */
         if (data->output_buffer_used + bytes > data->output_buffer_size)
             flush_output_buffer(tc, data);
@@ -209,13 +216,15 @@ static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
 }
 
 /* Flushes the file handle. */
-static void flush(MVMThreadContext *tc, MVMOSHandle *h){
+static void flush(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 sync){
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     flush_output_buffer(tc, data);
-    if (MVM_platform_fsync(data->fd) == -1) {
-        /* If this is something that can't be flushed, we let that pass. */
-        if (errno != EROFS && errno != EINVAL)
-            MVM_exception_throw_adhoc(tc, "Failed to flush filehandle: %s", strerror(errno));
+    if (sync) {
+        if (MVM_platform_fsync(data->fd) == -1) {
+            /* If this is something that can't be flushed, we let that pass. */
+            if (errno != EROFS && errno != EINVAL)
+                MVM_exception_throw_adhoc(tc, "Failed to flush filehandle: %s", strerror(errno));
+        }
     }
 }
 

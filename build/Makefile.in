@@ -423,14 +423,17 @@ UV_LINUX = 3rdparty/libuv/src/unix/linux-core@obj@ \
 
 UV_OPENBSD = 3rdparty/libuv/src/unix/openbsd@obj@ \
              3rdparty/libuv/src/unix/kqueue@obj@ \
+             3rdparty/libuv/src/unix/posix-hrtime@obj@ \
              $(UV_UNIX)
 
 UV_NETBSD = 3rdparty/libuv/src/unix/netbsd@obj@ \
             3rdparty/libuv/src/unix/kqueue@obj@ \
+            3rdparty/libuv/src/unix/posix-hrtime@obj@ \
             $(UV_UNIX)
 
 UV_FREEBSD = 3rdparty/libuv/src/unix/freebsd@obj@ \
              3rdparty/libuv/src/unix/kqueue@obj@ \
+             3rdparty/libuv/src/unix/posix-hrtime@obj@ \
              $(UV_UNIX)
 
 UV_DARWIN = 3rdparty/libuv/src/unix/darwin@obj@ \
@@ -570,9 +573,9 @@ src/main@obj@: src/main.c
 	$(MSG) compiling $@
 	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @mainflags@ $(CINCLUDES) @ccout@$@ $*.c
 
-src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
+src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_uca.c src/strings/unicode_ops.c
 	$(MSG) generating $@
-	$(CMD)$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c > $@ $(NOERR)
+	$(CMD) $(CAT) src/strings/unicode_db.c src/strings/unicode_uca.c src/strings/unicode_ops.c > $@ $(NOERR)
 
 $(MINILUA): 3rdparty/dynasm/minilua.c
 	$(CC) $(CFLAGS) $(LDFLAGS) 3rdparty/dynasm/minilua.c -o $@ $(LDLIBS)

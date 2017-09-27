@@ -126,3 +126,4 @@ void * MVM_nativecall_unmarshal_cpointer(MVMThreadContext *tc, MVMObject *value)
 void * MVM_nativecall_unmarshal_carray(MVMThreadContext *tc, MVMObject *value);
 void * MVM_nativecall_unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value);
 void * MVM_nativecall_unmarshal_cunion(MVMThreadContext *tc, MVMObject *value);
+MVMThreadContext * MVM_nativecall_find_thread_context(MVMInstance *instance);

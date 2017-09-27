@@ -386,6 +386,8 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                 case UTF8_ACCEPT: {
                     if (codepoint == '\r' || codepoint >= first_significant) {
                         can_fast_path = 0;
+                        last_accept_bytes = cur_bytes;
+                        last_accept_pos = pos;
                         goto slow_path;
                     }
                     lag_codepoint = codepoint;
@@ -410,6 +412,8 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                             &lag_codepoint, 1);
                         lag_codepoint = -1; /* Invalidate, we used it. */
                         can_fast_path = 0;
+                        last_accept_bytes = cur_bytes;
+                        last_accept_pos = pos;
                         goto slow_path;
                     }
 
@@ -446,8 +450,6 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     break;
                 }
             }
-            lag_last_accept_bytes = cur_bytes;
-            lag_last_accept_pos = pos;
 
             /* If we fall out of the loop and have a lagged codepoint, but
              * no next buffer, then we fall into the slow path to process it
@@ -456,6 +458,8 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                 codepoint = lag_codepoint;
                 lag_codepoint = -1;
                 can_fast_path = 0;
+                last_accept_bytes = lag_last_accept_bytes;
+                last_accept_pos = lag_last_accept_pos;
                 goto slow_path;
             }
         }
@@ -465,10 +469,10 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                 case UTF8_ACCEPT: {
                     MVMGrapheme32 g;
                     MVMint32 first;
-                  slow_path:
-                    first = 1;
                     last_accept_bytes = cur_bytes;
                     last_accept_pos = pos;
+                  slow_path:
+                    first = 1;
                     ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc,
                         &(ds->norm), codepoint, &g);
                     while (ready--) {
@@ -547,7 +551,7 @@ char * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
     result_pos   = 0;
 
     /* Iterate the codepoints and encode them. */
-    MVM_string_ci_init(tc, &ci, str, translate_newlines);
+    MVM_string_ci_init(tc, &ci, str, translate_newlines, 0);
     while (MVM_string_ci_has_more(tc, &ci)) {
         MVMint32 bytes;
         MVMCodepoint cp = MVM_string_ci_get_codepoint(tc, &ci);

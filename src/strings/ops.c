@@ -144,7 +144,7 @@ void NFG_check_concat (MVMThreadContext *tc, MVMString *result, MVMString *a, MV
 }
 #endif
 
-MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle_fc, MVMint64 H_start, MVMint64 H_graphs, MVMint64 n_fc_graphs, int ignoremark, int ignorecase);
+MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, void *Hs_or_gic, MVMString *needle_fc, MVMint64 H_start, MVMint64 H_graphs, MVMint64 n_fc_graphs, int ignoremark, int ignorecase, int is_gic);
 static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString *needle, MVMString *Haystack, MVMint64 H_offset);
 
 /* Allocates strand storage. */
@@ -257,10 +257,10 @@ static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in) {
      * than the initial estimate, but utf8-c8 showed us otherwise. */
     MVMGrapheme32 *out_buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
     MVMint64 out_pos = 0;
-
     /* Iterate codepoints and normalizer. */
     MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
-    MVM_string_ci_init(tc, &ci, in, 0);
+    /* Codepoint iterator that passes back utf8-c8 graphemes unchanged */
+    MVM_string_ci_init(tc, &ci, in, 0, 1);
     while (MVM_string_ci_has_more(tc, &ci)) {
         MVMGrapheme32 g;
         ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, MVM_string_ci_get_codepoint(tc, &ci), &g);
@@ -425,6 +425,7 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *
             }
             break;
     }
+    /* Minimal code version for needles of size 1 */
     if (n_graphs == 1) {
         MVMGraphemeIter H_gi;
         MVMGrapheme32 n_g = MVM_string_get_grapheme_at_nocheck(tc, needle, 0);
@@ -436,17 +437,25 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *
             index++;
         }
     }
-    if (1 < n_graphs && n_graphs <= MVM_string_KMP_max_pattern_length)
+    else if (n_graphs <= MVM_string_KMP_max_pattern_length)
         return knuth_morris_pratt_string_index(tc, needle, Haystack, start);
-    /* brute force is slightly faster for needles of size 1
-     * For needles > MVM_string_KMP_max_pattern_length we must revert to brute force for now.
-     * Eventually we can implement brute force after it matches the whole needle OR
-     * allocate more space for the pattern on reaching the end of the pattern */
-    while (index <= H_graphs - n_graphs) {
-        if (string_equal_at_ignore_case_INTERNAL_loop(tc, Haystack, needle, index, H_graphs, n_graphs, 0, 0) != -1) {
-            return (MVMint64)index;
+    else {
+        int is_gic = Haystack->body.storage_type == MVM_STRING_STRAND ? 1 : 0;
+        void *Hs_or_gic = Haystack;
+        /* If Haystack is a strand allocate space for a MVMGraphemeIter_cached
+         * and initialize it */
+        if (is_gic) {
+            Hs_or_gic = alloca(sizeof(MVMGraphemeIter_cached));
+            MVM_string_gi_cached_init(tc, Hs_or_gic, Haystack, start);
         }
-        index++;
+        /* For needles > MVM_string_KMP_max_pattern_length we must revert to brute force for now.
+         * Eventually we can implement brute force after it matches the whole needle OR
+         * allocate more space for the pattern on reaching the end of the pattern */
+        while (index <= H_graphs - n_graphs) {
+            if (string_equal_at_ignore_case_INTERNAL_loop(tc, Hs_or_gic, needle, index, H_graphs, n_graphs, 0, 0, is_gic) != -1)
+                return (MVMint64)index;
+            index++;
+        }
     }
     return -1;
 }
@@ -640,7 +649,8 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         };
         MVMROOT(tc, a, {
         MVMROOT(tc, b, {
-        /* Needing both to be CCC = 0 can probably be relaxed some, but be careful optimizing */
+        /* If both are not synthetics, we can can pass those values unchanged
+         * instead of iterating by codepoint */
         if (0 <= last_a_first_b[0] && 0 <= last_a_first_b[1]) {
             renormalized_section = MVM_unicode_codepoints_c_array_to_nfg_string(tc, last_a_first_b, 2);
             consumed_a = 1; consumed_b = 1;
@@ -648,8 +658,8 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         else {
             MVMCodepointIter last_a_ci;
             MVMCodepointIter first_b_ci;
-            MVMuint32 a_codes = MVM_string_grapheme_ci_init(tc, &last_a_ci,  last_a_first_b[0]);
-            MVMuint32 b_codes = MVM_string_grapheme_ci_init(tc, &first_b_ci, last_a_first_b[1]);
+            MVMuint32 a_codes = MVM_string_grapheme_ci_init(tc, &last_a_ci,  last_a_first_b[0], 1);
+            MVMuint32 b_codes = MVM_string_grapheme_ci_init(tc, &first_b_ci, last_a_first_b[1], 1);
             /* MSVC doesn't allow variable length arrays so use alloca to allocate onto the stack */
             MVMCodepoint *last_a_first_b_codes = alloca((a_codes + b_codes) * sizeof(MVMCodepoint));
             MVMuint32 i = 0;
@@ -895,8 +905,10 @@ void MVM_string_print(MVMThreadContext *tc, MVMString *a) {
 /* Meant to be pased in a MVMNormalizer of type MVM_NORMALIZE_NFD */
 static MVMGrapheme32 ord_getbasechar (MVMThreadContext *tc, MVMGrapheme32 g) {
     /* If we get a synthetic, extract the base codepoint and call ord_getbasechar again */
-    if (g < 0)
-        return ord_getbasechar(tc, MVM_nfg_get_synthetic_info(tc, g)->codes[0]);
+    if (g < 0) {
+        MVMNFGSynthetic *synth = MVM_nfg_get_synthetic_info(tc, g);
+        return ord_getbasechar(tc, synth->codes[synth->base_index]);
+    }
     else {
         MVMGrapheme32 return_g;
         MVMint32 ready;
@@ -936,7 +948,7 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
  * MVMStringIndex in length, we could have some weird results. */
 
 /* ignoremark is 0 for normal operation and 1 for ignoring diacritics */
-MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle_fc, MVMint64 H_start, MVMint64 H_graphs, MVMint64 n_fc_graphs, int ignoremark, int ignorecase) {
+MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, void *Hs_or_gic, MVMString *needle_fc, MVMint64 H_start, MVMint64 H_graphs, MVMint64 n_fc_graphs, int ignoremark, int ignorecase, int is_gic) {
     MVMuint32 H_fc_cps;
     /* An additional needle offset which is used only when codepoints expand
      * when casefolded. The offset is the number of additional codepoints that
@@ -946,7 +958,7 @@ MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadCo
     MVMGrapheme32 H_g, n_g;
     for (i = 0; i + H_start < H_graphs && i + n_offset < n_fc_graphs; i++) {
         const MVMCodepoint* H_result_cps;
-        H_g = MVM_string_get_grapheme_at_nocheck(tc, Haystack, H_start + i);
+        H_g = is_gic ? MVM_string_gi_cached_get_grapheme(tc, Hs_or_gic, H_start + i) : MVM_string_get_grapheme_at_nocheck(tc, Hs_or_gic, H_start + i);
         if (!ignorecase) {
             H_fc_cps = 0;
         }
@@ -1018,7 +1030,14 @@ static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Hay
         needle_fc = ignorecase ? MVM_string_fc(tc, needle) : needle;
     });
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
-    H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, Haystack, needle_fc, H_offset, H_graphs, n_fc_graphs, ignoremark, ignorecase);
+    if (Haystack->body.storage_type == MVM_STRING_STRAND) {
+        MVMGraphemeIter_cached H_gic;
+        MVM_string_gi_cached_init(tc, &H_gic, Haystack, H_offset);
+        H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, &H_gic, needle_fc, H_offset, H_graphs, n_fc_graphs, ignoremark, ignorecase, 1);
+    }
+    else {
+        H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, Haystack, needle_fc, H_offset, H_graphs, n_fc_graphs, ignoremark, ignorecase, 0);
+    }
     if (0 <= H_expansion)
         return n_fc_graphs <= H_graphs + H_expansion - H_offset ? 1 : 0;
     return 0;
@@ -1112,6 +1131,8 @@ static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haysta
     /* H_expansion must be able to hold integers 3x larger than MVMStringIndex */
     MVMint64 H_expansion;
     MVMint64 return_val = -1;
+    int is_gic = Haystack->body.storage_type == MVM_STRING_STRAND ? 1 : 0;
+    void *Hs_or_gic = Haystack;
     MVM_string_check_arg(tc, Haystack, ignoremark ? "index ignore case ignore mark search target" : "index ignore case search target");
     MVM_string_check_arg(tc, needle,   ignoremark ? "index ignore case ignore mark search term"   : "index ignore case search term");
     H_graphs = MVM_string_graphs_nocheck(tc, Haystack);
@@ -1136,8 +1157,12 @@ static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haysta
     });
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
     /* brute force for now. horrible, yes. halp. */
+    if (is_gic) {
+        Hs_or_gic = alloca(sizeof(MVMGraphemeIter_cached));
+        MVM_string_gi_cached_init(tc, Hs_or_gic, Haystack, start);
+    }
     while (index <= H_graphs) {
-        H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, Haystack, needle_fc, index, H_graphs, n_fc_graphs, ignoremark, ignorecase);
+        H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, Hs_or_gic, needle_fc, index, H_graphs, n_fc_graphs, ignoremark, ignorecase, is_gic);
         if (0 <= H_expansion)
             return n_fc_graphs <= H_graphs + H_expansion - index ? (MVMint64)index : -1;
         index++;
@@ -1590,6 +1615,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     MVMint64    elems, num_pieces, sgraphs, i, is_str_array, total_graphs;
     MVMuint16   sstrands, total_strands;
     MVMint32    concats_stable = 1;
+    size_t      bytes;
 
     MVM_string_check_arg(tc, separator, "join separator");
     if (!IS_CONCRETE(input))
@@ -1600,6 +1626,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     elems = MVM_repr_elems(tc, input);
     if (elems == 0)
         return tc->instance->str_consts.empty;
+    bytes = elems * sizeof(MVMString *);
     is_str_array = REPR(input)->pos_funcs.get_elem_storage_spec(tc,
         STABLE(input)).boxed_primitive == MVM_STORAGE_SPEC_BP_STR;
 
@@ -1620,7 +1647,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
             : 1;
     else
         sstrands = 1;
-    pieces        = MVM_malloc(elems * sizeof(MVMString *));
+    pieces        = MVM_fixed_size_alloc(tc, tc->instance->fsa, bytes);
     num_pieces    = 0;
     total_graphs  = 0;
     total_strands = 0;
@@ -1661,7 +1688,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
 
     /* We now know the total eventual number of graphemes. */
     if (total_graphs == 0) {
-        free(pieces);
+        MVM_fixed_size_free(tc, tc->instance->fsa, bytes, pieces);
         return tc->instance->str_consts.empty;
     }
     result->body.num_graphs = total_graphs;
@@ -1749,7 +1776,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
         }
     }
 
-    MVM_free(pieces);
+    MVM_fixed_size_free(tc, tc->instance->fsa, bytes, pieces);
     STRAND_CHECK(tc, result);
     return concats_stable ? result : re_nfg(tc, result);
 }
@@ -1978,8 +2005,8 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
              * iterate the codepoints inside it */
             if (g_a < 0 || g_b < 0) {
                 MVMCodepointIter ci_a, ci_b;
-                MVM_string_grapheme_ci_init(tc, &ci_a, g_a);
-                MVM_string_grapheme_ci_init(tc, &ci_b, g_b);
+                MVM_string_grapheme_ci_init(tc, &ci_a, g_a, 0);
+                MVM_string_grapheme_ci_init(tc, &ci_b, g_b, 0);
                 while (MVM_string_grapheme_ci_has_more(tc, &ci_a) && MVM_string_grapheme_ci_has_more(tc, &ci_b)) {
                     g_a = MVM_string_grapheme_ci_get_codepoint(tc, &ci_a);
                     g_b = MVM_string_grapheme_ci_get_codepoint(tc, &ci_b);

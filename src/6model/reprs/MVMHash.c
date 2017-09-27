@@ -27,7 +27,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMHashBody *src_body  = (MVMHashBody *)src;
     MVMHashBody *dest_body = (MVMHashBody *)dest;
-    MVMHashEntry *current, *tmp;
+    MVMHashEntry *current  = NULL, *tmp = NULL;
     unsigned bucket_tmp;
 
     /* NOTE: if we really wanted to, we could avoid rehashing... */
@@ -43,8 +43,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
-    MVMHashBody *body = (MVMHashBody *)data;
-    MVMHashEntry *current, *tmp;
+    MVMHashBody     *body = (MVMHashBody *)data;
+    MVMHashEntry *current = NULL, *tmp = NULL;
     unsigned bucket_tmp;
 
     HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {
@@ -56,7 +56,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMHash *h = (MVMHash *)obj;
-    MVMHashEntry *current, *tmp;
+    MVMHashEntry *current = NULL, *tmp = NULL;
     unsigned bucket_tmp;
     HASH_ITER(hash_handle, h->body.hash_head, current, tmp, bucket_tmp) {
         if (current != h->body.hash_head)
@@ -69,10 +69,9 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 }
 
 static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister *result, MVMuint16 kind) {
-    MVMHashBody *body = (MVMHashBody *)data;
-    MVMHashEntry *entry;
-    MVMString *key = get_string_key(tc, key_obj);
-    MVM_HASH_GET(tc, body->hash_head, key, entry);
+    MVMHashBody   *body = (MVMHashBody *)data;
+    MVMHashEntry *entry = NULL;
+    MVM_HASH_GET(tc, body->hash_head, get_string_key(tc, key_obj), entry);
     if (kind == MVM_reg_obj)
         result->o = entry != NULL ? entry->value : tc->instance->VMNull;
     else
@@ -81,8 +80,8 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
 }
 
 static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister value, MVMuint16 kind) {
-    MVMHashBody *body = (MVMHashBody *)data;
-    MVMHashEntry *entry;
+    MVMHashBody   *body = (MVMHashBody *)data;
+    MVMHashEntry *entry = NULL;
 
     MVMString *key = get_string_key(tc, key_obj);
     if (kind != MVM_reg_obj)
@@ -109,17 +108,16 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 }
 
 static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj) {
-    MVMHashBody *body = (MVMHashBody *)data;
-    MVMString *key = get_string_key(tc, key_obj);
-    MVMHashEntry *entry;
-    MVM_HASH_GET(tc, body->hash_head, key, entry);
+    MVMHashBody   *body = (MVMHashBody *)data;
+    MVMHashEntry *entry = NULL;
+    MVM_HASH_GET(tc, body->hash_head, get_string_key(tc, key_obj), entry);
     return entry != NULL;
 }
 
 static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj) {
     MVMHashBody *body = (MVMHashBody *)data;
     MVMString *key = get_string_key(tc, key_obj);
-    MVMHashEntry *old_entry;
+    MVMHashEntry *old_entry = NULL;
     MVM_HASH_GET(tc, body->hash_head, key, old_entry);
     if (old_entry) {
         HASH_DELETE(hash_handle, body->hash_head, old_entry);
@@ -176,7 +174,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 /* Serialize the representation. */
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVMHashBody *body = (MVMHashBody *)data;
-    MVMHashEntry *current, *tmp;
+    MVMHashEntry *current = NULL, *tmp = NULL;
     unsigned bucket_tmp;
     MVM_serialization_write_int(tc, writer, HASH_CNT(hash_handle, body->hash_head));
     HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {

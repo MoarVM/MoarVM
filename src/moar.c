@@ -211,6 +211,8 @@ MVMInstance * MVM_vm_create_instance(void) {
             instance->spesh_osr_enabled = 1;
     }
 
+    init_mutex(instance->mutex_parameterization_add, "parameterization");
+
     /* Should we specialize without warm up delays? Used to find bugs in the
      * specializer and JIT. */
     spesh_nodelay = getenv("MVM_SPESH_NODELAY");
@@ -428,8 +430,9 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
  * will be able to do it much more swiftly than we could. This is typically
  * not the right thing for embedding; see MVM_vm_destroy_instance for that. */
 void MVM_vm_exit(MVMInstance *instance) {
-    /* Join any foreground threads. */
+    /* Join any foreground threads and flush standard handles. */
     MVM_thread_join_foreground(instance->main_thread);
+    MVM_io_flush_standard_handles(instance->main_thread);
 
     /* Close any spesh or jit log. */
     if (instance->spesh_log_fh)
@@ -477,8 +480,9 @@ static void cleanup_callsite_interns(MVMInstance *instance) {
  * should clear up all resources and free all memory; in practice, it falls
  * short of this goal at the moment. */
 void MVM_vm_destroy_instance(MVMInstance *instance) {
-    /* Join any foreground threads. */
+    /* Join any foreground threads and flush standard handles. */
     MVM_thread_join_foreground(instance->main_thread);
+    MVM_io_flush_standard_handles(instance->main_thread);
 
     /* Run the GC global destruction phase. After this,
      * no 6model object pointers should be accessed. */
@@ -536,6 +540,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up multi cache addition mutex. */
     uv_mutex_destroy(&instance->mutex_multi_cache_add);
+
+    /* Clean up parameterization addition mutex. */
+    uv_mutex_destroy(&instance->mutex_parameterization_add);
 
     /* Clean up interned callsites */
     uv_mutex_destroy(&instance->mutex_callsite_interns);

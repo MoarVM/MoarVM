@@ -187,7 +187,8 @@ static MVMAsyncTask * read_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObject
     /* Validate REPRs. */
     if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
         MVM_exception_throw_adhoc(tc,
-            "asyncreadbytes target queue must have ConcBlockingQueue REPR");
+            "asyncreadbytes target queue must have ConcBlockingQueue REPR (got %s)",
+            queue->st->debug_name);
     if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask)
         MVM_exception_throw_adhoc(tc,
             "asyncreadbytes result type must have REPR AsyncTask");
@@ -490,12 +491,12 @@ static void push_name_and_port(MVMThreadContext *tc, struct sockaddr_storage *na
     switch (name->ss_family) {
         case AF_INET6: {
             uv_ip6_name((struct sockaddr_in6*)name, addrstr, INET6_ADDRSTRLEN + 1);
-            port = ((struct sockaddr_in6*)name)->sin6_port;
+            port = ntohs(((struct sockaddr_in6*)name)->sin6_port);
             break;
         }
         case AF_INET: {
             uv_ip4_name((struct sockaddr_in*)name, addrstr, INET6_ADDRSTRLEN + 1);
-            port = ((struct sockaddr_in*)name)->sin_port;
+            port = ntohs(((struct sockaddr_in*)name)->sin_port);
             break;
         }
         default:
@@ -506,7 +507,7 @@ static void push_name_and_port(MVMThreadContext *tc, struct sockaddr_storage *na
     }
     MVMROOT(tc, arr, {
         port_o = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, port);
-        MVMROOT(tc, port, {
+        MVMROOT(tc, port_o, {
             host_o = (MVMObject *)MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr,
                     MVM_string_ascii_decode_nt(tc, tc->instance->VMString, addrstr));
         });

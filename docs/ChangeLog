@@ -1,3 +1,126 @@
+New in 2017.09.1
+
++ Assign variable in optimize_bb loop on its own line for clarity
++ Revert "Fix errors when running `make realclean" to unbreak build
+  using nmake
+
+New in 2017.09
+
++ Allocate async process read buffer based on amount last read, with a
+  minimum size limit
++ Implement the Knuth-Morris-Pratt string search algorithm
++ Add error string to 'failed to resolve' exception
++ Fix usage of ARG5 in JIT on Windows to use stack instead
++ JIT param_rp_i and param_rp_o
++ Fix calculation for maximum array size
++ Correct ==/= mistake in container optimization
++ Ensure strings created with MVM_string_repeat are in NFG form
++ Avoid evaluating arguments to MVM_ASSERT_NOT_FROMSPACE when it's disabled
++ Add up to date string documentation
++ Remove old strings.markdown documentation file
++ Speed up `index` 9x when Haystack is strand, needle is 1 long
++ Add new cached grapheme iterator
++ Always cache even for flat haystacks with KMP
++ Generate stacktraces on Travis CI when getting a segfault
++ Add MVM_DEBUG_NFG in more places
++ MVM_string_utf8_decodestream: free the buffer on malformed UTF-8
++ Only run NFG_CHECK on concat result that *should* be normalized
++ Revise some comments in MVM_string_is_control_full()
++ Make sure MVMROOT'd pointer is initialized as NULL
++ Align MVM_TELEMETRY_LOG usage statement
++ Align --tracing usage statement
++ Update Unicode database for Unicode 10
++ MVM_IS_32BIT_INT(i) with explicit casts
++ JIT eqat(ic|im|icim)
++ Building .dasc files depends on dynasm version
++ Add minimal 'dynamic array' library using macros
++ Make the JIT Graph use dynamic arrays
++ Cleanup JIT graph after use
++ Replace explicit JIT function return frame check
++ Wrap dasm_State in MVMJitComiler structure
++ Fix unlikely but possible stack overflow from user input
++ Allow MVM_string_get_grapheme_at_nocheck to be inlined
++ Make `eqat` 1.7x-2.5x faster
++ Fix indentation of switch in substrings_equal_nocheck
++ Use PRIi64 macro instead of %lld in MVM_coerce_i_s
++ Replace all uses of sprintf with snprintf
++ Consistently use MVMuint16 for was_multi
++ Add some explanation of GET_REG and cur_op to interp.c
++ Use < or <= sign for all conditionals in strings/ops.c
++ Rework MVMNFGSynthetic to not store base separately
++ Only use MVMGraphemeIter_cached for strands in KMP index
++ Split out JIT compiler init/deinit
++ Organise architecture-specific JIT source files
++ Check return status of DynASM
++ Remove JIT intermediates in make clean
++ Add 'POP' dynamic array method
++ Flush log on oops
++ Refactor labelling in JIT
++ Add spesh iterator and replace JitGraphBuilder
++ Fix leak of JIT graph
++ Simple fix for duplicated labels
++ Use VECTOR macro arguments only once if possible
++ Add vector SHIFT method
++ Enable JIT breakpoint insertion
++ Use single DynASM build target
++ Compile less with --no-jit
++ Add old-style suffix rule for dynasm compilation
++ Atomic increment not required for JIT sequence nr
++ Move size check into COPY_ARRAY
++ Correct buffer handling in UTF-8 fast->slow path
++ UCD: For sequences, convert from \x{ } to the Unicode codepoints
++ Flush standard handles at exit
++ Flush output buffer where needed
++ Ensure write to unwritable handle fails right off
++ Don't try and sync when flushing is enough
++ Better if_o/unless_o optimization in some cases
++ Do dead BB elimination pass after branch deletion
++ Optimize MVM_string_gi_move_to
++ Don't decont native refs when spesh logging
++ Handle native refs better in spesh stats
++ Support spesh multi resolution involving nativeref
++ Set facts on nativeref deconts
++ A little refactoring of second optimization pass
++ Remove fact copy we most likely don't now need
++ Re-flow and better explain set elimination code
++ Fix bug in gi_move_to if not starting at 0
++ Introduce a binary format for heapsnapshot, wtih snapshots at the beginning
+  of the file
++ Immediately write heap snapshots to file instead of keeping them around in
+  memory
++ Write parts of types/static frames/strings incrementally into heap snapshot
+  file
++ Add gc_describe functions for new spesh data structures
++ Use grapheme iterator cached for ignorecase/ignoremark index ops
++ Take more care when eliminating set inside inline
++ Re-compute dominance tree before stage 2 opts
++ Add a reliable locals count for inlines
++ Move throw -> goto optimization to second pass
++ Mark GC blocked when acquiring I/O mutex
++ Only use grapheme iter cached if the Haystack is a strand for index*
++ Don't try to duplicate unreachable handlers on inline
++ Ensure gi->start is set to 0 for flat strings in MVM_string_gi_init
++ Fix a leak in CArray REPR
++ Merge Full Unicode Collation Algorithm Implementation
++ Remove unneeded file from UCA implementation
++ Nativecall: fix invalid pointer creation
++ Fix ignoremark with Prepend characters and ordbaseat op
++ For degenerate Synth's with Prepend and Extend set base cp to 1st cp
++ Fix case change when base cp isn't the first cp in synthetic
++ Fix elems of ConcBlockingQueue REPR
++ Implement getrusage op
++ Add documentation on UCA collation implementation
++ Include debug names in some wrong REPR errors
++ Fix MVMROOT in socket port/host code added in last release
++ In README, note that release tarballs won't work out of the box and point to
+  where to get working ones
++ Expose number of locks held by a thread through an op
++ Add missing concreteness checks in thread ops
++ Fix errors when running `make realclean
++ Store smallint value in 64bit if we negate them later
++ Fix segfault when compiling nqp with musl as libc
++ Avoid recursion in optimize_bb() when only 1 child node
+
 New in 2017.08.1
 
 + Fix regression in Windows JIT build
