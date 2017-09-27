@@ -47,9 +47,9 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMint64 i;
     for (i = 0; i < nfa->body.num_states; i++)
         if (nfa->body.num_state_edges[i])
-            MVM_free(nfa->body.states[i]);
-    MVM_free(nfa->body.states);
-    MVM_free(nfa->body.num_state_edges);
+            MVM_fixed_size_free(tc, tc->instance->fsa, nfa->body.num_state_edges[i] * sizeof(MVMNFAStateInfo), nfa->body.states[i]);
+    MVM_fixed_size_free(tc, tc->instance->fsa, nfa->body.num_states * sizeof(MVMNFAStateInfo *), nfa->body.states);
+    MVM_fixed_size_free(tc, tc->instance->fsa, nfa->body.num_states * sizeof(MVMint64), nfa->body.num_state_edges);
 }
 
 
@@ -152,16 +152,17 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 
     if (body->num_states > 0) {
         /* Read state edge list counts. */
-        body->num_state_edges = MVM_malloc(body->num_states * sizeof(MVMint64));
+        body->num_state_edges = MVM_fixed_size_alloc(tc, tc->instance->fsa, body->num_states * sizeof(MVMint64));
         for (i = 0; i < body->num_states; i++)
             body->num_state_edges[i] = MVM_serialization_read_int(tc, reader);
 
         /* Read state graph. */
-        body->states = MVM_malloc(body->num_states * sizeof(MVMNFAStateInfo *));
+        body->states = MVM_fixed_size_alloc(tc, tc->instance->fsa, body->num_states * sizeof(MVMNFAStateInfo *));
         for (i = 0; i < body->num_states; i++) {
             MVMint64 edges = body->num_state_edges[i];
-            if (edges > 0)
-                body->states[i] = MVM_malloc(edges * sizeof(MVMNFAStateInfo));
+            if (edges > 0) {
+                body->states[i] = MVM_fixed_size_alloc(tc, tc->instance->fsa, edges * sizeof(MVMNFAStateInfo));
+            }
             for (j = 0; j < edges; j++) {
                 body->states[i][j].act = MVM_serialization_read_int(tc, reader);
                 body->states[i][j].to = MVM_serialization_read_int(tc, reader);
@@ -180,12 +181,12 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                         }
                         else {
                             MVMint32 num_codes = -cp_or_synth_count;
-                            MVMCodepoint *codes = MVM_malloc(num_codes * sizeof(MVMCodepoint));
+                            MVMCodepoint *codes = MVM_fixed_size_alloc(tc, tc->instance->fsa, num_codes * sizeof(MVMCodepoint));
                             MVMint32 k;
                             for (k = 0; k < num_codes; k++)
                                 codes[k] = (MVMCodepoint)MVM_serialization_read_int(tc, reader);
                             body->states[i][j].arg.g = MVM_nfg_codes_to_grapheme(tc, codes, num_codes);
-                            MVM_free(codes);
+                            MVM_fixed_size_free(tc, tc->instance->fsa, num_codes * sizeof(MVMCodepoint), codes);
                         }
                         break;
                     }
@@ -327,8 +328,9 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
             MVMint64   cur_edge  = 0;
 
             nfa->num_state_edges[i] = edges;
-            if (edges > 0)
-                nfa->states[i] = MVM_malloc(edges * sizeof(MVMNFAStateInfo));
+            if (edges > 0) {
+                nfa->states[i] = MVM_fixed_size_alloc(tc, tc->instance->fsa, edges * sizeof(MVMNFAStateInfo));
+            }
 
             for (j = 0; j < elems; j += 3) {
                 MVMint64 act = MVM_coerce_simple_intify(tc,
