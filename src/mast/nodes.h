@@ -89,6 +89,7 @@ typedef struct {
     MVMObject   *flags;
     MVMObject   *args;
     MVMObject   *result;
+    MVMint64     op;
 } MAST_Call;
 
 /* MAST::Annotated */

@@ -213,6 +213,7 @@ const unsigned int MVM_jit_num_globals(void) {
 |.define RV, rax
 |.define RVd, eax
 |.define RVF, xmm0
+|.define SAVED_RV, [rbp-0x28]
 
 
 |.macro callp, funcptr
@@ -1921,9 +1922,38 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
         | mov TMP6, qword WORK[arg.v.reg];
         | lea TMP6, STOOGE:TMP6->data;
         break;
+    case MVM_JIT_REG_DYNIDX:
+        | get_cur_op TMP5;
+        | xor TMP6, TMP6;
+        | mov TMP6w, U16:TMP5[arg.v.reg];
+        | mov TMP6, qword [WORK + TMP6*8];
+        break;
     case MVM_JIT_DATA_LABEL:
         | lea TMP6, [=>(arg.v.lit_i64)];
         break;
+    case MVM_JIT_SAVED_RV:
+        | mov TMP6, qword SAVED_RV;
+        break;
+    case MVM_JIT_ARG_I64:
+        | mov TMP6, TC->cur_frame;
+        | mov TMP6, FRAME:TMP6->args;
+        | mov TMP6, qword REGISTER:TMP6[arg.v.lit_i64];
+        break;
+    case MVM_JIT_ARG_PTR:
+        | mov TMP6, TC->cur_frame;
+        | mov TMP6, FRAME:TMP6->args;
+        | mov TMP6, qword REGISTER:TMP6[arg.v.lit_i64];
+        | mov TMP6, aword STOOGE:TMP6->data;
+        break;
+    case MVM_JIT_PARAM_I64:
+        | mov TMP6, qword WORK[arg.v.lit_i64];
+        break;
+    case MVM_JIT_PARAM_PTR:
+        | mov TMP6, aword WORK[arg.v.lit_i64];
+        | mov TMP6, aword STOOGE:TMP6->data;
+        break;
+    default:
+        MVM_oops(tc, "JIT: Unknown JIT argument type %d", arg.type);
     }
 }
 
@@ -2032,11 +2062,17 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitCompiler *compiler, 
         case MVM_JIT_REG_ADDR:
         case MVM_JIT_REG_OBJBODY:
         case MVM_JIT_REG_STABLE:
+        case MVM_JIT_REG_DYNIDX:
         case MVM_JIT_STR_IDX:
         case MVM_JIT_LITERAL:
         case MVM_JIT_LITERAL_64:
         case MVM_JIT_LITERAL_PTR:
         case MVM_JIT_DATA_LABEL:
+        case MVM_JIT_SAVED_RV:
+        case MVM_JIT_ARG_I64:
+        case MVM_JIT_ARG_PTR:
+        case MVM_JIT_PARAM_I64:
+        case MVM_JIT_PARAM_PTR:
             if (num_gpr < 6) {
                 in_gpr[num_gpr++] = args[i];
             } else {
@@ -2051,6 +2087,8 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitCompiler *compiler, 
                 on_stack[num_stack++] = args[i];
             }
             break;
+        default:
+            MVM_oops(tc, "JIT: Unknown JIT argument type %d for emit_posix_callargs", args[i].type);
         }
     }
     for (i = 0; i < num_gpr; i++) {
@@ -2125,6 +2163,13 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
         /* store local at address */
         | mov TMP1, WORK[call_spec->rv_idx];
         | mov [RV], TMP1;
+        break;
+    case MVM_JIT_RV_DYNIDX:
+        /* store in register relative to cur_op */
+        | get_cur_op TMP1;
+        | xor TMP2, TMP2;
+        | mov TMP2w, word [TMP1 + call_spec->rv_idx*2];
+        | mov aword [WORK + TMP2*8], RV;
         break;
     }
 }
@@ -2497,3 +2542,6 @@ void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitDat
     |.code
 }
 
+void MVM_jit_emit_save_rv(MVMThreadContext *tc, MVMJitCompiler *compiler) {
+    | mov qword SAVED_RV, RV;
+}

@@ -97,7 +97,27 @@ typedef enum {
     MVM_JIT_LITERAL_PTR,
     MVM_JIT_REG_STABLE,
     MVM_JIT_REG_OBJBODY,
+    /* Take from register relative to cur_op. Usually code is JIT compiled by
+       spesh which already known the indexes of the registers an op uses.
+       Compilation of native calls however happens ahead of time when the code
+       that will call the ncinvoke op may not even exist yet. In that case
+       we need to do the same as interp.c and address registers relative to
+       cur_op. */
+    MVM_JIT_REG_DYNIDX,
     MVM_JIT_DATA_LABEL,
+    MVM_JIT_SAVED_RV,
+    /* The MVM_JIT_ARG_* types are used when the offset into the WORK array is
+       not known yet, i.e. for ahead of time compiled native calls. */
+    MVM_JIT_ARG_I64,
+    /* Pointers are passed as objects with CPointer representation, i.e. the
+       actual pointer is part of the object's data. The MVM_JIT_ARG_PTR type
+       unboxes the CPointer object and passes on the contained pointer */
+    MVM_JIT_ARG_PTR,
+    /* The MVM_JIT_PARAM_* types are usd when actual JIT compilation is
+       happening as part of spesh, i.e. the offset of the args buffer in WORK
+       is already known. */
+    MVM_JIT_PARAM_I64,
+    MVM_JIT_PARAM_PTR,
 } MVMJitArgType;
 
 struct MVMJitCallArg {
@@ -123,7 +143,14 @@ typedef enum {
     /* dereference and store */
     MVM_JIT_RV_DEREF,
     /* store local at address */
-    MVM_JIT_RV_ADDR
+    MVM_JIT_RV_ADDR,
+    /* Store in register relative to cur_op. Usually code is JIT compiled by
+       spesh which already known the indexes of the registers an op uses.
+       Compilation of native calls however happens ahead of time when the code
+       that will call the ncinvoke op may not even exist yet. In that case
+       we need to do the same as interp.c and address registers relative to
+       cur_op. */
+    MVM_JIT_RV_DYNIDX,
 } MVMJitRVMode;
 
 
@@ -174,6 +201,7 @@ typedef enum {
     MVM_JIT_NODE_JUMPLIST,
     MVM_JIT_NODE_CONTROL,
     MVM_JIT_NODE_DATA,
+    MVM_JIT_NODE_SAVE_RV,
 } MVMJitNodeType;
 
 struct MVMJitNode {

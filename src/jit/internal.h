@@ -40,3 +40,4 @@ void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
 void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                               MVMJitControl *ctrl);
 void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitData *data);
+void MVM_jit_emit_save_rv(MVMThreadContext *tc, MVMJitCompiler *compiler);
