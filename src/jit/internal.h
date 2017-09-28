@@ -48,6 +48,8 @@ void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
 void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler,
                           MVMJitControl *ctrl, MVMJitTile *tile);
 void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitData *data);
+void MVM_jit_emit_save_rv(MVMThreadContext *tc, MVMJitCompiler *compiler);
+
 void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
                        MVMint32 reg_cls, MVMint8 reg_dst,
                        MVMint32 mem_cls, MVMint32 mem_src, MVMint32 size);
@@ -109,3 +111,6 @@ enum {
 #ifndef MIN
 #define MIN(a,b) ((a) < (b) ? (a) : (b));
 #endif
+
+
+

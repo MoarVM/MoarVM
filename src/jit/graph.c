@@ -292,6 +292,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_isnanorinf: return MVM_num_isnanorinf;
     case MVM_OP_nativecallcast: return MVM_nativecall_cast;
     case MVM_OP_nativecallinvoke: return MVM_nativecall_invoke;
+    case MVM_OP_nativeinvoke_o: return MVM_nativecall_invoke_jit;
     case MVM_OP_typeparameterized: return MVM_6model_parametric_type_parameterized;
     case MVM_OP_typeparameters: return MVM_6model_parametric_type_parameters;
     case MVM_OP_typeparameterat: return MVM_6model_parametric_type_parameter_at;
@@ -423,6 +424,30 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
             spesh_cand      = -1;
             is_fast         = 0;
             goto checkargs;
+        case MVM_OP_nativeinvoke_o: {
+            MVMint16 dst     = ins->operands[0].reg.orig;
+            MVMint16 site    = ins->operands[1].reg.orig;
+            MVMint16 restype = ins->operands[2].reg.orig;
+            MVMNativeCallBody *body;
+            MVMJitGraph *nc_jg;
+            MVMObject *nc_site;
+
+            MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, iter->graph, ins->operands[1]);
+
+            MVM_jit_log(tc, "Invoke instruction: <%s>\n", ins->info->name);
+
+            if (!(object_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)) {
+                MVM_oops(tc, "Can't find nc_site value on spesh ins <%s> %d", ins->info->name, object_facts->flags);
+            }
+
+            body = MVM_nativecall_get_nc_body(tc, object_facts->value.o);
+            nc_jg = MVM_nativecall_jit_graph_for_caller_code(tc, iter->graph, body, restype, dst);
+
+            jg->last_node->next = nc_jg->first_node;
+            jg->last_node = nc_jg->last_node;
+
+            goto success;
+        }
         case MVM_OP_sp_fastinvoke_v:
             return_type     = MVM_RETURN_VOID;
             return_register = -1;
@@ -490,6 +515,7 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
 
     /* append reentry label */
     jg_append_label(tc, jg, reentry_label);
+  success:
     /* move forward to invoke ins */
     iter->ins = ins;
     return 1;

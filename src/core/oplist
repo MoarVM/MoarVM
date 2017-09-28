@@ -614,7 +614,7 @@ getuniprop_int      w(int64) r(int64) r(int64)
 getuniprop_bool     w(int64) r(int64) r(int64)
 getuniprop_str      w(str) r(int64) r(int64)
 matchuniprop        w(int64) r(int64) r(int64) r(int64)
-nativecallbuild     r(obj) r(str) r(str) r(str) r(obj) r(obj)
+nativecallbuild     w(int64) r(obj) r(str) r(str) r(str) r(obj) r(obj)
 nativecallinvoke    w(obj) r(obj) r(obj) r(obj)
 nativecallrefresh   r(obj)
 threadrun           r(obj)
@@ -830,6 +830,11 @@ atomicstore_o       r(obj) r(obj) :invokish
 atomicstore_i       r(obj) r(int64)
 barrierfull
 coveragecontrol     r(int64)
+nativeinvoke_v       -a r(obj) r(obj)
+nativeinvoke_i       -a w(int64) r(obj) r(obj)
+nativeinvoke_n       -a w(num64) r(obj) r(obj)
+nativeinvoke_s       -a w(str) r(obj) r(obj)
+nativeinvoke_o       -a w(obj) r(obj) r(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

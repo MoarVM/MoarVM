@@ -1318,7 +1318,7 @@ void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Free all of the allocated node memory. */
     MVM_region_destroy(tc, &g->region_alloc);
     /* Free handlers array, if different from the static frame. */
-    if (!g->cand && g->handlers != g->sf->body.handlers)
+    if (!g->cand && g->handlers && g->handlers != g->sf->body.handlers)
         MVM_free(g->handlers);
 
     /* Free the graph itself. */
