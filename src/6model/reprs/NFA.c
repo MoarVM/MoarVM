@@ -318,8 +318,8 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
         num_states = MVM_repr_elems(tc, states) - 1;
         nfa->num_states = num_states;
         if (num_states > 0) {
-            nfa->num_state_edges = MVM_calloc(num_states, sizeof(MVMint64));
-            nfa->states = MVM_calloc(num_states, sizeof(MVMNFAStateInfo *));
+            nfa->num_state_edges = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, num_states * sizeof(MVMint64));
+            nfa->states = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, num_states * sizeof(MVMNFAStateInfo *));
         }
         for (i = 0; i < num_states; i++) {
             MVMObject *edge_info = MVM_repr_at_pos_o(tc, states, i + 1);
