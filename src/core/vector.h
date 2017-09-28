@@ -57,7 +57,7 @@
 #define MVM_VECTOR_APPEND(x, ar, len) do { \
         size_t _l = (len); \
         MVM_VECTOR_ENSURE_SPACE(x, _l); \
-        memcpy(x + x ## _num, ar, _l * sizeof(x[0])); \
+        memcpy(MVM_VECTOR_TOP(x), ar, _l * sizeof(x[0])); \
         x ## _num += _l; \
     } while(0)
 
@@ -65,8 +65,8 @@
         size_t _l = (len), _o = (ofs); \
         void * buf = (out); \
         if (buf != NULL) { memcpy(buf, (x) + _o, _l * sizeof(x[0])); } \
-        memmove((x) + _o, (x) + _o + _l, ((x ## _top) - _l) * sizeof(x[0])); \
-        x ## _top -= _l; \
+        memmove((x) + _o, (x) + _o + _l, ((x ## _num) - _l - _o) * sizeof(x[0])); \
+        x ## _num -= _l; \
     } while (0)
 
 #define MVM_VECTOR_ASSIGN(a, b) do { \

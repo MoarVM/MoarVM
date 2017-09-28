@@ -637,11 +637,14 @@ static void active_set_expire(MVMThreadContext *tc, RegisterAllocator *alc, MVMi
             free_register(tc, alc, MVM_JIT_STORAGE_GPR, reg_num);
         }
     }
-
     /* shift off the first x values from the live set. */
     if (i > 0) {
-        MVM_VECTOR_ENSURE_SPACE(alc->retired, i);
-        MVM_VECTOR_SPLICE(alc->active, 0, i, MVM_VECTOR_TOP(alc->retired));
+        MVM_VECTOR_APPEND(alc->retired, alc->active, i);
+        alc->active_top -= i;
+        if (alc->active_top > 0) {
+            memmove(alc->active, alc->active + i,
+                    sizeof(alc->active[0]) * alc->active_top);
+        }
     }
 }
 
