@@ -44,6 +44,8 @@ say "    \"Dominance Tree\";";
 my $insnum = 0;
 my $in_subgraph = 0;
 
+my $ann_num = 0;
+
 # if instruction-carrying lines appear before the first BB, we
 # shall gracefully invent a starting point.
 my $last_ins = "\"out of nowhere\"";
@@ -224,10 +226,10 @@ for lines() -> $_ is copy {
     when / ^ '    ' 'Successors: ' [$<succ>=[<.digit>+]]* % ', ' $ / {
         %bb_connections{$current_bb} = @<succ>>>.Str;
     }
-    when / ^ '      ' '[Annotation: ' $<annotation>=[<[a..z A..Z 0..9 \ ]>+] / {
+    when / ^ '      ' '[Annotation: ' $<annotation>=[<[a..z A..Z 0..9 \ ]>+] $<rest>=<-[\]]>+ / {
         my $previous_ins = $last_ins;
-        $last_ins = "\"annotation_{$current_bb}_{$<annotation>}_$((state $)++)\"";
-        say "    $last_ins [label=\"{$<annotation>}\" shape=cds];";
+        $last_ins = "\"annotation_{$current_bb}_{$<annotation>}_{$ann_num++}\"";
+        say "    $last_ins [label=\"{$<annotation>} {$<rest>}\" shape=cds];";
         if $last_ins ~~ / entry / {
             say "    $previous_ins -> $last_ins [style=dotted];";
         } else {
