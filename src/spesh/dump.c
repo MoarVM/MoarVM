@@ -147,7 +147,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                     break;
                 }
                 case MVM_SPESH_ANN_LOGGED:
-                    appendf(ds, "      [Annotation: Logged (bytecode offset %d]\n",
+                    appendf(ds, "      [Annotation: Logged (bytecode offset %d)]\n",
                         ann->data.bytecode_offset);
                     break;
                 default:
