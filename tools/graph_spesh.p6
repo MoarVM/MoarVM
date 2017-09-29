@@ -226,7 +226,7 @@ for lines() -> $_ is copy {
     }
     when / ^ '      ' '[Annotation: ' $<annotation>=[<[a..z A..Z 0..9 \ ]>+] / {
         my $previous_ins = $last_ins;
-        $last_ins = "\"annotation_{$current_bb}_{$<annotation>}_{(state $)++}\"";
+        $last_ins = "\"annotation_{$current_bb}_{$<annotation>}_$((state $)++)\"";
         say "    $last_ins [label=\"{$<annotation>}\" shape=cds];";
         if $last_ins ~~ / entry / {
             say "    $previous_ins -> $last_ins [style=dotted];";
@@ -262,14 +262,14 @@ for lines() -> $_ is copy {
     when / ^ '    ' \d+ [ 'spesh slots' | 'log values'] / { }
     when / ^ '    ' \s* [\d+]+ %% \s+ / { }
     default {
-        say "    unparsed_line_{(state $)++} [label=\"{$_}\"];";
+        say "    unparsed_line_$((state $)++) [label=\"{$_}\"];";
     }
 }
 
 say "  }" if $in_subgraph;
 
 if @callsite_args {
-    say @callsite_args.map({ "\"arg_{(state $)++}\" [label=\"$_\"]" }).join(';');
+    say @callsite_args.map({ "\"arg_$((state $)++)\" [label=\"$_\"]" }).join(';');
     say "callsite -> " ~ (^@callsite_args).map({"\"arg_$_\""}).join(" -> ") ~ ";";
 }
 
