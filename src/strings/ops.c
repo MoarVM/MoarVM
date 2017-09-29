@@ -88,7 +88,7 @@ static char * NFG_checker (MVMThreadContext *tc, MVMString *orig, char *varname)
                 char *out = MVM_malloc(sizeof(char) * out_size);
                 char *waste[] = {orig_render, renorm_render, NULL};
                 char **w = waste;
-                snprintf(out, out_length,
+                snprintf(out, out_size,
                     format,
                     varname,
                         orig_graphs, renorm_graphs,
@@ -1614,7 +1614,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     MVMString **pieces = NULL;
     MVMint64    elems, num_pieces, sgraphs, i, is_str_array, total_graphs;
     MVMuint16   sstrands, total_strands;
-    MVMint32    concats_stable = 1;
+    MVMint32    concats_stable = 1, all_strands;
     size_t      bytes;
 
     MVM_string_check_arg(tc, separator, "join separator");
@@ -1630,6 +1630,20 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     is_str_array = REPR(input)->pos_funcs.get_elem_storage_spec(tc,
         STABLE(input)).boxed_primitive == MVM_STORAGE_SPEC_BP_STR;
 
+    /* If there's only one element to join, just return it. */
+    if (elems == 1) {
+        if (is_str_array) {
+            MVMString *piece = MVM_repr_at_pos_s(tc, input, 0);
+            if (piece)
+                return piece;
+        }
+        else {
+            MVMObject *item = MVM_repr_at_pos_o(tc, input, 0);
+            if (item && IS_CONCRETE(item))
+                return MVM_repr_get_str(tc, item);
+        }
+    }
+
     /* Allocate result. */
     MVMROOT(tc, separator, {
     MVMROOT(tc, input, {
@@ -1639,7 +1653,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
 
     /* Take a first pass through the string, counting up length and the total
      * number of strands we encounter as well as building a flat array of the
-     * strings (to we only have to do the indirect calls once). */
+     * strings (so we only have to do the indirect calls once). */
     sgraphs  = MVM_string_graphs_nocheck(tc, separator);
     if (sgraphs)
         sstrands = separator->body.storage_type == MVM_STRING_STRAND
@@ -1651,6 +1665,8 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     num_pieces    = 0;
     total_graphs  = 0;
     total_strands = 0;
+    /* Is the separator a strand? */
+    all_strands = separator->body.storage_type == MVM_STRING_STRAND;
     for (i = 0; i < elems; i++) {
         /* Get piece of the string. */
         MVMString *piece;
@@ -1666,6 +1682,10 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
                 continue;
             piece = MVM_repr_get_str(tc, item);
         }
+
+        /* Check that all the pieces are strands. */
+        if (all_strands)
+            all_strands = piece->body.storage_type == MVM_STRING_STRAND;
 
         /* If it wasn't the first piece, add separator here. */
         if (num_pieces) {
@@ -1693,13 +1713,51 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     }
     result->body.num_graphs = total_graphs;
 
-    /* If we just collect all the things as strands, are we within bounds, and
-     * will be come out ahead? */
-    if (total_strands < MVM_STRING_MAX_STRANDS && 16 <= total_graphs / total_strands) {
-        /* XXX TODO: Implement this, conditionalize branch thing below. */
+    MVMROOT(tc, result, {
+    /* If the separator and pieces are all strands, and there are
+     * on average at least 16 graphemes in each of the strands. */
+    if (all_strands && total_strands <  MVM_STRING_MAX_STRANDS
+              &&  total_strands * 16 <= total_graphs) {
+        MVMuint16 offset = 0;
+        result->body.storage_type    = MVM_STRING_STRAND;
+        result->body.storage.strands = allocate_strands(tc, total_strands);
+        result->body.num_strands     = total_strands;
+        for (i = 0; i < num_pieces; i++) {
+            MVMString *piece = pieces[i];
+            if (0 < i) {
+                /* If there's no separator and one piece is The Empty String we
+                 * have to be extra careful about concat stability */
+                if (sgraphs == 0 && MVM_string_graphs_nocheck(tc, piece) == 0 && concats_stable
+                        && i + 1 < num_pieces
+                        && !MVM_nfg_is_concat_stable(tc, pieces[i - 1], pieces[i + 1])) {
+                    concats_stable = 0;
+                }
+
+                if (sgraphs) {
+                    if (!concats_stable)
+                        /* Already unstable; no more checks. */;
+                    else if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], separator))
+                        concats_stable = 0;
+                    else if (!MVM_nfg_is_concat_stable(tc, separator, piece))
+                        concats_stable = 0;
+                }
+                else {
+                    /* Separator has no graphemes, so NFG stability check
+                     * should consider pieces. */
+                    if (!concats_stable)
+                        /* Already stable; no more checks. */;
+                    else if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], piece))
+                        concats_stable = 0;
+                }
+
+                copy_strands(tc, separator, 0, result, offset, separator->body.num_strands);
+                offset += separator->body.num_strands;
+            }
+            copy_strands(tc, piece, 0, result, offset, piece->body.num_strands);
+            offset += piece->body.num_strands;
+        }
     }
-    /*else {*/
-    if (1) {
+    else {
         /* We'll produce a single, flat string. */
         MVMint64        position = 0;
         MVMGraphemeIter gi;
@@ -1778,6 +1836,8 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
 
     MVM_fixed_size_free(tc, tc->instance->fsa, bytes, pieces);
     STRAND_CHECK(tc, result);
+    NFG_CHECK(tc, result, "MVM_string_join");
+    });
     return concats_stable ? result : re_nfg(tc, result);
 }
 
