@@ -1071,7 +1071,7 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
     MVMint16         *next = NULL;
     MVMString *flat_needle = NULL;
     size_t next_size = (1 + needle_graphs) * sizeof(MVMint16);
-    int    next_is_malloced = 0;
+    int    next_is_fs_alloced = 0;
     assert(needle_graphs <= MVM_string_KMP_max_pattern_length);
     /* Empty string is found at start of string */
     if (needle_graphs == 0)
@@ -1080,8 +1080,8 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
     if (next_size < 4096)
         next = alloca(next_size);
     else {
-        next = MVM_malloc(next_size);
-        next_is_malloced = 1;
+        next = MVM_fixed_size_alloc(tc, tc->instance->fsa, next_size);
+        next_is_fs_alloced = 1;
     }
     /* If the needle is a strand, flatten it, otherwise use the original string */
     flat_needle = needle->body.storage_type == MVM_STRING_STRAND
@@ -1093,32 +1093,28 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
      * since it retains its grapheme iterator over invocations unlike
      * MVM_string_get_grapheme_at_nocheck and caches the previous grapheme. It
      * is slower for flat Haystacks though. */
+    #define MVM_kmp_loop(Haystack_function) {\
+        while (text_offset < Haystack_graphs && needle_offset < needle_graphs) {\
+            if (needle_offset == -1 || MVM_string_get_grapheme_at_nocheck(tc, flat_needle, needle_offset)\
+                                    == (Haystack_function)) {\
+                text_offset++; needle_offset++;\
+                if (needle_offset == needle_graphs) {\
+                    if (next_is_fs_alloced) MVM_fixed_size_free(tc, tc->instance->fsa, next_size, next);\
+                    return text_offset - needle_offset;\
+                }\
+            }\
+            else needle_offset = next[needle_offset];\
+        }\
+    }
     if (Haystack->body.storage_type == MVM_STRING_STRAND) {
         MVMGraphemeIter_cached H_gic;
         MVM_string_gi_cached_init(tc, &H_gic, Haystack, H_offset);
-        while (text_offset < Haystack_graphs && needle_offset < needle_graphs) {
-            if (needle_offset == -1 || MVM_string_get_grapheme_at_nocheck(tc, flat_needle, needle_offset)
-                                    == MVM_string_gi_cached_get_grapheme(tc, &H_gic, text_offset)) {
-                text_offset++; needle_offset++;
-                if (needle_offset == needle_graphs) {
-                    if (next_is_malloced) MVM_free(next);
-                    return text_offset - needle_offset;
-                }
-            }
-            else needle_offset = next[needle_offset];
-        }
-        if (next_is_malloced) MVM_free(next);
-        return -1;
+        MVM_kmp_loop(MVM_string_gi_cached_get_grapheme(tc, &H_gic, text_offset));
     }
-    while (text_offset < Haystack_graphs && needle_offset < needle_graphs) {
-        if (needle_offset == -1 || MVM_string_get_grapheme_at_nocheck(tc, flat_needle, needle_offset)
-                                == MVM_string_get_grapheme_at_nocheck(tc, Haystack, text_offset)) {
-            text_offset++; needle_offset++;
-            if (needle_offset == needle_graphs)
-                return text_offset - needle_offset;
-        }
-        else needle_offset = next[needle_offset];
+    else {
+        MVM_kmp_loop(MVM_string_get_grapheme_at_nocheck(tc, Haystack, text_offset));
     }
+    if (next_is_fs_alloced) MVM_fixed_size_free(tc, tc->instance->fsa, next_size, next);
     return -1;
 }
 static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 start, int ignoremark, int ignorecase) {
