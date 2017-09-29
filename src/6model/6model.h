@@ -150,6 +150,9 @@ typedef enum {
     /* Has this item been chained into a gen2 freelist? This is only used in
      * GC debug more. */
     MVM_CF_DEBUG_IN_GEN2_FREE_LIST = 4096,
+
+    /* A flag for behavior specific to a REPR. */
+    MVM_CF_REPR_DEFINED = 8192,
 } MVMCollectableFlags;
 
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX

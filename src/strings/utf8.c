@@ -27,6 +27,7 @@
  */
 #define UTF8_ACCEPT 0
 #define UTF8_REJECT 12
+#define MVM_STRING_USES_FSA MVM_CF_REPR_DEFINED
 
 static const MVMuint8 utf8d[] = {
   // The first part of the table maps bytes to character classes that
@@ -177,7 +178,8 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
     MVMint32 line_ending = 0;
     MVMint32 state = 0;
     MVMint32 bufsize = bytes;
-    MVMGrapheme32 *buffer = MVM_malloc(sizeof(MVMGrapheme32) * bufsize);
+    MVMint32 old_bufsize = bufsize;
+    MVMGrapheme32 *buffer = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMGrapheme32) * bufsize);
     size_t orig_bytes;
     const char *orig_utf8;
     MVMint32 line;
@@ -187,6 +189,8 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
     /* Need to normalize to NFG as we decode. */
     MVMNormalizer norm;
     MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
+
+    result->common.header.flags |= MVM_STRING_USES_FSA;
 
     orig_bytes = bytes;
     orig_utf8 = utf8;
@@ -198,9 +202,10 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
             ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, codepoint, &g);
             if (ready) {
                 while (count + ready > bufsize) { /* if the buffer's full make a bigger one */
-                    buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * (
+                    buffer = MVM_fixed_size_realloc(tc, tc->instance->fsa, buffer, old_bufsize * sizeof(MVMGrapheme32), sizeof(MVMGrapheme32) * (
                         bufsize >= UTF8_MAXINC ? (bufsize += UTF8_MAXINC) : (bufsize *= 2)
                     ));
+                    old_bufsize = bufsize;
                 }
                 buffer[count++] = g;
                 while (--ready > 0) {
@@ -237,7 +242,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
                     break;
                 case UTF8_REJECT: {
                     size_t error_pos = orig_bytes - bytes;
-                    MVM_free(buffer);
+                    MVM_fixed_size_free(tc, tc->instance->fsa, bufsize * sizeof(MVMGrapheme32), buffer);
                     /* Different error messages for the first few bytes, so that
                      * we print as much context as possible */
                     if (error_pos >= 3) {
@@ -259,14 +264,14 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
                 }
                 }
             }
-            MVM_free(buffer);
+            MVM_fixed_size_free(tc, tc->instance->fsa, bufsize * sizeof(MVMGrapheme32), buffer);
             MVM_exception_throw_adhoc(tc, "Concurrent modification of UTF-8 input buffer!");
             break;
         }
     }
     if (state != UTF8_ACCEPT) {
         MVM_unicode_normalizer_cleanup(tc, &norm);
-        MVM_free(buffer);
+        MVM_fixed_size_free(tc, tc->instance->fsa, bufsize * sizeof(MVMGrapheme32), buffer);
         MVM_exception_throw_adhoc(tc, "Malformed termination of UTF-8 string");
     }
 
@@ -275,7 +280,8 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
     ready = MVM_unicode_normalizer_available(tc, &norm);
     if (ready) {
         if (count + ready > bufsize) {
-            buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * (count + ready));
+            buffer = MVM_fixed_size_realloc(tc, tc->instance->fsa, buffer, old_bufsize * sizeof(MVMGrapheme32), sizeof(MVMGrapheme32) * (count + ready));
+            old_bufsize = count + ready;
         }
         while (ready--) {
             buffer[count++] =  MVM_unicode_normalizer_get_grapheme(tc, &norm);
@@ -285,20 +291,20 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
 
     /* If we're lucky, we can fit our string in 8 bits per grapheme. */
     if (MVM_string_buf32_can_fit_into_8bit(buffer, count)) {
-        MVMGrapheme8 *new_buffer = MVM_malloc(sizeof(MVMGrapheme8) * count);
+        MVMGrapheme8 *new_buffer = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMGrapheme8) * count);
         MVM_VECTORIZE_LOOP
         for (ready = 0; ready < count; ready++) {
             new_buffer[ready] = buffer[ready];
         }
-        MVM_free(buffer);
+        MVM_fixed_size_free(tc, tc->instance->fsa, old_bufsize * sizeof(MVMGrapheme32), buffer);
         result->body.storage.blob_8  = new_buffer;
         result->body.storage_type    = MVM_STRING_GRAPHEME_8;
     } else {
         /* just keep the same buffer as the MVMString's buffer.  Later
          * we can add heuristics to resize it if we have enough free
          * memory */
-        if (bufsize - count > 4) {
-            buffer = MVM_realloc(buffer, count * sizeof(MVMGrapheme32));
+        if (old_bufsize != count) {
+            buffer = MVM_fixed_size_realloc(tc, tc->instance->fsa, buffer, old_bufsize * sizeof(MVMGrapheme32), count * sizeof(MVMGrapheme32));
         }
         result->body.storage.blob_32 = buffer;
         result->body.storage_type    = MVM_STRING_GRAPHEME_32;
