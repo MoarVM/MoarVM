@@ -278,7 +278,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
     /* If we're lucky, we can fit our string in 8 bits per grapheme.
      * That happens when our lowest value is bigger than -129 and our
      * highest value is lower than 128. */
-    if (lowest_graph >= -128 && highest_graph < 128) {
+    if (-128 <= lowest_graph && highest_graph <= 127) {
         MVMGrapheme8 *new_buffer = MVM_malloc(sizeof(MVMGrapheme8) * count);
         for (ready = 0; ready < count; ready++) {
             new_buffer[ready] = buffer[ready];

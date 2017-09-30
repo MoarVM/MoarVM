@@ -291,7 +291,7 @@ char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str
                 result_alloc += 8;
                 result = MVM_realloc(result, result_alloc + 1);
             }
-            if ((codepoint >= 0 && codepoint < 128) || (codepoint >= 152 && codepoint < 256)) {
+            if ((0 <= codepoint && codepoint <= 127) || (152 <= codepoint && codepoint <= 255)) {
                 result[i] = (MVMuint8)codepoint;
                 i++;
             }

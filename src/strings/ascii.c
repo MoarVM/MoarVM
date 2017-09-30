@@ -170,7 +170,7 @@ char * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
                 result_alloc += 8;
                 result = MVM_realloc(result, result_alloc + 1);
             }
-            if (ord >= 0 && ord <= 127) {
+            if (0 <= ord && ord <= 127) {
                 result[i] = (MVMuint8)ord;
                 i++;
             }
