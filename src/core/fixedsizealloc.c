@@ -268,8 +268,21 @@ static void add_to_bin_freelist(MVMThreadContext *tc, MVMFixedSizeAlloc *al,
 void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t bytes, void *to_free) {
 #if FSA_SIZE_DEBUG
     MVMFixedSizeAllocDebug *dbg = (MVMFixedSizeAllocDebug *)((char *)to_free - 8);
-    if (dbg->alloc_size != bytes)
-        MVM_panic(1, "Fixed size allocator: wrong size in free");
+    if (dbg->alloc_size != bytes) {
+#ifdef MVM_VALGRIND_SUPPORT
+        if (RUNNING_ON_VALGRIND) {
+            char command[128];
+            snprintf(&command, 128, "check_memory defined %p %d", dbg, bytes + 8);
+            VALGRIND_MONITOR_COMMAND(command);
+            VALGRIND_PRINTF_BACKTRACE("Fixed size allocator: wrong size in free: expected %d, got %d", dbg->alloc_size, bytes);
+        }
+        else {
+            MVM_panic(1, "Fixed size allocator: wrong size in free: expected %d, got %d", dbg->alloc_size, bytes);
+        }
+#else
+        MVM_panic(1, "Fixed size allocator: wrong size in free: expected %d, got %d", dbg->alloc_size, bytes);
+#endif
+    }
     MVM_free(dbg);
 #else
     MVMuint32 bin = bin_for(bytes);
@@ -303,8 +316,20 @@ static void add_to_overflows_safepoint_free_list(MVMThreadContext *tc, MVMFixedS
 void MVM_fixed_size_free_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t bytes, void *to_free) {
 #if FSA_SIZE_DEBUG
     MVMFixedSizeAllocDebug *dbg = (MVMFixedSizeAllocDebug *)((char *)to_free - 8);
-    if (dbg->alloc_size != bytes)
+    if (dbg->alloc_size != bytes) {
+#ifdef MVM_VALGRIND_SUPPORT
+        if (RUNNING_ON_VALGRIND) {
+            char command[128]; snprintf(&command, 128, "check_memory defined %p %d", dbg, bytes + 8); VALGRIND_MONITOR_COMMAND(command);
+            VALGRIND_PRINTF_BACKTRACE("Fixed size allocator: wrong size in free: expected %d, got %d", dbg->alloc_size, bytes);
+        }
+        else {
+            MVM_panic(1, "Fixed size allocator: wrong size in free: expected %d, got %d", dbg->alloc_size, bytes);
+        }
+#else
+        MVM_panic(1, "Fixed size allocator: wrong size in free: expected %d, got %d", dbg->alloc_size, bytes);
+#endif
         MVM_panic(1, "Fixed size allocator: wrong size in free");
+    }
     add_to_overflows_safepoint_free_list(tc, al, dbg);
 #else
     MVMuint32 bin = bin_for(bytes);
