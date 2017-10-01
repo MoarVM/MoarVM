@@ -299,6 +299,10 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
     hints.ai_socktype = 0;
     hints.ai_flags = AI_PASSIVE;
     hints.ai_protocol = 0;
+    hints.ai_addrlen = 0;
+    hints.ai_addr = NULL;
+    hints.ai_canonname = NULL;
+    hints.ai_next = NULL;
 
     snprintf(port_cstr, 8, "%d", (int)port);
 
