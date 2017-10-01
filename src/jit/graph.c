@@ -437,7 +437,8 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
             MVM_jit_log(tc, "Invoke instruction: <%s>\n", ins->info->name);
 
             if (!(object_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)) {
-                MVM_oops(tc, "Can't find nc_site value on spesh ins <%s> %d", ins->info->name, object_facts->flags);
+                MVM_jit_log(tc, "BAIL: op <%s> (Can't find nc_site value on spesh ins)\n", ins->info->name);
+                return 0;
             }
 
             body = MVM_nativecall_get_nc_body(tc, object_facts->value.o);
