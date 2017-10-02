@@ -21,9 +21,10 @@
 #define PACKET_SIZE 65535
 
 /* Error handling varies between POSIX and WinSock. */
+MVM_NO_RETURN static void throw_error(MVMThreadContext *tc, int r, char *operation) MVM_NO_RETURN_GCC;
 #ifdef _WIN32
     #define MVM_IS_SOCKET_ERROR(x) ((x) == SOCKET_ERROR)
-    MVM_NO_RETURN static void throw_error(MVMThreadContext *tc, int r, char *operation) MVM_NO_RETURN_GCC {
+    static void throw_error(MVMThreadContext *tc, int r, char *operation) {
         int error = WSAGetLastError();
         LPTSTR error_string = NULL;
         if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
@@ -35,7 +36,7 @@
     }
 #else
     #define MVM_IS_SOCKET_ERROR(x) ((x) < 0)
-    MVM_NO_RETURN static void throw_error(MVMThreadContext *tc, int r, char *operation) MVM_NO_RETURN_GCC {
+    static void throw_error(MVMThreadContext *tc, int r, char *operation) {
         MVM_exception_throw_adhoc(tc, "Could not %s: %s", operation, strerror(errno));
     }
 #endif
