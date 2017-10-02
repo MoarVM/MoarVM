@@ -263,7 +263,7 @@ void MVM_profile_ensure_uninstrumented(MVMThreadContext *tc, MVMStaticFrame *sf)
     }
 }
 
-/* Starts instrumted profiling. */
+/* Starts instrumented profiling. */
 void MVM_profile_instrumented_start(MVMThreadContext *tc, MVMObject *config) {
     /* Wait for specialization thread to stop working, so it won't trip over
      * bytecode instrumentation, then enable profiling. */
