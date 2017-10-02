@@ -13,7 +13,7 @@ MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 
 #define MVM_CODEPOINT_NAMES_COUNT 52917
 #define MVM_NUM_PROPERTY_CODES 107
 
-#define num_unicode_seq_keypairs 1926
+#define num_unicode_seq_keypairs 1939
 #define num_unicode_namealias_keypairs 464
 struct MVMUnicodeNamedAlias {
     char *name;

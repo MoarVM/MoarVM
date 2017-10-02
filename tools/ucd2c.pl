@@ -74,8 +74,29 @@ sub trim {
 sub progress($);
 sub main {
     $db_sections->{'AAA_header'} = header();
-    add_unicode_sequence('emoji/emoji-sequences');
-    add_unicode_sequence('emoji/emoji-zwj-sequences');
+    my $directory = "UNIDATA";
+    my @emoji_dirs;
+    my $highest_emoji_version = "";
+    # Find all the emoji dirs
+    opendir (UNIDATA_DIR, $directory) or die $!;
+    while (my $file = readdir(UNIDATA_DIR)) {
+        if (-d "$directory/$file" and $file =~ /^emoji/) {
+            push @emoji_dirs, $file;
+            $file =~ s/^emoji-//;
+            # Get the highest version. Make sure longer values take precidence so when we hit 10.0 or higher it will work fine.
+            if (length($highest_emoji_version) < length($file) or (length($highest_emoji_version) < length($file) and $highest_emoji_version lt $file)) {
+                $highest_emoji_version = $file;
+            }
+        }
+    }
+    say "Highest emoji version found is $highest_emoji_version";
+    if (!@emoji_dirs) {
+        die "Couldn't find any emoji folders. Please run UCD-download.p6 again";
+    }
+    for my $folder (@emoji_dirs) {
+        add_unicode_sequence("$folder/emoji-sequences");
+        add_unicode_sequence("$folder/emoji-zwj-sequences");
+    }
     add_unicode_sequence('NamedSequences');
     gen_unicode_sequence_keypairs();
     NameAliases();
@@ -92,7 +113,7 @@ sub main {
     BidiMirroring();
     goto skip_most if $skip_most_mode;
     binary_props('extracted/DerivedBinaryProperties');
-    binary_props('emoji/emoji-data');
+    binary_props("emoji-$highest_emoji_version/emoji-data");
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 0, 3);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1, 1);
     # disabled because of sub Jamo
@@ -1174,9 +1195,11 @@ sub add_unicode_sequence {
         # since they seperate seperate named items in ISO notation that P6 uses
         $name =~ s/,//g;
         $sequences->{$name}->{'type'} = $type;
-
-        for my $hex (split ' ', $hex_ords) {
-            push @{$sequences->{$name}->{'ords'}}, hex $hex;
+        # Only push if we haven't seen this already
+        if (!$sequences->{$name}->{'ords'}) {
+            for my $hex (split ' ', $hex_ords) {
+                push @{$sequences->{$name}->{'ords'}}, hex $hex;
+            }
         }
     } );
 }
