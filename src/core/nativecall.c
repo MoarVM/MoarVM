@@ -468,10 +468,15 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(MVMThreadContext *tc, MVMS
             MVMJitArgType arg_type;
             switch (body->arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
                 case MVM_NATIVECALL_ARG_CHAR:
+                case MVM_NATIVECALL_ARG_UCHAR:
                 case MVM_NATIVECALL_ARG_SHORT:
+                case MVM_NATIVECALL_ARG_USHORT:
                 case MVM_NATIVECALL_ARG_INT:
+                case MVM_NATIVECALL_ARG_UINT:
                 case MVM_NATIVECALL_ARG_LONG:
+                case MVM_NATIVECALL_ARG_ULONG:
                 case MVM_NATIVECALL_ARG_LONGLONG:
+                case MVM_NATIVECALL_ARG_ULONGLONG:
                     arg_type = dst == -1 ? MVM_JIT_ARG_I64 : MVM_JIT_PARAM_I64;
                     break;
                 case MVM_NATIVECALL_ARG_CPOINTER:
@@ -487,12 +492,16 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(MVMThreadContext *tc, MVMS
         }
     }
 
-    if (body->ret_type == MVM_NATIVECALL_ARG_INT
-        || body->ret_type == MVM_NATIVECALL_ARG_CHAR
+    if (body->ret_type == MVM_NATIVECALL_ARG_CHAR
+        || body->ret_type == MVM_NATIVECALL_ARG_UCHAR
         || body->ret_type == MVM_NATIVECALL_ARG_SHORT
+        || body->ret_type == MVM_NATIVECALL_ARG_USHORT
         || body->ret_type == MVM_NATIVECALL_ARG_INT
+        || body->ret_type == MVM_NATIVECALL_ARG_UINT
         || body->ret_type == MVM_NATIVECALL_ARG_LONG
+        || body->ret_type == MVM_NATIVECALL_ARG_ULONG
         || body->ret_type == MVM_NATIVECALL_ARG_LONGLONG
+        || body->ret_type == MVM_NATIVECALL_ARG_ULONGLONG
     ) {
         call_node->next = save_rv_node;
         jg->last_node = unblock_gc_node->next = box_rv_node;
