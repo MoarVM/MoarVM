@@ -482,6 +482,9 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(MVMThreadContext *tc, MVMS
                 case MVM_NATIVECALL_ARG_CPOINTER:
                     arg_type = dst == -1 ? MVM_JIT_ARG_PTR : MVM_JIT_PARAM_PTR;
                     break;
+                case MVM_NATIVECALL_ARG_VMARRAY:
+                    arg_type = dst == -1 ? MVM_JIT_ARG_VMARRAY : MVM_JIT_PARAM_VMARRAY;
+                    break;
                 case MVM_NATIVECALL_ARG_UTF8STR:
                     continue; /* already handled */
                 default:
