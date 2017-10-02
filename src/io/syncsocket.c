@@ -23,7 +23,7 @@
 /* Error handling varies between POSIX and WinSock. */
 #ifdef _WIN32
     #define MVM_IS_SOCKET_ERROR(x) ((x) == SOCKET_ERROR)
-    static void throw_error(MVMThreadContext *tc, int r, char *operation) {
+    MVM_NO_RETURN static void throw_error(MVMThreadContext *tc, int r, char *operation) MVM_NO_RETURN_GCC {
         int error = WSAGetLastError();
         LPTSTR error_string = NULL;
         if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
@@ -35,7 +35,7 @@
     }
 #else
     #define MVM_IS_SOCKET_ERROR(x) ((x) < 0)
-    static void throw_error(MVMThreadContext *tc, int r, char *operation) {
+    MVM_NO_RETURN static void throw_error(MVMThreadContext *tc, int r, char *operation) MVM_NO_RETURN_GCC {
         MVM_exception_throw_adhoc(tc, "Could not %s: %s", operation, strerror(errno));
     }
 #endif
