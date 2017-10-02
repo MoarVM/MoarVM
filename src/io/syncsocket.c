@@ -21,6 +21,7 @@
 #define PACKET_SIZE 65535
 
 /* Error handling varies between POSIX and WinSock. */
+MVM_NO_RETURN static void throw_error(MVMThreadContext *tc, int r, char *operation) MVM_NO_RETURN_GCC;
 #ifdef _WIN32
     #define MVM_IS_SOCKET_ERROR(x) ((x) == SOCKET_ERROR)
     static void throw_error(MVMThreadContext *tc, int r, char *operation) {
