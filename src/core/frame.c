@@ -525,7 +525,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         chosen_bytecode = static_frame->body.bytecode;
 
         /* If we should be spesh logging, set the correlation ID. */
-        if (tc->instance->spesh_enabled && tc->spesh_log) {
+        if (tc->instance->spesh_enabled && tc->spesh_log && static_frame->body.bytecode_size < MVM_SPESH_MAX_BYTECODE_SIZE) {
             if (spesh->body.spesh_entries_recorded++ < MVM_SPESH_LOG_LOGGED_ENOUGH) {
                 MVMint32 id = ++tc->spesh_cid;
                 frame->spesh_correlation_id = id;
