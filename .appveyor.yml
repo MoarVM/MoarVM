@@ -17,12 +17,14 @@ install:
   - git clone https://github.com/perl6/nqp %APPVEYOR_BUILD_FOLDER%\nqp
   - cd %APPVEYOR_BUILD_FOLDER%\nqp
   - perl Configure.pl --prefix=%APPVEYOR_BUILD_FOLDER%\buildprefix
+  - nmake
   - nmake install
 
 environment:
   matrix:
   - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+# Wasn't able to determine where SetEnv.cmd is for VS2017
+#  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
 
 branches:
   only:
