@@ -39,7 +39,7 @@
 (macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
 (macro: ^cu_string (,a)
     (call (^func MVM_cu_string)
-          (arglist (carg (tc) ptr) (carg ,a int))
+          (arglist (carg (tc) ptr) (carg (cu) ptr) (carg ,a int))
           ptr_sz))
 
 (macro: ^objflag (,cv) (const (&QUOTE ,cv) (&SIZEOF_MEMBER MVMObject header.flags)))
