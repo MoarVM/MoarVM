@@ -1,11 +1,11 @@
 # Expression 'Tree' Intermediate Representation
 
-The 'expression tree' IR has been developed developed to support
-low-level optimization and advanced code generation. This document
-describes this representation, the way it is generated, and the way it
-is consumed. You may need this document in order to develop
-specialised JIT support for a graph, add support for newly developed
-VM opcodes, or to help in debugging.
+The 'expression tree' IR has been developed to support low-level
+optimization and advanced code generation. This document describes
+this representation, the way it is generated, and the way it is
+consumed. You may need this document in order to develop specialised
+JIT support for a graph, add support for newly developed VM opcodes,
+or to help in debugging.
 
 
 ## Template Syntax
@@ -83,7 +83,7 @@ nodes). Finally, note that 'let:' statements declare definitions in a
 single expression-wide scope and that redefinitions are not allowed.
 
 
-**Statement Macro's** are lists of which the node name start with an
+**Statement macros** are lists of which the node name start with an
   ampersand '&'. These lists are compiled to C-macro
   invocations. Arguments to the macro (the other elements in the list)
   are reproduced verbatim, and nested lists are NOT supported. For
@@ -100,28 +100,28 @@ single expression-wide scope and that redefinitions are not allowed.
   to generate a constant pointer or a message string, provided you use
   the appropriate C macro hackery.
 
-**Tree Macro's** are a facility implemented by the template
-  preprocessor to aid in developing templates. Tree macro's are
+**Tree macros** are a facility implemented by the template
+  preprocessor to aid in developing templates. Tree macros are
   indicated by a '^' prefix. For instance, the '(^p6obody $1)' list
   above is the invocation of a tree macro. A tree macro is substituted
   directly into the invoking expression while the template is being
   compiled. They differ from substitutions in two respects:
 
 * substitutions are local (only valid within the scope of a let:
-  expression), while macro's are globally defined. Thus, macro's can
+  expression), while macros are globally defined. Thus, macros can
   be used as a building block for templates, and substitutions can
   only be used within a template.
 
 * substitutions are *linked* into the resulting tree, thus two
   references of the same substitution refer to the same IR tree
-  nodes. Tree macro's are *spliced* into the tree, so two
+  nodes. Tree macros are *spliced* into the tree, so two
   invocations refer to two different trees. (These trees may be
   resolved to be equal when using common subexpression evaluation, but
   that's a separate issue).
 
 A tree macro is defined using the 'macro:' keyword, followed by the
 macro name (including the '^' prefix), a list of macro arguments, and
-the actual macro list. For example, the '^p6obody' macro is
+the actual macro list. For example, the '^spesh_slot' macro is
 implemented as:
 
     (macro: ^spesh_slot (,a)
@@ -132,7 +132,7 @@ implemented as:
 For visual clarity, macro arguments are indicated by a ',' prefix,
 like ,a. The arguments given to the macro (words, operands, numbers,
 substitution names, or entire trees) are spliced directly into the
-macro. In short, *tree macro's are a syntax-level facility*, and you
+macro. In short, *tree macros are a syntax-level facility*, and you
 should expect no more of them.
 
 Finally, **comments** are lines starting with the '#' sign. Space or

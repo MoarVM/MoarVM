@@ -90,26 +90,26 @@ the same operand, which is not directly supported in the memory model
 of the compiler, although it may be in the future).
 
 A tile description is a list that starts with the keyword
-<code>tile:</code>, followed by the tile *name*, the pattern proper,
+`tile:`, followed by the tile *name*, the pattern proper,
 the *symbol* that it generates, and the (estimated) tile *cost*. There
-are two supported symbols, namely __reg__, __flag__ and __void__. The
-__flag__ symbol refers to the output of a comparison or 'testing'
-operation and is in general only useful in conditional operations such
-as IF and WHEN. The __reg__ symbol refers to a physical register and
-is what we'll be using for the xor implementations. (This is again not
-future-exclusive, because I may want to add different symbols for
-numeric and/or SIMD registers). The __void__ symbol represents
-operations which yield no results. (NB: in the past there was a
-__mem__ symbol that stood for (compound) memory access. This approach
-has been abandoned after it was clear
+are three supported symbols, namely __reg__, __flag__ and
+__void__. The __flag__ symbol refers to the output of a comparison or
+'testing' operation and is in general only useful in conditional
+operations such as IF and WHEN. The __reg__ symbol refers to a
+physical register and is what we'll be using for the xor
+implementations. (This is again not future-exclusive, because I may
+want to add different symbols for numeric and/or SIMD registers). The
+__void__ symbol represents operations which yield no results. (NB: in
+the past there was a __mem__ symbol that stood for (compound) memory
+access. This approach has been abandoned after it was clear
 
-The first version of <code>xor</code> corresponds to the following
+The first version of `xor` corresponds to the following
 pattern:
 
     (tile: xor (xor reg reg) reg 2)
 
 Meaning it is a tile called 'xor', matching the expression tree node
-<code>XOR</code> (or <code>MVM_JIT_XOR</code>) and two register
+`XOR` (or `MVM_JIT_XOR`) and two register
 arguments, yields a register, and has a cost of 2. The derrivation of
 costs is explained below. By constrast, the second and third version
 correspond to these patterns:
@@ -117,8 +117,8 @@ correspond to these patterns:
     (tile: xor_consst (xor reg (const)) reg 3)
     (tile: xor_addr   (xor reg (load (addr reg))) reg 6)
 
-You may notice that the <code>(const)</code> and <code>(addr
-reg)</code> nodes are stripped from their argument values. That is
+You may notice that the `(const)` and `(addr
+reg)` nodes are stripped from their argument values. That is
 because argument values do not take part in tile matching. As a
 consequence, tiles should be written to accept (or reject) any
 arguments they will encounter.
@@ -129,9 +129,9 @@ tiles currently implemented.
 
 Finally, I note that the symbol names you choose in your tile must
 have an analogue defined somewhere in a suitable C header file, like
-<code>MVM_JIT_REG</code> and <code>MVM_JIT_FLAG</code> which are
+`MVM_JIT_REG` and `MVM_JIT_FLAG` which are
 defined in src/jit/expr.h; and also that all values marked
-<code>reg</code> are managed by the register allocator (and only those
+`reg` are managed by the register allocator (and only those
 values). I'm still looking for a good way to represent constraints on
 registers, so expect some changes in the future. More details on the
 interaction of tiles with the register allocator are described below.
@@ -155,18 +155,18 @@ the more important ones are:
 With that in mind, I use the following scheme to calculate costs:
 
 * Per instruction issued, I count 1. Per constant stored in the
-  instruction stream, I also count 1. Hence <code>(xor reg
-  (const))</code> is more expensive than <code>(xor reg reg)</code>.
+  instruction stream, I also count 1. Hence `(xor reg
+  (const))` is more expensive than `(xor reg reg)`.
 
 * Per register used as output or as temporary variable space, I
   count 1. This is irrelevant for 'call' nodes which spill
   values. Note that using *input* registers is free, since their costs
-  are calculated elsewhere. Hence <code>(xor reg (const))</code>
-  (total cost 3) is cheaper than <code>(const) + (xor reg reg)</code>
+  are calculated elsewhere. Hence `(xor reg (const))`
+  (total cost 3) is cheaper than `(const) + (xor reg reg)`
   (total cost 4), because the second version uses 2 instructions and
   two registers. 
 
-  In contrast, operations yielding <code>flag</code>
+  In contrast, operations yielding `flag`
   values don't pay for registers - the cost of converting flags
   to register values if necessary is paid by other operations.
 
@@ -211,9 +211,9 @@ library. Please read that link for detailed information on DynASM.
 With DynASM, tile implementation becomes simple.
 
 For x64, the tile name is declared in
-<code>src/jit/x64/tile_decl.h</code>. This is necessary as the tiler
+`src/jit/x64/tile_decl.h`. This is necessary as the tiler
 tables (which themselves reside in the generated header file
-<code>src/jit/x64/tile_tables.h</code> refer to the tile function
+`src/jit/x64/tile_tables.h` refer to the tile function
 symbol, and so require the name to be predeclared. Because the tile
 function signature is rather long, I use a macro to define the
 function:
@@ -224,93 +224,67 @@ function:
     MVM_JIT_TILE_DECL(xor_addr);
 
 The implementation is defined in
-<code>src/jit/x64/tiles.dasc</code>. This file is included from
-<code>src/jit/x64/emit.dasc</code>, which is the file that includes
+`src/jit/x64/tiles.dasc`. This file is included from
+`src/jit/x64/emit.dasc`, which is the file that includes
 the original JIT architecture-specific code. A tile implementation
 looks much like this:
 
     /* in src/jit/x64/tiles.dasc, supposing we only care about 8 byte xor */
     MVM_JIT_TILE_DECL(xor) {
-        int dst   = values[0]->reg_num;
-        int src_a = values[1]->reg_num;
-        int src_b = values[2]->reg_num;
+        int dst   = tile->values[0];
+        int src_a = tile->values[1];
+        int src_b = tile->values[2];
         if (values[0]->size < 8)
             MVM_oops(tc, "oops!");
-        if (src_a != dsst) {
+        if (src_a != dst) {
             | mov Rq(dst), Rq(src_a);
         }
         | xor Rq(dst), Rq(src_b);
     }
 
-In case you didn't read the DynASM link, the lines starting with a '|'
-are machine code that is to be emitted to the compiler. Of note is
-that in the expression model a node takes any number of input nodes
-(typically zero, one or two) and yields an output node (typically a
-value into a register). Hence the destination and source nodes are
-different. However, in x64 (and indeed all modes of x86) only two
-operands per instruction are supported, one of which typically acts as
-destination operand (as well as a source operand). Hence the xor
-operation here described overwrites the first operand. In case the
-first operand wil be used later, this is of course unacceptable. Hence
-the mov on the 9th line. However, in case the first operand *isn't*
-used later, reusing the register can serve as a minor but significant
-optimization. The register allocator tries to ensure that this is the
-case for all relevant tiles, and tile writers should try to take
-advantage of this if possible. Note that architectures which use more
-standard (and sane) three-operand instructions do not have to take
-this into account. Note also that the size of the operands is a
-parameter; usually you should use the biggest of the child operand
-sizes as definitive. Please, please, please check and fail on sizes
-you do not expect to handle, because bugs in emitted code are much
-more difficult to debug than bugs in the code generator.
+The lines starting with a '|' are machine code that is to be emitted
+to the compiler. Of note is that in the expression model a node takes
+any number of input nodes (typically zero, one or two) and yields an
+output node (typically a value into a register). Hence the destination
+and source nodes are different. However, in x64 (and indeed all modes
+of x86) only two operands per instruction are supported, one of which
+typically acts as destination operand (as well as a source
+operand). Hence the xor operation here described overwrites the first
+operand. In case the first operand wil be used later, this is of
+course unacceptable. Hence the mov on the 9th line. However, in case
+the first operand *isn't* used later, reusing the register can serve
+as a minor but significant optimization. The register allocator tries
+to ensure that this is the case for all relevant tiles, and tile
+writers should try to take advantage of this if possible. Note that
+architectures which use more standard (and sane) three-operand
+instructions do not have to take this into account. Note also that the
+size of the operands is a parameter; usually you should use the
+biggest of the child operand sizes as definitive. Please, please,
+please check and fail on sizes you do not expect to handle, because
+bugs in emitted code are much more difficult to debug than bugs in the
+code generator.
 
 It is probably of interest what the exact argument list definition of
 a tile really is. A tile function receives the following arguments in
 order:
 
-* <code>MVMThreadContext *tc</code> - the current thread context
+* `MVMThreadContext *tc` - the current thread context
   passed to all MVM functions
-* <code>MVMJitCompiler *compiler</code> - the compiler object, which
+
+* `MVMJitCompiler *compiler` - the compiler object, which
   is aliased via macro magically to a DynASM handle object, which
   magically ensures that the dynasm statements work. Also the general
   manager of labels and registers etc.
-* <code>MVMJitExprTree *tree</code> - the tree object that is being
+
+* `MVMJitTile *tile` - the tile object that holds the values and
+  parameter arguments.
+
+* `MVMJitExprTree *tree` - the tree object that is being
   compiled. Contains pretty much all data relevant to the compilation
   that is not kept in the compiler structure; however in tiles it's
   mostly used to extract argument data, since other data is made
   available in more convenient ways.
-* <code>MVMint32 node</code> - the node compiled in this tile.
-* <code>MVMJitExprValue **values</code> - an array of 'value' objects,
-  which holds (among other things) the register number and register
-  type allocated to the value. Significantly, <strong>there is a value
-  object for every symbol node in the pattern, starting from index 1;
-  and index 0 refers to the value generated by this node</strong>.
-* <code>MMVJitExprNode *args</code> - the arguments of this specific
-  node, if any.
 
-These values are thus available to any tile that is compiled. Often, a
-till will require data that is 'deeper' in the tree, for instance the
-first argument of and <code>addr</code> node which represents the
-constant offset from the addreess specified by the register. It is
-altogether rather inconvenient to provide a generic way of extracting
-this from the tree, although I do hope I change my mind about that,
-and so the best way of getting these values currently is to use the XS
-macro's defined for tiles:
-
-    /* get the offset of the addr in (xor reg (load (addr))) */
-    int ofs = XS2(tree->nodes, 2, 1);
-    /* the same */
-    int of2 = XS(XS(tree->nodes, 2), 1);
-
-I have a possible change to this setup that I might as well share
-here. First of all, the reason why I can't just pass you these values
-is related to why I can (and must) collect the register arguments in
-the <code>values</code> array. This works by generating - at tile
-preprocessing time - an array of lookup instructions based on the
-pattern. The rule is simple; any symbol that is not the node name goes
-into the lookup table. This is necessary for 'automatic' (from the
-point of view of a tile) register allocation to work. However, the
-tiler also uses these symbols to construct the table. 
 
 
 
