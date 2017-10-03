@@ -14,6 +14,7 @@ RM_F   = $(PERL) -MExtUtils::Command -e rm_f
 
 MINGW_UNICODE = @mingw_unicode@
 
+
 CONFIG    = @config@
 ADDCONFIG =
 
@@ -57,15 +58,20 @@ PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
                  src/platform/posix/time@obj@
 
 DASM_FLAGS   = @dasm_flags@
-JIT_ARCH_X64 = src/jit/x64/emit@obj@
+JIT_ARCH_X64 = src/jit/x64/emit@obj@ src/jit/x64/arch@obj@
 JIT_STUB     = src/jit/stub@obj@
 JIT_OBJECTS  = src/jit/graph@obj@ \
                src/jit/label@obj@ \
                src/jit/compile@obj@ \
-               src/jit/log@obj@
-# JIT intermediate files which clean should remove
-JIT_INTERMEDIATES = src/jit/x64/emit.c
+               src/jit/log@obj@ \
+               src/jit/expr@obj@ \
+               src/jit/tile@obj@ \
+               src/jit/linear_scan@obj@
 
+# JIT intermediate files which clean should remove
+JIT_INTERMEDIATES = src/jit/x64/emit.c \
+                    src/jit/x64/tile_pattern.h \
+                    src/jit/core_templates.h
 
 MAIN_OBJECTS = src/main@obj@
 
@@ -186,9 +192,9 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/log@obj@ \
           src/spesh/threshold@obj@ \
           src/spesh/inline@obj@ \
-          src/spesh/iterator@obj@ \
           src/spesh/osr@obj@ \
           src/spesh/lookup@obj@ \
+          src/spesh/iterator@obj@ \
           src/spesh/worker@obj@ \
           src/spesh/stats@obj@ \
           src/spesh/plan@obj@ \
@@ -240,6 +246,7 @@ HEADERS = src/moar.h \
           src/core/threads.h \
           src/core/hll.h \
           src/core/loadbytecode.h \
+          src/core/bitmap.h \
           src/math/num.h \
           src/core/coerce.h \
           src/core/dll.h \
@@ -339,8 +346,8 @@ HEADERS = src/moar.h \
           src/spesh/threshold.h \
           src/spesh/inline.h \
           src/spesh/osr.h \
-          src/spesh/iterator.h \
           src/spesh/lookup.h \
+          src/spesh/iterator.h \
           src/spesh/worker.h \
           src/spesh/stats.h \
           src/spesh/plan.h \
@@ -374,7 +381,11 @@ HEADERS = src/moar.h \
           src/platform/memmem.h \
           src/jit/graph.h \
           src/jit/label.h \
+          src/jit/expr.h \
+          src/jit/expr_ops.h \
           src/jit/compile.h \
+          src/jit/tile.h \
+          src/jit/register.h \
           src/jit/log.h \
           src/instrument/crossthreadwrite.h \
           src/instrument/line_coverage.h \
@@ -449,7 +460,7 @@ DYNASM  = $(MINILUA) 3rdparty/dynasm/dynasm.lua
 DYNASM_SCRIPTS = 3rdparty/dynasm/dynasm.lua 3rdparty/dynasm/dasm_x86.lua
 DYNASM_HEADERS = 3rdparty/dynasm/dasm_proto.h 3rdparty/dynasm/dasm_x86.h
 
-.SUFFIXES: .c @obj@ .i @asm@ .dasc
+.SUFFIXES: .c @obj@ .i @asm@ .dasc .expr .tile
 
 all: moar@exe@ pkgconfig/moar.pc
 
@@ -570,12 +581,33 @@ $(MINILUA): 3rdparty/dynasm/minilua.c
 	$(CC) $(CFLAGS) $(LDFLAGS) 3rdparty/dynasm/minilua.c -o $@ $(LDLIBS)
 
 .dasc.c:
-	$(MSG) preprocessing $@
+	$(MSG) preprocessing $<
 	$(CMD)$(DYNASM) $(DASM_FLAGS) -o $@ $<
+
+.expr.h:
+	$(MSG) Precompiling templates from $<
+	$(CMD)$(PERL) -Itools/ tools/expr-template-compiler.pl -o $@ $<
+
+.tile.h:
+	$(MSG) Building tile tables from $<
+	$(CMD)$(PERL) -Itools/ tools/tiler-table-generator.pl -o $@ $<
 
 src/jit/x64/emit@obj@: src/jit/x64/emit.c $(DYNASM_HEADERS)
 
-src/jit/x64/emit.c: src/jit/x64/emit.dasc $(MINILUA) $(DYNASM_SCRIPTS)
+src/jit/x64/emit.c: src/jit/x64/emit.dasc src/jit/x64/tiles.dasc $(MINILUA) $(DYNASM_SCRIPTS)
+
+# Expression list tables
+src/jit/core_templates.h: src/jit/core_templates.expr src/jit/macro.expr tools/expr-template-compiler.pl src/core/oplist src/jit/expr_ops.h
+
+# Architecture-specific tiles
+src/jit/x64/tile_pattern.h: src/jit/x64/tile_pattern.tile tools/tiler-table-generator.pl src/jit/expr_ops.h
+
+src/jit/expr@obj@: src/jit/core_templates.h
+src/jit/tile@obj@: src/jit/x64/tile_pattern.h src/jit/x64/tile_decl.h
+
+src/jit/compile@obj@ src/jit/linear_scan@obj@ src/jit/x64/arch@obj@ @jit_obj@: src/jit/internal.h src/jit/x64/arch.h
+
+
 
 
 @uvlib@: $(UV_OBJECTS)

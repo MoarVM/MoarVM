@@ -1,0 +1,369 @@
+#+TITLE: JIT Compiler TODO list
+
+* VM integration
+** Stack walker for current position
+
+ Currently we mark the 'current position' in the JIT entry label at the
+ start of every basic block, the start-and-end of frame handlers, and
+ the start-and-end of inlines. This is major code bloat, for a feature
+ that is only necessary in exceptional cases,
+
+ Concept of stack walker is very simple:
+ #+BEGIN_SRC asm
+        mov rcx, 1 ; rsp = []
+        call foo  ; rsp = [label:],
+ label: mov rcx, rax;  rsp = []
+        ...
+
+ foo: ; stack (from rsp) looks like: [label:]
+      push rbp     ; [label:,rbp]
+      mov rbp, rsp ; rbp is now top of stack, so that
+      add rsp, 0xff; rsp = [label:,rbp, ? x 1]
+      ...
+      sub rsp, 0xff ; rsp = [label:,rbp]
+      pop rbp       ; rsp = [label:]
+      ret           ; rsp = []
+ #+END_SRC
+
+ - On POSIX, arg 0 = rdi, arg 1 = rsi, arg2 = rdx.
+ - On Windows, arg0 = rcx, arg1 = rdx, arg2 = r8.
+ - On linux, names are generally used as-is, mac wants them prefixed by an underscore.
+
+ Desirable thing: limit the depth of stack walking to some reasonable number (say, 5 or so)
+
+ #+BEGIN_SRC asm
+ walk_stack_posix:
+ _walk_stack_posix:
+     mov rcx, rdi ; base pointer
+     mov r8,  rdx ; maximum number of steps
+     mov rdx, rsi ; end pointer
+ _walk_stack_win64:
+     # rdi = base pointer, rsi = end pointer
+     push rbp
+     mov r9, rsp
+ loop:
+     dec r8 ; counter
+     jz done
+     mov rax, qword ptr [r9+0x8]
+     mov r9, qword ptr [r9]
+     cmp rax, rcx
+     jl  loop
+     cmp rax, rdx
+     jg  loop
+ done:
+     ## rax is now within range by definition, or, we're to deep
+     pop rbp
+     ret
+ #+END_SRC
+
+ There are three things to do:
+
+ This doesn't have to start in the expr JIT though.
+
+ - Figure out where we need it. As far as I can tell, this is separate
+   from the jit_entry_label thing, and we will never *set* the
+   jit_entry_label with the result of this value, as that might lead to
+   a jump right behind the handler, and in the case of a THROWISH_POST,
+   an infinite loop. Indeed throwish_pre and throwish_post don't change.
+   - src/exceptions.c: search_frame_handlers (we compare the current
+     jit label, but we're interested in the current position); other
+     than that, the only updates are to the goto_handlers, and/or
+     setting the resum labels, but that only ever happens with
+     throwobj, and that one is explicitly throwish anyway, so the
+     jit_entry_label will be set correct.y
+   - src/core/frame.c: assignments from predefined labels, but, also,
+     MVM_frame_find_contextual_by_name, which uses it as a location
+     marker. For frames higher in the callstack, that is correct,
+     though, so we need to distinguish the top frame from the rest.
+   - src/spesh/deopt.c: for upper frames, we use jit_entry_label as
+     current location marker.... which is correct as it relies on exact
+     matches, and anything invoking anything that could deopt_all must
+     set the label anyway.
+ - Finally, configure our toolchain so they have
+   -fno-omit-frame-pointer portably, this is spelled [[https://msdn.microsoft.com/en-us/library/2kxx5t2c.aspx][/Oy]] in microsoft
+   land.
+ - Integrate this in the build system. clang and gcc can build this
+   just fine (clang is ... whiney about comment syntax).  Microsoft
+   has: [[https://docs.microsoft.com/en-us/cpp/assembler/masm/masm-for-x64-ml64-exe][ml64]]. It also supports intel syntax. It can be a bit fuzzy
+   about directives. I don't want to ask our users to install another
+   assembler, but what I can do is use the C preprocessor to smoothen
+   out the differences (with $(CC) -E or whatever is the equivalent for
+   windows).
+* Tools
+** Make jit-dump work on windows
+
+ This should be doable, really, if rather than pipe-and-fork, we simply
+ use a temporary file and use that as an intermediate.
+
+* Expression Tree
+
+** REPR-Specialized expression code
+
+ Parts needed:
+ + A hook for instructions with operands of known repr type to insert a template
+   + So how do we know which instruction/operand this is? (Hardcode with a switch, maybe)
+   + Runtime hook should be similar to spesh hook
+   + We should probably pass the tree and let the repr do manipulations itself for maximum flexibility
+   + and have a default hook which attempts to apply a template
+   + return root if succesful, otherwise -1 (in which case we can fallback to the normal mode)
+   + should have a separate jit flags entry which is also settable by
+     the specializer (for jittivity, template destructiveness, possibly
+     other things)
+   + operands loading must be public / template apply must become 'public methods'
+ + Compile-time support for arbitrary templates in the expression templates
+   + I think adding to a makefile list is acceptable, in general, but
+     it would be nice if we could have a substitution rule that would
+     make sure the expression templates are compiled 'automatically'
+
+ #+BEGIN_SRC makefile
+ EPXR_TEMPLATES=src/jit/core_expr.h \
+                src/6model/reprs/MMArray_expr.h \
+                src/6model/reprs/NativeRef_expr.h \
+                src/6model/reprs/MultiDimArray_expr.h \
+ # preferefably, we'd match the .expr with the file name automatically
+
+ src/6model/reprs/%.c: src/6model/reprs/%_expr.h # would be ideal, but this is not automatically picked up
+ # Expression list tables
+ %_expr_tables.h: %.expr tools/expr-template-compiler.pl src/core/oplist src/jit/expr_ops.h
+	 $(PERL) -Itools/ tools/expr-template-compiler.pl -o $@ $<
+ #+END_SRC
+
+** FLAGVAL ALL/ANY
+
+ Basically, flagval all/any is legal according to the type system, it
+ will just never work. We should translate it to (IF (ALL|ANY ..)
+ (CONST 1 1) (CONST 0 1))
+
+ The problem is, replacing all references to the node. (This is common
+ with the optimizer, which also needs it).
+
+ We don't actually need this yet, but we don't guard against it
+ either. (So maybe install an oops in analyze first).
+** Reduce tree node size to 32 bits
+
+ Tree nodes are currently 64 bits wide to allow them to coexist with
+ constant pointers. This is handy, but not really required, since we
+ could use a lookup table to get the pointers (as long as we can
+ declare pointers, for which I think we can still use the '@' sigil, e.g:
+
+ #+BEGIN_EXAMPLE
+ (template: say
+    (call (const @MVM_string_say ptr_sz)
+          (arglist 2
+            (carg (tc) ptr)
+            (carg $0 ptr))
+ #+END_EXAMPLE
+
+ The @MVM_string_say pointer can be stashed in an array:
+
+ #+BEGIN_SRC C
+ static const void *MVM_jit_expr_ptrs[] = {
+    ...
+    MVM_string_say,
+    ...
+ };
+ #+END_SRC
+
+ And the pointer itself replaced by the index.
+
+ We could argue against dealing with 64 bit constants in general, but
+ unfortunately, const_i64 prevents us from doing that.... Ways of
+ dealing with that:
+
+ + A 'large constants' table per tree (into which we could copy both the
+   i64 constants and the function pointer constants)
+   + We could store this entire table in the data section, too
+ + A 'large constants' op, which could take the space to store the 64
+   bit constant directly; one of the advantages of that is that we
+   could specialise tiling to that (e.g. there is no advantage to
+   including a very large constant in the ADD tile since the underlying
+   'add' instruction cannot handle it).
+ + Or both: have a large_const op and a large_const table, and only
+   have the large_const op refer to the large_const table (i.e. not the
+   regular const)
+
+** Use explicit stack for tree walking
+
+Simple, mechanical transformation. I wonder if we can have a maximum
+depth; probably not, if we can allow revisits. More importantly, this
+should allow for some control on the iteration order
+** Right-to-left evaluation
+
+ E.g. (STORE addr value sz) - it usually makes sense to calculate value
+ before address. There are a bunch of these things, and then again, a
+ bunch of things that rely on left-to-right evaluation:
+
+ + IF/IFV
+ + ALL/ANY
+ + DO/DOV
+
+ So the thing is probably to:
+ + store a preference per op
+ + add a policy for the traverser (default,left-to-right,right-to-left)
+
+
+* Register Allocator
+
+** Support multiple register classes
+
+I want to distinguish register classes using ranges, i.e. on x86-64,
+0-15 are GPR, 16-31 would be FPR. The trick is mostly:
+
+*** Find out if register selection for FPRs is supported
+*** Support register buffers per class
+
+
+** Generalized 3-operand to 2-operand conversion
+
+Already implemented for direct-memory binary ops, but needs to be
+extended to take into account indirect-access ops and memory base +
+indexed ops.
+
+More to the point, I'd like this to be a restriction we can build into
+the allocator itself, so it doesn't need last-minute patchup.
+
+*** Use register stack rather than ring buffer
+
+Ring buffers register allocation 'cycle' through registers and thereby
+cause more moves than a stack would.
+
+** Reduce spills
+*** Maintain memory backed positions
+
+Currently, when we need to spill a value, we always treat it as if it
+were a temporary, i.e. we store it to a *new* location in the local
+memory buffer. We increment the local memory buffer, too.  This is
+suboptimal for values that are not temporaries, i.e. values that are
+stored to the local value buffer anyway.
+
++ stored to a local value
++ directly retrieved from a local value
+
+There are two classes of such values:
+There is no need to ever spill such values to memory.
+
+ #+BEGIN_SRC c
+ /* Return -1 if not a local store, 0 <= i <= frame->work_size if it is */
+ MVMint32 is_local_store(MVMJitExprTree *tree, MVMint32 node) {
+     if (tree->nodes[node] != MVM_JIT_STORE)
+         return -1;
+     node = tree->nodes[node + 1];
+     if (tree->nodes[node] != MVM_JIT_ADDR)
+         return -1;
+     if (tree->nodes[tree->nodes[node + 1]] != MVM_JIT_LOCAL)
+         return -1;
+     return tree->nodes[node+2];
+ }
+
+ MVMint32 has_local_location(MVMJitExprTree *tree, MVMint32 node) {
+     MVMSpeshIns *ins = tree->info[node].spesh_ins;
+     if (ins == NULL || ins->op_info->num_operands == 0 ||
+         (ins->info->operands[0] & MVM_operand_rw_mask) != MVM_operand_write_reg)
+         return -1;
+     return ins->op_info->operands[0].reg.orig;
+ }
+ #+END_SRC
+
+
+*** Don't spill-and-load directly between definition and use
+
+Or rather, if we can prove that there can be no 'spills' inbetween a
+definition and use (and they are in the same basic block), let's
+'merge' the atomic live ranges.
+
+*** Don't spill constants
+
+ - We can either do that as part of the optimizer, or as part of the
+   allocator, or both.
+ - It is *simpler* to do it for the allocator (if a value we're
+   spilling has a single definition, and that definition is a constant,
+   copy it)
+ - It might be more effective to do it in the expression optimizer
+** Generalized register requirements
+Bunch of options possible:
+- it's a requirement for an output register
+  - the register is allocatable
+    - which is /free/, in which case we can just take it (how I do I
+      know it's free? by a register map, which we need to make)
+    - which is /not free/, in which case we need to /spill/ the
+      current register
+  - the register is not allocatable (e.g. %rax)
+    - I'm going to go ahead and assume that it is free nevertheless,
+      otherwise we'd have to record the set of non-allocatable
+      registers clobbered
+    - However, if the value is to live, it's probably best to copy it
+      to an allocatable register
+- it is a requirement for an input register
+  - that is not yet a problem I have (because I made %rax the spare
+    register), but most of the considerations of clobbering described
+    below apply
+  - it is an existing problem for ARGLIST compilation, but there it is
+    handled seprately (although it is fairly similar, and might generalize!)
+- it clobbers a register (not necessarily one it uses), e.g. div which
+  clobbers %rdx to store the modulo (and %rax for the quotient).
+  - if free, no problem whatever
+  - if non-free, we again need to start moving registers, but I'm not
+    sure this requires the full shuffling requirements of ARGLIST.
+
+*** Precoloring
+
+ I'd like to try and figure out if we can add 'prefered registers' to
+ tiles based on definition or use in tile requirements.
+
+** Try to use 'holes' for allocation.
+
+Not 100% sure this is worth the additional complexity since it means
+that a register can have multiple occupants, which means you'll want
+to use a linked list, and a heap for maintaining the first-to-expire
+set, or a double-ended priority queue, etc.
+
+Simplest thing to do is try and prove that the live range will be
+'embedded' within the hole in all cases. But this is tricky when there
+might be a spill inbetween.
+
+** Support loops in lifetime hole finding
+
+Note that Wimmer's paper describes computing holes and live range
+extents are implemented in a single step, so we might implement that
+as well.
+
+* Optimizer
+
+Not implemented at all, so we need some new things.
+
+** DONE An equivalence function
+** TODO A replacement 'function'
+
+Basically we require the possibility to update all uses of a node with
+another one, including roots, if necessary.
+
+Now, there will never be more uses than nodes, so we can build a
+'usage' table-of-linked-list from a single block of memory.
+
+Walks should be single-visit.
+
+** TODO Example optimizations
+
+- common subexpression elimination
+  - idea: (hash) table of expr, node
+  - table is created bottom-up
+    - all children are replaced with equivalent (according to the table)
+    - then parent is itself 'hashed' to a record, an potentially
+      replaced
+- IDX CONST to ADDR conversion
+  - Uses one register less, simpler operation
+- ADD CONST to ADDR conversion
+  - only allowed if user is pointerlike (e.g. LOAD)
+- COPY insertion
+  - Values that are LOAD-ed and used from multiple operations might
+    benefit from inserting a COPY, so they don't use indirect
+    operations, e.g.
+  - Basic idea: count number of users of 'load', if > 1, insert the
+    COPY node and replace the refs
+  - Possibly a pessimization because it requires more registers!
+- COPY elimination
+  - possibly the first step, removing redundant copies
+- CONST copying
+  - A const never needs to be kept in memory, and it is just as well
+    to keep just a single reference to it.
+

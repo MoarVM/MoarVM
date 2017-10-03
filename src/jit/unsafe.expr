@@ -1,0 +1,79 @@
+# Difficult stuff, that hasn't been tested sufficiently adequately to support
+
+
+
+(template: getlex_no
+  (let: (($res
+    (call (^func &MVM_frame_find_lexical_by_name)
+          (arglist (carg (tc) ptr)
+                   (carg (^cu_string $1) ptr)
+                   (carg (const (&QUOTE MVM_reg_obj) int_sz) int))
+           ptr)))
+   (if (nz $res) (load $res ptr_sz) $res)))
+
+
+
+
+(template: return
+  (do 3
+       (callv (^func &MVM_args_assert_void_return_ok)
+             (arglist
+                  (carg (tc) ptr)
+                  (carg (const 0 int_sz) int)))
+       (callv (^func &MVM_frame_try_return)
+              (arglist 1 (carg (tc) ptr)))
+       (^exit)))
+
+(template: return_o
+  (do 3
+     (call (^func &MVM_args_set_result_obj)
+           (arglist
+              (carg (tc) ptr)
+              (carg $0 ptr)
+              (carg (const 0 int_sz) int))
+           void)
+     (call (^func &MVM_frame_try_return)
+           (arglist 1 (carg (tc) ptr))
+           void)
+     (^exit)))
+
+(template: setdispatcher
+  (^setf (tc) MVMThreadContext cur_dispatcher $0))
+
+(template: takedispatcher
+  (let: (($cur (^getf (tc) MVMThreadContext cur_dispatcher)))
+        (do
+           (^setf (tc) MVMThreadContext cur_dispatcher (const 0 ptr_sz))
+           (copy $cur))))
+
+
+(template: getcode
+  (let: (($arr (^getf (cu) MVMCompUnit body.coderefs)))
+        (load (idx $arr $1 ptr_sz) ptr_sz)))
+
+(template: callercode
+  (let: (($caller (^getf (frame) MVMFrame caller)))
+        (if (nz $caller)
+            (^getf $caller MVMFrame code_ref)
+            (const 0 ptr_sz))))
+
+
+(macro: ^throw_adhoc (,msg)
+   (die (^func &MVM_exception_throw_adhoc)
+        (arglist 2 (carg (tc) ptr)
+                    (carg (const ,msg ptr_sz) ptr))))
+       
+
+
+(template: ctxcode
+    (do
+        (when (any (^is_type_obj $1)
+                   (ne (^getf (^repr $1) MVMREPROps ID)
+                       (const (&QUOTE MVM_REPR_ID_MVMContext) (&SIZEOF_MEMBER MVMREPROps ID))))
+              (^throw_adhoc (&MSG ctxcode needs an MVMContext)))
+        (^getf (^getf $1 MVMContext body.context) MVMFrame code_ref)))
+
+# These properly yield a flag, not a register value.
+# I maybe want to add a flag-to-register op
+
+

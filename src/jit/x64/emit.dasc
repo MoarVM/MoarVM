@@ -1,3 +1,4 @@
+/* -*-C-*- */
 #include "moar.h"
 #include "jit/internal.h"
 #include "dasm_x86.h"
@@ -285,6 +286,7 @@ const unsigned int MVM_jit_num_globals(void) {
 /* A function prologue is always the same in x86 / x64, because
  * we do not provide variable arguments, instead arguments are provided
  * via a frame. All JIT entry points receive a prologue. */
+
 void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitCompiler *compiler,
                            MVMJitGraph *jg) {
     |.code
@@ -2174,8 +2176,8 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
     }
 }
 
-void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
-                         MVMJitBranch * branch) {
+void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                               MVMJitBranch * branch) {
     MVMSpeshIns *ins = branch->ins;
     MVMint32 name = branch->dest;
     /* move gc sync point to the front so as to not have
@@ -2269,8 +2271,44 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
 }
 
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
-                        MVMJitLabel *label) {
-    | =>(label->name):
+                        MVMint32 label) {
+    | =>(label):
+}
+
+void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 label) {
+    | jmp =>(label);
+}
+
+void MVM_jit_emit_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                                     MVMint32 cond, MVMint32 label) {
+    switch (cond) {
+    case MVM_JIT_LT:
+        | jl =>(label);
+        break;
+    case MVM_JIT_LE:
+        | jle =>(label);
+        break;
+    case MVM_JIT_EQ:
+        | je =>(label);
+        break;
+    case MVM_JIT_NE:
+        | jne =>(label);
+        break;
+    case MVM_JIT_GE:
+        | jge =>(label);
+        break;
+    case MVM_JIT_GT:
+        | jg =>(label);
+        break;
+    case MVM_JIT_NZ:
+        | jnz =>(label);
+        break;
+    case MVM_JIT_ZR:
+        | jz =>(label);
+        break;
+    default:
+        MVM_oops(tc, "this condition cannot be compiled with conditional_branch");
+    }
 }
 
 void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
@@ -2474,10 +2512,12 @@ void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
     |2:
 }
 
-void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
-                          MVMJitControl *ctrl) {
+void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                          MVMJitControl *ctrl, MVMJitTile *tile) {
     /* TODO - rename invokish and pre and post invokish into something that makes more sense */
-    if (ctrl->type == MVM_JIT_CONTROL_INVOKISH) {
+    MVMJitControlType type = (tile != NULL ? tile->args[0] : ctrl->type);
+    MVMint8 tmp = (tile != NULL ? tile->values[0] : MVM_JIT_REG(RCX));
+    if (type == MVM_JIT_CONTROL_INVOKISH) {
         MVM_jit_log(tc, "Emit invokish control guard\n");
         /* This relies on the fact that MVM_JIT_THROWISH_PRE has already
          * assigned the jit entry label */
@@ -2487,46 +2527,127 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
         | jmp ->exit;
         |9:
     }
-    else if (ctrl->type == MVM_JIT_CONTROL_DYNAMIC_LABEL) {
+    else if (type == MVM_JIT_CONTROL_DYNAMIC_LABEL) {
         MVM_jit_log(tc, "Emit throwish control guard\n");
         /* This pre-loads a label for the next op, so that throwish
          * operators will know where we're throwing from - NB, I'm not
          * totally sure this is still necessary now */
-        | lea TMP1, [>1];
-        | mov TMP2, TC->cur_frame;
-        | mov aword FRAME:TMP2->jit_entry_label, TMP1;
+        | lea rax, [>1];
+        | mov Rq(tmp), TC->cur_frame;
+        | mov aword FRAME:Rq(tmp)->jit_entry_label, rax;
         |1:
     }
-    else if (ctrl->type == MVM_JIT_CONTROL_THROWISH_PRE) {
+    else if (type == MVM_JIT_CONTROL_THROWISH_PRE) {
         /* Store a reference to the 9 label below. I assume this label isn't
          * used in the intermediate instructions, which is basically valid
          * throughout this codebase. */
-        | lea TMP1, [>9];
-        | mov TMP2, TC->cur_frame;
-        | mov aword FRAME:TMP2->jit_entry_label, TMP1;
+        | lea Rq(tmp), [>9];
+        | mov rax, TC->cur_frame;
+        | mov aword FRAME:rax->jit_entry_label, Rq(tmp);
     }
-    else if (ctrl->type == MVM_JIT_CONTROL_THROWISH_POST) {
+    else if (type == MVM_JIT_CONTROL_THROWISH_POST) {
         /* check if our current frame is the same as it was */
-        | mov TMP1d, dword TC->current_frame_nr;
-        | cmp TMP1d, FRAME_NR;
+        | mov eax, dword TC->current_frame_nr;
+        | cmp eax, FRAME_NR;
         | jne >8;
         /* if it is, we may still be in a goto-handler, so in that
          * case the throwing machinery should have ensured that
          * jit_entry_label now points to the correct label. If not, it
          * still points to 9:. */
-        | mov TMP1, TC->cur_frame;
-        | jmp aword FRAME:TMP1->jit_entry_label;
+        | mov rax, TC->cur_frame;
+        | jmp aword FRAME:rax->jit_entry_label;
         /* if not the same frame, trampoline to interpreter */
         |8:
         | jmp ->exit;
         /* I assume we *never* use a local label 9 in the code between
          * pre-and-post throwish */
         |9:
-    } else if (ctrl->type == MVM_JIT_CONTROL_BREAKPOINT) {
+    } else if (type == MVM_JIT_CONTROL_BREAKPOINT) {
         /* brrts evil testing purposes breakpoint */
         | int 3;
     } else {
-        MVM_panic(1, "Unknown conrtol code: <%s>", ctrl->ins->info->name);
+        MVM_panic(1, "Unknown control code: <%s>", ctrl->ins->info->name);
+    }
+}
+
+
+void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                       MVMint32 reg_cls, MVMint8 reg_dst,
+                       MVMint32 mem_cls, MVMint32 mem_src, MVMint32 size) {
+    MVMint8 mem_base;
+    if (mem_cls == MVM_JIT_STORAGE_LOCAL) {
+        mem_base = MVM_JIT_REG(RBX);
+    } else if (mem_cls == MVM_JIT_STORAGE_STACK) {
+        mem_base = MVM_JIT_REG(RSP);
+    } else {
+        MVM_panic(1, "Cannot refer to this memory class: %d", mem_cls);
+    }
+    if (reg_cls == MVM_JIT_STORAGE_GPR) {
+        switch(size) {
+        case 1:
+            | mov Rb(reg_dst), byte [Rq(mem_base)+mem_src];
+            break;
+        case 2:
+            | mov Rw(reg_dst), word [Rq(mem_base)+mem_src];
+            break;
+        case 4:
+            | mov Rd(reg_dst), dword [Rq(mem_base)+mem_src];
+            break;
+        case 8:
+            | mov Rq(reg_dst), qword [Rq(mem_base)+mem_src];
+            break;
+        }
+    }
+}
+
+void MVM_jit_emit_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                        MVMint32 mem_cls, MVMint32 mem_dst,
+                        MVMint32 reg_cls, MVMint8 reg_src, MVMint32 size) {
+
+    MVMint8 mem_base;
+    if (mem_cls == MVM_JIT_STORAGE_LOCAL) {
+        mem_base = MVM_JIT_REG(RBX);
+    } else if (mem_cls == MVM_JIT_STORAGE_STACK) {
+        mem_base = MVM_JIT_REG(RSP);
+    } else {
+        MVM_panic(1, "Cannot refer to this memory class: %d", mem_cls);
+    }
+    if (reg_cls == MVM_JIT_STORAGE_GPR) {
+        switch (size) {
+        case 1:
+            | mov byte [Rq(mem_base)+mem_dst], Rb(reg_src);
+            break;
+        case 2:
+            | mov word [Rq(mem_base)+mem_dst], Rw(reg_src);
+            break;
+        case 4:
+            | mov dword [Rq(mem_base)+mem_dst], Rd(reg_src);
+            break;
+        case 8:
+            | mov qword [Rq(mem_base)+mem_dst], Rq(reg_src);
+            break;
+        }
+    }
+}
+
+void MVM_jit_emit_copy(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                       MVMint32 dst_cls,  MVMint8 dst_reg, MVMint32 src_cls, MVMint8 src_reg) {
+    if (dst_cls == src_cls) {
+        if (dst_cls == MVM_JIT_STORAGE_GPR) {
+            | mov Rq(dst_reg), Rq(src_reg);
+        } else {
+            MVM_oops(tc, "numeric regs nyi");
+        }
+    } else {
+        MVM_oops(tc, "numeric regs nyi");
+    }
+}
+
+
+void MVM_jit_emit_marker(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 num) {
+    MVMint32 i;
+    for (i = 0; i < num; i++) {
+        | nop;
     }
 }
 
@@ -2545,3 +2666,6 @@ void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitDat
 void MVM_jit_emit_save_rv(MVMThreadContext *tc, MVMJitCompiler *compiler) {
     | mov qword SAVED_RV, RV;
 }
+
+/* import tiles */
+|.include src/jit/x64/tiles.dasc

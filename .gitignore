@@ -74,6 +74,10 @@ jit-*.bin
 
 # dynasm emitted files
 src/jit/x64/emit.c
+# jit expression table file
+src/jit/core_templates.h
+src/jit/x64/tile_pattern.h
 
 # generated code
 tools/lib/MAST/Ops.pm
+

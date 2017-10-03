@@ -1043,7 +1043,6 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                     MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop\n", ins->info->name);
                     jg_append_call_c(tc, jg, function, 9, args, MVM_JIT_RV_VOID, -1);
                     jg_sc_wb(tc, jg, ins->operands[0]);
-
                     return 1;
                 } else {
                     MVM_jit_log(tc, "devirt: couldn't %s; concreteness not sure\n", ins->info->name);
@@ -1068,7 +1067,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                          { MVM_JIT_REG_VAL,     attrname } };
 
 
-                MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
+                MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop\n", ins->info->name);
                 jg_append_call_c(tc, jg, function, 4, args, MVM_JIT_RV_INT, result);
                 return 1;
                 break;
@@ -1299,12 +1298,23 @@ skipdevirt:
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
+    case MVM_OP_bindkey_n:
+    case MVM_OP_bindpos_n: {
+        MVMint32 invocant = ins->operands[0].reg.orig;
+        MVMint32 key_pos = ins->operands[1].reg.orig;
+        MVMint32 value = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, invocant },
+                                 { MVM_JIT_REG_VAL, key_pos },
+                                 { MVM_JIT_REG_VAL_F, value } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+        jg_sc_wb(tc, jg, ins->operands[0]);
+        break;
+    }
     case MVM_OP_bindpos_i:
-    case MVM_OP_bindpos_n:
     case MVM_OP_bindpos_s:
     case MVM_OP_bindpos_o:
     case MVM_OP_bindkey_i:
-    case MVM_OP_bindkey_n:
     case MVM_OP_bindkey_s:
     case MVM_OP_bindkey_o: {
         MVMint32 invocant = ins->operands[0].reg.orig;
@@ -1313,7 +1323,7 @@ skipdevirt:
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
                                  { MVM_JIT_REG_VAL, invocant },
                                  { MVM_JIT_REG_VAL, key_pos },
-                                 { op == MVM_OP_bindpos_n || op == MVM_OP_bindkey_n ? MVM_JIT_REG_VAL_F : MVM_JIT_REG_VAL, value } };
+                                 { MVM_JIT_REG_VAL, value } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
         jg_sc_wb(tc, jg, ins->operands[0]);
         break;
@@ -1679,7 +1689,8 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         }
         /* This is now necessary for the invokish control to work correctly */
         jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_THROWISH_PRE);
-        jg_append_call_c(tc, jg, op_to_func(tc, MVM_OP_istrue), 6, args, MVM_JIT_RV_VOID, -1);
+        jg_append_call_c(tc, jg, op_to_func(tc, MVM_OP_istrue), 6,
+                         args, MVM_JIT_RV_VOID, -1);
         /* guard the potential invoke */
         jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_INVOKISH);
         /* branch if true (switch is done by coercion) */
@@ -1917,8 +1928,9 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_INT, dst);
         /* We rely on an implementation of the comparisons against -1, 0 and 1
          * in emit.dasc */
-        if (op != MVM_OP_cmp_s)
+        if (op != MVM_OP_cmp_s) {
             jg_append_primitive(tc, jg, ins);
+        }
         break;
     }
     case MVM_OP_hllize: {
@@ -2257,14 +2269,24 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
-    case MVM_OP_box_n:
+    case MVM_OP_box_n: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 val = ins->operands[1].reg.orig;
+        MVMint16 type = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL_F, { val } },
+                                 { MVM_JIT_REG_VAL, { type } },
+                                 { MVM_JIT_REG_ADDR, { dst } }};
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
     case MVM_OP_box_s:
     case MVM_OP_box_i: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 val = ins->operands[1].reg.orig;
         MVMint16 type = ins->operands[2].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } },
-                                 { op == MVM_OP_box_n ? MVM_JIT_REG_VAL_F : MVM_JIT_REG_VAL, { val } },
+                                 { MVM_JIT_REG_VAL, { val } },
                                  { MVM_JIT_REG_VAL, { type } },
                                  { MVM_JIT_REG_ADDR, { dst } }};
         jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
@@ -2636,7 +2658,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_REG_VAL, { type_n } },
                                  { MVM_JIT_REG_VAL, { type_I } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 5, args,
-                          MVM_JIT_RV_PTR, dst);
+                         MVM_JIT_RV_PTR, dst);
         break;
     }
     case MVM_OP_div_In: {
@@ -3031,15 +3053,16 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
 
 static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
                            MVMSpeshIterator *iter, MVMSpeshBB *bb) {
+    MVMJitExprTree *tree = NULL;
     MVMint32 i;
     MVMint32 label = MVM_jit_label_before_bb(tc, jg, bb);
     jg_append_label(tc, jg, label);
     /* We always append a label update at the start of a basic block for now.
      * This may be more than is actually needed, but it's safe. The problem is
      * that a jump can move us out of the scope of an exception hander, and so
-     * we need a location update. This came to light in the case that we left
-     * an inline (which is a jump) and came back to a region where a handler
-     * should be in force, and it failed to be. */
+     * we need a location update. This came to light in the case that we left an
+     * inline (which is a jump) and came back to a region where a handler should
+     * be in force, and it failed to be. */
     jg_append_control(tc, jg, bb->first_ins, MVM_JIT_CONTROL_DYNAMIC_LABEL);
 
     /* add a jit breakpoint if required */
@@ -3048,6 +3071,33 @@ static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
             tc->instance->jit_breakpoints[i].block_nr == iter->bb->idx) {
             jg_append_control(tc, jg, bb->first_ins, MVM_JIT_CONTROL_BREAKPOINT);
             break; /* one is enough though */
+        }
+    }
+
+    /* Try to create an expression tree */
+    if (tc->instance->jit_expr_enabled &&
+        (tc->instance->jit_expr_last_frame < 0 ||
+         tc->instance->jit_seq_nr < tc->instance->jit_expr_last_frame ||
+         (tc->instance->jit_seq_nr == tc->instance->jit_expr_last_frame &&
+          (tc->instance->jit_expr_last_bb < 0 ||
+           iter->bb->idx <= tc->instance->jit_expr_last_bb)))) {
+        /* skip phi nodes */
+        MVM_spesh_iterator_skip_phi(tc, iter);
+        while (iter->ins) {
+            /* consumes iterator */
+            tree = MVM_jit_expr_tree_build(tc, jg, iter);
+            if (tree != NULL) {
+                MVMJitNode *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
+                node->type       = MVM_JIT_NODE_EXPR_TREE;
+                node->u.tree     = tree;
+                tree->seq_nr     = jg->expr_seq_nr++;
+                jg_append_node(jg, node);
+                MVM_jit_log_expr_tree(tc, tree);
+            }
+            if (iter->ins) {
+                /* something we can't compile yet, or simply an empty tree */
+                break;
+            }
         }
     }
 
@@ -3093,15 +3143,16 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     /* Set initial instruction label offset */
     graph->obj_label_ofs = sg->num_bbs + 1;
 
-
-    /* Total (expected) number of labels. May grow if there are more than 4
-     * deopt labels (OSR deopt labels or deopt_all labels). */
+    /* Labels for individual instructions (not basic blocks), for instance at
+     * boundaries of exception handling frames */
     MVM_VECTOR_INIT(graph->obj_labels, 16);
 
     /* Deoptimization labels */
     MVM_VECTOR_INIT(graph->deopts, 8);
     /* Nodes for each label, used to ensure labels aren't added twice */
     MVM_VECTOR_INIT(graph->label_nodes, 16 + sg->num_bbs);
+
+    graph->expr_seq_nr = 0;
 
     /* JIT handlers are indexed by spesh graph handler index */
     if (sg->num_handlers > 0) {
@@ -3137,7 +3188,8 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     jg_append_label(tc, graph, MVM_jit_label_after_graph(tc, graph, sg));
 
     /* Calculate number of basic block + graph labels */
-    graph->num_labels = sg->num_bbs + 1 + graph->obj_labels_num;
+    graph->num_labels    = graph->obj_label_ofs + graph->obj_labels_num;
+
     return graph;
 
  bail:
@@ -3146,8 +3198,15 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
 }
 
 void MVM_jit_graph_destroy(MVMThreadContext *tc, MVMJitGraph *graph) {
-    MVM_free(graph->obj_labels);
+    MVMJitNode *node;
+    /* destroy all trees */
+    for (node = graph->first_node; node != NULL; node = node->next) {
+        if (node->type == MVM_JIT_NODE_EXPR_TREE) {
+            MVM_jit_expr_tree_destroy(tc, node->u.tree);
+        }
+    }
     MVM_free(graph->label_nodes);
+    MVM_free(graph->obj_labels);
     MVM_free(graph->deopts);
     MVM_free(graph->handlers);
     MVM_free(graph->inlines);

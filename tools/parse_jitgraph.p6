@@ -43,7 +43,7 @@ sub parse_op_to_func($source) {
 
         rule entry {
             [
-                case $<opname>=[ MVM_ <[a..z A..Z 0..9 _]>+ ] ':'
+                case MVM_OP_$<opname>=[<[a..z A..Z 0..9 _]>+ ] ':'
             ]+
             return '&'? <funcname=.ident> ';'
             { note "parsed an entry for $<funcname>" }
@@ -87,7 +87,7 @@ sub parse_consume_ins_reprops($source, %opcode_to_cfunc) {
 
         # we'll put all case statements into a single string for easier combing
         my $casestring = [~] @case-lines;
-        my @ops = $casestring.comb(/ "case " \s* <( 'MVM_'.*? )> \s* ':' /);
+        my @ops = $casestring.comb(/ "case " \s* 'MVM_OP_'<( .*? )> \s* ':' /);
 
         # find the next case-line.
         $until = @sourcelines.first-index( / "case MVM_".*?':' / );
@@ -180,7 +180,10 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                     [MVMJitCallArg args"[]" "=" '{']?
                     [
                     |   '{' <argkind=.ident> ',' [ '{' <argvalue=.ident> '}' | <argvalue=.ident> ]
-                    |   '{' $<argkind>="MVM_JIT_LITERAL" ',' '{' $<argvalue>=[\d+] '}'
+                    |   '{' $<argkind>="MVM_JIT_LITERAL" ',' [
+                            |   '{' $<argvalue>=[\d+] '}'
+                            |   '{' op '==' MVM_OP_<direct_comparison=.ident> '}'
+                            ]
                     ]
                     [ '}' '}' ';' | '}' ',' ]
                 $ / {
@@ -204,6 +207,10 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                                 @c_arguments.push:
                                     "(carg (^params) ptr)";
                             }
+                            when "MVM_JIT_INTERP_CALLER" {
+                                @c_arguments.push:
+                                    "(carg (^caller) ptr)";
+                            }
                             default {
                                 report_unhandled "this kind of interp var ($_) isn't handled yet";
                             }
@@ -219,15 +226,43 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                         @c_arguments.push:
                             '(carg $' ~ %var_sources{$<argvalue>.Str} ~ " num)";
                     }
+                    when "MVM_JIT_REG_ADDR" {
+                        my %result;
+                        my $operand_idx = %var_sources{$<argvalue>.Str};
+                        for @ops -> $op {
+                            my $op_number = %codes{$op};
+                            my $op_values_offset = @offsets[$op_number];
+                            my $operand_flags = @values[$op_values_offset] + $operand_idx;
+
+                            my $operand_rw_flags = $operand_flags +& %flags<MVM_operand_rw_mask>;
+
+                            if $operand_rw_flags == %flags<MVM_operand_write_reg> {
+                                %result{$op} = '(carg $' ~ $operand_idx ~ ' ptr)';
+                            } else {
+                                report_unhandled "there's a MVM_JIT_REG_ADDR here, but the operand isn't a MVM_operand_write_reg (it's $operand_rw_flags instead).";
+                            }
+                        }
+                        if [eq] %result.values {
+                            @c_arguments.push: %result.values[0];
+                        } else {
+                            @c_arguments.push: %result;
+                        }
+                    }
                     when "MVM_JIT_LITERAL" {
                         if defined try $<argvalue>.Int {
                             @c_arguments.push:
                                 '(carg (const ' ~ $<argvalue>.Int ~ ' int_sz) int)';
+                        } elsif $<direct_comparison> {
+                            my %result;
+                            for @ops -> $op {
+                                %result{$op} = +($op eq $<direct_comparison>);
+                            }
+                            @c_arguments.push: %result;
                         } elsif $<argvalue>.Str ~~ %var_sources {
                             my $source_register = %var_sources{$<argvalue>.Str};
                             if %reg_types{$source_register} eq 'literal' {
                                 @c_arguments.push:
-                                    '(carg (copy $' ~ $source_register ~ '))';
+                                    '(carg (copy $' ~ $source_register ~ ') int)';
                             } else {
                                 report_unhandled "expected $<argvalue>.Str() (from $source_register) to be declared as literal";
                             }
@@ -236,7 +271,7 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                         }
                     }
                     default {
-                        report_unhandled "this line surprised us (expected jgb_append_call_c):";
+                        report_unhandled "this line surprised us (expected jg_append_call_c):";
                     }
                 }
                 @lines_so_far.push: "c_args: $line";
@@ -244,12 +279,12 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
 
             $line = $line ~  @lines.shift unless $line ~~ m/ ';' $ /;
 
-            unless $line ~~ m:s/ jgb_append_call_c '('
-                    tc ',' jgb ',' op_to_func '(' tc ',' op ')' ',' \d+ ',' args ','
+            unless $line ~~ m:s/ jg_append_call_c '('
+                    tc ',' jgb '->' graph ',' op_to_func '(' tc ',' op ')' ',' \d+ ',' args ','
                     $<return_type>=[ MVM_JIT_RV_VOID | MVM_JIT_RV_INT | MVM_JIT_RV_PTR | MVM_JIT_RV_NUM ] ','
                     $<return_dst>=[ '-1' | <.ident> ] ')' ';'
                     / {
-                report_unhandled "this line surprised us (expected jgb_append_call_c):";
+                report_unhandled "this line surprised us (expected jg_append_call_c):";
             }
 
             my %rv_to_returnkind = (
@@ -266,7 +301,11 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                 say "    (call (^func {%opcode_to_cfunc{$opname}})";
                 say "        (arglist {+@c_arguments}";
                 for @c_arguments -> $carg {
-                    say "            $carg";
+                    if $carg ~~ Associative {
+                        say "            $carg{$opname}";
+                    } else {
+                        say "            $carg";
+                    }
                 }
                 say "        )";
                 say "        " ~ %rv_to_returnkind{$<return_type>};

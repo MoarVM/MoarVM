@@ -40,6 +40,7 @@ GetOptions(\%args, qw(
     has-dyncall has-libffi pkgconfig=s
     build=s host=s big-endian jit! enable-jit
     prefix=s bindir=s libdir=s mastdir=s make-install asan ubsan valgrind telemeh),
+
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 },
     'no-telemeh|notelemeh' => sub { $args{telemeh} = 0 }
@@ -83,6 +84,7 @@ for (qw(coverage instrument static big-endian has-libtommath has-sha has-libuv
     $args{$_} = 0 unless defined $args{$_};
 }
 
+
 # jit is default
 $args{jit} = 1 unless defined $args{jit};
 
@@ -100,6 +102,8 @@ $config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
 $config{osname} = $^O;
 $config{osvers} = $Config{osvers};
 $config{pkgconfig} = defined_or $args{pkgconfig}, '/usr/bin/pkg-config';
+
+
 
 # set options that take priority over all others
 my @keys = qw( ar cc ld make );

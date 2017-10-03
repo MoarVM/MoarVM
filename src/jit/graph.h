@@ -10,6 +10,8 @@ struct MVMJitGraph {
     /* Offset for instruction labels */
     MVMint32       obj_label_ofs;
 
+    /* Sequence number for expr trees */
+    MVMuint32      expr_seq_nr;
 
     /* All labeled things */
     MVM_VECTOR_DECL(void*, obj_labels);
@@ -55,7 +57,7 @@ struct MVMJitGuard {
 #define MVM_JIT_INFO_THROWISH 2
 
 typedef enum {
-    MVM_JIT_CONTROL_INVOKISH,
+    MVM_JIT_CONTROL_INVOKISH = 1,
     MVM_JIT_CONTROL_DYNAMIC_LABEL,
     MVM_JIT_CONTROL_THROWISH_PRE,
     MVM_JIT_CONTROL_THROWISH_POST,
@@ -201,6 +203,7 @@ typedef enum {
     MVM_JIT_NODE_JUMPLIST,
     MVM_JIT_NODE_CONTROL,
     MVM_JIT_NODE_DATA,
+    MVM_JIT_NODE_EXPR_TREE,
     MVM_JIT_NODE_SAVE_RV,
 } MVMJitNodeType;
 
@@ -217,9 +220,9 @@ struct MVMJitNode {
         MVMJitJumpList  jumplist;
         MVMJitControl   control;
         MVMJitData      data;
+        MVMJitExprTree *tree;
     } u;
 };
 
 MVMJitGraph* MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg);
 void MVM_jit_graph_destroy(MVMThreadContext *tc, MVMJitGraph *graph);
-

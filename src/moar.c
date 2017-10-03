@@ -73,9 +73,10 @@ static FILE *fopen_perhaps_with_pid(char *path, const char *mode) {
 /* Create a new instance of the VM. */
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
+
     char *spesh_log, *spesh_nodelay, *spesh_disable, *spesh_inline_disable,
          *spesh_osr_disable, *spesh_limit, *spesh_blocking;
-    char *jit_log, *jit_disable, *jit_bytecode_dir;
+    char *jit_log, *jit_expr_disable, *jit_disable, *jit_bytecode_dir, *jit_last_frame, *jit_last_bb;
     char *dynvar_log;
     int init_stat;
 
@@ -236,6 +237,12 @@ MVMInstance * MVM_vm_create_instance(void) {
     jit_disable = getenv("MVM_JIT_DISABLE");
     if (!jit_disable || !jit_disable[0])
         instance->jit_enabled = 1;
+
+    jit_expr_disable = getenv("MVM_JIT_EXPR_DISABLE");
+    if (!jit_expr_disable || strlen(jit_expr_disable) == 0)
+        instance->jit_expr_enabled = 1;
+
+
     jit_log = getenv("MVM_JIT_LOG");
     if (jit_log && jit_log[0])
         instance->jit_log_fh = fopen_perhaps_with_pid(jit_log, "w");
@@ -248,11 +255,13 @@ MVMInstance * MVM_vm_create_instance(void) {
         instance->jit_bytecode_dir = jit_bytecode_dir;
         MVM_free(bytecode_map_name);
     }
-    instance->jit_seq_nr = 0;
+    jit_last_frame = getenv("MVM_JIT_EXPR_LAST_FRAME");
+    jit_last_bb    = getenv("MVM_JIT_EXPR_LAST_BB");
 
-    /* Spesh thread syncing. */
-    init_mutex(instance->mutex_spesh_sync, "spesh sync");
-    init_cond(instance->cond_spesh_sync, "spesh sync");
+    /* what could possibly go wrong in integer formats? */
+    instance->jit_expr_last_frame = jit_last_frame != NULL ? atoi(jit_last_frame) : -1;
+    instance->jit_expr_last_bb    =    jit_last_bb != NULL ? atoi(jit_last_bb) : -1;
+    instance->jit_seq_nr = 0;
 
     /* add JIT debugging breakpoints */
     {
@@ -281,6 +290,10 @@ MVMInstance * MVM_vm_create_instance(void) {
             }
         }
     }
+
+    /* Spesh thread syncing. */
+    init_mutex(instance->mutex_spesh_sync, "spesh sync");
+    init_cond(instance->cond_spesh_sync, "spesh sync");
 
     /* Various kinds of debugging that can be enabled. */
     dynvar_log = getenv("MVM_DYNVAR_LOG");

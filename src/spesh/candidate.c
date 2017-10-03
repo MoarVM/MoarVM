@@ -4,18 +4,18 @@
  * lexicals. */
 static void calculate_work_env_sizes(MVMThreadContext *tc, MVMStaticFrame *sf,
                                      MVMSpeshCandidate *c) {
-    MVMuint32 max_callsite_size;
+    MVMuint32 max_callsite_size, jit_spill_size;
     MVMint32 i;
 
     max_callsite_size = sf->body.cu->body.max_callsite_size;
-
+    jit_spill_size = (c->jitcode ? c->jitcode->spill_size: 0);
     for (i = 0; i < c->num_inlines; i++) {
         MVMuint32 cs = c->inlines[i].sf->body.cu->body.max_callsite_size;
         if (cs > max_callsite_size)
             max_callsite_size = cs;
     }
 
-    c->work_size = (c->num_locals + max_callsite_size) * sizeof(MVMRegister);
+    c->work_size = (c->num_locals + max_callsite_size + jit_spill_size) * sizeof(MVMRegister);
     c->env_size = c->num_lexicals * sizeof(MVMRegister);
 }
 
@@ -85,7 +85,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     candidate->inlines       = sg->inlines;
     candidate->local_types   = sg->local_types;
     candidate->lexical_types = sg->lexical_types;
-    calculate_work_env_sizes(tc, p->sf, candidate);
+
     MVM_free(sc);
 
     /* Try to JIT compile the optimised graph. The JIT graph hangs from
@@ -97,6 +97,9 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
             MVM_jit_graph_destroy(tc, jg);
         }
     }
+
+    /* calculate work environment taking JIT spill area into account */
+    calculate_work_env_sizes(tc, sg->sf, candidate);
 
     /* Update spesh slots. */
     candidate->num_spesh_slots = sg->num_spesh_slots;
