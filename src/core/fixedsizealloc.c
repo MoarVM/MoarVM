@@ -82,10 +82,24 @@ static MVMuint32 bin_for(size_t bytes) {
     return bin;
 }
 
+static MVMuint32 page_size_for(MVMuint32 bin, MVMuint8 is_first) {
+    MVMuint32 element_size = ((bin + 1) << MVM_FSA_BIN_BITS);
+    MVMuint32 effective_element_count = MVM_FSA_PAGE_ITEMS;
+    MVMuint32 page_size = MVM_FSA_PAGE_ITEMS * element_size;
+    MVMuint32 size_limit = is_first ? 8192 : 32678;
+    if (page_size > size_limit) {
+        effective_element_count = (MVMuint32)(size_limit / element_size);
+        page_size = effective_element_count * element_size;
+    }
+    page_size += MVM_FSA_REDZONE_BYTES * 2 * effective_element_count;
+
+    return page_size;
+}
+
 /* Sets up a size class bin in the second generation. */
 static void setup_bin(MVMFixedSizeAlloc *al, MVMuint32 bin) {
     /* Work out page size we want. */
-    MVMuint32 page_size = MVM_FSA_PAGE_ITEMS * ((bin + 1) << MVM_FSA_BIN_BITS) + MVM_FSA_REDZONE_BYTES * 2 * MVM_FSA_PAGE_ITEMS;
+    MVMuint32 page_size = page_size_for(bin, 1);
 
     /* We'll just allocate a single page to start off with. */
     al->size_classes[bin].num_pages = 1;
@@ -100,7 +114,7 @@ static void setup_bin(MVMFixedSizeAlloc *al, MVMuint32 bin) {
 /* Adds a new page to a size class bin. */
 static void add_page(MVMFixedSizeAlloc *al, MVMuint32 bin) {
     /* Work out page size. */
-    MVMuint32 page_size = MVM_FSA_PAGE_ITEMS * ((bin + 1) << MVM_FSA_BIN_BITS) + MVM_FSA_REDZONE_BYTES * 2 * MVM_FSA_PAGE_ITEMS;
+    MVMuint32 page_size = page_size_for(bin, 0);
 
     /* Add the extra page. */
     MVMuint32 cur_page = al->size_classes[bin].num_pages;
