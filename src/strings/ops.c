@@ -1071,17 +1071,17 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
     MVMint16         *next = NULL;
     MVMString *flat_needle = NULL;
     size_t next_size = (1 + needle_graphs) * sizeof(MVMint16);
-    int    next_is_fs_alloced = 0;
+    int    next_is_malloced = 0;
     assert(needle_graphs <= MVM_string_KMP_max_pattern_length);
     /* Empty string is found at start of string */
     if (needle_graphs == 0)
         return 0;
     /* Allocate max 8K onto the stack, otherwise malloc */
-    if (next_size < 4096)
+    if (next_size < 3000)
         next = alloca(next_size);
     else {
-        next = MVM_fixed_size_alloc(tc, tc->instance->fsa, next_size);
-        next_is_fs_alloced = 1;
+        next = MVM_malloc(next_size);
+        next_is_malloced = 1;
     }
     /* If the needle is a strand, flatten it, otherwise use the original string */
     flat_needle = needle->body.storage_type == MVM_STRING_STRAND
@@ -1099,7 +1099,7 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
                                     == (Haystack_function)) {\
                 text_offset++; needle_offset++;\
                 if (needle_offset == needle_graphs) {\
-                    if (next_is_fs_alloced) MVM_fixed_size_free(tc, tc->instance->fsa, next_size, next);\
+                    if (next_is_malloced) MVM_free(next);\
                     return text_offset - needle_offset;\
                 }\
             }\
@@ -1114,7 +1114,7 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
     else {
         MVM_kmp_loop(MVM_string_get_grapheme_at_nocheck(tc, Haystack, text_offset));
     }
-    if (next_is_fs_alloced) MVM_fixed_size_free(tc, tc->instance->fsa, next_size, next);
+    if (next_is_malloced) MVM_free(next);
     return -1;
 }
 static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 start, int ignoremark, int ignorecase) {
