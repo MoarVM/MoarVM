@@ -313,17 +313,21 @@ void incorporate_stats(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
             switch (e->kind) {
                 case MVM_SPESH_LOG_TYPE:
                 case MVM_SPESH_LOG_RETURN: {
-                    MVMSpeshStatsByOffset *oss = by_offset(tc, tss,
-                        e->type.bytecode_offset);
-                    add_type_at_offset(tc, oss, simf->sf, e->type.type,
-                        e->type.flags & MVM_SPESH_LOG_TYPE_FLAG_CONCRETE);
+                    if (e->type.bytecode_offset < MVM_SPESH_MAX_BYTECODE_SIZE) {
+                        MVMSpeshStatsByOffset *oss = by_offset(tc, tss,
+                            e->type.bytecode_offset);
+                        add_type_at_offset(tc, oss, simf->sf, e->type.type,
+                            e->type.flags & MVM_SPESH_LOG_TYPE_FLAG_CONCRETE);
+                    }
                     break;
                 }
                 case MVM_SPESH_LOG_INVOKE: {
-                    MVMSpeshStatsByOffset *oss = by_offset(tc, tss,
-                        e->invoke.bytecode_offset);
-                    add_invoke_at_offset(tc, oss, simf->sf, e->invoke.sf,
-                        e->invoke.caller_is_outer, e->invoke.was_multi);
+                    if (e->invoke.bytecode_offset < MVM_SPESH_MAX_BYTECODE_SIZE) {
+                        MVMSpeshStatsByOffset *oss = by_offset(tc, tss,
+                            e->invoke.bytecode_offset);
+                        add_invoke_at_offset(tc, oss, simf->sf, e->invoke.sf,
+                            e->invoke.caller_is_outer, e->invoke.was_multi);
+                    }
                     break;
                 }
             }
