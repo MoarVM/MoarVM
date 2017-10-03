@@ -4,7 +4,7 @@
    (load (addr ,object (&offsetof ,type ,field)) (&SIZEOF_MEMBER ,type ,field)))
 (macro: ^setf (,object ,type ,field ,value)
     (store (addr ,object (&offsetof ,type ,field)) ,value (&SIZEOF_MEMBER ,type ,field)))
-(macro: ^cu_string (,a) (idx  (^getf (cu) MVMCompUnit body.strings) ,a ptr_sz))
+
 (macro: ^cu_callsite (,a) (idx  (^getf (cu) MVMCompUnit body.callsites) ,a ptr_sz))
 
 (macro: ^frame () (^getf (tc) MVMThreadContext cur_frame))
@@ -37,6 +37,11 @@
 
 
 (macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
+(macro: ^cu_string (,a)
+    (call (^func MVM_cu_string)
+          (arglist (carg (tc) ptr) (carg ,a int))
+          ptr_sz))
+
 (macro: ^objflag (,cv) (const (&QUOTE ,cv) (&SIZEOF_MEMBER MVMObject header.flags)))
 (macro: ^write_barrier (,obj ,ref)
    (when (all (nz (and (^getf ,obj MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN)))

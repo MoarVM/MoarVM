@@ -5,9 +5,9 @@
 (template: getlex_no
   (let: (($res
     (call (^func &MVM_frame_find_lexical_by_name)
-          (arglist 3 (carg (tc) ptr)
-                     (carg (load (^cu_string $1) ptr_sz) ptr)
-                     (carg (const (&QUOTE MVM_reg_obj) int_sz) int))
+          (arglist (carg (tc) ptr)
+                   (carg (^cu_string $1) ptr)
+                   (carg (const (&QUOTE MVM_reg_obj) int_sz) int))
            ptr)))
    (if (nz $res) (load $res ptr_sz) $res)))
 
@@ -17,7 +17,7 @@
 (template: return
   (do 3
        (callv (^func &MVM_args_assert_void_return_ok)
-             (arglist 2
+             (arglist
                   (carg (tc) ptr)
                   (carg (const 0 int_sz) int)))
        (callv (^func &MVM_frame_try_return)
@@ -27,7 +27,7 @@
 (template: return_o
   (do 3
      (call (^func &MVM_args_set_result_obj)
-           (arglist 3
+           (arglist
               (carg (tc) ptr)
               (carg $0 ptr)
               (carg (const 0 int_sz) int))
@@ -42,7 +42,7 @@
 
 (template: takedispatcher
   (let: (($cur (^getf (tc) MVMThreadContext cur_dispatcher)))
-        (do 2
+        (do
            (^setf (tc) MVMThreadContext cur_dispatcher (const 0 ptr_sz))
            (copy $cur))))
 
@@ -57,17 +57,6 @@
             (^getf $caller MVMFrame code_ref)
             (const 0 ptr_sz))))
 
-# NB - even though we can allocate this inline, probably best to make
-# this a destructive template and store it explicitly
-(template: sp_fastcreate!
-   (let: (($block
-           (call (^func &MVM_gc_allocate_zeroed)
-                 (arglist 2 (carg (tc) ptr)
-                            (carg $1 int)) ptr_sz)))
-          (^setf $block MVMObject st (load (^spesh_slot $2) ptr_sz))
-          (^setf $block MVMObject header.size $1)
-          (^setf $block MVMObject header.owner (^getf (tc) MVMThreadContext thread_id))
-          (store $0 $block))))
 
 (macro: ^throw_adhoc (,msg)
    (die (^func &MVM_exception_throw_adhoc)
@@ -77,10 +66,10 @@
 
 
 (template: ctxcode
-    (do 2
-        (when (any 2 (^is_type_obj $1)
-                     (ne (^getf (^repr $1) MVMREPROps ID)
-                         (const (&QUOTE MVM_REPR_ID_MVMContext) (&SIZEOF_MEMBER MVMREPROps ID))))
+    (do
+        (when (any (^is_type_obj $1)
+                   (ne (^getf (^repr $1) MVMREPROps ID)
+                       (const (&QUOTE MVM_REPR_ID_MVMContext) (&SIZEOF_MEMBER MVMREPROps ID))))
               (^throw_adhoc (&MSG ctxcode needs an MVMContext)))
         (^getf (^getf $1 MVMContext body.context) MVMFrame code_ref)))
 
