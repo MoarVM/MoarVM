@@ -2,6 +2,7 @@
 
 #ifdef _WIN32
     #include <winsock2.h>
+    #include <ws2tcpip.h>
     typedef SOCKET Socket;
     #define sa_family_t unsigned int
 #else
@@ -17,12 +18,13 @@
 #define snprintf _snprintf
 #endif
 
-/* Assuemd maximum packet size. If ever changing this to something beyond a
+/* Assumed maximum packet size. If ever changing this to something beyond a
  * 16-bit number, then make sure to change the receive offsets in the data
  * structure below. */
 #define PACKET_SIZE 65535
 
 /* Error handling varies between POSIX and WinSock. */
+MVM_NO_RETURN static void throw_error(MVMThreadContext *tc, int r, char *operation) MVM_NO_RETURN_GCC;
 #ifdef _WIN32
     #define MVM_IS_SOCKET_ERROR(x) ((x) == SOCKET_ERROR)
     static void throw_error(MVMThreadContext *tc, int r, char *operation) {
@@ -402,7 +404,8 @@ MVMint64 socket_getport(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
 
     struct sockaddr_storage name;
-    int error, len = sizeof(struct sockaddr_storage);
+    int error;
+    socklen_t len = sizeof(struct sockaddr_storage);
     MVMint64 port = 0;
 
     error = getsockname(data->handle, (struct sockaddr *) &name, &len);
