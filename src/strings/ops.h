@@ -42,17 +42,18 @@ MVM_STATIC_INLINE MVMuint32 MVM_string_graphs_nocheck(MVMThreadContext *tc, MVMS
     return s->body.num_graphs;
 }
 MVM_STATIC_INLINE MVMuint32 MVM_string_codes(MVMThreadContext *tc, MVMString *s) {
-    MVMCodepointIter ci;
+    MVMGraphemeIter gi;
     MVMint64 codes = 0;
     MVM_string_check_arg(tc, s, "codes");
     if (MVM_string_graphs_nocheck(tc, s) == 0)
         return 0;
-    /* Maybe we should pass back utf-c8 graphemes unchanged so they count as 1
-     * codepoint each? For now we flatten utf8-c8 */
-    MVM_string_ci_init(tc, &ci, s, 0, 0);
-    while(MVM_string_ci_has_more(tc, &ci)) {
-        MVM_string_ci_get_codepoint(tc, &ci);
-        codes++;
+    MVM_string_gi_init(tc, &gi, s);
+
+    while(MVM_string_gi_has_more(tc, &gi)) {
+        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+        codes += g < 0 ?
+            MVM_nfg_get_synthetic_info(tc, g)->num_codes
+            : 1;
     }
     return codes;
 }
