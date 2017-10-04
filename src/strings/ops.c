@@ -1789,7 +1789,14 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
                             sgraphs * sizeof(MVMGrapheme32));
                         position += sgraphs;
                         break;
-                    /* XXX Can special-case 8-bit NFG and ASCII here too. */
+                    case MVM_STRING_GRAPHEME_ASCII:
+                    case MVM_STRING_GRAPHEME_8: {
+                        MVMStringIndex j = 0;
+                        while (j < sgraphs)
+                            result->body.storage.blob_32[position++] =
+                                separator->body.storage.blob_8[j++];
+                        break;
+                    }
                     default:
                         MVM_string_gi_init(tc, &gi, separator);
                         while (MVM_string_gi_has_more(tc, &gi))
@@ -1819,7 +1826,15 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
                 position += pgraphs;
                 break;
             }
-            /* XXX Can special-case 8-bit NFG and ASCII here too. */
+            case MVM_STRING_GRAPHEME_ASCII:
+            case MVM_STRING_GRAPHEME_8: {
+                MVMStringIndex pindex = 0;
+                MVMStringIndex pgraphs = MVM_string_graphs(tc, piece);
+                while (pindex < pgraphs)
+                    result->body.storage.blob_32[position++] =
+                        piece->body.storage.blob_8[pindex++];
+                break;
+            }
             default:
                 MVM_string_gi_init(tc, &gi, piece);
                 while (MVM_string_gi_has_more(tc, &gi))
