@@ -1604,7 +1604,35 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
 
     return result;
 }
-
+/* Used in the MVM_string_join function. Moved here to simplify the code */
+void copy_to_32bit (MVMThreadContext *tc, MVMString *source,
+    MVMString *dest, MVMint64 *position, MVMGraphemeIter *gi) {
+    /* Add source. */
+    switch (source->body.storage_type) {
+        case MVM_STRING_GRAPHEME_32: {
+            memcpy(
+                dest->body.storage.blob_32 + *position,
+                source->body.storage.blob_32,
+                source->body.num_graphs * sizeof(MVMGrapheme32));
+            *position += source->body.num_graphs;
+            break;
+        }
+        case MVM_STRING_GRAPHEME_ASCII:
+        case MVM_STRING_GRAPHEME_8: {
+            MVMStringIndex sindex = 0;
+            while (sindex < source->body.num_graphs)
+                dest->body.storage.blob_32[(*position)++] =
+                    source->body.storage.blob_8[sindex++];
+            break;
+        }
+        default:
+            MVM_string_gi_init(tc, gi, source);
+            while (MVM_string_gi_has_more(tc, gi))
+                dest->body.storage.blob_32[(*position)++] =
+                    MVM_string_gi_get_grapheme(tc, gi);
+            break;
+    }
+}
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObject *input) {
     MVMString  *result = NULL;
     MVMString **pieces = NULL;
@@ -1728,23 +1756,14 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
                         && !MVM_nfg_is_concat_stable(tc, pieces[i - 1], pieces[i + 1])) {
                     concats_stable = 0;
                 }
-
-                if (sgraphs) {
-                    if (!concats_stable)
-                        /* Already unstable; no more checks. */;
-                    else if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], separator))
-                        concats_stable = 0;
-                    else if (!MVM_nfg_is_concat_stable(tc, separator, piece))
-                        concats_stable = 0;
-                }
-                else {
-                    /* Separator has no graphemes, so NFG stability check
-                     * should consider pieces. */
-                    if (!concats_stable)
-                        /* Already stable; no more checks. */;
-                    else if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], piece))
-                        concats_stable = 0;
-                }
+                /* If unstable; no more checks. */;
+                if (sgraphs && concats_stable && (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], separator)
+                      || !MVM_nfg_is_concat_stable(tc, separator, piece)))
+                    concats_stable = 0;
+                /* Separator has no graphemes, so NFG stability check
+                 * should consider pieces. If already stable; no more checks. */
+                else if (concats_stable && !MVM_nfg_is_concat_stable(tc, pieces[i - 1], piece))
+                    concats_stable = 0;
 
                 copy_strands(tc, separator, 0, result, offset, separator->body.num_strands);
                 offset += separator->body.num_strands;
@@ -1774,74 +1793,20 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
                 }
 
                 if (sgraphs) {
-                    if (!concats_stable)
-                        /* Already unstable; no more checks. */;
-                    else if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], separator))
+                    /* If unstable; no more checks. */;
+                    if (concats_stable && (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], separator)
+                          || !MVM_nfg_is_concat_stable(tc, separator, piece)))
                         concats_stable = 0;
-                    else if (!MVM_nfg_is_concat_stable(tc, separator, piece))
-                        concats_stable = 0;
-
-                    switch (separator->body.storage_type) {
-                    case MVM_STRING_GRAPHEME_32:
-                        memcpy(
-                            result->body.storage.blob_32 + position,
-                            separator->body.storage.blob_32,
-                            sgraphs * sizeof(MVMGrapheme32));
-                        position += sgraphs;
-                        break;
-                    case MVM_STRING_GRAPHEME_ASCII:
-                    case MVM_STRING_GRAPHEME_8: {
-                        MVMStringIndex j = 0;
-                        while (j < sgraphs)
-                            result->body.storage.blob_32[position++] =
-                                separator->body.storage.blob_8[j++];
-                        break;
-                    }
-                    default:
-                        MVM_string_gi_init(tc, &gi, separator);
-                        while (MVM_string_gi_has_more(tc, &gi))
-                            result->body.storage.blob_32[position++] =
-                                MVM_string_gi_get_grapheme(tc, &gi);
-                        break;
-                    }
+                    /* Add separator */
+                    copy_to_32bit(tc, separator, result, &position, &gi);
                 }
-                else {
-                    /* Separator has no graphemes, so NFG stability check
-                     * should consider pieces. */
-                    if (!concats_stable)
-                        /* Already stable; no more checks. */;
-                    else if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], piece))
-                        concats_stable = 0;
-                }
+                /* Separator has no graphemes, so NFG stability check
+                 * should consider pieces. If unstable; no more checks. */
+                else if (concats_stable && !MVM_nfg_is_concat_stable(tc, pieces[i - 1], piece))
+                    concats_stable = 0;
             }
-
-            /* Add piece. */
-            switch (piece->body.storage_type) {
-            case MVM_STRING_GRAPHEME_32: {
-                MVMint64 pgraphs = MVM_string_graphs(tc, piece);
-                memcpy(
-                    result->body.storage.blob_32 + position,
-                    piece->body.storage.blob_32,
-                    pgraphs * sizeof(MVMGrapheme32));
-                position += pgraphs;
-                break;
-            }
-            case MVM_STRING_GRAPHEME_ASCII:
-            case MVM_STRING_GRAPHEME_8: {
-                MVMStringIndex pindex = 0;
-                MVMStringIndex pgraphs = MVM_string_graphs(tc, piece);
-                while (pindex < pgraphs)
-                    result->body.storage.blob_32[position++] =
-                        piece->body.storage.blob_8[pindex++];
-                break;
-            }
-            default:
-                MVM_string_gi_init(tc, &gi, piece);
-                while (MVM_string_gi_has_more(tc, &gi))
-                    result->body.storage.blob_32[position++] =
-                        MVM_string_gi_get_grapheme(tc, &gi);
-                break;
-            }
+            /* Add piece */
+            copy_to_32bit(tc, piece, result, &position, &gi);
         }
     }
 
