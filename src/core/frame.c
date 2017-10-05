@@ -533,8 +533,12 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                 MVMint32 id = ++tc->spesh_cid;
                 frame->spesh_correlation_id = id;
                 MVMROOT(tc, static_frame, {
+                MVMROOT(tc, code_ref, {
                 MVMROOT(tc, frame, {
+                MVMROOT(tc, outer, {
                     MVM_spesh_log_entry(tc, id, static_frame, callsite);
+                });
+                });
                 });
                 });
             }
