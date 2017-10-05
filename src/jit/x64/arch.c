@@ -4,10 +4,6 @@
 #define MVM_JIT_PLATFORM_POSIX 1
 #define MVM_JIT_PLATFORM_WIN32 2
 
-#ifndef MIN
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-#endif
-
 #if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_POSIX
 
 static const MVMint8 arg_gpr[] = {

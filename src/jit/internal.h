@@ -105,11 +105,11 @@ enum {
 
 /* We need max and min macros, they used to be in libtommath, but aren't anymore */
 #ifndef MAX
-#define MAX(a,b) ((a) > (b) ? (a) : (b));
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
 #endif
 
 #ifndef MIN
-#define MIN(a,b) ((a) < (b) ? (a) : (b));
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
 #endif
 
 
