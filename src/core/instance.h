@@ -168,6 +168,11 @@ struct MVMInstance {
     AO_t gc_intrays_clearing;
     uv_cond_t cond_gc_intrays_clearing;
 
+    /* Condition variable for threads that were marked blocked for GC, but
+     * that wake up while GC is still running. It's not possible for them to
+     * join in, but this lets them wait efficieintly. */
+    uv_cond_t cond_blocked_can_continue;
+
     /* The number of threads that have yet to acknowledge the finish. */
     AO_t gc_ack;
 

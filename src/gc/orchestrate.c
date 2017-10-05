@@ -255,6 +255,7 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
         /* Also clear in GC flag. */
         uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
         tc->instance->in_gc = 0;
+        uv_cond_broadcast(&tc->instance->cond_blocked_can_continue);
         uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
     }
 }
@@ -288,8 +289,17 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
     while (MVM_cas(&tc->gc_status, MVMGCStatus_UNABLE,
             MVMGCStatus_NONE) != MVMGCStatus_UNABLE) {
         /* We can't, presumably because a GC run is going on. We should wait
-         * for that to finish before we go on, but without chewing CPU. */
-        MVM_platform_thread_yield();
+         * for that to finish before we go on; try using a condvar for it. */
+        uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
+        if (tc->instance->in_gc) {
+            uv_cond_wait(&tc->instance->cond_blocked_can_continue,
+                &tc->instance->mutex_gc_orchestrate);
+            uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
+        }
+        else {
+            uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
+            MVM_platform_thread_yield();
+        }
     }
 }
 
