@@ -31,6 +31,6 @@ branches:
     - master
 
 
-test_script:
-  - cd %APPVEYOR_BUILD_FOLDER%\nqp
-  - nmake m-test
+#test_script:
+#  - cd %APPVEYOR_BUILD_FOLDER%\nqp
+#  - nmake m-test
