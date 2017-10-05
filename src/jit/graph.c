@@ -324,6 +324,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_prof_allocated: return MVM_profile_log_allocated;
     case MVM_OP_prof_exit: return MVM_profile_log_exit;
     case MVM_OP_sp_resolvecode: return MVM_frame_resolve_invokee_spesh;
+
     case MVM_OP_cas_o: return MVM_6model_container_cas;
     case MVM_OP_cas_i: return MVM_6model_container_cas_i;
     case MVM_OP_atomicinc_i: return MVM_6model_container_atomic_inc;
@@ -333,6 +334,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_atomicload_i: return MVM_6model_container_atomic_load_i;
     case MVM_OP_atomicstore_o: return MVM_6model_container_atomic_store;
     case MVM_OP_atomicstore_i: return MVM_6model_container_atomic_store_i;
+    case MVM_OP_lock: return MVM_reentrantmutex_lock_checked;
+    case MVM_OP_unlock: return MVM_reentrantmutex_unlock_checked;
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
     }
@@ -2024,6 +2027,20 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_REG_VAL, { target } },
                                  { MVM_JIT_REG_VAL, { value } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_lock: {
+        MVMint16 lock = ins->operands[0].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { lock } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_unlock: {
+        MVMint16 lock = ins->operands[0].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { lock } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
         break;
     }
         /* repr ops */

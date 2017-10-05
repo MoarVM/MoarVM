@@ -116,6 +116,13 @@ static const MVMREPROps ReentrantMutex_this_repr = {
 };
 
 /* Locks the mutex. */
+void MVM_reentrantmutex_lock_checked(MVMThreadContext *tc, MVMObject *lock) {
+    if (REPR(lock)->ID == MVM_REPR_ID_ReentrantMutex && IS_CONCRETE(lock))
+        MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)lock);
+    else
+        MVM_exception_throw_adhoc(tc,
+            "lock requires a concrete object with REPR ReentrantMutex");
+}
 void MVM_reentrantmutex_lock(MVMThreadContext *tc, MVMReentrantMutex *rm) {
     unsigned int interval_id;
     if (MVM_load(&rm->body.holder_id) == tc->thread_id) {
@@ -139,6 +146,13 @@ void MVM_reentrantmutex_lock(MVMThreadContext *tc, MVMReentrantMutex *rm) {
 }
 
 /* Unlocks the mutex. */
+void MVM_reentrantmutex_unlock_checked(MVMThreadContext *tc, MVMObject *lock) {
+    if (REPR(lock)->ID == MVM_REPR_ID_ReentrantMutex && IS_CONCRETE(lock))
+        MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)lock);
+    else
+        MVM_exception_throw_adhoc(tc,
+            "unlock requires a concrete object with REPR ReentrantMutex");
+}
 void MVM_reentrantmutex_unlock(MVMThreadContext *tc, MVMReentrantMutex *rm) {
     /* Ensure we hold the lock. */
     if (MVM_load(&rm->body.holder_id) == tc->thread_id) {

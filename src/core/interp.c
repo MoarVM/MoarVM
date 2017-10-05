@@ -4068,26 +4068,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = MVM_thread_current(tc);
                 cur_op += 2;
                 goto NEXT;
-            OP(lock): {
-                MVMObject *lock = GET_REG(cur_op, 0).o;
-                if (REPR(lock)->ID == MVM_REPR_ID_ReentrantMutex && IS_CONCRETE(lock))
-                    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)lock);
-                else
-                    MVM_exception_throw_adhoc(tc,
-                        "lock requires a concrete object with REPR ReentrantMutex");
+            OP(lock):
+                MVM_reentrantmutex_lock_checked(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
-            }
-            OP(unlock): {
-                MVMObject *lock = GET_REG(cur_op, 0).o;
-                if (REPR(lock)->ID == MVM_REPR_ID_ReentrantMutex && IS_CONCRETE(lock))
-                    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)lock);
-                else
-                    MVM_exception_throw_adhoc(tc,
-                        "lock requires a concrete object with REPR ReentrantMutex");
+            OP(unlock):
+                MVM_reentrantmutex_unlock_checked(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
-            }
             OP(semacquire): {
                 MVMObject *sem = GET_REG(cur_op, 0).o;
                 if (REPR(sem)->ID == MVM_REPR_ID_Semaphore && IS_CONCRETE(sem))
