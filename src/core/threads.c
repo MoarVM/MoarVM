@@ -76,8 +76,10 @@ static void start_thread(void *data) {
     /* Stash thread ID. */
     tc->thread_obj->body.native_thread_id = MVM_platform_thread_id();
 
-    /* Create a spesh log for this thread. */
-    MVM_spesh_log_initialize_thread(tc, 0);
+    /* Create a spesh log for this thread, unless it's just going to run C
+     * code (and thus it's a VM internal worker). */
+    if (REPR(tc->thread_obj->body.invokee)->ID != MVM_REPR_ID_MVMCFunction)
+        MVM_spesh_log_initialize_thread(tc, 0);
 
     /* Enter the interpreter, to run code. */
     MVM_interp_run(tc, thread_initial_invoke, ts);
