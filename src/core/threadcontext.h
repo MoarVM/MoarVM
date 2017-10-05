@@ -66,6 +66,11 @@ struct MVMThreadContext {
     /* The second GC generation allocator. */
     MVMGen2Allocator *gen2;
 
+    /* The current sizes of the nursery fromspace/tospace for this thread, in
+     * bytes. Used to handle growing it over time depending on usage. */
+    MVMuint32 nursery_fromspace_size;
+    MVMuint32 nursery_tospace_size;
+
     /* Non-zero is we should allocate in gen2; incremented/decremented as we
      * enter/leave a region wanting gen2 allocation. */
     MVMuint32 allocate_in_gen2;

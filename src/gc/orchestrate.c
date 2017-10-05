@@ -379,6 +379,10 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         MVMThread *last_starter = NULL;
         MVMuint32 num_threads = 0;
 
+        /* Stash us as the thread to blame for this GC run (used to give it a
+         * potential nursery size boost). */
+        tc->instance->thread_to_blame_for_gc = tc;
+
         /* Need to wait for other threads to reset their gc_status. */
         while (MVM_load(&tc->instance->gc_ack)) {
             GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,

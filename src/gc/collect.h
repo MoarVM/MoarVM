@@ -1,7 +1,13 @@
-/* How big is the nursery area? Note that since it's semi-space copying, we
- * actually have double this amount allocated. Also it is per thread. (In
- * the future, we'll make this adaptive rather than a constant.) */
+/* The maximum size of the nursery area. Note that since it's semi-space
+ * copying, we could actually have double this amount allocated per thread. */
 #define MVM_NURSERY_SIZE 4194304
+
+/* The nursery size threads other than the main thread start out with. If
+ * they fill it and trigger a GC run, then it is doubled. If they are
+ * pulled into a GC run without having themselves filled the nursery, it
+ * does not grow. If MVM_NURSERY_SIZE is smaller than this value (as is
+ * often done for GC stress testing) then this value will be ignored. */
+#define MVM_NURSERY_THREAD_START 131072
 
 /* How many bytes should have been promoted into gen2 before we decide to
  * do a full GC run? This defaults to a percentage of the resident set, with
@@ -47,6 +53,7 @@ struct MVMGCPassedWork {
 };
 
 /* Functions. */
+MVMuint32 MVM_gc_new_thread_nursery_size(MVMInstance *i);
 void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen);
 void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit);
 void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc, MVMint32 global_destruction);

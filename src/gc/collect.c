@@ -19,6 +19,16 @@ static void pass_work_item(MVMThreadContext *tc, WorkToPass *wtp, MVMCollectable
 static void pass_leftover_work(MVMThreadContext *tc, WorkToPass *wtp);
 static void add_in_tray_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist);
 
+/* The size of the nursery that a new thread should get. The main thread will
+ * get a full-size one right away. */
+MVMuint32 MVM_gc_new_thread_nursery_size(MVMInstance *i) {
+    return i->main_thread != NULL
+        ? (MVM_NURSERY_SIZE < MVM_NURSERY_THREAD_START
+            ? MVM_NURSERY_SIZE
+            : MVM_NURSERY_THREAD_START)
+        : MVM_NURSERY_SIZE;
+}
+
 /* Does a garbage collection run. Exactly what it does is configured by the
  * couple of arguments that it takes.
  *
@@ -64,19 +74,37 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         process_worklist(tc, worklist, &wtp, gen);
     }
     else {
-        /* Main collection run. Swap fromspace and tospace, allocating the
-         * new tospace if that didn't yet happen (we don't allocate it at
-         * startup, to cut memory use for threads that quit before a GC). */
-        void *fromspace = tc->nursery_tospace;
-        void *tospace   = tc->nursery_fromspace;
-        if (!tospace)
-            tospace = MVM_calloc(1, MVM_NURSERY_SIZE);
-        tc->nursery_fromspace = fromspace;
-        tc->nursery_tospace   = tospace;
+        /* Main collection run. The current tospace becomes fromspace, with
+         * the size of the current tospace becoming stashed as the size of
+         * that fromspace. */
+        void *old_fromspace = tc->nursery_fromspace;
+        MVMuint32 old_fromspace_size = tc->nursery_fromspace_size;
+        tc->nursery_fromspace = tc->nursery_tospace;
+        tc->nursery_fromspace_size = tc->nursery_tospace_size;
+
+        /* Decide on this threads's tospace size. If fromspace was already at
+         * the maximum nursery size, then that is the new tospace size. If
+         * not, then see if this thread caused the current GC run, and grant
+         * it a bigger tospace. Otherwise, new tospace size is left as the
+         * last tospace size. */
+        if (tc->nursery_tospace_size < MVM_NURSERY_SIZE) {
+            if (tc->instance->thread_to_blame_for_gc == tc)
+                tc->nursery_tospace_size *= 2;
+        }
+
+        /* If the old fromspace matches the target size, just re-use it. If
+         * not, free it and allocate a new tospace. */
+        if (old_fromspace_size == tc->nursery_tospace_size) {
+            tc->nursery_tospace = old_fromspace;
+        }
+        else {
+            MVM_free(old_fromspace);
+            tc->nursery_tospace = MVM_calloc(1, tc->nursery_tospace_size);
+        }
 
         /* Reset nursery allocation pointers to the new tospace. */
-        tc->nursery_alloc       = tospace;
-        tc->nursery_alloc_limit = (char *)tc->nursery_alloc + MVM_NURSERY_SIZE;
+        tc->nursery_alloc       = tc->nursery_tospace;
+        tc->nursery_alloc_limit = (char *)tc->nursery_tospace + tc->nursery_tospace_size;
 
         /* Add permanent roots and process them; only one thread will do
         * this, since they are instance-wide. */
