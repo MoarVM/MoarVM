@@ -303,8 +303,10 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
         frame->allocd_work = 0;
     }
 
-    /* Set static frame. */
+    /* Set static frame and caller before we let this frame escape and the GC
+     * see it. */
     frame->static_info = static_frame;
+    frame->caller = tc->cur_frame;
 
     /* Assign a sequence nr */
     frame->sequence_nr = tc->next_frame_nr++;
@@ -550,9 +552,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
     /* Outer. */
     frame->outer = outer;
-
-    /* Caller is current frame in the thread context. */
-    frame->caller = tc->cur_frame;
 
     /* Initialize argument processing. */
     MVM_args_proc_init(tc, &frame->params, callsite, args);
