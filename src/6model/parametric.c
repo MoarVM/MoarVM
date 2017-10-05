@@ -59,11 +59,17 @@ static void finish_parameterizing(MVMThreadContext *tc, void *sr_data) {
         prd->result->o = found;
     }
     else {
-        MVMObject *copy = MVM_repr_clone(tc, prd->parametric_type->st->paramet.ric.lookup);
-        MVM_repr_push_o(tc, copy, prd->parameters);
-        MVM_repr_push_o(tc, copy, prd->result->o);
-        MVM_ASSIGN_REF(tc, &(prd->parametric_type->st->header),
-            prd->parametric_type->st->paramet.ric.lookup, copy);
+        MVMObject *parameters = prd->parameters;
+        MVMObject *parametric_type = prd->parametric_type;
+        MVMROOT(tc, parameters, {
+        MVMROOT(tc, parametric_type, {
+            MVMObject *copy = MVM_repr_clone(tc, parametric_type->st->paramet.ric.lookup);
+            MVM_repr_push_o(tc, copy, parameters);
+            MVM_repr_push_o(tc, copy, prd->result->o);
+            MVM_ASSIGN_REF(tc, &(parametric_type->st->header),
+                parametric_type->st->paramet.ric.lookup, copy);
+        });
+        });
     }
     uv_mutex_unlock(&tc->instance->mutex_parameterization_add);
 
