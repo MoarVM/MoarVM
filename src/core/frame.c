@@ -303,6 +303,9 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
         frame->allocd_work = 0;
     }
 
+    /* Set static frame. */
+    frame->static_info = static_frame;
+
     /* Assign a sequence nr */
     frame->sequence_nr = tc->next_frame_nr++;
 
@@ -537,9 +540,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             }
         }
     }
-
-    /* Set static frame. */
-    frame->static_info = static_frame;
 
     /* Store the code ref (NULL at the top-level). */
     frame->code_ref = code_ref;
