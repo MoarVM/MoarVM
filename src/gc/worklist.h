@@ -39,7 +39,9 @@ struct MVMGCWorklist {
                 MVM_panic(1, "Zeroed owner in item added to GC worklist"); \
             if ((*item_to_add)->owner > tc->instance->next_user_thread_id) \
                 MVM_panic(1, "Invalid owner in item added to GC worklist"); \
-            if ((*item_to_add)->flags & MVM_CF_STABLE == 0 && !STABLE(*item_to_add)) \
+            if ((*item_to_add)->flags & MVM_CF_FRAME && !((MVMFrame *)(*item_to_add))->static_info) \
+                MVM_panic(1, "Frame with NULL static_info added to worklist"); \
+            else if ((*item_to_add)->flags & MVM_CF_STABLE == 0 && !STABLE(*item_to_add)) \
                 MVM_panic(1, "NULL STable in item added to GC worklist"); \
             if ((char *)*item_to_add >= (char *)tc->nursery_alloc && \
                     (char *)*item_to_add < (char *)tc->nursery_alloc_limit) \
