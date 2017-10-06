@@ -12,7 +12,8 @@
         MVMThreadContext *thread_tc = cur_thread->body.tc; \
         if (thread_tc && thread_tc->nursery_fromspace && \
                 (char *)(c) >= (char *)thread_tc->nursery_fromspace && \
-                (char *)(c) < (char *)thread_tc->nursery_fromspace + MVM_NURSERY_SIZE) \
+                (char *)(c) < (char *)thread_tc->nursery_fromspace + \
+                    thread_tc->nursery_fromspace_size) \
             MVM_panic(1, "Collectable %p in fromspace accessed", c); \
         cur_thread = cur_thread->body.next; \
     } \
