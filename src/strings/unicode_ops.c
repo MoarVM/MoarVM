@@ -20,6 +20,15 @@
  */
 /* Finds the lowest codepoint of the next subnode. If there's no next subnode,
  * returns -1 */
+#define MVM_COLLATION_PRIMARY_POSITIVE      1
+#define MVM_COLLATION_PRIMARY_NEGATIVE      2
+#define MVM_COLLATION_SECONDARY_POSITIVE    4
+#define MVM_COLLATION_SECONDARY_NEGATIVE    8
+#define MVM_COLLATION_TERTIARY_POSITIVE    16
+#define MVM_COLLATION_TERTIARY_NEGATIVE    32
+#define MVM_COLLATION_QUATERNARY_POSITIVE  64
+#define MVM_COLLATION_QUATERNARY_NEGATIVE 128
+
 MVM_STATIC_INLINE MVMint64 next_node_min (sub_node node) {
     return node.sub_node_elems
         ? main_nodes[node.sub_node_link].codepoint
@@ -479,29 +488,18 @@ static void ring_buffer_done(MVMThreadContext *tc, ring_buffer *buffer) {
         }
     }
 }
-static MVMint64 collation_return_by_length(MVMThreadContext *tc, MVMStringIndex length_a, MVMStringIndex length_b, MVMint64 collation_mode, MVMint64 compare_by_cp_rtrn) {
-    /* Quaternary both enabled and reversed. This cancels out and it is ignored */
-    if (collation_mode & 64 && collation_mode & 128) {
-        return 0;
+static MVMint64 collation_return_by_quaternary(MVMThreadContext *tc, level_eval *level_eval_settings,
+    MVMStringIndex length_a, MVMStringIndex length_b, MVMint64 compare_by_cp_rtrn) {
+    if (compare_by_cp_rtrn) {
+        return compare_by_cp_rtrn == -1 ? level_eval_settings->s.quaternary.s2.Less :
+               compare_by_cp_rtrn ==  1 ? level_eval_settings->s.quaternary.s2.More :
+                                          level_eval_settings->s.quaternary.s2.Same ;
     }
-    /* Quaternary+ */
-    else if (collation_mode & 64) {
-        if (compare_by_cp_rtrn)
-            return compare_by_cp_rtrn;
-        return length_a < length_b ? -1 :
-               length_b < length_a ?  1 :
-                                      0 ;
+    else {
+        return length_a < length_b ? level_eval_settings->s.quaternary.s2.Less :
+               length_b < length_a ? level_eval_settings->s.quaternary.s2.More :
+                                     level_eval_settings->s.quaternary.s2.Same ;
     }
-    /* Quaternary- */
-    else if (collation_mode & 128) {
-        if (compare_by_cp_rtrn)
-            return -(compare_by_cp_rtrn);
-        return length_a < length_b ?  1 :
-               length_b < length_a ? -1 :
-                                      0 ;
-    }
-    /* Quaternary level null */
-    return 0;
 }
 /* MVM_unicode_string_compare implements the Unicode Collation Algorthm */
 MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b,
@@ -540,17 +538,17 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
         }\
     }
     /* Primary */
-    setmodeup( 1, 0,   -1, 0,  1);
-    setmodeup( 2, 0,    1, 0, -1);
+    setmodeup(MVM_COLLATION_PRIMARY_POSITIVE,    0, -1, 0,  1);
+    setmodeup(MVM_COLLATION_PRIMARY_NEGATIVE,    0,  1, 0, -1);
     /* Secondary */
-    setmodeup( 4, 1,   -1, 0,  1);
-    setmodeup( 8, 1,    1, 0, -1);
+    setmodeup(MVM_COLLATION_SECONDARY_POSITIVE,  1, -1, 0,  1);
+    setmodeup(MVM_COLLATION_SECONDARY_NEGATIVE,  1,  1, 0, -1);
     /* Tertiary */
-    setmodeup(16, 2,   -1, 0,  1);
-    setmodeup(32, 2,    1, 0, -1);
+    setmodeup(MVM_COLLATION_TERTIARY_POSITIVE,   2, -1, 0,  1);
+    setmodeup(MVM_COLLATION_TERTIARY_NEGATIVE,   2,  1, 0, -1);
     /* Quaternary */
-    setmodeup(64, 3,   -1, 0,  1);
-    setmodeup(128, 3,   1, 0,  -1);
+    setmodeup(MVM_COLLATION_QUATERNARY_POSITIVE, 3, -1, 0,  1);
+    setmodeup(MVM_COLLATION_QUATERNARY_NEGATIVE, 3,  1, 0, -1);
     DEBUG_COLLATION_MODE_PRINT(level_eval_settings);
 
     init_stack(tc, &stack_a);
@@ -561,7 +559,7 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
     alen = MVM_string_graphs_nocheck(tc, a);
     blen = MVM_string_graphs_nocheck(tc, b);
     if (alen == 0 || blen == 0)
-        return collation_return_by_length(tc, alen, blen, collation_mode, 0);
+        return collation_return_by_quaternary(tc, &level_eval_settings, alen, blen, 0);
 
     /* Initialize a codepoint iterator
      * For now we decompose utf8-c8 synthetics. Eventually we may want to pass
@@ -678,7 +676,7 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
 
     /* The tie must be broken by codepoint or length. Use the return value we computed at
      * the beginning of the function while we were pushing onto the ring buffers */
-    return collation_return_by_length(tc, alen, blen, collation_mode, compare_by_cp_rtrn);
+    return collation_return_by_quaternary(tc, &level_eval_settings, alen, blen, compare_by_cp_rtrn);
 }
 
 /* Looks up a codepoint by name. Lazily constructs a hash. */
