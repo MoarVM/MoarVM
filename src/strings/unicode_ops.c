@@ -51,11 +51,11 @@ struct level_eval_s2 {
     MVMint32 Less, Same, More;
 };
 union level_eval_u2 {
-    MVMint32 a2[3];
+    MVMint32 a2[4];
     struct level_eval_s2 s2;
 };
 struct level_eval_s {
-    union level_eval_u2 primary, secondary, tertiary;
+    union level_eval_u2 primary, secondary, tertiary, quaternary;
 };
 union level_eval_u {
     struct level_eval_s s;
@@ -479,19 +479,23 @@ static void ring_buffer_done(MVMThreadContext *tc, ring_buffer *buffer) {
         }
     }
 }
-static MVMint64 collation_return_by_length(MVMThreadContext *tc, MVMStringIndex length_a, MVMStringIndex length_b, MVMint64 collation_mode) {
+static MVMint64 collation_return_by_length(MVMThreadContext *tc, MVMStringIndex length_a, MVMStringIndex length_b, MVMint64 collation_mode, MVMint64 compare_by_cp_rtrn) {
     /* Quaternary both enabled and reversed. This cancels out and it is ignored */
     if (collation_mode & 64 && collation_mode & 128) {
         return 0;
     }
     /* Quaternary+ */
     else if (collation_mode & 64) {
+        if (compare_by_cp_rtrn)
+            return compare_by_cp_rtrn;
         return length_a < length_b ? -1 :
                length_b < length_a ?  1 :
                                       0 ;
     }
     /* Quaternary- */
     else if (collation_mode & 128) {
+        if (compare_by_cp_rtrn)
+            return -(compare_by_cp_rtrn);
         return length_a < length_b ?  1 :
                length_b < length_a ? -1 :
                                       0 ;
@@ -508,7 +512,7 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
     MVMGrapheme32 ai, bi;
     /* Set it all to 0 to start with. We alter this based on the collation_mode later on */
     level_eval level_eval_settings = {
-        { {0,0,0}, {0,0,0}, {0,0,0} }
+        { {0,0,0}, {0,0,0}, {0,0,0}, {0,0,0} }
     };
     /* The default level_eval settings, used between two non-equal levels */
     union level_eval_u2 level_eval_default = {
@@ -544,6 +548,9 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
     /* Tertiary */
     setmodeup(16, 2,   -1, 0,  1);
     setmodeup(32, 2,    1, 0, -1);
+    /* Quaternary */
+    setmodeup(64, 3,   -1, 0,  1);
+    setmodeup(128, 3,   1, 0,  -1);
     DEBUG_COLLATION_MODE_PRINT(level_eval_settings);
 
     init_stack(tc, &stack_a);
@@ -554,7 +561,7 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
     alen = MVM_string_graphs_nocheck(tc, a);
     blen = MVM_string_graphs_nocheck(tc, b);
     if (alen == 0 || blen == 0)
-        return collation_return_by_length(tc, alen, blen, collation_mode);
+        return collation_return_by_length(tc, alen, blen, collation_mode, 0);
 
     /* Initialize a codepoint iterator
      * For now we decompose utf8-c8 synthetics. Eventually we may want to pass
@@ -669,14 +676,9 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
      * get ignored, but the tertiary level value 0 is not ignored. No other values
      * have 0, so that means those levels must have matched up.*/
 
-    /* The tie must be broken by codepoint. Use the return value we computed at
+    /* The tie must be broken by codepoint or length. Use the return value we computed at
      * the beginning of the function while we were pushing onto the ring buffers */
-    if (compare_by_cp_rtrn)
-        return compare_by_cp_rtrn;
-
-    /* If we get here, the two strings are equal for the length of the shorter
-     * string. Return based on length */
-    return collation_return_by_length(tc, alen, blen, collation_mode);
+    return collation_return_by_length(tc, alen, blen, collation_mode, compare_by_cp_rtrn);
 }
 
 /* Looks up a codepoint by name. Lazily constructs a hash. */
