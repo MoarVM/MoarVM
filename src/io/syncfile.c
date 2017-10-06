@@ -270,9 +270,12 @@ static MVMint64 lock(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag) {
                                        ? 0 : LOCKFILE_EXCLUSIVE_LOCK);
 
     memset (&offset, 0, sizeof(offset));
+    MVM_gc_mark_thread_blocked(tc);
     if (LockFileEx(hf, flag, 0, len, len, &offset)) {
+        MVM_gc_mark_thread_unblocked(tc);
         return 1;
     }
+    MVM_gc_mark_thread_unblocked(tc);
 
     MVM_exception_throw_adhoc(tc, "Failed to lock filehandle: %d", GetLastError());
 
@@ -297,7 +300,9 @@ static MVMint64 lock(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag) {
     fc = (flag & MVM_FILE_FLOCK_NONBLOCK) ? F_SETLK : F_SETLKW;
 
     do {
+        MVM_gc_mark_thread_blocked(tc);
         r = fcntl(fd, fc, &l);
+        MVM_gc_mark_thread_unblocked(tc);
     } while (r == -1 && errno == EINTR);
 
     if (r == -1) {
@@ -323,9 +328,12 @@ static void unlock(MVMThreadContext *tc, MVMOSHandle *h) {
     }
 
     memset (&offset, 0, sizeof(offset));
+    MVM_gc_mark_thread_blocked(tc);
     if (UnlockFileEx(hf, 0, len, len, &offset)) {
+        MVM_gc_mark_thread_unblocked(tc);
         return;
     }
+    MVM_gc_mark_thread_unblocked(tc);
 
     MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %d", GetLastError());
 #else
@@ -340,7 +348,9 @@ static void unlock(MVMThreadContext *tc, MVMOSHandle *h) {
     l.l_type = F_UNLCK;
 
     do {
+        MVM_gc_mark_thread_blocked(tc);
         r = fcntl(fd, F_SETLKW, &l);
+        MVM_gc_mark_thread_unblocked(tc);
     } while (r == -1 && errno == EINTR);
 
     if (r == -1) {
