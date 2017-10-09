@@ -138,7 +138,7 @@ MVMString * MVM_dir_cwd(MVMThreadContext *tc) {
 #endif
 
     if ((r = uv_cwd(path, (size_t *)&max_path)) < 0) {
-        MVM_exception_throw_adhoc(tc, "chdir failed: %s", uv_strerror(r));
+        MVM_exception_throw_adhoc(tc, "Failed to determine cwd: %s", uv_strerror(r));
     }
 
     return MVM_string_utf8_c8_decode(tc, tc->instance->VMString, path, strlen(path));
