@@ -28,6 +28,10 @@ MVMint64 MVM_platform_lseek(int fd, MVMint64 offset, int origin)
         errno = EBADF;
         return -1;
     }
+    if (GetFileType(hf) != 1) {
+        errno = ESPIPE;
+        return -1;
+    }
 
     li.QuadPart = offset;
     li.LowPart = SetFilePointer(hf, li.LowPart, &li.HighPart, origin);
