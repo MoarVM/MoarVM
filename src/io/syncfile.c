@@ -106,7 +106,7 @@ static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
 }
 
-/* Get curernt position in the file. */
+/* Get current position in the file. */
 static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     flush_output_buffer(tc, data);
