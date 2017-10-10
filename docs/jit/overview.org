@@ -83,7 +83,7 @@ The syntax used for expression templates is derived from LISP.
   by opening ='('= and closing =')'= parentheses. Lists can be
   nested. Items in the lists are separated by whitespace.
 + A word is anything that matches the perl regular expression of =[^\s\(\)#"']=.
-  + A word that consists only of alphanumeric symobls (and possibly
+  + A word that consists only of alphanumeric symbols (and possibly
     underline) is called a /symbol/: =sp_p6oget_o=. The first symbol
     in a list is generally it's /operator/.
   + Suffixed by =:= is generally a /keyword/, e.g. =let:=
