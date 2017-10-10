@@ -18,6 +18,19 @@
         cur_thread = cur_thread->body.next; \
     } \
 } while (0)
+#define MVM_CHECK_CALLER_CHAIN(tc, f) do { \
+    MVMFrame *check = f; \
+    while (check) { \
+        MVM_ASSERT_NOT_FROMSPACE(tc, check); \
+        if ((check->header.flags & MVM_CF_SECOND_GEN) && \
+                check->caller && \
+                !(check->caller->header.flags & MVM_CF_SECOND_GEN) && \
+                !(check->header.flags & MVM_CF_IN_GEN2_ROOT_LIST)) \
+            MVM_panic(1, "Illegal Gen2 -> Nursery in caller chain (not in inter-gen set)"); \
+        check = check->caller; \
+    } \
+} while (0)
 #else
 #define MVM_ASSERT_NOT_FROMSPACE(tc, c)
+#define MVM_CHECK_CALLER_CHAIN(tc, f)
 #endif

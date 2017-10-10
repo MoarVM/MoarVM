@@ -83,6 +83,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                     uf->return_value = uf->work + last_res_reg;
 
                 /* Set up last uninlined's caller to us. */
+                MVM_ASSERT_NOT_FROMSPACE(tc, uf);
                 MVM_ASSIGN_REF(tc, &(last_uninlined->header), last_uninlined->caller, uf);
             }
             else {
@@ -91,6 +92,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                 if (callee) {
                     /* Tweak the callee's caller to the uninlined frame, not
                      * the frame holding the inlinings. */
+                    MVM_ASSERT_NOT_FROMSPACE(tc, uf);
                     MVM_ASSIGN_REF(tc, &(callee->header), callee->caller, uf);
 
                     /* Copy over the return location. */
@@ -141,6 +143,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
             f->return_value = f->work + last_res_reg;
 
         /* Set up inliner as the caller, given we now have a direct inline. */
+        MVM_ASSERT_NOT_FROMSPACE(tc, f);
         MVM_ASSIGN_REF(tc, &(last_uninlined->header), last_uninlined->caller, f);
     }
     else {
@@ -224,6 +227,8 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_target) {
             MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
             MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
     }
+
+    MVM_CHECK_CALLER_CHAIN(tc, tc->cur_frame);
 }
 
 /* De-optimizes the current frame by directly specifying the addresses */
@@ -240,6 +245,8 @@ void MVM_spesh_deopt_one_direct(MVMThreadContext *tc, MVMuint32 deopt_offset,
         MVM_profiler_log_deopt_one(tc);
     clear_dynlex_cache(tc, f);
     deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
+
+    MVM_CHECK_CALLER_CHAIN(tc, tc->cur_frame);
 }
 
 /* De-optimizes all specialized frames on the call stack. Used when a change
@@ -340,4 +347,6 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
         l = f;
         f = f->caller;
     }
+
+    MVM_CHECK_CALLER_CHAIN(tc, tc->cur_frame);
 }

@@ -35,6 +35,8 @@ void MVM_continuation_reset(MVMThreadContext *tc, MVMObject *tag,
         MVM_frame_special_return(tc, tc->cur_frame, clear_tag, NULL, tag_record, NULL);
         STABLE(code)->invoke(tc, code, null_args_callsite, tc->cur_frame->args);
     }
+
+    MVM_CHECK_CALLER_CHAIN(tc, tc->cur_frame);
 }
 
 void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
@@ -134,6 +136,8 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
     MVM_args_setup_thunk(tc, tc->cur_frame->return_value, tc->cur_frame->return_type, inv_arg_callsite);
     tc->cur_frame->args[0].o = cont;
     STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
+
+    MVM_CHECK_CALLER_CHAIN(tc, tc->cur_frame);
 }
 
 void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
@@ -192,6 +196,8 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
         MVM_args_setup_thunk(tc, cont->body.res_reg, MVM_RETURN_OBJ, null_args_callsite);
         STABLE(code)->invoke(tc, code, null_args_callsite, tc->cur_frame->args);
     }
+
+    MVM_CHECK_CALLER_CHAIN(tc, tc->cur_frame);
 }
 
 void MVM_continuation_free_tags(MVMThreadContext *tc, MVMFrame *f) {
