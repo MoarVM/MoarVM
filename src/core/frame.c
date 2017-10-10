@@ -627,6 +627,7 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     MVMFrame *new_cur_frame = NULL;
     MVMFrame *update_caller = NULL;
     MVMFrame *result = NULL;
+    MVM_CHECK_CALLER_CHAIN(tc, cur_to_promote);
     MVMROOT(tc, new_cur_frame, {
     MVMROOT(tc, update_caller, {
     MVMROOT(tc, result, {
