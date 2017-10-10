@@ -761,6 +761,7 @@ MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *stat
 static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     MVMFrame *returner = tc->cur_frame;
     MVMFrame *caller   = returner->caller;
+    MVM_ASSERT_NOT_FROMSPACE(tc, caller);
 
     /* Clear up any extra frame data. */
     if (returner->extra) {
