@@ -480,8 +480,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(return_o): {
                 MVMObject *value = GET_REG(cur_op, 0).o;
-                if (MVM_spesh_log_is_logging(tc))
-                    MVM_spesh_log_return_type(tc, value);
+                if (MVM_spesh_log_is_logging(tc)) {
+                    MVMROOT(tc, value, {
+                        MVM_spesh_log_return_type(tc, value);
+                    });
+                }
                 MVM_args_set_result_obj(tc, value, MVM_RETURN_CALLER_FRAME);
                 if (MVM_frame_try_return(tc) == 0)
                     goto return_label;
