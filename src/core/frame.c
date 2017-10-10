@@ -512,7 +512,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         frame->spesh_cand = chosen_cand;
     }
     else {
-        if (static_frame->body.allocate_on_heap) {
+        MVMint32 on_heap = static_frame->body.allocate_on_heap;
+        if (on_heap) {
             MVMROOT(tc, static_frame, {
             MVMROOT(tc, code_ref, {
             MVMROOT(tc, outer, {
@@ -536,10 +537,19 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                 frame->spesh_correlation_id = id;
                 MVMROOT(tc, static_frame, {
                 MVMROOT(tc, code_ref, {
-                MVMROOT(tc, frame, {
                 MVMROOT(tc, outer, {
-                    MVM_spesh_log_entry(tc, id, static_frame, callsite);
-                });
+                    if (on_heap) {
+                        MVMROOT(tc, frame, {
+                            MVM_spesh_log_entry(tc, id, static_frame, callsite);
+                        });
+                    }
+                    else {
+                        MVMROOT(tc, frame->caller, {
+                        MVMROOT(tc, frame->static_info, {
+                            MVM_spesh_log_entry(tc, id, static_frame, callsite);
+                        });
+                        });
+                    }
                 });
                 });
                 });
