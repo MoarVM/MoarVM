@@ -346,6 +346,9 @@ struct MVMInstance {
     /* Any --libpath=... options, to prefix in loadbytecode lookups. */
     const char     *lib_path[8];
 
+    /* Cache the environment hash */
+    MVMObject      *env_hash;
+
     /************************************************************************
      * Caching and interning
      ************************************************************************/
