@@ -25,16 +25,18 @@ MVMSpeshLog * MVM_spesh_log_create(MVMThreadContext *tc, MVMThread *target_threa
  * to the worker thread and NULLs it out. */
 void send_log(MVMThreadContext *tc, MVMSpeshLog *sl) {
     if (tc->instance->spesh_blocking) {
-        sl->body.block_mutex = MVM_malloc(sizeof(uv_mutex_t));
+        uv_mutex_t *block_mutex;
+        uv_cond_t *block_condvar;
+        block_mutex = sl->body.block_mutex = MVM_malloc(sizeof(uv_mutex_t));
         uv_mutex_init(sl->body.block_mutex);
-        sl->body.block_condvar = MVM_malloc(sizeof(uv_cond_t));
+        block_condvar = sl->body.block_condvar = MVM_malloc(sizeof(uv_cond_t));
         uv_cond_init(sl->body.block_condvar);
         uv_mutex_lock(sl->body.block_mutex);
         MVMROOT(tc, sl, {
             MVM_repr_push_o(tc, tc->instance->spesh_queue, (MVMObject *)sl);
             MVM_gc_mark_thread_blocked(tc);
             while (!MVM_load(&(sl->body.completed)))
-                uv_cond_wait(sl->body.block_condvar, sl->body.block_mutex);
+                uv_cond_wait(block_condvar, block_mutex);
             MVM_gc_mark_thread_unblocked(tc);
         });
         uv_mutex_unlock(sl->body.block_mutex);
