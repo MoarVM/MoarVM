@@ -212,7 +212,7 @@ context. (Humans are good at that).
   is defined textually, much like the expression templates.
 + An /object/ for the JIT compiler to represent a machine instruction,
   and
-+ A /function/ that emits the this machine code to the compiler
++ A /function/ that emits the machine code to the compiler
   buffer, with parameters substituted
 
 The textual 'tile definition' contains the name of the function that
