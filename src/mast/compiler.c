@@ -282,7 +282,7 @@ static void cleanup_all(VM, WriterState *ws) {
     HASH_ITER(hash_handle, ws->callsite_reuse_head, current, tmp, bucket_tmp) {
         MVM_free(current->identifier);
     }
-    MVM_HASH_DESTROY(hash_handle, CallsiteReuseEntry, ws->callsite_reuse_head);
+    MVM_HASH_DESTROY(tc, hash_handle, CallsiteReuseEntry, ws->callsite_reuse_head);
     MVM_free(ws);
 }
 

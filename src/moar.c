@@ -481,6 +481,8 @@ static void cleanup_callsite_interns(MVMInstance *instance) {
  * should clear up all resources and free all memory; in practice, it falls
  * short of this goal at the moment. */
 void MVM_vm_destroy_instance(MVMInstance *instance) {
+    MVMThreadContext *tc = instance->main_thread;
+
     /* Join any foreground threads and flush standard handles. */
     MVM_thread_join_foreground(instance->main_thread);
     MVM_io_flush_standard_handles(instance->main_thread);
@@ -491,7 +493,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Cleanup REPR registry */
     uv_mutex_destroy(&instance->mutex_repr_registry);
-    MVM_HASH_DESTROY(hash_handle, MVMReprRegistry, instance->repr_hash);
+    MVM_HASH_DESTROY(tc, hash_handle, MVMReprRegistry, instance->repr_hash);
     MVM_free(instance->repr_list);
 
     /* Clean up GC related resources. */
@@ -506,33 +508,33 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up Hash of HLLConfig. */
     uv_mutex_destroy(&instance->mutex_hllconfigs);
-    MVM_HASH_DESTROY(hash_handle, MVMHLLConfig, instance->compiler_hll_configs);
-    MVM_HASH_DESTROY(hash_handle, MVMHLLConfig, instance->compilee_hll_configs);
+    MVM_HASH_DESTROY(tc, hash_handle, MVMHLLConfig, instance->compiler_hll_configs);
+    MVM_HASH_DESTROY(tc, hash_handle, MVMHLLConfig, instance->compilee_hll_configs);
 
     /* Clean up Hash of DLLs. */
     uv_mutex_destroy(&instance->mutex_dll_registry);
-    MVM_HASH_DESTROY(hash_handle, MVMDLLRegistry, instance->dll_registry);
+    MVM_HASH_DESTROY(tc, hash_handle, MVMDLLRegistry, instance->dll_registry);
 
     /* Clean up Hash of extensions. */
     uv_mutex_destroy(&instance->mutex_ext_registry);
-    MVM_HASH_DESTROY(hash_handle, MVMExtRegistry, instance->ext_registry);
+    MVM_HASH_DESTROY(tc, hash_handle, MVMExtRegistry, instance->ext_registry);
 
     /* Clean up Hash of extension ops. */
     uv_mutex_destroy(&instance->mutex_extop_registry);
-    MVM_HASH_DESTROY(hash_handle, MVMExtOpRegistry, instance->extop_registry);
+    MVM_HASH_DESTROY(tc, hash_handle, MVMExtOpRegistry, instance->extop_registry);
 
     /* Clean up Hash of all known serialization contexts, along with list. */
     uv_mutex_destroy(&instance->mutex_sc_weakhash);
-    MVM_HASH_DESTROY(hash_handle, MVMSerializationContextBody, instance->sc_weakhash);
+    MVM_HASH_DESTROY(tc, hash_handle, MVMSerializationContextBody, instance->sc_weakhash);
     MVM_free(instance->all_scs);
 
     /* Clean up Hash of filenames of compunits loaded from disk. */
     uv_mutex_destroy(&instance->mutex_loaded_compunits);
-    MVM_HASH_DESTROY(hash_handle, MVMLoadedCompUnitName, instance->loaded_compunits);
+    MVM_HASH_DESTROY(tc, hash_handle, MVMLoadedCompUnitName, instance->loaded_compunits);
 
     /* Clean up Container registry. */
     uv_mutex_destroy(&instance->mutex_container_registry);
-    MVM_HASH_DESTROY(hash_handle, MVMContainerRegistry, instance->container_registry);
+    MVM_HASH_DESTROY(tc, hash_handle, MVMContainerRegistry, instance->container_registry);
 
     /* Clean up Hash of compiler objects keyed by name. */
     uv_mutex_destroy(&instance->mutex_compiler_registry);

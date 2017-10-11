@@ -626,7 +626,7 @@ static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col
 
     /* Clean up temporary state. */
     MVM_free(ss.workitems);
-    MVM_HASH_DESTROY(hash_handle, MVMHeapSnapshotSeen, ss.seen);
+    MVM_HASH_DESTROY(tc, hash_handle, MVMHeapSnapshotSeen, ss.seen);
     MVM_gc_worklist_destroy(tc, ss.gcwl);
 }
 

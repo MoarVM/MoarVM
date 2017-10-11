@@ -103,8 +103,8 @@ do {                                                                            
   out=NULL;                                                                      \
   if (head) {                                                                    \
      HASH_FCN(keyptr,keylen, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt);   \
-     HASH_FIND_IN_BKT((head)->hh.tbl, hh, (head)->hh.tbl->buckets[ _hf_bkt ],  \
-                      keyptr,keylen,out);                                      \
+     HASH_FIND_IN_BKT((head)->hh.tbl, hh, (head)->hh.tbl->buckets[ _hf_bkt ],    \
+                      keyptr,keylen,out);                                        \
   }                                                                              \
 } while (0)
 
@@ -140,6 +140,21 @@ do {                                                                            
   if (! (head)->hh.tbl->buckets) { uthash_fatal( "out of memory"); }             \
   memset((head)->hh.tbl->buckets, 0,                                             \
           HASH_INITIAL_NUM_BUCKETS*sizeof(struct UT_hash_bucket));               \
+} while(0)
+
+#define HASH_MAKE_TABLE_FSA(tc,hh,head)                                          \
+do {                                                                             \
+  (head)->hh.tbl = (UT_hash_table*)MVM_fixed_size_alloc(tc,tc->instance->fsa,    \
+                  sizeof(UT_hash_table));                                        \
+  if (!((head)->hh.tbl))  { uthash_fatal( "out of memory"); }                    \
+  memset((head)->hh.tbl, 0, sizeof(UT_hash_table));                              \
+  (head)->hh.tbl->num_buckets = HASH_INITIAL_NUM_BUCKETS;                        \
+  (head)->hh.tbl->log2_num_buckets = HASH_INITIAL_NUM_BUCKETS_LOG2;              \
+  (head)->hh.tbl->hho = (char*)(&(head)->hh) - (char*)(head);                    \
+  (head)->hh.tbl->buckets = (UT_hash_bucket*)MVM_fixed_size_alloc_zeroed(        \
+          tc,tc->instance->fsa,                                                  \
+          HASH_INITIAL_NUM_BUCKETS*sizeof(struct UT_hash_bucket));               \
+  if (! (head)->hh.tbl->buckets) { uthash_fatal( "out of memory"); }             \
 } while(0)
 
 #define HASH_ADD_KEYPTR(hh,head,keyptr,keylen_in,add)                            \
@@ -182,6 +197,29 @@ do {                                                                            
  HASH_FSCK(hh,head);                                                             \
 } while(0)
 
+#define HASH_ADD_KEYPTR_VM_STR_FSA(tc,hh,head,key_in,add)                        \
+do {                                                                             \
+ unsigned _ha_bkt;                                                               \
+ unsigned cached_hash = (key_in)->body.cached_hash_code;                         \
+ (add)->hh.key = (key_in);                                                       \
+ if (!(head)) {                                                                  \
+    head = (add);                                                                \
+    HASH_MAKE_TABLE_FSA(tc,hh,head);                                             \
+ }                                                                               \
+ (head)->hh.tbl->num_items++;                                                    \
+ (add)->hh.tbl = (head)->hh.tbl;                                                 \
+ if (cached_hash) {                                                              \
+     (add)->hh.hashv = cached_hash;                                              \
+     _ha_bkt = ((cached_hash) & (((head)->hh.tbl->num_buckets) - 1));            \
+ }                                                                               \
+ else {                                                                          \
+     HASH_FCN_VM_STR(tc, key_in, (head)->hh.tbl->num_buckets,                    \
+             (add)->hh.hashv, _ha_bkt);                                          \
+ }                                                                               \
+ HASH_ADD_TO_BKT_FSA(tc,(head)->hh.tbl->buckets[_ha_bkt],&(add)->hh);            \
+ HASH_FSCK(hh,head);                                                             \
+} while(0)
+
 #define HASH_TO_BKT( hashv, num_bkts, bkt )                                      \
 do {                                                                             \
   bkt = ((hashv) & ((num_bkts) - 1));                                            \
@@ -206,6 +244,42 @@ do {                                                                            
         uthash_free((head)->hh.tbl->buckets,                                     \
                     (head)->hh.tbl->num_buckets*sizeof(struct UT_hash_bucket) ); \
         uthash_free((head)->hh.tbl, sizeof(UT_hash_table));                      \
+        (head) = NULL;                                                           \
+    } else {                                                                     \
+        _hd_hh_del = &((delptr)->hh);                                            \
+        if ((delptr) == (head)) {                                                \
+            unsigned cur = 0;                                                    \
+            while (cur < (head)->hh.tbl->num_buckets) {                          \
+                UT_hash_handle *cand = (head)->hh.tbl->buckets[cur].hh_head;     \
+                while (cand) {                                                   \
+                    if (cand && cand != &((delptr)->hh)) {                       \
+                        DECLTYPE_ASSIGN((head), ELMT_FROM_HH((head)->hh.tbl,cand)); \
+                        goto REPLACED_HEAD;                                      \
+                    }                                                            \
+                    cand = cand->hh_next;                                        \
+                }                                                                \
+                cur++;                                                           \
+            }                                                                    \
+            uthash_fatal("Failed to replace deleted head");                      \
+          REPLACED_HEAD: ;                                                       \
+        }                                                                        \
+        HASH_TO_BKT( _hd_hh_del->hashv, (head)->hh.tbl->num_buckets, _hd_bkt);   \
+        HASH_DEL_IN_BKT(hh,(head)->hh.tbl->buckets[_hd_bkt], _hd_hh_del);        \
+        (head)->hh.tbl->num_items--;                                             \
+    }                                                                            \
+    HASH_FSCK(hh,head);                                                          \
+} while (0)
+
+#define HASH_DELETE_FSA(tc,hh,head,delptr)                                       \
+do {                                                                             \
+    unsigned _hd_bkt;                                                            \
+    struct UT_hash_handle *_hd_hh_del;                                           \
+    if ( (head)->hh.tbl->num_items == 1 )  {                                     \
+        MVM_fixed_size_free_at_safepoint(tc,tc->instance->fsa,                   \
+                    (head)->hh.tbl->num_buckets*sizeof(struct UT_hash_bucket),   \
+                (head)->hh.tbl->buckets);                                        \
+        MVM_fixed_size_free_at_safepoint(tc,tc->instance->fsa,                   \
+                sizeof(UT_hash_table), (head)->hh.tbl);                          \
         (head) = NULL;                                                           \
     } else {                                                                     \
         _hd_hh_del = &((delptr)->hh);                                            \
@@ -385,6 +459,19 @@ do {                                                                            
  }                                                                               \
 } while(0)
 
+#define HASH_ADD_TO_BKT_FSA(tc,head,addhh)                                       \
+do {                                                                             \
+ head.count++;                                                                   \
+ (addhh)->hh_next = head.hh_head;                                                \
+ (addhh)->hh_prev = NULL;                                                        \
+ if (head.hh_head) { (head).hh_head->hh_prev = (addhh); }                        \
+ (head).hh_head=addhh;                                                           \
+ if (head.count >= ((head.expand_mult+1) * HASH_BKT_CAPACITY_THRESH)             \
+     && (addhh)->tbl->noexpand != 1) {                                           \
+       HASH_EXPAND_BUCKETS_FSA(tc,(addhh)->tbl);                                 \
+ }                                                                               \
+} while(0)
+
 /* remove an item from a given bucket */
 #define HASH_DEL_IN_BKT(hh,head,hh_del)                                          \
     (head).count--;                                                              \
@@ -475,12 +562,72 @@ do {                                                                            
     uthash_expand_fyi(tbl);                                                      \
 } while(0)
 
+#define HASH_EXPAND_BUCKETS_FSA(tc,tbl)                                          \
+do {                                                                             \
+    unsigned _he_bkt;                                                            \
+    unsigned _he_bkt_i;                                                          \
+    struct UT_hash_handle *_he_thh, *_he_hh_nxt;                                 \
+    UT_hash_bucket *_he_new_buckets, *_he_newbkt;                                \
+    _he_new_buckets = (UT_hash_bucket*)MVM_fixed_size_alloc_zeroed(              \
+            tc,tc->instance->fsa,                                                \
+             2 * tbl->num_buckets * sizeof(struct UT_hash_bucket));              \
+    if (!_he_new_buckets) { uthash_fatal( "out of memory"); }                    \
+    tbl->ideal_chain_maxlen =                                                    \
+       (tbl->num_items >> (tbl->log2_num_buckets+1)) +                           \
+       ((tbl->num_items & ((tbl->num_buckets*2)-1)) ? 1 : 0);                    \
+    tbl->nonideal_items = 0;                                                     \
+    for(_he_bkt_i = 0; _he_bkt_i < tbl->num_buckets; _he_bkt_i++)                \
+    {                                                                            \
+        _he_thh = tbl->buckets[ _he_bkt_i ].hh_head;                             \
+        while (_he_thh) {                                                        \
+           _he_hh_nxt = _he_thh->hh_next;                                        \
+           HASH_TO_BKT( _he_thh->hashv, tbl->num_buckets*2, _he_bkt);            \
+           _he_newbkt = &(_he_new_buckets[ _he_bkt ]);                           \
+           if (++(_he_newbkt->count) > tbl->ideal_chain_maxlen) {                \
+             tbl->nonideal_items++;                                              \
+             _he_newbkt->expand_mult = _he_newbkt->count /                       \
+                                        tbl->ideal_chain_maxlen;                 \
+           }                                                                     \
+           _he_thh->hh_prev = NULL;                                              \
+           _he_thh->hh_next = _he_newbkt->hh_head;                               \
+           if (_he_newbkt->hh_head) _he_newbkt->hh_head->hh_prev =               \
+                _he_thh;                                                         \
+           _he_newbkt->hh_head = _he_thh;                                        \
+           _he_thh = _he_hh_nxt;                                                 \
+        }                                                                        \
+    }                                                                            \
+    MVM_fixed_size_free_at_safepoint(tc,tc->instance->fsa,                       \
+            tbl->num_buckets*sizeof(struct UT_hash_bucket), tbl->buckets);       \
+    tbl->num_buckets *= 2;                                                       \
+    tbl->log2_num_buckets++;                                                     \
+    tbl->buckets = _he_new_buckets;                                              \
+    tbl->ineff_expands = (tbl->nonideal_items > (tbl->num_items >> 1)) ?         \
+        (tbl->ineff_expands+1) : 0;                                              \
+    if (tbl->ineff_expands > 1) {                                                \
+        tbl->noexpand=1;                                                         \
+        uthash_noexpand_fyi(tbl);                                                \
+    }                                                                            \
+    uthash_expand_fyi(tbl);                                                      \
+} while(0)
+
 #define HASH_CLEAR(hh,head)                                                      \
 do {                                                                             \
   if (head) {                                                                    \
     uthash_free((head)->hh.tbl->buckets,                                         \
                 (head)->hh.tbl->num_buckets*sizeof(struct UT_hash_bucket));      \
     uthash_free((head)->hh.tbl, sizeof(UT_hash_table));                          \
+    (head)=NULL;                                                                 \
+  }                                                                              \
+} while(0)
+
+#define HASH_CLEAR_FSA(tc,hh,head)                                               \
+do {                                                                             \
+  if (head) {                                                                    \
+    MVM_fixed_size_free_at_safepoint(tc,tc->instance->fsa,                            \
+                (head)->hh.tbl->num_buckets*sizeof(struct UT_hash_bucket),       \
+            (head)->hh.tbl->buckets);                                            \
+    MVM_fixed_size_free_at_safepoint(tc,tc->instance->fsa,                            \
+                sizeof(UT_hash_table), (head)->hh.tbl);                          \
     (head)=NULL;                                                                 \
   }                                                                              \
 } while(0)

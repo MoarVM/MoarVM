@@ -63,7 +63,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
             MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), current);
     }
     tmp = h->body.hash_head;
-    HASH_CLEAR(hash_handle, h->body.hash_head);
+    HASH_CLEAR_FSA(tc, hash_handle, h->body.hash_head);
     if (tmp)
         MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), tmp);
 }
@@ -120,7 +120,7 @@ static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVMHashEntry *old_entry = NULL;
     MVM_HASH_GET(tc, body->hash_head, key, old_entry);
     if (old_entry) {
-        HASH_DELETE(hash_handle, body->hash_head, old_entry);
+        HASH_DELETE_FSA(tc, hash_handle, body->hash_head, old_entry);
         MVM_fixed_size_free(tc, tc->instance->fsa,
             sizeof(MVMHashEntry), old_entry);
     }

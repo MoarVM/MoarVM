@@ -47,7 +47,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMHashAttrStore *h = (MVMHashAttrStore *)obj;
-    MVM_HASH_DESTROY(hash_handle, MVMHashEntry, h->body.hash_head);
+    MVM_HASH_DESTROY(tc, hash_handle, MVMHashEntry, h->body.hash_head);
 }
 
 static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,

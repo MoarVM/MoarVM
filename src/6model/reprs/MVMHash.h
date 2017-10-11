@@ -24,7 +24,7 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
     do { \
         if (!MVM_is_null(tc, (MVMObject *)key) && REPR(key)->ID == MVM_REPR_ID_MVMString \
                 && IS_CONCRETE(key)) { \
-            HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, hash, key, value); \
+            HASH_ADD_KEYPTR_VM_STR_FSA(tc, hash_handle, hash, key, value); \
         } \
         else { \
             MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings"); \
@@ -44,7 +44,7 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
 
 #define MVM_HASH_KEY(entry) ((MVMString *)(entry)->hash_handle.key)
 
-#define MVM_HASH_DESTROY(hash_handle, hashentry_type, head_node) do { \
+#define MVM_HASH_DESTROY(tc, hash_handle, hashentry_type, head_node) do { \
     hashentry_type *current, *tmp; \
     unsigned bucket_tmp; \
     HASH_ITER(hash_handle, head_node, current, tmp, bucket_tmp) { \
@@ -52,6 +52,6 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
             MVM_free(current); \
     } \
     tmp = head_node; \
-    HASH_CLEAR(hash_handle, head_node); \
+    HASH_CLEAR_FSA(tc, hash_handle, head_node); \
     MVM_free(tmp); \
 } while (0)
