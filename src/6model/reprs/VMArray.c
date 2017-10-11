@@ -788,8 +788,11 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
 /* This whole splice optimization can be optimized for the case we have two
  * MVMArray representation objects. */
 static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *from, MVMint64 offset, MVMuint64 count) {
-    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
-    MVMArrayBody     *body      = (MVMArrayBody *)data;
+    MVMArrayREPRData *repr_data   = (MVMArrayREPRData *)st->REPR_data;
+    MVMArrayBody     *body        = (MVMArrayBody *)data;
+
+    const MVMREPROps      *source_repr = REPR(from);
+    MVMArrayREPRData *source_repr_data = source_repr->ID == MVM_REPR_ID_VMArray ? STABLE(from)->REPR_data : NULL;
 
     MVMint64 elems0 = body->elems;
     MVMint64 elems1 = REPR(from)->elems(tc, STABLE(from), from, OBJECT_BODY(from));
@@ -869,37 +872,51 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     if (elems1 > 0) {
         MVMint64  i;
         MVMuint16 kind;
-        switch (repr_data->slot_type) {
-            case MVM_ARRAY_OBJ:
-                kind = MVM_reg_obj;
-                break;
-            case MVM_ARRAY_STR:
-                kind = MVM_reg_str;
-                break;
-            case MVM_ARRAY_I64:
-            case MVM_ARRAY_I32:
-            case MVM_ARRAY_I16:
-            case MVM_ARRAY_I8:
-                kind = MVM_reg_int64;
-                break;
-            case MVM_ARRAY_N64:
-            case MVM_ARRAY_N32:
-                kind = MVM_reg_num64;
-                break;
-            case MVM_ARRAY_U64:
-            case MVM_ARRAY_U32:
-            case MVM_ARRAY_U16:
-            case MVM_ARRAY_U8:
-                kind = MVM_reg_int64;
-                break;
-            default:
-                abort(); /* never reached, silence compiler warnings */
-        }
-        for (i = 0; i < elems1; i++) {
-            MVMRegister to_copy;
-            REPR(from)->pos_funcs.at_pos(tc, STABLE(from), from,
-                OBJECT_BODY(from), i, &to_copy, kind);
-            bind_pos(tc, st, root, data, offset + i, to_copy, kind);
+        MVMuint8 needs_barrier = root->header.flags & MVM_CF_SECOND_GEN;
+        if (source_repr_data
+                && repr_data->slot_type == source_repr_data->slot_type
+                && repr_data->elem_size == source_repr_data->elem_size
+                && (repr_data->slot_type != MVM_ARRAY_OBJ || !needs_barrier)
+                && repr_data->slot_type != MVM_ARRAY_STR) {
+            /* Optimized for copying from a VMArray with same slot type */
+            MVMArrayBody     *from_body        = (MVMArrayBody *)OBJECT_BODY(from);
+            start = body->start;
+            memcpy(body->slots.u8 + (start + offset) * repr_data->elem_size,
+                   from_body->slots.u8 + from_body->start * source_repr_data->elem_size,
+                   repr_data->elem_size * elems1);
+        } else {
+            switch (repr_data->slot_type) {
+                case MVM_ARRAY_OBJ:
+                    kind = MVM_reg_obj;
+                    break;
+                case MVM_ARRAY_STR:
+                    kind = MVM_reg_str;
+                    break;
+                case MVM_ARRAY_I64:
+                case MVM_ARRAY_I32:
+                case MVM_ARRAY_I16:
+                case MVM_ARRAY_I8:
+                    kind = MVM_reg_int64;
+                    break;
+                case MVM_ARRAY_N64:
+                case MVM_ARRAY_N32:
+                    kind = MVM_reg_num64;
+                    break;
+                case MVM_ARRAY_U64:
+                case MVM_ARRAY_U32:
+                case MVM_ARRAY_U16:
+                case MVM_ARRAY_U8:
+                    kind = MVM_reg_int64;
+                    break;
+                default:
+                    abort(); /* never reached, silence compiler warnings */
+            }
+            for (i = 0; i < elems1; i++) {
+                MVMRegister to_copy;
+                REPR(from)->pos_funcs.at_pos(tc, STABLE(from), from,
+                    OBJECT_BODY(from), i, &to_copy, kind);
+                bind_pos(tc, st, root, data, offset + i, to_copy, kind);
+            }
         }
     }
 }
