@@ -73,8 +73,8 @@ JIT_OBJECTS  = src/jit/graph@obj@ \
                src/jit/expr@obj@ \
                src/jit/tile@obj@ \
                src/jit/linear_scan@obj@ \
-               src/jit/interface@obj@
-
+               src/jit/interface@obj@ \
+               src/jit/optimize@obj@
 
 # JIT intermediate files which clean should remove
 JIT_INTERMEDIATES = src/jit/x64/emit.c \
@@ -437,6 +437,7 @@ HEADERS = src/moar.h \
           src/jit/label.h \
           src/jit/expr.h \
           src/jit/expr_ops.h \
+          src/jit/optimize.h \
           src/jit/compile.h \
           src/jit/tile.h \
           src/jit/register.h \

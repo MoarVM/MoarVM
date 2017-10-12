@@ -631,6 +631,7 @@ as well.
 
 Not implemented at all, so we need some new things.
 
+
 ** DONE An equivalence function
 
 We have one (MVM_jit_expr_tree_eqv), but it's problem is that it tries
@@ -656,6 +657,7 @@ Walks should be single-visit.
     - all children are replaced with equivalent (according to the table)
     - then parent is itself 'hashed' to a record, an potentially
       replaced
+<<<<<<< HEAD
   - barriers should clear out the table
 
 
@@ -664,6 +666,13 @@ Uses one register fewer, simpler operation
 *** TODO ADD CONST to ADDR conversion
 Only allowed if user is pointerlike (e.g. LOAD)
 *** DONE COPY insertion
+=======
+- IDX CONST to ADDR conversion
+  - Uses one register fewer, simpler operation
+- ADD CONST to ADDR conversion
+  - only allowed if user is pointerlike (e.g. LOAD)
+- COPY insertion
+>>>>>>> be4b957b8... [JIT] Simple tree-rewriting optimizer
   - Values that are LOAD-ed and used from multiple operations might
     benefit from inserting a COPY, so they don't use indirect
     operations, e.g.
