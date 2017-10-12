@@ -23,7 +23,7 @@ static const MVMBitmap AVAILABLE_GPR_BITMAP = MVM_JIT_ARCH_AVAILABLE_GPR(SHIFT);
 #define _ASSERT(b, msg) if (!(b)) do { MVM_panic(1, msg); } while (0)
 
 #if MVM_JIT_DEBUG
-#define _DEBUG(fmt, ...) do { fprintf(stderr, fmt "%s", __VA_ARGS__, "\n"); } while(0);
+#define _DEBUG(fmt, ...) do { fprintf(stderr, fmt "%s", __VA_ARGS__, "\n"); } while(0)
 #else
 #define _DEBUG(fmt, ...) do {} while(0)
 #endif
