@@ -1633,6 +1633,30 @@ void copy_to_32bit (MVMThreadContext *tc, MVMString *source,
             break;
     }
 }
+/* Used in MVM_string_join to check stability of adding the next piece */
+MVM_STATIC_INLINE void join_check_stability(MVMThreadContext *tc, MVMString *piece,
+    MVMString *separator, MVMString **pieces, MVMint32 *concats_stable, MVMint64 num_pieces, MVMint64 sgraphs, MVMint64 piece_index) {
+    if (!sgraphs) {
+        /* If there's no separator and one piece is The Empty String we
+         * have to be extra careful about concat stability */
+        if (!MVM_string_graphs_nocheck(tc, piece)
+                && piece_index + 1 < num_pieces
+                && !MVM_nfg_is_concat_stable(tc, pieces[piece_index - 1], pieces[piece_index + 1])) {
+            *concats_stable = 0;
+        }
+        /* Separator has no graphemes, so NFG stability check
+         * should consider pieces. */
+        else if (!MVM_nfg_is_concat_stable(tc, pieces[piece_index - 1], piece))
+            *concats_stable = 0;
+    }
+    /* If we have a separator, check concat stability */
+    else {
+        if (!MVM_nfg_is_concat_stable(tc, pieces[piece_index - 1], separator) /* Before */
+         || !MVM_nfg_is_concat_stable(tc, separator, piece)) { /* And after separator */
+            *concats_stable = 0;
+        }
+    }
+}
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObject *input) {
     MVMString  *result = NULL;
     MVMString **pieces = NULL;
@@ -1749,32 +1773,10 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
         for (i = 0; i < num_pieces; i++) {
             MVMString *piece = pieces[i];
             if (0 < i) {
-                 /* If unstable don't do lower checks */
-                if (concats_stable) {
-                    if (!sgraphs) {
-                        /* If there's no separator and one piece is The Empty String we
-                         * have to be extra careful about concat stability */
-                        if (!MVM_string_graphs_nocheck(tc, piece)
-                                && i + 1 < num_pieces
-                                && !MVM_nfg_is_concat_stable(tc, pieces[i - 1], pieces[i + 1])) {
-                            concats_stable = 0;
-                        }
-                        /* Separator has no graphemes, so NFG stability check
-                         * should consider pieces. */
-                        else if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], piece))
-                            concats_stable = 0;
-                    }
-                    /* If we have a separator, check concat stability */
-                    else {
-                        if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], separator) /* Before */
-                         || !MVM_nfg_is_concat_stable(tc, separator, piece)) { /* And after separator */
-                            concats_stable = 0;
-                        }
-                    }
-                }
-                if (!sgraphs) {
-                    MVM_exception_throw_adhoc(tc, "There should be a separator!\n");
-                }
+                /* No more checks unless still stable */
+                if (concats_stable)
+                    join_check_stability(tc, piece, separator, pieces,
+                        &concats_stable, num_pieces, sgraphs, i);
                 copy_strands(tc, separator, 0, result, offset, separator->body.num_strands);
                 offset += separator->body.num_strands;
             }
@@ -1795,29 +1797,12 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
             /* Add separator if needed. */
             if (0 < i) {
                 /* No more checks unless still stable */
-                if (concats_stable) {
-                    if (!sgraphs) {
-                        /* If there's no separator and one piece is The Empty String we
-                         * have to be extra careful about concat stability */
-                        if (!MVM_string_graphs_nocheck(tc, piece)
-                                && i + 1 < num_pieces
-                                && !MVM_nfg_is_concat_stable(tc, pieces[i - 1], pieces[i + 1])) {
-                            concats_stable = 0;
-                        }
-                        /* Separator has no graphemes, so NFG stability check
-                         * should consider pieces. */
-                        else if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], piece)) {
-                            concats_stable = 0;
-                        }
-                    }
-                    else {
-                        if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], separator)
-                         || !MVM_nfg_is_concat_stable(tc, separator, piece))
-                            concats_stable = 0;
-                        /* Add separator */
-                        copy_to_32bit(tc, separator, result, &position, &gi);
-                    }
-                }
+                if (concats_stable)
+                    join_check_stability(tc, piece, separator, pieces,
+                        &concats_stable, num_pieces, sgraphs, i);
+                /* Add separator */
+                if (sgraphs)
+                    copy_to_32bit(tc, separator, result, &position, &gi);
             }
             /* Add piece */
             copy_to_32bit(tc, piece, result, &position, &gi);
