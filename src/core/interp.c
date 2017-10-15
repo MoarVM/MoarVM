@@ -3819,16 +3819,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc, "getlexrel needs a context");
                 r = MVM_frame_find_lexical_by_name_rel(tc,
                     GET_REG(cur_op, 4).s, ((MVMContext *)ctx)->body.context);
-                GET_REG(cur_op, 0).o = r ? r->o : NULL;
+                GET_REG(cur_op, 0).o = r ? r->o : tc->instance->VMNull;
                 cur_op += 6;
                 goto NEXT;
             }
             OP(getlexreldyn): {
                 MVMObject *ctx  = GET_REG(cur_op, 2).o;
+                MVMObject *result;
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
                     MVM_exception_throw_adhoc(tc, "getlexreldyn needs a context");
-                GET_REG(cur_op, 0).o = MVM_frame_getdynlex(tc, GET_REG(cur_op, 4).s,
+                result = MVM_frame_getdynlex(tc, GET_REG(cur_op, 4).s,
                         ((MVMContext *)ctx)->body.context);
+                GET_REG(cur_op, 0).o = result ? result : tc->instance->VMNull;
                 cur_op += 6;
                 goto NEXT;
             }
