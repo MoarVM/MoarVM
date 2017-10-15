@@ -403,8 +403,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindlex_ng):
                 MVM_exception_throw_adhoc(tc, "get/bindlex_ng NYI");
             OP(getdynlex): {
-                GET_REG(cur_op, 0).o = MVM_frame_getdynlex(tc, GET_REG(cur_op, 2).s,
+                MVMObject *result = MVM_frame_getdynlex(tc, GET_REG(cur_op, 2).s,
                         tc->cur_frame->caller);
+                GET_REG(cur_op, 0).o = result ? result : tc->instance->VMNull;
                 cur_op += 4;
                 goto NEXT;
             }
