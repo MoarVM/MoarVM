@@ -403,9 +403,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindlex_ng):
                 MVM_exception_throw_adhoc(tc, "get/bindlex_ng NYI");
             OP(getdynlex): {
-                MVMObject *result = MVM_frame_getdynlex(tc, GET_REG(cur_op, 2).s,
+                GET_REG(cur_op, 0).o = MVM_frame_getdynlex(tc, GET_REG(cur_op, 2).s,
                         tc->cur_frame->caller);
-                GET_REG(cur_op, 0).o = result ? result : tc->instance->VMNull;
                 cur_op += 4;
                 goto NEXT;
             }
@@ -3825,12 +3824,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(getlexreldyn): {
                 MVMObject *ctx  = GET_REG(cur_op, 2).o;
-                MVMObject *result;
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
                     MVM_exception_throw_adhoc(tc, "getlexreldyn needs a context");
-                result = MVM_frame_getdynlex(tc, GET_REG(cur_op, 4).s,
+                GET_REG(cur_op, 0).o = MVM_frame_getdynlex(tc, GET_REG(cur_op, 4).s,
                         ((MVMContext *)ctx)->body.context);
-                GET_REG(cur_op, 0).o = result ? result : tc->instance->VMNull;
                 cur_op += 6;
                 goto NEXT;
             }

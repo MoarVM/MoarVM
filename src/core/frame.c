@@ -1564,7 +1564,7 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame 
                 MVM_exception_throw_adhoc(tc, "invalid register type in getdynlex: %d", type);
         }
     }
-    return result;
+    return result ? result : tc->instance->VMNull;
 }
 
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame) {
