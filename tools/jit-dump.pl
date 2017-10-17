@@ -19,7 +19,7 @@ my %OPTIONS = (
 
 GetOptions(
     \%OPTIONS,
-    qw(frame=i@ block=i@ objdump=s dir=s arch=s timeout=i)
+    qw(frame=i@ block=i@ objdump=s directory=s arch=s timeout=i)
 ) or die "Could not parse options";
 
 delete @ENV{qw(
@@ -36,6 +36,7 @@ my @binary;
 
 my $timeout = delete $OPTIONS{timeout};
 push @{$OPTIONS{block}}, $OPTIONS{block}[0] - 1 if @{$OPTIONS{block}} == 1;
+my $dump_directory = delete $OPTIONS{directory} || '.';
 
 for my $frame (@{$OPTIONS{frame}}) {
     $ENV{MVM_JIT_EXPR_LAST_FRAME}    = $frame;
@@ -57,8 +58,8 @@ for my $frame (@{$OPTIONS{frame}}) {
 
         my $filename = File::Spec->catfile($log_directory, sprintf('moar-jit-%04d.bin', $frame));
         printf("Want to copy: %s\n", $filename);
-        my $bin_out  = File::Spec->catfile($OPTIONS{dir} || '.', sprintf('moar-jit-%04d-%04d.bin', $frame, $block));
-        my $log_out  = File::Spec->catfile($OPTIONS{dir} || '.', sprintf('moar-jit-%04d-%04d.log', $frame, $block));
+        my $bin_out  = File::Spec->catfile($dump_directory, sprintf('moar-jit-%04d-%04d.bin', $frame, $block));
+        my $log_out  = File::Spec->catfile($dump_directory, sprintf('moar-jit-%04d-%04d.log', $frame, $block));
         copy ($filename, $bin_out) or die "Could not copy binary: $!";
         copy ($ENV{MVM_JIT_LOG}, $log_out) or die "Could not base log: $!";
 
