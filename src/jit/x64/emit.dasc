@@ -2272,6 +2272,7 @@ void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, M
 
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                         MVMint32 label) {
+    MVM_jit_log(tc, "Emitting label %d\n", label);
     | =>(label):
 }
 
@@ -2528,7 +2529,7 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler,
         |9:
     }
     else if (type == MVM_JIT_CONTROL_DYNAMIC_LABEL) {
-        MVM_jit_log(tc, "Emit throwish control guard\n");
+        MVM_jit_log(tc, "Emit dynamic label\n");
         /* This pre-loads a label for the next op, so that throwish
          * operators will know where we're throwing from - NB, I'm not
          * totally sure this is still necessary now */
@@ -2538,6 +2539,7 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler,
         |1:
     }
     else if (type == MVM_JIT_CONTROL_THROWISH_PRE) {
+        MVM_jit_log(tc, "Emit throwish pre\n");
         /* Store a reference to the 9 label below. I assume this label isn't
          * used in the intermediate instructions, which is basically valid
          * throughout this codebase. */
@@ -2546,6 +2548,7 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler,
         | mov aword FRAME:rax->jit_entry_label, Rq(tmp);
     }
     else if (type == MVM_JIT_CONTROL_THROWISH_POST) {
+        MVM_jit_log(tc, "Emit throwish post\n");
         /* check if our current frame is the same as it was */
         | mov eax, dword TC->current_frame_nr;
         | cmp eax, FRAME_NR;

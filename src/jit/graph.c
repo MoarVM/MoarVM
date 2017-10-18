@@ -667,6 +667,7 @@ static void before_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_label(tc, jg, label);
     }
     if (has_dynamic_control) {
+        MVM_jit_log(tc, "Dynamic control label on ins %s\n", ins->info->name);
         jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_DYNAMIC_LABEL);
     }
 
