@@ -12,13 +12,17 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
         tc->instance->boot_types.BOOTArray);
     MVMROOT(tc, updated_static_frames, {
     MVMROOT(tc, previous_static_frames, {
-        while (1) {
+        while (!tc->instance->spesh_exiting) {
             MVMObject *log_obj;
             MVMuint64 start_time;
             unsigned int interval_id;
             if (tc->instance->spesh_log_fh)
                 start_time = uv_hrtime();
             log_obj = MVM_repr_shift_o(tc, tc->instance->spesh_queue);
+
+            if (tc->instance->spesh_exiting)
+                goto leave;
+
             if (tc->instance->spesh_log_fh) {
                 fprintf(tc->instance->spesh_log_fh,
                     "Received Logs\n"
@@ -86,6 +90,13 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                             "this many specializations planned");
                     GC_SYNC_POINT(tc);
 
+                    if (tc->instance->spesh_exiting) {
+                        /* Make sure we don't point at unused stack space in the
+                         * GC temp roots */
+                        MVM_gc_root_temp_pop(tc);
+                        goto leave;
+                    }
+
                     /* Implement the plan and then discard it. */
                     n = tc->instance->spesh_plan->num_planned;
                     for (i = 0; i < n; i++) {
@@ -128,6 +139,8 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
             else {
                 MVM_panic(1, "Unexpected object sent to specialization worker");
             }
+
+leave:
 
             MVM_telemetry_interval_stop(tc, interval_id, "spesh worker finished");
 

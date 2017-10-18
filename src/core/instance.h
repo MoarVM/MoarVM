@@ -245,6 +245,10 @@ struct MVMInstance {
     /* Log file for specializations, if we're to log them. */
     FILE *spesh_log_fh;
 
+    /* Is the VM currently shutting down?
+     * If so, we should exit early if we can. */
+    MVMint8 spesh_exiting;
+
     /* Flag for if spesh (and certain spesh features) are enabled. */
     MVMint8 spesh_enabled;
     MVMint8 spesh_inline_enabled;

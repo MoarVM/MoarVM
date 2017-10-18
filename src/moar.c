@@ -431,6 +431,7 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
  * will be able to do it much more swiftly than we could. This is typically
  * not the right thing for embedding; see MVM_vm_destroy_instance for that. */
 void MVM_vm_exit(MVMInstance *instance) {
+    instance->spesh_exiting = 1;
     /* Join any foreground threads and flush standard handles. */
     MVM_thread_join_foreground(instance->main_thread);
     MVM_io_flush_standard_handles(instance->main_thread);
