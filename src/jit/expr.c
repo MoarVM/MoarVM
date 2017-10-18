@@ -712,9 +712,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         MVMint32 before_label = -1, after_label = -1,
             wrap_before = 0, wrap_after = 0;
         struct ValueDefinition *defined_value = NULL;
-        if (opcode == MVM_SSA_PHI || opcode == MVM_OP_no_op) {
-            continue;
-        }
 
         /* check if this is a getlex and if we can handle it */
         BAIL(opcode == MVM_OP_getlex && !can_getlex(tc, jg, ins), "Can't compile object getlex");
@@ -730,7 +727,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                  * interpreter that JIT execution has reached this point. */
                 before_label = MVM_jit_label_before_ins(tc, jg, iter->bb, ins);
                 jg->handlers[ann->data.frame_handler_index].start_label = before_label;
-
                 wrap_before = MVM_JIT_CONTROL_DYNAMIC_LABEL;
                 break;
             case MVM_SPESH_ANN_FH_END:
@@ -777,11 +773,12 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                 jg->inlines[ann->data.inline_idx].end_label = after_label;
                 break;
             case MVM_SPESH_ANN_DEOPT_INLINE:
+                MVM_jit_log(tc, "Not sure if we can handle DEOPT_INLINE on instruction %s\n", ins->info->name);
+                break;
             case MVM_SPESH_ANN_DEOPT_ONE_INS:
                 /* we should only see this in guards, which we don't do just
                  * yet, although we will. At the very least, this implies a flush. */
-                MVM_jit_log(tc, "WARNING expr tree is asked to handle DEOPT_ONE / DEOPT_INLINE (ins=%s) and can't really\n",
-                            ins->info->name);
+                BAIL(1, "Cannot handle DEOPT_ONE (ins=%s)\n", ins->info->name);
                 break;
             case MVM_SPESH_ANN_DEOPT_ALL_INS:
                 /* don't expect to be handling these, either, but these also
@@ -798,6 +795,24 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         }
 
 
+        if (opcode == MVM_SSA_PHI || opcode == MVM_OP_no_op) {
+            /* By definition, a PHI node can only occur at the start of a basic
+             * block. (A no_op instruction only seems to happen as the very
+             * first instruction of a frame, and I'm not sure why).
+             *
+             * Thus, if it happens that we've processed annotations on those
+             * instructions (which probably means they migrated there from
+             * somewhere else), they always refer to the start of the basic
+             * block, which is already assigned a label and
+             * dynamic-control-handler.
+             *
+             * So we never need to do anything with this label and wrapper, but
+             * we do need to process the annotation to setup the frame handler
+             * correctly.
+             */
+            BAIL(after_label >= 0, "A PHI node should not have an after label");
+            continue;
+        }
 
         template = MVM_jit_get_template_for_opcode(opcode);
         BAIL(template == NULL, "Cannot get template for: %s\n", ins->info->name);
@@ -878,6 +893,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
              * to replace an invokish version with a non-invokish version (but
              * perhaps best if that is opt-in so people don't accidentally
              * forget to set it). */
+            MVM_jit_log(tc, "EXPR: adding throwish guard to op (%s)\n", ins->info->name);
             wrap_before = MVM_JIT_CONTROL_THROWISH_PRE;
             wrap_after = (ins->info->jittivity & MVM_JIT_INFO_THROWISH) ?
                 MVM_JIT_CONTROL_THROWISH_POST : MVM_JIT_CONTROL_INVOKISH;

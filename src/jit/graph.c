@@ -3099,8 +3099,7 @@ static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
          (tc->instance->jit_seq_nr == tc->instance->jit_expr_last_frame &&
           (tc->instance->jit_expr_last_bb < 0 ||
            iter->bb->idx <= tc->instance->jit_expr_last_bb)))) {
-        /* skip phi nodes */
-        MVM_spesh_iterator_skip_phi(tc, iter);
+
         while (iter->ins) {
             /* consumes iterator */
             tree = MVM_jit_expr_tree_build(tc, jg, iter);
