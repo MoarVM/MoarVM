@@ -300,10 +300,10 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                     result = (MVMCollectable *)MVM_sc_try_get_object(tc, sc, idx);
                 if (result) {
                     if (result->flags & MVM_CF_STABLE) {
-                        debug_name = ((MVMSTable *)result)->debug_name;
+                        debug_name = MVM_6model_get_stable_debug_name(tc, (MVMSTable *)result);
                         repr_name  = ((MVMSTable *)result)->REPR->name;
                     } else {
-                        debug_name = STABLE(result)->debug_name;
+                        debug_name = MVM_6model_get_debug_name(tc, result);
                         repr_name  = REPR(result)->name;
                     }
                     if (debug_name) {
@@ -500,13 +500,13 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 appendf(&ds, "    %d = NULL\n", i);
             else if (value->flags & MVM_CF_STABLE)
                 appendf(&ds, "    %d = STable (%s)\n", i,
-                    ((MVMSTable *)value)->debug_name);
+                    MVM_6model_get_stable_debug_name(tc, (MVMSTable *)value));
             else if (value->flags & MVM_CF_TYPE_OBJECT)
                 appendf(&ds, "    %d = Type Object (%s)\n", i,
-                    ((MVMObject *)value)->st->debug_name);
+                    MVM_6model_get_stable_debug_name(tc, (MVMSTable *)value));
             else
                 appendf(&ds, "    %d = Instance (%s)\n", i,
-                    ((MVMObject *)value)->st->debug_name);
+                    MVM_6model_get_stable_debug_name(tc, (MVMSTable *)value));
         }
     }
 
@@ -526,11 +526,11 @@ void dump_stats_type_tuple(MVMThreadContext *tc, DumpStr *ds, MVMCallsite *cs,
             appendf(ds, "%sType %d: %s%s (%s)",
                 prefix, j,
                 (type_tuple[j].rw_cont ? "RW " : ""),
-                type->st->debug_name,
+                MVM_6model_get_stable_debug_name(tc, type->st),
                 (type_tuple[j].type_concrete ? "Conc" : "TypeObj"));
             if (decont_type)
                 appendf(ds, " of %s (%s)",
-                    decont_type->st->debug_name,
+                    MVM_6model_get_stable_debug_name(tc, decont_type->st),
                     (type_tuple[j].decont_type_concrete ? "Conc" : "TypeObj"));
             append(ds, "\n");
         }
@@ -566,7 +566,7 @@ void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCa
                 for (k = 0; k < oss->num_types; k++)
                     appendf(ds, "                %d x type %s (%s)\n",
                         oss->types[k].count,
-                        oss->types[k].type->st->debug_name,
+                        MVM_6model_get_stable_debug_name(tc, oss->types[k].type->st),
                         (oss->types[k].type_concrete ? "Conc" : "TypeObj"));
                 for (k = 0; k < oss->num_invokes; k++)
                     appendf(ds,
@@ -623,7 +623,7 @@ char * MVM_spesh_dump_stats(MVMThreadContext *tc, MVMStaticFrame *sf) {
             append(&ds, "Static values:\n");
             for (i = 0; i < ss->num_static_values; i++)
                 appendf(&ds, "    - %s (%p) @ %d\n",
-                    ss->static_values[i].value->st->debug_name,
+                    MVM_6model_get_stable_debug_name(tc, ss->static_values[i].value->st),
                     ss->static_values[i].value,
                     ss->static_values[i].bytecode_offset);
         }
@@ -750,11 +750,11 @@ char * MVM_spesh_dump_arg_guard(MVMThreadContext *tc, MVMStaticFrame *sf) {
                     break;
                 case MVM_SPESH_GUARD_OP_STABLE_CONC:
                     appendf(&ds, "%u: STABLE CONC %s | Y: %u, N: %u\n",
-                        i, agn->st->debug_name, agn->yes, agn->no);
+                        i, MVM_6model_get_stable_debug_name(tc, agn->st), agn->yes, agn->no);
                     break;
                 case MVM_SPESH_GUARD_OP_STABLE_TYPE:
                     appendf(&ds, "%u: STABLE CONC %s | Y: %u, N: %u\n",
-                        i, agn->st->debug_name, agn->yes, agn->no);
+                        i, MVM_6model_get_stable_debug_name(tc, agn->st), agn->yes, agn->no);
                     break;
                 case MVM_SPESH_GUARD_OP_DEREF_VALUE:
                     appendf(&ds, "%u: DEREF_VALUE %u | Y: %u, N: %u\n",

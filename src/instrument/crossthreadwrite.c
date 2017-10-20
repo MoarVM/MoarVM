@@ -152,9 +152,9 @@ static MVMint64 filtered_out(MVMThreadContext *tc, MVMObject *written) {
 
     /* Filter out writes to Sub and Method, since these are almost always just
      * multi-dispatch caches. */
-    if (memcmp(written->st->debug_name, "Method", 6) == 0)
+    if (memcmp( MVM_6model_get_stable_debug_name(tc, written->st), "Method", 6) == 0)
         return 1;
-    if (memcmp(written->st->debug_name, "Sub", 3) == 0)
+    if (memcmp( MVM_6model_get_stable_debug_name(tc, written->st), "Sub", 3) == 0)
         return 1;
 
     /* Otherwise, may be relevant. */
@@ -202,7 +202,7 @@ void MVM_cross_thread_write_check(MVMThreadContext *tc, MVMObject *written, MVMi
         }
         uv_mutex_lock(&(tc->instance->mutex_cross_thread_write_logging));
         fprintf(stderr, "Thread %d %s an object (%s) allocated by thread %d\n",
-            tc->thread_id, guilty_desc, STABLE(written)->debug_name, written->header.owner);
+            tc->thread_id, guilty_desc, MVM_6model_get_debug_name(tc, written), written->header.owner);
         MVM_dump_backtrace(tc);
         fprintf(stderr, "\n");
         uv_mutex_unlock(&(tc->instance->mutex_cross_thread_write_logging));

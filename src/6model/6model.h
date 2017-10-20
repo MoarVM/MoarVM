@@ -675,3 +675,10 @@ void MVM_6model_invoke_default(MVMThreadContext *tc, MVMObject *invokee, MVMCall
 void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st);
 MVMuint64 MVM_6model_next_type_cache_id(MVMThreadContext *tc);
 void MVM_6model_never_repossess(MVMThreadContext *tc, MVMObject *obj);
+
+MVM_STATIC_INLINE char *MVM_6model_get_debug_name(MVMThreadContext *tc, MVMObject *obj) {
+    return STABLE(obj)->debug_name ? STABLE(obj)->debug_name : "";
+}
+MVM_STATIC_INLINE char *MVM_6model_get_stable_debug_name(MVMThreadContext *tc, MVMSTable *stable) {
+    return stable->debug_name ? stable->debug_name : "";
+}

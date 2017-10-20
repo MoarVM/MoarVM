@@ -1736,7 +1736,7 @@ MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCal
         MVMInvocationSpec *is = STABLE(code)->invocation_spec;
         if (!is) {
             MVM_exception_throw_adhoc(tc, "Cannot invoke this object (REPR: %s; %s)",
-                REPR(code)->name, STABLE(code)->debug_name);
+                REPR(code)->name, MVM_6model_get_debug_name(tc, code));
         }
         code = find_invokee_internal(tc, code, tweak_cs, is);
     }
@@ -1752,7 +1752,7 @@ MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *cod
     if (STABLE(code)->invoke == MVM_6model_invoke_default) {
         MVMInvocationSpec *is = STABLE(code)->invocation_spec;
         if (!is) {
-            MVM_exception_throw_adhoc(tc, "Cannot invoke this object (REPR: %s; %s)", REPR(code)->name, STABLE(code)->debug_name);
+            MVM_exception_throw_adhoc(tc, "Cannot invoke this object (REPR: %s; %s)", REPR(code)->name, MVM_6model_get_debug_name(tc, code));
         }
         if (is->md_cache_offset && is->md_valid_offset) {
             if (!IS_CONCRETE(code))
