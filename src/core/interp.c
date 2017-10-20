@@ -5041,8 +5041,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (MVM_string_graphs(tc, GET_REG(cur_op, 2).s)) {
                     char *debugname = MVM_string_utf8_encode_C_string(tc, GET_REG(cur_op, 2).s);
-                    if (MVM_6model_get_debug_name(tc, obj)) {
-                        MVM_free(MVM_6model_get_debug_name(tc, obj));
+                    if (STABLE(obj)->debug_name) {
+                        MVM_free(STABLE(obj)->debug_name);
                     }
                     STABLE(obj)->debug_name = debugname;
                 } else {
