@@ -539,18 +539,18 @@ void MVM_6model_container_cas(MVMThreadContext *tc, MVMObject *cont,
             else
                 MVM_exception_throw_adhoc(tc,
                     "A %s container does not know how to do atomic compare and swap",
-                    cont->st->debug_name);
+                     MVM_6model_get_stable_debug_name(tc, cont->st));
         }
         else {
             MVM_exception_throw_adhoc(tc,
                 "Cannot perform atomic compare and swap on non-container value of type %s",
-                cont->st->debug_name);
+                 MVM_6model_get_stable_debug_name(tc, cont->st));
         }
     }
     else {
         MVM_exception_throw_adhoc(tc,
             "Cannot perform atomic compare and swap on %s type object",
-            cont->st->debug_name);
+             MVM_6model_get_stable_debug_name(tc, cont->st));
     }
 }
 
@@ -563,18 +563,18 @@ MVMObject * MVM_6model_container_atomic_load(MVMThreadContext *tc, MVMObject *co
             else
                 MVM_exception_throw_adhoc(tc,
                     "A %s container does not know how to do an atomic load",
-                    cont->st->debug_name);
+                     MVM_6model_get_stable_debug_name(tc, cont->st));
         }
         else {
             MVM_exception_throw_adhoc(tc,
                 "Cannot perform atomic load from a non-container value of type %s",
-                cont->st->debug_name);
+                 MVM_6model_get_stable_debug_name(tc, cont->st));
         }
     }
     else {
         MVM_exception_throw_adhoc(tc,
             "Cannot perform atomic load from %s type object",
-            cont->st->debug_name);
+             MVM_6model_get_stable_debug_name(tc, cont->st));
     }
 }
 
@@ -587,18 +587,18 @@ void MVM_6model_container_atomic_store(MVMThreadContext *tc, MVMObject *cont, MV
             else
                 MVM_exception_throw_adhoc(tc,
                     "A %s container does not know how to do an atomic store",
-                    cont->st->debug_name);
+                     MVM_6model_get_stable_debug_name(tc, cont->st));
         }
         else {
             MVM_exception_throw_adhoc(tc,
                 "Cannot perform atomic store to a non-container value of type %s",
-                cont->st->debug_name);
+                 MVM_6model_get_stable_debug_name(tc, cont->st));
         }
     }
     else {
         MVM_exception_throw_adhoc(tc,
             "Cannot perform atomic store to %s type object",
-            cont->st->debug_name);
+             MVM_6model_get_stable_debug_name(tc, cont->st));
     }
 }
 

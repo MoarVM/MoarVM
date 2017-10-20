@@ -6,7 +6,7 @@ GCC_DIAG_OFF(return-type)
 MVMuint64 MVM_REPR_DEFAULT_ELEMS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVM_exception_throw_adhoc(tc,
         "This representation (%s) does not support elems (for type %s)",
-        st->REPR->name, st->debug_name);
+        st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 GCC_DIAG_ON(return-type)
 MVM_NO_RETURN static void die_no_attrs(MVMThreadContext *tc, const char *repr_name, const char *debug_name) MVM_NO_RETURN_GCC;
@@ -15,17 +15,17 @@ static void die_no_attrs(MVMThreadContext *tc, const char *repr_name, const char
         "This representation (%s) does not support attribute storage (for type %s)", repr_name, debug_name);
 }
 void MVM_REPR_DEFAULT_GET_ATTRIBUTE(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, MVMRegister *result, MVMuint16 kind) {
-    die_no_attrs(tc, st->REPR->name, st->debug_name);
+    die_no_attrs(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 void MVM_REPR_DEFAULT_BIND_ATTRIBUTE(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, MVMRegister value, MVMuint16 kind) {
-    die_no_attrs(tc, st->REPR->name, st->debug_name);
+    die_no_attrs(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 GCC_DIAG_OFF(return-type)
 MVMint64 MVM_REPR_DEFAULT_IS_ATTRIBUTE_INITIALIZED(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
-    die_no_attrs(tc, st->REPR->name, st->debug_name);
+    die_no_attrs(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 AO_t * MVM_REPR_DEFAULT_ATTRIBUTE_AS_ATOMIC(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name) {
-    die_no_attrs(tc, st->REPR->name, st->debug_name);
+    die_no_attrs(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 GCC_DIAG_ON(return-type)
 MVMint64 MVM_REPR_DEFAULT_HINT_FOR(MVMThreadContext *tc, MVMSTable *st, MVMObject *class_handle, MVMString *name) {
@@ -33,39 +33,39 @@ MVMint64 MVM_REPR_DEFAULT_HINT_FOR(MVMThreadContext *tc, MVMSTable *st, MVMObjec
 }
 void MVM_REPR_DEFAULT_SET_INT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) cannot box a native int (for type %s)", st->REPR->name, st->debug_name);
+        "This representation (%s) cannot box a native int (for type %s)", st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 MVMint64 MVM_REPR_DEFAULT_GET_INT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) cannot unbox to a native int (for type %s)", st->REPR->name, st->debug_name);
+        "This representation (%s) cannot unbox to a native int (for type %s)", st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 void MVM_REPR_DEFAULT_SET_NUM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMnum64 value) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) cannot box a native num (for type %s)", st->REPR->name, st->debug_name);
+        "This representation (%s) cannot box a native num (for type %s)", st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 MVMnum64 MVM_REPR_DEFAULT_GET_NUM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) cannot unbox to a native num (for type %s)", st->REPR->name, st->debug_name);
+        "This representation (%s) cannot unbox to a native num (for type %s)", st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 void MVM_REPR_DEFAULT_SET_STR(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) cannot box a native string (for type %s)", st->REPR->name, st->debug_name);
+        "This representation (%s) cannot box a native string (for type %s)", st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 MVMString * MVM_REPR_DEFAULT_GET_STR(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) cannot unbox to a native string (for type %s)", st->REPR->name, st->debug_name);
+        "This representation (%s) cannot unbox to a native string (for type %s)", st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 void MVM_REPR_DEFAULT_SET_UINT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 value) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) cannot box an unsigned native int (for type %s)", st->REPR->name, st->debug_name);
+        "This representation (%s) cannot box an unsigned native int (for type %s)", st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 MVMuint64 MVM_REPR_DEFAULT_GET_UINT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) cannot unbox to an unsigned native int (for type %s)", st->REPR->name, st->debug_name);
+        "This representation (%s) cannot unbox to an unsigned native int (for type %s)", st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 void * MVM_REPR_DEFAULT_GET_BOXED_REF(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint32 repr_id) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) cannot unbox to other types (for type %s)", st->REPR->name, st->debug_name);
+        "This representation (%s) cannot unbox to other types (for type %s)", st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 MVM_NO_RETURN static void die_no_pos(MVMThreadContext *tc, const char *repr_name, const char *debug_name) MVM_NO_RETURN_GCC;
 static void die_no_pos(MVMThreadContext *tc, const char *repr_name, const char *debug_name) {
@@ -73,54 +73,54 @@ static void die_no_pos(MVMThreadContext *tc, const char *repr_name, const char *
         "This representation (%s) does not support positional access (for type %s)", repr_name, debug_name);
 }
 void MVM_REPR_DEFAULT_AT_POS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
-    die_no_pos(tc, st->REPR->name, st->debug_name);
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 void MVM_REPR_DEFAULT_BIND_POS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
-    die_no_pos(tc, st->REPR->name, st->debug_name);
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 void MVM_REPR_DEFAULT_SET_ELEMS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
-    die_no_pos(tc, st->REPR->name, st->debug_name);
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 void MVM_REPR_DEFAULT_PUSH(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
-    die_no_pos(tc, st->REPR->name, st->debug_name);
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 void MVM_REPR_DEFAULT_POP(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
-    die_no_pos(tc, st->REPR->name, st->debug_name);
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 void MVM_REPR_DEFAULT_UNSHIFT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
-    die_no_pos(tc, st->REPR->name, st->debug_name);
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 void MVM_REPR_DEFAULT_SHIFT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
-    die_no_pos(tc, st->REPR->name, st->debug_name);
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 void MVM_REPR_DEFAULT_AT_POS_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister *value, MVMuint16 kind) {
-    die_no_pos(tc, st->REPR->name, st->debug_name);
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 void MVM_REPR_DEFAULT_BIND_POS_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister value, MVMuint16 kind) {
-    die_no_pos(tc, st->REPR->name, st->debug_name);
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 void MVM_REPR_DEFAULT_DIMENSIONS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 *num_dimensions, MVMint64 **dimensions) {
-    die_no_pos(tc, st->REPR->name, st->debug_name);
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 void MVM_REPR_DEFAULT_SET_DIMENSIONS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_dimensions, MVMint64 *dimensions) {
-    die_no_pos(tc, st->REPR->name, st->debug_name);
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 GCC_DIAG_OFF(return-type)
 MVMStorageSpec MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC(MVMThreadContext *tc, MVMSTable *st) {
-    die_no_pos(tc, st->REPR->name, st->debug_name);
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 AO_t * MVM_REPR_DEFAULT_POS_AS_ATOMIC(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                                       void *data, MVMint64 index) {
-    die_no_pos(tc, st->REPR->name, st->debug_name);
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 AO_t * MVM_REPR_DEFAULT_POS_AS_ATOMIC_MULTIDIM(MVMThreadContext *tc, MVMSTable *st,
                                                MVMObject *root, void *data,
                                                MVMint64 num_indices, MVMint64 *indices) {
-    die_no_pos(tc, st->REPR->name, st->debug_name);
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 GCC_DIAG_ON(return-type)
 void MVM_REPR_DEFAULT_SPLICE(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMint64 offset, MVMuint64 elems) {
-    die_no_pos(tc, st->REPR->name, st->debug_name);
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 MVM_NO_RETURN static void die_no_ass(MVMThreadContext *tc, const char *repr_name, const char *debug_name) MVM_NO_RETURN_GCC;
 static void die_no_ass(MVMThreadContext *tc, const char *repr_name, const char *debug_name) {
@@ -128,22 +128,22 @@ static void die_no_ass(MVMThreadContext *tc, const char *repr_name, const char *
         "This representation (%s) does not support associative access (for type %s)", repr_name, debug_name);
 }
 void MVM_REPR_DEFAULT_AT_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister *result, MVMuint16 kind) {
-    die_no_ass(tc, st->REPR->name, st->debug_name);
+    die_no_ass(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 void MVM_REPR_DEFAULT_BIND_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister value, MVMuint16 kind) {
-    die_no_ass(tc, st->REPR->name, st->debug_name);
+    die_no_ass(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 GCC_DIAG_OFF(return-type)
 MVMint64 MVM_REPR_DEFAULT_EXISTS_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
-    die_no_ass(tc, st->REPR->name, st->debug_name);
+    die_no_ass(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 GCC_DIAG_ON(return-type)
 void MVM_REPR_DEFAULT_DELETE_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
-    die_no_ass(tc, st->REPR->name, st->debug_name);
+    die_no_ass(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 GCC_DIAG_OFF(return-type)
 MVMStorageSpec MVM_REPR_DEFAULT_GET_VALUE_STORAGE_SPEC(MVMThreadContext *tc, MVMSTable *st) {
-    die_no_ass(tc, st->REPR->name, st->debug_name);
+    die_no_ass(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 GCC_DIAG_ON(return-type)
 

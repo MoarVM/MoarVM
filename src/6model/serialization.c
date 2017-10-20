@@ -1147,7 +1147,7 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
             add_param_intern(tc, writer, st->WHAT, ptype, params);
     }
 
-    MVM_serialization_write_cstr(tc, writer, st->debug_name);
+    MVM_serialization_write_cstr(tc, writer, MVM_6model_get_stable_debug_name(tc, st));
 
     /* Store offset we save REPR data at. */
     write_int32(writer->root.stables_table, offset + 8, writer->stables_data_offset);
@@ -1206,7 +1206,7 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
             REPR(obj)->serialize(tc, STABLE(obj), OBJECT_BODY(obj), writer);
         else
             MVM_exception_throw_adhoc(tc,
-                "Missing serialize REPR function for REPR %s (%s)", REPR(obj)->name, STABLE(obj)->debug_name);
+                "Missing serialize REPR function for REPR %s (%s)", REPR(obj)->name, MVM_6model_get_debug_name(tc, obj));
     }
 }
 
@@ -2683,7 +2683,7 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
             REPR(obj)->deserialize(tc, STABLE(obj), obj, OBJECT_BODY(obj), reader);
         else
             fail_deserialize(tc, reader, "Missing deserialize REPR function for %s (%s)",
-                REPR(obj)->name, STABLE(obj)->debug_name);
+                REPR(obj)->name, MVM_6model_get_debug_name(tc, obj));
         reader->current_object = NULL;
     }
 }

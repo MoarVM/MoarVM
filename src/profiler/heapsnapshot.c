@@ -229,8 +229,8 @@ static MVMuint64 get_frame_idx(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
 static void set_type_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
        MVMHeapSnapshotCollectable *col, MVMSTable *st) {
     MVMuint64 repr_idx = get_string_index(tc, ss, (char *)st->REPR->name, STR_MODE_CONST);
-    MVMuint64 type_idx = st->debug_name
-        ? get_string_index(tc, ss, st->debug_name, STR_MODE_DUP)
+    MVMuint64 type_idx = MVM_6model_get_stable_debug_name(tc, st)
+        ? get_string_index(tc, ss, MVM_6model_get_stable_debug_name(tc, st), STR_MODE_DUP)
         : get_string_index(tc, ss, "<anon>", STR_MODE_CONST);
 
     MVMuint64 i;
