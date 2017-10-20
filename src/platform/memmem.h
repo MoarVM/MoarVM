@@ -3,9 +3,10 @@
  * Crochemore-Perrin two-way string matching.
  * Reasoning:
  * Windows, does not include any native memmem
- * MacOS has a memmem but is slower and originates from FreeBSD dated to 2005 */
+ * MacOS has a memmem but is slower and originates from FreeBSD dated to 2005
+ * Solaris doesn't seem to have memmem                                        */
 
-#if defined(_WIN32) || defined(__APPLE__) || defined(__Darwin__)
+#if defined(_WIN32) || defined(__APPLE__) || defined(__Darwin__) || defined(__sun)
 #include "../3rdparty/freebsd/memmem.c"
 #else
 /* On systems that use glibc, you must define _GNU_SOURCE before including string.h
