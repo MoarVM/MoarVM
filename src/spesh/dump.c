@@ -303,7 +303,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         debug_name = MVM_6model_get_stable_debug_name(tc, (MVMSTable *)result);
                         repr_name  = ((MVMSTable *)result)->REPR->name;
                     } else {
-                        debug_name = MVM_6model_get_debug_name(tc, result);
+                        debug_name = MVM_6model_get_debug_name(tc, (MVMObject *)result);
                         repr_name  = REPR(result)->name;
                     }
                     if (debug_name) {

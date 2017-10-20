@@ -329,7 +329,7 @@ MVMint64 MVM_iter_istrue(MVMThreadContext *tc, MVMIter *iter) {
 MVMString * MVM_iterkey_s(MVMThreadContext *tc, MVMIter *iterator) {
     if (REPR(iterator)->ID != MVM_REPR_ID_MVMIter
             || iterator->body.mode != MVM_ITER_MODE_HASH)
-        MVM_exception_throw_adhoc(tc, "This is not a hash iterator, it's a %s (%s)", REPR(iterator)->name, MVM_6model_get_debug_name(tc, iterator));
+        MVM_exception_throw_adhoc(tc, "This is not a hash iterator, it's a %s (%s)", REPR(iterator)->name, MVM_6model_get_debug_name(tc, (MVMObject *)iterator));
     if (!iterator->body.hash_state.curr)
         MVM_exception_throw_adhoc(tc, "You have not advanced to the first item of the hash iterator, or have gone past the end");
     return MVM_HASH_KEY(iterator->body.hash_state.curr);
@@ -340,7 +340,7 @@ MVMObject * MVM_iterval(MVMThreadContext *tc, MVMIter *iterator) {
     MVMObject *target;
     MVMRegister result;
     if (REPR(iterator)->ID != MVM_REPR_ID_MVMIter)
-        MVM_exception_throw_adhoc(tc, "This is not an iterator, it's a %s (%s)", REPR(iterator)->name, MVM_6model_get_debug_name(tc, iterator));
+        MVM_exception_throw_adhoc(tc, "This is not an iterator, it's a %s (%s)", REPR(iterator)->name, MVM_6model_get_debug_name(tc, (MVMObject *)iterator));
     if (iterator->body.mode == MVM_ITER_MODE_ARRAY) {
         body = &iterator->body;
         if (body->array_state.index == -1)
