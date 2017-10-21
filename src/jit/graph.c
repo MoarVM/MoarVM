@@ -242,6 +242,9 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_codes_s: return MVM_string_codes;
     case MVM_OP_getcp_s: return MVM_string_get_grapheme_at;
     case MVM_OP_index_s: return MVM_string_index;
+    case MVM_OP_indexic_s: return MVM_string_index_ignore_case;
+    case MVM_OP_indexicim_s: return MVM_string_index_ignore_case_ignore_mark;
+    case MVM_OP_indexim_s: return MVM_string_index_ignore_mark;
     case MVM_OP_substr_s: return MVM_string_substring;
     case MVM_OP_join: return MVM_string_join;
     case MVM_OP_replace: return MVM_string_replace;
@@ -2500,6 +2503,9 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_PTR, dst);
         break;
     }
+    case MVM_OP_indexic_s:
+    case MVM_OP_indexicim_s:
+    case MVM_OP_indexim_s:
     case MVM_OP_index_s: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 haystack = ins->operands[1].reg.orig;
