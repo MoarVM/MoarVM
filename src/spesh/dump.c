@@ -503,10 +503,10 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
                     MVM_6model_get_stable_debug_name(tc, (MVMSTable *)value));
             else if (value->flags & MVM_CF_TYPE_OBJECT)
                 appendf(&ds, "    %d = Type Object (%s)\n", i,
-                    MVM_6model_get_stable_debug_name(tc, (MVMSTable *)value));
+                    MVM_6model_get_debug_name(tc, (MVMObject *)value));
             else
                 appendf(&ds, "    %d = Instance (%s)\n", i,
-                    MVM_6model_get_stable_debug_name(tc, (MVMSTable *)value));
+                    MVM_6model_get_debug_name(tc, (MVMObject *)value));
         }
     }
 
