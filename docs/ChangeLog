@@ -1,3 +1,71 @@
+New in 2017.10
+
++ Solaris doesn't have memmem() so use the 3rdparty/FreeBSD one
++ Fix segfault on Solaris due to the undefined behavior of passing NULL to printf
++ Add new DynASM version as submodule
++ Removal of Configure.pl --lua and --has-dynasm options, compiling with these
+  included 3rdparty lib is now required
++ Remove build dependency on Perl 5 Test::Exception module
++ Make a fast path for VMArray splice using memcpy
++ Add a few missing casts to MVMObject *
++ Cache the ENV var hash after first access
++ Improve MVM_dir_cwd() error message
++ Fix missing rooting/barriering in C[PP]Struct
++ Fix missing MVMROOTs in type parameterization handling
+
+Expression tree:
+  + Add the new expression template JIT
+  + Document the expression template syntax and IR structure
+  + Document tiles
+  + jit-bisect tool to help us bisect JIT issues
+  + Enable sp_sp6obind_*, sp_p6ogetvt_o to be JIT compiled by expression engine
+
+JIT:
+  + JIT compile native calls with VMArray arguments
+  + jit-dump.pl - rename option from 'dir' to 'directory'
+  + Basic JIT of lock/unlock
+
+  + Support unsigned ints when JIT compiling native calls
+  + Move null check into getdynlex func and remove bare null from getlexrel and getlexreldyn
+  + Don't allow low-level null from getdynlex
+  + Remove duplicate typedef for MVMJitCompiler
+
+Frame:
+  + Ensure ->caller/->static_info can't get outdated
+  + Check caller chain before promotion
+  + Set frame->caller up earlier
+  + Add missing MVMROOT of outer/code_ref
+  + Set frame->static_info in allocate_frame
+  + Skip stats for frames beyond spesh max bytecode size
+  + Don't generate log entries for huge frames
+
+Spesh:
+  + Fix possible access to moved object body
+  + Add missing MVMROOT of return value for spesh logging
+  + Don't give internal workers a spesh log
+GC:
+  + Add more GC debug checks to help find ->caller bug
+  + Add debug assert in remove_one_frame
+  + GC block pow_I thread due to it potentially being an expensive call
+  + Mark thread GC blocked when locking file
+  + Update GC debug code for growing nurseries
+  + Avoid a thread yield loop in mark_thread_unlocked
+  + Catch frame worklist adds with NULL static_info
+  + Make thread GC nurseries scale to need
+Build:
+  + Sort the flags for MAST::Ops before generating them
+
+Strings:
+  + join: factor the concat stability checks into their own function and simplify conditionals
+  + join: special case 8bit flat pieces/separator. 3x faster for joining 8bit flat strings
+  + Fix quaternary collation level's. Fixes RT#132216
+  + collation: simplify quaternary and use define's for the bitmask
+  + Speed up codes op by 10% for synthetic graphemes
+
+Windows:
+  + Fix ->seakable detection on TTY handles
+  + Fix definition of MIN causing Windows issue
+
 New in 2017.09.1
 
 + Assign variable in optimize_bb loop on its own line for clarity
