@@ -4,7 +4,7 @@ New in 2017.10
 + Fix segfault on Solaris due to the undefined behavior of passing NULL to printf
 + Add new DynASM version as submodule
 + Removal of Configure.pl --lua and --has-dynasm options, compiling with these
-  included 3rdparty lib is now required
+  included 3rdparty libs is now required
 + Remove build dependency on Perl 5 Test::Exception module
 + Make a fast path for VMArray splice using memcpy
 + Add a few missing casts to MVMObject *
@@ -12,6 +12,18 @@ New in 2017.10
 + Improve MVM_dir_cwd() error message
 + Fix missing rooting/barriering in C[PP]Struct
 + Fix missing MVMROOTs in type parameterization handling
++ Fix returned tcp port values for async sockets (ntohs).  See RT#132135.
++ Probe for gcc -Werror=* support. This allows building MoarVM on older GCCs.
++ Fix issues with FreeBSD build, including adding new libuv file to Makefile.in
++ Protect parameterization additions with a mutex and fix for parametric type race
++ Bump libuv to ver. 1.14.1
++ Add MVM_fixed_size_realloc() and MVM_fixed_size_realloc_at_safepoint()
++ Convert left-over calloc to FSA equivalents in NFA
+
+NativeCall:
+  + Factor out callback thread finding so code is now shared between libffi and dyncall backends
+  + Make native callback thread finding more robust
+  + Stash native thread ID after GC unblock
 
 JIT:
   + JIT compile native calls with VMArray arguments
@@ -42,6 +54,7 @@ Spesh:
   + Fix possible access to moved object body
   + Add missing MVMROOT of return value for spesh logging
   + Don't give internal workers a spesh log
+
 GC:
   + Add more GC debug checks to help find ->caller bug
   + Add debug assert in remove_one_frame
@@ -51,19 +64,41 @@ GC:
   + Avoid a thread yield loop in mark_thread_unlocked
   + Catch frame worklist adds with NULL static_info
   + Make thread GC nurseries scale to need
+
 Build:
   + Sort the flags for MAST::Ops before generating them
 
 Strings:
   + join: factor the concat stability checks into their own function and simplify conditionals
   + join: special case 8bit flat pieces/separator. 3x faster for joining 8bit flat strings
+  + join: If only one item is to be joined, just return it
+  + join: When everything to be joined is made up of strands, copy strands instead of making one flat string
   + Fix quaternary collation level's. Fixes RT#132216
   + collation: simplify quaternary and use define's for the bitmask
   + Speed up codes op by 10% for synthetic graphemes
+  + In KMP based index set max stack alloca to 3000 bytes (used to be 4096)
+  + Deduplicate the while loops into a #define in KMP based index
+  + Fix utfc-c8 encoding for values > 0x10FFFF and unicode surrogates
+  + Fix concat bug with utf8c8 strings, flattening utf8c8 synths
+  + Use the FSA for a temp alloc in MVM_string_join
+  + Change realloc condition in MVM_string_utf8_decode to avoid unneeded reallocs
+  + Add hex digits to the end of non-unique Unicode names (i.e. <CJK Ideograph-6183>)
+  + Update Unicode Emoji to version 5
+  + Download all emoji files and generate UCD for Emoji 4 and onward
+    + Since Emoji names in Unicode are not guaranteed to be 100% stable, we read from
+      version 4 onward to ensure full compatibility with older MoarVM versions and
+      Emoji versions
+  + Add info about planned features to Collation docs (Language/natural sort)
 
 Windows:
-  + Fix ->seakable detection on TTY handles
+  + Fix ->seekable detection on TTY handles
   + Fix definition of MIN causing Windows issue
+  + Pass user32 lib to build on Windows
+  + #include ws2tcpip.h in syncsocket.c
+
+MacOS:
+  + Only include libuv posix-hrtime on *BSD not Darwin, was causing some versions
+    of MacOS not to build
 
 New in 2017.09.1
 
