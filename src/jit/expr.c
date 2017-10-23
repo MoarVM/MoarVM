@@ -83,54 +83,35 @@ MVMint32 MVM_jit_expr_op_is_binary_noncommutative(MVMThreadContext *tc, MVMint32
 
 static MVMint32 MVM_jit_expr_add_regaddr(MVMThreadContext *tc, MVMJitExprTree *tree,
                                          MVMuint16 reg) {
-    MVMint32 num  = tree->nodes_num;
-    MVMJitExprNode template[] = { MVM_JIT_LOCAL,
-                                  MVM_JIT_ADDR, num, reg * MVM_JIT_REG_SZ };
-    MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
-    return num + 1;
+    return MVM_jit_expr_apply_template_adhoc(tc, tree, "nnl.",
+                                             MVM_JIT_LOCAL,
+                                             MVM_JIT_ADDR, 0, reg * MVM_JIT_REG_SZ) + 1;
 }
 
 static MVMint32 MVM_jit_expr_add_loadframe(MVMThreadContext *tc, MVMJitExprTree *tree) {
-    MVMint32 num = tree->nodes_num;
-    MVMJitExprNode template[] = { MVM_JIT_TC,
-                                  MVM_JIT_ADDR, num, offsetof(MVMThreadContext, cur_frame),
-                                  MVM_JIT_LOAD, num + 1, sizeof(MVMFrame*) };
-    MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
-    return num + 4;
+    return MVM_jit_expr_apply_template_adhoc(tc, tree, "nnl.nl.",
+                                             MVM_JIT_TC,
+                                             MVM_JIT_ADDR, 0, offsetof(MVMThreadContext, cur_frame),
+                                             MVM_JIT_LOAD, 1, sizeof(MVMFrame*)) + 4;
 }
-
-
 
 static MVMint32 MVM_jit_expr_add_load(MVMThreadContext *tc, MVMJitExprTree *tree,
                                       MVMint32 addr) {
-    MVMint32 num        = tree->nodes_num;
-    MVMJitExprNode template[] = { MVM_JIT_LOAD, addr, MVM_JIT_REG_SZ };
-    MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
-    return num;
+    return MVM_jit_expr_apply_template_adhoc(tc, tree, "n..", MVM_JIT_LOAD, addr, MVM_JIT_REG_SZ);
 }
-
 
 static MVMint32 MVM_jit_expr_add_store(MVMThreadContext *tc, MVMJitExprTree *tree,
                                        MVMint32 addr, MVMint32 val, MVMint32 sz) {
-    MVMint32 num = tree->nodes_num;
-    MVMJitExprNode template[] = { MVM_JIT_STORE, addr, val, sz };
-    MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
-    return num;
+    return MVM_jit_expr_apply_template_adhoc(tc, tree, "n...", MVM_JIT_STORE, addr, val, sz);
 }
 
-
-static MVMint32 MVM_jit_expr_add_cast(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node, MVMint32 to_size, MVMint32 from_size, MVMint32 is_signed) {
-    MVMint32 num = tree->nodes_num;
-    MVMJitExprNode template[] = { MVM_JIT_CAST, node, to_size, from_size, is_signed };
-    MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
-    return num;
+static MVMint32 MVM_jit_expr_add_cast(MVMThreadContext *tc, MVMJitExprTree *tree,
+                                      MVMint32 node, MVMint32 to_size, MVMint32 from_size, MVMint32 is_signed) {
+    return MVM_jit_expr_apply_template_adhoc(tc, tree, "n....", MVM_JIT_CAST, node, to_size, from_size, is_signed);
 }
 
 static MVMint32 MVM_jit_expr_add_label(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 label) {
-    MVMint32 num = tree->nodes_num;
-    MVMJitExprNode template[] = { MVM_JIT_MARK, label };
-    MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(template[0]));
-    return num;
+    return MVM_jit_expr_apply_template_adhoc(tc, tree, "n.", MVM_JIT_MARK, label);
 }
 
 static MVMint32 MVM_jit_expr_add_lexaddr(MVMThreadContext *tc, MVMJitExprTree *tree,
@@ -140,31 +121,28 @@ static MVMint32 MVM_jit_expr_add_lexaddr(MVMThreadContext *tc, MVMJitExprTree *t
     MVMint32 num = MVM_jit_expr_add_loadframe(tc, tree);
     for (i = 0; i < outers; i++) {
         /* (load (addr $val (&offsetof MVMFrame outer)) (&sizeof MVMFrame*)) */
-        MVMJitExprNode template[] = { MVM_JIT_ADDR, num, offsetof(MVMFrame, outer),
-                                      MVM_JIT_LOAD, tree->nodes_num, sizeof(MVMFrame*) };
-        MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
-        num = tree->nodes_num - 3;
+        num = MVM_jit_expr_apply_template_adhoc(tc, tree, "n..nl.",
+                                                MVM_JIT_ADDR, num, offsetof(MVMFrame, outer),
+                                                MVM_JIT_LOAD, 0, sizeof(MVMFrame*)) + 3;
+
     }
     /* (addr (load (addr $frame (&offsetof MVMFrame env)) ptr_sz) ptr_sz*idx) */
-    {
-        MVMJitExprNode template[] = {
-            MVM_JIT_ADDR, num, offsetof(MVMFrame, env), /* (addr $frame (&offsetof MVMFrame env)) */
-            MVM_JIT_LOAD, tree->nodes_num, MVM_JIT_PTR_SZ, /* (load $addr ptr_sz) */
-            MVM_JIT_ADDR, tree->nodes_num + 3, idx * MVM_JIT_REG_SZ /* (addr $frame_env idx*reg_sz) */
-        };
-        MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
-        num = tree->nodes_num - 3;
-    }
-    return num;
+    return MVM_jit_expr_apply_template_adhoc(tc, tree, "n..nl.nl.",
+                                             /* (addr $frame (&offsetof MVMFrame env)) */
+                                             MVM_JIT_ADDR, num, offsetof(MVMFrame, env),
+                                             /* (load $addr ptr_sz) */
+                                             MVM_JIT_LOAD, 0, MVM_JIT_PTR_SZ,
+                                             /* (addr $frame_env idx*reg_sz) */
+                                             MVM_JIT_ADDR, 3, idx * MVM_JIT_REG_SZ) + 6;
 }
 
 
 static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tree,
                                        MVMSpeshOperand opr, MVMuint8 info) {
 
-    MVMJitExprNode template[]  = { MVM_JIT_CONST, 0, 0 };
-    MVMint32 num               = tree->nodes_num;
-    MVMint32 size              = 3;
+    MVMJitExprNode template[] = { MVM_JIT_CONST, 0, 0 };
+    MVMint32 num        = tree->nodes_num;
+    MVMint32 size       = 3;
     switch(info & MVM_operand_type_mask) {
     case MVM_operand_int8:
         template[1] = opr.lit_i8;
@@ -343,32 +321,51 @@ static void check_template(MVMThreadContext *tc, const MVMJitExprTemplate *templ
 }
 
 /* Add template to nodes, filling in operands and linking tree nodes. Return template root */
-MVMint32 MVM_jit_expr_apply_template(MVMThreadContext *tc, MVMJitExprTree *tree,
-                                     const MVMJitExprTemplate *template, MVMint32 *operands) {
+static MVMint32 apply_template(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 len, char *info,
+                               MVMJitExprNode *code, MVMint32 *operands) {
     MVMint32 i, num;
     num = tree->nodes_num;
-    MVM_VECTOR_ENSURE_SPACE(tree->nodes, template->len);
+    MVM_VECTOR_ENSURE_SPACE(tree->nodes, len);
     /* Loop over string until the end */
-    for (i = 0; template->info[i]; i++) {
-        switch (template->info[i]) {
+    for (i = 0; info[i]; i++) {
+        switch (info[i]) {
         case 'l':
             /* link template-relative to nodes-relative */
-            tree->nodes[num+i] = template->code[i] + num;
+            tree->nodes[num+i] = code[i] + num;
             break;
         case 'f':
             /* add operand node into the nodes */
-            tree->nodes[num+i] = operands[template->code[i]];
+            tree->nodes[num+i] = operands[code[i]];
             break;
         default:
-            /* copy from template to nodes */
-            tree->nodes[num+i] = template->code[i];
+            /* copy from template to nodes (./n) */
+            tree->nodes[num+i] = code[i];
             break;
         }
     }
-    tree->nodes_num = num + template->len;
-    return num + template->root; /* root relative to nodes */
+    tree->nodes_num = num + len;
+    return num;
 }
 
+MVMint32 MVM_jit_expr_apply_template(MVMThreadContext *tc, MVMJitExprTree *tree,
+                                     const MVMJitExprTemplate *template, MVMint32 *operands) {
+    return apply_template(tc, tree, template->len, (char*)template->info,
+                          (MVMJitExprNode*)template->code, operands) + template->root;
+}
+
+/* this will fail with more than 16 nodes, which is just as fine */
+MVMint32 MVM_jit_expr_apply_template_adhoc(MVMThreadContext *tc, MVMJitExprTree *tree,
+                                           char *info, ...) {
+    MVMJitExprNode code[16];
+    MVMint32 i;
+    va_list args;
+    va_start(args, info);
+    for (i = 0; info[i] != 0; i++) {
+        code[i] = va_arg(args, MVMint32);
+    }
+    va_end(args);
+    return apply_template(tc, tree, i, info, code, NULL);
+}
 
 
 /* Collect tree analysis information, add stores of computed values */
