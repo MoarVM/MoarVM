@@ -330,6 +330,92 @@ and then warn about anything that's not a link address.
    have the large_const op refer to the large_const table (i.e. not the
    regular const)
 
+NB - I didn't do the @ notation, because it turns out we need to
+specially handle the indirected constants, and because of platform
+differences, we also make the distinction between large constants in
+general (MVMint64 or MVMnum64) and pointer constants, because pointers
+have different sizes per architecture, and general large constants do
+not.
+
+
+** Encode (parts of) info as flags
+
+Even when we'd have 32 bit operands and we'd (wastefully) use 16 bits
+for the operator (rather than 8 which would be till 4x more than we
+use now), we still have 16 perfectly good bits left. What I want to do
+is to make info mostly sparse, so that:
+
+- we can use a hashtable to represent all nodes that do have info
+- we can encode all relevant attributes 'inline'
+
+Which would be:
+- number-of-args (redundant but nice, especially if it gets rid of the
+  first-child-node-is-arg-count nonsense)
+  - we could maximize this to 16? (4 bits) or 32 (5 bits)
+- size (1,2,4,8) (2 bits or 3 bits)
+  - that may be a bit aggressive, we may want to support SIMD?
+- type flag (int/num/str/obj) (2 bits or 5 bits if we want to encode
+  the whole field)
+
+All that would remain of info would be spesh_ins, meaning that this
+would become sufficiently sparse to use a hash table, which would mean
+we no longer need to resize the number of args.
+
+#+BEGIN_SRC C
+typedef union {
+    struct {
+        MVMint16 o; /* operator */
+        MVMuint8 c; /* number of children */
+        MVMuint8 s : 4; /* size of result */
+        MVMuint8 t : 4; /* type of result */
+    }
+    MVMint32 r; /* reference */
+} MVMJitExprNode;
+#+END_SRC
+
+** REPR-Specialized expression code
+
+ Parts needed:
+ + A hook for instructions with operands of known repr type to insert a template
+   + So how do we know which instruction/operand this is? (Hardcode with a switch, maybe)
+   + Runtime hook should be similar to spesh hook
+   + We should probably pass the tree and let the repr do manipulations itself for maximum flexibility
+   + and have a default hook which attempts to apply a template
+   + return root if succesful, otherwise -1 (in which case we can fallback to the normal mode)
+   + should have a separate jit flags entry which is also settable by
+     the specializer (for jittivity, template destructiveness, possibly
+     other things)
+   + operands loading must be public / template apply must become 'public methods'
+ + Compile-time support for arbitrary templates in the expression templates
+   + I think adding to a makefile list is acceptable, in general, but
+     it would be nice if we could have a substitution rule that would
+     make sure the expression templates are compiled 'automatically'
+
+ #+BEGIN_SRC makefile
+ EPXR_TEMPLATES=src/jit/core_expr.h \
+                src/6model/reprs/MMArray_expr.h \
+                src/6model/reprs/NativeRef_expr.h \
+                src/6model/reprs/MultiDimArray_expr.h \
+ # preferefably, we'd match the .expr with the file name automatically
+
+ src/6model/reprs/%.c: src/6model/reprs/%_expr.h # would be ideal, but this is not automatically picked up
+ # Expression list tables
+ %_expr_tables.h: %.expr tools/expr-template-compiler.pl src/core/oplist src/jit/expr_ops.h
+	 $(PERL) -Itools/ tools/expr-template-compiler.pl -o $@ $<
+ #+END_SRC
+
+** FLAGVAL ALL/ANY
+
+ Basically, flagval all/any is legal according to the type system, it
+ will just never work. We should translate it to (IF (ALL|ANY ..)
+ (CONST 1 1) (CONST 0 1))
+
+ The problem is, replacing all references to the node. (This is common
+ with the optimizer, which also needs it).
+
+ We don't actually need this yet, but we don't guard against it
+ either. (So maybe install an oops in analyze first).
+
 ** Use explicit stack for tree walking
 
 Simple, mechanical transformation. I wonder if we can have a maximum
