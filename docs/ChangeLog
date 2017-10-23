@@ -13,22 +13,21 @@ New in 2017.10
 + Fix missing rooting/barriering in C[PP]Struct
 + Fix missing MVMROOTs in type parameterization handling
 
-Expression tree:
-  + Add the new expression template JIT
-  + Document the expression template syntax and IR structure
-  + Document tiles
-  + jit-bisect tool to help us bisect JIT issues
-  + Enable sp_sp6obind_*, sp_p6ogetvt_o to be JIT compiled by expression engine
-
 JIT:
   + JIT compile native calls with VMArray arguments
-  + jit-dump.pl - rename option from 'dir' to 'directory'
   + Basic JIT of lock/unlock
 
   + Support unsigned ints when JIT compiling native calls
   + Move null check into getdynlex func and remove bare null from getlexrel and getlexreldyn
   + Don't allow low-level null from getdynlex
   + Remove duplicate typedef for MVMJitCompiler
+
+  + Merge the 'expression tree' JIT compiler backend.
+	+ Document the expression template syntax and IR structure
+	+ Document tiles
+	+ Add jit-bisect tool to help us bisect JIT issues
+	+ Add jit-dump tool to compare JIT output between runs
+	+ Process annotations on PHI nodes
 
 Frame:
   + Ensure ->caller/->static_info can't get outdated
