@@ -152,9 +152,9 @@ static MVMint64 filtered_out(MVMThreadContext *tc, MVMObject *written) {
 
     /* Filter out writes to Sub and Method, since these are almost always just
      * multi-dispatch caches. */
-    if (memcmp( MVM_6model_get_stable_debug_name(tc, written->st), "Method", 6) == 0)
+    if (strncmp( MVM_6model_get_stable_debug_name(tc, written->st), "Method", 6) == 0)
         return 1;
-    if (memcmp( MVM_6model_get_stable_debug_name(tc, written->st), "Sub", 3) == 0)
+    if (strncmp( MVM_6model_get_stable_debug_name(tc, written->st), "Sub", 3) == 0)
         return 1;
 
     /* Otherwise, may be relevant. */
