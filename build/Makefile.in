@@ -55,7 +55,8 @@ PLATFORM_WIN32 = src/platform/win32/mmap@obj@ \
                  src/platform/win32/io@obj@
 
 PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
-                 src/platform/posix/time@obj@
+                 src/platform/posix/time@obj@ \
+                 src/platform/posix/io@obj@
 
 DASM_FLAGS   = @dasm_flags@
 JIT_ARCH_X64 = src/jit/x64/emit@obj@ src/jit/x64/arch@obj@
