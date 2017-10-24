@@ -1,6 +1,8 @@
 New in 2017.10
 
++ Unix socket support has been added
 + Solaris doesn't have memmem() so use the 3rdparty/FreeBSD one
++ Fix getaddrinfo failing with EAI_HINTS on FreeBSD
 + Fix segfault on Solaris due to the undefined behavior of passing NULL to printf
 + Add new DynASM version as submodule
 + Removal of Configure.pl --lua and --has-dynasm options, compiling with these
@@ -18,12 +20,13 @@ New in 2017.10
 + Protect parameterization additions with a mutex and fix for parametric type race
 + Bump libuv to ver. 1.14.1
 + Add MVM_fixed_size_realloc() and MVM_fixed_size_realloc_at_safepoint()
-+ Convert left-over calloc to FSA equivalents in NFA
++ Fix a segfault when trying to bind a p6bigint to a matching attribute in a p6opaque
 
 NativeCall:
   + Factor out callback thread finding so code is now shared between libffi and dyncall backends
   + Make native callback thread finding more robust
   + Stash native thread ID after GC unblock
+  + Many NativeCall functions can now be JIT'd
 
 JIT:
   + JIT compile native calls with VMArray arguments
@@ -33,13 +36,14 @@ JIT:
   + Move null check into getdynlex func and remove bare null from getlexrel and getlexreldyn
   + Don't allow low-level null from getdynlex
   + Remove duplicate typedef for MVMJitCompiler
+  + getlex_o now returns VNMull rather than null
 
   + Merge the 'expression tree' JIT compiler backend.
-	+ Document the expression template syntax and IR structure
-	+ Document tiles
-	+ Add jit-bisect tool to help us bisect JIT issues
-	+ Add jit-dump tool to compare JIT output between runs
-	+ Process annotations on PHI nodes
+  + Document the expression template syntax and IR structure
+  + Document tiles
+  + Add jit-bisect tool to help us bisect JIT issues
+  + Add jit-dump tool to compare JIT output between runs
+  + Process annotations on PHI nodes
 
 Frame:
   + Ensure ->caller/->static_info can't get outdated
@@ -54,6 +58,7 @@ Spesh:
   + Fix possible access to moved object body
   + Add missing MVMROOT of return value for spesh logging
   + Don't give internal workers a spesh log
+  + Make "Can't find nc_site value on spesh ins" non-fatal
 
 GC:
   + Add more GC debug checks to help find ->caller bug
@@ -81,6 +86,7 @@ Strings:
   + Fix utfc-c8 encoding for values > 0x10FFFF and unicode surrogates
   + Fix concat bug with utf8c8 strings, flattening utf8c8 synths
   + Use the FSA for a temp alloc in MVM_string_join
+  + Use FSA to allocate memory in NFA
   + Change realloc condition in MVM_string_utf8_decode to avoid unneeded reallocs
   + Add hex digits to the end of non-unique Unicode names (i.e. <CJK Ideograph-6183>)
   + Update Unicode Emoji to version 5
