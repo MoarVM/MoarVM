@@ -472,7 +472,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
         MVMOSHandle   * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc,
             tc->instance->boot_types.BOOTIO);
         data->fd          = fd;
-        data->seekable    = MVM_platform_lseek(fd, 0, SEEK_CUR) != -1;
+        data->seekable    = MVM_platform_is_fd_seekable(fd);
         result->body.ops  = &op_table;
         result->body.data = data;
         return (MVMObject *)result;
@@ -484,7 +484,7 @@ MVMObject * MVM_file_handle_from_fd(MVMThreadContext *tc, int fd) {
     MVMOSHandle   * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
     MVMIOFileData * const data   = MVM_calloc(1, sizeof(MVMIOFileData));
     data->fd          = fd;
-    data->seekable    = MVM_platform_lseek(fd, 0, SEEK_CUR) != -1;
+    data->seekable    = MVM_platform_is_fd_seekable(fd);
     result->body.ops  = &op_table;
     result->body.data = data;
 #ifdef _WIN32
