@@ -52,7 +52,7 @@ void MVM_jit_log_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
 static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                       MVMJitExprTree *tree, MVMint32 node) {
     MVMJitExprNodeInfo *info   = &tree->info[node];
-    const MVMJitExprOpInfo *op = info->op_info;
+    const MVMJitExprOpInfo *op = MVM_jit_expr_op_info(tc, tree->nodes[node]);
     MVMint32 *depth            = traverser->data;
     MVMint32 i, j;
     char indent[64];
@@ -86,7 +86,7 @@ static void ascend_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 static void write_graphviz_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                                 MVMJitExprTree *tree, MVMint32 node) {
     FILE *graph_file            = traverser->data;
-    const MVMJitExprOpInfo *op_info = tree->info[node].op_info;
+    const MVMJitExprOpInfo *op_info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
     MVMint32 first_child        = node + 1;
     MVMint32 nchild             = op_info->nchild < 0 ? tree->nodes[first_child++] : op_info->nchild;
     MVMint32 first_arg          = first_child + nchild;

@@ -44,7 +44,6 @@ struct MVMJitExprOpInfo {
 /* Tree node information for easy access and use during compilation (a
    symbol table entry of sorts) */
 struct MVMJitExprNodeInfo {
-    const MVMJitExprOpInfo *op_info;
     /* VM instruction represented by this node */
     MVMSpeshIns    *spesh_ins;
     /* VM 'register' type represented by this node */
@@ -96,7 +95,8 @@ struct MVMJitTreeTraverser {
 };
 
 
-const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext *tc, MVMint32 op);
+
+
 /* properties of expression ops */
 MVMint32 MVM_jit_expr_op_negate_flag(MVMThreadContext *tc, MVMint32 op);
 MVMint32 MVM_jit_expr_op_is_binary_noncommutative(MVMThreadContext *tc, MVMint32 op);
@@ -108,3 +108,13 @@ void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree, MVMJ
 void MVM_jit_expr_tree_destroy(MVMThreadContext *tc, MVMJitExprTree *tree);
 MVMint32 MVM_jit_expr_tree_get_nodes(MVMThreadContext *tc, MVMJitExprTree *tree,
                                      MVMint32 node, const char *path, MVMJitExprNode *buffer);
+
+extern const MVMJitExprOpInfo MVM_JIT_EXPR_OP_INFO_TABLE[];
+MVM_STATIC_INLINE const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext *tc, MVMint32 op) {
+#ifdef MVM_JIT_DEBUG
+    if (op < 0 || op >= MVM_JIT_MAX_NODES) {
+        MVM_oops(tc, "JIT: Expr op index out of bounds: %d", op);
+    }
+#endif
+    return &MVM_JIT_EXPR_OP_INFO_TABLE[op];
+}

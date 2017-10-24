@@ -58,7 +58,7 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                       MVMJitExprTree *tree, MVMint32 node) {
     struct TreeTiler *tiler      = traverser->data;
     MVMJitExprNode op            = tree->nodes[node];
-    const MVMJitExprOpInfo *info = tree->info[node].op_info;
+    const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, op);
     MVMint32 first_child = node+1;
     MVMint32 nchild      = info->nchild < 0 ? tree->nodes[first_child++] : info->nchild;
     MVMint32 *state_info = NULL;
@@ -158,7 +158,7 @@ static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
         return node;
     } else {
         /* resolve conflict by copying this node */
-        const MVMJitExprOpInfo *info = tree->info[node].op_info;
+        const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
         MVMint32 space = (info->nchild < 0 ?
                           2 + tree->nodes[node+1] + info->nargs :
                           1 + info->nchild + info->nargs);
@@ -197,9 +197,8 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 
     MVMJitExprNode op    = tree->nodes[node];
     MVMint32 first_child = node+1;
-    MVMint32 nchild      = (tree->info[node].op_info->nchild < 0 ?
-                            tree->nodes[first_child++] :
-                            tree->info[node].op_info->nchild);
+    const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, op);
+    MVMint32 nchild      = (info->nchild < 0 ? tree->nodes[first_child++] : info->nchild);
     struct TreeTiler *tiler = traverser->data;
 
     const MVMJitTileTemplate *tile = tiler->states[node].template;
@@ -262,7 +261,7 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     default:
         {
             _ASSERT(nchild <= 2, "Can't tile %d children of %s", nchild,
-                    tree->info[node].op_info->name);
+                    MVM_jit_expr_op_info(tc, tree->nodes[node])->name);
             if (nchild > 0) {
                 DO_ASSIGN_CHILD(0, left_sym);
             }

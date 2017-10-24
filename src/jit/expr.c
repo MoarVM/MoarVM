@@ -1,5 +1,11 @@
 #include "moar.h"
 
+const MVMJitExprOpInfo MVM_JIT_EXPR_OP_INFO_TABLE[] = {
+#define OP_INFO(name, nchild, nargs, vtype, cast) { #name, nchild, nargs, MVM_JIT_ ## vtype, MVM_JIT_ ## cast }
+    MVM_JIT_EXPR_OPS(OP_INFO)
+#undef OP_INFO
+};
+
 /* Mathematical min and max macro's */
 #ifndef MAX
 #define MAX(a,b) ((a) > (b) ? (a) : (b));
@@ -8,6 +14,8 @@
 #ifndef MIN
 #define MIN(a,b) ((a) < (b) ? (a) : (b));
 #endif
+
+
 
 
 /* macros used in the expression list templates, defined here so they
@@ -19,20 +27,6 @@
 
 #include "jit/core_templates.h"
 
-
-static const MVMJitExprOpInfo expr_op_info[] = {
-#define OP_INFO(name, nchild, nargs, vtype, cast) { #name, nchild, nargs, MVM_JIT_ ## vtype, MVM_JIT_ ## cast }
-    MVM_JIT_EXPR_OPS(OP_INFO)
-#undef OP_INFO
-};
-
-
-const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext *tc, MVMint32 op) {
-    if (op < 0 || op >= MVM_JIT_MAX_NODES) {
-        MVM_oops(tc, "JIT: Expr op index out of bounds: %d", op);
-    }
-    return &expr_op_info[op];
-}
 
 /* Record the node that defines a value */
 struct ValueDefinition {
@@ -379,7 +373,6 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVMJitExprNodeInfo *node_info = tree->info + node;
     MVMint32 i;
 
-    node_info->op_info   = op_info;
     /* propagate node sizes and assign labels */
     switch (tree->nodes[node]) {
     case MVM_JIT_CONST:
@@ -986,7 +979,7 @@ void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree,
 }
 
 
-#define FIRST_CHILD(t,x) (t->info[x].op_info->nchild < 0 ? x + 2 : x + 1)
+#define FIRST_CHILD(t,x) (MVM_jit_expr_op_info(tc, (t)->nodes[x])->nchild < 0 ? x + 2 : x + 1)
 /* Walk tree to get nodes along a path */
 MVMint32 MVM_jit_expr_tree_get_nodes(MVMThreadContext *tc, MVMJitExprTree *tree,
                                      MVMint32 node, const char *path,
