@@ -1654,7 +1654,8 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
                     char *c_name = MVM_string_utf8_encode_C_string(tc, name);
                     char *waste[] = { c_name, NULL };
                     MVM_exception_throw_adhoc_free(tc, waste,
-                        "Unhandled lexical type in lexprimspec for '%s'",
+                        "Unhandled lexical type '%s' in lexprimspec for '%s'",
+                        MVM_reg_get_debug_name(tc, f->static_info->body.lexical_types[entry->value]),
                         c_name);
                 }
             }

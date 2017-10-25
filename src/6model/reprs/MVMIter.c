@@ -291,7 +291,7 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
                             }
                             default:
                                 MVM_exception_throw_adhoc(tc,
-                                    "Unknown lexical type encountered while building context iterator");
+                                    "%s lexical type encountered while building context iterator", MVM_reg_get_debug_name(tc, type));
                         }
                     }
                 });
