@@ -13,7 +13,7 @@ The below linked documents are current.
 
 ### [JIT compiler overview](jit/overview.org)
 
-### [Expression 'Tree' Intermediate Representation](jit/ir.org)
+### [Expression 'Tree' Intermediate Representation](jit/ir.md)
 
 ### [Runtime Configuration](jit/runtime.md)
 
