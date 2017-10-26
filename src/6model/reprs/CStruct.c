@@ -486,7 +486,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
             break;
         }
         default:
-            MVM_exception_throw_adhoc(tc, "CStruct: invalid kind in attribute get");
+            MVM_exception_throw_adhoc(tc, "CStruct: invalid kind in attribute get for '%s'", MVM_reg_get_debug_name(tc, kind));
         }
     }
     else {

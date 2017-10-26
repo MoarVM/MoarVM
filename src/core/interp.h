@@ -117,3 +117,34 @@ MVM_STATIC_INLINE MVMnum64 MVM_BC_get_N64(const MVMuint8 *cur_op, int offset) {
     return temp;
 #endif
 }
+/* For MVM_reg_* types */
+static char * MVM_reg_get_debug_name(MVMThreadContext *tc, MVMuint16 type) {
+    switch (type) {
+        case MVM_reg_int8:
+            return "int8";
+        case MVM_reg_int16:
+            return "int16";
+        case MVM_reg_int32:
+            return "int32";
+        case MVM_reg_int64:
+            return "int64";
+        case MVM_reg_num32:
+            return "num32";
+        case MVM_reg_num64:
+            return "num64";
+        case MVM_reg_str:
+            return "str";
+        case MVM_reg_obj:
+            return "obj";
+        case MVM_reg_uint8:
+            return "uint8";
+        case MVM_reg_uint16:
+            return "uint16";
+        case MVM_reg_uint32:
+            return "uint32";
+        case MVM_reg_uint64:
+            return "uint64";
+        default:
+            return "unknown";
+    }
+}

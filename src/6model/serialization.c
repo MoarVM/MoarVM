@@ -1263,12 +1263,14 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
             case MVM_reg_int8:
             case MVM_reg_int16:
             case MVM_reg_int32:
-                MVM_exception_throw_adhoc(tc, "unsupported lexical type");
+                MVM_exception_throw_adhoc(tc, "unsupported lexical type %s", MVM_reg_get_debug_name(tc, sf->body.lexical_types[i]));
+                break;
             case MVM_reg_int64:
                 MVM_serialization_write_int(tc, writer, frame->env[i].i64);
                 break;
             case MVM_reg_num32:
-                MVM_exception_throw_adhoc(tc, "unsupported lexical type");
+                MVM_exception_throw_adhoc(tc, "unsupported lexical type %s", MVM_reg_get_debug_name(tc, sf->body.lexical_types[i]));
+                break;
             case MVM_reg_num64:
                 MVM_serialization_write_num(tc, writer, frame->env[i].n64);
                 break;
@@ -1279,7 +1281,8 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
                 MVM_serialization_write_ref(tc, writer, frame->env[i].o);
                 break;
             default:
-                MVM_exception_throw_adhoc(tc, "unsupported lexical type");
+                MVM_exception_throw_adhoc(tc, "unsupported lexical type %s", MVM_reg_get_debug_name(tc, sf->body.lexical_types[i]));
+                break;
         }
     }
 }

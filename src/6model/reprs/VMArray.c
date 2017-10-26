@@ -238,7 +238,7 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
                 value->i64 = (MVMint64)body->slots.u8[body->start + index];
             break;
         default:
-            MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
+            MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type, got '%s'", MVM_reg_get_debug_name(tc, repr_data->slot_type));
     }
 }
 
