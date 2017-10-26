@@ -1,9 +1,6 @@
 New in 2017.10
 
 + Unix socket support has been added
-+ Solaris doesn't have memmem() so use the 3rdparty/FreeBSD one
-+ Fix getaddrinfo failing with EAI_HINTS on FreeBSD
-+ Fix segfault on Solaris due to the undefined behavior of passing NULL to printf
 + Add new DynASM version as submodule
 + Removal of Configure.pl --lua and --has-dynasm options, compiling with these
   included 3rdparty libs is now required
@@ -21,6 +18,7 @@ New in 2017.10
 + Bump libuv to ver. 1.14.1
 + Add MVM_fixed_size_realloc() and MVM_fixed_size_realloc_at_safepoint()
 + Fix a segfault when trying to bind a p6bigint to a matching attribute in a p6opaque
++ Include the type of unhandled register in error messages
 
 NativeCall:
   + Factor out callback thread finding so code is now shared between libffi and dyncall backends
@@ -105,6 +103,14 @@ Windows:
 MacOS:
   + Only include libuv posix-hrtime on *BSD not Darwin, was causing some versions
     of MacOS not to build
+  + Fix seekability detection on MacOS
+
+Solaris:
+  + Solaris doesn't have memmem() so use the 3rdparty/FreeBSD one
+  + Fix segfault on Solaris due to the undefined behavior of passing NULL to print
+
+FreeBSD:
+  + + Fix getaddrinfo failing with EAI_HINTS on FreeBSD
 
 New in 2017.09.1
 
