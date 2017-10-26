@@ -554,7 +554,7 @@ MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
 
     int mp_result;
 
-    if (!MVM_BIGINT_IS_BIG(bb) && bb->u.smallint.value == 1) {
+    if (!MVM_BIGINT_IS_BIG(bb) && bb->u.smallint.value == 1 && STABLE(a) == STABLE(b)) {
         return a;
     }
 
