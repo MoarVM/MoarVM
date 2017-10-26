@@ -554,6 +554,10 @@ MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
 
     int mp_result;
 
+    if (!MVM_BIGINT_IS_BIG(bb) && bb->u.smallint.value == 1) {
+        return a;
+    }
+
     MVMROOT(tc, a, {
     MVMROOT(tc, b, {
         result = MVM_repr_alloc_init(tc, result_type);
