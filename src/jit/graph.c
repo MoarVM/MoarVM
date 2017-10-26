@@ -445,7 +445,7 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
             }
 
             body = MVM_nativecall_get_nc_body(tc, object_facts->value.o);
-            nc_jg = MVM_nativecall_jit_graph_for_caller_code(tc, iter->graph, body, restype, dst);
+            nc_jg = MVM_nativecall_jit_graph_for_caller_code(tc, iter->graph, body, restype, dst, arg_ins);
 
             jg->last_node->next = nc_jg->first_node;
             jg->last_node = nc_jg->last_node;

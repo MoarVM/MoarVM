@@ -407,7 +407,14 @@ void init_box_call_node(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMJitNode *box
     }
 }
 
-MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMNativeCallBody *body, MVMint16 restype, MVMint16 dst) {
+MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
+    MVMThreadContext   *tc,
+    MVMSpeshGraph      *sg,
+    MVMNativeCallBody  *body,
+    MVMint16            restype,
+    MVMint16            dst,
+    MVMSpeshIns       **arg_ins
+) {
     MVMJitGraph *jg = MVM_spesh_alloc(tc, sg, sizeof(MVMJitGraph)); /* will actually calloc */
     MVMJitNode *block_gc_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
     MVMJitNode *unblock_gc_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
@@ -461,7 +468,7 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(MVMThreadContext *tc, MVMS
                     goto fail;
             }
             call_node->u.call.args[i].type = arg_type;
-            call_node->u.call.args[i].v.lit_i64 = i;
+            call_node->u.call.args[i].v.lit_i64 = dst == -1 ? i : arg_ins[i]->operands[1].reg.orig;
         }
     }
 
@@ -519,7 +526,7 @@ fail:
 
 MVMJitCode *create_caller_code(MVMThreadContext *tc, MVMNativeCallBody *body) {
     MVMSpeshGraph *sg = MVM_calloc(1, sizeof(MVMSpeshGraph));
-    MVMJitGraph *jg = MVM_nativecall_jit_graph_for_caller_code(tc, sg, body, -1, -1);
+    MVMJitGraph *jg = MVM_nativecall_jit_graph_for_caller_code(tc, sg, body, -1, -1, NULL);
     MVMJitCode *jitcode;
     if (jg != NULL) {
         MVMJitNode *entry_label = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));

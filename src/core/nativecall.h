@@ -128,4 +128,11 @@ void * MVM_nativecall_unmarshal_carray(MVMThreadContext *tc, MVMObject *value);
 void * MVM_nativecall_unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value);
 void * MVM_nativecall_unmarshal_cunion(MVMThreadContext *tc, MVMObject *value);
 MVMThreadContext * MVM_nativecall_find_thread_context(MVMInstance *instance);
-MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMNativeCallBody *body, MVMint16 restype, MVMint16 dst);
+MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
+    MVMThreadContext   *tc,
+    MVMSpeshGraph      *sg,
+    MVMNativeCallBody  *body,
+    MVMint16            restype,
+    MVMint16            dst,
+    MVMSpeshIns       **arg_ins
+);
