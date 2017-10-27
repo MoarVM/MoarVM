@@ -839,6 +839,7 @@ getarg_i            w(int64) r(int16)
 getarg_n            w(num64) r(int16)
 getarg_s            w(str) r(int16)
 getarg_o            w(obj) r(int16)
+coerce_II           w(obj) r(obj) r(obj) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

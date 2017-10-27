@@ -3525,6 +3525,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(coerce_II): {
+                MVMObject *   const type = GET_REG(cur_op, 4).o;
+                GET_REG(cur_op, 0).o = MVM_bigint_from_bigint(tc, type, GET_REG(cur_op, 2).o);
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(coerce_nI): {
                 MVMObject *   const type = GET_REG(cur_op, 4).o;
                 GET_REG(cur_op, 0).o = MVM_bigint_from_num(tc, type, GET_REG(cur_op, 2).n64);
