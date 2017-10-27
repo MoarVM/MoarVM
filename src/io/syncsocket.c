@@ -71,7 +71,7 @@ static void read_one_packet(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
         MVM_gc_mark_thread_blocked(tc);
         r = recv(data->handle, data->last_packet, PACKET_SIZE, 0);
         MVM_gc_mark_thread_unblocked(tc);
-    } while(r == -1 && errno != EINTR);
+    } while(r == -1 && errno == EINTR);
     MVM_telemetry_interval_stop(tc, interval_id, "syncsocket.read_one_packet");
     if (MVM_IS_SOCKET_ERROR(r) || r == 0) {
         MVM_free(data->last_packet);
@@ -206,7 +206,7 @@ MVMint64 socket_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
             MVM_gc_mark_thread_blocked(tc);
             r = send(data->handle, buf, (int)bytes, 0);
             MVM_gc_mark_thread_unblocked(tc);
-        } while(r == -1 && errno != EINTR);
+        } while(r == -1 && errno == EINTR);
         if (MVM_IS_SOCKET_ERROR(r)) {
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket.write_bytes");
             throw_error(tc, r, "send data to socket");
@@ -350,7 +350,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
             MVM_gc_mark_thread_blocked(tc);
             r = connect(s, dest, (socklen_t)get_struct_size_for_family(dest->sa_family));
             MVM_gc_mark_thread_unblocked(tc);
-        } while(r == -1 && errno != EINTR);
+        } while(r == -1 && errno == EINTR);
         MVM_free(dest);
         if (MVM_IS_SOCKET_ERROR(r)) {
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
@@ -470,7 +470,7 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
         MVM_gc_mark_thread_blocked(tc);
         s = accept(data->handle, NULL, NULL);
         MVM_gc_mark_thread_unblocked(tc);
-    } while(s == -1 && errno != EINTR);
+    } while(s == -1 && errno == EINTR);
     if (MVM_IS_SOCKET_ERROR(s)) {
         MVM_telemetry_interval_stop(tc, interval_id, "syncsocket accept failed");
         throw_error(tc, s, "accept socket connection");

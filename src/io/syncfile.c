@@ -142,7 +142,7 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
         MVM_gc_mark_thread_blocked(tc);
         bytes_read = read(data->fd, buf, bytes);
         MVM_gc_mark_thread_unblocked(tc);
-    } while(bytes_read == -1 && errno != EINTR);
+    } while(bytes_read == -1 && errno == EINTR);
     if (bytes_read  == -1) {
         int save_errno = errno;
         MVM_free(buf);
