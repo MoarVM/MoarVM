@@ -70,26 +70,22 @@ static MVMint64 mvm_fileno(MVMThreadContext *tc, MVMOSHandle *h) {
  * buffering output. */
 static void perform_write(MVMThreadContext *tc, MVMIOFileData *data, char *buf, MVMint64 bytes) {
     MVMint64 bytes_written = 0;
-    MVM_gc_mark_thread_blocked(tc);
     while (bytes > 0) {
         int r;
-
         do {
+            MVM_gc_mark_thread_blocked(tc);
             r = write(data->fd, buf, (int)bytes);
+            MVM_gc_mark_thread_unblocked(tc);
         } while (r == -1 && errno == EINTR);
-
         if (r == -1) {
             int save_errno = errno;
-            MVM_gc_mark_thread_unblocked(tc);
             MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s",
                 strerror(save_errno));
         }
-
         bytes_written += r;
         buf += r;
         bytes -= r;
     }
-    MVM_gc_mark_thread_unblocked(tc);
     data->byte_position += bytes_written;
     data->known_writable = 1;
 }
@@ -142,16 +138,18 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
         bytes = 16387;
 #endif
     flush_output_buffer(tc, data);
-    MVM_gc_mark_thread_blocked(tc);
-    if ((bytes_read = read(data->fd, buf, bytes)) == -1) {
+    do {
+        MVM_gc_mark_thread_blocked(tc);
+        bytes_read = read(data->fd, buf, bytes);
+        MVM_gc_mark_thread_unblocked(tc);
+    } while(bytes_read == -1 && errno != EINTR);
+    if (bytes_read  == -1) {
         int save_errno = errno;
         MVM_free(buf);
-        MVM_gc_mark_thread_unblocked(tc);
         MVM_exception_throw_adhoc(tc, "Reading from filehandle failed: %s",
             strerror(save_errno));
     }
     *buf_out = buf;
-    MVM_gc_mark_thread_unblocked(tc);
     MVM_telemetry_interval_annotate(bytes_read, interval_id, "read this many bytes");
     MVM_telemetry_interval_stop(tc, interval_id, "syncfile.read_to_buffer");
     data->byte_position += bytes_read;
