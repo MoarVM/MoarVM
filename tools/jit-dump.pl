@@ -1,7 +1,6 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
-use autodie qw(open close);
 use FindBin;
 use lib $FindBin::Bin;
 use timeout qw(run_timeout);
@@ -97,17 +96,17 @@ sub disassemble_and_comparify {
     my $objdump_pid = fork();
     if ($objdump_pid == 0) {
         print STDERR "Starting `@objdump_command`\n";
-        close STDOUT;
-        open STDOUT, '>&', $out_pipe;
+        close( STDOUT ) or die $!;
+        open( STDOUT, '>&', $out_pipe) or die $!;
         exec @objdump_command or die "Could not exec objdump";
     }
     my $comparify_pid = fork();
     if ($comparify_pid == 0) {
         print STDERR "Starting `@comparify_command`\n";
-        close STDIN;
-        open STDIN, '<&', $in_pipe;
-        close STDOUT;
-        open STDOUT, '>', $out_file;
+        close( STDIN ) or die $!;
+        open( STDIN, '<&', $in_pipe ) or die $!;
+        close( STDOUT ) or die $!;
+        open( STDOUT, '>', $out_file ) or die $!;
         exec @comparify_command or die "Could not exec comparify";
     }
     return ($objdump_pid, $comparify_pid);
