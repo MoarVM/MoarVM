@@ -215,7 +215,6 @@ const unsigned int MVM_jit_num_globals(void) {
 |.define RV, rax
 |.define RVd, eax
 |.define RVF, xmm0
-|.define SAVED_RV, [rbp-0x28]
 
 
 |.macro callp, funcptr
@@ -1935,7 +1934,7 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
         | lea TMP6, [=>(arg.v.lit_i64)];
         break;
     case MVM_JIT_SAVED_RV:
-        | mov TMP6, qword SAVED_RV;
+        | mov TMP6, [rbp-(0x28+arg.v.lit_i64*8)];
         break;
     case MVM_JIT_ARG_I64:
         | mov TMP6, TC->cur_frame;
@@ -2679,8 +2678,8 @@ void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitDat
     |.code
 }
 
-void MVM_jit_emit_save_rv(MVMThreadContext *tc, MVMJitCompiler *compiler) {
-    | mov qword SAVED_RV, RV;
+void MVM_jit_emit_save_rv(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint16 slot) {
+    | mov [rbp-(0x28+slot*8)], RV;
 }
 
 /* import tiles */

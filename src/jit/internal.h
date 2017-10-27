@@ -48,7 +48,7 @@ void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
 void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler,
                           MVMJitControl *ctrl, MVMJitTile *tile);
 void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitData *data);
-void MVM_jit_emit_save_rv(MVMThreadContext *tc, MVMJitCompiler *compiler);
+void MVM_jit_emit_save_rv(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint16 slot);
 
 void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
                        MVMint32 reg_cls, MVMint8 reg_dst,

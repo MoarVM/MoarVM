@@ -85,7 +85,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
             MVM_jit_emit_data(tc, &cl, &node->u.data);
             break;
         case MVM_JIT_NODE_SAVE_RV:
-            MVM_jit_emit_save_rv(tc, &cl);
+            MVM_jit_emit_save_rv(tc, &cl, node->u.stack.slot);
             break;
         }
         node = node->next;
