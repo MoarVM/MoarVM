@@ -194,6 +194,10 @@ struct MVMJitData {
     size_t    size;
 };
 
+struct MVMJitStackSlot {
+    MVMint16 slot;
+};
+
 /* Node types */
 typedef enum {
     MVM_JIT_NODE_PRIMITIVE,
@@ -223,6 +227,7 @@ struct MVMJitNode {
         MVMJitControl   control;
         MVMJitData      data;
         MVMJitExprTree *tree;
+        MVMJitStackSlot stack;
     } u;
 };
 

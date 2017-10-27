@@ -23,7 +23,7 @@ static MVMint16 get_str_free_flag(MVMThreadContext *tc, MVMObject *info) {
     return MVM_NATIVECALL_ARG_FREE_STR;
 }
 
-/* Gets the flag for whether to free a string after a call or not. */
+/* Gets the flag for whether an arg is rw or not. */
 static MVMint16 get_rw_flag(MVMThreadContext *tc, MVMObject *info) {
     MVMString *flag = tc->instance->str_consts.rw;
     if (MVM_repr_exists_key(tc, info, flag)) {
@@ -428,6 +428,7 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
     jg->first_node = block_gc_node;
 
     save_rv_node->type = MVM_JIT_NODE_SAVE_RV;
+    save_rv_node->u.stack.slot = 0;
     save_rv_node->next = unblock_gc_node;
 
     init_c_call_node(tc, sg, block_gc_node,   &MVM_gc_mark_thread_blocked, 1, block_gc_args);
@@ -441,11 +442,53 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
     jg->last_node = unblock_gc_node->next = box_rv_node;
 
     if (0 < body->num_args) {
-        MVMuint16 i = 0;
+        MVMuint16 i = 0, str_arg_count = 0;
         call_node->u.call.args = MVM_spesh_alloc(tc, sg, body->num_args * sizeof(MVMJitCallArg));
         for (i = 0; i < body->num_args; i++) {
+            if ((body->arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) == MVM_NATIVECALL_ARG_UTF8STR) {
+                MVMJitNode *unbox_str_node;
+                MVMJitNode *save_str_rv_node;
+                MVMJitNode *free_str_node;
+
+                if (7 < ++str_arg_count) /* only got 7 empty slots in the stack scratch space */
+                    goto fail;
+
+                save_str_rv_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
+                save_str_rv_node->type = MVM_JIT_NODE_SAVE_RV;
+                save_str_rv_node->u.stack.slot = str_arg_count;
+                save_str_rv_node->next = jg->first_node;
+
+                unbox_str_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
+                {
+                    MVMJitCallArg unbox_str_args[] = {
+                        { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } },
+                        {
+                            dst == -1 ? MVM_JIT_ARG_I64 : MVM_JIT_PARAM_I64 ,
+                            { dst == -1 ? i : arg_ins[i]->operands[1].reg.orig }
+                        }
+                    };
+                    init_c_call_node(tc, sg, unbox_str_node, &MVM_string_utf8_encode_C_string, 2, unbox_str_args);
+                }
+                unbox_str_node->next = save_str_rv_node;
+                jg->first_node = unbox_str_node;
+
+                call_node->u.call.args[i].type = MVM_JIT_SAVED_RV;
+                call_node->u.call.args[i].v.lit_i64 = str_arg_count;
+
+                if ((body->arg_types[i] & MVM_NATIVECALL_ARG_FREE_STR_MASK) != 0) {
+                    MVMJitCallArg free_str_args[] = {
+                        { MVM_JIT_SAVED_RV , { str_arg_count } }
+                    };
+                    free_str_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
+                    init_c_call_node(tc, sg, free_str_node, &MVM_free, 1, free_str_args);
+                    free_str_node->next = unblock_gc_node->next;
+                    unblock_gc_node->next = free_str_node;
+                }
+            }
+        }
+        for (i = 0; i < body->num_args; i++) {
             MVMJitArgType arg_type;
-            switch (body->arg_types[i]) {
+            switch (body->arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
                 case MVM_NATIVECALL_ARG_CHAR:
                 case MVM_NATIVECALL_ARG_UCHAR:
                 case MVM_NATIVECALL_ARG_SHORT:
@@ -464,6 +507,8 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
                 case MVM_NATIVECALL_ARG_VMARRAY:
                     arg_type = dst == -1 ? MVM_JIT_ARG_VMARRAY : MVM_JIT_PARAM_VMARRAY;
                     break;
+                case MVM_NATIVECALL_ARG_UTF8STR:
+                    continue; /* already handled */
                 default:
                     goto fail;
             }
