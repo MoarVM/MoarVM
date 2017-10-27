@@ -2740,7 +2740,9 @@ MVMObject * MVM_serialization_demand_object(MVMThreadContext *tc, MVMSerializati
     /* Obtain lock and check we didn't lose a race to deserialize this
      * object. */
     MVMSerializationReader *sr = sc->body->sr;
-    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
+    MVMROOT(tc, sc, {
+        MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
+    });
     if (sc->body->root_objects[idx]) {
         MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
         return sc->body->root_objects[idx];
