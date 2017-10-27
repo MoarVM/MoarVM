@@ -70,15 +70,15 @@ static MVMint64 mvm_fileno(MVMThreadContext *tc, MVMOSHandle *h) {
  * buffering output. */
 static void perform_write(MVMThreadContext *tc, MVMIOFileData *data, char *buf, MVMint64 bytes) {
     MVMint64 bytes_written = 0;
+    MVM_gc_mark_thread_blocked(tc);
     while (bytes > 0) {
         int r;
         do {
-            MVM_gc_mark_thread_blocked(tc);
             r = write(data->fd, buf, (int)bytes);
-            MVM_gc_mark_thread_unblocked(tc);
         } while (r == -1 && errno == EINTR);
         if (r == -1) {
             int save_errno = errno;
+            MVM_gc_mark_thread_unblocked(tc);
             MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s",
                 strerror(save_errno));
         }
@@ -86,6 +86,7 @@ static void perform_write(MVMThreadContext *tc, MVMIOFileData *data, char *buf, 
         buf += r;
         bytes -= r;
     }
+    MVM_gc_mark_thread_unblocked(tc);
     data->byte_position += bytes_written;
     data->known_writable = 1;
 }

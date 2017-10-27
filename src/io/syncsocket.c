@@ -200,14 +200,14 @@ MVMint64 socket_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
     unsigned int interval_id;
 
     interval_id = MVM_telemetry_interval_start(tc, "syncsocket.write_bytes");
+    MVM_gc_mark_thread_blocked(tc);
     while (bytes > 0) {
         int r;
         do {
-            MVM_gc_mark_thread_blocked(tc);
             r = send(data->handle, buf, (int)bytes, 0);
-            MVM_gc_mark_thread_unblocked(tc);
         } while(r == -1 && errno == EINTR);
         if (MVM_IS_SOCKET_ERROR(r)) {
+            MVM_gc_mark_thread_unblocked(tc);
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket.write_bytes");
             throw_error(tc, r, "send data to socket");
         }
@@ -215,6 +215,7 @@ MVMint64 socket_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
         buf += r;
         bytes -= r;
     }
+    MVM_gc_mark_thread_unblocked(tc);
     MVM_telemetry_interval_annotate(bytes, interval_id, "written this many bytes");
     MVM_telemetry_interval_stop(tc, interval_id, "syncsocket.write_bytes");
     return bytes;
