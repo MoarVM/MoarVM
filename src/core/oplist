@@ -835,6 +835,10 @@ nativeinvoke_i       -a w(int64) r(obj) r(obj)
 nativeinvoke_n       -a w(num64) r(obj) r(obj)
 nativeinvoke_s       -a w(str) r(obj) r(obj)
 nativeinvoke_o       -a w(obj) r(obj) r(obj)
+getarg_i            w(int64) r(int16)
+getarg_n            w(num64) r(int16)
+getarg_s            w(str) r(int16)
+getarg_o            w(obj) r(int16)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

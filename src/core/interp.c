@@ -5271,6 +5271,22 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_nativecall_invoke_jit(tc, GET_REG(cur_op, 2).o);
                 cur_op += 6;
                 goto NEXT;
+            OP(getarg_i):
+                GET_REG(cur_op, 0).i64 = tc->cur_frame->args[GET_REG(cur_op, 2).u16].i64;
+                cur_op += 4;
+                goto NEXT;
+            OP(getarg_n):
+                GET_REG(cur_op, 0).n64 = tc->cur_frame->args[GET_REG(cur_op, 2).u16].n64;
+                cur_op += 4;
+                goto NEXT;
+            OP(getarg_s):
+                GET_REG(cur_op, 0).s = tc->cur_frame->args[GET_REG(cur_op, 2).u16].s;
+                cur_op += 4;
+                goto NEXT;
+            OP(getarg_o):
+                GET_REG(cur_op, 0).o = tc->cur_frame->args[GET_REG(cur_op, 2).u16].o;
+                cur_op += 4;
+                goto NEXT;
             OP(sp_guard): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
