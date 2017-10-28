@@ -39,7 +39,12 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
 
     /* Take compilation unit lock, to make sure we don't race to do the
      * frame preparation/verification work. */
-    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
+    MVMROOT(tc, cu, {
+    MVMROOT(tc, static_frame, {
+        MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
+    });
+    });
+
     if (static_frame->body.instrumentation_level == 0) {
         /* Work size is number of locals/registers plus size of the maximum
         * call site argument list. */
