@@ -1039,6 +1039,16 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], RV;
         break;
     }
+    case MVM_OP_trunc_i16: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        | mov TMP1, WORK[src];
+        /* x86-64 auto-truncates the upper 48 bits when using registers in 16
+         * bit mode */
+        | mov TMP2w, TMP1w;
+        | mov WORK[dst], TMP2;
+        break;
+    }
     case MVM_OP_trunc_i32: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
