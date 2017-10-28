@@ -111,6 +111,7 @@ typedef enum {
     /* The MVM_JIT_ARG_* types are used when the offset into the WORK array is
        not known yet, i.e. for ahead of time compiled native calls. */
     MVM_JIT_ARG_I64,
+    MVM_JIT_ARG_I64_RW,
     /* Pointers are passed as objects with CPointer representation, i.e. the
        actual pointer is part of the object's data. The MVM_JIT_ARG_PTR type
        unboxes the CPointer object and passes on the contained pointer */
@@ -120,6 +121,7 @@ typedef enum {
        happening as part of spesh, i.e. the offset of the args buffer in WORK
        is already known. */
     MVM_JIT_PARAM_I64,
+    MVM_JIT_PARAM_I64_RW,
     MVM_JIT_PARAM_PTR,
     MVM_JIT_PARAM_VMARRAY,
 } MVMJitArgType;

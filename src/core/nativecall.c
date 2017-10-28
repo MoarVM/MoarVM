@@ -489,7 +489,7 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
         for (i = 0; i < body->num_args; i++) {
             MVMJitArgType arg_type;
             int is_rw = ((body->arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW);
-            if (is_rw) goto fail;
+
             switch (body->arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
                 case MVM_NATIVECALL_ARG_CHAR:
                 case MVM_NATIVECALL_ARG_UCHAR:
@@ -501,15 +501,24 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
                 case MVM_NATIVECALL_ARG_ULONG:
                 case MVM_NATIVECALL_ARG_LONGLONG:
                 case MVM_NATIVECALL_ARG_ULONGLONG:
-                    arg_type = dst == -1 ? MVM_JIT_ARG_I64 : MVM_JIT_PARAM_I64;
+                    arg_type = dst == -1
+                        ? is_rw ? MVM_JIT_ARG_I64_RW : MVM_JIT_ARG_I64
+                        : is_rw ? MVM_JIT_PARAM_I64_RW : MVM_JIT_PARAM_I64;
                     break;
                 case MVM_NATIVECALL_ARG_CPOINTER:
+                    if (is_rw) goto fail;
+                    arg_type = dst == -1 ? MVM_JIT_ARG_PTR : MVM_JIT_PARAM_PTR;
+                    break;
+                case MVM_NATIVECALL_ARG_CARRAY:
+                    if (is_rw) goto fail;
                     arg_type = dst == -1 ? MVM_JIT_ARG_PTR : MVM_JIT_PARAM_PTR;
                     break;
                 case MVM_NATIVECALL_ARG_VMARRAY:
+                    if (is_rw) goto fail;
                     arg_type = dst == -1 ? MVM_JIT_ARG_VMARRAY : MVM_JIT_PARAM_VMARRAY;
                     break;
                 case MVM_NATIVECALL_ARG_UTF8STR:
+                    if (is_rw) goto fail;
                     continue; /* already handled */
                 default:
                     goto fail;

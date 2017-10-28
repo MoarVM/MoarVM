@@ -1941,6 +1941,11 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
         | mov TMP6, FRAME:TMP6->args;
         | mov TMP6, qword REGISTER:TMP6[arg.v.lit_i64];
         break;
+    case MVM_JIT_ARG_I64_RW:
+        | mov TMP6, TC->cur_frame;
+        | mov TMP6, FRAME:TMP6->args;
+        | lea TMP6, qword REGISTER:TMP6[arg.v.lit_i64];
+        break;
     case MVM_JIT_ARG_PTR:
         | mov TMP6, TC->cur_frame;
         | mov TMP6, FRAME:TMP6->args;
@@ -1955,6 +1960,9 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
         break;
     case MVM_JIT_PARAM_I64:
         | mov TMP6, qword WORK[arg.v.lit_i64];
+        break;
+    case MVM_JIT_PARAM_I64_RW:
+        | lea TMP6, qword WORK[arg.v.lit_i64];
         break;
     case MVM_JIT_PARAM_PTR:
         | mov TMP6, aword WORK[arg.v.lit_i64];
@@ -2082,9 +2090,11 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitCompiler *compiler, 
         case MVM_JIT_DATA_LABEL:
         case MVM_JIT_SAVED_RV:
         case MVM_JIT_ARG_I64:
+        case MVM_JIT_ARG_I64_RW:
         case MVM_JIT_ARG_PTR:
         case MVM_JIT_ARG_VMARRAY:
         case MVM_JIT_PARAM_I64:
+        case MVM_JIT_PARAM_I64_RW:
         case MVM_JIT_PARAM_PTR:
         case MVM_JIT_PARAM_VMARRAY:
             if (num_gpr < 6) {
