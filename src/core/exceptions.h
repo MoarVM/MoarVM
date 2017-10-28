@@ -93,6 +93,7 @@ MVM_PUBLIC MVM_NO_RETURN void MVM_exception_throw_adhoc_free(MVMThreadContext *t
 MVM_NO_RETURN void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const char *messageFormat, va_list args) MVM_NO_RETURN_GCC;
 MVM_PUBLIC void MVM_crash_on_error(void);
 char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, MVMuint16 not_top, MVMuint8 *throw_address);
+MVMint32 MVM_get_exception_category(MVMThreadContext *tc, MVMObject *ex);
 
 /* Exit codes for panic. */
 #define MVM_exitcode_NYI            12

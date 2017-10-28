@@ -819,3 +819,10 @@ void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const
 void MVM_crash_on_error(void) {
     crash_on_error = 1;
 }
+
+MVMint32 MVM_get_exception_category(MVMThreadContext *tc, MVMObject *ex) {
+    if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+        return ((MVMException *)ex)->body.category;
+    else
+        MVM_exception_throw_adhoc(tc, "getexcategory needs a VMException, got %s (%s)", REPR(ex)->name, MVM_6model_get_debug_name(tc, ex));
+}

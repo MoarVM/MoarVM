@@ -1245,11 +1245,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(getexcategory): {
-                MVMObject *ex = GET_REG(cur_op, 2).o;
-                if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
-                    GET_REG(cur_op, 0).i64 = ((MVMException *)ex)->body.category;
-                else
-                    MVM_exception_throw_adhoc(tc, "getexcategory needs a VMException, got %s (%s)", REPR(ex)->name, MVM_6model_get_debug_name(tc, ex));
+                GET_REG(cur_op, 0).i64 = MVM_get_exception_category(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             }

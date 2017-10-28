@@ -337,6 +337,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_atomicstore_i: return MVM_6model_container_atomic_store_i;
     case MVM_OP_lock: return MVM_reentrantmutex_lock_checked;
     case MVM_OP_unlock: return MVM_reentrantmutex_unlock_checked;
+    case MVM_OP_getexcategory: return MVM_get_exception_category;
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
     }
@@ -3056,6 +3057,14 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     }
     case MVM_OP_prepargs: {
         return consume_invoke(tc, jg, iter, ins);
+    }
+    case MVM_OP_getexcategory: {
+        MVMint16 dst     = ins->operands[0].reg.orig;
+        MVMint16 obj     = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
     }
     default: {
         /* Check if it's an extop. */
