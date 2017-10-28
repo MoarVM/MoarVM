@@ -830,11 +830,11 @@ atomicstore_o       r(obj) r(obj) :invokish
 atomicstore_i       r(obj) r(int64)
 barrierfull
 coveragecontrol     r(int64)
-nativeinvoke_v       -a r(obj) r(obj)
-nativeinvoke_i       -a w(int64) r(obj) r(obj)
-nativeinvoke_n       -a w(num64) r(obj) r(obj)
-nativeinvoke_s       -a w(str) r(obj) r(obj)
-nativeinvoke_o       -a w(obj) r(obj) r(obj)
+nativeinvoke_v       -a r(obj) r(obj) :noinline
+nativeinvoke_i       -a w(int64) r(obj) r(obj) :noinline
+nativeinvoke_n       -a w(num64) r(obj) r(obj) :noinline
+nativeinvoke_s       -a w(str) r(obj) r(obj) :noinline
+nativeinvoke_o       -a w(obj) r(obj) r(obj) :noinline
 getarg_i            w(int64) r(int16)
 getarg_n            w(num64) r(int16)
 getarg_s            w(str) r(int16)
