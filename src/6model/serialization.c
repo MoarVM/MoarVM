@@ -2874,8 +2874,10 @@ void MVM_serialization_finish_deserialize_method_cache(MVMThreadContext *tc, MVM
     if (sc && sc->body->sr) {
         /* Acquire mutex and ensure we didn't lose a race to do this. */
         MVMSerializationReader *sr = sc->body->sr;
+        MVMROOT(tc, st, {
         MVMROOT(tc, sc, {
             MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
+        });
         });
         if (st->method_cache_sc) {
             MVMObject *cache;
