@@ -560,6 +560,18 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         }
         break;
     }
+    case MVM_OP_getarg_o:
+    case MVM_OP_getarg_n:
+    case MVM_OP_getarg_s:
+    case MVM_OP_getarg_i: {
+        MVMint32 reg = ins->operands[0].reg.orig;
+        MVMuint16 idx = ins->operands[1].callsite_idx;
+        | mov TMP1, TC->cur_frame;
+        | mov TMP1, FRAME:TMP1->args;
+        | mov TMP1, REGISTER:TMP1[idx];
+        | mov WORK[reg], TMP1;
+        break;
+    }
     case MVM_OP_sp_getarg_o:
     case MVM_OP_sp_getarg_n:
     case MVM_OP_sp_getarg_s:
