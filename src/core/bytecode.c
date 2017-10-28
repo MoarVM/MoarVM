@@ -582,8 +582,10 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
         return;
 
     /* Acquire the update mutex on the CompUnit. */
+    MVMROOT(tc, cu, {
     MVMROOT(tc, sf, {
         MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
+    });
     });
 
     /* Ensure no other thread has done this for us in the mean time. */
