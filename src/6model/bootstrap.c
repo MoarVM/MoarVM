@@ -83,7 +83,7 @@ static void add_method(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister 
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     MVM_args_checkarity(tc, &arg_ctx, 4, 4);
     self     = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
-    name     = MVM_args_get_pos_str(tc, &arg_ctx, 2, MVM_ARG_REQUIRED).arg.s;
+    name     = MVM_args_get_required_pos_str(tc, &arg_ctx, 2);
     method   = MVM_args_get_required_pos_obj(tc, &arg_ctx, 3);
     MVM_args_proc_cleanup(tc, &arg_ctx);
     if (!self || !IS_CONCRETE(self) || REPR(self)->ID != MVM_REPR_ID_KnowHOWREPR)
