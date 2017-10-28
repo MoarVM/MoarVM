@@ -467,7 +467,7 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
                             { dst == -1 ? i : arg_ins[i]->operands[1].reg.orig }
                         }
                     };
-                    init_c_call_node(tc, sg, unbox_str_node, &MVM_string_utf8_encode_C_string, 2, unbox_str_args);
+                    init_c_call_node(tc, sg, unbox_str_node, &MVM_string_utf8_maybe_encode_C_string, 2, unbox_str_args);
                 }
                 unbox_str_node->next = save_str_rv_node;
                 jg->first_node = unbox_str_node;
