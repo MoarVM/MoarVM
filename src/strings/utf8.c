@@ -604,6 +604,11 @@ char * MVM_string_utf8_encode_C_string(MVMThreadContext *tc, MVMString *str) {
     return result;
 }
 
+/* Encodes the specified string to a UTF-8 C string if it is not NULL. */
+char * MVM_string_utf8_maybe_encode_C_string(MVMThreadContext *tc, MVMString *str) {
+    return str ? MVM_string_utf8_encode_C_string(tc, str) : NULL;
+}
+
 void MVM_string_utf8_throw_encoding_exception (MVMThreadContext *tc, MVMCodepoint cp) {
     const char *gencat = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_GENERAL_CATEGORY);
     if(cp > 0x10FFFF) {
