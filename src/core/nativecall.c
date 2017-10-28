@@ -488,6 +488,8 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
         }
         for (i = 0; i < body->num_args; i++) {
             MVMJitArgType arg_type;
+            int is_rw = ((body->arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW);
+            if (is_rw) goto fail;
             switch (body->arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
                 case MVM_NATIVECALL_ARG_CHAR:
                 case MVM_NATIVECALL_ARG_UCHAR:
