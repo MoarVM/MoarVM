@@ -33,6 +33,27 @@ static MVMint16 get_rw_flag(MVMThreadContext *tc, MVMObject *info) {
     return MVM_NATIVECALL_ARG_NO_RW;
 }
 
+/* Gets the flag for whether an arg is rw or not. */
+static MVMint16 get_refresh_flag(MVMThreadContext *tc, MVMObject *info) {
+    MVMString *typeobj_str = tc->instance->str_consts.typeobj;
+    if (MVM_repr_exists_key(tc, info, typeobj_str)) {
+        MVMObject *typeobj = MVM_repr_at_key_o(tc, info, typeobj_str);
+
+        if (REPR(typeobj)->ID == MVM_REPR_ID_MVMCArray) {
+            MVMCArrayREPRData  *repr_data = (MVMCArrayREPRData *)STABLE(typeobj)->REPR_data;
+
+            /* No need to refresh numbers. They're stored directly in the array. */
+            if (repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_NUMERIC)
+                return MVM_NATIVECALL_ARG_NO_REFRESH;
+
+            return MVM_NATIVECALL_ARG_REFRESH;
+        }
+    }
+
+    /* We don't know, so fail safe by assuming we have to refresh */
+    return MVM_NATIVECALL_ARG_REFRESH;
+}
+
 /* Takes a hash describing a type hands back an argument type code. */
 MVMint16 MVM_nativecall_get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMint16 is_return) {
     MVMString *typename = MVM_repr_get_str(tc, MVM_repr_at_key_o(tc, info,
@@ -84,7 +105,7 @@ MVMint16 MVM_nativecall_get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMi
     else if (strcmp(ctypename, "cpointer") == 0)
         result = MVM_NATIVECALL_ARG_CPOINTER | get_rw_flag(tc, info);
     else if (strcmp(ctypename, "carray") == 0)
-        result = MVM_NATIVECALL_ARG_CARRAY;
+        result = MVM_NATIVECALL_ARG_CARRAY | get_refresh_flag(tc, info);
     else if (strcmp(ctypename, "cunion") == 0)
         result = MVM_NATIVECALL_ARG_CUNION;
     else if (strcmp(ctypename, "vmarray") == 0)
@@ -510,6 +531,7 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
                     arg_type = dst == -1 ? MVM_JIT_ARG_PTR : MVM_JIT_PARAM_PTR;
                     break;
                 case MVM_NATIVECALL_ARG_CARRAY:
+                    if (body->arg_types[i] & MVM_NATIVECALL_ARG_REFRESH_MASK) goto fail;
                     if (is_rw) goto fail;
                     arg_type = dst == -1 ? MVM_JIT_ARG_PTR : MVM_JIT_PARAM_PTR;
                     break;
