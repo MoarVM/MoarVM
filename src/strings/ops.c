@@ -1657,6 +1657,19 @@ MVM_STATIC_INLINE void join_check_stability(MVMThreadContext *tc, MVMString *pie
         }
     }
 }
+MVM_STATIC_INLINE MVMString * join_get_str_from_pos(MVMThreadContext *tc, MVMObject *array, MVMint64 index, MVMint64 is_str_array) {
+    if (is_str_array) {
+        MVMString *piece = MVM_repr_at_pos_s(tc, array, index);
+        if (piece)
+            return piece;
+    }
+    else {
+        MVMObject *item = MVM_repr_at_pos_o(tc, array, index);
+        if (item && IS_CONCRETE(item))
+            return MVM_repr_get_str(tc, item);
+    }
+    return (MVMString*)NULL;
+}
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObject *input) {
     MVMString  *result = NULL;
     MVMString **pieces = NULL;
@@ -1680,16 +1693,9 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
 
     /* If there's only one element to join, just return it. */
     if (elems == 1) {
-        if (is_str_array) {
-            MVMString *piece = MVM_repr_at_pos_s(tc, input, 0);
-            if (piece)
-                return piece;
-        }
-        else {
-            MVMObject *item = MVM_repr_at_pos_o(tc, input, 0);
-            if (item && IS_CONCRETE(item))
-                return MVM_repr_get_str(tc, item);
-        }
+        MVMString *piece = join_get_str_from_pos(tc, input, 0, is_str_array);
+        if (piece)
+            return piece;
     }
 
     /* Allocate result. */
@@ -1717,19 +1723,10 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     all_strands = separator->body.storage_type == MVM_STRING_STRAND;
     for (i = 0; i < elems; i++) {
         /* Get piece of the string. */
-        MVMString *piece;
+        MVMString *piece = join_get_str_from_pos(tc, input, i, is_str_array);
         MVMint64   piece_graphs;
-        if (is_str_array) {
-            piece = MVM_repr_at_pos_s(tc, input, i);
-            if (!piece)
-                continue;
-        }
-        else {
-            MVMObject *item = MVM_repr_at_pos_o(tc, input, i);
-            if (!item || !IS_CONCRETE(item))
-                continue;
-            piece = MVM_repr_get_str(tc, item);
-        }
+        if (!piece)
+            continue;
 
         /* Check that all the pieces are strands. */
         if (all_strands)
