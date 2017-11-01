@@ -1657,6 +1657,19 @@ MVM_STATIC_INLINE void join_check_stability(MVMThreadContext *tc, MVMString *pie
         }
     }
 }
+MVM_STATIC_INLINE MVMString * join_get_str_from_pos(MVMThreadContext *tc, MVMObject *array, MVMint64 index, MVMint64 is_str_array) {
+    if (is_str_array) {
+        MVMString *piece = MVM_repr_at_pos_s(tc, array, index);
+        if (piece)
+            return piece;
+    }
+    else {
+        MVMObject *item = MVM_repr_at_pos_o(tc, array, index);
+        if (item && IS_CONCRETE(item))
+            return MVM_repr_get_str(tc, item);
+    }
+    return (MVMString*)NULL;
+}
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObject *input) {
     MVMString  *result = NULL;
     MVMString **pieces = NULL;
@@ -1680,16 +1693,9 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
 
     /* If there's only one element to join, just return it. */
     if (elems == 1) {
-        if (is_str_array) {
-            MVMString *piece = MVM_repr_at_pos_s(tc, input, 0);
-            if (piece)
-                return piece;
-        }
-        else {
-            MVMObject *item = MVM_repr_at_pos_o(tc, input, 0);
-            if (item && IS_CONCRETE(item))
-                return MVM_repr_get_str(tc, item);
-        }
+        MVMString *piece = join_get_str_from_pos(tc, input, 0, is_str_array);
+        if (piece)
+            return piece;
     }
 
     /* Allocate result. */
@@ -1717,19 +1723,10 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     all_strands = separator->body.storage_type == MVM_STRING_STRAND;
     for (i = 0; i < elems; i++) {
         /* Get piece of the string. */
-        MVMString *piece;
+        MVMString *piece = join_get_str_from_pos(tc, input, i, is_str_array);
         MVMint64   piece_graphs;
-        if (is_str_array) {
-            piece = MVM_repr_at_pos_s(tc, input, i);
-            if (!piece)
-                continue;
-        }
-        else {
-            MVMObject *item = MVM_repr_at_pos_o(tc, input, i);
-            if (!item || !IS_CONCRETE(item))
-                continue;
-            piece = MVM_repr_get_str(tc, item);
-        }
+        if (!piece)
+            continue;
 
         /* Check that all the pieces are strands. */
         if (all_strands)
@@ -1753,7 +1750,10 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
         /* Store piece. */
         pieces[num_pieces++] = piece;
     }
-
+    /* This guards the joining by method of multiple concats, and will be faster
+     * if we only end up with one piece after going through each element of the array */
+    if (num_pieces == 1)
+        return pieces[0];
     /* We now know the total eventual number of graphemes. */
     if (total_graphs == 0) {
         MVM_fixed_size_free(tc, tc->instance->fsa, bytes, pieces);
@@ -1783,6 +1783,31 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
             copy_strands(tc, piece, 0, result, offset, piece->body.num_strands);
             offset += piece->body.num_strands;
         }
+    }
+    /* Doing multiple concats is only faster if we have about 300 graphemes per
+       piece or if we have less than for pieces and more than 150 graphemes per piece */
+    else if (total_strands <  MVM_STRING_MAX_STRANDS && (300 < num_pieces/total_graphs || (num_pieces < 4 && 150 < num_pieces/total_graphs))) {
+        MVMString *result = NULL;
+        MVMROOT(tc, result, {
+            if (sgraphs) {
+                i = 0;
+                result = MVM_string_concatenate(tc, pieces[i++], separator);
+                result = MVM_string_concatenate(tc, result, pieces[i++]);
+                for (; i < num_pieces;) {
+                    result = MVM_string_concatenate(tc, result, separator);
+                    result = MVM_string_concatenate(tc, result, pieces[i++]);
+                }
+
+            }
+            else {
+                result = MVM_string_concatenate(tc, pieces[0], pieces[1]);
+                i = 2;
+                for (; i < num_pieces;) {
+                    result = MVM_string_concatenate(tc, result, pieces[i++]);
+                }
+            }
+        });
+        return result;
     }
     else {
         /* We'll produce a single, flat string. */
