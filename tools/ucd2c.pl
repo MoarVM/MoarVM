@@ -757,18 +757,18 @@ sub emit_property_value_lookup {
     my $out = "
 static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
-    MVMint32 result_val = 0;
     MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
     MVMuint16 bitfield_row;
-
-    if (codepoint_row == -1) { /* non-existent codepoint; XXX should throw? */
-        if (0x10FFFF < codepoint)
-            return 0;
-        result_val = -1;
+    /* If codepoint is not found in bitfield rows */
+    if (codepoint_row == -1) {
+        /* Unassigned codepoints have General Category Cn. Since this returns 0
+         * for unknowns, unless we return 1 for property C then these unknows
+         * won't match with <:C> */
+        if (property_code == MVM_UNICODE_PROPERTY_C)
+            return 1;
+        return 0;
     }
-    else {
-        bitfield_row = codepoint_bitfield_indexes[codepoint_row];
-    }
+    bitfield_row = codepoint_bitfield_indexes[codepoint_row];
 
     switch (switch_val) {
         case 0: return 0;";
@@ -841,7 +841,7 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
             }
 
             $out .= "
-            " . ($one_word_only ? 'return' : 'result_val |=') . " result_val == -1 ? 0 : ((props_bitfield[bitfield_row][$word_offset] & 0x"
+            " . ($one_word_only ? 'return' : 'result_val |=') . " ((props_bitfield[bitfield_row][$word_offset] & 0x"
             . sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */";
             $eout .= "
             result_val |= ((props_bitfield[bitfield_row][$word_offset] & 0x".
