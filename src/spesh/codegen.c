@@ -227,7 +227,7 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
         /* If this op belongs to one of the instrumentations, remember its
          * size so we can get a normalized bytecode size later on. */
 
-        if (ins->info->opcode >= MVM_OP_prof_enter) {
+        if (ins->info->opcode >= MVM_OP_prof_enter && ins->info->opcode != MVM_SSA_PHI) {
             ws->ignored_bytes += ws->bytecode_pos - pos_at_beginning;
         }
 
@@ -253,6 +253,7 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     SpeshWriterState *ws     = MVM_malloc(sizeof(SpeshWriterState));
     ws->bytecode_pos    = 0;
     ws->bytecode_alloc  = 1024;
+    ws->ignored_bytes   = 0;
     ws->bytecode        = MVM_malloc(ws->bytecode_alloc);
     ws->bb_offsets      = MVM_malloc(g->num_bbs * sizeof(MVMint32));
     ws->num_fixups      = 0;
