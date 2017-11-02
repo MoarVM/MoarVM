@@ -227,7 +227,9 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
         /* If this op belongs to one of the instrumentations, remember its
          * size so we can get a normalized bytecode size later on. */
 
-        if (ins->info->opcode >= MVM_OP_prof_enter && ins->info->opcode != MVM_SSA_PHI) {
+        if (ins->info->opcode >= MVM_OP_prof_enter
+                && ins->info->opcode != MVM_SSA_PHI
+                && ins->info->opcode < MVM_OP_EXT_BASE) {
             ws->ignored_bytes += ws->bytecode_pos - pos_at_beginning;
         }
 
