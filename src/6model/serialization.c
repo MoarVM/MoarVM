@@ -2722,6 +2722,9 @@ static void work_loop(MVMThreadContext *tc, MVMSerializationReader *sr) {
             MVMuint32 index = worklist_take_index(tc, &(sr->wl_stables));
             deserialize_stable(tc, sr, index,
                 sr->root.sc->body->root_stables[index]);
+
+                fprintf(stderr, "deserialized an stable: %5d %s\n", index, MVM_6model_get_stable_debug_name(tc, sr->root.sc->body->root_stables[index]));
+
             worked = 1;
         }
 
@@ -2730,6 +2733,9 @@ static void work_loop(MVMThreadContext *tc, MVMSerializationReader *sr) {
             MVMuint32 index = worklist_take_index(tc, &(sr->wl_objects));
             deserialize_object(tc, sr, index,
                 sr->root.sc->body->root_objects[index]);
+
+                fprintf(stderr, "deserialized an object: %5d %s\n", index, MVM_6model_get_debug_name(tc, sr->root.sc->body->root_objects[index]));
+
             worked = 1;
         }
     }
@@ -2766,6 +2772,8 @@ MVMObject * MVM_serialization_demand_object(MVMThreadContext *tc, MVMSerializati
     sr->working--;
     MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
 
+    fprintf(stderr, "demanded an object: %5d %s\n", idx, MVM_6model_get_debug_name(tc, sc->body->root_objects[idx]));
+
     /* Return the (perhaps just stubbed) object. */
     return sc->body->root_objects[idx];
 }
@@ -2801,6 +2809,8 @@ MVMSTable * MVM_serialization_demand_stable(MVMThreadContext *tc, MVMSerializati
     sr->working--;
     MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
 
+    fprintf(stderr, "demanded an stable: %5d %s\n", idx, MVM_6model_get_stable_debug_name(tc, sc->body->root_stables[idx]));
+
     /* Return the (perhaps just stubbed) STable. */
     return sc->body->root_stables[idx];
 }
@@ -2809,6 +2819,7 @@ MVMSTable * MVM_serialization_demand_stable(MVMThreadContext *tc, MVMSerializati
 MVMObject * MVM_serialization_demand_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     /* Obtain lock and ensure we didn't lose a race to deserialize this
      * code object. */
+    MVMObject *result;
     MVMSerializationReader *sr = sc->body->sr;
     MVMROOT(tc, sc, {
         MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
@@ -2835,8 +2846,12 @@ MVMObject * MVM_serialization_demand_code(MVMThreadContext *tc, MVMSerialization
     sr->working--;
     MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
 
+    result = MVM_repr_at_pos_o(tc, sr->codes_list, idx);
+
+    fprintf(stderr, "demanded a code: %5d %s\n", idx, MVM_6model_get_debug_name(tc, result));
+
     /* Return the (perhaps just stubbed) STable. */
-    return MVM_repr_at_pos_o(tc, sr->codes_list, idx);
+    return result;
 }
 
 /* Forces us to complete deserialization of a particular STable before work
