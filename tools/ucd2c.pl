@@ -763,7 +763,7 @@ static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint64 code
 
     if (codepoint_row == -1) { /* non-existent codepoint; XXX should throw? */
         if (0x10FFFF < codepoint)
-            return \"\";
+            return 0;
         result_val = -1;
     }
     else {
