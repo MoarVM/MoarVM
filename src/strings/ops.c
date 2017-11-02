@@ -62,11 +62,9 @@ static char * NFG_checker (MVMThreadContext *tc, MVMString *orig, char *varname)
     MVMString *renorm = NULL;
     MVMStringIndex orig_graphs = MVM_string_graphs(tc, orig),
                    renorm_graphs = -1;
-    MVMROOT(tc, orig, {
-    MVMROOT(tc, renorm, {
+    MVMROOT2(tc, orig, renorm, {
         renorm = re_nfg(tc, orig);
         renorm_graphs = MVM_string_graphs(tc, renorm);
-    });
     });
     if (MVM_DEBUG_NFG_STRICT || orig_graphs != renorm_graphs) {
         MVMGraphemeIter orig_gi, renorm_gi;
@@ -647,8 +645,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             MVM_string_get_grapheme_at_nocheck(tc, a, a->body.num_graphs - 1),
             MVM_string_get_grapheme_at_nocheck(tc, b, 0)
         };
-        MVMROOT(tc, a, {
-        MVMROOT(tc, b, {
+        MVMROOT2(tc, a, b, {
         /* If both are not synthetics, we can can pass those values unchanged
          * instead of iterating by codepoint */
         if (0 <= last_a_first_b[0] && 0 <= last_a_first_b[1]) {
@@ -673,7 +670,6 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             consumed_a = 1; consumed_b = 1;
         }
         });
-        });
         if (renormalized_section) {
             if (agraphs == consumed_a && bgraphs == consumed_b) {
                 NFG_CHECK_CONCAT(tc, renormalized_section, a, b, "renormalized_section");
@@ -690,10 +686,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
              total_graphs, MAX_GRAPHEMES);
 
     /* Otherwise, we'll assemble a result string. */
-    MVMROOT(tc, a, {
-    MVMROOT(tc, b, {
-    MVMROOT(tc, renormalized_section, {
-    MVMROOT(tc, result, {
+    MVMROOT4(tc, a, b, renormalized_section, result, {
 
         /* Allocate it. */
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
@@ -813,9 +806,6 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     STRAND_CHECK(tc, result);
     if (is_concat_stable == 1 || (is_concat_stable == 0 && renormalized_section))
         NFG_CHECK_CONCAT(tc, result, a, b, "'result'");
-    });
-    });
-    });
     });
     if (is_concat_stable == 1 || (is_concat_stable == 0 && renormalized_section))
         return result;
@@ -1506,12 +1496,10 @@ MVMObject * MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMStri
 
     /* At least find_encoding may allocate on first call, so root just
      * in case. */
-    MVMROOT(tc, buf, {
-    MVMROOT(tc, s, {
+    MVMROOT2(tc, buf, s, {
         const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, enc_name);
         encoded = (MVMuint8 *)MVM_string_encode(tc, s, 0, MVM_string_graphs_nocheck(tc, s), &output_size,
             encoding_flag, replacement, 0);
-    });
     });
 
     /* Stash the encoded data in the VMArray. */
@@ -1558,48 +1546,44 @@ MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVM
 }
 
 MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMString *input) {
-    MVMObject *result;
+    MVMObject *result = NULL;
     MVMStringIndex start, end, sep_length;
     MVMHLLConfig *hll = MVM_hll_current(tc);
 
     MVM_string_check_arg(tc, separator, "split separator");
     MVM_string_check_arg(tc, input, "split input");
 
-    MVMROOT(tc, input, {
-    MVMROOT(tc, separator, {
+    MVMROOT3(tc, input, separator, result, {
         result = MVM_repr_alloc_init(tc, hll->slurpy_array_type);
-        MVMROOT(tc, result, {
-            start = 0;
-            end = MVM_string_graphs_nocheck(tc, input);
-            sep_length = MVM_string_graphs_nocheck(tc, separator);
+        start = 0;
+        end = MVM_string_graphs_nocheck(tc, input);
+        sep_length = MVM_string_graphs_nocheck(tc, separator);
 
-            while (start < end) {
-                MVMString *portion;
-                MVMStringIndex index;
-                MVMStringIndex length;
+        while (start < end) {
+            MVMString *portion;
+            MVMStringIndex index;
+            MVMStringIndex length;
 
-                /* XXX make this use the dual-traverse iterator, but such that it
-                    can reset the index of what it's comparing... <!> */
-                index = MVM_string_index(tc, input, separator, start);
-                length = sep_length ? (index == -1 ? end : index) - start : 1;
-                if (0 < length || (sep_length && length == 0)) {
-                    portion = MVM_string_substring(tc, input, start, length);
-                    MVMROOT(tc, portion, {
-                        MVMObject *pobj = MVM_repr_alloc_init(tc, hll->str_box_type);
-                        MVM_repr_set_str(tc, pobj, portion);
-                        MVM_repr_push_o(tc, result, pobj);
-                    });
-                }
-                start += length + sep_length;
-                /* Gather an empty string if the delimiter is found at the end. */
-                if (sep_length && start == end) {
+            /* XXX make this use the dual-traverse iterator, but such that it
+                can reset the index of what it's comparing... <!> */
+            index = MVM_string_index(tc, input, separator, start);
+            length = sep_length ? (index == -1 ? end : index) - start : 1;
+            if (0 < length || (sep_length && length == 0)) {
+                portion = MVM_string_substring(tc, input, start, length);
+                MVMROOT(tc, portion, {
                     MVMObject *pobj = MVM_repr_alloc_init(tc, hll->str_box_type);
-                    MVM_repr_set_str(tc, pobj, tc->instance->str_consts.empty);
+                    MVM_repr_set_str(tc, pobj, portion);
                     MVM_repr_push_o(tc, result, pobj);
-                }
+                });
             }
-        });
-    });
+            start += length + sep_length;
+            /* Gather an empty string if the delimiter is found at the end. */
+            if (sep_length && start == end) {
+                MVMObject *pobj = MVM_repr_alloc_init(tc, hll->str_box_type);
+                MVM_repr_set_str(tc, pobj, tc->instance->str_consts.empty);
+                MVM_repr_push_o(tc, result, pobj);
+            }
+        }
     });
 
     return result;
@@ -1699,10 +1683,8 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     }
 
     /* Allocate result. */
-    MVMROOT(tc, separator, {
-    MVMROOT(tc, input, {
+    MVMROOT2(tc, separator, input, {
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-    });
     });
 
     /* Take a first pass through the string, counting up length and the total

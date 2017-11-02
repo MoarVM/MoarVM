@@ -326,8 +326,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
         MVMCompUnit **backup_interp_cu          = tc->interp_cu;
         MVMFrame *backup_cur_frame              = MVM_frame_force_to_heap(tc, tc->cur_frame);
         MVMFrame *backup_thread_entry_frame     = tc->thread_entry_frame;
-        MVMROOT(tc, backup_cur_frame, {
-        MVMROOT(tc, backup_thread_entry_frame, {
+        MVMROOT2(tc, backup_cur_frame, backup_thread_entry_frame, {
             MVMuint32 backup_mark                   = MVM_gc_root_temp_mark(tc);
             jmp_buf backup_interp_jump;
             memcpy(backup_interp_jump, tc->interp_jump, sizeof(jmp_buf));
@@ -345,7 +344,6 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
             tc->thread_entry_frame    = backup_thread_entry_frame;
             memcpy(tc->interp_jump, backup_interp_jump, sizeof(jmp_buf));
             MVM_gc_root_temp_mark_reset(tc, backup_mark);
-        });
         });
     }
 
@@ -600,8 +598,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
         }
     }
 
-    MVMROOT(tc, args, {
-    MVMROOT(tc, res_type, {
+    MVMROOT2(tc, args, res_type, {
         MVM_gc_mark_thread_blocked(tc);
         if (result) {
             /* We are calling a C++ constructor so we hand back the invocant (THIS) we recorded earlier. */
@@ -740,7 +737,6 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall return type");
             }
         }
-    });
     });
 
     num_rws = 0;

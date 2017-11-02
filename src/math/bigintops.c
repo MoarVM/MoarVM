@@ -332,10 +332,8 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
     MVMObject *result; \
     mp_int *tmp[2] = { NULL, NULL }; \
     mp_int *ia, *ib, *ic; \
-    MVMROOT(tc, a, { \
-    MVMROOT(tc, b, { \
+    MVMROOT2(tc, a, b, { \
         result = MVM_repr_alloc_init(tc, result_type);\
-    }); \
     }); \
     ba = get_bigint_body(tc, a); \
     bb = get_bigint_body(tc, b); \
@@ -360,10 +358,8 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
     if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) { \
         mp_int *tmp[2] = { NULL, NULL }; \
         mp_int *ia, *ib, *ic; \
-        MVMROOT(tc, a, { \
-        MVMROOT(tc, b, { \
+        MVMROOT2(tc, a, b, { \
             result = MVM_repr_alloc_init(tc, result_type);\
-        }); \
         }); \
         ba = get_bigint_body(tc, a); \
         bb = get_bigint_body(tc, b); \
@@ -398,10 +394,8 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
     MVMP6bigintBody *bb = get_bigint_body(tc, b); \
     MVMP6bigintBody *bc; \
     MVMObject *result; \
-    MVMROOT(tc, a, { \
-    MVMROOT(tc, b, { \
+    MVMROOT2(tc, a, b, { \
         result = MVM_repr_alloc_init(tc, result_type);\
-    }); \
     }); \
     bc = get_bigint_body(tc, result); \
     if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) { \
@@ -442,10 +436,8 @@ MVMObject *MVM_bigint_gcd(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
     MVMP6bigintBody *bc;
     MVMObject       *result;
 
-    MVMROOT(tc, a, {
-    MVMROOT(tc, b, {
+    MVMROOT2(tc, a, b, {
         result = MVM_repr_alloc_init(tc, result_type);
-    });
     });
 
     bc = get_bigint_body(tc, result);
@@ -506,10 +498,8 @@ MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObje
 
     MVMObject *result;
 
-    MVMROOT(tc, a, {
-    MVMROOT(tc, b, {
+    MVMROOT2(tc, a, b, {
         result = MVM_repr_alloc_init(tc, result_type);
-    });
     });
 
     bc = get_bigint_body(tc, result);
@@ -554,10 +544,8 @@ MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
 
     int mp_result;
 
-    MVMROOT(tc, a, {
-    MVMROOT(tc, b, {
+    MVMROOT2(tc, a, b, {
         result = MVM_repr_alloc_init(tc, result_type);
-    });
     });
 
     bc = get_bigint_body(tc, result);
@@ -955,10 +943,8 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
             if(have_to_negate)
                 result_int *= -1;
 
-            MVMROOT(tc, type, {
-                MVMROOT(tc, b, {
-                    result = MVM_repr_alloc_init(tc, type);
-                });
+            MVMROOT2(tc, type, b, {
+                result = MVM_repr_alloc_init(tc, type);
             });
 
             ba = get_bigint_body(tc, result);
@@ -973,10 +959,8 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
         mp_int *rnd = MVM_malloc(sizeof(mp_int));
         mp_int *max = force_bigint(bb, tmp);
 
-        MVMROOT(tc, type, {
-            MVMROOT(tc, b, {
-                result = MVM_repr_alloc_init(tc, type);
-            });
+        MVMROOT2(tc, type, b, {
+            result = MVM_repr_alloc_init(tc, type);
         });
 
         ba = get_bigint_body(tc, result);

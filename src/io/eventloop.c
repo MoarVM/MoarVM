@@ -166,9 +166,7 @@ void MVM_io_eventloop_permit(MVMThreadContext *tc, MVMObject *task_obj,
             MVMObject *channel_box = NULL;
             MVMObject *permits_box = NULL;
             MVMObject *arr = NULL;
-            MVMROOT(tc, channel_box, {
-            MVMROOT(tc, permits_box, {
-            MVMROOT(tc, arr, {
+            MVMROOT3(tc, channel_box, permits_box, arr, {
                 channel_box = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, channel);
                 permits_box = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, permits);
                 arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
@@ -178,8 +176,6 @@ void MVM_io_eventloop_permit(MVMThreadContext *tc, MVMObject *task_obj,
                 get_or_vivify_loop(tc);
                 MVM_repr_push_o(tc, tc->instance->event_loop_permit_queue, arr);
                 uv_async_send(tc->instance->event_loop_wakeup);
-            });
-            });
             });
         });
     }

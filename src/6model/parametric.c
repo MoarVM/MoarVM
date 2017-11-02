@@ -13,11 +13,9 @@ void MVM_6model_parametric_setup(MVMThreadContext *tc, MVMObject *type, MVMObjec
     /* For now, we use a simple pairwise array, with parameters and the type
      * that is based on those parameters interleaved. It does make resolution
      * O(n), so we might like to do some hash in the future. */
-    MVMROOT(tc, st, {
-    MVMROOT(tc, parameterizer, {
+    MVMROOT2(tc, st, parameterizer, {
         MVMObject *lookup = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
         MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.lookup, lookup);
-    });
     });
 
      /* Store the parameterizer. (Note, we do this after the allocation
@@ -61,14 +59,12 @@ static void finish_parameterizing(MVMThreadContext *tc, void *sr_data) {
     else {
         MVMObject *parameters = prd->parameters;
         MVMObject *parametric_type = prd->parametric_type;
-        MVMROOT(tc, parameters, {
-        MVMROOT(tc, parametric_type, {
+        MVMROOT2(tc, parameters, parametric_type, {
             MVMObject *copy = MVM_repr_clone(tc, parametric_type->st->paramet.ric.lookup);
             MVM_repr_push_o(tc, copy, parameters);
             MVM_repr_push_o(tc, copy, prd->result->o);
             MVM_ASSIGN_REF(tc, &(parametric_type->st->header),
                 parametric_type->st->paramet.ric.lookup, copy);
-        });
         });
     }
     uv_mutex_unlock(&tc->instance->mutex_parameterization_add);

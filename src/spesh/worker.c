@@ -10,8 +10,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
         tc->instance->boot_types.BOOTArray);
     MVMObject *previous_static_frames = MVM_repr_alloc_init(tc,
         tc->instance->boot_types.BOOTArray);
-    MVMROOT(tc, updated_static_frames, {
-    MVMROOT(tc, previous_static_frames, {
+    MVMROOT2(tc, updated_static_frames, previous_static_frames, {
         while (1) {
             MVMObject *log_obj;
             MVMuint64 start_time;
@@ -136,7 +135,6 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
             uv_cond_broadcast(&(tc->instance->cond_spesh_sync));
             uv_mutex_unlock(&(tc->instance->mutex_spesh_sync));
         }
-    });
     });
 }
 

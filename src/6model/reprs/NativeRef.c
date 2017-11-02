@@ -334,15 +334,11 @@ MVMObject * MVM_nativeref_lex_name_s(MVMThreadContext *tc, MVMString *name) {
 /* Creation of native references for attributes. */
 static MVMObject * attrref(MVMThreadContext *tc, MVMObject *type, MVMObject *obj, MVMObject *class_handle, MVMString *name) {
     MVMNativeRef *ref;
-    MVMROOT(tc, obj, {
-    MVMROOT(tc, class_handle, {
-    MVMROOT(tc, name, {
+    MVMROOT3(tc, obj, class_handle, name, {
         ref = (MVMNativeRef *)MVM_gc_allocate_object(tc, STABLE(type));
         MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.attribute.obj, obj);
         MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.attribute.class_handle, class_handle);
         MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.attribute.name, name);
-    });
-    });
     });
     return (MVMObject *)ref;
 }
@@ -397,12 +393,10 @@ MVMObject * MVM_nativeref_pos_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 i
 /* Creation of native references for multi-dimensional positionals. */
 static MVMObject * md_posref(MVMThreadContext *tc, MVMObject *type, MVMObject *obj, MVMObject *indices) {
     MVMNativeRef *ref;
-    MVMROOT(tc, obj, {
-    MVMROOT(tc, indices, {
+    MVMROOT2(tc, obj, indices, {
         ref = (MVMNativeRef *)MVM_gc_allocate_object(tc, STABLE(type));
         MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.multidim.obj, obj);
         MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.multidim.indices, indices);
-    });
     });
     return (MVMObject *)ref;
 }

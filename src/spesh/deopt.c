@@ -36,14 +36,8 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
             MVMFrame       *uf;
             if (REPR(ucode)->ID != MVM_REPR_ID_MVMCode)
                 MVM_panic(1, "Deopt: did not find code object when uninlining");
-            MVMROOT(tc, f, {
-            MVMROOT(tc, callee, {
-            MVMROOT(tc, last_uninlined, {
-            MVMROOT(tc, usf, {
+            MVMROOT4(tc, f, callee, last_uninlined, usf, {
                 uf = MVM_frame_create_for_deopt(tc, usf, ucode);
-            });
-            });
-            });
             });
 #if MVM_LOG_DEOPTS
             fprintf(stderr, "Recreated frame '%s' (cuid '%s')\n",
@@ -286,10 +280,8 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                         /* Re-create any frames needed if we're in an inline; if not,
                         * just update return address. */
                         if (f->spesh_cand->inlines) {
-                            MVMROOT(tc, f, {
-                            MVMROOT(tc, l, {
+                            MVMROOT2(tc, f, l, {
                                 uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, l);
-                            });
                             });
                         }
                         else {
@@ -321,10 +313,8 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                         /* Re-create any frames needed if we're in an inline; if not,
                         * just update return address. */
                         if (f->spesh_cand->inlines) {
-                            MVMROOT(tc, f, {
-                            MVMROOT(tc, l, {
+                            MVMROOT2(tc, f, l, {
                                 uninline(tc, f, f->spesh_cand, ret_offset, f->spesh_cand->deopts[i], l);
-                            });
                             });
                         }
                         else {

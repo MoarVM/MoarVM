@@ -148,10 +148,8 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
                 /* Another thread decided we'll GC now. Release mutex, and
                  * do the GC, making sure thread_obj and child are marked. */
                 uv_mutex_unlock(&tc->instance->mutex_threads);
-                MVMROOT(tc, thread_obj, {
-                MVMROOT(tc, child, {
+                MVMROOT2(tc, thread_obj, child, {
                     GC_SYNC_POINT(tc);
-                });
                 });
             }
         }

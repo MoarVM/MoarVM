@@ -234,8 +234,7 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
                 MVMStaticFrame      *sf     = frame->static_info;
                 MVMLexicalRegistry **lexreg = sf->body.lexical_names_list;
                 MVMuint32 i;
-                MVMROOT(tc, frame, {
-                MVMROOT(tc, sf, {
+                MVMROOT2(tc, frame, sf, {
                     for (i = 0; i < sf->body.num_lexicals; i++) {
                         MVMuint32 idx  = lexreg[i]->value;
                         MVMuint16 type = sf->body.lexical_types[idx];
@@ -318,7 +317,6 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
                                     "%s lexical type encountered while building context iterator", MVM_reg_get_debug_name(tc, type));
                         }
                     }
-                });
                 });
             });
 

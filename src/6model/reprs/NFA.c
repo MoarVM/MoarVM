@@ -305,8 +305,7 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
     MVMNFABody *nfa;
     MVMint64    i, j, num_states;
 
-    MVMROOT(tc, states, {
-    MVMROOT(tc, nfa_type, {
+    MVMROOT2(tc, states, nfa_type, {
         /* Create NFA object. */
         nfa_obj = MVM_repr_alloc_init(tc, nfa_type);
         nfa = (MVMNFABody *)OBJECT_BODY(nfa_obj);
@@ -390,7 +389,6 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
                 cur_edge++;
             }
         }
-    });
     });
 
     return nfa_obj;

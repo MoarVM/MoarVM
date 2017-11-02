@@ -247,8 +247,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                         MVMObject *value = repr_data->auto_viv_values[slot];
                         if (value != NULL) {
                             if (IS_CONCRETE(value)) {
-                                MVMROOT(tc, value, {
-                                MVMROOT(tc, root, {
+                                MVMROOT2(tc, value, root, {
                                     MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
                                     /* Ordering here matters. We write the object into the
                                     * register before calling copy_to. This is because
@@ -261,7 +260,6 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                                         cloned, OBJECT_BODY(cloned));
                                     set_obj_at_offset(tc, root, MVM_p6opaque_real_data(tc, OBJECT_BODY(root)),
                                         repr_data->attribute_offsets[slot], result_reg->o);
-                                });
                                 });
                             }
                             else {
@@ -279,8 +277,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                 }
             }
             else {
-                MVMROOT(tc, root, {
-                MVMROOT(tc, attr_st, {
+                MVMROOT2(tc, root, attr_st, {
                     /* Need to produce a boxed version of this attribute. */
                     MVMObject *cloned = attr_st->REPR->allocate(tc, attr_st);
 
@@ -289,7 +286,6 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                     attr_st->REPR->copy_to(tc, attr_st,
                         (char *)MVM_p6opaque_real_data(tc, OBJECT_BODY(root)) + repr_data->attribute_offsets[slot],
                         cloned, OBJECT_BODY(cloned));
-                });
                 });
             }
             break;
