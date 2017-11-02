@@ -10,6 +10,9 @@ typedef struct {
     MVMuint32  bytecode_pos;
     MVMuint32  bytecode_alloc;
 
+    /* Bytes ignored for the "normalized bytecode size" */
+    MVMuint32  ignored_bytes;
+
     /* Offsets where basic blocks are. */
     MVMint32 *bb_offsets;
 
@@ -66,6 +69,8 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
     MVMSpeshIns *ins = bb->first_ins;
     while (ins) {
         MVMint32 i;
+
+        MVMuint32 pos_at_beginning = ws->bytecode_pos;
 
         /* Process any annotations. */
         MVMSpeshAnn *ann              = ins->annotations;
@@ -219,6 +224,13 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
             }
         }
 
+        /* If this op belongs to one of the instrumentations, remember its
+         * size so we can get a normalized bytecode size later on. */
+
+        if (ins->info->opcode >= MVM_OP_prof_enter) {
+            ws->ignored_bytes += ws->bytecode_pos - pos_at_beginning;
+        }
+
         /* If there was a deopt point annotation, update table. */
         if (deopt_one_ann)
             g->deopt_addrs[2 * deopt_one_ann->data.deopt_idx + 1] = ws->bytecode_pos;
@@ -323,6 +335,8 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     res->bytecode      = ws->bytecode;
     res->bytecode_size = ws->bytecode_pos;
     res->handlers      = ws->handlers;
+
+    res->normalized_bytecode_size = ws->bytecode_pos - ws->ignored_bytes;
 
     /* Cleanup. */
     MVM_free(ws->bb_offsets);

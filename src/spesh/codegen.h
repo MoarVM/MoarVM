@@ -6,6 +6,9 @@ struct MVMSpeshCode {
     /* The size of the produced bytecode. */
     MVMuint32 bytecode_size;
 
+    /* Size of bytecode excluding instrumentation ops. */
+    MVMuint32 normalized_bytecode_size;
+
     /* Updated set of frame handlers. */
     MVMFrameHandler *handlers;
 };
