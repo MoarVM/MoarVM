@@ -818,7 +818,7 @@ void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, const char *buf) {
 }
 
 MVMObject * MVM_bigint_from_bigint(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a) {
-    MVMP6bigintBody *a_body  = get_bigint_body(tc, a);
+    MVMP6bigintBody *a_body;
     MVMP6bigintBody *r_body;
     MVMObject       *result;
 
@@ -826,6 +826,7 @@ MVMObject * MVM_bigint_from_bigint(MVMThreadContext *tc, MVMObject *result_type,
         result = MVM_repr_alloc_init(tc, result_type);
     });
 
+    a_body = get_bigint_body(tc, a);
     r_body = get_bigint_body(tc, result);
 
     if (MVM_BIGINT_IS_BIG(a_body)) {
