@@ -817,6 +817,33 @@ void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, const char *buf) {
     }
 }
 
+MVMObject * MVM_bigint_from_bigint(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a) {
+    MVMP6bigintBody *a_body;
+    MVMP6bigintBody *r_body;
+    MVMObject       *result;
+
+    MVMROOT(tc, a, {
+        result = MVM_repr_alloc_init(tc, result_type);
+    });
+
+    a_body = get_bigint_body(tc, a);
+    r_body = get_bigint_body(tc, result);
+
+    if (MVM_BIGINT_IS_BIG(a_body)) {
+        mp_int *i = MVM_malloc(sizeof(mp_int));
+        mp_init_copy(i, a_body->u.bigint);
+        store_bigint_result(r_body, i);
+        adjust_nursery(tc, r_body);
+    }
+    else {
+        r_body->u.smallint       = a_body->u.smallint;
+        r_body->u.smallint.flag  = a_body->u.smallint.flag;
+        r_body->u.smallint.value = a_body->u.smallint.value;
+    }
+
+    return result;
+}
+
 MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
     MVMP6bigintBody *body = get_bigint_body(tc, a);
     if (MVM_BIGINT_IS_BIG(body)) {

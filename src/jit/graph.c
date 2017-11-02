@@ -113,6 +113,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_coerce_sn: return MVM_coerce_s_n;
     case MVM_OP_coerce_In: return MVM_bigint_to_num;
     case MVM_OP_coerce_nI: return MVM_bigint_from_num;
+    case MVM_OP_coerce_II: return MVM_bigint_from_bigint;
     case MVM_OP_iterkey_s: return MVM_iterkey_s;
     case MVM_OP_iter: return MVM_iter;
     case MVM_OP_iterval: return MVM_iterval;
@@ -2246,6 +2247,17 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMJitCallArg args[] = {{ MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                 { MVM_JIT_REG_VAL,   { typ } },
                                 { MVM_JIT_REG_VAL_F, { src } }};
+
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_coerce_II: {
+        MVMint16 src = ins->operands[1].reg.orig;
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 typ = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = {{ MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                { MVM_JIT_REG_VAL, { typ } },
+                                { MVM_JIT_REG_VAL, { src } }};
 
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
