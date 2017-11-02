@@ -148,12 +148,10 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
     add = MVM_calloc(1, sizeof(MVMConcBlockingQueueNode));
 
     interval_id = MVM_telemetry_interval_start(tc, "ConcBlockingQueue.push");
-    MVMROOT(tc, root, {
-    MVMROOT(tc, to_add, {
+    MVMROOT2(tc, root, to_add, {
         MVM_gc_mark_thread_blocked(tc);
         uv_mutex_lock(&cbq->locks->tail_lock);
         MVM_gc_mark_thread_unblocked(tc);
-    });
     });
     data = OBJECT_BODY(root);
     cbq = (MVMConcBlockingQueueBody *)data;

@@ -113,6 +113,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_coerce_sn: return MVM_coerce_s_n;
     case MVM_OP_coerce_In: return MVM_bigint_to_num;
     case MVM_OP_coerce_nI: return MVM_bigint_from_num;
+    case MVM_OP_coerce_II: return MVM_bigint_from_bigint;
     case MVM_OP_iterkey_s: return MVM_iterkey_s;
     case MVM_OP_iter: return MVM_iter;
     case MVM_OP_iterval: return MVM_iterval;
@@ -307,6 +308,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_decont_i: return MVM_6model_container_decont_i;
     case MVM_OP_decont_n: return MVM_6model_container_decont_n;
     case MVM_OP_decont_s: return MVM_6model_container_decont_s;
+    case MVM_OP_getrusage: return MVM_proc_getrusage;
     case MVM_OP_getlexref_i32: case MVM_OP_getlexref_i16: case MVM_OP_getlexref_i8: case MVM_OP_getlexref_i: return MVM_nativeref_lex_i;
     case MVM_OP_getlexref_n32: case MVM_OP_getlexref_n: return MVM_nativeref_lex_n;
     case MVM_OP_getlexref_s: return MVM_nativeref_lex_s;
@@ -336,6 +338,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_atomicstore_i: return MVM_6model_container_atomic_store_i;
     case MVM_OP_lock: return MVM_reentrantmutex_lock_checked;
     case MVM_OP_unlock: return MVM_reentrantmutex_unlock_checked;
+    case MVM_OP_getexcategory: return MVM_get_exception_category;
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
     }
@@ -446,6 +449,8 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
 
             body = MVM_nativecall_get_nc_body(tc, object_facts->value.o);
             nc_jg = MVM_nativecall_jit_graph_for_caller_code(tc, iter->graph, body, restype, dst, arg_ins);
+            if (nc_jg == NULL)
+                return 0;
 
             jg->last_node->next = nc_jg->first_node;
             jg->last_node = nc_jg->last_node;
@@ -1494,6 +1499,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_coerce_ni:
     case MVM_OP_coerce_in:
     case MVM_OP_extend_i32:
+    case MVM_OP_trunc_i16:
     case MVM_OP_trunc_i32:
         /* comparison (integer) */
     case MVM_OP_eq_i:
@@ -1530,6 +1536,10 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_const_s:
     case MVM_OP_null:
         /* argument reading */
+    case MVM_OP_getarg_i:
+    case MVM_OP_getarg_o:
+    case MVM_OP_getarg_n:
+    case MVM_OP_getarg_s:
     case MVM_OP_sp_getarg_i:
     case MVM_OP_sp_getarg_o:
     case MVM_OP_sp_getarg_n:
@@ -1640,6 +1650,16 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_PARAMS } },
                                  { MVM_JIT_LITERAL, { arg_idx } } };
         jg_append_call_c(tc, jg, MVM_args_get_required_pos_int, 3, args, MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_param_rp_s: {
+        MVMint16  dst     = ins->operands[0].reg.orig;
+        MVMuint16 arg_idx = ins->operands[1].lit_ui16;
+
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_PARAMS } },
+                                 { MVM_JIT_LITERAL, { arg_idx } } };
+        jg_append_call_c(tc, jg, MVM_args_get_required_pos_str, 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
     case MVM_OP_param_rp_o: {
@@ -2227,6 +2247,17 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMJitCallArg args[] = {{ MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                 { MVM_JIT_REG_VAL,   { typ } },
                                 { MVM_JIT_REG_VAL_F, { src } }};
+
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_coerce_II: {
+        MVMint16 src = ins->operands[1].reg.orig;
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 typ = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = {{ MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                { MVM_JIT_REG_VAL, { typ } },
+                                { MVM_JIT_REG_VAL, { src } }};
 
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
@@ -2917,6 +2948,12 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
         break;
     }
+    case MVM_OP_getrusage: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 1, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
     case MVM_OP_getlexref_i:
     case MVM_OP_getlexref_i32:
     case MVM_OP_getlexref_i16:
@@ -3032,6 +3069,14 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     }
     case MVM_OP_prepargs: {
         return consume_invoke(tc, jg, iter, ins);
+    }
+    case MVM_OP_getexcategory: {
+        MVMint16 dst     = ins->operands[0].reg.orig;
+        MVMint16 obj     = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
     }
     default: {
         /* Check if it's an extop. */

@@ -15,10 +15,8 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
         return 0;
     }
 
-    MVMROOT(tc, name, {
-        MVMROOT(tc, path, {
-            path = MVM_file_in_libpath(tc, path);
-        });
+    MVMROOT2(tc, name, path, {
+        path = MVM_file_in_libpath(tc, path);
     });
 
     cpath = MVM_string_utf8_c8_encode_C_string(tc, path);

@@ -234,8 +234,7 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
                 MVMStaticFrame      *sf     = frame->static_info;
                 MVMLexicalRegistry **lexreg = sf->body.lexical_names_list;
                 MVMuint32 i;
-                MVMROOT(tc, frame, {
-                MVMROOT(tc, sf, {
+                MVMROOT2(tc, frame, sf, {
                     for (i = 0; i < sf->body.num_lexicals; i++) {
                         MVMuint32 idx  = lexreg[i]->value;
                         MVMuint16 type = sf->body.lexical_types[idx];
@@ -259,9 +258,21 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
                                 MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bi);
                                 break;
                             }
+                            case MVM_reg_uint8: {
+                                MVMObject *bi = MVM_repr_box_int(tc, hll->int_box_type,
+                                    frame->env[idx].u8);
+                                MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bi);
+                                break;
+                            }
                             case MVM_reg_int16: {
                                 MVMObject *bi = MVM_repr_box_int(tc, hll->int_box_type,
                                     frame->env[idx].i16);
+                                MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bi);
+                                break;
+                            }
+                            case MVM_reg_uint16: {
+                                MVMObject *bi = MVM_repr_box_int(tc, hll->int_box_type,
+                                    frame->env[idx].u16);
                                 MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bi);
                                 break;
                             }
@@ -271,9 +282,21 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
                                 MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bi);
                                 break;
                             }
+                            case MVM_reg_uint32: {
+                                MVMObject *bi = MVM_repr_box_int(tc, hll->int_box_type,
+                                    frame->env[idx].u32);
+                                MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bi);
+                                break;
+                            }
                             case MVM_reg_int64: {
                                 MVMObject *bi = MVM_repr_box_int(tc, hll->int_box_type,
                                     frame->env[idx].i64);
+                                MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bi);
+                                break;
+                            }
+                            case MVM_reg_uint64: {
+                                MVMObject *bi = MVM_repr_box_int(tc, hll->int_box_type,
+                                    frame->env[idx].u64);
                                 MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bi);
                                 break;
                             }
@@ -294,7 +317,6 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
                                     "%s lexical type encountered while building context iterator", MVM_reg_get_debug_name(tc, type));
                         }
                     }
-                });
                 });
             });
 

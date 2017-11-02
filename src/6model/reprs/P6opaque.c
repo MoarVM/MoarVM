@@ -204,10 +204,10 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
 
 /* Helper for complaining about attribute access errors. */
 MVM_NO_RETURN
-static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) {
+static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name, MVMSTable *target_type) {
     char *c_name = MVM_string_utf8_encode_C_string(tc, name);
     char *waste[] = { c_name, NULL };
-    MVM_exception_throw_adhoc_free(tc, waste, "P6opaque: no such attribute '%s' in type %s when trying to %s", c_name, MVM_6model_get_debug_name(tc, class_handle), action);
+    MVM_exception_throw_adhoc_free(tc, waste, "P6opaque: no such attribute '%s' on type %s in a %s when trying to %s", c_name, MVM_6model_get_debug_name(tc, class_handle), MVM_6model_get_stable_debug_name(tc, target_type), action);
 }
 
 MVM_NO_RETURN
@@ -247,8 +247,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                         MVMObject *value = repr_data->auto_viv_values[slot];
                         if (value != NULL) {
                             if (IS_CONCRETE(value)) {
-                                MVMROOT(tc, value, {
-                                MVMROOT(tc, root, {
+                                MVMROOT2(tc, value, root, {
                                     MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
                                     /* Ordering here matters. We write the object into the
                                     * register before calling copy_to. This is because
@@ -261,7 +260,6 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                                         cloned, OBJECT_BODY(cloned));
                                     set_obj_at_offset(tc, root, MVM_p6opaque_real_data(tc, OBJECT_BODY(root)),
                                         repr_data->attribute_offsets[slot], result_reg->o);
-                                });
                                 });
                             }
                             else {
@@ -279,8 +277,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                 }
             }
             else {
-                MVMROOT(tc, root, {
-                MVMROOT(tc, attr_st, {
+                MVMROOT2(tc, root, attr_st, {
                     /* Need to produce a boxed version of this attribute. */
                     MVMObject *cloned = attr_st->REPR->allocate(tc, attr_st);
 
@@ -289,7 +286,6 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                     attr_st->REPR->copy_to(tc, attr_st,
                         (char *)MVM_p6opaque_real_data(tc, OBJECT_BODY(root)) + repr_data->attribute_offsets[slot],
                         cloned, OBJECT_BODY(cloned));
-                });
                 });
             }
             break;
@@ -325,7 +321,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     }
     else {
         /* Otherwise, complain that the attribute doesn't exist. */
-        no_such_attribute(tc, "get a value", class_handle, name);
+        no_such_attribute(tc, "get a value", class_handle, name, st);
     }
 }
 
@@ -397,7 +393,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     }
     else {
         /* Otherwise, complain that the attribute doesn't exist. */
-        no_such_attribute(tc, "bind a value", class_handle, name);
+        no_such_attribute(tc, "bind a value", class_handle, name, st);
     }
 }
 
@@ -418,7 +414,7 @@ static MVMint64 is_attribute_initialized(MVMThreadContext *tc, MVMSTable *st, vo
     if (slot >= 0)
         return NULL != get_obj_at_offset(data, repr_data->attribute_offsets[slot]);
     else
-        no_such_attribute(tc, "check if it's initialized", class_handle, name);
+        no_such_attribute(tc, "check if it's initialized", class_handle, name, st);
     return 0;
 }
 
@@ -455,7 +451,7 @@ static AO_t * attribute_as_atomic(MVMThreadContext *tc, MVMSTable *st, void *dat
             "Can only do an atomic integer operation on an atomicint attribute");
     }
     else {
-        no_such_attribute(tc, "get atomic reference to", class_handle, name);
+        no_such_attribute(tc, "get atomic reference to", class_handle, name, st);
     }
 }
 

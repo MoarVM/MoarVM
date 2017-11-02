@@ -22,12 +22,10 @@ static void signal_cb(uv_signal_t *handle, int sig_num) {
     MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
     MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, si->work_idx);
     MVM_repr_push_o(tc, arr, t->body.schedulee);
-    MVMROOT(tc, t, {
-    MVMROOT(tc, arr, {
+    MVMROOT2(tc, t, arr, {
         MVMObject *sig_num_boxed = MVM_repr_box_int(tc,
             tc->instance->boot_types.BOOTInt, sig_num);
         MVM_repr_push_o(tc, arr, sig_num_boxed);
-    });
     });
     MVM_repr_push_o(tc, t->body.queue, arr);
 }
@@ -182,10 +180,8 @@ MVMObject * MVM_io_signal_handle(MVMThreadContext *tc, MVMObject *queue,
             "signal result type must have REPR AsyncTask");
 
     /* Create async task handle. */
-    MVMROOT(tc, queue, {
-    MVMROOT(tc, schedulee, {
+    MVMROOT2(tc, queue, schedulee, {
         task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, async_type);
-    });
     });
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);

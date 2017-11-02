@@ -260,10 +260,8 @@ MVMObject * MVM_hll_sym_get(MVMThreadContext *tc, MVMString *hll, MVMString *sym
     uv_mutex_lock(&tc->instance->mutex_hll_syms);
     hash = MVM_repr_at_key_o(tc, syms, hll);
     if (MVM_is_null(tc, hash)) {
-        MVMROOT(tc, hll, {
-        MVMROOT(tc, syms, {
+        MVMROOT2(tc, hll, syms, {
             hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
-        });
         });
         MVM_repr_bind_key_o(tc, syms, hll, hash);
         result = tc->instance->VMNull;

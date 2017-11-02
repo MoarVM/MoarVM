@@ -23,7 +23,7 @@ static MVMint16 get_str_free_flag(MVMThreadContext *tc, MVMObject *info) {
     return MVM_NATIVECALL_ARG_FREE_STR;
 }
 
-/* Gets the flag for whether to free a string after a call or not. */
+/* Gets the flag for whether an arg is rw or not. */
 static MVMint16 get_rw_flag(MVMThreadContext *tc, MVMObject *info) {
     MVMString *flag = tc->instance->str_consts.rw;
     if (MVM_repr_exists_key(tc, info, flag)) {
@@ -31,6 +31,27 @@ static MVMint16 get_rw_flag(MVMThreadContext *tc, MVMObject *info) {
             return MVM_NATIVECALL_ARG_RW;
     }
     return MVM_NATIVECALL_ARG_NO_RW;
+}
+
+/* Gets the flag for whether an arg is rw or not. */
+static MVMint16 get_refresh_flag(MVMThreadContext *tc, MVMObject *info) {
+    MVMString *typeobj_str = tc->instance->str_consts.typeobj;
+    if (MVM_repr_exists_key(tc, info, typeobj_str)) {
+        MVMObject *typeobj = MVM_repr_at_key_o(tc, info, typeobj_str);
+
+        if (REPR(typeobj)->ID == MVM_REPR_ID_MVMCArray) {
+            MVMCArrayREPRData  *repr_data = (MVMCArrayREPRData *)STABLE(typeobj)->REPR_data;
+
+            /* No need to refresh numbers. They're stored directly in the array. */
+            if (repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_NUMERIC)
+                return MVM_NATIVECALL_ARG_NO_REFRESH;
+
+            return MVM_NATIVECALL_ARG_REFRESH;
+        }
+    }
+
+    /* We don't know, so fail safe by assuming we have to refresh */
+    return MVM_NATIVECALL_ARG_REFRESH;
 }
 
 /* Takes a hash describing a type hands back an argument type code. */
@@ -84,7 +105,7 @@ MVMint16 MVM_nativecall_get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMi
     else if (strcmp(ctypename, "cpointer") == 0)
         result = MVM_NATIVECALL_ARG_CPOINTER | get_rw_flag(tc, info);
     else if (strcmp(ctypename, "carray") == 0)
-        result = MVM_NATIVECALL_ARG_CARRAY;
+        result = MVM_NATIVECALL_ARG_CARRAY | get_refresh_flag(tc, info);
     else if (strcmp(ctypename, "cunion") == 0)
         result = MVM_NATIVECALL_ARG_CUNION;
     else if (strcmp(ctypename, "vmarray") == 0)
@@ -428,6 +449,7 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
     jg->first_node = block_gc_node;
 
     save_rv_node->type = MVM_JIT_NODE_SAVE_RV;
+    save_rv_node->u.stack.slot = 0;
     save_rv_node->next = unblock_gc_node;
 
     init_c_call_node(tc, sg, block_gc_node,   &MVM_gc_mark_thread_blocked, 1, block_gc_args);
@@ -441,11 +463,55 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
     jg->last_node = unblock_gc_node->next = box_rv_node;
 
     if (0 < body->num_args) {
-        MVMuint16 i = 0;
+        MVMuint16 i = 0, str_arg_count = 0;
         call_node->u.call.args = MVM_spesh_alloc(tc, sg, body->num_args * sizeof(MVMJitCallArg));
         for (i = 0; i < body->num_args; i++) {
+            if ((body->arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) == MVM_NATIVECALL_ARG_UTF8STR) {
+                MVMJitNode *unbox_str_node;
+                MVMJitNode *save_str_rv_node;
+                MVMJitNode *free_str_node;
+
+                if (7 < ++str_arg_count) /* only got 7 empty slots in the stack scratch space */
+                    goto fail;
+
+                save_str_rv_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
+                save_str_rv_node->type = MVM_JIT_NODE_SAVE_RV;
+                save_str_rv_node->u.stack.slot = str_arg_count;
+                save_str_rv_node->next = jg->first_node;
+
+                unbox_str_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
+                {
+                    MVMJitCallArg unbox_str_args[] = {
+                        { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } },
+                        {
+                            dst == -1 ? MVM_JIT_ARG_I64 : MVM_JIT_PARAM_I64 ,
+                            { dst == -1 ? i : arg_ins[i]->operands[1].reg.orig }
+                        }
+                    };
+                    init_c_call_node(tc, sg, unbox_str_node, &MVM_string_utf8_maybe_encode_C_string, 2, unbox_str_args);
+                }
+                unbox_str_node->next = save_str_rv_node;
+                jg->first_node = unbox_str_node;
+
+                call_node->u.call.args[i].type = MVM_JIT_SAVED_RV;
+                call_node->u.call.args[i].v.lit_i64 = str_arg_count;
+
+                if ((body->arg_types[i] & MVM_NATIVECALL_ARG_FREE_STR_MASK) != 0) {
+                    MVMJitCallArg free_str_args[] = {
+                        { MVM_JIT_SAVED_RV , { str_arg_count } }
+                    };
+                    free_str_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
+                    init_c_call_node(tc, sg, free_str_node, &MVM_free, 1, free_str_args);
+                    free_str_node->next = unblock_gc_node->next;
+                    unblock_gc_node->next = free_str_node;
+                }
+            }
+        }
+        for (i = 0; i < body->num_args; i++) {
             MVMJitArgType arg_type;
-            switch (body->arg_types[i]) {
+            int is_rw = ((body->arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW);
+
+            switch (body->arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
                 case MVM_NATIVECALL_ARG_CHAR:
                 case MVM_NATIVECALL_ARG_UCHAR:
                 case MVM_NATIVECALL_ARG_SHORT:
@@ -456,14 +522,26 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
                 case MVM_NATIVECALL_ARG_ULONG:
                 case MVM_NATIVECALL_ARG_LONGLONG:
                 case MVM_NATIVECALL_ARG_ULONGLONG:
-                    arg_type = dst == -1 ? MVM_JIT_ARG_I64 : MVM_JIT_PARAM_I64;
+                    arg_type = dst == -1
+                        ? is_rw ? MVM_JIT_ARG_I64_RW : MVM_JIT_ARG_I64
+                        : is_rw ? MVM_JIT_PARAM_I64_RW : MVM_JIT_PARAM_I64;
                     break;
                 case MVM_NATIVECALL_ARG_CPOINTER:
+                    if (is_rw) goto fail;
+                    arg_type = dst == -1 ? MVM_JIT_ARG_PTR : MVM_JIT_PARAM_PTR;
+                    break;
+                case MVM_NATIVECALL_ARG_CARRAY:
+                    if (body->arg_types[i] & MVM_NATIVECALL_ARG_REFRESH_MASK) goto fail;
+                    if (is_rw) goto fail;
                     arg_type = dst == -1 ? MVM_JIT_ARG_PTR : MVM_JIT_PARAM_PTR;
                     break;
                 case MVM_NATIVECALL_ARG_VMARRAY:
+                    if (is_rw) goto fail;
                     arg_type = dst == -1 ? MVM_JIT_ARG_VMARRAY : MVM_JIT_PARAM_VMARRAY;
                     break;
+                case MVM_NATIVECALL_ARG_UTF8STR:
+                    if (is_rw) goto fail;
+                    continue; /* already handled */
                 default:
                     goto fail;
             }
@@ -641,72 +719,12 @@ MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *l
 static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObject *target_type, void *cpointer_body) {
     MVMObject *result = NULL;
 
-    MVMROOT(tc, target_spec, {
-        MVMROOT(tc, target_type, {
-            switch (REPR(target_type)->ID) {
-                case MVM_REPR_ID_P6opaque: {
-                    const MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
-                    if(ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT) {
-                        MVMint64 value = 0;
-                        if (ss->is_unsigned)
-                            switch(ss->bits) {
-                                case 8:
-                                    value = *(MVMuint8 *)cpointer_body;
-                                    break;
-                                case 16:
-                                    value = *(MVMuint16 *)cpointer_body;
-                                    break;
-                                case 32:
-                                    value = *(MVMuint32 *)cpointer_body;
-                                    break;
-                                case 64:
-                                default:
-                                    value = *(MVMuint64 *)cpointer_body;
-                            }
-                        else
-                            switch(ss->bits) {
-                                case 8:
-                                    value = *(MVMint8 *)cpointer_body;
-                                    break;
-                                case 16:
-                                    value = *(MVMint16 *)cpointer_body;
-                                    break;
-                                case 32:
-                                    value = *(MVMint32 *)cpointer_body;
-                                    break;
-                                case 64:
-                                default:
-                                    value = *(MVMint64 *)cpointer_body;
-                            }
-
-                        result = MVM_nativecall_make_int(tc, target_type, value);
-                    }
-                    else if(ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM) {
-                        MVMnum64 value;
-
-                        switch(ss->bits) {
-                            case 32:
-                                value = *(MVMnum32 *)cpointer_body;
-                                break;
-                            case 64:
-                            default:
-                                value = *(MVMnum64 *)cpointer_body;
-                        }
-
-                        result = MVM_nativecall_make_num(tc, target_type, value);
-                    }
-                    else if(ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
-                        result = MVM_nativecall_make_str(tc, target_type, MVM_NATIVECALL_ARG_UTF8STR,
-                        (char *)cpointer_body);
-                    }
-                    else
-                        MVM_exception_throw_adhoc(tc, "Internal error: unhandled target type");
-
-                    break;
-                }
-                case MVM_REPR_ID_P6int: {
-                    const MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
-                    MVMint64 value;
+    MVMROOT2(tc, target_spec, target_type, {
+        switch (REPR(target_type)->ID) {
+            case MVM_REPR_ID_P6opaque: {
+                const MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
+                if(ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT) {
+                    MVMint64 value = 0;
                     if (ss->is_unsigned)
                         switch(ss->bits) {
                             case 8:
@@ -737,11 +755,10 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
                             default:
                                 value = *(MVMint64 *)cpointer_body;
                         }
+
                     result = MVM_nativecall_make_int(tc, target_type, value);
-                    break;
                 }
-                case MVM_REPR_ID_P6num: {
-                    const MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
+                else if(ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM) {
                     MVMnum64 value;
 
                     switch(ss->bits) {
@@ -754,30 +771,89 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
                     }
 
                     result = MVM_nativecall_make_num(tc, target_type, value);
-                    break;
                 }
-                case MVM_REPR_ID_MVMCStr:
-                case MVM_REPR_ID_P6str:
+                else if(ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
                     result = MVM_nativecall_make_str(tc, target_type, MVM_NATIVECALL_ARG_UTF8STR,
-                        (char *)cpointer_body);
-                    break;
-                case MVM_REPR_ID_MVMCStruct:
-                    result = MVM_nativecall_make_cstruct(tc, target_type, (void *)cpointer_body);
-                    break;
-                case MVM_REPR_ID_MVMCUnion:
-                    result = MVM_nativecall_make_cunion(tc, target_type, (void *)cpointer_body);
-                    break;
-                case MVM_REPR_ID_MVMCPointer:
-                    result = MVM_nativecall_make_cpointer(tc, target_type, (void *)cpointer_body);
-                    break;
-                case MVM_REPR_ID_MVMCArray: {
-                    result = MVM_nativecall_make_carray(tc, target_type, (void *)cpointer_body);
-                    break;
+                    (char *)cpointer_body);
                 }
-                default:
+                else
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled target type");
+
+                break;
             }
-        });
+            case MVM_REPR_ID_P6int: {
+                const MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
+                MVMint64 value;
+                if (ss->is_unsigned)
+                    switch(ss->bits) {
+                        case 8:
+                            value = *(MVMuint8 *)cpointer_body;
+                            break;
+                        case 16:
+                            value = *(MVMuint16 *)cpointer_body;
+                            break;
+                        case 32:
+                            value = *(MVMuint32 *)cpointer_body;
+                            break;
+                        case 64:
+                        default:
+                            value = *(MVMuint64 *)cpointer_body;
+                    }
+                else
+                    switch(ss->bits) {
+                        case 8:
+                            value = *(MVMint8 *)cpointer_body;
+                            break;
+                        case 16:
+                            value = *(MVMint16 *)cpointer_body;
+                            break;
+                        case 32:
+                            value = *(MVMint32 *)cpointer_body;
+                            break;
+                        case 64:
+                        default:
+                            value = *(MVMint64 *)cpointer_body;
+                    }
+                result = MVM_nativecall_make_int(tc, target_type, value);
+                break;
+            }
+            case MVM_REPR_ID_P6num: {
+                const MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
+                MVMnum64 value;
+
+                switch(ss->bits) {
+                    case 32:
+                        value = *(MVMnum32 *)cpointer_body;
+                        break;
+                    case 64:
+                    default:
+                        value = *(MVMnum64 *)cpointer_body;
+                }
+
+                result = MVM_nativecall_make_num(tc, target_type, value);
+                break;
+            }
+            case MVM_REPR_ID_MVMCStr:
+            case MVM_REPR_ID_P6str:
+                result = MVM_nativecall_make_str(tc, target_type, MVM_NATIVECALL_ARG_UTF8STR,
+                    (char *)cpointer_body);
+                break;
+            case MVM_REPR_ID_MVMCStruct:
+                result = MVM_nativecall_make_cstruct(tc, target_type, (void *)cpointer_body);
+                break;
+            case MVM_REPR_ID_MVMCUnion:
+                result = MVM_nativecall_make_cunion(tc, target_type, (void *)cpointer_body);
+                break;
+            case MVM_REPR_ID_MVMCPointer:
+                result = MVM_nativecall_make_cpointer(tc, target_type, (void *)cpointer_body);
+                break;
+            case MVM_REPR_ID_MVMCArray: {
+                result = MVM_nativecall_make_carray(tc, target_type, (void *)cpointer_body);
+                break;
+            }
+            default:
+                MVM_exception_throw_adhoc(tc, "Internal error: unhandled target type");
+        }
     });
 
     return result;

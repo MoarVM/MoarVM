@@ -158,10 +158,8 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
 
     /* Allocate a cache if needed. */
     if (MVM_is_null(tc, cache_obj) || !IS_CONCRETE(cache_obj) || REPR(cache_obj)->ID != MVM_REPR_ID_MVMMultiCache) {
-        MVMROOT(tc, capture, {
-        MVMROOT(tc, result, {
+        MVMROOT2(tc, capture, result, {
             cache_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTMultiCache);
-        });
         });
     }
     cache = &((MVMMultiCache *)cache_obj)->body;

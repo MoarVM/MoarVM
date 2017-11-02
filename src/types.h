@@ -246,6 +246,7 @@ typedef struct MVMJitInvoke MVMJitInvoke;
 typedef struct MVMJitJumpList MVMJitJumpList;
 typedef struct MVMJitControl MVMJitControl;
 typedef struct MVMJitData MVMJitData;
+typedef struct MVMJitStackSlot MVMJitStackSlot;
 typedef struct MVMJitCode MVMJitCode;
 typedef struct MVMJitExprTree MVMJitExprTree;
 typedef struct MVMJitTreeTraverser MVMJitTreeTraverser;

@@ -51,10 +51,8 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
     MVMFrame           *root_frame  = NULL;
     MVMContinuationTag *tag_record  = NULL;
     MVMFrame            *jump_frame;
-    MVMROOT(tc, tag, {
-    MVMROOT(tc, code, {
+    MVMROOT2(tc, tag, code, {
         jump_frame = MVM_frame_force_to_heap(tc, tc->cur_frame);
-    });
     });
     while (jump_frame) {
         MVMFrameExtra *e = jump_frame->extra;
@@ -78,9 +76,7 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
         MVM_exception_throw_adhoc(tc, "No continuation root frame found");
 
     /* Create continuation. */
-    MVMROOT(tc, code, {
-    MVMROOT(tc, jump_frame, {
-    MVMROOT(tc, root_frame, {
+    MVMROOT3(tc, code, jump_frame, root_frame, {
         cont = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContinuation);
         MVM_ASSIGN_REF(tc, &(cont->header), ((MVMContinuation *)cont)->body.top,
             tc->cur_frame);
@@ -91,8 +87,6 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
         if (tc->instance->profiling)
             ((MVMContinuation *)cont)->body.prof_cont =
                 MVM_profile_log_continuation_control(tc, root_frame);
-    });
-    });
     });
 
     /* Save and clear any active exception handler(s) added since reset. */
@@ -147,10 +141,8 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
         MVM_exception_throw_adhoc(tc, "This continuation has already been invoked");
 
     /* Switch caller of the root to current invoker. */
-    MVMROOT(tc, cont, {
-    MVMROOT(tc, code, {
+    MVMROOT2(tc, cont, code, {
         MVM_frame_force_to_heap(tc, tc->cur_frame);
-    });
     });
     MVM_ASSIGN_REF(tc, &(cont->body.root->header), cont->body.root->caller, tc->cur_frame);
 

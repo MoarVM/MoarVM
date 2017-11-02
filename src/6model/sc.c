@@ -226,10 +226,8 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
             sc->body->alloc_objects *= 2;
             if (sc->body->alloc_objects < idx + 1)
                 sc->body->alloc_objects = idx + 1;
-            sc->body->root_objects = MVM_realloc(sc->body->root_objects,
-                sc->body->alloc_objects * sizeof(MVMObject *));
-            memset(sc->body->root_objects + orig_size, 0,
-                (sc->body->alloc_objects - orig_size) * sizeof(MVMObject *));
+            sc->body->root_objects = MVM_recalloc(sc->body->root_objects,
+                orig_size * sizeof(MVMObject *), sc->body->alloc_objects * sizeof(MVMObject *));
         }
         MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->root_objects[idx], obj);
         sc->body->num_objects = idx + 1;

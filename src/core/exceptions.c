@@ -226,12 +226,8 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
 
         /* Ensure we have an exception object. */
         if (ex_obj == NULL) {
-            MVMROOT(tc, cur_frame, {
-            MVMROOT(tc, lh.frame, {
-            MVMROOT(tc, payload, {
+            MVMROOT3(tc, cur_frame, lh.frame, payload, {
                 ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
-            });
-            });
             });
             ((MVMException *)ex_obj)->body.category = category;
             MVM_ASSIGN_REF(tc, &(ex_obj->header), ((MVMException *)ex_obj)->body.payload, payload);
@@ -457,8 +453,7 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
     arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
     cur_frame = ex->body.origin;
 
-    MVMROOT(tc, arr, {
-    MVMROOT(tc, cur_frame, {
+    MVMROOT2(tc, arr, cur_frame, {
         MVMuint32 count = 0;
         while (cur_frame != NULL) {
             char *line = MVM_exception_backtrace_line(tc, cur_frame, count++,
@@ -469,7 +464,6 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
             cur_frame = cur_frame->caller;
             MVM_free(line);
         }
-    });
     });
 
     return arr;
@@ -749,7 +743,6 @@ MVM_NO_RETURN
 void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const char *messageFormat, va_list args) {
     LocatedHandler lh;
     MVMException *ex;
-
     /* The current frame will be assigned as the thrower of the exception, so
      * force it onto the heap before we begin. */
     if (tc->cur_frame)
@@ -818,4 +811,11 @@ void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const
 
 void MVM_crash_on_error(void) {
     crash_on_error = 1;
+}
+
+MVMint32 MVM_get_exception_category(MVMThreadContext *tc, MVMObject *ex) {
+    if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+        return ((MVMException *)ex)->body.category;
+    else
+        MVM_exception_throw_adhoc(tc, "getexcategory needs a VMException, got %s (%s)", REPR(ex)->name, MVM_6model_get_debug_name(tc, ex));
 }

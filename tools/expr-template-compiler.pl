@@ -2,7 +2,6 @@
 use strict;
 use warnings;
 # use very strict
-use autodie qw(open close);
 use warnings FATAL => 'all';
 
 use Getopt::Long;
@@ -32,12 +31,12 @@ GetOptions(\%OPTIONS, qw(prefix=s list=s input=s output=s include!));
 
 my ($PREFIX, $OPLIST) = @OPTIONS{'prefix', 'oplist'};
 if ($OPTIONS{output}) {
-    close STDOUT;
-    open STDOUT, '>', $OPTIONS{output};
+    close( STDOUT ) or die $!;
+    open( STDOUT, '>', $OPTIONS{output} ) or die $!;
 }
 if ($OPTIONS{input} //= shift @ARGV) {
-    close STDIN;
-    open STDIN, '<', $OPTIONS{input};
+    close( STDIN );
+    open( STDIN, '<', $OPTIONS{input} ) or die $!;
 }
 
 # Wrapper for the recursive write_template
@@ -264,14 +263,14 @@ sub write_template {
     # first read the correct order of opcodes
 my (@opcodes, %names);
 {
-    open my $oplist, '<', $OPLIST;
+    open( my $oplist, '<', $OPLIST ) or die $!;
     while (<$oplist>) {
         next unless (m/^\w+/);
         my $opcode = substr $_, 0, $+[0];
         push @opcodes, $opcode;
         $names{$opcode} = $#opcodes;
     }
-    close $oplist;
+    close( $oplist ) or die $!;
 }
 
 # read input, which should use the expresison-list
@@ -320,9 +319,9 @@ sub parse_file {
                 next;
             }
 
-            open my $handle, '<', $file;
+            open( my $handle, '<', $file ) or die $!;
             my ($inc_templates, $inc_info) = parse_file($handle, $macros);
-            close $handle;
+            close( $handle ) or die $!;
             die "Template redeclared in include" if grep $info{$_}, keys %$inc_info;
 
             # merge templates into including file
@@ -338,7 +337,7 @@ sub parse_file {
 }
 
 my ($templates, $info) = parse_file(\*STDIN, {});
-close STDIN;
+close( STDIN ) or die $!;
 
 # write a c output header file.
 print <<"HEADER";

@@ -39,7 +39,12 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
 
     /* Take compilation unit lock, to make sure we don't race to do the
      * frame preparation/verification work. */
-    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
+    MVMROOT(tc, cu, {
+    MVMROOT(tc, static_frame, {
+        MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
+    });
+    });
+
     if (static_frame->body.instrumentation_level == 0) {
         /* Work size is number of locals/registers plus size of the maximum
         * call site argument list. */
@@ -130,15 +135,13 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
         MVMObject *code_ref, MVMint32 autoclose) {
     MVMFrame *frame;
 
-    MVMROOT(tc, static_frame, {
-    MVMROOT(tc, code_ref, {
+    MVMROOT2(tc, static_frame, code_ref, {
         /* If the frame was never invoked before, need initial calculations
          * and verification. */
          if (static_frame->body.instrumentation_level == 0)
              instrumentation_level_barrier(tc, static_frame);
 
         frame = MVM_gc_allocate_frame(tc);
-    });
     });
 
     /* Set static frame and code ref. */
@@ -381,12 +384,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
      * instrumentation level, we need to trigger the instrumentation level
      * barrier. */
     if (static_frame->body.instrumentation_level != tc->instance->instrumentation_level) {
-        MVMROOT(tc, static_frame, {
-        MVMROOT(tc, code_ref, {
-        MVMROOT(tc, outer, {
+        MVMROOT3(tc, static_frame, code_ref, outer, {
             instrumentation_level_barrier(tc, static_frame);
-        });
-        });
         });
     }
 
@@ -453,13 +452,11 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         }
         else if (static_frame->body.outer) {
             /* Auto-close, and cache it in the static frame. */
-            MVMROOT(tc, static_frame, {
-            MVMROOT(tc, code_ref, {
+            MVMROOT2(tc, static_frame, code_ref, {
                 MVM_frame_force_to_heap(tc, tc->cur_frame);
                 outer = autoclose(tc, static_frame->body.outer);
                 MVM_ASSIGN_REF(tc, &(static_code->common.header),
                     static_code->body.outer, outer);
-            });
             });
         }
         else {
@@ -489,12 +486,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (spesh_cand >= 0) {
         MVMSpeshCandidate *chosen_cand = spesh->body.spesh_candidates[spesh_cand];
         if (static_frame->body.allocate_on_heap) {
-            MVMROOT(tc, static_frame, {
-            MVMROOT(tc, code_ref, {
-            MVMROOT(tc, outer, {
+            MVMROOT3(tc, static_frame, code_ref, outer, {
                 frame = allocate_frame(tc, static_frame, chosen_cand, 1);
-            });
-            });
             });
         }
         else {
@@ -514,12 +507,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     else {
         MVMint32 on_heap = static_frame->body.allocate_on_heap;
         if (on_heap) {
-            MVMROOT(tc, static_frame, {
-            MVMROOT(tc, code_ref, {
-            MVMROOT(tc, outer, {
+            MVMROOT3(tc, static_frame, code_ref, outer, {
                 frame = allocate_frame(tc, static_frame, NULL, 1);
-            });
-            });
             });
         }
         else {
@@ -535,23 +524,17 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             if (spesh->body.spesh_entries_recorded++ < MVM_SPESH_LOG_LOGGED_ENOUGH) {
                 MVMint32 id = ++tc->spesh_cid;
                 frame->spesh_correlation_id = id;
-                MVMROOT(tc, static_frame, {
-                MVMROOT(tc, code_ref, {
-                MVMROOT(tc, outer, {
+                MVMROOT3(tc, static_frame, code_ref, outer, {
                     if (on_heap) {
                         MVMROOT(tc, frame, {
                             MVM_spesh_log_entry(tc, id, static_frame, callsite);
                         });
                     }
                     else {
-                        MVMROOT(tc, frame->caller, {
-                        MVMROOT(tc, frame->static_info, {
+                        MVMROOT2(tc, frame->caller, frame->static_info, {
                             MVM_spesh_log_entry(tc, id, static_frame, callsite);
                         });
-                        });
                     }
-                });
-                });
                 });
             }
         }
@@ -638,9 +621,7 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     MVMFrame *update_caller = NULL;
     MVMFrame *result = NULL;
     MVM_CHECK_CALLER_CHAIN(tc, cur_to_promote);
-    MVMROOT(tc, new_cur_frame, {
-    MVMROOT(tc, update_caller, {
-    MVMROOT(tc, result, {
+    MVMROOT3(tc, new_cur_frame, update_caller, result, {
         while (cur_to_promote) {
             /* Allocate a heap frame. */
             MVMFrame *promoted = MVM_gc_allocate_frame(tc);
@@ -724,8 +705,6 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
             }
         }
     });
-    });
-    });
     MVM_CHECK_CALLER_CHAIN(tc, new_cur_frame);
 
     /* All is promoted. Update thread's current frame and reset the thread
@@ -743,10 +722,8 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
 MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                                       MVMCode *code_ref) {
     MVMFrame *frame;
-    MVMROOT(tc, static_frame, {
-    MVMROOT(tc, code_ref, {
+    MVMROOT2(tc, static_frame, code_ref, {
         frame = allocate_heap_frame(tc, static_frame, NULL);
-    });
     });
     MVM_ASSIGN_REF(tc, &(frame->header), frame->static_info, static_frame);
     MVM_ASSIGN_REF(tc, &(frame->header), frame->code_ref, code_ref);
@@ -936,13 +913,9 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
 
             /* Force the frame onto the heap, since we'll reference it from the
              * unwind data. */
-            MVMROOT(tc, frame, {
-            MVMROOT(tc, cur_frame, {
-            MVMROOT(tc, return_value, {
+            MVMROOT3(tc, frame, cur_frame, return_value, {
                 frame = MVM_frame_force_to_heap(tc, frame);
                 cur_frame = tc->cur_frame;
-            });
-            });
             });
 
             caller = cur_frame->caller;
@@ -1387,12 +1360,8 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                 MVMRegister *result = &cur_frame->env[lexidx];
                                 *type = cand->lexical_types[lexidx];
                                 if (vivify && *type == MVM_reg_obj && !result->o) {
-                                    MVMROOT(tc, cur_frame, {
-                                    MVMROOT(tc, initial_frame, {
-                                    MVMROOT(tc, name, {
+                                    MVMROOT3(tc, cur_frame, initial_frame, name, {
                                         MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
-                                    });
-                                    });
                                     });
                                 }
                                 if (fcost+icost > 1)
@@ -1425,12 +1394,8 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                 MVMRegister *result = &cur_frame->env[lexidx];
                                 *type = cand->lexical_types[lexidx];
                                 if (vivify && *type == MVM_reg_obj && !result->o) {
-                                    MVMROOT(tc, cur_frame, {
-                                    MVMROOT(tc, initial_frame, {
-                                    MVMROOT(tc, name, {
+                                    MVMROOT3(tc, cur_frame, initial_frame, name, {
                                         MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
-                                    });
-                                    });
                                     });
                                 }
                                 if (fcost+icost > 1)
@@ -1481,12 +1446,8 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 MVMRegister *result = &cur_frame->env[entry->value];
                 *type = cur_frame->static_info->body.lexical_types[entry->value];
                 if (vivify && *type == MVM_reg_obj && !result->o) {
-                    MVMROOT(tc, cur_frame, {
-                    MVMROOT(tc, initial_frame, {
-                    MVMROOT(tc, name, {
+                    MVMROOT3(tc, cur_frame, initial_frame, name, {
                         MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
-                    });
-                    });
                     });
                 }
                 if (dlog) {

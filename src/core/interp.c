@@ -1008,8 +1008,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(param_rp_s):
-                GET_REG(cur_op, 0).s = MVM_args_get_pos_str(tc, &tc->cur_frame->params,
-                    GET_UI16(cur_op, 2), MVM_ARG_REQUIRED).arg.s;
+                GET_REG(cur_op, 0).s = MVM_args_get_required_pos_str(tc, &tc->cur_frame->params,
+                    GET_UI16(cur_op, 2));
                 cur_op += 4;
                 goto NEXT;
             OP(param_rp_o): {
@@ -1049,8 +1049,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(param_op_s):
             {
-                MVMArgInfo param = MVM_args_get_pos_str(tc, &tc->cur_frame->params,
-                    GET_UI16(cur_op, 2), MVM_ARG_OPTIONAL);
+                MVMArgInfo param = MVM_args_get_optional_pos_str(tc, &tc->cur_frame->params,
+                    GET_UI16(cur_op, 2));
                 if (param.exists) {
                     GET_REG(cur_op, 0).s = param.arg.s;
                     cur_op = bytecode_start + GET_UI32(cur_op, 4);
@@ -1245,11 +1245,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(getexcategory): {
-                MVMObject *ex = GET_REG(cur_op, 2).o;
-                if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
-                    GET_REG(cur_op, 0).i64 = ((MVMException *)ex)->body.category;
-                else
-                    MVM_exception_throw_adhoc(tc, "getexcategory needs a VMException, got %s (%s)", REPR(ex)->name, MVM_6model_get_debug_name(tc, ex));
+                GET_REG(cur_op, 0).i64 = MVM_get_exception_category(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -1388,8 +1384,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
                     MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    GET_REG(cur_op, 0).s = MVM_args_get_pos_str(tc, cc->body.apc,
-                        (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED).arg.s;
+                    GET_REG(cur_op, 0).s = MVM_args_get_required_pos_str(tc, cc->body.apc,
+                        (MVMuint32)GET_REG(cur_op, 4).i64);
                 }
                 else {
                     MVM_exception_throw_adhoc(tc, "captureposarg_s needs a MVMCallCapture");
@@ -3529,6 +3525,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(coerce_II): {
+                MVMObject *   const type = GET_REG(cur_op, 4).o;
+                GET_REG(cur_op, 0).o = MVM_bigint_from_bigint(tc, type, GET_REG(cur_op, 2).o);
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(coerce_nI): {
                 MVMObject *   const type = GET_REG(cur_op, 4).o;
                 GET_REG(cur_op, 0).o = MVM_bigint_from_num(tc, type, GET_REG(cur_op, 2).n64);
@@ -5270,6 +5272,22 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 tc->cur_frame->return_type = MVM_RETURN_OBJ;
                 MVM_nativecall_invoke_jit(tc, GET_REG(cur_op, 2).o);
                 cur_op += 6;
+                goto NEXT;
+            OP(getarg_i):
+                GET_REG(cur_op, 0).i64 = tc->cur_frame->args[GET_REG(cur_op, 2).u16].i64;
+                cur_op += 4;
+                goto NEXT;
+            OP(getarg_n):
+                GET_REG(cur_op, 0).n64 = tc->cur_frame->args[GET_REG(cur_op, 2).u16].n64;
+                cur_op += 4;
+                goto NEXT;
+            OP(getarg_s):
+                GET_REG(cur_op, 0).s = tc->cur_frame->args[GET_REG(cur_op, 2).u16].s;
+                cur_op += 4;
+                goto NEXT;
+            OP(getarg_o):
+                GET_REG(cur_op, 0).o = tc->cur_frame->args[GET_REG(cur_op, 2).u16].o;
+                cur_op += 4;
                 goto NEXT;
             OP(sp_guard): {
                 MVMObject *check = GET_REG(cur_op, 0).o;

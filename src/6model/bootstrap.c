@@ -83,7 +83,7 @@ static void add_method(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister 
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     MVM_args_checkarity(tc, &arg_ctx, 4, 4);
     self     = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
-    name     = MVM_args_get_pos_str(tc, &arg_ctx, 2, MVM_ARG_REQUIRED).arg.s;
+    name     = MVM_args_get_required_pos_str(tc, &arg_ctx, 2);
     method   = MVM_args_get_required_pos_obj(tc, &arg_ctx, 3);
     MVM_args_proc_cleanup(tc, &arg_ctx);
     if (!self || !IS_CONCRETE(self) || REPR(self)->ID != MVM_REPR_ID_KnowHOWREPR)
@@ -181,21 +181,19 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
         MVMObject *attr_info = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
         MVMKnowHOWAttributeREPR *attribute = (MVMKnowHOWAttributeREPR *)
             MVM_repr_at_pos_o(tc, attributes, i);
-        MVMROOT(tc, attr_info, {
-            MVMROOT(tc, attribute, {
-                if (REPR((MVMObject *)attribute)->ID != MVM_REPR_ID_KnowHOWAttributeREPR)
-                    MVM_exception_throw_adhoc(tc, "KnowHOW attributes must use KnowHOWAttributeREPR");
+        MVMROOT2(tc, attr_info, attribute, {
+            if (REPR((MVMObject *)attribute)->ID != MVM_REPR_ID_KnowHOWAttributeREPR)
+                MVM_exception_throw_adhoc(tc, "KnowHOW attributes must use KnowHOWAttributeREPR");
 
-                MVM_repr_init(tc, attr_info);
-                MVM_repr_bind_key_o(tc, attr_info, instance->str_consts.name, (MVMObject *)attribute->body.name);
-                MVM_repr_bind_key_o(tc, attr_info, instance->str_consts.type, attribute->body.type);
-                if (attribute->body.box_target) {
-                    /* Merely having the key serves as a "yes". */
-                    MVM_repr_bind_key_o(tc, attr_info, instance->str_consts.box_target, attr_info);
-                }
+            MVM_repr_init(tc, attr_info);
+            MVM_repr_bind_key_o(tc, attr_info, instance->str_consts.name, (MVMObject *)attribute->body.name);
+            MVM_repr_bind_key_o(tc, attr_info, instance->str_consts.type, attribute->body.type);
+            if (attribute->body.box_target) {
+                /* Merely having the key serves as a "yes". */
+                MVM_repr_bind_key_o(tc, attr_info, instance->str_consts.box_target, attr_info);
+            }
 
-                MVM_repr_push_o(tc, attr_info_list, attr_info);
-            });
+            MVM_repr_push_o(tc, attr_info_list, attr_info);
         });
     }
 

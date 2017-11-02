@@ -66,10 +66,12 @@ typedef struct {
 static void read_one_packet(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
     unsigned int interval_id = MVM_telemetry_interval_start(tc, "syncsocket.read_one_packet");
     int r;
-    MVM_gc_mark_thread_blocked(tc);
     data->last_packet = MVM_malloc(PACKET_SIZE);
-    r = recv(data->handle, data->last_packet, PACKET_SIZE, 0);
-    MVM_gc_mark_thread_unblocked(tc);
+    do {
+        MVM_gc_mark_thread_blocked(tc);
+        r = recv(data->handle, data->last_packet, PACKET_SIZE, 0);
+        MVM_gc_mark_thread_unblocked(tc);
+    } while(r == -1 && errno == EINTR);
     MVM_telemetry_interval_stop(tc, interval_id, "syncsocket.read_one_packet");
     if (MVM_IS_SOCKET_ERROR(r) || r == 0) {
         MVM_free(data->last_packet);
@@ -200,7 +202,10 @@ MVMint64 socket_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
     interval_id = MVM_telemetry_interval_start(tc, "syncsocket.write_bytes");
     MVM_gc_mark_thread_blocked(tc);
     while (bytes > 0) {
-        int r = send(data->handle, buf, (int)bytes, 0);
+        int r;
+        do {
+            r = send(data->handle, buf, (int)bytes, 0);
+        } while(r == -1 && errno == EINTR);
         if (MVM_IS_SOCKET_ERROR(r)) {
             MVM_gc_mark_thread_unblocked(tc);
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket.write_bytes");
@@ -342,9 +347,11 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
             throw_error(tc, s, "create socket");
         }
 
-        MVM_gc_mark_thread_blocked(tc);
-        r = connect(s, dest, (socklen_t)get_struct_size_for_family(dest->sa_family));
-        MVM_gc_mark_thread_unblocked(tc);
+        do {
+            MVM_gc_mark_thread_blocked(tc);
+            r = connect(s, dest, (socklen_t)get_struct_size_for_family(dest->sa_family));
+            MVM_gc_mark_thread_unblocked(tc);
+        } while(r == -1 && errno == EINTR);
         MVM_free(dest);
         if (MVM_IS_SOCKET_ERROR(r)) {
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
@@ -460,9 +467,11 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
     Socket s;
 
     unsigned int interval_id = MVM_telemetry_interval_start(tc, "syncsocket accept");
-    MVM_gc_mark_thread_blocked(tc);
-    s = accept(data->handle, NULL, NULL);
-    MVM_gc_mark_thread_unblocked(tc);
+    do {
+        MVM_gc_mark_thread_blocked(tc);
+        s = accept(data->handle, NULL, NULL);
+        MVM_gc_mark_thread_unblocked(tc);
+    } while(s == -1 && errno == EINTR);
     if (MVM_IS_SOCKET_ERROR(s)) {
         MVM_telemetry_interval_stop(tc, interval_id, "syncsocket accept failed");
         throw_error(tc, s, "accept socket connection");

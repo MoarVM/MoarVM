@@ -2740,7 +2740,9 @@ MVMObject * MVM_serialization_demand_object(MVMThreadContext *tc, MVMSerializati
     /* Obtain lock and check we didn't lose a race to deserialize this
      * object. */
     MVMSerializationReader *sr = sc->body->sr;
-    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
+    MVMROOT(tc, sc, {
+        MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
+    });
     if (sc->body->root_objects[idx]) {
         MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
         return sc->body->root_objects[idx];
@@ -2808,7 +2810,9 @@ MVMObject * MVM_serialization_demand_code(MVMThreadContext *tc, MVMSerialization
     /* Obtain lock and ensure we didn't lose a race to deserialize this
      * code object. */
     MVMSerializationReader *sr = sc->body->sr;
-    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
+    MVMROOT(tc, sc, {
+        MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
+    });
     if (!MVM_is_null(tc, MVM_repr_at_pos_o(tc, sr->codes_list, idx))) {
         MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
         return MVM_repr_at_pos_o(tc, sr->codes_list, idx);
@@ -2870,7 +2874,9 @@ void MVM_serialization_finish_deserialize_method_cache(MVMThreadContext *tc, MVM
     if (sc && sc->body->sr) {
         /* Acquire mutex and ensure we didn't lose a race to do this. */
         MVMSerializationReader *sr = sc->body->sr;
-        MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
+        MVMROOT2(tc, st, sc, {
+            MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
+        });
         if (st->method_cache_sc) {
             MVMObject *cache;
 

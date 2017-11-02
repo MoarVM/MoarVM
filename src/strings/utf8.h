@@ -5,4 +5,5 @@ MVM_PUBLIC char * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
         MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement, MVMint32 translate_newlines);
 MVM_PUBLIC char * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint32 translate_newlines);
 MVM_PUBLIC char * MVM_string_utf8_encode_C_string(MVMThreadContext *tc, MVMString *str);
+char * MVM_string_utf8_maybe_encode_C_string(MVMThreadContext *tc, MVMString *str);
 void MVM_string_utf8_throw_encoding_exception (MVMThreadContext *tc, MVMCodepoint cp);
