@@ -154,7 +154,7 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
     MVM_telemetry_interval_annotate(bytes_read, interval_id, "read this many bytes");
     MVM_telemetry_interval_stop(tc, interval_id, "syncfile.read_to_buffer");
     data->byte_position += bytes_read;
-    if (bytes_read == 0 && bytes != 0)
+    if (bytes_read < bytes)
         data->eof_reported = 1;
     return bytes_read;
 }
