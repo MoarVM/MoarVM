@@ -782,7 +782,7 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
     MVMuint32 switch_val = (MVMuint32)property_code;
     MVMint32 result_val = 0; /* we'll never have negatives, but so */
     MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
-    MVMuint16 bitfield_row;
+    MVMuint16 bitfield_row = 0;
 
     if (codepoint_row == -1) { /* non-existent codepoint; XXX should throw? */
         if (0x10FFFF < codepoint)
