@@ -663,7 +663,7 @@ Walks should be single-visit.
 
 *** DONE IDX CONST to ADDR conversion
 Uses one register fewer, simpler operation
-*** TODO ADD CONST to ADDR conversion
+*** DONE ADD CONST to ADDR conversion
 Only allowed if user is pointerlike (e.g. LOAD)
 *** DONE COPY insertion
 =======
