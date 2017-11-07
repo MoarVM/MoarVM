@@ -243,6 +243,27 @@ Currently, we try to resovle the link address directly. What we should
 probably do is compute a table of linked addresses and code addresses,
 and then warn about anything that's not a link address.
 
+** Make =expr-template-compiler.pl warn for conditional-use-before-unconditional-use
+
+This is a common cause of errors, because the conditional use will
+'define' the value, and the tiler will not emit code to redefine it
+for the unconditional use. Especially dangerous is that this can
+happen in macro expansions (like write-barrier).
+
+This should probably be a hard error. How to go about checking it?
+
+First:
+- we can only get this problem in DAGs not trees
+- we can only create a DAG with named references (=$1=, =$foo=)
+- we can only have a conditional use if we have one of the following node types:
+  - WHEN (second node is conditional)
+  - IF/IFV (second and third nodes are conditional)
+  - ALL/ANY (all but first, and the 'conditionality' is relative)
+
+I'm thinking of using a stack to indicate the conditional order of
+definitions and uses.... but I'm not sure how just yet.
+
+
 * Expression Tree
 
 ** REPR-Specialized expression code
@@ -576,7 +597,12 @@ as well.
 Not implemented at all, so we need some new things.
 
 ** DONE An equivalence function
-** TODO A replacement 'function'
+
+We have one (MVM_jit_expr_tree_eqv), but it's problem is that it tries
+to iterate to the leaves, whereas it should iterate to a certain depth
+(but how to specify the depth in different branches?)
+
+** DONE A replacement 'function'
 
 Basically we require the possibility to update all uses of a node with
 another one, including roots, if necessary.
@@ -586,9 +612,10 @@ Now, there will never be more uses than nodes, so we can build a
 
 Walks should be single-visit.
 
+
 ** TODO Example optimizations
 
-- common subexpression elimination
+*** TODO common subexpression elimination
   - idea: (hash) table of expr, node
   - table is created bottom-up
     - all children are replaced with equivalent (according to the table)
@@ -599,14 +626,25 @@ Walks should be single-visit.
 - ADD CONST to ADDR conversion
   - only allowed if user is pointerlike (e.g. LOAD)
 - COPY insertion
+
+*** DONE IDX CONST to ADDR conversion
+Uses one register fewer, simpler operation
+*** TODO ADD CONST to ADDR conversion
+Only allowed if user is pointerlike (e.g. LOAD)
+*** DONE COPY insertion
   - Values that are LOAD-ed and used from multiple operations might
     benefit from inserting a COPY, so they don't use indirect
     operations, e.g.
   - Basic idea: count number of users of 'load', if > 1, insert the
     COPY node and replace the refs
   - Possibly a pessimization because it requires more registers!
-- COPY elimination
+
+*** TODO COPY elimination
   - possibly the first step, removing redundant copies
-- CONST copying
+  - especially for CONST nodes
+
+*** TODO CONST copying
   - A const never needs to be kept in memory, and it is just as well
-    to keep just a single reference to it.
+    to keep just a single reference to it. (This might be better in
+    the register allocator though)
+
