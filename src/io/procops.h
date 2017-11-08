@@ -17,6 +17,7 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObje
          MVMString *cwd, MVMObject *env, MVMObject *callbacks);
 void MVM_proc_kill_async(MVMThreadContext *tc, MVMObject *handle, MVMint64 signal);
 MVMint64 MVM_proc_getpid(MVMThreadContext *tc);
+MVMint64 MVM_proc_getppid(MVMThreadContext *tc);
 MVMint64 MVM_proc_rand_i(MVMThreadContext *tc);
 MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc);
 MVMnum64 MVM_proc_randscale_n(MVMThreadContext *tc, MVMnum64 scale);
