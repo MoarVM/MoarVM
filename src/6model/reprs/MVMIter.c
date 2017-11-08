@@ -197,6 +197,9 @@ static const MVMREPROps MVMIter_this_repr = {
 
 MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
     MVMIter *iterator;
+    if (!IS_CONCRETE(target)) {
+        MVM_exception_throw_adhoc(tc, "Cannot iterate over a %s type object", MVM_6model_get_debug_name(tc, target));
+    }
     MVMROOT(tc, target, {
         if (REPR(target)->ID == MVM_REPR_ID_VMArray) {
             iterator = (MVMIter *)MVM_repr_alloc_init(tc,
