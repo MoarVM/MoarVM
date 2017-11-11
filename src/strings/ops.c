@@ -612,14 +612,16 @@ static MVMString * string_from_strand_at_index(MVMThreadContext *tc, MVMString *
     return MVM_string_substring(tc, ss->blob_string, ss->start, ss->end - ss->start);
 }
 
-/* Append one string to another. */
 static MVMuint16 final_strand_match_with_repetition_count(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     if (a->body.storage_type == MVM_STRING_STRAND) {
         MVMStringStrand *sa = &(a->body.storage.strands[a->body.num_strands - 1]);
-        if (sa->end - sa->start == MVM_string_graphs(tc, b)) {
+        /* If the final strand of a eq b, we'll just increment the final strand of a's repetitions. */
+        if (sa->end - sa->start == MVM_string_graphs_nocheck(tc, b)) {
             if (MVM_string_equal_at(tc, sa->blob_string, b, sa->start))
                 return 1;
         }
+        /* If the final strand of a eq the first (and only) strand of b, we'll just add b's repetitions
+	 * (plus 1 for the strand itself) to the final strand of a's repetitions. */
         else if (b->body.storage_type == MVM_STRING_STRAND && b->body.num_strands == 1) {
             MVMStringStrand *sb = &(b->body.storage.strands[0]);
             if (sa->end - sa->start == sb->end - sb->start)
@@ -629,6 +631,8 @@ static MVMuint16 final_strand_match_with_repetition_count(MVMThreadContext *tc, 
     }
     return 0;
 }
+
+/* Append one string to another. */
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMString *result = NULL, *renormalized_section = NULL;
     int renormalized_section_graphs = 0, consumed_a = 0, consumed_b = 0;
