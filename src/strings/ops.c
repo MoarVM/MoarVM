@@ -615,14 +615,16 @@ static MVMString * string_from_strand_at_index(MVMThreadContext *tc, MVMString *
 /* Append one string to another. */
 static MVMuint16 final_strand_match_with_repetition_count(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     if (a->body.storage_type == MVM_STRING_STRAND) {
-        MVMStringStrand *ss = &(a->body.storage.strands[a->body.num_strands - 1]);
-        if (ss->end - ss->start == MVM_string_graphs(tc, b)) {
-            if (MVM_string_equal_at(tc, ss->blob_string, b, ss->start))
+        MVMStringStrand *sa = &(a->body.storage.strands[a->body.num_strands - 1]);
+        if (sa->end - sa->start == MVM_string_graphs(tc, b)) {
+            if (MVM_string_equal_at(tc, sa->blob_string, b, sa->start))
                 return 1;
         }
         else if (b->body.storage_type == MVM_STRING_STRAND && b->body.num_strands == 1) {
-            if (MVM_string_equal(tc, string_from_strand_at_index(tc, a, a->body.num_strands - 1), string_from_strand_at_index(tc, b, 0)))
-                return b->body.storage.strands[0].repetitions + 1;
+            MVMStringStrand *sb = &(b->body.storage.strands[0]);
+            if (sa->end - sa->start == sb->end - sb->start)
+                if (MVM_string_equal(tc, string_from_strand_at_index(tc, a, a->body.num_strands - 1), string_from_strand_at_index(tc, b, 0)))
+                    return b->body.storage.strands[0].repetitions + 1;
 	}
     }
     return 0;
