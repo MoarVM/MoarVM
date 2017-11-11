@@ -820,7 +820,7 @@ void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
 
         MVMuint64 maxval = MAX(kind, cindex);
 
-        if (maxval + 1 >= 1l << 32) {
+        if (maxval + 1 >= 1LL << 32) {
             fputc('6', fh);
             fwrite(&descr, sizeof(MVMuint8), 1, fh);
             fwrite(&kind, sizeof(MVMuint64), 1, fh);
