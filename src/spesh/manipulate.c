@@ -70,7 +70,10 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g,
                     MVMSpeshAnn *append_to = prev->annotations;
                     while (append_to && append_to->next)
                         append_to = append_to->next;
-                    append_to = ann;
+                    if (append_to)
+                        append_to->next = ann;
+                    else
+                        prev->annotations = ann;
                     ann->next = NULL;
                 }
                 break;
