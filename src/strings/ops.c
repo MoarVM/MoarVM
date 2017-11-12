@@ -607,16 +607,32 @@ MVMString * MVM_string_replace(MVMThreadContext *tc, MVMString *original, MVMint
     return result;
 }
 
-/* Append one string to another. */
-static MVMint32 final_strand_matches(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+static MVMString * string_from_strand_at_index(MVMThreadContext *tc, MVMString *a, MVMuint16 index) {
+    MVMStringStrand *ss = &(a->body.storage.strands[index]);
+    return MVM_string_substring(tc, ss->blob_string, ss->start, ss->end - ss->start);
+}
+
+static MVMuint16 final_strand_match_with_repetition_count(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     if (a->body.storage_type == MVM_STRING_STRAND) {
-        MVMStringStrand *ss = &(a->body.storage.strands[a->body.num_strands - 1]);
-        if (ss->end - ss->start == MVM_string_graphs(tc, b))
-            if (MVM_string_equal_at(tc, ss->blob_string, b, ss->start))
+        MVMStringStrand *sa = &(a->body.storage.strands[a->body.num_strands - 1]);
+        /* If the final strand of a eq b, we'll just increment the final strand of a's repetitions. */
+        if (sa->end - sa->start == MVM_string_graphs_nocheck(tc, b)) {
+            if (MVM_string_equal_at(tc, sa->blob_string, b, sa->start))
                 return 1;
+        }
+        /* If the final strand of a eq the first (and only) strand of b, we'll just add b's repetitions
+	 * (plus 1 for the strand itself) to the final strand of a's repetitions. */
+        else if (b->body.storage_type == MVM_STRING_STRAND && b->body.num_strands == 1) {
+            MVMStringStrand *sb = &(b->body.storage.strands[0]);
+            if (sa->end - sa->start == sb->end - sb->start)
+                if (MVM_string_equal(tc, string_from_strand_at_index(tc, a, a->body.num_strands - 1), string_from_strand_at_index(tc, b, 0)))
+                    return b->body.storage.strands[0].repetitions + 1;
+	}
     }
     return 0;
 }
+
+/* Append one string to another. */
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMString *result = NULL, *renormalized_section = NULL;
     int renormalized_section_graphs = 0, consumed_a = 0, consumed_b = 0;
@@ -625,6 +641,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     int lost_strands          = 0;
     int is_concat_stable      = 0;
     int index_ss_b;
+    MVMuint16 matching_repetition_count;
     MVM_string_check_arg(tc, a, "concatenate");
     MVM_string_check_arg(tc, b, "concatenate");
 
@@ -699,12 +716,12 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
 
         /* Detect the wonderful case where we're repeatedly concating the same
          * string again and again, and thus can just bump a repetition. */
-        if (is_concat_stable == 1 && final_strand_matches(tc, a, b)) {
+        if (is_concat_stable == 1 && (matching_repetition_count = final_strand_match_with_repetition_count(tc, a, b))) {
             /* We have it; just copy the strands to a new string and bump the
              * repetitions count of the last one. */
             result->body.storage.strands = allocate_strands(tc, a->body.num_strands);
             copy_strands(tc, a, 0, result, 0, a->body.num_strands);
-            result->body.storage.strands[a->body.num_strands - 1].repetitions++;
+            result->body.storage.strands[a->body.num_strands - 1].repetitions += matching_repetition_count;
             result->body.num_strands = a->body.num_strands;
         }
 
