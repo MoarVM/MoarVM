@@ -685,6 +685,9 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
     MVM_VECTOR_INIT(tree->info,  256);
     MVM_VECTOR_INIT(tree->roots, 16);
 
+    /* ensure that all references are nonzero */
+    MVM_VECTOR_PUSH(tree->nodes, MVM_JIT_NOOP);
+
     tree->graph      = jg;
     tree->num_labels = 0;
     /* Hold indices to the node that last computed a value belonging
@@ -937,7 +940,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
     }
 
  done:
-    if (tree->nodes_num > 0) {
+    if (tree->roots_num > 0) {
         active_values_flush(tc, tree, values, sg->num_locals);
         MVM_jit_expr_tree_analyze(tc, tree);
         MVM_jit_log(tc, "Build tree out of: [");
