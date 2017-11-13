@@ -6,6 +6,10 @@ struct MVMSpeshCandidate {
     /* Length of the specialized bytecode in bytes. */
     MVMuint32 bytecode_size;
 
+    /* Length of bytecode excluding instrumentation like
+     * profiler or cross-thread-write instructions. */
+    MVMuint32 normalized_bytecode_size;
+
     /* The specialized bytecode. */
     MVMuint8 *bytecode;
 

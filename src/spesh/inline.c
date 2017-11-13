@@ -57,7 +57,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
         return NULL;
 
     /* Check bytecode size is within the inline limit. */
-    if (cand->bytecode_size > MVM_SPESH_MAX_INLINE_SIZE)
+    if (cand->normalized_bytecode_size > MVM_SPESH_MAX_INLINE_SIZE)
         return NULL;
 
     /* Ensure that this isn't a recursive inlining. */

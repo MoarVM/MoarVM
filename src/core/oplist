@@ -958,6 +958,9 @@ sp_cas_o            w(obj) r(obj) r(obj) r(obj) :invokish
 sp_atomicload_o     w(obj) r(obj)
 sp_atomicstore_o    r(obj) r(obj) :invokish
 
+# Important: ops after prof_enter are not counted against the inline size
+# limit. Any "normal" ops must be added before this instruction.
+
 # Profiler recording ops. Naming convention: start with prof_. Must all be
 # marked .s, which is how the validator knows to exclude them. (For that
 # purpose, we treat them as a kind of spesh op).
