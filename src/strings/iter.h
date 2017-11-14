@@ -5,6 +5,7 @@ struct MVMGraphemeIter {
         MVMGrapheme32    *blob_32;
         MVMGraphemeASCII *blob_ascii;
         MVMGrapheme8     *blob_8;
+        MVMGrapheme8     in_situ[8];
         void             *any;
     } active_blob;
 
@@ -162,6 +163,8 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_gi_get_grapheme(MVMThreadContext *tc,
                     return gi->active_blob.blob_ascii[gi->pos++];
                 case MVM_STRING_GRAPHEME_8:
                     return gi->active_blob.blob_8[gi->pos++];
+                case MVM_STRING_IN_SITU:
+                    return gi->active_blob.in_situ[gi->pos++];
                 }
         }
         else if (gi->repetitions) {
@@ -195,6 +198,8 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_get_grapheme_at_nocheck(MVMThreadCont
             return a->body.storage.blob_ascii[index];
         case MVM_STRING_GRAPHEME_8:
             return a->body.storage.blob_8[index];
+        case MVM_STRING_IN_SITU:
+            return a->body.storage.in_situ[index];
         case MVM_STRING_STRAND: {
             MVMGraphemeIter gi;
             MVM_string_gi_init(tc, &gi, a);

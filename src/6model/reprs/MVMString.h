@@ -25,6 +25,7 @@ typedef MVMint8  MVMGrapheme8;       /* Future use */
 #define MVM_STRING_GRAPHEME_ASCII   1
 #define MVM_STRING_GRAPHEME_8       2
 #define MVM_STRING_STRAND           3
+#define MVM_STRING_IN_SITU          4
 
 /* String index data type, for when we talk about indexes. */
 typedef MVMuint32 MVMStringIndex;
@@ -42,6 +43,7 @@ struct MVMStringBody {
         MVMGraphemeASCII *blob_ascii;
         MVMGrapheme8     *blob_8;
         MVMStringStrand  *strands;
+        MVMGrapheme8     in_situ[8];
         void             *any;
     } storage;
     MVMuint16 storage_type;
