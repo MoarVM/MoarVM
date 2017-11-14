@@ -48,30 +48,41 @@ static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUn
  * or a graph ready to be merged if it will be possible. */
 MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                                                MVMStaticFrame *target_sf,
-                                               MVMSpeshCandidate *cand) {
+                                               MVMSpeshCandidate *cand,
+                                               char **no_inline_reason) {
     MVMSpeshGraph *ig;
     MVMSpeshBB    *bb;
 
     /* Check inlining is enabled. */
-    if (!tc->instance->spesh_inline_enabled)
+    if (!tc->instance->spesh_inline_enabled) {
+        *no_inline_reason = "inlining is disabled";
         return NULL;
+    }
 
     /* Check bytecode size is within the inline limit. */
-    if (cand->bytecode_size > MVM_SPESH_MAX_INLINE_SIZE)
+    if (cand->bytecode_size > MVM_SPESH_MAX_INLINE_SIZE) {
+        *no_inline_reason = "bytecode is too large to inline";
         return NULL;
+    }
 
     /* Ensure that this isn't a recursive inlining. */
-    if (target_sf == inliner->sf)
+    if (target_sf == inliner->sf) {
+        *no_inline_reason = "recursive calls cannot be inlined";
         return NULL;
+    }
 
     /* Ensure they're from the same HLL. */
-    if (target_sf->body.cu->body.hll_config != inliner->sf->body.cu->body.hll_config)
+    if (target_sf->body.cu->body.hll_config != inliner->sf->body.cu->body.hll_config) {
+        *no_inline_reason = "different HLLs";
         return NULL;
+    }
 
     /* Ensure it has no state vars (these need the setup code in frame
      * invoke). */
-    if (target_sf->body.has_state_vars)
+    if (target_sf->body.has_state_vars) {
+        *no_inline_reason = "cannot inline code that declares a state variable";
         return NULL;
+    }
 
     /* Build graph from the already-specialized bytecode. */
     ig = MVM_spesh_graph_create_from_cand(tc, target_sf, cand, 0);
@@ -96,13 +107,17 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
 
             /* Instruction may be marked directly as not being inlinable, in
              * which case we're done. */
-            if (!is_phi && ins->info->no_inline)
+            if (!is_phi && ins->info->no_inline) {
+                *no_inline_reason = "target has a :noinline instruction";
                 goto not_inlinable;
+            }
 
             /* If we have lexical bind, make sure it's within the frame. */
             if (ins->info->opcode == MVM_OP_bindlex) {
-                if (ins->operands[0].lex.outers > 0)
+                if (ins->operands[0].lex.outers > 0) {
+                    *no_inline_reason = "target has bind to outer lexical";
                     goto not_inlinable;
+                }
             }
 
             /* Check we don't have too many args for inlining to work out. */
@@ -110,8 +125,10 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
                     ins->info->opcode == MVM_OP_sp_getarg_i ||
                     ins->info->opcode == MVM_OP_sp_getarg_n ||
                     ins->info->opcode == MVM_OP_sp_getarg_s) {
-                if (ins->operands[1].lit_i16 >= MAX_ARGS_FOR_OPT)
+                if (ins->operands[1].lit_i16 >= MAX_ARGS_FOR_OPT) {
+                    *no_inline_reason = "too many arguments to inline";
                     goto not_inlinable;
+                }
             }
 
             /* Ext-ops need special care in inter-comp-unit inlines. */
