@@ -291,8 +291,13 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
             new_buffer[ready] = buffer[ready];
         }
         MVM_free(buffer);
-        result->body.storage.blob_8  = new_buffer;
-        result->body.storage_type    = MVM_STRING_GRAPHEME_8;
+        if (count <= 8) {
+            memcpy(result->body.storage.in_situ, new_buffer, count * sizeof(MVMGrapheme8));
+            result->body.storage_type    = MVM_STRING_IN_SITU;
+        } else {
+            result->body.storage.blob_8  = new_buffer;
+            result->body.storage_type    = MVM_STRING_GRAPHEME_8;
+        }
     } else {
         /* just keep the same buffer as the MVMString's buffer.  Later
          * we can add heuristics to resize it if we have enough free
