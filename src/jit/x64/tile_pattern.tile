@@ -40,6 +40,11 @@
 (tile: addr  (addr reg $ofs) reg 2)
 (tile: idx   (idx reg reg $scl) reg 2)
 (tile: const_reg (const $val $size) reg 2)
+
+(tile: const_large (const_large $value $size) reg 3)
+(tile: const_large (const_ptr $ptr) reg 3)
+
+
 (tile: load_reg  (load reg $size) reg 5)
 (tile: load_addr (load (addr reg $ofs) $size) reg 5)
 (tile: load_idx  (load (idx reg reg $scale) $size) reg 5)
@@ -116,11 +121,13 @@
 # placeholder for arglist pseudotile
 (define: (arglist (carg reg)) c_args 1)
 
+
+
 (tile: call      (call  reg c_args $size) reg 4)
 (tile: call      (callv reg c_args) void 4)
 
-(tile: call_func (call  (const $ptr $sz) c_args $size) reg 4)
-(tile: call_func (callv (const $ptr $sz) c_args) void 4)
+(tile: call_func (call  (const_ptr $ptr) c_args $size) reg 4)
+(tile: call_func (callv (const_ptr $ptr) c_args) void 4)
 
 (tile: call_addr (call  (load (addr reg $ofs) $sz) c_args $size) reg 4)
 (tile: call_addr (callv (load (addr reg $ofs) $sz) c_args) void 4)
