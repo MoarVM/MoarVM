@@ -39,6 +39,8 @@
 
 (macro: ^exit () (branch (label branch_exit)))
 
+(macro: ^func (,x) (const_ptr ,x))
+
 (macro: ^p6obody (,a)
    (let: (($replace (^getf ,a MVMP6opaque body.replaced)))
          (if (nz $replace)
@@ -46,7 +48,6 @@
               (addr ,a (&offsetof MVMP6opaque body)))))
 
 
-(macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
 (macro: ^indirect_cu_string (,cu ,a)
     (let: (($str (load (idx (^getf ,cu  MVMCompUnit body.strings) ,a ptr_sz) ptr_sz)))
     (if (nz $str) $str

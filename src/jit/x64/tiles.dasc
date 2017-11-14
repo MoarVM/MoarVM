@@ -1,6 +1,8 @@
 /* -*-C-*- */
 #include "tile_decl.h"
 
+#define DIE(...) do { MVM_oops(tc, __VA_ARGS__); } while (0)
+
 /* NB: The rax/eax/ax/al/ah register is *reserved* for internal use in tiles by
  * the register allocator. Using rax will never overwrite an allocated value */
 
@@ -21,22 +23,23 @@ MVM_JIT_TILE_DECL(idx) {
     if (scl == 8) {
         | lea Rq(out), [Rq(base)+Rq(idx)*8];
     } else {
-        MVM_oops(tc, "Scales other than 8 NYI\n");
+        DIE("Unsupported scale: %d", scl);
     }
 }
 
 
 MVM_JIT_TILE_DECL(const_reg) {
     MVMint8 out = tile->values[0];
-    MVMint64 val  = tile->args[0];
+    MVMint32 val  = tile->args[0];
     MVMint32 size = tile->args[1];
-    if (size == 8 && !fits_in_32_bit(val)) {
-        | mov64 Rq(out), val;
-    } else {
-        | mov Rq(out), val;
-    }
+    | mov Rq(out), val;
 }
 
+MVM_JIT_TILE_DECL(const_large) {
+    MVMint8 out = tile->values[0];
+    MVMint64 val = tree->constants[tile->args[0]].i;
+    | mov64 Rq(out), val;
+}
 
 MVM_JIT_TILE_DECL(load_reg) {
     MVMint8 out  = tile->values[0];
@@ -56,7 +59,7 @@ MVM_JIT_TILE_DECL(load_reg) {
         | mov Rq(out), [Rq(base)];
         break;
     default:
-        MVM_oops(tc, "Unsupported load size: %d\n", size);
+        DIE("Unsupported load size: %d\n", size);
     }
 }
 
@@ -79,7 +82,7 @@ MVM_JIT_TILE_DECL(load_addr) {
         | mov Rq(out), qword [Rq(base)+ofs];
         break;
     default:
-        MVM_oops(tc, "Unsupported load size: %d\n", size);
+        DIE("Unsupported load size: %d\n", size);
     }
 }
 
@@ -90,7 +93,7 @@ MVM_JIT_TILE_DECL(load_idx) {
     MVMint8 scl  = tile->args[0];
     MVMint32 size = tile->args[1];
     if (scl != 8) {
-        MVM_oops(tc, "Unsupported scale size: %d\n", scl);
+        DIE("Unsupported scale size: %d\n", scl);
     }
     switch (size) {
     case 1:
@@ -106,7 +109,7 @@ MVM_JIT_TILE_DECL(load_idx) {
         | mov Rq(out), qword [Rq(base)+Rq(idx)*8];
         break;
     default:
-        MVM_oops(tc, "Unsupported load size: %d\n", size);
+        DIE("Unsupported load size: %d\n", size);
     }
 }
 
@@ -129,7 +132,7 @@ MVM_JIT_TILE_DECL(store) {
         | mov qword [Rq(base)], Rq(value);
         break;
     default:
-        MVM_oops(tc, "Unsupported store size: %d\n", size);
+        DIE("Unsupported store size: %d\n", size);
     }
 }
 
@@ -152,7 +155,7 @@ MVM_JIT_TILE_DECL(store_addr) {
         | mov qword [Rq(base)+ofs], Rq(value);
         break;
     default:
-        MVM_oops(tc, "Unsupported store size: %d\n", size);
+        DIE("Unsupported store size: %d\n", size);
     }
 }
 
@@ -163,7 +166,7 @@ MVM_JIT_TILE_DECL(store_idx) {
     MVMint32 size = tile->args[1];
     MVMint8 value = tile->values[3];
     if (scl != 8)
-        MVM_oops(tc, "Scale %d NYI\n", scl);
+        DIE("Scale %d NYI\n", scl);
     switch (size) {
     case 1:
         | mov byte [Rq(base)+Rq(idx)*8], Rb(value);
@@ -178,7 +181,7 @@ MVM_JIT_TILE_DECL(store_idx) {
         | mov qword [Rq(base)+Rq(idx)*8], Rq(value);
         break;
     default:
-        MVM_oops(tc, "Unsupported store size: %d\n", size);
+        DIE("Unsupported store size: %d\n", size);
     }
 }
 
@@ -228,7 +231,7 @@ MVM_JIT_TILE_DECL(cast) {
             | mov Rq(to_reg), rax;
             break;
         default:
-            MVM_oops(tc, "Unsupported signed cast %d -> %d\n", from_size, to_size);
+            DIE("Unsupported signed cast %d -> %d\n", from_size, to_size);
         }
     } else {
         switch (size_conv) {
@@ -254,14 +257,14 @@ MVM_JIT_TILE_DECL(cast) {
             | mov Rd(to_reg), Rd(from_reg);
             break;
         default:
-            MVM_oops(tc, "Unsupported unsigned cast %d -> %d\n", from_size, to_size);
+            DIE("Unsupported unsigned cast %d -> %d\n", from_size, to_size);
         }
     }
 }
 
 
 MVM_JIT_TILE_DECL(cast_load_addr) {
-    MVM_oops(tc, "NYI");
+    DIE("NYI");
 }
 
 /* binary operations have special requirements because x86 is two-operand form, e.g:
@@ -312,24 +315,12 @@ MVM_JIT_TILE_DECL(add_reg) {
 MVM_JIT_TILE_DECL(add_const) {
     MVMint8 out = tile->values[0];
     MVMint8 in1  = tile->values[1];
-    MVMint64 val = tile->args[0];
+    MVMint32 val = tile->args[0];
     MVMint32 sz  = tile->args[1];
-    if (out == in1) {
-        if (sz == 8 && !fits_in_32_bit(val)) {
-            | mov64 rax, val;
-            | add Rq(out), rax;
-        } else {
-            | add Rq(in1), val;
-        }
-    } else {
-        if (sz == 8 && !fits_in_32_bit(val)) {
-            | mov64 Rq(out), val;
-            | add Rq(out), Rq(in1);
-        } else {
-            | mov Rq(out), Rq(in1);
-            | add Rq(out), val;
-        }
+    if (out != in1) {
+        | mov Rq(out), Rq(in1);
     }
+    | add Rq(out), val;
 }
 
 MVM_JIT_TILE_DECL(add_load_addr) {
@@ -355,7 +346,7 @@ MVM_JIT_TILE_DECL(add_load_addr) {
         | add Rq(out), qword [Rq(base)+ofs];
         break;
     default:
-        MVM_oops(tc, "Unsupported load size: %d\n", size);
+        DIE("Unsupported load size: %d\n", size);
     }
 }
 
@@ -370,7 +361,7 @@ MVM_JIT_TILE_DECL(add_load_idx) {
         | mov Rq(out), Rq(in1);
     }
     if (scl != 8)
-        MVM_oops(tc, "IDX Scale %d NYI\n", scl);
+        DIE("IDX Scale %d NYI\n", scl);
     switch (size) {
     case 1:
         | add Rb(out), byte [Rq(base)+Rq(idx)*8];
@@ -385,7 +376,7 @@ MVM_JIT_TILE_DECL(add_load_idx) {
         | add Rq(out), qword [Rq(base)+Rq(idx)*8];
         break;
     default:
-        MVM_oops(tc, "Unsupported load size: %d\n", size);
+        DIE("Unsupported load size: %d\n", size);
     }
 }
 
@@ -400,24 +391,13 @@ MVM_JIT_TILE_DECL(and_reg) {
 MVM_JIT_TILE_DECL(and_const) {
     MVMint8 out = tile->values[0];
     MVMint8 in1  = tile->values[1];
-    MVMint64 val = tile->args[0];
+    MVMint32 val = tile->args[0];
     MVMint32 sz  = tile->args[1];
-    if (out == in1) {
-        if (sz == 8 && !fits_in_32_bit(val)) {
-            | mov64 rax, val;
-            | and Rq(in1), rax;
-        } else {
-            | and Rq(in1), val;
-        }
-    } else {
-        if (sz == 8 && !fits_in_32_bit(val)) {
-            | mov64 Rq(out), val;
-            | and Rq(out), Rq(in1);
-        } else {
-            | mov Rq(out), Rq(in1);
-            | and Rq(out), val;
-        }
+
+    if (out != in1) {
+        | mov Rq(out), Rq(in1);
     }
+    | and Rq(out), val;
 }
 
 MVM_JIT_TILE_DECL(and_load_addr) {
@@ -443,7 +423,7 @@ MVM_JIT_TILE_DECL(and_load_addr) {
         | and Rq(out), qword [Rq(base)+ofs];
         break;
     default:
-        MVM_oops(tc, "Unsupported load size: %d\n", size);
+        DIE("Unsupported load size: %d\n", size);
     }
 }
 
@@ -459,7 +439,7 @@ MVM_JIT_TILE_DECL(and_load_idx) {
         | mov Rq(out), Rq(in1);
     }
     if (scl != 8)
-        MVM_oops(tc, "IDX Scale %d NYI\n", scl);
+        DIE("IDX Scale %d NYI\n", scl);
     switch (size) {
     case 1:
         | and Rb(out), byte [Rq(base)+Rq(idx)*8];
@@ -474,7 +454,7 @@ MVM_JIT_TILE_DECL(and_load_idx) {
         | and Rq(out), qword [Rq(base)+Rq(idx)*8];
         break;
     default:
-        MVM_oops(tc, "Unsupported load size: %d\n", size);
+        DIE("Unsupported load size: %d\n", size);
     }
 }
 
@@ -511,25 +491,13 @@ MVM_JIT_TILE_DECL(sub_reg) {
 MVM_JIT_TILE_DECL(sub_const) {
     MVMint8 out = tile->values[0];
     MVMint8 in1  = tile->values[1];
-    MVMint64 val = tile->args[0];
+    MVMint32 val = tile->args[0];
     MVMint32 sz  = tile->args[1];
-    if (out == in1) {
-        if (sz == 8 && !fits_in_32_bit(val)) {
-            | mov64 rax, val;
-            | sub Rq(in1), rax;
-        } else {
-            | sub Rq(in1), val;
-        }
-    } else {
-        if (sz == 8 && !fits_in_32_bit(val)) {
-            | mov64 rax, val;
-            | mov Rq(out), Rq(in1);
-            | sub Rq(out), rax;
-        } else {
-            | mov Rq(out), Rq(in1);
-            | sub Rq(out), val;
-        }
+
+    if (out != in1) {
+        | mov Rq(out), Rq(in1);
     }
+    | sub Rq(out), val;
 }
 
 MVM_JIT_TILE_DECL(sub_load_addr) {
@@ -555,7 +523,7 @@ MVM_JIT_TILE_DECL(sub_load_addr) {
         | sub Rq(out), qword [Rq(base)+ofs];
         break;
     default:
-        MVM_oops(tc, "Unsupported load size: %d\n", size);
+        DIE("Unsupported load size: %d\n", size);
     }
 }
 
@@ -570,7 +538,7 @@ MVM_JIT_TILE_DECL(sub_load_idx) {
         | mov Rq(out), Rq(in1);
     }
     if (scl != 8)
-        MVM_oops(tc, "IDX Scale %d NYI\n", scl);
+        DIE("IDX Scale %d NYI\n", scl);
     switch (size) {
     case 1:
         | sub Rb(out), byte [Rq(base)+Rq(idx)*8];
@@ -585,7 +553,7 @@ MVM_JIT_TILE_DECL(sub_load_idx) {
         | sub Rq(out), qword [Rq(base)+Rq(idx)*8];
         break;
     default:
-        MVM_oops(tc, "Unsupported load size: %d\n", size);
+        DIE("Unsupported load size: %d\n", size);
     }
 }
 
@@ -634,7 +602,7 @@ MVM_JIT_TILE_DECL(test_addr) {
         | cmp qword [Rq(base)+ofs], 0;
         break;
     default:
-        MVM_oops(tc, "Unsupported size %d for load\n", size);
+        DIE("Unsupported size %d for load\n", size);
     }
 }
 
@@ -645,7 +613,7 @@ MVM_JIT_TILE_DECL(test_idx) {
     MVMint32 scl = tile->args[0];
     MVMint32 size = tile->args[1];
     if (scl != 8)
-        MVM_oops(tc, "Scale %d NYI\n", scl);
+        DIE("Scale %d NYI\n", scl);
     switch(size) {
     case 1:
         | cmp byte [Rq(base)+Rq(idx)*8], 0;
@@ -660,7 +628,7 @@ MVM_JIT_TILE_DECL(test_idx) {
         | cmp qword [Rq(base)+Rq(idx)*8], 0;
         break;
     default:
-        MVM_oops(tc, "Unsupported size %d for load\n", tile->size);
+        DIE("Unsupported size %d for load\n", tile->size);
     }
 }
 
@@ -685,7 +653,7 @@ MVM_JIT_TILE_DECL(test_and) {
 
 MVM_JIT_TILE_DECL(test_const) {
     MVMint8  reg = tile->values[1];
-    MVMint64 val = tile->args[0];
+    MVMint32 val = tile->args[0];
     switch(tile->size) {
     case 1:
         | test Rb(reg), val;
@@ -696,13 +664,8 @@ MVM_JIT_TILE_DECL(test_const) {
     case 4:
         | test Rd(reg), val;
         break;
-    case 8:
-        if (fits_in_32_bit(val)) {
-            | test Rq(reg), val;
-        } else {
-            | mov64 rax, val;
-            | test Rq(reg), rax;
-        }
+    default:
+        DIE("Unsupported size of constant");
         break;
     }
 }
@@ -711,7 +674,7 @@ MVM_JIT_TILE_DECL(test_addr_const) {
     MVMint8  reg = tile->values[1];
     /* args: $ofs $lsize $val $csize */
     MVMint32 ofs = tile->args[0];
-    MVMint64 val = tile->args[2];
+    MVMint32 val = tile->args[2];
     switch(tile->size) {
     case 1:
         | test byte [Rq(reg)+ofs], val;
@@ -722,13 +685,8 @@ MVM_JIT_TILE_DECL(test_addr_const) {
     case 4:
         | test dword [Rq(reg)+ofs], val;
         break;
-    case 8:
-        if (fits_in_32_bit(val)) {
-            | test qword [Rq(reg)+ofs], val;
-        } else {
-            | mov64 rax, val;
-            | test qword [Rq(reg)+ofs], rax;
-        }
+    default:
+        DIE("Unsupported size of constant");
         break;
     }
 }
@@ -830,7 +788,7 @@ MVM_JIT_TILE_DECL(call) {
 }
 
 MVM_JIT_TILE_DECL(call_func) {
-    MVMint64 ptr = tile->args[0];
+    uintptr_t ptr = tree->constants[tile->args[0]].u;
     | callp ptr;
     move_call_value(tc, compiler, tile);
 }

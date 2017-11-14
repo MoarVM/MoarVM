@@ -1,6 +1,7 @@
 MVM_JIT_TILE_DECL(addr);
 MVM_JIT_TILE_DECL(idx);
 MVM_JIT_TILE_DECL(const_reg);
+MVM_JIT_TILE_DECL(const_large);
 
 MVM_JIT_TILE_DECL(load_lbl);
 MVM_JIT_TILE_DECL(load_reg);

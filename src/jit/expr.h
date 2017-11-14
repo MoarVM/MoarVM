@@ -21,7 +21,6 @@ typedef enum { /* value type */
 #define MVM_JIT_UNSIGNED 1
 #define MVM_JIT_SIGNED   2
 
-
 #include "expr_ops.h"
 
 
@@ -57,6 +56,12 @@ struct MVMJitExprTree {
     MVM_VECTOR_DECL(MVMJitExprNode, nodes);
     MVM_VECTOR_DECL(MVMint32, roots);
     MVM_VECTOR_DECL(MVMJitExprNodeInfo, info);
+    MVM_VECTOR_DECL(union {
+        MVMint64 i;
+        MVMnum64 n;
+        const void *p;
+        uintptr_t u;
+    }, constants);
 
     MVMuint32 seq_nr;
 };

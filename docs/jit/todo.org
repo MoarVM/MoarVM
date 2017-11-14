@@ -266,6 +266,82 @@ definitions and uses.... but I'm not sure how just yet.
 
 * Expression Tree
 
+** Reduce tree node size to 32 bits
+
+ Tree nodes are currently 64 bits wide to allow them to coexist with
+ constant pointers. This is handy, but not really required, since we
+ could use a lookup table to get the pointers (as long as we can
+ declare pointers, for which I think we can still use the '@' sigil,
+ e.g:
+
+ #+BEGIN_EXAMPLE
+ (template: say
+    (call (const @MVM_string_say ptr_sz)
+          (arglist 2
+            (carg (tc) ptr)
+            (carg $0 ptr))
+ #+END_EXAMPLE
+
+ The @MVM_string_say pointer can be stashed in an array:
+
+ #+BEGIN_SRC C
+ static const void *MVM_jit_expr_ptrs[] = {
+    ...
+    MVM_string_say,
+    ...
+ };
+ #+END_SRC
+
+ And the pointer itself replaced by the index.
+
+ We could argue against dealing with 64 bit constants in general, but
+ unfortunately, const_i64 prevents us from doing that.... Ways of
+ dealing with that:
+
+ + A 'large constants' table per tree (into which we could copy both the
+   i64 constants and the function pointer constants)
+   + We could store this entire table in the data section, too
+ + A 'large constants' op, which could take the space to store the 64
+   bit constant directly; one of the advantages of that is that we
+   could specialise tiling to that (e.g. there is no advantage to
+   including a very large constant in the ADD tile since the underlying
+   'add' instruction cannot handle it).
+ + Or both: have a large_const op and a large_const table, and only
+   have the large_const op refer to the large_const table (i.e. not the
+   regular const)
+
+NB - I didn't do the @ notation, because it turns out we need to
+specially handle the indirected constants, and because of platform
+differences, we also make the distinction between large constants in
+general (MVMint64 or MVMnum64) and pointer constants, because pointers
+have different sizes per architecture, and general large constants do
+not.
+
+
+** Encode (parts of) info as flags
+
+Even when we'd have 32 bit operands and we'd (wastefully) use 16 bits
+for the operator (rather than 8 which would be till 4x more than we
+use now), we still have 16 perfectly good bits left. What I want to do
+is to make info mostly sparse, so that:
+
+- we can use a hashtable to represent all nodes that do have info
+- we can encode all relevant attributes 'inline'
+
+Which would be:
+- number-of-args (redundant but nice, especially if it gets rid of the
+  first-child-node-is-arg-count nonsense)
+  - we could maximize this to 16? (4 bits) or 32 (5 bits)
+- size (1,2,4,8) (2 bits or 3 bits)
+  - that may be a bit aggressive, we may want to support SIMD?
+- type flag (int/num/str/obj) (2 bits or 5 bits if we want to encode
+  the whole field)
+
+All that would remain of info would be spesh_ins, meaning that this
+would become sufficiently sparse to use a hash table, which would mean
+we no longer need to resize the number of args.
+
+
 ** REPR-Specialized expression code
 
  Parts needed:
@@ -308,48 +384,6 @@ definitions and uses.... but I'm not sure how just yet.
 
  We don't actually need this yet, but we don't guard against it
  either. (So maybe install an oops in analyze first).
-** Reduce tree node size to 32 bits
-
- Tree nodes are currently 64 bits wide to allow them to coexist with
- constant pointers. This is handy, but not really required, since we
- could use a lookup table to get the pointers (as long as we can
- declare pointers, for which I think we can still use the '@' sigil, e.g:
-
- #+BEGIN_EXAMPLE
- (template: say
-    (call (const @MVM_string_say ptr_sz)
-          (arglist 2
-            (carg (tc) ptr)
-            (carg $0 ptr))
- #+END_EXAMPLE
-
- The @MVM_string_say pointer can be stashed in an array:
-
- #+BEGIN_SRC C
- static const void *MVM_jit_expr_ptrs[] = {
-    ...
-    MVM_string_say,
-    ...
- };
- #+END_SRC
-
- And the pointer itself replaced by the index.
-
- We could argue against dealing with 64 bit constants in general, but
- unfortunately, const_i64 prevents us from doing that.... Ways of
- dealing with that:
-
- + A 'large constants' table per tree (into which we could copy both the
-   i64 constants and the function pointer constants)
-   + We could store this entire table in the data section, too
- + A 'large constants' op, which could take the space to store the 64
-   bit constant directly; one of the advantages of that is that we
-   could specialise tiling to that (e.g. there is no advantage to
-   including a very large constant in the ADD tile since the underlying
-   'add' instruction cannot handle it).
- + Or both: have a large_const op and a large_const table, and only
-   have the large_const op refer to the large_const table (i.e. not the
-   regular const)
 
 NB - I didn't do the @ notation, because it turns out we need to
 specially handle the indirected constants, and because of platform
@@ -442,6 +476,7 @@ typedef union {
 Simple, mechanical transformation. I wonder if we can have a maximum
 depth; probably not, if we can allow revisits. More importantly, this
 should allow for some control on the iteration order
+
 ** Right-to-left evaluation
 
  E.g. (STORE addr value sz) - it usually makes sense to calculate value
@@ -621,11 +656,8 @@ Walks should be single-visit.
     - all children are replaced with equivalent (according to the table)
     - then parent is itself 'hashed' to a record, an potentially
       replaced
-- IDX CONST to ADDR conversion
-  - Uses one register less, simpler operation
-- ADD CONST to ADDR conversion
-  - only allowed if user is pointerlike (e.g. LOAD)
-- COPY insertion
+  - barriers should clear out the table
+
 
 *** DONE IDX CONST to ADDR conversion
 Uses one register fewer, simpler operation
@@ -639,7 +671,7 @@ Only allowed if user is pointerlike (e.g. LOAD)
     COPY node and replace the refs
   - Possibly a pessimization because it requires more registers!
 
-*** TODO COPY elimination
+*** DONE COPY elimination
   - possibly the first step, removing redundant copies
   - especially for CONST nodes
 

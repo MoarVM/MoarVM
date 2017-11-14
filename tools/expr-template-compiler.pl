@@ -188,7 +188,7 @@ sub apply_macros {
             my %bind; @bind{@$params} = @result;
             return fill_macro($structure, \%bind);
         } else {
-            die "Tried to instantiate undefined macro $result[0]";
+            die "Tried to instantiate undefined macro $name";
         }
     }
     return \@result;
@@ -213,12 +213,15 @@ sub fill_macro {
     return $result;
 }
 
+# lets add a global instead of replacing the entire thing with a class
+my %CONSTANTS;
 
 sub write_template {
     my ($tree, $templ, $desc, $env) = @_;
     die "Can't deal with an empty tree" unless @$tree; # we need at least some nodes
     my $top = $tree->[0]; # get the first item, used for dispatch
     die "First parameter must be a bareword or macro" unless $top =~ m/^&?[a-z]\w*:?$/i;
+
     my (@items, @desc); # accumulate state
     if ($top eq 'let:') {
         # rewrite (let: (($name ($code))) ($code..)+)
@@ -250,7 +253,17 @@ sub write_template {
         # expression.
         return (sprintf('%s(%s)', substr($top, 1),
                         join(', ', @$tree[1..$#$tree])), '.');
+    } elsif ($top =~ m/const_ptr|const_large/) {
+        # intern this constant
+        my $const_nr = $CONSTANTS{$tree->[1]} = exists $CONSTANTS{$tree->[1]} ?
+            $CONSTANTS{$tree->[1]} : scalar keys %CONSTANTS;
+        my $root  = @$templ;
+        push @$templ, $PREFIX . uc($top), $const_nr,
+            $top eq 'const_large' ? $tree->[2] : ();
+        push @$desc, '.', 'c';
+        return ($root, 'l');
     }
+
     # deal with a simple expression
     for my $item (@$tree) {
         if (ref($item) eq 'ARRAY') {
@@ -299,8 +312,6 @@ my (@opcodes, %names);
     close( $oplist ) or die $!;
 }
 
-# read input, which should use the expresison-list
-# syntax. generate template info table and template array
 my %SEEN;
 
 sub parse_file {
@@ -362,6 +373,7 @@ sub parse_file {
     return \(@templates, %info);
 }
 
+
 my ($templates, $info) = parse_file(\*STDIN, {});
 close( STDIN ) or die $!;
 
@@ -392,6 +404,12 @@ for (@opcodes) {
     }
 }
 print "};\n";
+
+my @constants; @constants[values %CONSTANTS] = keys %CONSTANTS;
+print "static const void* MVM_jit_expr_template_constants[] = {\n";
+print "    $_,\n" for @constants;
+print "};\n";
+
 printf <<'FOOTER', scalar @opcodes;
 static const MVMJitExprTemplate * MVM_jit_get_template_for_opcode(MVMuint16 opcode) {
     if (opcode >= %d) return NULL;
@@ -399,4 +417,3 @@ static const MVMJitExprTemplate * MVM_jit_get_template_for_opcode(MVMuint16 opco
     return &MVM_jit_expr_template_info[opcode];
 }
 FOOTER
-

@@ -20,7 +20,6 @@ const MVMJitExprOpInfo MVM_JIT_EXPR_OP_INFO_TABLE[] = {
 
 /* macros used in the expression list templates, defined here so they
    don't overwrite other definitions */
-#define CONST_PTR(x) ((uintptr_t)(x))
 #define QUOTE(x) (x)
 #define MSG(...) CONST_PTR(#__VA_ARGS__)
 #define SIZEOF_MEMBER(type, member) sizeof(((type*)0)->member)
@@ -130,6 +129,34 @@ static MVMint32 MVM_jit_expr_add_lexaddr(MVMThreadContext *tc, MVMJitExprTree *t
                                              MVM_JIT_ADDR, 3, idx * MVM_JIT_REG_SZ) + 6;
 }
 
+/* Manage large constants - by the way, no attempt is being made to unify them */
+static MVMint32 MVM_jit_expr_add_const_i64(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint64 const_i64) {
+    MVM_VECTOR_ENSURE_SPACE(tree->constants, 1);
+    {
+        MVMint32 t = tree->constants_num++;
+        tree->constants[t].i = const_i64;
+        return t;
+    }
+}
+
+static MVMint32 MVM_jit_expr_add_const_n64(MVMThreadContext *tc, MVMJitExprTree *tree, MVMnum64 const_n64) {
+    MVM_VECTOR_ENSURE_SPACE(tree->constants, 1);
+    {
+        MVMint32 t = tree->constants_num++;
+        tree->constants[t].n = const_n64;
+        return t;
+    }
+}
+
+static MVMint32 MVM_jit_expr_add_const_ptr(MVMThreadContext *tc, MVMJitExprTree *tree, const void *const_ptr) {
+    MVM_VECTOR_ENSURE_SPACE(tree->constants, 1);
+    {
+        MVMint32 t = tree->constants_num++;
+        tree->constants[t].p = const_ptr;
+        return t;
+    }
+
+}
 
 static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tree,
                                        MVMSpeshOperand opr, MVMuint8 info) {
@@ -155,8 +182,9 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
         template[2] = sizeof(MVMint32);
         break;
     case MVM_operand_int64:
-        template[1] = opr.lit_i64;
-        template[2] = sizeof(MVMint64);
+        template[0] = MVM_JIT_CONST_LARGE;
+        template[1] = MVM_jit_expr_add_const_i64(tc, tree, opr.lit_i64);
+        template[2] = MVM_JIT_INT_SZ;
         break;
     case MVM_operand_num32:
         /* possible endianess issue here */
@@ -164,9 +192,9 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
         template[2] = sizeof(MVMnum32);
         break;
     case MVM_operand_num64:
-        /* use i64 to get the bits */
-        template[1] = opr.lit_i64;
-        template[2] = sizeof(MVMnum64);
+        template[0] = MVM_JIT_CONST_LARGE;
+        template[1] = MVM_jit_expr_add_const_n64(tc, tree, opr.lit_n64);
+        template[2] = MVM_JIT_NUM_SZ;
         break;
     case MVM_operand_str:
         /* string index really */
@@ -330,6 +358,9 @@ static MVMint32 apply_template(MVMThreadContext *tc, MVMJitExprTree *tree, MVMin
         case 'f':
             /* add operand node into the nodes */
             tree->nodes[num+i] = operands[code[i]];
+            break;
+        case 'c':
+            tree->nodes[num+i] = MVM_jit_expr_add_const_ptr(tc, tree, MVM_jit_expr_template_constants[code[i]]);
             break;
         default:
             /* copy from template to nodes (./n) */
@@ -533,9 +564,10 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
     tree = MVM_malloc(sizeof(MVMJitExprTree));
     MVM_VECTOR_INIT(tree->nodes, 256);
     MVM_VECTOR_INIT(tree->info,  256);
+    MVM_VECTOR_INIT(tree->constants, 16);
     MVM_VECTOR_INIT(tree->roots, 16);
 
-    /* ensure that all references are nonzero */
+    /* start with a no-op so every valid reference is nonzero */
     MVM_VECTOR_PUSH(tree->nodes, MVM_JIT_NOOP);
 
     tree->graph      = jg;
@@ -799,6 +831,7 @@ void MVM_jit_expr_tree_destroy(MVMThreadContext *tc, MVMJitExprTree *tree) {
         MVM_free(tree->info);
     MVM_free(tree->nodes);
     MVM_free(tree->roots);
+    MVM_free(tree->constants);
     MVM_free(tree);
 }
 

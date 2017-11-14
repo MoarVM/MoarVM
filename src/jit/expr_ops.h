@@ -15,13 +15,19 @@
 #define MVM_JIT_EXPR_OPS(_) \
     /* invalid operator */ \
     _(NOOP, 0, 0, VOID, NO_CAST), \
+    /* wrap value of other operator */ \
+    _(COPY, 1, 0, REG, NO_CAST),   \
     /* memory access */ \
     _(LOAD, 1, 1, REG, NO_CAST),   \
     _(STORE, 2, 1, VOID, NO_CAST), \
-    _(CONST, 0, 2, REG, NO_CAST),  \
     _(ADDR, 1, 1, REG, UNSIGNED),  \
     _(IDX, 2, 1, REG, UNSIGNED),   \
-    _(COPY, 1, 0, REG, NO_CAST),   \
+    /* constant up to 4 bytes */ \
+    _(CONST, 0, 2, REG, NO_CAST),  \
+    /* constant pointer (architecture-dependent size) */ \
+    _(CONST_PTR, 0, 1, REG, NO_CAST), \
+    /* large constant (8 bytes) */ \
+    _(CONST_LARGE, 0, 2, REG, NO_CAST), \
     /* integer comparison */ \
     _(LT, 2, 0, FLAG, SIGNED),     \
     _(LE, 2, 0, FLAG, SIGNED),     \
