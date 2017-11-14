@@ -226,16 +226,71 @@ static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MV
         }
     }
 }
-
 /* Collapses a bunch of strands into a single blob string. */
 static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
-    MVMString      *result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    MVMString      *result = NULL;
     MVMGraphemeIter gi;
+    int did_copy_strands_memcpy = 0;
     MVMROOT(tc, orig, {
-        MVM_string_gi_init(tc, &gi, orig);
+        result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
         result->body.num_graphs = MVM_string_graphs(tc, orig);
-        iterate_gi_into_string(tc, &gi, result);
+        /* If the original string is a STRAND and all the composite strands are
+         * of the same type, then we will collapse it using memcpy instead of
+         * using a grapheme iterator. */
+        if (orig->body.storage_type == MVM_STRING_STRAND) {
+            size_t i;
+            MVMint32 common_storage_type = orig->body.storage.strands[0].blob_string->body.storage_type;
+            for (i = 1; i < orig->body.num_strands; i++) {
+                if (common_storage_type != orig->body.storage.strands[i].blob_string->body.storage_type)
+                    common_storage_type = -1;
+            }
+            #define copy_strands_memcpy(BLOB_TYPE, SIZEOF_TYPE, STORAGE_TYPE) { \
+                size_t graphs_so_far = 0; \
+                result->body.storage_type = STORAGE_TYPE; \
+                result->body.storage.BLOB_TYPE = MVM_malloc(sizeof(SIZEOF_TYPE) * MVM_string_graphs_nocheck(tc, orig)); \
+                for (i = 0; i < orig->body.num_strands; i++) { \
+                    size_t graphs_this_strand = orig->body.storage.strands[i].end - orig->body.storage.strands[i].start; \
+                    memcpy(graphs_so_far + result->body.storage.BLOB_TYPE, \
+                        orig->body.storage.strands[i].blob_string->body.storage.BLOB_TYPE + orig->body.storage.strands[i].start, \
+                        sizeof(SIZEOF_TYPE) * graphs_this_strand \
+                    ); \
+                    graphs_so_far += graphs_this_strand; \
+                } \
+                if (graphs_so_far != result->body.num_graphs) \
+                    MVM_exception_throw_adhoc(tc, "Not the same matching"); \
+            }
+            switch (common_storage_type) {
+                /* Eventually ASCII and 8 can probably be included together, so
+                 * the result becomes MVM_STRING_GRAPHEME_8 if there's at least
+                 * 1 GRAPHEME_8 string */
+                case MVM_STRING_GRAPHEME_ASCII: {
+                    copy_strands_memcpy(blob_ascii, MVMGraphemeASCII, MVM_STRING_GRAPHEME_ASCII);
+                    did_copy_strands_memcpy = 1;
+                    break;
+                }
+                case MVM_STRING_GRAPHEME_8: {
+                    copy_strands_memcpy(blob_8, MVMGrapheme8, MVM_STRING_GRAPHEME_8);
+                    did_copy_strands_memcpy = 1;
+                    break;
+                }
+                case MVM_STRING_GRAPHEME_32: {
+                    copy_strands_memcpy(blob_32, MVMGrapheme32, MVM_STRING_GRAPHEME_32);
+                    did_copy_strands_memcpy = 1;
+                    break;
+                }
+            }
+        }
+        /* If we didn't copy with memcpy, we will need to copy by using a grapheme
+         * iterator */
+        if (!did_copy_strands_memcpy) {
+            MVM_string_gi_init(tc, &gi, orig);
+            iterate_gi_into_string(tc, &gi, result);
+        }
     });
+#if (defined(MVM_DEBUG_STRANDS) || defined(MVM_DEBUG_NFG))
+    if (!MVM_string_equal(tc, result, orig))
+        MVM_exception_throw_adhoc(tc, "result and original were not eq in collapse_strands");
+#endif
     return result;
 }
 
