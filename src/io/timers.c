@@ -4,7 +4,7 @@
 typedef struct {
     int timeout;
     int repeat;
-    uv_timer_t handle;
+    uv_timer_t *handle;
     MVMThreadContext *tc;
     int work_idx;
 } TimerInfo;
@@ -20,17 +20,22 @@ static void timer_cb(uv_timer_t *handle) {
 /* Sets the timer up on the event loop. */
 static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     TimerInfo *ti = (TimerInfo *)data;
-    uv_timer_init(loop, &ti->handle);
-    ti->work_idx    = MVM_io_eventloop_add_active_work(tc, async_task);
-    ti->tc          = tc;
-    ti->handle.data = ti;
-    uv_timer_start(&ti->handle, timer_cb, ti->timeout, ti->repeat);
+    ti->handle = MVM_malloc(sizeof(uv_timer_t));
+    uv_timer_init(loop, ti->handle);
+    ti->work_idx     = MVM_io_eventloop_add_active_work(tc, async_task);
+    ti->tc           = tc;
+    ti->handle->data = ti;
+    uv_timer_start(ti->handle, timer_cb, ti->timeout, ti->repeat);
 }
 
 /* Stops the timer. */
+static void free_timer(uv_handle_t *handle) {
+    MVM_free(handle);
+}
 static void cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     TimerInfo *ti = (TimerInfo *)data;
-    uv_timer_stop(&ti->handle);
+    uv_timer_stop(ti->handle);
+    uv_close((uv_handle_t *)ti->handle, free_timer);
     MVM_io_eventloop_send_cancellation_notification(ti->tc,
         MVM_io_eventloop_get_active_work(tc, ti->work_idx));
     MVM_io_eventloop_remove_active_work(tc, &(ti->work_idx));
