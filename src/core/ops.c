@@ -8917,7 +8917,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        1,
+        0,
         0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },

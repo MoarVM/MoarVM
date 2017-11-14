@@ -793,7 +793,7 @@ loadbytecodebuffer  r(obj) :invokish
 loadbytecodefh      r(obj) r(str) :invokish
 throwpayloadlex     w(obj) int64 r(obj) :noinline :throwish
 throwpayloadlexcaller w(obj) int64 r(obj) :throwish
-lastexpayload       w(obj) :noinline
+lastexpayload       w(obj)
 cancelnotify        r(obj) r(obj) r(obj)
 decoderconfigure    r(obj) r(str) r(obj)
 decodersetlineseps  r(obj) r(obj)
