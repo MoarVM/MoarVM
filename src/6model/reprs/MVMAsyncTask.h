@@ -1,3 +1,8 @@
+/* States an async task can be in. */
+#define MVM_ASYNC_TASK_STATE_NEW        0
+#define MVM_ASYNC_TASK_STATE_SETUP      1
+#define MVM_ASYNC_TASK_STATE_CANCELLED  2
+
 /* Representation serving as a handle to an asynchronous task. */
 struct MVMAsyncTaskBody {
     /* The queue to schedule a result handler on. */
@@ -17,6 +22,9 @@ struct MVMAsyncTaskBody {
 
     /* The cancellation notification handler, if any. */
     MVMObject *cancel_notify_schedulee;
+
+    /* The current state of the task. */
+    MVMint32 state;
 };
 struct MVMAsyncTask {
     MVMObject common;

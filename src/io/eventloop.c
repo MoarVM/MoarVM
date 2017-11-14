@@ -18,7 +18,13 @@ static void setup_work(MVMThreadContext *tc) {
     MVMROOT(tc, queue, {
         while (!MVM_is_null(tc, task_obj = MVM_concblockingqueue_poll(tc, queue))) {
             MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
-            task->body.ops->setup(tc, tc->loop, task_obj, task->body.data);
+            MVM_ASSERT_NOT_FROMSPACE(tc, task);
+            if (task->body.state == MVM_ASYNC_TASK_STATE_NEW) {
+                MVMROOT(tc, task, {
+                    task->body.ops->setup(tc, tc->loop, task_obj, task->body.data);
+                    task->body.state = MVM_ASYNC_TASK_STATE_SETUP;
+                });
+            }
         }
     });
 }
@@ -32,6 +38,7 @@ static void permit_work(MVMThreadContext *tc) {
         while (!MVM_is_null(tc, task_arr = MVM_concblockingqueue_poll(tc, queue))) {
             MVMObject *task_obj = MVM_repr_at_pos_o(tc, task_arr, 0);
             MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
+            MVM_ASSERT_NOT_FROMSPACE(tc, task);
             if (task->body.ops->permit) {
                 MVMint64 channel = MVM_repr_get_int(tc, MVM_repr_at_pos_o(tc, task_arr, 1));
                 MVMint64 permit = MVM_repr_get_int(tc, MVM_repr_at_pos_o(tc, task_arr, 2));
@@ -49,8 +56,14 @@ static void cancel_work(MVMThreadContext *tc) {
     MVMROOT(tc, queue, {
         while (!MVM_is_null(tc, task_obj = MVM_concblockingqueue_poll(tc, queue))) {
             MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
-            if (task->body.ops->cancel)
-                task->body.ops->cancel(tc, tc->loop, task_obj, task->body.data);
+            MVM_ASSERT_NOT_FROMSPACE(tc, task);
+            if (task->body.state == MVM_ASYNC_TASK_STATE_SETUP) {
+                MVMROOT(tc, task, {
+                    if (task->body.ops->cancel)
+                        task->body.ops->cancel(tc, tc->loop, task_obj, task->body.data);
+                });
+            }
+            task->body.state = MVM_ASYNC_TASK_STATE_CANCELLED;
         }
     });
 }
@@ -217,6 +230,7 @@ void MVM_io_eventloop_send_cancellation_notification(MVMThreadContext *tc, MVMAs
 /* Adds a work item to the active async task set. */
 int MVM_io_eventloop_add_active_work(MVMThreadContext *tc, MVMObject *async_task) {
     int work_idx = MVM_repr_elems(tc, tc->instance->event_loop_active);
+    MVM_ASSERT_NOT_FROMSPACE(tc, async_task);
     MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
     return work_idx;
 }
@@ -227,6 +241,7 @@ MVMAsyncTask * MVM_io_eventloop_get_active_work(MVMThreadContext *tc, int work_i
         MVMObject *task_obj = MVM_repr_at_pos_o(tc, tc->instance->event_loop_active, work_idx);
         if (REPR(task_obj)->ID != MVM_REPR_ID_MVMAsyncTask)
             MVM_panic(1, "non-AsyncTask fetched from eventloop active work list");
+        MVM_ASSERT_NOT_FROMSPACE(tc, task_obj);
         return (MVMAsyncTask *)task_obj;
     }
     else {
