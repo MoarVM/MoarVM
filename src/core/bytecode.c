@@ -21,6 +21,7 @@
 /* Frame flags. */
 #define FRAME_FLAG_EXIT_HANDLER     1
 #define FRAME_FLAG_IS_THUNK         2
+#define FRAME_FLAG_NO_INLINE        8
 
 /* Describes the current reader state. */
 typedef struct {
@@ -516,6 +517,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             MVMint16 flags = read_int16(pos, 38);
             static_frame_body->has_exit_handler = flags & FRAME_FLAG_EXIT_HANDLER;
             static_frame_body->is_thunk         = flags & FRAME_FLAG_IS_THUNK;
+            static_frame_body->no_inline        = flags & FRAME_FLAG_NO_INLINE;
         }
 
         /* Read code object SC indexes (version 4 and higher). */

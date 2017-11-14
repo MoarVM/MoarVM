@@ -79,6 +79,9 @@ struct MVMStaticFrameBody {
      * invoked, and then only pre-specialization. */
     MVMuint8 allocate_on_heap;
 
+    /* Is the frame marked as not being allowed to inline? */
+    MVMuint8 no_inline;
+
     /* The compilation unit unique ID of this frame. */
     MVMString *cuuid;
 

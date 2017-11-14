@@ -25,6 +25,7 @@
 #define FRAME_FLAG_EXIT_HANDLER     1
 #define FRAME_FLAG_IS_THUNK         2
 #define FRAME_FLAG_HAS_CODE_OBJ     4
+#define FRAME_FLAG_NO_INLINE        8
 #define FRAME_FLAG_HAS_INDEX        32768
 #define FRAME_FLAG_HAS_SLV          65536
 

@@ -198,6 +198,7 @@ class MAST::Frame is MAST::Node {
     my int $FRAME_FLAG_EXIT_HANDLER := 1;
     my int $FRAME_FLAG_IS_THUNK     := 2;
     my int $FRAME_FLAG_HAS_CODE_OBJ := 4;
+    my int $FRAME_FLAG_NO_INLINE    := 8;
     my int $FRAME_FLAG_HAS_INDEX    := 32768; # Can go after a rebootstrap.
     my int $FRAME_FLAG_HAS_SLV      := 65536; # Can go after a rebootstrap.
     has int $!flags;
@@ -302,6 +303,13 @@ class MAST::Frame is MAST::Node {
             $!flags := nqp::bitor_i($!flags, $FRAME_FLAG_IS_THUNK);
         }
         nqp::bitand_i($!flags, $FRAME_FLAG_IS_THUNK)
+    }
+
+    method no_inline($value = -1) {
+        if $value > 0 {
+            $!flags := nqp::bitor_i($!flags, $FRAME_FLAG_NO_INLINE);
+        }
+        nqp::bitand_i($!flags, $FRAME_FLAG_NO_INLINE)
     }
 
     method set_code_object_idxs(int $sc_dep_idx, int $sc_idx) {

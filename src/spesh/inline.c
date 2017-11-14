@@ -59,6 +59,12 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
         return NULL;
     }
 
+    /* Check frame is not marked as not being allowed to be inlined. */
+    if (target_sf->body.no_inline) {
+        *no_inline_reason = "the frame is marked as no-inline";
+        return NULL;
+    }
+
     /* Check bytecode size is within the inline limit. */
     if (cand->bytecode_size > MVM_SPESH_MAX_INLINE_SIZE) {
         *no_inline_reason = "bytecode is too large to inline";
