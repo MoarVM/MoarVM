@@ -111,6 +111,8 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
         interval_id = MVM_telemetry_interval_start(tc, "ConcBlockingQueue.at_pos");
         MVMROOT(tc, root, {
             MVM_gc_mark_thread_blocked(tc);
+            data = OBJECT_BODY(root);
+            cbq = (MVMConcBlockingQueueBody *)data;
             uv_mutex_lock(&cbq->locks->head_lock);
             MVM_gc_mark_thread_unblocked(tc);
             data = OBJECT_BODY(root);
@@ -150,11 +152,13 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
     interval_id = MVM_telemetry_interval_start(tc, "ConcBlockingQueue.push");
     MVMROOT2(tc, root, to_add, {
         MVM_gc_mark_thread_blocked(tc);
+        data = OBJECT_BODY(root);
+        cbq = (MVMConcBlockingQueueBody *)data;
         uv_mutex_lock(&cbq->locks->tail_lock);
         MVM_gc_mark_thread_unblocked(tc);
+        data = OBJECT_BODY(root);
+        cbq = (MVMConcBlockingQueueBody *)data;
     });
-    data = OBJECT_BODY(root);
-    cbq = (MVMConcBlockingQueueBody *)data;
     MVM_ASSIGN_REF(tc, &(root->header), add->value, to_add);
     cbq->tail->next = add;
     cbq->tail = add;
@@ -164,11 +168,13 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
     if (orig_elems == 0) {
         MVMROOT(tc, root, {
             MVM_gc_mark_thread_blocked(tc);
+            data = OBJECT_BODY(root);
+            cbq = (MVMConcBlockingQueueBody *)data;
             uv_mutex_lock(&cbq->locks->head_lock);
             MVM_gc_mark_thread_unblocked(tc);
+            data = OBJECT_BODY(root);
+            cbq = (MVMConcBlockingQueueBody *)data;
         });
-        data = OBJECT_BODY(root);
-        cbq = (MVMConcBlockingQueueBody *)data;
         uv_cond_signal(&cbq->locks->head_cond);
         uv_mutex_unlock(&cbq->locks->head_lock);
     }
@@ -186,6 +192,8 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     interval_id = MVM_telemetry_interval_start(tc, "ConcBlockingQueue.shift");
     MVMROOT(tc, root, {
         MVM_gc_mark_thread_blocked(tc);
+        data = OBJECT_BODY(root);
+        cbq = (MVMConcBlockingQueueBody *)data;
         uv_mutex_lock(&cbq->locks->head_lock);
         MVM_gc_mark_thread_unblocked(tc);
         data = OBJECT_BODY(root);
@@ -193,6 +201,8 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
 
         while (MVM_load(&cbq->elems) == 0) {
                 MVM_gc_mark_thread_blocked(tc);
+                data = OBJECT_BODY(root);
+                cbq = (MVMConcBlockingQueueBody *)data;
                 uv_cond_wait(&cbq->locks->head_cond, &cbq->locks->head_lock);
                 MVM_gc_mark_thread_unblocked(tc);
                 data = OBJECT_BODY(root);
