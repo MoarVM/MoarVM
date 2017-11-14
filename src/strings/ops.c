@@ -1835,7 +1835,10 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
 
     MVM_fixed_size_free(tc, tc->instance->fsa, bytes, pieces);
     STRAND_CHECK(tc, result);
-    NFG_CHECK(tc, result, "MVM_string_join");
+    /* if concat is stable and NFG_CHECK on, run a NFG_CHECK on it since it
+     * should be properly constructed now */
+    if (concats_stable)
+        NFG_CHECK(tc, result, "MVM_string_join");
     });
     return concats_stable ? result : re_nfg(tc, result);
 }
