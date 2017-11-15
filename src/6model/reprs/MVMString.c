@@ -46,8 +46,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
             memcpy(dest_body->storage.strands, src_body->storage.strands,
                 dest_body->num_strands * sizeof(MVMStringStrand));
             break;
-        case MVM_STRING_IN_SITU:
-            memcpy(dest_body->storage.in_situ, src_body->storage.in_situ,
+        case MVM_STRING_IN_SITU_8:
+        case MVM_STRING_IN_SITU_32:
+            memcpy(dest_body->storage.in_situ_8, src_body->storage.in_situ_8,
                 src_body->num_graphs * sizeof(MVMGrapheme8));
             break;
         default:
@@ -69,7 +70,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMString *str = (MVMString *)obj;
-    if (str->body.storage_type != MVM_STRING_IN_SITU)
+    if (str->body.storage_type != MVM_STRING_IN_SITU_8 && str->body.storage_type != MVM_STRING_IN_SITU_32)
         MVM_free(str->body.storage.any);
     str->body.num_graphs = str->body.num_strands = 0;
 }
