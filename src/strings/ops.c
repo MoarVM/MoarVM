@@ -38,6 +38,21 @@ static char * NFG_check_make_debug_string (MVMThreadContext *tc, MVMGrapheme32 g
         picked = "\\r\\n";
     else if (0 <= g && !MVM_string_is_control_full(tc, g))
         result = MVM_string_utf8_encode_C_string(tc, MVM_string_chr(tc, g));
+    else if (g < 0) {
+        MVMNFGSynthetic *synth = MVM_nfg_get_synthetic_info(tc, g);
+        char *format_str = " with num_codes = ";
+        char *format_str2 = " first, second cp = ";
+        char *synthtype_str = synth->is_utf8_c8 ?  "utf8-8 Synthetic" :  "Normal Synthetic";
+        int this_len = strlen(format_str) + strlen(synthtype_str) + 6 + strlen(format_str2) + 11 + 1 + 11 + 1;
+        result = MVM_malloc(this_len);
+        if (2 <= synth->num_codes)
+            sprintf(result, "%s%s%5i%s%.10"PRIi32",%.10"PRIi32"", synthtype_str, format_str, synth->num_codes, format_str2, synth->codes[0], synth->codes[1]);
+        else
+            sprintf(result, "WARNING synth has less than 2 codes");
+        fprintf(stderr, "synth numcodes %i %"PRIi32"\n",
+            MVM_nfg_get_synthetic_info(tc, synth->codes[1])->num_codes, MVM_nfg_get_synthetic_info(tc, synth->codes[1])->codes[0]
+        );
+    }
     else
         picked = "[Control]";
     if (picked) {
