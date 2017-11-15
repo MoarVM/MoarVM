@@ -2127,6 +2127,14 @@ MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint
                     return i;
         }
         break;
+    case MVM_STRING_IN_SITU:
+        if (can_fit_into_8bit(search)) {
+            MVMStringIndex i;
+            for (i = 0; i < bgraphs; i++)
+                if (b->body.storage.in_situ[i] == search)
+                    return i;
+        }
+        break;
     case MVM_STRING_STRAND: {
         MVMGraphemeIter gi;
         MVMStringIndex  i;
