@@ -2889,9 +2889,8 @@ MVMString * MVM_string_chr(MVMThreadContext *tc, MVMint64 cp) {
 
     s = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
     if (can_fit_into_8bit(g)) {
-        s->body.storage_type       = MVM_STRING_GRAPHEME_8;
-        s->body.storage.blob_8     = MVM_malloc(sizeof(MVMGrapheme8));
-        s->body.storage.blob_8[0]  = g;
+        s->body.storage_type       = MVM_STRING_IN_SITU;
+        s->body.storage.in_situ[0] = g;
     } else {
         s->body.storage_type       = MVM_STRING_GRAPHEME_32;
         s->body.storage.blob_32    = MVM_malloc(sizeof(MVMGrapheme32));
