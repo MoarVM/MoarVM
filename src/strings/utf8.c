@@ -292,8 +292,8 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
         }
         MVM_free(buffer);
         if (count <= 8) {
-            memcpy(result->body.storage.in_situ, new_buffer, count * sizeof(MVMGrapheme8));
-            result->body.storage_type    = MVM_STRING_IN_SITU;
+            memcpy(result->body.storage.in_situ_8, new_buffer, count * sizeof(MVMGrapheme8));
+            result->body.storage_type    = MVM_STRING_IN_SITU_8;
         } else {
             result->body.storage.blob_8  = new_buffer;
             result->body.storage_type    = MVM_STRING_GRAPHEME_8;
@@ -302,11 +302,18 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
         /* just keep the same buffer as the MVMString's buffer.  Later
          * we can add heuristics to resize it if we have enough free
          * memory */
-        if (bufsize - count > 4) {
-            buffer = MVM_realloc(buffer, count * sizeof(MVMGrapheme32));
+        if (count <= 2) {
+            memcpy(result->body.storage.in_situ_32, buffer, count * sizeof(MVMGrapheme32));
+            result->body.storage_type    = MVM_STRING_IN_SITU_32;
+            MVM_free(buffer);
         }
-        result->body.storage.blob_32 = buffer;
-        result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+        else {
+            if (bufsize - count > 4) {
+                buffer = MVM_realloc(buffer, count * sizeof(MVMGrapheme32));
+            }
+            result->body.storage.blob_32 = buffer;
+            result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+        }
     }
     result->body.num_graphs      = count;
 
