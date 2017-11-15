@@ -534,9 +534,9 @@ MVMint32 MVM_unicode_normalize_should_break(MVMThreadContext *tc, MVMCodepoint a
     /* For utf8-c8 graphemes. These we can't request property values and act like
      * control's */
     if (a < 0 || b < 0) {
-        if ((a < 0 && MVM_nfg_get_synthetic_info(tc, a)->is_utf8_c8) || (b < 0 && MVM_nfg_get_synthetic_info(tc, b)->is_utf8_c8)) {
-            return 0;
-        }
+        if ((a < 0 && MVM_nfg_get_synthetic_info(tc, a)->is_utf8_c8) || (b < 0 && MVM_nfg_get_synthetic_info(tc, b)->is_utf8_c8))
+            return 1;
+
         MVM_exception_throw_adhoc(tc, "Internal error: synthetic grapheme found when computing grapheme segmentation");
     }
     GCB_a = MVM_unicode_codepoint_get_property_int(tc, a, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
