@@ -45,7 +45,6 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, const MVMObject *resu
 
     if (result->body.storage_type == MVM_STRING_GRAPHEME_8 && result_graphs <= 8) {
         MVMGrapheme8 *old = result->body.storage.blob_8;
-        char *result_c;
         memcpy(result->body.storage.in_situ, old, result_graphs * sizeof(MVMGrapheme8));
         result->body.storage_type = MVM_STRING_IN_SITU;
         MVM_free(old);
