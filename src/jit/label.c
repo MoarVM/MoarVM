@@ -63,7 +63,7 @@ MVMint32 MVM_jit_label_is_for_bb(MVMThreadContext *tc, MVMJitGraph *jg, MVMint32
 }
 
 MVMint32 MVM_jit_label_is_for_ins(MVMThreadContext *tc, MVMJitGraph *jg, MVMint32 label) {
-    return label > jg->sg->num_bbs && label < jg->sg->num_bbs + jg->obj_labels_num;
+    return label > jg->sg->num_bbs && label <= jg->sg->num_bbs + jg->obj_labels_num;
 }
 
 MVMint32 MVM_jit_label_is_internal(MVMThreadContext *tc, MVMJitGraph *jg, MVMint32 label) {
