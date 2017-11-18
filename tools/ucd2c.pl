@@ -301,10 +301,13 @@ sub grapheme_cluster_break {
 }
 
 sub derived_property {
-    # filename, property name, property object, starting counter
-    my ($fname, $pname, $base, $j) = @_;
+    # filename, property name, property object
+    my ($fname, $pname, $base) = @_;
+    my $j = 0;
     # wrap the provided object as the enum key in a new one
     $base = { enum => $base };
+    # If we provided some property values already, add that number to the counter
+    $j += (scalar keys %{$base->{enum}});
     each_line("extracted/Derived$fname", sub { $_ = shift;
         my ($range, $class) = split /\s*[;#]\s*/;
         unless (exists $base->{enum}->{$class}) {
@@ -321,6 +324,17 @@ sub derived_property {
     }
     $base->{keys} = \@keys;
     $base->{bit_width} = least_int_ge_lg2($j);
+    my %seen;
+    # Make sure we don't assign twice to the same pvalue code
+    for my $key (keys %{$base->{enum}}) {
+        if ($seen{ $base->{enum}->{$key} }) {
+            say "\nError: assigned twice to the same property value code. Both $key and "
+                . $seen{ $base->{enum}->{$key} }
+                . " are assigned to pvalue code "
+                . $base->{enum}->{$key};
+        }
+        $seen{ ($base->{enum}->{$key}) } = $key;
+    }
     register_enumerated_property($pname, $base);
 }
 
@@ -1757,10 +1771,6 @@ sub UnicodeData {
         'keys' => $decomp_keys,
         bit_width => least_int_ge_lg2($decomp_index)
     });
-    # Manually set this to Cn, because nothing is set explicitly Cn, and we need
-    # at least one entry to get it added as item 0 in the enum
-    $points_by_hex->{FFFF}->{General_Category} = $general_categories->{enum}->{Cn};
-    $points_by_hex->{FFFE}->{General_Category} = $general_categories->{enum}->{Cn};
 }
 
 sub CaseFolding {
