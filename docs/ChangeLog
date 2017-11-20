@@ -1,3 +1,87 @@
+New in 2017.11
+
+Misc:
++ Show the actual type when "no such attribute" errors occur
++ In MVM_fixed_size_free and MVM_fixed_size_free_at_safepoint debug/error messages
+  use %lu instead of %d, put in missing output in one case
++ Harden event loop against fast cancellations
++ Remove dependency on Perl 5 autodie for compilation (expression engine)
++ Remove duplicate env variable usage line from moar --help
++ Update our internal release guide to include steps for signing tags
+
+Unicode:
++ Fix uppercase letters not giving Lu for the General_Category
++ collapse_strands with memcpy if all strands are same type (4x faster for strands of same type)
++ Fix bug causing utf8-c8 synthetics to combine with other codepoints
++ Optimize MVM_string_concat when the RHS is a single strand that's equal to the LHS's final strand
++ Fix+add comments for strand concat optimization
++ Speed up join of longer strings by a significant amount by concating multiple
+  times if there are more than 300 graphemes per string on average or there are
+  less than 4 pieces and more than 150 graphemes per string.
++ join: factor code into join_get_str_from_pos() function
++ Make sure General_Category 'Cn' codepoints match with C enum
++ Resolve unassigned codepoints as the default property values in MVM_unicode_get_property_str
++ Add an additional check that the "bases" of the strands are the same length
+  before checking if they're equal in string_from_strand_at_index.
++ Error message improvements to MVM_DEBUG_NFG #ifdef for synthetics
+
+JIT:
++ JIT compile getarg_*, trunc_i16, param_rp_s, getrusage, coerce_II op,
+  getexcategory
+76f43ec08 Mark nativeinvoke_* noinline to enable JIT compilation
+3a4321783 Treat NULL strings correctly in JIT compiled native subs
+0edfd0c7b JIT compile native calls with integer rw arguments
+57f6315d7 Don't try to JIT compile native calls with rw arguments
+82273161c JIT compile native calls with up to 3 UTF-8 string arguments
+
+Iter:
++ Don't segfault when MVM_iter on type object
++ Handle unsigned types to switch in MVM_iter()
+
+Spesh:
++ Fix spesh dropping MVM_SPESH_ANN_DEOPT_ONE_INS annotations
++ Include reason when we cannot inline in the debug output
+
+Math:
+ad8618468 fix pointer arithmetic with a cast
+d42bf0cf6 MVM_bigint_div: If dividing by 1, just return the numerator
+d3655ff7b fix integer literal form for 1 ll << 32
++ Make sure both objects are the same type when short-cutting division by 1 in MVM_bigint_div
+
+libuv:
+60e56edb9 Use uv_fs_copyfile
+8b53b1ebb Bump libuv to ver. 1.15.0
+3a656f945 Make sure to close timer handles
+
+MVMROOT:
+3821a09d9 Add a missing MVMROOT to MVM_bigint_from_bigint
+87191078c Add MVMROOT2..MVMROOT5 to make rooting multiple variables easier
+116c7a133 Fix HLL representations of CArray elements out of sync after native calls
+9aa99f3e9 Add more missing MVMROOTs
+f66d7aa24 Add two more missing MVMROOTs around managed mutex acquire
+9ad1f5fc8 Add missing MVMROOT around managed mutex acquire
+9ee680f05 Add another MVMROOT around managed mutex acquire in MVM_serialization_finish_deserialize_method_cache
+
+GC:
+a74163dde Fix unneeded GC blocking in loop
+
+FH:
++ Retry in certain cases of EINTR in mvm_fileno, read_bytes,
+  read_one_packet, socket_write_bytes, socket_connect and socket_accept
+
+Title Modified for More Information but not yet Categorized:
+66ba24288 Convert realloc plus memset 0 to recalloc in MVM_sc_set_object
+1a8664b2d Put coerce_II op in same order relative to oplist
+723269978 Move assignment after MVMROOT in MVM_bigint_from_bigint
+b9a01f750 Add support for a block noinline flag. Used to indicate that a block
+  may never be inlined; will bet set by Rakudo upon spotting uses of things that
+  need the dispatcher
+
+Unsorted and Unmodified commit text:
+ca1261817 Fix occasional old reads in ConcBlockingQueue
+483b3b851 FSA size debug: cooperate with valgrind
+900178b52 Support FSA_SIZE_DEBUG in MVM_fixed_size_realloc and *realloc_at_safepoint
+
 New in 2017.10
 
 + Unix socket support has been added
