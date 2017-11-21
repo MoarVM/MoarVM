@@ -1,6 +1,6 @@
 New in 2017.11
 
-Misc:
+Miscellaneous:
 + Show the actual type when "no such attribute" errors occur
 + In MVM_fixed_size_free and MVM_fixed_size_free_at_safepoint debug/error messages
   use %lu instead of %d, put in missing output in one case
@@ -14,6 +14,8 @@ Misc:
   need the dispatcher
 + Fix occasional old reads in ConcBlockingQueue
 + Put coerce_II op in same order relative to oplist
++ Retry in certain cases of EINTR in mvm_fileno, read_bytes,
+  read_one_packet, socket_write_bytes, socket_connect and socket_accept
 
 Unicode:
 + Fix uppercase letters not giving Lu for the General_Category
@@ -74,10 +76,6 @@ MVMROOT:
 + Add missing MVMROOTs around managed mutex acquire in MVM_serialization_demand_code,
   MVM_serialization_finish_deserialize_method_cache, MVM_serialization_demand_object
   and MVM_serialization_finish_deserialize_method_cache
-
-FH:
-+ Retry in certain cases of EINTR in mvm_fileno, read_bytes,
-  read_one_packet, socket_write_bytes, socket_connect and socket_accept
 
 New in 2017.10
 
