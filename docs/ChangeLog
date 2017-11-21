@@ -38,8 +38,7 @@ JIT:
 + Mark nativeinvoke_* noinline to enable JIT compilation
 + Treat NULL strings correctly in JIT compiled native subs
 + JIT compile native calls with up to 3 UTF-8 string arguments
-0edfd0c7b JIT compile native calls with integer rw arguments
-57f6315d7 Don't try to JIT compile native calls with rw arguments
++ JIT compile native calls with integer rw arguments
 
 Iter:
 + Don't segfault when MVM_iter on type object
