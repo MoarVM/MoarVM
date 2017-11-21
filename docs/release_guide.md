@@ -44,8 +44,8 @@ be made, they should be numbered as 2041.01.1, 2041.01.2, etc.
 9. Run git verify-tag 2017.10 to make sure the signature is valid and the tag
    was actually signed.
 
-10. Upload it, or ask on the MoarVM channel if you don't have access or know
-   how to do that.
+10. Upload it by committing the tar file
+   to https://github.com/MoarVM/moarvm.org/.
 
 11. Optionally, update the ports/macports/Portfile to reflect this latest
    version, and open a ticket at https://trac.macports.org/newticket to get
