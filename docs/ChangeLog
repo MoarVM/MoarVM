@@ -8,6 +8,12 @@ Misc:
 + Remove dependency on Perl 5 autodie for compilation (expression engine)
 + Remove duplicate env variable usage line from moar --help
 + Update our internal release guide to include steps for signing tags
++ Profiler: Fix integer literal form for 1LL << 32
++ Add support for a block noinline flag. Used to indicate that a block
+  may never be inlined; will bet set by Rakudo upon spotting uses of things that
+  need the dispatcher
++ Fix occasional old reads in ConcBlockingQueue
++ Put coerce_II op in same order relative to oplist
 
 Unicode:
 + Fix uppercase letters not giving Lu for the General_Category
@@ -28,11 +34,12 @@ Unicode:
 JIT:
 + JIT compile getarg_*, trunc_i16, param_rp_s, getrusage, coerce_II op,
   getexcategory
-76f43ec08 Mark nativeinvoke_* noinline to enable JIT compilation
-3a4321783 Treat NULL strings correctly in JIT compiled native subs
++ Fix labeling off-by-one causing try/catch on some frames to fail
++ Mark nativeinvoke_* noinline to enable JIT compilation
++ Treat NULL strings correctly in JIT compiled native subs
++ JIT compile native calls with up to 3 UTF-8 string arguments
 0edfd0c7b JIT compile native calls with integer rw arguments
 57f6315d7 Don't try to JIT compile native calls with rw arguments
-82273161c JIT compile native calls with up to 3 UTF-8 string arguments
 
 Iter:
 + Don't segfault when MVM_iter on type object
@@ -43,44 +50,35 @@ Spesh:
 + Include reason when we cannot inline in the debug output
 
 Math:
-ad8618468 fix pointer arithmetic with a cast
-d42bf0cf6 MVM_bigint_div: If dividing by 1, just return the numerator
-d3655ff7b fix integer literal form for 1 ll << 32
++ If dividing by 1 in MVM_bigint_div, just return the numerator
 + Make sure both objects are the same type when short-cutting division by 1 in MVM_bigint_div
++ Move assignment after MVMROOT in MVM_bigint_from_bigint
 
 libuv:
-60e56edb9 Use uv_fs_copyfile
-8b53b1ebb Bump libuv to ver. 1.15.0
-3a656f945 Make sure to close timer handles
++ Use uv_fs_copyfile in MVM_file_copy instead of manually opening a handle and
+ using and using uv_fs_sendfile to copy
++ Bump libuv to version 1.15.0
++ Make sure to close uv_timer handles after they are canceled
+
+Garbage Collection/Memory
++ Fix unneeded GC blocking in loop
++ Fix pointer arithmetic in MVM_fixed_size_realloc_at_safepoint with a cast
++ Convert realloc plus memset 0 to recalloc in MVM_sc_set_object
++ FSA size debug: cooperate better with valgrind
++ Support FSA_SIZE_DEBUG in MVM_fixed_size_realloc and *realloc_at_safepoint
 
 MVMROOT:
-3821a09d9 Add a missing MVMROOT to MVM_bigint_from_bigint
-87191078c Add MVMROOT2..MVMROOT5 to make rooting multiple variables easier
-116c7a133 Fix HLL representations of CArray elements out of sync after native calls
-9aa99f3e9 Add more missing MVMROOTs
-f66d7aa24 Add two more missing MVMROOTs around managed mutex acquire
-9ad1f5fc8 Add missing MVMROOT around managed mutex acquire
-9ee680f05 Add another MVMROOT around managed mutex acquire in MVM_serialization_finish_deserialize_method_cache
-
-GC:
-a74163dde Fix unneeded GC blocking in loop
++ Add MVMROOT2..MVMROOT5 macros to make rooting multiple variables easier
++ Add a missing MVMROOT to MVM_bigint_from_bigint
++ Fix HLL representations of CArray elements out of sync after native calls
++ Add missing MVMROOTs to MVM_bytecode_finish_frame and prepare_and_verify_static_frame
++ Add missing MVMROOTs around managed mutex acquire in MVM_serialization_demand_code,
+  MVM_serialization_finish_deserialize_method_cache, MVM_serialization_demand_object
+  and MVM_serialization_finish_deserialize_method_cache
 
 FH:
 + Retry in certain cases of EINTR in mvm_fileno, read_bytes,
   read_one_packet, socket_write_bytes, socket_connect and socket_accept
-
-Title Modified for More Information but not yet Categorized:
-66ba24288 Convert realloc plus memset 0 to recalloc in MVM_sc_set_object
-1a8664b2d Put coerce_II op in same order relative to oplist
-723269978 Move assignment after MVMROOT in MVM_bigint_from_bigint
-b9a01f750 Add support for a block noinline flag. Used to indicate that a block
-  may never be inlined; will bet set by Rakudo upon spotting uses of things that
-  need the dispatcher
-
-Unsorted and Unmodified commit text:
-ca1261817 Fix occasional old reads in ConcBlockingQueue
-483b3b851 FSA size debug: cooperate with valgrind
-900178b52 Support FSA_SIZE_DEBUG in MVM_fixed_size_realloc and *realloc_at_safepoint
 
 New in 2017.10
 
