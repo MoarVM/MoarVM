@@ -114,39 +114,39 @@ sub main {
     goto skip_most if $skip_most_mode;
     binary_props('extracted/DerivedBinaryProperties');
     binary_props("emoji-$highest_emoji_version/emoji-data");
-    enumerated_property('ArabicShaping', 'Joining_Group', {}, 0, 3);
-    enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1, 1);
+    enumerated_property('ArabicShaping', 'Joining_Group', {}, 3);
+    enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1);
     # disabled because of sub Jamo
     #enumerated_property('Jamo', 'Jamo_Short_Name', {  }, 1, 1);
-    enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1, 1);
-    enumerated_property('extracted/DerivedEastAsianWidth', 'East_Asian_Width', {}, 0, 1);
-    enumerated_property('ArabicShaping', 'Joining_Type', {}, 0, 2);
+    enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1);
+    enumerated_property('extracted/DerivedEastAsianWidth', 'East_Asian_Width', {}, 1);
+    enumerated_property('ArabicShaping', 'Joining_Type', {}, 2);
     CaseFolding();
     SpecialCasing();
     enumerated_property('DerivedAge',
-        'Age', { Unassigned => 0 }, 1, 1);
+        'Age', { Unassigned => 0 }, 1);
     binary_props('DerivedCoreProperties');
     DerivedNormalizationProps();
     enumerated_property('extracted/DerivedNumericValues',
-        'Numeric_Value', { NaN => 0 }, 1, 1);
+        'Numeric_Value', { NaN => 0 }, 1);
     enumerated_property('extracted/DerivedNumericValues',
-        'Numeric_Value_Numerator', { NaN => 0 }, 1, sub {
+        'Numeric_Value_Numerator', { NaN => 0 }, sub {
             my @fraction = split('/', (shift->[3]));
             return $fraction[0];
         });
     enumerated_property('extracted/DerivedNumericValues',
-        'Numeric_Value_Denominator', { NaN => 0 }, 1, sub {
+        'Numeric_Value_Denominator', { NaN => 0 }, sub {
             my @fraction = split('/', (shift->[3]));
             return $fraction[1] || '1';
         });
     enumerated_property('extracted/DerivedNumericType',
-        'Numeric_Type', { None => 0 }, 1, 1);
+        'Numeric_Type', { None => 0 }, 1);
     enumerated_property('HangulSyllableType',
-        'Hangul_Syllable_Type', { Not_Applicable => 0 }, 1, 1);
+        'Hangul_Syllable_Type', { Not_Applicable => 0 }, 1);
     LineBreak();
     NamedSequences();
     binary_props('PropList');
-    enumerated_property('Scripts', 'Script', { Unknown => 0 }, 1, 1);
+    enumerated_property('Scripts', 'Script', { Unknown => 0 }, 1);
     # XXX StandardizedVariants.txt # no clue what this is
     grapheme_cluster_break('Grapheme', 'Grapheme_Cluster_Break');
     break_property('Sentence', 'Sentence_Break');
@@ -288,7 +288,7 @@ sub binary_props {
 sub break_property {
     my ($fname, $pname) = @_;
     enumerated_property("auxiliary/${fname}BreakProperty",
-        $pname, { Other => 0 }, 1, 1);
+        $pname, { Other => 0 }, 1);
 }
 sub grapheme_cluster_break {
     my ($fname, $pname) = @_;
@@ -297,7 +297,7 @@ sub grapheme_cluster_break {
             # Should not be set to Other for this one ?
             Other => 0,
 
-        }, 1, 1);
+        }, 1);
 }
 
 sub derived_property {
@@ -307,7 +307,7 @@ sub derived_property {
     # wrap the provided object as the enum key in a new one
     $base = { enum => $base };
     # If we provided some property values already, add that number to the counter
-    $j += (scalar keys %{$base->{enum}});
+    $j += scalar keys %{$base->{enum}};
     each_line("extracted/Derived$fname", sub { $_ = shift;
         my ($range, $class) = split /\s*[;#]\s*/;
         unless (exists $base->{enum}->{$class}) {
@@ -339,7 +339,9 @@ sub derived_property {
 }
 
 sub enumerated_property {
-    my ($fname, $pname, $base, $j, $value_index) = @_;
+    my ($fname, $pname, $base, $value_index) = @_;
+    my $j = 0;
+    $j += scalar keys %{$base->{enum}};
     $base = { enum => $base };
     each_line($fname, sub { $_ = shift;
         my @vals = split /\s*[#;]\s*/;
