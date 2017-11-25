@@ -30,7 +30,6 @@ my $sequences = {};
 my $hout = "";
 my $h_sections = {};
 my $planes = [];
-my $points_by_hex = {};
 my $points_by_code = {};
 my $enumerated_properties = {};
 my $binary_properties = {};
@@ -244,13 +243,14 @@ sub apply_to_range {
         cluck "Did not get any range in apply_to_range";
     }
     my $fn = shift;
-    my ($first, $last) = split '\\.\\.', $range;
-    $first ||= $range;
-    $last ||= $first;
-    my $point = $points_by_hex->{$first};
+    my ($first_str, $last_str) = split '\\.\\.', $range;
+    $first_str ||= $range;
+    $last_str ||= $first_str;
+    my ($first_code, $last_code) = (hex $first_str, hex $last_str);
+    my $point = $points_by_code->{$first_code};
     if (!$point) { # go backwards to find the last one
                     # (much faster than going forwards for some reason)
-        my $code = hex($first) - 1;
+        my $code = $first_code - 1;
         $code-- until ($point = $points_by_code->{$code});
         $point = $point->{next_point};
     }
@@ -259,10 +259,10 @@ sub apply_to_range {
         $fn->($point);
         $last_point = $point;
         $point = $point->{next_point};
-    } while ($point && $point->{code} <= hex $last);
+    } while ($point && $point->{code} <= $last_code);
     #croak "couldn't find code ".sprintf('%x', $last_point->{code} + 1).
-    #    " got ".$point->{code_str}." for range $first..$last"
-    #    unless $last_point->{code} == hex $last;
+    #    " got ".$point->{code_str}." for range $first_str..$last_str"
+    #    unless $last_point->{code} == hex $last_str;
     # can't croak there because some ranges end on points that don't exist (Blocks)
 }
 
@@ -1474,9 +1474,9 @@ sub emit_composition_lookup {
     # first codepoint of the decomposition of a primary composite, mapped to
     # an array of [second codepoint, primary composite].
     my @lookup;
-    for my $point_hex (sort keys %$points_by_hex) {
+    for my $point_code (sort { $a <=> $b } keys %$points_by_code) {
         # Not interested in anything in the set of full composition exclusions.
-        my $point = $points_by_hex->{$point_hex};
+        my $point = $points_by_code->{$point_code};
         next if $point->{Full_Composition_Exclusion};
 
         # Only interested in things that have a decomposition spec.
@@ -1499,7 +1499,7 @@ sub emit_composition_lookup {
             croak "Invalid codepoint " . $decomp[0]
         }
         my ($upper, $lower) = (hex(substr($decomp[0], 0, 2)), hex(substr($decomp[0], 2, 2)));
-        push @{$lookup[$plane]->[$upper]->[$lower]}, hex($decomp[1]), hex($point_hex);
+        push @{$lookup[$plane]->[$upper]->[$lower]}, hex($decomp[1]), $point_code;
     }
 
     # Produce sparse lookup tables.
@@ -1749,14 +1749,14 @@ sub UnicodeData {
                 $code_str = uc(sprintf '%04x', $new->{code});
                 $new->{code_str} = $code_str;
                 push @{$plane->{points}}, $new;
-                $points_by_hex->{$new->{code_str}} = $points_by_code->{$new->{code}} =
+                $points_by_code->{$new->{code}} =
                     $current = $current->{next_point} = $new;
             }
             $last_point = $current;
             $ideograph_start = 0;
         }
         push @{$plane->{points}}, $point;
-        $points_by_hex->{$code_str} = $points_by_code->{$code} = $point;
+        $points_by_code->{$code} = $point;
 
         if ($last_point) {
             $last_point = $last_point->{next_point} = $point;
@@ -1783,18 +1783,19 @@ sub CaseFolding {
     my @simple;
     my @grows;
     each_line('CaseFolding', sub { $_ = shift;
-        my ($left, $type, $right) = split /\s*;\s*/;
+        my ($left_str, $type, $right) = split /\s*;\s*/;
+        my $left_code = hex $left_str;
         return if $type eq 'S' || $type eq 'T';
         if ($type eq 'C') {
             push @simple, $right;
-            $points_by_hex->{$left}->{Case_Folding} = $simple_count;
+            $points_by_code->{$left_code}->{Case_Folding} = $simple_count;
             $simple_count++;
-            $points_by_hex->{$left}->{Case_Folding_simple} = 1;
+            $points_by_code->{$left_code}->{Case_Folding_simple} = 1;
         }
         else {
             my @parts = split ' ', $right;
             push @grows, "{0x".($parts[0]).",0x".($parts[1] || 0).",0x".($parts[2] || 0)."}";
-            $points_by_hex->{$left}->{Case_Folding} = $grows_count;
+            $points_by_code->{$left_code}->{Case_Folding} = $grows_count;
             $grows_count++;
         }
     });
@@ -1816,7 +1817,8 @@ sub SpecialCasing {
     my @entries;
     each_line('SpecialCasing', sub { $_ = shift;
         s/#.+//;
-        my ($code, $lower, $title, $upper, $cond) = split /\s*;\s*/;
+        my ($code_str, $lower, $title, $upper, $cond) = split /\s*;\s*/;
+        my $code = hex $code_str;
         return if $cond;
         sub threesome {
             my @things = split ' ', shift;
@@ -1827,7 +1829,7 @@ sub SpecialCasing {
                        " }, { " . threesome($lower) .
                        " }, { " . threesome($title) .
                        " } }";
-        $points_by_hex->{$code}->{Special_Casing} = $count;
+        $points_by_code->{$code}->{Special_Casing} = $count;
         $count++;
     });
     my $out = "static const MVMint32 SpecialCasing_table[$count][3][3] = {\n    {0x0,0x0,0x0},\n    "
