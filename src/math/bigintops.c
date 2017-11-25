@@ -717,7 +717,7 @@ MVMObject *MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
  * a small int as well as cases when it is stored as a bigint */
 int BIGINT_IS_NEGATIVE (MVMP6bigintBody *ba) {
     mp_int *mp_a = ba->u.bigint;
-    if MVM_BIGINT_IS_BIG(ba) {
+    if (MVM_BIGINT_IS_BIG(ba)) {
         return SIGN(mp_a) == MP_NEG;
     }
     else {
