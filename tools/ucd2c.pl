@@ -299,7 +299,20 @@ sub grapheme_cluster_break {
 
         }, 1);
 }
-
+# Make sure we don't assign twice to the same pvalue code
+sub check_base_for_duplicates {
+    my ($base) = @_;
+    my %seen;
+    for my $key (keys %{$base->{enum}}) {
+        if ($seen{ $base->{enum}->{$key} }) {
+            die "\nError: assigned twice to the same property value code. Both $key and "
+                . $seen{ $base->{enum}->{$key} }
+                . " are assigned to pvalue code "
+                . $base->{enum}->{$key};
+        }
+        $seen{ ($base->{enum}->{$key}) } = $key;
+    }
+}
 sub derived_property {
     # filename, property name, property object
     my ($fname, $pname, $base) = @_;
@@ -324,17 +337,6 @@ sub derived_property {
     }
     $base->{keys} = \@keys;
     $base->{bit_width} = least_int_ge_lg2($j);
-    my %seen;
-    # Make sure we don't assign twice to the same pvalue code
-    for my $key (keys %{$base->{enum}}) {
-        if ($seen{ $base->{enum}->{$key} }) {
-            say "\nError: assigned twice to the same property value code. Both $key and "
-                . $seen{ $base->{enum}->{$key} }
-                . " are assigned to pvalue code "
-                . $base->{enum}->{$key};
-        }
-        $seen{ ($base->{enum}->{$key}) } = $key;
-    }
     register_enumerated_property($pname, $base);
 }
 
@@ -2147,12 +2149,13 @@ sub register_int_property {
 }
 
 sub register_enumerated_property {
-    my ($pname, $obj) = @_;
+    my ($pname, $base) = @_;
+    check_base_for_duplicates($base);
     croak if exists $enumerated_properties->{$pname};
-    $all_properties->{$pname} = $enumerated_properties->{$pname} = $obj;
-    $obj->{name} = $pname;
-    $obj->{property_index} = $property_index++;
-    $obj
+    $all_properties->{$pname} = $enumerated_properties->{$pname} = $base;
+    $base->{name} = $pname;
+    $base->{property_index} = $property_index++;
+    $base
 }
 
 main();
