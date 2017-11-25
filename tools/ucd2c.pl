@@ -115,7 +115,9 @@ sub main {
     binary_props("emoji-$highest_emoji_version/emoji-data");
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 3);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1);
-    # disabled because of sub Jamo
+    # sub Jamo sets names properly. Though at the moment Jamo_Short_Name likely
+    # will not need to be a property since it's only used for programatically
+    # creating Jamo's Codepoint Names
     #enumerated_property('Jamo', 'Jamo_Short_Name', {  }, 1, 1);
     enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1);
     enumerated_property('extracted/DerivedEastAsianWidth', 'East_Asian_Width', {}, 1);
@@ -260,10 +262,6 @@ sub apply_to_range {
         $last_point = $point;
         $point = $point->{next_point};
     } while ($point && $point->{code} <= $last_code);
-    #croak "couldn't find code ".sprintf('%x', $last_point->{code} + 1).
-    #    " got ".$point->{code_str}." for range $first_str..$last_str"
-    #    unless $last_point->{code} == hex $last_str;
-    # can't croak there because some ranges end on points that don't exist (Blocks)
 }
 
 sub progress($) {
@@ -683,7 +681,10 @@ sub emit_codepoint_row_lookup {
     MVMint32 plane = codepoint >> 16;
 
     if (codepoint < 0) {
-        MVM_exception_throw_adhoc(tc, \"Error, MoarVM cannot get Unicode codepoint property for synthetic codepoint \%\"PRId64\"\", codepoint);
+        MVM_exception_throw_adhoc(tc,
+            \"Internal Error: MVM_codepoint_to_row_index call requested a synthetic codepoint that does not exist.\\n\"
+            \"Requested synthetic \%\"PRId64\" when only \%\"PRId32\" have been created.\",
+            -codepoint, tc->instance->nfg->num_synthetics);
     }
 
     if (plane == 0) {"
