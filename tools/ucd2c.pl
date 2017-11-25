@@ -316,11 +316,10 @@ sub check_base_for_duplicates {
 sub derived_property {
     # filename, property name, property object
     my ($fname, $pname, $base) = @_;
-    my $j = 0;
+    # If we provided some property values already, add that number to the counter
+    my $j = scalar keys %{$base};
     # wrap the provided object as the enum key in a new one
     $base = { enum => $base };
-    # If we provided some property values already, add that number to the counter
-    $j += scalar keys %{$base->{enum}};
     each_line("extracted/Derived$fname", sub { $_ = shift;
         my ($range, $class) = split /\s*[;#]\s*/;
         unless (exists $base->{enum}->{$class}) {
@@ -342,8 +341,7 @@ sub derived_property {
 
 sub enumerated_property {
     my ($fname, $pname, $base, $value_index) = @_;
-    my $j = 0;
-    $j += scalar keys %{$base->{enum}};
+    my $j = scalar keys %{$base};
     $base = { enum => $base };
     each_line($fname, sub { $_ = shift;
         my @vals = split /\s*[#;]\s*/;
