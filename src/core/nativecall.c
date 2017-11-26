@@ -561,9 +561,6 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
         || body->ret_type == MVM_NATIVECALL_ARG_LONGLONG
         || body->ret_type == MVM_NATIVECALL_ARG_ULONGLONG
     ) {
-        call_node->next = save_rv_node;
-        jg->last_node = unblock_gc_node->next = box_rv_node;
-
         init_box_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_int, restype, dst);
     }
     else if (body->ret_type == MVM_NATIVECALL_ARG_CPOINTER) {
