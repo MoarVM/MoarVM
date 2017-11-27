@@ -69,10 +69,7 @@ sub trim {
     }
     return $s;
 }
-
-sub progress($);
-sub main {
-    $db_sections->{'AAA_header'} = header();
+sub add_emoji_sequences {
     my $directory = "UNIDATA";
     my @emoji_dirs;
     my $highest_emoji_version = "";
@@ -96,6 +93,12 @@ sub main {
         add_unicode_sequence("$folder/emoji-sequences");
         add_unicode_sequence("$folder/emoji-zwj-sequences");
     }
+    $highest_emoji_version;
+}
+sub progress($);
+sub main {
+    $db_sections->{'AAA_header'} = header();
+    my $highest_emoji_version = add_emoji_sequences();
     add_unicode_sequence('NamedSequences');
     gen_unicode_sequence_keypairs();
     NameAliases();
@@ -338,15 +341,17 @@ sub derived_property {
 }
 
 sub enumerated_property {
-    my ($fname, $pname, $base, $value_index) = @_;
+    my ($fname, $pname, $base, $value_index, $is_int, $is_hex) = @_;
     my $j = scalar keys %{$base};
     $base = { enum => $base };
+    $base->{type} = $is_int ? 'int' : 'string';
     each_line($fname, sub { $_ = shift;
         my @vals = split /\s*[#;]\s*/;
         my $range = $vals[0];
         my $value = ref $value_index
             ? $value_index->(\@vals)
             : $vals[$value_index];
+        $value = hex $value if $is_hex;
         my $index = $base->{enum}->{$value};
         # haven't seen this property value before
         # add it, and give it an index.
@@ -816,11 +821,30 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
     for my $prop (@$allocated) {
         my $enum = exists $prop->{keys};
         my $esize = 0;
+        my $is_int;
+        if ( defined($prop->{type}) && ($prop->{type} eq 'int')) {
+            $is_int = 1;
+        }
+        else {
+            $is_int = 0;
+        }
+        say "is_int = $is_int";
         if ($enum) {
             $enum = $prop->{name} . "_enums";
             $esize = scalar @{$prop->{keys}};
-            $enumtables .= "static char *$enum\[$esize] = {";
-            $enumtables .= "\n    \"$_\"," for @{$prop->{keys}};
+            if ($is_int) {
+                $enumtables .= "static int ";
+            }
+            else {
+                $enumtables .= "static char *";
+            }
+            $enumtables .= "$enum\[$esize] = {";
+            if ($is_int) {
+                $enumtables .= "\n    $_," for @{$prop->{keys}};
+            }
+            else {
+                $enumtables .= "\n    \"$_\"," for @{$prop->{keys}};
+            }
             $enumtables .= "\n};\n\n";
         }
         $hout .= "    ".uc("MVM_unicode_property_$prop->{name}")." = $prop->{field_index},\n";
@@ -856,10 +880,25 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
             while ($pos++ < $bitfield_cell_bitwidth) {
                 $binary_string .= "0";
             }
-
-            $out .= "
-            " . ($one_word_only ? 'return' : 'result_val |=') . " ((props_bitfield[bitfield_row][$word_offset] & 0x"
-            . sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */";
+            # If it's an int based enum we use the same code as we do for strings
+            # (the function just returns an int from the enum instead of a char *)
+            if ($enum && defined($prop->{type}) && ($prop->{type} eq 'int')) {
+                # XXX todo, remove unneeded variables and jank
+                $out .= "
+                {
+                int bogus = -1;
+                int result_val = ((props_bitfield[bitfield_row][$word_offset] & 0x".
+                    sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */";
+                $out .= "fprintf(stderr, \"result_val = %i\\n\", result_val);\n";
+                $out .= "return result_val < $esize ? (result_val == -1
+                ? $enum\[0] : $enum\[result_val]) : bogus; }";
+                next;
+            }
+            else {
+                $out .= "
+                " . ($one_word_only ? 'return' : 'result_val |=') . " ((props_bitfield[bitfield_row][$word_offset] & 0x"
+                . sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */";
+            }
             $eout .= "
             result_val |= ((props_bitfield[bitfield_row][$word_offset] & 0x".
                 sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */" if $enum;
@@ -2086,31 +2125,16 @@ sub tweak_nfg_qc {
     for my $point (values %$points_by_code) {
         my $code = $point->{'code'};
 
-        # \r
-        if ($code == 0x0D) {
+        if ($code == 0x0D                           # \r
+        || $point->{'Hangul_Syllable_Type'}         # Hangul
+        || ($code >= 0x1F1E6 && $code <= 0x1F1FF)   # Regional indicators
+        || $code == 0x200D                          # Zero Width Joiner
+        || $point->{'Grapheme_Extend'}              # Grapheme_Extend
+        || $point->{'Grapheme_Cluster_Break'}       # Grapheme_Cluster_Break
+        || $point->{'Prepended_Concatenation_Mark'} # Prepended_Concatenation_Mark
+        ) {
             $point->{'NFG_QC'} = 0;
         }
-
-        # Hangul
-        elsif ($point->{'Hangul_Syllable_Type'}) {
-            $point->{'NFG_QC'} = 0;
-        }
-
-        # Regional indicators
-        elsif ($code >= 0x1F1E6 && $code <= 0x1F1FF) {
-            $point->{'NFG_QC'} = 0;
-        }
-
-        # Zero Width Joiner
-        elsif ($code == 0x200D) {
-            $point->{'NFG_QC'} = 0;
-        }
-
-        # Grapheme_Extend
-        elsif ($point->{'Grapheme_Extend'}) {
-            $point->{'NFG_QC'} = 0;
-        }
-
         # SpacingMark, and a couple of specials
         elsif ($point->{'gencat_name'} eq 'Mc' || $code == 0x0E33 || $code == 0x0EB3) {
             $point->{'NFG_QC'} = 0;
@@ -2118,13 +2142,7 @@ sub tweak_nfg_qc {
         # For now set all Emoji to NFG_QC 0
         # Eventually we will only want to set the ones that are NOT specified
         # as ZWJ sequences
-        elsif ($point->{'Emoji'} ) {
-            $point->{'NFG_QC'} = 0;
-        }
-        elsif ($point->{'Grapheme_Cluster_Break'}) {
-            $point->{'NFG_QC'} = 0;
-        }
-        elsif ($point->{'Prepended_Concatenation_Mark'}) {
+        elsif ($point->{'Emoji'}) {
             $point->{'NFG_QC'} = 0;
         }
     }
