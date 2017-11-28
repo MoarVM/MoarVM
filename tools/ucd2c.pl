@@ -110,9 +110,10 @@ sub main {
         derived_property('CombiningClass',
             'Canonical_Combining_Class', { Not_Reordered => 0 }, 1)
     );
-    Jamo($points_by_code);
+    enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', { 0 => 0 }, 1, 1, 1);
     collation();
-    BidiMirroring();
+    Jamo($points_by_code);
+    #BidiMirroring();
     goto skip_most if $skip_most_mode;
     binary_props('extracted/DerivedBinaryProperties');
     binary_props("emoji-$highest_emoji_version/emoji-data");
@@ -306,12 +307,23 @@ sub check_base_for_duplicates {
     my %seen;
     for my $key (keys %{$base->{enum}}) {
         if ($seen{ $base->{enum}->{$key} }) {
-            die "\nError: assigned twice to the same property value code. Both $key and "
+            croak("\nError: assigned twice to the same property value code (Property " . $base->{name} . " Both $key and "
                 . $seen{ $base->{enum}->{$key} }
                 . " are assigned to pvalue code "
-                . $base->{enum}->{$key};
+                . $base->{enum}->{$key}
+                . "\n"
+                . Dumper $base->{enum});
         }
         $seen{ ($base->{enum}->{$key}) } = $key;
+    }
+    my $start = 0;
+    for my $key (sort { $base->{enum}->{$a} <=> $base->{enum}->{$b} } keys %{$base->{enum}}) {
+        croak("\nError: property value code is not sequential for property '"
+        . $base->{name} . "'. Expected $start but saw " . $base->{enum}->{$key} . "\n" . Dumper $base->{enum})
+            if $base->{enum}->{$key} != $start and $base->{name} ne 'Numeric_Type';
+        # XXX Numeric_Type is excluded for now because it's a subtype. It is actually broken
+        # but it is ignored temporarily.
+        $start++;
     }
 }
 sub derived_property {
@@ -320,7 +332,7 @@ sub derived_property {
     # If we provided some property values already, add that number to the counter
     my $j = scalar keys %{$base};
     # wrap the provided object as the enum key in a new one
-    $base = { enum => $base };
+    $base = { enum => $base, name => $pname };
     each_line("extracted/Derived$fname", sub { $_ = shift;
         my ($range, $class) = split /\s*[;#]\s*/;
         unless (exists $base->{enum}->{$class}) {
@@ -330,20 +342,39 @@ sub derived_property {
             $base->{enum}->{$class} = $j++;
         }
     });
+    register_keys_and_set_bit_width($base, $j);
+    register_enumerated_property($pname, $base);
+}
+sub register_keys {
+    my ($base) = @_;
     my @keys = ();
     # stash the keys in an array so they can be put in a table later
     for my $key (keys %{$base->{enum}}) {
-        $keys[$base->{enum}->{$key}] = $key;
+        if ($is_subtype{$key}) {
+            # XXX Fix 'Digit' why is it a subtype? Does it need to be?
+            register_enumerated_property($key, {%$base});
+                delete $base->{enum}->{$key};
+        }
+        else {
+            $keys[$base->{enum}->{$key}] = $key;
+        }
     }
+    print "\n    keys = @keys" if $DEBUG;
     $base->{keys} = \@keys;
-    $base->{bit_width} = least_int_ge_lg2($j);
-    register_enumerated_property($pname, $base);
+    scalar @keys;
+}
+sub register_keys_and_set_bit_width {
+    my ($base, $j) = @_;
+    my $reg = register_keys($base);
+    $base->{bit_width} = least_int_ge_lg2($reg);
+    die "The number of keys and the number of \$j do not match. Keys: $reg \$j: $j"
+        if (defined $j and $reg != $j);
 }
 
 sub enumerated_property {
     my ($fname, $pname, $base, $value_index, $is_int, $is_hex) = @_;
     my $j = scalar keys %{$base};
-    $base = { enum => $base };
+    $base = { enum => $base, name => $pname };
     $base->{type} = $is_int ? 'int' : 'string';
     each_line($fname, sub { $_ = shift;
         my @vals = split /\s*[#;]\s*/;
@@ -353,12 +384,11 @@ sub enumerated_property {
             : $vals[$value_index];
         $value = hex $value if $is_hex;
         my $index = $base->{enum}->{$value};
-        # haven't seen this property value before
-        # add it, and give it an index.
-        print("\n  adding enum property for $pname: $j $value")
-            if $DEBUG and not defined $index;
-        ($base->{enum}->{$value} = $index
-            = $j++) unless defined $index;
+        if (not defined $index) {
+            # Haven't seen this property value before. Add it, and give it an index.
+            print("\n  adding enum property for $pname: $j $value") if $DEBUG;
+            ($base->{enum}->{$value} = $index = $j++);
+        }
         apply_to_range($range, sub {
             my $point = shift;
             $point->{$pname} = $index; # set the property's value index
@@ -366,19 +396,7 @@ sub enumerated_property {
     });
     $base->{bit_width} = least_int_ge_lg2($j);
     print "\n    bitwidth: ",$base->{bit_width},"\n" if $DEBUG;
-    my @keys = ();
-    # stash the keys in an array so they can be put in a table later
-    for my $key (keys %{$base->{enum}}) {
-        if ($is_subtype{$key}) {
-            register_enumerated_property($key, {%$base});
-            delete $base->{enum}->{$key};
-        }
-        else {
-            $keys[$base->{enum}->{$key}] = $key;
-        }
-    }
-    print "\n    keys = @keys" if $DEBUG;
-    $base->{keys} = \@keys;
+    register_keys($base);
     register_enumerated_property($pname, $base);
 }
 
@@ -828,15 +846,15 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
         else {
             $is_int = 0;
         }
-        say "is_int = $is_int";
+        print("\n" . $prop->{name} . " is an integer enum property") if $is_int;
         if ($enum) {
             $enum = $prop->{name} . "_enums";
             $esize = scalar @{$prop->{keys}};
             if ($is_int) {
-                $enumtables .= "static int ";
+                $enumtables .= "static const int ";
             }
             else {
-                $enumtables .= "static char *";
+                $enumtables .= "static const char *";
             }
             $enumtables .= "$enum\[$esize] = {";
             if ($is_int) {
@@ -889,7 +907,7 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
                 int bogus = -1;
                 int result_val = ((props_bitfield[bitfield_row][$word_offset] & 0x".
                     sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */";
-                $out .= "fprintf(stderr, \"result_val = %i\\n\", result_val);\n";
+                #$out .= "fprintf(stderr, \"result_val = %i\\n\", result_val);\n"
                 $out .= "return result_val < $esize ? (result_val == -1
                 ? $enum\[0] : $enum\[result_val]) : bogus; }";
                 next;
@@ -1807,9 +1825,10 @@ sub UnicodeData {
     $s->("110000;Out of Range;Cn;0;L;;;;;N;;;;;");
 
     register_enumerated_property('Case_Change_Index', {
-        bit_width => least_int_ge_lg2($case_count)
+        name => 'Case_Change_Index', bit_width => least_int_ge_lg2($case_count)
     });
     register_enumerated_property('Decomp_Spec', {
+        name => 'Decomp_Spec',
         'keys' => $decomp_keys,
         bit_width => least_int_ge_lg2($decomp_index)
     });
@@ -1842,7 +1861,7 @@ sub CaseFolding {
     my $grows_out = "static const MVMint32 CaseFolding_grows_table[$grows_count][3] = {\n    {0x0,0x0,0x0},\n    "
         .stack_lines(\@grows, ",", ",\n    ", 0, $wrap_to_columns)."\n};";
     my $bit_width = least_int_ge_lg2($simple_count); # XXX surely this will always be greater?
-    my $index_base = { bit_width => $bit_width };
+    my $index_base = { name => 'Case_Folding', bit_width => $bit_width };
     register_enumerated_property('Case_Folding', $index_base);
     register_binary_property('Case_Folding_simple');
     $estimated_total_bytes += $simple_count * 8 + $grows_count * 32; # XXX guessing 32 here?
@@ -1873,7 +1892,7 @@ sub SpecialCasing {
     my $out = "static const MVMint32 SpecialCasing_table[$count][3][3] = {\n    {0x0,0x0,0x0},\n    "
         .stack_lines(\@entries, ",", ",\n    ", 0, $wrap_to_columns)."\n};";
     my $bit_width = least_int_ge_lg2($count);
-    my $index_base = { bit_width => $bit_width };
+    my $index_base = { name => 'Special_Casing', bit_width => $bit_width };
     register_enumerated_property('Special_Casing', $index_base);
     $estimated_total_bytes += $count * 4 * 3 * 3;
     $db_sections->{BBB_SpecialCasing} = $out;
@@ -1964,6 +1983,7 @@ sub Jamo {
         %{$points_by_code}{$hs_cps}->{name} = $final_name;
     }
 }
+# XXX Likely redundant now
 sub BidiMirroring {
     my $file = 'BidiMirroring';
     my $propname = 'Bidi_Mirroring_Glyph';
@@ -1978,31 +1998,43 @@ sub BidiMirroring {
             $point->{$propname} = $int;
         });
     });
-
     register_int_property($propname, $max_size);
 }
+sub collation_get_check_index {
+    my ($index, $property, $base, $value) = @_;
+    my $indexy = $base->{enum}->{$value};
+    # haven't seen this property value before
+    # add it, and give it an index.
+    print("\n  adding enum property for property: $property j: " . $index->{$property}->{j} . "value: $value")
+        if $DEBUG and not defined $indexy;
+    ($base->{enum}->{$value} = $indexy
+        = ($index->{$property}->{j}++)) unless defined $indexy;
+    $indexy;
+}
 sub collation {
-    my $enum = {};
-    my $base = { enum => $enum };
-    my $j = 0;
-    my $name_primary = 'MVM_COLLATION_PRIMARY';
-    my $name_secondary = 'MVM_COLLATION_SECONDARY';
-    my $name_tertiary = 'MVM_COLLATION_TERTIARY';
+    my ($index, $maxes) = ( {}, {} );
+    my ($name_primary, $name_secondary, $name_tertiary)
+        = ('MVM_COLLATION_PRIMARY', 'MVM_COLLATION_SECONDARY', 'MVM_COLLATION_TERTIARY');
+    my $primary_base   = { enum => { 0 => 0 }, name => $name_primary, type => 'int' };
+    my $secondary_base = { enum => { 0 => 0 }, name => $name_secondary, type => 'int' };
+    my $tertiary_base  = { enum => { 0 => 0 }, name => $name_tertiary, type => 'int' };
+    for my $base ($primary_base, $secondary_base, $tertiary_base) {
+        $index->{$base->{name}}->{j} = keys(%{$base->{enum}});
+        $maxes->{$base->{name}} = 0;
+        print("\n" . $base->{name} . " j starts at " . $index->{$base->{name}}->{j});
+    }
     my $implicit = 0;
-    # Record the highest value we see so we can save some bits in the bitfield
-    my $primary_max = 0;
-    my $secondary_max = 0;
-    my $tertiary_max = 0;
     ## Sample line from allkeys.txt
     #1D4FF ; [.1EE3.0020.0005] # MATHEMATICAL BOLD SCRIPT SMALL V
     my $line_no = 0;
     each_line('UCA/allkeys', sub { $_ = shift;
         my $line = $_;
         $line_no++;
-        my ($code, $weight1, $weight2, $weight3, $temp);
+        my ($code, $temp);
+        my $weights = {};
         if ($line =~ s/ ^ \@implicitweights \s+ //xms ) {
-            ($code, $weight1) = split / (?: [;\[\]]|\s )+ /xms, $line;
-            $weight1 = hex $weight1 or croak;
+            ($code, $weights->{$name_primary}) = split / (?: [;\[\]]|\s )+ /xms, $line;
+            $weights->{$name_primary} = hex $weights->{$name_primary} or croak;
             $code or croak;
             $implicit = 1;
         }
@@ -2014,7 +2046,7 @@ sub collation {
             ($code, $temp) = split /[;#]+/, $line;
             $code = trim $code;
             my @codes = split / /, $code;
-            # we don't yet support collation for multiple codepoints
+            # We support collation for multiple codepoints in ./tools/Generate-Collation-Data.p6
             if ( scalar @codes > 1 ) {
                 # For now set MVM_COLLATION_QC = 0 for these cp
                 apply_to_range($codes[0], sub {
@@ -2032,54 +2064,63 @@ sub collation {
             # in NFC form not NFD, let's add these together.
 
             while ( $temp =~ / (:? \[ ([.*]) (\p{AHex}+) ([.*]) (\p{AHex}+) ([.*]) (\p{AHex}+) \] ) /xmsg ) {
-                $weight1 += hex $3;
-                $weight2 += hex $5;
-                $weight3 += hex $7;
+                $weights->{$name_primary}   += hex $3;
+                $weights->{$name_secondary} += hex $5;
+                $weights->{$name_tertiary}  += hex $7;
             }
 
         }
-        if ( !defined $code or !defined $weight1 or !defined $weight2 or !defined $weight3 ) {
-            unless ( $implicit and defined $weight1 ) {
-                croak "Line no $line_no: line:[$line] weight1:[$weight1] weight2:[$weight2] weight3:[$weight3]";
+        if ( !defined $code or !defined $weights->{$name_primary} or !defined $weights->{$name_secondary} or !defined $weights->{$name_tertiary} ) {
+            unless ( $implicit and defined $weights->{$name_primary} ) {
+                my $str;
+                for my $name ($name_primary, $name_secondary, $name_tertiary) {
+                    $str .= "\$weights->{$name} = " . $weights->{$name} . ", ";
+                }
+                croak "Line no $line_no: \$line = $line, $str";
             }
         }
         apply_to_range($code, sub {
             my $point = shift;
-            # Add one to the value so we can distinguish between specified values
-            # of zero for collation weight and null values.
-            $point->{$name_primary} = 1;
-            if ($weight1) {
-                $point->{$name_primary} += $weight1 if $weight1;
-                $primary_max = $weight1 if $weight1 > $primary_max;
-            }
-            $point->{$name_secondary} = 1;
-            if ($weight2) {
-                $point->{$name_secondary} += $weight2;
-                $secondary_max = $weight2 if $weight2 > $secondary_max;
-            }
-            $point->{$name_tertiary}  = 1;
-            if ($weight3) {
-                $point->{$name_tertiary} += $weight3  if $weight3 ;
-                $tertiary_max = $weight3 if $weight3 > $tertiary_max;
+            my $raws = {};
+            for my $base ($primary_base, $secondary_base, $tertiary_base) {
+                my $name = $base->{name};
+                # Add one to the value so we can distinguish between specified values
+                # of zero for collation weight and null values.
+                $raws->{$name} = 1;
+                if ($weights->{$name}) {
+                    $raws->{$name} += $weights->{$name} if $weights->{$name};
+                    $maxes->{$name} = $weights->{$name} if $weights->{$name} > $maxes->{$name};
+                }
+                $point->{$base->{name}} = collation_get_check_index($index, $base->{name}, $base, $raws->{$base->{name}});
             }
         });
     });
-    for ( $primary_max, $secondary_max, $tertiary_max ) {
+    # Add 0 to a non-character just to make sure it ends up assigned to some codepoint
+    # (or it may not properly end up in the enum)
+    apply_to_range("FFFF", sub {
+        my $point = shift;
+        $point->{$name_tertiary} = 0;
+    });
+
+    for ( $maxes->{$name_primary}, $maxes->{$name_secondary}, $maxes->{$name_tertiary} ) {
         if ( $_ < 1 ) {
-            croak "Oh no! One of the highest collation numbers I saw is less than 0. Something is wrong" .
-              "Primary max: $primary_max secondary max: $secondary_max tertiary_max: $tertiary_max";
+            croak("Oh no! One of the highest collation numbers I saw is less than 1. Something is wrong" .
+              "Primary max: " . $maxes->{$name_primary} . " secondary max: " . $maxes->{$name_secondary} . " tertiary_max: " . $maxes->{$name_tertiary});
         }
     }
-
-    register_int_property($name_primary, $primary_max);
-    register_int_property($name_secondary, $secondary_max);
-    register_int_property($name_tertiary, $tertiary_max);
+    for my $base ($primary_base, $secondary_base, $tertiary_base) {
+        $base->{bit_width} = least_int_ge_lg2($index->{$base->{name}}->{j});
+        register_keys($base);
+        register_enumerated_property($base->{name}, $base);
+    }
     register_binary_property('MVM_COLLATION_QC');
 }
 sub LineBreak {
     my $enum = {};
     my $base = { enum => $enum };
     my $j = 0;
+    # XXX Generate this from a file or use sub enumerated_property (don't remember
+    # if there's a reason it wasn't already used
     $enum->{$_} = $j++ for ("BK", "CM", "CR", "GL", "LF", "NL", "SP",
         "WJ", "ZW", "ZWJ", "AI", "AL", "B2", "BA", "BB", "CB", "CJ", "CL", "CP", "EB",
         "EM", "EX", "H2", "H3", "HL", "HY", "ID", "IN", "IS", "JL",
@@ -2094,11 +2135,7 @@ sub LineBreak {
             $point->{Line_Break} = $enum->{$name};
         });
     });
-    my @keys = ();
-    for my $key (sort keys %{$base->{enum}}) {
-        $keys[$base->{enum}->{$key}] = $key;
-    }
-    $base->{keys} = \@keys;
+    register_keys($base);
     $base->{bit_width} = least_int_ge_lg2($j);
     register_enumerated_property('Line_Break', $base);
 }
@@ -2169,10 +2206,19 @@ sub register_int_property {
 
 sub register_enumerated_property {
     my ($pname, $base) = @_;
+    if (!defined $base->{name} or !$base->{name}) {
+        $base->{name} = $pname;
+        #croak("\n\$base->{name} not set for property '$pname'");
+    }
+    elsif ($pname ne $base->{name}) {
+        # XXX 'Digit' issue here also
+        croak("name doesn't match. Argument was '$pname' but was already set to '" . $base->{name})
+            unless $pname eq 'Digit';
+        $base->{name} = $pname;
+    }
     check_base_for_duplicates($base);
     croak if exists $enumerated_properties->{$pname};
     $all_properties->{$pname} = $enumerated_properties->{$pname} = $base;
-    $base->{name} = $pname;
     $base->{property_index} = $property_index++;
     $base
 }
