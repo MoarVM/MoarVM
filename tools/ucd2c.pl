@@ -148,7 +148,7 @@ sub main {
         'Numeric_Type', { None => 0 }, 1);
     enumerated_property('HangulSyllableType',
         'Hangul_Syllable_Type', { Not_Applicable => 0 }, 1);
-    LineBreak();
+    enumerated_property('LineBreak', 'Line_Break', { XX => 0 }, 1);
     NamedSequences();
     binary_props('PropList');
     enumerated_property('Scripts', 'Script', { Unknown => 0 }, 1);
@@ -2023,30 +2023,6 @@ sub collation {
             if $maxes->{$base->{name}} < 1;
     }
     register_binary_property('MVM_COLLATION_QC');
-}
-sub LineBreak {
-    my $enum = {};
-    my $base = { enum => $enum };
-    my $j = 0;
-    # XXX Generate this from a file or use sub enumerated_property (don't remember
-    # if there's a reason it wasn't already used
-    $enum->{$_} = $j++ for ("BK", "CM", "CR", "GL", "LF", "NL", "SP",
-        "WJ", "ZW", "ZWJ", "AI", "AL", "B2", "BA", "BB", "CB", "CJ", "CL", "CP", "EB",
-        "EM", "EX", "H2", "H3", "HL", "HY", "ID", "IN", "IS", "JL",
-        "JT", "JV", "NS", "NU", "OP", "PO", "PR", "QU", "RI", "SA",
-        "SG", "SY", "XX"
-        );
-    each_line('LineBreak', sub { $_ = shift;
-        my ($range, $name) = split /\s*[;#]\s*/;
-        croak "Can't find Line_Break property $name in the enum" unless exists $enum->{$name}; # only normative
-        apply_to_range($range, sub {
-            my $point = shift;
-            $point->{Line_Break} = $enum->{$name};
-        });
-    });
-    register_keys($base);
-    $base->{bit_width} = least_int_ge_lg2($j);
-    register_enumerated_property('Line_Break', $base);
 }
 
 sub NameAliases {
