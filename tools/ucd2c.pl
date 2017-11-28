@@ -110,7 +110,7 @@ sub main {
         derived_property('CombiningClass',
             'Canonical_Combining_Class', { Not_Reordered => 0 }, 1)
     );
-    enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', { 0 => 0 }, 1, 1, 1);
+    enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', { 0 => 0 }, 1, 'int', 1);
     collation();
     Jamo($points_by_code);
     #BidiMirroring();
@@ -298,7 +298,6 @@ sub grapheme_cluster_break {
         $pname, {
             # Should not be set to Other for this one ?
             Other => 0,
-
         }, 1);
 }
 # Make sure we don't assign twice to the same pvalue code
@@ -307,19 +306,17 @@ sub check_base_for_duplicates {
     my %seen;
     for my $key (keys %{$base->{enum}}) {
         if ($seen{ $base->{enum}->{$key} }) {
-            croak("\nError: assigned twice to the same property value code (Property " . $base->{name} . " Both $key and "
-                . $seen{ $base->{enum}->{$key} }
-                . " are assigned to pvalue code "
-                . $base->{enum}->{$key}
-                . "\n"
+            croak("\nError: assigned twice to the same property value code "
+                . "(Property $base->{name} Both $key and $seen{ $base->{enum}->{$key} }"
+                . " are assigned to pvalue code $base->{enum}->{$key}\n"
                 . Dumper $base->{enum});
         }
         $seen{ ($base->{enum}->{$key}) } = $key;
     }
     my $start = 0;
     for my $key (sort { $base->{enum}->{$a} <=> $base->{enum}->{$b} } keys %{$base->{enum}}) {
-        croak("\nError: property value code is not sequential for property '"
-        . $base->{name} . "'. Expected $start but saw " . $base->{enum}->{$key} . "\n" . Dumper $base->{enum})
+        croak("\nError: property value code is not sequential for property '$base->{name}'."
+            . " Expected $start but saw $base->{enum}->{$key}\n" . Dumper $base->{enum})
             if $base->{enum}->{$key} != $start and $base->{name} ne 'Numeric_Type';
         # XXX Numeric_Type is excluded for now because it's a subtype. It is actually broken
         # but it is ignored temporarily.
@@ -372,10 +369,10 @@ sub register_keys_and_set_bit_width {
 }
 
 sub enumerated_property {
-    my ($fname, $pname, $base, $value_index, $is_int, $is_hex) = @_;
+    my ($fname, $pname, $base, $value_index, $type, $is_hex) = @_;
     my $j = scalar keys %{$base};
-    $base = { enum => $base, name => $pname };
-    $base->{type} = $is_int ? 'int' : 'string';
+    $type = 'string' unless $type;
+    $base = { enum => $base, name => $pname, type => $type };
     each_line($fname, sub { $_ = shift;
         my @vals = split /\s*[#;]\s*/;
         my $range = $vals[0];
@@ -542,8 +539,8 @@ ${indent}}";
 }
 
 my $FATE_NORMAL = 0;
-my $FATE_NULL = 1;
-my $FATE_SPAN = 2;
+my $FATE_NULL   = 1;
+my $FATE_SPAN   = 2;
 
 sub emit_extent_fate {
     my ($fate, $indent) = @_;
@@ -776,15 +773,10 @@ sub emit_bitfield {
     my $bytes_wide = 2;
     $bytes_wide *= 2 while $bytes_wide < $wide; # assume the worst
     $estimated_total_bytes += $rows * $bytes_wide; # we hope it's all laid out with no gaps...
-    my $val_type = $bitfield_cell_bitwidth == 8
-        ? 'MVMuint8'
-        : $bitfield_cell_bitwidth == 16
-        ? 'MVMuint16'
-        : $bitfield_cell_bitwidth == 32
-        ? 'MVMuint32'
-        : $bitfield_cell_bitwidth == 64
-        ? 'MVMuint64'
-        : croak 'wut.';
+    my $val_type = ($bitfield_cell_bitwidth == 8 || $bitfield_cell_bitwidth == 16
+        || $bitfield_cell_bitwidth == 32 || $bitfield_cell_bitwidth == 64)
+        ? ("MVMuint" . $bitfield_cell_bitwidth)
+        : croak("Unknown value of \$bitfield_cell_bitwidth: $bitfield_cell_bitwidth");
     $out = "static const $val_type props_bitfield[$rows][$wide] = {\n    ".
         stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."\n};";
     $db_sections->{BBB_main_bitfield} = $out;
@@ -797,6 +789,7 @@ sub emit_property_value_lookup {
     my $out = "
 static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
+    MVMint32 result_val = 0; /* we'll never have negatives, but so */
     MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
     MVMuint16 bitfield_row;
     /* If codepoint is not found in bitfield rows */
@@ -839,39 +832,25 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
     for my $prop (@$allocated) {
         my $enum = exists $prop->{keys};
         my $esize = 0;
-        my $is_int;
-        if ( defined($prop->{type}) && ($prop->{type} eq 'int')) {
-            $is_int = 1;
-        }
-        else {
-            $is_int = 0;
-        }
+        my $is_int = 0;
+        $is_int = 1 if (defined $prop->{type} and ($prop->{type} eq 'int'));
         print("\n" . $prop->{name} . " is an integer enum property") if $is_int;
         if ($enum) {
             $enum = $prop->{name} . "_enums";
             $esize = scalar @{$prop->{keys}};
-            if ($is_int) {
-                $enumtables .= "static const int ";
-            }
-            else {
-                $enumtables .= "static const char *";
-            }
+            $enumtables .= $is_int ? "static const int " : "static const char *";
             $enumtables .= "$enum\[$esize] = {";
-            if ($is_int) {
-                $enumtables .= "\n    $_," for @{$prop->{keys}};
-            }
-            else {
-                $enumtables .= "\n    \"$_\"," for @{$prop->{keys}};
+            my $format = $is_int ? "\n    %s," : "\n    \"%s\",";
+            for (@{$prop->{keys}}) {
+                $enumtables .= sprintf($format, $_);
             }
             $enumtables .= "\n};\n\n";
         }
-        $hout .= "    ".uc("MVM_unicode_property_$prop->{name}")." = $prop->{field_index},\n";
+        $hout .= "    " . uc("MVM_unicode_property_$prop->{name}") . " = $prop->{field_index},\n";
         $prop_names->{$prop->{name}} = $prop->{field_index};
-
-        $out .= "
-        case ".uc("MVM_unicode_property_$prop->{name}").":";
-        $eout .= "
-        case ".uc("MVM_unicode_property_$prop->{name}").":" if $enum;
+        my $case = "\n        case " . uc("MVM_unicode_property_$prop->{name}") . ":";
+        $out .= $case;
+        $eout .= $case if $enum;
 
         my $bit_width = $prop->{bit_width};
         my $bit_offset = $prop->{bit_offset} // 0;
@@ -903,13 +882,10 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
             if ($enum && defined($prop->{type}) && ($prop->{type} eq 'int')) {
                 # XXX todo, remove unneeded variables and jank
                 $out .= "
-                {
-                int bogus = -1;
-                int result_val = ((props_bitfield[bitfield_row][$word_offset] & 0x".
+                result_val = ((props_bitfield[bitfield_row][$word_offset] & 0x".
                     sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */";
-                #$out .= "fprintf(stderr, \"result_val = %i\\n\", result_val);\n"
                 $out .= "return result_val < $esize ? (result_val == -1
-                ? $enum\[0] : $enum\[result_val]) : bogus; }";
+                    ? $enum\[0] : $enum\[result_val]) : 0;\n    ";
                 next;
             }
             else {
@@ -925,29 +901,21 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
             $bit_offset = 0;
         }
 
-        $out .= "
-            ";
-        $eout .= "
-            " if $enum;
+        $out  .= "\n            ";
+        $eout .= "\n            " if $enum;
 
         $out .= "return result_val;" unless $one_word_only;
         $eout .= "return result_val < $esize ? (result_val == -1
         ? $enum\[0] : $enum\[result_val]) : bogus;" if $enum;
     }
-
-    $out .= "
+    my $default_return = "
         default:
-            return 0;
+            return %s;
     }
 }
 ";
-    $eout .= "
-        default:
-            return \"\";
-    }
-}
-";  # or should we try to stringify numeric value?
-
+    $out  .= sprintf $default_return, 0;
+    $eout .= sprintf $default_return, q("");
     $hout .= "} MVM_unicode_property_codes;";
 
     sub gen_pvalue_defines {
@@ -1378,31 +1346,23 @@ sub emit_unicode_property_value_keypairs {
     my $property;
     my %lines;
     my %aliases;
-    for (sort keys %$binary_properties) {
-        my $prop_val = ($prop_names->{$_} << 24) + 1;
-        my $propcode = thing($_, '_custom_', $prop_val, \%lines);
-        if (lc($_) eq 'c') {
-            thing('Other', '_custom_', $prop_val, \%lines, $propcode);
-        }
-        if (lc($_) eq 'l') {
-            thing('Letter', '_custom_', $prop_val, \%lines, $propcode);
-        }
-        if (lc($_) eq 'm') {
-            thing('Mark', '_custom_', $prop_val, \%lines, $propcode);
-            thing('Combining_Mark', '_custom_', $prop_val, \%lines, $propcode);
-        }
-        if (lc($_) eq 'n') {
-            thing('Number', '_custom_', $prop_val, \%lines, $propcode);
-        }
-        if (lc($_) eq 'p') {
-            thing('Punctuation', '_custom_', $prop_val, \%lines, $propcode);
-            thing('punct', '_custom_', $prop_val, \%lines, $propcode);
-        }
-        if (lc($_) eq 's') {
-            thing('Symbol', '_custom_', $prop_val, \%lines, $propcode);
-        }
-        if (lc($_) eq 'z') {
-            thing('Separator', '_custom_', $prop_val, \%lines, $propcode);
+    for my $thing (sort keys %$binary_properties) {
+        my $prop_val = ($prop_names->{$thing} << 24) + 1;
+        my $propcode = thing($thing, '_custom_', $prop_val, \%lines);
+        my $lc_thing = lc $thing;
+        my %stuff = (
+            c => ['Other'],
+            l => ['Letter'],
+            m => ['Mark', 'Combining_Mark'],
+            n => ['Number'],
+            p => ['Punctuation', 'punct'],
+            s => ['Symbol'],
+            z => ['Separator']
+            );
+        if (defined $stuff{$lc_thing}) {
+            for my $t (@{$stuff{$lc_thing}}) {
+                thing($t, '_custom_', $prop_val, \%lines, $propcode)
+            }
         }
     }
     for (sort keys %$enumerated_properties) {
@@ -1417,10 +1377,8 @@ sub emit_unicode_property_value_keypairs {
             $enum->{$_} = $toadd->{$_};
         }
     }
-    if (!%lines) {
-        croak "lines didn't get anything in it";
-    }
-        my %done;
+    croak "lines didn't get anything in it" if !%lines;
+    my %done;
     each_line('PropertyValueAliases', sub { $_ = shift;
         if (/^# (\w+) \((\w+)\)/) {
             $aliases{$2} = $1;
@@ -1431,9 +1389,7 @@ sub emit_unicode_property_value_keypairs {
         my @parts2;
         foreach my $part (@parts) {
             $part = trim($part);
-            if ($part =~ /[;]/) {
-                croak;
-            }
+            croak if $part =~ /[;]/;
             push @parts2, trim($part);
         }
         @parts = @parts2;
@@ -1484,7 +1440,7 @@ sub emit_unicode_property_value_keypairs {
             }
             #croak Dumper($enum) unless defined $value;
             unless (defined $value) {
-                #print "warning: couldn't resolve property $propname property value alias $first\n";
+                print "\nNote: couldn't resolve property $propname property value alias (you can disregard this for now).";
                 return;
             }
             for (@parts) {
@@ -1494,23 +1450,10 @@ sub emit_unicode_property_value_keypairs {
             }
         }
     }, 1);
-    #for my $v (@v2a) {
-        #{"punct",88}
-        #$v =~ /"(.*)"\s*,\s*(\d+)/;
-        #my $name = $1;
-        #my $num = $2;
-        #$lines{'gc'}->{$name} = q/{"$num-$name",}
-        #thing(x, 'gc',
 
-    #}
     # Aliases like L appear in several categories, but we prefere gc and sc.
     for my $propname (qw(_custom_ gc sc), sort keys %lines) {
         for (sort keys %{$lines{$propname}}) {
-            my $item = $_;
-            #if ($propname eq 'gc' and length $item == 1) {
-            #    my $thing = $item;
-            #    croak "item: $item " . (Dumper $prop_names->{'gc'});
-            #}
             $done{"$propname$_"} ||= push @lines, $lines{$propname}->{$_};
         }
     }
@@ -1983,23 +1926,7 @@ sub Jamo {
         %{$points_by_code}{$hs_cps}->{name} = $final_name;
     }
 }
-# XXX Likely redundant now
-sub BidiMirroring {
-    my $file = 'BidiMirroring';
-    my $propname = 'Bidi_Mirroring_Glyph';
-    my $max_size = 0;
-    each_line('BidiMirroring', sub { $_ = shift;
-        my $line = $_;
-        my ($range, $int) = split /\s*[;#]\s*/, $line;
-        $int = hex $int or croak;
-        $max_size = $int if $max_size < $int;
-        apply_to_range($range, sub {
-            my $point = shift;
-            $point->{$propname} = $int;
-        });
-    });
-    register_int_property($propname, $max_size);
-}
+
 sub collation_get_check_index {
     my ($index, $property, $base, $value) = @_;
     my $indexy = $base->{enum}->{$value};
@@ -2012,18 +1939,15 @@ sub collation_get_check_index {
     $indexy;
 }
 sub collation {
-    my ($index, $maxes) = ( {}, {} );
+    my ($index, $maxes, $bases) = ( {}, {}, {} );
     my ($name_primary, $name_secondary, $name_tertiary)
         = ('MVM_COLLATION_PRIMARY', 'MVM_COLLATION_SECONDARY', 'MVM_COLLATION_TERTIARY');
-    my $primary_base   = { enum => { 0 => 0 }, name => $name_primary, type => 'int' };
-    my $secondary_base = { enum => { 0 => 0 }, name => $name_secondary, type => 'int' };
-    my $tertiary_base  = { enum => { 0 => 0 }, name => $name_tertiary, type => 'int' };
-    for my $base ($primary_base, $secondary_base, $tertiary_base) {
+    for my $name ($name_primary, $name_secondary, $name_tertiary) {
+        my $base = $bases->{$name} = { enum => { 0 => 0 }, name => $name, type => 'int' };
         $index->{$base->{name}}->{j} = keys(%{$base->{enum}});
         $maxes->{$base->{name}} = 0;
         print("\n" . $base->{name} . " j starts at " . $index->{$base->{name}}->{j});
     }
-    my $implicit = 0;
     ## Sample line from allkeys.txt
     #1D4FF ; [.1EE3.0020.0005] # MATHEMATICAL BOLD SCRIPT SMALL V
     my $line_no = 0;
@@ -2032,63 +1956,51 @@ sub collation {
         $line_no++;
         my ($code, $temp);
         my $weights = {};
-        if ($line =~ s/ ^ \@implicitweights \s+ //xms ) {
-            ($code, $weights->{$name_primary}) = split / (?: [;\[\]]|\s )+ /xms, $line;
-            $weights->{$name_primary} = hex $weights->{$name_primary} or croak;
-            $code or croak;
-            $implicit = 1;
-        }
-        elsif ( $line =~ /^\s*[#@]/ or $line =~ /^\s*$/ ) {
-            $line = '';
+        # implicit weights are handled in ./tools/Generate-Collation-Data.p6
+        return if $line =~ s/ ^ \@implicitweights \s+ //xms;
+        return if $line =~ /^\s*[#@]/ or $line =~ /^\s*$/; # Blank/comment lines
+        ($code, $temp) = split /[;#]+/, $line;
+        $code = trim $code;
+        my @codes = split / /, $code;
+        # We support collation for multiple codepoints in ./tools/Generate-Collation-Data.p6
+        if ( scalar @codes > 1 ) {
+            # For now set MVM_COLLATION_QC = 0 for these cp
+            apply_to_range($codes[0], sub {
+                my $point = shift;
+                $point->{'MVM_COLLATION_QC'} = 0;
+            });
             return;
         }
-        else {
-            ($code, $temp) = split /[;#]+/, $line;
-            $code = trim $code;
-            my @codes = split / /, $code;
-            # We support collation for multiple codepoints in ./tools/Generate-Collation-Data.p6
-            if ( scalar @codes > 1 ) {
-                # For now set MVM_COLLATION_QC = 0 for these cp
-                apply_to_range($codes[0], sub {
-                    my $point = shift;
-                    $point->{'MVM_COLLATION_QC'} = 0;
-                });
-                return;
-            }
-            # We capture the `.` or `*` before each weight. Currently we do
-            # not use this information, but it may be of use later (we currently
-            # don't put their values into the data structure.
+        # We capture the `.` or `*` before each weight. Currently we do
+        # not use this information, but it may be of use later (we currently
+        # don't put their values into the data structure.
 
-            # When multiple tables are specified for a character, it is because those
-            # are the composite values for the decomposed character. Since we compare
-            # in NFC form not NFD, let's add these together.
+        # When multiple tables are specified for a character, it is because those
+        # are the composite values for the decomposed character. Since we compare
+        # in NFC form not NFD, let's add these together.
 
-            while ( $temp =~ / (:? \[ ([.*]) (\p{AHex}+) ([.*]) (\p{AHex}+) ([.*]) (\p{AHex}+) \] ) /xmsg ) {
-                $weights->{$name_primary}   += hex $3;
-                $weights->{$name_secondary} += hex $5;
-                $weights->{$name_tertiary}  += hex $7;
-            }
-
+        while ( $temp =~ / (:? \[ ([.*]) (\p{AHex}+) ([.*]) (\p{AHex}+) ([.*]) (\p{AHex}+) \] ) /xmsg ) {
+            $weights->{$name_primary}   += hex $3;
+            $weights->{$name_secondary} += hex $5;
+            $weights->{$name_tertiary}  += hex $7;
         }
         if ( !defined $code or !defined $weights->{$name_primary} or !defined $weights->{$name_secondary} or !defined $weights->{$name_tertiary} ) {
-            unless ( $implicit and defined $weights->{$name_primary} ) {
-                my $str;
-                for my $name ($name_primary, $name_secondary, $name_tertiary) {
-                    $str .= "\$weights->{$name} = " . $weights->{$name} . ", ";
-                }
-                croak "Line no $line_no: \$line = $line, $str";
+            my $str;
+            for my $name ($name_primary, $name_secondary, $name_tertiary) {
+                $str .= "\$weights->{$name} = " . $weights->{$name} . ", ";
             }
+            croak "Line no $line_no: \$line = $line, $str";
         }
         apply_to_range($code, sub {
             my $point = shift;
             my $raws = {};
-            for my $base ($primary_base, $secondary_base, $tertiary_base) {
+            for my $base ($bases->{$name_primary}, $bases->{$name_secondary}, $bases->{$name_tertiary}) {
                 my $name = $base->{name};
                 # Add one to the value so we can distinguish between specified values
                 # of zero for collation weight and null values.
                 $raws->{$name} = 1;
                 if ($weights->{$name}) {
-                    $raws->{$name} += $weights->{$name} if $weights->{$name};
+                    $raws->{$name} += $weights->{$name};
                     $maxes->{$name} = $weights->{$name} if $weights->{$name} > $maxes->{$name};
                 }
                 $point->{$base->{name}} = collation_get_check_index($index, $base->{name}, $base, $raws->{$base->{name}});
@@ -2102,16 +2014,13 @@ sub collation {
         $point->{$name_tertiary} = 0;
     });
 
-    for ( $maxes->{$name_primary}, $maxes->{$name_secondary}, $maxes->{$name_tertiary} ) {
-        if ( $_ < 1 ) {
-            croak("Oh no! One of the highest collation numbers I saw is less than 1. Something is wrong" .
-              "Primary max: " . $maxes->{$name_primary} . " secondary max: " . $maxes->{$name_secondary} . " tertiary_max: " . $maxes->{$name_tertiary});
-        }
-    }
-    for my $base ($primary_base, $secondary_base, $tertiary_base) {
+    for my $base ($bases->{$name_primary}, $bases->{$name_secondary}, $bases->{$name_tertiary}) {
         $base->{bit_width} = least_int_ge_lg2($index->{$base->{name}}->{j});
         register_keys($base);
         register_enumerated_property($base->{name}, $base);
+        croak("Oh no! One of the highest collation numbers I saw is less than 1. Something is wrong" .
+              "Primary max: " . $maxes->{$name_primary} . " secondary max: " . $maxes->{$name_secondary} . " tertiary_max: " . $maxes->{$name_tertiary})
+            if $maxes->{$base->{name}} < 1;
     }
     register_binary_property('MVM_COLLATION_QC');
 }
@@ -2178,7 +2087,7 @@ sub tweak_nfg_qc {
         }
         # For now set all Emoji to NFG_QC 0
         # Eventually we will only want to set the ones that are NOT specified
-        # as ZWJ sequences
+        # as ZWJ sequences XXX
         elsif ($point->{'Emoji'}) {
             $point->{'NFG_QC'} = 0;
         }
