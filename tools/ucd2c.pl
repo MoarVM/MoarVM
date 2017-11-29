@@ -1993,7 +1993,8 @@ sub collation {
                     $raws->{$name} += $weights->{$name};
                     $maxes->{$name} = $weights->{$name} if $weights->{$name} > $maxes->{$name};
                 }
-                $point->{$base->{name}} = collation_get_check_index($index, $base->{name}, $base, $raws->{$base->{name}});
+                #$point->{$base->{name}} = collation_get_check_index($index, $base->{name}, $base, $raws->{$base->{name}}); # Uncomment to make it an int enum
+                $point->{$base->{name}} = $raws->{$base->{name}}; # Comment to make it an int enum
             }
         });
     });
@@ -2006,8 +2007,9 @@ sub collation {
 
     for my $base ($bases->{$name_primary}, $bases->{$name_secondary}, $bases->{$name_tertiary}) {
         $base->{bit_width} = least_int_ge_lg2($index->{$base->{name}}->{j});
-        register_keys($base);
-        register_enumerated_property($base->{name}, $base);
+        #register_enumerated_property($base->{name}, $base); # Uncomment to make an int enum
+        #register_keys($base); # Uncomment to make an int enum
+        register_int_property($base->{name}, $maxes->{$base->{name}}); # Comment to make an int enum
         croak("Oh no! One of the highest collation numbers I saw is less than 1. Something is wrong" .
               "Primary max: " . $maxes->{$name_primary} . " secondary max: " . $maxes->{$name_secondary} . " tertiary_max: " . $maxes->{$name_tertiary})
             if $maxes->{$base->{name}} < 1;
