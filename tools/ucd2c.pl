@@ -53,11 +53,6 @@ my $gap_length_threshold = 1000;
 my $span_length_threshold = 100;
 my $skip_most_mode = 0;
 my $bitfield_cell_bitwidth = 32;
-my %is_subtype = (
-    Digit => {
-        of => 'Numeric_Type',
-    }
-);
 my $gc_alias_checkers = [];
 
 sub trim {
@@ -317,9 +312,7 @@ sub check_base_for_duplicates {
     for my $key (sort { $base->{enum}->{$a} <=> $base->{enum}->{$b} } keys %{$base->{enum}}) {
         croak("\nError: property value code is not sequential for property '$base->{name}'."
             . " Expected $start but saw $base->{enum}->{$key}\n" . Dumper $base->{enum})
-            if $base->{enum}->{$key} != $start and $base->{name} ne 'Numeric_Type';
-        # XXX Numeric_Type is excluded for now because it's a subtype. It is actually broken
-        # but it is ignored temporarily.
+            if $base->{enum}->{$key} != $start;
         $start++;
     }
 }
@@ -347,14 +340,7 @@ sub register_keys {
     my @keys = ();
     # stash the keys in an array so they can be put in a table later
     for my $key (keys %{$base->{enum}}) {
-        if ($is_subtype{$key}) {
-            # XXX Fix 'Digit' why is it a subtype? Does it need to be?
-            register_enumerated_property($key, {%$base});
-                delete $base->{enum}->{$key};
-        }
-        else {
-            $keys[$base->{enum}->{$key}] = $key;
-        }
+        $keys[$base->{enum}->{$key}] = $key;
     }
     print "\n    keys = @keys" if $DEBUG;
     $base->{keys} = \@keys;
@@ -442,15 +428,7 @@ sub allocate_bitfield {
                 }
                 last;
             }
-            if ($is_subtype{$prop->{name}}) {
-                $prop->{word_offset} = $enumerated_properties->{ $is_subtype{$prop->{name}}{of} }{word_offset};
-                $prop->{bit_offset}  = $enumerated_properties->{ $is_subtype{$prop->{name}}{of} }{bit_offset};
-                push @$allocated, $prop;
-                splice(@biggest, $i, 1);
-                $prop->{field_index} = $index++;
-                last;
-            }
-            elsif ($bit_offset + $prop->{bit_width} <= $bitfield_cell_bitwidth) {
+            if ($bit_offset + $prop->{bit_width} <= $bitfield_cell_bitwidth) {
                 $prop->{word_offset} = $word_offset;
                 $prop->{bit_offset} = $bit_offset;
                 $bit_offset += $prop->{bit_width};
@@ -2096,10 +2074,7 @@ sub register_enumerated_property {
         #croak("\n\$base->{name} not set for property '$pname'");
     }
     elsif ($pname ne $base->{name}) {
-        # XXX 'Digit' issue here also
-        croak("name doesn't match. Argument was '$pname' but was already set to '" . $base->{name})
-            unless $pname eq 'Digit';
-        $base->{name} = $pname;
+        croak("name doesn't match. Argument was '$pname' but was already set to '" . $base->{name});
     }
     check_base_for_duplicates($base);
     croak if exists $enumerated_properties->{$pname};
