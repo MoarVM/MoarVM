@@ -103,8 +103,6 @@ static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
         void         **labels = f->spesh_cand->jitcode->labels;
         void       *cur_label = f->jit_entry_label;
         for (i = 0; i < num_handlers; i++) {
-            if (mode == MVM_EX_THROW_LEX && fhs[i].inlined_and_not_lexical)
-                continue;
             if (!handler_can_handle(f, &fhs[i], cat, payload))
                 continue;
             if (cur_label >= labels[jhs[i].start_label] &&
@@ -126,8 +124,6 @@ static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
             pc = (MVMuint32)(f->return_address - MVM_frame_effective_bytecode(f));
         for (i = 0; i < num_handlers; i++) {
             MVMFrameHandler  *fh = &(MVM_frame_effective_handlers(f)[i]);
-            if (mode == MVM_EX_THROW_LEX && fh->inlined_and_not_lexical)
-                continue;
             if (!handler_can_handle(f, fh, cat, payload))
                 continue;
             if (pc >= fh->start_offset && pc <= fh->end_offset && !in_handler_stack(tc, fh, f)) {
