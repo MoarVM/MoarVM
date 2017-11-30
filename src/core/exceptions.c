@@ -89,12 +89,16 @@ static MVMint32 handler_can_handle(MVMFrame *f, MVMFrameHandler *fh, MVMint32 ca
         || ((category_mask & MVM_EX_CAT_CONTROL) && cat != MVM_EX_CAT_CATCH);
 }
 
-/* Looks through the handlers of a particular scope, and sees if one will
- * match what we're looking for. Returns 1 to it if so; if not,
- * returns 0. */
-static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
-                                      MVMuint8 mode, MVMuint32 cat,
-                                      MVMObject *payload, LocatedHandler *lh) {
+/* Looks through the handlers of a particular frame, including inlines in
+ * dynamic scope, and sees if one will match what we're looking for. Returns
+ * 1 to it if so, and 0 if not; in the case 1 is returned the *lh will be
+ * populated with details of the located handler. Since upon inlining, the
+ * dynamic scope becomes lexical so far as the optimized bytecode is
+ * concerned, then this just needs a scan of the table without any further
+ * checks being needed. */
+static MVMint32 search_frame_handlers_dyn(MVMThreadContext *tc, MVMFrame *f,
+                                          MVMuint32 cat, MVMObject *payload,
+                                          LocatedHandler *lh) {
     MVMuint32  i;
     if (f->spesh_cand && f->spesh_cand->jitcode && f->jit_entry_label) {
         MVMJitHandler    *jhs = f->spesh_cand->jitcode->handlers;
@@ -135,10 +139,136 @@ static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
     return 0;
 }
 
+/* Looks for lexically applicable handlers in the current frame, accounting
+ * for any inlines. The skip_first_inlinee flag indicates that we should skip
+ * looking until we have encountered an inline boundary indicator saying that
+ * we have crossed from an inlinee to its inliner's handlers; this is used to
+ * handle the THROW_LEX_CALLER mode. If we never encounter an inline boundary
+ * when skip_first_inlinee is true then we'll always return 0.
+ *
+ * If skip_first_inline is false or we already saw an inline boundary, then
+ * we start looking for a matching handler. If one is found before seeing
+ * another inline boundary, then it is applicable; the data pointed to by lh
+ * will be updated with the frame handler details and 1 will be returned.
+ *
+ * Upon reaching an (or, in the case of skip_first_inline, a second) inline
+ * boundary indicator, there are two cases that apply. We take the inline
+ * that we are leaving, and look up the code ref using the code_ref_reg in
+ * the inline. We know that we can never inline a frame that was closed over
+ * (due to capturelex or takeclosure being marked :noinline). Thus, either:
+ * 1. The outer of the inlinee is actually the current frame f. In this case,
+ *    we skip all inlined handlers and just consider those of f itself.
+ * 2. The next frame we should search in is the ->outer of the inlinee, and
+ *    thus all the rest of the handlers in this frame should be ignored. In
+ *    this case, the MVMFrame **next_otuer will be populated with a pointer
+ *    to that frame.
+ *
+ * The skip_all_inlinees flag is set once we are below the frame on the stack
+ * to where the search started. Again, this is because a frame that did a
+ * lexical capture may not be inlined, so we only need to consider the topmost
+ * frame's handlers, not anything it might have inlined into it.
+ */
+static MVMint32 search_frame_handlers_lex(MVMThreadContext *tc, MVMFrame *f,
+                                          MVMuint32 cat, MVMObject *payload,
+                                          LocatedHandler *lh,
+                                          MVMuint32 *skip_first_inlinee,
+                                          MVMuint32 skip_all_inlinees,
+                                          MVMFrame **next_outer) {
+    MVMuint32 i;
+    MVMuint32 skipping = *skip_first_inlinee;
+    if (f->spesh_cand && f->spesh_cand->jitcode && f->jit_entry_label) {
+        MVMJitHandler    *jhs = f->spesh_cand->jitcode->handlers;
+        MVMFrameHandler  *fhs = MVM_frame_effective_handlers(f);
+        MVMint32 num_handlers = f->spesh_cand->jitcode->num_handlers;
+        void         **labels = f->spesh_cand->jitcode->labels;
+        void       *cur_label = f->jit_entry_label;
+        for (i = 0; i < num_handlers; i++) {
+            if (skip_all_inlinees && fhs[i].inlinee >= 0)
+                continue;
+            if (fhs[i].category_mask == MVM_EX_INLINE_BOUNDARY) {
+                if (cur_label >= labels[jhs[i].start_label] &&
+                        cur_label <= labels[jhs[i].end_label]) {
+                    if (skipping) {
+                        skipping = 0;
+                        *skip_first_inlinee = 0;
+                    }
+                    else {
+                        MVMuint16 cr_reg = f->spesh_cand->inlines[fhs[i].inlinee].code_ref_reg;
+                        MVMFrame *inline_outer = ((MVMCode *)f->work[cr_reg].o)->body.outer;
+                        if (inline_outer == f) {
+                            skip_all_inlinees = 1;
+                        }
+                        else {
+                            *next_outer = inline_outer;
+                            return 0;
+                        }
+                    }
+                }
+                continue;
+            }
+            if (skipping || !handler_can_handle(f, &fhs[i], cat, payload))
+                continue;
+            if (cur_label >= labels[jhs[i].start_label] &&
+                    cur_label <= labels[jhs[i].end_label] &&
+                    !in_handler_stack(tc, &fhs[i], f)) {
+                if (skipping && f->static_info->body.is_thunk)
+                    return 0;
+                lh->handler     = &fhs[i];
+                lh->jit_handler = &jhs[i];
+                return 1;
+            }
+        }
+    } else {
+        MVMint32 num_handlers = f->spesh_cand
+            ? f->spesh_cand->num_handlers
+            : f->static_info->body.num_handlers;
+        MVMint32 pc;
+        if (f == tc->cur_frame)
+            pc = (MVMuint32)(*tc->interp_cur_op - *tc->interp_bytecode_start);
+        else
+            pc = (MVMuint32)(f->return_address - MVM_frame_effective_bytecode(f));
+        for (i = 0; i < num_handlers; i++) {
+            MVMFrameHandler *fh = &(MVM_frame_effective_handlers(f)[i]);
+            if (skip_all_inlinees && fh->inlinee >= 0)
+                continue;
+            if (fh->category_mask == MVM_EX_INLINE_BOUNDARY) {
+                if (pc >= fh->start_offset && pc <= fh->end_offset) {
+                    if (skipping) {
+                        skipping = 0;
+                        *skip_first_inlinee = 0;
+                    }
+                    else {
+                        MVMuint16 cr_reg = f->spesh_cand->inlines[fh->inlinee].code_ref_reg;
+                        MVMFrame *inline_outer = ((MVMCode *)f->work[cr_reg].o)->body.outer;
+                        if (inline_outer == f) {
+                            skip_all_inlinees = 1;
+                        }
+                        else {
+                            *next_outer = inline_outer;
+                            return 0;
+                        }
+                    }
+                }
+                continue;
+            }
+            if (skipping || !handler_can_handle(f, fh, cat, payload))
+                continue;
+            if (pc >= fh->start_offset && pc <= fh->end_offset && !in_handler_stack(tc, fh, f)) {
+                if (skipping && f->static_info->body.is_thunk)
+                    return 0;
+                lh->handler = fh;
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 /* Searches for a handler of the specified category, relative to the given
  * starting frame, searching according to the chosen mode. */
 static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
         MVMuint8 mode, MVMuint32 cat, MVMObject *payload) {
+    MVMuint32 skip_first_inlinee = 0;
     LocatedHandler lh;
     lh.frame = NULL;
     lh.handler = NULL;
@@ -146,25 +276,39 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
     lh.handler_out_of_dynamic_scope = 0;
     switch (mode) {
         case MVM_EX_THROW_LEX_CALLER:
-            f = f->caller;
-            while (f && f->static_info->body.is_thunk)
-                f = f->caller;
-            /* And now we've gone down a caller, it's just lexical... */
-        case MVM_EX_THROW_LEX:
+            skip_first_inlinee = 1;
+        case MVM_EX_THROW_LEX: {
+            MVMint32 skip_all_inlinees = 0;
             while (f != NULL) {
-                if (search_frame_handlers(tc, f, MVM_EX_THROW_LEX, cat, payload, &lh)) {
+                MVMFrame *outer_from_inlinee = NULL;
+                if (search_frame_handlers_lex(tc, f, cat, payload, &lh, &skip_first_inlinee,
+                            skip_all_inlinees, &outer_from_inlinee)) {
                     if (in_caller_chain(tc, f))
                         lh.frame = f;
                     else
                         lh.handler_out_of_dynamic_scope = 1;
                     return lh;
                 }
-                f = f->outer;
+                if (skip_first_inlinee) {
+                    /* If this is still set, it means that the topmost frame
+                     * had no inlines, so we didn't already reach a chain of
+                     * outers to traverse. In this case, skip over any thunks
+                     * and continue the search. */
+                    skip_first_inlinee = 0;
+                    f = f->caller;
+                    while (f && f->static_info->body.is_thunk)
+                        f = f->caller;
+                }
+                else {
+                    f = outer_from_inlinee ? outer_from_inlinee : f->outer;
+                    skip_all_inlinees = 1;
+                }
             }
             return lh;
+        }
         case MVM_EX_THROW_DYN:
             while (f != NULL) {
-                if (search_frame_handlers(tc, f, mode, cat, payload, &lh)) {
+                if (search_frame_handlers_dyn(tc, f, cat, payload, &lh)) {
                     lh.frame = f;
                     return lh;
                 }

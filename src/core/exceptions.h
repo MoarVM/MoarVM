@@ -20,6 +20,9 @@
 #define MVM_EX_CAT_EMIT          16384
 #define MVM_EX_CAT_DONE          32768
 
+/* Not a real category, but marks an inline boundary. */
+#define MVM_EX_INLINE_BOUNDARY   2147483648
+
 /* Ways to throw an exception. */
 #define MVM_EX_THROW_DYN         0
 #define MVM_EX_THROW_LEX         1
@@ -34,7 +37,7 @@ struct MVMFrameHandler {
     /* End offset into the frame's bytecode for the handler, exclusive. */
     MVMuint32 end_offset;
 
-    /* Category mask. */
+    /* Category mask or inline boundary indicator. */
     MVMuint32 category_mask;
 
     /* The kind of handler it is. */
@@ -49,6 +52,12 @@ struct MVMFrameHandler {
     /* Register containing a label in case we have a labeled loop. We need to
      * be able to check for its identity when handling e.g. `next LABEL`. */
     MVMuint16 label_reg;
+
+    /* The inlinee that this handler is associated with. Set to -1 for the
+     * top-level handlers of a frame. Used both to skip non-top-level
+     * handlers, but also to indicate, for a inline boundary indicator
+     * entry in the table, the inline whose handlers end at this point. */
+    MVMint16 inlinee;
 };
 
 /* An active (currently executing) exception handler. */
