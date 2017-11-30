@@ -883,11 +883,11 @@ void snapshot_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col
     collectables_to_filehandle(tc, col, entry);
     references_to_filehandle(tc, col, entry);
 
-    string_heap_to_filehandle(tc, col);
-    types_to_filehandle(tc, col);
-    static_frames_to_filehandle(tc, col);
+    /*string_heap_to_filehandle(tc, col);*/
+    /*types_to_filehandle(tc, col);*/
+    /*static_frames_to_filehandle(tc, col);*/
 
-    entry->incremental_data = index->stringheap_size + index->types_size + index->staticframes_size;
+    /*entry->incremental_data = index->stringheap_size + index->types_size + index->staticframes_size;*/
 }
 void index_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMHeapDumpIndex *index = col->index;
