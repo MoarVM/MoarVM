@@ -959,3 +959,37 @@ MVMint32 MVM_get_exception_category(MVMThreadContext *tc, MVMObject *ex) {
     else
         MVM_exception_throw_adhoc(tc, "getexcategory needs a VMException, got %s (%s)", REPR(ex)->name, MVM_6model_get_debug_name(tc, ex));
 }
+
+MVMObject * MVM_get_exception_payload(MVMThreadContext *tc, MVMObject *ex) {
+    MVMObject *result;
+    if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+        result = ((MVMException *)ex)->body.payload;
+    else
+        MVM_exception_throw_adhoc(tc, "getexpayload needs a VMException, got %s (%s)", REPR(ex)->name, MVM_6model_get_debug_name(tc, ex));
+    if (!result)
+        result = tc->instance->VMNull;
+    return result;
+}
+
+void MVM_bind_exception_payload(MVMThreadContext *tc, MVMObject *ex, MVMObject *payload) {
+    if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException) {
+        MVM_ASSIGN_REF(tc, &(ex->header), ((MVMException *)ex)->body.payload,
+                payload);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "bindexpayload needs a VMException, got %s (%s)", REPR(ex)->name, MVM_6model_get_debug_name(tc, ex));
+    }
+}
+
+void MVM_bind_exception_category(MVMThreadContext *tc, MVMObject *ex, MVMint32 category) {
+    if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+        ((MVMException *)ex)->body.category = category;
+    else
+        MVM_exception_throw_adhoc(tc, "bindexcategory needs a VMException, got %s (%s)", REPR(ex)->name, MVM_6model_get_debug_name(tc, ex));
+}
+void MVM_exception_returnafterunwind(MVMThreadContext *tc, MVMObject *ex) {
+    if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+        ((MVMException *)ex)->body.return_after_unwind = 1;
+    else
+        MVM_exception_throw_adhoc(tc, "exreturnafterunwind needs a VMException, got %s (%s)", REPR(ex)->name, MVM_6model_get_debug_name(tc, ex));
+}
