@@ -547,6 +547,7 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     *inline_boundary_handler = inliner->num_handlers + inlinee->num_handlers;
     resize_handlers_table(tc, inliner, *inline_boundary_handler + 1);
     inliner->handlers[*inline_boundary_handler].category_mask = MVM_EX_INLINE_BOUNDARY;
+    inliner->handlers[*inline_boundary_handler].action = 0;
     inliner->handlers[*inline_boundary_handler].inlinee = total_inlines - 1;
 
     /* If the inliner has handlers in effect at the point of the call that we
