@@ -16,7 +16,7 @@ $Data::Dumper::Maxdepth = 1;
 
 my $DEBUG = $ENV{UCD2CDEBUG} // 0;
 
-my @name_lines;
+my @NAME_LINES;
 if ($DEBUG) {
     open(LOG, ">extents") or croak "can't create extents: $!";
     binmode LOG, ':encoding(UTF-8)';
@@ -24,36 +24,36 @@ if ($DEBUG) {
 binmode STDOUT, ':encoding(UTF-8)';
 binmode STDERR, ':encoding(UTF-8)';
 my $LOG;
-
-my $db_sections = {};
-my $sequences = {};
-my $hout = "";
-my $h_sections = {};
-my $planes = [];
-my $points_by_code = {};
-my $enumerated_properties = {};
-my $binary_properties = {};
-my $first_point = undef;
-my $last_point = undef;
-my $aliases = {};
-my $alias_types = {};
-my $prop_names = {};
-my $named_sequences = {};
-my $bitfield_table = [];
-my $prop_codes = {};
-my $all_properties = {};
-my $allocated_properties;
-my $extents;
-my $property_index = 0;
-my $estimated_total_bytes = 0;
-my $total_bytes_saved = 0;
-my $wrap_to_columns = 120;
-my $compress_codepoints = 1;
-my $gap_length_threshold = 1000;
-my $span_length_threshold = 100;
-my $skip_most_mode = 0;
-my $bitfield_cell_bitwidth = 32;
-my $gc_alias_checkers = [];
+# All globals should use UPPERCASE
+my $DB_SECTIONS = {};
+my $SEQUENCES = {};
+my $HOUT = "";
+my $H_SECTIONS = {};
+my $PLANES = [];
+my $POINTS_BY_CODE = {};
+my $ENUMERATED_PROPERTIES = {};
+my $BINARY_PROPERTIES = {};
+my $FIRST_POINT = undef;
+my $LAST_POINT = undef;
+my $ALIASES = {};
+my $ALIAS_TYPES = {};
+my $PROP_NAMES = {};
+my $NAMED_SEQUENCES = {};
+my $BITFIELD_TABLE = [];
+my $PROP_CODES = {};
+my $ALL_PROPERTIES = {};
+my $ALLOCATED_PROPERTIES;
+my $EXTENTS;
+my $PROPERTY_INDEX = 0;
+my $ESTIMATED_TOTAL_BYTES = 0;
+my $TOTAL_BYTES_SAVED = 0;
+my $WRAP_TO_COLUMNS = 120;
+my $COMPRESS_CODEPOINTS = 1;
+my $GAP_LENGTH_THRESHOLD = 1000;
+my $SPAN_LENGTH_THRESHOLD = 100;
+my $SKIP_MOST_MODE = 0;
+my $BITFIELD_CELL_BITWIDTH = 32;
+my $GC_ALIAS_CHECKERS = [];
 
 sub trim {
     my $s = shift;
@@ -92,7 +92,7 @@ sub add_emoji_sequences {
 }
 sub progress($);
 sub main {
-    $db_sections->{'AAA_header'} = header();
+    $DB_SECTIONS->{'AAA_header'} = header();
     my $highest_emoji_version = add_emoji_sequences();
     add_unicode_sequence('NamedSequences');
     gen_unicode_sequence_keypairs();
@@ -107,9 +107,9 @@ sub main {
     );
     enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', { 0 => 0 }, 1, 'int', 1);
     collation();
-    Jamo($points_by_code);
+    Jamo();
     #BidiMirroring();
-    goto skip_most if $skip_most_mode;
+    goto skip_most if $SKIP_MOST_MODE;
     binary_props('extracted/DerivedBinaryProperties');
     binary_props("emoji-$highest_emoji_version/emoji-data");
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 3);
@@ -156,20 +156,20 @@ sub main {
 
     # Allocate all the things
     progress("done.\nallocating bitfield...");
-    my $allocated_properties = allocate_bitfield();
+    my $allocated_bitfield_properties = allocate_bitfield();
     # Compute all the things
     progress("done.\ncomputing all properties...");
-    compute_properties($allocated_properties);
+    compute_properties($allocated_bitfield_properties);
     # Make the things less
     progress("...done.\ncomputing collapsed properties table...");
-    compute_bitfield($first_point);
+    compute_bitfield($FIRST_POINT);
     # Emit all the things
     progress("...done.\nemitting unicode_db.c...");
-    emit_bitfield($first_point);
-    $extents = emit_codepoints_and_planes($first_point);
-    emit_case_changes($first_point);
-    emit_codepoint_row_lookup($extents);
-    emit_property_value_lookup($allocated_properties);
+    emit_bitfield($FIRST_POINT);
+    $EXTENTS = emit_codepoints_and_planes($FIRST_POINT);
+    emit_case_changes($FIRST_POINT);
+    emit_codepoint_row_lookup($EXTENTS);
+    emit_property_value_lookup($allocated_bitfield_properties);
     emit_names_hash_builder();
     emit_unicode_property_keypairs();
     emit_unicode_property_value_keypairs();
@@ -177,14 +177,14 @@ sub main {
     emit_composition_lookup();
 
     print "done!";
-    write_file('src/strings/unicode_db.c', join_sections($db_sections));
-    write_file('src/strings/unicode_gen.h', join_sections($h_sections));
+    write_file('src/strings/unicode_db.c', join_sections($DB_SECTIONS));
+    write_file('src/strings/unicode_gen.h', join_sections($H_SECTIONS));
     print "\nEstimated bytes demand paged from disk: ".
-        thousands($estimated_total_bytes).
+        thousands($ESTIMATED_TOTAL_BYTES).
         ".\nEstimated bytes saved by various compressions: ".
-        thousands($total_bytes_saved).".\n";
+        thousands($TOTAL_BYTES_SAVED).".\n";
     if ($DEBUG) {
-        $LOG =~ s/('fate_really' => )(\d+)/$1$name_lines[$2]/g;
+        $LOG =~ s/('fate_really' => )(\d+)/$1$NAME_LINES[$2]/g;
         print LOG $LOG;
         close LOG;
     }
@@ -248,11 +248,11 @@ sub apply_to_range {
     $first_str ||= $range;
     $last_str ||= $first_str;
     my ($first_code, $last_code) = (hex $first_str, hex $last_str);
-    my $point = $points_by_code->{$first_code};
+    my $point = $POINTS_BY_CODE->{$first_code};
     if (!$point) { # go backwards to find the last one
                     # (much faster than going forwards for some reason)
         my $code = $first_code - 1;
-        $code-- until ($point = $points_by_code->{$code});
+        $code-- until ($point = $POINTS_BY_CODE->{$code});
         $point = $point->{next_point};
     }
     my $last_point;
@@ -397,12 +397,12 @@ sub each_line {
 }
 
 sub allocate_bitfield {
-    my @biggest = map { $enumerated_properties->{$_} }
-        sort { $enumerated_properties->{$b}->{bit_width}
-            <=> $enumerated_properties->{$a}->{bit_width} }
-            sort keys %$enumerated_properties;
-    for (sort keys %$binary_properties) {
-        push @biggest, $binary_properties->{$_};
+    my @biggest = map { $ENUMERATED_PROPERTIES->{$_} }
+        sort { $ENUMERATED_PROPERTIES->{$b}->{bit_width}
+            <=> $ENUMERATED_PROPERTIES->{$a}->{bit_width} }
+            sort keys %$ENUMERATED_PROPERTIES;
+    for (sort keys %$BINARY_PROPERTIES) {
+        push @biggest, $BINARY_PROPERTIES->{$_};
     }
     my $word_offset = 0;
     my $bit_offset = 0;
@@ -419,20 +419,20 @@ sub allocate_bitfield {
                     $prop->{word_offset} = $word_offset;
                     $prop->{bit_offset} = $bit_offset;
                     $bit_offset += $prop->{bit_width};
-                    while ($bit_offset >= $bitfield_cell_bitwidth) {
+                    while ($bit_offset >= $BITFIELD_CELL_BITWIDTH) {
                         $word_offset++;
-                        $bit_offset -= $bitfield_cell_bitwidth;
+                        $bit_offset -= $BITFIELD_CELL_BITWIDTH;
                     }
                     push @$allocated, $prop;
                     $prop->{field_index} = $index++;
                 }
                 last;
             }
-            if ($bit_offset + $prop->{bit_width} <= $bitfield_cell_bitwidth) {
+            if ($bit_offset + $prop->{bit_width} <= $BITFIELD_CELL_BITWIDTH) {
                 $prop->{word_offset} = $word_offset;
                 $prop->{bit_offset} = $bit_offset;
                 $bit_offset += $prop->{bit_width};
-                if ($bit_offset == $bitfield_cell_bitwidth) {
+                if ($bit_offset == $BITFIELD_CELL_BITWIDTH) {
                     $word_offset++;
                     $bit_offset = 0;
                 }
@@ -443,8 +443,8 @@ sub allocate_bitfield {
             }
         }
     }
-    $first_point->{bitfield_width} = $word_offset+1;
-    $h_sections->{num_property_codes} = "#define MVM_NUM_PROPERTY_CODES $index\n";
+    $FIRST_POINT->{bitfield_width} = $word_offset+1;
+    $H_SECTIONS->{num_property_codes} = "#define MVM_NUM_PROPERTY_CODES $index\n";
     $allocated
 }
 
@@ -454,19 +454,19 @@ sub compute_properties {
     for my $field (@$fields) {
         my $bit_offset = $field->{bit_offset};
         my $bit_width = $field->{bit_width};
-        my $point = $first_point;
+        my $point = $FIRST_POINT;
         print "\n        $field->{name} bit width:$bit_width";
         my $i = 0;
         my $bit = 0;
         my $mask = 0;
-        while ($bit < $bitfield_cell_bitwidth) {
+        while ($bit < $BITFIELD_CELL_BITWIDTH) {
             $mask |= 2 ** $bit++;
         }
         while (defined $point) {
             if (defined $point->{$field->{name}}) {
                 my $word_offset = $field->{word_offset};
                 # $x is one less than the number of words required to hold the field
-                my $x = int(($bit_width - 1) / $bitfield_cell_bitwidth);
+                my $x = int(($bit_width - 1) / $BITFIELD_CELL_BITWIDTH);
                 # move us over to the last word
                 $word_offset += $x;
                 # loop until we fill all the words, starting with the most
@@ -479,9 +479,9 @@ sub compute_properties {
                         (
                             (
                                 ($point->{$field->{name}} <<
-                                    ($bitfield_cell_bitwidth - $bit_offset - $bit_width)
+                                    ($BITFIELD_CELL_BITWIDTH - $bit_offset - $bit_width)
                                 )
-                                #>> ($bitfield_cell_bitwidth * $x)
+                                #>> ($BITFIELD_CELL_BITWIDTH * $x)
                             ) & $mask
                         );
                     $x--;
@@ -493,24 +493,24 @@ sub compute_properties {
 }
 
 sub emit_binary_search_algorithm {
-    # $extents is arrayref to the heads of the gaps, spans, and
+    # $EXTENTS is arrayref to the heads of the gaps, spans, and
     # normal stretches of codepoints. $first and $last are the
-    # indexes into $extents we're supposed to subdivide.
+    # indexes into $EXTENTS we're supposed to subdivide.
     # protocol: start output with a newline; don't end with a newline or indent
-    my ($extents, $first, $mid, $last, $indent) = @_;
+    my ($EXTENTS, $first, $mid, $last, $indent) = @_;
     my $out = "";
 #${indent} /* got  $first  $mid  $last  */\n";
-    return $out.emit_extent_fate($extents->[$first], $indent) if $first == $last;
+    return $out.emit_extent_fate($EXTENTS->[$first], $indent) if $first == $last;
     $mid = $last if $first == $mid;
     my $new_mid_high = int(($last + $mid) / 2);
     my $new_mid_low = int(($mid - 1 + $first) / 2);
-    my $high = emit_binary_search_algorithm($extents,
+    my $high = emit_binary_search_algorithm($EXTENTS,
         $mid, $new_mid_high, $last, "    $indent");
-    my $low = emit_binary_search_algorithm($extents,
+    my $low = emit_binary_search_algorithm($EXTENTS,
         $first, $new_mid_low, $mid - 1, "    $indent");
     return $out."
-${indent}if (codepoint >= 0x".uc(sprintf("%x", $extents->[$mid]->{code})).") {".
-        " /* ".($extents->[$mid]->{name} || 'NULL')." */$high
+${indent}if (codepoint >= 0x".uc(sprintf("%x", $EXTENTS->[$mid]->{code})).") {".
+        " /* ".($EXTENTS->[$mid]->{name} || 'NULL')." */$high
 ${indent}}
 ${indent}else {$low
 ${indent}}";
@@ -525,20 +525,20 @@ sub emit_extent_fate {
     my $type = $fate->{fate_type};
     return "\n${indent}return -1;" if $type == $FATE_NULL;
     return "\n${indent}return " . ($fate->{code} - $fate->{fate_offset}) . "; /* ".
-        "$bitfield_table->[$fate->{bitfield_index}]->{code_str}".
-        " $bitfield_table->[$fate->{bitfield_index}]->{name} */" if $type == $FATE_SPAN;
+        "$BITFIELD_TABLE->[$fate->{bitfield_index}]->{code_str}".
+        " $BITFIELD_TABLE->[$fate->{bitfield_index}]->{name} */" if $type == $FATE_SPAN;
     return "\n${indent}return codepoint - $fate->{fate_offset};"
     .($fate->{fate_offset} == 0 ? " /* the fast path */ " : "");
 }
 
 sub add_extent($$) {
-    my ($extents, $extent) = @_;
+    my ($EXTENTS, $extent) = @_;
     if ($DEBUG) {
         $LOG .= "\n" . join '',
             grep /code|fate|name|bitfield/,
             sort split /^/m, "EXTENT " . Dumper($extent);
     }
-    push @$extents, $extent;
+    push @$EXTENTS, $extent;
 }
 
 sub emit_codepoints_and_planes {
@@ -547,21 +547,21 @@ sub emit_codepoints_and_planes {
     my $bytes = 0;
     my $bytes_saved = 0;
     my $code_offset = 0;
-    my $extents = [];
+    my $EXTENTS = [];
     my $last_code = -1; # trick
     my $last_point = undef;
-    $first_point->{fate_type} = $FATE_NORMAL;
-    $first_point->{fate_offset} = $code_offset;
-    add_extent $extents, $first_point;
+    $FIRST_POINT->{fate_type} = $FATE_NORMAL;
+    $FIRST_POINT->{fate_offset} = $code_offset;
+    add_extent $EXTENTS, $FIRST_POINT;
     my $span_length = 0;
 
     # a bunch of spaghetti code.  Yes.
-    for my $plane (@$planes) {
+    for my $plane (@$PLANES) {
         my $toadd = undef;
         for my $point (@{$plane->{points}}) {
             # extremely simplistic compression of identical neighbors and gaps
             # this point is identical to the previous point
-            if ($compress_codepoints && $last_point
+            if ($COMPRESS_CODEPOINTS && $last_point
                     && $last_code == $point->{code} - 1
                     && $point->{name} eq $last_point->{name}
                     && $last_point->{bitfield_index} == $point->{bitfield_index}) {
@@ -578,13 +578,13 @@ sub emit_codepoints_and_planes {
 
             # the span ended, either bridge it or skip it
             if ($span_length) {
-                if ($span_length >= $span_length_threshold) {
+                if ($span_length >= $SPAN_LENGTH_THRESHOLD) {
                     $bytes_saved += 10 * ($span_length - 1);
                     if (!exists($last_point->{fate_type})) {
-                        add_extent $extents, $last_point;
+                        add_extent $EXTENTS, $last_point;
                     }
                     $last_point->{fate_type} = $FATE_SPAN;
-                    $code_offset = $last_point->{code} - @name_lines + 1;
+                    $code_offset = $last_point->{code} - @NAME_LINES + 1;
                     $last_point->{fate_offset} = $code_offset;
                     $last_point->{fate_really} = $last_point->{code} - $code_offset;
                     $code_offset += $span_length - 1;
@@ -598,10 +598,10 @@ sub emit_codepoints_and_planes {
                     push @bitfield_index_lines,
                         "/*$index*/$last_point->{bitfield_index}/*".
                         "$last_point->{code_str} */";
-                    push @name_lines, "/*$index*/".
+                    push @NAME_LINES, "/*$index*/".
                     ($last_point->{name} =~ /^</ && $usually++ % 25 ? "NULL" : "\"$last_point->{name}\"").
                         "/* $last_point->{code_str} */";
-                    $code_offset = $last_point->{code} - @name_lines;
+                    $code_offset = $last_point->{code} - @NAME_LINES;
                     $last_point->{fate_offset} = $code_offset;
                     $last_point->{fate_really} = $last_point->{code} - $code_offset;
                     $index++;
@@ -611,10 +611,10 @@ sub emit_codepoints_and_planes {
                 $span_length = 0;
             }
 
-            if ($compress_codepoints
-                    && $last_code < $point->{code} - ($point->{code} % 0x10000 ? $gap_length_threshold : 1)) {
+            if ($COMPRESS_CODEPOINTS
+                    && $last_code < $point->{code} - ($point->{code} % 0x10000 ? $GAP_LENGTH_THRESHOLD : 1)) {
                 $bytes_saved += 10 * ($point->{code} - $last_code - 1);
-                add_extent $extents, { fate_type => $FATE_NULL,
+                add_extent $EXTENTS, { fate_type => $FATE_NULL,
                     code => $last_code + 1 };
                 $code_offset += ($point->{code} - $last_code - 1);
                 $last_code = $point->{code} - 1;
@@ -623,7 +623,7 @@ sub emit_codepoints_and_planes {
 
             while ($last_code < $point->{code} - 1) {
                 push @bitfield_index_lines, "0";
-                push @name_lines, "NULL";
+                push @NAME_LINES, "NULL";
                 $last_code++;
                 $index++;
                 $bytes += 10;
@@ -634,13 +634,13 @@ sub emit_codepoints_and_planes {
                 $point->{fate_type} = $FATE_NORMAL;
                 $point->{fate_offset} = $code_offset;
                 $point->{fate_really} = $point->{code} - $code_offset;
-                add_extent $extents, $point;
+                add_extent $EXTENTS, $point;
             }
             $toadd = undef;
             # a normal codepoint that we don't want to compress
             push @bitfield_index_lines, "/*$index*/$point->{bitfield_index}/* $point->{code_str} */";
             $bytes += 2; # hopefully these are compacted since they are trivially aligned being two bytes
-            push @name_lines, "/*$index*/\"$point->{name}\"/* $point->{code_str} */";
+            push @NAME_LINES, "/*$index*/\"$point->{name}\"/* $point->{code_str} */";
             $bytes += length($point->{name}) + 9; # 8 for the pointer, 1 for the NUL
             $last_code = $point->{code};
             $point->{main_index} = $index++;
@@ -648,26 +648,26 @@ sub emit_codepoints_and_planes {
         }
     }
     print "\nSaved ".thousands($bytes_saved)." bytes by compressing big gaps into a binary search lookup.\n";
-    $total_bytes_saved += $bytes_saved;
-    $estimated_total_bytes += $bytes;
+    $TOTAL_BYTES_SAVED += $bytes_saved;
+    $ESTIMATED_TOTAL_BYTES += $bytes;
     # jnthn: Would it still use the same amount of memory to combine these tables? XXX
-    $db_sections->{BBB_codepoint_names} =
+    $DB_SECTIONS->{BBB_codepoint_names} =
         "static const char *codepoint_names[$index] = {\n    ".
-            stack_lines(\@name_lines, ",", ",\n    ", 0, $wrap_to_columns).
+            stack_lines(\@NAME_LINES, ",", ",\n    ", 0, $WRAP_TO_COLUMNS).
             "\n};";
-    $db_sections->{BBB_codepoint_bitfield_indexes} =
+    $DB_SECTIONS->{BBB_codepoint_bitfield_indexes} =
         "static const MVMuint16 codepoint_bitfield_indexes[$index] = {\n    ".
-            stack_lines(\@bitfield_index_lines, ",", ",\n    ", 0, $wrap_to_columns).
+            stack_lines(\@bitfield_index_lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS).
             "\n};";
-    $h_sections->{codepoint_names_count} = "#define MVM_CODEPOINT_NAMES_COUNT $index";
-    $extents
+    $H_SECTIONS->{codepoint_names_count} = "#define MVM_CODEPOINT_NAMES_COUNT $index";
+    $EXTENTS
 }
 
 sub emit_codepoint_row_lookup {
-    my $extents = shift;
+    my $EXTENTS = shift;
     my $SMP_start;
     my $i = 0;
-    for (@$extents) {
+    for (@$EXTENTS) {
         # handle the first recursion specially to optimize for most common BMP lookups
         if ($_->{code} >= 0x10000) {
             $SMP_start = $i;
@@ -686,18 +686,18 @@ sub emit_codepoint_row_lookup {
     }
 
     if (plane == 0) {"
-    . emit_binary_search_algorithm($extents, 0, 1, $SMP_start - 1, "        ") . "
+    . emit_binary_search_algorithm($EXTENTS, 0, 1, $SMP_start - 1, "        ") . "
     }
     else {
         if (plane < 0 || plane > 16 || codepoint > 0x10FFFD) {
             return -1;
         }
-        else {" . emit_binary_search_algorithm($extents, $SMP_start,
-            int(($SMP_start + scalar(@$extents)-1)/2), scalar(@$extents) - 1, "            ") . "
+        else {" . emit_binary_search_algorithm($EXTENTS, $SMP_start,
+            int(($SMP_start + scalar(@$EXTENTS)-1)/2), scalar(@$EXTENTS) - 1, "            ") . "
         }
     }
 }";
-    $db_sections->{codepoint_row_lookup} = $out;
+    $DB_SECTIONS->{codepoint_row_lookup} = $out;
 }
 
 sub emit_case_changes {
@@ -715,8 +715,8 @@ sub emit_case_changes {
         $rows++;
     }
     $out = "static const MVMint32 case_changes[$rows][3] = {\n    {0x0,0x0,0x0},\n    ".
-        stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."\n};";
-    $db_sections->{BBB_case_changes} = $out;
+        stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."\n};";
+    $DB_SECTIONS->{BBB_case_changes} = $out;
 }
 
 sub emit_bitfield {
@@ -743,27 +743,27 @@ sub emit_bitfield {
             $first = 0;
             $line .= (defined $_ ? $_."u" : 0);
         }
-        push @$bitfield_table, $point;
+        push @$BITFIELD_TABLE, $point;
         push @lines, ($line . "}/* $point->{code_str} */");
         $point = $point->{next_emit_point};
         $rows++;
     }
     my $bytes_wide = 2;
     $bytes_wide *= 2 while $bytes_wide < $wide; # assume the worst
-    $estimated_total_bytes += $rows * $bytes_wide; # we hope it's all laid out with no gaps...
-    my $val_type = ($bitfield_cell_bitwidth == 8 || $bitfield_cell_bitwidth == 16
-        || $bitfield_cell_bitwidth == 32 || $bitfield_cell_bitwidth == 64)
-        ? ("MVMuint" . $bitfield_cell_bitwidth)
-        : croak("Unknown value of \$bitfield_cell_bitwidth: $bitfield_cell_bitwidth");
+    $ESTIMATED_TOTAL_BYTES += $rows * $bytes_wide; # we hope it's all laid out with no gaps...
+    my $val_type = ($BITFIELD_CELL_BITWIDTH == 8 || $BITFIELD_CELL_BITWIDTH == 16
+        || $BITFIELD_CELL_BITWIDTH == 32 || $BITFIELD_CELL_BITWIDTH == 64)
+        ? ("MVMuint" . $BITFIELD_CELL_BITWIDTH)
+        : croak("Unknown value of \$BITFIELD_CELL_BITWIDTH: $BITFIELD_CELL_BITWIDTH");
     $out = "static const $val_type props_bitfield[$rows][$wide] = {\n    ".
-        stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."\n};";
-    $db_sections->{BBB_main_bitfield} = $out;
+        stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."\n};";
+    $DB_SECTIONS->{BBB_main_bitfield} = $out;
 }
 
 sub emit_property_value_lookup {
     my $allocated = shift;
     my $enumtables = "\n\n";
-    our $hout = "typedef enum {\n";
+    our $HOUT = "typedef enum {\n";
     my $out = "
 static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
@@ -824,8 +824,8 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
             }
             $enumtables .= "\n};\n\n";
         }
-        $hout .= "    " . uc("MVM_unicode_property_$prop->{name}") . " = $prop->{field_index},\n";
-        $prop_names->{$prop->{name}} = $prop->{field_index};
+        $HOUT .= "    " . uc("MVM_unicode_property_$prop->{name}") . " = $prop->{field_index},\n";
+        $PROP_NAMES->{$prop->{name}} = $prop->{field_index};
         my $case = "\n        case " . uc("MVM_unicode_property_$prop->{name}") . ":";
         $out .= $case;
         $eout .= $case if $enum;
@@ -837,7 +837,7 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
         $out .= " /* $prop->{name} bits:$bit_width offset:$bit_offset */";
         $eout .= " /* $prop->{name} bits:$bit_width offset:$bit_offset */" if $enum;
 
-        my $one_word_only = $bit_offset + $bit_width <= $bitfield_cell_bitwidth ? 1 : 0;
+        my $one_word_only = $bit_offset + $bit_width <= $BITFIELD_CELL_BITWIDTH ? 1 : 0;
         while ($bit_width > 0) {
             my $original_bit_offset = $bit_offset;
             my $binary_mask = 0;
@@ -847,12 +847,12 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
                 $binary_string .= "0";
                 $pos++;
             }
-            while ($pos < $bitfield_cell_bitwidth && $bit_width--) {
+            while ($pos < $BITFIELD_CELL_BITWIDTH && $bit_width--) {
                 $binary_string .= "1";
-                $binary_mask += 2 ** ($bitfield_cell_bitwidth - 1 - $pos++);
+                $binary_mask += 2 ** ($BITFIELD_CELL_BITWIDTH - 1 - $pos++);
             }
-            my $shift = $bitfield_cell_bitwidth - $pos;
-            while ($pos++ < $bitfield_cell_bitwidth) {
+            my $shift = $BITFIELD_CELL_BITWIDTH - $pos;
+            while ($pos++ < $BITFIELD_CELL_BITWIDTH) {
                 $binary_string .= "0";
             }
             # If it's an int based enum we use the same code as we do for strings
@@ -894,22 +894,22 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
 ";
     $out  .= sprintf $default_return, 0;
     $eout .= sprintf $default_return, q("");
-    $hout .= "} MVM_unicode_property_codes;";
+    $HOUT .= "} MVM_unicode_property_codes;";
 
     sub gen_pvalue_defines {
         my ( $property_name_mvm, $property_name, $short_pval_name ) = @_;
         my $GCB_h;
         $GCB_h .= "\n\n/* $property_name_mvm */\n";
         my %seen;
-        foreach my $key (sort keys % {$enumerated_properties->{$property_name}->{'enum'} }  ) {
+        foreach my $key (sort keys % {$ENUMERATED_PROPERTIES->{$property_name}->{'enum'} }  ) {
             next if $seen{$key};
-            my $value = $enumerated_properties->{$property_name}->{'enum'}->{$key};
+            my $value = $ENUMERATED_PROPERTIES->{$property_name}->{'enum'}->{$key};
             $key = 'MVM_UNICODE_PVALUE_' . $short_pval_name . '_' . uc $key;
             $key =~ tr/\./_/;
             $GCB_h .= "#define $key $value\n";
             $seen{$key} = 1;
         }
-        $hout .= $GCB_h;
+        $HOUT .= $GCB_h;
     }
     gen_pvalue_defines('MVM_UNICODE_PROPERTY_GENERAL_CATEGORY', 'General_Category', 'GC');
     gen_pvalue_defines('MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK', 'Grapheme_Cluster_Break', 'GCB');
@@ -917,12 +917,12 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
     gen_pvalue_defines('MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS', 'Canonical_Combining_Class', 'CCC');
     gen_pvalue_defines('MVM_UNICODE_PROPERTY_NUMERIC_TYPE', 'Numeric_Type', 'Numeric_Type');
 
-    $db_sections->{MVM_unicode_get_property_int} = $enumtables . $eout . $out;
-    $h_sections->{property_code_definitions} = $hout;
+    $DB_SECTIONS->{MVM_unicode_get_property_int} = $enumtables . $eout . $out;
+    $H_SECTIONS->{property_code_definitions} = $HOUT;
 }
 
 sub emit_block_lookup {
-    my $hout = "MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block_name);\n";
+    my $HOUT = "MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block_name);\n";
     my $out  = "struct UnicodeBlock {
     MVMGrapheme32 start;
     MVMGrapheme32 end;
@@ -986,22 +986,22 @@ MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 
 
     return in_block;
 }";
-    $db_sections->{block_lookup} = $out;
-    $h_sections->{block_lookup} = $hout;
+    $DB_SECTIONS->{block_lookup} = $out;
+    $H_SECTIONS->{block_lookup} = $HOUT;
 }
 
 sub emit_names_hash_builder {
-    my $num_extents = scalar(@$extents);
+    my $num_extents = scalar(@$EXTENTS);
     my $out = "
 static const MVMint32 codepoint_extents[".($num_extents + 1)."][3] = {\n";
-    $estimated_total_bytes += 4 * 2 * ($num_extents + 1);
-    for my $extent (@$extents) {
+    $ESTIMATED_TOTAL_BYTES += 4 * 2 * ($num_extents + 1);
+    for my $extent (@$EXTENTS) {
         $out .= sprintf("    {0x%04x,%d,%d},\n",
                                 $extent->{code},
                                      $extent->{fate_type},
                                           ($extent->{fate_really}//0));
     }
-    $h_sections->{MVM_NUM_UNICODE_EXTENTS} = "#define MVM_NUM_UNICODE_EXTENTS $num_extents\n";
+    $H_SECTIONS->{MVM_NUM_UNICODE_EXTENTS} = "#define MVM_NUM_UNICODE_EXTENTS $num_extents\n";
     $out .= <<"END";
     {0x10FFFE,0}
 };
@@ -1069,11 +1069,11 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
 
 }
 END
-    $db_sections->{names_hash_builder} = $out;
+    $DB_SECTIONS->{names_hash_builder} = $out;
 }#"
 my @v2a;
 sub emit_unicode_property_keypairs {
-    my $hout = "
+    my $HOUT = "
 struct MVMUnicodeNamedValue {
     const char *name;
     MVMint32 value;
@@ -1082,18 +1082,18 @@ struct MVMUnicodeNamedValue {
     each_line('PropertyAliases', sub { $_ = shift;
         my @aliases = split /\s*[#;]\s*/;
         for my $name (@aliases) {
-            if (exists $prop_names->{$name}) {
+            if (exists $PROP_NAMES->{$name}) {
                 for my $al (@aliases) {
-                    $prop_names->{$al} = $prop_names->{$name}
+                    $PROP_NAMES->{$al} = $PROP_NAMES->{$name}
                         unless $al eq $name;
                     my $lc = lc $al;
-                    $prop_names->{$lc} = $prop_names->{$name}
+                    $PROP_NAMES->{$lc} = $PROP_NAMES->{$name}
                         unless $lc eq $name or $lc eq $al;
                     my $no_ = $lc;
                     $no_ =~ s/_//g;
-                    $prop_names->{$no_} = $prop_names->{$name}
+                    $PROP_NAMES->{$no_} = $PROP_NAMES->{$name}
                         unless $no_ eq $name or $no_ eq $name or $no_ eq $al;
-                    $prop_codes->{$al} = $name;
+                    $PROP_CODES->{$al} = $name;
                 }
                 last;
             }
@@ -1110,9 +1110,9 @@ struct MVMUnicodeNamedValue {
         return if /^(?:#|\s*$)/;
         my @parts = split /\s*[#;]\s*/;
         my $propname = shift @parts;
-        if (exists $prop_names->{$propname}) {
+        if (exists $PROP_NAMES->{$propname}) {
             if (($parts[0] eq 'Y' || $parts[0] eq 'N') && ($parts[1] eq 'Yes' || $parts[1] eq 'No')) {
-                my $prop_val = $prop_names->{$propname};
+                my $prop_val = $PROP_NAMES->{$propname};
                 for ($propname, @{$aliases{$propname} // []}) {
                     $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
                     $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if s/_//g;
@@ -1124,13 +1124,13 @@ struct MVMUnicodeNamedValue {
                 pop @parts;
                 my $unionname = $parts[0];
                 my $prop_val;
-                if (exists $binary_properties->{$unionname}) {
-                    $prop_val = $binary_properties->{$unionname}->{field_index};
+                if (exists $BINARY_PROPERTIES->{$unionname}) {
+                    $prop_val = $BINARY_PROPERTIES->{$unionname}->{field_index};
                     $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
                     $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if s/_//g;
                     $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if y/A-Z/a-z/;
                 }
-                $prop_val = $prop_names->{$propname};
+                $prop_val = $PROP_NAMES->{$propname};
                 for (@parts) {
                     $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
                     $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if s/_//g;
@@ -1138,7 +1138,7 @@ struct MVMUnicodeNamedValue {
                 }
             }
             else {
-                my $prop_val = $prop_names->{$propname};
+                my $prop_val = $PROP_NAMES->{$propname};
                 for (@parts) {
                     $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
                     push @{ $aliases{$propname} }, $_
@@ -1171,27 +1171,27 @@ struct MVMUnicodeNamedValue {
             }
         }
     }
-    for my $key (qw(gc sc), sort keys %$prop_names) {
+    for my $key (qw(gc sc), sort keys %$PROP_NAMES) {
         $_ = $key;
-        $done{"$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}";
-        $done{"$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}" if s/_//g;
-        $done{"$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}" if y/A-Z/a-z/;
+        $done{"$_"} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}";
+        $done{"$_"} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}" if s/_//g;
+        $done{"$_"} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}" if y/A-Z/a-z/;
         for (@{ $aliases{$key} }) {
-            $done{"$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}";
-            $done{"$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}" if s/_//g;
-            $done{"$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}" if y/A-Z/a-z/;
+            $done{"$_"} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}";
+            $done{"$_"} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}" if s/_//g;
+            $done{"$_"} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}" if y/A-Z/a-z/;
         }
     }
     # Reverse the @lines array so that later added entries take precedence
     @lines = reverse @lines;
-    $hout .= "
+    $HOUT .= "
 #define num_unicode_property_keypairs ".scalar(@lines)."\n";
     my $out = "
 static const MVMUnicodeNamedValue unicode_property_keypairs[".scalar(@lines)."] = {
-    ".stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."
+    ".stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."
 };";
-    $db_sections->{BBB_unicode_property_keypairs} = $out;
-    $h_sections->{MVMUnicodeNamedValue} = $hout;
+    $DB_SECTIONS->{BBB_unicode_property_keypairs} = $out;
+    $H_SECTIONS->{MVMUnicodeNamedValue} = $HOUT;
 }
 sub add_unicode_sequence {
     my ($filename) = @_;
@@ -1224,11 +1224,11 @@ sub add_unicode_sequence {
         # Emoji sequences have commas in some and these cannot be included
         # since they seperate seperate named items in ISO notation that P6 uses
         $name =~ s/,//g;
-        $sequences->{$name}->{'type'} = $type;
+        $SEQUENCES->{$name}->{'type'} = $type;
         # Only push if we haven't seen this already
-        if (!$sequences->{$name}->{'ords'}) {
+        if (!$SEQUENCES->{$name}->{'ords'}) {
             for my $hex (split ' ', $hex_ords) {
-                push @{$sequences->{$name}->{'ords'}}, hex $hex;
+                push @{$SEQUENCES->{$name}->{'ords'}}, hex $hex;
             }
         }
     } );
@@ -1240,19 +1240,19 @@ sub gen_unicode_sequence_keypairs {
     my @seq_c_hash_array;
     my $enum_table;
     $string_seq .= "/* Unicode sequences such as Emoji sequences */\n";
-    for my $thing ( sort keys %$sequences ) {
+    for my $thing ( sort keys %$SEQUENCES ) {
         my $seq_name = "uni_seq_$count";
         $string_seq .=  "static const MVMint32 $seq_name" . "[] = {";
         $seq_c_hash_str .= '{"' . $thing . '",' . $count . '},';
         my $ord_data;
-        for my $ord ( @{$sequences->{$thing}->{'ords'}} ) {
+        for my $ord ( @{$SEQUENCES->{$thing}->{'ords'}} ) {
             $ord_data .= '0x' . uc sprintf("%x", $ord) . ',';
         }
-        $ord_data = scalar @{$sequences->{$thing}->{'ords'}} . ',' . $ord_data;
+        $ord_data = scalar @{$SEQUENCES->{$thing}->{'ords'}} . ',' . $ord_data;
         $string_seq .= $ord_data;
         $ord_data =~ s/,$//;
         $string_seq =~ s/,$//;
-        $string_seq = $string_seq . "}; " . "/* $thing */ /*" . $sequences->{$thing}->{'type'} . " */\n";
+        $string_seq = $string_seq . "}; " . "/* $thing */ /*" . $SEQUENCES->{$thing}->{'type'} . " */\n";
         $enum_table = $enum_table . "$seq_name,\n";
         $count++;
         if ( length $seq_c_hash_str > 80 ) {
@@ -1268,20 +1268,20 @@ sub gen_unicode_sequence_keypairs {
 
     $enum_table =~ s/\s*,\s*$/};/;
     $enum_table = "static const MVMint32 * uni_seq_enum[$count] = {\n" . $enum_table;
-    $db_sections->{uni_seq} = $seq_c_hash_str . $string_seq . $enum_table;
-    $hout .= "#define num_unicode_seq_keypairs " . $count ."\n";
+    $DB_SECTIONS->{uni_seq} = $seq_c_hash_str . $string_seq . $enum_table;
+    $HOUT .= "#define num_unicode_seq_keypairs " . $count ."\n";
 }
 sub gen_name_alias_keypairs {
     my $count = 0;
     my $seq_c_hash_str;
     my @seq_c_hash_array;
-    for my $thing ( sort keys %$alias_types ) {
+    for my $thing ( sort keys %$ALIAS_TYPES ) {
         my $ord_data;
-        my $ord = $alias_types->{$thing}->{'code'};
+        my $ord = $ALIAS_TYPES->{$thing}->{'code'};
         $ord_data .= '0x' . uc sprintf("%x", $ord) . ',';
         $seq_c_hash_str .= '{"' . $thing . '",' . $ord_data . (length $thing) . '},';
         $ord_data =~ s/,$//;
-        my $type = $alias_types->{$thing}->{'type'};
+        my $type = $ALIAS_TYPES->{$thing}->{'type'};
         $count++;
         if ( length $seq_c_hash_str > 80 ) {
             push @seq_c_hash_array, $seq_c_hash_str . "\n";
@@ -1295,9 +1295,9 @@ sub gen_name_alias_keypairs {
     $seq_c_hash_str = "static const MVMUnicodeNamedAlias uni_namealias_pairs[$count] = {\n    " . $seq_c_hash_str;
 
     $seq_c_hash_str = "/* Unicode Name Aliases */\n" . $seq_c_hash_str;
-    $db_sections->{Auni_namealias} = $seq_c_hash_str;
-    $hout .= "#define num_unicode_namealias_keypairs " . $count ."\n";
-    $hout .= <<'END'
+    $DB_SECTIONS->{Auni_namealias} = $seq_c_hash_str;
+    $HOUT .= "#define num_unicode_namealias_keypairs " . $count ."\n";
+    $HOUT .= <<'END'
 struct MVMUnicodeNamedAlias {
     char *name;
     MVMGrapheme32 codepoint;
@@ -1310,7 +1310,7 @@ my %special_data;
 sub thing {
     my ($default, $propname, $prop_val, $hash, $maybe_propcode) = @_;
     $_ = $default;
-    my $propcode = $maybe_propcode // $prop_names->{$propname} // $prop_names->{$default} // croak;
+    my $propcode = $maybe_propcode // $PROP_NAMES->{$propname} // $PROP_NAMES->{$default} // croak;
     # Workaround to 'space' not getting added here
     $hash->{$propname}->{space} = "{\"$propcode-space\",$prop_val}"
         if $default eq 'White_Space' and $propname eq '_custom_';
@@ -1324,8 +1324,8 @@ sub emit_unicode_property_value_keypairs {
     my $property;
     my %lines;
     my %aliases;
-    for my $thing (sort keys %$binary_properties) {
-        my $prop_val = ($prop_names->{$thing} << 24) + 1;
+    for my $thing (sort keys %$BINARY_PROPERTIES) {
+        my $prop_val = ($PROP_NAMES->{$thing} << 24) + 1;
         my $propcode = thing($thing, '_custom_', $prop_val, \%lines);
         my $lc_thing = lc $thing;
         my %stuff = (
@@ -1343,8 +1343,8 @@ sub emit_unicode_property_value_keypairs {
             }
         }
     }
-    for (sort keys %$enumerated_properties) {
-        my $enum = $enumerated_properties->{$_}->{enum};
+    for (sort keys %$ENUMERATED_PROPERTIES) {
+        my $enum = $ENUMERATED_PROPERTIES->{$_}->{enum};
         my $toadd = {};
         for (sort keys %$enum) {
             my $key = lc("$_");
@@ -1373,8 +1373,8 @@ sub emit_unicode_property_value_keypairs {
         @parts = @parts2;
         my $propname = shift @parts;
         $propname = trim $propname;
-        if (exists $prop_names->{$propname}) {
-            my $prop_val = $prop_names->{$propname} << 24;
+        if (exists $PROP_NAMES->{$propname}) {
+            my $prop_val = $PROP_NAMES->{$propname} << 24;
             # emit binary properties
             if (($parts[0] eq 'Y' || $parts[0] eq 'N') && ($parts[1] eq 'Yes' || $parts[1] eq 'No')) {
                 $prop_val++; # one bit width
@@ -1386,9 +1386,9 @@ sub emit_unicode_property_value_keypairs {
             if ($parts[-1] =~ /\|/) { # it's a union
                 pop @parts;
                 my $unionname = $parts[0];
-                if (exists $binary_properties->{$unionname}) {
-                    my $prop_val = $binary_properties->{$unionname}->{field_index} << 24;
-                    my $value    = $binary_properties->{$unionname}->{bit_width};
+                if (exists $BINARY_PROPERTIES->{$unionname}) {
+                    my $prop_val = $BINARY_PROPERTIES->{$unionname}->{field_index} << 24;
+                    my $value    = $BINARY_PROPERTIES->{$unionname}->{bit_width};
                     for (@parts) {
                         #croak Dumper @parts;
                         my $i = $_;
@@ -1402,9 +1402,9 @@ sub emit_unicode_property_value_keypairs {
                 }
                 return
             }
-            my $key = $prop_codes->{$propname};
+            my $key = $PROP_CODES->{$propname};
             my $found = 0;
-            my $enum = $all_properties->{$key}->{'enum'};
+            my $enum = $ALL_PROPERTIES->{$key}->{'enum'};
             croak $propname unless $enum;
             my $value;
             for (@parts) {
@@ -1435,15 +1435,15 @@ sub emit_unicode_property_value_keypairs {
             $done{"$propname$_"} ||= push @lines, $lines{$propname}->{$_};
         }
     }
-    $hout .= "
+    $HOUT .= "
 #define num_unicode_property_value_keypairs ".scalar(@lines)."\n";
     my $out = "
 static MVMUnicodeNameRegistry **unicode_property_values_hashes;
 static const MVMUnicodeNamedValue unicode_property_value_keypairs[".scalar(@lines)."] = {
-    ".stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."
+    ".stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."
 };";
-    $db_sections->{BBB_unicode_property_value_keypairs} = $out;
-    $h_sections->{num_unicode_property_value_keypairs} = $hout;
+    $DB_SECTIONS->{BBB_unicode_property_value_keypairs} = $out;
+    $H_SECTIONS->{num_unicode_property_value_keypairs} = $HOUT;
 }
 
 sub emit_composition_lookup {
@@ -1451,17 +1451,17 @@ sub emit_composition_lookup {
     # first codepoint of the decomposition of a primary composite, mapped to
     # an array of [second codepoint, primary composite].
     my @lookup;
-    for my $point_code (sort { $a <=> $b } keys %$points_by_code) {
+    for my $point_code (sort { $a <=> $b } keys %$POINTS_BY_CODE) {
         # Not interested in anything in the set of full composition exclusions.
-        my $point = $points_by_code->{$point_code};
+        my $point = $POINTS_BY_CODE->{$point_code};
         next if $point->{Full_Composition_Exclusion};
 
         # Only interested in things that have a decomposition spec.
         next unless defined $point->{Decomp_Spec};
-        my $decomp_spec = $enumerated_properties->{Decomp_Spec}->{keys}->[$point->{Decomp_Spec}];
+        my $decomp_spec = $ENUMERATED_PROPERTIES->{Decomp_Spec}->{keys}->[$point->{Decomp_Spec}];
 
         # Only interested in canonical decompositions.
-        my $decomp_type = $enumerated_properties->{Decomposition_Type}->{keys}->[$point->{Decomposition_Type}];
+        my $decomp_type = $ENUMERATED_PROPERTIES->{Decomposition_Type}->{keys}->[$point->{Decomposition_Type}];
         next unless $decomp_type eq 'Canonical';
 
         # Make an entry.
@@ -1525,7 +1525,7 @@ sub emit_composition_lookup {
 
     # Put it all together and emit.
     my $tables = "$entries\n$l_tables\n$u_tables\n$p_table";
-    $db_sections->{composition_lookup} = "\n/* Canonical composition lookup tables. */\n$tables";
+    $DB_SECTIONS->{composition_lookup} = "\n/* Canonical composition lookup tables. */\n$tables";
 }
 
 sub compute_bitfield {
@@ -1550,7 +1550,7 @@ sub compute_bitfield {
         }
         $point = $point->{next_point};
     }
-    $total_bytes_saved += $bytes_saved;
+    $TOTAL_BYTES_SAVED += $bytes_saved;
     print "\nSaved ".thousands($bytes_saved)." bytes by uniquing the bitfield table.\n";
 }
 
@@ -1632,7 +1632,7 @@ sub write_file {
 sub register_union {
     my ($unionname, $unionof) = @_;
     register_binary_property($unionname);
-    push @$gc_alias_checkers, eval 'sub {
+    push @$GC_ALIAS_CHECKERS, eval 'sub {
         return ((shift) =~ /^(?:'.$unionof.')$/)
             ? "'.$unionname.'" : 0;
     }';
@@ -1665,7 +1665,7 @@ sub UnicodeData {
         }
     });
     register_union('Assigned', 'C[cfosn]|L[lmotu]|M[cen]|N[dlo]|P[cdefios]|S[ckmo]|Z[lps]');
-    push @$planes, $plane;
+    push @$PLANES, $plane;
     my $ideograph_start;
     my $case_count = 1;
     my $decomp_keys = [ '' ];
@@ -1713,12 +1713,12 @@ sub UnicodeData {
             $point->{Case_Change_Index} = $case_count++;
         }
         while ($plane->{number} < $plane_num) {
-            push(@$planes, ($plane = {
+            push(@$PLANES, ($plane = {
                 number => $plane->{number} + 1,
                 points => []
             }));
         }
-        for my $checker (@$gc_alias_checkers) {
+        for my $checker (@$GC_ALIAS_CHECKERS) {
             my $res = $checker->($gencat);
             $point->{$res} = 1 if $res;
         }
@@ -1738,20 +1738,20 @@ sub UnicodeData {
                 $code_str = uc(sprintf '%04x', $new->{code});
                 $new->{code_str} = $code_str;
                 push @{$plane->{points}}, $new;
-                $points_by_code->{$new->{code}} =
+                $POINTS_BY_CODE->{$new->{code}} =
                     $current = $current->{next_point} = $new;
             }
-            $last_point = $current;
+            $LAST_POINT = $current;
             $ideograph_start = 0;
         }
         push @{$plane->{points}}, $point;
-        $points_by_code->{$code} = $point;
+        $POINTS_BY_CODE->{$code} = $point;
 
-        if ($last_point) {
-            $last_point = $last_point->{next_point} = $point;
+        if ($LAST_POINT) {
+            $LAST_POINT = $LAST_POINT->{next_point} = $point;
         }
         else {
-            $last_point = $first_point = $point;
+            $LAST_POINT = $FIRST_POINT = $point;
         }
     };
     each_line('UnicodeData', $s);
@@ -1778,28 +1778,28 @@ sub CaseFolding {
         return if $type eq 'S' || $type eq 'T';
         if ($type eq 'C') {
             push @simple, $right;
-            $points_by_code->{$left_code}->{Case_Folding} = $simple_count;
+            $POINTS_BY_CODE->{$left_code}->{Case_Folding} = $simple_count;
             $simple_count++;
-            $points_by_code->{$left_code}->{Case_Folding_simple} = 1;
+            $POINTS_BY_CODE->{$left_code}->{Case_Folding_simple} = 1;
         }
         else {
             my @parts = split ' ', $right;
             push @grows, "{0x".($parts[0]).",0x".($parts[1] || 0).",0x".($parts[2] || 0)."}";
-            $points_by_code->{$left_code}->{Case_Folding} = $grows_count;
+            $POINTS_BY_CODE->{$left_code}->{Case_Folding} = $grows_count;
             $grows_count++;
         }
     });
     my $simple_out = "static const MVMint32 CaseFolding_simple_table[$simple_count] = {\n    0x0,\n    0x"
-        .stack_lines(\@simple, ",0x", ",\n    0x", 0, $wrap_to_columns)."\n};";
+        .stack_lines(\@simple, ",0x", ",\n    0x", 0, $WRAP_TO_COLUMNS)."\n};";
     my $grows_out = "static const MVMint32 CaseFolding_grows_table[$grows_count][3] = {\n    {0x0,0x0,0x0},\n    "
-        .stack_lines(\@grows, ",", ",\n    ", 0, $wrap_to_columns)."\n};";
+        .stack_lines(\@grows, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."\n};";
     my $bit_width = least_int_ge_lg2($simple_count); # XXX surely this will always be greater?
     my $index_base = { name => 'Case_Folding', bit_width => $bit_width };
     register_enumerated_property('Case_Folding', $index_base);
     register_binary_property('Case_Folding_simple');
-    $estimated_total_bytes += $simple_count * 8 + $grows_count * 32; # XXX guessing 32 here?
-    $db_sections->{BBB_CaseFolding_simple} = $simple_out;
-    $db_sections->{BBB_CaseFolding_grows} = $grows_out;
+    $ESTIMATED_TOTAL_BYTES += $simple_count * 8 + $grows_count * 32; # XXX guessing 32 here?
+    $DB_SECTIONS->{BBB_CaseFolding_simple} = $simple_out;
+    $DB_SECTIONS->{BBB_CaseFolding_grows} = $grows_out;
 }
 
 sub SpecialCasing {
@@ -1819,16 +1819,16 @@ sub SpecialCasing {
                        " }, { " . threesome($lower) .
                        " }, { " . threesome($title) .
                        " } }";
-        $points_by_code->{$code}->{Special_Casing} = $count;
+        $POINTS_BY_CODE->{$code}->{Special_Casing} = $count;
         $count++;
     });
     my $out = "static const MVMint32 SpecialCasing_table[$count][3][3] = {\n    {0x0,0x0,0x0},\n    "
-        .stack_lines(\@entries, ",", ",\n    ", 0, $wrap_to_columns)."\n};";
+        .stack_lines(\@entries, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."\n};";
     my $bit_width = least_int_ge_lg2($count);
     my $index_base = { name => 'Special_Casing', bit_width => $bit_width };
     register_enumerated_property('Special_Casing', $index_base);
-    $estimated_total_bytes += $count * 4 * 3 * 3;
-    $db_sections->{BBB_SpecialCasing} = $out;
+    $ESTIMATED_TOTAL_BYTES += $count * 4 * 3 * 3;
+    $DB_SECTIONS->{BBB_SpecialCasing} = $out;
 }
 
 sub DerivedNormalizationProps {
@@ -1885,7 +1885,6 @@ sub DerivedNormalizationProps {
 }
 
 sub Jamo {
-    my $points_by_code = shift;
     my $propname = 'Jamo_Short_Name';
     each_line('Jamo', sub { $_ = shift;
         my ($code_str, $name) = split /\s*[;#]\s*/;
@@ -1895,8 +1894,8 @@ sub Jamo {
         });
     });
     my @hangul_syllables;
-    for my $key (sort keys %{$points_by_code}) {
-        if (%{$points_by_code}{$key}->{name} eq '<Hangul Syllable>') {
+    for my $key (sort keys %{$POINTS_BY_CODE}) {
+        if (%{$POINTS_BY_CODE}{$key}->{name} eq '<Hangul Syllable>') {
             push @hangul_syllables, $key;
         }
     }
@@ -1909,11 +1908,11 @@ sub Jamo {
         my $hs_cps = $hangul_syllables[$i++];
         my @a = split ',', $line;
         for my $cp (@a) {
-            if (exists %{$points_by_code}{$cp}->{Jamo_Short_Name}) {
-                $final_name .= %{$points_by_code}{$cp}->{Jamo_Short_Name};
+            if (exists %{$POINTS_BY_CODE}{$cp}->{Jamo_Short_Name}) {
+                $final_name .= %{$POINTS_BY_CODE}{$cp}->{Jamo_Short_Name};
             }
         }
-        %{$points_by_code}{$hs_cps}->{name} = $final_name;
+        %{$POINTS_BY_CODE}{$hs_cps}->{name} = $final_name;
     }
 }
 
@@ -2020,9 +2019,9 @@ sub collation {
 sub NameAliases {
     each_line('NameAliases', sub { $_ = shift;
         my ($code_str, $name, $type) = split /\s*[;#]\s*/;
-        $aliases->{$name} = hex $code_str;
-        $alias_types->{$name}->{'code'} = hex $code_str;
-        $alias_types->{$name}->{'type'} = $type;
+        $ALIASES->{$name} = hex $code_str;
+        $ALIAS_TYPES->{$name}->{'code'} = hex $code_str;
+        $ALIAS_TYPES->{$name}->{'type'} = $type;
     });
 }
 
@@ -2030,13 +2029,13 @@ sub NamedSequences {
     each_line('NamedSequences', sub { $_ = shift;
         my ($name, $codes) = split /\s*[;#]\s*/;
         my @parts = split ' ', $codes;
-        $named_sequences->{$name} = \@parts;
+        $NAMED_SEQUENCES->{$name} = \@parts;
     });
 }
 
 sub tweak_nfg_qc {
     # See http://www.unicode.org/reports/tr29/tr29-27.html#Grapheme_Cluster_Boundary_Rules
-    for my $point (values %$points_by_code) {
+    for my $point (values %$POINTS_BY_CODE) {
         my $code = $point->{'code'};
 
         if ($code == 0x0D                           # \r
@@ -2062,21 +2061,21 @@ sub tweak_nfg_qc {
 
 sub register_binary_property {
     my $name = shift;
-    $all_properties->{$name} = $binary_properties->{$name} = {
-        property_index => $property_index++,
+    $ALL_PROPERTIES->{$name} = $BINARY_PROPERTIES->{$name} = {
+        property_index => $PROPERTY_INDEX++,
         name => $name,
         bit_width => 1
-    } unless exists $binary_properties->{$name};
+    } unless exists $BINARY_PROPERTIES->{$name};
 }
 
 sub register_int_property {
     my ( $name, $elems ) = @_;
     # add to binary_properties for now
-    $all_properties->{$name} = $binary_properties->{$name} = {
-        property_index => $property_index++,
+    $ALL_PROPERTIES->{$name} = $BINARY_PROPERTIES->{$name} = {
+        property_index => $PROPERTY_INDEX++,
         name => $name,
         bit_width => least_int_ge_lg2($elems)
-    } unless exists $binary_properties->{$name};
+    } unless exists $BINARY_PROPERTIES->{$name};
 }
 
 sub register_enumerated_property {
@@ -2089,9 +2088,9 @@ sub register_enumerated_property {
         croak("name doesn't match. Argument was '$pname' but was already set to '" . $base->{name});
     }
     check_base_for_duplicates($base);
-    croak if exists $enumerated_properties->{$pname};
-    $all_properties->{$pname} = $enumerated_properties->{$pname} = $base;
-    $base->{property_index} = $property_index++;
+    croak if exists $ENUMERATED_PROPERTIES->{$pname};
+    $ALL_PROPERTIES->{$pname} = $ENUMERATED_PROPERTIES->{$pname} = $base;
+    $base->{property_index} = $PROPERTY_INDEX++;
     $base
 }
 
