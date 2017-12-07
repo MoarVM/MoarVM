@@ -326,8 +326,8 @@ else {
 $config{ldlibs} = join ' ',
     (map { sprintf $config{ldusr}, $_; } @{$config{usrlibs}}),
     (map { sprintf $config{ldsys}, $_; } @{$config{syslibs}});
-$config{ldlibs} = ' -lasan ' . $config{ldlibs} if $args{asan};
-$config{ldlibs} = ' -lubsan ' . $config{ldlibs} if $args{ubsan};
+$config{ldlibs} = ' -lasan ' . $config{ldlibs} if $args{asan} and $^O ne 'darwin';
+$config{ldlibs} = ' -lubsan ' . $config{ldlibs} if $args{ubsan} and $^O ne 'darwin';
 # macro defs
 $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
 
@@ -365,7 +365,7 @@ push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}       if $args{instrument};
 push @ldflags, $config{ld_covflags}  if $args{coverage};
 push @ldflags, $config{ldrpath}           if not $args{static} and $config{prefix} ne '/usr';
-push @ldflags, $^O eq 'darwin' ? '-faddress-sanitizer' : '-fsanitize=address' if $args{asan};
+push @ldflags, '-fsanitize=address' if $args{asan};
 push @ldflags, $ENV{LDFLAGS}  if $ENV{LDFLAGS};
 $config{ldflags} = join ' ', @ldflags;
 
