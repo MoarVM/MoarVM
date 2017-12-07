@@ -233,6 +233,19 @@ sub join_sections {
     $content .= "\n".$sections->{$_} for (sort keys %{$sections});
     $content
 }
+sub get_next_point {
+    my ($code) = @_;
+    my $point = $POINTS_BY_CODE->{$code};
+    if (!$point) {
+        my $temp_code = $code - 1;
+        until ($POINTS_BY_CODE->{$temp_code}) {
+            $temp_code--;
+        }
+        $point = $POINTS_BY_CODE->{$temp_code};
+        $point = $point->{next_point};
+    }
+    $point;
+}
 
 sub apply_to_range {
     # apply a function to a range of codepoints. The starting and
@@ -248,13 +261,7 @@ sub apply_to_range {
     $first_str ||= $range;
     $last_str ||= $first_str;
     my ($first_code, $last_code) = (hex $first_str, hex $last_str);
-    my $point = $POINTS_BY_CODE->{$first_code};
-    if (!$point) { # go backwards to find the last one
-                    # (much faster than going forwards for some reason)
-        my $code = $first_code - 1;
-        $code-- until ($point = $POINTS_BY_CODE->{$code});
-        $point = $point->{next_point};
-    }
+    my $point = get_next_point($first_code);
     my $last_point;
     do {
         $fn->($point);
@@ -1670,7 +1677,6 @@ sub add_to_plane {
 
 sub UnicodeData {
     my ($bidi_classes, $general_categories, $ccclasses) = @_;
-    init_plane();
     register_binary_property('Any');
     each_line('PropertyValueAliases', sub { $_ = shift;
         my @parts = split /\s*[#;]\s*/;
