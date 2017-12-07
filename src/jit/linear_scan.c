@@ -716,8 +716,8 @@ static void live_range_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMJi
     ValueRef *current, *next;
     /* loop over all value refs */
 
-    for (current = alc->values[to_spill].first, next = current->next;
-         current != NULL; current = next, next = current->next) {
+    for ((current = alc->values[to_spill].first) && (next = current->next);
+         current != NULL; (current = next) && (next = current->next)) {
         /* make a new live range */
         MVMint32 n;
         /* shift current ref */
