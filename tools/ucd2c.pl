@@ -251,7 +251,8 @@ sub get_next_point {
     if (!$point) {
         $point = {
             code => $code,
-            code_str => sprintf ("%.4X", $code)
+            code_str => sprintf ("%.4X", $code),
+            Any => 1
         };
         # XXX Make it work with the lower thing set
         #$POINTS_BY_CODE->{$code} = $point;
@@ -1772,15 +1773,18 @@ sub UnicodeData {
         elsif ($ideograph_start) {
             $point->{name} = $ideograph_start->{name};
             my $current = $ideograph_start;
-            while ($current->{code} < $point->{code} - 1) {
-                my $new = { Any => 1 };
-                for (sort keys %$current) {
-                    $new->{$_} = $current->{$_};
+            my $count = $ideograph_start->{code} + 1;
+            while ($count < $point->{code}) {
+                $current = get_next_point($count);
+                for (sort keys %$ideograph_start) {
+                    next if $_ eq "code" || $_ eq "code_str";
+                    $current->{$_} = $ideograph_start->{$_};
                 }
-                $new->{code}++;
-                $code_str = uc(sprintf '%04x', $new->{code});
-                $new->{code_str} = $code_str;
-                $POINTS_BY_CODE->{$new->{code}} = $current = $new;
+                # This die can be removed eventually when get_next_ponit registers
+                # codepoints in $POINTS_BY_CODE
+                die $current->{code} if $POINTS_BY_CODE->{$current->{code}};
+                $POINTS_BY_CODE->{$current->{code}} = $current;
+                $count++;
             }
             $ideograph_start = 0;
         }
