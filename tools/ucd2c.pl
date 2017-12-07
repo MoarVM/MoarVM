@@ -34,7 +34,6 @@ my $POINTS_BY_CODE = {};
 my $ENUMERATED_PROPERTIES = {};
 my $BINARY_PROPERTIES = {};
 my $FIRST_POINT = undef;
-my $LAST_POINT = undef;
 my $ALIASES = {};
 my $ALIAS_TYPES = {};
 my $PROP_NAMES = {};
@@ -159,6 +158,7 @@ sub main {
     my $allocated_bitfield_properties = allocate_bitfield();
     # Compute all the things
     progress("done.\ncomputing all properties...");
+    set_next_points();
     compute_properties($allocated_bitfield_properties);
     # Make the things less
     progress("...done.\ncomputing collapsed properties table...");
@@ -189,6 +189,7 @@ sub main {
         print LOG $LOG;
         close LOG;
     }
+    print "\nDONE!!!\n\n";
 }
 
 sub thousands {
@@ -234,16 +235,26 @@ sub join_sections {
     $content .= "\n".$sections->{$_} for (sort keys %{$sections});
     $content
 }
+
+sub set_next_points {
+    my $last;
+    for my $code (sort { $a <=> $b } keys %{$POINTS_BY_CODE}) {
+        $POINTS_BY_CODE->{$last}->{next_point} = $POINTS_BY_CODE->{$code}
+            if defined $last;
+        $last = $code;
+    }
+}
+
 sub get_next_point {
     my ($code) = @_;
     my $point = $POINTS_BY_CODE->{$code};
     if (!$point) {
-        my $temp_code = $code - 1;
-        until ($POINTS_BY_CODE->{$temp_code}) {
-            $temp_code--;
-        }
-        $point = $POINTS_BY_CODE->{$temp_code};
-        $point = $point->{next_point};
+        $point = {
+            code => $code,
+            code_str => sprintf ("%.4X", $code)
+        };
+        # XXX Make it work with the lower thing set
+        #$POINTS_BY_CODE->{$code} = $point;
     }
     $point;
 }
@@ -263,11 +274,9 @@ sub apply_to_range {
     $last_str ||= $first_str;
     my ($first_code, $last_code) = (hex $first_str, hex $last_str);
     my $point = get_next_point($first_code);
-    my $last_point;
     do {
         $fn->($point);
-        $last_point = $point;
-        $point = $point->{next_point};
+        $point = get_next_point($point->{code} + 1);
     } while ($point && $point->{code} <= $last_code);
 }
 
@@ -1771,19 +1780,13 @@ sub UnicodeData {
                 $new->{code}++;
                 $code_str = uc(sprintf '%04x', $new->{code});
                 $new->{code_str} = $code_str;
-                $POINTS_BY_CODE->{$new->{code}} =
-                    $current = $current->{next_point} = $new;
+                $POINTS_BY_CODE->{$new->{code}} = $current = $new;
             }
-            $LAST_POINT = $current;
             $ideograph_start = 0;
         }
         $POINTS_BY_CODE->{$code} = $point;
-
-        if ($LAST_POINT) {
-            $LAST_POINT = $LAST_POINT->{next_point} = $point;
-        }
-        else {
-            $LAST_POINT = $FIRST_POINT = $point;
+        if (!$FIRST_POINT || $point->{code} < $FIRST_POINT->{code}) {
+            $FIRST_POINT = $point;
         }
     };
     each_line('UnicodeData', $s);
@@ -1927,7 +1930,7 @@ sub Jamo {
     });
     my @hangul_syllables;
     for my $key (sort keys %{$POINTS_BY_CODE}) {
-        if (%{$POINTS_BY_CODE}{$key}->{name} eq '<Hangul Syllable>') {
+        if ($POINTS_BY_CODE->{$key}->{name} and $POINTS_BY_CODE->{$key}->{name} eq '<Hangul Syllable>') {
             push @hangul_syllables, $key;
         }
     }
@@ -2077,8 +2080,8 @@ sub tweak_nfg_qc {
         || $point->{'Grapheme_Extend'}              # Grapheme_Extend
         || $point->{'Grapheme_Cluster_Break'}       # Grapheme_Cluster_Break
         || $point->{'Prepended_Concatenation_Mark'} # Prepended_Concatenation_Mark
-        || $point->{'gencat_name'} eq 'Mc'          # Spacing_Mark
-        || $code == 0x0E33 || $code == 0x0EB3       # Some specials
+        || $point->{'gencat_name'} && $point->{'gencat_name'} eq 'Mc' # Spacing_Mark
+        || $code == 0x0E33 || $code == 0x0EB3                         # Some specials
         ) {
             $point->{'NFG_QC'} = 0;
         }
