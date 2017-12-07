@@ -1637,13 +1637,40 @@ sub register_union {
             ? "'.$unionname.'" : 0;
     }';
 }
-
-sub UnicodeData {
-    my ($bidi_classes, $general_categories, $ccclasses) = @_;
+sub init_plane {
+    if (0 < @$PLANES) {
+        croak "plane has already been inited";
+    }
     my $plane = {
         number => 0,
         points => []
     };
+    push @$PLANES, $plane;
+}
+sub add_to_plane {
+    my ($point, $code) = @_;
+    my $plane_num = $code >> 16;
+    my $plane;
+    init_plane() if !@$PLANES;
+    my $curr_number = 0;
+    if ($plane_num  <= @$PLANES - 1) {
+        $plane = @$PLANES[$plane_num];
+    }
+    else {
+        $plane = @$PLANES[scalar(@$PLANES) - 1];
+        while ($plane->{number} < $plane_num) {
+            push(@$PLANES, ($plane = {
+                number => $plane->{number} + 1,
+                points => []
+            }));
+        }
+    }
+    push @{$plane->{points}}, $point;
+}
+
+sub UnicodeData {
+    my ($bidi_classes, $general_categories, $ccclasses) = @_;
+    init_plane();
     register_binary_property('Any');
     each_line('PropertyValueAliases', sub { $_ = shift;
         my @parts = split /\s*[#;]\s*/;
@@ -1665,7 +1692,6 @@ sub UnicodeData {
         }
     });
     register_union('Assigned', 'C[cfosn]|L[lmotu]|M[cen]|N[dlo]|P[cdefios]|S[ckmo]|Z[lps]');
-    push @$PLANES, $plane;
     my $ideograph_start;
     my $case_count = 1;
     my $decomp_keys = [ '' ];
@@ -1712,12 +1738,6 @@ sub UnicodeData {
         if ($suc || $slc || $stc) {
             $point->{Case_Change_Index} = $case_count++;
         }
-        while ($plane->{number} < $plane_num) {
-            push(@$PLANES, ($plane = {
-                number => $plane->{number} + 1,
-                points => []
-            }));
-        }
         for my $checker (@$GC_ALIAS_CHECKERS) {
             my $res = $checker->($gencat);
             $point->{$res} = 1 if $res;
@@ -1737,14 +1757,14 @@ sub UnicodeData {
                 $new->{code}++;
                 $code_str = uc(sprintf '%04x', $new->{code});
                 $new->{code_str} = $code_str;
-                push @{$plane->{points}}, $new;
+                add_to_plane($new, $new->{code});
                 $POINTS_BY_CODE->{$new->{code}} =
                     $current = $current->{next_point} = $new;
             }
             $LAST_POINT = $current;
             $ideograph_start = 0;
         }
-        push @{$plane->{points}}, $point;
+        add_to_plane($point, $code);
         $POINTS_BY_CODE->{$code} = $point;
 
         if ($LAST_POINT) {
