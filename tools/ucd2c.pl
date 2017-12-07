@@ -166,6 +166,7 @@ sub main {
     # Emit all the things
     progress("...done.\nemitting unicode_db.c...");
     emit_bitfield($FIRST_POINT);
+    add_to_planes();
     $EXTENTS = emit_codepoints_and_planes($FIRST_POINT);
     emit_case_changes($FIRST_POINT);
     emit_codepoint_row_lookup($EXTENTS);
@@ -1654,6 +1655,7 @@ sub init_plane {
     };
     push @$PLANES, $plane;
 }
+# Adds the requested codepoint into $PLANES
 sub add_to_plane {
     my ($point, $code) = @_;
     my $plane_num = $code >> 16;
@@ -1673,6 +1675,12 @@ sub add_to_plane {
         }
     }
     push @{$plane->{points}}, $point;
+}
+# Adds the codepoints from $POINTS_BY_CODE into $PLANES
+sub add_to_planes {
+    for my $code (sort { $a <=> $b } keys %{$POINTS_BY_CODE}) {
+        add_to_plane($POINTS_BY_CODE->{$code}, $code);
+    }
 }
 
 sub UnicodeData {
@@ -1763,14 +1771,12 @@ sub UnicodeData {
                 $new->{code}++;
                 $code_str = uc(sprintf '%04x', $new->{code});
                 $new->{code_str} = $code_str;
-                add_to_plane($new, $new->{code});
                 $POINTS_BY_CODE->{$new->{code}} =
                     $current = $current->{next_point} = $new;
             }
             $LAST_POINT = $current;
             $ideograph_start = 0;
         }
-        add_to_plane($point, $code);
         $POINTS_BY_CODE->{$code} = $point;
 
         if ($LAST_POINT) {
