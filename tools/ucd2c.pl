@@ -154,11 +154,13 @@ sub main {
     tweak_nfg_qc();
 
     # Allocate all the things
+    progress("done.\nsetting next_point for codepoints");
+    set_next_points();
+    add_to_planes();
     progress("done.\nallocating bitfield...");
     my $allocated_bitfield_properties = allocate_bitfield();
     # Compute all the things
     progress("done.\ncomputing all properties...");
-    set_next_points();
     compute_properties($allocated_bitfield_properties);
     # Make the things less
     progress("...done.\ncomputing collapsed properties table...");
@@ -166,7 +168,6 @@ sub main {
     # Emit all the things
     progress("...done.\nemitting unicode_db.c...");
     emit_bitfield($FIRST_POINT);
-    add_to_planes();
     $EXTENTS = emit_codepoints_and_planes($FIRST_POINT);
     emit_case_changes($FIRST_POINT);
     emit_codepoint_row_lookup($EXTENTS);
@@ -241,21 +242,33 @@ sub set_next_points {
     for my $code (sort { $a <=> $b } keys %{$POINTS_BY_CODE}) {
         $POINTS_BY_CODE->{$last}->{next_point} = $POINTS_BY_CODE->{$code}
             if defined $last;
+        # The first code we encounter will be the lowest, so set $FIRST_POINT
+        if (!defined $last) {
+            say "setting first point to $code";
+            $FIRST_POINT = $POINTS_BY_CODE->{$code};
+        }
         $last = $code;
     }
 }
-
 sub get_next_point {
-    my ($code) = @_;
+    my ($code, $add_to_points_by_code) = @_;
     my $point = $POINTS_BY_CODE->{$code};
     if (!$point) {
         $point = {
             code => $code,
             code_str => sprintf ("%.4X", $code),
-            Any => 1
+            Any => 1,
+            NFD_QC => 1, # these are defaults (inverted)
+            NFC_QC => 1, # which will be unset as appropriate
+            NFKD_QC => 1,
+            NFKC_QC => 1,
+            NFG_QC => 1,
+            MVM_COLLATION_QC => 1
         };
-        # XXX Make it work with the lower thing set
-        #$POINTS_BY_CODE->{$code} = $point;
+        die if defined $POINTS_BY_CODE->{$code};
+        if ($add_to_points_by_code) {
+             $POINTS_BY_CODE->{$code} = $point;
+        }
     }
     $point;
 }
@@ -274,11 +287,13 @@ sub apply_to_range {
     $first_str ||= $range;
     $last_str ||= $first_str;
     my ($first_code, $last_code) = (hex $first_str, hex $last_str);
-    my $point = get_next_point($first_code);
-    do {
+    my $curr_code = $first_code;
+    my $point;
+    while ($curr_code <= $last_code) {
+        $point = get_next_point($curr_code);
         $fn->($point);
-        $point = get_next_point($point->{code} + 1);
-    } while ($point && $point->{code} <= $last_code);
+        $curr_code++;
+    }
 }
 
 sub progress($) {
@@ -581,7 +596,7 @@ sub emit_codepoints_and_planes {
             # this point is identical to the previous point
             if ($COMPRESS_CODEPOINTS && $last_point
                     && $last_code == $point->{code} - 1
-                    && $point->{name} eq $last_point->{name}
+                    && is_same($last_point, $point)
                     && $last_point->{bitfield_index} == $point->{bitfield_index}) {
                 # create a or extend the current span
                 ++$last_code;
@@ -1702,7 +1717,6 @@ sub UnicodeData {
         foreach my $part (@parts) {
             $part = trim $part;
             push @parts2, $part;
-            #croak "moo\n'$part'" if ($part =~ / /);
         }
         @parts = @parts2;
         my $propname = shift @parts;
@@ -1731,11 +1745,11 @@ sub UnicodeData {
         if ($name eq '<control>' ) {
             $name = sprintf '<control-%.4X>', $code;
         }
-        my $point = {
+        my $point = get_next_point($code, 1);
+        my $hashy = {
             # Unicode_1_Name is not used yet. We should make sure it ends up
-            # in some data structure
+            # in some data structure eventually
             Unicode_1_Name => $u1name,
-            code_str => $code_str,
             name => $name,
             gencat_name => $gencat,
             General_Category => $general_categories->{enum}->{$gencat},
@@ -1744,15 +1758,10 @@ sub UnicodeData {
             suc => $suc,
             slc => $slc,
             stc => $stc,
-            NFD_QC => 1, # these are defaults (inverted)
-            NFC_QC => 1, # which will be unset as appropriate
-            NFKD_QC => 1,
-            NFKC_QC => 1,
-            NFG_QC => 1,
-            MVM_COLLATION_QC => 1,
-            code => $code,
-            Any => 1
         };
+        for my $key (sort keys %$hashy) {
+            $point->{$key} = $hashy->{$key};
+        }
         $point->{Bidi_Mirrored} = 1 if $bidimirrored eq 'Y';
         if ($decmpspec) {
             $decmpspec =~ s/<\w+>\s+//;
@@ -1775,22 +1784,14 @@ sub UnicodeData {
             my $current = $ideograph_start;
             my $count = $ideograph_start->{code} + 1;
             while ($count < $point->{code}) {
-                $current = get_next_point($count);
+                $current = get_next_point($count, 1);
                 for (sort keys %$ideograph_start) {
                     next if $_ eq "code" || $_ eq "code_str";
                     $current->{$_} = $ideograph_start->{$_};
                 }
-                # This die can be removed eventually when get_next_ponit registers
-                # codepoints in $POINTS_BY_CODE
-                die $current->{code} if $POINTS_BY_CODE->{$current->{code}};
-                $POINTS_BY_CODE->{$current->{code}} = $current;
                 $count++;
             }
             $ideograph_start = 0;
-        }
-        $POINTS_BY_CODE->{$code} = $point;
-        if (!$FIRST_POINT || $point->{code} < $FIRST_POINT->{code}) {
-            $FIRST_POINT = $point;
         }
     };
     each_line('UnicodeData', $s);
@@ -1805,7 +1806,27 @@ sub UnicodeData {
         bit_width => least_int_ge_lg2($decomp_index)
     });
 }
-
+sub is_same {
+    my ($point_1, $point_2) = @_;
+    my %things;
+    # Return early by simply checking the name. If the names match or don't
+    # exist, we need to do more work to determine if the points are equal
+    if (defined $point_1->{name} and defined $point_2->{name} and $point_1->{name} ne $point_2->{name}) {
+        return 0;
+    }
+    for my $key (keys %$point_1, keys %$point_2) {
+        $things{$key} = 1;
+    }
+    for my $key (keys %things) {
+        next if $key eq 'code' || $key eq 'code_str' || $key eq 'next_point' || $key eq 'main_index'
+        || $key eq 'next_emit_point' || $key eq 'bytes' || $key eq 'bitfield_index'
+        || $key eq 'fate_type' || $key eq 'fate_really' || $key eq 'fate_offset';
+        unless (defined $point_1->{$key} && defined $point_2->{$key} && $point_1->{$key} eq $point_2->{$key}) {
+            return 0;
+        }
+    }
+    return 1;
+}
 sub CaseFolding {
     my $simple_count = 1;
     my $grows_count = 1;
