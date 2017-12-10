@@ -45,7 +45,8 @@ enum {
     FLAG_VERSION,
 
     OPT_EXECNAME,
-    OPT_LIBPATH
+    OPT_LIBPATH,
+    OPT_DEBUGPORT
 };
 
 static const char *const FLAGS[] = {
@@ -67,7 +68,8 @@ USAGE: moar [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [program args]
     --full-cleanup    try to free all memory and exit cleanly\n\
     --crash           abort instead of exiting on unhandled exception\n\
     --libpath         specify path loadbytecode should search in\n\
-    --version         show version information"
+    --version         show version information\n\
+    --debug-port=1234 listen for incoming debugger connections"
     TRACING_USAGE
     "\n\
 \n\
@@ -118,6 +120,8 @@ static int parse_flag(const char *arg)
         return OPT_LIBPATH;
     else if (starts_with(arg, "--execname="))
         return OPT_EXECNAME;
+    else if (starts_with(arg, "--debug-port="))
+        return OPT_DEBUGPORT;
     else
         return UNKNOWN_FLAG;
 }
@@ -145,6 +149,8 @@ int wmain(int argc, wchar_t *wargv[])
 
     unsigned int interval_id;
     char telemeh_inited = 0;
+
+    MVMuint32 debugserverport = 0;
 
     for (; (flag = parse_flag(argv[argi])) != NOT_A_FLAG; ++argi) {
         switch (flag) {
@@ -203,6 +209,23 @@ int wmain(int argc, wchar_t *wargv[])
             return EXIT_SUCCESS;
             }
 
+            case OPT_DEBUGPORT: {
+                MVMint64 port;
+                char *portstr = argv[argi] + strlen("--debugport=") + 1;
+                char *endptr;
+                port = strtoll(portstr, &endptr, 10);
+                if (*endptr != '\0') {
+                    fprintf(stderr, "ERROR: Invalid characters in debug port flag: %s\n", portstr);
+                    return EXIT_FAILURE;
+                }
+                if (port <= 1024 || port > 65535) {
+                    fprintf(stderr, "ERROR: debug server port out of range. We only accept ports above 1024 and below 65535. (got: %d)\n", port);
+                    return EXIT_FAILURE;
+                }
+                debugserverport = (MVMuint32)port;
+                break;
+            }
+
             default:
             fprintf(stderr, "ERROR: Unknown flag %s.\n\n%s\n", argv[argi], USAGE);
             return EXIT_FAILURE;
@@ -251,6 +274,10 @@ int wmain(int argc, wchar_t *wargv[])
 #ifndef _WIN32
     signal(SIGPIPE, SIG_IGN);
 #endif
+
+    if (debugserverport > 0) {
+        MVM_debugserver_init(instance, debugserverport);
+    }
 
     if (dump) MVM_vm_dump_file(instance, input_file);
     else MVM_vm_run_file(instance, input_file);
