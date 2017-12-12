@@ -713,28 +713,30 @@ static void live_range_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMJi
                              MVMint32 to_spill, MVMint32 spill_pos, MVMint32 code_pos) {
 
     MVMint8 reg_spilled = alc->values[to_spill].reg_num;
-    ValueRef *current, *next;
     /* loop over all value refs */
 
-    for ((current = alc->values[to_spill].first) && (next = current->next);
-         current != NULL; (current = next) && (next = current->next)) {
+    while (alc->values[to_spill].first != NULL) {
         /* make a new live range */
         MVMint32 n;
+
         /* shift current ref */
-        current->next = NULL;
-        if (is_arglist_ref(list, current) && order_nr(current->tile_idx) > code_pos) {
+        ValueRef *ref = alc->values[to_spill].first;
+        alc->values[to_spill].first = ref->next;
+        ref->next = NULL;
+
+        if (is_arglist_ref(list, ref) && order_nr(ref->tile_idx) > code_pos) {
             /* Never insert a load before a future ARGLIST; ARGLIST may easily
              * consume more registers than we have available. Past ARGLISTs have
              * already been handled, so we do need to insert a load a before
              * them (or modify in place, but, complex!). */
             continue;
-        } else if (is_definition(current)) {
-            n = insert_store_after_definition(tc, alc, list, current, spill_pos);
+        } else if (is_definition(ref)) {
+            n = insert_store_after_definition(tc, alc, list, ref, spill_pos);
         } else {
-            n = insert_load_before_use(tc, alc, list, current, spill_pos);
+            n = insert_load_before_use(tc, alc, list, ref, spill_pos);
         }
 
-        if (order_nr(current->tile_idx) < code_pos) {
+        if (order_nr(ref->tile_idx) < code_pos) {
             /* in the past, which means we can safely use the spilled register
              * and immediately retire this live range */
             assign_register(tc, alc, list, n, MVM_JIT_STORAGE_GPR, reg_spilled);
@@ -746,9 +748,10 @@ static void live_range_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMJi
                                  values_cmp_first_ref);
         }
     }
+
     /* clear value references */
-    alc->values[to_spill].first = NULL;
     alc->values[to_spill].last = NULL;
+
     /* mark as spilled and store the spill position */
     alc->values[to_spill].spill_pos = spill_pos;
     alc->values[to_spill].spill_idx = code_pos;
