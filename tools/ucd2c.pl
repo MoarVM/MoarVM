@@ -801,7 +801,7 @@ sub emit_property_value_lookup {
     my $allocated = shift;
     my $enumtables = "\n\n";
     our $HOUT = "typedef enum {\n";
-    my $out = "
+    my $int_out = "
 static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
     MVMint32 result_val = 0; /* we'll never have negatives, but so */
@@ -821,7 +821,7 @@ static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint64 code
     switch (switch_val) {
         case 0: return 0;";
 
-    my $eout = "
+    my $str_out = "
 static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint64 codepoint);
 
 static const char *bogus = \"<BOGUS>\"; /* only for table too short; return null string for no mapping */
@@ -864,15 +864,15 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
         $HOUT .= "    " . uc("MVM_unicode_property_$prop->{name}") . " = $prop->{field_index},\n";
         $PROP_NAMES->{$prop->{name}} = $prop->{field_index};
         my $case = "\n        case " . uc("MVM_unicode_property_$prop->{name}") . ":";
-        $out .= $case;
-        $eout .= $case if $enum;
+        $int_out .= $case;
+        $str_out .= $case if $enum;
 
         my $bit_width = $prop->{bit_width};
         my $bit_offset = $prop->{bit_offset} // 0;
         my $word_offset = $prop->{word_offset} // 0;
 
-        $out .= " /* $prop->{name} bits:$bit_width offset:$bit_offset */";
-        $eout .= " /* $prop->{name} bits:$bit_width offset:$bit_offset */" if $enum;
+        $int_out .= " /* $prop->{name} bits:$bit_width offset:$bit_offset */";
+        $str_out .= " /* $prop->{name} bits:$bit_width offset:$bit_offset */" if $enum;
 
         my $one_word_only = $bit_offset + $bit_width <= $BITFIELD_CELL_BITWIDTH ? 1 : 0;
         while ($bit_width > 0) {
@@ -896,19 +896,19 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
             # (the function just returns an int from the enum instead of a char *)
             if ($enum && defined($prop->{type}) && ($prop->{type} eq 'int')) {
                 # XXX todo, remove unneeded variables and jank
-                $out .= "
+                $int_out .= "
                 result_val = ((props_bitfield[bitfield_row][$word_offset] & 0x".
                     sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */";
-                $out .= "return result_val < $esize ? (result_val == -1
+                $int_out .= "return result_val < $esize ? (result_val == -1
                     ? $enum\[0] : $enum\[result_val]) : 0;\n    ";
                 next;
             }
             else {
-                $out .= "
+                $int_out .= "
                 " . ($one_word_only ? 'return' : 'result_val |=') . " ((props_bitfield[bitfield_row][$word_offset] & 0x"
                 . sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */";
             }
-            $eout .= "
+            $str_out .= "
             result_val |= ((props_bitfield[bitfield_row][$word_offset] & 0x".
                 sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */" if $enum;
 
@@ -916,11 +916,11 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
             $bit_offset = 0;
         }
 
-        $out  .= "\n            ";
-        $eout .= "\n            " if $enum;
+        $int_out  .= "\n            ";
+        $str_out .= "\n            " if $enum;
 
-        $out .= "return result_val;" unless $one_word_only;
-        $eout .= "return result_val < $esize ? (result_val == -1
+        $int_out .= "return result_val;" unless $one_word_only;
+        $str_out .= "return result_val < $esize ? (result_val == -1
         ? $enum\[0] : $enum\[result_val]) : bogus;" if $enum;
     }
     my $default_return = "
@@ -929,8 +929,8 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
     }
 }
 ";
-    $out  .= sprintf $default_return, 0;
-    $eout .= sprintf $default_return, q("");
+    $int_out  .= sprintf $default_return, 0;
+    $str_out .= sprintf $default_return, q("");
     $HOUT .= "} MVM_unicode_property_codes;";
 
     sub gen_pvalue_defines {
@@ -954,7 +954,7 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
     gen_pvalue_defines('MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS', 'Canonical_Combining_Class', 'CCC');
     gen_pvalue_defines('MVM_UNICODE_PROPERTY_NUMERIC_TYPE', 'Numeric_Type', 'Numeric_Type');
 
-    $DB_SECTIONS->{MVM_unicode_get_property_int} = $enumtables . $eout . $out;
+    $DB_SECTIONS->{MVM_unicode_get_property_int} = $enumtables . $str_out . $int_out;
     $H_SECTIONS->{property_code_definitions} = $HOUT;
 }
 
