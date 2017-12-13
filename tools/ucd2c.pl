@@ -53,6 +53,7 @@ my $SPAN_LENGTH_THRESHOLD = 100;
 my $SKIP_MOST_MODE = 0;
 my $BITFIELD_CELL_BITWIDTH = 32;
 my $GC_ALIAS_CHECKERS = [];
+my $GENERAL_CATEGORIES = {};
 
 sub trim {
     my $s = shift;
@@ -99,7 +100,7 @@ sub main {
     gen_name_alias_keypairs();
     # Load all the things
     UnicodeData(
-        derived_property('BidiClass', 'Bidi_Class', {}, 0),
+        derived_property('BidiClass', 'Bidi_Class', { L => 0 }, 0),
         derived_property('GeneralCategory', 'General_Category', { Cn => 0 }, 0),
         derived_property('CombiningClass',
             'Canonical_Combining_Class', { Not_Reordered => 0 }, 1)
@@ -118,8 +119,8 @@ sub main {
     # creating Jamo's Codepoint Names
     #enumerated_property('Jamo', 'Jamo_Short_Name', {  }, 1, 1);
     enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1);
-    enumerated_property('extracted/DerivedEastAsianWidth', 'East_Asian_Width', {}, 1);
-    enumerated_property('ArabicShaping', 'Joining_Type', {}, 2);
+    enumerated_property('extracted/DerivedEastAsianWidth', 'East_Asian_Width', { N => 0 }, 1);
+    enumerated_property('ArabicShaping', 'Joining_Type', { U => 0 }, 2);
     CaseFolding();
     SpecialCasing();
     enumerated_property('DerivedAge',
@@ -263,7 +264,10 @@ sub get_next_point {
             NFKD_QC => 1,
             NFKC_QC => 1,
             NFG_QC => 1,
-            MVM_COLLATION_QC => 1
+            MVM_COLLATION_QC => 1,
+            name => "",
+            gencat_name => "Cn",
+            General_Category => $GENERAL_CATEGORIES->{enum}->{Cn}
         };
         die if defined $POINTS_BY_CODE->{$code};
         if ($add_to_points_by_code) {
@@ -1710,6 +1714,7 @@ sub add_to_planes {
 
 sub UnicodeData {
     my ($bidi_classes, $general_categories, $ccclasses) = @_;
+    $GENERAL_CATEGORIES = $general_categories;
     register_binary_property('Any');
     each_line('PropertyValueAliases', sub { $_ = shift;
         my @parts = split /\s*[#;]\s*/;
