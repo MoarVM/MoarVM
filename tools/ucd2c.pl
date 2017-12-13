@@ -843,7 +843,11 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
 
     switch (switch_val) {
         case 0: return \"\";";
-
+    # Checks if it is a 'str' type enum
+    sub is_str_enum {
+        my ($prop) = @_;
+        exists $prop->{keys} && (!defined $prop->{type} || $prop->{type} ne 'int');
+    }
     for my $prop (@$allocated) {
         my $enum = exists $prop->{keys};
         my $esize = 0;
@@ -865,14 +869,14 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
         $PROP_NAMES->{$prop->{name}} = $prop->{field_index};
         my $case = "\n        case " . uc("MVM_unicode_property_$prop->{name}") . ":";
         $int_out .= $case;
-        $str_out .= $case if $enum;
+        $str_out .= $case if is_str_enum($prop);
 
         my $bit_width = $prop->{bit_width};
         my $bit_offset = $prop->{bit_offset} // 0;
         my $word_offset = $prop->{word_offset} // 0;
 
         $int_out .= " /* $prop->{name} bits:$bit_width offset:$bit_offset */";
-        $str_out .= " /* $prop->{name} bits:$bit_width offset:$bit_offset */" if $enum;
+        $str_out .= " /* $prop->{name} bits:$bit_width offset:$bit_offset */" if is_str_enum($prop);
 
         my $one_word_only = $bit_offset + $bit_width <= $BITFIELD_CELL_BITWIDTH ? 1 : 0;
         while ($bit_width > 0) {
@@ -910,18 +914,18 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
             }
             $str_out .= "
             result_val |= ((props_bitfield[bitfield_row][$word_offset] & 0x".
-                sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */" if $enum;
+                sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */" if is_str_enum($prop);
 
             $word_offset++;
             $bit_offset = 0;
         }
 
         $int_out  .= "\n            ";
-        $str_out .= "\n            " if $enum;
+        $str_out .= "\n            " if is_str_enum($prop);
 
         $int_out .= "return result_val;" unless $one_word_only;
         $str_out .= "return result_val < $esize ? (result_val == -1
-        ? $enum\[0] : $enum\[result_val]) : bogus;" if $enum;
+        ? $enum\[0] : $enum\[result_val]) : bogus;" if is_str_enum($prop);
     }
     my $default_return = "
         default:
