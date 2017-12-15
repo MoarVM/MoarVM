@@ -43,6 +43,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMStaticFrameSpesh *sfs = (MVMStaticFrameSpesh *)obj;
     MVMint32 i;
     MVM_spesh_stats_destroy(tc, sfs->body.spesh_stats);
+    MVM_free(sfs->body.spesh_stats);
     MVM_spesh_arg_guard_destroy(tc, sfs->body.spesh_arg_guard, 0);
     for (i = 0; i < sfs->body.num_spesh_candidates; i++)
         MVM_spesh_candidate_destroy(tc, sfs->body.spesh_candidates[i]);

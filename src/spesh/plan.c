@@ -8,10 +8,16 @@ void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlannedKind k
                  MVMSpeshStatsType *type_tuple, MVMSpeshStatsByType **type_stats,
                  MVMuint32 num_type_stats) {
     MVMSpeshPlanned *p;
-    if (sf->body.bytecode_size > MVM_SPESH_MAX_BYTECODE_SIZE)
+    if (sf->body.bytecode_size > MVM_SPESH_MAX_BYTECODE_SIZE ||
+        MVM_spesh_arg_guard_exists(tc, sf->body.spesh->body.spesh_arg_guard, cs_stats->cs, type_tuple)) {
+        /* Clean up allocated memory.
+         * NB - the only caller is plan_for_cs, which means that we could do the
+         * allocations in here, except that we need the type tuple for the
+         * lookup already. So this is messy but it works. */
+        MVM_free(type_stats);
+        MVM_free(type_tuple);
         return;
-    if (MVM_spesh_arg_guard_exists(tc, sf->body.spesh->body.spesh_arg_guard, cs_stats->cs, type_tuple))
-        return;
+    }
     if (plan->num_planned == plan->alloc_planned) {
         plan->alloc_planned += 16;
         plan->planned = MVM_realloc(plan->planned,
@@ -188,8 +194,10 @@ void MVM_spesh_plan_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *ss, 
 /* Frees all memory associated with a specialization plan. */
 void MVM_spesh_plan_destroy(MVMThreadContext *tc, MVMSpeshPlan *plan) {
     MVMuint32 i;
-    for (i = 0; i < plan->num_planned; i++)
+    for (i = 0; i < plan->num_planned; i++) {
+        MVM_free(plan->planned[i].type_stats);
         MVM_free(plan->planned[i].type_tuple);
+    }
     MVM_free(plan->planned);
     MVM_free(plan);
 }

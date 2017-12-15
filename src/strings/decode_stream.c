@@ -669,4 +669,5 @@ void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeSt
 void MVM_string_decode_stream_sep_destroy(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec) {
     MVM_free(sep_spec->sep_lengths);
     MVM_free(sep_spec->sep_graphemes);
+    MVM_free(sep_spec->final_graphemes);
 }

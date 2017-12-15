@@ -31,6 +31,9 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMDecoder *decoder = (MVMDecoder *)obj;
     if (decoder->body.ds)
         MVM_string_decodestream_destroy(tc, decoder->body.ds);
+    if (decoder->body.sep_spec)
+        MVM_string_decode_stream_sep_destroy(tc, decoder->body.sep_spec);
+    MVM_free(decoder->body.sep_spec);
 }
 
 static const MVMStorageSpec storage_spec = {
