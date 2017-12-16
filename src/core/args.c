@@ -875,6 +875,11 @@ static void bind_error_return(MVMThreadContext *tc, void *sr_data) {
         MVM_exception_throw_adhoc(tc, "No caller to return to after bind_error");
     MVM_frame_try_return(tc);
 }
+
+static void bind_error_unwind(MVMThreadContext *tc, void *sr_data) {
+    MVM_free(sr_data);
+}
+
 static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
     MVMRegister *r = (MVMRegister *)frame->extra->special_return_data;
     MVM_gc_worklist_add(tc, worklist, &r->o);
@@ -895,7 +900,7 @@ void MVM_args_bind_failed(MVMThreadContext *tc) {
     res = MVM_calloc(1, sizeof(MVMRegister));
     inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
     MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, inv_arg_callsite);
-    MVM_frame_special_return(tc, cur_frame, bind_error_return, NULL, res, mark_sr_data);
+    MVM_frame_special_return(tc, cur_frame, bind_error_return, bind_error_unwind, res, mark_sr_data);
     cur_frame->args[0].o = cc_obj;
     STABLE(bind_error)->invoke(tc, bind_error, inv_arg_callsite, cur_frame->args);
 }
