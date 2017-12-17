@@ -2,7 +2,7 @@
 This document describes the bytecode that the VM interprets or JIT compiles.
 Note that this is just one part of an input file to the VM; along with it
 will also be a bunch of serialized objects, and some container. This just
-describes the way the executable segment of things look. (In a sense, this
+describes the way the executable segment of things looks. (In a sense, this
 is the low-level reification of the Actions/World distinction at the level
 of the compiler).
 
