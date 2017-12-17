@@ -352,6 +352,10 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVM_spesh_worker_setup(instance->main_thread);
     MVM_spesh_log_initialize_thread(instance->main_thread, 1);
 
+    init_mutex(instance->mutex_debugserver_cond, "debug server orchestration");
+    init_cond(instance->debugserver_tell_threads, "debugserver signals threads");
+    init_cond(instance->debugserver_tell_worker, "threads signal debugserver");
+
     /* Back to nursery allocation, now we're set up. */
     MVM_gc_allocate_gen2_default_clear(instance->main_thread);
 

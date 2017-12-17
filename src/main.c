@@ -38,6 +38,7 @@ enum {
     UNKNOWN_FLAG = -1,
 
     FLAG_CRASH,
+    FLAG_SUSPEND,
     FLAG_DUMP,
     FLAG_FULL_CLEANUP,
     FLAG_HELP,
@@ -51,6 +52,7 @@ enum {
 
 static const char *const FLAGS[] = {
     "--crash",
+    "--debug-suspend",
     "--dump",
     "--full-cleanup",
     "--help",
@@ -69,7 +71,8 @@ USAGE: moar [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [program args]
     --crash           abort instead of exiting on unhandled exception\n\
     --libpath         specify path loadbytecode should search in\n\
     --version         show version information\n\
-    --debug-port=1234 listen for incoming debugger connections"
+    --debug-port=1234 listen for incoming debugger connections\n\
+    --debug-suspend   pause execution at the entry point"
     TRACING_USAGE
     "\n\
 \n\
@@ -151,6 +154,7 @@ int wmain(int argc, wchar_t *wargv[])
     char telemeh_inited = 0;
 
     MVMuint32 debugserverport = 0;
+    int start_suspended = 0;
 
     for (; (flag = parse_flag(argv[argi])) != NOT_A_FLAG; ++argi) {
         switch (flag) {
@@ -175,6 +179,10 @@ int wmain(int argc, wchar_t *wargv[])
             MVM_interp_enable_tracing();
             continue;
 #endif
+
+            case FLAG_SUSPEND:
+            start_suspended = 1;
+            continue;
 
             case OPT_EXECNAME:
             executable_name = argv[argi] + strlen("--execname=");
@@ -277,6 +285,10 @@ int wmain(int argc, wchar_t *wargv[])
 
     if (debugserverport > 0) {
         MVM_debugserver_init(instance, debugserverport);
+
+        if (start_suspended) {
+            instance->main_thread->gc_status = MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST;
+        }
     }
 
     if (dump) MVM_vm_dump_file(instance, input_file);

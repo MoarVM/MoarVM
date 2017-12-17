@@ -272,6 +272,10 @@ void MVM_gc_mark_thread_blocked(MVMThreadContext *tc) {
                 MVMGCStatus_UNABLE) == MVMGCStatus_NONE)
             return;
 
+        if (MVM_cas(&tc->gc_status, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST,
+                MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED) == MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
+            return;
+
         /* The only way this can fail is if another thread just decided we're to
          * participate in a GC run. */
         if (MVM_load(&tc->gc_status) == MVMGCStatus_INTERRUPT)
@@ -299,7 +303,21 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
         }
         else {
             uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
-            MVM_platform_thread_yield();
+            fprintf(stderr, "marking unblocked saw something other than 'UNABLE', suspecting suspend request\n");
+            if (MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK == MVMSuspendState_SUSPEND_REQUEST) {
+                fprintf(stderr, "yup. let's switch to interrupt + suspend request.\n");
+                while (1) {
+                    if (MVM_cas(&tc->gc_status, MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST,
+                                MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST) ==
+                            MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST) {
+                        fprintf(stderr, "success!\n");
+                        MVM_gc_enter_from_interrupt(tc);
+                        break;
+                    }
+                }
+            } else {
+                MVM_platform_thread_yield();
+            }
         }
     }
 }
@@ -313,7 +331,7 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
  * these cases are handled in MVM_gc_mark_thread_unblocked. Note that this
  * relies on a thread itself only ever calling block/unblock. */
 MVMint32 MVM_gc_is_thread_blocked(MVMThreadContext *tc) {
-    AO_t gc_status = MVM_load(&(tc->gc_status));
+    AO_t gc_status = MVM_load(&(tc->gc_status)) & MVMGCSTATUS_MASK;
     return gc_status == MVMGCStatus_UNABLE ||
            gc_status == MVMGCStatus_STOLEN;
 }
@@ -502,13 +520,39 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
     }
 }
 
-/* This is called when a thread hits an interrupt at a GC safe point. This means
- * that another thread is already trying to start a GC run, so we don't need to
- * try and do that, just enlist in the run. */
+/* This is called when a thread hits an interrupt at a GC safe point.
+ *
+ * There are two interpretations for this:
+ * * That another thread is already trying to start a GC run, so we don't need
+ *   to try and do that, just enlist in the run.
+ * * The debug remote is asking this thread to suspend execution.
+ *
+ * Those cases can be distinguished by the gc state masked with
+ * MVMSUSPENDSTATUS_MASK.
+ *   */
 void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     AO_t curr;
 
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from interrupt\n");
+
+    fprintf(stderr, "enter from interrupt: %d & %d = %d == %d? %d\n", MVM_load(&tc->gc_status), MVMSUSPENDSTATUS_MASK, MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK, MVMSuspendState_SUSPEND_REQUEST, MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK == MVMSuspendState_SUSPEND_REQUEST);
+
+    if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPEND_REQUEST) {
+        fprintf(stderr, "thread reacting to suspend request\n");
+        MVM_gc_mark_thread_blocked(tc);
+        uv_cond_signal(&tc->instance->debugserver_tell_worker);
+        while (1) {
+            uv_cond_wait(&tc->instance->debugserver_tell_threads, &tc->instance->mutex_debugserver_cond);
+            if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_NONE) {
+                fprintf(stderr, "thread got un-suspended\n");
+                break;
+            } else {
+                fprintf(stderr, "something happened, but we're still suspended.\n");
+            }
+        }
+        MVM_gc_mark_thread_unblocked(tc);
+        return;
+    }
 
     MVM_telemetry_timestamp(tc, "gc_enter_from_interrupt");
 

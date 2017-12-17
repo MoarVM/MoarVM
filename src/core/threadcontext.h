@@ -1,3 +1,6 @@
+#define MVMGCSTATUS_MASK 3
+#define MVMSUSPENDSTATUS_MASK 12
+
 /* Possible values for the thread execution interrupt flag. */
 typedef enum {
     /* Indicates that the thread is currently executing, and should
@@ -19,8 +22,22 @@ typedef enum {
      * run was triggered and the scanning work was stolen. A thread
      * that becomes unblocked upon seeing this will wait for the GC
      * run to be done. */
-    MVMGCStatus_STOLEN = 3
+    MVMGCStatus_STOLEN = 3,
 } MVMGCStatus;
+
+typedef enum {
+    /* Indicates the thread shall continue executing. */
+    MVMSuspendState_NONE = 0,
+
+    /* Indicates the thread shall suspend execution as soon as practical. */
+    MVMSuspendState_SUSPEND_REQUEST = 4,
+
+    /* Indicates the thread has suspended execution and is waiting for
+     * a signal to resume execution. */
+    MVMSuspendState_SUSPENDED = 12,
+} MVMSuspendStatus;
+
+
 
 /* Information associated with an executing thread. */
 struct MVMThreadContext {
