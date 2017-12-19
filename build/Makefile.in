@@ -42,6 +42,7 @@ CINCLUDES = @cincludes@ \
             @ccinc@@shaincludedir@ \
             @ccinc@3rdparty/tinymt \
             @ccinc@3rdparty/dynasm \
+            @ccinc@3rdparty/cmp \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
@@ -393,7 +394,8 @@ HEADERS = src/moar.h \
           src/instrument/crossthreadwrite.h \
           src/instrument/line_coverage.h \
           src/gen/config.h \
-          3rdparty/uthash.h
+          3rdparty/uthash.h \
+          3rdparty/cmp/cmp.h
 
 UV_UNIX = 3rdparty/libuv/src/fs-poll@obj@ \
           3rdparty/libuv/src/inet@obj@ \
@@ -632,6 +634,10 @@ src/jit/compile@obj@ src/jit/linear_scan@obj@ src/jit/x64/arch@obj@ @jit_obj@: s
 @mtlib@: @mtobjects@
 	$(MSG) linking $@
 	$(CMD)@mtrule@ $(NOOUT)
+
+@cmplib@: @cmpobjects@
+	$(MSG) linking $@
+	$(CMD)@cmprule@ $(NOOUT)
 
 @dclib@:
 	$(MSG) building dyncall...
