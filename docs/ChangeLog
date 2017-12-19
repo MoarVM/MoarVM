@@ -2,6 +2,40 @@ New in 2017.12
 
 See https://github.com/MoarVM/MoarVM/wiki/ChangeLog-Draft
 
+New in 2017.12
+
+Miscellaneous:
++ Fix ASAN flags for Darwin platform
++ Fix implementation of the new inline boundary indicators to set action
+
+Unicode:
++ Fix it so Line_Break property returns XX as the default value, instead of
+  incorrectly returning BK
++ Fix it so Numeric_Type property doesn't return an empty string for codepoints
+  with the Digit property value
++ Make Bidi_Mirrored_Glyph an enum instead of storing the full codepoint value
+  in the bitfield
++ Make error messages consistent which refer to synthetic codepoints
++ Many, many fixes and changes to ucd2c.pl, which generates the Unicode database.
+  Most changes are not user visible but will be the foundation for making sure
+  we return the correct property values for codepoints not in UnicodeData.txt
+  (Primary Unicode Data source file)
+  + Note, we have the correct values for most of these other codepoints, but
+    the goal is the get even these currently reserved characters working. Main
+    pluses for this are: 1. Correctness 2. Unicode sometimes sets properties for
+    codepoints based on likely future usage. This would allow better correctness
+    if an older version of MoarVM is used with codepoints from a future versions
+    of Unicode codepoints (as could be the case with OS distributions lagging
+    behind current releases)
+
+JIT:
++ Lexical handler lookups no longer prevent a lot of inlines
++ jit-bisect.pl now uses MVM_SPESH_LIMIT when trying to find pesky spesh bugs
++ Fixed issue with taking a pointer-pointer to a moving object and don't read a NULL struct
+
+Spesh:
++ Extend jit-bisect.pl to use MVM_SPESH_LIMIT
+
 New in 2017.11
 
 Miscellaneous:
