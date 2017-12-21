@@ -173,7 +173,7 @@ static MVMint64 mvm_eof(MVMThreadContext *tc, MVMOSHandle *h) {
         /* Comparison with seek_pos for some special files, like those in /proc,
          * which file size is 0 can be false. In that case, we fall back to check
          * file size to detect EOF. */
-        return statbuf.st_size == seek_pos || statbuf.st_size == 0;
+        return statbuf.st_size <= seek_pos || statbuf.st_size == 0;
     }
     else {
         return data->eof_reported;
