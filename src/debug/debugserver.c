@@ -291,20 +291,20 @@ static MVMint32 request_thread_resumes(MVMInstance *vm, MVMuint32 id) {
     return 1;
 }
 
-static MVMint32 request_thread_stacktrace(MVMInstance *vm, MVMuint32 id) {
-    MVMThread *to_do = find_thread_by_id(vm, id);
+static MVMint32 request_thread_stacktrace(MVMInstance *vm, cmp_ctx_t *ctx, request_data *argument) {
+    MVMThread *to_do = find_thread_by_id(vm, argument->id);
 
     if (!to_do)
-        return 0xbeefcafe;
+        return 0;
 
     if (to_do->body.tc->gc_status & MVMGCSTATUS_MASK != MVMGCStatus_UNABLE) {
-        return 0xc0ffee;
+        return 0;
     }
     MVM_dump_backtrace(to_do->body.tc);
     return 1;
 }
 
-static void send_thread_info(MVMInstance *vm, Socket *sock) {
+static void send_thread_info(MVMInstance *vm, cmp_ctx_t *ctx, request_data *argument) {
     MVMint32 threadcount = 0;
     MVMThread *cur_thread;
     char infobuf[32] = "THL";
@@ -313,20 +313,37 @@ static void send_thread_info(MVMInstance *vm, Socket *sock) {
     cur_thread = vm->threads;
     while (cur_thread) {
         threadcount++;
-        fprintf(stderr, "thread found: %d\n", cur_thread->body.thread_id);
         cur_thread = cur_thread->body.next;
     }
-    fprintf(stderr, "writing threadcount of %d\n", threadcount);
-    ((MVMint32*)infobuf)[1] = htobe32(threadcount);
-    send(*sock, infobuf, 8, 0);
+
+    cmp_write_map(ctx, 3);
+    cmp_write_str(ctx, "id", 2);
+    cmp_write_integer(ctx, argument->id);
+    cmp_write_str(ctx, "type", 4);
+    cmp_write_integer(ctx, argument->type);
+    cmp_write_str(ctx, "threads", 7);
+
+    cmp_write_array(ctx, threadcount);
+
     cur_thread = vm->threads;
     while (cur_thread) {
-        memset(infobuf, 0, 16);
-        ((MVMint32*)infobuf)[0] = htobe32(cur_thread->body.thread_id);
-        ((MVMint32*)infobuf)[1] = htobe32(MVM_load(&cur_thread->body.stage));
-        ((MVMint32*)infobuf)[2] = htobe32(MVM_load(&cur_thread->body.tc->gc_status));
-        ((MVMint32*)infobuf)[4] = htobe32(cur_thread->body.app_lifetime);
-        send(*sock, infobuf, 16, 0);
+        cmp_write_map(ctx, 5);
+
+        cmp_write_str(ctx, "thread", 6);
+        cmp_write_integer(ctx, cur_thread->body.thread_id);
+
+        cmp_write_str(ctx, "native_id", 9);
+        cmp_write_integer(ctx, cur_thread->body.native_thread_id);
+
+        cmp_write_str(ctx, "app_lifetime", 12);
+        cmp_write_bool(ctx, cur_thread->body.app_lifetime);
+
+        cmp_write_str(ctx, "suspended", 9);
+        cmp_write_bool(ctx, (MVM_load(&cur_thread->body.tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPENDED);
+
+        cmp_write_str(ctx, "num_locks", 9);
+        cmp_write_integer(ctx, cur_thread->body.tc->num_locks);
+
         cur_thread = cur_thread->body.next;
     }
     uv_mutex_unlock(&vm->mutex_threads);
@@ -383,8 +400,8 @@ static bool is_valid_int(cmp_object_t *obj, MVMint64 *result) {
     return 1;
 }
 
-#define CHECK(operation, message) do { if(!(operation)) { data->parse_fail = 1; data->parse_fail_message = (message); return 0; } } while(0)
-#define FIELD_FOUND(field, duplicated_message) do { if(data->fields_set & (field)) { data->parse_fail = 1; data->parse_fail_message = duplicated_message; return 0; }; field_to_set = (field); } while (0)
+#define CHECK(operation, message) do { if(!(operation)) { data->parse_fail = 1; data->parse_fail_message = (message);fprintf(stderr, "%s", cmp_strerror(ctx)); return 0; } } while(0)
+#define FIELD_FOUND(field, duplicated_message) do { if(data->fields_set & (field)) { data->parse_fail = 1; data->parse_fail_message = duplicated_message;  return 0; }; field_to_set = (field); } while (0)
 
 MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
     MVMuint32 map_size = 0;
@@ -445,6 +462,14 @@ MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
     return check_requirements(data);
 }
 
+static void communicate_error(cmp_ctx_t *ctx, request_data *argument) {
+    cmp_write_map(ctx, 2);
+    cmp_write_str(ctx, "id", 2);
+    cmp_write_integer(ctx, argument->id);
+    cmp_write_str(ctx, "type", 4);
+    cmp_write_integer(ctx, 0);
+}
+
 void *debugserver_worker(DebugserverWorkerArgs *args)
 {
     int continue_running = 1;
@@ -485,7 +510,9 @@ void *debugserver_worker(DebugserverWorkerArgs *args)
         send_greeting(&clientsocket);
 
         if (!receive_greeting(&clientsocket)) {
+            fprintf(stderr, "did not receive greeting properly\n");
             close(clientsocket);
+            continue;
         }
 
         cmp_init(&ctx, &clientsocket, socket_reader, NULL, socket_writer);
@@ -496,6 +523,7 @@ void *debugserver_worker(DebugserverWorkerArgs *args)
             parse_message_map(&ctx, &argument);
 
             if (argument.parse_fail) {
+                fprintf(stderr, "failed to parse this message: %s\n", argument.parse_fail_message);
                 cmp_write_map(&ctx, 3);
 
                 cmp_write_str(&ctx, "id", 2);
@@ -513,34 +541,30 @@ void *debugserver_worker(DebugserverWorkerArgs *args)
             fprintf(stderr, "debugserver received packet %d, command %d\n", argument.id, argument.type);
 
             switch (argument.type) {
-                case 1: /* Suspend a thread */
-                    /*recv(clientsocket, &argument, 4, 0);*/
-                    /*argument = htobe32(request_thread_suspends(args->vm, be32toh(argument)));*/
-                    /*send(clientsocket, &txn_id, 4, 0);*/
-                    /*send(clientsocket, &command, 1, 0);*/
-                    /*send(clientsocket, &argument, 4, 0);*/
+                case MT_SuspendOne:
+                    if (!request_thread_suspends(args->vm, argument.thread_id)) {
+                        communicate_error(&ctx, &argument);
+                    }
                     break;
-                case 2: /* Resume a thread */
-                    /*recv(clientsocket, &argument, 4, 0);*/
-                    /*argument = htobe32(request_thread_resumes(args->vm, be32toh(argument)));*/
-                    /*send(clientsocket, &txn_id, 4, 0);*/
-                    /*send(clientsocket, &command, 1, 0);*/
-                    /*send(clientsocket, &argument, 4, 0);*/
+                case MT_ResumeOne:
+                    if (!request_thread_resumes(args->vm, argument.thread_id)) {
+                        communicate_error(&ctx, &argument);
+                    }
                     break;
-                case 3: /* Get thread list again */
-                    /*send(clientsocket, &txn_id, 4, 0);*/
-                    /*send(clientsocket, &command, 1, 0);*/
-                    /*send_thread_info(args->vm, &clientsocket);*/
+                case MT_ThreadListRequest:
+                    send_thread_info(args->vm, &ctx, &argument);
                     break;
-                case 9: /* Ask thread to dump stacktrace to stderr */
-                    /*recv(clientsocket, &argument, 4, 0);*/
-                    /*argument = htobe32(request_thread_stacktrace(args->vm, be32toh(argument)));*/
-                    /*send(clientsocket, &txn_id, 4, 0);*/
-                    /*send(clientsocket, &command, 1, 0);*/
-                    /*send(clientsocket, &argument, 4, 0);*/
+                case MT_ThreadStackTraceRequest:
+                    if (!request_thread_stacktrace(args->vm, &ctx, &argument)) {
+                        communicate_error(&ctx, &argument);
+                    }
                     break;
-                default: /* Unknown command */
-                    /*argument = 0xc0ffee;*/
+                default: /* Unknown command or NYI */
+                    cmp_write_map(&ctx, 2);
+                    cmp_write_str(&ctx, "id", 2);
+                    cmp_write_integer(&ctx, argument.id);
+                    cmp_write_str(&ctx, "type", 4);
+                    cmp_write_integer(&ctx, 0);
                     break;
 
             }
