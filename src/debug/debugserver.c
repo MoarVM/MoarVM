@@ -220,6 +220,24 @@ static int receive_greeting(Socket *sock) {
     return 0;
 }
 
+static void communicate_error(cmp_ctx_t *ctx, request_data *argument) {
+    fprintf(stderr, "communicating an error\n");
+    cmp_write_map(ctx, 2);
+    cmp_write_str(ctx, "id", 2);
+    cmp_write_integer(ctx, argument->id);
+    cmp_write_str(ctx, "type", 4);
+    cmp_write_integer(ctx, 0);
+}
+
+static void communicate_success(cmp_ctx_t *ctx, request_data *argument) {
+    fprintf(stderr, "communicating success\n");
+    cmp_write_map(ctx, 2);
+    cmp_write_str(ctx, "id", 2);
+    cmp_write_integer(ctx, argument->id);
+    cmp_write_str(ctx, "type", 4);
+    cmp_write_integer(ctx, 2);
+}
+
 static MVMThread *find_thread_by_id(MVMInstance *vm, MVMint32 id) {
     MVMThread *cur_thread = 0;
 
@@ -239,8 +257,8 @@ static MVMThread *find_thread_by_id(MVMInstance *vm, MVMint32 id) {
     return cur_thread;
 }
 
-static MVMint32 request_thread_suspends(MVMInstance *vm, MVMuint32 id) {
-    MVMThread *to_do = find_thread_by_id(vm, id);
+static MVMint32 request_thread_suspends(MVMInstance *vm, cmp_ctx_t *ctx, request_data *argument) {
+    MVMThread *to_do = find_thread_by_id(vm, argument->thread_id);
     MVMThreadContext *tc = to_do->body.tc;
 
     while (1) {
@@ -259,15 +277,19 @@ static MVMint32 request_thread_suspends(MVMInstance *vm, MVMuint32 id) {
         }
     }
 
-    return 1;
+    fprintf(stderr, "thread successfully suspended\n");
+
+    communicate_success(ctx, argument);
+
+    return 0;
 }
 
-static MVMint32 request_thread_resumes(MVMInstance *vm, MVMuint32 id) {
-    MVMThread *to_do = find_thread_by_id(vm, id);
+static MVMint32 request_thread_resumes(MVMInstance *vm, cmp_ctx_t *ctx, request_data *argument) {
+    MVMThread *to_do = find_thread_by_id(vm, argument->thread_id);
     MVMThreadContext *tc = to_do->body.tc;
 
     if (MVM_load(&tc->gc_status) != (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED)) {
-        return 0xbeefcafe;
+        return 1;
     }
 
     while(1) {
@@ -288,20 +310,103 @@ static MVMint32 request_thread_resumes(MVMInstance *vm, MVMuint32 id) {
         }
     }
 
-    return 1;
+    fprintf(stderr, "success resuming thread\n");
+
+    communicate_success(ctx, argument);
+
+    return 0;
 }
 
 static MVMint32 request_thread_stacktrace(MVMInstance *vm, cmp_ctx_t *ctx, request_data *argument) {
-    MVMThread *to_do = find_thread_by_id(vm, argument->id);
+    MVMThread *to_do = find_thread_by_id(vm, argument->thread_id);
 
     if (!to_do)
-        return 0;
+        return 1;
 
     if (to_do->body.tc->gc_status & MVMGCSTATUS_MASK != MVMGCStatus_UNABLE) {
-        return 0;
+        return 1;
     }
-    MVM_dump_backtrace(to_do->body.tc);
-    return 1;
+
+    {
+
+    MVMThreadContext *tc = to_do->body.tc;
+    MVMuint64 stack_size = 0;
+
+    MVMFrame *cur_frame = tc->cur_frame;
+
+    while (cur_frame != NULL) {
+        stack_size++;
+        cur_frame = cur_frame->caller;
+    }
+
+    fprintf(stderr, "dumping a stack trace of %d frames\n", stack_size);
+
+    cmp_write_map(ctx, 3);
+    cmp_write_str(ctx, "id", 2);
+    cmp_write_integer(ctx, argument->id);
+    cmp_write_str(ctx, "type", 4);
+    cmp_write_integer(ctx, MT_ThreadStackTraceResponse);
+    cmp_write_str(ctx, "frames", 6);
+
+    cmp_write_array(ctx, stack_size);
+
+    cur_frame = tc->cur_frame;
+    stack_size = 0; /* To check if we've got the topmost frame or not */
+
+    while (cur_frame != NULL) {
+        MVMString *bc_filename = cur_frame->static_info->body.cu->body.filename;
+        MVMString *name     = cur_frame->static_info->body.name;
+
+        MVMuint8 *cur_op = stack_size != 0 ? cur_frame->return_address : *(tc->interp_cur_op);
+        MVMuint32 offset = cur_op - MVM_frame_effective_bytecode(cur_frame);
+        MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body,
+                                          offset > 0 ? offset - 1 : 0);
+
+        MVMint32 line_number = annot ? annot->line_number : 1;
+        MVMint16 string_heap_index = annot ? annot->filename_string_heap_index : 1;
+
+        char *tmp1 = annot && string_heap_index < cur_frame->static_info->body.cu->body.num_strings
+            ? MVM_string_utf8_encode_C_string(tc, MVM_cu_string(tc,
+                    cur_frame->static_info->body.cu, string_heap_index))
+            : NULL;
+        char *filename_c = bc_filename
+            ? MVM_string_utf8_encode_C_string(tc, bc_filename)
+            : NULL;
+        char *name_c = name
+            ? MVM_string_utf8_encode_C_string(tc, name)
+            : NULL;
+
+        char *debugname = cur_frame->code_ref ? MVM_6model_get_debug_name(tc, cur_frame->code_ref) : "";
+
+        cmp_write_map(ctx, 5);
+        cmp_write_str(ctx, "file", 4);
+        cmp_write_str(ctx, tmp1, tmp1 ? strlen(tmp1) : 0);
+        cmp_write_str(ctx, "line", 4);
+        cmp_write_integer(ctx, line_number);
+        cmp_write_str(ctx, "bytecode_file", 13);
+        if (bc_filename)
+            cmp_write_str(ctx, filename_c, strlen(filename_c));
+        else
+            cmp_write_nil(ctx);
+        cmp_write_str(ctx, "name", 4);
+        cmp_write_str(ctx, name_c, name_c ? strlen(name_c) : 0);
+        cmp_write_str(ctx, "type", 4);
+        cmp_write_str(ctx, debugname, strlen(debugname));
+
+        if (bc_filename)
+            MVM_free(filename_c);
+        if (name)
+            MVM_free(name_c);
+        if (tmp1)
+            MVM_free(tmp1);
+
+        cur_frame = cur_frame->caller;
+        stack_size++;
+    }
+
+    }
+
+    return 0;
 }
 
 static void send_thread_info(MVMInstance *vm, cmp_ctx_t *ctx, request_data *argument) {
@@ -320,7 +425,7 @@ static void send_thread_info(MVMInstance *vm, cmp_ctx_t *ctx, request_data *argu
     cmp_write_str(ctx, "id", 2);
     cmp_write_integer(ctx, argument->id);
     cmp_write_str(ctx, "type", 4);
-    cmp_write_integer(ctx, argument->type);
+    cmp_write_integer(ctx, MT_ThreadListResponse);
     cmp_write_str(ctx, "threads", 7);
 
     cmp_write_array(ctx, threadcount);
@@ -462,14 +567,6 @@ MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
     return check_requirements(data);
 }
 
-static void communicate_error(cmp_ctx_t *ctx, request_data *argument) {
-    cmp_write_map(ctx, 2);
-    cmp_write_str(ctx, "id", 2);
-    cmp_write_integer(ctx, argument->id);
-    cmp_write_str(ctx, "type", 4);
-    cmp_write_integer(ctx, 0);
-}
-
 void *debugserver_worker(DebugserverWorkerArgs *args)
 {
     int continue_running = 1;
@@ -542,12 +639,12 @@ void *debugserver_worker(DebugserverWorkerArgs *args)
 
             switch (argument.type) {
                 case MT_SuspendOne:
-                    if (!request_thread_suspends(args->vm, argument.thread_id)) {
+                    if (request_thread_suspends(args->vm, &ctx, &argument)) {
                         communicate_error(&ctx, &argument);
                     }
                     break;
                 case MT_ResumeOne:
-                    if (!request_thread_resumes(args->vm, argument.thread_id)) {
+                    if (request_thread_resumes(args->vm, &ctx, &argument)) {
                         communicate_error(&ctx, &argument);
                     }
                     break;
@@ -555,11 +652,12 @@ void *debugserver_worker(DebugserverWorkerArgs *args)
                     send_thread_info(args->vm, &ctx, &argument);
                     break;
                 case MT_ThreadStackTraceRequest:
-                    if (!request_thread_stacktrace(args->vm, &ctx, &argument)) {
+                    if (request_thread_stacktrace(args->vm, &ctx, &argument)) {
                         communicate_error(&ctx, &argument);
                     }
                     break;
                 default: /* Unknown command or NYI */
+                    fprintf(stderr, "unknown command type (or NYI)\n");
                     cmp_write_map(&ctx, 2);
                     cmp_write_str(&ctx, "id", 2);
                     cmp_write_integer(&ctx, argument.id);
