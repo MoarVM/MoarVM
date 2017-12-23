@@ -284,7 +284,7 @@ int wmain(int argc, wchar_t *wargv[])
 #endif
 
     if (debugserverport > 0) {
-        MVM_debugserver_init(instance, debugserverport);
+        MVM_debugserver_init(instance->main_thread, debugserverport);
 
         if (start_suspended) {
             instance->main_thread->gc_status = MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST;

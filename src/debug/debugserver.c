@@ -243,6 +243,10 @@ static MVMThread *find_thread_by_id(MVMInstance *vm, MVMint32 id) {
 
     fprintf(stderr, "looking for thread number %d\n", id);
 
+    if (id == vm->debugserver_thread_id) {
+        return NULL;
+    }
+
     uv_mutex_lock(&vm->mutex_threads);
     cur_thread = vm->threads;
     while (cur_thread) {
@@ -257,9 +261,12 @@ static MVMThread *find_thread_by_id(MVMInstance *vm, MVMint32 id) {
     return cur_thread;
 }
 
-static MVMint32 request_thread_suspends(MVMInstance *vm, cmp_ctx_t *ctx, request_data *argument) {
-    MVMThread *to_do = find_thread_by_id(vm, argument->thread_id);
-    MVMThreadContext *tc = to_do->body.tc;
+static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
+    MVMThread *to_do = thread ? thread : find_thread_by_id(dtc->instance, argument->thread_id);
+    MVMThreadContext *tc = to_do ? to_do->body.tc : NULL;
+
+    if (!tc)
+        return 1;
 
     while (1) {
         if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
@@ -279,18 +286,22 @@ static MVMint32 request_thread_suspends(MVMInstance *vm, cmp_ctx_t *ctx, request
 
     fprintf(stderr, "thread successfully suspended\n");
 
-    communicate_success(ctx, argument);
-
     return 0;
 }
 
-static MVMint32 request_thread_resumes(MVMInstance *vm, cmp_ctx_t *ctx, request_data *argument) {
-    MVMThread *to_do = find_thread_by_id(vm, argument->thread_id);
-    MVMThreadContext *tc = to_do->body.tc;
+static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
+    MVMInstance *vm = dtc->instance;
+    MVMThread *to_do = thread ? thread : find_thread_by_id(vm, argument->thread_id);
+    MVMThreadContext *tc = to_do ? to_do->body.tc : NULL;
+
+    if (!tc)
+        return 1;
 
     if (MVM_load(&tc->gc_status) != (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED)) {
         return 1;
     }
+
+    MVM_gc_mark_thread_blocked(dtc);
 
     while(1) {
         AO_t current = MVM_cas(&tc->gc_status, MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED, MVMGCStatus_UNABLE);
@@ -310,15 +321,32 @@ static MVMint32 request_thread_resumes(MVMInstance *vm, cmp_ctx_t *ctx, request_
         }
     }
 
-    fprintf(stderr, "success resuming thread\n");
+    MVM_gc_mark_thread_unblocked(dtc);
 
-    communicate_success(ctx, argument);
+    fprintf(stderr, "success resuming thread\n");
 
     return 0;
 }
 
-static MVMint32 request_thread_stacktrace(MVMInstance *vm, cmp_ctx_t *ctx, request_data *argument) {
-    MVMThread *to_do = find_thread_by_id(vm, argument->thread_id);
+static MVMint32 request_all_threads_resume(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMInstance *vm = dtc->instance;
+    MVMThread *cur_thread = 0;
+
+    uv_mutex_lock(&vm->mutex_threads);
+    cur_thread = vm->threads;
+    while (cur_thread) {
+        if (cur_thread != dtc->thread_obj) {
+            if (MVM_load(&cur_thread->body.tc->gc_status) == (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED)) {
+                request_thread_resumes(dtc, ctx, argument, cur_thread);
+            }
+        }
+        cur_thread = cur_thread->body.next;
+    }
+    uv_mutex_unlock(&vm->mutex_threads);
+}
+
+static MVMint32 request_thread_stacktrace(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
+    MVMThread *to_do = thread ? thread : find_thread_by_id(dtc->instance, argument->thread_id);
 
     if (!to_do)
         return 1;
@@ -409,7 +437,8 @@ static MVMint32 request_thread_stacktrace(MVMInstance *vm, cmp_ctx_t *ctx, reque
     return 0;
 }
 
-static void send_thread_info(MVMInstance *vm, cmp_ctx_t *ctx, request_data *argument) {
+static void send_thread_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMInstance *vm = dtc->instance;
     MVMint32 threadcount = 0;
     MVMThread *cur_thread;
     char infobuf[32] = "THL";
@@ -454,10 +483,71 @@ static void send_thread_info(MVMInstance *vm, cmp_ctx_t *ctx, request_data *argu
     uv_mutex_unlock(&vm->mutex_threads);
 }
 
-typedef struct {
-    MVMInstance *vm;
-    MVMuint32    port;
-} DebugserverWorkerArgs;
+static MVMuint64 allocate_and_send_handle(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMObject *target) {
+    MVMDebugServerHandleTable *dht = dtc->instance->debug_handle_table;
+
+    MVMuint64 id = dht->next_id++;
+
+    if (dht->used + 1 > dht->allocated) {
+        if (dht->allocated < 8192)
+            dht->allocated *= 2;
+        else
+            dht->allocated += 1024;
+        dht->entries = MVM_realloc(dht->entries, sizeof(MVMDebugServerHandleTableEntry) * dht->allocated);
+    }
+
+    dht->entries[dht->used].id = id;
+    dht->entries[dht->used].target = target;
+    dht->used++;
+
+    cmp_write_map(ctx, 3);
+    cmp_write_str(ctx, "id", 2);
+    cmp_write_integer(ctx, argument->id);
+    cmp_write_str(ctx, "type", 4);
+    cmp_write_integer(ctx, MT_ThreadListResponse);
+    cmp_write_str(ctx, "handle", 6);
+    cmp_write_integer(ctx, id);
+
+    return id;
+}
+
+static MVMint32 create_context_debug_handle(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
+    MVMInstance *vm = dtc->instance;
+    MVMThread *to_do = thread ? thread : find_thread_by_id(vm, argument->thread_id);
+
+    if (!to_do)
+        return 1;
+
+    if (to_do->body.tc->gc_status & MVMGCSTATUS_MASK != MVMGCStatus_UNABLE) {
+        return 1;
+    }
+
+    {
+
+    MVMFrame *cur_frame = to_do->body.tc->cur_frame;
+    MVMuint32 frame_idx;
+
+    for (frame_idx = 0;
+            cur_frame && frame_idx < argument->frame_number;
+            frame_idx++, cur_frame = cur_frame->caller) { }
+
+    if (!cur_frame)
+        return 1;
+
+    uv_mutex_lock(&vm->mutex_gc_orchestrate);
+    if (vm->in_gc) {
+        uv_cond_wait(&vm->cond_blocked_can_continue,
+            &vm->mutex_gc_orchestrate);
+    }
+
+    allocate_and_send_handle(dtc, ctx, argument, (MVMObject *)cur_frame);
+
+    uv_mutex_unlock(&vm->mutex_gc_orchestrate);
+
+    }
+
+    return 0;
+}
 
 static bool socket_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
     if (recv(*((Socket*)ctx->buf), data, limit, 0) == -1)
@@ -534,7 +624,11 @@ MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
         } else if (strncmp(key_str, "thread", 15) == 0) {
             FIELD_FOUND(FS_thread_id, "thread field duplicated");
             type_to_parse = 1;
+        } else if (strncmp(key_str, "frame", 15) == 0) {
+            FIELD_FOUND(FS_frame_number, "frame number field duplicated");
+            type_to_parse = 1;
         } else {
+            fprintf(stderr, "the hell is a %s?\n", key_str);
             data->parse_fail = 1;
             data->parse_fail_message = "Unknown field encountered (NYI or protocol violation)";
             return 0;
@@ -555,6 +649,9 @@ MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
                 case FS_thread_id:
                     data->thread_id = result;
                     break;
+                case FS_frame_number:
+                    data->frame_number = result;
+                    break;
                 default:
                     data->parse_fail = 1;
                     data->parse_fail_message = "Field to set NYI";
@@ -567,18 +664,23 @@ MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
     return check_requirements(data);
 }
 
-void *debugserver_worker(DebugserverWorkerArgs *args)
-{
+#define COMMUNICATE_RESULT(operation) do { if((operation)) { communicate_error(&ctx, &argument); } else { communicate_success(&ctx, &argument); } } while (0)
+
+static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     int continue_running = 1;
     MVMint32 command_serial;
     Socket listensocket;
+    MVMInstance *vm = tc->instance;
+    MVMuint64 port = vm->debugserver_port;
+
+    vm->debugserver_thread_id = tc->thread_obj->body.thread_id;
 
     {
         char portstr[16];
         struct addrinfo *res;
         int error;
 
-        snprintf(portstr, 16, "%d", args->port);
+        snprintf(portstr, 16, "%d", port);
 
         getaddrinfo("localhost", portstr, NULL, &res);
 
@@ -617,7 +719,9 @@ void *debugserver_worker(DebugserverWorkerArgs *args)
         while (clientsocket) {
             request_data argument;
 
+            MVM_gc_mark_thread_blocked(tc);
             parse_message_map(&ctx, &argument);
+            MVM_gc_mark_thread_unblocked(tc);
 
             if (argument.parse_fail) {
                 fprintf(stderr, "failed to parse this message: %s\n", argument.parse_fail_message);
@@ -638,21 +742,25 @@ void *debugserver_worker(DebugserverWorkerArgs *args)
             fprintf(stderr, "debugserver received packet %d, command %d\n", argument.id, argument.type);
 
             switch (argument.type) {
+                case MT_ResumeAll:
+                    COMMUNICATE_RESULT(request_all_threads_resume(tc, &ctx, &argument));
+                    break;
                 case MT_SuspendOne:
-                    if (request_thread_suspends(args->vm, &ctx, &argument)) {
-                        communicate_error(&ctx, &argument);
-                    }
+                    COMMUNICATE_RESULT(request_thread_suspends(tc, &ctx, &argument, NULL));
                     break;
                 case MT_ResumeOne:
-                    if (request_thread_resumes(args->vm, &ctx, &argument)) {
+                    COMMUNICATE_RESULT(request_thread_resumes(tc, &ctx, &argument, NULL));
+                    break;
+                case MT_ThreadListRequest:
+                    send_thread_info(tc, &ctx, &argument);
+                    break;
+                case MT_ThreadStackTraceRequest:
+                    if (request_thread_stacktrace(tc, &ctx, &argument, NULL)) {
                         communicate_error(&ctx, &argument);
                     }
                     break;
-                case MT_ThreadListRequest:
-                    send_thread_info(args->vm, &ctx, &argument);
-                    break;
-                case MT_ThreadStackTraceRequest:
-                    if (request_thread_stacktrace(args->vm, &ctx, &argument)) {
+                case MT_ContextHandle:
+                    if (create_context_debug_handle(tc, &ctx, &argument, NULL)) {
                         communicate_error(&ctx, &argument);
                     }
                     break;
@@ -668,28 +776,37 @@ void *debugserver_worker(DebugserverWorkerArgs *args)
             }
         }
     }
-
-    return NULL;
 }
 
-MVM_PUBLIC void MVM_debugserver_init(MVMInstance *vm, MVMuint32 port)
-{
+void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
+    MVMInstance *vm = tc->instance;
+    MVMObject *worker_entry_point;
     int threadCreateError;
 
-    DebugserverWorkerArgs *args = MVM_malloc(sizeof(DebugserverWorkerArgs));
+    vm->debug_handle_table = MVM_malloc(sizeof(MVMDebugServerHandleTable));
 
-    args->vm = vm;
-    args->port = port;
+    vm->debug_handle_table->allocated = 32;
+    vm->debug_handle_table->used      = 0;
+    vm->debug_handle_table->next_id   = 1;
+    vm->debug_handle_table->entries   = MVM_calloc(vm->debug_handle_table->allocated, sizeof(MVMDebugServerHandleTableEntry));
 
-    threadCreateError = uv_thread_create(&vm->debugserver_thread, (uv_thread_cb)debugserver_worker, (void *)args);
-    if (threadCreateError != 0)  {
-        fprintf(stderr, "MoarVM: Could not initialize telemetry: %s\n", uv_strerror(threadCreateError));
-    }
+    vm->debugserver_port = port;
+
+    worker_entry_point = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTCCode);
+    ((MVMCFunction *)worker_entry_point)->body.func = debugserver_worker;
+    MVM_thread_run(tc, MVM_thread_new(tc, worker_entry_point, 1));
 }
 
-/*MVM_PUBLIC void MVM_telemetry_finish()*/
-/*{*/
-    /*continueBackgroundSerialization = 0;*/
-    /*uv_thread_join(&backgroundSerializationThread);*/
-/*}*/
+void MVM_debugserver_mark_handles(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
+    MVMInstance *vm = tc->instance;
+    MVMDebugServerHandleTable *table = vm->debug_handle_table;
+    MVMuint32 idx;
 
+    for (idx = 0; idx < table->used; idx++) {
+        if (worklist)
+            MVM_gc_worklist_add(tc, worklist, &(table->entries[idx].target));
+        else
+            MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
+                (MVMCollectable *)table->entries[idx].target, "Debug Handle");
+    }
+}

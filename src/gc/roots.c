@@ -119,6 +119,9 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 
     add_collectable(tc, worklist, snapshot, tc->instance->env_hash,
         "Cached environment variable hash");
+
+    if (tc->instance->debug_handle_table)
+        MVM_debugserver_mark_handles(tc, worklist, snapshot);
 }
 
 /* Adds anything that is a root thanks to being referenced by a thread,

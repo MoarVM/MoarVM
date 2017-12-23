@@ -503,6 +503,11 @@ struct MVMInstance {
      * for changes like "i just suspended" */
     uv_cond_t debugserver_tell_worker;
 
+    MVMuint32 debugserver_port;
+    MVMuint32 debugserver_thread_id;
+
+    MVMDebugServerHandleTable *debug_handle_table;
+
     /* Log file for dynamic var performance, if we're to log it. */
     FILE *dynvar_log_fh;
     MVMint64 dynvar_log_lasttime;
