@@ -485,28 +485,37 @@ static void send_thread_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data
     uv_mutex_unlock(&vm->mutex_threads);
 }
 
-static MVMuint64 allocate_and_send_handle(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMObject *target) {
-    MVMDebugServerHandleTable *dht = dtc->instance->debug_handle_table;
+static MVMuint64 allocate_handle(MVMThreadContext *dtc, MVMObject *target) {
+    if (!target) {
+        return 0;
+    } else {
+        MVMDebugServerHandleTable *dht = dtc->instance->debug_handle_table;
 
-    MVMuint64 id = dht->next_id++;
+        MVMuint64 id = dht->next_id++;
 
-    if (dht->used + 1 > dht->allocated) {
-        if (dht->allocated < 8192)
-            dht->allocated *= 2;
-        else
-            dht->allocated += 1024;
-        dht->entries = MVM_realloc(dht->entries, sizeof(MVMDebugServerHandleTableEntry) * dht->allocated);
+        if (dht->used + 1 > dht->allocated) {
+            if (dht->allocated < 8192)
+                dht->allocated *= 2;
+            else
+                dht->allocated += 1024;
+            dht->entries = MVM_realloc(dht->entries, sizeof(MVMDebugServerHandleTableEntry) * dht->allocated);
+        }
+
+        dht->entries[dht->used].id = id;
+        dht->entries[dht->used].target = target;
+        dht->used++;
+
+        return id;
     }
+}
 
-    dht->entries[dht->used].id = id;
-    dht->entries[dht->used].target = target;
-    dht->used++;
-
+static MVMuint64 allocate_and_send_handle(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMObject *target) {
+    MVMuint64 id = allocate_handle(dtc, target);
     cmp_write_map(ctx, 3);
     cmp_write_str(ctx, "id", 2);
     cmp_write_integer(ctx, argument->id);
     cmp_write_str(ctx, "type", 4);
-    cmp_write_integer(ctx, MT_ThreadListResponse);
+    cmp_write_integer(ctx, MT_HandleResult);
     cmp_write_str(ctx, "handle", 6);
     cmp_write_integer(ctx, id);
 
