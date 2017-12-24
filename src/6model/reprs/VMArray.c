@@ -308,9 +308,9 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
     if (n == elems)
         return;
 
-    /* if there aren't enough slots at the end, shift off empty slots
-     * from the beginning first */
     if (start > 0 && n + start > ssize) {
+        /* if there aren't enough slots at the end, shift off empty slots
+         * from the beginning first */
         if (elems > 0)
             memmove(slots,
                 (char *)slots + start * repr_data->elem_size,
@@ -318,6 +318,10 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
         body->start = 0;
         /* fill out any unused slots with NULL pointers or zero values */
         elems = zero_slots(tc, body, elems, ssize, repr_data->slot_type);
+    }
+    else if (n < elems) {
+        /* we're downsizing; clear off extra slots */
+        zero_slots(tc, body, n+start, start+elems, repr_data->slot_type);
     }
 
     body->elems = n;
