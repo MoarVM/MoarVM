@@ -456,6 +456,13 @@ static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     enter_single_user(tc, body);
+
+    // if we're downsizing, zero out the elements we're cutting off, to
+    // avoid rogue left over data showing up when we, say, index into those
+    // elements later on https://rt.perl.org/Ticket/Display.html?id=127756
+    if (count < body->elems)
+        zero_slots(tc, body, count, body->elems, repr_data->slot_type);
+
     set_size_internal(tc, body, count, repr_data);
     exit_single_user(tc, body);
 }
