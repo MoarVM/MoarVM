@@ -522,7 +522,18 @@ static MVMuint64 allocate_and_send_handle(MVMThreadContext *dtc, cmp_ctx_t *ctx,
     return id;
 }
 
-static MVMint32 create_context_debug_handle(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
+static MVMObject *find_handle_target(MVMThreadContext *dtc, MVMuint64 id) {
+    MVMDebugServerHandleTable *dht = dtc->instance->debug_handle_table;
+    MVMuint32 index;
+
+    for (index = 0; index < dht->used; index++) {
+        if (dht->entries[index].id == id)
+            return dht->entries[index].target;
+    }
+    return NULL;
+}
+
+static MVMint32 create_context_or_code_obj_debug_handle(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
     MVMInstance *vm = dtc->instance;
     MVMThread *to_do = thread ? thread : find_thread_by_id(vm, argument->thread_id);
 
@@ -542,21 +553,151 @@ static MVMint32 create_context_debug_handle(MVMThreadContext *dtc, cmp_ctx_t *ct
             cur_frame && frame_idx < argument->frame_number;
             frame_idx++, cur_frame = cur_frame->caller) { }
 
-    if (!cur_frame)
+    if (!cur_frame) {
+        fprintf(stderr, "couldn't create context/coderef handle: no such frame %d\n", argument->frame_number);
         return 1;
-
-    uv_mutex_lock(&vm->mutex_gc_orchestrate);
-    if (vm->in_gc) {
-        uv_cond_wait(&vm->cond_blocked_can_continue,
-            &vm->mutex_gc_orchestrate);
     }
 
-    allocate_and_send_handle(dtc, ctx, argument, (MVMObject *)cur_frame);
-
-    uv_mutex_unlock(&vm->mutex_gc_orchestrate);
+    if (argument->type == MT_ContextHandle) {
+        MVMROOT(dtc, cur_frame, {
+            allocate_and_send_handle(dtc, ctx, argument, MVM_frame_context_wrapper(to_do->body.tc, cur_frame));
+        });
+    } else if (argument->type == MT_CodeObjectHandle) {
+        allocate_and_send_handle(dtc, ctx, argument, cur_frame->code_ref);
+    } else {
+        fprintf(stderr, "Did not expect to see create_context_or_code_obj_debug_handle called with a %d type\n", argument->type);
+        return 1;
+    }
 
     }
 
+    return 0;
+}
+
+static MVMint32 create_caller_context_debug_handle(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
+    MVMObject *this_ctx = argument->handle_id
+        ? find_handle_target(dtc, argument->handle_id)
+        : dtc->instance->VMNull;
+
+    MVMFrame *frame;
+    if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+        fprintf(stderr, "caller context handle must refer to a definite MVMContext object\n");
+        return 1;
+    }
+    if ((frame = ((MVMContext *)this_ctx)->body.context->caller))
+        this_ctx = MVM_frame_context_wrapper(dtc, frame);
+
+    allocate_and_send_handle(dtc, ctx, argument, this_ctx);
+    return 0;
+}
+
+static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMObject *this_ctx = argument->handle_id
+        ? find_handle_target(dtc, argument->handle_id)
+        : dtc->instance->VMNull;
+    MVMStaticFrame *static_info;
+    MVMLexicalRegistry *lexical_names;
+
+    MVMFrame *frame;
+    if (MVM_is_null(dtc, this_ctx) || !IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+        fprintf(stderr, "getting lexicals: context handle must refer to a definite MVMContext object\n");
+        return 1;
+    }
+    if (!(frame = ((MVMContext *)this_ctx)->body.context)) {
+        fprintf(stderr, "context doesn't have a frame?!\n");
+        return 1;
+    }
+
+    static_info = frame->static_info;
+    lexical_names = static_info->body.lexical_names;
+    if (lexical_names) {
+        MVMLexicalRegistry *entry, *tmp;
+        unsigned bucket_tmp;
+        MVMuint64 lexcount = HASH_CNT(hash_handle, lexical_names);
+
+        cmp_write_map(ctx, 3);
+        cmp_write_str(ctx, "id", 2);
+        cmp_write_integer(ctx, argument->id);
+        cmp_write_str(ctx, "type", 4);
+        cmp_write_integer(ctx, MT_ContextLexicalsResponse);
+
+        cmp_write_str(ctx, "lexicals", 8);
+        cmp_write_map(ctx, lexcount);
+
+        fprintf(stderr, "will write %d lexicals\n", lexcount);
+
+        HASH_ITER(hash_handle, lexical_names, entry, tmp, bucket_tmp) {
+            MVMuint16 lextype = static_info->body.lexical_types[entry->value];
+            MVMRegister *result = &frame->env[entry->value];
+            char *c_key_name = MVM_string_utf8_encode_C_string(dtc, entry->key);
+
+            cmp_write_str(ctx, c_key_name, strlen(c_key_name));
+
+            MVM_free(c_key_name);
+
+            if (lextype == MVM_reg_obj) { /* Object */
+                char *debugname;
+
+                if (!result->o) {
+                    /* XXX this can't allocate? */
+                    MVM_frame_vivify_lexical(dtc, frame, entry->value);
+                }
+
+                cmp_write_map(ctx, 5);
+
+                cmp_write_str(ctx, "kind", 4);
+                cmp_write_str(ctx, "obj", 3);
+
+                cmp_write_str(ctx, "handle", 6);
+                cmp_write_integer(ctx, allocate_handle(dtc, result->o));
+
+                debugname = MVM_6model_get_debug_name(dtc, result->o);
+
+                cmp_write_str(ctx, "type", 4);
+                cmp_write_str(ctx, debugname, strlen(debugname));
+
+                cmp_write_str(ctx, "concrete", 8);
+                cmp_write_bool(ctx, IS_CONCRETE(result->o));
+
+                cmp_write_str(ctx, "container", 9);
+                cmp_write_bool(ctx, STABLE(result->o)->container_spec == NULL ? 0 : 1);
+            } else {
+                cmp_write_map(ctx, 2);
+
+                cmp_write_str(ctx, "kind", 4);
+                cmp_write_str(ctx,
+                        lextype == MVM_reg_int64 ? "int" :
+                        lextype == MVM_reg_num32 ? "num" :
+                        lextype == MVM_reg_str   ? "str" :
+                        "???", 3);
+
+                cmp_write_str(ctx, "value", 5);
+                if (lextype == MVM_reg_int64) {
+                    cmp_write_integer(ctx, result->i64);
+                } else if (lextype == MVM_reg_num64) {
+                    cmp_write_double(ctx, result->n64);
+                } else if (lextype == MVM_reg_str) {
+                    char *c_value = MVM_string_utf8_encode_C_string(dtc, result->s);
+                    cmp_write_str(ctx, c_value, strlen(c_value));
+                    MVM_free(c_value);
+                } else {
+                    fprintf(stderr, "what lexical type is %d supposed to be?\n", lextype);
+                    cmp_write_nil(ctx);
+                }
+            }
+            fprintf(stderr, "wrote a lexical\n");
+        }
+    } else {
+        cmp_write_map(ctx, 3);
+        cmp_write_str(ctx, "id", 2);
+        cmp_write_integer(ctx, argument->id);
+        cmp_write_str(ctx, "type", 4);
+        cmp_write_integer(ctx, MT_ContextLexicalsResponse);
+
+        cmp_write_str(ctx, "lexicals", 8);
+        cmp_write_map(ctx, 0);
+    }
+    fprintf(stderr, "done writing lexicals\n");
     return 0;
 }
 
@@ -638,6 +779,9 @@ MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
         } else if (strncmp(key_str, "frame", 15) == 0) {
             FIELD_FOUND(FS_frame_number, "frame number field duplicated");
             type_to_parse = 1;
+        } else if (strncmp(key_str, "handle", 15) == 0) {
+            FIELD_FOUND(FS_handle_id, "handle field duplicated");
+            type_to_parse = 1;
         } else {
             fprintf(stderr, "the hell is a %s?\n", key_str);
             data->parse_fail = 1;
@@ -662,6 +806,9 @@ MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
                     break;
                 case FS_frame_number:
                     data->frame_number = result;
+                    break;
+                case FS_handle_id:
+                    data->handle_id = result;
                     break;
                 default:
                     data->parse_fail = 1;
@@ -771,7 +918,18 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                     }
                     break;
                 case MT_ContextHandle:
-                    if (create_context_debug_handle(tc, &ctx, &argument, NULL)) {
+                case MT_CodeObjectHandle:
+                    if (create_context_or_code_obj_debug_handle(tc, &ctx, &argument, NULL)) {
+                        communicate_error(&ctx, &argument);
+                    }
+                    break;
+                case MT_CallerContextRequest:
+                    if (create_caller_context_debug_handle(tc, &ctx, &argument, NULL)) {
+                        communicate_error(&ctx, &argument);
+                    }
+                    break;
+                case MT_ContextLexicalsRequest:
+                    if (request_context_lexicals(tc, &ctx, &argument)) {
                         communicate_error(&ctx, &argument);
                     }
                     break;

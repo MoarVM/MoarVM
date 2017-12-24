@@ -552,6 +552,11 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
         }
         MVM_gc_mark_thread_unblocked(tc);
         return;
+    } else if (MVM_load(&tc->gc_status) == (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED)) {
+        /* The thread that the tc belongs to is already waiting in that loop
+         * up there. If we reach this piece of code the active thread must be
+         * the debug remote using a suspended thread's ThreadContext. */
+        return;
     }
 
     MVM_telemetry_timestamp(tc, "gc_enter_from_interrupt");
