@@ -153,7 +153,7 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
             if (kind != MVM_reg_str)
                 MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected string register");
             if (index >= body->elems)
-                value->s = NULL;
+                value->s = tc->instance->str_consts.empty;
             else
                 value->s = body->slots.s[body->start + index];
             break;
@@ -251,7 +251,7 @@ static MVMuint64 zero_slots(MVMThreadContext *tc, MVMArrayBody *body,
             break;
         case MVM_ARRAY_STR:
             while (elems < ssize)
-                body->slots.s[elems++] = NULL;
+                body->slots.s[elems++] = tc->instance->str_consts.empty;
             break;
         case MVM_ARRAY_I64:
             while (elems < ssize)
