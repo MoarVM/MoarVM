@@ -268,6 +268,7 @@ static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     if (!tc)
         return 1;
 
+    MVM_gc_mark_thread_blocked(dtc);
     while (1) {
         if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
                 == MVMGCStatus_NONE) {
@@ -283,6 +284,7 @@ static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
             break;
         }
     }
+    MVM_gc_mark_thread_unblocked(dtc);
 
     fprintf(stderr, "thread successfully suspended\n");
 
@@ -351,7 +353,7 @@ static MVMint32 request_thread_stacktrace(MVMThreadContext *dtc, cmp_ctx_t *ctx,
     if (!to_do)
         return 1;
 
-    if (to_do->body.tc->gc_status & MVMGCSTATUS_MASK != MVMGCStatus_UNABLE) {
+    if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
         return 1;
     }
 
@@ -518,7 +520,7 @@ static MVMint32 create_context_debug_handle(MVMThreadContext *dtc, cmp_ctx_t *ct
     if (!to_do)
         return 1;
 
-    if (to_do->body.tc->gc_status & MVMGCSTATUS_MASK != MVMGCStatus_UNABLE) {
+    if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
         return 1;
     }
 
