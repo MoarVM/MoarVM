@@ -317,7 +317,8 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
                 elems * repr_data->elem_size);
         body->start = 0;
         /* fill out any unused slots with NULL pointers or zero values */
-        elems = zero_slots(tc, body, elems, start+elems, repr_data->slot_type);
+        zero_slots(tc, body, elems, start+elems, repr_data->slot_type);
+        elems = ssize; /* we'll use this as a point to clear from later */
     }
     else if (n < elems) {
         /* we're downsizing; clear off extra slots */
