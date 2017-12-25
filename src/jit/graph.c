@@ -273,6 +273,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_lcm_I: return MVM_bigint_lcm;
     case MVM_OP_gcd_I: return MVM_bigint_gcd;
     case MVM_OP_bool_I: return MVM_bigint_bool;
+    case MVM_OP_isprime_I: return MVM_bigint_is_prime;
     case MVM_OP_brshift_I: return MVM_bigint_shr;
     case MVM_OP_blshift_I: return MVM_bigint_shl;
     case MVM_OP_bnot_I: return MVM_bigint_not;
@@ -2819,6 +2820,16 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_REG_VAL, { base } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args,
                           MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_isprime_I: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint32 invocant = ins->operands[1].reg.orig;
+        MVMint32 rounds   = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, invocant },
+                                 { MVM_JIT_REG_VAL, rounds } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_INT, dst);
         break;
     }
     case MVM_OP_bool_I: {
