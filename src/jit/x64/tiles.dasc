@@ -228,7 +228,7 @@ MVM_JIT_TILE_DECL(cast) {
             | mov Rq(to_reg), rax;
             break;
         default:
-            MVM_oops(tc, "Unsuported signed cast %d -> %d\n", from_size, to_size);
+            MVM_oops(tc, "Unsupported signed cast %d -> %d\n", from_size, to_size);
         }
     } else {
         switch (size_conv) {
@@ -254,7 +254,7 @@ MVM_JIT_TILE_DECL(cast) {
             | mov Rd(to_reg), Rd(from_reg);
             break;
         default:
-            MVM_oops(tc, "Unsuported unsigned cast %d -> %d\n", from_size, to_size);
+            MVM_oops(tc, "Unsupported unsigned cast %d -> %d\n", from_size, to_size);
         }
     }
 }

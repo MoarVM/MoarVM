@@ -1008,7 +1008,7 @@ MVM_STATIC_INLINE void process_tile(MVMThreadContext *tc, RegisterAllocator *alc
         MVMint32 arglist_idx = tile_cursor - 1;
         MVMint32 call_idx    = tile_cursor;
         _ASSERT(tile_cursor > 0 && list->items[tile_cursor - 1]->op == MVM_JIT_ARGLIST,
-                "CALL must be preceeded by ARGLIST");
+                "CALL must be preceded by ARGLIST");
         /*
          * CALL nodes can use values in registers, for example for dynamic
          * calls. These registers may conflict with registers used in ARGLIST,
