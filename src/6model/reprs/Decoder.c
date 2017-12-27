@@ -97,7 +97,7 @@ static const MVMREPROps Decoder_this_repr = {
 void MVM_decoder_ensure_decoder(MVMThreadContext *tc, MVMObject *decoder, const char *op) {
     if (REPR(decoder)->ID != MVM_REPR_ID_Decoder || !IS_CONCRETE(decoder))
         MVM_exception_throw_adhoc(tc,
-            "Operatation '%s' can only work on an object with the Decoder representation",
+            "Operation '%s' can only work on an object with the Decoder representation",
             op);
 }
 
