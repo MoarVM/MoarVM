@@ -574,18 +574,23 @@ static MVMint32 create_context_or_code_obj_debug_handle(MVMThreadContext *dtc, c
     return 0;
 }
 
-static MVMint32 create_caller_context_debug_handle(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
+static MVMint32 create_caller_or_outer_context_debug_handle(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
     MVMObject *this_ctx = argument->handle_id
         ? find_handle_target(dtc, argument->handle_id)
         : dtc->instance->VMNull;
 
     MVMFrame *frame;
     if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
-        fprintf(stderr, "caller context handle must refer to a definite MVMContext object\n");
+        fprintf(stderr, "outer/caller context handle must refer to a definite MVMContext object\n");
         return 1;
     }
-    if ((frame = ((MVMContext *)this_ctx)->body.context->caller))
-        this_ctx = MVM_frame_context_wrapper(dtc, frame);
+    if (argument->type == MT_OuterContextRequest) {
+        if ((frame = ((MVMContext *)this_ctx)->body.context->outer))
+            this_ctx = MVM_frame_context_wrapper(dtc, frame);
+    } else if (argument->type == MT_CallerContextRequest) {
+        if ((frame = ((MVMContext *)this_ctx)->body.context->caller))
+            this_ctx = MVM_frame_context_wrapper(dtc, frame);
+    }
 
     allocate_and_send_handle(dtc, ctx, argument, this_ctx);
     return 0;
@@ -924,7 +929,8 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                     }
                     break;
                 case MT_CallerContextRequest:
-                    if (create_caller_context_debug_handle(tc, &ctx, &argument, NULL)) {
+                case MT_OuterContextRequest:
+                    if (create_caller_or_outer_context_debug_handle(tc, &ctx, &argument, NULL)) {
                         communicate_error(&ctx, &argument);
                     }
                     break;
