@@ -535,7 +535,6 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
 
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from interrupt\n");
 
-    fprintf(stderr, "enter from interrupt: %d & %d = %d == %d? %d\n", MVM_load(&tc->gc_status), MVMSUSPENDSTATUS_MASK, MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK, MVMSuspendState_SUSPEND_REQUEST, MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK == MVMSuspendState_SUSPEND_REQUEST);
 
     if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPEND_REQUEST) {
         fprintf(stderr, "thread reacting to suspend request\n");
