@@ -706,6 +706,135 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
     return 0;
 }
 
+MVM_STATIC_INLINE MVMObject * get_obj_at_offset(void *data, MVMint64 offset) {
+    void *location = (char *)data + offset;
+    return *((MVMObject **)location);
+}
+static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMObject *target = argument->handle_id
+        ? find_handle_target(dtc, argument->handle_id)
+        : dtc->instance->VMNull;
+
+    if (MVM_is_null(dtc, target)) {
+        return 1;
+    }
+
+    if (!IS_CONCRETE(target)) {
+        return 1;
+    }
+
+    cmp_write_map(ctx, 3);
+    cmp_write_str(ctx, "id", 2);
+    cmp_write_integer(ctx, argument->id);
+    cmp_write_str(ctx, "type", 4);
+    cmp_write_integer(ctx, MT_ObjectAttributesResponse);
+
+    cmp_write_str(ctx, "attributes", 10);
+
+    if (REPR(target)->ID != MVM_REPR_ID_P6opaque) {
+        cmp_write_array(ctx, 0);
+        return 0;
+    } else {
+        MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)STABLE(target)->REPR_data;
+        MVMP6opaqueBody *data = MVM_p6opaque_real_data(dtc, OBJECT_BODY(target));
+        if (repr_data) {
+            MVMint16 const num_attributes = repr_data->num_attributes;
+            MVMP6opaqueNameMap * const name_to_index_mapping = repr_data->name_to_index_mapping;
+
+            cmp_write_array(ctx, num_attributes);
+
+            if (name_to_index_mapping != NULL) {
+                MVMint16 i;
+                MVMP6opaqueNameMap *cur_map_entry = name_to_index_mapping;
+
+                while (cur_map_entry->class_key != NULL) {
+                    MVMint16 i;
+                    MVMint64 slot;
+                    char *class_name = MVM_6model_get_stable_debug_name(dtc, cur_map_entry->class_key->st);
+
+                    for (i = 0; i < cur_map_entry->num_attrs; i++) {
+                        char * name = MVM_string_utf8_encode_C_string(dtc, cur_map_entry->names[i]);
+
+                        slot = cur_map_entry->slots[i];
+                        if (slot >= 0) {
+                            MVMuint16 const offset = repr_data->attribute_offsets[slot];
+                            MVMSTable * const attr_st = repr_data->flattened_stables[slot];
+                            if (attr_st == NULL) {
+                                MVMObject *value = get_obj_at_offset(data, offset);
+                                char *value_debug_name = value ? MVM_6model_get_debug_name(dtc, value) : "VMNull";
+
+                                cmp_write_map(ctx, 7);
+
+                                cmp_write_str(ctx, "name", 4);
+                                cmp_write_str(ctx, name, strlen(name));
+
+                                cmp_write_str(ctx, "class", 5);
+                                cmp_write_str(ctx, class_name, strlen(class_name));
+
+                                cmp_write_str(ctx, "kind", 4);
+                                cmp_write_str(ctx, "obj", 3);
+
+                                cmp_write_str(ctx, "handle", 6);
+                                cmp_write_integer(ctx, allocate_handle(dtc, value));
+
+                                cmp_write_str(ctx, "type", 4);
+                                cmp_write_str(ctx, value_debug_name, strlen(value_debug_name));
+
+                                cmp_write_str(ctx, "concrete", 8);
+                                cmp_write_bool(ctx, !MVM_is_null(dtc, value) && IS_CONCRETE(value));
+
+                                cmp_write_str(ctx, "container", 9);
+                                if (MVM_is_null(dtc, value))
+                                    cmp_write_bool(ctx, 0);
+                                else
+                                    cmp_write_bool(ctx, STABLE(value)->container_spec == NULL ? 0 : 1);
+                            }
+                            else {
+                                const MVMStorageSpec *attr_storage_spec = attr_st->REPR->get_storage_spec(dtc, attr_st);
+
+                                cmp_write_map(ctx, 4);
+
+                                cmp_write_str(ctx, "name", 4);
+                                cmp_write_str(ctx, name, strlen(name));
+
+                                cmp_write_str(ctx, "class", 5);
+                                cmp_write_str(ctx, class_name, strlen(class_name));
+
+                                cmp_write_str(ctx, "kind", 4);
+
+                                switch (attr_storage_spec->boxed_primitive) {
+                                    case MVM_STORAGE_SPEC_BP_INT:
+                                        cmp_write_integer(ctx, attr_st->REPR->box_funcs.get_int(dtc, attr_st, target, (char *)data + offset));
+                                        break;
+                                    case MVM_STORAGE_SPEC_BP_NUM:
+                                        cmp_write_double(ctx, attr_st->REPR->box_funcs.get_num(dtc, attr_st, target, (char *)data + offset));
+                                        break;
+                                    case MVM_STORAGE_SPEC_BP_STR: {
+                                        MVMString * const s = attr_st->REPR->box_funcs.get_str(dtc, attr_st, target, (char *)data + offset);
+                                        char * const str = MVM_string_utf8_encode_C_string(dtc, s);
+                                        cmp_write_str(ctx, str, strlen(str));
+                                        MVM_free(str);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        MVM_free(name);
+                    }
+                    cur_map_entry++;
+                }
+            }
+        }
+        else {
+            cmp_write_str(ctx, "error: not composed yet", 22);
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
 static bool socket_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
     if (recv(*((Socket*)ctx->buf), data, limit, 0) == -1)
         return 0;
@@ -919,6 +1048,11 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                     break;
                 case MT_ThreadStackTraceRequest:
                     if (request_thread_stacktrace(tc, &ctx, &argument, NULL)) {
+                        communicate_error(&ctx, &argument);
+                    }
+                    break;
+                case MT_ObjectAttributesRequest:
+                    if (request_object_attributes(tc, &ctx, &argument)) {
                         communicate_error(&ctx, &argument);
                     }
                     break;
