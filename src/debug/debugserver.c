@@ -985,11 +985,15 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
         }
 #endif
 
-        bind(listensocket, res->ai_addr, res->ai_addrlen);
+        if (bind(listensocket, res->ai_addr, res->ai_addrlen) == -1) {
+            MVM_panic(1, "Could not bind to socket: %s", strerror(errno));
+        }
 
         freeaddrinfo(res);
 
-        listen(listensocket, 1);
+        if (listen(listensocket, 1) == -1) {
+            MVM_panic(1, "Could not listen on socket: %s", strerror(errno));
+        }
     }
 
     while(continue_running) {
