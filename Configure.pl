@@ -350,6 +350,7 @@ push @cflags, $config{ccshared}     unless $args{static};
 push @cflags, '-fno-omit-frame-pointer' if $args{asan} or $args{ubsan};
 push @cflags, '-fsanitize=address' if $args{asan};
 push @cflags, '-fsanitize=undefined' if $args{ubsan};
+push @cflags, '-DWSL_BASH_ON_WIN' if wsl_bash_on_win();
 push @cflags, '-DDEBUG_HELPERS' if $args{debug};
 push @cflags, '-DMVM_VALGRIND_SUPPORT' if $args{valgrind};
 push @cflags, '-DHAVE_TELEMEH' if $args{telemeh};
@@ -810,6 +811,10 @@ sub write_backend_config {
     }
 }
 
+sub wsl_bash_on_win {
+    open my $fh, '<', '/proc/sys/kernel/osrelease' or return 0;
+    return ((readline $fh) =~ /\A\d\.\d\.\d-\d+-Microsoft\s*\z/) ? 1 : 0;
+}
 
 __END__
 

@@ -227,7 +227,13 @@ static void flush(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 sync){
     if (sync) {
         if (MVM_platform_fsync(data->fd) == -1) {
             /* If this is something that can't be flushed, we let that pass. */
-            if (errno != EROFS && errno != EINVAL)
+            if (errno != EROFS && errno != EINVAL
+#ifdef WSL_BASH_ON_WIN
+               && ! (errno == EIO && ! data->seekable)
+               /* Bash on Win10 doesn't seem to handle TTYs right when flushing:
+                * https://github.com/borgbackup/borg/issues/1961#issuecomment-335653560 */
+#endif
+            )
                 MVM_exception_throw_adhoc(tc, "Failed to flush filehandle: %s", strerror(errno));
         }
     }
