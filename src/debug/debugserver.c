@@ -485,6 +485,34 @@ static void send_thread_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data
     uv_mutex_unlock(&vm->mutex_threads);
 }
 
+static MVMuint64 send_is_execution_suspended_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMInstance *vm = dtc->instance;
+    MVMuint8 result = 1;
+    MVMThread *cur_thread;
+
+    uv_mutex_lock(&vm->mutex_threads);
+    cur_thread = vm->threads;
+    while (cur_thread) {
+        if ((MVM_load(&cur_thread->body.tc->gc_status) & MVMSUSPENDSTATUS_MASK) != MVMSuspendState_SUSPENDED
+                && cur_thread->body.thread_id != vm->debugserver_thread_id
+                && cur_thread->body.thread_id != vm->speshworker_thread_id) {
+            result = 0;
+            break;
+        }
+        cur_thread = cur_thread->body.next;
+    }
+
+    uv_mutex_unlock(&vm->mutex_threads);
+
+    cmp_write_map(ctx, 3);
+    cmp_write_str(ctx, "id", 2);
+    cmp_write_integer(ctx, argument->id);
+    cmp_write_str(ctx, "type", 4);
+    cmp_write_integer(ctx, MT_IsExecutionSuspendedResponse);
+    cmp_write_str(ctx, "suspended", 9);
+    cmp_write_bool(ctx, result);
+}
+
 static MVMuint64 allocate_handle(MVMThreadContext *dtc, MVMObject *target) {
     if (!target) {
         return 0;
@@ -1038,6 +1066,9 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
             fprintf(stderr, "debugserver received packet %d, command %d\n", argument.id, argument.type);
 
             switch (argument.type) {
+                case MT_IsExecutionSuspendedRequest:
+                    send_is_execution_suspended_info(tc, &ctx, &argument);
+                    break;
                 case MT_ResumeAll:
                     COMMUNICATE_RESULT(request_all_threads_resume(tc, &ctx, &argument));
                     break;
