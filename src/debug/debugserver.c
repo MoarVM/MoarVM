@@ -243,7 +243,7 @@ static MVMThread *find_thread_by_id(MVMInstance *vm, MVMint32 id) {
 
     fprintf(stderr, "looking for thread number %d\n", id);
 
-    if (id == vm->debugserver_thread_id) {
+    if (id == vm->debugserver_thread_id || id == vm->speshworker_thread_id) {
         return NULL;
     }
 

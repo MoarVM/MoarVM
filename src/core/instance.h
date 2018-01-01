@@ -505,6 +505,7 @@ struct MVMInstance {
 
     MVMuint32 debugserver_port;
     MVMuint32 debugserver_thread_id;
+    MVMuint32 speshworker_thread_id;
 
     MVMDebugServerHandleTable *debug_handle_table;
 
