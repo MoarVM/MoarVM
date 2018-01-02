@@ -127,11 +127,15 @@ void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
         /* Provided OSR is enabled... */
         if (tc->instance->spesh_osr_enabled) {
             /* Check if there's a candidate available and install it if so. */
-            MVMCallsite *cs = tc->cur_frame->caller->cur_args_callsite;
+            MVMFrame *caller = tc->cur_frame->caller;
+            MVMCallsite *cs = caller
+                ? caller->cur_args_callsite
+                : MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS);
             MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
                 spesh->body.spesh_arg_guard,
                 (cs && cs->is_interned ? cs : NULL),
-                tc->cur_frame->caller->args, NULL);
+                (caller ? caller->args : NULL),
+                NULL);
             if (ag_result >= 0)
                 perform_osr(tc, spesh->body.spesh_candidates[ag_result]);
         }
