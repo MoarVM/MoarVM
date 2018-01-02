@@ -639,6 +639,7 @@ void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames) {
         }
         else if (tc->instance->spesh_stats_version - ss->last_update > MVM_SPESH_STATS_MAX_AGE) {
             MVM_spesh_stats_destroy(tc, ss);
+            MVM_free(spesh->body.spesh_stats);
             spesh->body.spesh_stats = NULL;
         }
         else {

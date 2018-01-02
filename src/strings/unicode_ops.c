@@ -950,7 +950,9 @@ MVMint32 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 
     else {
         MVMuint64 cname_length;
         char *cname = MVM_string_ascii_encode(tc, name, &cname_length, 0);
-        return unicode_cname_to_property_value_code(tc, property_code, cname, cname_length);
+        MVMint32 code = unicode_cname_to_property_value_code(tc, property_code, cname, cname_length);
+        MVM_free(cname);
+        return code;
     }
 }
 MVMint32 MVM_unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, const char *cname, size_t cname_length) {
