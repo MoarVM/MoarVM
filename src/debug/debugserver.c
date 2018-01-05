@@ -197,8 +197,12 @@ static void send_greeting(Socket *sock) {
     MVMuint32 version = htobe16(1);
 
     MVMuint16 *verptr = (MVMuint16 *)(&buffer[strlen("MOARVM-REMOTE-DEBUG") + 1]);
+
     *verptr = version;
     verptr++;
+
+    version = htobe16(0);
+
     *verptr = version;
     send(*sock, buffer, 24, 0);
 }
