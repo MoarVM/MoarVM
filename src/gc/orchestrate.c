@@ -491,7 +491,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
 
         MVM_telemetry_timestamp(tc, "gc finished");
 
-        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : GC complete (cooridnator)\n");
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : GC complete (coordinator)\n");
     }
     else {
         /* Another thread beat us to starting the GC sync process. Thus, act as
