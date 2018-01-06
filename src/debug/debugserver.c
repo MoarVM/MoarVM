@@ -242,6 +242,61 @@ static void communicate_success(cmp_ctx_t *ctx, request_data *argument) {
     cmp_write_integer(ctx, 2);
 }
 
+/* Send spontaneous events */
+void MVM_debugserver_notify_thread_creation(MVMThreadContext *tc) {
+    if (tc->instance->debugserver_thread_id) {
+        cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver_messagepack_data;
+        MVMuint64 event_id;
+
+        uv_mutex_lock(&tc->instance->mutex_debugserver_network_send);
+
+        event_id = tc->instance->debugserver_event_id;
+        tc->instance->debugserver_event_id += 2;
+
+        cmp_write_map(ctx, 5);
+        cmp_write_str(ctx, "id", 2);
+        cmp_write_integer(ctx, event_id);
+        cmp_write_str(ctx, "type", 4);
+        cmp_write_integer(ctx, MT_ThreadStarted);
+
+        cmp_write_str(ctx, "thread", 6);
+        cmp_write_integer(ctx, tc->thread_obj->body.thread_id);
+
+        cmp_write_str(ctx, "native_id", 9);
+        cmp_write_integer(ctx, tc->thread_obj->body.native_thread_id);
+
+        cmp_write_str(ctx, "app_lifetime", 12);
+        cmp_write_integer(ctx, tc->thread_obj->body.app_lifetime);
+
+        uv_mutex_unlock(&tc->instance->mutex_debugserver_network_send);
+    }
+}
+
+void MVM_debugserver_notify_thread_destruction(MVMThreadContext *tc) {
+    if (tc->instance->debugserver_thread_id) {
+        cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver_messagepack_data;
+        MVMuint64 event_id;
+
+        uv_mutex_lock(&tc->instance->mutex_debugserver_network_send);
+
+        event_id = tc->instance->debugserver_event_id;
+        tc->instance->debugserver_event_id += 2;
+
+        cmp_write_map(ctx, 3);
+        cmp_write_str(ctx, "id", 2);
+        cmp_write_integer(ctx, event_id);
+        cmp_write_str(ctx, "type", 4);
+        cmp_write_integer(ctx, MT_ThreadEnded);
+
+        cmp_write_str(ctx, "thread", 6);
+        cmp_write_integer(ctx, tc->thread_obj->body.thread_id);
+
+        uv_mutex_unlock(&tc->instance->mutex_debugserver_network_send);
+    }
+}
+
+/* Send replies to requests send by the client */
+
 static MVMThread *find_thread_by_id(MVMInstance *vm, MVMint32 id) {
     MVMThread *cur_thread = 0;
 
@@ -1044,12 +1099,16 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
 
         cmp_init(&ctx, &clientsocket, socket_reader, NULL, socket_writer);
 
+        vm->debugserver_messagepack_data = (void*)&ctx;
+
         while (clientsocket) {
             request_data argument;
 
             MVM_gc_mark_thread_blocked(tc);
             parse_message_map(&ctx, &argument);
             MVM_gc_mark_thread_unblocked(tc);
+
+            uv_mutex_lock(&vm->mutex_debugserver_network_send);
 
             if (argument.parse_fail) {
                 fprintf(stderr, "failed to parse this message: %s\n", argument.parse_fail_message);
@@ -1120,8 +1179,9 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                     cmp_write_str(&ctx, "type", 4);
                     cmp_write_integer(&ctx, 0);
                     break;
-
             }
+
+            uv_mutex_unlock(&vm->mutex_debugserver_network_send);
         }
     }
 }
@@ -1138,6 +1198,7 @@ void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
     vm->debug_handle_table->next_id   = 1;
     vm->debug_handle_table->entries   = MVM_calloc(vm->debug_handle_table->allocated, sizeof(MVMDebugServerHandleTableEntry));
 
+    vm->debugserver_event_id = 2;
     vm->debugserver_port = port;
 
     worker_entry_point = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTCCode);

@@ -353,6 +353,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVM_spesh_log_initialize_thread(instance->main_thread, 1);
 
     init_mutex(instance->mutex_debugserver_cond, "debug server orchestration");
+    init_mutex(instance->mutex_debugserver_network_send, "debug server network socket lock");
     init_cond(instance->debugserver_tell_threads, "debugserver signals threads");
     init_cond(instance->debugserver_tell_worker, "threads signal debugserver");
 
