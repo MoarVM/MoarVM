@@ -17,9 +17,10 @@ $Data::Dumper::Maxdepth = 1;
 my $DEBUG = $ENV{UCD2CDEBUG} // 0;
 
 my @NAME_LINES;
+my $LOG_FH;
 if ($DEBUG) {
-    open(LOG, ">extents") or croak "can't create extents: $!";
-    binmode LOG, ':encoding(UTF-8)';
+    open($LOG_FH, ">", "extents") or croak "can't create extents: $!";
+    binmode $LOG_FH, ':encoding(UTF-8)';
 }
 binmode STDOUT, ':encoding(UTF-8)';
 binmode STDERR, ':encoding(UTF-8)';
@@ -42,7 +43,6 @@ my $BITFIELD_TABLE = [];
 my $PROP_CODES = {};
 my $ALL_PROPERTIES = {};
 my $ALLOCATED_PROPERTIES;
-my $EXTENTS;
 my $PROPERTY_INDEX = 0;
 my $ESTIMATED_TOTAL_BYTES = 0;
 my $TOTAL_BYTES_SAVED = 0;
@@ -90,7 +90,7 @@ sub add_emoji_sequences {
     }
     $highest_emoji_version;
 }
-sub progress($);
+#sub progress($);
 sub main {
     $DB_SECTIONS->{'AAA_header'} = header();
     my $highest_emoji_version = add_emoji_sequences();
@@ -169,11 +169,11 @@ sub main {
     # Emit all the things
     progress("...done.\nemitting unicode_db.c...");
     emit_bitfield($FIRST_POINT);
-    $EXTENTS = emit_codepoints_and_planes($FIRST_POINT);
+    my $extents = emit_codepoints_and_planes($FIRST_POINT);
     emit_case_changes($FIRST_POINT);
-    emit_codepoint_row_lookup($EXTENTS);
+    emit_codepoint_row_lookup($extents);
     emit_property_value_lookup($allocated_bitfield_properties);
-    emit_names_hash_builder();
+    emit_names_hash_builder($extents);
     emit_unicode_property_keypairs();
     emit_unicode_property_value_keypairs();
     emit_block_lookup();
@@ -188,8 +188,8 @@ sub main {
         thousands($TOTAL_BYTES_SAVED).".\n";
     if ($DEBUG) {
         $LOG =~ s/('fate_really' => )(\d+)/$1$NAME_LINES[$2]/g;
-        print LOG $LOG;
-        close LOG;
+        print $LOG_FH $LOG;
+        close $LOG_FH;
     }
     print "\nDONE!!!\n\n";
 }
@@ -239,16 +239,20 @@ sub join_sections {
 }
 
 sub set_next_points {
-    my $last;
+    #my $next = undef;
+    my $previous;
     for my $code (sort { $a <=> $b } keys %{$POINTS_BY_CODE}) {
-        $POINTS_BY_CODE->{$last}->{next_point} = $POINTS_BY_CODE->{$code}
-            if defined $last;
+        #$POINTS_BY_CODE->{$code}->{next_point} = $next;
+        #$next = $POINTS_BY_CODE->{$code};
+        #next;
+        $POINTS_BY_CODE->{$previous}->{next_point} = $POINTS_BY_CODE->{$code}
+            if defined $previous;
         # The first code we encounter will be the lowest, so set $FIRST_POINT
-        if (!defined $last) {
+        if (!defined $previous) {
             say "setting first point to $code";
             $FIRST_POINT = $POINTS_BY_CODE->{$code};
         }
-        $last = $code;
+        $previous = $code;
     }
 }
 sub get_next_point {
@@ -530,24 +534,24 @@ sub compute_properties {
 }
 
 sub emit_binary_search_algorithm {
-    # $EXTENTS is arrayref to the heads of the gaps, spans, and
+    # $extents is arrayref to the heads of the gaps, spans, and
     # normal stretches of codepoints. $first and $last are the
-    # indexes into $EXTENTS we're supposed to subdivide.
+    # indexes into $extents we're supposed to subdivide.
     # protocol: start output with a newline; don't end with a newline or indent
-    my ($EXTENTS, $first, $mid, $last, $indent) = @_;
+    my ($extents, $first, $mid, $last, $indent) = @_;
     my $out = "";
 #${indent} /* got  $first  $mid  $last  */\n";
-    return $out.emit_extent_fate($EXTENTS->[$first], $indent) if $first == $last;
+    return $out.emit_extent_fate($extents->[$first], $indent) if $first == $last;
     $mid = $last if $first == $mid;
     my $new_mid_high = int(($last + $mid) / 2);
     my $new_mid_low = int(($mid - 1 + $first) / 2);
-    my $high = emit_binary_search_algorithm($EXTENTS,
+    my $high = emit_binary_search_algorithm($extents,
         $mid, $new_mid_high, $last, "    $indent");
-    my $low = emit_binary_search_algorithm($EXTENTS,
+    my $low = emit_binary_search_algorithm($extents,
         $first, $new_mid_low, $mid - 1, "    $indent");
     return $out."
-${indent}if (codepoint >= 0x".uc(sprintf("%x", $EXTENTS->[$mid]->{code})).") {".
-        " /* ".($EXTENTS->[$mid]->{name} || 'NULL')." */$high
+${indent}if (codepoint >= 0x".uc(sprintf("%x", $extents->[$mid]->{code})).") {".
+        " /* ".($extents->[$mid]->{name} || 'NULL')." */$high
 ${indent}}
 ${indent}else {$low
 ${indent}}";
@@ -569,13 +573,13 @@ sub emit_extent_fate {
 }
 
 sub add_extent($$) {
-    my ($EXTENTS, $extent) = @_;
+    my ($extents, $extent) = @_;
     if ($DEBUG) {
         $LOG .= "\n" . join '',
             grep /code|fate|name|bitfield/,
             sort split /^/m, "EXTENT " . Dumper($extent);
     }
-    push @$EXTENTS, $extent;
+    push @$extents, $extent;
 }
 
 sub emit_codepoints_and_planes {
@@ -584,12 +588,12 @@ sub emit_codepoints_and_planes {
     my $bytes = 0;
     my $bytes_saved = 0;
     my $code_offset = 0;
-    my $EXTENTS = [];
+    my $extents = [];
     my $last_code = -1; # trick
     my $last_point = undef;
     $FIRST_POINT->{fate_type} = $FATE_NORMAL;
     $FIRST_POINT->{fate_offset} = $code_offset;
-    add_extent $EXTENTS, $FIRST_POINT;
+    add_extent $extents, $FIRST_POINT;
     my $span_length = 0;
 
     # a bunch of spaghetti code.  Yes.
@@ -617,8 +621,8 @@ sub emit_codepoints_and_planes {
             if ($span_length) {
                 if ($span_length >= $SPAN_LENGTH_THRESHOLD) {
                     $bytes_saved += 10 * ($span_length - 1);
-                    if (!exists($last_point->{fate_type})) {
-                        add_extent $EXTENTS, $last_point;
+                    if (!defined($last_point->{fate_type})) {
+                        add_extent $extents, $last_point;
                     }
                     $last_point->{fate_type} = $FATE_SPAN;
                     $code_offset = $last_point->{code} - @NAME_LINES + 1;
@@ -651,7 +655,7 @@ sub emit_codepoints_and_planes {
             if ($COMPRESS_CODEPOINTS
                     && $last_code < $point->{code} - ($point->{code} % 0x10000 ? $GAP_LENGTH_THRESHOLD : 1)) {
                 $bytes_saved += 10 * ($point->{code} - $last_code - 1);
-                add_extent $EXTENTS, { fate_type => $FATE_NULL,
+                add_extent $extents, { fate_type => $FATE_NULL,
                     code => $last_code + 1 };
                 $code_offset += ($point->{code} - $last_code - 1);
                 $last_code = $point->{code} - 1;
@@ -671,7 +675,7 @@ sub emit_codepoints_and_planes {
                 $point->{fate_type} = $FATE_NORMAL;
                 $point->{fate_offset} = $code_offset;
                 $point->{fate_really} = $point->{code} - $code_offset;
-                add_extent $EXTENTS, $point;
+                add_extent $extents, $point;
             }
             $toadd = undef;
             # a normal codepoint that we don't want to compress
@@ -697,14 +701,14 @@ sub emit_codepoints_and_planes {
             stack_lines(\@bitfield_index_lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS).
             "\n};";
     $H_SECTIONS->{codepoint_names_count} = "#define MVM_CODEPOINT_NAMES_COUNT $index";
-    $EXTENTS
+    $extents
 }
 
 sub emit_codepoint_row_lookup {
-    my $EXTENTS = shift;
+    my $extents = shift;
     my $SMP_start;
     my $i = 0;
-    for (@$EXTENTS) {
+    for (@$extents) {
         # handle the first recursion specially to optimize for most common BMP lookups
         if ($_->{code} >= 0x10000) {
             $SMP_start = $i;
@@ -723,14 +727,14 @@ sub emit_codepoint_row_lookup {
     }
 
     if (plane == 0) {"
-    . emit_binary_search_algorithm($EXTENTS, 0, 1, $SMP_start - 1, "        ") . "
+    . emit_binary_search_algorithm($extents, 0, 1, $SMP_start - 1, "        ") . "
     }
     else {
         if (plane < 0 || plane > 16 || codepoint > 0x10FFFD) {
             return -1;
         }
-        else {" . emit_binary_search_algorithm($EXTENTS, $SMP_start,
-            int(($SMP_start + scalar(@$EXTENTS)-1)/2), scalar(@$EXTENTS) - 1, "            ") . "
+        else {" . emit_binary_search_algorithm($extents, $SMP_start,
+            int(($SMP_start + scalar(@$extents)-1)/2), scalar(@$extents) - 1, "            ") . "
         }
     }
 }";
@@ -1032,11 +1036,12 @@ MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 
 }
 
 sub emit_names_hash_builder {
-    my $num_extents = scalar(@$EXTENTS);
+    my ($extents) = @_;
+    my $num_extents = scalar(@$extents);
     my $out = "
 static const MVMint32 codepoint_extents[".($num_extents + 1)."][3] = {\n";
     $ESTIMATED_TOTAL_BYTES += 4 * 2 * ($num_extents + 1);
-    for my $extent (@$EXTENTS) {
+    for my $extent (@$extents) {
         $out .= sprintf("    {0x%04x,%d,%d},\n",
                                 $extent->{code},
                                      $extent->{fate_type},
@@ -1699,7 +1704,7 @@ sub add_to_plane {
         $plane = @$PLANES[$plane_num];
     }
     else {
-        $plane = @$PLANES[scalar(@$PLANES) - 1];
+        $plane = $PLANES->[-1];
         while ($plane->{number} < $plane_num) {
             push(@$PLANES, ($plane = {
                 number => $plane->{number} + 1,
