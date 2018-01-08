@@ -244,7 +244,7 @@ static void communicate_success(cmp_ctx_t *ctx, request_data *argument) {
 
 /* Send spontaneous events */
 void MVM_debugserver_notify_thread_creation(MVMThreadContext *tc) {
-    if (tc->instance->debugserver_thread_id) {
+    if (tc->instance->debugserver_thread_id && tc->instance->debugserver_messagepack_data) {
         cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver_messagepack_data;
         MVMuint64 event_id;
 
@@ -273,7 +273,7 @@ void MVM_debugserver_notify_thread_creation(MVMThreadContext *tc) {
 }
 
 void MVM_debugserver_notify_thread_destruction(MVMThreadContext *tc) {
-    if (tc->instance->debugserver_thread_id) {
+    if (tc->instance->debugserver_thread_id && tc->instance->debugserver_messagepack_data) {
         cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver_messagepack_data;
         MVMuint64 event_id;
 
@@ -1187,6 +1187,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
 
             uv_mutex_unlock(&vm->mutex_debugserver_network_send);
         }
+        vm->debugserver_messagepack_data = NULL;
     }
 }
 
