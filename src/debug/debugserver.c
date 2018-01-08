@@ -927,8 +927,30 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
 }
 
 static bool socket_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
-    if (recv(*((Socket*)ctx->buf), data, limit, 0) == -1)
-        return 0;
+    size_t idx;
+    size_t total_read = 0;
+    size_t read;
+    MVMuint8 *orig_data = (MVMuint8 *)data;
+    fprintf(stderr, "asked to read %d bytes\n", limit);
+    while (total_read < limit) {
+        if ((read = recv(*((Socket*)ctx->buf), data, limit, 0)) == -1) {
+            fprintf(stderr, "minus one");
+            return 0;
+        } else if (read == 0) {
+            fprintf(stderr, "end of file");
+            return 0;
+        }
+        fprintf(stderr, "%d ", read);
+        data = (void *)(((MVMuint8*)data) + read);
+        total_read += read;
+    }
+
+    fprintf(stderr, "... recv received %d bytes\n", total_read);
+    fprintf(stderr, "cmp read: ");
+    for (idx = 0; idx < limit; idx++) {
+        fprintf(stderr, "%x ", orig_data[idx]);
+    }
+    fprintf(stderr, "\n");
     return 1;
 }
 
@@ -978,10 +1000,24 @@ static bool is_valid_int(cmp_object_t *obj, MVMint64 *result) {
 MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
     MVMuint32 map_size = 0;
     MVMuint32 i;
+    cmp_object_t obj;
 
     memset(data, 0, sizeof(request_data));
 
-    CHECK(cmp_read_map(ctx, &map_size), "Couldn't read envelope map");
+    CHECK(cmp_read_object(ctx, &obj), "couldn't read envelope object!");
+
+    switch (obj.type) {
+        case CMP_TYPE_FIXMAP:
+        case CMP_TYPE_MAP16:
+        case CMP_TYPE_MAP32:
+            map_size = obj.as.map_size;
+            break;
+        default:
+            fprintf(stderr, "expected a map, but got %d\n", obj.type);
+            data->parse_fail = 1;
+            data->parse_fail_message = "expected a map as the envelope";
+            return 0;
+    }
 
     for (i = 0; i < map_size; i++) {
         char key_str[16];
