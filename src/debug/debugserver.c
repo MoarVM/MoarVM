@@ -333,6 +333,10 @@ static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
                 == MVMGCStatus_NONE) {
             break;
         }
+        if (MVM_cas(&tc->gc_status, MVMGCStatus_UNABLE, MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST)
+                == MVMGCStatus_UNABLE) {
+            break;
+        }
         MVM_platform_thread_yield();
     }
 
