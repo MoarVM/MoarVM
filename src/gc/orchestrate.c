@@ -303,9 +303,7 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
         }
         else {
             uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
-            fprintf(stderr, "marking unblocked saw something other than 'UNABLE', suspecting suspend request\n");
             if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPEND_REQUEST) {
-                fprintf(stderr, "yup. let's switch to interrupt + suspend request.\n");
                 while (1) {
                     if (MVM_cas(&tc->gc_status, MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST,
                                 MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST) ==
@@ -315,6 +313,9 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
                         break;
                     }
                 }
+            } else if (MVM_load(&tc->gc_status) == MVMGCStatus_NONE) {
+                fprintf(stderr, "marking thread unblocked, but its status is already NONE. WTF?\n");
+                break;
             } else {
                 MVM_platform_thread_yield();
             }
