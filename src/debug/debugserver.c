@@ -972,7 +972,7 @@ static bool is_valid_int(cmp_object_t *obj, MVMint64 *result) {
     return 1;
 }
 
-#define CHECK(operation, message) do { if(!(operation)) { data->parse_fail = 1; data->parse_fail_message = (message);fprintf(stderr, "%s", cmp_strerror(ctx)); return 0; } } while(0)
+#define CHECK(operation, message) do { if(!(operation)) { data->parse_fail = 1; data->parse_fail_message = (message);fprintf(stderr, "CMP error: %s\n", cmp_strerror(ctx)); return 0; } } while(0)
 #define FIELD_FOUND(field, duplicated_message) do { if(data->fields_set & (field)) { data->parse_fail = 1; data->parse_fail_message = duplicated_message;  return 0; }; field_to_set = (field); } while (0)
 
 MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
