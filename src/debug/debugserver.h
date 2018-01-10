@@ -12,6 +12,13 @@ struct MVMDebugServerHandleTable {
     MVMDebugServerHandleTableEntry *entries;
 };
 
+struct MVMDebugServerRequestEntry {
+    MVMuint16 message_type;
+    MVMuint32 thread_id;
+    MVMuint32 counter;
+    MVMuint64 request_id;
+};
+
 struct MVMDebugServerData {
     /* Debug Server thread */
     uv_thread_t thread;
@@ -21,6 +28,9 @@ struct MVMDebugServerData {
 
     /* Protect sending data on the network */
     uv_mutex_t mutex_network_send;
+
+    /* Protect the open requests list */
+    uv_mutex_t mutex_request_list;
 
     /* Condition variable to tell threads to check their state for changes
      * like "i should suspend" */
@@ -37,6 +47,8 @@ struct MVMDebugServerData {
 
     MVMDebugServerHandleTable *handle_table;
 
+    MVM_VECTOR_DECL(MVMDebugServerRequestEntry, open_requests);
+
     void *messagepack_data;
 
     MVMuint8 debugspam_network;
@@ -48,3 +60,6 @@ void MVM_debugserver_mark_handles(MVMThreadContext *tc, MVMGCWorklist *worklist,
 
 void MVM_debugserver_notify_thread_creation(MVMThreadContext *tc);
 void MVM_debugserver_notify_thread_destruction(MVMThreadContext *tc);
+
+void MVM_debugserver_notify_thread_suspends(MVMThreadContext *tc);
+void MVM_debugserver_notify_thread_resumes(MVMThreadContext *tc);

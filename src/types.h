@@ -275,4 +275,5 @@ typedef struct MVMHeapSnapshotWorkItem MVMHeapSnapshotWorkItem;
 typedef struct MVMHeapSnapshotSeen MVMHeapSnapshotSeen;
 typedef struct MVMDebugServerHandleTable MVMDebugServerHandleTable;
 typedef struct MVMDebugServerHandleTableEntry MVMDebugServerHandleTableEntry;
+typedef struct MVMDebugServerRequestEntry MVMDebugServerRequestEntry;
 typedef struct MVMDebugServerData MVMDebugServerData;

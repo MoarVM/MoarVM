@@ -540,11 +540,12 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPEND_REQUEST) {
         fprintf(stderr, "thread reacting to suspend request\n");
         MVM_gc_mark_thread_blocked(tc);
-        uv_cond_signal(&tc->instance->debugserver->tell_worker);
+        MVM_debugserver_notify_thread_suspends(tc);
         while (1) {
             uv_cond_wait(&tc->instance->debugserver->tell_threads, &tc->instance->debugserver->mutex_cond);
             if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_NONE) {
                 fprintf(stderr, "thread got un-suspended\n");
+                MVM_debugserver_notify_thread_resumes(tc);
                 break;
             } else {
                 fprintf(stderr, "something happened, but we're still suspended.\n");
