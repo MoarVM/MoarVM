@@ -47,6 +47,7 @@ struct MVMOpInfo {
     MVMuint8    logged;
     MVMuint8    no_inline;
     MVMuint8    jittivity;
+    MVMuint8    uses_hll;
     MVMuint8    operands[MVM_MAX_OPERANDS];
 };
 

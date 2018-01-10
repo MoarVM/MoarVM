@@ -230,6 +230,7 @@ sub opcode_details(@ops) {
             take "        $($op.adverbs<noinline> ?? '1' !! '0'),";
             take "        $(($op.adverbs<invokish> ?? 1 !! 0) +
                             ($op.adverbs<throwish> ?? 2 !! 0)),";
+            take "        $($op.adverbs<useshll> ?? '1' !! '0'),";
             if $op.operands {
                 take "        \{ $op.operands.map(&operand_flags).join(', ') }";
             }

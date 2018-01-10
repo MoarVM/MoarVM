@@ -51,7 +51,8 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
                                                MVMSpeshCandidate *cand,
                                                char **no_inline_reason) {
     MVMSpeshGraph *ig;
-    MVMSpeshBB    *bb;
+    MVMSpeshBB *bb;
+    MVMint32 same_hll;
 
     /* Check inlining is enabled. */
     if (!tc->instance->spesh_inline_enabled) {
@@ -77,12 +78,6 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
         return NULL;
     }
 
-    /* Ensure they're from the same HLL. */
-    if (target_sf->body.cu->body.hll_config != inliner->sf->body.cu->body.hll_config) {
-        *no_inline_reason = "different HLLs";
-        return NULL;
-    }
-
     /* Ensure it has no state vars (these need the setup code in frame
      * invoke). */
     if (target_sf->body.has_state_vars) {
@@ -95,6 +90,10 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
         *no_inline_reason = "cannot inline code marked as a thunk";
         return NULL;
     }
+
+    /* If they're from the same HLL, we'll need to watch out for ops that are
+     * HLL sensitive. */
+    same_hll = target_sf->body.cu->body.hll_config == inliner->sf->body.cu->body.hll_config;
 
     /* Build graph from the already-specialized bytecode. */
     ig = MVM_spesh_graph_create_from_cand(tc, target_sf, cand, 0);
@@ -121,6 +120,13 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
              * which case we're done. */
             if (!is_phi && ins->info->no_inline) {
                 *no_inline_reason = "target has a :noinline instruction";
+                goto not_inlinable;
+            }
+
+            /* If we don't have the same HLL and there's a :useshll op, we
+             * cannot inline. */
+            if (!same_hll && ins->info->uses_hll) {
+                *no_inline_reason = "target has a :useshll instruction and HLLs are different";
                 goto not_inlinable;
             }
 

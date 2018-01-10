@@ -47,6 +47,7 @@
 # * :noinline means it is never safe to inline this op
 # * :invokish means the op may invoke (used by the JIT)
 # * :throwish means the op may throw (used by the JIT)
+# * :useshll means that the op uses per-HLL config
 
 no_op
 const_i8            w(int8) int8 :pure
@@ -93,15 +94,15 @@ bindlex_ni          str r(int64) :noinline
 bindlex_nn          str r(num64) :noinline
 bindlex_ns          str r(str) :noinline
 bindlex_no          str r(obj) :noinline
-getlex_ng           w(obj) r(str) :pure :noinline
-bindlex_ng          r(str) r(obj) :noinline
-getdynlex           w(obj) r(str) :pure :noinline
+getlex_ng           w(obj) r(str) :pure :noinline :useshll
+bindlex_ng          r(str) r(obj) :noinline :useshll
+getdynlex           w(obj) r(str) :pure :noinline :useshll
 binddynlex          r(str) r(obj) :noinline
 setlexvalue         r(obj) str r(obj) int16
 lexprimspec         w(int64) r(obj) r(str) :pure
-return_i         .r r(int64)
-return_n         .r r(num64)
-return_s         .r r(str)
+return_i         .r r(int64) :useshll
+return_n         .r r(num64) :useshll
+return_s         .r r(str) :useshll
 return_o         .r r(obj)
 return           .r
 eq_i                w(int64) r(int64) r(int64) :pure
@@ -192,21 +193,21 @@ checkarity          int16 int16
 param_rp_i       .p w(int64) int16 :pure :noinline
 param_rp_n       .p w(num64) int16 :pure :noinline
 param_rp_s       .p w(str) int16 :pure :noinline
-param_rp_o       .p w(obj) int16 :pure :noinline
+param_rp_o       .p w(obj) int16 :pure :noinline :useshll
 param_op_i       .p w(int64) int16 ins :pure :noinline
 param_op_n       .p w(num64) int16 ins :pure :noinline
 param_op_s       .p w(str) int16 ins :pure :noinline
-param_op_o       .p w(obj) int16 ins :pure :noinline
+param_op_o       .p w(obj) int16 ins :pure :noinline :useshll
 param_rn_i          w(int64) str :noinline
 param_rn_n          w(num64) str :noinline
 param_rn_s          w(str) str :noinline
-param_rn_o          w(obj) str :noinline
+param_rn_o          w(obj) str :noinline :useshll
 param_on_i          w(int64) str ins :noinline
 param_on_n          w(num64) str ins :noinline
 param_on_s          w(str) str ins :noinline
-param_on_o          w(obj) str ins :noinline
-param_sp         .p w(obj) int16 :pure :noinline
-param_sn            w(obj) :noinline
+param_on_o          w(obj) str ins :noinline :useshll
+param_sp         .p w(obj) int16 :pure :noinline :useshll
+param_sn            w(obj) :noinline :useshll
 getcode             w(obj) coderef :pure
 caller              w(obj) r(int64) :pure :noinline
 capturelex          r(obj) :noinline
@@ -234,13 +235,13 @@ backtracestrings    w(obj) r(obj) :pure
 usecapture          w(obj) :noinline
 savecapture         w(obj) :noinline
 captureposelems     w(int64) r(obj) :pure
-captureposarg       w(obj) r(obj) r(int64) :pure
+captureposarg       w(obj) r(obj) r(int64) :pure :useshll
 captureposarg_i     w(int64) r(obj) r(int64) :pure
 captureposarg_n     w(num64) r(obj) r(int64) :pure
 captureposarg_s     w(str) r(obj) r(int64) :pure
 captureposprimspec  w(int64) r(obj) r(int64) :pure
 captureexistsnamed  w(int64) r(obj) r(str) :pure
-capturehasnameds    w(int64) r(obj) :pure
+capturehasnameds    w(int64) r(obj) :pure :useshll
 invokewithcapture   w(obj) r(obj) r(obj) :invokish
 multicacheadd       w(obj) r(obj) r(obj) r(obj)
 multicachefind      w(obj) r(obj) r(obj)
@@ -291,7 +292,7 @@ findnotcclass       w(int64) r(int64) r(str) r(int64) r(int64) :pure
 nfafromstatelist    w(obj) r(obj) r(obj)
 nfarunproto         w(obj) r(obj) r(str) r(int64)
 nfarunalt           r(obj) r(str) r(int64) r(obj) r(obj) r(obj)
-radix               w(obj) r(int64) r(str) r(int64) r(int64)
+radix               w(obj) r(int64) r(str) r(int64) r(int64) :useshll
 encode              w(obj) r(str) r(str) r(obj)
 decode              w(str) r(obj) r(str)
 istrue_s            w(int64) r(str) :pure
@@ -402,24 +403,24 @@ isstr               w(int64) r(obj) :pure
 islist              w(int64) r(obj) :pure
 ishash              w(int64) r(obj) :pure
 sethllconfig        r(str) r(obj)
-hllboxtype_i        w(obj) :pure
-hllboxtype_n        w(obj) :pure
-hllboxtype_s        w(obj) :pure
-hlllist             w(obj) :pure
-hllhash             w(obj) :pure
+hllboxtype_i        w(obj) :pure :useshll
+hllboxtype_n        w(obj) :pure :useshll
+hllboxtype_s        w(obj) :pure :useshll
+hlllist             w(obj) :pure :useshll
+hllhash             w(obj) :pure :useshll
 getcomp             w(obj) r(str) :pure
 bindcomp            w(obj) r(str) r(obj)
-getcurhllsym        w(obj) r(str) :pure
-bindcurhllsym       w(obj) r(str) r(obj)
+getcurhllsym        w(obj) r(str) :pure :useshll
+bindcurhllsym       w(obj) r(str) r(obj) :useshll
 gethllsym           w(obj) r(str) r(str) :pure
 bindhllsym          r(str) r(str) r(obj)
 settypehll          r(obj) r(str)
 settypehllrole      r(obj) r(int64)
-hllize              w(obj) r(obj) :pure :invokish
+hllize              w(obj) r(obj) :pure :invokish :useshll
 hllizefor           w(obj) r(obj) r(str) :pure :invokish
-usecompileehllconfig
-usecompilerhllconfig
-iter                w(obj) r(obj) :pure
+usecompileehllconfig :useshll
+usecompilerhllconfig :useshll
+iter                w(obj) r(obj) :pure :useshll
 iterkey_s           w(str) r(obj) :pure
 iterval             w(obj) r(obj) :pure
 getcodename         w(str) r(obj) :pure
@@ -507,7 +508,7 @@ coerce_sI           w(obj) r(str) r(obj) :pure
 isbig_I             w(int64) r(obj) :pure
 bool_I              w(int64) r(obj) :pure
 base_I              w(str) r(obj) r(int64) :pure
-radix_I             w(obj) r(int64) r(str) r(int64) r(int64) r(obj) :pure
+radix_I             w(obj) r(int64) r(str) r(int64) r(int64) r(obj) :pure :useshll
 div_In              w(num64) r(obj) r(obj) :pure
 copy_f              r(str) r(str)
 append_f            r(str) r(str)
@@ -562,19 +563,19 @@ time_n              w(num64)
 exit                r(int64)
 DEPRECATED_30       w(int64) r(str) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
 cwd                 w(str)
-clargs              w(obj)
-getenvhash          w(obj)
+clargs              w(obj) :useshll
+getenvhash          w(obj) :useshll
 loadlib             r(str) r(str)
 freelib             r(str)
 findsym             w(obj) r(str) r(str)
 dropsym             r(obj)
 loadext             r(str) r(str)
 backendconfig       w(obj)
-getlexouter         w(obj) r(str) :pure :noinline
-getlexrel           w(obj) r(obj) r(str) :pure
-getlexreldyn        w(obj) r(obj) r(str) :pure
-getlexrelcaller     w(obj) r(obj) r(str) :pure
-getlexcaller        w(obj) r(str) :pure :noinline
+getlexouter         w(obj) r(str) :pure :noinline :useshll
+getlexrel           w(obj) r(obj) r(str) :pure :useshll
+getlexreldyn        w(obj) r(obj) r(str) :pure :useshll
+getlexrelcaller     w(obj) r(obj) r(str) :pure :useshll
+getlexcaller        w(obj) r(str) :pure :noinline :useshll
 bitand_s            w(str) r(str) r(str) :pure
 bitor_s             w(str) r(str) r(str) :pure
 bitxor_s            w(str) r(str) r(str) :pure
@@ -588,7 +589,7 @@ filereadable        w(int64) r(str)
 filewritable        w(int64) r(str)
 fileexecutable      w(int64) r(str)
 DEPRECATED_19       w(int64) r(obj) r(str)
-capturenamedshash   w(obj) r(obj) :pure
+capturenamedshash   w(obj) r(obj) :pure :useshll
 read_fhb            r(obj) r(obj) r(int64)
 write_fhb           r(obj) r(obj)
 replace             w(str) r(str) r(int64) r(int64) r(str)
@@ -653,11 +654,11 @@ isnonnull           w(int64) r(obj) :pure
 param_rn2_i         w(int64) str str :noinline
 param_rn2_n         w(num64) str str :noinline
 param_rn2_s         w(str) str str :noinline
-param_rn2_o         w(obj) str str :noinline
+param_rn2_o         w(obj) str str :noinline :useshll
 param_on2_i         w(int64) str str ins :noinline
 param_on2_n         w(num64) str str ins :noinline
 param_on2_s         w(str) str str ins :noinline
-param_on2_o         w(obj) str str ins :noinline
+param_on2_o         w(obj) str str ins :noinline :useshll
 osrpoint            :osrpoint
 nativecallcast      w(obj) r(obj) r(obj) r(obj)
 spawnprocasync      w(obj) r(obj) r(obj) r(str) r(obj) r(obj)
