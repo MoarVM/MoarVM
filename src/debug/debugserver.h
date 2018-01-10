@@ -38,6 +38,9 @@ struct MVMDebugServerData {
     MVMDebugServerHandleTable *handle_table;
 
     void *messagepack_data;
+
+    MVMuint8 debugspam_network;
+    MVMuint8 debugspam_protocol;
 };
 
 void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port);

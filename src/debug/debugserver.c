@@ -314,13 +314,11 @@ static MVMThread *find_thread_by_id(MVMInstance *vm, MVMint32 id) {
     uv_mutex_lock(&vm->mutex_threads);
     cur_thread = vm->threads;
     while (cur_thread) {
-        fprintf(stderr, "%d ", cur_thread->body.thread_id);
         if (cur_thread->body.thread_id == id) {
             break;
         }
         cur_thread = cur_thread->body.next;
     }
-    fprintf(stderr, "\n");
     uv_mutex_unlock(&vm->mutex_threads);
     return cur_thread;
 }
@@ -393,7 +391,8 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
 
     MVM_gc_mark_thread_unblocked(dtc);
 
-    fprintf(stderr, "success resuming thread\n");
+    if (tc->instance->debugserver->debugspam_protocol)
+        fprintf(stderr, "success resuming thread; its status is now %d\n", MVM_load(&tc->gc_status));
 
     return 0;
 }
@@ -437,7 +436,8 @@ static MVMint32 request_thread_stacktrace(MVMThreadContext *dtc, cmp_ctx_t *ctx,
         cur_frame = cur_frame->caller;
     }
 
-    fprintf(stderr, "dumping a stack trace of %d frames\n", stack_size);
+    if (tc->instance->debugserver->debugspam_protocol)
+        fprintf(stderr, "dumping a stack trace of %d frames\n", stack_size);
 
     cmp_write_map(ctx, 3);
     cmp_write_str(ctx, "id", 2);
@@ -725,7 +725,8 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         cmp_write_str(ctx, "lexicals", 8);
         cmp_write_map(ctx, lexcount);
 
-        fprintf(stderr, "will write %d lexicals\n", lexcount);
+        if (dtc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "will write %d lexicals\n", lexcount);
 
         HASH_ITER(hash_handle, lexical_names, entry, tmp, bucket_tmp) {
             MVMuint16 lextype = static_info->body.lexical_types[entry->value];
@@ -786,7 +787,8 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
                     cmp_write_nil(ctx);
                 }
             }
-            fprintf(stderr, "wrote a lexical\n");
+            if (dtc->instance->debugserver->debugspam_protocol)
+                fprintf(stderr, "wrote a lexical\n");
         }
     } else {
         cmp_write_map(ctx, 3);
@@ -798,7 +800,8 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         cmp_write_str(ctx, "lexicals", 8);
         cmp_write_map(ctx, 0);
     }
-    fprintf(stderr, "done writing lexicals\n");
+    if (dtc->instance->debugserver->debugspam_protocol)
+        fprintf(stderr, "done writing lexicals\n");
     return 0;
 }
 
@@ -931,31 +934,39 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
     return 0;
 }
 
+MVMuint8 debugspam_network;
+
 static bool socket_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
     size_t idx;
     size_t total_read = 0;
     size_t read;
     MVMuint8 *orig_data = (MVMuint8 *)data;
-    fprintf(stderr, "asked to read %d bytes\n", limit);
+    if (debugspam_network)
+        fprintf(stderr, "asked to read %d bytes\n", limit);
     while (total_read < limit) {
         if ((read = recv(*((Socket*)ctx->buf), data, limit, 0)) == -1) {
-            fprintf(stderr, "minus one");
+            if (debugspam_network)
+                fprintf(stderr, "minus one");
             return 0;
         } else if (read == 0) {
-            fprintf(stderr, "end of file");
+            if (debugspam_network)
+                fprintf(stderr, "end of file");
             return 0;
         }
-        fprintf(stderr, "%d ", read);
+        if (debugspam_network)
+            fprintf(stderr, "%d ", read);
         data = (void *)(((MVMuint8*)data) + read);
         total_read += read;
     }
 
-    fprintf(stderr, "... recv received %d bytes\n", total_read);
-    fprintf(stderr, "cmp read: ");
-    for (idx = 0; idx < limit; idx++) {
-        fprintf(stderr, "%x ", orig_data[idx]);
+    if (debugspam_network) {
+        fprintf(stderr, "... recv received %d bytes\n", total_read);
+        fprintf(stderr, "cmp read: ");
+        for (idx = 0; idx < limit; idx++) {
+            fprintf(stderr, "%x ", orig_data[idx]);
+        }
+        fprintf(stderr, "\n");
     }
-    fprintf(stderr, "\n");
     return 1;
 }
 
@@ -964,19 +975,23 @@ static size_t socket_writer(cmp_ctx_t *ctx, const void *data, size_t limit) {
     size_t total_sent = 0;
     size_t sent;
     MVMuint8 *orig_data = (MVMuint8 *)data;
-    fprintf(stderr, "asked to send %3d bytes: ", limit);
+    if (debugspam_network)
+        fprintf(stderr, "asked to send %3d bytes: ", limit);
     while (total_sent < limit) {
         if ((sent = send(*(Socket*)ctx->buf, data, limit, 0)) == -1) {
             return 0;
         } else if (sent == 0) {
-            fprintf(stderr, "send encountered end of file\n");
+            if (debugspam_network)
+                fprintf(stderr, "send encountered end of file\n");
             return 0;
         }
-        fprintf(stderr, "%2d ", sent);
+        if (debugspam_network)
+            fprintf(stderr, "%2d ", sent);
         data = (void *)(((MVMuint8*)data) + sent);
         total_sent += sent;
     }
-    fprintf(stderr, "... send sent %3d bytes\n", total_sent);
+    if (debugspam_network)
+        fprintf(stderr, "... send sent %3d bytes\n", total_sent);
     return 1;
 }
 
@@ -1283,6 +1298,16 @@ void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
 
     debugserver->event_id = 2;
     debugserver->port = port;
+
+    if (getenv("MDS_NETWORK")) {
+        debugspam_network = 1;
+        debugserver->debugspam_network = 1;
+    } else {
+        debugspam_network = 0;
+    }
+    if (getenv("MDS_PROTOCOL")) {
+        debugserver->debugspam_protocol = 1;
+    }
 
     vm->debugserver = debugserver;
 
