@@ -295,14 +295,19 @@ void MVM_debugserver_notify_thread_destruction(MVMThreadContext *tc) {
     }
 }
 
+static MVMuint8 is_thread_id_eligible(MVMInstance *vm, MVMuint32 id) {
+    if (id == vm->debugserver->thread_id || id == vm->speshworker_thread_id) {
+        return 0;
+    }
+    return 1;
+}
+
 /* Send replies to requests send by the client */
 
 static MVMThread *find_thread_by_id(MVMInstance *vm, MVMint32 id) {
     MVMThread *cur_thread = 0;
 
-    fprintf(stderr, "looking for thread number %d\n", id);
-
-    if (id == vm->debugserver->thread_id || id == vm->speshworker_thread_id) {
+    if (!is_thread_id_eligible(vm, id)) {
         return NULL;
     }
 
