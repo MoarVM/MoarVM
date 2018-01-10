@@ -244,14 +244,14 @@ static void communicate_success(cmp_ctx_t *ctx, request_data *argument) {
 
 /* Send spontaneous events */
 void MVM_debugserver_notify_thread_creation(MVMThreadContext *tc) {
-    if (tc->instance->debugserver_thread_id && tc->instance->debugserver_messagepack_data) {
-        cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver_messagepack_data;
+    if (tc->instance->debugserver && tc->instance->debugserver->messagepack_data) {
+        cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
         MVMuint64 event_id;
 
-        uv_mutex_lock(&tc->instance->mutex_debugserver_network_send);
+        uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
 
-        event_id = tc->instance->debugserver_event_id;
-        tc->instance->debugserver_event_id += 2;
+        event_id = tc->instance->debugserver->event_id;
+        tc->instance->debugserver->event_id += 2;
 
         cmp_write_map(ctx, 5);
         cmp_write_str(ctx, "id", 2);
@@ -268,19 +268,19 @@ void MVM_debugserver_notify_thread_creation(MVMThreadContext *tc) {
         cmp_write_str(ctx, "app_lifetime", 12);
         cmp_write_integer(ctx, tc->thread_obj->body.app_lifetime);
 
-        uv_mutex_unlock(&tc->instance->mutex_debugserver_network_send);
+        uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
     }
 }
 
 void MVM_debugserver_notify_thread_destruction(MVMThreadContext *tc) {
-    if (tc->instance->debugserver_thread_id && tc->instance->debugserver_messagepack_data) {
-        cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver_messagepack_data;
+    if (tc->instance->debugserver && tc->instance->debugserver->messagepack_data) {
+        cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
         MVMuint64 event_id;
 
-        uv_mutex_lock(&tc->instance->mutex_debugserver_network_send);
+        uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
 
-        event_id = tc->instance->debugserver_event_id;
-        tc->instance->debugserver_event_id += 2;
+        event_id = tc->instance->debugserver->event_id;
+        tc->instance->debugserver->event_id += 2;
 
         cmp_write_map(ctx, 3);
         cmp_write_str(ctx, "id", 2);
@@ -291,7 +291,7 @@ void MVM_debugserver_notify_thread_destruction(MVMThreadContext *tc) {
         cmp_write_str(ctx, "thread", 6);
         cmp_write_integer(ctx, tc->thread_obj->body.thread_id);
 
-        uv_mutex_unlock(&tc->instance->mutex_debugserver_network_send);
+        uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
     }
 }
 
@@ -302,7 +302,7 @@ static MVMThread *find_thread_by_id(MVMInstance *vm, MVMint32 id) {
 
     fprintf(stderr, "looking for thread number %d\n", id);
 
-    if (id == vm->debugserver_thread_id || id == vm->speshworker_thread_id) {
+    if (id == vm->debugserver->thread_id || id == vm->speshworker_thread_id) {
         return NULL;
     }
 
@@ -374,7 +374,7 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
             /* Success! We signalled the thread and can now tell it to
              * mark itself unblocked, which takes care of any looming GC
              * and related business. */
-            uv_cond_broadcast(&vm->debugserver_tell_threads);
+            uv_cond_broadcast(&vm->debugserver->tell_threads);
             break;
         } else if ((current & MVMGCSTATUS_MASK) == MVMGCStatus_STOLEN) {
             uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
@@ -557,7 +557,7 @@ static MVMuint64 send_is_execution_suspended_info(MVMThreadContext *dtc, cmp_ctx
     cur_thread = vm->threads;
     while (cur_thread) {
         if ((MVM_load(&cur_thread->body.tc->gc_status) & MVMSUSPENDSTATUS_MASK) != MVMSuspendState_SUSPENDED
-                && cur_thread->body.thread_id != vm->debugserver_thread_id
+                && cur_thread->body.thread_id != vm->debugserver->thread_id
                 && cur_thread->body.thread_id != vm->speshworker_thread_id) {
             result = 0;
             break;
@@ -580,7 +580,7 @@ static MVMuint64 allocate_handle(MVMThreadContext *dtc, MVMObject *target) {
     if (!target) {
         return 0;
     } else {
-        MVMDebugServerHandleTable *dht = dtc->instance->debug_handle_table;
+        MVMDebugServerHandleTable *dht = dtc->instance->debugserver->handle_table;
 
         MVMuint64 id = dht->next_id++;
 
@@ -614,7 +614,7 @@ static MVMuint64 allocate_and_send_handle(MVMThreadContext *dtc, cmp_ctx_t *ctx,
 }
 
 static MVMObject *find_handle_target(MVMThreadContext *dtc, MVMuint64 id) {
-    MVMDebugServerHandleTable *dht = dtc->instance->debug_handle_table;
+    MVMDebugServerHandleTable *dht = dtc->instance->debugserver->handle_table;
     MVMuint32 index;
 
     for (index = 0; index < dht->used; index++) {
@@ -1090,9 +1090,9 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
     MVMint32 command_serial;
     Socket listensocket;
     MVMInstance *vm = tc->instance;
-    MVMuint64 port = vm->debugserver_port;
+    MVMuint64 port = vm->debugserver->port;
 
-    vm->debugserver_thread_id = tc->thread_obj->body.thread_id;
+    vm->debugserver->thread_id = tc->thread_obj->body.thread_id;
 
     {
         char portstr[16];
@@ -1139,7 +1139,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
 
         cmp_init(&ctx, &clientsocket, socket_reader, NULL, socket_writer);
 
-        vm->debugserver_messagepack_data = (void*)&ctx;
+        vm->debugserver->messagepack_data = (void*)&ctx;
 
         while (clientsocket) {
             request_data argument;
@@ -1148,7 +1148,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
             parse_message_map(&ctx, &argument);
             MVM_gc_mark_thread_unblocked(tc);
 
-            uv_mutex_lock(&vm->mutex_debugserver_network_send);
+            uv_mutex_lock(&vm->debugserver->mutex_network_send);
 
             if (argument.parse_fail) {
                 fprintf(stderr, "failed to parse this message: %s\n", argument.parse_fail_message);
@@ -1221,26 +1221,50 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                     break;
             }
 
-            uv_mutex_unlock(&vm->mutex_debugserver_network_send);
+            uv_mutex_unlock(&vm->debugserver->mutex_network_send);
         }
-        vm->debugserver_messagepack_data = NULL;
+        vm->debugserver->messagepack_data = NULL;
     }
 }
 
+/* XXX stolen verbatim from src/moar.c; maybe put into a header somewhere */
+#define init_mutex(loc, name) do { \
+    if ((init_stat = uv_mutex_init(&loc)) < 0) { \
+        fprintf(stderr, "MoarVM: Initialization of " name " mutex failed\n    %s\n", \
+            uv_strerror(init_stat)); \
+        exit(1); \
+    } \
+} while (0)
+#define init_cond(loc, name) do { \
+    if ((init_stat = uv_cond_init(&loc)) < 0) { \
+        fprintf(stderr, "MoarVM: Initialization of " name " condition variable failed\n    %s\n", \
+            uv_strerror(init_stat)); \
+        exit(1); \
+    } \
+} while (0)
 void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
     MVMInstance *vm = tc->instance;
+    MVMDebugServerData *debugserver = MVM_calloc(1, sizeof(MVMDebugServerData));
     MVMObject *worker_entry_point;
     int threadCreateError;
+    int init_stat;
 
-    vm->debug_handle_table = MVM_malloc(sizeof(MVMDebugServerHandleTable));
+    init_mutex(debugserver->mutex_cond, "debug server orchestration");
+    init_mutex(debugserver->mutex_network_send, "debug server network socket lock");
+    init_cond(debugserver->tell_threads, "debugserver signals threads");
+    init_cond(debugserver->tell_worker, "threads signal debugserver");
 
-    vm->debug_handle_table->allocated = 32;
-    vm->debug_handle_table->used      = 0;
-    vm->debug_handle_table->next_id   = 1;
-    vm->debug_handle_table->entries   = MVM_calloc(vm->debug_handle_table->allocated, sizeof(MVMDebugServerHandleTableEntry));
+    debugserver->handle_table = MVM_malloc(sizeof(MVMDebugServerHandleTable));
 
-    vm->debugserver_event_id = 2;
-    vm->debugserver_port = port;
+    debugserver->handle_table->allocated = 32;
+    debugserver->handle_table->used      = 0;
+    debugserver->handle_table->next_id   = 1;
+    debugserver->handle_table->entries   = MVM_calloc(debugserver->handle_table->allocated, sizeof(MVMDebugServerHandleTableEntry));
+
+    debugserver->event_id = 2;
+    debugserver->port = port;
+
+    vm->debugserver = debugserver;
 
     worker_entry_point = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTCCode);
     ((MVMCFunction *)worker_entry_point)->body.func = debugserver_worker;
@@ -1249,8 +1273,11 @@ void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
 
 void MVM_debugserver_mark_handles(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
     MVMInstance *vm = tc->instance;
-    MVMDebugServerHandleTable *table = vm->debug_handle_table;
+    MVMDebugServerHandleTable *table = vm->debugserver->handle_table;
     MVMuint32 idx;
+
+    if (table == NULL)
+        return;
 
     for (idx = 0; idx < table->used; idx++) {
         if (worklist)

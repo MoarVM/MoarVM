@@ -489,32 +489,9 @@ struct MVMInstance {
      * Debugging
      ************************************************************************/
 
-    /* Debug Server thread */
-    uv_thread_t debugserver_thread;
+    MVMDebugServerData *debugserver;
 
-    /* Protect the debugserver-related condvars */
-    uv_mutex_t mutex_debugserver_cond;
-
-    /* Protect sending data on the network */
-    uv_mutex_t mutex_debugserver_network_send;
-
-    /* Condition variable to tell threads to check their state for changes
-     * like "i should suspend" */
-    uv_cond_t debugserver_tell_threads;
-
-    /* Condition variable to tell the worker to check thread states
-     * for changes like "i just suspended" */
-    uv_cond_t debugserver_tell_worker;
-
-    MVMuint32 debugserver_port;
-    MVMuint32 debugserver_thread_id;
     MVMuint32 speshworker_thread_id;
-
-    MVMuint64 debugserver_event_id;
-
-    MVMDebugServerHandleTable *debug_handle_table;
-
-    void *debugserver_messagepack_data;
 
     /* Log file for dynamic var performance, if we're to log it. */
     FILE *dynvar_log_fh;
