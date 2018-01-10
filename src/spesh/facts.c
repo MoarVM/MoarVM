@@ -226,6 +226,7 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
      * able to do Basic Block Versioning inspired tricks, like producing two
      * different code paths ahead when there are a small number of options. */
     MVMObject *agg_type = NULL;
+    MVMuint32 agg_type_count = 0;
     MVMuint32 agg_type_object = 0;
     MVMuint32 agg_concrete = 0;
     MVMuint32 i;
@@ -238,18 +239,37 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 MVMuint32 num_types = ts->by_offset[j].num_types;
                 MVMuint32 k;
                 for (k = 0; k < num_types; k++) {
-                    /* If it's inconsistent with the aggregated type, then
-                     * bail out; too unstable. Otherwise, take it as the
-                     * aggregated type and tot up type object vs. concrete (we
-                     * assess facts about that at the end) */
+                    /* If it's inconsistent with the aggregated type so far,
+                     * then first check if the type we're now seeing is either
+                     * massively more popular or massively less popular. If
+                     * massively less, disregard this one. If massively more,
+                     * disregard the previous one. Otherwise, tot up the type
+                     * object vs. concrete. */
                     MVMObject *cur_type = ts->by_offset[j].types[k].type;
+                    MVMuint32 count = ts->by_offset[j].types[k].count;
                     if (agg_type) {
-                        if (agg_type != cur_type)
-                            return;
+                        if (agg_type != cur_type) {
+                            if (count > 100 * agg_type_count) {
+                                /* This one is hugely more popular. */
+                                agg_type = cur_type;
+                                agg_type_count = 0;
+                                agg_concrete = 0;
+                                agg_type_object = 0;
+                            }
+                            else if (agg_type_count > 100 * count) {
+                                /* This one is hugely less popular. */
+                                continue;
+                            }
+                            else {
+                                /* Unstable types. */
+                                return;
+                            }
+                        }
                     }
                     else {
                         agg_type = cur_type;
                     }
+                    agg_type_count += count;
                     if (ts->by_offset[j].types[k].type_concrete)
                         agg_concrete++;
                     else
