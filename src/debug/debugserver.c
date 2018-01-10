@@ -331,10 +331,6 @@ static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     if (!tc)
         return 1;
 
-    if (!tc->debugserver) {
-        tc->debugserver = MVM_calloc(1, sizeof(MVMDebugServerPerThreadData));
-    }
-
     MVM_gc_mark_thread_blocked(dtc);
 
     if (argument->type == MT_SuspendOne) {
@@ -464,10 +460,6 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
 
     if (MVM_load(&tc->gc_status) != (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED)) {
         return 1;
-    }
-
-    if (!tc->debugserver) {
-        tc->debugserver = MVM_calloc(1, sizeof(MVMDebugServerPerThreadData));
     }
 
     MVM_gc_mark_thread_blocked(dtc);
