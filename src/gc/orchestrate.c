@@ -26,6 +26,7 @@ static void add_work(MVMThreadContext *tc, MVMThreadContext *stolen) {
 static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_signal) {
     /* Loop here since we may not succeed first time (e.g. the status of the
      * thread may change between the two ways we try to twiddle it). */
+    int had_suspend_request = 0;
     while (1) {
         switch (MVM_load(&to_signal->gc_status)) {
             case MVMGCStatus_NONE:
@@ -33,23 +34,29 @@ static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_si
                 if (MVM_cas(&to_signal->gc_status, MVMGCStatus_NONE,
                         MVMGCStatus_INTERRUPT) == MVMGCStatus_NONE) {
                     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Signalled thread %d to interrupt\n", to_signal->thread_id);
+                    fprintf(stderr, "signalled one thread to NONE state\n");
                     return 1;
                 }
                 break;
+            case MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST:
             case MVMGCStatus_INTERRUPT:
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : thread %d already interrupted\n", to_signal->thread_id);
                 return 0;
+            case MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST:
+                had_suspend_request = MVMSuspendState_SUSPEND_REQUEST;
             case MVMGCStatus_UNABLE:
                 /* Otherwise, it's blocked; try to set it to work Stolen. */
-                if (MVM_cas(&to_signal->gc_status, MVMGCStatus_UNABLE,
-                        MVMGCStatus_STOLEN) == MVMGCStatus_UNABLE) {
+                if (MVM_cas(&to_signal->gc_status, MVMGCStatus_UNABLE | had_suspend_request,
+                        MVMGCStatus_STOLEN | had_suspend_request) == (MVMGCStatus_UNABLE | had_suspend_request)) {
                     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : A blocked thread %d spotted; work stolen\n", to_signal->thread_id);
+                    fprintf(stderr, "signalled one thread to UNABLE state (suspend request? %d)\n", had_suspend_request);
                     add_work(tc, to_signal);
                     return 0;
                 }
                 break;
             /* this case occurs if a child thread is Stolen by its parent
              * before we get to it in the chain. */
+            case MVMGCStatus_STOLEN | MVMSuspendState_SUSPEND_REQUEST:
             case MVMGCStatus_STOLEN:
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : thread %d already stolen (it was a spawning child)\n", to_signal->thread_id);
                 return 0;
@@ -273,7 +280,7 @@ void MVM_gc_mark_thread_blocked(MVMThreadContext *tc) {
             return;
 
         if (MVM_cas(&tc->gc_status, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST,
-                MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED) == MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
+                MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED) == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST))
             return;
 
         /* The only way this can fail is if another thread just decided we're to
@@ -307,7 +314,7 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
                 while (1) {
                     if (MVM_cas(&tc->gc_status, MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST,
                                 MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST) ==
-                            MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST) {
+                            (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)) {
                         fprintf(stderr, "success!\n");
                         MVM_gc_enter_from_interrupt(tc);
                         break;
