@@ -666,6 +666,7 @@ distclean: realclean
 
 release:
 	[ -n "$(VERSION)" ] || ( echo "\nTry 'make release VERSION=yyyy.mm'\n\n"; exit 1 )
+	bash -c 'if [[ $$(git status --untracked=no --porcelain) ]]; then echo "Dirty work trees will make broken releases; maybe git stash?"; exit 1; fi'
 	./tools/release.sh $(VERSION)
 
 
