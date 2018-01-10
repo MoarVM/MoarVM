@@ -954,9 +954,24 @@ static bool socket_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
     return 1;
 }
 
-static size_t socket_writer(cmp_ctx_t *ctx, const void *data, size_t count) {
-    if (send(*(Socket*)ctx->buf, data, count, 0) == -1)
-        return 0;
+static size_t socket_writer(cmp_ctx_t *ctx, const void *data, size_t limit) {
+    size_t idx;
+    size_t total_sent = 0;
+    size_t sent;
+    MVMuint8 *orig_data = (MVMuint8 *)data;
+    fprintf(stderr, "asked to send %3d bytes: ", limit);
+    while (total_sent < limit) {
+        if ((sent = send(*(Socket*)ctx->buf, data, limit, 0)) == -1) {
+            return 0;
+        } else if (sent == 0) {
+            fprintf(stderr, "send encountered end of file\n");
+            return 0;
+        }
+        fprintf(stderr, "%2d ", sent);
+        data = (void *)(((MVMuint8*)data) + sent);
+        total_sent += sent;
+    }
+    fprintf(stderr, "... send sent %3d bytes\n", total_sent);
     return 1;
 }
 
