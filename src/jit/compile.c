@@ -201,17 +201,17 @@ void MVM_jit_code_destroy(MVMThreadContext *tc, MVMJitCode *code) {
 /* pseudotile emit functions */
 void MVM_jit_compile_branch(MVMThreadContext *tc, MVMJitCompiler *compiler,
                             MVMJitTile *tile, MVMJitExprTree *tree) {
-    MVM_jit_emit_branch(tc, compiler, tile->args[0] + compiler->label_offset);
+    MVM_jit_emit_branch(tc, compiler, tile->args[0]);
 }
 
 void MVM_jit_compile_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                         MVMJitTile *tile, MVMJitExprTree *tree) {
-    MVM_jit_emit_conditional_branch(tc, compiler, tile->args[0], tile->args[1] + compiler->label_offset);
+    MVM_jit_emit_conditional_branch(tc, compiler, tile->args[0], tile->args[1]);
 }
 
 void MVM_jit_compile_label(MVMThreadContext *tc, MVMJitCompiler *compiler,
                            MVMJitTile *tile, MVMJitExprTree *tree) {
-    MVM_jit_emit_label(tc, compiler, tree->graph, tile->args[0] + compiler->label_offset);
+    MVM_jit_emit_label(tc, compiler, tree->graph, tile->args[0]);
 }
 
 void MVM_jit_compile_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
@@ -258,8 +258,8 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
     /* Second stage, allocate registers */
     MVM_jit_linear_scan_allocate(tc, compiler, list);
 
-    /* Allocate sufficient space for the internal labels */
-    dasm_growpc(compiler, compiler->label_offset + tree->num_labels);
+    /* Allocate sufficient space for the new internal labels */
+    dasm_growpc(compiler, compiler->label_offset);
 
     /* Third stage, emit the code */
     for (i = 0; i < list->items_num; i++) {
@@ -271,9 +271,6 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
     }
     /* Cleanup tile lits */
     MVM_jit_tile_list_destroy(tc, list);
-
-    /* Make sure no other tree reuses the same labels */
-    compiler->label_offset += tree->num_labels;
 }
 
 MVM_STATIC_INLINE MVMint32 reg_type_bucket(MVMint8 reg_type) {
