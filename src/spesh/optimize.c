@@ -159,7 +159,9 @@ static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
 
         obj_facts->usages--;
         type_facts->usages--;
+        MVM_spesh_facts_depend(tc, g, result_facts, obj_facts);
         MVM_spesh_use_facts(tc, g, obj_facts);
+        MVM_spesh_facts_depend(tc, g, result_facts, type_facts);
         MVM_spesh_use_facts(tc, g, type_facts);
     }
 }
@@ -192,6 +194,7 @@ static void optimize_is_reprid(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshI
         ins->operands[1].lit_i16 = 0;
         result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
         result_facts->value.i = 0;
+        MVM_spesh_facts_depend(tc, g, result_facts, obj_facts);
     } else {
         ins->info = MVM_op_get_op(MVM_OP_isnonnull);
     }
