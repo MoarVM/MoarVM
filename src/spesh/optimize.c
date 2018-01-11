@@ -568,6 +568,30 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
     }
 }
 
+/* A not_i on a known value can be turned into a constant. */
+static void optimize_not_i(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
+    MVMSpeshFacts *src_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    if (src_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        /* Do the not_i. */
+        MVMint64 value = src_facts->value.i;
+        MVMint16 result = value ? 0 : 1;
+
+        /* Turn the op into a constant and set result facts. */
+        MVMSpeshFacts *dest_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+        dest_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+        dest_facts->value.i = result;
+        ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
+        ins->operands[1].lit_i16 = result;
+
+        /* This op no longer uses the source value. */
+        src_facts->usages--;
+
+        /* Need to depend on the source facts. */
+        MVM_spesh_use_facts(tc, g, src_facts);
+        MVM_spesh_facts_depend(tc, g, dest_facts, src_facts);
+    }
+}
+
 /* objprimspec can be done at spesh-time if we know the type of something.
  * Another thing is, that if we rely on the type being known, we'll be assured
  * we'll have a guard that promises the object in question to be non-null. */
@@ -1964,6 +1988,9 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_if_o:
         case MVM_OP_unless_o:
             optimize_iffy(tc, g, ins, bb);
+            break;
+        case MVM_OP_not_i:
+            optimize_not_i(tc, g, ins, bb);
             break;
         case MVM_OP_prepargs:
             arg_info.cs = g->sf->body.cu->body.callsites[ins->operands[0].callsite_idx];
