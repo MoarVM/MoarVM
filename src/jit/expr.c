@@ -373,7 +373,7 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVMJitExprNodeInfo *node_info = tree->info + node;
     MVMint32 i;
 
-    /* propagate node sizes and assign labels */
+    /* propagate node sizes */
     switch (tree->nodes[node]) {
     case MVM_JIT_CONST:
         /* node size is given */
@@ -482,136 +482,6 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     }
 }
 
-static void assign_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
-                          MVMJitExprTree *tree, MVMint32 node) {
-    /* IF has two blocks, the first I call left, the second I call right.
-       Regular IF is implemented by the following sequence:
-
-       * test
-       * negated conditional jump to label 1
-       * left block
-       * unconditional jump to label 2
-       * label 1
-       * right block
-       * label 2
-
-       The 'short-circuiting' cases of IF ALL and IF ANY require special
-       treatment. IF ALL simply repeats the test+negated branch for each of the
-       ALL's children. IF ANY on the other hand must short circuit not into the
-       default (right) but into the (left) conditional block. So IF ANY must be
-       implemented as:
-
-       (* test
-        * conditional jump to label 3) - repeated n times
-       * unconditional jump to label 1
-       * label 3
-       * left block
-       * unconditional jump to label 2
-       * label 1
-       * right block
-       * label 2
-
-       NB - the label before the left block has been given the number
-       3 for consistency with the regular case.
-
-       Simpilar observations are applicable to WHEN and WHEN ANY/WHEN
-       ALL.  Different altogether are the cases of ANY ALL and ALL
-       ANY.
-
-       ANY ALL can be implemented as:
-       ( test
-         negated conditional jump to label 4) - repeated for all in ALL
-       * unconditional jump to label 3
-       * label 4 (continuing the ANY)
-
-       This way the 'short-circuit' jump of the ALL sequence implies
-       the continuation of the ANY sequence, whereas the finishing of
-       the ALL sequence implies it succeeded and hence the ANY needs
-       to short-circuit.
-
-       ALL ANY can be implemented analogously as:
-       ( test
-         conditional jump to label 4) repeated for all children of ANY
-       * unconditional short-circuit jump to label 1
-       * label 4
-
-       Nested ALL in ALL and ANY in ANY all have the same
-       short-circuiting behaviour (i.e.  a nested ALL in ALL is
-       indistinguishable from inserting all the children of the nested
-       ALL into the nesting ALL), so they don't require special
-       treatment.
-
-       All this goes to say in that the number of labels required and
-       the actual labels assigned to different children depends on the
-       structure of the tree, which is why labels are 'pushed down'
-       from parents to children, at least when those children are ANY
-       and ALL. */
-
-    switch (tree->nodes[node]) {
-    case MVM_JIT_WHEN:
-        {
-            /* WHEN just requires one label in the default case */
-            MVMint32 test = tree->nodes[node+1];
-            tree->info[node].label = tree->num_labels++;
-            if (tree->nodes[test] == MVM_JIT_ANY) {
-                /* ANY requires a pre-left-block label */
-                tree->info[test].label = tree->num_labels++;
-            } else if (tree->nodes[test] == MVM_JIT_ALL) {
-                /* ALL takes over the label of its parent */
-                tree->info[test].label = tree->info[node].label;
-            }
-        }
-        break;
-    case MVM_JIT_IF:
-    case MVM_JIT_IFV:
-        {
-            MVMint32 test = tree->nodes[node+1];
-            /* take two labels, one for the left block and one for the right block */
-            tree->info[node].label = tree->num_labels;
-            tree->num_labels += 2;
-            if (tree->nodes[test] == MVM_JIT_ANY) {
-                /* assign 'label 3' to the ANY */
-                tree->info[test].label = tree->num_labels++;
-            } else if (tree->nodes[test] == MVM_JIT_ALL) {
-                /* assign 'label 1' to the ALL */
-                tree->info[test].label = tree->info[node].label;
-            }
-        }
-        break;
-    case MVM_JIT_ALL:
-        {
-            MVMint32 nchild = tree->nodes[node+1];
-            MVMint32 i;
-            for (i = 0; i < nchild; i++) {
-                MVMint32 test = tree->nodes[node+2+i];
-                if (tree->nodes[test] == MVM_JIT_ALL) {
-                    /* use same label for child as parent */
-                    tree->info[test].label = tree->info[node].label;
-                } else if (tree->nodes[test] == MVM_JIT_ANY) {
-                    /* assign an extra label for ANY to short-circuit into */
-                    tree->info[test].label = tree->num_labels++;
-                }
-            }
-        }
-        break;
-    case MVM_JIT_ANY:
-        {
-            MVMint32 nchild = tree->nodes[node+1];
-            MVMint32 i;
-            for (i = 0; i < nchild; i++) {
-                MVMint32 test = tree->nodes[node+2+i];
-                if (tree->nodes[test] == MVM_JIT_ANY) {
-                    tree->info[test].label = tree->info[node].label;
-                } else if (tree->nodes[test] == MVM_JIT_ALL) {
-                    tree->info[test].label = tree->num_labels++;
-                }
-            }
-        }
-        break;
-    default:
-        break;
-    }
-}
 
 
 void MVM_jit_expr_tree_analyze(MVMThreadContext *tc, MVMJitExprTree *tree) {
@@ -620,7 +490,7 @@ void MVM_jit_expr_tree_analyze(MVMThreadContext *tc, MVMJitExprTree *tree) {
     MVM_VECTOR_ENSURE_SIZE(tree->info, tree->nodes_num);
     traverser.policy    = MVM_JIT_TRAVERSER_ONCE;
     traverser.data      = NULL;
-    traverser.preorder  = &assign_labels;
+    traverser.preorder  = NULL;
     traverser.inorder   = NULL;
     traverser.postorder = &analyze_node;
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);
@@ -646,7 +516,6 @@ static void active_values_flush(MVMThreadContext *tc, MVMJitExprTree *tree,
 }
 
 
-/* TODO add labels to the expression tree */
 MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIterator *iter) {
     MVMSpeshGraph *sg = jg->sg;
     MVMSpeshIns *entry = iter->ins;
@@ -670,7 +539,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
     MVM_VECTOR_PUSH(tree->nodes, MVM_JIT_NOOP);
 
     tree->graph      = jg;
-    tree->num_labels = 0;
     /* Hold indices to the node that last computed a value belonging
      * to a register. Initialized as -1 to indicate that these
      * values are empty. */

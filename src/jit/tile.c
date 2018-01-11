@@ -23,12 +23,15 @@ struct TileState {
     const MVMJitTileTemplate *template;
     /* block that ends at this node (or node ref) */
     MVMint32 block;
+    /* label used by node operator (if any) */
+    MVMint32 label;
 };
 
 struct TreeTiler {
     MVM_VECTOR_DECL(struct TileState, states);
     MVMJitCompiler *compiler;
     MVMJitTileList *list;
+    MVMint32 next_label;
 };
 
 /* Make complete tiles. Note that any argument passed is interpreted as an
@@ -191,6 +194,139 @@ static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
 
 
 
+static void assign_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
+                          MVMJitExprTree *tree, MVMint32 node) {
+    /* IF has two blocks, the first I call left, the second I call right.
+       Regular IF is implemented by the following sequence:
+
+       * test
+       * negated conditional jump to label 1
+       * left block
+       * unconditional jump to label 2
+       * label 1
+       * right block
+       * label 2
+
+       The 'short-circuiting' cases of IF ALL and IF ANY require special
+       treatment. IF ALL simply repeats the test+negated branch for each of the
+       ALL's children. IF ANY on the other hand must short circuit not into the
+       default (right) but into the (left) conditional block. So IF ANY must be
+       implemented as:
+
+       (* test
+        * conditional jump to label 3) - repeated n times
+       * unconditional jump to label 1
+       * label 3
+       * left block
+       * unconditional jump to label 2
+       * label 1
+       * right block
+       * label 2
+
+       NB - the label before the left block has been given the number
+       3 for consistency with the regular case.
+
+       Simpilar observations are applicable to WHEN and WHEN ANY/WHEN
+       ALL.  Different altogether are the cases of ANY ALL and ALL
+       ANY.
+
+       ANY ALL can be implemented as:
+       ( test
+         negated conditional jump to label 4) - repeated for all in ALL
+       * unconditional jump to label 3
+       * label 4 (continuing the ANY)
+
+       This way the 'short-circuit' jump of the ALL sequence implies
+       the continuation of the ANY sequence, whereas the finishing of
+       the ALL sequence implies it succeeded and hence the ANY needs
+       to short-circuit.
+
+       ALL ANY can be implemented analogously as:
+       ( test
+         conditional jump to label 4) repeated for all children of ANY
+       * unconditional short-circuit jump to label 1
+       * label 4
+
+       Nested ALL in ALL and ANY in ANY all have the same
+       short-circuiting behaviour (i.e.  a nested ALL in ALL is
+       indistinguishable from inserting all the children of the nested
+       ALL into the nesting ALL), so they don't require special
+       treatment.
+
+       All this goes to say in that the number of labels required and
+       the actual labels assigned to different children depends on the
+       structure of the tree, which is why labels are 'pushed down'
+       from parents to children, at least when those children are ANY
+       and ALL. */
+    struct TreeTiler *tiler = traverser->data;
+    switch (tree->nodes[node]) {
+    case MVM_JIT_WHEN:
+        {
+            /* WHEN just requires one label in the default case */
+            MVMint32 test = tree->nodes[node+1];
+            tiler->states[node].label = tiler->next_label++;
+            if (tree->nodes[test] == MVM_JIT_ANY) {
+                /* ANY requires a pre-left-block label */
+                tiler->states[test].label = tiler->next_label++;
+            } else if (tree->nodes[test] == MVM_JIT_ALL) {
+                /* ALL takes over the label of its parent */
+                tiler->states[test].label = tiler->states[node].label;
+            }
+        }
+        break;
+    case MVM_JIT_IF:
+    case MVM_JIT_IFV:
+        {
+            MVMint32 test = tree->nodes[node+1];
+            /* take two labels, one for the left block and one for the right block */
+            tiler->states[node].label = tiler->next_label;
+            tiler->next_label += 2;
+            if (tree->nodes[test] == MVM_JIT_ANY) {
+                /* assign 'label 3' to the ANY */
+                tiler->states[test].label = tiler->next_label++;
+            } else if (tree->nodes[test] == MVM_JIT_ALL) {
+                /* assign 'label 1' to the ALL */
+                tiler->states[test].label = tiler->states[node].label;
+            }
+        }
+        break;
+    case MVM_JIT_ALL:
+        {
+            MVMint32 nchild = tree->nodes[node+1];
+            MVMint32 i;
+            for (i = 0; i < nchild; i++) {
+                MVMint32 test = tree->nodes[node+2+i];
+                if (tree->nodes[test] == MVM_JIT_ALL) {
+                    /* use same label for child as parent */
+                    tiler->states[test].label = tiler->states[node].label;
+                } else if (tree->nodes[test] == MVM_JIT_ANY) {
+                    /* assign an extra label for ANY to short-circuit into */
+                    tiler->states[test].label = tiler->next_label++;
+                }
+            }
+        }
+        break;
+    case MVM_JIT_ANY:
+        {
+            MVMint32 nchild = tree->nodes[node+1];
+            MVMint32 i;
+            for (i = 0; i < nchild; i++) {
+                MVMint32 test = tree->nodes[node+2+i];
+                if (tree->nodes[test] == MVM_JIT_ANY) {
+                    tiler->states[test].label = tiler->states[node].label;
+                } else if (tree->nodes[test] == MVM_JIT_ALL) {
+                    tiler->states[test].label = tiler->next_label++;
+                }
+            }
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+
+
 /* Preorder propagation of rules downward */
 static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                          MVMJitExprTree *tree, MVMint32 node) {
@@ -271,7 +407,6 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         }
     }
 #undef DO_ASSIGN_CHILD
-    /* (Currently) we never insert into the tile list here */
 }
 
 
@@ -382,7 +517,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     switch (tree->nodes[node]) {
     case MVM_JIT_WHEN:
     {
-        MVMint32 when_label = tree->info[node].label;
+        MVMint32 when_label = tiler->states[node].label;
         if (i == 0) {
             MVMint32 test  = tree->nodes[node+1];
             MVMint32 flag  = tree->nodes[test];
@@ -395,7 +530,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             } else if (flag == MVM_JIT_ANY) {
                 /* If ANY hasn't short-circuited into the conditional block,
                  * it has failed, so insert an unconditional jump past it */
-                MVMint32 any_label = tree->info[test].label;
+                MVMint32 any_label = tiler->states[test].label;
                 MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_branch,
                                                        1, 0, when_label);
                 MVMJitTile *label  = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_label,
@@ -428,7 +563,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     {
         MVMint32 test = tree->nodes[node+2+i];
         MVMint32 flag = tree->nodes[test];
-        MVMint32 all_label = tree->info[node].label;
+        MVMint32 all_label = tiler->states[node].label;
 
         if (flag == MVM_JIT_ALL) {
             /* Nested ALL short-circuits identically */
@@ -436,7 +571,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             tiler->states[node + 2 + i].block = tiler->states[last_child].block;
         } else if (flag == MVM_JIT_ANY) {
             /* If ANY reached it's end, that means it's false. So short-circuit out */
-            MVMint32 any_label = tree->info[test].label;
+            MVMint32 any_label = tiler->states[test].label;
             MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_branch, 1, 0, all_label);
             MVMJitTile *label  = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_label, 1, 0, any_label);
             branch->debug_name = "(branch :fail)   # ALL";
@@ -461,11 +596,11 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     {
         MVMint32 test  = tree->nodes[node+2+i];
         MVMint32 flag  = tree->nodes[test];
-        MVMint32 any_label = tree->info[node].label;
+        MVMint32 any_label = tiler->states[node].label;
         if (flag == MVM_JIT_ALL) {
             /* If ALL reached the end, it must have been succesful, and ANY's
                short-circuit behaviour implies we should branch out */
-            MVMint32 all_label = tree->info[test].label;
+            MVMint32 all_label = tiler->states[test].label;
             MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_branch,
                                                    1, 0, any_label);
             MVMJitTile *label  = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_label,
@@ -496,7 +631,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     case MVM_JIT_IF:
     case MVM_JIT_IFV:
     {
-        MVMint32 left_label = tree->info[node].label;
+        MVMint32 left_label = tiler->states[node].label;
         MVMint32 right_label = left_label + 1;
         if (i == 0) {
             /* after flag child */
@@ -510,7 +645,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             } else if (flag == MVM_JIT_ANY) {
                 /* We need the branch to the right block and the label for ANY
                  * to jump to enter the left block */
-                MVMint32 any_label = tree->info[test].label;
+                MVMint32 any_label = tiler->states[test].label;
                 MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_branch,
                                                        1, 0, left_label);
                 MVMJitTile *label  = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_label,
@@ -651,13 +786,20 @@ MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *co
     struct TreeTiler tiler;
 
     MVM_VECTOR_INIT(tiler.states, tree->nodes_num);
+
+    tiler.next_label = compiler->label_offset;
     traverser.policy = MVM_JIT_TRAVERSER_ONCE;
+
+    traverser.preorder = &assign_labels;
     traverser.inorder = NULL;
-    traverser.preorder = NULL;
     traverser.postorder = &tile_node;
     traverser.data = &tiler;
 
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);
+
+    /* assign top of labels back to the compiler object */
+    compiler->label_offset = tiler.next_label;
+
     /* 'pushdown' of tiles to roots */
     for (i = 0; i < tree->roots_num; i++) {
         MVMint32 node = tree->roots[i];
