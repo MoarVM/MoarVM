@@ -97,6 +97,7 @@ void MVM_spesh_eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint
         MVMSpeshBB *death_cand = cur_bb->linear_next;
         if (!seen[death_cand->idx]) {
             cleanup_dead_bb_instructions(tc, g, death_cand, update_facts);
+            death_cand->dead = 1;
             g->num_bbs--;
             cur_bb->linear_next = cur_bb->linear_next->linear_next;
         }

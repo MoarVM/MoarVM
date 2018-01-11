@@ -6,9 +6,15 @@
 /* Deletes an instruction, and does any fact changes as a result. */
 void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g,
                                      MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshIns *prev, *next;
+
+    /* If the instruction is in an already dead basic block, nothing to do. */
+    if (bb->dead)
+        return;
+
     /* Remove it from the double linked list. */
-    MVMSpeshIns *prev = ins->prev;
-    MVMSpeshIns *next = ins->next;
+    prev = ins->prev;
+    next = ins->next;
     if (prev)
         prev->next = next;
     else
