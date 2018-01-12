@@ -12,13 +12,6 @@ struct MVMDebugServerHandleTable {
     MVMDebugServerHandleTableEntry *entries;
 };
 
-struct MVMDebugServerRequestEntry {
-    MVMuint16 message_type;
-    MVMuint32 thread_id;
-    MVMuint32 counter;
-    MVMuint64 request_id;
-};
-
 struct MVMDebugServerData {
     /* Debug Server thread */
     uv_thread_t thread;
@@ -46,8 +39,6 @@ struct MVMDebugServerData {
     MVMuint64 event_id;
 
     MVMDebugServerHandleTable *handle_table;
-
-    MVM_VECTOR_DECL(MVMDebugServerRequestEntry, open_requests);
 
     void *messagepack_data;
 

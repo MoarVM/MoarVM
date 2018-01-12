@@ -326,27 +326,11 @@ static MVMThread *find_thread_by_id(MVMInstance *vm, MVMint32 id) {
 static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
     MVMThread *to_do = thread ? thread : find_thread_by_id(dtc->instance, argument->thread_id);
     MVMThreadContext *tc = to_do ? to_do->body.tc : NULL;
-    MVMDebugServerRequestEntry request_entry;
 
     if (!tc)
         return 1;
 
     MVM_gc_mark_thread_blocked(dtc);
-
-    if (argument->type == MT_SuspendOne) {
-        MVMDebugServerData *debugserver = tc->instance->debugserver;
-
-        request_entry.message_type = MT_SuspendOne;
-        request_entry.thread_id    = argument->thread_id;
-        request_entry.request_id   = argument->id;
-        request_entry.counter      = 0;
-
-        uv_mutex_lock(&tc->instance->debugserver->mutex_request_list);
-
-        MVM_VECTOR_PUSH(debugserver->open_requests, request_entry);
-
-        uv_mutex_unlock(&tc->instance->debugserver->mutex_request_list);
-    }
 
     while (1) {
         if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
@@ -359,10 +343,13 @@ static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         }
         MVM_platform_thread_yield();
     }
-    MVM_gc_mark_thread_unblocked(dtc);
 
+    if (argument->type == MT_SuspendOne)
+        communicate_success(ctx,  argument);
+
+    MVM_gc_mark_thread_unblocked(dtc);
     if (tc->instance->debugserver->debugspam_protocol)
-        fprintf(stderr, "thread successfully suspended\n");
+        fprintf(stderr, "thread %d successfully suspended\n", tc->thread_id);
 
     return 0;
 }
@@ -370,122 +357,64 @@ static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 static MVMint32 request_all_threads_suspend(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
     MVMInstance *vm = dtc->instance;
     MVMThread *cur_thread = 0;
-    MVMuint32 threadcount = 0;
-    MVMDebugServerRequestEntry request_entry;
+    MVMuint32 success = 1;
 
     uv_mutex_lock(&vm->mutex_threads);
-    cur_thread = vm->threads;
-    while (cur_thread) {
-        if (is_thread_id_eligible(vm, cur_thread->body.thread_id)) {
-            threadcount++;
-        }
-        cur_thread = cur_thread->body.next;
-    }
 
-    {
-        MVMDebugServerData *debugserver = vm->debugserver;
-
-        request_entry.message_type = MT_SuspendOne;
-        request_entry.thread_id    = argument->thread_id;
-        request_entry.request_id   = argument->id;
-        request_entry.counter      = threadcount;
-
-        uv_mutex_lock(&vm->debugserver->mutex_request_list);
-
-        MVM_VECTOR_PUSH(debugserver->open_requests, request_entry);
-
-        uv_mutex_unlock(&vm->debugserver->mutex_request_list);
-    }
+    /* TODO track which threads we successfully suspended so we can wake them
+     * up again if an error occured */
 
     cur_thread = vm->threads;
     while (cur_thread) {
         if (is_thread_id_eligible(vm, cur_thread->body.thread_id)) {
-            if (MVM_load(&cur_thread->body.tc->gc_status) == (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED)) {
-                request_thread_suspends(dtc, ctx, argument, cur_thread);
+            AO_t current = MVM_load(&cur_thread->body.tc->gc_status);
+            if (current == MVMGCStatus_NONE || current == MVMGCStatus_UNABLE) {
+                MVMint32 result = request_thread_suspends(dtc, ctx, argument, cur_thread);
+                if (result == 1) {
+                    success = 0;
+                    break;
+                }
             }
         }
         cur_thread = cur_thread->body.next;
     }
+
+    if (success)
+        communicate_success(ctx, argument);
+    else
+        communicate_error(ctx, argument);
+
     uv_mutex_unlock(&vm->mutex_threads);
-}
-
-void MVM_debugserver_notify_thread_suspends(MVMThreadContext *tc) {
-    MVMDebugServerData *debugserver = tc->instance->debugserver;
-    MVMDebugServerRequestEntry *entry;
-    MVMuint32 thread_id = tc->thread_id;
-
-    if (!tc->instance->debugserver)
-        return;
-
-    if (tc->instance->debugserver->debugspam_protocol)
-        fprintf(stderr, "notifying suspend success... ");
-
-    uv_mutex_lock(&tc->instance->debugserver->mutex_request_list);
-
-    for (entry = debugserver->open_requests; entry < MVM_VECTOR_TOP(debugserver->open_requests); entry++) {
-        if (entry->thread_id != thread_id)
-            continue;
-        if (entry->message_type == MT_SuspendAll) {
-            if (tc->instance->debugserver->debugspam_protocol)
-                fprintf(stderr, "counted down 'all' ");
-            entry->counter--;
-        }
-        if (entry->message_type == MT_SuspendOne || entry->message_type == MT_SuspendAll) {
-            if (entry->counter == 0) {
-                request_data argument;
-                if (tc->instance->debugserver->debugspam_protocol)
-                    fprintf(stderr, "counter reached 0, sending %d ", entry->request_id);
-                argument.id = entry->request_id;
-
-                communicate_success((cmp_ctx_t*)(debugserver->messagepack_data), &argument);
-
-                *entry = MVM_VECTOR_POP(debugserver->open_requests);
-            }
-        }
-    }
-    if (tc->instance->debugserver->debugspam_protocol)
-        fprintf(stderr, "done.\n");
-
-    uv_mutex_unlock(&tc->instance->debugserver->mutex_request_list);
 }
 
 static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
     MVMInstance *vm = dtc->instance;
     MVMThread *to_do = thread ? thread : find_thread_by_id(vm, argument->thread_id);
     MVMThreadContext *tc = to_do ? to_do->body.tc : NULL;
-    MVMDebugServerRequestEntry request_entry;
+    AO_t current;
 
-    if (!tc)
+    if (!tc) {
         return 1;
+    }
 
-    if (MVM_load(&tc->gc_status) != (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED)) {
+    current = MVM_load(&tc->gc_status);
+
+    if (current != (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED)
+            && (current & MVMSUSPENDSTATUS_MASK) != MVMSuspendState_SUSPEND_REQUEST) {
+        fprintf(stderr, "wrong state to resume from: %d\n", MVM_load(&tc->gc_status));
         return 1;
     }
 
     MVM_gc_mark_thread_blocked(dtc);
 
-    if (argument->type == MT_ResumeOne) {
-        MVMDebugServerData *debugserver = tc->instance->debugserver;
-
-        request_entry.message_type = MT_ResumeOne;
-        request_entry.thread_id    = argument->thread_id;
-        request_entry.request_id   = argument->id;
-        request_entry.counter      = 0;
-
-        uv_mutex_lock(&tc->instance->debugserver->mutex_request_list);
-
-        MVM_VECTOR_PUSH(debugserver->open_requests, request_entry);
-
-        uv_mutex_unlock(&tc->instance->debugserver->mutex_request_list);
-    }
-
     while(1) {
-        AO_t current = MVM_cas(&tc->gc_status, MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED, MVMGCStatus_UNABLE);
+        current = MVM_cas(&tc->gc_status, MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED, MVMGCStatus_UNABLE);
         if (current == (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED)) {
             /* Success! We signalled the thread and can now tell it to
              * mark itself unblocked, which takes care of any looming GC
              * and related business. */
             uv_cond_broadcast(&vm->debugserver->tell_threads);
+            fprintf(stderr, "thread %d resumed from unable + suspended\n", tc->thread_id);
             break;
         } else if ((current & MVMGCSTATUS_MASK) == MVMGCStatus_STOLEN) {
             uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
@@ -494,10 +423,20 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
                     &tc->instance->mutex_gc_orchestrate);
             }
             uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
+        } else {
+            if (current == (MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST)) {
+                if (MVM_cas(&tc->gc_status, (MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST), MVMGCStatus_UNABLE) == current) {
+                    fprintf(stderr, "thread %d resumed from unable + suspend request\n", tc->thread_id);
+                    break;
+                }
+            }
         }
     }
 
     MVM_gc_mark_thread_unblocked(dtc);
+
+    if (argument->type == MT_ResumeOne)
+        communicate_success(ctx, argument);
 
     if (tc->instance->debugserver->debugspam_protocol)
         fprintf(stderr, "success resuming thread; its status is now %d\n", MVM_load(&tc->gc_status));
@@ -505,61 +444,36 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
     return 0;
 }
 
-void MVM_debugserver_notify_thread_resumes(MVMThreadContext *tc) {
-    MVMDebugServerData *debugserver = tc->instance->debugserver;
-    MVMDebugServerRequestEntry *entry;
-    MVMuint32 thread_id = tc->thread_id;
-
-    if (!tc->instance->debugserver)
-        return;
-
-    if (tc->instance->debugserver->debugspam_protocol)
-        fprintf(stderr, "notifying resume success... ");
-
-    uv_mutex_lock(&tc->instance->debugserver->mutex_request_list);
-
-    for (entry = debugserver->open_requests; entry < MVM_VECTOR_TOP(debugserver->open_requests); entry++) {
-        if (entry->thread_id != thread_id)
-            continue;
-        if (entry->message_type == MT_ResumeAll) {
-            if (tc->instance->debugserver->debugspam_protocol)
-                fprintf(stderr, "counted down 'all' ");
-            entry->counter--;
-        }
-        if (entry->message_type == MT_ResumeOne || entry->message_type == MT_ResumeAll) {
-            if (entry->counter == 0) {
-                request_data argument;
-                if (tc->instance->debugserver->debugspam_protocol)
-                    fprintf(stderr, "counter reached 0, sending %d ", entry->request_id);
-                argument.id = entry->request_id;
-
-                communicate_success((cmp_ctx_t*)(debugserver->messagepack_data), &argument);
-
-                *entry = MVM_VECTOR_POP(debugserver->open_requests);
-            }
-        }
-    }
-    if (tc->instance->debugserver->debugspam_protocol)
-        fprintf(stderr, "done.\n");
-
-    uv_mutex_unlock(&tc->instance->debugserver->mutex_request_list);
-}
-
 static MVMint32 request_all_threads_resume(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
     MVMInstance *vm = dtc->instance;
     MVMThread *cur_thread = 0;
+    MVMuint8 success = 1;
 
     uv_mutex_lock(&vm->mutex_threads);
     cur_thread = vm->threads;
     while (cur_thread) {
         if (cur_thread != dtc->thread_obj) {
-            if (MVM_load(&cur_thread->body.tc->gc_status) == (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED)) {
-                request_thread_resumes(dtc, ctx, argument, cur_thread);
+            AO_t current = MVM_load(&cur_thread->body.tc->gc_status);
+            if (current == (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED) ||
+                    current == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST) ||
+                    current == (MVMGCStatus_STOLEN | MVMSuspendState_SUSPEND_REQUEST)) {
+                if (!request_thread_resumes(dtc, ctx, argument, cur_thread)) {
+                    success = 0;
+                    break;
+                }
             }
         }
         cur_thread = cur_thread->body.next;
     }
+
+    if (success)
+        communicate_success(ctx, argument);
+    else
+        communicate_error(ctx, argument);
+
     uv_mutex_unlock(&vm->mutex_threads);
+
+    return success;
 }
 
 static MVMint32 request_thread_stacktrace(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
@@ -691,7 +605,7 @@ static void send_thread_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data
         cmp_write_bool(ctx, cur_thread->body.app_lifetime);
 
         cmp_write_str(ctx, "suspended", 9);
-        cmp_write_bool(ctx, (MVM_load(&cur_thread->body.tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPENDED);
+        cmp_write_bool(ctx, (MVM_load(&cur_thread->body.tc->gc_status) & MVMSUSPENDSTATUS_MASK) != MVMSuspendState_NONE);
 
         cmp_write_str(ctx, "num_locks", 9);
         cmp_write_integer(ctx, cur_thread->body.tc->num_locks);
@@ -1356,8 +1270,11 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                 case MT_IsExecutionSuspendedRequest:
                     send_is_execution_suspended_info(tc, &ctx, &argument);
                     break;
+                case MT_SuspendAll:
+                    COMMUNICATE_ERROR(request_all_threads_suspend(tc, &ctx, &argument));
+                    break;
                 case MT_ResumeAll:
-                    COMMUNICATE_RESULT(request_all_threads_resume(tc, &ctx, &argument));
+                    COMMUNICATE_ERROR(request_all_threads_resume(tc, &ctx, &argument));
                     break;
                 case MT_SuspendOne:
                     COMMUNICATE_ERROR(request_thread_suspends(tc, &ctx, &argument, NULL));
@@ -1407,6 +1324,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
 
             uv_mutex_unlock(&vm->debugserver->mutex_network_send);
         }
+        /* TODO invalidate all handls */
         vm->debugserver->messagepack_data = NULL;
     }
 }
@@ -1438,8 +1356,6 @@ void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
     init_mutex(debugserver->mutex_request_list, "debug server request list lock");
     init_cond(debugserver->tell_threads, "debugserver signals threads");
     init_cond(debugserver->tell_worker, "threads signal debugserver");
-
-    MVM_VECTOR_INIT(debugserver->open_requests, 16);
 
     debugserver->handle_table = MVM_malloc(sizeof(MVMDebugServerHandleTable));
 
