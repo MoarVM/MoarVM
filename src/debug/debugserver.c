@@ -230,7 +230,7 @@ static void communicate_error(cmp_ctx_t *ctx, request_data *argument) {
     cmp_write_str(ctx, "id", 2);
     cmp_write_integer(ctx, argument->id);
     cmp_write_str(ctx, "type", 4);
-    cmp_write_integer(ctx, 0);
+    cmp_write_integer(ctx, MT_ErrorProcessingMessage);
 }
 
 static void communicate_success(cmp_ctx_t *ctx, request_data *argument) {
@@ -239,7 +239,7 @@ static void communicate_success(cmp_ctx_t *ctx, request_data *argument) {
     cmp_write_str(ctx, "id", 2);
     cmp_write_integer(ctx, argument->id);
     cmp_write_str(ctx, "type", 4);
-    cmp_write_integer(ctx, 2);
+    cmp_write_integer(ctx, MT_OperationSuccessful);
 }
 
 /* Send spontaneous events */
