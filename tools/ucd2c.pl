@@ -446,12 +446,12 @@ sub allocate_bitfield {
     my $bit_offset = 0;
     my $allocated = [];
     my $index = 1;
-    while (scalar @biggest) {
+    while (@biggest) {
         my $i = -1;
         for(;;) {
             my $prop = $biggest[++$i];
             if (!$prop) {
-                while (scalar @biggest) {
+                while (@biggest) {
                     # ones bigger than 1 byte :(.  Don't prefer these.
                     $prop = shift @biggest;
                     $prop->{word_offset} = $word_offset;
@@ -487,12 +487,11 @@ sub allocate_bitfield {
 }
 
 sub compute_properties {
+    my ($fields) = @_;
     local $| = 1;
-    my $fields = shift;
     for my $field (@$fields) {
         my $bit_offset = $field->{bit_offset};
         my $bit_width = $field->{bit_width};
-        my $point = $FIRST_POINT;
         print "\n        $field->{name} bit width:$bit_width";
         my $i = 0;
         my $bit = 0;
@@ -500,7 +499,7 @@ sub compute_properties {
         while ($bit < $BITFIELD_CELL_BITWIDTH) {
             $mask |= 2 ** $bit++;
         }
-        while (defined $point) {
+        for my $point (@POINTS_SORTED) {
             if (defined $point->{$field->{name}}) {
                 my $word_offset = $field->{word_offset};
                 # $x is one less than the number of words required to hold the field
@@ -525,7 +524,6 @@ sub compute_properties {
                     $x--;
                 }
             }
-            $point = $point->{next_point};
         }
     }
 }
@@ -541,16 +539,15 @@ sub emit_binary_search_algorithm {
     $mid = $last if $first == $mid;
     my $new_mid_high = int(($last + $mid) / 2);
     my $new_mid_low = int(($mid - 1 + $first) / 2);
-    my $high = emit_binary_search_algorithm($extents,
-        $mid, $new_mid_high, $last, "    $indent");
-    my $low = emit_binary_search_algorithm($extents,
-        $first, $new_mid_low, $mid - 1, "    $indent");
-    return "
-${indent}if (codepoint >= 0x" . sprintf("%X", $extents->[$mid]->{code}) . ") {" .
-        " /* " . ($extents->[$mid]->{name} || 'NULL') . " */$high
+    my $high = emit_binary_search_algorithm($extents, $mid, $new_mid_high,
+        $last, "    $indent");
+    my $low = emit_binary_search_algorithm($extents, $first, $new_mid_low,
+        $mid - 1, "    $indent");
+    return sprintf("\n${indent}if (codepoint >= 0x%X) { /* %s */$high
 ${indent}}
 ${indent}else {$low
-${indent}}";
+${indent}}",
+        $extents->[$mid]->{code}, ($extents->[$mid]->{name} || 'NULL'));
 }
 
 my $FATE_NORMAL = 0;
