@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-use v5.14;
+use 5.014;
 use warnings; use strict;
 use utf8;
 use feature 'unicode_strings';
@@ -42,7 +42,6 @@ my $NAMED_SEQUENCES = {};
 my $BITFIELD_TABLE = [];
 my $PROP_CODES = {};
 my $ALL_PROPERTIES = {};
-my $ALLOCATED_PROPERTIES;
 my $PROPERTY_INDEX = 0;
 my $ESTIMATED_TOTAL_BYTES = 0;
 my $TOTAL_BYTES_SAVED = 0;
@@ -88,7 +87,7 @@ sub add_emoji_sequences {
         add_unicode_sequence("$folder/emoji-sequences");
         add_unicode_sequence("$folder/emoji-zwj-sequences");
     }
-    $highest_emoji_version;
+    return $highest_emoji_version;
 }
 #sub progress($);
 sub main {
@@ -191,13 +190,14 @@ sub main {
         close $LOG_FH;
     }
     print "\nDONE!!!\n\n";
+    return 1;
 }
 
 sub thousands {
     my $in = shift;
     $in = reverse "$in"; # stringify or copy the string
     $in =~ s/(\d\d\d)(?=\d)/$1,/g;
-    reverse $in
+    return reverse($in);
 }
 
 sub stack_lines {
@@ -227,14 +227,14 @@ sub stack_lines {
         }
         $out .= $_;
     }
-    $out
+    return $out;
 }
 
 sub join_sections {
     my $sections = shift;
     my $content = "";
     $content .= "\n".$sections->{$_} for (sort keys %{$sections});
-    $content
+    return $content;
 }
 
 sub set_next_points {
@@ -251,6 +251,7 @@ sub set_next_points {
         }
         $previous = $code;
     }
+    return;
 }
 sub get_next_point {
     my ($code, $add_to_points_by_code) = @_;
@@ -275,7 +276,7 @@ sub get_next_point {
              $POINTS_BY_CODE->{$code} = $point;
         }
     }
-    $point;
+    return $point;
 }
 
 sub apply_to_range {
@@ -298,12 +299,14 @@ sub apply_to_range {
         $fn->($point);
         $curr_code++;
     }
+    return;
 }
 
 sub progress {
     my ($txt) = @_;
     local $| = 1;
     print $txt;
+    return;
 }
 
 sub binary_props {
@@ -317,12 +320,14 @@ sub binary_props {
             $point->{$pname} = 1; # set the property
         });
     });
+    return;
 }
 
 sub break_property {
     my ($fname, $pname) = @_;
     enumerated_property("auxiliary/${fname}BreakProperty",
         $pname, { Other => 0 }, 1);
+    return;
 }
 sub grapheme_cluster_break {
     my ($fname, $pname) = @_;
@@ -331,6 +336,7 @@ sub grapheme_cluster_break {
             # Should not be set to Other for this one ?
             Other => 0,
         }, 1);
+    return;
 }
 # Make sure we don't assign twice to the same pvalue code
 sub check_base_for_duplicates {
@@ -352,6 +358,7 @@ sub check_base_for_duplicates {
             if $base->{enum}->{$key} != $start;
         $start++;
     }
+    return;
 }
 sub derived_property {
     # filename, property name, property object
@@ -383,12 +390,15 @@ sub register_keys {
     $base->{keys} = \@keys;
     scalar @keys;
 }
+# XXX Eventually this function should replace register_keys and setting the bitwidth
+# in each function individually.
 sub register_keys_and_set_bit_width {
     my ($base, $j) = @_;
     my $reg = register_keys($base);
     $base->{bit_width} = least_int_ge_lg2($reg);
     die "The number of keys and the number of \$j do not match. Keys: $reg \$j: $j"
         if (defined $j and $reg != $j);
+    return;
 }
 
 sub enumerated_property {
@@ -418,10 +428,11 @@ sub enumerated_property {
     print "\n    bitwidth: ",$base->{bit_width},"\n" if $DEBUG;
     register_keys($base);
     register_enumerated_property($pname, $base);
+    return;
 }
 
 sub least_int_ge_lg2 {
-    int(log(shift)/log(2) - 0.00001) + 1;
+    return int(log(shift)/log(2) - 0.00001) + 1;
 }
 
 sub each_line {
@@ -431,6 +442,7 @@ sub each_line {
         chomp;
         $fn->($_) unless !$force && /^(?:#|\s*$)/;
     } @{read_file("UNIDATA/$fname.txt")};
+    return;
 }
 
 sub allocate_bitfield {
@@ -525,6 +537,7 @@ sub compute_properties {
             }
         }
     }
+    return;
 }
 
 sub emit_binary_search_algorithm {
@@ -561,7 +574,7 @@ sub emit_extent_fate {
         "$BITFIELD_TABLE->[$fate->{bitfield_index}]->{code_str}".
         " $BITFIELD_TABLE->[$fate->{bitfield_index}]->{name} */" if $type == $FATE_SPAN;
     return "\n${indent}return codepoint - $fate->{fate_offset};"
-    .($fate->{fate_offset} == 0 ? " /* the fast path */ " : "");
+        . ($fate->{fate_offset} == 0 ? " /* the fast path */ " : "");
 }
 
 sub add_extent {
@@ -572,6 +585,7 @@ sub add_extent {
             sort split /^/m, "EXTENT " . Dumper($extent);
     }
     push @$extents, $extent;
+    return;
 }
 # Used in emit_codepoints_and_planes to push the codepoints name onto bitfield_index_lines
 sub ecap_push_name_line {
@@ -592,6 +606,7 @@ sub ecap_push_name_line {
     $$bytes += 2; # hopefully these are compacted since they are trivially aligned being two bytes
     $$bytes += 8; # 8 for the pointer
     $$index++;
+    return;
 }
 sub emit_codepoints_and_planes {
     my @bitfield_index_lines;
@@ -695,7 +710,7 @@ sub emit_codepoints_and_planes {
             stack_lines(\@bitfield_index_lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS).
             "\n};";
     $H_SECTIONS->{codepoint_names_count} = "#define MVM_CODEPOINT_NAMES_COUNT $index";
-    $extents
+    return $extents
 }
 
 sub emit_codepoint_row_lookup {
@@ -733,6 +748,7 @@ sub emit_codepoint_row_lookup {
     }
 }";
     $DB_SECTIONS->{codepoint_row_lookup} = $out;
+    return;
 }
 
 sub emit_case_changes {
@@ -752,6 +768,7 @@ sub emit_case_changes {
     $out = "static const MVMint32 case_changes[$rows][3] = {\n    {0x0,0x0,0x0},\n    ".
         stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."\n};";
     $DB_SECTIONS->{BBB_case_changes} = $out;
+    return;
 }
 
 sub emit_bitfield {
@@ -765,8 +782,8 @@ sub emit_bitfield {
     my $i = 0;
     for (; $i < $wide; ++$i) {
         $line .= "," unless $first;
-        $first = 0;
-        $line .= 0;
+        $first = '0';
+        $line .= '0';
     }
     push @lines, "$line}";
     while ($point) {
@@ -793,10 +810,11 @@ sub emit_bitfield {
     $out = "static const $val_type props_bitfield[$rows][$wide] = {\n    ".
         stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."\n};";
     $DB_SECTIONS->{BBB_main_bitfield} = $out;
+    return;
 }
 sub is_str_enum {
     my ($prop) = @_;
-    exists $prop->{keys} && (!defined $prop->{type} || $prop->{type} ne 'int');
+    return exists $prop->{keys} && (!defined $prop->{type} || $prop->{type} ne 'int');
 }
 sub EPVL_gen_pvalue_defines {
     my ( $property_name_mvm, $property_name, $short_pval_name ) = @_;
@@ -1228,12 +1246,10 @@ struct MVMUnicodeNamedValue {
     }
     # Reverse the @lines array so that later added entries take precedence
     @lines = reverse @lines;
-    $HOUT .= "
-#define num_unicode_property_keypairs ".scalar(@lines)."\n";
-    my $out = "
-static const MVMUnicodeNamedValue unicode_property_keypairs[".scalar(@lines)."] = {
-    ".stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."
-};";
+    $HOUT .= "\n#define num_unicode_property_keypairs " . scalar(@lines) . "\n";
+    my $out = "\nstatic const MVMUnicodeNamedValue unicode_property_keypairs[" . scalar(@lines) . "] = {\n" .
+    "    " . stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS) . "\n" .
+    "};";
     $DB_SECTIONS->{BBB_unicode_property_keypairs} = $out;
     $H_SECTIONS->{MVMUnicodeNamedValue} = $HOUT;
     return;
@@ -1483,13 +1499,11 @@ sub emit_unicode_property_value_keypairs {
             $done{"$propname$_"} ||= push @lines, $lines{$propname}->{$_};
         }
     }
-    $HOUT .= "
-#define num_unicode_property_value_keypairs " . scalar(@lines) . "\n";
-    my $out = "
-static MVMUnicodeNameRegistry **unicode_property_values_hashes;
-static const MVMUnicodeNamedValue unicode_property_value_keypairs[" . scalar(@lines) . "] = {
-    ".stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."
-};";
+    $HOUT .= "\n#define num_unicode_property_value_keypairs " . scalar(@lines) . "\n";
+    my $out = "\nstatic MVMUnicodeNameRegistry **unicode_property_values_hashes;\n" .
+    "static const MVMUnicodeNamedValue unicode_property_value_keypairs[" . scalar(@lines) . "] = {\n" .
+    "    " . stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS) . "\n" .
+    "};";
     $DB_SECTIONS->{BBB_unicode_property_value_keypairs} = $out;
     $H_SECTIONS->{num_unicode_property_value_keypairs}  = $HOUT;
     return;
@@ -1575,6 +1589,7 @@ sub emit_composition_lookup {
     # Put it all together and emit.
     my $tables = "$entries\n$l_tables\n$u_tables\n$p_table";
     $DB_SECTIONS->{composition_lookup} = "\n/* Canonical composition lookup tables. */\n$tables";
+    return;
 }
 
 sub compute_bitfield {
@@ -1843,7 +1858,8 @@ sub CaseFolding {
     register_binary_property('Case_Folding_simple');
     $ESTIMATED_TOTAL_BYTES += $simple_count * 8 + $grows_count * 32; # XXX guessing 32 here?
     $DB_SECTIONS->{BBB_CaseFolding_simple} = $simple_out;
-    $DB_SECTIONS->{BBB_CaseFolding_grows} = $grows_out;
+    $DB_SECTIONS->{BBB_CaseFolding_grows}  = $grows_out;
+    return;
 }
 
 sub SpecialCasing {
@@ -1873,6 +1889,7 @@ sub SpecialCasing {
     register_enumerated_property('Special_Casing', $index_base);
     $ESTIMATED_TOTAL_BYTES += $count * 4 * 3 * 3;
     $DB_SECTIONS->{BBB_SpecialCasing} = $out;
+    return;
 }
 
 sub DerivedNormalizationProps {
@@ -1926,6 +1943,7 @@ sub DerivedNormalizationProps {
             });
         }
     });
+    return;
 }
 
 sub Jamo {
@@ -1958,6 +1976,7 @@ sub Jamo {
         }
         %{$POINTS_BY_CODE}{$hs_cps}->{name} = $final_name;
     }
+    return;
 }
 
 sub collation_get_check_index {
@@ -1969,7 +1988,7 @@ sub collation_get_check_index {
         if $DEBUG and not defined $indexy;
     ($base->{enum}->{$value} = $indexy
         = ($index->{$property}->{j}++)) unless defined $indexy;
-    $indexy;
+    return $indexy;
 }
 sub collation {
     my ($index, $maxes, $bases) = ( {}, {}, {} );
@@ -2058,6 +2077,7 @@ sub collation {
             if $maxes->{$base->{name}} < 1;
     }
     register_binary_property('MVM_COLLATION_QC');
+    return;
 }
 
 sub NameAliases {
