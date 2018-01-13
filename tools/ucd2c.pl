@@ -30,7 +30,7 @@ my $DB_SECTIONS = {};
 my $SEQUENCES = {};
 my $HOUT = "";
 my $H_SECTIONS = {};
-my $PLANES = [];
+my @POINTS_SORTED;
 my $POINTS_BY_CODE = {};
 my $ENUMERATED_PROPERTIES = {};
 my $BINARY_PROPERTIES = {};
@@ -157,7 +157,6 @@ sub main {
     # Allocate all the things
     progress("done.\nsetting next_point for codepoints");
     set_next_points();
-    add_to_planes();
     progress("done.\nallocating bitfield...");
     my $allocated_bitfield_properties = allocate_bitfield();
     # Compute all the things
@@ -242,9 +241,7 @@ sub set_next_points {
     #my $next = undef;
     my $previous;
     for my $code (sort { $a <=> $b } keys %{$POINTS_BY_CODE}) {
-        #$POINTS_BY_CODE->{$code}->{next_point} = $next;
-        #$next = $POINTS_BY_CODE->{$code};
-        #next;
+        push @POINTS_SORTED, $POINTS_BY_CODE->{$code};
         $POINTS_BY_CODE->{$previous}->{next_point} = $POINTS_BY_CODE->{$code}
             if defined $previous;
         # The first code we encounter will be the lowest, so set $FIRST_POINT
@@ -580,7 +577,26 @@ sub add_extent($$) {
     }
     push @$extents, $extent;
 }
-
+# Used in emit_codepoints_and_planes to push the codepoints name onto bitfield_index_lines
+sub ecap_push_name_line {
+    my ($name, $point, $bitfield_index_lines, $bytes, $index, $annotate_anyway) = @_;
+    if (!defined $name) {
+        push @$bitfield_index_lines,
+            ($annotate_anyway
+                ? "/*$$index*/$point->{bitfield_index}/*$point->{code_str} */"
+                : "0"
+            );
+        push @NAME_LINES, "NULL";
+    }
+    else {
+        $$bytes += length($point->{name}) + 1; # length + 1 for the NULL
+        push @$bitfield_index_lines, "/*$$index*/$point->{bitfield_index}/* $point->{code_str} */";
+        push @NAME_LINES, "/*$$index*/\"$point->{name}\"/* $point->{code_str} */";
+    }
+    $$bytes += 2; # hopefully these are compacted since they are trivially aligned being two bytes
+    $$bytes += 8; # 8 for the pointer
+    $$index++;
+}
 sub emit_codepoints_and_planes {
     my @bitfield_index_lines;
     my $index = 0;
@@ -596,103 +612,79 @@ sub emit_codepoints_and_planes {
     my $span_length = 0;
 
     # a bunch of spaghetti code.  Yes.
-    for my $plane (@$PLANES) {
-        my $toadd = undef;
-        for my $point (@{$plane->{points}}) {
-            # extremely simplistic compression of identical neighbors and gaps
-            # this point is identical to the previous point
-            if ($COMPRESS_CODEPOINTS && $last_point
-                    && $last_code == $point->{code} - 1
-                    && is_same($last_point, $point)
-                    && $last_point->{bitfield_index} == $point->{bitfield_index}) {
-                # create a or extend the current span
-                ++$last_code;
-                if ($span_length) {
-                    ++$span_length;
-                }
-                else {
-                    $span_length = 2;
-                }
-                next;
-            }
-
-            # the span ended, either bridge it or skip it
+    my $toadd = undef;
+    for my $point (@POINTS_SORTED) {
+        # extremely simplistic compression of identical neighbors and gaps
+        # this point is identical to the previous point
+        if ($COMPRESS_CODEPOINTS && $last_point
+                && $last_code == $point->{code} - 1
+                && is_same($last_point, $point)
+                && $last_point->{bitfield_index} == $point->{bitfield_index}) {
+            # create a or extend the current span
+            ++$last_code;
             if ($span_length) {
-                if ($SPAN_LENGTH_THRESHOLD <= $span_length) {
-                    $bytes_saved += 10 * ($span_length - 1);
-                    add_extent $extents, $last_point if !defined($last_point->{fate_type});
-                    $last_point->{fate_type} = $FATE_SPAN;
-                    $code_offset = $last_point->{code} - @NAME_LINES + 1;
-                    $last_point->{fate_offset} = $code_offset;
-                    $last_point->{fate_really} = $last_point->{code} - $code_offset;
-                    $code_offset += $span_length - 1;
-                    $toadd = $point;
-                    $span_length = 0;
-                }
-                my $usually = 1;  # occasionally change NULL to the name to cut name search time
-                for (; 1 < $span_length; $span_length--) {
-                    # catch up to last code
-                    $last_point = $last_point->{next_point};
-                     # occasionally change NULL to the name to cut name search time
-                    if ($last_point->{name} =~ /^</ && $usually++ % 25) {
-                        push_name_lines(undef, $last_point, 1);
-                    }
-                    else {
-                        push_name_lines($last_point->{name}, $last_point);
-                    }
-                }
+                ++$span_length;
+            }
+            else {
+                $span_length = 2;
+            }
+            next;
+        }
+
+        # the span ended, either bridge it or skip it
+        if ($span_length) {
+            if ($SPAN_LENGTH_THRESHOLD <= $span_length) {
+                $bytes_saved += 10 * ($span_length - 1);
+                add_extent $extents, $last_point if !defined($last_point->{fate_type});
+                $code_offset = $last_point->{code} - @NAME_LINES + 1;
+                $last_point->{fate_type}   = $FATE_SPAN;
+                $last_point->{fate_offset} = $code_offset;
+                $last_point->{fate_really} = $last_point->{code} - $code_offset;
+                $code_offset += $span_length - 1;
+                $toadd = $point;
                 $span_length = 0;
             }
-
-            if ($COMPRESS_CODEPOINTS
-                    && $last_code < $point->{code} - ($point->{code} % 0x10000 ? $GAP_LENGTH_THRESHOLD : 1)) {
-                $bytes_saved += 10 * ($point->{code} - $last_code - 1);
-                add_extent $extents, { fate_type => $FATE_NULL,
-                    code => $last_code + 1 };
-                $code_offset += ($point->{code} - $last_code - 1);
-                $last_code = $point->{code} - 1;
-                $toadd = $point;
-            }
-            sub push_name_lines {
-                my ($name, $point, $thing) = @_;
-                if (!defined($name)) {
-                    $bytes += 10;
-                    if ($thing) {
-                        push @bitfield_index_lines,
-                            "/*$index*/$point->{bitfield_index}/*$point->{code_str} */";
-                    }
-                    else {
-                        push @bitfield_index_lines, "0";
-                    }
-                    push @NAME_LINES, "NULL";
+            my $usually = 1;  # occasionally change NULL to the name to cut name search time
+            for (; 1 < $span_length; $span_length--) {
+                # catch up to last code
+                $last_point = $last_point->{next_point};
+                 # occasionally change NULL to the name to cut name search time
+                if ($last_point->{name} =~ /^</ && $usually++ % 25) {
+                    ecap_push_name_line(undef, $last_point, \@bitfield_index_lines, \$bytes, \$index, 1);
                 }
                 else {
-                    push @bitfield_index_lines, "/*$index*/$point->{bitfield_index}/* $point->{code_str} */";
-                    push @NAME_LINES, "/*$index*/\"$point->{name}\"/* $point->{code_str} */";
+                    ecap_push_name_line($last_point->{name}, $last_point, \@bitfield_index_lines, \$bytes, \$index);
                 }
-                $index++;
             }
-            for (; $last_code < $point->{code} - 1; $last_code++) {
-                push_name_lines(undef, $point);
-            }
-
-            croak "$last_code  " . Dumper($point) unless $last_code == $point->{code} - 1;
-            if ($toadd && !exists($point->{fate_type})) {
-                $point->{fate_type}   = $FATE_NORMAL;
-                $point->{fate_offset} = $code_offset;
-                $point->{fate_really} = $point->{code} - $code_offset;
-                add_extent $extents, $point;
-            }
-            $toadd = undef;
-            # a normal codepoint that we don't want to compress
-            push @bitfield_index_lines, "/*$index*/$point->{bitfield_index}/* $point->{code_str} */";
-            push @NAME_LINES, "/*$index*/\"$point->{name}\"/* $point->{code_str} */";
-            $bytes += 2 + # hopefully these are compacted since they are trivially aligned being two bytes
-                length($point->{name}) + 9; # 8 for the pointer, 1 for the NUL
-            $last_code = $point->{code};
-            $point->{main_index} = $index++;
-            $last_point = $point;
+            $span_length = 0;
         }
+
+        if ($COMPRESS_CODEPOINTS
+                && $last_code < $point->{code} - ($point->{code} % 0x10000 ? $GAP_LENGTH_THRESHOLD : 1)) {
+            $bytes_saved += 10 * ($point->{code} - $last_code - 1);
+            add_extent $extents, { fate_type => $FATE_NULL,
+                code => $last_code + 1 };
+            $code_offset += ($point->{code} - $last_code - 1);
+            $last_code = $point->{code} - 1;
+            $toadd = $point;
+        }
+        for (; $last_code < $point->{code} - 1; $last_code++) {
+            ecap_push_name_line(undef, $point, \@bitfield_index_lines, \$bytes, \$index);
+        }
+
+        croak "$last_code  " . Dumper($point) unless $last_code == $point->{code} - 1;
+        if ($toadd && !exists($point->{fate_type})) {
+            $point->{fate_type}   = $FATE_NORMAL;
+            $point->{fate_offset} = $code_offset;
+            $point->{fate_really} = $point->{code} - $code_offset;
+            add_extent $extents, $point;
+        }
+        $toadd = undef;
+        # a normal codepoint that we don't want to compress
+        ecap_push_name_line($point->{name}, $point, \@bitfield_index_lines, \$bytes, \$index);
+        $last_code = $point->{code};
+        $point->{main_index} = $index;
+        $last_point = $point;
     }
     print "\nSaved " . thousands($bytes_saved) . " bytes by compressing big gaps into a binary search lookup.\n";
     $TOTAL_BYTES_SAVED += $bytes_saved;
@@ -1688,43 +1680,6 @@ sub register_union {
         return ((shift) =~ /^(?:'.$unionof.')$/)
             ? "'.$unionname.'" : 0;
     }';
-}
-sub init_plane {
-    if (0 < @$PLANES) {
-        croak "plane has already been inited";
-    }
-    my $plane = {
-        number => 0,
-        points => []
-    };
-    push @$PLANES, $plane;
-}
-# Adds the requested codepoint into $PLANES
-sub add_to_plane {
-    my ($point, $code) = @_;
-    my $plane_num = $code >> 16;
-    my $plane;
-    init_plane() if !@$PLANES;
-    my $curr_number = 0;
-    if ($plane_num  <= @$PLANES - 1) {
-        $plane = @$PLANES[$plane_num];
-    }
-    else {
-        $plane = $PLANES->[-1];
-        while ($plane->{number} < $plane_num) {
-            push(@$PLANES, ($plane = {
-                number => $plane->{number} + 1,
-                points => []
-            }));
-        }
-    }
-    push @{$plane->{points}}, $point;
-}
-# Adds the codepoints from $POINTS_BY_CODE into $PLANES
-sub add_to_planes {
-    for my $code (sort { $a <=> $b } keys %{$POINTS_BY_CODE}) {
-        add_to_plane($POINTS_BY_CODE->{$code}, $code);
-    }
 }
 
 sub UnicodeData {
