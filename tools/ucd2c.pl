@@ -282,12 +282,11 @@ sub apply_to_range {
     # apply a function to a range of codepoints. The starting and
     # ending codepoint of the range need not exist; the function will
     # be applied to all/any in between.
-    my $range = shift;
+    my ($range, $fn) = @_;
     chomp($range);
     if ( !defined $range ) {
         cluck "Did not get any range in apply_to_range";
     }
-    my $fn = shift;
     my ($first_str, $last_str) = split '\\.\\.', $range;
     $first_str ||= $range;
     $last_str ||= $first_str;
@@ -301,15 +300,15 @@ sub apply_to_range {
     }
 }
 
-sub progress($) {
-    my $txt = shift;
+sub progress {
+    my ($txt) = @_;
     local $| = 1;
     print $txt;
 }
 
 sub binary_props {
     # process a file, extracting binary properties and applying them to ranges
-    my $fname = shift; # filename
+    my ($fname) = @_; # filename
     each_line($fname, sub { $_ = shift;
         my ($range, $pname) = split /\s*[;#]\s*/; # range, property name
         register_binary_property($pname); # define the property
@@ -481,7 +480,7 @@ sub allocate_bitfield {
             }
         }
     }
-    $FIRST_POINT->{bitfield_width} = $word_offset+1;
+    $FIRST_POINT->{bitfield_width}    = $word_offset + 1;
     $H_SECTIONS->{num_property_codes} = "#define MVM_NUM_PROPERTY_CODES $index\n";
     $allocated
 }
@@ -534,7 +533,7 @@ sub emit_binary_search_algorithm {
     # indexes into $extents we're supposed to subdivide.
     # protocol: start output with a newline; don't end with a newline or indent
     my ($extents, $first, $mid, $last, $indent) = @_;
-#${indent} /* got  $first  $mid  $last  */\n";
+    #${indent} /* got  $first  $mid  $last  */\n";
     return emit_extent_fate($extents->[$first], $indent) if $first == $last;
     $mid = $last if $first == $mid;
     my $new_mid_high = int(($last + $mid) / 2);
@@ -565,7 +564,7 @@ sub emit_extent_fate {
     .($fate->{fate_offset} == 0 ? " /* the fast path */ " : "");
 }
 
-sub add_extent($$) {
+sub add_extent {
     my ($extents, $extent) = @_;
     if ($DEBUG) {
         $LOG .= "\n" . join '',
@@ -795,7 +794,26 @@ sub emit_bitfield {
         stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."\n};";
     $DB_SECTIONS->{BBB_main_bitfield} = $out;
 }
-
+sub is_str_enum {
+    my ($prop) = @_;
+    exists $prop->{keys} && (!defined $prop->{type} || $prop->{type} ne 'int');
+}
+sub EPVL_gen_pvalue_defines {
+    my ( $property_name_mvm, $property_name, $short_pval_name ) = @_;
+    my $GCB_h;
+    $GCB_h .= "\n\n/* $property_name_mvm */\n";
+    my %seen;
+    foreach my $key (sort keys % {$ENUMERATED_PROPERTIES->{$property_name}->{'enum'} }  ) {
+        next if $seen{$key};
+        my $value = $ENUMERATED_PROPERTIES->{$property_name}->{'enum'}->{$key};
+        $key = 'MVM_UNICODE_PVALUE_' . $short_pval_name . '_' . uc $key;
+        $key =~ tr/\./_/;
+        $GCB_h .= "#define $key $value\n";
+        $seen{$key} = 1;
+    }
+    $HOUT .= $GCB_h;
+    return;
+}
 sub emit_property_value_lookup {
     my $allocated = shift;
     my $enumtables = "\n\n";
@@ -843,10 +861,6 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
     switch (switch_val) {
         case 0: return \"\";";
     # Checks if it is a 'str' type enum
-    sub is_str_enum {
-        my ($prop) = @_;
-        exists $prop->{keys} && (!defined $prop->{type} || $prop->{type} ne 'int');
-    }
     for my $prop (@$allocated) {
         my $enum = exists $prop->{keys};
         my $esize = 0;
@@ -936,29 +950,15 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
     $str_out .= sprintf $default_return, q("");
     $HOUT .= "} MVM_unicode_property_codes;";
 
-    sub gen_pvalue_defines {
-        my ( $property_name_mvm, $property_name, $short_pval_name ) = @_;
-        my $GCB_h;
-        $GCB_h .= "\n\n/* $property_name_mvm */\n";
-        my %seen;
-        foreach my $key (sort keys % {$ENUMERATED_PROPERTIES->{$property_name}->{'enum'} }  ) {
-            next if $seen{$key};
-            my $value = $ENUMERATED_PROPERTIES->{$property_name}->{'enum'}->{$key};
-            $key = 'MVM_UNICODE_PVALUE_' . $short_pval_name . '_' . uc $key;
-            $key =~ tr/\./_/;
-            $GCB_h .= "#define $key $value\n";
-            $seen{$key} = 1;
-        }
-        $HOUT .= $GCB_h;
-    }
-    gen_pvalue_defines('MVM_UNICODE_PROPERTY_GENERAL_CATEGORY', 'General_Category', 'GC');
-    gen_pvalue_defines('MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK', 'Grapheme_Cluster_Break', 'GCB');
-    gen_pvalue_defines('MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE', 'Decomposition_Type', 'DT');
-    gen_pvalue_defines('MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS', 'Canonical_Combining_Class', 'CCC');
-    gen_pvalue_defines('MVM_UNICODE_PROPERTY_NUMERIC_TYPE', 'Numeric_Type', 'Numeric_Type');
+    EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_GENERAL_CATEGORY', 'General_Category', 'GC');
+    EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK', 'Grapheme_Cluster_Break', 'GCB');
+    EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE', 'Decomposition_Type', 'DT');
+    EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS', 'Canonical_Combining_Class', 'CCC');
+    EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_NUMERIC_TYPE', 'Numeric_Type', 'Numeric_Type');
 
     $DB_SECTIONS->{MVM_unicode_get_property_int} = $enumtables . $str_out . $int_out;
     $H_SECTIONS->{property_code_definitions} = $HOUT;
+    return;
 }
 
 sub emit_block_lookup {
@@ -1027,7 +1027,8 @@ MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 
     return in_block;
 }";
     $DB_SECTIONS->{block_lookup} = $out;
-    $H_SECTIONS->{block_lookup} = $HOUT;
+    $H_SECTIONS->{block_lookup}  = $HOUT;
+    return;
 }
 
 sub emit_names_hash_builder {
@@ -1111,8 +1112,9 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
 }
 END
     $DB_SECTIONS->{names_hash_builder} = $out;
-}#"
-my @v2a;
+    return;
+}
+
 sub emit_unicode_property_keypairs {
     my $HOUT = "
 struct MVMUnicodeNamedValue {
@@ -1120,6 +1122,7 @@ struct MVMUnicodeNamedValue {
     MVMint32 value;
 };";
     my @lines = ();
+    my @v2a;
     each_line('PropertyAliases', sub { $_ = shift;
         my @aliases = split /\s*[#;]\s*/;
         for my $name (@aliases) {
@@ -1233,6 +1236,7 @@ static const MVMUnicodeNamedValue unicode_property_keypairs[".scalar(@lines)."] 
 };";
     $DB_SECTIONS->{BBB_unicode_property_keypairs} = $out;
     $H_SECTIONS->{MVMUnicodeNamedValue} = $HOUT;
+    return;
 }
 sub add_unicode_sequence {
     my ($filename) = @_;
@@ -1273,6 +1277,7 @@ sub add_unicode_sequence {
             }
         }
     } );
+    return;
 }
 sub gen_unicode_sequence_keypairs {
     my $count = 0;
@@ -1311,6 +1316,7 @@ sub gen_unicode_sequence_keypairs {
     $enum_table = "static const MVMint32 * uni_seq_enum[$count] = {\n" . $enum_table;
     $DB_SECTIONS->{uni_seq} = $seq_c_hash_str . $string_seq . $enum_table;
     $HOUT .= "#define num_unicode_seq_keypairs " . $count ."\n";
+    return;
 }
 sub gen_name_alias_keypairs {
     my $count = 0;
@@ -1347,7 +1353,8 @@ struct MVMUnicodeNamedAlias {
 typedef struct MVMUnicodeNamedAlias MVMUnicodeNamedAlias;
 END
 }
-my %special_data;
+
+# XXX Change name of this function
 sub thing {
     my ($default, $propname, $prop_val, $hash, $maybe_propcode) = @_;
     $_ = $default;
@@ -1358,7 +1365,7 @@ sub thing {
     $hash->{$propname}->{$_} = "{\"$propcode-$_\",$prop_val}";
     $hash->{$propname}->{$_} = "{\"$propcode-$_\",$prop_val}" if s/_//g;
     $hash->{$propname}->{$_} = "{\"$propcode-$_\",$prop_val}" if y/A-Z/a-z/;
-    $propcode;
+    return $propcode;
 }
 sub emit_unicode_property_value_keypairs {
     my @lines = ();
@@ -1477,14 +1484,15 @@ sub emit_unicode_property_value_keypairs {
         }
     }
     $HOUT .= "
-#define num_unicode_property_value_keypairs ".scalar(@lines)."\n";
+#define num_unicode_property_value_keypairs " . scalar(@lines) . "\n";
     my $out = "
 static MVMUnicodeNameRegistry **unicode_property_values_hashes;
-static const MVMUnicodeNamedValue unicode_property_value_keypairs[".scalar(@lines)."] = {
+static const MVMUnicodeNamedValue unicode_property_value_keypairs[" . scalar(@lines) . "] = {
     ".stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."
 };";
     $DB_SECTIONS->{BBB_unicode_property_value_keypairs} = $out;
-    $H_SECTIONS->{num_unicode_property_value_keypairs} = $HOUT;
+    $H_SECTIONS->{num_unicode_property_value_keypairs}  = $HOUT;
+    return;
 }
 
 sub emit_composition_lookup {
@@ -1593,6 +1601,7 @@ sub compute_bitfield {
     }
     $TOTAL_BYTES_SAVED += $bytes_saved;
     print "\nSaved ".thousands($bytes_saved)." bytes by uniquing the bitfield table.\n";
+    return;
 }
 
 sub header {
@@ -1648,26 +1657,27 @@ written authorization of the copyright holder. */
 #include "moar.h"
 
 ';
-    sprintf($header, $lines);
+    return sprintf($header, $lines);
 }
 sub read_file {
     my $fname = shift;
-    open FILE, $fname or croak "Couldn't open file '$fname': $!";
-    binmode FILE, ':encoding(UTF-8)';
+    open my $FILE, '<', $fname or croak "Couldn't open file '$fname': $!";
+    binmode $FILE, ':encoding(UTF-8)';
     my @lines = ();
-    while( <FILE> ) {
+    while( <$FILE> ) {
         push @lines, $_;
     }
-    close FILE;
-    \@lines;
+    close $FILE;
+    return \@lines;
 }
 
 sub write_file {
     my ($fname, $contents) = @_;
-    open FILE, ">$fname" or croak "Couldn't open file '$fname': $!";
-    binmode FILE, ':encoding(UTF-8)';
-    print FILE $contents;
-    close FILE;
+    open my $FILE, '>', $fname or croak "Couldn't open file '$fname': $!";
+    binmode $FILE, ':encoding(UTF-8)';
+    print $FILE $contents;
+    close $FILE;
+    return;
 }
 
 sub register_union {
@@ -1677,6 +1687,7 @@ sub register_union {
         return ((shift) =~ /^(?:'.$unionof.')$/)
             ? "'.$unionname.'" : 0;
     }';
+    return;
 }
 
 sub UnicodeData {
@@ -1777,6 +1788,7 @@ sub UnicodeData {
         'keys' => $decomp_keys,
         bit_width => least_int_ge_lg2($decomp_index)
     });
+    return;
 }
 sub is_same {
     my ($point_1, $point_2) = @_;
@@ -1845,7 +1857,7 @@ sub SpecialCasing {
         sub threesome {
             my @things = split ' ', shift;
             push @things, 0 while @things < 3;
-            join ", ", map { "0x$_" } @things
+            return join(", ", map { "0x$_" } @things);
         }
         push @entries, "{ { " . threesome($upper) .
                        " }, { " . threesome($lower) .
@@ -2055,6 +2067,7 @@ sub NameAliases {
         $ALIAS_TYPES->{$name}->{'code'} = hex $code_str;
         $ALIAS_TYPES->{$name}->{'type'} = $type;
     });
+    return;
 }
 
 sub NamedSequences {
@@ -2063,6 +2076,7 @@ sub NamedSequences {
         my @parts = split ' ', $codes;
         $NAMED_SEQUENCES->{$name} = \@parts;
     });
+    return;
 }
 
 sub tweak_nfg_qc {
@@ -2089,6 +2103,7 @@ sub tweak_nfg_qc {
             $point->{'NFG_QC'} = 0;
         }
     }
+    return;
 }
 
 sub register_binary_property {
@@ -2098,6 +2113,7 @@ sub register_binary_property {
         name => $name,
         bit_width => 1
     } unless exists $BINARY_PROPERTIES->{$name};
+    return;
 }
 
 sub register_int_property {
@@ -2108,6 +2124,7 @@ sub register_int_property {
         name => $name,
         bit_width => least_int_ge_lg2($elems)
     } unless exists $BINARY_PROPERTIES->{$name};
+    return;
 }
 
 sub register_enumerated_property {
@@ -2123,7 +2140,7 @@ sub register_enumerated_property {
     croak if exists $ENUMERATED_PROPERTIES->{$pname};
     $ALL_PROPERTIES->{$pname} = $ENUMERATED_PROPERTIES->{$pname} = $base;
     $base->{property_index} = $PROPERTY_INDEX++;
-    $base
+    return $base
 }
 
 main();
