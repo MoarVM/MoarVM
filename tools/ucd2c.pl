@@ -1698,10 +1698,10 @@ sub write_file {
 sub register_union {
     my ($unionname, $unionof) = @_;
     register_binary_property($unionname);
-    push @$GC_ALIAS_CHECKERS, eval 'sub {
-        return ((shift) =~ /^(?:'.$unionof.')$/)
-            ? "'.$unionname.'" : 0;
-    }';
+    push @$GC_ALIAS_CHECKERS, sub {
+        return ((shift) =~ /^(?:$unionof)$/)
+            ? "$unionname" : 0;
+    };
     return;
 }
 
