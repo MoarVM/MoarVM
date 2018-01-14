@@ -555,11 +555,15 @@ sub emit_binary_search_algorithm {
         $last, "    $indent");
     my $low = emit_binary_search_algorithm($extents, $first, $new_mid_low,
         $mid - 1, "    $indent");
-    return sprintf("\n${indent}if (codepoint >= 0x%X) { /* %s */$high
+    my $rtrn = sprintf( <<"END", $extents->[$mid]->{code}, ($extents->[$mid]->{name} || 'NULL'));
+
+${indent}if (codepoint >= 0x%X) { /* %s */$high
 ${indent}}
 ${indent}else {$low
-${indent}}",
-        $extents->[$mid]->{code}, ($extents->[$mid]->{name} || 'NULL'));
+${indent}}
+END
+    chomp $rtrn;
+    return $rtrn;
 }
 
 my $FATE_NORMAL = 0;
@@ -743,7 +747,7 @@ sub emit_codepoint_row_lookup {
             return -1;
         }
         else {" . emit_binary_search_algorithm($extents, $SMP_start,
-            int(($SMP_start + scalar(@$extents)-1)/2), scalar(@$extents) - 1, "            ") . "
+            int(($SMP_start + @$extents - 1)/2), @$extents - 1, "            ") . "
         }
     }
 }";
@@ -931,35 +935,34 @@ END
             while ($pos++ < $BITFIELD_CELL_BITWIDTH) {
                 $binary_string .= "0";
             }
-            my $hex_binary_mask = sprintf("%x", $binary_mask);
+            my $hex_binary_mask     = sprintf("%x", $binary_mask);
+            my $props_bitfield_line =
+                "((props_bitfield[bitfield_row][$word_offset] & 0x$hex_binary_mask) >> $shift); /* mask: $binary_string */";
             # If it's an int based enum we use the same code as we do for strings
             # (the function just returns an int from the enum instead of a char *)
             if ($enum && defined($prop->{type}) && ($prop->{type} eq 'int')) {
                 # XXX todo, remove unneeded variables and jank
-                chomp(my $addition = <<"END");
+                chomp($int_out .= <<"END");
 
-                result_val = ((props_bitfield[bitfield_row][$word_offset] & 0x$hex_binary_mask) >> $shift); /* mask: $binary_string */
+                result_val = $props_bitfield_line
                 return result_val < $esize ? (result_val == -1
                     ? $enum\[0] : $enum\[result_val]) : 0;
 END
-                $int_out .= $addition;
                 next;
             }
             else {
                 my $return_or_resultval = $one_word_only ? 'return' : 'result_val |=';
-                $int_out .= "\n                $return_or_resultval " .
-                "((props_bitfield[bitfield_row][$word_offset] & 0x$hex_binary_mask) >> $shift); /* mask: $binary_string */";
+                $int_out .= "\n                $return_or_resultval $props_bitfield_line";
             }
-            $str_out .= "
-            result_val |= ((props_bitfield[bitfield_row][$word_offset] & 0x".
-                sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */" if is_str_enum($prop);
+            $str_out .= "\n            result_val |= $props_bitfield_line"
+                if is_str_enum($prop);
 
             $word_offset++;
             $bit_offset = 0;
         }
 
         $int_out  .= "\n            ";
-        $str_out .= "\n            " if is_str_enum($prop);
+        $str_out  .= "\n            " if is_str_enum($prop);
 
         $int_out .= "return result_val;" unless $one_word_only;
         $str_out .= "return result_val < $esize ? (result_val == -1
@@ -1014,9 +1017,8 @@ struct UnicodeBlock {
 
 static struct UnicodeBlock unicode_blocks[] = {
 END
-    $out .=
 
-    chomp($out .= join(",\n", @blocks) . "\n" . <<'END');
+    $out .= join(",\n", @blocks) . "\n" . <<'END';
 };
 
 static int block_compare(const void *a, const void *b) {
@@ -1051,6 +1053,8 @@ MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 
     return in_block;
 }
 END
+    chomp $out;
+
     $DB_SECTIONS->{block_lookup} = $out;
     $H_SECTIONS->{block_lookup}  = "MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block_name);\n";
     return;
