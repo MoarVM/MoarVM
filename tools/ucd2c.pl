@@ -931,11 +931,11 @@ END
             while ($pos++ < $BITFIELD_CELL_BITWIDTH) {
                 $binary_string .= "0";
             }
+            my $hex_binary_mask = sprintf("%x", $binary_mask);
             # If it's an int based enum we use the same code as we do for strings
             # (the function just returns an int from the enum instead of a char *)
             if ($enum && defined($prop->{type}) && ($prop->{type} eq 'int')) {
                 # XXX todo, remove unneeded variables and jank
-                my $hex_binary_mask = sprintf("%x", $binary_mask);
                 chomp(my $addition = <<"END");
 
                 result_val = ((props_bitfield[bitfield_row][$word_offset] & 0x$hex_binary_mask) >> $shift); /* mask: $binary_string */
@@ -946,10 +946,9 @@ END
                 next;
             }
             else {
-                my $hex_binary_mask     = sprintf("%x", $binary_mask);
                 my $return_or_resultval = $one_word_only ? 'return' : 'result_val |=';
-                $int_out .= "\n                " .
-                "$return_or_resultval ((props_bitfield[bitfield_row][$word_offset] & 0x$hex_binary_mask) >> $shift); /* mask: $binary_string */";
+                $int_out .= "\n                $return_or_resultval " .
+                "((props_bitfield[bitfield_row][$word_offset] & 0x$hex_binary_mask) >> $shift); /* mask: $binary_string */";
             }
             $str_out .= "
             result_val |= ((props_bitfield[bitfield_row][$word_offset] & 0x".
@@ -988,20 +987,6 @@ END
 }
 
 sub emit_block_lookup {
-    my $HOUT = "MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block_name);\n";
-    my $out  = "struct UnicodeBlock {
-    MVMGrapheme32 start;
-    MVMGrapheme32 end;
-
-    char *name;
-    size_t name_len;
-    char *alias;
-    size_t alias_len;
-};
-
-static struct UnicodeBlock unicode_blocks[] = {
-";
-
     my @blocks;
     each_line('Blocks', sub {
         $_ = shift;
@@ -1016,10 +1001,23 @@ static struct UnicodeBlock unicode_blocks[] = {
             }
         }
     });
+    my $out = <<'END';
+struct UnicodeBlock {
+    MVMGrapheme32 start;
+    MVMGrapheme32 end;
 
-    $out .= join(",\n", @blocks) . "\n";
+    char *name;
+    size_t name_len;
+    char *alias;
+    size_t alias_len;
+};
 
-    $out .= "};
+static struct UnicodeBlock unicode_blocks[] = {
+END
+    $out .=
+
+    chomp($out .= join(",\n", @blocks) . "\n" . <<'END');
+};
 
 static int block_compare(const void *a, const void *b) {
     MVMGrapheme32 ord = *((MVMGrapheme32 *) a);
@@ -1051,9 +1049,10 @@ MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 
     MVM_free(bname);
 
     return in_block;
-}";
+}
+END
     $DB_SECTIONS->{block_lookup} = $out;
-    $H_SECTIONS->{block_lookup}  = $HOUT;
+    $H_SECTIONS->{block_lookup}  = "MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block_name);\n";
     return;
 }
 
