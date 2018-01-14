@@ -388,7 +388,7 @@ sub register_keys {
     }
     print "\n    keys = @keys" if $DEBUG;
     $base->{keys} = \@keys;
-    scalar @keys;
+    return scalar(@keys);
 }
 # XXX Eventually this function should replace register_keys and setting the bitwidth
 # in each function individually.
@@ -494,7 +494,7 @@ sub allocate_bitfield {
     }
     $FIRST_POINT->{bitfield_width}    = $word_offset + 1;
     $H_SECTIONS->{num_property_codes} = "#define MVM_NUM_PROPERTY_CODES $index\n";
-    $allocated
+    return $allocated;
 }
 
 sub compute_properties {
@@ -581,8 +581,8 @@ sub add_extent {
     my ($extents, $extent) = @_;
     if ($DEBUG) {
         $LOG .= "\n" . join '',
-            grep /code|fate|name|bitfield/,
-            sort split /^/m, "EXTENT " . Dumper($extent);
+            grep { /code|fate|name|bitfield/ }
+                sort(split /^/m, "EXTENT " . Dumper($extent));
     }
     push @$extents, $extent;
     return;
@@ -836,7 +836,8 @@ sub emit_property_value_lookup {
     my $allocated = shift;
     my $enumtables = "\n\n";
     our $HOUT = "typedef enum {\n";
-    my $int_out = "
+    chomp(my $int_out = <<'END');
+
 static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
     MVMint32 result_val = 0; /* we'll never have negatives, but so */
@@ -854,12 +855,14 @@ static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint64 code
     bitfield_row = codepoint_bitfield_indexes[codepoint_row];
 
     switch (switch_val) {
-        case 0: return 0;";
+        case 0: return 0;
+END
 
-    my $str_out = "
+    chomp(my $str_out = <<'END');
+
 static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint64 codepoint);
 
-static const char *bogus = \"<BOGUS>\"; /* only for table too short; return null string for no mapping */
+static const char *bogus = "<BOGUS>"; /* only for table too short; return null string for no mapping */
 
 static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
@@ -869,7 +872,7 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
 
     if (codepoint_row == -1) { /* non-existent codepoint; XXX should throw? */
         if (0x10FFFF < codepoint)
-            return \"\";
+            return "";
         result_val = -1;
     }
     else {
@@ -877,7 +880,8 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
     }
 
     switch (switch_val) {
-        case 0: return \"\";";
+        case 0: return "";
+END
     # Checks if it is a 'str' type enum
     for my $prop (@$allocated) {
         my $enum = exists $prop->{keys};
@@ -931,17 +935,21 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
             # (the function just returns an int from the enum instead of a char *)
             if ($enum && defined($prop->{type}) && ($prop->{type} eq 'int')) {
                 # XXX todo, remove unneeded variables and jank
-                $int_out .= "
-                result_val = ((props_bitfield[bitfield_row][$word_offset] & 0x".
-                    sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */";
-                $int_out .= "return result_val < $esize ? (result_val == -1
-                    ? $enum\[0] : $enum\[result_val]) : 0;\n    ";
+                my $hex_binary_mask = sprintf("%x", $binary_mask);
+                chomp(my $addition = <<"END");
+
+                result_val = ((props_bitfield[bitfield_row][$word_offset] & 0x$hex_binary_mask) >> $shift); /* mask: $binary_string */
+                return result_val < $esize ? (result_val == -1
+                    ? $enum\[0] : $enum\[result_val]) : 0;
+END
+                $int_out .= $addition;
                 next;
             }
             else {
-                $int_out .= "
-                " . ($one_word_only ? 'return' : 'result_val |=') . " ((props_bitfield[bitfield_row][$word_offset] & 0x"
-                . sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */";
+                my $hex_binary_mask     = sprintf("%x", $binary_mask);
+                my $return_or_resultval = $one_word_only ? 'return' : 'result_val |=';
+                $int_out .= "\n                " .
+                "$return_or_resultval ((props_bitfield[bitfield_row][$word_offset] & 0x$hex_binary_mask) >> $shift); /* mask: $binary_string */";
             }
             $str_out .= "
             result_val |= ((props_bitfield[bitfield_row][$word_offset] & 0x".
