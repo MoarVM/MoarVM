@@ -55,10 +55,10 @@ my $GC_ALIAS_CHECKERS = [];
 my $GENERAL_CATEGORIES = {};
 
 sub trim {
-    my $s = shift;
-    $s =~ s/\s+$//g;
-    $s =~ s/^\s+//g;
-    if ($s =~ /^ / or $s =~ / $/) {
+    my ($s) = @_;
+    $s =~ s/   \s+ $ //xg;
+    $s =~ s/ ^ \s+   //xg;
+    if ($s =~ / ^ \s /x or $s =~ / \s$ /x) {
         croak "'$s'";
     }
     return $s;
@@ -231,14 +231,13 @@ sub stack_lines {
 }
 
 sub join_sections {
-    my $sections = shift;
+    my ($sections) = @_;
     my $content = "";
     $content .= "\n".$sections->{$_} for (sort keys %{$sections});
     return $content;
 }
 
 sub set_next_points {
-    #my $next = undef;
     my $previous;
     for my $code (sort { $a <=> $b } keys %{$POINTS_BY_CODE}) {
         push @POINTS_SORTED, $POINTS_BY_CODE->{$code};
@@ -377,7 +376,7 @@ sub derived_property {
         }
     });
     register_keys_and_set_bit_width($base, $j);
-    register_enumerated_property($pname, $base);
+    return register_enumerated_property($pname, $base);
 }
 sub register_keys {
     my ($base) = @_;
@@ -623,6 +622,7 @@ sub emit_codepoints_and_planes {
     my $last_point = undef;
     $FIRST_POINT->{fate_type} = $FATE_NORMAL;
     $FIRST_POINT->{fate_offset} = $code_offset;
+    #$FIRST_POINT->{fake_really} = $FIRST_POINT->{code} - $code_offset
     add_extent $extents, $FIRST_POINT;
     my $span_length = 0;
 
@@ -729,28 +729,29 @@ sub emit_codepoint_row_lookup {
         }
         $i++;
     }
-    my $out = "static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint64 codepoint) {\n
+    my $out = 'static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint64 codepoint) {
+
     MVMint32 plane = codepoint >> 16;
 
     if (codepoint < 0) {
         MVM_exception_throw_adhoc(tc,
-            \"Internal Error: MVM_codepoint_to_row_index call requested a synthetic codepoint that does not exist.\\n\"
-            \"Requested synthetic \%\"PRId64\" when only \%\"PRId32\" have been created.\",
+            "Internal Error: MVM_codepoint_to_row_index call requested a synthetic codepoint that does not exist.\n"
+            "Requested synthetic %"PRId64" when only %"PRId32" have been created.",
             -codepoint, tc->instance->nfg->num_synthetics);
     }
 
-    if (plane == 0) {"
-    . emit_binary_search_algorithm($extents, 0, 1, $SMP_start - 1, "        ") . "
+    if (plane == 0) {'
+    . emit_binary_search_algorithm($extents, 0, 1, $SMP_start - 1, "        ") . '
     }
     else {
         if (plane < 0 || plane > 16 || codepoint > 0x10FFFD) {
             return -1;
         }
-        else {" . emit_binary_search_algorithm($extents, $SMP_start,
-            int(($SMP_start + @$extents - 1)/2), @$extents - 1, "            ") . "
+        else {' . emit_binary_search_algorithm($extents, $SMP_start,
+            int(($SMP_start + @$extents - 1)/2), @$extents - 1, "            ") . '
         }
     }
-}";
+}';
     $DB_SECTIONS->{codepoint_row_lookup} = $out;
     return;
 }
@@ -839,7 +840,7 @@ sub EPVL_gen_pvalue_defines {
 sub emit_property_value_lookup {
     my $allocated = shift;
     my $enumtables = "\n\n";
-    our $HOUT = "typedef enum {\n";
+    my $hout = "typedef enum {\n";
     chomp(my $int_out = <<'END');
 
 static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
@@ -904,7 +905,7 @@ END
             }
             $enumtables .= "\n};\n\n";
         }
-        $HOUT .= "    " . uc("MVM_unicode_property_$prop->{name}") . " = $prop->{field_index},\n";
+        $hout .= "    " . uc("MVM_unicode_property_$prop->{name}") . " = $prop->{field_index},\n";
         $PROP_NAMES->{$prop->{name}} = $prop->{field_index};
         my $case = "\n        case " . uc("MVM_unicode_property_$prop->{name}") . ":";
         $int_out .= $case;
@@ -965,18 +966,20 @@ END
         $str_out  .= "\n            " if is_str_enum($prop);
 
         $int_out .= "return result_val;" unless $one_word_only;
-        $str_out .= "return result_val < $esize ? (result_val == -1
-        ? $enum\[0] : $enum\[result_val]) : bogus;" if is_str_enum($prop);
+        $str_out .= "return result_val < $esize ? (result_val == -1\n" .
+            "        ? $enum\[0] : $enum\[result_val]) : bogus;" if is_str_enum($prop);
     }
-    my $default_return = "
+    my $default_return = <<'END'
+
         default:
             return %s;
     }
 }
-";
+END
+;
     $int_out  .= sprintf $default_return, 0;
     $str_out .= sprintf $default_return, q("");
-    $HOUT .= "} MVM_unicode_property_codes;";
+    $hout .= "} MVM_unicode_property_codes;";
 
     EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_GENERAL_CATEGORY', 'General_Category', 'GC');
     EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK', 'Grapheme_Cluster_Break', 'GCB');
@@ -985,7 +988,7 @@ END
     EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_NUMERIC_TYPE', 'Numeric_Type', 'Numeric_Type');
 
     $DB_SECTIONS->{MVM_unicode_get_property_int} = $enumtables . $str_out . $int_out;
-    $H_SECTIONS->{property_code_definitions} = $HOUT;
+    $H_SECTIONS->{property_code_definitions} = $hout;
     return;
 }
 
@@ -1063,8 +1066,7 @@ END
 sub emit_names_hash_builder {
     my ($extents) = @_;
     my $num_extents = scalar(@$extents);
-    my $out = "
-static const MVMint32 codepoint_extents[".($num_extents + 1)."][3] = {\n";
+    my $out = "\nstatic const MVMint32 codepoint_extents[".($num_extents + 1)."][3] = {\n";
     $ESTIMATED_TOTAL_BYTES += 4 * 2 * ($num_extents + 1);
     for my $extent (@$extents) {
         $out .= sprintf("    {0x%04x,%d,%d},\n",
@@ -1145,15 +1147,10 @@ END
 }
 
 sub emit_unicode_property_keypairs {
-    my $HOUT = "
-struct MVMUnicodeNamedValue {
-    const char *name;
-    MVMint32 value;
-};";
     my @lines = ();
     my @v2a;
     each_line('PropertyAliases', sub { $_ = shift;
-        my @aliases = split /\s*[#;]\s*/;
+        my @aliases = split / \s* [#;] \s* /x;
         for my $name (@aliases) {
             if (exists $PROP_NAMES->{$name}) {
                 for my $al (@aliases) {
@@ -1226,8 +1223,8 @@ struct MVMUnicodeNamedValue {
                 my $value = $lines{$propname}{$_};
                 my $old   = $_;
                 my $orig = $_;
-                $old =~ s/[#].*//;
-                my @a = split /\s*;\s*/, $old;
+                $old =~ s/ [#] .* //x;
+                my @a = split / \s* ; \s* /x, $old;
                 my $pname = shift @a;
                 for my $name (@a) {
                     $name = trim $name;
@@ -1257,12 +1254,20 @@ struct MVMUnicodeNamedValue {
     }
     # Reverse the @lines array so that later added entries take precedence
     @lines = reverse @lines;
-    $HOUT .= "\n#define num_unicode_property_keypairs " . scalar(@lines) . "\n";
+    chomp(my $hout = <<'END');
+
+struct MVMUnicodeNamedValue {
+    const char *name;
+    MVMint32 value;
+};
+
+END
+    $hout .= "#define num_unicode_property_keypairs " . scalar(@lines) . "\n";
     my $out = "\nstatic const MVMUnicodeNamedValue unicode_property_keypairs[" . scalar(@lines) . "] = {\n" .
     "    " . stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS) . "\n" .
     "};";
     $DB_SECTIONS->{BBB_unicode_property_keypairs} = $out;
-    $H_SECTIONS->{MVMUnicodeNamedValue} = $HOUT;
+    $H_SECTIONS->{MVMUnicodeNamedValue} = $hout;
     return;
 }
 sub add_unicode_sequence {
@@ -1354,7 +1359,7 @@ sub gen_name_alias_keypairs {
         my $ord = $ALIAS_TYPES->{$thing}->{'code'};
         $ord_data .= '0x' . uc sprintf("%x", $ord) . ',';
         $seq_c_hash_str .= '{"' . $thing . '",' . $ord_data . (length $thing) . '},';
-        $ord_data =~ s/,$//;
+        $ord_data =~ s/ , $ //x;
         my $type = $ALIAS_TYPES->{$thing}->{'type'};
         $count++;
         if ( length $seq_c_hash_str > 80 ) {
@@ -1364,13 +1369,13 @@ sub gen_name_alias_keypairs {
     }
     push @seq_c_hash_array, $seq_c_hash_str . "\n";
     $seq_c_hash_str = join '    ', @seq_c_hash_array;
-    $seq_c_hash_str =~ s/\s*,\s*$//;
+    $seq_c_hash_str =~ s/ \s* , \s* $ //x;
     $seq_c_hash_str .= "\n};";
     $seq_c_hash_str = "static const MVMUnicodeNamedAlias uni_namealias_pairs[$count] = {\n    " . $seq_c_hash_str;
 
-    $seq_c_hash_str = "/* Unicode Name Aliases */\n" . $seq_c_hash_str;
+    $seq_c_hash_str = "/* Unicode Name Aliases */\n$seq_c_hash_str";
     $DB_SECTIONS->{Auni_namealias} = $seq_c_hash_str;
-    $HOUT .= "#define num_unicode_namealias_keypairs " . $count ."\n";
+    $HOUT .= "#define num_unicode_namealias_keypairs $count\n";
     $HOUT .= <<'END'
 struct MVMUnicodeNamedAlias {
     char *name;
@@ -1637,8 +1642,8 @@ sub header {
         last if $line !~ /^\s*[#]/;
         $lines .= $line;
     }
-    my $header =
-'/*   DO NOT MODIFY THIS FILE!  YOU WILL LOSE YOUR CHANGES!
+    my $header = <<'EOF';
+/*   DO NOT MODIFY THIS FILE!  YOU WILL LOSE YOUR CHANGES!
 This file is generated by ucd2c.pl from the Unicode database.
 
 From ReadMe.txt in the Unicode Database Sources this file was generated from:
@@ -1682,7 +1687,7 @@ written authorization of the copyright holder. */
 
 #include "moar.h"
 
-';
+EOF
     return sprintf($header, $lines);
 }
 sub read_file {
@@ -1721,7 +1726,7 @@ sub UnicodeData {
     $GENERAL_CATEGORIES = $general_categories;
     register_binary_property('Any');
     each_line('PropertyValueAliases', sub { $_ = shift;
-        my @parts = split /\s*[#;]\s*/;
+        my @parts = split / \s* [#;] \s* /x;
         my @parts2;
         foreach my $part (@parts) {
             $part = trim $part;
@@ -1731,7 +1736,7 @@ sub UnicodeData {
         my $propname = shift @parts;
         return if ($parts[0] eq 'Y'   || $parts[0] eq 'N')
                && ($parts[1] eq 'Yes' || $parts[1] eq 'No');
-        if ($parts[-1] =~ /\|/) { # it's a union
+        if ($parts[-1] =~ /[|]/) { # it's a union
             my $unionname = $parts[0];
             my $unionof   = pop @parts;
             $unionof      =~ s/\s+//g;
@@ -2009,7 +2014,6 @@ sub collation {
         my $base = $bases->{$name} = { enum => { 0 => 0 }, name => $name, type => 'int' };
         $index->{$base->{name}}->{j} = keys(%{$base->{enum}});
         $maxes->{$base->{name}} = 0;
-        print("\n" . $base->{name} . " j starts at " . $index->{$base->{name}}->{j});
     }
     ## Sample line from allkeys.txt
     #1D4FF ; [.1EE3.0020.0005] # MATHEMATICAL BOLD SCRIPT SMALL V
@@ -2021,12 +2025,12 @@ sub collation {
         my $weights = {};
         # implicit weights are handled in ./tools/Generate-Collation-Data.p6
         return if $line =~ s/ ^ \@implicitweights \s+ //xms;
-        return if $line =~ /^\s*[#@]/ or $line =~ /^\s*$/; # Blank/comment lines
-        ($code, $temp) = split /[;#]+/, $line;
+        return if $line =~ / ^ \s* [#@] /x or $line =~ / ^ \s* $ /x; # Blank/comment lines
+        ($code, $temp) = split / [;#]+ /x, $line;
         $code = trim $code;
         my @codes = split / /, $code;
         # We support collation for multiple codepoints in ./tools/Generate-Collation-Data.p6
-        if ( scalar @codes > 1 ) {
+        if (1 < @codes) {
             # For now set MVM_COLLATION_QC = 0 for these cp
             apply_to_range($codes[0], sub {
                 my $point = shift;
@@ -2042,12 +2046,12 @@ sub collation {
         # are the composite values for the decomposed character. Since we compare
         # in NFC form not NFD, let's add these together.
 
-        while ( $temp =~ / (:? \[ ([.*]) (\p{AHex}+) ([.*]) (\p{AHex}+) ([.*]) (\p{AHex}+) \] ) /xmsg ) {
+        while ($temp =~ / (:? \[ ([.*]) (\p{AHex}+) ([.*]) (\p{AHex}+) ([.*]) (\p{AHex}+) \] ) /xmsg) {
             $weights->{$name_primary}   += hex $3;
             $weights->{$name_secondary} += hex $5;
             $weights->{$name_tertiary}  += hex $7;
         }
-        if ( !defined $code or !defined $weights->{$name_primary} or !defined $weights->{$name_secondary} or !defined $weights->{$name_tertiary} ) {
+        if (!defined $code || !defined $weights->{$name_primary} || !defined $weights->{$name_secondary} || !defined $weights->{$name_tertiary}) {
             my $str;
             for my $name ($name_primary, $name_secondary, $name_tertiary) {
                 $str .= "\$weights->{$name} = " . $weights->{$name} . ", ";
@@ -2093,7 +2097,7 @@ sub collation {
 
 sub NameAliases {
     each_line('NameAliases', sub { $_ = shift;
-        my ($code_str, $name, $type) = split /\s*[;#]\s*/;
+        my ($code_str, $name, $type) = split / \s* [;#] \s* /x;
         $ALIASES->{$name} = hex $code_str;
         $ALIAS_TYPES->{$name}->{'code'} = hex $code_str;
         $ALIAS_TYPES->{$name}->{'type'} = $type;
@@ -2103,7 +2107,7 @@ sub NameAliases {
 
 sub NamedSequences {
     each_line('NamedSequences', sub { $_ = shift;
-        my ($name, $codes) = split /\s*[;#]\s*/;
+        my ($name, $codes) = split / \s* [;#] \s* /x;
         my @parts = split ' ', $codes;
         $NAMED_SEQUENCES->{$name} = \@parts;
     });
@@ -2160,7 +2164,7 @@ sub register_int_property {
 
 sub register_enumerated_property {
     my ($pname, $base) = @_;
-    if (!defined $base->{name} or !$base->{name}) {
+    if (!defined $base->{name} || !$base->{name}) {
         $base->{name} = $pname;
         #croak("\n\$base->{name} not set for property '$pname'");
     }
