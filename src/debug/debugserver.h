@@ -12,6 +12,31 @@ struct MVMDebugServerHandleTable {
     MVMDebugServerHandleTableEntry *entries;
 };
 
+struct MVMDebugServerBreakpointInfo {
+    MVMuint32 line_no;
+
+    MVMuint8 shall_suspend;
+    MVMuint8 send_backtrace;
+};
+
+struct MVMDebugServerBreakpointFileTable {
+    char *filename;
+    MVMuint32 filename_length;
+    MVMuint8 lines_active_alloc;
+
+    MVMuint8 *lines_active;
+
+    MVMDebugServerBreakpointInfo *breakpoints;
+    MVMuint32 breakpoints_alloc;
+    MVMuint32 breakpoints_used;
+};
+
+struct MVMDebugServerBreakpointTable {
+    MVMDebugServerBreakpointFileTable *files;
+    MVMuint32 files_used;
+    MVMuint32 files_alloc;
+};
+
 struct MVMDebugServerData {
     /* Debug Server thread */
     uv_thread_t thread;
@@ -40,6 +65,11 @@ struct MVMDebugServerData {
 
     MVMDebugServerHandleTable *handle_table;
 
+    MVMDebugServerBreakpointTable *breakpoints;
+    MVMuint32 breakpoints_alloc;
+    MVMuint32 breakpoints_used;
+    uv_mutex_t mutex_breakpoints;
+
     void *messagepack_data;
 
     MVMuint8 debugspam_network;
@@ -54,3 +84,5 @@ void MVM_debugserver_notify_thread_destruction(MVMThreadContext *tc);
 
 void MVM_debugserver_notify_thread_suspends(MVMThreadContext *tc);
 void MVM_debugserver_notify_thread_resumes(MVMThreadContext *tc);
+
+void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 line_no, MVMuint32 filename_len, MVMuint32 *file_idx);

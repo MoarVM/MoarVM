@@ -120,6 +120,53 @@ typedef struct {
     fields_set fields_set;
 } request_data;
 
+/* Breakpoint stuff */
+void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 line_no, MVMuint32 filename_len, MVMuint32 *file_idx) {
+    MVMDebugServerData *debugserver = tc->instance->debugserver;
+    MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
+    MVMDebugServerBreakpointFileTable *found = NULL;
+    MVMuint32 index = 0;
+
+    uv_mutex_lock(&debugserver->mutex_breakpoints);
+    for (index = 0; index < table->files_used; index++) {
+        MVMDebugServerBreakpointFileTable *file = &table->files[index];
+        if (file->filename_length != filename_len)
+            continue;
+        if (memcmp(file->filename, filename, filename_len) != 0)
+            continue;
+        found = file;
+        *file_idx = index;
+        break;
+    }
+
+    if (!found) {
+        if (table->files_used++ > table->files_alloc) {
+            table->files_alloc *= 2;
+            table->files = MVM_realloc(table->files, table->files_alloc * sizeof(MVMDebugServerBreakpointFileTable));
+        }
+
+        found = &table->files[table->files_used];
+
+        found->filename = MVM_malloc(filename_len + 1);
+        strncpy(found->filename, filename, filename_len);
+
+        found->lines_active_alloc = line_no + 32;
+        found->lines_active = MVM_calloc(found->lines_active_alloc, sizeof(MVMuint8));
+
+        found->breakpoints = NULL;
+        found->breakpoints_alloc = 0;
+        found->breakpoints_used = 0;
+    } else {
+        if (found->lines_active_alloc < line_no + 1) {
+            MVMuint32 old_size = found->lines_active_alloc;
+            found->lines_active_alloc *= 2;
+            found->lines_active = MVM_recalloc(found->lines_active, found->lines_active_alloc, old_size);
+        }
+    }
+
+    uv_mutex_unlock(&debugserver->mutex_breakpoints);
+}
+
 #define REQUIRE(field, message) do { if(!(data->fields_set & (field))) { data->parse_fail = 1; data->parse_fail_message = (message); return 0; }; accepted = accepted | (field); } while (0)
 
 MVMuint8 check_requirements(request_data *data) {
@@ -1354,6 +1401,7 @@ void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
     init_mutex(debugserver->mutex_cond, "debug server orchestration");
     init_mutex(debugserver->mutex_network_send, "debug server network socket lock");
     init_mutex(debugserver->mutex_request_list, "debug server request list lock");
+    init_mutex(debugserver->mutex_breakpoints, "debug server breakpoint management lock");
     init_cond(debugserver->tell_threads, "debugserver signals threads");
     init_cond(debugserver->tell_worker, "threads signal debugserver");
 
