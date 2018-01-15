@@ -13,6 +13,7 @@ struct MVMDebugServerHandleTable {
 };
 
 struct MVMDebugServerBreakpointInfo {
+    MVMuint64 breakpoint_id;
     MVMuint32 line_no;
 
     MVMuint8 shall_suspend;

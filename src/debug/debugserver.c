@@ -120,6 +120,8 @@ typedef struct {
     fields_set fields_set;
 } request_data;
 
+static MVMint32 write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMThread *thread);
+
 /* Breakpoint stuff */
 void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 line_no, MVMuint32 filename_len, MVMuint32 *file_idx) {
     MVMDebugServerData *debugserver = tc->instance->debugserver;
@@ -141,8 +143,11 @@ void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint
 
     if (!found) {
         if (table->files_used++ > table->files_alloc) {
+            MVMuint32 old_alloc = table->files_alloc;
             table->files_alloc *= 2;
-            table->files = MVM_realloc(table->files, table->files_alloc * sizeof(MVMDebugServerBreakpointFileTable));
+            table->files = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa, table->files,
+                    old_alloc * sizeof(MVMDebugServerBreakpointFileTable),
+                    table->files_alloc * sizeof(MVMDebugServerBreakpointFileTable));
         }
 
         found = &table->files[table->files_used];
@@ -151,7 +156,7 @@ void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint
         strncpy(found->filename, filename, filename_len);
 
         found->lines_active_alloc = line_no + 32;
-        found->lines_active = MVM_calloc(found->lines_active_alloc, sizeof(MVMuint8));
+        found->lines_active = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, found->lines_active_alloc * sizeof(MVMuint8));
 
         found->breakpoints = NULL;
         found->breakpoints_alloc = 0;
@@ -160,12 +165,76 @@ void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint
         if (found->lines_active_alloc < line_no + 1) {
             MVMuint32 old_size = found->lines_active_alloc;
             found->lines_active_alloc *= 2;
-            found->lines_active = MVM_recalloc(found->lines_active, found->lines_active_alloc, old_size);
+            found->lines_active = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa,
+                    found->lines_active, found->lines_active_alloc, old_size);
+            memset((char *)found->lines_active + old_size, 0, found->lines_active_alloc - old_size);
         }
     }
 
     uv_mutex_unlock(&debugserver->mutex_breakpoints);
 }
+
+static void breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFileTable *file, MVMuint32 line_no) {
+    cmp_ctx_t *ctx = NULL;
+    MVMDebugServerBreakpointInfo *info;
+    MVMuint32 index;
+    MVMuint8 must_suspend = 0;
+
+    if (tc->instance->debugserver && tc->instance->debugserver->messagepack_data) {
+        cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
+    }
+
+    for (index = 0; index < file->breakpoints_used; index++) {
+        info = &file->breakpoints[index];
+
+        if (info->line_no == line_no) {
+            if (ctx) {
+                uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
+                cmp_write_map(ctx, 4);
+                cmp_write_str(ctx, "id", 2);
+                cmp_write_integer(ctx, info->breakpoint_id);
+                cmp_write_str(ctx, "type", 4);
+                cmp_write_integer(ctx, MT_BreakpointNotification);
+                cmp_write_str(ctx, "thread", 6);
+                cmp_write_integer(ctx, tc->thread_id);
+                cmp_write_str(ctx, "frames", 6);
+                if (info->send_backtrace) {
+                    write_stacktrace_frames(tc, ctx, tc->thread_obj);
+                } else {
+                    cmp_write_nil(ctx);
+                }
+                uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
+            }
+            if (info->shall_suspend) {
+                must_suspend = 1;
+            }
+        }
+    }
+    if (must_suspend) {
+        while (1) {
+            if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
+                    == MVMGCStatus_NONE) {
+                break;
+            }
+            if (MVM_load(&tc->gc_status) == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)) {
+                break;
+            }
+        }
+        MVM_gc_enter_from_interrupt(tc);
+    }
+}
+
+void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, MVMuint32 line_no) {
+    MVMDebugServerData *debugserver = tc->instance->debugserver;
+    MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
+    MVMDebugServerBreakpointFileTable *found = &table->files[file_idx];
+
+    if (found->lines_active[line_no]) {
+        breakpoint_hit(tc, found, line_no);
+    }
+}
+
+
 
 #define REQUIRE(field, message) do { if(!(data->fields_set & (field))) { data->parse_fail = 1; data->parse_fail_message = (message); return 0; }; accepted = accepted | (field); } while (0)
 
@@ -523,19 +592,8 @@ static MVMint32 request_all_threads_resume(MVMThreadContext *dtc, cmp_ctx_t *ctx
     return success;
 }
 
-static MVMint32 request_thread_stacktrace(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
-    MVMThread *to_do = thread ? thread : find_thread_by_id(dtc->instance, argument->thread_id);
-
-    if (!to_do)
-        return 1;
-
-    if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
-        return 1;
-    }
-
-    {
-
-    MVMThreadContext *tc = to_do->body.tc;
+static MVMint32 write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMThread *thread) {
+    MVMThreadContext *tc = thread->body.tc;
     MVMuint64 stack_size = 0;
 
     MVMFrame *cur_frame = tc->cur_frame;
@@ -547,13 +605,6 @@ static MVMint32 request_thread_stacktrace(MVMThreadContext *dtc, cmp_ctx_t *ctx,
 
     if (tc->instance->debugserver->debugspam_protocol)
         fprintf(stderr, "dumping a stack trace of %d frames\n", stack_size);
-
-    cmp_write_map(ctx, 3);
-    cmp_write_str(ctx, "id", 2);
-    cmp_write_integer(ctx, argument->id);
-    cmp_write_str(ctx, "type", 4);
-    cmp_write_integer(ctx, MT_ThreadStackTraceResponse);
-    cmp_write_str(ctx, "frames", 6);
 
     cmp_write_array(ctx, stack_size);
 
@@ -610,8 +661,26 @@ static MVMint32 request_thread_stacktrace(MVMThreadContext *dtc, cmp_ctx_t *ctx,
         cur_frame = cur_frame->caller;
         stack_size++;
     }
+}
 
+static MVMint32 request_thread_stacktrace(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
+    MVMThread *to_do = thread ? thread : find_thread_by_id(dtc->instance, argument->thread_id);
+
+    if (!to_do)
+        return 1;
+
+    if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
+        return 1;
     }
+
+    cmp_write_map(ctx, 3);
+    cmp_write_str(ctx, "id", 2);
+    cmp_write_integer(ctx, argument->id);
+    cmp_write_str(ctx, "type", 4);
+    cmp_write_integer(ctx, MT_ThreadStackTraceResponse);
+    cmp_write_str(ctx, "frames", 6);
+
+    write_stacktrace_frames(dtc, ctx, to_do);
 
     return 0;
 }
