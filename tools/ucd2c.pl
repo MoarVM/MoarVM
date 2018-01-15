@@ -70,11 +70,14 @@ sub add_emoji_sequences {
     # Find all the emoji dirs
     opendir (UNIDATA_DIR, $directory) or die $!;
     while (my $file = readdir(UNIDATA_DIR)) {
-        if (-d "$directory/$file" and $file =~ /^emoji/) {
+        if (-d "$directory/$file" and $file =~ / ^ emoji /x) {
             push @emoji_dirs, $file;
-            $file =~ s/^emoji-//;
-            # Get the highest version. Make sure longer values take precidence so when we hit 10.0 or higher it will work fine.
-            if (length($highest_emoji_version) < length($file) or (length($highest_emoji_version) < length($file) and $highest_emoji_version lt $file)) {
+            $file =~ s/ ^ emoji- //x;
+            # Get the highest version. Make sure longer values take precidence
+            # so when we hit 10.0 or higher it will work fine.
+            if (length $highest_emoji_version < length $file or (
+                    length $highest_emoji_version < length $file and $highest_emoji_version lt $file)
+            ) {
                 $highest_emoji_version = $file;
             }
         }
@@ -270,7 +273,7 @@ sub get_next_point {
             gencat_name => "Cn",
             General_Category => $GENERAL_CATEGORIES->{enum}->{Cn}
         };
-        die if defined $POINTS_BY_CODE->{$code};
+        croak "$code is already defined" if defined $POINTS_BY_CODE->{$code};
         if ($add_to_points_by_code) {
              $POINTS_BY_CODE->{$code} = $point;
         }
@@ -438,8 +441,8 @@ sub each_line {
     my ($fname, $fn, $force) = @_;
     progress("done.\nprocessing $fname.txt...");
     map {
-        chomp;
-        $fn->($_) unless !$force && /^(?:#|\s*$)/;
+        chomp; # If it's forced or if it doesn't start with a #/is a blank link
+        $fn->($_) if $force || ! / ^ (?: [#] | \s* $ ) /x;
     } @{read_file("UNIDATA/$fname.txt")};
     return;
 }
@@ -1177,8 +1180,8 @@ sub emit_unicode_property_keypairs {
             $aliases{$2} = [$1];
             return
         }
-        return if /^(?:#|\s*$)/;
-        my @parts = split /\s*[#;]\s*/;
+        return if / ^ (?: [#] | \s* $ ) /x;
+        my @parts = split / \s* [#;] \s* /x;
         my $propname = shift @parts;
         if (exists $PROP_NAMES->{$propname}) {
             if (($parts[0] eq 'Y' || $parts[0] eq 'N') && ($parts[1] eq 'Yes' || $parts[1] eq 'No')) {
@@ -1371,8 +1374,8 @@ sub gen_name_alias_keypairs {
     $seq_c_hash_str = join '    ', @seq_c_hash_array;
     $seq_c_hash_str =~ s/ \s* , \s* $ //x;
     $seq_c_hash_str .= "\n};";
-    $seq_c_hash_str = "static const MVMUnicodeNamedAlias uni_namealias_pairs[$count] = {\n    " . $seq_c_hash_str;
-
+    $seq_c_hash_str = "static const MVMUnicodeNamedAlias uni_namealias_pairs[$count] = {\n" .
+        "    $seq_c_hash_str";
     $seq_c_hash_str = "/* Unicode Name Aliases */\n$seq_c_hash_str";
     $DB_SECTIONS->{Auni_namealias} = $seq_c_hash_str;
     $HOUT .= "#define num_unicode_namealias_keypairs $count\n";
@@ -1427,8 +1430,8 @@ sub emit_unicode_property_value_keypairs {
         my $enum = $ENUMERATED_PROPERTIES->{$_}->{enum};
         my $toadd = {};
         for (sort keys %$enum) {
-            my $key = lc("$_");
-            $key =~ s/[_\-\s]/./g;
+            my $key = lc "$_";
+            $key =~ s/[-_\s]/./xg;
             $toadd->{$key} = $enum->{$_};
         }
         for (sort keys %$toadd) {
@@ -1438,19 +1441,16 @@ sub emit_unicode_property_value_keypairs {
     croak "lines didn't get anything in it" if !%lines;
     my %done;
     each_line('PropertyValueAliases', sub { $_ = shift;
-        if (/^# (\w+) \((\w+)\)/) {
+        if (/ ^ [#] \s (\w+) \s [(] (\w+) [)] /x) {
             $aliases{$2} = $1;
             return
         }
-        return if /^(?:#|\s*$)/;
-        my @parts = split /\s*[#;]\s*/;
-        my @parts2;
-        foreach my $part (@parts) {
+        return if / ^ (?: [#] | \s* $ ) /x;
+        my @parts = split(/ \s* [#;] \s* /x);
+        for my $part (@parts) {
             $part = trim($part);
-            croak if $part =~ /[;]/;
-            push @parts2, trim($part);
+            croak if $part =~ / [;] /x;
         }
-        @parts = @parts2;
         my $propname = shift @parts;
         $propname = trim $propname;
         if (exists $PROP_NAMES->{$propname}) {
@@ -1478,7 +1478,7 @@ sub emit_unicode_property_value_keypairs {
                         $done{"$propname$_"} = push @lines, $lines{$propname}->{$_} if s/_//g;
                         $done{"$propname$_"} = push @lines, $lines{$propname}->{$_} if y/A-Z/a-z/;
                     }
-                    croak Dumper($propname) if /^letter$/
+                    croak Dumper($propname) if / ^ letter $ /x;
                 }
                 return
             }
@@ -1727,19 +1727,17 @@ sub UnicodeData {
     register_binary_property('Any');
     each_line('PropertyValueAliases', sub { $_ = shift;
         my @parts = split / \s* [#;] \s* /x;
-        my @parts2;
-        foreach my $part (@parts) {
+        # Make sure everything is trimmed
+        for my $part (@parts) {
             $part = trim $part;
-            push @parts2, $part;
         }
-        @parts = @parts2;
         my $propname = shift @parts;
         return if ($parts[0] eq 'Y'   || $parts[0] eq 'N')
                && ($parts[1] eq 'Yes' || $parts[1] eq 'No');
-        if ($parts[-1] =~ /[|]/) { # it's a union
+        if ($parts[-1] =~ /[|]/x) { # it's a union
             my $unionname = $parts[0];
             my $unionof   = pop @parts;
-            $unionof      =~ s/\s+//g;
+            $unionof      =~ s/ \s+ //xg;
             register_union($unionname, $unionof);
         }
     });
@@ -1778,7 +1776,7 @@ sub UnicodeData {
         }
         $point->{Bidi_Mirrored} = 1 if $bidimirrored eq 'Y';
         if ($decmpspec) {
-            $decmpspec =~ s/<\w+>\s+//;
+            $decmpspec =~ s/ [<] \w+ [>] \s+ //x;
             $point->{Decomp_Spec} = $decomp_index;
             $decomp_keys->[$decomp_index++] = $decmpspec;
         }
@@ -1883,7 +1881,7 @@ sub SpecialCasing {
     my @entries;
     each_line('SpecialCasing', sub { $_ = shift;
         s/#.+//;
-        my ($code_str, $lower, $title, $upper, $cond) = split /\s*;\s*/;
+        my ($code_str, $lower, $title, $upper, $cond) = split / \s* ; \s* /x;
         my $code = hex $code_str;
         return if $cond;
         sub threesome {
@@ -1924,9 +1922,13 @@ sub DerivedNormalizationProps {
         NFG_QC => 1,
     };
     my $trinary_values = { 'N' => 0, 'Y' => 1, 'M' => 2 };
-    register_enumerated_property($_, { enum => $trinary_values, bit_width => 2, 'keys' => ['N','Y','M'] }) for (sort keys %$trinary);
+    register_enumerated_property($_, {
+        enum => $trinary_values,
+        bit_width => 2,
+        'keys' => ['N','Y','M']
+    }) for sort keys %$trinary;
     each_line('DerivedNormalizationProps', sub { $_ = shift;
-        my ($range, $property_name, $value) = split /\s*[;#]\s*/;
+        my ($range, $property_name, $value) = split / \s* [;#] \s* /x;
         if (exists $binary->{$property_name}) {
             $value = 1;
         }
