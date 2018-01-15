@@ -68,8 +68,8 @@ sub add_emoji_sequences {
     my @emoji_dirs;
     my $highest_emoji_version = "";
     # Find all the emoji dirs
-    opendir (UNIDATA_DIR, $directory) or die $!;
-    while (my $file = readdir(UNIDATA_DIR)) {
+    opendir my $UNIDATA_DIR, $directory or croak $!;
+    while (my $file = readdir($UNIDATA_DIR)) {
         if (-d "$directory/$file" and $file =~ / ^ emoji /x) {
             push @emoji_dirs, $file;
             $file =~ s/ ^ emoji- //x;
@@ -83,9 +83,8 @@ sub add_emoji_sequences {
         }
     }
     say "Highest emoji version found is $highest_emoji_version";
-    if (!@emoji_dirs) {
-        die "Couldn't find any emoji folders. Please run UCD-download.p6 again";
-    }
+    croak "Couldn't find any emoji folders. Please run UCD-download.p6 again"
+        if !@emoji_dirs;
     for my $folder (@emoji_dirs) {
         add_unicode_sequence("$folder/emoji-sequences");
         add_unicode_sequence("$folder/emoji-zwj-sequences");
@@ -188,7 +187,7 @@ sub main {
         ".\nEstimated bytes saved by various compressions: ".
         thousands($TOTAL_BYTES_SAVED).".\n";
     if ($DEBUG) {
-        $LOG =~ s/('fate_really' => )(\d+)/$1$NAME_LINES[$2]/g;
+        $LOG =~ s/ ( 'fate_really' \s => \s ) (\d+) /$1$NAME_LINES[$2]/xg;
         print $LOG_FH $LOG;
         close $LOG_FH;
     }
@@ -409,7 +408,7 @@ sub enumerated_property {
     $type = 'string' unless $type;
     $base = { enum => $base, name => $pname, type => $type };
     each_line($fname, sub { $_ = shift;
-        my @vals = split /\s*[#;]\s*/;
+        my @vals = split / \s* [#;] \s* /x;
         my $range = $vals[0];
         my $value = ref $value_index
             ? $value_index->(\@vals)
@@ -440,10 +439,11 @@ sub least_int_ge_lg2 {
 sub each_line {
     my ($fname, $fn, $force) = @_;
     progress("done.\nprocessing $fname.txt...");
-    map {
-        chomp; # If it's forced or if it doesn't start with a #/is a blank link
-        $fn->($_) if $force || ! / ^ (?: [#] | \s* $ ) /x;
-    } @{read_file("UNIDATA/$fname.txt")};
+    for my $line (@{read_file("UNIDATA/$fname.txt")}) {
+        chomp $line;
+        # If it's forced, or it is a proper line (line is not blank and doesn't start with a #)
+        $fn->($line) if $force || $line !~ / ^ (?: [#] | \s* $ ) /x;
+    }
     return;
 }
 
@@ -981,8 +981,8 @@ END
 END
 ;
     $int_out  .= sprintf $default_return, 0;
-    $str_out .= sprintf $default_return, q("");
-    $hout .= "} MVM_unicode_property_codes;";
+    $str_out  .= sprintf $default_return, q("");
+    $hout     .= "} MVM_unicode_property_codes;";
 
     EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_GENERAL_CATEGORY', 'General_Category', 'GC');
     EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK', 'Grapheme_Cluster_Break', 'GCB');
@@ -998,16 +998,19 @@ END
 sub emit_block_lookup {
     my @blocks;
     each_line('Blocks', sub {
-        $_ = shift;
-        my ($from, $to, $block_name) = /^(\w+)..(\w+); (.+)/;
+        my $line = shift;
+        my ($from, $to, $block_name) = $line =~ / ^ (\w+) .. (\w+) ; \s (.+) /x;
         if ($from && $to && $block_name) {
-            $block_name =~ s/[_\s-]//g;
-            my $alias_name = lc($block_name);
+            $block_name =~ s/ [-_\s] //xg;
+            my $alias_name = lc $block_name;
             my $block_len  = length $block_name;
             my $alias_len  = length $alias_name;
             if ($block_len && $alias_len) {
                 push @blocks, "    { 0x$from, 0x$to, \"$block_name\", $block_len, \"$alias_name\", $alias_len }";
             }
+        }
+        else {
+            croak "Failed to parse Blocks.txt. Line:\n$line";
         }
     });
     my $out = <<'END';
@@ -1407,10 +1410,10 @@ sub emit_unicode_property_value_keypairs {
     my $property;
     my %lines;
     my %aliases;
-    for my $thing (sort keys %$BINARY_PROPERTIES) {
-        my $prop_val = ($PROP_NAMES->{$thing} << 24) + 1;
-        my $propcode = thing($thing, '_custom_', $prop_val, \%lines);
-        my $lc_thing = lc $thing;
+    for my $property (sort keys %$BINARY_PROPERTIES) {
+        my $prop_val = ($PROP_NAMES->{$property} << 24) + 1;
+        my $propcode = thing($property, '_custom_', $prop_val, \%lines);
+        my $lc_thing = lc $property;
         my %stuff = (
             c => ['Other'],
             l => ['Letter'],
@@ -1463,7 +1466,7 @@ sub emit_unicode_property_value_keypairs {
                 }
                 return
             }
-            if ($parts[-1] =~ /\|/) { # it's a union
+            if ($parts[-1] =~ /\|/x) { # it's a union
                 pop @parts;
                 my $unionname = $parts[0];
                 if (exists $BINARY_PROPERTIES->{$unionname}) {
@@ -1846,7 +1849,7 @@ sub CaseFolding {
     my @simple;
     my @grows;
     each_line('CaseFolding', sub { $_ = shift;
-        my ($left_str, $type, $right) = split /\s*;\s*/;
+        my ($left_str, $type, $right) = split / \s* ; \s* /x;
         my $left_code = hex $left_str;
         return if $type eq 'S' || $type eq 'T';
         if ($type eq 'C') {
@@ -1880,7 +1883,7 @@ sub SpecialCasing {
     my $count = 1;
     my @entries;
     each_line('SpecialCasing', sub { $_ = shift;
-        s/#.+//;
+        s/ [#] .+ //x;
         my ($code_str, $lower, $title, $upper, $cond) = split / \s* ; \s* /x;
         my $code = hex $code_str;
         return if $cond;
