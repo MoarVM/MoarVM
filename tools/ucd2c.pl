@@ -16,16 +16,11 @@ $Data::Dumper::Maxdepth = 1;
 
 my $DEBUG = $ENV{UCD2CDEBUG} // 0;
 
-my @NAME_LINES;
-my $LOG_FH;
-if ($DEBUG) {
-    open($LOG_FH, ">", "extents") or croak "can't create extents: $!";
-    binmode $LOG_FH, ':encoding(UTF-8)';
-}
 binmode STDOUT, ':encoding(UTF-8)';
 binmode STDERR, ':encoding(UTF-8)';
 my $LOG;
 # All globals should use UPPERCASE
+my @NAME_LINES;
 my $DB_SECTIONS = {};
 my $SEQUENCES = {};
 my $HOUT = "";
@@ -188,8 +183,7 @@ sub main {
         thousands($TOTAL_BYTES_SAVED).".\n";
     if ($DEBUG) {
         $LOG =~ s/ ( 'fate_really' \s => \s ) (\d+) /$1$NAME_LINES[$2]/xg;
-        print $LOG_FH $LOG;
-        close $LOG_FH;
+        write_file("ucd2c_extents.log", $LOG);
     }
     print "\nDONE!!!\n\n";
     return 1;
@@ -365,7 +359,7 @@ sub derived_property {
     # filename, property name, property object
     my ($fname, $pname, $base) = @_;
     # If we provided some property values already, add that number to the counter
-    my $j = scalar keys %{$base};
+    my $num_keys = scalar keys %{$base};
     # wrap the provided object as the enum key in a new one
     $base = { enum => $base, name => $pname };
     each_line("extracted/Derived$fname", sub { $_ = shift;
@@ -373,11 +367,11 @@ sub derived_property {
         unless (exists $base->{enum}->{$class}) {
             # haven't seen this property's value before
             # add it, and give it an index.
-            print "\n  adding derived property for $pname: $j $class" if $DEBUG;
-            $base->{enum}->{$class} = $j++;
+            print "\n  adding derived property for $pname: $num_keys $class" if $DEBUG;
+            $base->{enum}->{$class} = $num_keys++;
         }
     });
-    register_keys_and_set_bit_width($base, $j);
+    register_keys_and_set_bit_width($base, $num_keys);
     return register_enumerated_property($pname, $base);
 }
 sub register_keys {
@@ -394,17 +388,19 @@ sub register_keys {
 # XXX Eventually this function should replace register_keys and setting the bitwidth
 # in each function individually.
 sub register_keys_and_set_bit_width {
-    my ($base, $j) = @_;
+    my ($base, $num_keys) = @_;
     my $reg = register_keys($base);
     $base->{bit_width} = least_int_ge_lg2($reg);
-    die "The number of keys and the number of \$j do not match. Keys: $reg \$j: $j"
-        if (defined $j and $reg != $j);
+    print "\n    bitwidth: ", $base->{bit_width}, "\n" if $DEBUG;
+
+    croak "The number of keys and the number of \$num_keys do not match. Keys: $reg \$num_keys: $num_keys"
+        if (defined $num_keys and $reg != $num_keys);
     return;
 }
 
 sub enumerated_property {
     my ($fname, $pname, $base, $value_index, $type, $is_hex) = @_;
-    my $j = scalar keys %{$base};
+    my $num_keys = scalar keys %{$base};
     $type = 'string' unless $type;
     $base = { enum => $base, name => $pname, type => $type };
     each_line($fname, sub { $_ = shift;
@@ -417,17 +413,15 @@ sub enumerated_property {
         my $index = $base->{enum}->{$value};
         if (not defined $index) {
             # Haven't seen this property value before. Add it, and give it an index.
-            print("\n  adding enum property for $pname: $j $value") if $DEBUG;
-            ($base->{enum}->{$value} = $index = $j++);
+            print("\n  adding enum property for $pname: $num_keys $value") if $DEBUG;
+            ($base->{enum}->{$value} = $index = $num_keys++);
         }
         apply_to_range($range, sub {
             my $point = shift;
             $point->{$pname} = $index; # set the property's value index
         });
     });
-    $base->{bit_width} = least_int_ge_lg2($j);
-    print "\n    bitwidth: ",$base->{bit_width},"\n" if $DEBUG;
-    register_keys($base);
+    register_keys_and_set_bit_width($base, $num_keys);
     register_enumerated_property($pname, $base);
     return;
 }
@@ -2088,9 +2082,8 @@ sub collation {
     });
 
     for my $base ($bases->{$name_primary}, $bases->{$name_secondary}, $bases->{$name_tertiary}) {
-        $base->{bit_width} = least_int_ge_lg2($index->{$base->{name}}->{j});
         #register_enumerated_property($base->{name}, $base); # Uncomment to make an int enum
-        #register_keys($base); # Uncomment to make an int enum
+        #register_keys_and_set_bit_width($base, $index->{$base->{name}}->{j}); # Uncomment to make an int enum
         register_int_property($base->{name}, $maxes->{$base->{name}}); # Comment to make an int enum
         croak("Oh no! One of the highest collation numbers I saw is less than 1. Something is wrong" .
               "Primary max: " . $maxes->{$name_primary} . " secondary max: " . $maxes->{$name_secondary} . " tertiary_max: " . $maxes->{$name_tertiary})
