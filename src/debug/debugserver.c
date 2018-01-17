@@ -123,15 +123,23 @@ typedef struct {
 static MVMint32 write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMThread *thread);
 
 /* Breakpoint stuff */
-void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 line_no, MVMuint32 filename_len, MVMuint32 *file_idx) {
+void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 filename_len, MVMuint32 line_no,  MVMuint32 *file_idx) {
     MVMDebugServerData *debugserver = tc->instance->debugserver;
     MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
     MVMDebugServerBreakpointFileTable *found = NULL;
     MVMuint32 index = 0;
 
     uv_mutex_lock(&debugserver->mutex_breakpoints);
-    for (index = 0; index < table->files_used; index++) {
+
+    if (*file_idx < table->files_used) {
+        MVMDebugServerBreakpointFileTable *file = &table->files[*file_idx];
+        if (file->filename_length == filename_len && memcmp(file->filename, filename, filename_len) == 0)
+            found = file;
+    }
+
+    for (index = 0; !found && index < table->files_used; index++) {
         MVMDebugServerBreakpointFileTable *file = &table->files[index];
+        fprintf(stderr, "comparing %s and %s\n", filename, file->filename);
         if (file->filename_length != filename_len)
             continue;
         if (memcmp(file->filename, filename, filename_len) != 0)
@@ -142,33 +150,43 @@ void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint
     }
 
     if (!found) {
-        if (table->files_used++ > table->files_alloc) {
+        if (table->files_used++ >= table->files_alloc) {
             MVMuint32 old_alloc = table->files_alloc;
             table->files_alloc *= 2;
             table->files = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa, table->files,
                     old_alloc * sizeof(MVMDebugServerBreakpointFileTable),
                     table->files_alloc * sizeof(MVMDebugServerBreakpointFileTable));
+            memset((char *)(table->files + old_alloc), 0, (table->files_alloc - old_alloc) * sizeof(MVMDebugServerBreakpointFileTable) - 1);
+            fprintf(stderr, "table for files increased to %d slots\n", filename, table->files_alloc);
         }
 
-        found = &table->files[table->files_used];
+        found = &table->files[table->files_used - 1];
 
-        found->filename = MVM_malloc(filename_len + 1);
+        fprintf(stderr, "created new file entry at %d for %s\n", table->files_used - 1, filename);
+
+        found->filename = MVM_calloc(filename_len + 1, sizeof(char));
         strncpy(found->filename, filename, filename_len);
+
+        found->filename_length = filename_len;
 
         found->lines_active_alloc = line_no + 32;
         found->lines_active = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, found->lines_active_alloc * sizeof(MVMuint8));
 
+        *file_idx = table->files_used - 1;
+
         found->breakpoints = NULL;
         found->breakpoints_alloc = 0;
         found->breakpoints_used = 0;
-    } else {
-        if (found->lines_active_alloc < line_no + 1) {
-            MVMuint32 old_size = found->lines_active_alloc;
-            found->lines_active_alloc *= 2;
-            found->lines_active = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa,
-                    found->lines_active, found->lines_active_alloc, old_size);
-            memset((char *)found->lines_active + old_size, 0, found->lines_active_alloc - old_size);
-        }
+    }
+
+    if (found->lines_active_alloc < line_no + 1) {
+        MVMuint32 old_size = found->lines_active_alloc;
+        found->lines_active_alloc *= 2;
+        fprintf(stderr, "increasing line number table for %s from %d to %d slots\n", filename, old_size, found->lines_active_alloc);
+        found->lines_active = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa,
+                found->lines_active, old_size, found->lines_active_alloc);
+        fprintf(stderr, "memsetting to 0 from %x to %x\n", found->lines_active + old_size, found->lines_active + found->lines_active_alloc);
+        memset((char *)found->lines_active + old_size, 0, found->lines_active_alloc - old_size - 1);
     }
 
     uv_mutex_unlock(&debugserver->mutex_breakpoints);
@@ -181,13 +199,14 @@ static void breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFileTab
     MVMuint8 must_suspend = 0;
 
     if (tc->instance->debugserver && tc->instance->debugserver->messagepack_data) {
-        cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
+        ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
     }
 
     for (index = 0; index < file->breakpoints_used; index++) {
         info = &file->breakpoints[index];
 
         if (info->line_no == line_no) {
+            fprintf(stderr, "hit a breakpoint\n");
             if (ctx) {
                 uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
                 cmp_write_map(ctx, 4);
@@ -233,7 +252,6 @@ void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, 
         breakpoint_hit(tc, found, line_no);
     }
 }
-
 
 
 #define REQUIRE(field, message) do { if(!(data->fields_set & (field))) { data->parse_fail = 1; data->parse_fail_message = (message); return 0; }; accepted = accepted | (field); } while (0)
@@ -759,6 +777,59 @@ static MVMuint64 send_is_execution_suspended_info(MVMThreadContext *dtc, cmp_ctx
     cmp_write_bool(ctx, result);
 }
 
+void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMDebugServerData *debugserver = tc->instance->debugserver;
+    MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
+    MVMDebugServerBreakpointFileTable *found = NULL;
+    MVMDebugServerBreakpointInfo *bp_info = NULL;
+    MVMuint32 index = 0;
+
+    fprintf(stderr, "asked to set a breakpoint for file %s line %d to send id %d\n", argument->file, argument->line, argument->id);
+
+    MVM_debugserver_register_line(tc, argument->file, strlen(argument->file), argument->line, &index);
+
+    uv_mutex_lock(&debugserver->mutex_breakpoints);
+
+    found = &table->files[index];
+
+    /* Create breakpoint first so that if a thread breaks on the activated line
+     * the breakpoint information already exists */
+    if (found->breakpoints_alloc == 0) {
+        found->breakpoints_alloc = 4;
+        found->breakpoints = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
+                found->breakpoints_alloc * sizeof(MVMDebugServerBreakpointInfo));
+    }
+    if (found->breakpoints_used++ > found->breakpoints_alloc) {
+        MVMuint32 old_alloc = found->breakpoints_alloc;
+        found->breakpoints_alloc *= 2;
+        found->breakpoints = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa, found->breakpoints,
+                old_alloc * sizeof(MVMDebugServerBreakpointInfo),
+                found->breakpoints_alloc * sizeof(MVMDebugServerBreakpointInfo));
+        fprintf(stderr, "table for breakpoints increased to %d slots\n", argument->file, found->breakpoints_alloc);
+    }
+
+    bp_info = &found->breakpoints[found->breakpoints_used - 1];
+
+    bp_info->breakpoint_id = argument->id;
+    bp_info->line_no = argument->line;
+    bp_info->shall_suspend = argument->suspend;
+    bp_info->send_backtrace = argument->stacktrace;
+
+    fprintf(stderr, "breakpoint settings: bpid %d lineno %d suspend %d backtrace %d\n", argument->id, argument->line, argument->suspend, argument->stacktrace);
+
+    found->lines_active[argument->line] = 1;
+
+    cmp_write_map(ctx, 3);
+    cmp_write_str(ctx, "id", 2);
+    cmp_write_integer(ctx, argument->id);
+    cmp_write_str(ctx, "type", 4);
+    cmp_write_integer(ctx, MT_SetBreakpointConfirmation);
+    cmp_write_str(ctx, "line", 4);
+    cmp_write_integer(ctx, argument->line);
+
+    uv_mutex_unlock(&debugserver->mutex_breakpoints);
+}
+
 static MVMuint64 allocate_handle(MVMThreadContext *dtc, MVMObject *target) {
     if (!target) {
         return 0;
@@ -1201,6 +1272,9 @@ static bool is_valid_int(cmp_object_t *obj, MVMint64 *result) {
         case CMP_TYPE_SINT64:
             *result = obj->as.s64;
             break;
+        case CMP_TYPE_BOOLEAN:
+            *result = obj->as.boolean;
+            break;
         default:
             return 0;
     }
@@ -1256,6 +1330,18 @@ MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
         } else if (strncmp(key_str, "handle", 15) == 0) {
             FIELD_FOUND(FS_handle_id, "handle field duplicated");
             type_to_parse = 1;
+        } else if (strncmp(key_str, "line", 15) == 0) {
+            FIELD_FOUND(FS_line, "line field duplicated");
+            type_to_parse = 1;
+        } else if (strncmp(key_str, "suspend", 15) == 0) {
+            FIELD_FOUND(FS_suspend, "suspend field duplicated");
+            type_to_parse = 1;
+        } else if (strncmp(key_str, "stacktrace", 15) == 0) {
+            FIELD_FOUND(FS_stacktrace, "stacktrace field duplicated");
+            type_to_parse = 1;
+        } else if (strncmp(key_str, "file", 15) == 0) {
+            FIELD_FOUND(FS_file, "file field duplicated");
+            type_to_parse = 2;
         } else {
             fprintf(stderr, "the hell is a %s?\n", key_str);
             data->parse_fail = 1;
@@ -1284,9 +1370,34 @@ MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
                 case FS_handle_id:
                     data->handle_id = result;
                     break;
+                case FS_line:
+                    data->line = result;
+                    break;
+                case FS_suspend:
+                    data->suspend = result;
+                    break;
+                case FS_stacktrace:
+                    data->stacktrace = result;
+                    break;
                 default:
                     data->parse_fail = 1;
-                    data->parse_fail_message = "Field to set NYI";
+                    data->parse_fail_message = "Int field to set NYI";
+                    return 0;
+            }
+            data->fields_set = data->fields_set | field_to_set;
+        } else if (type_to_parse == 2) {
+            uint32_t strsize = 1024;
+            char *string = MVM_calloc(strsize, sizeof(char));
+            fprintf(stderr, "reading a string for %s\n", key_str);
+            CHECK(cmp_read_str(ctx, string, &strsize), "Couldn't read string for a key");
+
+            switch (field_to_set) {
+                case FS_file:
+                    data->file = string;
+                    break;
+                default:
+                    data->parse_fail = 1;
+                    data->parse_fail_message = "Str field to set NYI";
                     return 0;
             }
             data->fields_set = data->fields_set | field_to_set;
@@ -1406,6 +1517,9 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                         communicate_error(&ctx, &argument);
                     }
                     break;
+                case MT_SetBreakpointRequest:
+                    MVM_debugserver_add_breakpoint(tc, &ctx, &argument);
+                    break;
                 case MT_ObjectAttributesRequest:
                     if (request_object_attributes(tc, &ctx, &argument)) {
                         communicate_error(&ctx, &argument);
@@ -1480,6 +1594,12 @@ void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
     debugserver->handle_table->used      = 0;
     debugserver->handle_table->next_id   = 1;
     debugserver->handle_table->entries   = MVM_calloc(debugserver->handle_table->allocated, sizeof(MVMDebugServerHandleTableEntry));
+
+    debugserver->breakpoints = MVM_malloc(sizeof(MVMDebugServerBreakpointTable));
+
+    debugserver->breakpoints->files_alloc = 32;
+    debugserver->breakpoints->files_used  = 0;
+    debugserver->breakpoints->files       = MVM_calloc(debugserver->breakpoints->files_alloc, sizeof(MVMDebugServerBreakpointFileTable));
 
     debugserver->event_id = 2;
     debugserver->port = port;

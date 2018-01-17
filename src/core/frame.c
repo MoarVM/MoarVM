@@ -106,6 +106,10 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
         MVM_cross_thread_write_instrument(tc, static_frame);
     else if (tc->instance->coverage_logging)
         MVM_line_coverage_instrument(tc, static_frame);
+    else if (tc->instance->debugserver)
+        /* XXX right now the presence of the debugserver switches between
+         * line coverage and breakpoints. */
+        MVM_line_coverage_instrument(tc, static_frame);
     else
         MVM_profile_ensure_uninstrumented(tc, static_frame);
 }

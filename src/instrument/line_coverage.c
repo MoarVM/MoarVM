@@ -4,6 +4,125 @@
 #define snprintf _snprintf
 #endif
 
+static void instrument_graph_with_breakpoints(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    MVMSpeshBB *bb = g->entry->linear_next;
+    MVMuint16 array_slot = 0;
+
+    MVMint32 last_line_number = -2;
+    MVMint32 last_filename = -1;
+
+    char *filename_buf = NULL;
+
+    while (bb) {
+        MVMSpeshIns *ins = bb->first_ins;
+        MVMSpeshIns *breakpoint_ins;
+
+        MVMBytecodeAnnotation *bbba = MVM_bytecode_resolve_annotation(tc, &g->sf->body, bb->initial_pc);
+        MVMint64 line_number = -1;
+        MVMint64 filename_string_index = -1;
+
+        MVMuint32 file_bp_idx;
+
+        if (bbba) {
+            line_number = bbba->line_number;
+            filename_string_index = bbba->filename_string_heap_index;
+            MVM_free(bbba);
+        } else {
+            line_number = -1;
+            bb = bb->linear_next;
+            continue;
+        }
+
+        /* skip PHI instructions, to make sure PHI only occur uninterrupted after start-of-bb */
+        while (ins && ins->info->opcode == MVM_SSA_PHI) {
+            ins = ins->next;
+        }
+        if (!ins) ins = bb->last_ins;
+
+        /* Jumplists require the target BB to start in the goto op.
+         * We must not break this, or we cause the interpreter to derail */
+        if (bb->last_ins->info->opcode == MVM_OP_jumplist) {
+            MVMint16 to_skip = bb->num_succ;
+            for (; to_skip > 0; to_skip--) {
+                bb = bb->linear_next;
+            }
+            continue;
+        }
+
+        if (line_number >= 0) {
+            breakpoint_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+            breakpoint_ins->info        = MVM_op_get_op(MVM_OP_breakpoint);
+            breakpoint_ins->operands    = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+
+            if (last_filename != filename_string_index) {
+                if (filename_buf)
+                    MVM_free(filename_buf);
+                filename_buf = MVM_string_utf8_encode_C_string(tc, MVM_cu_string(tc, g->sf->body.cu, filename_string_index));
+            }
+
+            MVM_debugserver_register_line(tc, filename_buf, strlen(filename_buf), line_number, &file_bp_idx);
+
+            breakpoint_ins->operands[0].lit_i32 = file_bp_idx;
+            breakpoint_ins->operands[1].lit_i32 = line_number;
+
+            last_filename = filename_string_index;
+
+            MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, breakpoint_ins);
+
+            fprintf(stderr, "breakpoint ins inserted for file %d line %d\n", file_bp_idx, line_number);
+        }
+
+        /* Now go through instructions to see if any are annotated with a
+         * precise filename/lineno as well. */
+        while (ins) {
+            MVMSpeshAnn *ann = ins->annotations;
+
+            while (ann) {
+                if (ann->type == MVM_SPESH_ANN_LINENO) {
+                    /* We are very likely to have one instruction here that has
+                     * the same annotation as the bb itself. We skip that one.*/
+                    if (ann->data.lineno.line_number == line_number && ann->data.lineno.filename_string_index == filename_string_index) {
+                        break;
+                    }
+
+                    line_number = ann->data.lineno.line_number;
+                    filename_string_index = ann->data.lineno.filename_string_index;
+
+                    breakpoint_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                    breakpoint_ins->info        = MVM_op_get_op(MVM_OP_breakpoint);
+                    breakpoint_ins->operands    = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+
+                    if (last_filename != filename_string_index) {
+                        if (filename_buf)
+                            MVM_free(filename_buf);
+                        filename_buf = MVM_string_utf8_encode_C_string(tc, MVM_cu_string(tc, g->sf->body.cu, filename_string_index));
+                    }
+
+                    MVM_debugserver_register_line(tc, filename_buf, strlen(filename_buf), line_number, &file_bp_idx);
+
+                    breakpoint_ins->operands[0].lit_i32 = file_bp_idx;
+                    breakpoint_ins->operands[1].lit_i32 = ann->data.lineno.line_number;
+
+                    /* XXX insert breakpoint op here, too, maybe? */
+
+                    fprintf(stderr, "another breakpoint ins inserted for file %d line %d\n", file_bp_idx, line_number);
+
+                    break;
+                }
+
+                ann = ann->next;
+            }
+
+            ins = ins->next;
+        }
+
+        bb = bb->linear_next;
+    }
+
+    if (filename_buf)
+        MVM_free(filename_buf);
+}
+
 static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *bb = g->entry->linear_next;
     MVMuint16 array_slot = 0;
@@ -27,8 +146,8 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
         MVMSpeshIns *log_ins;
 
         MVMBytecodeAnnotation *bbba = MVM_bytecode_resolve_annotation(tc, &g->sf->body, bb->initial_pc);
-        MVMuint32 line_number;
-        MVMuint32 filename_string_index;
+        MVMint64 line_number;
+        MVMint64 filename_string_index;
         if (bbba) {
             line_number = bbba->line_number;
             filename_string_index = bbba->filename_string_heap_index;
@@ -145,7 +264,10 @@ static void add_instrumentation(MVMThreadContext *tc, MVMStaticFrame *sf) {
     MVMSpeshCode  *sc;
     MVMStaticFrameInstrumentation *ins;
     MVMSpeshGraph *sg = MVM_spesh_graph_create(tc, sf, 1, 0);
-    instrument_graph(tc, sg);
+    if (tc->instance->debugserver)
+        instrument_graph_with_breakpoints(tc, sg);
+    else
+        instrument_graph(tc, sg);
     sc = MVM_spesh_codegen(tc, sg);
     ins = MVM_calloc(1, sizeof(MVMStaticFrameInstrumentation));
     ins->instrumented_bytecode        = sc->bytecode;

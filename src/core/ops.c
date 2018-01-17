@@ -11195,9 +11195,22 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         { MVM_operand_str, MVM_operand_int32, MVM_operand_int32, MVM_operand_int64 }
     },
+    {
+        MVM_OP_breakpoint,
+        "breakpoint",
+        ".s",
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_int32, MVM_operand_int32 }
+    },
 };
 
-static const unsigned short MVM_op_counts = 862;
+static const unsigned short MVM_op_counts = 863;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
