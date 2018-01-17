@@ -50,50 +50,71 @@ my $GC_ALIAS_CHECKERS = [];
 my $GENERAL_CATEGORIES = {};
 
 sub trim {
-    my ($s) = @_;
-    $s =~ s/   \s+ $ //xg;
-    $s =~ s/ ^ \s+   //xg;
-    if ($s =~ / ^ \s /x or $s =~ / \s$ /x) {
-        croak "'$s'";
-    }
-    return $s;
+    my ($str) = @_;
+    $str =~ s/   \s+ $ //xmsg;
+    $str =~ s/ ^ \s+   //xmsg;
+    croak "Text for trimming has leading or trailing whitespace:\n'$str'"
+        if $str =~ / (:?^ \s | \s $) /xms;
+    return $str;
 }
+sub trim_trailing {
+    my ($str) = @_;
+    $str =~ s/ \s+ $ //xmg;
+    croak "Text for trimming has leading or trailing whitespace:\n'$str'"
+        if $str =~ / \s $ /xms;
+    return $str;
+}
+# Get the highest version number from the supplied array. Iterate and compare
+# each segment. Ensures if there ever are subversions like 5.0.5 then it will work.
+sub get_highest_version {
+    my ($versions) = @_;
+    my @highest_ver;
+    for my $ver_str (@$versions) {
+        my @ver = split / [.] /x, $ver_str;
+        if (!@highest_ver) {
+            @highest_ver = @ver;
+            next;
+        }
+        for (my $i = 0; $i < @ver; $i++) {
+            if ($highest_ver[$i] < $ver[$i]) {
+                @highest_ver = @ver;
+            }
+            elsif ($highest_ver[$i] == $ver[$i]) {
+                next;
+            }
+            last;
+        }
+    }
+    return join '.', @highest_ver;
+}
+
 sub add_emoji_sequences {
     my $directory = "UNIDATA";
     my @emoji_dirs;
-    my $highest_emoji_version = "";
     # Find all the emoji dirs
     opendir my $UNIDATA_DIR, $directory or croak $!;
-    while (my $file = readdir($UNIDATA_DIR)) {
-        if (-d "$directory/$file" and $file =~ / ^ emoji /x) {
-            push @emoji_dirs, $file;
-            $file =~ s/ ^ emoji- //x;
-            # Get the highest version. Make sure longer values take precidence
-            # so when we hit 10.0 or higher it will work fine.
-            if (length $highest_emoji_version < length $file or (
-                    length $highest_emoji_version < length $file and $highest_emoji_version lt $file)
-            ) {
-                $highest_emoji_version = $file;
-            }
-        }
+    my @versions;
+    while (my $file = readdir $UNIDATA_DIR) {
+        push @versions, $file if -d "$directory/$file" && $file =~ s/ ^ emoji- //x;
     }
-    say "Highest emoji version found is $highest_emoji_version";
     croak "Couldn't find any emoji folders. Please run UCD-download.p6 again"
-        if !@emoji_dirs;
-    for my $folder (@emoji_dirs) {
-        add_unicode_sequence("$folder/emoji-sequences");
-        add_unicode_sequence("$folder/emoji-zwj-sequences");
+        if !@versions;
+    my $highest_emoji_version = get_highest_version(\@versions);
+    say "Highest emoji version found is $highest_emoji_version";
+    for my $version (@versions) {
+        add_unicode_sequence("emoji-$version/emoji-sequences");
+        add_unicode_sequence("emoji-$version/emoji-zwj-sequences");
     }
     return $highest_emoji_version;
 }
-#sub progress($);
+
 sub main {
     $DB_SECTIONS->{'AAA_header'} = header();
     my $highest_emoji_version = add_emoji_sequences();
     add_unicode_sequence('NamedSequences');
-    gen_unicode_sequence_keypairs();
+    $HOUT .= gen_unicode_sequence_keypairs();
     NameAliases();
-    gen_name_alias_keypairs();
+    $HOUT .= gen_name_alias_keypairs();
     # Load all the things
     UnicodeData(
         derived_property('BidiClass', 'Bidi_Class', { L => 0 }, 0),
@@ -167,10 +188,11 @@ sub main {
     my $extents = emit_codepoints_and_planes($FIRST_POINT);
     emit_case_changes($FIRST_POINT);
     emit_codepoint_row_lookup($extents);
-    emit_property_value_lookup($allocated_bitfield_properties);
+    $HOUT .= emit_property_value_lookup($allocated_bitfield_properties);
     emit_names_hash_builder($extents);
     emit_unicode_property_keypairs();
-    emit_unicode_property_value_keypairs();
+    $H_SECTIONS->{num_unicode_property_value_keypairs} = $HOUT .
+        emit_unicode_property_value_keypairs();
     emit_block_lookup();
     emit_composition_lookup();
 
@@ -834,8 +856,7 @@ sub EPVL_gen_pvalue_defines {
         $GCB_h .= "#define $key $value\n";
         $seen{$key} = 1;
     }
-    $HOUT .= $GCB_h;
-    return;
+    return $GCB_h;
 }
 sub emit_property_value_lookup {
     my $allocated = shift;
@@ -981,15 +1002,13 @@ END
     $str_out  .= sprintf $default_return, q("");
     $hout     .= "} MVM_unicode_property_codes;";
 
-    EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_GENERAL_CATEGORY', 'General_Category', 'GC');
-    EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK', 'Grapheme_Cluster_Break', 'GCB');
-    EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE', 'Decomposition_Type', 'DT');
-    EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS', 'Canonical_Combining_Class', 'CCC');
-    EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_NUMERIC_TYPE', 'Numeric_Type', 'Numeric_Type');
-
     $DB_SECTIONS->{MVM_unicode_get_property_int} = $enumtables . $str_out . $int_out;
     $H_SECTIONS->{property_code_definitions} = $hout;
-    return;
+    return EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_GENERAL_CATEGORY', 'General_Category', 'GC') .
+        EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK', 'Grapheme_Cluster_Break', 'GCB') .
+        EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE', 'Decomposition_Type', 'DT') .
+        EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS', 'Canonical_Combining_Class', 'CCC') .
+        EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_NUMERIC_TYPE', 'Numeric_Type', 'Numeric_Type');
 }
 
 sub emit_block_lookup {
@@ -1343,8 +1362,7 @@ sub gen_unicode_sequence_keypairs {
     $enum_table =~ s/ \s* , \s* $ /};/x;
     $enum_table = "static const MVMint32 * uni_seq_enum[$count] = {\n" . $enum_table;
     $DB_SECTIONS->{uni_seq} = $seq_c_hash_str . $string_seq . $enum_table;
-    $HOUT .= "#define num_unicode_seq_keypairs " . $count ."\n";
-    return;
+    return "#define num_unicode_seq_keypairs $count \n";
 }
 sub gen_name_alias_keypairs {
     my $count = 0;
@@ -1363,16 +1381,17 @@ sub gen_name_alias_keypairs {
             $seq_c_hash_str = '';
         }
     }
-    push @seq_c_hash_array, $seq_c_hash_str . "\n";
+    push @seq_c_hash_array, "$seq_c_hash_str\n";
     $seq_c_hash_str = join '    ', @seq_c_hash_array;
     $seq_c_hash_str =~ s/ \s* , \s* $ //x;
-    $seq_c_hash_str .= "\n};";
-    $seq_c_hash_str = "static const MVMUnicodeNamedAlias uni_namealias_pairs[$count] = {\n" .
-        "    $seq_c_hash_str";
-    $seq_c_hash_str = "/* Unicode Name Aliases */\n$seq_c_hash_str";
-    $DB_SECTIONS->{Auni_namealias} = $seq_c_hash_str;
-    $HOUT .= "#define num_unicode_namealias_keypairs $count\n";
-    $HOUT .= <<'END'
+    chomp($DB_SECTIONS->{Auni_namealias} = <<"END");
+/* Unicode Name Aliases */
+static const MVMUnicodeNamedAlias uni_namealias_pairs[$count] = {
+    $seq_c_hash_str
+};
+END
+    return <<"END"
+#define num_unicode_namealias_keypairs $count
 struct MVMUnicodeNamedAlias {
     char *name;
     MVMGrapheme32 codepoint;
@@ -1428,7 +1447,7 @@ sub emit_unicode_property_value_keypairs {
         my $enum = $ENUMERATED_PROPERTIES->{$_}->{enum};
         my $toadd = {};
         for (sort keys %$enum) {
-            my $key = lc "$_";
+            my $key = lc $_;
             $key =~ s/[-_\s]/./xg;
             $toadd->{$key} = $enum->{$_};
         }
@@ -1492,7 +1511,6 @@ sub emit_unicode_property_value_keypairs {
                     last;
                 }
             }
-            $_ = undef;
             unless (defined $value) {
                 print "\nNote: couldn't resolve property $propname property value alias (you can disregard this for now).";
                 return;
@@ -1511,14 +1529,12 @@ sub emit_unicode_property_value_keypairs {
             $done{"$propname$_"} ||= push @lines, $lines{$propname}->{$_};
         }
     }
-    $HOUT .= "\n#define num_unicode_property_value_keypairs " . scalar(@lines) . "\n";
     my $out = "\nstatic MVMUnicodeNameRegistry **unicode_property_values_hashes;\n" .
     "static const MVMUnicodeNamedValue unicode_property_value_keypairs[" . scalar(@lines) . "] = {\n" .
     "    " . stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS) . "\n" .
     "};";
     $DB_SECTIONS->{BBB_unicode_property_value_keypairs} = $out;
-    $H_SECTIONS->{num_unicode_property_value_keypairs}  = $HOUT;
-    return;
+    return "\n#define num_unicode_property_value_keypairs " . scalar(@lines) . "\n";
 }
 
 sub emit_composition_lookup {
@@ -1540,7 +1556,7 @@ sub emit_composition_lookup {
         next unless $decomp_type eq 'Canonical';
 
         # Make an entry.
-        my @decomp = split /\s+/, $decomp_spec;
+        my @decomp = split / \s+ /x, $decomp_spec;
         croak "Canonical decomposition only supports two codepoints" unless @decomp == 2;
         my $plane = 0;
         if (length($decomp[0]) == 5) {
@@ -1739,8 +1755,8 @@ sub UnicodeData {
     });
     register_union('Assigned', 'C[cfosn]|L[lmotu]|M[cen]|N[dlo]|P[cdefios]|S[ckmo]|Z[lps]');
     my $ideograph_start;
-    my $case_count = 1;
-    my $decomp_keys = [ '' ];
+    my $case_count   = 1;
+    my $decomp_keys  = [ '' ];
     my $decomp_index = 1;
     my $s = sub {
         $_ = shift;
@@ -1783,21 +1799,19 @@ sub UnicodeData {
             my $res = $checker->($gencat);
             $point->{$res} = 1 if $res;
         }
-        if ($name =~ /(Ideograph|Syllable|Private|Surrogate)(\s|.)*?First/) {
+        if ($name =~ /(Ideograph|Syllable|Private|Surrogate) (\s|.)*? First/x) {
             $ideograph_start = $point;
-            $point->{name} =~ s/, First//;
+            $point->{name}   =~ s/, First//;
         }
         elsif ($ideograph_start) {
             $point->{name} = $ideograph_start->{name};
-            my $current = $ideograph_start;
-            my $count = $ideograph_start->{code} + 1;
-            while ($count < $point->{code}) {
+            my $current    = $ideograph_start;
+            for (my $count = $ideograph_start->{code} + 1; $count < $point->{code}; $count++) {
                 $current = get_next_point($count, 1);
                 for (sort keys %$ideograph_start) {
                     next if $_ eq "code" || $_ eq "code_str";
                     $current->{$_} = $ideograph_start->{$_};
                 }
-                $count++;
             }
             $ideograph_start = 0;
         }
@@ -1934,12 +1948,10 @@ sub DerivedNormalizationProps {
         elsif (exists $trinary->{$property_name}) {
             $value = $trinary_values->{$value};
         }
-
-        #elsif ($property_name eq 'NFKC_Casefold') { # XXX see how this differs from CaseFolding.txt
+        elsif ($property_name eq 'NFKC_Casefold') { # XXX see how this differs from CaseFolding.txt
         #    my @parts = split ' ', $value;
         #    $value = \@parts;
-        # }
-
+        }
         else {
             return; # deprecated
         }
@@ -1963,7 +1975,7 @@ sub DerivedNormalizationProps {
 sub Jamo {
     my $propname = 'Jamo_Short_Name';
     each_line('Jamo', sub { $_ = shift;
-        my ($code_str, $name) = split /\s*[;#]\s*/;
+        my ($code_str, $name) = split / \s* [#;] \s* /x;
         apply_to_range($code_str, sub {
             my $point = shift;
             $point->{Jamo_Short_Name} = $name;
@@ -2026,7 +2038,7 @@ sub collation {
         return if $line =~ / ^ \s* [#@] /x or $line =~ / ^ \s* $ /x; # Blank/comment lines
         ($code, $temp) = split / [;#]+ /x, $line;
         $code = trim $code;
-        my @codes = split / /, $code;
+        my @codes = split ' ', $code;
         # We support collation for multiple codepoints in ./tools/Generate-Collation-Data.p6
         if (1 < @codes) {
             # For now set MVM_COLLATION_QC = 0 for these cp
