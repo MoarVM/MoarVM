@@ -2391,17 +2391,6 @@ static void eliminate_unused_log_guards(MVMThreadContext *tc, MVMSpeshGraph *g) 
 /* Sometimes - almost always due to other optmimizations having done their
  * work - we end up with an unconditional goto at the end of a basic block
  * that points right to the very next basic block. Delete these. */
-static int any_deopt_annotations(MVMSpeshAnn *ann) {
-    while (ann) {
-        switch (ann->type) {
-            case MVM_SPESH_ANN_DEOPT_ALL_INS:
-            case MVM_SPESH_ANN_DEOPT_INLINE:
-                return 1;
-        }
-        ann = ann->next;
-    }
-    return 0;
-}
 static void eliminate_pointless_gotos(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *cur_bb = g->entry;
     while (cur_bb) {
@@ -2411,7 +2400,6 @@ static void eliminate_pointless_gotos(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 last_ins
                 && last_ins->info->opcode == MVM_OP_goto
                 && last_ins->operands[0].ins_bb == cur_bb->linear_next
-                && ! any_deopt_annotations(last_ins->annotations)
             ) {
                 if (last_ins == cur_bb->first_ins) // May not throw away the only instruction
                     last_ins->info = MVM_op_get_op(MVM_OP_no_op);
