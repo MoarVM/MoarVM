@@ -268,7 +268,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
     MVMint32        i, orig_inlines, total_inlines, orig_deopt_addrs;
-    MVMuint32       total_handlers = inliner->num_handlers + inlinee->num_handlers;
+    MVMuint32       total_handlers = inliner->num_handlers + inlinee->num_handlers + 1;
     MVMSpeshBB     *inlinee_first_bb = NULL, *inlinee_last_bb = NULL;
 
     /* If the inliner and inlinee are from different compilation units, we
@@ -512,7 +512,6 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 
     /* Merge unreachable handlers array if needed. */
     if (inliner->unreachable_handlers || inlinee->unreachable_handlers) {
-        MVMuint32 total_handlers = inliner->num_handlers + inlinee->num_handlers + 1;
         MVMint8 *new_uh = MVM_spesh_alloc(tc, inliner, total_handlers);
         if (inlinee->unreachable_handlers)
             memcpy(new_uh, inlinee->unreachable_handlers,
@@ -524,7 +523,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     }
 
     /* Merge handlers from inlinee. */
-    resize_handlers_table(tc, inliner, total_handlers + 1);
+    resize_handlers_table(tc, inliner, total_handlers);
 
     if (inliner->num_handlers > 0)
         memmove(inliner->handlers + inlinee->num_handlers + 1, inliner->handlers,
