@@ -1151,7 +1151,6 @@ END
 
 sub emit_unicode_property_keypairs {
     my @lines = ();
-    my @v2a;
     each_line('PropertyAliases', sub { $_ = shift;
         my @aliases = split / \s* [#;] \s* /x;
         for my $name (@aliases) {
@@ -1187,9 +1186,9 @@ sub emit_unicode_property_keypairs {
             if (($parts[0] eq 'Y' || $parts[0] eq 'N') && ($parts[1] eq 'Yes' || $parts[1] eq 'No')) {
                 my $prop_val = $PROP_NAMES->{$propname};
                 for ($propname, @{$aliases{$propname} // []}) {
-                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
-                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if s/_//g;
-                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if y/A-Z/a-z/;
+                    do_for_each_case($_, sub { $_ = shift;
+                        $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
+                    });
                 }
                 return
             }
@@ -1199,15 +1198,15 @@ sub emit_unicode_property_keypairs {
                 my $prop_val;
                 if (exists $BINARY_PROPERTIES->{$unionname}) {
                     $prop_val = $BINARY_PROPERTIES->{$unionname}->{field_index};
-                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
-                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if s/_//g;
-                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if y/A-Z/a-z/;
+                    do_for_each_case($_, sub { $_ = shift;
+                        $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
+                    });
                 }
                 $prop_val = $PROP_NAMES->{$propname};
                 for (@parts) {
-                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
-                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if s/_//g;
-                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if y/A-Z/a-z/;
+                    do_for_each_case($_, sub { $_ = shift;
+                        $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
+                    });
                 }
             }
             else {
@@ -1222,37 +1221,34 @@ sub emit_unicode_property_keypairs {
     for my $propname (qw(_custom_ gc sc), sort keys %lines) {
         for (sort keys %{$lines{$propname}}) {
             # For Letter etc other unions
-            if (/[#]/) {
+            if (/ [#] /x) {
                 my $value = $lines{$propname}{$_};
-                my $old   = $_;
-                my $orig = $_;
+                my ($old, $orig) = ($_) x 2;
                 $old =~ s/ [#] .* //x;
                 my @a = split / \s* ; \s* /x, $old;
                 my $pname = shift @a;
                 for my $name (@a) {
                     $name = trim $name;
                     my $v2 = $value;
-                    $v2 =~ s/".*"/"$name"/;
-                    push @v2a, $v2;
+                    $v2 =~ s/ " .* " /"$name"/x;
                     $lines{$propname}{$name} = $v2;
                     # NEEDED
-                    $done{"$name"} = push @lines, $v2;
+                    $done{$name} = push @lines, $v2;
                 }
             }
             else {
-                $done{"$_"} ||= push @lines, $lines{$propname}->{$_};
+                $done{$_} ||= push @lines, $lines{$propname}->{$_};
             }
         }
     }
     for my $key (qw(gc sc), sort keys %$PROP_NAMES) {
-        $_ = $key;
-        $done{"$_"} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}";
-        $done{"$_"} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}" if s/_//g;
-        $done{"$_"} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}" if y/A-Z/a-z/;
-        for (@{ $aliases{$key} }) {
+        do_for_each_case($key, sub { $_ = shift;
             $done{"$_"} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}";
-            $done{"$_"} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}" if s/_//g;
-            $done{"$_"} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}" if y/A-Z/a-z/;
+        });
+        for (@{ $aliases{$key} }) {
+            do_for_each_case($_, sub { $_ = shift;
+                $done{"$_"} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}";
+            });
         }
     }
     # Reverse the @lines array so that later added entries take precedence
@@ -1276,20 +1272,18 @@ END
 sub add_unicode_sequence {
     my ($filename) = @_;
     each_line($filename, sub { my $line = shift;
-        if ( $line =~ /^#/ or $line =~ /^\s*$/) {
-            return;
-        }
+        return if $line =~ /^ [#] /x or $line =~ /^ \s* $/x;
         my (@list, $hex_ords, $type, $name);
-        @list = split /;|   \#/, $line;
-        if ($filename =~ /emoji/) {
+        @list = split / ; | \s{3}[#] /x, $line;
+        if ($filename =~ / emoji /x) {
             $hex_ords = trim shift @list;
-            $type = trim shift @list;
-            $name = trim shift @list;
+            $type     = trim shift @list;
+            $name     = trim shift @list;
         }
         else {
-            $name = trim shift @list;
+            $name     = trim shift @list;
             $hex_ords = trim shift @list;
-            $type = 'NamedSequences';
+            $type     = 'NamedSequences';
         }
         #\x{23} => chr 0x24
         # It's possible there could be hex unicode digits. In that case convert
@@ -1303,7 +1297,7 @@ sub add_unicode_sequence {
         $name = uc $name;
         # Emoji sequences have commas in some and these cannot be included
         # since they seperate seperate named items in ISO notation that P6 uses
-        $name =~ s/,//g;
+        $name =~ s/,//xg;
         $SEQUENCES->{$name}->{'type'} = $type;
         # Only push if we haven't seen this already
         if (!$SEQUENCES->{$name}->{'ords'}) {
@@ -1316,11 +1310,10 @@ sub add_unicode_sequence {
 }
 sub gen_unicode_sequence_keypairs {
     my $count = 0;
-    my $string_seq;
     my $seq_c_hash_str;
     my @seq_c_hash_array;
     my $enum_table;
-    $string_seq .= "/* Unicode sequences such as Emoji sequences */\n";
+    my $string_seq = "/* Unicode sequences such as Emoji sequences */\n";
     for my $thing ( sort keys %$SEQUENCES ) {
         my $seq_name = "uni_seq_$count";
         $string_seq .=  "static const MVMint32 $seq_name" . "[] = {";
@@ -1343,11 +1336,11 @@ sub gen_unicode_sequence_keypairs {
     }
     push @seq_c_hash_array, $seq_c_hash_str . "\n";
     $seq_c_hash_str = join '    ', @seq_c_hash_array;
-    $seq_c_hash_str =~ s/\s*,\s*$//;
+    $seq_c_hash_str =~ s/ \s* , \s* $ //x;
     $seq_c_hash_str .= "\n};";
     $seq_c_hash_str = "static const MVMUnicodeNamedValue uni_seq_pairs[$count] = {\n    " . $seq_c_hash_str;
 
-    $enum_table =~ s/\s*,\s*$/};/;
+    $enum_table =~ s/ \s* , \s* $ /};/x;
     $enum_table = "static const MVMint32 * uni_seq_enum[$count] = {\n" . $enum_table;
     $DB_SECTIONS->{uni_seq} = $seq_c_hash_str . $string_seq . $enum_table;
     $HOUT .= "#define num_unicode_seq_keypairs " . $count ."\n";
@@ -1360,8 +1353,8 @@ sub gen_name_alias_keypairs {
     for my $thing ( sort keys %$ALIAS_TYPES ) {
         my $ord_data;
         my $ord = $ALIAS_TYPES->{$thing}->{'code'};
-        $ord_data .= '0x' . uc sprintf("%x", $ord) . ',';
-        $seq_c_hash_str .= '{"' . $thing . '",' . $ord_data . (length $thing) . '},';
+        $ord_data .= sprintf '0x%X,', $ord;
+        $seq_c_hash_str .= qq({"$thing",$ord_data) . length($thing) . '},';
         $ord_data =~ s/ , $ //x;
         my $type = $ALIAS_TYPES->{$thing}->{'type'};
         $count++;
@@ -1389,23 +1382,21 @@ typedef struct MVMUnicodeNamedAlias MVMUnicodeNamedAlias;
 END
 }
 
-# XXX Change name of this function
-sub hash_thing {
+sub set_lines_for_each_case {
     my ($default, $propname, $prop_val, $hash, $maybe_propcode) = @_;
-    $_ = $default;
     my $propcode = $maybe_propcode // $PROP_NAMES->{$propname} // $PROP_NAMES->{$default} // croak;
     # Workaround to 'space' not getting added here
     $hash->{$propname}->{space} = "{\"$propcode-space\",$prop_val}"
         if $default eq 'White_Space' and $propname eq '_custom_';
-    $hash->{$propname}->{$_} = "{\"$propcode-$_\",$prop_val}";
-    $hash->{$propname}->{$_} = "{\"$propcode-$_\",$prop_val}" if s/_//g;
-    $hash->{$propname}->{$_} = "{\"$propcode-$_\",$prop_val}" if y/A-Z/a-z/;
+    do_for_each_case($default, sub { $_ = shift;
+        $hash->{$propname}->{$_} = "{\"$propcode-$_\",$prop_val}";
+    });
     return $propcode;
 }
-sub thingy {
+sub do_for_each_case {
     my ($str, $sub) = @_;
     $sub->($str);
-    $sub->($str) if $str =~ s/_//g;
+    $sub->($str) if $str =~ s/_//xg;
     $sub->($str) if $str =~ y/A-Z/a-z/;
     return $str;
 }
@@ -1416,7 +1407,7 @@ sub emit_unicode_property_value_keypairs {
     my %aliases;
     for my $property (sort keys %$BINARY_PROPERTIES) {
         my $prop_val = ($PROP_NAMES->{$property} << 24) + 1;
-        my $propcode = hash_thing($property, '_custom_', $prop_val, \%lines);
+        my $propcode = set_lines_for_each_case($property, '_custom_', $prop_val, \%lines);
         my $lc_thing = lc $property;
         my %stuff = (
             c => ['Other'],
@@ -1429,7 +1420,7 @@ sub emit_unicode_property_value_keypairs {
             );
         if (defined $stuff{$lc_thing}) {
             for my $t (@{$stuff{$lc_thing}}) {
-                hash_thing($t, '_custom_', $prop_val, \%lines, $propcode)
+                set_lines_for_each_case($t, '_custom_', $prop_val, \%lines, $propcode)
             }
         }
     }
@@ -1466,7 +1457,7 @@ sub emit_unicode_property_value_keypairs {
             if (($parts[0] eq 'Y' || $parts[0] eq 'N') && ($parts[1] eq 'Yes' || $parts[1] eq 'No')) {
                 $prop_val++; # one bit width
                 for ($propname, ($aliases{$propname} // ())) {
-                    hash_thing($_, $propname, $prop_val, \%lines);
+                    set_lines_for_each_case($_, $propname, $prop_val, \%lines);
                 }
                 return
             }
@@ -1477,8 +1468,8 @@ sub emit_unicode_property_value_keypairs {
                     my $prop_val = $BINARY_PROPERTIES->{$unionname}->{field_index} << 24;
                     my $value    = $BINARY_PROPERTIES->{$unionname}->{bit_width};
                     for my $i (@parts) {
-                        hash_thing($i, $propname, $prop_val + $value, \%lines);
-                        thingy($i, sub { $_ = shift;
+                        set_lines_for_each_case($i, $propname, $prop_val + $value, \%lines);
+                        do_for_each_case($i, sub { $_ = shift;
                             $done{"$propname$_"} = push @lines, $lines{$propname}->{$_};
                         });
                         $_ = $i; # For the conditional / ^ letter $ /x below
@@ -1494,21 +1485,22 @@ sub emit_unicode_property_value_keypairs {
             my $value;
             for (@parts) {
                 my $alias = $_;
-                $alias    =~ s/[_\-\s]/./g;
+                $alias    =~ s/[-_\s]/./xg;
                 $alias    = lc($alias);
                 if (exists $enum->{$alias}) {
                     $value = $enum->{$alias};
                     last;
                 }
             }
+            $_ = undef;
             unless (defined $value) {
                 print "\nNote: couldn't resolve property $propname property value alias (you can disregard this for now).";
                 return;
             }
             for (@parts) {
-                s/[\-\s]/./g;
-                next if /[\.\|]/;
-                hash_thing($_, $propname, $prop_val + $value, \%lines);
+                s/[-\s]/./xg;
+                next if /[.|]/x;
+                set_lines_for_each_case($_, $propname, $prop_val + $value, \%lines);
             }
         }
     }, 1);
