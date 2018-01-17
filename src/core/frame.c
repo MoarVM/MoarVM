@@ -1384,7 +1384,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 MVMint32 i;
                 for (i = 0; i < cand->num_inlines; i++) {
                     icost++;
-                    if (ret_offset >= cand->inlines[i].start && ret_offset < cand->inlines[i].end) {
+                    if (ret_offset >= cand->inlines[i].start && ret_offset <= cand->inlines[i].end) {
                         MVMStaticFrame *isf = cand->inlines[i].sf;
                         if ((lexical_names = isf->body.lexical_names)) {
                             MVMLexicalRegistry *entry;
