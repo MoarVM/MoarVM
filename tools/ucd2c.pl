@@ -1390,7 +1390,7 @@ END
 }
 
 # XXX Change name of this function
-sub thing {
+sub hash_thing {
     my ($default, $propname, $prop_val, $hash, $maybe_propcode) = @_;
     $_ = $default;
     my $propcode = $maybe_propcode // $PROP_NAMES->{$propname} // $PROP_NAMES->{$default} // croak;
@@ -1402,6 +1402,13 @@ sub thing {
     $hash->{$propname}->{$_} = "{\"$propcode-$_\",$prop_val}" if y/A-Z/a-z/;
     return $propcode;
 }
+sub thingy {
+    my ($str, $sub) = @_;
+    $sub->($str);
+    $sub->($str) if $str =~ s/_//g;
+    $sub->($str) if $str =~ y/A-Z/a-z/;
+    return $str;
+}
 sub emit_unicode_property_value_keypairs {
     my @lines = ();
     my $property;
@@ -1409,7 +1416,7 @@ sub emit_unicode_property_value_keypairs {
     my %aliases;
     for my $property (sort keys %$BINARY_PROPERTIES) {
         my $prop_val = ($PROP_NAMES->{$property} << 24) + 1;
-        my $propcode = thing($property, '_custom_', $prop_val, \%lines);
+        my $propcode = hash_thing($property, '_custom_', $prop_val, \%lines);
         my $lc_thing = lc $property;
         my %stuff = (
             c => ['Other'],
@@ -1422,7 +1429,7 @@ sub emit_unicode_property_value_keypairs {
             );
         if (defined $stuff{$lc_thing}) {
             for my $t (@{$stuff{$lc_thing}}) {
-                thing($t, '_custom_', $prop_val, \%lines, $propcode)
+                hash_thing($t, '_custom_', $prop_val, \%lines, $propcode)
             }
         }
     }
@@ -1459,7 +1466,7 @@ sub emit_unicode_property_value_keypairs {
             if (($parts[0] eq 'Y' || $parts[0] eq 'N') && ($parts[1] eq 'Yes' || $parts[1] eq 'No')) {
                 $prop_val++; # one bit width
                 for ($propname, ($aliases{$propname} // ())) {
-                    thing($_, $propname, $prop_val, \%lines);
+                    hash_thing($_, $propname, $prop_val, \%lines);
                 }
                 return
             }
@@ -1469,22 +1476,20 @@ sub emit_unicode_property_value_keypairs {
                 if (exists $BINARY_PROPERTIES->{$unionname}) {
                     my $prop_val = $BINARY_PROPERTIES->{$unionname}->{field_index} << 24;
                     my $value    = $BINARY_PROPERTIES->{$unionname}->{bit_width};
-                    for (@parts) {
-                        #croak Dumper @parts;
-                        my $i = $_;
-                        thing($i, $propname, $prop_val + $value, \%lines);
-                        $_ = $i;
-                        $done{"$propname$_"} = push @lines, $lines{$propname}->{$_};
-                        $done{"$propname$_"} = push @lines, $lines{$propname}->{$_} if s/_//g;
-                        $done{"$propname$_"} = push @lines, $lines{$propname}->{$_} if y/A-Z/a-z/;
+                    for my $i (@parts) {
+                        hash_thing($i, $propname, $prop_val + $value, \%lines);
+                        thingy($i, sub { $_ = shift;
+                            $done{"$propname$_"} = push @lines, $lines{$propname}->{$_};
+                        });
+                        $_ = $i; # For the conditional / ^ letter $ /x below
                     }
                     croak Dumper($propname) if / ^ letter $ /x;
                 }
                 return
             }
-            my $key = $PROP_CODES->{$propname};
+            my $key   = $PROP_CODES->{$propname};
             my $found = 0;
-            my $enum = $ALL_PROPERTIES->{$key}->{'enum'};
+            my $enum  = $ALL_PROPERTIES->{$key}->{'enum'};
             croak $propname unless $enum;
             my $value;
             for (@parts) {
@@ -1496,7 +1501,6 @@ sub emit_unicode_property_value_keypairs {
                     last;
                 }
             }
-            #croak Dumper($enum) unless defined $value;
             unless (defined $value) {
                 print "\nNote: couldn't resolve property $propname property value alias (you can disregard this for now).";
                 return;
@@ -1504,7 +1508,7 @@ sub emit_unicode_property_value_keypairs {
             for (@parts) {
                 s/[\-\s]/./g;
                 next if /[\.\|]/;
-                thing($_, $propname, $prop_val + $value, \%lines);
+                hash_thing($_, $propname, $prop_val + $value, \%lines);
             }
         }
     }, 1);
