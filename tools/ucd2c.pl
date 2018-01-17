@@ -192,7 +192,7 @@ sub main {
 sub thousands {
     my $in = shift;
     $in = reverse "$in"; # stringify or copy the string
-    $in =~ s/(\d\d\d)(?=\d)/$1,/g;
+    $in =~ s/ (\d\d\d) (?= \d) /$1,/xg;
     return reverse($in);
 }
 
@@ -308,7 +308,7 @@ sub binary_props {
     # process a file, extracting binary properties and applying them to ranges
     my ($fname) = @_; # filename
     each_line($fname, sub { $_ = shift;
-        my ($range, $pname) = split /\s*[;#]\s*/; # range, property name
+        my ($range, $pname) = split / \s* [;#] \s* /x; # range, property name
         register_binary_property($pname); # define the property
         apply_to_range($range, sub {
             my $point = shift;
@@ -363,7 +363,7 @@ sub derived_property {
     # wrap the provided object as the enum key in a new one
     $base = { enum => $base, name => $pname };
     each_line("extracted/Derived$fname", sub { $_ = shift;
-        my ($range, $class) = split /\s*[;#]\s*/;
+        my ($range, $class) = split / \s* [;#] \s* /x;
         unless (exists $base->{enum}->{$class}) {
             # haven't seen this property's value before
             # add it, and give it an index.
@@ -538,24 +538,24 @@ sub compute_properties {
 
 sub emit_binary_search_algorithm {
     # $extents is arrayref to the heads of the gaps, spans, and
-    # normal stretches of codepoints. $first and $last are the
+    # normal stretches of codepoints. $low and $high are the
     # indexes into $extents we're supposed to subdivide.
     # protocol: start output with a newline; don't end with a newline or indent
-    my ($extents, $first, $mid, $last, $indent) = @_;
-    #${indent} /* got  $first  $mid  $last  */\n";
-    return emit_extent_fate($extents->[$first], $indent) if $first == $last;
-    $mid = $last if $first == $mid;
-    my $new_mid_high = int(($last + $mid) / 2);
-    my $new_mid_low = int(($mid - 1 + $first) / 2);
-    my $high = emit_binary_search_algorithm($extents, $mid, $new_mid_high,
-        $last, "    $indent");
-    my $low = emit_binary_search_algorithm($extents, $first, $new_mid_low,
+    my ($extents, $low, $mid, $high, $indent) = @_;
+    #${indent} /* got  $low  $mid  $high  */\n";
+    return emit_extent_fate($extents->[$low], $indent) if $low == $high;
+    $mid = $high if $low == $mid;
+    my $new_mid_high = int(($high + $mid) / 2);
+    my $new_mid_low = int(($mid - 1 + $low) / 2);
+    my $high_str = emit_binary_search_algorithm($extents, $mid, $new_mid_high,
+        $high, "    $indent");
+    my $low_str = emit_binary_search_algorithm($extents, $low, $new_mid_low,
         $mid - 1, "    $indent");
     my $rtrn = sprintf( <<"END", $extents->[$mid]->{code}, ($extents->[$mid]->{name} || 'NULL'));
 
-${indent}if (codepoint >= 0x%X) { /* %s */$high
+${indent}if (codepoint >= 0x%X) { /* %s */$high_str
 ${indent}}
-${indent}else {$low
+${indent}else {$low_str
 ${indent}}
 END
     chomp $rtrn;
@@ -581,8 +581,8 @@ sub add_extent {
     my ($extents, $extent) = @_;
     if ($DEBUG) {
         $LOG .= "\n" . join '',
-            grep { /code|fate|name|bitfield/ }
-                sort(split /^/m, "EXTENT " . Dumper($extent));
+            grep { / code | fate | name | bitfield /x }
+                sort(split / ^ /xm, "EXTENT " . Dumper($extent));
     }
     push @$extents, $extent;
     return;
@@ -661,7 +661,7 @@ sub emit_codepoints_and_planes {
                 # catch up to last code
                 $last_point = $last_point->{next_point};
                  # occasionally change NULL to the name to cut name search time
-                if ($last_point->{name} =~ /^</ && $usually++ % 25) {
+                if ($last_point->{name} =~ / ^ [<] /x && $usually++ % 25) {
                     ecap_push_name_line(undef, $last_point, \@bitfield_index_lines, \$bytes, \$index, 1);
                 }
                 else {
@@ -726,7 +726,11 @@ sub emit_codepoint_row_lookup {
         }
         $i++;
     }
-    my $out = 'static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint64 codepoint) {
+    my $plane_0      = emit_binary_search_algorithm($extents, 0, 1, $SMP_start - 1, "        ");
+    my $other_planes = emit_binary_search_algorithm($extents, $SMP_start,
+        int(($SMP_start + @$extents - 1)/2), @$extents - 1, "            ");
+    chomp(my $out = <<'END');
+static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint64 codepoint) {
 
     MVMint32 plane = codepoint >> 16;
 
@@ -737,19 +741,18 @@ sub emit_codepoint_row_lookup {
             -codepoint, tc->instance->nfg->num_synthetics);
     }
 
-    if (plane == 0) {'
-    . emit_binary_search_algorithm($extents, 0, 1, $SMP_start - 1, "        ") . '
+    if (plane == 0) {%s
     }
     else {
         if (plane < 0 || plane > 16 || codepoint > 0x10FFFD) {
             return -1;
         }
-        else {' . emit_binary_search_algorithm($extents, $SMP_start,
-            int(($SMP_start + @$extents - 1)/2), @$extents - 1, "            ") . '
+        else {%s
         }
     }
-}';
-    $DB_SECTIONS->{codepoint_row_lookup} = $out;
+}
+END
+    $DB_SECTIONS->{codepoint_row_lookup} = sprintf $out, $plane_0, $other_planes;
     return;
 }
 
@@ -1173,7 +1176,7 @@ sub emit_unicode_property_keypairs {
     my %done;
     my %lines;
     each_line('PropertyValueAliases', sub { $_ = shift;
-        if (/^# (\w+) \((\w+)\)/) {
+        if (/ ^ [#] \s (\w+) \s [(] (\w+) [)] /x) {
             $aliases{$2} = [$1];
             return
         }
@@ -1190,7 +1193,7 @@ sub emit_unicode_property_keypairs {
                 }
                 return
             }
-            if ($parts[-1] =~ /\|/) { # it's a union
+            if ($parts[-1] =~ / [|] /x) { # it's a union
                 pop @parts;
                 my $unionname = $parts[0];
                 my $prop_val;
