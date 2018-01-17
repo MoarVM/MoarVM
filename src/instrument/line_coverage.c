@@ -68,8 +68,6 @@ static void instrument_graph_with_breakpoints(MVMThreadContext *tc, MVMSpeshGrap
             last_filename = filename_string_index;
 
             MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, breakpoint_ins);
-
-            fprintf(stderr, "breakpoint ins inserted for file %d line %d\n", file_bp_idx, line_number);
         }
 
         /* Now go through instructions to see if any are annotated with a
@@ -104,8 +102,6 @@ static void instrument_graph_with_breakpoints(MVMThreadContext *tc, MVMSpeshGrap
                     breakpoint_ins->operands[1].lit_i32 = ann->data.lineno.line_number;
 
                     /* XXX insert breakpoint op here, too, maybe? */
-
-                    fprintf(stderr, "another breakpoint ins inserted for file %d line %d\n", file_bp_idx, line_number);
 
                     break;
                 }
