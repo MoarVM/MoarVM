@@ -2411,6 +2411,60 @@ static void eliminate_pointless_gotos(MVMThreadContext *tc, MVMSpeshGraph *g) {
     }
 }
 
+static void merge_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    MVMSpeshBB *bb = g->entry;
+    MVMint32 orig_bbs = g->num_bbs;
+    if (!bb || !bb->linear_next) return; /* looks like there's only a single bb anyway */
+    bb = bb->linear_next;
+
+    while (bb->linear_next) {
+        if (bb->num_succ == 1 && bb->succ[0] == bb->linear_next && bb->linear_next->num_pred == 1 && !bb->inlined && !bb->linear_next->inlined) {
+            if (bb->linear_next->first_ins) {
+                bb->linear_next->first_ins->prev = bb->last_ins;
+                if (bb->last_ins) {
+                    bb->last_ins->next = bb->linear_next->first_ins;
+                    bb->last_ins->next->prev = bb->last_ins;
+                    bb->last_ins = bb->linear_next->last_ins;
+                }
+                else {
+                    bb->first_ins = bb->linear_next->first_ins;
+                    bb->last_ins = bb->linear_next->last_ins;
+                }
+                bb->linear_next->first_ins = bb->linear_next->last_ins = NULL;
+            }
+            if (bb->linear_next->num_succ) {
+                MVMSpeshBB **succ = MVM_spesh_alloc(tc, g, (bb->num_succ - 1 + bb->linear_next->num_succ) * sizeof(MVMSpeshBB *));
+                int i, j = 0;
+                for (i = 0; i < bb->num_succ; i++)
+                    if (bb->succ[i] != bb->linear_next)
+                        succ[j++] = bb->succ[i];
+                for (i = 0; i < bb->linear_next->num_succ; i++)
+                    succ[j++] = bb->linear_next->succ[i];
+                bb->succ = succ;
+            }
+            bb->num_succ--;
+            bb->num_succ += bb->linear_next->num_succ;
+
+            bb->linear_next = bb->linear_next->linear_next;
+            g->num_bbs--;
+        }
+        else {
+            bb = bb->linear_next;
+        }
+    }
+
+    /* Re-number BBs so we get sequential ordering again. */
+    if (g->num_bbs != orig_bbs) {
+        MVMint32    new_idx  = 0;
+        MVMSpeshBB *cur_bb   = g->entry;
+        while (cur_bb) {
+            cur_bb->idx = new_idx;
+            new_idx++;
+            cur_bb = cur_bb->linear_next;
+        }
+    }
+}
+
 /* Drives the overall optimization work taking place on a spesh graph. */
 void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p) {
     /* Before starting, we eliminate dead basic blocks that were tossed by
@@ -2426,6 +2480,8 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
     eliminate_unused_log_guards(tc, g);
     eliminate_pointless_gotos(tc, g);
     eliminate_dead_ins(tc, g);
+
+    merge_bbs(tc, g);
 
     /* Make a second pass through the graph doing things that are better
      * done after inlinings have taken place. The dominance tree is first
