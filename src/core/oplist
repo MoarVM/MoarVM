@@ -5,12 +5,12 @@
 #
 # IMPORTANT NOTE: MoarVM is meant to be able to read bytecode files
 # from some number of versions back. This means that new ops should,
-# in general, always be added *at the end* of this file, so they get
-# new numbers. Similarly, do not remove an op; rename it DEPRECATED_n
-# (where n is unique for each one). Otherwise the numbering of those
-# after it will be broken. The alternative is writing a bunch of very
-# boring mapping code and rendering old bytecode impossible to simply
-# run from the mmap'd file.
+# in general, always be added *at the end* of this file (but before
+# spesh ops), so they get new numbers. Similarly, do not remove an
+# op; rename it DEPRECATED_n (where n is unique for each one).
+# Otherwise the numbering of those after it will be broken. The
+# alternative is writing a bunch of very boring mapping code and
+# rendering old bytecode impossible to simply run from the mmap'd file.
 #
 # The exception to this rule is the spesh ops, which must come at the
 # very end of the file, and since they are never emitted into bytecode
