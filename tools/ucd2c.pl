@@ -20,48 +20,39 @@ binmode STDOUT, ':encoding(UTF-8)';
 binmode STDERR, ':encoding(UTF-8)';
 my $LOG;
 # All globals should use UPPERCASE
-my @NAME_LINES;
 my $DB_SECTIONS = {};
-my $SEQUENCES = {};
-my $HOUT = "";
 my $H_SECTIONS = {};
 my @POINTS_SORTED;
 my $POINTS_BY_CODE = {};
-my $ENUMERATED_PROPERTIES = {};
-my $BINARY_PROPERTIES = {};
-my $FIRST_POINT = undef;
 my $ALIASES = {};
 my $ALIAS_TYPES = {};
 my $PROP_NAMES = {};
-my $NAMED_SEQUENCES = {};
 my $BITFIELD_TABLE = [];
-my $PROP_CODES = {};
 my $ALL_PROPERTIES = {};
+my $ENUMERATED_PROPERTIES = {};
+my $BINARY_PROPERTIES = {};
+my $GENERAL_CATEGORIES = {};
 my $PROPERTY_INDEX = 0;
+# Estimated total bytes is only calculated for bitfield and names
 my $ESTIMATED_TOTAL_BYTES = 0;
 my $TOTAL_BYTES_SAVED = 0;
+# Constants
 my $WRAP_TO_COLUMNS = 120;
 my $COMPRESS_CODEPOINTS = 1;
 my $GAP_LENGTH_THRESHOLD = 1000;
 my $SPAN_LENGTH_THRESHOLD = 100;
 my $SKIP_MOST_MODE = 0;
 my $BITFIELD_CELL_BITWIDTH = 32;
-my $GC_ALIAS_CHECKERS = [];
-my $GENERAL_CATEGORIES = {};
 
 sub trim {
     my ($str) = @_;
     $str =~ s/   \s+ $ //xmsg;
     $str =~ s/ ^ \s+   //xmsg;
-    croak "Text for trimming has leading or trailing whitespace:\n'$str'"
-        if $str =~ / (:?^ \s | \s $) /xms;
     return $str;
 }
 sub trim_trailing {
     my ($str) = @_;
-    $str =~ s/ \s+ $ //xmg;
-    croak "Text for trimming has leading or trailing whitespace:\n'$str'"
-        if $str =~ / \s $ /xms;
+    $str =~ s/ [ \t]+ $ //xmsg;
     return $str;
 }
 # Get the highest version number from the supplied array. Iterate and compare
@@ -89,8 +80,8 @@ sub get_highest_version {
 }
 
 sub add_emoji_sequences {
+    my ($named_sequences) = @_;
     my $directory = "UNIDATA";
-    my @emoji_dirs;
     # Find all the emoji dirs
     opendir my $UNIDATA_DIR, $directory or croak $!;
     my @versions;
@@ -102,19 +93,21 @@ sub add_emoji_sequences {
     my $highest_emoji_version = get_highest_version(\@versions);
     say "Highest emoji version found is $highest_emoji_version";
     for my $version (@versions) {
-        add_unicode_sequence("emoji-$version/emoji-sequences");
-        add_unicode_sequence("emoji-$version/emoji-zwj-sequences");
+        add_unicode_sequence("emoji-$version/emoji-sequences", $named_sequences);
+        add_unicode_sequence("emoji-$version/emoji-zwj-sequences", $named_sequences);
     }
     return $highest_emoji_version;
 }
 
 sub main {
     $DB_SECTIONS->{'AAA_header'} = header();
-    my $highest_emoji_version = add_emoji_sequences();
-    add_unicode_sequence('NamedSequences');
-    $HOUT .= gen_unicode_sequence_keypairs();
+    # For adding Emoji and standard sequences to
+    my $named_sequences = {};
+    my $highest_emoji_version = add_emoji_sequences($named_sequences);
+    add_unicode_sequence('NamedSequences', $named_sequences);
+    my $hout = emit_unicode_sequence_keypairs($named_sequences);
     NameAliases();
-    $HOUT .= gen_name_alias_keypairs();
+    $hout .= gen_name_alias_keypairs();
     # Load all the things
     UnicodeData(
         derived_property('BidiClass', 'Bidi_Class', { L => 0 }, 0),
@@ -161,7 +154,6 @@ sub main {
     enumerated_property('HangulSyllableType',
         'Hangul_Syllable_Type', { Not_Applicable => 0 }, 1);
     enumerated_property('LineBreak', 'Line_Break', { XX => 0 }, 1);
-    NamedSequences();
     binary_props('PropList');
     enumerated_property('Scripts', 'Script', { Unknown => 0 }, 1);
     # XXX StandardizedVariants.txt # no clue what this is
@@ -173,26 +165,26 @@ sub main {
 
     # Allocate all the things
     progress("done.\nsetting next_point for codepoints");
-    set_next_points();
+    my $first_point = set_next_points();
     progress("done.\nallocating bitfield...");
-    my $allocated_bitfield_properties = allocate_bitfield();
+    my $allocated_bitfield_properties = allocate_bitfield($first_point);
     # Compute all the things
     progress("done.\ncomputing all properties...");
     compute_properties($allocated_bitfield_properties);
     # Make the things less
     progress("...done.\ncomputing collapsed properties table...");
-    compute_bitfield($FIRST_POINT);
+    compute_bitfield($first_point);
     # Emit all the things
     progress("...done.\nemitting unicode_db.c...");
-    emit_bitfield($FIRST_POINT);
-    my $extents = emit_codepoints_and_planes($FIRST_POINT);
-    emit_case_changes($FIRST_POINT);
-    emit_codepoint_row_lookup($extents);
-    $HOUT .= emit_property_value_lookup($allocated_bitfield_properties);
+    emit_bitfield($first_point);
+    my $extents = emit_codepoints_and_planes($first_point);
+    $DB_SECTIONS->{BBB_case_changes} = emit_case_changes($first_point);
+    $DB_SECTIONS->{codepoint_row_lookup} = emit_codepoint_row_lookup($extents);
+    $hout .= emit_property_value_lookup($allocated_bitfield_properties);
     emit_names_hash_builder($extents);
-    emit_unicode_property_keypairs();
-    $H_SECTIONS->{num_unicode_property_value_keypairs} = $HOUT .
-        emit_unicode_property_value_keypairs();
+    my $prop_codes = emit_unicode_property_keypairs();
+    $H_SECTIONS->{num_unicode_property_value_keypairs} = $hout .
+        emit_unicode_property_value_keypairs($prop_codes);
     emit_block_lookup();
     emit_composition_lookup();
 
@@ -204,7 +196,6 @@ sub main {
         ".\nEstimated bytes saved by various compressions: ".
         thousands($TOTAL_BYTES_SAVED).".\n";
     if ($DEBUG) {
-        $LOG =~ s/ ( 'fate_really' \s => \s ) (\d+) /$1$NAME_LINES[$2]/xg;
         write_file("ucd2c_extents.log", $LOG);
     }
     print "\nDONE!!!\n\n";
@@ -257,18 +248,19 @@ sub join_sections {
 
 sub set_next_points {
     my $previous;
+    my $first_point = {};
     for my $code (sort { $a <=> $b } keys %{$POINTS_BY_CODE}) {
         push @POINTS_SORTED, $POINTS_BY_CODE->{$code};
         $POINTS_BY_CODE->{$previous}->{next_point} = $POINTS_BY_CODE->{$code}
             if defined $previous;
-        # The first code we encounter will be the lowest, so set $FIRST_POINT
+        # The first code we encounter will be the lowest, so set $first_point
         if (!defined $previous) {
             say "setting first point to $code";
-            $FIRST_POINT = $POINTS_BY_CODE->{$code};
+            $first_point = $POINTS_BY_CODE->{$code};
         }
         $previous = $code;
     }
-    return;
+    return $first_point;
 }
 sub get_next_point {
     my ($code, $add_to_points_by_code) = @_;
@@ -407,8 +399,7 @@ sub register_keys {
     $base->{keys} = \@keys;
     return scalar(@keys);
 }
-# XXX Eventually this function should replace register_keys and setting the bitwidth
-# in each function individually.
+
 sub register_keys_and_set_bit_width {
     my ($base, $num_keys) = @_;
     my $reg = register_keys($base);
@@ -464,6 +455,7 @@ sub each_line {
 }
 
 sub allocate_bitfield {
+    my ($first_point) = @_;
     my @biggest = map { $ENUMERATED_PROPERTIES->{$_} }
         sort { $ENUMERATED_PROPERTIES->{$b}->{bit_width}
             <=> $ENUMERATED_PROPERTIES->{$a}->{bit_width} }
@@ -486,7 +478,7 @@ sub allocate_bitfield {
                     $prop->{word_offset} = $word_offset;
                     $prop->{bit_offset} = $bit_offset;
                     $bit_offset += $prop->{bit_width};
-                    while ($bit_offset >= $BITFIELD_CELL_BITWIDTH) {
+                    while ($BITFIELD_CELL_BITWIDTH <= $bit_offset) {
                         $word_offset++;
                         $bit_offset -= $BITFIELD_CELL_BITWIDTH;
                     }
@@ -510,7 +502,7 @@ sub allocate_bitfield {
             }
         }
     }
-    $FIRST_POINT->{bitfield_width}    = $word_offset + 1;
+    $first_point->{bitfield_width}    = $word_offset + 1;
     $H_SECTIONS->{num_property_codes} = "#define MVM_NUM_PROPERTY_CODES $index\n";
     return $allocated;
 }
@@ -583,7 +575,7 @@ END
     chomp $rtrn;
     return $rtrn;
 }
-
+# Constants
 my $FATE_NORMAL = 0;
 my $FATE_NULL   = 1;
 my $FATE_SPAN   = 2;
@@ -611,19 +603,19 @@ sub add_extent {
 }
 # Used in emit_codepoints_and_planes to push the codepoints name onto bitfield_index_lines
 sub ecap_push_name_line {
-    my ($name, $point, $bitfield_index_lines, $bytes, $index, $annotate_anyway) = @_;
+    my ($name_lines, $name, $point, $bitfield_index_lines, $bytes, $index, $annotate_anyway) = @_;
     if (!defined $name) {
         push @$bitfield_index_lines,
             ($annotate_anyway
                 ? "/*$$index*/$point->{bitfield_index}/*$point->{code_str} */"
                 : "0"
             );
-        push @NAME_LINES, "NULL";
+        push @$name_lines, "NULL";
     }
     else {
         $$bytes += length($point->{name}) + 1; # length + 1 for the NULL
         push @$bitfield_index_lines, "/*$$index*/$point->{bitfield_index}/* $point->{code_str} */";
-        push @NAME_LINES, "/*$$index*/\"$point->{name}\"/* $point->{code_str} */";
+        push @$name_lines, "/*$$index*/\"$point->{name}\"/* $point->{code_str} */";
     }
     $$bytes += 2; # hopefully these are compacted since they are trivially aligned being two bytes
     $$bytes += 8; # 8 for the pointer
@@ -631,6 +623,7 @@ sub ecap_push_name_line {
     return;
 }
 sub emit_codepoints_and_planes {
+    my ($first_point) = @_;
     my @bitfield_index_lines;
     my $index = 0;
     my $bytes = 0;
@@ -639,14 +632,14 @@ sub emit_codepoints_and_planes {
     my $extents = [];
     my $last_code = -1; # trick
     my $last_point = undef;
-    $FIRST_POINT->{fate_type} = $FATE_NORMAL;
-    $FIRST_POINT->{fate_offset} = $code_offset;
-    #$FIRST_POINT->{fake_really} = $FIRST_POINT->{code} - $code_offset
-    add_extent $extents, $FIRST_POINT;
+    $first_point->{fate_type} = $FATE_NORMAL;
+    $first_point->{fate_offset} = $code_offset;
+    add_extent $extents, $first_point;
     my $span_length = 0;
 
     # a bunch of spaghetti code.  Yes.
     my $toadd = undef;
+    my @name_lines;
     for my $point (@POINTS_SORTED) {
         # extremely simplistic compression of identical neighbors and gaps
         # this point is identical to the previous point
@@ -670,7 +663,7 @@ sub emit_codepoints_and_planes {
             if ($SPAN_LENGTH_THRESHOLD <= $span_length) {
                 $bytes_saved += 10 * ($span_length - 1);
                 add_extent $extents, $last_point if !defined($last_point->{fate_type});
-                $code_offset = $last_point->{code} - @NAME_LINES + 1;
+                $code_offset = $last_point->{code} - @name_lines + 1;
                 $last_point->{fate_type}   = $FATE_SPAN;
                 $last_point->{fate_offset} = $code_offset;
                 $last_point->{fate_really} = $last_point->{code} - $code_offset;
@@ -684,10 +677,10 @@ sub emit_codepoints_and_planes {
                 $last_point = $last_point->{next_point};
                  # occasionally change NULL to the name to cut name search time
                 if ($last_point->{name} =~ / ^ [<] /x && $usually++ % 25) {
-                    ecap_push_name_line(undef, $last_point, \@bitfield_index_lines, \$bytes, \$index, 1);
+                    ecap_push_name_line(\@name_lines, undef, $last_point, \@bitfield_index_lines, \$bytes, \$index, 1);
                 }
                 else {
-                    ecap_push_name_line($last_point->{name}, $last_point, \@bitfield_index_lines, \$bytes, \$index);
+                    ecap_push_name_line(\@name_lines, $last_point->{name}, $last_point, \@bitfield_index_lines, \$bytes, \$index);
                 }
             }
             $span_length = 0;
@@ -703,7 +696,7 @@ sub emit_codepoints_and_planes {
             $toadd = $point;
         }
         for (; $last_code < $point->{code} - 1; $last_code++) {
-            ecap_push_name_line(undef, $point, \@bitfield_index_lines, \$bytes, \$index);
+            ecap_push_name_line(\@name_lines, undef, $point, \@bitfield_index_lines, \$bytes, \$index);
         }
 
         croak "$last_code  " . Dumper($point) unless $last_code == $point->{code} - 1;
@@ -715,7 +708,7 @@ sub emit_codepoints_and_planes {
         }
         $toadd = undef;
         # a normal codepoint that we don't want to compress
-        ecap_push_name_line($point->{name}, $point, \@bitfield_index_lines, \$bytes, \$index);
+        ecap_push_name_line(\@name_lines, $point->{name}, $point, \@bitfield_index_lines, \$bytes, \$index);
         $last_code = $point->{code};
         $point->{main_index} = $index;
         $last_point = $point;
@@ -726,13 +719,16 @@ sub emit_codepoints_and_planes {
     # jnthn: Would it still use the same amount of memory to combine these tables? XXX
     $DB_SECTIONS->{BBB_codepoint_names} =
         "static const char *codepoint_names[$index] = {\n    ".
-            stack_lines(\@NAME_LINES, ",", ",\n    ", 0, $WRAP_TO_COLUMNS).
+            stack_lines(\@name_lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS).
             "\n};";
     $DB_SECTIONS->{BBB_codepoint_bitfield_indexes} =
         "static const MVMuint16 codepoint_bitfield_indexes[$index] = {\n    ".
             stack_lines(\@bitfield_index_lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS).
             "\n};";
     $H_SECTIONS->{codepoint_names_count} = "#define MVM_CODEPOINT_NAMES_COUNT $index";
+    if ($DEBUG) {
+        $LOG =~ s/ ( 'fate_really' \s => \s ) (\d+) /$1$name_lines[$2]/xg;
+    }
     return $extents
 }
 
@@ -742,7 +738,7 @@ sub emit_codepoint_row_lookup {
     my $i = 0;
     for (@$extents) {
         # handle the first recursion specially to optimize for most common BMP lookups
-        if ($_->{code} >= 0x10000) {
+        if (0x10000 <= $_->{code}) {
             $SMP_start = $i;
             last;
         }
@@ -774,8 +770,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint64 codepo
     }
 }
 END
-    $DB_SECTIONS->{codepoint_row_lookup} = sprintf $out, $plane_0, $other_planes;
-    return;
+    return sprintf $out, $plane_0, $other_planes;
 }
 
 sub emit_case_changes {
@@ -794,8 +789,7 @@ sub emit_case_changes {
     }
     $out = "static const MVMint32 case_changes[$rows][3] = {\n    {0x0,0x0,0x0},\n    ".
         stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."\n};";
-    $DB_SECTIONS->{BBB_case_changes} = $out;
-    return;
+    return $out;
 }
 
 sub emit_bitfield {
@@ -1170,6 +1164,7 @@ END
 
 sub emit_unicode_property_keypairs {
     my @lines = ();
+    my $prop_codes = {};
     each_line('PropertyAliases', sub { $_ = shift;
         my @aliases = split / \s* [#;] \s* /x;
         for my $name (@aliases) {
@@ -1184,7 +1179,7 @@ sub emit_unicode_property_keypairs {
                     $no_ =~ s/_//g;
                     $PROP_NAMES->{$no_} = $PROP_NAMES->{$name}
                         unless $no_ eq $name or $no_ eq $name or $no_ eq $al;
-                    $PROP_CODES->{$al} = $name;
+                    $prop_codes->{$al} = $name;
                 }
                 last;
             }
@@ -1286,10 +1281,10 @@ END
     "};";
     $DB_SECTIONS->{BBB_unicode_property_keypairs} = $out;
     $H_SECTIONS->{MVMUnicodeNamedValue} = $hout;
-    return;
+    return $prop_codes;
 }
 sub add_unicode_sequence {
-    my ($filename) = @_;
+    my ($filename, $named_sequences) = @_;
     each_line($filename, sub { my $line = shift;
         return if $line =~ /^ [#] /x or $line =~ /^ \s* $/x;
         my (@list, $hex_ords, $type, $name);
@@ -1317,35 +1312,36 @@ sub add_unicode_sequence {
         # Emoji sequences have commas in some and these cannot be included
         # since they seperate seperate named items in ISO notation that P6 uses
         $name =~ s/,//xg;
-        $SEQUENCES->{$name}->{'type'} = $type;
+        $named_sequences->{$name}->{'type'} = $type;
         # Only push if we haven't seen this already
-        if (!$SEQUENCES->{$name}->{'ords'}) {
+        if (!$named_sequences->{$name}->{'ords'}) {
             for my $hex (split ' ', $hex_ords) {
-                push @{$SEQUENCES->{$name}->{'ords'}}, hex $hex;
+                push @{$named_sequences->{$name}->{'ords'}}, hex $hex;
             }
         }
     } );
-    return;
+    return $named_sequences;
 }
-sub gen_unicode_sequence_keypairs {
+sub emit_unicode_sequence_keypairs {
+    my ($named_sequences) = @_;
     my $count = 0;
-    my $seq_c_hash_str;
+    my $seq_c_hash_str = '';
     my @seq_c_hash_array;
     my $enum_table;
     my $string_seq = "/* Unicode sequences such as Emoji sequences */\n";
-    for my $thing ( sort keys %$SEQUENCES ) {
+    for my $thing ( sort keys %$named_sequences ) {
         my $seq_name = "uni_seq_$count";
-        $string_seq .=  "static const MVMint32 $seq_name" . "[] = {";
+        $string_seq .=  "static const MVMint32 $seq_name\[] = {";
         $seq_c_hash_str .= '{"' . $thing . '",' . $count . '},';
         my $ord_data;
-        for my $ord ( @{$SEQUENCES->{$thing}->{'ords'}} ) {
-            $ord_data .= '0x' . uc sprintf("%x", $ord) . ',';
+        for my $ord ( @{$named_sequences->{$thing}->{'ords'}} ) {
+            $ord_data .= sprintf "0x%X,", $ord;
         }
-        $ord_data = scalar @{$SEQUENCES->{$thing}->{'ords'}} . ',' . $ord_data;
+        $ord_data = scalar @{$named_sequences->{$thing}->{'ords'}} . ',' . $ord_data;
         $string_seq .= $ord_data;
-        $ord_data =~ s/,$//;
-        $string_seq =~ s/,$//;
-        $string_seq = $string_seq . "}; " . "/* $thing */ /*" . $SEQUENCES->{$thing}->{'type'} . " */\n";
+        $ord_data   =~ s/ , $ //x;
+        $string_seq =~ s/ , $ //x;
+        $string_seq = $string_seq . "}; " . "/* $thing */ /*" . $named_sequences->{$thing}->{'type'} . " */\n";
         $enum_table = $enum_table . "$seq_name,\n";
         $count++;
         if ( length $seq_c_hash_str > 80 ) {
@@ -1357,7 +1353,7 @@ sub gen_unicode_sequence_keypairs {
     $seq_c_hash_str = join '    ', @seq_c_hash_array;
     $seq_c_hash_str =~ s/ \s* , \s* $ //x;
     $seq_c_hash_str .= "\n};";
-    $seq_c_hash_str = "static const MVMUnicodeNamedValue uni_seq_pairs[$count] = {\n    " . $seq_c_hash_str;
+    $seq_c_hash_str = "static const MVMUnicodeNamedValue uni_seq_pairs[$count] = {\n    $seq_c_hash_str";
 
     $enum_table =~ s/ \s* , \s* $ /};/x;
     $enum_table = "static const MVMint32 * uni_seq_enum[$count] = {\n" . $enum_table;
@@ -1420,6 +1416,7 @@ sub do_for_each_case {
     return $str;
 }
 sub emit_unicode_property_value_keypairs {
+    my ($prop_codes) = @_;
     my @lines = ();
     my $property;
     my %lines;
@@ -1497,7 +1494,7 @@ sub emit_unicode_property_value_keypairs {
                 }
                 return
             }
-            my $key   = $PROP_CODES->{$propname};
+            my $key   = $prop_codes->{$propname};
             my $found = 0;
             my $enum  = $ALL_PROPERTIES->{$key}->{'enum'};
             croak $propname unless $enum;
@@ -1718,15 +1715,15 @@ sub write_file {
     my ($fname, $contents) = @_;
     open my $FILE, '>', $fname or croak "Couldn't open file '$fname': $!";
     binmode $FILE, ':encoding(UTF-8)';
-    print $FILE $contents;
+    print $FILE trim_trailing($contents);
     close $FILE;
     return;
 }
 
 sub register_union {
-    my ($unionname, $unionof) = @_;
+    my ($unionname, $unionof, $gc_alias_checkers) = @_;
     register_binary_property($unionname);
-    push @$GC_ALIAS_CHECKERS, sub {
+    push @$gc_alias_checkers, sub {
         return ((shift) =~ /^(?:$unionof)$/)
             ? "$unionname" : 0;
     };
@@ -1737,6 +1734,7 @@ sub UnicodeData {
     my ($bidi_classes, $general_categories, $ccclasses) = @_;
     $GENERAL_CATEGORIES = $general_categories;
     register_binary_property('Any');
+    my @gc_alias_checkers;
     each_line('PropertyValueAliases', sub { $_ = shift;
         my @parts = split / \s* [#;] \s* /x;
         # Make sure everything is trimmed
@@ -1750,10 +1748,10 @@ sub UnicodeData {
             my $unionname = $parts[0];
             my $unionof   = pop @parts;
             $unionof      =~ s/ \s+ //xg;
-            register_union($unionname, $unionof);
+            register_union($unionname, $unionof, \@gc_alias_checkers);
         }
     });
-    register_union('Assigned', 'C[cfosn]|L[lmotu]|M[cen]|N[dlo]|P[cdefios]|S[ckmo]|Z[lps]');
+    register_union('Assigned', 'C[cfosn]|L[lmotu]|M[cen]|N[dlo]|P[cdefios]|S[ckmo]|Z[lps]', \@gc_alias_checkers);
     my $ideograph_start;
     my $case_count   = 1;
     my $decomp_keys  = [ '' ];
@@ -1795,7 +1793,7 @@ sub UnicodeData {
         if ($suc || $slc || $stc) {
             $point->{Case_Change_Index} = $case_count++;
         }
-        for my $checker (@$GC_ALIAS_CHECKERS) {
+        for my $checker (@gc_alias_checkers) {
             my $res = $checker->($gencat);
             $point->{$res} = 1 if $res;
         }
@@ -2110,15 +2108,6 @@ sub NameAliases {
         $ALIASES->{$name} = hex $code_str;
         $ALIAS_TYPES->{$name}->{'code'} = hex $code_str;
         $ALIAS_TYPES->{$name}->{'type'} = $type;
-    });
-    return;
-}
-
-sub NamedSequences {
-    each_line('NamedSequences', sub { $_ = shift;
-        my ($name, $codes) = split / \s* [;#] \s* /x;
-        my @parts = split ' ', $codes;
-        $NAMED_SEQUENCES->{$name} = \@parts;
     });
     return;
 }
