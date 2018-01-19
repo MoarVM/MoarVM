@@ -49,6 +49,7 @@ static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUn
 MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                                                MVMStaticFrame *target_sf,
                                                MVMSpeshCandidate *cand,
+                                               MVMSpeshIns *invoke_ins,
                                                char **no_inline_reason) {
     MVMSpeshGraph *ig;
     MVMSpeshBB *bb;
@@ -128,6 +129,18 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
             if (!same_hll && ins->info->uses_hll) {
                 *no_inline_reason = "target has a :useshll instruction and HLLs are different";
                 goto not_inlinable;
+            }
+
+            /* If we have an invoke_o, but a return_[ins] that would require
+             * boxing, we can't inline if it's not the same HLL. */
+            if (!same_hll && invoke_ins->info->opcode == MVM_OP_invoke_o) {
+                switch (ins->info->opcode) {
+                    case MVM_OP_return_i:
+                    case MVM_OP_return_n:
+                    case MVM_OP_return_s:
+                        *no_inline_reason = "target needs a return boxing and HLLs are different";
+                        goto not_inlinable;
+                }
             }
 
             /* If we have lexical bind, make sure it's within the frame. */
