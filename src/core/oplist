@@ -862,7 +862,7 @@ sp_guardsfouter  .s r(obj) sslot uint32
 
 # Specialized form of rebless that will always do a deopt one out of the
 # current code as well as a deopt all.
-sp_rebless       .s w(obj) r(obj) r(obj) uint32
+sp_rebless       .s w(obj) r(obj) r(obj) uint32 :noinline
 
 # Resolves an invokee into an MVMCode object, or returns VMNull when that is
 # not possible. Doesn't do multiple dispatch cache handling (since that needs
