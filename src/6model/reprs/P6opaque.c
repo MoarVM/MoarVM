@@ -1427,6 +1427,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                     MVM_spesh_get_facts(tc, g, ins->operands[2])->usages--;
                     ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_o);
                     ins->operands[2].lit_i16 = repr_data->attribute_offsets[slot];
+                    MVM_spesh_manipulate_remove_handler_successors(tc, bb);
                 }
             }
         }

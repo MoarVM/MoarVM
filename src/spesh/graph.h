@@ -139,11 +139,15 @@ struct MVMSpeshBB {
     /* Dominance frontier set. */
     MVMSpeshBB **df;
 
+    /* Basic blocks that we may go to if we throw. */
+    MVMSpeshBB **handler_succ;
+
     /* Counts for the above, grouped together to avoid alignment holes. */
     MVMuint16    num_succ;
     MVMuint16    num_pred;
     MVMuint16    num_children;
     MVMuint16    num_df;
+    MVMuint16    num_handler_succ;
 
     /* The next basic block in original linear code order. */
     MVMSpeshBB *linear_next;
