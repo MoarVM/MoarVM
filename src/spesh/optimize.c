@@ -634,6 +634,7 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
         ins->info = MVM_op_get_op(MVM_OP_set);
         MVM_spesh_use_facts(tc, g, obj_facts);
         copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+        MVM_spesh_manipulate_remove_handler_successors(tc, bb);
     }
     else {
         /* Propagate facts if we know what this deconts to. */

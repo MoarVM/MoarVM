@@ -211,6 +211,17 @@ void MVM_spesh_manipulate_remove_successor(MVMThreadContext *tc, MVMSpeshBB *bb,
     succ_pred[succ_num_pred] = NULL;
 }
 
+/* Removes successors from a basic block that point to handlers.
+   Useful for optimizations that turn throwish ops into non-throwing ones. */
+void MVM_spesh_manipulate_remove_handler_successors(MVMThreadContext *tc, MVMSpeshBB *bb) {
+    int i;
+    for (i = 0; i < bb->num_handler_succ; i++) {
+        MVM_spesh_manipulate_remove_successor(tc, bb, bb->handler_succ[i]);
+        bb->handler_succ[i] = NULL;
+    }
+    bb->num_handler_succ = 0;
+}
+
 /* Gets a temporary register of the specified kind to use in some transform.
  * Will only actually extend the frame if needed; if an existing temporary
  * was requested and then released, then it will just use a new version of
