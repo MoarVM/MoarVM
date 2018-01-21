@@ -157,6 +157,15 @@
    )
 )
 
+# This ought to be just: (or (flagval (zr $1)) (flagval (eq $1 (^vmnull))))
+# But that causes a segfault in the expr tree walker
+(template: isnull
+   (if (any (zr $1) (eq $1 (^vmnull)))
+      (const 1 int_sz)
+      (const 0 int_sz)
+   )
+)
+
 (template: wval
     (call (^func MVM_sc_get_sc_object)
         (arglist (carg (tc) ptr)
