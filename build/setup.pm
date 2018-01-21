@@ -281,28 +281,6 @@ our %COMPILERS = (
         formatattribute   => '__attribute__((format(X, Y, Z)))',
     },
 
-    egcc => {
-        -toolchain => 'gnu',
-
-        cc => 'egcc',
-        ld => undef,
-
-        ccmiscflags  => '-Werror=declaration-after-statement -Werror=pointer-arith',
-        ccwarnflags  => '',
-        ccoptiflags  => '-O%s -DNDEBUG',
-        ccdebugflags => '-g%s',
-        ccinstflags  => '-pg',
-
-        ldmiscflags  => '',
-        ldoptiflags  => undef,
-        lddebugflags => undef,
-        ldinstflags  => undef,
-
-        noreturnspecifier => '',
-        noreturnattribute => '__attribute__((noreturn))',
-        formatattribute   => '__attribute__((format(X, Y, Z)))',
-    },
-
     clang => {
         -toolchain => 'gnu',
 
@@ -459,7 +437,6 @@ our %OS_LINUX = (
 our %OS_OPENBSD = (
     %OS_POSIX,
 
-    cc => sub { (qx!egcc -v 2>&1 >$devnull! !~ 'egcc') ? 'gcc' : 'egcc' },
     syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
 
     -thirdparty => {
@@ -480,7 +457,7 @@ our %OS_NETBSD = (
 our %OS_FREEBSD = (
     %OS_POSIX,
 
-    cc => sub { (qx!cc -v 2>&1 >$devnull! !~ 'cc') ? 'gcc' : 'clang' },
+    cc => (qx!cc -v 2>&1 >$devnull! !~ 'clang') ? 'gcc' : 'clang',
 
     syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
 
@@ -508,15 +485,15 @@ our %OS_GNUKFREEBSD = (
 our %OS_SOLARIS = (
     %OS_POSIX,
 
-    defs    => [ qw( _XOPEN_SOURCE=500 _XOPEN_SOURCE_EXTENDED=1  __EXTENSIONS__=1 _POSIX_PTHREAD_SEMANTICS _REENTRANT _FILE_OFFSET_BITS=64 ) ],
+    defs     => [ qw( _XOPEN_SOURCE=500 _XOPEN_SOURCE_EXTENDED=1  __EXTENSIONS__=1 _POSIX_PTHREAD_SEMANTICS _REENTRANT _FILE_OFFSET_BITS=64 ) ],
     syslibs => [ qw( socket sendfile nsl pthread kstat m rt ) ],
     mknoisy => '',
 
     -thirdparty => {
         dc => { %TP_DC,
-            rule  => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile.embedded sun',
-            clean => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile.embedded clean',
-        },
+	        rule  => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile.embedded sun',
+	        clean => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile.embedded clean',
+	    },
         uv => { %TP_UVDUMMY, objects => '$(UV_SOLARIS)' },
     },
 );
@@ -545,10 +522,10 @@ our %SYSTEMS = (
     linux       => [ qw( posix gnu   gcc ),   { %OS_LINUX } ],
     aix         => [ qw( posix gnu   gcc ),   { %OS_AIX } ],
     darwin      => [ qw( posix gnu   clang ), { %OS_DARWIN } ],
-    openbsd     => [ qw( posix bsd), $OS_OPENBSD{cc}(),  { %OS_OPENBSD } ],
+    openbsd     => [ qw( posix bsd   gcc ),   { %OS_OPENBSD} ],
     netbsd      => [ qw( posix bsd   gcc ),   { %OS_NETBSD } ],
     dragonfly   => [ qw( posix bsd   gcc ),   { %OS_DRAGONFLY } ],
-    freebsd     => [ qw( posix bsd), $OS_FREEBSD{cc}(),  { %OS_FREEBSD } ],
+    freebsd     => [ qw( posix bsd), $OS_FREEBSD{cc} , { %OS_FREEBSD } ],
     gnukfreebsd => [ qw( posix gnu   gcc ),   { %OS_GNUKFREEBSD } ],
     solaris     => [ qw( posix posix gcc ),   { %OS_SOLARIS } ],
     win32       => [ qw( win32 msvc  cl ),    { %OS_WIN32 } ],
