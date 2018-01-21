@@ -1628,6 +1628,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVMSpeshOperand code_ref_reg = ins->info->opcode == MVM_OP_invoke_v
                         ? ins->operands[0]
                         : ins->operands[1];
+                MVM_spesh_facts_discover(tc, inline_graph, p);
                 MVM_spesh_get_facts(tc, g, code_ref_reg)->usages++;
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
                     code_ref_reg);
