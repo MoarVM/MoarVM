@@ -234,6 +234,15 @@
    )
 )
 
+(template: capturelex
+   (callv (^func MVM_frame_capturelex)
+      (arglist
+         (carg (tc) ptr)
+         (carg $0 ptr)
+      )
+   )
+)
+
 (template: callercode
   (let: (($caller (^getf (^frame) MVMFrame caller)))
         (if (nz $caller)
