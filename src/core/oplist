@@ -873,6 +873,7 @@ sp_resolvecode   .s w(obj) r(obj)
 # the case where we can't JIT-compile, but don't want to keep on logging.
 sp_decont        .s w(obj) r(obj) :pure :invokish
 sp_getlex_o      .s w(obj) rl(obj) :pure
+sp_getlex_live_o .s w(obj) rl(obj) :pure
 sp_getlex_ins    .s w(`1) rl(`1) :pure
 sp_getlex_no     .s w(obj) str :pure :noinline
 

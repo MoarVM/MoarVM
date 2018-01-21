@@ -5364,6 +5364,32 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_getlex_live_o): {
+                MVMFrame *f = tc->cur_frame;
+                MVMuint16 idx = GET_UI16(cur_op, 2);
+                MVMuint16 outers = GET_UI16(cur_op, 4);
+                MVMRegister found;
+                while (outers) {
+                    if (!f->outer)
+                        MVM_exception_throw_adhoc(tc, "getlex: outer index out of range");
+                    f = f->outer;
+                    outers--;
+                }
+                found = GET_LEX(cur_op, 2, f);
+                if (found.o == NULL) {
+                    fprintf(stderr, "cur frame name: %s, outer frame name: %s\n",
+                            MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+                            MVM_string_utf8_encode_C_string(tc, f->static_info->body.name));
+
+                    fprintf(stderr, "idx %d outers %d\n", idx, GET_UI16(cur_op, 4));
+                    MVM_oops(tc, "getlex_live thought to be safe but wasn't");
+                }
+                GET_REG(cur_op, 0).o = found.o == NULL
+                    ? NULL
+                    : found.o;
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_getlex_ins): {
                 MVMFrame *f = tc->cur_frame;
                 MVMuint16 idx = GET_UI16(cur_op, 2);

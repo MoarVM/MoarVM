@@ -432,6 +432,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     }
     case MVM_OP_getlex:
     case MVM_OP_sp_getlex_o:
+    case MVM_OP_sp_getlex_live_o:
     case MVM_OP_sp_getlex_ins: {
         MVMuint16 *lexical_types;
         MVMStaticFrame * sf = jg->sg->sf;
@@ -439,6 +440,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 idx = ins->operands[1].lex.idx;
         MVMint16 out = ins->operands[1].lex.outers;
         MVMint16 i;
+        MVMuint8 is_live = ins->info->opcode == MVM_OP_sp_getlex_live_o;
         | mov TMP6, TC->cur_frame;
         for (i = 0; i < out; i++) {
             /* I'm going to skip compiling the check whether the outer
@@ -463,7 +465,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
                          jg->sg->lexical_types :
                          sf->body.lexical_types);
         MVM_jit_log(tc, "Lexical type of register: %d\n", lexical_types[idx]);
-        if (lexical_types[idx] == MVM_reg_obj) {
+        if (lexical_types[idx] == MVM_reg_obj && !is_live) {
             MVM_jit_log(tc, "Emit lex vifivy check\n");
             /* if it is zero, check if we need to auto-vivify */
             | test TMP5, TMP5;

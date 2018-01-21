@@ -2342,13 +2342,29 @@ static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
     }
 }
 
+/* Hold information about what lexicals have been vivified for sure. */
+typedef struct {
+    MVMSpeshOperand lexicals[16];
+    MVMuint8 lex_idx;
+} vivify_info;
+
 /* Drives the second, post-inline, optimization pass. */
-static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
+static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, vivify_info *parent_info) {
     MVMint32 i;
+    vivify_info mine;
 
     MVMSpeshIns *ins = bb->first_ins;
+
+    if (parent_info) {
+        memcpy(&mine, parent_info, sizeof(vivify_info));
+    } else {
+        memset(&mine, 0, sizeof(vivify_info));
+    }
+
     while (ins) {
         MVMSpeshIns *next = ins->next;
+        MVMSpeshOperand *lex_operand = NULL;
+        MVMuint8 vivify_idx;
         switch (ins->info->opcode) {
             case MVM_OP_set:
                 try_eliminate_set(tc, g, bb, ins);
@@ -2369,13 +2385,47 @@ static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             case MVM_OP_throwcatlexotic:
                 optimize_throwcat(tc, g, bb, ins);
                 break;
+            /*case MVM_OP_bindlex:*/
+                /*lex_operand = &ins->operands[0];*/
+            case MVM_OP_sp_getlex_o:
+                if (!lex_operand)
+                    lex_operand = &ins->operands[1];
+                /*If we have a getlex_o, we might be able*/
+                /*to emit a getlex_live_o */
+                if (ins->info->opcode == MVM_OP_sp_getlex_o) {
+                    for (vivify_idx = 0; vivify_idx < mine.lex_idx; vivify_idx++) {
+                        /* Cool, let's optimize this. */
+                        if (mine.lexicals[vivify_idx].lex.idx == lex_operand->lex.idx
+                                && mine.lexicals[vivify_idx].lex.outers == lex_operand->lex.outers) {
+                            fprintf(stderr, "in bb %d: unchecked lex %d:%d\n", bb->idx, lex_operand->lex.idx, lex_operand->lex.outers);
+                            ins->info = MVM_op_get_op(MVM_OP_sp_getlex_live_o);
+                            break;
+                        }
+                    }
+                }
+                /* Record our findings for posterity */
+                for (vivify_idx = 0; vivify_idx < mine.lex_idx; vivify_idx++) {
+                    if (mine.lexicals[vivify_idx].lex.idx == lex_operand->lex.idx
+                            && mine.lexicals[vivify_idx].lex.outers == lex_operand->lex.outers) {
+                        vivify_idx = 255;
+                        break;
+                    }
+                }
+                if (vivify_idx != 255) {
+                    if (mine.lex_idx < 16) {
+                        mine.lexicals[mine.lex_idx] = *lex_operand;
+                        fprintf(stderr, "in BB %d: registered lex %d:%d\n", bb->idx, lex_operand->lex.idx, lex_operand->lex.outers);
+                        mine.lex_idx++;
+                    }
+                }
+                break;
         }
         ins = next;
     }
 
     /* Visit children. */
     for (i = 0; i < bb->num_children; i++)
-        second_pass(tc, g, bb->children[i]);
+        second_pass(tc, g, bb->children[i], &mine);
 }
 
 /* Goes through the various log-based guard instructions and removes any that
@@ -2424,5 +2474,5 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
      * done after inlinings have taken place. The dominance tree is first
      * recomputed, to account for any inlinings. */
     MVM_spesh_graph_recompute_dominance(tc, g);
-    second_pass(tc, g, g->entry);
+    second_pass(tc, g, g->entry, NULL);
 }
