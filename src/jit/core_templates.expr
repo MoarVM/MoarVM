@@ -224,6 +224,16 @@
 
 (template: getcode (load (idx (^getf (cu) MVMCompUnit body.coderefs) $1 ptr_sz) ptr_sz))
 
+(template: takeclosure
+   (call (^func MVM_frame_takeclosure)
+      (arglist
+          (carg (tc) ptr)
+          (carg $1 ptr)
+      )
+      ptr_sz
+   )
+)
+
 (template: callercode
   (let: (($caller (^getf (^frame) MVMFrame caller)))
         (if (nz $caller)
