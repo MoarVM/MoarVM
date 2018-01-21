@@ -141,6 +141,22 @@
                     (carg $1 ptr)
                     (carg $0 ptr)))))
 
+(template: takedispatcher
+   (let: (
+         ($disp     (^getf (tc) MVMThreadContext cur_dispatcher))
+         ($disp_for (^getf (tc) MVMThreadContext cur_dispatcher_for))
+         ($cur_code (^getf (^frame) MVMFrame code_ref))
+      )
+      (if (all (nz $disp) (any (zr $disp_for) (eq $disp_for $cur_code)))
+         (do
+            (store (^getf (tc) MVMThreadContext cur_dispatcher) (const 0 ptr_sz) ptr_sz)
+            $disp
+         )
+         (^vmnull)
+      )
+   )
+)
+
 (template: wval
     (call (^func MVM_sc_get_sc_object)
         (arglist (carg (tc) ptr)
