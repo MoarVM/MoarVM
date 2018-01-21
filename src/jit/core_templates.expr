@@ -15,6 +15,10 @@
 
 (template: const_s (^cu_string $1))
 
+(template: trunc_i8! (store $0 $1 1))
+(template: trunc_i16! (store $0 $1 2))
+(template: trunc_i32! (store $0 $1 4))
+
 (template: set (copy $1))
 (template: getlex (copy $1))
 (template: bindlex! (store $0 $1 reg_sz))
