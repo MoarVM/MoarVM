@@ -81,7 +81,7 @@ sub parse_consume_ins_reprops($source, %opcode_to_cfunc) {
 
     my @chunks = gather loop {
         # find the first non-case line.
-        my $until = @sourcelines.first-index({ $_ !~~ / "case MVM_".*?':' / });
+        my $until = @sourcelines.first({ $_ !~~ / "case MVM_".*?':' / }, :k);
         my @case-lines = @sourcelines[^$until];
         @sourcelines.shift for ^$until;
 
@@ -90,7 +90,7 @@ sub parse_consume_ins_reprops($source, %opcode_to_cfunc) {
         my @ops = $casestring.comb(/ "case " \s* 'MVM_OP_'<( .*? )> \s* ':' /);
 
         # find the next case-line.
-        $until = @sourcelines.first-index( / "case MVM_".*?':' / );
+        $until = @sourcelines.first( / "case MVM_".*?':' /, :k );
         $until = +@sourcelines unless $until; # may have to slurp until EOF.
         my @implementationlines = @sourcelines[^$until];
         @sourcelines.shift for ^$until;
