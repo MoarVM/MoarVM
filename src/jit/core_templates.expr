@@ -213,6 +213,8 @@
                         (carg (^stable $1) ptr))
                         ptr_sz))))
 
+(template: getcode (load (idx (^getf (cu) MVMCompUnit body.coderefs) $1 ptr_sz) ptr_sz))
+
 (template: callercode
   (let: (($caller (^getf (^frame) MVMFrame caller)))
         (if (nz $caller)
