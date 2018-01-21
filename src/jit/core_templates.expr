@@ -240,6 +240,34 @@
             (^getf $caller MVMFrame code_ref)
             (const 0 ptr_sz))))
 
+(template: create!
+   (let: (
+         ($obj (call (^getf (^repr $1) MVMREPROps allocate)
+               (arglist
+                  (carg (tc) ptr)
+                  (carg (^stable $1) ptr)
+               )
+               ptr_sz
+            )
+         )
+         ($initialize (^getf (^repr $1) MVMREPROps initialize))
+      )
+      (dov
+         (when (nz $initialize)
+            (callv $initialize
+               (arglist
+                  (carg (tc) ptr)
+                  (carg (^stable $obj) ptr)
+                  (carg $obj ptr)
+                  (carg (^body $obj) ptr)
+               )
+            )
+         )
+         (store $0 $obj ptr_sz)
+      )
+   )
+)
+
 (template: sp_fastcreate!
    (let: (($block
            (call (^func &MVM_gc_allocate_zeroed)
