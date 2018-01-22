@@ -834,6 +834,49 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
     uv_mutex_unlock(&debugserver->mutex_breakpoints);
 }
 
+void MVM_debugserver_clear_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMDebugServerData *debugserver = tc->instance->debugserver;
+    MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
+    MVMDebugServerBreakpointFileTable *found = NULL;
+    MVMuint32 index = 0;
+    MVMuint32 bpidx = 0;
+    MVMuint32 num_cleared = 0;
+
+    MVM_debugserver_register_line(tc, argument->file, strlen(argument->file), argument->line, &index);
+
+    fprintf(stderr, "asked to clear breakpoints for file %s line %d\n", argument->file, argument->line);
+
+    uv_mutex_lock(&debugserver->mutex_breakpoints);
+
+    found = &table->files[index];
+
+    fprintf(stderr, "dumping all breakpoints\n");
+    for (bpidx = 0; bpidx < found->breakpoints_used; bpidx++) {
+        MVMDebugServerBreakpointInfo *bp_info = &found->breakpoints[bpidx];
+        fprintf(stderr, "breakpoint index %d has id %d, is at line %d\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
+    }
+
+    fprintf(stderr, "trying to clear breakpoints\n\n");
+    for (bpidx = 0; bpidx < found->breakpoints_used; bpidx++) {
+        MVMDebugServerBreakpointInfo *bp_info = &found->breakpoints[bpidx];
+        fprintf(stderr, "breakpoint index %d has id %d, is at line %d\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
+
+        if (bp_info->line_no == argument->line) {
+            fprintf(stderr, "breakpoint with id %d cleared\n", bp_info->breakpoint_id);
+            found->breakpoints[bpidx] = found->breakpoints[--found->breakpoints_used];
+            num_cleared++;
+            bpidx--;
+        }
+    }
+
+    uv_mutex_unlock(&debugserver->mutex_breakpoints);
+
+    if (num_cleared > 0)
+        communicate_success(ctx, argument);
+    else
+        communicate_error(ctx, argument);
+}
+
 static MVMuint64 allocate_handle(MVMThreadContext *dtc, MVMObject *target) {
     if (!target) {
         return 0;
@@ -1523,6 +1566,9 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                     break;
                 case MT_SetBreakpointRequest:
                     MVM_debugserver_add_breakpoint(tc, &ctx, &argument);
+                    break;
+                case MT_ClearBreakpoint:
+                    MVM_debugserver_clear_breakpoint(tc, &ctx, &argument);
                     break;
                 case MT_ObjectAttributesRequest:
                     if (request_object_attributes(tc, &ctx, &argument)) {
