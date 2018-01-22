@@ -803,13 +803,13 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
         found->breakpoints = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
                 found->breakpoints_alloc * sizeof(MVMDebugServerBreakpointInfo));
     }
-    if (found->breakpoints_used++ > found->breakpoints_alloc) {
+    if (found->breakpoints_used++ >= found->breakpoints_alloc) {
         MVMuint32 old_alloc = found->breakpoints_alloc;
         found->breakpoints_alloc *= 2;
         found->breakpoints = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa, found->breakpoints,
                 old_alloc * sizeof(MVMDebugServerBreakpointInfo),
                 found->breakpoints_alloc * sizeof(MVMDebugServerBreakpointInfo));
-        fprintf(stderr, "table for breakpoints increased to %d slots\n", argument->file, found->breakpoints_alloc);
+        fprintf(stderr, "table for breakpoints increased to %d slots\n", found->breakpoints_alloc);
     }
 
     bp_info = &found->breakpoints[found->breakpoints_used - 1];
@@ -819,7 +819,7 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
     bp_info->shall_suspend = argument->suspend;
     bp_info->send_backtrace = argument->stacktrace;
 
-    fprintf(stderr, "breakpoint settings: bpid %d lineno %d suspend %d backtrace %d\n", argument->id, argument->line, argument->suspend, argument->stacktrace);
+    fprintf(stderr, "breakpoint settings: index %d bpid %d lineno %d suspend %d backtrace %d\n", found->breakpoints_used - 1, argument->id, argument->line, argument->suspend, argument->stacktrace);
 
     found->lines_active[argument->line] = 1;
 
