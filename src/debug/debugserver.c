@@ -139,7 +139,6 @@ void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint
 
     for (index = 0; !found && index < table->files_used; index++) {
         MVMDebugServerBreakpointFileTable *file = &table->files[index];
-        fprintf(stderr, "comparing %s and %s\n", filename, file->filename);
         if (file->filename_length != filename_len)
             continue;
         if (memcmp(file->filename, filename, filename_len) != 0)
@@ -157,12 +156,14 @@ void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint
                     old_alloc * sizeof(MVMDebugServerBreakpointFileTable),
                     table->files_alloc * sizeof(MVMDebugServerBreakpointFileTable));
             memset((char *)(table->files + old_alloc), 0, (table->files_alloc - old_alloc) * sizeof(MVMDebugServerBreakpointFileTable) - 1);
-            fprintf(stderr, "table for files increased to %d slots\n", filename, table->files_alloc);
+            if (tc->instance->debugserver->debugspam_protocol)
+                fprintf(stderr, "table for files increased to %d slots\n", filename, table->files_alloc);
         }
 
         found = &table->files[table->files_used - 1];
 
-        fprintf(stderr, "created new file entry at %d for %s\n", table->files_used - 1, filename);
+        if (tc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "created new file entry at %d for %s\n", table->files_used - 1, filename);
 
         found->filename = MVM_calloc(filename_len + 1, sizeof(char));
         strncpy(found->filename, filename, filename_len);
@@ -182,10 +183,10 @@ void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint
     if (found->lines_active_alloc < line_no + 1) {
         MVMuint32 old_size = found->lines_active_alloc;
         found->lines_active_alloc *= 2;
-        fprintf(stderr, "increasing line number table for %s from %d to %d slots\n", filename, old_size, found->lines_active_alloc);
+        if (tc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "increasing line number table for %s from %d to %d slots\n", filename, old_size, found->lines_active_alloc);
         found->lines_active = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa,
                 found->lines_active, old_size, found->lines_active_alloc);
-        fprintf(stderr, "memsetting to 0 from %x to %x\n", found->lines_active + old_size, found->lines_active + found->lines_active_alloc);
         memset((char *)found->lines_active + old_size, 0, found->lines_active_alloc - old_size - 1);
     }
 
@@ -206,7 +207,8 @@ static void breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFileTab
         info = &file->breakpoints[index];
 
         if (info->line_no == line_no) {
-            fprintf(stderr, "hit a breakpoint\n");
+            if (tc->instance->debugserver->debugspam_protocol)
+                fprintf(stderr, "hit a breakpoint\n");
             if (ctx) {
                 uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
                 cmp_write_map(ctx, 4);
@@ -788,7 +790,8 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
     MVMDebugServerBreakpointInfo *bp_info = NULL;
     MVMuint32 index = 0;
 
-    fprintf(stderr, "asked to set a breakpoint for file %s line %d to send id %d\n", argument->file, argument->line, argument->id);
+    if (tc->instance->debugserver->debugspam_protocol)
+        fprintf(stderr, "asked to set a breakpoint for file %s line %d to send id %d\n", argument->file, argument->line, argument->id);
 
     MVM_debugserver_register_line(tc, argument->file, strlen(argument->file), argument->line, &index);
 
@@ -809,7 +812,8 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
         found->breakpoints = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa, found->breakpoints,
                 old_alloc * sizeof(MVMDebugServerBreakpointInfo),
                 found->breakpoints_alloc * sizeof(MVMDebugServerBreakpointInfo));
-        fprintf(stderr, "table for breakpoints increased to %d slots\n", found->breakpoints_alloc);
+        if (tc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "table for breakpoints increased to %d slots\n", found->breakpoints_alloc);
     }
 
     bp_info = &found->breakpoints[found->breakpoints_used - 1];
@@ -819,7 +823,8 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
     bp_info->shall_suspend = argument->suspend;
     bp_info->send_backtrace = argument->stacktrace;
 
-    fprintf(stderr, "breakpoint settings: index %d bpid %d lineno %d suspend %d backtrace %d\n", found->breakpoints_used - 1, argument->id, argument->line, argument->suspend, argument->stacktrace);
+    if (tc->instance->debugserver->debugspam_protocol)
+        fprintf(stderr, "breakpoint settings: index %d bpid %d lineno %d suspend %d backtrace %d\n", found->breakpoints_used - 1, argument->id, argument->line, argument->suspend, argument->stacktrace);
 
     found->lines_active[argument->line] = 1;
 
@@ -844,25 +849,31 @@ void MVM_debugserver_clear_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, requ
 
     MVM_debugserver_register_line(tc, argument->file, strlen(argument->file), argument->line, &index);
 
-    fprintf(stderr, "asked to clear breakpoints for file %s line %d\n", argument->file, argument->line);
+    if (tc->instance->debugserver->debugspam_protocol)
+        fprintf(stderr, "asked to clear breakpoints for file %s line %d\n", argument->file, argument->line);
 
     uv_mutex_lock(&debugserver->mutex_breakpoints);
 
     found = &table->files[index];
 
-    fprintf(stderr, "dumping all breakpoints\n");
+    if (tc->instance->debugserver->debugspam_protocol)
+        fprintf(stderr, "dumping all breakpoints\n");
     for (bpidx = 0; bpidx < found->breakpoints_used; bpidx++) {
         MVMDebugServerBreakpointInfo *bp_info = &found->breakpoints[bpidx];
-        fprintf(stderr, "breakpoint index %d has id %d, is at line %d\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
+        if (tc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "breakpoint index %d has id %d, is at line %d\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
     }
 
-    fprintf(stderr, "trying to clear breakpoints\n\n");
+    if (tc->instance->debugserver->debugspam_protocol)
+        fprintf(stderr, "trying to clear breakpoints\n\n");
     for (bpidx = 0; bpidx < found->breakpoints_used; bpidx++) {
         MVMDebugServerBreakpointInfo *bp_info = &found->breakpoints[bpidx];
-        fprintf(stderr, "breakpoint index %d has id %d, is at line %d\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
+        if (tc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "breakpoint index %d has id %d, is at line %d\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
 
         if (bp_info->line_no == argument->line) {
-            fprintf(stderr, "breakpoint with id %d cleared\n", bp_info->breakpoint_id);
+            if (tc->instance->debugserver->debugspam_protocol)
+                fprintf(stderr, "breakpoint with id %d cleared\n", bp_info->breakpoint_id);
             found->breakpoints[bpidx] = found->breakpoints[--found->breakpoints_used];
             num_cleared++;
             bpidx--;
@@ -1538,7 +1549,8 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                 break;
             }
 
-            fprintf(stderr, "debugserver received packet %d, command %d\n", argument.id, argument.type);
+            if (vm->debugserver->debugspam_protocol)
+                fprintf(stderr, "debugserver received packet %d, command %d\n", argument.id, argument.type);
 
             switch (argument.type) {
                 case MT_IsExecutionSuspendedRequest:
