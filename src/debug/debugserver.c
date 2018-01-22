@@ -1253,11 +1253,11 @@ static bool socket_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
     while (total_read < limit) {
         if ((read = recv(*((Socket*)ctx->buf), data, limit, 0)) == -1) {
             if (debugspam_network)
-                fprintf(stderr, "minus one");
+                fprintf(stderr, "minus one\n");
             return 0;
         } else if (read == 0) {
             if (debugspam_network)
-                fprintf(stderr, "end of file");
+                fprintf(stderr, "end of file\n");
             return 0;
         }
         if (debugspam_network)
