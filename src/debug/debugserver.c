@@ -1674,17 +1674,19 @@ void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
 
 void MVM_debugserver_mark_handles(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
     MVMInstance *vm = tc->instance;
-    MVMDebugServerHandleTable *table = vm->debugserver->handle_table;
-    MVMuint32 idx;
+    if (vm->debugserver) {
+        MVMDebugServerHandleTable *table = vm->debugserver->handle_table;
+        MVMuint32 idx;
 
-    if (table == NULL)
-        return;
+        if (table == NULL)
+            return;
 
-    for (idx = 0; idx < table->used; idx++) {
-        if (worklist)
-            MVM_gc_worklist_add(tc, worklist, &(table->entries[idx].target));
-        else
-            MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
-                (MVMCollectable *)table->entries[idx].target, "Debug Handle");
+        for (idx = 0; idx < table->used; idx++) {
+            if (worklist)
+                MVM_gc_worklist_add(tc, worklist, &(table->entries[idx].target));
+            else
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
+                    (MVMCollectable *)table->entries[idx].target, "Debug Handle");
+        }
     }
 }
