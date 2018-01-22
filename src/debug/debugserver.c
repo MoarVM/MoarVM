@@ -243,10 +243,14 @@ static void breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFileTab
     }
 }
 
+/* TODO add this function to the JIT */
+
 void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, MVMuint32 line_no) {
     MVMDebugServerData *debugserver = tc->instance->debugserver;
     MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
     MVMDebugServerBreakpointFileTable *found = &table->files[file_idx];
+
+    /* TODO first check if found has any breakpoints_used at all */
 
     if (found->lines_active[line_no]) {
         breakpoint_hit(tc, found, line_no);
@@ -1555,6 +1559,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
             uv_mutex_unlock(&vm->debugserver->mutex_network_send);
         }
         /* TODO invalidate all handls */
+        /* TODO clear all breakpoints */
         vm->debugserver->messagepack_data = NULL;
     }
 }
