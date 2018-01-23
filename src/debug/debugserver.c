@@ -597,7 +597,9 @@ static MVMint32 request_all_threads_resume(MVMThreadContext *dtc, cmp_ctx_t *ctx
             if (current == (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED) ||
                     current == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST) ||
                     current == (MVMGCStatus_STOLEN | MVMSuspendState_SUSPEND_REQUEST)) {
-                if (!request_thread_resumes(dtc, ctx, argument, cur_thread)) {
+                if (request_thread_resumes(dtc, ctx, argument, cur_thread)) {
+                    if (vm->debugserver->debugspam_protocol)
+                        fprintf(stderr, "failure to resume thread %d\n", cur_thread->body.thread_id);
                     success = 0;
                     break;
                 }
@@ -613,7 +615,7 @@ static MVMint32 request_all_threads_resume(MVMThreadContext *dtc, cmp_ctx_t *ctx
 
     uv_mutex_unlock(&vm->mutex_threads);
 
-    return success;
+    return !success;
 }
 
 static MVMint32 write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMThread *thread) {
