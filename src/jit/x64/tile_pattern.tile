@@ -66,6 +66,8 @@
 (tile: and_load_addr (and reg (load (andr reg $ofs) $sz)) reg 6)
 (tile: and_load_idx  (and reg (load (idx reg reg $scale) $size)) reg 6)
 
+(tile: or_reg        (or reg reg) reg 2)
+
 (tile: sub_reg       (sub reg reg) reg 2)
 (tile: sub_const     (sub reg (const $val $size)) reg 3)
 (tile: sub_load_addr (sub reg (load (subr reg $ofs) $sz)) reg 6)

@@ -227,3 +227,6 @@
        (callv (^getf (^getf (^stable $1) MVMSTable container_spec) MVMContainerSpec fetch)
               (arglist (carg (tc) ptr) (carg $1 ptr) (carg $0 ptr)))
        (store $0 $1 ptr_sz)))
+
+(template: isnull
+   (or (flagval (zr $1)) (flagval (eq $1 (^vmnull)))))
