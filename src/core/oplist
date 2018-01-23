@@ -897,7 +897,7 @@ sp_getspeshslot  .s w(obj) sslot :pure
 
 # Find method, using spesh slot and the one after it as a cache.
 # Isn't marked invokish, since the check is implemented directly
-sp_findmeth      .s w(obj) r(obj) str sslot :pure
+sp_findmeth      .s w(obj) r(obj) str sslot :pure :invokish
 
 # Create an object with the first int16's number of bytes size and then
 # set its STable to the STable in the spesh slot.
