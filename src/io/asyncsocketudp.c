@@ -76,8 +76,20 @@ static void push_name_and_port(MVMThreadContext *tc, struct sockaddr_storage *na
 static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const struct sockaddr *addr, unsigned flags) {
     ReadInfo         *ri  = (ReadInfo *)handle->data;
     MVMThreadContext *tc  = ri->tc;
-    MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, ri->work_idx);
+    MVMObject        *arr;
+    MVMAsyncTask     *t;
+
+    /* libuv will call on_read once after all datagram read operations
+     * to "give us back a buffer". in that case, nread and addr are NULL.
+     * This is an artifact of the underlying implementation and we shouldn't
+     * pass it through to the user. */
+
+    if (nread == 0 && addr == NULL)
+        return;
+
+    arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+    t = MVM_io_eventloop_get_active_work(tc, ri->work_idx);
+
     MVM_repr_push_o(tc, arr, t->body.schedulee);
     if (nread >= 0) {
         MVMROOT2(tc, t, arr, {
