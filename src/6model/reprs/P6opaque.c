@@ -585,7 +585,7 @@ static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
     }
 
     MVM_exception_throw_adhoc(tc,
-        "P6opaque: get_boxed_ref could not unbox for the representation '%d' of type %s", repr_id, MVM_6model_get_stable_debug_name(tc, st));
+        "P6opaque: get_boxed_ref could not unbox for the representation '%s' of type %s", MVM_repr_get_by_id(tc, repr_id)->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 
 static const MVMStorageSpec default_storage_spec = {
