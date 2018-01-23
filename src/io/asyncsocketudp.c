@@ -30,6 +30,48 @@ static void free_on_close_cb(uv_handle_t *handle) {
     MVM_free(handle);
 }
 
+/* XXX this is duplicated from asyncsocket.c; put it in some shared file */
+static void push_name_and_port(MVMThreadContext *tc, struct sockaddr_storage *name, MVMObject *arr) {
+    char addrstr[INET6_ADDRSTRLEN + 1];
+    /* XXX windows support kludge. 64 bit is much too big, but we'll
+     * get the proper data from the struct anyway, however windows
+     * decides to declare it. */
+    MVMuint64 port;
+    MVMObject *host_o;
+    MVMObject *port_o;
+    if (name) {
+        switch (name->ss_family) {
+            case AF_INET6: {
+                uv_ip6_name((struct sockaddr_in6*)name, addrstr, INET6_ADDRSTRLEN + 1);
+                port = ntohs(((struct sockaddr_in6*)name)->sin6_port);
+                break;
+            }
+            case AF_INET: {
+                uv_ip4_name((struct sockaddr_in*)name, addrstr, INET6_ADDRSTRLEN + 1);
+                port = ntohs(((struct sockaddr_in*)name)->sin_port);
+                break;
+            }
+            default:
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
+                return;
+                break;
+        }
+        MVMROOT(tc, arr, {
+            port_o = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, port);
+            MVMROOT(tc, port_o, {
+                host_o = (MVMObject *)MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr,
+                        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, addrstr));
+            });
+        });
+    } else {
+        host_o = tc->instance->boot_types.BOOTStr;
+        port_o = tc->instance->boot_types.BOOTInt;
+    }
+    MVM_repr_push_o(tc, arr, host_o);
+    MVM_repr_push_o(tc, arr, port_o);
+}
+
 /* Read handler. */
 static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const struct sockaddr *addr, unsigned flags) {
     ReadInfo         *ri  = (ReadInfo *)handle->data;
@@ -54,8 +96,11 @@ static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const 
             res_buf->body.elems    = nread;
             MVM_repr_push_o(tc, arr, (MVMObject *)res_buf);
 
-            /* Finally, no error. */
+            /* next, no error. */
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+
+            /* and finally, address and port */
+            push_name_and_port(tc, (struct sockaddr_storage *)addr, arr);
         });
     }
     else if (nread == UV_EOF) {
@@ -65,6 +110,8 @@ static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const 
             MVM_repr_push_o(tc, arr, final);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
         });
         if (buf->base)
             MVM_free(buf->base);
@@ -80,6 +127,8 @@ static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const 
             MVMObject *msg_box = MVM_repr_box_str(tc,
                 tc->instance->boot_types.BOOTStr, msg_str);
             MVM_repr_push_o(tc, arr, msg_box);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
         });
         if (buf->base)
             MVM_free(buf->base);
