@@ -755,7 +755,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint64 codepo
     if (codepoint < 0) {
         MVM_exception_throw_adhoc(tc,
             "Internal Error: MVM_codepoint_to_row_index call requested a synthetic codepoint that does not exist.\n"
-            "Requested synthetic %"PRId64" when only %"PRId32" have been created.",
+            "Requested synthetic %%"PRId64" when only %%"PRId32" have been created.",
             -codepoint, tc->instance->nfg->num_synthetics);
     }
 
@@ -1163,110 +1163,106 @@ END
 }
 
 sub emit_unicode_property_keypairs {
-    my @lines = ();
     my $prop_codes = {};
+    # Add property name aliases to $PROP_NAMES
     each_line('PropertyAliases', sub { $_ = shift;
         my @aliases = split / \s* [#;] \s* /x;
         for my $name (@aliases) {
             if (exists $PROP_NAMES->{$name}) {
                 for my $al (@aliases) {
-                    $PROP_NAMES->{$al} = $PROP_NAMES->{$name}
-                        unless $al eq $name;
-                    my $lc = lc $al;
-                    $PROP_NAMES->{$lc} = $PROP_NAMES->{$name}
-                        unless $lc eq $name or $lc eq $al;
-                    my $no_ = $lc;
-                    $no_ =~ s/_//g;
-                    $PROP_NAMES->{$no_} = $PROP_NAMES->{$name}
-                        unless $no_ eq $name or $no_ eq $name or $no_ eq $al;
                     $prop_codes->{$al} = $name;
+                    do_for_each_case($al, sub { $_ = shift;
+                        $PROP_NAMES->{$_} = $PROP_NAMES->{$name};
+                    });
                 }
                 last;
             }
         }
     });
     my %aliases;
-    my %done;
-    my %lines;
+    my %lines_h;
+    # Get the aliases to put into Property Name Keypairs
     each_line('PropertyValueAliases', sub { $_ = shift;
+        # Capture heading lines: `# Bidi_Control (Bidi_C)`
+        # TODO maybe best to get this data from PropertyAliases?
+        # emit_unicode_property_keypairs() in general can be simplified more
         if (/ ^ [#] \s (\w+) \s [(] (\w+) [)] /x) {
             $aliases{$2} = [$1];
-            return
+            return;
         }
-        return if / ^ (?: [#] | \s* $ ) /x;
-        my @parts = split / \s* [#;] \s* /x;
-        my $propname = shift @parts;
+        return if / ^ (?: [#] | \s* $ ) /x; # Return if comment or empty line
+        my @pv_alias_parts = split / \s* [#;] \s* /x;
+        # Since it's the first field in the file, $propname is actually the short
+        # property name. So 'sc' or 'gc' for example (Script, General_Category respectively).
+        my $propname = shift @pv_alias_parts;
         if (exists $PROP_NAMES->{$propname}) {
-            if (($parts[0] eq 'Y' || $parts[0] eq 'N') && ($parts[1] eq 'Yes' || $parts[1] eq 'No')) {
-                my $prop_val = $PROP_NAMES->{$propname};
-                for ($propname, @{$aliases{$propname} // []}) {
-                    do_for_each_case($_, sub { $_ = shift;
-                        $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
+            my $prop_val = $PROP_NAMES->{$propname};
+            if (($pv_alias_parts[0] eq 'Y'   || $pv_alias_parts[0] eq 'N') &&
+                ($pv_alias_parts[1] eq 'Yes' || $pv_alias_parts[1] eq 'No')) {
+                for my $name ($propname, @{$aliases{$propname} // []}) {
+                    do_for_each_case($name, sub { $_ = shift;
+                        return if exists $PROP_NAMES->{$_}; # return because we'll already add
+                        # the ones from $PROP_NAMES later
+                        $lines_h{$propname}->{$_} = "{\"$_\",$prop_val}";
                     });
                 }
                 return
             }
-            if ($parts[-1] =~ / [|] /x) { # it's a union
-                pop @parts;
-                my $unionname = $parts[0];
-                my $prop_val;
-                if (exists $BINARY_PROPERTIES->{$unionname}) {
-                    $prop_val = $BINARY_PROPERTIES->{$unionname}->{field_index};
-                    do_for_each_case($_, sub { $_ = shift;
-                        $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
-                    });
-                }
-                $prop_val = $PROP_NAMES->{$propname};
-                for (@parts) {
-                    do_for_each_case($_, sub { $_ = shift;
-                        $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
+            # Orig Line: `gc ; C ; Other  # Cc | Cf | Cn | Co | Cs`
+            if ($pv_alias_parts[-1] =~ / [|] /x) { # it's a union
+                # Pop the part after the `#` in the original line off
+                pop @pv_alias_parts; # i.e. `Cc | Cf | Cn | Co | Cs`
+                my $unionname = $pv_alias_parts[0]; # i.e. `C`
+                croak "Couldn't find Binary Property (union) `$unionname`"
+                    unless exists $BINARY_PROPERTIES->{$unionname};
+                $prop_val = $BINARY_PROPERTIES->{$unionname}->{field_index};
+                for my $alias_part (@pv_alias_parts) {
+                    do_for_each_case($alias_part, sub { $_ = shift;
+                        return if exists $PROP_NAMES->{$_};
+                        $lines_h{$propname}->{$_} = "{\"$_\",$prop_val}";
                     });
                 }
             }
             else {
-                my $prop_val = $PROP_NAMES->{$propname};
-                for (@parts) {
-                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
-                    push @{ $aliases{$propname} }, $_
+                for my $alias_part (@pv_alias_parts) {
+                    # If the property alias name conflicts with a Property Name
+                    # don't put it in %lines_h or it will cause conflicts
+                    next if exists $PROP_NAMES->{$alias_part};
+                    $lines_h{$propname}->{$alias_part} = "{\"$alias_part\",$prop_val}";
+                    push @{ $aliases{$propname} }, $alias_part;
                 }
             }
         }
     }, 1);
-    for my $propname (qw(_custom_ gc sc), sort keys %lines) {
-        for (sort keys %{$lines{$propname}}) {
-            # For Letter etc other unions
-            if (/ [#] /x) {
-                my $value = $lines{$propname}{$_};
-                my ($old, $orig) = ($_) x 2;
-                $old =~ s/ [#] .* //x;
-                my @a = split / \s* ; \s* /x, $old;
-                my $pname = shift @a;
-                for my $name (@a) {
-                    $name = trim $name;
-                    my $v2 = $value;
-                    $v2 =~ s/ " .* " /"$name"/x;
-                    $lines{$propname}{$name} = $v2;
-                    # NEEDED
-                    $done{$name} = push @lines, $v2;
-                }
-            }
-            else {
-                $done{$_} ||= push @lines, $lines{$propname}->{$_};
-            }
+    # Fix to ensure space has the same propcode as White_Space
+    $PROP_NAMES->{space} = $PROP_NAMES->{White_Space};
+    my @lines;
+    my %done;
+    # Copy the keys in $PROP_NAMES first
+    for my $key (sort keys %$PROP_NAMES) {
+        do_for_each_case($key, sub { $_ = shift;
+            $done{$_} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}";
+        });
+    }
+    # Then copy the rest. Because we use `$done{} ||= push @lines` it will only
+    # push to @lines if it is not in %done already.
+    for my $propname (qw(_custom_ gc sc), sort keys %lines_h) {
+        for (sort keys %{$lines_h{$propname}}) {
+            $done{$_} ||= push @lines, $lines_h{$propname}->{$_};
         }
     }
+    # Make sure General_Category and Script Property values are added first.
+    # These are the only ones (iirc) that are guaranteed in Perl 6.
     for my $key (qw(gc sc), sort keys %$PROP_NAMES) {
-        do_for_each_case($key, sub { $_ = shift;
-            $done{"$_"} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}";
-        });
         for (@{ $aliases{$key} }) {
+            next if $PROP_NAMES->{$_};
             do_for_each_case($_, sub { $_ = shift;
-                $done{"$_"} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}";
+                $done{$_} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}";
             });
         }
     }
-    # Reverse the @lines array so that later added entries take precedence
-    @lines = reverse @lines;
+    # Sort the @lines array so it always appears in the same order
+    @lines = sort @lines;
     chomp(my $hout = <<'END');
 
 struct MVMUnicodeNamedValue {
@@ -1410,9 +1406,11 @@ sub set_lines_for_each_case {
 }
 sub do_for_each_case {
     my ($str, $sub) = @_;
-    $sub->($str);
-    $sub->($str) if $str =~ s/_//xg;
-    $sub->($str) if $str =~ y/A-Z/a-z/;
+    my $str2 = $str;
+    $sub->($str);                         # Foo_Bar (original)
+    $sub->($str)  if $str  =~ s/_//xg;    # FooBar
+    $sub->($str)  if $str  =~ y/A-Z/a-z/; # foobar
+    $sub->($str2) if $str2 =~ y/A-Z/a-z/; # foo_bar
     return $str;
 }
 sub emit_unicode_property_value_keypairs {
@@ -1460,30 +1458,30 @@ sub emit_unicode_property_value_keypairs {
             return
         }
         return if / ^ (?: [#] | \s* $ ) /x;
-        my @parts = split(/ \s* [#;] \s* /x);
-        for my $part (@parts) {
+        my @pv_alias_parts = split(/ \s* [#;] \s* /x);
+        for my $part (@pv_alias_parts) {
             $part = trim($part);
             croak if $part =~ / [;] /x;
         }
-        my $propname = shift @parts;
+        my $propname = shift @pv_alias_parts;
         $propname = trim $propname;
         if (exists $PROP_NAMES->{$propname}) {
             my $prop_val = $PROP_NAMES->{$propname} << 24;
             # emit binary properties
-            if (($parts[0] eq 'Y' || $parts[0] eq 'N') && ($parts[1] eq 'Yes' || $parts[1] eq 'No')) {
+            if (($pv_alias_parts[0] eq 'Y' || $pv_alias_parts[0] eq 'N') && ($pv_alias_parts[1] eq 'Yes' || $pv_alias_parts[1] eq 'No')) {
                 $prop_val++; # one bit width
                 for ($propname, ($aliases{$propname} // ())) {
                     set_lines_for_each_case($_, $propname, $prop_val, \%lines);
                 }
                 return
             }
-            if ($parts[-1] =~ /\|/x) { # it's a union
-                pop @parts;
-                my $unionname = $parts[0];
+            if ($pv_alias_parts[-1] =~ /\|/x) { # it's a union
+                pop @pv_alias_parts;
+                my $unionname = $pv_alias_parts[0];
                 if (exists $BINARY_PROPERTIES->{$unionname}) {
                     my $prop_val = $BINARY_PROPERTIES->{$unionname}->{field_index} << 24;
                     my $value    = $BINARY_PROPERTIES->{$unionname}->{bit_width};
-                    for my $i (@parts) {
+                    for my $i (@pv_alias_parts) {
                         set_lines_for_each_case($i, $propname, $prop_val + $value, \%lines);
                         do_for_each_case($i, sub { $_ = shift;
                             $done{"$propname$_"} = push @lines, $lines{$propname}->{$_};
@@ -1499,7 +1497,7 @@ sub emit_unicode_property_value_keypairs {
             my $enum  = $ALL_PROPERTIES->{$key}->{'enum'};
             croak $propname unless $enum;
             my $value;
-            for (@parts) {
+            for (@pv_alias_parts) {
                 my $alias = $_;
                 $alias    =~ s/[-_\s]/./xg;
                 $alias    = lc($alias);
@@ -1512,7 +1510,7 @@ sub emit_unicode_property_value_keypairs {
                 print "\nNote: couldn't resolve property $propname property value alias (you can disregard this for now).";
                 return;
             }
-            for (@parts) {
+            for (@pv_alias_parts) {
                 s/[-\s]/./xg;
                 next if /[.|]/x;
                 set_lines_for_each_case($_, $propname, $prop_val + $value, \%lines);
@@ -1736,17 +1734,17 @@ sub UnicodeData {
     register_binary_property('Any');
     my @gc_alias_checkers;
     each_line('PropertyValueAliases', sub { $_ = shift;
-        my @parts = split / \s* [#;] \s* /x;
+        my @pv_alias_parts = split / \s* [#;] \s* /x;
         # Make sure everything is trimmed
-        for my $part (@parts) {
+        for my $part (@pv_alias_parts) {
             $part = trim $part;
         }
-        my $propname = shift @parts;
-        return if ($parts[0] eq 'Y'   || $parts[0] eq 'N')
-               && ($parts[1] eq 'Yes' || $parts[1] eq 'No');
-        if ($parts[-1] =~ /[|]/x) { # it's a union
-            my $unionname = $parts[0];
-            my $unionof   = pop @parts;
+        my $propname = shift @pv_alias_parts;
+        return if ($pv_alias_parts[0] eq 'Y'   || $pv_alias_parts[0] eq 'N')
+               && ($pv_alias_parts[1] eq 'Yes' || $pv_alias_parts[1] eq 'No');
+        if ($pv_alias_parts[-1] =~ /[|]/x) { # it's a union
+            my $unionname = $pv_alias_parts[0];
+            my $unionof   = pop @pv_alias_parts;
             $unionof      =~ s/ \s+ //xg;
             register_union($unionname, $unionof, \@gc_alias_checkers);
         }
