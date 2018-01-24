@@ -1266,7 +1266,7 @@ static bool socket_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
             return 0;
         } else if (read == 0) {
             if (debugspam_network)
-                fprintf(stderr, "end of file\n");
+                fprintf(stderr, "end of file - socket probably closed\nignore warnings about parse errors\n");
             return 0;
         }
         if (debugspam_network)
