@@ -319,5 +319,12 @@
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
 
+(template: smrt_strify!
+  (callv (^func &MVM_coerce_smart_stringify)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $0 ptr))))
+
 (template: isnull
    (or (flagval (zr $1)) (flagval (eq $1 (^vmnull)))))
