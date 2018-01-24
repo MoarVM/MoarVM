@@ -943,13 +943,13 @@ static MVMint32 create_context_or_code_obj_debug_handle(MVMThreadContext *dtc, c
     MVMThread *to_do = thread ? thread : find_thread_by_id(vm, argument->thread_id);
 
     if (!to_do) {
-        if (tc->instance->debugserver->debugspam_protocol)
+        if (dtc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "no thread found for context/code obj handle (or thread not eligible)\n");
         return 1;
     }
 
     if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
-        if (tc->instance->debugserver->debugspam_protocol)
+        if (dtc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "can only retrieve a context or code obj handle if thread is 'UNABLE' (is %d)\n", to_do->body.tc->gc_status);
         return 1;
     }
@@ -964,7 +964,7 @@ static MVMint32 create_context_or_code_obj_debug_handle(MVMThreadContext *dtc, c
             frame_idx++, cur_frame = cur_frame->caller) { }
 
     if (!cur_frame) {
-        if (tc->instance->debugserver->debugspam_protocol)
+        if (dtc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "couldn't create context/coderef handle: no such frame %d\n", argument->frame_number);
         return 1;
     }
@@ -976,7 +976,7 @@ static MVMint32 create_context_or_code_obj_debug_handle(MVMThreadContext *dtc, c
     } else if (argument->type == MT_CodeObjectHandle) {
         allocate_and_send_handle(dtc, ctx, argument, cur_frame->code_ref);
     } else {
-        if (tc->instance->debugserver->debugspam_protocol)
+        if (dtc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "Did not expect to see create_context_or_code_obj_debug_handle called with a %d type\n", argument->type);
         return 1;
     }
