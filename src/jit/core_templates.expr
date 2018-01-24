@@ -326,5 +326,12 @@
       (carg $1 ptr)
       (carg $0 ptr))))
 
+(template: smrt_numify!
+  (callv (^func &MVM_coerce_smart_numify)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $0 ptr))))
+
 (template: isnull
    (or (flagval (zr $1)) (flagval (eq $1 (^vmnull)))))
