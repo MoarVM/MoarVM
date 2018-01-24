@@ -348,5 +348,12 @@
         (carg (tc) ptr)
         (carg $0 ptr)))))
 
+(template: eq_s
+  (call (^func &MVM_string_equal)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)) int_sz))
+
 (template: isnull
    (or (flagval (zr $1)) (flagval (eq $1 (^vmnull)))))
