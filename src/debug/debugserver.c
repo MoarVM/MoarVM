@@ -1295,6 +1295,8 @@ static size_t socket_writer(cmp_ctx_t *ctx, const void *data, size_t limit) {
         fprintf(stderr, "asked to send %3d bytes: ", limit);
     while (total_sent < limit) {
         if ((sent = send(*(Socket*)ctx->buf, data, limit, 0)) == -1) {
+            if (debugspam_network)
+                fprintf(stderr, "but couldn't (socket disconnected?)\n");
             return 0;
         } else if (sent == 0) {
             if (debugspam_network)
