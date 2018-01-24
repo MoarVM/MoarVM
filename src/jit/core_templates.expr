@@ -233,8 +233,8 @@
 
 (template: sp_findmeth!
   (ifv
-    (eq (^spesh_slot $3) (^stable $1))
-    (store $0 (^spesh_slot (add $3 (const 1 int_sz))) ptr_sz)
+    (eq (load (^spesh_slot $3) ptr_sz) (^stable $1))
+    (store $0 (load (^spesh_slot (add $3 (const 1 int_sz))) ptr_sz) ptr_sz)
     (callv (^func &MVM_6model_find_method_spesh)
       (arglist
         (carg (tc) ptr)
