@@ -29,18 +29,18 @@ JIT:
 + Implement tile for OR operator
 
 Spesh:
-+ 473344916 Mark sp_rebless as :noinline
-+ 7ea08024e Fix off-by-one error in uninline
-+ 85b2c5f82 Pay attention to return op in cross-HLL inlines
-+ ed7c1234f Optimize not_i when its input is a known value
-+ 671bf1dbf Add some missing fact dependencies
-+ 38a7f5771 Remove bogus comment and known value fact tweak
-+ c1da6f968 Make instruction deletion within dead BBs a no-op
-+ 65098f05b Make log facts tolerate the odd outlier
-+ 1e2a3fbe9 Place facts on a `clone` op
-+ 4a0a912ef New spesh-bisect.pl tool
-+ 8414888be Fix OSR of thread entry frame
-+ db706bb7d Allow some cross-HLL inlining, this means we can inline bits of NQP
++ Mark sp_rebless as :noinline
++ Fix off-by-one error in uninline
++ Pay attention to return op in cross-HLL inlines
++ Optimize not_i when its input is a known value
++ Add some missing fact dependencies
++ Remove bogus comment and known value fact tweak
++ Make instruction deletion within dead BBs a no-op
++ Make log facts tolerate the odd outlier
++ Place facts on a `clone` op
++ New spesh-bisect.pl tool
++ Fix OSR of thread entry frame
++ Allow some cross-HLL inlining, this means we can inline bits of NQP
   (usually guts like Block.clone) into Perl 6 routines that call them.
 
 Garbage Collection/Memory:
