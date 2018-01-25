@@ -355,5 +355,13 @@
       (carg $1 ptr)
       (carg $2 ptr)) int_sz))
 
+(template: box_i!
+  (callv (^func &MVM_box_int)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)
+      (carg $2 ptr)
+      (carg $0 ptr))))
+
 (template: isnull
    (or (flagval (zr $1)) (flagval (eq $1 (^vmnull)))))
