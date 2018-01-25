@@ -161,7 +161,7 @@ void MVM_spesh_log_static(MVMThreadContext *tc, MVMObject *value) {
 void MVM_spesh_log_decont(MVMThreadContext *tc, MVMuint8 *prev_op, MVMObject *value) {
     MVMSpeshLog *sl = tc->spesh_log;
     MVMint32 cid = tc->cur_frame->spesh_correlation_id;
-    if (prev_op - 4 == *(tc->interp_cur_op)) {
+    if (prev_op + 4 == *(tc->interp_cur_op)) {
         MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
         entry->kind = MVM_SPESH_LOG_TYPE;
         entry->id = cid;
