@@ -363,5 +363,12 @@
       (carg $2 ptr)
       (carg $0 ptr))))
 
+(template: getdynlex
+  (call (^func &MVM_frame_getdynlex)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg (^caller) ptr)) ptr_sz))
+
 (template: isnull
    (or (flagval (zr $1)) (flagval (eq $1 (^vmnull)))))
