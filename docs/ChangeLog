@@ -3,10 +3,6 @@ since the previous release.
 
 New in 2018.01
 
-**⚠ Feel free to edit this page.**
-
-New in 2018.01
-
 Miscellaneous:
 + Refuse to `make release` with dirty work tree
 + Fix off-by-one error when checking inline boundaries in MVM_frame_find_contextual_by_name()
