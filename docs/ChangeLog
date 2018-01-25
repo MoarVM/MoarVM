@@ -2118,3 +2118,7 @@ New in 2014.02
 + Better estimate and perhaps shrink string memory for UTF-8 decode
 + Added probing to Configure to learn how the compiler does 'static inline'
 + Switched many macros over to static inline functions
+
+New in 2014.01
+
+The first official MoarVM release! Capable of running the 2014.01 release of Rakudo Perl 6, the first one with MoarVM support. (No change log for this initial release, since it's basically "all the things".)
