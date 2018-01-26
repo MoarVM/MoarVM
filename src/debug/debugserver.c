@@ -245,17 +245,15 @@ static void breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFileTab
     }
 }
 
-/* TODO add this function to the JIT */
-
 void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, MVMuint32 line_no) {
     MVMDebugServerData *debugserver = tc->instance->debugserver;
-    MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
-    MVMDebugServerBreakpointFileTable *found = &table->files[file_idx];
+    if (debugserver->any_breakpoints_at_all) {
+        MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
+        MVMDebugServerBreakpointFileTable *found = &table->files[file_idx];
 
-    /* TODO first check if found has any breakpoints_used at all */
-
-    if (found->lines_active[line_no]) {
-        breakpoint_hit(tc, found, line_no);
+        if (found->breakpoints_used && found->lines_active[line_no]) {
+            breakpoint_hit(tc, found, line_no);
+        }
     }
 }
 
@@ -825,6 +823,8 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
     bp_info->shall_suspend = argument->suspend;
     bp_info->send_backtrace = argument->stacktrace;
 
+    debugserver->any_breakpoints_at_all++;
+
     if (tc->instance->debugserver->debugspam_protocol)
         fprintf(stderr, "breakpoint settings: index %d bpid %d lineno %d suspend %d backtrace %d\n", found->breakpoints_used - 1, argument->id, argument->line, argument->suspend, argument->stacktrace);
 
@@ -879,6 +879,7 @@ void MVM_debugserver_clear_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, requ
             found->breakpoints[bpidx] = found->breakpoints[--found->breakpoints_used];
             num_cleared++;
             bpidx--;
+            debugserver->any_breakpoints_at_all--;
         }
     }
 
