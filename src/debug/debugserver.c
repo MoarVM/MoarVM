@@ -1519,12 +1519,14 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
     }
 
     while(continue_running) {
-        MVM_gc_mark_thread_blocked(tc);
-        Socket clientsocket = accept(listensocket, NULL, NULL);
-        MVM_gc_mark_thread_unblocked(tc);
+        Socket clientsocket;
         int len;
         char *buffer[32];
         cmp_ctx_t ctx;
+
+        MVM_gc_mark_thread_blocked(tc);
+        clientsocket = accept(listensocket, NULL, NULL);
+        MVM_gc_mark_thread_unblocked(tc);
 
         send_greeting(&clientsocket);
 
