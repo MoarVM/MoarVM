@@ -294,6 +294,7 @@ MVMuint8 check_requirements(request_data *data) {
 
         case MT_ReleaseHandles:
             REQUIRE(FS_handles, "A handles field is required");
+            break;
 
         case MT_FindMethod:
             /* TODO we've got to have some name field or something */
@@ -915,6 +916,37 @@ void MVM_debugserver_clear_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, requ
         communicate_error(ctx, argument);
 }
 
+static void release_all_handles(MVMThreadContext *dtc) {
+    MVMDebugServerHandleTable *dht = dtc->instance->debugserver->handle_table;
+    dht->used = 0;
+    dht->next_id = 0;
+}
+
+static MVMuint64 release_handles(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMDebugServerHandleTable *dht = dtc->instance->debugserver->handle_table;
+
+    MVMuint16 handle_index = 0;
+    MVMuint16 id_index = 0;
+    MVMuint16 handles_cleared = 0;
+    for (handle_index = 0; handle_index < dht->used; handle_index++) {
+        for (id_index = 0; id_index < argument->handle_count; id_index++) {
+            if (argument->handles[id_index] == dht->entries[handle_index].id) {
+                dht->used--;
+                dht->entries[handle_index].id = dht->entries[dht->used].id;
+                dht->entries[handle_index].target = dht->entries[dht->used].target;
+                handle_index--;
+                handles_cleared++;
+                break;
+            }
+        }
+    }
+    if (handles_cleared != argument->handle_count) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
 static MVMuint64 allocate_handle(MVMThreadContext *dtc, MVMObject *target) {
     if (!target) {
         return 0;
@@ -1436,6 +1468,9 @@ MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
         } else if (strncmp(key_str, "file", 15) == 0) {
             FIELD_FOUND(FS_file, "file field duplicated");
             type_to_parse = 2;
+        } else if (strncmp(key_str, "handles", 15) == 0) {
+            FIELD_FOUND(FS_file, "handles field duplicated");
+            type_to_parse = 3;
         } else {
             fprintf(stderr, "the hell is a %s?\n", key_str);
             data->parse_fail = 1;
@@ -1495,6 +1530,19 @@ MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
                     return 0;
             }
             data->fields_set = data->fields_set | field_to_set;
+        } else if (type_to_parse == 3) {
+            uint32_t arraysize = 0;
+            uint32_t index;
+            CHECK(cmp_read_array(ctx, &arraysize), "Couldn't read array for a key");
+            data->handle_count = arraysize;
+            data->handles = MVM_malloc(arraysize * sizeof(MVMuint64));
+            for (index = 0; index < arraysize; index++) {
+                cmp_object_t object;
+                MVMuint64 result;
+                CHECK(cmp_read_object(ctx, &object), "Couldn't read value for a key");
+                CHECK(is_valid_int(&object, &result), "Couldn't read integer value for a key");
+                data->handles[index] = result;
+            }
         }
     }
 
@@ -1630,6 +1678,10 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                         communicate_error(&ctx, &argument);
                     }
                     break;
+                case MT_ReleaseHandles:
+                    COMMUNICATE_RESULT(release_handles(tc, &ctx, &argument));
+                    MVM_free(argument.handles);
+                    break;
                 case MT_ContextHandle:
                 case MT_CodeObjectHandle:
                     if (create_context_or_code_obj_debug_handle(tc, &ctx, &argument, NULL)) {
@@ -1659,8 +1711,8 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
 
             uv_mutex_unlock(&vm->debugserver->mutex_network_send);
         }
-        /* TODO invalidate all handls */
         MVM_debugserver_clear_all_breakpoints(tc, NULL, NULL);
+        release_all_handles(tc);
         vm->debugserver->messagepack_data = NULL;
     }
 }
