@@ -841,6 +841,30 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
     uv_mutex_unlock(&debugserver->mutex_breakpoints);
 }
 
+void MVM_debugserver_clear_all_breakpoints(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMDebugServerData *debugserver = tc->instance->debugserver;
+    MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
+    MVMDebugServerBreakpointFileTable *found = NULL;
+    MVMuint32 index;
+
+    uv_mutex_lock(&debugserver->mutex_breakpoints);
+
+    for (index = 0; index < table->files_used; index++) {
+        found = &table->files[index];
+        memset(found->lines_active, 0, found->lines_active_alloc * sizeof(MVMuint8));
+        found->breakpoints_used = 0;
+    }
+
+    debugserver->any_breakpoints_at_all = 0;
+
+    uv_mutex_unlock(&debugserver->mutex_breakpoints);
+
+    /* When a client disconnects, we clear all breakpoints but don't
+     * send a confirmation. In this case ctx and argument will be NULL */
+    if (ctx && argument)
+        communicate_success(ctx, argument);
+}
+
 void MVM_debugserver_clear_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *argument) {
     MVMDebugServerData *debugserver = tc->instance->debugserver;
     MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
@@ -1598,6 +1622,9 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                 case MT_ClearBreakpoint:
                     MVM_debugserver_clear_breakpoint(tc, &ctx, &argument);
                     break;
+                case MT_ClearAllBreakpoints:
+                    MVM_debugserver_clear_all_breakpoints(tc, &ctx, &argument);
+                    break;
                 case MT_ObjectAttributesRequest:
                     if (request_object_attributes(tc, &ctx, &argument)) {
                         communicate_error(&ctx, &argument);
@@ -1633,7 +1660,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
             uv_mutex_unlock(&vm->debugserver->mutex_network_send);
         }
         /* TODO invalidate all handls */
-        /* TODO clear all breakpoints */
+        MVM_debugserver_clear_all_breakpoints(tc, NULL, NULL);
         vm->debugserver->messagepack_data = NULL;
     }
 }

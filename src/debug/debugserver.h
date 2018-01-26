@@ -67,7 +67,7 @@ struct MVMDebugServerData {
     MVMDebugServerHandleTable *handle_table;
 
     MVMDebugServerBreakpointTable *breakpoints;
-    MVMuint8  any_breakpoints_at_all;
+    MVMuint32 any_breakpoints_at_all;
     MVMuint32 breakpoints_alloc;
     MVMuint32 breakpoints_used;
     uv_mutex_t mutex_breakpoints;
