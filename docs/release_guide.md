@@ -45,11 +45,22 @@ be made, they should be numbered as 2041.01.1, 2041.01.2, etc.
    was actually signed.
 
 10. Upload it by committing the tar file
-   to https://github.com/MoarVM/moarvm.org/.
+   to https://github.com/MoarVM/moarvm.org/ in the releases directory.
 
-11. Optionally, update the ports/macports/Portfile to reflect this latest
+11. Make sure you have the Text::Markdown Perl 5 module and run:
+
+        tools/moarvm.org_releases.pl > ../moarvm.org/releases.html
+
+   It should output to STDERR all the versions it found in ChangeLog make sure
+   the most recent release appears first and all releases going back to 2014.01
+   appear.
+
+12. Manually edit moarvm.org/index.html to have the DL link and mention the most
+    recent release.
+
+13. Optionally, update the ports/macports/Portfile to reflect this latest
    version, and open a ticket at https://trac.macports.org/newticket to get
    the macport updated. (For now, just make Coke do it.)
 
-12. Do something fun to celebrate. Like watching nyan cat, or having a beer. Or
+13. Do something fun to celebrate. Like watching nyan cat, or having a beer. Or
    why not both?
