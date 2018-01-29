@@ -441,5 +441,21 @@
         (carg (tc) ptr)
         (carg $0 ptr)))))
 
+(template: bindkey_s!
+  (dov
+    (callv (^getf (^repr $0) MVMREPROps ass_funcs.bind_key)
+      (arglist
+        (carg (tc) ptr)
+        (carg (^stable $0) ptr)
+        (carg $0 ptr)
+        (carg (^body $0) ptr)
+        (carg $1 ptr)
+        (carg $2 ptr)
+        (carg (const (&QUOTE MVM_reg_str) int_sz) int)))
+    (callv (^func &MVM_SC_WB_OBJ)
+      (arglist
+        (carg (tc) ptr)
+        (carg $0 ptr)))))
+
 (template: isnull
    (or (flagval (zr $1)) (flagval (eq $1 (^vmnull)))))
