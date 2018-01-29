@@ -370,5 +370,8 @@
       (carg $1 ptr)
       (carg (^caller) ptr)) ptr_sz))
 
+(template: lastexpayload
+  (^getf (tc) MVMThreadContext last_payload))
+
 (template: isnull
    (or (flagval (zr $1)) (flagval (eq $1 (^vmnull)))))
