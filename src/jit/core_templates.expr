@@ -383,5 +383,10 @@
                 (carg (tc) ptr)) ptr_sz) ptr)
       (carg $0 ptr))))
 
+(template: isconcrete
+  (if (all (nz $1) (^is_conc_obj $1))
+    (const 1 int_sz)
+    (const 0 int_sz)))
+
 (template: isnull
    (or (flagval (zr $1)) (flagval (eq $1 (^vmnull)))))
