@@ -388,5 +388,8 @@
     (const 1 int_sz)
     (const 0 int_sz)))
 
+(template: band_i
+  (and $1 $2))
+
 (template: isnull
    (or (flagval (zr $1)) (flagval (eq $1 (^vmnull)))))
