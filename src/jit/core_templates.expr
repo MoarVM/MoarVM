@@ -373,5 +373,15 @@
 (template: lastexpayload
   (^getf (tc) MVMThreadContext last_payload))
 
+(template: hllize!
+  (callv (^func &MVM_hll_map)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg (call (^func &MVM_hll_current)
+              (arglist
+                (carg (tc) ptr)) ptr_sz) ptr)
+      (carg $0 ptr))))
+
 (template: isnull
    (or (flagval (zr $1)) (flagval (eq $1 (^vmnull)))))
