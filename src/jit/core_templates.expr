@@ -408,5 +408,14 @@
       (carg (^cu_string $2) ptr)
       (carg $0 ptr))))
 
+(template: setelemspos!
+  (callv (^getf (^repr $0) MVMREPROps pos_funcs.set_elems)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $0) ptr)
+      (carg $0 ptr)
+      (carg (^body $0) ptr)
+      (carg $1 int))))
+
 (template: isnull
    (or (flagval (zr $1)) (flagval (eq $1 (^vmnull)))))
