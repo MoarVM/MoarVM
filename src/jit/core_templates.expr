@@ -400,5 +400,13 @@
 (template: bnot_i
   (not $1))
 
+(template: can!
+  (callv (^func &MVM_6model_can_method)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg (^cu_string $2) ptr)
+      (carg $0 ptr))))
+
 (template: isnull
    (or (flagval (zr $1)) (flagval (eq $1 (^vmnull)))))
