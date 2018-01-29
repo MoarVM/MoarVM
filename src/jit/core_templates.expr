@@ -397,5 +397,8 @@
 (template: bxor_i
   (xor $1 $2))
 
+(template: bnot_i
+  (not $1))
+
 (template: isnull
    (or (flagval (zr $1)) (flagval (eq $1 (^vmnull)))))
