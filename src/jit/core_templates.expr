@@ -348,6 +348,21 @@
         (carg (tc) ptr)
         (carg $0 ptr)))))
 
+(template: push_n!
+  (dov
+    (callv (^getf (^repr $0) MVMREPROps pos_funcs.push)
+      (arglist
+        (carg (tc) ptr)
+        (carg (^stable $0) ptr)
+        (carg $0 ptr)
+        (carg (^body $0) ptr)
+        (carg $1 ptr)
+        (carg (const (&QUOTE MVM_reg_num64) int_sz) int)))
+    (callv (^func &MVM_SC_WB_OBJ)
+      (arglist
+        (carg (tc) ptr)
+        (carg $0 ptr)))))
+
 (template: push_o!
   (dov
     (callv (^getf (^repr $0) MVMREPROps pos_funcs.push)
