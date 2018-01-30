@@ -488,6 +488,12 @@
       (carg $0 ptr)
       (carg (const (&QUOTE MVM_reg_obj) int_sz) int))))
 
+(template: iter
+  (call (^func &MVM_iter)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) ptr_sz))
+
 (template: getdynlex
   (call (^func &MVM_frame_getdynlex)
     (arglist
