@@ -942,6 +942,8 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         MVM_jit_expr_tree_analyze(tc, tree);
         MVM_jit_log(tc, "Build tree out of: [");
         for (ins = entry; ins != iter->ins; ins = ins->next) {
+            if (ins->info->opcode == MVM_SSA_PHI)
+                continue;
             MVM_jit_log(tc, "%s, ", ins->info->name);
         }
         MVM_jit_log(tc, "]\n");
