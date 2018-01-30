@@ -428,6 +428,16 @@
       (carg $0 ptr)
       (carg (const (&QUOTE MVM_reg_num64) int_sz) int))))
 
+(template: shift_s!
+  (callv (^getf (^repr $1) MVMREPROps pos_funcs.shift)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $1) ptr)
+      (carg $1 ptr)
+      (carg (^body $1) ptr)
+      (carg $0 ptr)
+      (carg (const (&QUOTE MVM_reg_str) int_sz) int))))
+
 (template: getdynlex
   (call (^func &MVM_frame_getdynlex)
     (arglist
