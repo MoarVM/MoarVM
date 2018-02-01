@@ -355,13 +355,16 @@
       (carg $1 ptr)
       (carg $2 ptr)) int_sz))
 
-(template: box_i!
-  (callv (^func &MVM_box_int)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 int)
-      (carg $2 ptr)
-      (carg $0 ptr))))
+# NB disable this for the moment, it seems to upset (some) builds, we
+# don't know yet why, but it might be because it allocates
+
+#(template: box_i!
+#  (callv (^func &MVM_box_int)
+#    (arglist
+#      (carg (tc) ptr)
+#      (carg $1 int)
+#      (carg $2 ptr)
+#      (carg $0 ptr))))
 
 (template: getdynlex
   (call (^func &MVM_frame_getdynlex)
