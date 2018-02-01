@@ -4,6 +4,8 @@ use v6;
 my $UCD-zip-lnk = "ftp://ftp.unicode.org/Public/UCD/latest/ucd/UCD.zip";
 my $UCA-all-keys = "ftp://ftp.unicode.org/Public/UCA/latest/allkeys.txt";
 my $UCA-collation-test = "ftp://ftp.unicode.org/Public/UCA/latest/CollationTest.zip";
+my $MS_CODETABLES_URL = 'ftp://ftp.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/';
+my @MS_CODETABLES = 'CP1252.TXT', 'CP1251.TXT';
 my IO::Path $unidata = "UNIDATA".IO.absolute.IO;
 sub MAIN {
     if ! so $unidata.d {
@@ -53,6 +55,15 @@ sub MAIN {
         chdir "UCA".IO;
         download-file($UCA-all-keys, "allkeys.txt");
         chdir '..';
+    }
+    if ! "CODETABLES".IO.d {
+        say "Downloading codetables from $MS_CODETABLES_URL";
+        mkdir "CODETABLES";
+        chdir "CODETABLES";
+        for @MS_CODETABLES {
+            say "dling $MS_CODETABLES_URL$_";
+            download-file("$MS_CODETABLES_URL$_", $_);
+        }
     }
     get-emoji();
 }
