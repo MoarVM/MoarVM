@@ -1,5 +1,5 @@
 #include "moar.h"
-
+#define UNMAPPED 0xFFFF
 /* Windows-1252 Latin */
 static const MVMuint16 windows1252_codepoints[] = {
     0x0000,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
@@ -18,10 +18,10 @@ static const MVMuint16 windows1252_codepoints[] = {
     0x0068,0x0069,0x006A,0x006B,0x006C,0x006D,0x006E,0x006F,
     0x0070,0x0071,0x0072,0x0073,0x0074,0x0075,0x0076,0x0077,
     0x0078,0x0079,0x007A,0x007B,0x007C,0x007D,0x007E,0x007F,
-    0x20AC,0x0081,0x201A,0x0192,0x201E,0x2026,0x2020,0x2021,
-    0x02C6,0x2030,0x0160,0x2039,0x0152,0x008D,0x017D,0x008F,
-    0x0090,0x2018,0x2019,0x201C,0x201D,0x2022,0x2013,0x2014,
-    0x02DC,0x2122,0x0161,0x203A,0x0153,0x009D,0x017E,0x0178,
+    0x20AC,0xFFFF,0x201A,0x0192,0x201E,0x2026,0x2020,0x2021,
+    0x02C6,0x2030,0x0160,0x2039,0x0152,0xFFFF,0x017D,0xFFFF,
+    0xFFFF,0x2018,0x2019,0x201C,0x201D,0x2022,0x2013,0x2014,
+    0x02DC,0x2122,0x0161,0x203A,0x0153,0xFFFF,0x017E,0x0178,
     0x00A0,0x00A1,0x00A2,0x00A3,0x00A4,0x00A5,0x00A6,0x00A7,
     0x00A8,0x00A9,0x00AA,0x00AB,0x00AC,0x00AD,0x00AE,0x00AF,
     0x00B0,0x00B1,0x00B2,0x00B3,0x00B4,0x00B5,0x00B6,0x00B7,
@@ -56,7 +56,7 @@ static const MVMuint16 windows1251_codepoints[] = {
     0x0402,0x0403,0x201A,0x0453,0x201E,0x2026,0x2020,0x2021,
     0x20AC,0x2030,0x0409,0x2039,0x040A,0x040C,0x040B,0x040F,
     0x0452,0x2018,0x2019,0x201C,0x201D,0x2022,0x2013,0x2014,
-    0x0098,0x2122,0x0459,0x203A,0x045A,0x045C,0x045B,0x045F,
+    0xFFFF,0x2122,0x0459,0x203A,0x045A,0x045C,0x045B,0x045F,
     0x00A0,0x040E,0x045E,0x0408,0x00A4,0x0490,0x00A6,0x00A7,
     0x0401,0x00A9,0x0404,0x00AB,0x00AC,0x00AD,0x00AE,0x0407,
     0x00B0,0x00B1,0x0406,0x0456,0x0491,0x00B5,0x00B6,0x00B7,
@@ -202,11 +202,6 @@ static MVMuint8 windows1252_cp_to_char(MVMint32 codepoint) {
         case 125: return 125;
         case 126: return 126;
         case 127: return 127;
-        case 129: return 129;
-        case 141: return 141;
-        case 143: return 143;
-        case 144: return 144;
-        case 157: return 157;
         case 160: return 160;
         case 161: return 161;
         case 162: return 162;
@@ -465,7 +460,6 @@ static MVMuint8 windows1251_cp_to_char(MVMint32 codepoint) {
         case 125: return 125;
         case 126: return 126;
         case 127: return 127;
-        case 152: return 152;
         case 160: return 160;
         case 164: return 164;
         case 166: return 166;
@@ -596,6 +590,7 @@ static MVMuint8 windows1251_cp_to_char(MVMint32 codepoint) {
         default: return '\0';
     };
 }
+
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_windows1251_1252_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
@@ -632,7 +627,16 @@ MVMuint32 MVM_string_windows1251_1252_decodestream(MVMThreadContext *tc, MVMDeco
         while (pos < cur_bytes->length) {
             MVMGrapheme32 graph;
             MVMCodepoint codepoint = codetable[bytes[pos++]];
-            if (last_was_cr) {
+            if (codepoint == UNMAPPED) {
+                char *enc_name = codetable == windows1252_codepoints
+                    ? "Windows-1252" : "Windows-1251";
+                MVM_free(buffer);
+                MVM_exception_throw_adhoc(tc,
+                    "Error decoding %s string: could not decode codepoint %d",
+                     enc_name,
+                     codepoint);
+            }
+            else if (last_was_cr) {
                 if (codepoint == '\n') {
                     graph = MVM_unicode_normalizer_translated_crlf(tc, &(ds->norm));
                 }
@@ -719,7 +723,17 @@ MVMString * MVM_string_windows1251_1252_decode(MVMThreadContext *tc,
             i++;
         }
         else {
-            result->body.storage.blob_32[result_graphs++] = codetable[windows125X[i]];
+            MVMuint16 codepoint = codetable[windows125X[i]];
+            /* Throw an exception if that codepoint has no mapping */
+            if (codepoint == UNMAPPED) {
+                char *enc_name = codetable == windows1252_codepoints
+                    ? "Windows-1252" : "Windows-1251";
+                MVM_exception_throw_adhoc(tc,
+                    "Error decoding %s string: could not decode codepoint %d",
+                     enc_name,
+                     windows125X[i]);
+            }
+            result->body.storage.blob_32[result_graphs++] = codepoint;
         }
     }
     result->body.num_graphs = result_graphs;

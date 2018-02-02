@@ -9,9 +9,9 @@ sub process-file (Str:D $filename, Str:D $encoding) {
         if (!$cp1252_hex || !$Unicode_hex || !$comment) {
             die "'$cp1252_hex' '$Unicode_hex' '$comment'";
         }
-        # Map unmapped things to identical codepoints
+        # Map unmapped things to 0xFFFF, so we can throw if we see them
         if $Unicode_hex ~~ /^\s+/ {
-            $Unicode_hex = $cp1252_hex;
+            $Unicode_hex = "0xFFFF";
         }
         $Unicode_hex ~~ s/^0x//;
         $cp1252_hex ~~ s/^0x//;
@@ -53,7 +53,7 @@ sub create-windows1252_codepoints (%to-hex1252, $encoding, $comment) {
 
 }
 sub create-windows1252_cp_to_char (%to-hex1252, $encoding) {
-    my $max = %to-hex1252.values.max;
+    my $max = %to-hex1252.values.grep({$_ != 0xFFFF}).max;
     my $out_str2 = "static MVMuint8 {$encoding}_cp_to_char(MVMint32 codepoint) \{\n";
     my $out_str3 = qq:to/END/;
     if ($max < codepoint || codepoint < 0)
@@ -62,6 +62,7 @@ sub create-windows1252_cp_to_char (%to-hex1252, $encoding) {
     END
     my @cases;
     for %to-hex1252.keys.sort({%to-hex1252{$^a} <=> %to-hex1252{$^b}}) -> $win_cp {
+        next if %to-hex1252{$win_cp} == 0xFFFF;
         @cases.push: make-case %to-hex1252{$win_cp}, $win_cp;
     }
     @cases.push: ‘default: return '\0';’;
