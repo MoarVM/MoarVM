@@ -1,5 +1,8 @@
 #include "moar.h"
 #define UNMAPPED 0xFFFF
+/* Controls whether we throw on codepoints which don't have mappings (yet still
+ * fit in one byte). If set to 0 we pass through the codepoint unchanged. */
+#define USE_STRICT 0
 /* Windows-1252 Latin */
 static const MVMuint16 windows1252_codepoints[] = {
     0x0000,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
@@ -628,13 +631,21 @@ MVMuint32 MVM_string_windows1251_1252_decodestream(MVMThreadContext *tc, MVMDeco
             MVMGrapheme32 graph;
             MVMCodepoint codepoint = codetable[bytes[pos++]];
             if (codepoint == UNMAPPED) {
-                char *enc_name = codetable == windows1252_codepoints
-                    ? "Windows-1252" : "Windows-1251";
-                MVM_free(buffer);
-                MVM_exception_throw_adhoc(tc,
-                    "Error decoding %s string: could not decode codepoint %d",
-                     enc_name,
-                     codepoint);
+                if (USE_STRICT) {
+                    /* Throw if it's unmapped */
+                    char *enc_name = codetable == windows1252_codepoints
+                        ? "Windows-1252" : "Windows-1251";
+                    MVM_free(buffer);
+                    MVM_exception_throw_adhoc(tc,
+                        "Error decoding %s string: could not decode codepoint %d",
+                         enc_name,
+                         codepoint);
+                }
+                else {
+                    /* Set it without translating, even though it creates
+                     * standards uncompliant results */
+                    graph = bytes[pos-1];
+                }
             }
             else if (last_was_cr) {
                 if (codepoint == '\n') {
@@ -724,14 +735,22 @@ MVMString * MVM_string_windows1251_1252_decode(MVMThreadContext *tc,
         }
         else {
             MVMuint16 codepoint = codetable[windows125X[i]];
-            /* Throw an exception if that codepoint has no mapping */
             if (codepoint == UNMAPPED) {
-                char *enc_name = codetable == windows1252_codepoints
-                    ? "Windows-1252" : "Windows-1251";
-                MVM_exception_throw_adhoc(tc,
-                    "Error decoding %s string: could not decode codepoint %d",
-                     enc_name,
-                     windows125X[i]);
+                if (USE_STRICT) {
+                    /* Throw an exception if that codepoint has no mapping */
+                    char *enc_name = codetable == windows1252_codepoints
+                        ? "Windows-1252" : "Windows-1251";
+                    MVM_exception_throw_adhoc(tc,
+                        "Error decoding %s string: could not decode codepoint %d",
+                         enc_name,
+                         windows125X[i]);
+                }
+                else {
+                    /* Don't convert and just map to identical. This creates
+                     * standards uncompliant results, but will decode buggy
+                     * input */
+                    codepoint = windows125X[i];
+                }
             }
             result->body.storage.blob_32[result_graphs++] = codepoint;
         }
@@ -796,6 +815,7 @@ char * MVM_string_windows1251_1252_encode_substr(MVMThreadContext *tc, MVMString
                 result_alloc += 8;
                 result = MVM_realloc(result, result_alloc + 1);
             }
+            /* If it's within ASCII just pass it through */
             if (0 <= codepoint && codepoint <= 127) {
                 result[i] = (MVMuint8)codepoint;
                 i++;
@@ -812,14 +832,23 @@ char * MVM_string_windows1251_1252_encode_substr(MVMThreadContext *tc, MVMString
                 i += repl_length;
             }
             else {
-                char *enc_name = cp_to_char == windows1252_cp_to_char
-                    ? "Windows-1252" : "Windows-1251";
-                MVM_free(result);
-                MVM_free(repl_bytes);
-                MVM_exception_throw_adhoc(tc,
-                    "Error encoding %s string: could not encode codepoint %d",
-                     enc_name,
-                     codepoint);
+                /* If we're decoding strictly or the codepoint cannot fit in
+                 * one byte, throw an exception */
+                if (USE_STRICT || codepoint < 0 || 255 < codepoint) {
+                    char *enc_name = cp_to_char == windows1252_cp_to_char
+                        ? "Windows-1252" : "Windows-1251";
+                    MVM_free(result);
+                    MVM_free(repl_bytes);
+                    MVM_exception_throw_adhoc(tc,
+                        "Error encoding %s string: could not encode codepoint %d",
+                         enc_name,
+                         codepoint);
+                }
+                /* It fits in one byte and we're not decoding strictly, so pass
+                 * it through unchanged */
+                else {
+                    result[i++] = codepoint;
+                }
             }
         }
         result[i] = 0;
