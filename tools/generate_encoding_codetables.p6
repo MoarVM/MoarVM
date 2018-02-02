@@ -26,10 +26,6 @@ sub MAIN {
         %( encoding => 'windows1251', filename => "$DIR/CP1251.TXT", comment => "/* Windows-1251 Cyrillic */");
     my %win1252 = process-file(@info[0]<filename>, @info[0]<encoding>);
     my %win1251 = process-file(@info[1]<filename>, @info[1]<encoding>);
-    for @info -> $inf {
-        say "#define {$inf<encoding>.uc}_CHAR_TO_CP(character) {$inf<encoding>}_codepoints[character];";
-    }
-    say "";
 
     say create-windows1252_codepoints(%win1252, @info[0]<encoding>, @info[0]<comment>);
     say create-windows1252_codepoints(%win1251, @info[1]<encoding>, @info[1]<comment>);
