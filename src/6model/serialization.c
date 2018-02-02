@@ -3173,3 +3173,25 @@ MVMString * MVM_sha1(MVMThreadContext *tc, MVMString *str) {
     MVM_free(utf8_string);
     return MVM_string_ascii_decode(tc, tc->instance->VMString, output, 40);
 }
+/*
+
+=item sha1bin
+
+Computes the SHA-1 hash of binary buffer.
+
+=cut
+
+*/
+MVMString * MVM_sha1bin(MVMThreadContext *tc, MVMArray *buf) {
+    /* Grab the string as UTF8 bytes. */
+    MVMuint64 output_size = buf->body.elems;
+
+    /* Compute its SHA-1 and encode it. */
+    SHA1Context      context;
+    char          output[80];
+    SHA1Init(&context);
+    SHA1Update(&context, (unsigned char*) buf->body.slots.i8, (size_t) output_size);
+    SHA1Final(&context, output);
+
+    return MVM_string_ascii_decode(tc, tc->instance->VMString, output, 40);
+}

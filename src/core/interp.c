@@ -5272,6 +5272,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sha1bin): {
+                MVMObject * buf = GET_REG(cur_op, 2).o;
+                if (!IS_CONCRETE(buf) || REPR(buf)->ID != MVM_REPR_ID_VMArray) {
+                    MVM_exception_throw_adhoc(tc, "sha1bin needs an MVMArray instead of %d", REPR(buf)->ID);
+                }
+                GET_REG(cur_op, 0).s = MVM_sha1bin(tc, (MVMArray*)buf);
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(sp_guard): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
