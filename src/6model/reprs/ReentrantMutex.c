@@ -125,6 +125,9 @@ void MVM_reentrantmutex_lock_checked(MVMThreadContext *tc, MVMObject *lock) {
 }
 void MVM_reentrantmutex_lock(MVMThreadContext *tc, MVMReentrantMutex *rm) {
     unsigned int interval_id;
+    /* Atomic access must be aligned, otherwise the lock will not work. */
+    ASSERT_ALIGNED(&rm->body.holder_id, ALIGNOF(AO_t));
+    ASSERT_ALIGNED(&rm->body.lock_count, ALIGNOF(AO_t));
     if (MVM_load(&rm->body.holder_id) == tc->thread_id) {
         /* We already hold the lock; bump the count. */
         MVM_incr(&rm->body.lock_count);

@@ -874,6 +874,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
     /* Add allocated amount for body to have total object size. */
     st->size = sizeof(MVMP6opaque) + (cur_alloc_addr - sizeof(MVMP6opaqueBody));
+    ASSERT_ALIGNED(st->size, ALIGNOF(void *));
 
     /* Add sentinels/counts. */
     repr_data->gc_obj_mark_offsets_count = cur_obj_attr;
@@ -915,6 +916,7 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     }
 
     st->size = cur_offset;
+    ASSERT_ALIGNED(st->size, ALIGNOF(void *));
 }
 
 /* Serializes the REPR data. */
