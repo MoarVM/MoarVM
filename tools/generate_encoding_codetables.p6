@@ -63,6 +63,9 @@ sub create-windows1252_cp_to_char (%to-hex1252, $encoding) {
     my @cases;
     for %to-hex1252.keys.sort({%to-hex1252{$^a} <=> %to-hex1252{$^b}}) -> $win_cp {
         next if %to-hex1252{$win_cp} == 0xFFFF;
+        # Skip codepoints from 0..127 since those are in ASCII and don't need to
+        # be in the switch
+        next if $win_cp <= 127;
         @cases.push: make-case %to-hex1252{$win_cp}, $win_cp;
     }
     @cases.push: ‘default: return '\0';’;
