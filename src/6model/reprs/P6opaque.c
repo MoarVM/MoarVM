@@ -882,7 +882,6 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
              * become unaligned.
              */
             cur_alloc_addr += bits / 8;
-            align_to(&cur_alloc_addr, ALIGNOF(void *));
 
             /* Increment slot count. */
             cur_slot++;
