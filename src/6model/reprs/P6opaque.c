@@ -924,6 +924,7 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
         }
     }
 
+    align_to(&cur_offset, ALIGNOF(void *));
     st->size = cur_offset;
     ASSERT_ALIGNED(st->size, ALIGNOF(void *));
 }
