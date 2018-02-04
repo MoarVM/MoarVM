@@ -24,7 +24,6 @@ MVM_STATIC_INLINE void set_obj_at_offset(MVMThreadContext *tc, MVMObject *root, 
 /* Helper for aligning sizes */
 MVM_STATIC_INLINE void align_to(MVMuint64 *size, MVMuint32 align) {
     if (*size % align) {
-        printf("Aligning something to %u\n", align);
         *size += align - *size % align;
     }
 }
