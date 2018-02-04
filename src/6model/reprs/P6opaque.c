@@ -21,6 +21,14 @@ MVM_STATIC_INLINE void set_obj_at_offset(MVMThreadContext *tc, MVMObject *root, 
     MVM_ASSIGN_REF(tc, &(root->header), *((MVMObject **)location), value);
 }
 
+/* Helper for aligning sizes */
+MVM_STATIC_INLINE void align_to(MVMuint64 *size, MVMuint32 align) {
+    if (*size % align) {
+        printf("Aligning something to %u\n", align);
+        *size += align - *size % align;
+    }
+}
+
 /* Helper for finding a slot number. */
 static MVMint64 try_get_slot(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_data, MVMObject *class_key, MVMString *name) {
     if (repr_data->name_to_index_mapping) {
@@ -823,9 +831,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             /* C structure needs careful alignment. If cur_alloc_addr is not
              * aligned to align bytes (cur_alloc_addr % align), make sure it is
              * before we add the next element. */
-            if (cur_alloc_addr % align) {
-                cur_alloc_addr += align - cur_alloc_addr % align;
-            }
+            align_to(&cur_alloc_addr, align);
 
             /* Attribute will live at the current position in the object. */
             repr_data->attribute_offsets[cur_slot] = cur_alloc_addr;
@@ -861,8 +867,13 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                         "While composing %s: Associative delegate attribute must be a reference type", MVM_6model_get_stable_debug_name(tc, st));
             }
 
-            /* Add the required space for this type. */
+            /* Add the required space for this type.
+             *
+             * Note: This is the only place in this function where cur_alloc_addr can
+             * become unaligned.
+             */
             cur_alloc_addr += bits / 8;
+            align_to(&cur_alloc_addr, ALIGNOF(void *));
 
             /* Increment slot count. */
             cur_slot++;
@@ -871,6 +882,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         /* Increment name map type index. */
         cur_type++;
     }
+
+    align_to(&cur_alloc_addr, ALIGNOF(void *));
 
     /* Add allocated amount for body to have total object size. */
     st->size = sizeof(MVMP6opaque) + (cur_alloc_addr - sizeof(MVMP6opaqueBody));
@@ -894,7 +907,7 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     /* To calculate size, we need number of attributes and to know about
      * anything flattend in. */
     MVMint64  num_attributes = MVM_serialization_read_int(tc, reader);
-    MVMuint32 cur_offset = sizeof(MVMP6opaque);
+    MVMuint64 cur_offset = sizeof(MVMP6opaque);
     MVMint64  i;
     for (i = 0; i < num_attributes; i++) {
         if (MVM_serialization_read_int(tc, reader)) {
@@ -902,9 +915,7 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
             const MVMStorageSpec *ss = st->REPR->get_storage_spec(tc, st);
             if (ss->inlineable) {
                 /* TODO: Review if/when we get sub-byte things. */
-                if (cur_offset % ss->align) {
-                    cur_offset += ss->align - cur_offset % ss->align;
-                }
+                align_to(&cur_offset, (MVMuint32)ss->align);
                 cur_offset += ss->bits / 8;
             }
             else
@@ -992,7 +1003,8 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 
 /* Deserializes representation data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    MVMuint16 i, j, num_classes, cur_offset;
+    MVMuint16 i, j, num_classes;
+    MVMuint64 cur_offset;
     MVMint16 cur_initialize_slot, cur_gc_mark_slot, cur_gc_cleanup_slot;
 
     MVMP6opaqueREPRData *repr_data = MVM_malloc(sizeof(MVMP6opaqueREPRData));
@@ -1101,9 +1113,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
                 MVM_exception_throw_adhoc(tc, "Serialization error: Storage Spec of P6opaque must not have align set to 0.");
             }
 
-            if (cur_offset % spec->align) {
-                cur_offset += spec->align - cur_offset % spec->align;
-            }
+            align_to(&cur_offset, spec->align);
 
             repr_data->attribute_offsets[i] = cur_offset;
 
