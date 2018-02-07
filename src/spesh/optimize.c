@@ -634,6 +634,7 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
         ins->info = MVM_op_get_op(MVM_OP_set);
         MVM_spesh_use_facts(tc, g, obj_facts);
         copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+        MVM_spesh_manipulate_remove_handler_successors(tc, bb);
     }
     else {
         /* Propagate facts if we know what this deconts to. */
@@ -1627,6 +1628,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVMSpeshOperand code_ref_reg = ins->info->opcode == MVM_OP_invoke_v
                         ? ins->operands[0]
                         : ins->operands[1];
+                MVM_spesh_facts_discover(tc, inline_graph, p);
                 MVM_spesh_get_facts(tc, g, code_ref_reg)->usages++;
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
                     code_ref_reg);
@@ -2234,30 +2236,32 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
     while (death) {
         MVMSpeshBB *bb = g->entry;
         death = 0;
-        while (bb && !bb->inlined) {
-            MVMSpeshIns *ins = bb->last_ins;
-            while (ins) {
-                MVMSpeshIns *prev = ins->prev;
-                if (ins->info->opcode == MVM_SSA_PHI) {
-                    MVMSpeshFacts *facts = get_facts_direct(tc, g, ins->operands[0]);
-                    if (facts->usages == 0) {
-                        /* Remove this phi. */
-                        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
-                        death = 1;
-                    }
-                }
-                else if (ins->info->pure) {
-                    /* Sanity check to make sure it's a write reg as first operand. */
-                    if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
+        while (bb) {
+            if (!bb->inlined) {
+                MVMSpeshIns *ins = bb->last_ins;
+                while (ins) {
+                    MVMSpeshIns *prev = ins->prev;
+                    if (ins->info->opcode == MVM_SSA_PHI) {
                         MVMSpeshFacts *facts = get_facts_direct(tc, g, ins->operands[0]);
                         if (facts->usages == 0) {
-                            /* Remove this instruction. */
+                            /* Remove this phi. */
                             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
                             death = 1;
                         }
                     }
+                    else if (ins->info->pure) {
+                        /* Sanity check to make sure it's a write reg as first operand. */
+                        if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
+                            MVMSpeshFacts *facts = get_facts_direct(tc, g, ins->operands[0]);
+                            if (facts->usages == 0) {
+                                /* Remove this instruction. */
+                                MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+                                death = 1;
+                            }
+                        }
+                    }
+                    ins = prev;
                 }
-                ins = prev;
             }
             bb = bb->linear_next;
         }
@@ -2396,11 +2400,69 @@ static void eliminate_pointless_gotos(MVMThreadContext *tc, MVMSpeshGraph *g) {
     while (cur_bb) {
         if (!cur_bb->jumplist) {
             MVMSpeshIns *last_ins = cur_bb->last_ins;
-            if (last_ins && last_ins->info->opcode == MVM_OP_goto)
-                if (last_ins->operands[0].ins_bb == cur_bb->linear_next)
-                    MVM_spesh_manipulate_delete_ins(tc, g, cur_bb, last_ins);
+            if (
+                last_ins
+                && last_ins->info->opcode == MVM_OP_goto
+                && last_ins->operands[0].ins_bb == cur_bb->linear_next
+            ) {
+                MVM_spesh_manipulate_delete_ins(tc, g, cur_bb, last_ins);
+            }
         }
         cur_bb = cur_bb->linear_next;
+    }
+}
+
+static void merge_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    MVMSpeshBB *bb = g->entry;
+    MVMint32 orig_bbs = g->num_bbs;
+    if (!bb || !bb->linear_next) return; /* looks like there's only a single bb anyway */
+    bb = bb->linear_next;
+
+    while (bb->linear_next) {
+        if (bb->num_succ == 1 && bb->succ[0] == bb->linear_next && bb->linear_next->num_pred == 1 && !bb->inlined && !bb->linear_next->inlined) {
+            if (bb->linear_next->first_ins) {
+                bb->linear_next->first_ins->prev = bb->last_ins;
+                if (bb->last_ins) {
+                    bb->last_ins->next = bb->linear_next->first_ins;
+                    bb->last_ins->next->prev = bb->last_ins;
+                    bb->last_ins = bb->linear_next->last_ins;
+                }
+                else {
+                    bb->first_ins = bb->linear_next->first_ins;
+                    bb->last_ins = bb->linear_next->last_ins;
+                }
+                bb->linear_next->first_ins = bb->linear_next->last_ins = NULL;
+            }
+            if (bb->linear_next->num_succ) {
+                MVMSpeshBB **succ = MVM_spesh_alloc(tc, g, (bb->num_succ - 1 + bb->linear_next->num_succ) * sizeof(MVMSpeshBB *));
+                int i, j = 0;
+                for (i = 0; i < bb->num_succ; i++)
+                    if (bb->succ[i] != bb->linear_next)
+                        succ[j++] = bb->succ[i];
+                for (i = 0; i < bb->linear_next->num_succ; i++)
+                    succ[j++] = bb->linear_next->succ[i];
+                bb->succ = succ;
+            }
+            bb->num_succ--;
+            bb->num_succ += bb->linear_next->num_succ;
+
+            bb->linear_next = bb->linear_next->linear_next;
+            g->num_bbs--;
+        }
+        else {
+            bb = bb->linear_next;
+        }
+    }
+
+    /* Re-number BBs so we get sequential ordering again. */
+    if (g->num_bbs != orig_bbs) {
+        MVMint32    new_idx  = 0;
+        MVMSpeshBB *cur_bb   = g->entry;
+        while (cur_bb) {
+            cur_bb->idx = new_idx;
+            new_idx++;
+            cur_bb = cur_bb->linear_next;
+        }
     }
 }
 
@@ -2419,6 +2481,8 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
     eliminate_unused_log_guards(tc, g);
     eliminate_pointless_gotos(tc, g);
     eliminate_dead_ins(tc, g);
+
+    merge_bbs(tc, g);
 
     /* Make a second pass through the graph doing things that are better
      * done after inlinings have taken place. The dominance tree is first

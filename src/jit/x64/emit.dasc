@@ -2609,6 +2609,11 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler,
         /* I assume we *never* use a local label 9 in the code between
          * pre-and-post throwish */
         |9:
+    } else if (type == MVM_JIT_CONTROL_CHECK_RETURN) {
+        /* special case for sp_findmeth */
+        | test RV, RV;
+        | jnz ->exit;
+        |9:
     } else if (type == MVM_JIT_CONTROL_BREAKPOINT) {
         /* brrts evil testing purposes breakpoint */
         | int 3;

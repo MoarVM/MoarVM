@@ -512,6 +512,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             MVMint32 num_bbs = 1 + g->num_handlers + num_osr_points;
             MVMint32 insert_pos = 1;
             cur_bb->succ     = MVM_spesh_alloc(tc, g, num_bbs * sizeof(MVMSpeshBB *));
+            cur_bb->handler_succ = MVM_spesh_alloc(tc, g, g->num_handlers * sizeof(MVMSpeshBB *));
             cur_bb->succ[0]  = cur_bb->linear_next;
             for (i = 0; i < g->num_handlers; i++) {
                 if (is_catch_handler(tc, g, i)) {
@@ -612,7 +613,18 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             }
 
             /* Attach this block to the goto block of any active handlers. */
-            if (num_active_handlers) {
+            if (
+                num_active_handlers
+                && (
+                    cur_bb->last_ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)
+                    || cur_bb->last_ins->info->opcode == MVM_OP_invoke_v
+                    || cur_bb->last_ins->info->opcode == MVM_OP_invoke_i
+                    || cur_bb->last_ins->info->opcode == MVM_OP_invoke_n
+                    || cur_bb->last_ins->info->opcode == MVM_OP_invoke_s
+                    || cur_bb->last_ins->info->opcode == MVM_OP_invoke_o
+                )
+            ) {
+                cur_bb->handler_succ = MVM_spesh_alloc(tc, g, num_active_handlers * sizeof(MVMSpeshBB *));
                 for (i = 0; i < g->num_handlers; i++) {
                     if (active_handlers[i]) {
                         MVMuint32 offset = g->handlers[i].goto_offset;
@@ -620,10 +632,13 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                         if (!already_succs(tc, cur_bb, target)) {
                             cur_bb->succ[cur_bb->num_succ] = target;
                             cur_bb->num_succ++;
+                            cur_bb->handler_succ[cur_bb->num_handler_succ++] = target;
                         }
                     }
                 }
             }
+            else
+                cur_bb->handler_succ = NULL;
         }
 
         /* Move on to next block. */

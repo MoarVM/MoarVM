@@ -1,6 +1,55 @@
 See https://github.com/MoarVM/MoarVM/wiki/ChangeLog-Draft for the draft changelog
 since the previous release.
 
+New in 2018.01
+
+Miscellaneous:
++ Refuse to `make release` with dirty work tree
++ Fix off-by-one error when checking inline boundaries in MVM_frame_find_contextual_by_name()
++ Make it more clear where new ops are meant to go to in src/core/optlist
++ Fix leak when args bind error would unwind rather than return
++ On Windows (not using Visual Studio), print size_t with %Iu.
++ Fix crash in TTY flushing on WSL (Bash on Win10)
++ Do less work in zeroing out VMArray
++ Zero out cut off elements when downsizing VMarray
++ Fix incorrect EOF detection on seek'ed handles
+
+Unicode:
++ ucd2c.pl: Fix White_Space/space Unicode property and several other property aliases
++ ucd2c.pl: code cleanup and refactoring
+
+JIT:
++ jit isprime_I
++ Un-bitrot tools/parse_jitgraph.p6
++ Refactor search_frame_handlers_lex for readability
++ Implement tile for OR operator
+
+Spesh:
++ Mark sp_rebless as :noinline
++ Fix off-by-one error in uninline
++ Pay attention to return op in cross-HLL inlines
++ Optimize not_i when its input is a known value
++ Add some missing fact dependencies
++ Remove bogus comment and known value fact tweak
++ Make instruction deletion within dead BBs a no-op
++ Make log facts tolerate the odd outlier
++ Place facts on a `clone` op
++ New spesh-bisect.pl tool
++ Fix OSR of thread entry frame
++ Allow some cross-HLL inlining, this means we can inline bits of NQP
+  (usually guts like Block.clone) into Perl 6 routines that call them.
+
+Garbage Collection/Memory:
++ Fix memory leaks reported by ASAN
+  + The string stream decoder separator specification buffer(s)
+  + The static frame spesh body statistics buffer
+  + The spesh plan type stats buffer
+  + The spesh plan, when the static frame could not be added
+  + In MVM_unicode_name_to_property_value_code()
++ Debug log fixes:
+  + Fix spelling typos in GC debug log
+  + Remove strange segfault-inducing debug code
+
 New in 2017.12
 
 Miscellaneous:
@@ -2069,3 +2118,7 @@ New in 2014.02
 + Better estimate and perhaps shrink string memory for UTF-8 decode
 + Added probing to Configure to learn how the compiler does 'static inline'
 + Switched many macros over to static inline functions
+
+New in 2014.01
+
+The first official MoarVM release! Capable of running the 2014.01 release of Rakudo Perl 6, the first one with MoarVM support. (No change log for this initial release, since it's basically "all the things".)

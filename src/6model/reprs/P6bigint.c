@@ -144,7 +144,7 @@ static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
         return data;
 
     MVM_exception_throw_adhoc(tc,
-        "P6bigint representation cannot unbox to other types");
+        "P6bigint representation cannot unbox to representation %s", MVM_repr_get_by_id(tc, repr_id)->name);
 }
 
 

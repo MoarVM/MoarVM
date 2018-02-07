@@ -299,7 +299,9 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
         else if (ws->handlers[i].start_offset == -1 ||
                  ws->handlers[i].end_offset   == -1 ||
                  ws->handlers[i].goto_offset  == -1) {
-            MVM_oops(tc, "Spesh: failed to fix up handlers (%d, %d, %d)",
+            MVM_oops(tc, "Spesh: failed to fix up handler %d in %s (%d, %d, %d)",
+                i,
+                MVM_string_utf8_maybe_encode_C_string(tc, g->sf->body.name),
                 (int)ws->handlers[i].start_offset,
                 (int)ws->handlers[i].end_offset,
                 (int)ws->handlers[i].goto_offset);
@@ -314,7 +316,13 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
         }
         else {
             if (g->inlines[i].start == -1 || g->inlines[i].end == -1)
-                MVM_oops(tc, "Spesh: failed to fix up inline %d", i);
+                MVM_oops(tc, "Spesh: failed to fix up inline %d %p (%s) %d %d",
+                    i,
+                    g->inlines[i].g,
+                    MVM_string_utf8_maybe_encode_C_string(tc, g->inlines[i].sf->body.name),
+                    g->inlines[i].start,
+                    g->inlines[i].end
+                );
         }
     }
 

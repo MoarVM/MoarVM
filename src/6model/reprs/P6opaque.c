@@ -585,7 +585,7 @@ static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
     }
 
     MVM_exception_throw_adhoc(tc,
-        "P6opaque: get_boxed_ref could not unbox for the representation '%d' of type %s", repr_id, MVM_6model_get_stable_debug_name(tc, st));
+        "P6opaque: get_boxed_ref could not unbox for the representation '%s' of type %s", MVM_repr_get_by_id(tc, repr_id)->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 
 static const MVMStorageSpec default_storage_spec = {
@@ -1427,6 +1427,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                     MVM_spesh_get_facts(tc, g, ins->operands[2])->usages--;
                     ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_o);
                     ins->operands[2].lit_i16 = repr_data->attribute_offsets[slot];
+                    MVM_spesh_manipulate_remove_handler_successors(tc, bb);
                 }
             }
         }

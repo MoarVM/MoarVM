@@ -28,7 +28,8 @@
 
 static void setup_std_handles(MVMThreadContext *tc);
 
-static FILE *fopen_perhaps_with_pid(char *path, const char *mode) {
+static FILE *fopen_perhaps_with_pid(char *env_var, char *path, const char *mode) {
+    FILE *result;
     if (strstr(path, "%d")) {
         MVMuint64 path_length = strlen(path);
         MVMuint64 found_percents = 0;
@@ -48,10 +49,9 @@ static FILE *fopen_perhaps_with_pid(char *path, const char *mode) {
         /* We expect to pass only a single argument to snprintf here;
          * just bail out if there's more than one directive. */
         if (found_percents > 1) {
-            return fopen(path, mode);
+            result = fopen(path, mode);
         } else {
             char *fixed_path = malloc(path_length + 16);
-            FILE *result;
             MVMint64 pid;
 #ifdef _WIN32
             pid = _getpid();
@@ -63,11 +63,16 @@ static FILE *fopen_perhaps_with_pid(char *path, const char *mode) {
             snprintf(fixed_path, path_length + 16, path, pid);
             result = fopen(fixed_path, mode);
             free(fixed_path);
-            return result;
         }
     } else {
-        return fopen(path, mode);
+        result = fopen(path, mode);
     }
+
+    if (result)
+        return result;
+    fprintf(stderr, "MoarVM: Failed to open file `%s` given via `%s`: %s\n",
+        path, env_var, strerror(errno));
+    exit(1);
 }
 
 /* Create a new instance of the VM. */
@@ -200,7 +205,8 @@ MVMInstance * MVM_vm_create_instance(void) {
     init_mutex(instance->mutex_spesh_install, "spesh installations");
     spesh_log = getenv("MVM_SPESH_LOG");
     if (spesh_log && spesh_log[0])
-        instance->spesh_log_fh = fopen_perhaps_with_pid(spesh_log, "w");
+        instance->spesh_log_fh
+            = fopen_perhaps_with_pid("MVM_SPESH_LOG", spesh_log, "w");
     spesh_disable = getenv("MVM_SPESH_DISABLE");
     if (!spesh_disable || !spesh_disable[0]) {
         instance->spesh_enabled = 1;
@@ -246,7 +252,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     jit_log = getenv("MVM_JIT_LOG");
     if (jit_log && jit_log[0])
-        instance->jit_log_fh = fopen_perhaps_with_pid(jit_log, "w");
+        instance->jit_log_fh = fopen_perhaps_with_pid("MVM_JIT_LOG", jit_log, "w");
     jit_bytecode_dir = getenv("MVM_JIT_BYTECODE_DIR");
     if (jit_bytecode_dir && jit_bytecode_dir[0]) {
         size_t bytecode_map_name_size = strlen(jit_bytecode_dir) + strlen("/jit-map.txt") + 1;
@@ -299,7 +305,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Various kinds of debugging that can be enabled. */
     dynvar_log = getenv("MVM_DYNVAR_LOG");
     if (dynvar_log && dynvar_log[0]) {
-        instance->dynvar_log_fh = fopen_perhaps_with_pid(dynvar_log, "w");
+        instance->dynvar_log_fh = fopen_perhaps_with_pid("MVM_DYNVAR_LOG", dynvar_log, "w");
         fprintf(instance->dynvar_log_fh, "+ x 0 0 0 0 0 %"PRIu64"\n", uv_hrtime());
         fflush(instance->dynvar_log_fh);
         instance->dynvar_log_lasttime = uv_hrtime();
@@ -324,7 +330,7 @@ MVMInstance * MVM_vm_create_instance(void) {
         instance->coverage_logging = 1;
         instance->instrumentation_level++;
         if (coverage_log[0])
-            instance->coverage_log_fh = fopen_perhaps_with_pid(coverage_log, "a");
+            instance->coverage_log_fh = fopen_perhaps_with_pid("MVM_COVERAGE_LOG", coverage_log, "a");
         else
             instance->coverage_log_fh = stderr;
 

@@ -322,7 +322,7 @@ static void patch_shortcircuit_blocks(MVMThreadContext *tc, struct TreeTiler *ti
              * patched up in the same way */
             patch_shortcircuit_blocks(tc, tiler, tree, child, alt);
         } else if (tree->nodes[child] == MVM_JIT_ALL || tree->nodes[child] == MVM_JIT_ANY) {
-            /* unequal nested shortcircuit operators (ALL iin ANY or ANY in ALL)
+            /* unequal nested shortcircuit operators (ALL in ANY or ANY in ALL)
              * have the behaviour that shortcircuit to the next block or at the
              * end shortcircuit to the alternative block. E.g. ANY nested in ALL
              * must jump to the next block (continue tests) or continue testing;

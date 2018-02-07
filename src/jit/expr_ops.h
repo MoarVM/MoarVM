@@ -13,6 +13,8 @@
    src/jit/expr.h, so keep it in order!
 */
 #define MVM_JIT_EXPR_OPS(_) \
+    /* invalid operator */ \
+    _(NOOP, 0, 0, VOID, NO_CAST), \
     /* memory access */ \
     _(LOAD, 1, 1, REG, NO_CAST),   \
     _(STORE, 2, 1, VOID, NO_CAST), \

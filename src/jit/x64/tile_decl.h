@@ -31,6 +31,8 @@ MVM_JIT_TILE_DECL(and_load_addr);
 MVM_JIT_TILE_DECL(and_load_idx);
 
 MVM_JIT_TILE_DECL(or_reg);
+MVM_JIT_TILE_DECL(xor_reg);
+MVM_JIT_TILE_DECL(not_reg);
 
 MVM_JIT_TILE_DECL(test);
 MVM_JIT_TILE_DECL(test_addr);

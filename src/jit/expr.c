@@ -685,6 +685,9 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
     MVM_VECTOR_INIT(tree->info,  256);
     MVM_VECTOR_INIT(tree->roots, 16);
 
+    /* ensure that all references are nonzero */
+    MVM_VECTOR_PUSH(tree->nodes, MVM_JIT_NOOP);
+
     tree->graph      = jg;
     tree->num_labels = 0;
     /* Hold indices to the node that last computed a value belonging
@@ -778,7 +781,14 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             case MVM_SPESH_ANN_DEOPT_ONE_INS:
                 /* we should only see this in guards, which we don't do just
                  * yet, although we will. At the very least, this implies a flush. */
-                BAIL(1, "Cannot handle DEOPT_ONE (ins=%s)\n", ins->info->name);
+                switch (opcode) {
+                case MVM_OP_sp_guard:
+                case MVM_OP_sp_guardconc:
+                case MVM_OP_sp_guardtype:
+                case MVM_OP_sp_guardsf:
+                    BAIL(1, "Cannot handle DEOPT_ONE (ins=%s)\n", ins->info->name);
+                    break;
+                }
                 break;
             case MVM_SPESH_ANN_DEOPT_ALL_INS:
                 /* don't expect to be handling these, either, but these also
@@ -930,11 +940,13 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
     }
 
  done:
-    if (tree->nodes_num > 0) {
+    if (tree->roots_num > 0) {
         active_values_flush(tc, tree, values, sg->num_locals);
         MVM_jit_expr_tree_analyze(tc, tree);
         MVM_jit_log(tc, "Build tree out of: [");
         for (ins = entry; ins != iter->ins; ins = ins->next) {
+            if (ins->info->opcode == MVM_SSA_PHI)
+                continue;
             MVM_jit_log(tc, "%s, ", ins->info->name);
         }
         MVM_jit_log(tc, "]\n");

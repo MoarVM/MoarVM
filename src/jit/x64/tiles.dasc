@@ -485,6 +485,21 @@ MVM_JIT_TILE_DECL(or_reg) {
     ensure_two_operand_post(tc, compiler, tile, reg);
 }
 
+MVM_JIT_TILE_DECL(xor_reg) {
+    MVMint8 reg[2];
+    ensure_two_operand_pre(tc, compiler, tile, reg);
+    | xor Rq(reg[0]), Rq(reg[1]);
+    ensure_two_operand_post(tc, compiler, tile, reg);
+}
+
+MVM_JIT_TILE_DECL(not_reg) {
+    MVMint8 out = tile->values[0];
+    MVMint8 in  = tile->values[1];
+    if (out != in) {
+        | mov Rq(out), Rq(in);
+    }
+    | not Rq(out);
+}
 
 MVM_JIT_TILE_DECL(sub_reg) {
     MVMint8 reg[2];

@@ -46,6 +46,7 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g,
                     next->annotations = ann;
                 }
                 break;
+            case MVM_SPESH_ANN_INLINE_END:
             case MVM_SPESH_ANN_FH_END:
                 /* This moves to the previous instruction. */
                 if (!prev) {
@@ -208,6 +209,17 @@ void MVM_spesh_manipulate_remove_successor(MVMThreadContext *tc, MVMSpeshBB *bb,
     }
 
     succ_pred[succ_num_pred] = NULL;
+}
+
+/* Removes successors from a basic block that point to handlers.
+   Useful for optimizations that turn throwish ops into non-throwing ones. */
+void MVM_spesh_manipulate_remove_handler_successors(MVMThreadContext *tc, MVMSpeshBB *bb) {
+    int i;
+    for (i = 0; i < bb->num_handler_succ; i++) {
+        MVM_spesh_manipulate_remove_successor(tc, bb, bb->handler_succ[i]);
+        bb->handler_succ[i] = NULL;
+    }
+    bb->num_handler_succ = 0;
 }
 
 /* Gets a temporary register of the specified kind to use in some transform.

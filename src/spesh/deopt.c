@@ -29,7 +29,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
     MVMuint32      last_return_deopt_idx;
     MVMint32 i;
     for (i = 0; i < cand->num_inlines; i++) {
-        if (offset >= cand->inlines[i].start && offset <= cand->inlines[i].end) {
+        if (offset > cand->inlines[i].start && offset <= cand->inlines[i].end) {
             /* Create the frame. */
             MVMCode        *ucode = (MVMCode *)f->work[cand->inlines[i].code_ref_reg].o;
             MVMStaticFrame *usf   = cand->inlines[i].sf;
@@ -115,9 +115,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                 }
             }
 
-            /* Update tracking variables for last uninline. Note that we know
-             * an inline ends with a goto, which is how we're able to find a
-             * return address offset. */
+            /* Update tracking variables for last uninline. */
             last_uninlined        = uf;
             last_res_reg          = cand->inlines[i].res_reg;
             last_res_type         = cand->inlines[i].res_type;

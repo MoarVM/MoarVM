@@ -496,13 +496,13 @@ MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_ob
                 known_type_st = type_tuple[tt_offset].decont_type->st;
                 is_conc = type_tuple[tt_offset].decont_type_concrete;
             }
-            else {
+            else if (type_tuple[tt_offset].type) { /* FIXME: tuples with neither decont_type nor type shouldn't appear */
                 known_type_st = type_tuple[tt_offset].type->st;
                 is_conc = type_tuple[tt_offset].type_concrete;
             }
 
             /* Now check if what we have matches what we need. */
-            if (known_type_st->type_cache_id == type_id) {
+            if (known_type_st && known_type_st->type_cache_id == type_id) {
                 MVMuint32 need_concrete = (arg_match & MVM_MULTICACHE_ARG_CONC_FILTER) ? 1 : 0;
                 if (is_conc == need_concrete) {
                     MVMuint32 need_rw = (arg_match & MVM_MULTICACHE_ARG_RW_FILTER) ? 1 : 0;
