@@ -660,6 +660,20 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
             MVMSTable *stable = STABLE(obj_facts->type);
             MVMContainerSpec const *contspec = stable->container_spec;
             if (contspec && contspec->fetch_never_invokes && contspec->spesh) {
+                MVMSpeshAnn *ann = ins->annotations;
+                /* Remove deopt annotation since we know we won't invoke. */
+                if (ann && ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS) {
+                    ins->annotations = ann->next;
+                }
+                else {
+                    while (ann) {
+                        if (ann->next && ann->next->type == MVM_SPESH_ANN_DEOPT_ONE_INS) {
+                            ann->next = ann->next->next;
+                            break;
+                        }
+                        ann = ann->next;
+                    }
+                }
                 contspec->spesh(tc, stable, g, bb, ins);
                 MVM_spesh_use_facts(tc, g, obj_facts);
             }
