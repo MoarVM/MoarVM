@@ -1517,9 +1517,19 @@ MVMString * MVM_string_fc(MVMThreadContext *tc, MVMString *s) {
     return do_case_change(tc, s, MVM_unicode_case_change_type_fold, "fc");
 }
 
-/* Decodes a C buffer to an MVMString, dependent on the encoding type flag. */
-MVMString * MVM_string_decode(MVMThreadContext *tc,
-        const MVMObject *type_object, char *Cbuf, MVMint64 byte_length, MVMint64 encoding_flag) {
+/* "Strict"ly (if possible) decodes a C buffer to an MVMString, dependent on the
+ * encoding type flag. Unlike MVM_string_decode, it will not pass through
+ * codepoints which have no official mapping. `config` can be set to 1 to indicate
+ * that you want to decode non-strict ("permissive"), which will try and decode
+ * as long as it's possible (For example codepoint 129 in windows-1252 is invalid,
+ * but is technically possible to use Unicode codepoint 129 instead (though it's
+ * most likely this means the input is actually *not* windows-1252).
+ * For now windows-1252 and windows-1251 are the only ones this makes a difference
+ * on. And it is mostly irrelevant for utf8/utf8-c8 encodings since they can
+ * already represent all codepoints below 0x10FFFF */
+MVMString * MVM_string_decode_config(MVMThreadContext *tc,
+        const MVMObject *type_object, char *Cbuf, MVMint64 byte_length,
+        MVMint64 encoding_flag, MVMString *replacement, MVMint64 config) {
     switch(encoding_flag) {
         case MVM_encoding_type_utf8:
             return MVM_string_utf8_decode_strip_bom(tc, type_object, Cbuf, byte_length);
@@ -1530,20 +1540,27 @@ MVMString * MVM_string_decode(MVMThreadContext *tc,
         case MVM_encoding_type_utf16:
             return MVM_string_utf16_decode(tc, type_object, Cbuf, byte_length);
         case MVM_encoding_type_windows1252:
-            return MVM_string_windows1252_decode(tc, type_object, Cbuf, byte_length);
+            return MVM_string_windows1252_decode_config(tc, type_object, Cbuf, byte_length, replacement, config);
         case MVM_encoding_type_windows1251:
-            return MVM_string_windows1251_decode(tc, type_object, Cbuf, byte_length);
+            return MVM_string_windows1251_decode_config(tc, type_object, Cbuf, byte_length, replacement, config);
         case MVM_encoding_type_utf8_c8:
             return MVM_string_utf8_c8_decode(tc, type_object, Cbuf, byte_length);
         default:
             MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRId64, encoding_flag);
     }
 }
+/* Strictly decodes a C buffer to an MVMString, dependent on the encoding type flag.
+ * See the comments above MVM_string_decode_config() above for more details. */
+MVMString * MVM_string_decode(MVMThreadContext *tc,
+        const MVMObject *type_object, char *Cbuf, MVMint64 byte_length, MVMint64 encoding_flag) {
+    return MVM_string_decode_config(tc, type_object, Cbuf, byte_length, encoding_flag, NULL, MVM_ENCODING_PERMISSIVE);
+}
 
-/* Encodes an MVMString to a C buffer, dependent on the encoding type flag */
-char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start,
+/* Strictly encodes an MVMString to a C buffer, dependent on the encoding type flag.
+ * See comments for MVM_string_decode_config() above for more details. */
+char * MVM_string_encode_config(MVMThreadContext *tc, MVMString *s, MVMint64 start,
         MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag,
-        MVMString *replacement, MVMint32 translate_newlines) {
+        MVMString *replacement, MVMint32 translate_newlines, MVMuint8 config) {
     switch(encoding_flag) {
         case MVM_encoding_type_utf8:
             return MVM_string_utf8_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
@@ -1554,20 +1571,25 @@ char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start,
         case MVM_encoding_type_utf16:
             return MVM_string_utf16_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
         case MVM_encoding_type_windows1252:
-            return MVM_string_windows1252_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
+            return MVM_string_windows1252_encode_substr_config(tc, s, output_size, start, length, replacement, translate_newlines, config);
         case MVM_encoding_type_windows1251:
-            return MVM_string_windows1251_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
+            return MVM_string_windows1251_encode_substr_config(tc, s, output_size, start, length, replacement, translate_newlines, config);
         case MVM_encoding_type_utf8_c8:
             return MVM_string_utf8_c8_encode_substr(tc, s, output_size, start, length, replacement);
         default:
             MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRId64, encoding_flag);
     }
 }
+char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start,
+        MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag,
+        MVMString *replacement, MVMint32 translate_newlines) {
+    return MVM_string_encode_config(tc, s, start, length, output_size, encoding_flag, replacement, translate_newlines, MVM_ENCODING_PERMISSIVE);
+}
 
-/* Encodes a string, and writes the encoding string into the supplied Buf
+/* Strictly encodes a string, and writes the encoding string into the supplied Buf
  * instance, which should be an integer array with MVMArray REPR. */
-MVMObject * MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc_name,
-        MVMObject *buf, MVMString *replacement) {
+MVMObject * MVM_string_encode_to_buf_config(MVMThreadContext *tc, MVMString *s, MVMString *enc_name,
+        MVMObject *buf, MVMString *replacement, MVMint64 config) {
     MVMuint64 output_size;
     MVMuint8 *encoded;
     MVMArrayREPRData *buf_rd;
@@ -1599,8 +1621,8 @@ MVMObject * MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMStri
      * in case. */
     MVMROOT2(tc, buf, s, {
         const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, enc_name);
-        encoded = (MVMuint8 *)MVM_string_encode(tc, s, 0, MVM_string_graphs_nocheck(tc, s), &output_size,
-            encoding_flag, replacement, 0);
+        encoded = (MVMuint8 *)MVM_string_encode_config(tc, s, 0, MVM_string_graphs_nocheck(tc, s), &output_size,
+            encoding_flag, replacement, 0, config);
     });
 
     /* Stash the encoded data in the VMArray. */
@@ -1610,9 +1632,14 @@ MVMObject * MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMStri
     ((MVMArray *)buf)->body.elems    = output_size / elem_size;
     return buf;
 }
-
-/* Decodes a string using the data from the specified Buf. */
-MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVMString *enc_name) {
+MVMObject * MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc_name,
+        MVMObject *buf, MVMString *replacement) {
+    return MVM_string_encode_to_buf_config(tc, s, enc_name, buf, replacement, MVM_ENCODING_PERMISSIVE);
+}
+/* Decodes a string using the data from the specified Buf. Decodes "strict" by
+ * default, but optionally can be "permissive". */
+MVMString * MVM_string_decode_from_buf_config(MVMThreadContext *tc, MVMObject *buf,
+        MVMString *enc_name, MVMString *replacement, MVMint64 config) {
     MVMArrayREPRData *buf_rd;
     MVMuint8 encoding_flag;
     MVMuint8 elem_size = 0;
@@ -1640,10 +1667,13 @@ MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVM
     MVMROOT(tc, buf, {
         encoding_flag = MVM_string_find_encoding(tc, enc_name);
     });
-    return MVM_string_decode(tc, tc->instance->VMString,
+    return MVM_string_decode_config(tc, tc->instance->VMString,
         (char *)(((MVMArray *)buf)->body.slots.i8 + ((MVMArray *)buf)->body.start),
         ((MVMArray *)buf)->body.elems * elem_size,
-        encoding_flag);
+        encoding_flag, replacement, config);
+}
+MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVMString *enc_name) {
+    return MVM_string_decode_from_buf_config(tc, buf, enc_name, NULL, MVM_ENCODING_PERMISSIVE);
 }
 
 MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMString *input) {
