@@ -5288,6 +5288,26 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(encoderepconf):
+                GET_REG(cur_op, 8).o = MVM_string_encode_to_buf_config(tc, GET_REG(cur_op, 2).s,
+                    GET_REG(cur_op, 4).s, GET_REG(cur_op, 8).o, GET_REG(cur_op, 6).s, GET_REG(cur_op, 10).i64);
+                cur_op += 12;
+                goto NEXT;
+            OP(encodeconf):
+                GET_REG(cur_op, 0).o = MVM_string_encode_to_buf_config(tc, GET_REG(cur_op, 2).s,
+                    GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).o, NULL, GET_REG(cur_op, 8).i64);
+                cur_op += 10;
+                goto NEXT;
+            OP(decodeconf):
+                GET_REG(cur_op, 0).s = MVM_string_decode_from_buf_config(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s, NULL, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            OP(decoderepconf):
+                GET_REG(cur_op, 0).s = MVM_string_decode_from_buf_config(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).s, GET_REG(cur_op, 8).i64);
+                cur_op += 10;
+                goto NEXT;
             OP(sp_guard): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
