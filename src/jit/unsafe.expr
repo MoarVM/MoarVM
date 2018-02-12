@@ -1,5 +1,21 @@
 # Difficult stuff, that hasn't been tested sufficiently adequately to support
 
+(template: getlexstatic_o
+  (let: (($found (call (^func &MVM_frame_find_lexical_by_name)
+                   (arglist
+                     (carg (tc) ptr)
+                     (carg $1 ptr)
+                     (carg (const (&QUOTE MVM_reg_obj) int_sz) int)) ptr_sz)))
+        (if (nz $found)
+            (do (when (nz (call (^func &MVM_spesh_log_is_logging)
+                            (arglist
+                              (carg (tc) ptr)) int))
+                      (callv (^func &MVM_spesh_log_static)
+                        (arglist
+                          (carg (tc) ptr)
+                          (carg (^getf $found MVMRegister o) ptr))))
+                (^getf $found MVMRegister o))
+            (^vmnull))))
 
 
 (template: getlex_no
