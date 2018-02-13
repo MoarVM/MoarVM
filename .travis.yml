@@ -78,7 +78,6 @@ script:
   - echo "perl Configure.pl --prefix=$MOAR_PREFIX --backends=moar;"
   - perl Configure.pl --prefix=$MOAR_PREFIX --backends=moar;
   - make
-  - export TEST_JOBS=2
   - make test;
   - cd -- "$MOAR_FOLDER"
   - if [ "$COVERAGE" ]; then git clone --depth 1 'https://github.com/samcv/MoarVM-cover.git' && cp -v MoarVM-cover/html-cover.sh . && cp -v MoarVM-cover/nqp-profile ./nqp/ && cp -v MoarVM-cover/merge-profraw.sh ./nqp/ && ./html-cover.sh 2; fi
