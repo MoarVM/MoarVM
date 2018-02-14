@@ -34,7 +34,7 @@ typedef struct {
     /* Is it seekable? */
     short seekable;
 
-    /* Is it know to be writable? */
+    /* Is it known to be writable? */
     short known_writable;
 
     /* How many bytes have we read/written? Used to fake tell on handles that
@@ -124,7 +124,7 @@ static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
     }
 }
 
-/* Reads the specified number of bytes into a the supplied buffer, returning
+/* Reads the specified number of bytes into the supplied buffer, returning
  * the number actually read. */
 static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out, MVMint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
