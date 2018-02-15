@@ -1088,6 +1088,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         MVMLexicalRegistry *entry, *tmp;
         unsigned bucket_tmp;
         MVMuint64 lexcount = HASH_CNT(hash_handle, lexical_names);
+        MVMuint64 lexical_index = 0;
 
         cmp_write_map(ctx, 3);
         cmp_write_str(ctx, "id", 2);
@@ -1104,7 +1105,14 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         HASH_ITER(hash_handle, lexical_names, entry, tmp, bucket_tmp) {
             MVMuint16 lextype = static_info->body.lexical_types[entry->value];
             MVMRegister *result = &frame->env[entry->value];
-            char *c_key_name = MVM_string_utf8_encode_C_string(dtc, entry->key);
+            char *c_key_name;
+
+            if (entry->key && IS_CONCRETE(entry->key))
+                c_key_name = MVM_string_utf8_encode_C_string(dtc, entry->key);
+            else {
+                c_key_name = MVM_malloc(12 + 16);
+                sprintf(c_key_name, "<lexical %d>", lexical_index);
+            }
 
             cmp_write_str(ctx, c_key_name, strlen(c_key_name));
 
@@ -1152,9 +1160,13 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
                 } else if (lextype == MVM_reg_num64) {
                     cmp_write_double(ctx, result->n64);
                 } else if (lextype == MVM_reg_str) {
-                    char *c_value = MVM_string_utf8_encode_C_string(dtc, result->s);
-                    cmp_write_str(ctx, c_value, strlen(c_value));
-                    MVM_free(c_value);
+                    if (result->s && IS_CONCRETE(result->s)) {
+                        char *c_value = MVM_string_utf8_encode_C_string(dtc, result->s);
+                        cmp_write_str(ctx, c_value, strlen(c_value));
+                        MVM_free(c_value);
+                    } else {
+                        cmp_write_nil(ctx);
+                    }
                 } else {
                     fprintf(stderr, "what lexical type is %d supposed to be?\n", lextype);
                     cmp_write_nil(ctx);
@@ -1162,6 +1174,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
             }
             if (dtc->instance->debugserver->debugspam_protocol)
                 fprintf(stderr, "wrote a lexical\n");
+            lexical_index++;
         }
     } else {
         cmp_write_map(ctx, 3);
