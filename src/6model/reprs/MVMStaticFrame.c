@@ -83,6 +83,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         memcpy(dest_body->static_env, src_body->static_env, src_body->env_size);
         dest_body->static_env_flags = MVM_malloc(src_body->num_lexicals);
         memcpy(dest_body->static_env_flags, src_body->static_env_flags, src_body->num_lexicals);
+        dest_body->static_env_is_hll_init = MVM_malloc(src_body->num_lexicals);
+        memcpy(dest_body->static_env_is_hll_init, src_body->static_env_is_hll_init, src_body->num_lexicals);
 
         for (i = 0; i < count; i++) {
             if (type_map[i] == MVM_reg_str) {
@@ -163,6 +165,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(body->handlers);
     MVM_free(body->work_initial);
     MVM_free(body->static_env);
+    MVM_free(body->static_env_is_hll_init);
     MVM_free(body->static_env_flags);
     MVM_free(body->local_types);
     MVM_free(body->lexical_types);
@@ -214,8 +217,8 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
         /*
         size += sizeof(MVMuint8) * body->num_annotations
         */
-        size += body->env_size; /* static_env */
-        size += body->num_lexicals; /* static_env_flags */
+        size += body->env_size;         /* static_env */
+        size += body->num_lexicals * 2; /* static_env_flags and static_env_is_hll_init */
 
         if (body->instrumentation) {
             size += body->instrumentation->uninstrumented_bytecode_size;

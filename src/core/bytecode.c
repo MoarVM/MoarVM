@@ -659,9 +659,10 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
     }
 
     /* Allocate default lexical environment storage. */
-    sf->body.env_size         = sf->body.num_lexicals * sizeof(MVMRegister);
-    sf->body.static_env       = MVM_calloc(1, sf->body.env_size);
-    sf->body.static_env_flags = MVM_calloc(1, sf->body.num_lexicals);
+    sf->body.env_size               = sf->body.num_lexicals * sizeof(MVMRegister);
+    sf->body.static_env             = MVM_calloc(1, sf->body.env_size);
+    sf->body.static_env_flags       = MVM_calloc(1, sf->body.num_lexicals);
+    sf->body.static_env_is_hll_init = MVM_calloc(1, sf->body.num_lexicals);
 
     /* Stash static lexical segment offset, so we can easily locate it to
      * resolve them later. */

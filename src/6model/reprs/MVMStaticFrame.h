@@ -23,6 +23,9 @@ struct MVMStaticFrameBody {
     /* Flags for static environment (0 = static, 1 = clone, 2 = state). */
     MVMuint8 *static_env_flags;
 
+    /* Has the given lexical been assigned a value in the HLL? */
+    MVMuint8 *static_env_is_hll_init;
+
     /* If the frame has state variables. */
     MVMuint32 has_state_vars;
 
