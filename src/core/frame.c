@@ -568,6 +568,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMRegister *env       = static_frame->body.static_env;
         MVMuint8    *flags     = static_frame->body.static_env_flags;
         MVMint64     numlex    = static_frame->body.num_lexicals;
+        MVMCode     *cref      = (MVMCode *)frame->code_ref;
         MVMRegister *state     = NULL;
         MVMint64     state_act = 0; /* 0 = none so far, 1 = first time, 2 = later */
         MVMint64 i;
@@ -577,10 +578,10 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                     redo_state:
                     switch (state_act) {
                     case 0:
-                        if (!frame->code_ref)
+                        if (!cref)
                             MVM_exception_throw_adhoc(tc,
                                 "Frame must have code-ref to have state variables");
-                        state = ((MVMCode *)frame->code_ref)->body.state_vars;
+                        state = cref->body.state_vars;
                         if (state) {
                             /* Already have state vars; pull them from this. */
                             state_act = 2;
@@ -588,7 +589,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                         else {
                             /* Allocate storage for state vars. */
                             state = (MVMRegister *)MVM_calloc(1, frame->static_info->body.env_size);
-                            ((MVMCode *)frame->code_ref)->body.state_vars = state;
+                            cref->body.state_vars = state;
+                            cref->body.state_vars_is_hll_init = (MVMuint8 *)MVM_calloc(1, numlex);
                             state_act = 1;
 
                             /* Note that this frame should run state init code. */
