@@ -170,10 +170,10 @@ static MVMint64 mvm_eof(MVMThreadContext *tc, MVMOSHandle *h) {
                 strerror(errno));
         if ((seek_pos = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
             MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
-        /* Comparison with seek_pos for some special files, like those in /proc,
-         * which file size is 0 can be false. In that case, we fall back to check
-         * file size to detect EOF. */
-        return statbuf.st_size <= seek_pos || statbuf.st_size == 0;
+        /* For some special files, like those in /proc, the file size is 0,
+         * so in those cases, fall back to eof_reported flag to detect EOF. */
+        return statbuf.st_size
+             ? statbuf.st_size <= seek_pos : data->eof_reported;
     }
     else {
         return data->eof_reported;
