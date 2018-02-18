@@ -573,7 +573,9 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
 
         while (thread) {
             MVMThreadContext *othertc = thread->body.tc;
-            if (othertc->prof_data) {
+            /* Check for othertc to exist because joining threads nulls out
+             * the tc entry in the thread object. */
+            if (othertc && othertc->prof_data && othertc != tc) {
                 /* If we have any call frames still on the profile stack, exit them. */
                 while (othertc->prof_data->current_call)
                     MVM_profile_log_exit(othertc);
