@@ -295,6 +295,7 @@ void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full, MVMuint32 t
     gc->cleared_bytes = (char *)tc->nursery_alloc -
                         (char *)tc->nursery_tospace;
     gc->responsible   = this_thread_responsible;
+    gc->gc_seq_num    = MVM_load(&tc->instance->gc_seq_number);
 
     /* Record start time. */
     ptd->cur_gc_start_time = uv_hrtime();

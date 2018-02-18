@@ -50,6 +50,11 @@ struct MVMProfileGC {
     /* Was this thread responsible? */
     MVMuint16 responsible;
 
+    /* Which GC run does this belong to?
+     * (Good to know in multithreaded situations where
+     * some threads have their work stolen) */
+    AO_t gc_seq_num;
+
     /* Nursery statistics. */
     MVMuint32 cleared_bytes;
     MVMuint32 retained_bytes;
