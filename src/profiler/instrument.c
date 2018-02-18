@@ -559,12 +559,13 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
 
         fprintf(stderr, "going to take a profiler snapshot\n");
 
+        /* Record end time. */
+        tc->prof_data->end_time = uv_hrtime();
+
         MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, tc, tc->prof_data));
         while (tc->prof_data->current_call)
             MVM_profile_log_exit(tc);
 
-        /* Record end time. */
-        tc->prof_data->end_time = uv_hrtime();
         fprintf(stderr, "took data from main thread\n");
         MVM_gc_allocate_gen2_default_clear(tc);
 
