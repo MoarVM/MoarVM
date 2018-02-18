@@ -325,6 +325,7 @@ typedef struct {
     MVMString *deopt_one;
     MVMString *deopt_all;
     MVMString *spesh_time;
+    MVMString *thread;
     MVMString *native_lib;
 } ProfDumpStrs;
 
@@ -459,6 +460,7 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
 
 /* Dumps data from a single thread. */
 static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
+                                    MVMThreadContext *othertc,
                                     const MVMProfileThreadData *ptd) {
     MVMObject *thread_hash = new_hash(tc);
     MVMObject *thread_gcs  = new_array(tc);
@@ -504,6 +506,10 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
     MVM_repr_bind_key_o(tc, thread_hash, pds->spesh_time,
         box_i(tc, ptd->spesh_time / 1000));
 
+    /* Add thread id. */
+    MVM_repr_bind_key_o(tc, thread_hash, pds->thread,
+        box_i(tc, othertc->thread_id));
+
     return thread_hash;
 }
 
@@ -548,11 +554,12 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
         pds.deopt_one       = str(tc, "deopt_one");
         pds.deopt_all       = str(tc, "deopt_all");
         pds.spesh_time      = str(tc, "spesh_time");
+        pds.thread          = str(tc, "thread");
         pds.native_lib      = str(tc, "native library");
 
         fprintf(stderr, "going to take a profiler snapshot\n");
 
-        MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, tc->prof_data));
+        MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, tc, tc->prof_data));
         while (tc->prof_data->current_call)
             MVM_profile_log_exit(tc);
 
@@ -575,7 +582,7 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
                 othertc->prof_data->end_time = uv_hrtime();
 
                 MVM_gc_allocate_gen2_default_set(othertc);
-                MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, othertc->prof_data));
+                MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, othertc, othertc->prof_data));
                 fprintf(stderr, "took data from a thread\n");
                 MVM_gc_allocate_gen2_default_clear(othertc);
             }
