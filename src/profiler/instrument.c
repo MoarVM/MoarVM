@@ -571,7 +571,6 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
             MVM_profile_log_exit(tc);
 
         fprintf(stderr, "took data from main thread\n");
-        MVM_gc_allocate_gen2_default_clear(tc);
 
         /* Get all thread's data */
         thread = tc->instance->threads;
@@ -599,6 +598,7 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
             thread = thread->body.next;
         }
         fprintf(stderr, "done taking data\n");
+        MVM_gc_allocate_gen2_default_clear(tc);
     }
 }
 
