@@ -570,6 +570,10 @@ static void decompose_object_conditional(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_use_facts(tc, g, flag_facts);
     MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
 
+    /* Now that we *have* decomposed the if_o, annotations should be moved to
+     * the new_ins */
+    new_ins->annotations = ins->annotations;
+    ins->annotations = NULL;
 
     /* If the boolification mode was "not type object" then we might know
      * that from the facts, and may even be able to elimiante this
