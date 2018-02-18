@@ -315,6 +315,7 @@ typedef struct {
     MVMString *gcs;
     MVMString *time;
     MVMString *full;
+    MVMString *sequence;
     MVMString *responsible;
     MVMString *cleared_bytes;
     MVMString *retained_bytes;
@@ -486,6 +487,8 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
             box_i(tc, ptd->gcs[i].time / 1000));
         MVM_repr_bind_key_o(tc, gc_hash, pds->full,
             box_i(tc, ptd->gcs[i].full));
+        MVM_repr_bind_key_o(tc, gc_hash, pds->sequence,
+            box_i(tc, ptd->gcs[i].gc_seq_num));
         MVM_repr_bind_key_o(tc, gc_hash, pds->responsible,
             box_i(tc, ptd->gcs[i].responsible));
         MVM_repr_bind_key_o(tc, gc_hash, pds->cleared_bytes,
@@ -544,6 +547,7 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
         pds.gcs             = str(tc, "gcs");
         pds.time            = str(tc, "time");
         pds.full            = str(tc, "full");
+        pds.sequence        = str(tc, "sequence");
         pds.responsible     = str(tc, "responsible");
         pds.cleared_bytes   = str(tc, "cleared_bytes");
         pds.retained_bytes  = str(tc, "retained_bytes");
