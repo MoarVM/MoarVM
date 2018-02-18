@@ -45,7 +45,10 @@ struct MVMProfileGC {
     MVMuint64 abstime;
 
     /* Was it a full collection? */
-    MVMuint32 full;
+    MVMuint16 full;
+
+    /* Was this thread responsible? */
+    MVMuint16 responsible;
 
     /* Nursery statistics. */
     MVMuint32 cleared_bytes;
@@ -160,7 +163,7 @@ void MVM_profile_log_unwind(MVMThreadContext *tc);
 MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadContext *tc, const MVMFrame *root_frame);
 void MVM_profile_log_continuation_invoke(MVMThreadContext *tc, const MVMProfileContinuationData *cd);
 void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj);
-void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full);
+void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full, MVMuint32 this_thread_responsible);
 void MVM_profiler_log_gc_end(MVMThreadContext *tc);
 void MVM_profiler_log_spesh_start(MVMThreadContext *tc);
 void MVM_profiler_log_spesh_end(MVMThreadContext *tc);

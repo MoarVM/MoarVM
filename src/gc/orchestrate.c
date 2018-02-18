@@ -416,7 +416,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
 
         /* If profiling, record that GC is starting. */
         if (tc->instance->profiling)
-            MVM_profiler_log_gc_start(tc, tc->instance->gc_full_collect);
+            MVM_profiler_log_gc_start(tc, tc->instance->gc_full_collect, 1);
 
         /* Ensure our stolen list is empty. */
         tc->gc_work_count = 0;
@@ -514,7 +514,7 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
 
     /* If profiling, record that GC is starting. */
     if (tc->instance->profiling)
-        MVM_profiler_log_gc_start(tc, is_full_collection(tc));
+        MVM_profiler_log_gc_start(tc, is_full_collection(tc), 0);
 
     /* We'll certainly take care of our own work. */
     tc->gc_work_count = 0;
