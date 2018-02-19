@@ -488,7 +488,7 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
         MVM_repr_bind_key_o(tc, gc_hash, pds->full,
             box_i(tc, ptd->gcs[i].full));
         MVM_repr_bind_key_o(tc, gc_hash, pds->sequence,
-            box_i(tc, ptd->gcs[i].gc_seq_num));
+            box_i(tc, ptd->gcs[i].gc_seq_num - 2));
         MVM_repr_bind_key_o(tc, gc_hash, pds->responsible,
             box_i(tc, ptd->gcs[i].responsible));
         MVM_repr_bind_key_o(tc, gc_hash, pds->cleared_bytes,
