@@ -416,6 +416,15 @@
       (carg $2 ptr)
       (carg $0 ptr))))
 
+(template: istrue!
+  (callv (^func &MVM_coerce_istrue)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $0 ptr)
+      (carg (const 0 ptr_sz) ptr)
+      (carg (const 0 ptr_sz) ptr)
+      (carg (const 0 int_sz) int))))
 
 (template: shift_i!
   (callv (^getf (^repr $1) MVMREPROps pos_funcs.shift)
