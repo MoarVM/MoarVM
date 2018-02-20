@@ -150,6 +150,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_binddynlex: return MVM_frame_binddynlex;
     case MVM_OP_getlexouter: return MVM_frame_find_lexical_by_name_outer;
     case MVM_OP_findmeth: case MVM_OP_findmeth_s: return MVM_6model_find_method;
+    case MVM_OP_tryfindmeth: case MVM_OP_tryfindmeth_s: return MVM_6model_find_method;
     case MVM_OP_multicacheadd: return MVM_multi_cache_add;
     case MVM_OP_multicachefind: return MVM_multi_cache_find;
     case MVM_OP_can: case MVM_OP_can_s: return MVM_6model_can_method;
@@ -2181,8 +2182,24 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_REG_VAL, { obj } },
                                  { (op == MVM_OP_findmeth_s ? MVM_JIT_REG_VAL :
                                     MVM_JIT_STR_IDX), { name } },
-                                 { MVM_JIT_REG_ADDR, { dst } } };
-        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+                                 { MVM_JIT_REG_ADDR, { dst } },
+                                 { MVM_JIT_LITERAL, { 1 } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 5, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_tryfindmeth:
+    case MVM_OP_tryfindmeth_s: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMint32 name = (op == MVM_OP_tryfindmeth_s ? ins->operands[2].reg.orig :
+                         ins->operands[2].lit_str_idx);
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } },
+                                 { (op == MVM_OP_tryfindmeth_s ? MVM_JIT_REG_VAL :
+                                    MVM_JIT_STR_IDX), { name } },
+                                 { MVM_JIT_REG_ADDR, { dst } },
+                                 { MVM_JIT_LITERAL, { 0 } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 5, args, MVM_JIT_RV_VOID, -1);
         break;
     }
 

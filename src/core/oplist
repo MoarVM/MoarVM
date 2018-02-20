@@ -549,8 +549,8 @@ say                 r(str)
 DEPRECATED_22       w(str) r(obj)
 tell_fh             w(int64) r(obj)
 stat                w(int64) r(str) r(int64)
-DEPRECATED_20       w(str) r(obj)
-DEPRECATED_26       w(str) r(obj) r(str)
+tryfindmeth         w(obj) r(obj) str :pure :invokish
+tryfindmeth_s       w(obj) r(obj) r(str) :pure :invokish
 chdir               r(str)
 srand               r(int64)
 rand_i              w(int64)

@@ -6485,30 +6485,30 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_DEPRECATED_20,
-        "DEPRECATED_20",
-        "  ",
-        2,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
-    },
-    {
-        MVM_OP_DEPRECATED_26,
-        "DEPRECATED_26",
+        MVM_OP_tryfindmeth,
+        "tryfindmeth",
         "  ",
         3,
+        1,
         0,
         0,
         0,
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str }
+    },
+    {
+        MVM_OP_tryfindmeth_s,
+        "tryfindmeth_s",
+        "  ",
+        3,
+        1,
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
         MVM_OP_chdir,

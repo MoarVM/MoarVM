@@ -89,7 +89,9 @@ static void optimize_findmeth_s_perhaps_constant(MVMThreadContext *tc, MVMSpeshG
     if (name_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
         if (name_facts->writer && name_facts->writer->info->opcode == MVM_OP_const_s) {
             name_facts->usages--;
-            ins->info = MVM_op_get_op(MVM_OP_findmeth);
+            ins->info = ins->info->opcode == MVM_OP_findmeth_s
+                ? MVM_op_get_op(MVM_OP_findmeth)
+                : MVM_op_get_op(MVM_OP_tryfindmeth);
             ins->operands[2].lit_i64 = 0;
             ins->operands[2].lit_str_idx = name_facts->writer->operands[1].lit_str_idx;
             MVM_spesh_use_facts(tc, g, name_facts);
@@ -130,7 +132,7 @@ static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
     /* If not, add space to cache a single type/method pair, to save hash
      * lookups in the (common) monomorphic case, and rewrite to caching
      * version of the instruction. */
-    if (!resolved) {
+    if (!resolved && ins->info->opcode == MVM_OP_findmeth) {
         MVMSpeshOperand *orig_o = ins->operands;
         ins->info = MVM_op_get_op(MVM_OP_sp_findmeth);
         ins->operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
@@ -2083,6 +2085,13 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             if (ins->info->opcode == MVM_OP_findmeth_s)
                 break;
         case MVM_OP_findmeth:
+            optimize_method_lookup(tc, g, ins);
+            break;
+        case MVM_OP_tryfindmeth_s:
+            optimize_findmeth_s_perhaps_constant(tc, g, ins);
+            if (ins->info->opcode == MVM_OP_tryfindmeth_s)
+                break;
+        case MVM_OP_tryfindmeth:
             optimize_method_lookup(tc, g, ins);
             break;
         case MVM_OP_can:

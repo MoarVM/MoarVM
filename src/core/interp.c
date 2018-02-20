@@ -1800,7 +1800,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject   *obj  = GET_REG(cur_op, 2).o;
                 MVMString   *name = MVM_cu_string(tc, cu, GET_UI32(cur_op, 4));
                 cur_op += 8;
-                MVM_6model_find_method(tc, obj, name, res);
+                MVM_6model_find_method(tc, obj, name, res, 1);
                 goto NEXT;
             }
             OP(findmeth_s):  {
@@ -1809,7 +1809,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject   *obj  = GET_REG(cur_op, 2).o;
                 MVMString   *name = GET_REG(cur_op, 4).s;
                 cur_op += 6;
-                MVM_6model_find_method(tc, obj, name, res);
+                MVM_6model_find_method(tc, obj, name, res, 1);
                 goto NEXT;
             }
             OP(can): {
@@ -3690,6 +3690,22 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_file_stat(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 0);
                 cur_op += 6;
                 goto NEXT;
+            OP(tryfindmeth): {
+                MVMRegister *res  = &GET_REG(cur_op, 0);
+                MVMObject   *obj  = GET_REG(cur_op, 2).o;
+                MVMString   *name = MVM_cu_string(tc, cu, GET_UI32(cur_op, 4));
+                cur_op += 8;
+                MVM_6model_find_method(tc, obj, name, res, 0);
+                goto NEXT;
+            }
+            OP(tryfindmeth_s):  {
+                MVMRegister *res  = &GET_REG(cur_op, 0);
+                MVMObject   *obj  = GET_REG(cur_op, 2).o;
+                MVMString   *name = GET_REG(cur_op, 4).s;
+                cur_op += 6;
+                MVM_6model_find_method(tc, obj, name, res, 0);
+                goto NEXT;
+            }
             OP(chdir):
                 MVM_dir_chdir(tc, GET_REG(cur_op, 0).s);
                 cur_op += 2;
@@ -5832,8 +5848,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "The write_fhs op was removed in MoarVM 2017.06.");
             OP(DEPRECATED_19):
                 MVM_exception_throw_adhoc(tc, "The say_fhs op was removed in MoarVM 2017.06.");
-            OP(DEPRECATED_20):
-                MVM_exception_throw_adhoc(tc, "The readline_fh op was removed in MoarVM 2017.06.");
             OP(DEPRECATED_21):
                 MVM_exception_throw_adhoc(tc, "The readlinechomp_fh op was removed in MoarVM 2017.06.");
             OP(DEPRECATED_22):
@@ -5844,8 +5858,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "The setinputlinesep op was removed in MoarVM 2017.06.");
             OP(DEPRECATED_25):
                 MVM_exception_throw_adhoc(tc, "The setinputlineseps op was removed in MoarVM 2017.06.");
-            OP(DEPRECATED_26):
-                MVM_exception_throw_adhoc(tc, "The readlineint_fh op was removed in MoarVM 2017.06.");
             OP(DEPRECATED_27):
                 MVM_exception_throw_adhoc(tc, "The slurp op was removed in MoarVM 2017.06.");
             OP(DEPRECATED_28):

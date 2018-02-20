@@ -500,8 +500,8 @@
 #define MVM_OP_DEPRECATED_22 496
 #define MVM_OP_tell_fh 497
 #define MVM_OP_stat 498
-#define MVM_OP_DEPRECATED_20 499
-#define MVM_OP_DEPRECATED_26 500
+#define MVM_OP_tryfindmeth 499
+#define MVM_OP_tryfindmeth_s 500
 #define MVM_OP_chdir 501
 #define MVM_OP_srand 502
 #define MVM_OP_rand_i 503
