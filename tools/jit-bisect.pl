@@ -162,6 +162,12 @@ delete @ENV{qw(
 )} if $OPTS{spesh};
 $ENV{MVM_SPESH_BLOCKING} = 1;
 
+# I find that the addition of the MVM_SPESH_LOG / MVM_JIT_LOG
+# environment variable can sometimes change the spesh order of
+# frames. So let's add it always so that when we run it for logging
+# output, we don't accidentally log the wrong frame.
+$ENV{$_} = File::Spec->devnull for qw(MVM_SPESH_LOG MVM_JIT_LOG);
+
 quietly { run_with(\@command, {}, $timeout) } or do {
     die "This program is quite alright";
 };
@@ -197,21 +203,14 @@ if ($OPTS{spesh}) {
     printf STDERR ("SPESH Broken frame: %d.\n", $last_good_frame);
 
     # alright, get a spesh diff
-    my ($good_log, $bad_log) = map sprintf("spesh-%04d.txt", $_), ($last_good_frame, $last_good_frame+1);
-    printf  STDERR ("SPESH Acquiring log: %s\n", $good_log);
+    my $log_file = sprintf("spesh-%04d.txt", $last_good_frame+1);
+    printf STDERR ("SPESH Acquiring log: %s\n", $log_file);
     run_with(\@command, {
         %$spesh_flags,
-        MVM_SPESH_LOG => sprintf('spesh-%04d.txt', $last_good_frame),
-        MVM_SPESH_LIMIT => $last_good_frame
-    }, $timeout);
-
-    printf  STDERR ("SPESH Acquiring log: %s\n", $bad_log);
-    run_with(\@command, {
-        %$spesh_flags,
-        MVM_SPESH_LOG => $bad_log,
+        MVM_SPESH_LOG => $log_file,
         MVM_SPESH_LIMIT => $last_good_frame + 1
     }, $timeout);
-    print  STDERR "Done\n";
+    print STDERR "Done\n";
 } else {
     my $last_good_frame = bisect('MVM_JIT_EXPR_LAST_FRAME', \@command, {}, $timeout);
     my $last_good_block = bisect('MVM_JIT_EXPR_LAST_BB', \@command, {

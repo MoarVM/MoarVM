@@ -1,6 +1,55 @@
 See https://github.com/MoarVM/MoarVM/wiki/ChangeLog-Draft for the draft changelog
 since the previous release.
 
+New in 2018.02
+
+Miscellaneous:
++ Clean up one-shot timers after firing
++ Fix SEGV in profiler by testing the current thread's frame in heap snapshot
++ Fix missing argument to syncsocket error message
++ Fix EOF detection on zero-size files
+
+Strings:
++ Add windows-1251 (Cyrillic) decode/encode support
++ Refactor so code is shared between windows-1251 & 1252
++ Fix a bug causing encoding of ›, ˜, œ, ž, Ÿ, ™ and š with windows-1252 (Latin)
+  to throw or fail encoding
+
+Spesh:
++ Make MVM_spesh_manipulate_remove_handler_successors() public
++ Move annotations to istrue when split from if_o
++ Always split if_o into istrue and if_i
++ Fix MVM_spesh_log_decont not logging anything
++ Don't spesh log if we have a spesh_cand
++ Don't optimize getattr unless known concrete
++ Implement unmanaged_size in MVMSpeshLog repr
++ Run basic facts discovery on inlined code
++ Clean up handler successors after throwish ops become non-throwing
++ Put inlined blocks between their caller and its successor
++ Fix an off-by-one in uninline
++ Remove superfluous DEOPT_ONE_INS annotation on some deconts
++ Work around a segfault caused by type tuple without type information
++ Revive removal of dead instructions after the first inlined function
++ Fix SEGV when opening MVM_*_LOG files
+
+JIT:
++ Add JIT templates for more than 44 ops
++ Disable getlexstatic_o for the time being for stability reasons
++ Fix segfault in JIT bytecode dumper on code without static frame
++ Add NOOP expr JIT operator
++ Don't output PHI in expr JIT log
++ Better error in boxed ref for repr_id mismatch
++ Add tiles for binary XOR and NOT
++ Fix a miscompile in sp_p6ogetvt_o
++ Only BAIL on DEOPT_ONE annotations on actual guard ops in expr JIT
++ Merge non-control-flow basic blocks so expr JIT has more code to optimize
+
+Tooling:
++ Update release_guide.md with info on generating releases.html
++ Add script that generates moarvm.org/releases.html
++ Edit the ChangeLog to include the original release
++ Add script to generate Windows-1251 and 1252 codetables
+
 New in 2018.01
 
 Miscellaneous:

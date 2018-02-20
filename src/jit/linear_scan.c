@@ -318,6 +318,10 @@ void live_range_heap_push(LiveRange *values, MVMint32 *heap, size_t *top, MVMint
     live_range_heap_up(values, heap, t, cmp);
 }
 
+MVMint32 live_range_heap_peek(LiveRange *values, MVMint32 *heap) {
+    return values[heap[0]].start;
+}
+
 void live_range_heapify(LiveRange *values, MVMint32 *heap, MVMint32 top,
                         MVMint32 (*cmp)(LiveRange* values, MVMint32 a, MVMint32 b)) {
     MVMint32 i = top, mid = top/2;
@@ -1040,51 +1044,54 @@ MVM_STATIC_INLINE void process_tile(MVMThreadContext *tc, RegisterAllocator *alc
     }
 }
 
-static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
-    MVMint32 i, tile_cursor = 0;
-    MVM_VECTOR_INIT(alc->retired, alc->worklist_num);
-    MVM_VECTOR_INIT(alc->spilled, 8);
-    _DEBUG("STARTING LINEAR SCAN: %ld/%d", tc->instance->jit_seq_nr, list->tree->seq_nr);
-
-    while (alc->worklist_num > 0) {
-        MVMint32 v             = live_range_heap_pop(alc->values, alc->worklist, &alc->worklist_num, values_cmp_first_ref);
-        MVMint32 tile_order_nr = alc->values[v].start;
-        MVMint8 reg;
-        _DEBUG("Processing live range %d (first ref %d, last ref %d)", v, alc->values[v].start, alc->values[v].end);
-
-        /* deal with 'special' requirements */
-        for (; order_nr(tile_cursor) <= tile_order_nr; tile_cursor++) {
-            process_tile(tc, alc, list, tile_cursor);
-        }
-
-        /* clean up 'old' values */
-        active_set_expire(tc, alc, tile_order_nr);
-        spill_set_release(tc, alc, tile_order_nr);
-
-        if (MVM_JIT_REGISTER_HAS_REQUIREMENT(alc->values[v].register_spec)) {
-            reg = MVM_JIT_REGISTER_REQUIREMENT(alc->values[v].register_spec);
-            if (MVM_bitmap_get((MVMBitmap*)&NVR_GPR_BITMAP, reg)) {
-                assign_register(tc, alc, list, v, MVM_JIT_STORAGE_NVR, reg);
-            } else {
-                /* TODO; might require swapping / spilling */
-                NYI(general_purpose_register_spec);
-            }
+static void process_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, MVMint32 v) {
+    MVMint8 reg;
+    MVMint32 tile_order_nr = alc->values[v].start;
+    if (MVM_JIT_REGISTER_HAS_REQUIREMENT(alc->values[v].register_spec)) {
+        reg = MVM_JIT_REGISTER_REQUIREMENT(alc->values[v].register_spec);
+        if (MVM_bitmap_get((MVMBitmap*)&NVR_GPR_BITMAP, reg)) {
+            assign_register(tc, alc, list, v, MVM_JIT_STORAGE_NVR, reg);
         } else {
-            while ((reg = get_register(tc, alc, MVM_JIT_STORAGE_GPR)) < 0) {
-                /* choose a live range, a register to spill, and a spill location */
-                MVMint32 to_spill   = select_live_range_for_spill(tc, alc, list, tile_order_nr);
-                MVMint32 spill_pos  = MVM_jit_spill_memory_select(tc, alc->compiler, alc->values[to_spill].reg_type);
-                active_set_splice(tc, alc, to_spill);
-                live_range_spill(tc, alc, list, to_spill, spill_pos, tile_order_nr);
-            }
-            assign_register(tc, alc, list, v, MVM_JIT_STORAGE_GPR, reg);
-            active_set_add(tc, alc, v);
+            /* TODO; might require swapping / spilling */
+            NYI(general_purpose_register_spec);
         }
+    } else {
+        while ((reg = get_register(tc, alc, MVM_JIT_STORAGE_GPR)) < 0) {
+            /* choose a live range, a register to spill, and a spill location */
+            MVMint32 to_spill   = select_live_range_for_spill(tc, alc, list, tile_order_nr);
+            MVMint32 spill_pos  = MVM_jit_spill_memory_select(tc, alc->compiler, alc->values[to_spill].reg_type);
+            active_set_splice(tc, alc, to_spill);
+            _DEBUG("Spilling live range %d at %d to %d to free up a register",
+                   to_spill, tile_order_nr, spill_pos);
+            live_range_spill(tc, alc, list, to_spill, spill_pos, tile_order_nr);
+        }
+        assign_register(tc, alc, list, v, MVM_JIT_STORAGE_GPR, reg);
+        active_set_add(tc, alc, v);
     }
 
-    /* deal with final 'special tile' requirements */
-    for (; tile_cursor < list->items_num; tile_cursor++) {
-        process_tile(tc, alc, list, tile_cursor);
+}
+
+static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
+    MVMint32 tile_cursor = 0;
+    MVM_VECTOR_INIT(alc->retired, alc->worklist_num);
+    MVM_VECTOR_INIT(alc->spilled, 8);
+    _DEBUG("STARTING LINEAR SCAN: %d/%d", tc->instance->jit_seq_nr, list->tree->seq_nr);
+    /* loop over all tiles and peek on the value heap */
+    while (tile_cursor < list->items_num) {
+
+        if (alc->worklist_num > 0 && live_range_heap_peek(alc->values, alc->worklist) < order_nr(tile_cursor)) {
+            /* we've processed all tiles prior to this live range */
+            MVMint32 live_range = live_range_heap_pop(alc->values, alc->worklist, &alc->worklist_num, values_cmp_first_ref);
+            MVMint32 tile_order_nr = alc->values[live_range].start;
+            _DEBUG("Processing live range %d (first ref %d, last ref %d)",
+                   live_range, alc->values[live_range].start, alc->values[live_range].end);
+            active_set_expire(tc, alc, tile_order_nr);
+            spill_set_release(tc, alc, tile_order_nr);
+            process_live_range(tc, alc, list, live_range);
+        } else {
+            /* still have tiles to process, increment cursor */
+            process_tile(tc, alc, list, tile_cursor++);
+        }
     }
 
     /* flush active live ranges */
