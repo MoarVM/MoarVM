@@ -841,6 +841,10 @@ getarg_n            w(num64) r(int16)
 getarg_s            w(str) r(int16)
 getarg_o            w(obj) r(int16)
 coerce_II           w(obj) r(obj) r(obj) :pure
+encoderepconf       w(obj) r(str) r(str) r(str) r(obj) r(int64)
+encodeconf          w(obj) r(str) r(str) r(obj) r(int64)
+decodeconf          w(str) r(obj) r(str) r(int64)
+decoderepconf       w(str) r(obj) r(str) r(str) r(int64)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
