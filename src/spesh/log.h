@@ -27,7 +27,7 @@ struct MVMSpeshLogGuard {
 /* Quick check if we are logging, to save function call overhead. */
 MVM_STATIC_INLINE MVMint32 MVM_spesh_log_is_logging(MVMThreadContext *tc) {
     MVMFrame *cur_frame = tc->cur_frame;
-    return cur_frame->spesh_cand == NULL && tc->cur_frame->spesh_correlation_id && tc->spesh_log;
+    return cur_frame->spesh_cand == NULL && cur_frame->spesh_correlation_id && tc->spesh_log;
 }
 
 void MVM_spesh_log_initialize_thread(MVMThreadContext *tc, MVMint32 main_thread);
