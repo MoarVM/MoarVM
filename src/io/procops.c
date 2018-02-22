@@ -1021,6 +1021,11 @@ MVMint64 MVM_proc_getpid(MVMThreadContext *tc) {
 #endif
 }
 
+/* Get the process ID of the parent process */
+MVMint64 MVM_proc_getppid(MVMThreadContext *tc) {
+    return uv_os_getppid();
+}
+
 /* generates a random int64 */
 MVMint64 MVM_proc_rand_i(MVMThreadContext *tc) {
     MVMuint64 result = tinymt64_generate_uint64(tc->rand_state);
