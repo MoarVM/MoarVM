@@ -2034,7 +2034,7 @@ static void eliminate_phi_dead_reads(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
     if (num_operands != ins->info->num_operands)
         ins->info = get_phi(tc, g, num_operands);
 }
-static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMuint32 operand;
     MVMint32 common_flags;
     MVMObject *common_type;
@@ -2043,6 +2043,12 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
     MVMSpeshFacts *target_facts = get_facts_direct(tc, g, ins->operands[0]);
 
     eliminate_phi_dead_reads(tc, g, ins);
+
+    /*if (ins->info->num_operands == 2) {*/
+        /*copy_facts(tc, g, ins->operands[0], ins->operands[1]);*/
+        /*MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);*/
+        /*return;*/
+    /*}*/
 
     common_flags       = get_facts_direct(tc, g, ins->operands[1])->flags;
     common_type        = get_facts_direct(tc, g, ins->operands[1])->type;
@@ -2128,7 +2134,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
     while (ins) {
         switch (ins->info->opcode) {
         case MVM_SSA_PHI:
-            analyze_phi(tc, g, ins);
+            analyze_phi(tc, g, bb, ins);
             break;
         case MVM_OP_set:
             copy_facts(tc, g, ins->operands[0], ins->operands[1]);
