@@ -349,13 +349,13 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
         case MVM_OP_if_s:
         case MVM_OP_if_n:
         case MVM_OP_if_o:
-        case MVM_OP_ifnonnull:
             negated_op = 0;
             break;
         case MVM_OP_unless_i:
         case MVM_OP_unless_s:
         case MVM_OP_unless_n:
         case MVM_OP_unless_o:
+        case MVM_OP_ifnonnull:
             negated_op = 1;
             break;
         default:
@@ -391,6 +391,9 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
                 }
                 break;
             }
+            case MVM_OP_ifnonnull:
+                truthvalue = MVM_is_null(tc, flag_facts->value.o);
+                break;
             case MVM_OP_if_n:
             case MVM_OP_unless_n:
                 truthvalue = flag_facts->value.n != 0.0;
@@ -415,6 +418,10 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             /* This conditional can be dropped completely. */
             MVM_spesh_manipulate_remove_successor(tc, bb, ins->operands[1].ins_bb);
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+
+            /* Make sure follow-up code - especially
+             * decompose_object_conditional - won't work with this any more */
+            ins->info = MVM_op_get_op(MVM_OP_no_op);
         }
 
         /* Since the CFG has changed, we may have some dead basic blocks; do
@@ -2069,6 +2076,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_unless_n:
         case MVM_OP_if_o:
         case MVM_OP_unless_o:
+        case MVM_OP_ifnonnull:
             optimize_iffy(tc, g, ins, bb);
             if (ins->info->opcode == MVM_OP_if_o || ins->info->opcode == MVM_OP_unless_o) {
                 decompose_object_conditional(tc, g, ins, bb);
