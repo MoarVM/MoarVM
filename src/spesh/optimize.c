@@ -878,6 +878,73 @@ static void optimize_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     }
 }
 
+/* With a getenvhash and an atkey operating on it we can constant-fold, as we
+ * only create the env hash once anyway (per hll, that is).
+ * If we already have an envhash for the right hll in the cache, we go ahead */
+MVMuint32 optimize_getenvhash_access(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                             MVMSpeshIns *ins) {
+    if (ins->info->opcode == MVM_OP_getenvhash) {
+        MVMObject *envhash = tc->instance->env_hash;
+        if (envhash && STABLE(envhash)->WHAT == g->sf->body.cu->body.hll_config->slurpy_hash_type) {
+            MVMuint16 ss = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable *)envhash);
+            MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+            MVMSpeshOperand target = ins->operands[0];
+
+            ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+            ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+
+            ins->operands[0] = target;
+            ins->operands[1].lit_i16 = ss;
+
+            facts->flags = MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_KNOWN_VALUE | MVM_SPESH_FACT_DECONTED;
+            facts->type = g->sf->body.cu->body.hll_config->slurpy_hash_type;
+            facts->value.o = envhash;
+
+            return 1;
+        }
+    }
+    else {
+        MVMSpeshFacts *objfacts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+        if (objfacts->flags & MVM_SPESH_FACT_KNOWN_VALUE && objfacts->value.o == tc->instance->env_hash) {
+            MVMSpeshFacts *keyfacts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
+            if (keyfacts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+                MVMSpeshFacts *resultfacts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                if (ins->info->opcode == MVM_OP_atkey_o) {
+                    MVMObject *result = MVM_repr_at_key_o(tc, tc->instance->env_hash, keyfacts->value.s);
+                    MVMuint16 ss = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable *)result);
+                    MVMSpeshOperand target = ins->operands[0];
+
+                    objfacts->usages--;
+                    keyfacts->usages--;
+
+                    ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+
+                    ins->operands[0] = target;
+                    ins->operands[1].lit_i16 = ss;
+
+                    resultfacts->flags = MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_KNOWN_VALUE | MVM_SPESH_FACT_DECONTED;
+                    resultfacts->type = STABLE(result)->WHAT;
+                    resultfacts->value.o = result;
+                }
+                else if(ins->info->opcode == MVM_OP_existskey) {
+                    MVMint16 result = !!MVM_repr_exists_key(tc, tc->instance->env_hash, keyfacts->value.s);
+
+                    objfacts->usages--;
+                    keyfacts->usages--;
+
+                    ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
+                    ins->operands[1].lit_i16 = result;
+
+                    resultfacts->flags = MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_KNOWN_VALUE | MVM_SPESH_FACT_DECONTED;
+                    resultfacts->value.i = result;
+                }
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 /* If we know the type of a significant operand, we might try to specialize by
  * representation. */
 static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -2169,6 +2236,9 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_unipvalcode:
             optimize_uniprop_ops(tc, g, bb, ins);
             break;
+        case MVM_OP_getenvhash:
+            optimize_getenvhash_access(tc, g, bb, ins);
+            break;
         case MVM_OP_unshift_i:
         case MVM_OP_unshift_n:
         case MVM_OP_unshift_s:
@@ -2200,6 +2270,11 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_assign_n:
             optimize_repr_op(tc, g, bb, ins, 0);
             break;
+        case MVM_OP_atkey_o:
+        case MVM_OP_existskey:
+            if (optimize_getenvhash_access(tc, g, bb, ins))
+                break;
+            /* fallthrough */
         case MVM_OP_atpos_i:
         case MVM_OP_atpos_n:
         case MVM_OP_atpos_s:
@@ -2207,7 +2282,6 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_atkey_i:
         case MVM_OP_atkey_n:
         case MVM_OP_atkey_s:
-        case MVM_OP_atkey_o:
         case MVM_OP_elems:
         case MVM_OP_shift_i:
         case MVM_OP_shift_n:
@@ -2217,7 +2291,6 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_push_n:
         case MVM_OP_push_s:
         case MVM_OP_push_o:
-        case MVM_OP_existskey:
         case MVM_OP_existspos:
         case MVM_OP_getattr_i:
         case MVM_OP_getattr_n:
