@@ -65,7 +65,7 @@ def dump_to_file_and_commit(message = "."):
 add_dump_breakpoint("MVM_spesh_facts_discover", "before everything")
 add_dump_breakpoint("MVM_spesh_optimize", "after facts have been discovered")
 add_dump_breakpoint("eliminate_dead_bbs", "before eliminating dead BBs")
-add_dump_breakpoint("optimize_bb", "going to optimize a bb").andthen(lambda self: gdb.execute("print bb->idx", False, True))
+add_dump_breakpoint("optimize_bb_switch", "going to optimize a bb").andthen(lambda self: gdb.execute("print bb->idx", False, True))
 add_dump_breakpoint("eliminate_unused_log_guards", "eliminating unused log guards")
 add_dump_breakpoint("eliminate_pointless_gotos", "eliminating pointless gotos")
 add_dump_breakpoint("eliminate_dead_ins", "eliminating dead instructions")
