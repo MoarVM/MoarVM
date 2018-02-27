@@ -2506,6 +2506,22 @@ static void eliminate_pointless_gotos(MVMThreadContext *tc, MVMSpeshGraph *g) {
     }
 }
 
+static MVMuint8 ends_in_guard(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
+    MVMuint8 limit = 4;
+    MVMSpeshIns *ins = bb->last_ins;
+
+    while (ins && limit) {
+        if (ins->info->opcode == MVM_OP_sp_guardconc
+         || ins->info->opcode == MVM_OP_sp_guardtype
+         || ins->info->opcode == MVM_OP_sp_guardsf) {
+            return 1;
+        }
+
+        ins = ins->prev;
+        limit--;
+    }
+    return 0;
+}
 static void merge_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *bb = g->entry;
     MVMint32 orig_bbs = g->num_bbs;
@@ -2513,7 +2529,7 @@ static void merge_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
     bb = bb->linear_next;
 
     while (bb->linear_next) {
-        if (bb->num_succ == 1 && bb->succ[0] == bb->linear_next && bb->linear_next->num_pred == 1 && !bb->inlined && !bb->linear_next->inlined) {
+        if (bb->num_succ == 1 && bb->succ[0] == bb->linear_next && bb->linear_next->num_pred == 1 && !bb->inlined && !bb->linear_next->inlined && !ends_in_guard(tc, g, bb)) {
             if (bb->linear_next->first_ins) {
                 bb->linear_next->first_ins->prev = bb->last_ins;
                 if (bb->last_ins) {
