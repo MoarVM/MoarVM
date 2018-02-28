@@ -2451,14 +2451,46 @@ static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             case MVM_OP_set:
                 try_eliminate_set(tc, g, bb, ins);
                 break;
-            case MVM_OP_sp_getspeshslot:
+            case MVM_OP_sp_getspeshslot: {
+                MVMSpeshIns *ptr = ins->prev;
+                MVMSpeshOperand op = ins->operands[0];
+                MVMSpeshFacts *prev_ver_facts;
                 /* Sometimes we emit two getspeshslots in a row that write into the
                  * exact same register. That's clearly wasteful and we can save a
                  * tiny shred of code size here. */
                 if (ins->prev && ins->prev->info->opcode == ins->info->opcode &&
                         ins->operands[0].reg.orig == ins->prev->operands[0].reg.orig)
                     MVM_spesh_manipulate_delete_ins(tc, g, bb, ins->prev);
+                /* Additionally, grabbing many attributes in a row may end up
+                 * with multiple getspeshslot ops that get the same thing
+                 * (the type the attribute belongs to) and puts it into the
+                 * very same register every time. We have to look a little
+                 * further back, but we can drop those, too. */
+                if (op.reg.i > 0) {
+                    MVMuint8 safe = 1;
+                    while (ptr) {
+                        MVMuint8 first_op_info = ptr->info->operands[0];
+                        if ((first_op_info & MVM_operand_rw_mask) == MVM_operand_write_reg) {
+                            if (ptr->operands[0].reg.orig == ins->operands[0].reg.orig) {
+                                if (ptr->info->opcode == MVM_OP_sp_getspeshslot
+                                        && ptr->operands[1].lit_i16 == ins->operands[1].lit_i16)
+                                    safe = 2;
+                                else
+                                    safe = 0;
+
+                                break;
+                            }
+                        }
+
+                        ptr = ptr->prev;
+                    }
+
+                    if (safe == 2) {
+                        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+                    }
+                }
                 break;
+            }
             case MVM_OP_prof_allocated:
                 optimize_prof_allocated(tc, g, bb, ins);
                 break;
