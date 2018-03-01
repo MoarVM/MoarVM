@@ -349,6 +349,9 @@ struct MVMInstance {
     /* Cache the environment hash */
     MVMObject      *env_hash;
 
+    /* Cache the signal hash */
+    MVMObject      *sig_hash;
+
     /************************************************************************
      * Caching and interning
      ************************************************************************/

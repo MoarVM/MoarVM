@@ -64,6 +64,199 @@ static const MVMAsyncTaskOps op_table = {
     gc_free
 };
 
+#define PROCESS_SIGS(X) \
+    X( MVM_SIGHUP    )  \
+    X( MVM_SIGINT    )  \
+    X( MVM_SIGQUIT   )  \
+    X( MVM_SIGILL    )  \
+    X( MVM_SIGTRAP   )  \
+    X( MVM_SIGABRT   )  \
+    X( MVM_SIGEMT    )  \
+    X( MVM_SIGFPE    )  \
+    X( MVM_SIGKILL   )  \
+    X( MVM_SIGBUS    )  \
+    X( MVM_SIGSEGV   )  \
+    X( MVM_SIGSYS    )  \
+    X( MVM_SIGPIPE   )  \
+    X( MVM_SIGALRM   )  \
+    X( MVM_SIGTERM   )  \
+    X( MVM_SIGURG    )  \
+    X( MVM_SIGSTOP   )  \
+    X( MVM_SIGTSTP   )  \
+    X( MVM_SIGCONT   )  \
+    X( MVM_SIGCHLD   )  \
+    X( MVM_SIGTTIN   )  \
+    X( MVM_SIGTTOU   )  \
+    X( MVM_SIGIO     )  \
+    X( MVM_SIGXCPU   )  \
+    X( MVM_SIGXFSZ   )  \
+    X( MVM_SIGVTALRM )  \
+    X( MVM_SIGPROF   )  \
+    X( MVM_SIGWINCH  )  \
+    X( MVM_SIGINFO   )  \
+    X( MVM_SIGUSR1   )  \
+    X( MVM_SIGUSR2   )  \
+    X( MVM_SIGTHR    )  \
+    X( MVM_SIGSTKFLT )  \
+    X( MVM_SIGPWR    )  \
+    X( MVM_SIGBREAK  )
+
+#define GEN_ENUMS(v)   v,
+#define GEN_STRING(v) #v,
+
+static enum {
+    PROCESS_SIGS(GEN_ENUMS)
+} MVM_sig_names;
+
+static char const * const SIG_WANTED[] = {
+    PROCESS_SIGS(GEN_STRING)
+};
+static MVMint32 const NUM_SIG_WANTED = sizeof(SIG_WANTED) / sizeof(char const *);
+
+MVMObject * MVM_io_get_signals(MVMThreadContext *tc) {
+    MVMInstance  * const instance = tc->instance;
+    MVMHLLConfig *       hll      = MVM_hll_current(tc);
+    MVMObject    *       sig_hash;
+
+    MVMint8 sig_wanted_vals[NUM_SIG_WANTED];
+    for (MVMint8 i = 0; i < NUM_SIG_WANTED; i++) { sig_wanted_vals[i] = 0; }
+
+    if (instance->sig_hash) {
+        return instance->sig_hash;
+    }
+
+#ifdef SIGHUP
+    sig_wanted_vals[MVM_SIGHUP]    = SIGHUP;
+#endif
+#ifdef SIGINT
+    sig_wanted_vals[MVM_SIGINT]    = SIGINT;
+#endif
+#ifdef SIGQUIT
+    sig_wanted_vals[MVM_SIGQUIT]   = SIGQUIT;
+#endif
+#ifdef SIGILL
+    sig_wanted_vals[MVM_SIGILL]    = SIGILL;
+#endif
+#ifdef SIGTRAP
+    sig_wanted_vals[MVM_SIGTRAP]   = SIGTRAP;
+#endif
+#ifdef SIGABRT
+    sig_wanted_vals[MVM_SIGABRT]   = SIGABRT;
+#endif
+#ifdef SIGEMT
+    sig_wanted_vals[MVM_SIGEMT]    = SIGEMT;
+#endif
+#ifdef SIGFPE
+    sig_wanted_vals[MVM_SIGFPE]    = SIGFPE;
+#endif
+#ifdef SIGKILL
+    sig_wanted_vals[MVM_SIGKILL]   = SIGKILL;
+#endif
+#ifdef SIGBUS
+    sig_wanted_vals[MVM_SIGBUS]    = SIGBUS;
+#endif
+#ifdef SIGSEGV
+    sig_wanted_vals[MVM_SIGSEGV]   = SIGSEGV;
+#endif
+#ifdef SIGSYS
+    sig_wanted_vals[MVM_SIGSYS]    = SIGSYS;
+#endif
+#ifdef SIGPIPE
+    sig_wanted_vals[MVM_SIGPIPE]   = SIGPIPE;
+#endif
+#ifdef SIGALRM
+    sig_wanted_vals[MVM_SIGALRM]   = SIGALRM;
+#endif
+#ifdef SIGTERM
+    sig_wanted_vals[MVM_SIGTERM]   = SIGTERM;
+#endif
+#ifdef SIGURG
+    sig_wanted_vals[MVM_SIGURG]    = SIGURG;
+#endif
+#ifdef SIGSTOP
+    sig_wanted_vals[MVM_SIGSTOP]   = SIGSTOP;  /* hammer time */
+#endif
+#ifdef SIGTSTP
+    sig_wanted_vals[MVM_SIGTSTP]   = SIGTSTP;
+#endif
+#ifdef SIGCONT
+    sig_wanted_vals[MVM_SIGCONT]   = SIGCONT;
+#endif
+#ifdef SIGCHLD
+    sig_wanted_vals[MVM_SIGCHLD]   = SIGCHLD;
+#endif
+#ifdef SIGTTIN
+    sig_wanted_vals[MVM_SIGTTIN]   = SIGTTIN;
+#endif
+#ifdef SIGTTOU
+    sig_wanted_vals[MVM_SIGTTOU]   = SIGTTOU;
+#endif
+#ifdef SIGIO
+    sig_wanted_vals[MVM_SIGIO]     = SIGIO;
+#endif
+#ifdef SIGXCPU
+    sig_wanted_vals[MVM_SIGXCPU]   = SIGXCPU;
+#endif
+#ifdef SIGXFSZ
+    sig_wanted_vals[MVM_SIGXFSZ]   = SIGXFSZ;
+#endif
+#ifdef SIGVTALRM
+    sig_wanted_vals[MVM_SIGVTALRM] = SIGVTALRM;
+#endif
+#ifdef SIGPROF
+    sig_wanted_vals[MVM_SIGPROF]   = SIGPROF;
+#endif
+#ifdef SIGWINCH
+    sig_wanted_vals[MVM_SIGWINCH]  = SIGWINCH;
+#endif
+#ifdef SIGINFO
+    sig_wanted_vals[MVM_SIGINFO]   = SIGINFO;
+#endif
+#ifdef SIGUSR1
+    sig_wanted_vals[MVM_SIGUSR1]   = SIGUSR1;
+#endif
+#ifdef SIGUSR2
+    sig_wanted_vals[MVM_SIGUSR2]   = SIGUSR2;
+#endif
+#ifdef SIGTHR
+    sig_wanted_vals[MVM_SIGTHR]    = SIGTHR;
+#endif
+#ifdef SIGSTKFLT
+    sig_wanted_vals[MVM_SIGSTKFLT] = SIGSTKFLT;
+#endif
+#ifdef SIGPWR
+    sig_wanted_vals[MVM_SIGPWR]    = SIGPWR;
+#endif
+#ifdef SIGBREAK
+    sig_wanted_vals[MVM_SIGBREAK]  = SIGBREAK;
+#endif
+
+
+    sig_hash = MVM_repr_alloc_init(tc, hll->slurpy_hash_type);
+    MVMROOT(tc, sig_hash, {
+        for (MVMint8 i = 0; i < NUM_SIG_WANTED; i++) {
+            MVMString *key      = NULL;
+            MVMString *full_key = NULL;
+            MVMObject *val      = NULL;
+
+            MVMROOT3(tc, key, full_key, val, {
+                full_key = MVM_string_utf8_c8_decode(
+                    tc, instance->VMString, SIG_WANTED[i], strlen(SIG_WANTED[i])
+                );
+
+                key = MVM_string_substring(tc, full_key, 4, -1);
+                val = MVM_repr_box_int(tc, hll->int_box_type, sig_wanted_vals[i]);
+
+                MVM_repr_bind_key_o(tc, sig_hash, key, val);
+            });
+        }
+
+        instance->sig_hash = sig_hash;
+    });
+
+    return sig_hash;
+}
+
 /* Creates a new timer. */
 MVMObject * MVM_io_signal_handle(MVMThreadContext *tc, MVMObject *queue,
                                  MVMObject *schedulee, MVMint64 signal,

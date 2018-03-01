@@ -3759,6 +3759,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = MVM_proc_clargs(tc);
                 cur_op += 2;
                 goto NEXT;
+            OP(getsignals):
+                GET_REG(cur_op, 0).o = MVM_io_get_signals(tc);
+                cur_op += 2;
+                goto NEXT;
             OP(getenvhash):
                 GET_REG(cur_op, 0).o = MVM_proc_getenvhash(tc);
                 cur_op += 2;
