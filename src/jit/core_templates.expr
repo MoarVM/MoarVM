@@ -217,6 +217,16 @@
         (carg $0 ptr)
         (carg (const (&QUOTE MVM_reg_obj) int_sz) int)))))
 
+(template: existskey
+  (call
+    (^getf (^repr $1) MVMREPROps ass_funcs.exists_key)
+      (arglist
+        (carg (tc) ptr)
+        (carg (^stable $1) ptr)
+        (carg $1 ptr)
+        (carg (^body $1) ptr)
+        (carg $2 ptr)) int))
+
 (template: gethow
    (let: (($how (^getf (^stable $1) MVMSTable HOW)))
      (if (nz $how)
