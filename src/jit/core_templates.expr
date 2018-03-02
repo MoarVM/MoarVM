@@ -403,13 +403,22 @@
 # NB disable this for the moment, it seems to upset (some) builds, we
 # don't know yet why, but it might be because it allocates
 
-#(template: box_i!
-#  (callv (^func &MVM_box_int)
-#    (arglist
-#      (carg (tc) ptr)
-#      (carg $1 int)
-#      (carg $2 ptr)
-#      (carg $0 ptr))))
+(template: box_i!
+  (callv (^func &MVM_box_int)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)
+      (carg $2 ptr)
+      (carg $0 ptr))))
+
+(template: box_s!
+  (callv (^func &MVM_box_str)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $0 ptr))))
+
 
 (template: shift_i!
   (callv (^getf (^repr $1) MVMREPROps pos_funcs.shift)
