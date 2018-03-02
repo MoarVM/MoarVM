@@ -713,6 +713,9 @@
         (carg (tc) ptr)
         (carg $0 ptr)))))
 
+(template: isnull_s
+   (flagval (zr $1)))
+
 (template: isnull
    (or (flagval (zr $1)) (flagval (eq $1 (^vmnull)))))
 
