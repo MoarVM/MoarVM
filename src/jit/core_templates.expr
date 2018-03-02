@@ -713,6 +713,13 @@
         (carg (tc) ptr)
         (carg $0 ptr)))))
 
+(template: concat_s
+  (call (^func &MVM_string_concatenate)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)) ptr_sz))
+
 (template: isnull_s
    (flagval (zr $1)))
 
