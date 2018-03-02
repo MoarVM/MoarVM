@@ -587,7 +587,6 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
                 MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, othertc, othertc->prof_data));
                 MVM_gc_allocate_gen2_default_clear(othertc);
             }
-            }
             thread = thread->body.next;
         }
         MVM_gc_allocate_gen2_default_clear(tc);
