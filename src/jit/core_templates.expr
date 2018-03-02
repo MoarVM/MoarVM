@@ -713,6 +713,14 @@
         (carg (tc) ptr)
         (carg $0 ptr)))))
 
+(template: eqat_s
+  (call (^func &MVM_string_equal_at)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 int)) int_sz))
+
 (template: concat_s
   (call (^func &MVM_string_concatenate)
     (arglist
