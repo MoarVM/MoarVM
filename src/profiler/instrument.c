@@ -561,16 +561,12 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
         pds.thread          = str(tc, "thread");
         pds.native_lib      = str(tc, "native library");
 
-        fprintf(stderr, "going to take a profiler snapshot\n");
-
         /* Record end time. */
         tc->prof_data->end_time = uv_hrtime();
 
         MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, tc, tc->prof_data));
         while (tc->prof_data->current_call)
             MVM_profile_log_exit(tc);
-
-        fprintf(stderr, "took data from main thread\n");
 
         /* Get all thread's data */
         thread = tc->instance->threads;
@@ -589,15 +585,11 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
 
                 MVM_gc_allocate_gen2_default_set(othertc);
                 MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, othertc, othertc->prof_data));
-                fprintf(stderr, "took data from a thread\n");
                 MVM_gc_allocate_gen2_default_clear(othertc);
             }
-            else {
-                fprintf(stderr, "skipped a thread\n");
             }
             thread = thread->body.next;
         }
-        fprintf(stderr, "done taking data\n");
         MVM_gc_allocate_gen2_default_clear(tc);
     }
 }
