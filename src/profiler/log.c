@@ -347,6 +347,12 @@ void MVM_profiler_log_spesh_end(MVMThreadContext *tc) {
     MVMProfileThreadData *ptd = get_thread_data(tc->instance->main_thread);
     MVMuint64 spesh_time;
 
+    /* Because spesh workers might start before profiling starts,
+     * MVM_profiler_log_spesh_end might get called before
+     * MVM_profiler_log_spesh_start. */
+    if (ptd->cur_spesh_start_time == 0)
+        ptd->cur_spesh_start_time = ptd->start_time;
+
     /* Record time spent. */
     spesh_time = uv_hrtime() - ptd->cur_spesh_start_time;
     ptd->spesh_time += spesh_time;
