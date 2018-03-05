@@ -1482,7 +1482,7 @@ MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
             FIELD_FOUND(FS_file, "file field duplicated");
             type_to_parse = 2;
         } else if (strncmp(key_str, "handles", 15) == 0) {
-            FIELD_FOUND(FS_file, "handles field duplicated");
+            FIELD_FOUND(FS_handles, "handles field duplicated");
             type_to_parse = 3;
         } else {
             fprintf(stderr, "the hell is a %s?\n", key_str);
