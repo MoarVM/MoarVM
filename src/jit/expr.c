@@ -228,28 +228,15 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
     return num;
 }
 
-static MVMuint16 get_lexical_type(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshOperand opr) {
-    MVMStaticFrame *sf = jg->sg->sf;
-    MVMint32 i;
-    MVMuint16 *lexical_types;
-    for (i = 0; i < opr.lex.outers; i++) {
-        sf = sf->body.outer;
-    }
-    /* Use speshed lexical types, if necessary */
-    lexical_types = (opr.lex.outers == 0 && jg->sg->lexical_types != NULL ?
-                     jg->sg->lexical_types :
-                     sf->body.lexical_types);
-    return lexical_types[opr.lex.idx];
-}
-
-
 static MVMint32 getlex_needs_autoviv(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns *ins) {
-    MVMuint16 lexical_type = get_lexical_type(tc, jg, ins->operands[1]);
+    MVMSpeshOperand opr = ins->operands[1];
+    MVMuint16 lexical_type = MVM_spesh_get_lex_type(tc, jg->sg, opr.lex.outers, opr.lex.idx);
     return lexical_type == MVM_reg_obj;
 }
 
 static MVMint32 bindlex_needs_write_barrier(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns *ins) {
-    MVMuint16 lexical_type = get_lexical_type(tc, jg, ins->operands[0]);
+    MVMSpeshOperand opr = ins->operands[0];
+    MVMuint16 lexical_type = MVM_spesh_get_lex_type(tc, jg->sg, opr.lex.outers, opr.lex.idx);
     /* need to hit a write barrier if we bindlex to a string */
     return lexical_type == MVM_reg_obj || lexical_type == MVM_reg_str;
 }
