@@ -1556,6 +1556,7 @@ MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
                 CHECK(is_valid_int(&object, &result), "Couldn't read integer value for a key");
                 data->handles[index] = result;
             }
+            data->fields_set = data->fields_set | field_to_set;
         }
     }
 
