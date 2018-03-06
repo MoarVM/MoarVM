@@ -42,7 +42,6 @@ static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, 
 
 static void cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     SignalInfo *si = (SignalInfo *)data;
-    fprintf(stderr, "cancelling signal\n");
     if (si->work_idx >= 0) {
         if (!uv_is_closing((uv_handle_t *)&(si->handle)))
             uv_signal_stop(&si->handle);
