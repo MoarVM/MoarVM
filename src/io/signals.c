@@ -40,6 +40,16 @@ static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, 
     uv_signal_start(&si->handle, signal_cb, si->signum);
 }
 
+static void cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
+    SignalInfo *si = (SignalInfo *)data;
+    fprintf(stderr, "cancelling signal\n");
+    if (si->work_idx >= 0) {
+        if (!uv_is_closing((uv_handle_t *)&(si->handle)))
+            uv_signal_stop(&si->handle);
+        MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
+    }
+}
+
 /* Frees data associated with a timer async task. */
 static void gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data)
@@ -50,7 +60,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
 static const MVMAsyncTaskOps op_table = {
     setup,
     NULL,
-    NULL,
+    cancel,
     NULL,
     gc_free
 };
