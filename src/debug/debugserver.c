@@ -1387,6 +1387,32 @@ static void write_vmarray_slot_type(MVMThreadContext *tc, cmp_ctx_t *ctx, MVMuin
     }
     cmp_write_str(ctx, text, strlen(text));
 }
+static MVMuint16 write_vmarray_slot_kind(MVMThreadContext *tc, cmp_ctx_t *ctx, MVMuint8 slot_type) {
+    char *text = "unknown";
+    MVMuint16 kind = 0;
+    switch (slot_type) {
+        case MVM_ARRAY_OBJ: text = "obj"; kind = MVM_reg_obj; break;
+        case MVM_ARRAY_STR: text = "str"; kind = MVM_reg_str; break;
+        case MVM_ARRAY_I64:
+        case MVM_ARRAY_I32:
+        case MVM_ARRAY_I16:
+        case MVM_ARRAY_I8:  text = "int"; kind = MVM_reg_int64; break;
+        case MVM_ARRAY_N64:
+        case MVM_ARRAY_N32: text = "num"; kind = MVM_reg_num64; break;
+        case MVM_ARRAY_U64:
+        case MVM_ARRAY_U32:
+        case MVM_ARRAY_U16:
+        case MVM_ARRAY_U8:
+        case MVM_ARRAY_U4:
+        case MVM_ARRAY_U2:
+        case MVM_ARRAY_U1:
+        case MVM_ARRAY_I4:
+        case MVM_ARRAY_I2:
+        case MVM_ARRAY_I1:  text = "int"; kind = MVM_reg_int64; break;
+    }
+    cmp_write_str(ctx, text, strlen(text));
+    return kind;
+}
 static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
     MVMInstance *vm = dtc->instance;
     MVMObject *target = argument->handle_id
@@ -1477,6 +1503,89 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
     cmp_write_str(ctx, "repr_name", 9);
     cmp_write_str(ctx, REPR(target)->name, strlen(REPR(target)->name));
+
+    return 1;
+}
+
+static MVMint32 request_object_positionals(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMInstance *vm = dtc->instance;
+    MVMObject *target = argument->handle_id
+        ? find_handle_target(dtc, argument->handle_id)
+        : dtc->instance->VMNull;
+
+    MVMint64 slots;
+
+    if (MVM_is_null(dtc, target)) {
+        return 1;
+    }
+
+    if (REPR(target)->ID == MVM_REPR_ID_VMArray) {
+        MVMArrayBody *body = (MVMArrayBody *)OBJECT_BODY(target);
+        MVMArrayREPRData *repr_data = (MVMArrayREPRData *)STABLE(target)->REPR_data;
+        MVMuint16 kind;
+        MVMint64 index;
+
+        cmp_write_map(ctx, 3);
+        cmp_write_str(ctx, "id", 2);
+        cmp_write_integer(ctx, argument->id);
+        cmp_write_str(ctx, "type", 4);
+        cmp_write_integer(ctx, MT_ObjectPositionalsResponse);
+
+        cmp_write_str(ctx, "kind", 4);
+        kind = write_vmarray_slot_kind(dtc, ctx, repr_data->slot_type);
+
+        cmp_write_str(ctx, "start", 5);
+        cmp_write_int(ctx, 0);
+
+        cmp_write_str(ctx, "contents", 8);
+        cmp_write_array(ctx, body->elems);
+
+        for (index = 0; index < body->elems; index++) {
+            MVMRegister target_reg;
+            REPR(target)->pos_funcs.at_pos(dtc, STABLE(target), target, body, index, &target_reg, kind);
+
+            switch (kind) {
+                case MVM_reg_obj: {
+                    MVMObject *value = target_reg.o;
+                    char *value_debug_name = value ? MVM_6model_get_debug_name(dtc, value) : "VMNull";
+                    cmp_write_map(ctx, 4);
+
+                    cmp_write_str(ctx, "handle", 6);
+                    cmp_write_integer(ctx, allocate_handle(dtc, value));
+
+                    cmp_write_str(ctx, "type", 4);
+                    cmp_write_str(ctx, value_debug_name, strlen(value_debug_name));
+
+                    cmp_write_str(ctx, "concrete", 8);
+                    cmp_write_bool(ctx, !MVM_is_null(dtc, value) && IS_CONCRETE(value));
+
+                    cmp_write_str(ctx, "container", 9);
+                    if (MVM_is_null(dtc, value))
+                        cmp_write_bool(ctx, 0);
+                    else
+                        cmp_write_bool(ctx, STABLE(value)->container_spec == NULL ? 0 : 1);
+                    break;
+                }
+                case MVM_reg_int64: {
+                    cmp_write_int(ctx, target_reg.i64);
+                    break;
+                }
+                case MVM_reg_num64:
+                    cmp_write_double(ctx, target_reg.n64);
+                    break;
+                case MVM_reg_str: {
+                    char *c_value = MVM_string_utf8_encode_C_string(dtc, target_reg.s);
+                    cmp_write_str(ctx, c_value, strlen(c_value));
+                    MVM_free(c_value);
+                    break;
+                }
+                default:
+                    cmp_write_nil(ctx);
+            }
+        }
+
+        return 0;
+    }
 
     return 1;
 }
@@ -1877,6 +1986,10 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                     break;
                 case MT_ObjectMetadataRequest:
                     if (request_object_metadata(tc, &ctx, &argument)) {
+                        communicate_error(&ctx, &argument);
+                    }
+                case MT_ObjectPositionalsRequest:
+                    if (request_object_positionals(tc, &ctx, &argument)) {
                         communicate_error(&ctx, &argument);
                     }
                 default: /* Unknown command or NYI */
