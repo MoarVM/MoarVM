@@ -1518,6 +1518,42 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
         write_object_features(dtc, ctx, 0, 1, 0);
     }
+    else if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
+        if (IS_CONCRETE(target)) {
+            slots += 4; /* num_buckets, num_items, nonideal_items, ineff_expands */
+        }
+        slots += 3; /* features */
+        cmp_write_map(ctx, slots);
+
+        if (IS_CONCRETE(target)) {
+            MVMHashBody *body = (MVMHashBody *)OBJECT_BODY(target);
+            MVMHashEntry *handle = body->hash_head;
+            UT_hash_table *tbl = handle ? body->hash_head->hash_handle.tbl : 0;
+
+            if (tbl) {
+                cmp_write_str(ctx, "mvmhash_num_buckets", 19);
+                cmp_write_int(ctx, tbl->num_buckets);
+                cmp_write_str(ctx, "mvmhash_num_items", 17);
+                cmp_write_int(ctx, tbl->num_items);
+                cmp_write_str(ctx, "mvmhash_nonideal_items", 22);
+                cmp_write_int(ctx, tbl->nonideal_items);
+                cmp_write_str(ctx, "mvmhash_ineff_expands", 21);
+                cmp_write_int(ctx, tbl->ineff_expands);
+            }
+            else {
+                cmp_write_str(ctx, "mvmhash_num_buckets", 19);
+                cmp_write_int(ctx, 0);
+                cmp_write_str(ctx, "mvmhash_num_items", 17);
+                cmp_write_int(ctx, 0);
+                cmp_write_str(ctx, "mvmhash_nonideal_items", 22);
+                cmp_write_int(ctx, 0);
+                cmp_write_str(ctx, "mvmhash_ineff_expands", 21);
+                cmp_write_int(ctx, 0);
+            }
+        }
+
+        write_object_features(dtc, ctx, 0, 0, 1);
+    }
     else {
         cmp_write_map(ctx, slots);
     }
@@ -1625,6 +1661,68 @@ static MVMint32 request_object_positionals(MVMThreadContext *dtc, cmp_ctx_t *ctx
     }
 
     return 1;
+}
+
+static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMInstance *vm = dtc->instance;
+    MVMObject *target = argument->handle_id
+        ? find_handle_target(dtc, argument->handle_id)
+        : dtc->instance->VMNull;
+
+    if (MVM_is_null(dtc, target)) {
+        return 1;
+    }
+    if (!IS_CONCRETE(target)) {
+        return 1;
+    }
+
+    if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
+        MVMHashBody *body = (MVMHashBody *)OBJECT_BODY(target);
+        MVMuint64 count = HASH_CNT(hash_handle, body->hash_head);
+
+        MVMHashEntry *entry = NULL;
+        MVMHashEntry *tmp = NULL;
+        unsigned bucket_tmp;
+
+        cmp_write_map(ctx, 4);
+        cmp_write_str(ctx, "id", 2);
+        cmp_write_integer(ctx, argument->id);
+        cmp_write_str(ctx, "type", 4);
+        cmp_write_integer(ctx, MT_ObjectAssociativesResponse);
+
+        cmp_write_str(ctx, "kind", 4);
+        cmp_write_str(ctx, "obj", 3);
+
+        cmp_write_str(ctx, "contents", 8);
+        cmp_write_map(ctx, count);
+
+        HASH_ITER(hash_handle, body->hash_head, entry, tmp, bucket_tmp) {
+            char *key = MVM_string_utf8_encode_C_string(dtc, entry->hash_handle.key);
+            MVMObject *value = entry->value;
+            char *value_debug_name = value ? MVM_6model_get_debug_name(dtc, value) : "VMNull";
+
+            cmp_write_str(ctx, key, strlen(key));
+
+            cmp_write_map(ctx, 4);
+
+            cmp_write_str(ctx, "handle", 6);
+            cmp_write_integer(ctx, allocate_handle(dtc, value));
+
+            cmp_write_str(ctx, "type", 4);
+            cmp_write_str(ctx, value_debug_name, strlen(value_debug_name));
+
+            cmp_write_str(ctx, "concrete", 8);
+            cmp_write_bool(ctx, !MVM_is_null(dtc, value) && IS_CONCRETE(value));
+
+            cmp_write_str(ctx, "container", 9);
+            if (MVM_is_null(dtc, value))
+                cmp_write_bool(ctx, 0);
+            else
+                cmp_write_bool(ctx, STABLE(value)->container_spec == NULL ? 0 : 1);
+
+            MVM_free(key);
+        }
+    }
 }
 
 MVMuint8 debugspam_network;
@@ -2028,6 +2126,11 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                     break;
                 case MT_ObjectPositionalsRequest:
                     if (request_object_positionals(tc, &ctx, &argument)) {
+                        communicate_error(&ctx, &argument);
+                    }
+                    break;
+                case MT_ObjectAssociativesRequest:
+                    if (request_object_associatives(tc, &ctx, &argument)) {
                         communicate_error(&ctx, &argument);
                     }
                     break;
