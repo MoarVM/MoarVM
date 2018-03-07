@@ -659,9 +659,19 @@ static void active_set_expire(MVMThreadContext *tc, RegisterAllocator *alc, MVMi
     }
 }
 
+/* Compute the earliest live range that is still active. */
+static MVMint32 earliest_active_value(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 tile_order_nr) {
+    /* can we cache this, and does it make sense to do so? */
+    int i;
+    for (i = 0; i < alc->active_top; i++) {
+        tile_order_nr = MIN(tile_order_nr, alc->values[alc->active[i]].start);
+    }
+    return tile_order_nr;
+}
+
 static void active_set_splice(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 to_splice) {
     MVMint32 i ;
-    /* find (reverse, because it's usually the last); predecrement alc->active_top */
+    /* find (reverse, because it's usually the last); predecrement alc->active_top because we're removing one item */
     for (i = --alc->active_top; i >= 0; i--) {
         if (alc->active[i] == to_splice)
             break;
@@ -717,7 +727,6 @@ static MVMint32 insert_store_after_definition(MVMThreadContext *tc, RegisterAllo
 static MVMint32 select_live_range_for_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, MVMint32 code_pos) {
     return alc->active[alc->active_top-1];
 }
-
 
 
 static void live_range_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
@@ -1095,7 +1104,14 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
             _DEBUG("Processing live range %d (first ref %d, last ref %d)",
                    live_range, alc->values[live_range].start, alc->values[live_range].end);
             active_set_expire(tc, alc, tile_order_nr);
-            spill_set_release(tc, alc, tile_order_nr);
+            /* We can release the spill slot only if there is no more active
+             * live range overlapping with its extent. Otherwise, when we reuse
+             * the slot, we risk overwriting a useful value.
+             *
+             * We pass the current tile_order_nr as the upper bound (e.g. when
+             * there may be no active live ranges, slots will still be useful if
+             * they have later uses */
+            spill_set_release(tc, alc,  earliest_active_value(tc,alc, tile_order_nr));
             process_live_range(tc, alc, list, live_range);
         } else {
             /* still have tiles to process, increment cursor */
