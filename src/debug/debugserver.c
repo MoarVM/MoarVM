@@ -1471,7 +1471,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     }
     else if (REPR(target)->ID == MVM_REPR_ID_VMArray) {
         MVMArrayREPRData *repr_data = (MVMArrayREPRData *)(STABLE(target)->REPR_data);
-        char *debugname = MVM_6model_get_stable_debug_name(dtc, STABLE(target));
+        char *debugname = repr_data->elem_type ? MVM_6model_get_debug_name(dtc, repr_data->elem_type) : NULL;
         if (IS_CONCRETE(target)) {
             slots += 3; /* slots allocated / used, storage size */
         }
@@ -1485,7 +1485,10 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         write_vmarray_slot_type(dtc, ctx, repr_data->slot_type);
 
         cmp_write_str(ctx, "vmarray_elem_type", 17);
-        cmp_write_str(ctx, debugname, strlen(debugname));
+        if (debugname)
+            cmp_write_str(ctx, debugname, strlen(debugname));
+        else
+            cmp_write_nil(ctx);
 
         if (IS_CONCRETE(target)) {
             MVMArrayBody *body = (MVMArrayBody *)OBJECT_BODY(target);
