@@ -58,6 +58,9 @@ typedef enum {
     MT_Invoke,
     MT_InvokeResult,
     MT_UnhandledException,
+    MT_OperationUnsuccessful,
+    MT_MetadataRequest,
+    MT_MetadataResponse,
 } message_type;
 
 typedef enum {
@@ -306,6 +309,7 @@ MVMuint8 check_requirements(request_data *data) {
         case MT_OuterContextRequest:
         case MT_CallerContextRequest:
         case MT_ObjectAttributesRequest:
+        case MT_MetadataRequest:
             REQUIRE(FS_handle_id, "A handle field is required");
             break;
 
@@ -1349,7 +1353,120 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
             cmp_write_str(ctx, "error: not composed yet", 22);
             return 0;
         }
+static void write_vmarray_slot_type(MVMThreadContext *tc, cmp_ctx_t *ctx, MVMuint8 slot_type) {
+    char *text = "unknown";
+    switch (slot_type) {
+        case MVM_ARRAY_OBJ: text = "obj"; break;
+        case MVM_ARRAY_STR: text = "str"; break;
+        case MVM_ARRAY_I64: text = "i64"; break;
+        case MVM_ARRAY_I32: text = "i32"; break;
+        case MVM_ARRAY_I16: text = "i16"; break;
+        case MVM_ARRAY_I8:  text = "i8"; break;
+        case MVM_ARRAY_N64: text = "n64"; break;
+        case MVM_ARRAY_N32: text = "n32"; break;
+        case MVM_ARRAY_U64: text = "u64"; break;
+        case MVM_ARRAY_U32: text = "u32"; break;
+        case MVM_ARRAY_U16: text = "u16"; break;
+        case MVM_ARRAY_U8:  text = "u8";  break;
+        case MVM_ARRAY_U4:  text = "u4"; break;
+        case MVM_ARRAY_U2:  text = "u2"; break;
+        case MVM_ARRAY_U1:  text = "u1"; break;
+        case MVM_ARRAY_I4:  text = "i4"; break;
+        case MVM_ARRAY_I2:  text = "i2"; break;
+        case MVM_ARRAY_I1:  text = "i1"; break;
     }
+    cmp_write_str(ctx, text, strlen(text));
+}
+static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMInstance *vm = dtc->instance;
+    MVMObject *target = argument->handle_id
+        ? find_handle_target(dtc, argument->handle_id)
+        : dtc->instance->VMNull;
+
+    MVMint64 slots = 1; /* Always have the repr name */
+
+    if (MVM_is_null(dtc, target)) {
+        return 1;
+    }
+
+    cmp_write_map(ctx, 3);
+    cmp_write_str(ctx, "id", 2);
+    cmp_write_integer(ctx, argument->id);
+    cmp_write_str(ctx, "type", 4);
+    cmp_write_integer(ctx, MT_ObjectAttributesResponse);
+
+    cmp_write_str(ctx, "metadata", 8);
+
+    if (REPR(target)->unmanaged_size && IS_CONCRETE(target))
+        slots++;
+
+    if (REPR(target)->ID == MVM_REPR_ID_P6opaque) {
+        MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData*)(STABLE(target)->REPR_data);
+        if (IS_CONCRETE(target)) {
+            slots += 1; /* Replaced? */
+        }
+
+        slots += 5; /* pos/ass del slots, int/num/str unbox slots */
+        /*slots++;    [> storage spec <]*/
+        cmp_write_map(ctx, slots);
+
+        cmp_write_str(ctx, "p6opaque_pos_delegate_slot", 21);
+        cmp_write_int(ctx, repr_data->pos_del_slot);
+        cmp_write_str(ctx, "p6opaque_ass_delegate_slot", 21);
+        cmp_write_int(ctx, repr_data->ass_del_slot);
+
+        cmp_write_str(ctx, "p6opaque_unbox_int_slot", 23);
+        cmp_write_int(ctx, repr_data->unbox_int_slot);
+        cmp_write_str(ctx, "p6opaque_unbox_num_slot", 23);
+        cmp_write_int(ctx, repr_data->unbox_num_slot);
+        cmp_write_str(ctx, "p6opaque_unbox_str_slot", 23);
+        cmp_write_int(ctx, repr_data->unbox_str_slot);
+
+        /* TODO maybe output additional unbox slots, too? */
+
+        /*cmp_write_str(ctx, "storage_spec", 12);*/
+        /*write_storage_spec(dtc, ctx, repr_data->storage_spec);*/
+    }
+    else if (REPR(target)->ID == MVM_REPR_ID_VMArray) {
+        MVMArrayREPRData *repr_data = (MVMArrayREPRData *)(STABLE(target)->REPR_data);
+        char *debugname = MVM_6model_get_stable_debug_name(tc, STABLE(target));
+        if (IS_CONCRETE(target)) {
+            slots += 2; /* slots allocated / used */
+        }
+        slots += 3;
+        cmp_write_map(ctx, slots);
+
+        cmp_write_str(ctx, "vmarray_elem_size", 17);
+        cmp_write_int(ctx, repr_data->elem_size);
+
+        cmp_write_str(ctx, "vmarray_slot_type", 17);
+        write_vmarray_slot_type(tc, ctx, repr_data->slot_type);
+
+        cmp_write_str(ctx, "vmarray_elem_type", 17);
+        cmp_write_str(ctx, debugname, strlen(debugname));
+
+        if (IS_CONCRETE(target)) {
+            MVMArrayBody *body = (MVMArrayBody *)OBJECT_BODY(target);
+
+            cmp_write_str(ctx, "positional_elems", 13);
+            cmp_write_int(ctx, body->elems);
+            cmp_write_str(ctx, "vmarray_start", 13);
+            cmp_write_int(ctx, body->start);
+            cmp_write_str(ctx, "vmarray_ssize", 13);
+            cmp_write_int(ctx, body->ssize);
+        }
+    }
+    else {
+        cmp_write_map(ctx, slots);
+    }
+
+    if (REPR(target)->unmanaged_size && IS_CONCRETE(target)) {
+        cmp_write_str(ctx, "unmanaged_size", 14);
+        cmp_write_int(ctx, REPR(target)->unmanaged_size(tc, STABLE(target), OBJECT_BODY(target)));
+    }
+
+    cmp_write_str(ctx, "repr_name", 9);
+    cmp_write_str(ctx, REPR(target)->name, strlen(REPR(target)->name));
 
     return 1;
 }
@@ -1748,6 +1865,10 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                         communicate_error(&ctx, &argument);
                     }
                     break;
+                case MT_MetadataRequest:
+                    if (request_object_metadata(tc, &ctx, &argument)) {
+                        communicate_error(&ctx, &argument);
+                    }
                 default: /* Unknown command or NYI */
                     fprintf(stderr, "unknown command type (or NYI)\n");
                     cmp_write_map(&ctx, 2);
