@@ -919,7 +919,7 @@ void MVM_debugserver_clear_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, requ
 static void release_all_handles(MVMThreadContext *dtc) {
     MVMDebugServerHandleTable *dht = dtc->instance->debugserver->handle_table;
     dht->used = 0;
-    dht->next_id = 0;
+    dht->next_id = 1;
 }
 
 static MVMuint64 release_handles(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
