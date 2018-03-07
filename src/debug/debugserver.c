@@ -1221,10 +1221,7 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
 
     cmp_write_str(ctx, "attributes", 10);
 
-    if (REPR(target)->ID != MVM_REPR_ID_P6opaque) {
-        cmp_write_array(ctx, 0);
-        return 0;
-    } else {
+    if (REPR(target)->ID == MVM_REPR_ID_P6opaque) {
         MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)STABLE(target)->REPR_data;
         MVMP6opaqueBody *data = MVM_p6opaque_real_data(dtc, OBJECT_BODY(target));
         if (repr_data) {
@@ -1353,6 +1350,13 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
             cmp_write_str(ctx, "error: not composed yet", 22);
             return 0;
         }
+    } else {
+        cmp_write_array(ctx, 0);
+        return 0;
+    }
+
+    return 1;
+}
 static void write_vmarray_slot_type(MVMThreadContext *tc, cmp_ctx_t *ctx, MVMuint8 slot_type) {
     char *text = "unknown";
     switch (slot_type) {
