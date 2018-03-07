@@ -1994,10 +1994,12 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                     if (request_object_metadata(tc, &ctx, &argument)) {
                         communicate_error(&ctx, &argument);
                     }
+                    break;
                 case MT_ObjectPositionalsRequest:
                     if (request_object_positionals(tc, &ctx, &argument)) {
                         communicate_error(&ctx, &argument);
                     }
+                    break;
                 default: /* Unknown command or NYI */
                     fprintf(stderr, "unknown command type (or NYI)\n");
                     cmp_write_map(&ctx, 2);
