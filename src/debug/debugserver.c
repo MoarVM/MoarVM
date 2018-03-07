@@ -1439,7 +1439,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     }
     else if (REPR(target)->ID == MVM_REPR_ID_VMArray) {
         MVMArrayREPRData *repr_data = (MVMArrayREPRData *)(STABLE(target)->REPR_data);
-        char *debugname = MVM_6model_get_stable_debug_name(tc, STABLE(target));
+        char *debugname = MVM_6model_get_stable_debug_name(dtc, STABLE(target));
         if (IS_CONCRETE(target)) {
             slots += 2; /* slots allocated / used */
         }
@@ -1450,7 +1450,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         cmp_write_int(ctx, repr_data->elem_size);
 
         cmp_write_str(ctx, "vmarray_slot_type", 17);
-        write_vmarray_slot_type(tc, ctx, repr_data->slot_type);
+        write_vmarray_slot_type(dtc, ctx, repr_data->slot_type);
 
         cmp_write_str(ctx, "vmarray_elem_type", 17);
         cmp_write_str(ctx, debugname, strlen(debugname));
@@ -1472,7 +1472,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
     if (REPR(target)->unmanaged_size && IS_CONCRETE(target)) {
         cmp_write_str(ctx, "unmanaged_size", 14);
-        cmp_write_int(ctx, REPR(target)->unmanaged_size(tc, STABLE(target), OBJECT_BODY(target)));
+        cmp_write_int(ctx, REPR(target)->unmanaged_size(dtc, STABLE(target), OBJECT_BODY(target)));
     }
 
     cmp_write_str(ctx, "repr_name", 9);
