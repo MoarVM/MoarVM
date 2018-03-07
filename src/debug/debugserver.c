@@ -1438,6 +1438,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
     if (REPR(target)->ID == MVM_REPR_ID_P6opaque) {
         MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData*)(STABLE(target)->REPR_data);
+        MVMP6opaqueBody *body = &((MVMP6opaque *)target)->body;
         if (IS_CONCRETE(target)) {
             slots += 1; /* Replaced? */
         }
@@ -1458,6 +1459,11 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         cmp_write_str(ctx, "p6opaque_unbox_str_slot", 23);
         cmp_write_int(ctx, repr_data->unbox_str_slot);
 
+        if (IS_CONCRETE(target)) {
+            cmp_write_str(ctx, "p6opaque_body_replaced", 22);
+            cmp_write_bool(ctx, !!body->replaced);
+        }
+
         /* TODO maybe output additional unbox slots, too? */
 
         /*cmp_write_str(ctx, "storage_spec", 12);*/
@@ -1467,7 +1473,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         MVMArrayREPRData *repr_data = (MVMArrayREPRData *)(STABLE(target)->REPR_data);
         char *debugname = MVM_6model_get_stable_debug_name(dtc, STABLE(target));
         if (IS_CONCRETE(target)) {
-            slots += 2; /* slots allocated / used */
+            slots += 3; /* slots allocated / used, storage size */
         }
         slots += 3;
         cmp_write_map(ctx, slots);
@@ -1484,7 +1490,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         if (IS_CONCRETE(target)) {
             MVMArrayBody *body = (MVMArrayBody *)OBJECT_BODY(target);
 
-            cmp_write_str(ctx, "positional_elems", 13);
+            cmp_write_str(ctx, "positional_elems", 16);
             cmp_write_int(ctx, body->elems);
             cmp_write_str(ctx, "vmarray_start", 13);
             cmp_write_int(ctx, body->start);
@@ -1504,7 +1510,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     cmp_write_str(ctx, "repr_name", 9);
     cmp_write_str(ctx, REPR(target)->name, strlen(REPR(target)->name));
 
-    return 1;
+    return 0;
 }
 
 static MVMint32 request_object_positionals(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
