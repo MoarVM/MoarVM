@@ -313,7 +313,9 @@ MVMuint8 check_requirements(request_data *data) {
         case MT_OuterContextRequest:
         case MT_CallerContextRequest:
         case MT_ObjectAttributesRequest:
-        case MT_MetadataRequest:
+        case MT_ObjectMetadataRequest:
+        case MT_ObjectPositionalsRequest:
+        case MT_ObjectAssociativesRequest:
             REQUIRE(FS_handle_id, "A handle field is required");
             break;
 
@@ -1873,7 +1875,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                         communicate_error(&ctx, &argument);
                     }
                     break;
-                case MT_MetadataRequest:
+                case MT_ObjectMetadataRequest:
                     if (request_object_metadata(tc, &ctx, &argument)) {
                         communicate_error(&ctx, &argument);
                     }
