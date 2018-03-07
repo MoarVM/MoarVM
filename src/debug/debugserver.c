@@ -1196,6 +1196,7 @@ MVM_STATIC_INLINE MVMObject * get_obj_at_offset(void *data, MVMint64 offset) {
     return *((MVMObject **)location);
 }
 static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMInstance *vm = dtc->instance;
     MVMObject *target = argument->handle_id
         ? find_handle_target(dtc, argument->handle_id)
         : dtc->instance->VMNull;
@@ -1223,10 +1224,20 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
         MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)STABLE(target)->REPR_data;
         MVMP6opaqueBody *data = MVM_p6opaque_real_data(dtc, OBJECT_BODY(target));
         if (repr_data) {
-            MVMint16 const num_attributes = repr_data->num_attributes;
-            MVMP6opaqueNameMap * const name_to_index_mapping = repr_data->name_to_index_mapping;
+            MVMint16 num_attributes = 0;
+            MVMP6opaqueNameMap * name_to_index_mapping = repr_data->name_to_index_mapping;
+
+            while (name_to_index_mapping != NULL && name_to_index_mapping->class_key != NULL) {
+                num_attributes += name_to_index_mapping->num_attrs;
+                name_to_index_mapping++;
+            }
+
+            name_to_index_mapping = repr_data->name_to_index_mapping;
 
             cmp_write_array(ctx, num_attributes);
+
+            if (vm->debugserver->debugspam_protocol)
+                fprintf(stderr, "going to write out %d attributes\n", num_attributes);
 
             if (name_to_index_mapping != NULL) {
                 MVMint16 i;
@@ -1236,6 +1247,9 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
                     MVMint16 i;
                     MVMint64 slot;
                     char *class_name = MVM_6model_get_stable_debug_name(dtc, cur_map_entry->class_key->st);
+
+                    if (vm->debugserver->debugspam_protocol)
+                        fprintf(stderr, "class %s has %d attributes\n", class_name, cur_map_entry->num_attrs);
 
                     for (i = 0; i < cur_map_entry->num_attrs; i++) {
                         char * name = MVM_string_utf8_encode_C_string(dtc, cur_map_entry->names[i]);
@@ -1247,6 +1261,9 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
                             if (attr_st == NULL) {
                                 MVMObject *value = get_obj_at_offset(data, offset);
                                 char *value_debug_name = value ? MVM_6model_get_debug_name(dtc, value) : "VMNull";
+
+                                if (vm->debugserver->debugspam_protocol)
+                                    fprintf(stderr, "Writing an object attribute\n");
 
                                 cmp_write_map(ctx, 7);
 
@@ -1277,6 +1294,9 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
                             else {
                                 const MVMStorageSpec *attr_storage_spec = attr_st->REPR->get_storage_spec(dtc, attr_st);
 
+                                if (vm->debugserver->debugspam_protocol)
+                                    fprintf(stderr, "Writing a native attribute\n");
+
                                 cmp_write_map(ctx, 4);
 
                                 cmp_write_str(ctx, "name", 4);
@@ -1289,18 +1309,29 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
 
                                 switch (attr_storage_spec->boxed_primitive) {
                                     case MVM_STORAGE_SPEC_BP_INT:
+                                        cmp_write_str(ctx, "int", 3);
+                                        cmp_write_str(ctx, "value", 5);
                                         cmp_write_integer(ctx, attr_st->REPR->box_funcs.get_int(dtc, attr_st, target, (char *)data + offset));
                                         break;
                                     case MVM_STORAGE_SPEC_BP_NUM:
+                                        cmp_write_str(ctx, "num", 3);
+                                        cmp_write_str(ctx, "value", 5);
                                         cmp_write_double(ctx, attr_st->REPR->box_funcs.get_num(dtc, attr_st, target, (char *)data + offset));
                                         break;
                                     case MVM_STORAGE_SPEC_BP_STR: {
                                         MVMString * const s = attr_st->REPR->box_funcs.get_str(dtc, attr_st, target, (char *)data + offset);
                                         char * const str = MVM_string_utf8_encode_C_string(dtc, s);
+                                        cmp_write_str(ctx, "str", 3);
+                                        cmp_write_str(ctx, "value", 5);
                                         cmp_write_str(ctx, str, strlen(str));
                                         MVM_free(str);
                                         break;
                                     }
+                                    default:
+                                        cmp_write_str(ctx, "error", 5);
+                                        cmp_write_str(ctx, "value", 5);
+                                        cmp_write_str(ctx, "error", 5);
+                                        break;
                                 }
                             }
                         }
@@ -1310,14 +1341,17 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
                     cur_map_entry++;
                 }
             }
+            return 0;
         }
         else {
+            if (vm->debugserver->debugspam_protocol)
+                fprintf(stderr, "This class isn't composed yet!\n");
             cmp_write_str(ctx, "error: not composed yet", 22);
             return 0;
         }
     }
 
-    return 0;
+    return 1;
 }
 
 MVMuint8 debugspam_network;
