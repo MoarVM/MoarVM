@@ -869,7 +869,9 @@ static void optimize_string_equality(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
  * to other optimization methods. */
 static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMuint8 negated_op;
-    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    MVMSpeshFacts *input_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+
     if (ins->info->opcode == MVM_OP_istrue) {
         negated_op = 0;
     } else if (ins->info->opcode == MVM_OP_isfalse) {
@@ -878,9 +880,45 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
         return;
     }
 
-    /* Let's try to figure out the boolification spec. */
-    if (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
-        MVMBoolificationSpec *bs = STABLE(facts->type)->boolification_spec;
+    /* Known value, maybe possible to coerce to a constant */
+    if (input_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        MVMObject *objval = input_facts->value.o;
+        MVMBoolificationSpec *bs = objval->st->boolification_spec;
+        MVMRegister resultreg;
+        MVMint64 truthvalue;
+        switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
+        case MVM_BOOL_MODE_UNBOX_INT:
+        case MVM_BOOL_MODE_UNBOX_NUM:
+        case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY:
+        case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY_OR_ZERO:
+        case MVM_BOOL_MODE_BIGINT:
+        case MVM_BOOL_MODE_ITER:
+        case MVM_BOOL_MODE_HAS_ELEMS:
+        case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
+            MVM_coerce_istrue(tc, objval, &resultreg, NULL, NULL, 0);
+            truthvalue = negated_op ? !resultreg.i64 : !!resultreg.i64;
+            break;
+        case MVM_BOOL_MODE_CALL_METHOD:
+        default:
+            /* nothing fixed we can say about this */
+            return;
+        }
+        /* assign a constant value */
+        ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
+        ins->operands[1].lit_i64 = truthvalue;
+        /* we're no longer using this object (but we rely on the facts provided) */
+        MVM_spesh_use_facts(tc, g, input_facts);
+        input_facts->usages--;
+        /* and we know the result of this operations as a constant value */
+        result_facts->flags  |= MVM_SPESH_FACT_KNOWN_VALUE;
+        result_facts->value.i = truthvalue;
+        return;
+    }
+
+    /* Unknown value, known type. We may be able to lower this to a
+     * nonpolymorphic operation */
+    if (input_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+        MVMBoolificationSpec *bs = STABLE(input_facts->type)->boolification_spec;
         MVMSpeshOperand  orig    = ins->operands[0];
         MVMSpeshOperand  temp;
 
@@ -890,7 +928,7 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
         switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
             case MVM_BOOL_MODE_UNBOX_INT:
                 /* This optimization can only handle values known to be concrete. */
-                if (!(facts->flags & MVM_SPESH_FACT_CONCRETE)) {
+                if (!(input_facts->flags & MVM_SPESH_FACT_CONCRETE)) {
                     return;
                 }
                 /* We can just unbox the int and pretend it's a bool. */
@@ -928,7 +966,7 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
             MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
         }
 
-        MVM_spesh_use_facts(tc, g, facts);
+        MVM_spesh_use_facts(tc, g, input_facts);
     }
 }
 
