@@ -59,8 +59,12 @@ typedef enum {
     MT_InvokeResult,
     MT_UnhandledException,
     MT_OperationUnsuccessful,
-    MT_MetadataRequest,
-    MT_MetadataResponse,
+    MT_ObjectMetadataRequest,
+    MT_ObjectMetadataResponse,
+    MT_ObjectPositionalsRequest,
+    MT_ObjectPositionalsResponse,
+    MT_ObjectAssociativesRequest,
+    MT_ObjectAssociativesResponse,
 } message_type;
 
 typedef enum {
@@ -1397,7 +1401,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     cmp_write_str(ctx, "id", 2);
     cmp_write_integer(ctx, argument->id);
     cmp_write_str(ctx, "type", 4);
-    cmp_write_integer(ctx, MT_ObjectAttributesResponse);
+    cmp_write_integer(ctx, MT_ObjectMetadataResponse);
 
     cmp_write_str(ctx, "metadata", 8);
 
