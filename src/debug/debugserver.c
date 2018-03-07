@@ -1419,7 +1419,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         ? find_handle_target(dtc, argument->handle_id)
         : dtc->instance->VMNull;
 
-    MVMint64 slots = 1; /* Always have the repr name */
+    MVMint64 slots = 2; /* Always have the repr name and debug name */
 
     if (MVM_is_null(dtc, target)) {
         return 1;
@@ -1509,6 +1509,12 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
     cmp_write_str(ctx, "repr_name", 9);
     cmp_write_str(ctx, REPR(target)->name, strlen(REPR(target)->name));
+
+    {
+        char *debug_name = MVM_6model_get_debug_name(tc, target);
+        cmp_write_str(ctx, "debug_name", 10);
+        cmp_write_str(ctx, debug_name, strlen(debug_name));
+    }
 
     return 0;
 }
