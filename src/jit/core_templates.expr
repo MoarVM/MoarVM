@@ -108,22 +108,19 @@
 (template: sp_p6obind_n (store (add (^p6obody $0) $1) $2 int_sz))
 
 (template: sp_p6obind_o
-    (dov (^write_barrier $0 $2)
-         (store (add (^p6obody $0) $1) $2 ptr_sz)))
+  (^store_write_barrier! $0 (add (^p6obody $0) $1) $2))
 
 (template: sp_p6obind_s
-    (dov (^write_barrier $0 $2)
-         (store (add (^p6obody $0) $1) $2 ptr_sz)))
+  (^store_write_barrier! $0 (add (^p6obody $0) $1) $2))
 
 (template: sp_p6ogetvt_o
-   (let: (($addr (add (^p6obody $1) $2))
-          ($val (load $addr ptr_sz)))
-       (if (nz $val)
-            $val
-            (let: (($type (load (^spesh_slot $3) ptr_sz)))
-                 (^write_barrier $1 $type)
-                 (store $addr $type ptr_sz)
-                 (copy $type)))))
+  (let: (($addr (add (^p6obody $1) $2))
+         ($val (load $addr ptr_sz)))
+    (if (nz $val)
+       $val
+       (let: (($type (load (^spesh_slot $3) ptr_sz)))
+         (^store_write_barrier! $1 $addr $type)
+         (copy $type)))))
 
 (template: say (callv (^func &MVM_string_say)
                       (arglist (carg (tc) ptr)
