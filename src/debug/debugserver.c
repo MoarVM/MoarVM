@@ -1537,7 +1537,7 @@ static MVMint32 request_object_positionals(MVMThreadContext *dtc, cmp_ctx_t *ctx
         MVMuint16 kind;
         MVMint64 index;
 
-        cmp_write_map(ctx, 3);
+        cmp_write_map(ctx, 5);
         cmp_write_str(ctx, "id", 2);
         cmp_write_integer(ctx, argument->id);
         cmp_write_str(ctx, "type", 4);
