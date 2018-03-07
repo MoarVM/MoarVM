@@ -1363,6 +1363,14 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
 
     return 1;
 }
+static void write_object_features(MVMThreadContext *tc, cmp_ctx_t *ctx, MVMuint8 attributes, MVMuint8 positional, MVMuint8 associative) {
+    cmp_write_str(ctx, "attr_features", 13);
+    cmp_write_bool(ctx, attributes);
+    cmp_write_str(ctx, "pos_features", 12);
+    cmp_write_bool(ctx, positional);
+    cmp_write_str(ctx, "ass_features", 12);
+    cmp_write_bool(ctx, associative);
+}
 static void write_vmarray_slot_type(MVMThreadContext *tc, cmp_ctx_t *ctx, MVMuint8 slot_type) {
     char *text = "unknown";
     switch (slot_type) {
@@ -1433,8 +1441,11 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
     cmp_write_str(ctx, "metadata", 8);
 
-    if (REPR(target)->unmanaged_size && IS_CONCRETE(target))
+    if (IS_CONCRETE(target)) {
         slots++;
+        if (REPR(target)->unmanaged_size)
+            slots++;
+    }
 
     if (REPR(target)->ID == MVM_REPR_ID_P6opaque) {
         MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData*)(STABLE(target)->REPR_data);
@@ -1445,6 +1456,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
         slots += 5; /* pos/ass del slots, int/num/str unbox slots */
         /*slots++;    [> storage spec <]*/
+        slots += 3; /* features */
         cmp_write_map(ctx, slots);
 
         cmp_write_str(ctx, "p6opaque_pos_delegate_slot", 21);
@@ -1464,6 +1476,8 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
             cmp_write_bool(ctx, !!body->replaced);
         }
 
+        write_object_features(dtc, ctx, 1, 0, 0);
+
         /* TODO maybe output additional unbox slots, too? */
 
         /*cmp_write_str(ctx, "storage_spec", 12);*/
@@ -1476,6 +1490,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
             slots += 3; /* slots allocated / used, storage size */
         }
         slots += 3;
+        slots += 3; /* features */
         cmp_write_map(ctx, slots);
 
         cmp_write_str(ctx, "vmarray_elem_size", 17);
@@ -1500,6 +1515,8 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
             cmp_write_str(ctx, "vmarray_ssize", 13);
             cmp_write_int(ctx, body->ssize);
         }
+
+        write_object_features(dtc, ctx, 0, 1, 0);
     }
     else {
         cmp_write_map(ctx, slots);
@@ -1508,6 +1525,11 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     if (REPR(target)->unmanaged_size && IS_CONCRETE(target)) {
         cmp_write_str(ctx, "unmanaged_size", 14);
         cmp_write_int(ctx, REPR(target)->unmanaged_size(dtc, STABLE(target), OBJECT_BODY(target)));
+    }
+
+    if (IS_CONCRETE(target)) {
+        cmp_write_str(ctx, "size", 4);
+        cmp_write_int(ctx, target->header.size);
     }
 
     cmp_write_str(ctx, "repr_name", 9);
