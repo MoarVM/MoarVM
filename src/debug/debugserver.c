@@ -948,7 +948,7 @@ static MVMuint64 release_handles(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_
 }
 
 static MVMuint64 allocate_handle(MVMThreadContext *dtc, MVMObject *target) {
-    if (!target) {
+    if (!target || MVM_is_null(dtc, target)) {
         return 0;
     } else {
         MVMDebugServerHandleTable *dht = dtc->instance->debugserver->handle_table;
