@@ -114,7 +114,8 @@ static char const * const SIG_WANTED[] = {
 static MVMint32 const NUM_SIG_WANTED = sizeof(SIG_WANTED) / sizeof(char const *);
 
 static void populate_sig_values(MVMint8 *sig_vals) {
-    for (MVMint8 i = 0; i < NUM_SIG_WANTED; i++) { sig_vals[i] = 0; }
+    MVMint8 i;
+    for (i = 0; i < NUM_SIG_WANTED; i++) { sig_vals[i] = 0; }
 
 #ifdef SIGHUP
     sig_vals[MVM_SIGHUP]    = SIGHUP;
@@ -225,10 +226,11 @@ static void populate_sig_values(MVMint8 *sig_vals) {
 
 static void populate_instance_valid_sigs(MVMThreadContext *tc, MVMint8 *sig_vals) {
     MVMuint64 valid_sigs = 0;
+    MVMint8 i;
 
     if ( tc->instance->valid_sigs ) return;
 
-    for (MVMint8 i = 0; i < NUM_SIG_WANTED; i++) {
+    for (i = 0; i < NUM_SIG_WANTED; i++) {
         if (sig_vals[i]) {
             valid_sigs |=  1 << sig_vals[i] - 1;
         }
@@ -250,7 +252,8 @@ MVMObject * MVM_io_get_signals(MVMThreadContext *tc) {
 
     sig_hash = MVM_repr_alloc_init(tc, hll->slurpy_hash_type);
     MVMROOT(tc, sig_hash, {
-        for (MVMint8 i = 0; i < NUM_SIG_WANTED; i++) {
+        MVMint8 i;
+        for (i = 0; i < NUM_SIG_WANTED; i++) {
             MVMString *key      = NULL;
             MVMString *full_key = NULL;
             MVMObject *val      = NULL;
