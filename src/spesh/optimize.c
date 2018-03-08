@@ -339,28 +339,25 @@ static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
 
 /* iffy ops that operate on a known value register can turn into goto
  * or be dropped. */
-static int optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
+static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
     MVMSpeshFacts *flag_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
     MVMuint8 negated_op;
     MVMuint8 truthvalue;
-    int removed = 0;
 
     switch (ins->info->opcode) {
         case MVM_OP_if_i:
         case MVM_OP_if_s:
         case MVM_OP_if_n:
-        case MVM_OP_if_o:
         case MVM_OP_ifnonnull:
             negated_op = 0;
             break;
         case MVM_OP_unless_i:
         case MVM_OP_unless_s:
         case MVM_OP_unless_n:
-        case MVM_OP_unless_o:
             negated_op = 1;
             break;
         default:
-            return removed;
+            return;
     }
 
     if (flag_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
@@ -369,35 +366,12 @@ static int optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *in
             case MVM_OP_unless_i:
                 truthvalue = flag_facts->value.i;
                 break;
-            case MVM_OP_if_o:
-            case MVM_OP_unless_o: {
-                MVMObject *objval = flag_facts->value.o;
-                MVMBoolificationSpec *bs = objval->st->boolification_spec;
-                MVMRegister resultreg;
-                switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
-                    case MVM_BOOL_MODE_UNBOX_INT:
-                    case MVM_BOOL_MODE_UNBOX_NUM:
-                    case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY:
-                    case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY_OR_ZERO:
-                    case MVM_BOOL_MODE_BIGINT:
-                    case MVM_BOOL_MODE_ITER:
-                    case MVM_BOOL_MODE_HAS_ELEMS:
-                    case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
-                        MVM_coerce_istrue(tc, objval, &resultreg, NULL, NULL, 0);
-                        truthvalue = resultreg.i64;
-                        break;
-                    case MVM_BOOL_MODE_CALL_METHOD:
-                    default:
-                        return removed;
-                }
-                break;
-            }
             case MVM_OP_if_n:
             case MVM_OP_unless_n:
                 truthvalue = flag_facts->value.n != 0.0;
                 break;
             default:
-                return removed;
+                return;
         }
 
         MVM_spesh_use_facts(tc, g, flag_facts);
@@ -416,176 +390,15 @@ static int optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *in
             /* This conditional can be dropped completely. */
             MVM_spesh_manipulate_remove_successor(tc, bb, ins->operands[1].ins_bb);
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
-            removed = 1;
         }
 
         /* Since the CFG has changed, we may have some dead basic blocks; do
          * an elimination pass. */
         MVM_spesh_eliminate_dead_bbs(tc, g, 1);
 
-        return removed;
+        return;
     }
 
-    /* Sometimes our code-gen ends up boxing an integer and immediately
-     * calling if_o or unless_o on it. If we if_i/unless_i/... instead,
-     * we can get rid of the unboxing and perhaps the boxing as well. */
-    if ((ins->info->opcode == MVM_OP_if_o || ins->info->opcode == MVM_OP_unless_o)
-            && flag_facts->flags & MVM_SPESH_FACT_KNOWN_BOX_SRC && flag_facts->writer) {
-        /* We may have to go through several layers of set instructions to find
-         * the proper writer. */
-        MVMSpeshIns *cur = flag_facts->writer;
-        while (cur && cur->info->opcode == MVM_OP_set) {
-            cur = MVM_spesh_get_facts(tc, g, cur->operands[1])->writer;
-        }
-
-        if (cur) {
-            MVMSpeshIns *safety_cur;
-            MVMuint8 orig_operand_type = cur->info->operands[1] & MVM_operand_type_mask;
-            MVMuint8 succ = 0;
-
-            /* Now we have to be extra careful. Any operation that writes to
-             * our "unboxed flag" register (in any register version) will be
-             * trouble. Also, we'd have to take more care with PHI nodes,
-             * which we'll just consider immediate failure for now. */
-
-            safety_cur = ins;
-            while (safety_cur) {
-                if (safety_cur == cur) {
-                    /* If we've made it to here without finding anything
-                     * dangerous, we can consider this optimization
-                     * a winner. */
-                    break;
-                }
-                if (safety_cur->info->opcode == MVM_SSA_PHI) {
-                    /* Oh dear god in heaven! A PHI! */
-                    safety_cur = NULL;
-                    break;
-                }
-                if (((safety_cur->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg)
-                    && (safety_cur->operands[0].reg.orig == cur->operands[1].reg.orig)) {
-                    /* Someone's clobbering our register between the boxing and
-                     * our attempt to unbox it. We shall give up.
-                     * Maybe in the future we can be clever/sneaky and use
-                     * some other register for bridging the gap? */
-                    safety_cur = NULL;
-                    break;
-                }
-                safety_cur = safety_cur->prev;
-            }
-
-            if (safety_cur) {
-                switch (orig_operand_type) {
-                    case MVM_operand_int64:
-                        ins->info = MVM_op_get_op(negated_op ? MVM_OP_unless_i : MVM_OP_if_i);
-                        succ = 1;
-                        break;
-                    case MVM_operand_num64:
-                        ins->info = MVM_op_get_op(negated_op ? MVM_OP_unless_n : MVM_OP_if_n);
-                        succ = 1;
-                        break;
-                    case MVM_operand_str:
-                        ins->info = MVM_op_get_op(negated_op ? MVM_OP_unless_s : MVM_OP_if_s);
-                        succ = 1;
-                        break;
-                }
-
-                if (succ) {
-                    ins->operands[0] = cur->operands[1];
-                    flag_facts->usages--;
-                    MVM_spesh_get_and_use_facts(tc, g, cur->operands[1])->usages++;
-                    optimize_iffy(tc, g, ins, bb);
-                    return removed;
-                }
-            }
-        }
-    }
-
-    return removed;
-}
-
-/* break if_o/unless_o into an istrue/if_i, which is much JIT friendlier */
-static void decompose_object_conditional(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
-    MVMSpeshFacts *flag_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
-    const MVMOpInfo *op_info = MVM_op_get_op(MVM_OP_istrue);
-    MVMSpeshOperand  temp      = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
-    MVMSpeshIns     *new_ins   = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
-    MVMint32        reoptimize = 0;
-
-    /* If we know the type, we can devirtualize if_o and unless_o. */
-    if (flag_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && flag_facts->type) {
-        /* Go by boolification mode to pick a new instruction, if any. */
-        MVMObject *type            = flag_facts->type;
-        MVMBoolificationSpec *bs   = type->st->boolification_spec;
-        MVMuint8 guaranteed_concrete = flag_facts->flags & MVM_SPESH_FACT_CONCRETE;
-        MVMuint8 mode = bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode;
-        switch (mode) {
-        case MVM_BOOL_MODE_ITER:
-            if (!guaranteed_concrete)
-                break;
-            if (flag_facts->flags & MVM_SPESH_FACT_ARRAY_ITER) {
-                op_info = MVM_op_get_op(MVM_OP_sp_boolify_iter_arr);
-            } else if (flag_facts->flags & MVM_SPESH_FACT_HASH_ITER) {
-                op_info = MVM_op_get_op(MVM_OP_sp_boolify_iter_hash);
-            } else {
-                op_info = MVM_op_get_op(MVM_OP_sp_boolify_iter);
-            }
-            break;
-        case MVM_BOOL_MODE_UNBOX_INT:
-            if (!guaranteed_concrete)
-                break;
-            op_info = MVM_op_get_op(MVM_OP_unbox_i);
-            break;
-            /* We need to change the register type for our temporary register for this.
-               case MVM_BOOL_MODE_UNBOX_NUM:
-               op_info = MVM_op_get_op(MVM_OP_unbox_i);
-               break;
-            */
-        case MVM_BOOL_MODE_BIGINT:
-            if (!guaranteed_concrete)
-                break;
-            op_info = MVM_op_get_op(MVM_OP_bool_I);
-            break;
-        case MVM_BOOL_MODE_HAS_ELEMS:
-            if (!guaranteed_concrete)
-                break;
-            op_info = MVM_op_get_op(MVM_OP_elems);
-            break;
-        case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
-            op_info = MVM_op_get_op(MVM_OP_isconcrete);
-            reoptimize = 1;
-            break;
-        default:
-            break;
-        }
-    }
-
-    /* We're inserting a new instruction for the test (which we may have made
-     * cheaper) and put the result into the temporary register. */
-    new_ins->info = op_info;
-    new_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 2);
-    new_ins->operands[0] = temp;
-    new_ins->operands[1] = ins->operands[0];
-    MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, new_ins);
-
-    /* Tweak the new instruction into an if_i/unless_i on the temp. */
-    ins->info = MVM_op_get_op(ins->info->opcode == MVM_OP_unless_o ? MVM_OP_unless_i : MVM_OP_if_i);
-    ins->operands[0] = temp;
-    MVM_spesh_get_facts(tc, g, temp)->usages++;
-    MVM_spesh_use_facts(tc, g, flag_facts);
-    MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
-
-    /* Now that we *have* decomposed the if_o, annotations should be moved to
-     * the new_ins */
-    new_ins->annotations = ins->annotations;
-    ins->annotations = NULL;
-
-    /* If the boolification mode was "not type object" then we might know
-     * that from the facts, and may even be able to elimiante this
-     * conditional altogether. */
-    if (reoptimize) {
-        optimize_isconcrete(tc, g, new_ins);
-        optimize_iffy(tc, g, ins, bb);
-    }
 }
 
 
@@ -1118,6 +931,51 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
         MVM_spesh_use_facts(tc, g, facts);
     }
 }
+
+/* Optimize an object conditional (if_o, unless_o) to simpler operations.
+ *
+ * We always perform the split of the if_o to istrue + if_i, because a branch
+ * plus an invokish operator is rather problematic for the JIT.
+ *
+ * We then try to optimize the resulting istrue, either by known value (to a
+ * constant), or by known type (to a nonpolymorphic operation), deferring to
+ * optimize_istrue_isfalse. The nonpolymorphic operation may itself be further
+ * optimized (e.g. by optimize_isconcrete).
+ *
+ * If the optimization has yielded a known value, we may be able to remove the
+ * branch entirely (e.g. optimize_iffy)
+ */
+static void optimize_object_conditional(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
+    MVMSpeshOperand temp      = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+    MVMSpeshFacts *temp_facts = MVM_spesh_get_facts(tc, g, temp);
+    MVMSpeshIns *new_ins      = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+
+    /* Create a new instruction to boolify the input operand of if_o */
+    new_ins->info = MVM_op_get_op(MVM_OP_istrue);
+    new_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 2);
+    new_ins->operands[0] = temp;
+    new_ins->operands[1] = ins->operands[0];
+    MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, new_ins);
+
+    /* Tweak existing instruction to if_i / unless_i on result value */
+    ins->info = MVM_op_get_op(ins->info->opcode == MVM_OP_unless_o ? MVM_OP_unless_i : MVM_OP_if_i);
+    ins->operands[0] = temp;
+    temp_facts->usages++;
+    temp_facts->writer = new_ins;
+
+    /* Now that we have decomposed the if_o, annotations should be moved to
+     * the new_ins */
+    new_ins->annotations = ins->annotations;
+    ins->annotations = NULL;
+
+    /* try to optimize the istrue */
+    optimize_istrue_isfalse(tc, g, bb, new_ins);
+
+    /* Release the temporary register */
+    MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
+}
+
+
 
 /* Turns a getlex instruction into getlex_o or getlex_ins depending on type;
  * these get rid of some branching as well as don't log. */
@@ -2069,19 +1927,12 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_unless_i:
         case MVM_OP_if_n:
         case MVM_OP_unless_n:
-        case MVM_OP_if_o:
-        case MVM_OP_unless_o: {
-            int removed = optimize_iffy(tc, g, ins, bb);
-            if (!removed
-                && (
-                       ins->info->opcode == MVM_OP_if_o
-                    || ins->info->opcode == MVM_OP_unless_o
-                )
-            ) {
-                decompose_object_conditional(tc, g, ins, bb);
-            }
+            optimize_iffy(tc, g, ins, bb);
             break;
-        }
+        case MVM_OP_if_o:
+        case MVM_OP_unless_o:
+            optimize_object_conditional(tc, g, ins, bb);
+            break;
         case MVM_OP_not_i:
             optimize_not_i(tc, g, ins, bb);
             break;
