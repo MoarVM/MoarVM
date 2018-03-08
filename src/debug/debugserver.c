@@ -128,6 +128,8 @@ typedef struct {
 } request_data;
 
 static MVMint32 write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMThread *thread);
+static MVMint32 request_all_threads_suspend(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument);
+static MVMuint64 allocate_handle(MVMThreadContext *dtc, MVMObject *target);
 
 /* Breakpoint stuff */
 void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 filename_len, MVMuint32 line_no,  MVMuint32 *file_idx) {
@@ -374,21 +376,25 @@ static int receive_greeting(Socket *sock) {
 }
 
 static void communicate_error(cmp_ctx_t *ctx, request_data *argument) {
-    fprintf(stderr, "communicating an error\n");
-    cmp_write_map(ctx, 2);
-    cmp_write_str(ctx, "id", 2);
-    cmp_write_integer(ctx, argument->id);
-    cmp_write_str(ctx, "type", 4);
-    cmp_write_integer(ctx, MT_ErrorProcessingMessage);
+    if (argument) {
+        fprintf(stderr, "communicating an error\n");
+        cmp_write_map(ctx, 2);
+        cmp_write_str(ctx, "id", 2);
+        cmp_write_integer(ctx, argument->id);
+        cmp_write_str(ctx, "type", 4);
+        cmp_write_integer(ctx, MT_ErrorProcessingMessage);
+    }
 }
 
 static void communicate_success(cmp_ctx_t *ctx, request_data *argument) {
-    fprintf(stderr, "communicating success\n");
-    cmp_write_map(ctx, 2);
-    cmp_write_str(ctx, "id", 2);
-    cmp_write_integer(ctx, argument->id);
-    cmp_write_str(ctx, "type", 4);
-    cmp_write_integer(ctx, MT_OperationSuccessful);
+    if (argument) {
+        fprintf(stderr, "communicating success\n");
+        cmp_write_map(ctx, 2);
+        cmp_write_str(ctx, "id", 2);
+        cmp_write_integer(ctx, argument->id);
+        cmp_write_str(ctx, "type", 4);
+        cmp_write_integer(ctx, MT_OperationSuccessful);
+    }
 }
 
 /* Send spontaneous events */
@@ -444,6 +450,40 @@ void MVM_debugserver_notify_thread_destruction(MVMThreadContext *tc) {
     }
 }
 
+MVMuint8 MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc, MVMException *ex) {
+    if (tc->instance->debugserver && tc->instance->debugserver->messagepack_data) {
+        cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
+        MVMuint64 event_id;
+
+        uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
+
+        request_all_threads_suspend(tc, ctx, NULL);
+
+        event_id = tc->instance->debugserver->event_id;
+        tc->instance->debugserver->event_id += 2;
+
+        cmp_write_map(ctx, 5);
+        cmp_write_str(ctx, "id", 2);
+        cmp_write_integer(ctx, event_id);
+        cmp_write_str(ctx, "type", 4);
+        cmp_write_integer(ctx, MT_UnhandledException);
+
+        cmp_write_str(ctx, "handle", 6);
+        cmp_write_integer(ctx, allocate_handle(tc, (MVMObject *)ex));
+
+        cmp_write_str(ctx, "thread", 6);
+        cmp_write_integer(ctx, tc->thread_obj->body.thread_id);
+
+        cmp_write_str(ctx, "frames", 6);
+        write_stacktrace_frames(tc, ctx, tc->thread_obj);
+
+        uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
+
+        return 1;
+    }
+    return 0;
+}
+
 static MVMuint8 is_thread_id_eligible(MVMInstance *vm, MVMuint32 id) {
     if (id == vm->debugserver->thread_id || id == vm->speshworker_thread_id) {
         return 0;
@@ -493,7 +533,7 @@ static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         MVM_platform_thread_yield();
     }
 
-    if (argument->type == MT_SuspendOne)
+    if (argument && argument->type == MT_SuspendOne)
         communicate_success(ctx,  argument);
 
     MVM_gc_mark_thread_unblocked(dtc);
@@ -584,7 +624,7 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
 
     MVM_gc_mark_thread_unblocked(dtc);
 
-    if (argument->type == MT_ResumeOne)
+    if (argument && argument->type == MT_ResumeOne)
         communicate_success(ctx, argument);
 
     if (tc->instance->debugserver->debugspam_protocol)
