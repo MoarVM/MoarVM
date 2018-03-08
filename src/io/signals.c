@@ -64,6 +64,7 @@ static const MVMAsyncTaskOps op_table = {
     gc_free
 };
 
+#define NUM_SIG_WANTED  35
 #define PROCESS_SIGS(X) \
     X( MVM_SIGHUP    )  \
     X( MVM_SIGINT    )  \
@@ -108,10 +109,9 @@ static enum {
     PROCESS_SIGS(GEN_ENUMS)
 } MVM_sig_names;
 
-static char const * const SIG_WANTED[] = {
+static char const * const SIG_WANTED[NUM_SIG_WANTED] = {
     PROCESS_SIGS(GEN_STRING)
 };
-static MVMint32 const NUM_SIG_WANTED = sizeof(SIG_WANTED) / sizeof(char const *);
 
 static void populate_sig_values(MVMint8 *sig_vals) {
     MVMint8 i;
