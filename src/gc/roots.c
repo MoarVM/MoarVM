@@ -191,6 +191,10 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     else {
         MVM_spesh_sim_stack_gc_describe(tc, snapshot, tc->spesh_sim_stack);
     }
+
+    if (tc->step_mode_frame)
+        add_collectable(tc, worklist, snapshot, tc->step_mode_frame,
+                "Frame referenced for stepping mode");
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */

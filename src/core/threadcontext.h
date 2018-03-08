@@ -37,6 +37,26 @@ typedef enum {
     MVMSuspendState_SUSPENDED = 12,
 } MVMSuspendStatus;
 
+typedef enum {
+    /* Just pass by any line number annotation */
+    MVMDebugSteppingMode_NONE = 0,
+
+    /* Step Over:
+     *  Line annotation: If the line number doesn't match, but the frame does.
+     *  Return from Frame: If the frame matches. */
+    MVMDebugSteppingMode_STEP_OVER = 1,
+
+    /* Step Into:
+     *  Line annotation: If the line number doesn't match in the same frame,
+     *    if the frame doesn't match.
+     *  Return from Frame: If the frame matches. */
+    MVMDebugSteppingMode_STEP_INTO = 2,
+
+    /* Step Out:
+     *  Line annotation: -
+     *  Return from Frame: If the frame matches. */
+    MVMDebugSteppingMode_STEP_OUT = 3,
+} MVMDebugSteppingMode;
 
 
 /* Information associated with an executing thread. */
@@ -279,6 +299,16 @@ struct MVMThreadContext {
 
     /* Profiling data collected for this thread, if profiling is on. */
     MVMProfileThreadData *prof_data;
+
+    /* Debug server stepping mode and settings */
+    MVMDebugSteppingMode step_mode;
+    MVMFrame *step_mode_frame;
+    MVMuint32 step_mode_file_idx;
+    MVMuint32 step_mode_line_no;
+    MVMuint64 step_message_id;
+
+    MVMuint32 cur_file_idx;
+    MVMuint32 cur_line_no;
 };
 
 MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance);

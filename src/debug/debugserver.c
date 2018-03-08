@@ -253,14 +253,68 @@ static void breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFileTab
         MVM_gc_enter_from_interrupt(tc);
     }
 }
+static void step_point_hit(MVMThreadContext *tc) {
+    cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
+
+    if (tc->instance->debugserver->debugspam_protocol)
+        fprintf(stderr, "hit a stepping point\n");
+
+    uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
+    cmp_write_map(ctx, 4);
+    cmp_write_str(ctx, "id", 2);
+    cmp_write_integer(ctx, tc->step_message_id);
+    cmp_write_str(ctx, "type", 4);
+    cmp_write_integer(ctx, MT_StepCompleted);
+    cmp_write_str(ctx, "thread", 6);
+    cmp_write_integer(ctx, tc->thread_id);
+    cmp_write_str(ctx, "frames", 6);
+    write_stacktrace_frames(tc, ctx, tc->thread_obj);
+    uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
+
+    tc->step_mode = MVMDebugSteppingMode_NONE;
+    tc->step_mode_frame = NULL;
+
+    while (1) {
+        if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
+                == MVMGCStatus_NONE) {
+            break;
+        }
+        if (MVM_load(&tc->gc_status) == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)) {
+            break;
+        }
+    }
+    MVM_gc_enter_from_interrupt(tc);
+}
 
 void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, MVMuint32 line_no) {
     MVMDebugServerData *debugserver = tc->instance->debugserver;
+
+    /* TODO clarify what happens if a step point coincides with a breakpoint */
+
+    tc->cur_line_no = line_no;
+    tc->cur_file_idx = file_idx;
+
+    if (tc->step_mode) {
+        if (tc->step_mode == MVMDebugSteppingMode_STEP_OVER) {
+            if (line_no != tc->step_mode_line_no && tc->step_mode_frame == tc->cur_frame) {
+                step_point_hit(tc);
+            }
+        }
+        else if (tc->step_mode == MVMDebugSteppingMode_STEP_INTO) {
+            if (line_no != tc->step_mode_line_no && tc->step_mode_frame == tc->cur_frame
+                    || tc->step_mode_frame != tc->cur_frame) {
+                step_point_hit(tc);
+            }
+        }
+        /* Nothing to do for STEP_OUT. */
+        /* else if (tc->step_mode == MVMDebugSteppingMode_STEP_OUT) { } */
+    }
+
     if (debugserver->any_breakpoints_at_all) {
         MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
         MVMDebugServerBreakpointFileTable *found = &table->files[file_idx];
 
-        if (found->breakpoints_used && found->lines_active[line_no]) {
+        if (debugserver->any_breakpoints_at_all && found->breakpoints_used && found->lines_active[line_no]) {
             breakpoint_hit(tc, found, line_no);
         }
     }
@@ -832,6 +886,30 @@ static MVMuint64 send_is_execution_suspended_info(MVMThreadContext *dtc, cmp_ctx
     cmp_write_integer(ctx, MT_IsExecutionSuspendedResponse);
     cmp_write_str(ctx, "suspended", 9);
     cmp_write_bool(ctx, result);
+}
+
+MVMuint8 setup_step(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMDebugSteppingMode mode, MVMThread *thread) {
+    MVMThread *to_do = thread ? thread : find_thread_by_id(dtc->instance, argument->thread_id);
+    MVMThreadContext *tc;
+
+    if (!to_do)
+        return 1;
+
+    if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
+        return 1;
+    }
+
+    tc = to_do->body.tc;
+    tc->step_mode_frame = tc->cur_frame;
+    tc->step_message_id = argument->id;
+    tc->step_mode_line_no = tc->cur_line_no;
+    tc->step_mode_file_idx = tc->cur_file_idx;
+
+    tc->step_mode = mode;
+
+    request_thread_resumes(dtc, ctx, NULL, to_do);
+
+    return 0;
 }
 
 void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *argument) {
@@ -2132,6 +2210,15 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                     break;
                 case MT_ClearAllBreakpoints:
                     MVM_debugserver_clear_all_breakpoints(tc, &ctx, &argument);
+                    break;
+                case MT_StepInto:
+                    COMMUNICATE_RESULT(setup_step(tc, &ctx, &argument, MVMDebugSteppingMode_STEP_INTO, NULL));
+                    break;
+                case MT_StepOver:
+                    COMMUNICATE_RESULT(setup_step(tc, &ctx, &argument, MVMDebugSteppingMode_STEP_OVER, NULL));
+                    break;
+                case MT_StepOut:
+                    COMMUNICATE_RESULT(setup_step(tc, &ctx, &argument, MVMDebugSteppingMode_STEP_OUT, NULL));
                     break;
                 case MT_ObjectAttributesRequest:
                     if (request_object_attributes(tc, &ctx, &argument)) {
