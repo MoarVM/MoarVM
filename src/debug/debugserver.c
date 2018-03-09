@@ -770,7 +770,9 @@ static MVMint32 write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, M
             ? MVM_string_utf8_encode_C_string(tc, name)
             : NULL;
 
-        char *debugname = cur_frame->code_ref ? MVM_6model_get_debug_name(tc, cur_frame->code_ref) : "";
+        MVMObject *code_ref = cur_frame->code_ref;
+        MVMCode *code_obj = code_ref && REPR(code_ref)->ID == MVM_REPR_ID_MVMCode ? (MVMCode*)code_ref : NULL;
+        char *debugname = code_obj && code_obj->body.code_object ? MVM_6model_get_debug_name(tc, code_obj->body.code_object) : "";
 
         cmp_write_map(ctx, 5);
         cmp_write_str(ctx, "file", 4);
