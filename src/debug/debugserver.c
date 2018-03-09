@@ -1452,11 +1452,18 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
                                         break;
                                     case MVM_STORAGE_SPEC_BP_STR: {
                                         MVMString * const s = attr_st->REPR->box_funcs.get_str(dtc, attr_st, target, (char *)data + offset);
-                                        char * const str = MVM_string_utf8_encode_C_string(dtc, s);
+                                        char * str;
+                                        if (s)
+                                            str = MVM_string_utf8_encode_C_string(dtc, s);
                                         cmp_write_str(ctx, "str", 3);
                                         cmp_write_str(ctx, "value", 5);
-                                        cmp_write_str(ctx, str, strlen(str));
-                                        MVM_free(str);
+                                        if (s) {
+                                            cmp_write_str(ctx, str, strlen(str));
+                                            MVM_free(str);
+                                        }
+                                        else {
+                                            cmp_write_nil(ctx);
+                                        }
                                         break;
                                     }
                                     default:
