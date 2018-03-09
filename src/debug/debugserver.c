@@ -1762,6 +1762,63 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
         write_object_features(dtc, ctx, 0, 0, 0);
     }
+    else if (repr_id == MVM_REPR_ID_P6str && IS_CONCRETE(target)) {
+        MVMP6strBody *body = (MVMP6strBody *)OBJECT_BODY(target);
+        MVMString *string = body->value;
+
+        char *value = MVM_string_utf8_encode_C_string(dtc, string);
+        slots += 2;
+        slots += 3; /* features */
+
+        if (string->body.storage_type == MVM_STRING_STRAND)
+            slots += 5;
+
+        cmp_write_map(ctx, slots);
+
+        cmp_write_str(ctx, "string_value", 12);
+        cmp_write_str(ctx, value, strlen(value));
+
+        cmp_write_str(ctx, "string_storage_kind", 19);
+        switch (string->body.storage_type) {
+            case MVM_STRING_GRAPHEME_32:    cmp_write_str(ctx, "grapheme32", 10); break;
+            case MVM_STRING_GRAPHEME_ASCII: cmp_write_str(ctx, "graphemeASCII", 13); break;
+            case MVM_STRING_GRAPHEME_8:     cmp_write_str(ctx, "grapheme8", 9); break;
+            case MVM_STRING_STRAND:         cmp_write_str(ctx, "strands", 7); break;
+            default: cmp_write_str(ctx, "???", 3);
+        }
+
+        if (string->body.storage_type == MVM_STRING_STRAND) {
+            MVMuint16 num_strands = string->body.num_strands;
+            MVMuint16 strand_idx;
+            cmp_write_str(ctx, "string_strand_count", 19);
+            cmp_write_int(ctx, num_strands);
+
+            cmp_write_str(ctx, "string_strand_starts", 20);
+            cmp_write_array(ctx, num_strands);
+            for (strand_idx = 0; strand_idx < num_strands; strand_idx++) {
+                cmp_write_int(ctx, string->body.storage.strands[strand_idx].start);
+            }
+            cmp_write_str(ctx, "string_strand_ends", 18);
+            cmp_write_array(ctx, num_strands);
+            for (strand_idx = 0; strand_idx < num_strands; strand_idx++) {
+                cmp_write_int(ctx, string->body.storage.strands[strand_idx].end);
+            }
+            cmp_write_str(ctx, "string_strand_repetitions", 25);
+            cmp_write_array(ctx, num_strands);
+            for (strand_idx = 0; strand_idx < num_strands; strand_idx++) {
+                cmp_write_int(ctx, string->body.storage.strands[strand_idx].repetitions);
+            }
+            cmp_write_str(ctx, "string_strand_target_length", 27);
+            cmp_write_array(ctx, num_strands);
+            for (strand_idx = 0; strand_idx < num_strands; strand_idx++) {
+                cmp_write_int(ctx, string->body.storage.strands[strand_idx].blob_string->body.num_graphs);
+            }
+        }
+
+        write_object_features(dtc, ctx, 0, 0, 0);
+
+        MVM_free(value);
+    }
     else {
         cmp_write_map(ctx, slots);
     }
