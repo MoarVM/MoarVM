@@ -256,9 +256,6 @@ static void breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFileTab
 static void step_point_hit(MVMThreadContext *tc) {
     cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
 
-    if (tc->instance->debugserver->debugspam_protocol)
-        fprintf(stderr, "hit a stepping point\n");
-
     uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
     cmp_write_map(ctx, 4);
     cmp_write_str(ctx, "id", 2);
@@ -297,12 +294,22 @@ void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, 
     if (tc->step_mode) {
         if (tc->step_mode == MVMDebugSteppingMode_STEP_OVER) {
             if (line_no != tc->step_mode_line_no && tc->step_mode_frame == tc->cur_frame) {
+
+                if (tc->instance->debugserver->debugspam_protocol)
+                    fprintf(stderr, "hit a stepping point: step over; %d != %d, %p == %p\n", line_no, tc->step_mode_line_no, tc->step_mode_frame, tc->cur_frame);
                 step_point_hit(tc);
             }
         }
         else if (tc->step_mode == MVMDebugSteppingMode_STEP_INTO) {
             if (line_no != tc->step_mode_line_no && tc->step_mode_frame == tc->cur_frame
                     || tc->step_mode_frame != tc->cur_frame) {
+                if (tc->instance->debugserver->debugspam_protocol)
+                    if (line_no != tc->step_mode_line_no && tc->step_mode_frame == tc->cur_frame)
+                        fprintf(stderr, "hit a stepping point: step into; %d != %d, %p == %p\n",
+                                line_no, tc->step_mode_line_no, tc->step_mode_frame, tc->cur_frame);
+                    else
+                        fprintf(stderr, "hit a stepping point: step into; %d,   %d, %p != %p\n",
+                                line_no, tc->step_mode_line_no, tc->step_mode_frame, tc->cur_frame);
                 step_point_hit(tc);
             }
         }
