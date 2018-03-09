@@ -1560,6 +1560,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         : dtc->instance->VMNull;
 
     MVMint64 slots = 2; /* Always have the repr name and debug name */
+    MVMuint32 repr_id;
 
     if (MVM_is_null(dtc, target)) {
         return 1;
@@ -1579,7 +1580,9 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
             slots++;
     }
 
-    if (REPR(target)->ID == MVM_REPR_ID_P6opaque) {
+    repr_id = REPR(target)->ID;
+
+    if (repr_id == MVM_REPR_ID_P6opaque) {
         MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData*)(STABLE(target)->REPR_data);
         MVMP6opaqueBody *body = &((MVMP6opaque *)target)->body;
         if (IS_CONCRETE(target)) {
@@ -1615,7 +1618,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         /*cmp_write_str(ctx, "storage_spec", 12);*/
         /*write_storage_spec(dtc, ctx, repr_data->storage_spec);*/
     }
-    else if (REPR(target)->ID == MVM_REPR_ID_VMArray) {
+    else if (repr_id == MVM_REPR_ID_VMArray) {
         MVMArrayREPRData *repr_data = (MVMArrayREPRData *)(STABLE(target)->REPR_data);
         char *debugname = repr_data->elem_type ? MVM_6model_get_debug_name(dtc, repr_data->elem_type) : NULL;
         if (IS_CONCRETE(target)) {
@@ -1650,7 +1653,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
         write_object_features(dtc, ctx, 0, 1, 0);
     }
-    else if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
+    else if (repr_id == MVM_REPR_ID_MVMHash) {
         if (IS_CONCRETE(target)) {
             slots += 4; /* num_buckets, num_items, nonideal_items, ineff_expands */
         }
