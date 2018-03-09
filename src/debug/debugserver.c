@@ -1689,6 +1689,79 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
         write_object_features(dtc, ctx, 0, 0, 1);
     }
+    else if (repr_id == MVM_REPR_ID_MVMContext) {
+        MVMFrame *frame = ((MVMContext *)target)->body.context;
+        MVMArgProcContext *argctx = &frame->params;
+        MVMCallsite *cs = argctx->callsite;
+        MVMCallsiteEntry *cse = argctx->arg_flags ? argctx->arg_flags : cs->arg_flags;
+        MVMuint16 flag_idx;
+        MVMuint16 flag_count = argctx->arg_flags ? argctx->flag_count : cs->flag_count;
+        char *name = MVM_string_utf8_encode_C_string(dtc, frame->static_info->body.name);
+        char *cuuid = MVM_string_utf8_encode_C_string(dtc, frame->static_info->body.cuuid);
+
+        slots += 8;
+        slots += 3; /* features */
+
+        cmp_write_map(ctx, slots);
+
+        cmp_write_str(ctx, "frame_on_heap", 13);
+        cmp_write_bool(ctx, !MVM_FRAME_IS_ON_CALLSTACK(dtc, frame));
+
+        cmp_write_str(ctx, "frame_work_size", 15);
+        cmp_write_int(ctx, frame->allocd_work);
+        cmp_write_str(ctx, "frame_env_size", 15);
+        cmp_write_int(ctx, frame->allocd_env);
+
+        cmp_write_str(ctx, "frame_name", 10);
+        cmp_write_str(ctx, name, strlen(name));
+        cmp_write_str(ctx, "frame_cuuid", 11);
+        cmp_write_str(ctx, cuuid, strlen(cuuid));
+
+        cmp_write_str(ctx, "frame_num_locals", 16);
+        cmp_write_int(ctx, frame->static_info->body.num_locals);
+
+        cmp_write_str(ctx, "frame_num_lexicals", 18);
+        cmp_write_int(ctx, frame->static_info->body.num_lexicals);
+
+        cmp_write_str(ctx, "callsite_flags", 14);
+        cmp_write_array(ctx, flag_count);
+
+        for (flag_idx = 0; flag_idx < flag_count; flag_idx++) {
+            MVMCallsiteEntry entry = cse[flag_idx];
+            MVMuint8 entry_count =
+                !!(entry & MVM_CALLSITE_ARG_OBJ)
+                + !!(entry & MVM_CALLSITE_ARG_INT)
+                + !!(entry & MVM_CALLSITE_ARG_NUM)
+                + !!(entry & MVM_CALLSITE_ARG_STR)
+                + !!(entry & MVM_CALLSITE_ARG_NAMED)
+                + !!(entry & MVM_CALLSITE_ARG_FLAT)
+                + !!(entry & MVM_CALLSITE_ARG_FLAT_NAMED);
+            cmp_write_array(ctx, entry_count ? entry_count : 0);
+            if (entry & MVM_CALLSITE_ARG_OBJ)
+                cmp_write_str(ctx, "obj", 3);
+            if (entry & MVM_CALLSITE_ARG_INT)
+                cmp_write_str(ctx, "int", 3);
+            if (entry & MVM_CALLSITE_ARG_NUM)
+                cmp_write_str(ctx, "num", 3);
+            if (entry & MVM_CALLSITE_ARG_STR)
+                cmp_write_str(ctx, "str", 3);
+            if (entry & MVM_CALLSITE_ARG_NAMED)
+                cmp_write_str(ctx, "named", 5);
+            if (entry & MVM_CALLSITE_ARG_FLAT)
+                cmp_write_str(ctx, "flat", 4);
+            if (entry & MVM_CALLSITE_ARG_FLAT_NAMED)
+                cmp_write_str(ctx, "flat&named", 10);
+            if (!entry_count)
+                cmp_write_str(ctx, "nothing", 7);
+        }
+
+        
+
+        MVM_free(name);
+        MVM_free(cuuid);
+
+        write_object_features(dtc, ctx, 0, 0, 0);
+    }
     else {
         cmp_write_map(ctx, slots);
     }
