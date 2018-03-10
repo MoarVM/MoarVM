@@ -492,33 +492,40 @@ MVMString * MVM_string_windows125X_decode(MVMThreadContext *tc,
         MVMString *replacement, const MVMuint16 *codetable, MVMint64 config) {
     MVMuint8 *windows125X = (MVMuint8 *)windows125X_c;
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
-    size_t i, result_graphs;
-    MVMStringIndex repl_length;
-    if (replacement) {
-        repl_length = MVM_string_graphs(tc, replacement);
-        if (1 < repl_length) {
-            MVM_exception_throw_adhoc(tc,
-            "Windows-1252 and Windows-1251 decoding with a replacement string with more than one grapheme is not yet implemented.\n"
-            "Provided string had %"PRIu32" graphemes\n", repl_length);
-        }
-    }
+    size_t pos, result_graphs, additional_bytes = 0;
+    MVMStringIndex repl_length = replacement ? MVM_string_graphs(tc, replacement) : 0;
 
     result->body.storage_type    = MVM_STRING_GRAPHEME_32;
     result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
 
     result_graphs = 0;
-    for (i = 0; i < bytes; i++) {
-        if (windows125X[i] == '\r' && i + 1 < bytes && windows125X[i + 1] == '\n') {
-            result->body.storage.blob_32[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
-            i++;
+    for (pos = 0; pos < bytes; pos++) {
+        MVMGrapheme32 codepoint;
+        if (windows125X[pos] == '\r' && pos + 1 < bytes && windows125X[pos + 1] == '\n') {
+            codepoint = MVM_nfg_crlf_grapheme(tc);
+            pos++;
         }
         else {
-            MVMuint16 codepoint = codetable[windows125X[i]];
+            codepoint = codetable[windows125X[pos]];
             if (codepoint == UNMAPPED) {
                 /* Since things we are decoding always fit into Unicode, if we are
                  * using a replacement, it won't get used unless we use strict */
                 if (replacement && MVM_ENCODING_CONFIG_STRICT(config)) {
-                    codepoint = MVM_string_get_grapheme_at(tc, replacement, 0);
+                    int i = 0;
+                    /* Only triggered if repl_length > 1. Copies all but the last
+                     * grapheme in the replacement string */
+                    if (1 < repl_length) {
+                        additional_bytes += repl_length - 1;
+                        result->body.storage.blob_32 = realloc(result->body.storage.blob_32,
+                            sizeof(MVMGrapheme32) * (additional_bytes + bytes));
+                        for (; i < repl_length - 1; i++) {
+                            MVMGrapheme32 graph = MVM_string_get_grapheme_at(tc, replacement, i);
+                            result->body.storage.blob_32[result_graphs++] = graph;
+                        }
+                    }
+                    /* Now we set `codepoint` to the last grapheme in the replacement
+                     * and proceed normally from here. */
+                    codepoint = MVM_string_get_grapheme_at(tc, replacement, i);
                 }
                 else if (MVM_ENCODING_CONFIG_STRICT(config)) {
                     /* Throw an exception if that codepoint has no mapping */
@@ -527,17 +534,17 @@ MVMString * MVM_string_windows125X_decode(MVMThreadContext *tc,
                     MVM_exception_throw_adhoc(tc,
                         "Error decoding %s string: could not decode codepoint %d",
                          enc_name,
-                         windows125X[i]);
+                         windows125X[pos]);
                 }
                 else {
                     /* Don't convert and just map to identical. This creates
                      * standards uncompliant results, but will decode buggy
                      * input */
-                    codepoint = windows125X[i];
+                    codepoint = windows125X[pos];
                 }
             }
-            result->body.storage.blob_32[result_graphs++] = codepoint;
         }
+        result->body.storage.blob_32[result_graphs++] = codepoint;
     }
     result->body.num_graphs = result_graphs;
 
