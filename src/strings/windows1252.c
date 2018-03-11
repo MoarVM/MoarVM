@@ -350,15 +350,9 @@ MVMuint32 MVM_string_windows125X_decodestream(MVMThreadContext *tc, MVMDecodeStr
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
     MVMint32 last_accept_pos, last_was_cr;
     MVMuint32 reached_stopper;
-    MVMStringIndex repl_length;
-    if (replacement) {
-        repl_length = MVM_string_graphs(tc, replacement);
-        if (1 < repl_length) {
-            MVM_exception_throw_adhoc(tc,
-            "Windows-1252 and Windows-1251 decoding with a replacement string with more than one grapheme is not yet implemented.\n"
-            "Provided string had %"PRIu32" graphemes\n", repl_length);
-        }
-    }
+    MVMStringIndex repl_length = ds->replacement ? MVM_string_graphs(tc, ds->replacement) : 0;
+    MVMStringIndex repl_pos = 0;
+
     /* If there's no buffers, we're done. */
     if (!ds->bytes_head)
         return 0;
@@ -382,19 +376,30 @@ MVMuint32 MVM_string_windows125X_decodestream(MVMThreadContext *tc, MVMDecodeStr
         while (pos < cur_bytes->length) {
             MVMGrapheme32 graph;
             MVMCodepoint codepoint = codetable[bytes[pos++]];
-            if (codepoint == UNMAPPED) {
-                if (MVM_ENCODING_CONFIG_STRICT(config)) {
-                    /* Throw if it's unmapped */
-                    char *enc_name = codetable == windows1252_codepoints
-                        ? "Windows-1252" : "Windows-1251";
-                    MVM_free(buffer);
-                    MVM_exception_throw_adhoc(tc,
-                        "Error decoding %s string: could not decode codepoint %d",
-                         enc_name,
-                         codepoint);
-                }
-                else if (replacement) {
-                    graph = MVM_string_get_grapheme_at_nocheck(tc, replacement, 0);
+            if (repl_pos) {
+                graph = MVM_string_get_grapheme_at_nocheck(tc, ds->replacement, repl_pos++);
+                if (repl_length <= repl_pos) repl_pos = 0;
+                pos--;
+            }
+            else if (codepoint == UNMAPPED) {
+                if (MVM_ENCODING_CONFIG_STRICT(ds->config)) {
+                    if (ds->replacement) {
+                        graph = MVM_string_get_grapheme_at_nocheck(tc, ds->replacement, repl_pos);
+                        /* If the replacement is more than one grapheme we need
+                         * to set repl_pos++ so we will grab the next grapheme on
+                         * the next loop */
+                        if (1 < repl_length) repl_pos++;
+                    }
+                    else {
+                        /* Throw if it's unmapped */
+                        char *enc_name = codetable == windows1252_codepoints
+                            ? "Windows-1252" : "Windows-1251";
+                        MVM_free(buffer);
+                        MVM_exception_throw_adhoc(tc,
+                            "Error decoding %s string: could not decode codepoint %d",
+                             enc_name,
+                             bytes[pos - 1]);
+                    }
                 }
                 else {
                     /* Set it without translating, even though it creates

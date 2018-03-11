@@ -124,6 +124,29 @@ static int should_translate_newlines(MVMThreadContext *tc, MVMObject *config) {
     }
     return 0;
 }
+static MVMString * has_replacement(MVMThreadContext *tc, MVMObject *config) {
+    char *replacement_const = "replacement";
+    int replacement_const_length = strlen(replacement_const);
+    if (IS_CONCRETE(config) && REPR(config)->ID == MVM_REPR_ID_MVMHash) {
+        MVMObject *value = MVM_repr_at_key_o(tc, config,
+            MVM_string_ascii_decode(tc, tc->instance->VMString, replacement_const, replacement_const_length));
+        return IS_CONCRETE(value)
+            ? MVM_repr_get_str(tc, value)
+            : NULL;
+    }
+    return NULL;
+}
+static int has_config(MVMThreadContext *tc, MVMObject *config) {
+    char * config_const = "config";
+    int config_const_length = strlen(config_const);
+    if (IS_CONCRETE(config) && REPR(config)->ID == MVM_REPR_ID_MVMHash) {
+        MVMObject *value = MVM_repr_at_key_o(tc, config,
+            MVM_string_ascii_decode(tc, tc->instance->VMString, config_const, config_const_length));
+        return IS_CONCRETE(value) ? MVM_repr_get_int(tc, value) : 0;
+    }
+    return 0;
+
+}
 void MVM_decoder_configure(MVMThreadContext *tc, MVMDecoder *decoder,
                            MVMString *encoding, MVMObject *config) {
     if (!decoder->body.ds) {
@@ -133,6 +156,8 @@ void MVM_decoder_configure(MVMThreadContext *tc, MVMDecoder *decoder,
             should_translate_newlines(tc, config));
         decoder->body.sep_spec = MVM_malloc(sizeof(MVMDecodeStreamSeparators));
         MVM_string_decode_stream_sep_default(tc, decoder->body.sep_spec);
+        decoder->body.ds->replacement = has_replacement(tc, config);
+        decoder->body.ds->config      = has_config(tc, config);
         exit_single_user(tc, decoder);
     }
     else {
