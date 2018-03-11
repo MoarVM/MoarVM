@@ -183,6 +183,8 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         callback_data->cs        = cs;
         callback_data->target    = callback;
         callback_data->cb        = dcbNewCallback(signature, (DCCallbackHandler *)callback_handler, callback_data);
+        if (!callback_data->cb)
+            MVM_panic(1, "Unable to allocate memory for callback closure");
 
         /* Now insert the MVMCallback into the linked list. */
         *callback_data_handle = callback_data;
