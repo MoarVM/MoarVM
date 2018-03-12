@@ -959,7 +959,7 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
         case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
             ins->info = MVM_op_get_op(MVM_OP_isconcrete);
             /* And now defer another bit of optimization */
-            optimize_isconcrete(tc, g, ins);
+//            optimize_isconcrete(tc, g, ins);
             break;
             /* We need to change the register type for our result for this,
              * means we need to insert a temporarary and a coerce:
