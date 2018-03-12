@@ -36,6 +36,8 @@
 (template: lt_i (flagval (lt $1 $2)))
 (template: eqaddr (flagval (eq $1 $2)))
 
+(template: not_i (flagval (zr $1)))
+
 
 (template: sp_getarg_o (load (^parg $1) ptr_sz))
 (template: sp_getarg_s (load (^parg $1) ptr_sz))
