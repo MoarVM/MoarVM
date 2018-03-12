@@ -918,55 +918,93 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
     /* Unknown value, known type. We may be able to lower this to a
      * nonpolymorphic operation */
     if (input_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
-        MVMBoolificationSpec *bs = STABLE(input_facts->type)->boolification_spec;
-        MVMSpeshOperand  orig    = ins->operands[0];
-        MVMSpeshOperand  temp;
+        /* Go by boolification mode to pick a new instruction, if any. */
+        MVMObject *type            = input_facts->type;
+        MVMBoolificationSpec *bs   = type->st->boolification_spec;
+        MVMuint8 guaranteed_concrete = input_facts->flags & MVM_SPESH_FACT_CONCRETE;
+        MVMuint8 mode = bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode;
+        MVMSpeshOperand orig = ins->operands[0];
 
-        if (negated_op)
-           temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
-
-        switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
-            case MVM_BOOL_MODE_UNBOX_INT:
-                /* This optimization can only handle values known to be concrete. */
-                if (!(input_facts->flags & MVM_SPESH_FACT_CONCRETE)) {
-                    return;
-                }
-                /* We can just unbox the int and pretend it's a bool. */
-                ins->info = MVM_op_get_op(MVM_OP_unbox_i);
-                if (negated_op)
-                    ins->operands[0] = temp;
-                /* And then we might be able to optimize this even further. */
-                optimize_repr_op(tc, g, bb, ins, 1);
+        switch (mode) {
+        case MVM_BOOL_MODE_ITER:
+            if (!guaranteed_concrete)
                 break;
-            case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
-                /* This is the same as isconcrete. */
-                ins->info = MVM_op_get_op(MVM_OP_isconcrete);
-                if (negated_op)
-                    ins->operands[0] = temp;
-                /* And now defer another bit of optimization */
-                optimize_isconcrete(tc, g, ins);
-                break;
-            /* TODO implement MODE_UNBOX_NUM and the string ones */
-            default:
+            if (input_facts->flags & MVM_SPESH_FACT_ARRAY_ITER) {
+                ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter_arr);
+            } else if (input_facts->flags & MVM_SPESH_FACT_HASH_ITER) {
+                ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter_hash);
+            } else {
+                ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter);
+            }
+            break;
+        case MVM_BOOL_MODE_UNBOX_INT:
+            if (!guaranteed_concrete)
                 return;
+                /* We can just unbox the int and pretend it's a bool. */
+            ins->info = MVM_op_get_op(MVM_OP_unbox_i);
+            /* And then we might be able to optimize this even further. */
+            optimize_repr_op(tc, g, bb, ins, 1);
+            break;
+        case MVM_BOOL_MODE_BIGINT:
+            if (!guaranteed_concrete)
+                return;
+            ins->info = MVM_op_get_op(MVM_OP_bool_I);
+            break;
+        case MVM_BOOL_MODE_HAS_ELEMS:
+            if (!guaranteed_concrete)
+                return;
+            ins->info = MVM_op_get_op(MVM_OP_elems);
+            optimize_repr_op(tc, g, bb, ins, 1);
+            break;
+        case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
+            ins->info = MVM_op_get_op(MVM_OP_isconcrete);
+            /* And now defer another bit of optimization */
+            optimize_isconcrete(tc, g, ins);
+            break;
+            /* We need to change the register type for our result for this,
+             * means we need to insert a temporarary and a coerce:
+        case MVM_BOOL_MODE_UNBOX_NUM:
+             op_info = MVM_op_get_op(MVM_OP_unbox_i);
+             break;
+            */
+        default:
+            return;
         }
-        /* Now we can take care of the negation. */
+//        fprintf(stderr, "Known type optimized to %s\n", ins->info->name);
+        /* Now we can take care of the negation. - NB I'm not entirely sure why
+         * this would need it's own register though! */
         if (negated_op) {
             /* Insert a not_i instruction that negates temp. This not_i is
              * subject to further optimization in the case that temp has a
              * known value set on it. */
+            MVMSpeshOperand orig       = ins->operands[0];
+            MVMSpeshOperand temp       = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
             MVMSpeshIns     *new_ins   = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
             MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
+            MVMSpeshFacts  *temp_facts = MVM_spesh_get_facts(tc,g,temp);
+/*          fprintf(stderr, "inserting not_i to negate istrue\n"); */
             new_ins->info = MVM_op_get_op(MVM_OP_not_i);
             new_ins->operands = operands;
             operands[0] = orig;
             operands[1] = temp;
+            ins->operands[0] = temp;
             MVM_spesh_manipulate_insert_ins(tc, bb, ins, new_ins);
-            MVM_spesh_get_facts(tc, g, temp)->usages++;
             MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
+
+            /* Set facts on temporary - NB this is *very* confusing */
+            temp_facts->usages = 1;
+            temp_facts->writer = ins;
+            input_facts->writer = new_ins;
+            if (input_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+                fprintf(stderr, "Negated and known value\n");
+                temp_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+                temp_facts->value = input_facts->value;
+                input_facts->value.i = !input_facts->value.i;
+            }
         }
 
         MVM_spesh_use_facts(tc, g, input_facts);
+        return;
     }
 }
 
