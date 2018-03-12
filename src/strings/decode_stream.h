@@ -38,7 +38,12 @@ struct MVMDecodeStream {
      * decode calls. Will be freed when the decode stream is destroyed. */
     void *decoder_state;
 
+    /* Stores a replacement which is used upon encountering undecodable characters.
+     * Set to NULL if a replacement is not desired. */
     MVMString *replacement;
+
+    /* Currently stores only whether or not the decoder should decode strictly or
+     * permissively. Set to 1 for permissive decoding, default is strict */
     MVMuint32 config;
 };
 

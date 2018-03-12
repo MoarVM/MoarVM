@@ -125,11 +125,9 @@ static int should_translate_newlines(MVMThreadContext *tc, MVMObject *config) {
     return 0;
 }
 static MVMString * has_replacement(MVMThreadContext *tc, MVMObject *config) {
-    char *replacement_const = "replacement";
-    int replacement_const_length = strlen(replacement_const);
     if (IS_CONCRETE(config) && REPR(config)->ID == MVM_REPR_ID_MVMHash) {
         MVMObject *value = MVM_repr_at_key_o(tc, config,
-            MVM_string_ascii_decode(tc, tc->instance->VMString, replacement_const, replacement_const_length));
+            tc->instance->str_consts.replacement);
         return IS_CONCRETE(value)
             ? MVM_repr_get_str(tc, value)
             : NULL;
@@ -137,11 +135,9 @@ static MVMString * has_replacement(MVMThreadContext *tc, MVMObject *config) {
     return NULL;
 }
 static int has_config(MVMThreadContext *tc, MVMObject *config) {
-    char * config_const = "config";
-    int config_const_length = strlen(config_const);
     if (IS_CONCRETE(config) && REPR(config)->ID == MVM_REPR_ID_MVMHash) {
         MVMObject *value = MVM_repr_at_key_o(tc, config,
-            MVM_string_ascii_decode(tc, tc->instance->VMString, config_const, config_const_length));
+            tc->instance->str_consts.config);
         return IS_CONCRETE(value) ? MVM_repr_get_int(tc, value) : 0;
     }
     return 0;
