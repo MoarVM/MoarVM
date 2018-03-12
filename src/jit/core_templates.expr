@@ -411,6 +411,14 @@
       (carg $1 ptr)
       (carg $2 ptr)) int_sz))
 
+(template: ne_s
+  (flagval
+    (zr (call (^func &MVM_string_equal)
+      (arglist
+        (carg (tc) ptr)
+        (carg $1 ptr)
+        (carg $2 ptr)) int_sz))))
+
 # NB disable this for the moment, it seems to upset (some) builds, we
 # don't know yet why, but it might be because it allocates
 
