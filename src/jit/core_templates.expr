@@ -696,3 +696,8 @@
 
 (template: isnull
    (or (flagval (zr $1)) (flagval (eq $1 (^vmnull)))))
+
+(template: ishash
+   (if (all (nz $1) (eq (^getf (^repr $1) MVMREPROps ID) (const (&QUOTE MVM_REPR_ID_MVMHash) (&sizeof MVMuint32))))
+     (const 1 int_sz)
+     (const 0 int_sz)))
