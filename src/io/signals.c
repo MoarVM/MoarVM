@@ -270,14 +270,14 @@ MVMObject * MVM_io_get_signals(MVMThreadContext *tc) {
             });
         }
 
-        instance->sig_hash = sig_hash;
         populate_instance_valid_sigs(tc, sig_wanted_vals);
+        instance->sig_hash = sig_hash;
     });
 
     return sig_hash;
 }
 
-/* Creates a new timer. */
+/* Register a new signal handler. */
 MVMObject * MVM_io_signal_handle(MVMThreadContext *tc, MVMObject *queue,
                                  MVMObject *schedulee, MVMint64 signal,
                                  MVMObject *async_type) {
