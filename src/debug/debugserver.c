@@ -146,15 +146,17 @@ void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint
             found = file;
     }
 
-    for (index = 0; !found && index < table->files_used; index++) {
-        MVMDebugServerBreakpointFileTable *file = &table->files[index];
-        if (file->filename_length != filename_len)
-            continue;
-        if (memcmp(file->filename, filename, filename_len) != 0)
-            continue;
-        found = file;
-        *file_idx = index;
-        break;
+    if (!found) {
+        for (index = 0; index < table->files_used; index++) {
+            MVMDebugServerBreakpointFileTable *file = &table->files[index];
+            if (file->filename_length != filename_len)
+                continue;
+            if (memcmp(file->filename, filename, filename_len) != 0)
+                continue;
+            found = file;
+            *file_idx = index;
+            break;
+        }
     }
 
     if (!found) {
