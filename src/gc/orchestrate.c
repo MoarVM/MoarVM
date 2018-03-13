@@ -313,11 +313,22 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
             uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
             if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPEND_REQUEST) {
                 while (1) {
+                    /* Let's try to unblock into INTERRUPT mode and keep the
+                     * suspend request, then immediately enter_from_interrupt,
+                     * so we actually wait to be woken up. */
                     if (MVM_cas(&tc->gc_status, MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST,
                                 MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST) ==
-                            (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)) {
+                            (MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST)) {
                         MVM_gc_enter_from_interrupt(tc);
                         break;
+                    }
+                    /* If we're being resumed while trying to unblock into
+                     * suspend request, we'd block forever. Therefor we have
+                     * to check if we've been un-requested. */
+                    if (MVM_cas(&tc->gc_status, MVMGCStatus_UNABLE,
+                                MVMGCStatus_NONE) ==
+                            MVMGCStatus_UNABLE) {
+                        return;
                     }
                 }
             } else if (MVM_load(&tc->gc_status) == MVMGCStatus_NONE) {
