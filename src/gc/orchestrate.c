@@ -332,7 +332,7 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
                     }
                 }
             } else if (MVM_load(&tc->gc_status) == MVMGCStatus_NONE) {
-                fprintf(stderr, "marking thread %d unblocked, but its status is already NONE. WTF?\n", tc->thread_id);
+                fprintf(stderr, "marking thread %d unblocked, but its status is already NONE.\n", tc->thread_id);
                 break;
             } else {
                 MVM_platform_thread_yield();
