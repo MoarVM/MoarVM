@@ -84,7 +84,7 @@ void MVM_debugserver_mark_handles(MVMThreadContext *tc, MVMGCWorklist *worklist,
 void MVM_debugserver_notify_thread_creation(MVMThreadContext *tc);
 void MVM_debugserver_notify_thread_destruction(MVMThreadContext *tc);
 
-MVMuint8 MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc, MVMException *ex);
+void MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc, MVMException *ex);
 
 void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 filename_len, MVMuint32 line_no,  MVMuint32 *file_idx);
 void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, MVMuint32 line_no);

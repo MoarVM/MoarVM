@@ -650,9 +650,7 @@ static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
     char *backtrace;
 
     /* If a debug session is running, notify the client. */
-    if (MVM_debugserver_notify_unhandled_exception(tc, ex)) {
-        MVM_gc_enter_from_interrupt(tc);
-    }
+    MVM_debugserver_notify_unhandled_exception(tc, ex);
 
     /* If it's a control exception, try promoting it to a catch one; use
      * the category name. */

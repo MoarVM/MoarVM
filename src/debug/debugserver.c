@@ -515,7 +515,7 @@ void MVM_debugserver_notify_thread_destruction(MVMThreadContext *tc) {
     }
 }
 
-MVMuint8 MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc, MVMException *ex) {
+void MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc, MVMException *ex) {
     if (tc->instance->debugserver && tc->instance->debugserver->messagepack_data) {
         cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
         MVMuint64 event_id;
@@ -544,9 +544,8 @@ MVMuint8 MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc, MVMExc
 
         uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
 
-        return 1;
+        MVM_gc_enter_from_interrupt(tc);
     }
-    return 0;
 }
 
 static MVMuint8 is_thread_id_eligible(MVMInstance *vm, MVMuint32 id) {
