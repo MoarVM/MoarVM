@@ -1182,7 +1182,7 @@ static MVMint32 create_context_or_code_obj_debug_handle(MVMThreadContext *dtc, c
 
     if (argument->type == MT_ContextHandle) {
         MVMROOT(dtc, cur_frame, {
-            allocate_and_send_handle(dtc, ctx, argument, MVM_frame_context_wrapper(to_do->body.tc, cur_frame));
+            allocate_and_send_handle(dtc, ctx, argument, MVM_frame_context_wrapper(dtc, cur_frame));
         });
     } else if (argument->type == MT_CodeObjectHandle) {
         allocate_and_send_handle(dtc, ctx, argument, cur_frame->code_ref);
