@@ -204,6 +204,29 @@ void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint
     uv_mutex_unlock(&debugserver->mutex_breakpoints);
 }
 
+static void stop_point_hit(MVMThreadContext *tc) {
+    while (1) {
+        /* We're in total regular boring execution. Set ourselves to
+         * interrupted for suspend reasons */
+        if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
+                == MVMGCStatus_NONE) {
+            break;
+        }
+        /* Looks like another thread just interrupted us; join in on GC and
+         * then this loop will store the suspend request flag when we're back
+         * to MVMGCStatus_NONE. */
+        if (MVM_load(&tc->gc_status) == MVMGCStatus_INTERRUPT) {
+            MVM_gc_enter_from_interrupt(tc);
+        }
+        /* Perhaps the debugserver just asked us to suspend, too. It's not
+         * important for our suspend request flag to survive or something. */
+        if (MVM_load(&tc->gc_status) == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)) {
+            break;
+        }
+    }
+    MVM_gc_enter_from_interrupt(tc);
+}
+
 static void breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFileTable *file, MVMuint32 line_no) {
     cmp_ctx_t *ctx = NULL;
     MVMDebugServerBreakpointInfo *info;
@@ -243,16 +266,7 @@ static void breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFileTab
         }
     }
     if (must_suspend) {
-        while (1) {
-            if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
-                    == MVMGCStatus_NONE) {
-                break;
-            }
-            if (MVM_load(&tc->gc_status) == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)) {
-                break;
-            }
-        }
-        MVM_gc_enter_from_interrupt(tc);
+        stop_point_hit(tc);
     }
 }
 static void step_point_hit(MVMThreadContext *tc) {
@@ -273,16 +287,7 @@ static void step_point_hit(MVMThreadContext *tc) {
     tc->step_mode = MVMDebugSteppingMode_NONE;
     tc->step_mode_frame = NULL;
 
-    while (1) {
-        if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
-                == MVMGCStatus_NONE) {
-            break;
-        }
-        if (MVM_load(&tc->gc_status) == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)) {
-            break;
-        }
-    }
-    MVM_gc_enter_from_interrupt(tc);
+    stop_point_hit(tc);
 }
 
 void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, MVMuint32 line_no) {
