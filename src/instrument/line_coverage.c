@@ -256,14 +256,14 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
 }
 
 /* Adds instrumented version of the unspecialized bytecode. */
-static void add_instrumentation(MVMThreadContext *tc, MVMStaticFrame *sf) {
+static void add_instrumentation(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint8 want_coverage) {
     MVMSpeshCode  *sc;
     MVMStaticFrameInstrumentation *ins;
     MVMSpeshGraph *sg = MVM_spesh_graph_create(tc, sf, 1, 0);
-    if (tc->instance->debugserver)
-        instrument_graph_with_breakpoints(tc, sg);
-    else
+    if (want_coverage)
         instrument_graph(tc, sg);
+    else
+        instrument_graph_with_breakpoints(tc, sg);
     sc = MVM_spesh_codegen(tc, sg);
     ins = MVM_calloc(1, sizeof(MVMStaticFrameInstrumentation));
     ins->instrumented_bytecode        = sc->bytecode;
@@ -279,11 +279,11 @@ static void add_instrumentation(MVMThreadContext *tc, MVMStaticFrame *sf) {
 
 
 /* Instruments code with per-line logging of code coverage */
-void MVM_line_coverage_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
+static void line_numbers_instrument(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint8 want_coverage) {
     if (!sf->body.instrumentation || sf->body.bytecode != sf->body.instrumentation->instrumented_bytecode) {
         /* Handle main, non-specialized, bytecode. */
         if (!sf->body.instrumentation)
-            add_instrumentation(tc, sf);
+            add_instrumentation(tc, sf, want_coverage);
         sf->body.bytecode      = sf->body.instrumentation->instrumented_bytecode;
         sf->body.handlers      = sf->body.instrumentation->instrumented_handlers;
         sf->body.bytecode_size = sf->body.instrumentation->instrumented_bytecode_size;
@@ -292,6 +292,16 @@ void MVM_line_coverage_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
          * specializations again. */
         MVM_spesh_arg_guard_discard(tc, sf);
     }
+}
+
+/* Instruments code with per-line logging of code coverage */
+void MVM_line_coverage_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
+    line_numbers_instrument(tc, sf, 1);
+}
+
+/* Instruments code with a breakpoint check instruction af every line number change */
+void MVM_breakpoint_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
+    line_numbers_instrument(tc, sf, 0);
 }
 
 void MVM_line_coverage_report(MVMThreadContext *tc, MVMString *filename, MVMuint32 line_number, MVMuint16 cache_slot, char *cache) {
