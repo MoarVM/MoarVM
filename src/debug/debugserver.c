@@ -591,10 +591,15 @@ static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     MVM_gc_mark_thread_blocked(dtc);
 
     while (1) {
+        /* Is the thread currently doing completely ordinary code execution? */
         if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
                 == MVMGCStatus_NONE) {
             break;
         }
+        /* Is the thread in question currently blocked, i.e. spending time in
+         * some long-running piece of C code, waiting for I/O, etc.?
+         * If so, just store the suspend request bit so when it unblocks itself
+         * it'll suspend execution. */
         if (MVM_cas(&tc->gc_status, MVMGCStatus_UNABLE, MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST)
                 == MVMGCStatus_UNABLE) {
             break;
