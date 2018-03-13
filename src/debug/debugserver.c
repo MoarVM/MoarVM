@@ -604,6 +604,12 @@ static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
                 == MVMGCStatus_UNABLE) {
             break;
         }
+        /* Was the thread faster than us? For example by running into
+         * a breakpoint, completing a step, or encountering an
+         * unhandled exception? If so, we're done here. */
+        if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPEND_REQUEST) {
+            break;
+        }
         MVM_platform_thread_yield();
     }
 
