@@ -1860,7 +1860,6 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 }
 
 static MVMint32 request_object_positionals(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
-    MVMInstance *vm = dtc->instance;
     MVMObject *target = argument->handle_id
         ? find_handle_target(dtc, argument->handle_id)
         : dtc->instance->VMNull;
@@ -1943,7 +1942,6 @@ static MVMint32 request_object_positionals(MVMThreadContext *dtc, cmp_ctx_t *ctx
 }
 
 static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
-    MVMInstance *vm = dtc->instance;
     MVMObject *target = argument->handle_id
         ? find_handle_target(dtc, argument->handle_id)
         : dtc->instance->VMNull;
