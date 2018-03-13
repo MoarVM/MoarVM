@@ -693,7 +693,7 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
             uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
         } else {
             if (current == (MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST)) {
-                if (MVM_cas(&tc->gc_status, (MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST), MVMGCStatus_UNABLE) == current) {
+                if (MVM_cas(&tc->gc_status, current, MVMGCStatus_UNABLE) == current) {
                     break;
                 }
             }
