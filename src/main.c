@@ -227,7 +227,7 @@ int wmain(int argc, wchar_t *wargv[])
                     return EXIT_FAILURE;
                 }
                 if (port <= 1024 || port > 65535) {
-                    fprintf(stderr, "ERROR: debug server port out of range. We only accept ports above 1024 and below 65535. (got: %d)\n", port);
+                    fprintf(stderr, "ERROR: debug server port out of range. We only accept ports above 1024 and below 65535. (got: %lu)\n", port);
                     return EXIT_FAILURE;
                 }
                 debugserverport = (MVMuint32)port;

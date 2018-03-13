@@ -106,7 +106,7 @@ typedef struct {
     MVMuint32 thread_id;
 
     char *file;
-    MVMuint64 line;
+    MVMuint32 line;
 
     MVMuint8  suspend;
     MVMuint8  stacktrace;
@@ -166,13 +166,13 @@ void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint
                     table->files_alloc * sizeof(MVMDebugServerBreakpointFileTable));
             memset((char *)(table->files + old_alloc), 0, (table->files_alloc - old_alloc) * sizeof(MVMDebugServerBreakpointFileTable) - 1);
             if (tc->instance->debugserver->debugspam_protocol)
-                fprintf(stderr, "table for files increased to %d slots\n", filename, table->files_alloc);
+                fprintf(stderr, "table for files increased to %u slots\n", table->files_alloc);
         }
 
         found = &table->files[table->files_used - 1];
 
         if (tc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "created new file entry at %d for %s\n", table->files_used - 1, filename);
+            fprintf(stderr, "created new file entry at %u for %s\n", table->files_used - 1, filename);
 
         found->filename = MVM_calloc(filename_len + 1, sizeof(char));
         strncpy(found->filename, filename, filename_len);
@@ -193,7 +193,7 @@ void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint
         MVMuint32 old_size = found->lines_active_alloc;
         found->lines_active_alloc *= 2;
         if (tc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "increasing line number table for %s from %d to %d slots\n", filename, old_size, found->lines_active_alloc);
+            fprintf(stderr, "increasing line number table for %s from %u to %u slots\n", filename, old_size, found->lines_active_alloc);
         found->lines_active = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa,
                 found->lines_active, old_size, found->lines_active_alloc);
         memset((char *)found->lines_active + old_size, 0, found->lines_active_alloc - old_size - 1);
@@ -296,7 +296,7 @@ void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, 
             if (line_no != tc->step_mode_line_no && tc->step_mode_frame == tc->cur_frame) {
 
                 if (tc->instance->debugserver->debugspam_protocol)
-                    fprintf(stderr, "hit a stepping point: step over; %d != %d, %p == %p\n", line_no, tc->step_mode_line_no, tc->step_mode_frame, tc->cur_frame);
+                    fprintf(stderr, "hit a stepping point: step over; %u != %u, %p == %p\n", line_no, tc->step_mode_line_no, tc->step_mode_frame, tc->cur_frame);
                 step_point_hit(tc);
             }
         }
@@ -305,10 +305,10 @@ void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, 
                     || tc->step_mode_frame != tc->cur_frame) {
                 if (tc->instance->debugserver->debugspam_protocol)
                     if (line_no != tc->step_mode_line_no && tc->step_mode_frame == tc->cur_frame)
-                        fprintf(stderr, "hit a stepping point: step into; %d != %d, %p == %p\n",
+                        fprintf(stderr, "hit a stepping point: step into; %u != %u, %p == %p\n",
                                 line_no, tc->step_mode_line_no, tc->step_mode_frame, tc->cur_frame);
                     else
-                        fprintf(stderr, "hit a stepping point: step into; %d,   %d, %p != %p\n",
+                        fprintf(stderr, "hit a stepping point: step into; %u,   %u, %p != %p\n",
                                 line_no, tc->step_mode_line_no, tc->step_mode_frame, tc->cur_frame);
                 step_point_hit(tc);
             }
@@ -436,9 +436,10 @@ static int receive_greeting(Socket *sock) {
     return 0;
 }
 
-static void communicate_error(cmp_ctx_t *ctx, request_data *argument) {
+static void communicate_error(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *argument) {
     if (argument) {
-        fprintf(stderr, "communicating an error\n");
+        if (tc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "communicating an error\n");
         cmp_write_map(ctx, 2);
         cmp_write_str(ctx, "id", 2);
         cmp_write_integer(ctx, argument->id);
@@ -447,9 +448,10 @@ static void communicate_error(cmp_ctx_t *ctx, request_data *argument) {
     }
 }
 
-static void communicate_success(cmp_ctx_t *ctx, request_data *argument) {
+static void communicate_success(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *argument) {
     if (argument) {
-        fprintf(stderr, "communicating success\n");
+        if (tc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "communicating success\n");
         cmp_write_map(ctx, 2);
         cmp_write_str(ctx, "id", 2);
         cmp_write_integer(ctx, argument->id);
@@ -595,11 +597,11 @@ static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     }
 
     if (argument && argument->type == MT_SuspendOne)
-        communicate_success(ctx,  argument);
+        communicate_success(tc, ctx,  argument);
 
     MVM_gc_mark_thread_unblocked(dtc);
     if (tc->instance->debugserver->debugspam_protocol)
-        fprintf(stderr, "thread %d successfully suspended\n", tc->thread_id);
+        fprintf(stderr, "thread %u successfully suspended\n", tc->thread_id);
 
     return 0;
 }
@@ -630,9 +632,9 @@ static MVMint32 request_all_threads_suspend(MVMThreadContext *dtc, cmp_ctx_t *ct
     }
 
     if (success)
-        communicate_success(ctx, argument);
+        communicate_success(dtc, ctx, argument);
     else
-        communicate_error(ctx, argument);
+        communicate_error(dtc, ctx, argument);
 
     uv_mutex_unlock(&vm->mutex_threads);
 }
@@ -651,7 +653,7 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
 
     if (current != (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED)
             && (current & MVMSUSPENDSTATUS_MASK) != MVMSuspendState_SUSPEND_REQUEST) {
-        fprintf(stderr, "wrong state to resume from: %d\n", MVM_load(&tc->gc_status));
+        fprintf(stderr, "wrong state to resume from: %lu\n", MVM_load(&tc->gc_status));
         return 1;
     }
 
@@ -664,7 +666,6 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
              * mark itself unblocked, which takes care of any looming GC
              * and related business. */
             uv_cond_broadcast(&vm->debugserver->tell_threads);
-            fprintf(stderr, "thread %d resumed from unable + suspended\n", tc->thread_id);
             break;
         } else if ((current & MVMGCSTATUS_MASK) == MVMGCStatus_STOLEN) {
             uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
@@ -676,7 +677,6 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
         } else {
             if (current == (MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST)) {
                 if (MVM_cas(&tc->gc_status, (MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST), MVMGCStatus_UNABLE) == current) {
-                    fprintf(stderr, "thread %d resumed from unable + suspend request\n", tc->thread_id);
                     break;
                 }
             }
@@ -686,10 +686,10 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
     MVM_gc_mark_thread_unblocked(dtc);
 
     if (argument && argument->type == MT_ResumeOne)
-        communicate_success(ctx, argument);
+        communicate_success(tc, ctx, argument);
 
     if (tc->instance->debugserver->debugspam_protocol)
-        fprintf(stderr, "success resuming thread; its status is now %d\n", MVM_load(&tc->gc_status));
+        fprintf(stderr, "success resuming thread; its status is now %lu\n", MVM_load(&tc->gc_status));
 
     return 0;
 }
@@ -709,7 +709,7 @@ static MVMint32 request_all_threads_resume(MVMThreadContext *dtc, cmp_ctx_t *ctx
                     current == (MVMGCStatus_STOLEN | MVMSuspendState_SUSPEND_REQUEST)) {
                 if (request_thread_resumes(dtc, ctx, argument, cur_thread)) {
                     if (vm->debugserver->debugspam_protocol)
-                        fprintf(stderr, "failure to resume thread %d\n", cur_thread->body.thread_id);
+                        fprintf(stderr, "failure to resume thread %u\n", cur_thread->body.thread_id);
                     success = 0;
                     break;
                 }
@@ -719,9 +719,9 @@ static MVMint32 request_all_threads_resume(MVMThreadContext *dtc, cmp_ctx_t *ctx
     }
 
     if (success)
-        communicate_success(ctx, argument);
+        communicate_success(dtc, ctx, argument);
     else
-        communicate_error(ctx, argument);
+        communicate_error(dtc, ctx, argument);
 
     uv_mutex_unlock(&vm->mutex_threads);
 
@@ -740,7 +740,7 @@ static MVMint32 write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, M
     }
 
     if (tc->instance->debugserver->debugspam_protocol)
-        fprintf(stderr, "dumping a stack trace of %d frames\n", stack_size);
+        fprintf(stderr, "dumping a stack trace of %lu frames\n", stack_size);
 
     cmp_write_array(ctx, stack_size);
 
@@ -929,7 +929,7 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
     MVMuint32 index = 0;
 
     if (tc->instance->debugserver->debugspam_protocol)
-        fprintf(stderr, "asked to set a breakpoint for file %s line %d to send id %d\n", argument->file, argument->line, argument->id);
+        fprintf(stderr, "asked to set a breakpoint for file %s line %u to send id %lu\n", argument->file, argument->line, argument->id);
 
     MVM_debugserver_register_line(tc, argument->file, strlen(argument->file), argument->line, &index);
 
@@ -951,7 +951,7 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
                 old_alloc * sizeof(MVMDebugServerBreakpointInfo),
                 found->breakpoints_alloc * sizeof(MVMDebugServerBreakpointInfo));
         if (tc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "table for breakpoints increased to %d slots\n", found->breakpoints_alloc);
+            fprintf(stderr, "table for breakpoints increased to %u slots\n", found->breakpoints_alloc);
     }
 
     bp_info = &found->breakpoints[found->breakpoints_used - 1];
@@ -964,7 +964,7 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
     debugserver->any_breakpoints_at_all++;
 
     if (tc->instance->debugserver->debugspam_protocol)
-        fprintf(stderr, "breakpoint settings: index %d bpid %d lineno %d suspend %d backtrace %d\n", found->breakpoints_used - 1, argument->id, argument->line, argument->suspend, argument->stacktrace);
+        fprintf(stderr, "breakpoint settings: index %u bpid %lu lineno %u suspend %u backtrace %u\n", found->breakpoints_used - 1, argument->id, argument->line, argument->suspend, argument->stacktrace);
 
     found->lines_active[argument->line] = 1;
 
@@ -1000,7 +1000,7 @@ void MVM_debugserver_clear_all_breakpoints(MVMThreadContext *tc, cmp_ctx_t *ctx,
     /* When a client disconnects, we clear all breakpoints but don't
      * send a confirmation. In this case ctx and argument will be NULL */
     if (ctx && argument)
-        communicate_success(ctx, argument);
+        communicate_success(tc, ctx, argument);
 }
 
 void MVM_debugserver_clear_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *argument) {
@@ -1014,18 +1014,18 @@ void MVM_debugserver_clear_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, requ
     MVM_debugserver_register_line(tc, argument->file, strlen(argument->file), argument->line, &index);
 
     if (tc->instance->debugserver->debugspam_protocol)
-        fprintf(stderr, "asked to clear breakpoints for file %s line %d\n", argument->file, argument->line);
+        fprintf(stderr, "asked to clear breakpoints for file %s line %u\n", argument->file, argument->line);
 
     uv_mutex_lock(&debugserver->mutex_breakpoints);
 
     found = &table->files[index];
 
-    if (tc->instance->debugserver->debugspam_protocol)
+    if (tc->instance->debugserver->debugspam_protocol) {
         fprintf(stderr, "dumping all breakpoints\n");
-    for (bpidx = 0; bpidx < found->breakpoints_used; bpidx++) {
-        MVMDebugServerBreakpointInfo *bp_info = &found->breakpoints[bpidx];
-        if (tc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "breakpoint index %d has id %d, is at line %d\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
+        for (bpidx = 0; bpidx < found->breakpoints_used; bpidx++) {
+            MVMDebugServerBreakpointInfo *bp_info = &found->breakpoints[bpidx];
+            fprintf(stderr, "breakpoint index %u has id %lu, is at line %u\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
+        }
     }
 
     if (tc->instance->debugserver->debugspam_protocol)
@@ -1033,11 +1033,11 @@ void MVM_debugserver_clear_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, requ
     for (bpidx = 0; bpidx < found->breakpoints_used; bpidx++) {
         MVMDebugServerBreakpointInfo *bp_info = &found->breakpoints[bpidx];
         if (tc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "breakpoint index %d has id %d, is at line %d\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
+            fprintf(stderr, "breakpoint index %u has id %lu, is at line %u\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
 
         if (bp_info->line_no == argument->line) {
             if (tc->instance->debugserver->debugspam_protocol)
-                fprintf(stderr, "breakpoint with id %d cleared\n", bp_info->breakpoint_id);
+                fprintf(stderr, "breakpoint with id %ld cleared\n", bp_info->breakpoint_id);
             found->breakpoints[bpidx] = found->breakpoints[--found->breakpoints_used];
             num_cleared++;
             bpidx--;
@@ -1048,9 +1048,9 @@ void MVM_debugserver_clear_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, requ
     uv_mutex_unlock(&debugserver->mutex_breakpoints);
 
     if (num_cleared > 0)
-        communicate_success(ctx, argument);
+        communicate_success(tc, ctx, argument);
     else
-        communicate_error(ctx, argument);
+        communicate_error(tc, ctx, argument);
 }
 
 static void release_all_handles(MVMThreadContext *dtc) {
@@ -1144,7 +1144,7 @@ static MVMint32 create_context_or_code_obj_debug_handle(MVMThreadContext *dtc, c
 
     if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
         if (dtc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "can only retrieve a context or code obj handle if thread is 'UNABLE' (is %d)\n", to_do->body.tc->gc_status);
+            fprintf(stderr, "can only retrieve a context or code obj handle if thread is 'UNABLE' (is %lu)\n", to_do->body.tc->gc_status);
         return 1;
     }
 
@@ -1187,7 +1187,8 @@ static MVMint32 create_caller_or_outer_context_debug_handle(MVMThreadContext *dt
 
     MVMFrame *frame;
     if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
-        fprintf(stderr, "outer/caller context handle must refer to a definite MVMContext object\n");
+        if (dtc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "outer/caller context handle must refer to a definite MVMContext object\n");
         return 1;
     }
     if (argument->type == MT_OuterContextRequest) {
@@ -1211,11 +1212,13 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
 
     MVMFrame *frame;
     if (MVM_is_null(dtc, this_ctx) || !IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
-        fprintf(stderr, "getting lexicals: context handle must refer to a definite MVMContext object\n");
+        if (dtc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "getting lexicals: context handle must refer to a definite MVMContext object\n");
         return 1;
     }
     if (!(frame = ((MVMContext *)this_ctx)->body.context)) {
-        fprintf(stderr, "context doesn't have a frame?!\n");
+        if (dtc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "context doesn't have a frame?!\n");
         return 1;
     }
 
@@ -1237,7 +1240,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         cmp_write_map(ctx, lexcount);
 
         if (dtc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "will write %d lexicals\n", lexcount);
+            fprintf(stderr, "will write %lu lexicals\n", lexcount);
 
         HASH_ITER(hash_handle, lexical_names, entry, tmp, bucket_tmp) {
             MVMuint16 lextype = static_info->body.lexical_types[entry->value];
@@ -1248,7 +1251,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
                 c_key_name = MVM_string_utf8_encode_C_string(dtc, entry->key);
             else {
                 c_key_name = MVM_malloc(12 + 16);
-                sprintf(c_key_name, "<lexical %d>", lexical_index);
+                sprintf(c_key_name, "<lexical %lu>", lexical_index);
             }
 
             cmp_write_str(ctx, c_key_name, strlen(c_key_name));
@@ -1305,7 +1308,8 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
                         cmp_write_nil(ctx);
                     }
                 } else {
-                    fprintf(stderr, "what lexical type is %d supposed to be?\n", lextype);
+                    if (dtc->instance->debugserver->debugspam_protocol)
+                        fprintf(stderr, "what lexical type is %d supposed to be?\n", lextype);
                     cmp_write_nil(ctx);
                 }
             }
@@ -1339,12 +1343,19 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
         : dtc->instance->VMNull;
 
     if (MVM_is_null(dtc, target)) {
+        if (vm->debugserver->debugspam_protocol)
+            fprintf(stderr, "target of attributes request is null\n");
         return 1;
     }
 
     if (!IS_CONCRETE(target)) {
+        if (vm->debugserver->debugspam_protocol)
+            fprintf(stderr, "target of attributes request is not concrete\n");
         return 1;
     }
+
+    if (dtc->instance->debugserver->debugspam_protocol)
+        fprintf(stderr, "writing attributes of a %s\n", MVM_6model_get_debug_name(dtc, target));
 
     cmp_write_map(ctx, 3);
     cmp_write_str(ctx, "id", 2);
@@ -2000,7 +2011,7 @@ static bool socket_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
     size_t read;
     MVMuint8 *orig_data = (MVMuint8 *)data;
     if (debugspam_network)
-        fprintf(stderr, "asked to read %d bytes\n", limit);
+        fprintf(stderr, "asked to read %lu bytes\n", limit);
     while (total_read < limit) {
         if ((read = recv(*((Socket*)ctx->buf), data, limit, 0)) == -1) {
             if (debugspam_network)
@@ -2012,13 +2023,13 @@ static bool socket_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
             return 0;
         }
         if (debugspam_network)
-            fprintf(stderr, "%d ", read);
+            fprintf(stderr, "%lu ", read);
         data = (void *)(((MVMuint8*)data) + read);
         total_read += read;
     }
 
     if (debugspam_network) {
-        fprintf(stderr, "... recv received %d bytes\n", total_read);
+        fprintf(stderr, "... recv received %lu bytes\n", total_read);
         fprintf(stderr, "cmp read: ");
         for (idx = 0; idx < limit; idx++) {
             fprintf(stderr, "%x ", orig_data[idx]);
@@ -2034,7 +2045,7 @@ static size_t socket_writer(cmp_ctx_t *ctx, const void *data, size_t limit) {
     size_t sent;
     MVMuint8 *orig_data = (MVMuint8 *)data;
     if (debugspam_network)
-        fprintf(stderr, "asked to send %3d bytes: ", limit);
+        fprintf(stderr, "asked to send %3lu bytes: ", limit);
     while (total_sent < limit) {
         if ((sent = send(*(Socket*)ctx->buf, data, limit, 0)) == -1) {
             if (debugspam_network)
@@ -2046,12 +2057,12 @@ static size_t socket_writer(cmp_ctx_t *ctx, const void *data, size_t limit) {
             return 0;
         }
         if (debugspam_network)
-            fprintf(stderr, "%2d ", sent);
+            fprintf(stderr, "%2lu ", sent);
         data = (void *)(((MVMuint8*)data) + sent);
         total_sent += sent;
     }
     if (debugspam_network)
-        fprintf(stderr, "... send sent %3d bytes\n", total_sent);
+        fprintf(stderr, "... send sent %3lu bytes\n", total_sent);
     return 1;
 }
 
@@ -2092,10 +2103,10 @@ static bool is_valid_int(cmp_object_t *obj, MVMint64 *result) {
     return 1;
 }
 
-#define CHECK(operation, message) do { if(!(operation)) { data->parse_fail = 1; data->parse_fail_message = (message);fprintf(stderr, "CMP error: %s\n", cmp_strerror(ctx)); return 0; } } while(0)
+#define CHECK(operation, message) do { if(!(operation)) { data->parse_fail = 1; data->parse_fail_message = (message); if (tc->instance->debugserver->debugspam_protocol) fprintf(stderr, "CMP error: %s\n", cmp_strerror(ctx)); return 0; } } while(0)
 #define FIELD_FOUND(field, duplicated_message) do { if(data->fields_set & (field)) { data->parse_fail = 1; data->parse_fail_message = duplicated_message;  return 0; }; field_to_set = (field); } while (0)
 
-MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
+MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *data) {
     MVMuint32 map_size = 0;
     MVMuint32 i;
     cmp_object_t obj;
@@ -2111,7 +2122,8 @@ MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
             map_size = obj.as.map_size;
             break;
         default:
-            fprintf(stderr, "expected a map, but got %d\n", obj.type);
+            if (tc->instance->debugserver->debugspam_protocol)
+                fprintf(stderr, "expected a map, but got %d\n", obj.type);
             data->parse_fail = 1;
             data->parse_fail_message = "expected a map as the envelope";
             return 0;
@@ -2157,7 +2169,8 @@ MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
             FIELD_FOUND(FS_handles, "handles field duplicated");
             type_to_parse = 3;
         } else {
-            fprintf(stderr, "the hell is a %s?\n", key_str);
+            if (tc->instance->debugserver->debugspam_protocol)
+                fprintf(stderr, "the hell is a %s?\n", key_str);
             data->parse_fail = 1;
             data->parse_fail_message = "Unknown field encountered (NYI or protocol violation)";
             return 0;
@@ -2202,7 +2215,8 @@ MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
         } else if (type_to_parse == 2) {
             uint32_t strsize = 1024;
             char *string = MVM_calloc(strsize, sizeof(char));
-            fprintf(stderr, "reading a string for %s\n", key_str);
+            if (tc->instance->debugserver->debugspam_protocol)
+                fprintf(stderr, "reading a string for %s\n", key_str);
             CHECK(cmp_read_str(ctx, string, &strsize), "Couldn't read string for a key");
 
             switch (field_to_set) {
@@ -2235,8 +2249,8 @@ MVMint32 parse_message_map(cmp_ctx_t *ctx, request_data *data) {
     return check_requirements(data);
 }
 
-#define COMMUNICATE_RESULT(operation) do { if((operation)) { communicate_error(&ctx, &argument); } else { communicate_success(&ctx, &argument); } } while (0)
-#define COMMUNICATE_ERROR(operation) do { if((operation)) { communicate_error(&ctx, &argument); } } while (0)
+#define COMMUNICATE_RESULT(operation) do { if((operation)) { communicate_error(tc, &ctx, &argument); } else { communicate_success(tc, &ctx, &argument); } } while (0)
+#define COMMUNICATE_ERROR(operation) do { if((operation)) { communicate_error(tc, &ctx, &argument); } } while (0)
 
 static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     int continue_running = 1;
@@ -2252,7 +2266,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
         struct addrinfo *res;
         int error;
 
-        snprintf(portstr, 16, "%d", port);
+        snprintf(portstr, 16, "%lu", port);
 
         getaddrinfo("localhost", portstr, NULL, &res);
 
@@ -2289,7 +2303,8 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
         send_greeting(&clientsocket);
 
         if (!receive_greeting(&clientsocket)) {
-            fprintf(stderr, "did not receive greeting properly\n");
+            if (tc->instance->debugserver->debugspam_protocol)
+                fprintf(stderr, "did not receive greeting properly\n");
             close(clientsocket);
             continue;
         }
@@ -2302,13 +2317,14 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
             request_data argument;
 
             MVM_gc_mark_thread_blocked(tc);
-            parse_message_map(&ctx, &argument);
+            parse_message_map(tc, &ctx, &argument);
             MVM_gc_mark_thread_unblocked(tc);
 
             uv_mutex_lock(&vm->debugserver->mutex_network_send);
 
             if (argument.parse_fail) {
-                fprintf(stderr, "failed to parse this message: %s\n", argument.parse_fail_message);
+                if (tc->instance->debugserver->debugspam_protocol)
+                    fprintf(stderr, "failed to parse this message: %s\n", argument.parse_fail_message);
                 cmp_write_map(&ctx, 3);
 
                 cmp_write_str(&ctx, "id", 2);
@@ -2325,7 +2341,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
             }
 
             if (vm->debugserver->debugspam_protocol)
-                fprintf(stderr, "debugserver received packet %d, command %d\n", argument.id, argument.type);
+                fprintf(stderr, "debugserver received packet %lu, command %u\n", argument.id, argument.type);
 
             switch (argument.type) {
                 case MT_IsExecutionSuspendedRequest:
@@ -2348,7 +2364,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                     break;
                 case MT_ThreadStackTraceRequest:
                     if (request_thread_stacktrace(tc, &ctx, &argument, NULL)) {
-                        communicate_error(&ctx, &argument);
+                        communicate_error(tc, &ctx, &argument);
                     }
                     break;
                 case MT_SetBreakpointRequest:
@@ -2371,7 +2387,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                     break;
                 case MT_ObjectAttributesRequest:
                     if (request_object_attributes(tc, &ctx, &argument)) {
-                        communicate_error(&ctx, &argument);
+                        communicate_error(tc, &ctx, &argument);
                     }
                     break;
                 case MT_ReleaseHandles:
@@ -2381,37 +2397,38 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                 case MT_ContextHandle:
                 case MT_CodeObjectHandle:
                     if (create_context_or_code_obj_debug_handle(tc, &ctx, &argument, NULL)) {
-                        communicate_error(&ctx, &argument);
+                        communicate_error(tc, &ctx, &argument);
                     }
                     break;
                 case MT_CallerContextRequest:
                 case MT_OuterContextRequest:
                     if (create_caller_or_outer_context_debug_handle(tc, &ctx, &argument, NULL)) {
-                        communicate_error(&ctx, &argument);
+                        communicate_error(tc, &ctx, &argument);
                     }
                     break;
                 case MT_ContextLexicalsRequest:
                     if (request_context_lexicals(tc, &ctx, &argument)) {
-                        communicate_error(&ctx, &argument);
+                        communicate_error(tc, &ctx, &argument);
                     }
                     break;
                 case MT_ObjectMetadataRequest:
                     if (request_object_metadata(tc, &ctx, &argument)) {
-                        communicate_error(&ctx, &argument);
+                        communicate_error(tc, &ctx, &argument);
                     }
                     break;
                 case MT_ObjectPositionalsRequest:
                     if (request_object_positionals(tc, &ctx, &argument)) {
-                        communicate_error(&ctx, &argument);
+                        communicate_error(tc, &ctx, &argument);
                     }
                     break;
                 case MT_ObjectAssociativesRequest:
                     if (request_object_associatives(tc, &ctx, &argument)) {
-                        communicate_error(&ctx, &argument);
+                        communicate_error(tc, &ctx, &argument);
                     }
                     break;
                 default: /* Unknown command or NYI */
-                    fprintf(stderr, "unknown command type (or NYI)\n");
+                    if (tc->instance->debugserver->debugspam_protocol)
+                        fprintf(stderr, "unknown command type (or NYI)\n");
                     cmp_write_map(&ctx, 2);
                     cmp_write_str(&ctx, "id", 2);
                     cmp_write_integer(&ctx, argument.id);
