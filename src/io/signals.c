@@ -290,7 +290,7 @@ MVMObject * MVM_io_signal_handle(MVMThreadContext *tc, MVMObject *queue,
         populate_sig_values(sig_wanted_vals);
         populate_instance_valid_sigs(tc, sig_wanted_vals);
     }
-    if ( signal && !(instance->valid_sigs & 1 << signal - 1 ) ) {
+    if ( signal <= 0 || !(instance->valid_sigs & 1 << signal - 1 ) ) {
         MVM_exception_throw_adhoc(tc, "Unsupported signal handler %d",
             (int)signal);
     }
