@@ -227,7 +227,7 @@ static void stop_point_hit(MVMThreadContext *tc) {
     MVM_gc_enter_from_interrupt(tc);
 }
 
-static void breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFileTable *file, MVMuint32 line_no) {
+static MVMuint8 breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFileTable *file, MVMuint32 line_no) {
     cmp_ctx_t *ctx = NULL;
     MVMDebugServerBreakpointInfo *info;
     MVMuint32 index;
@@ -265,9 +265,8 @@ static void breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFileTab
             }
         }
     }
-    if (must_suspend) {
-        stop_point_hit(tc);
-    }
+
+    return must_suspend;
 }
 static void step_point_hit(MVMThreadContext *tc) {
     cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
@@ -286,17 +285,24 @@ static void step_point_hit(MVMThreadContext *tc) {
 
     tc->step_mode = MVMDebugSteppingMode_NONE;
     tc->step_mode_frame = NULL;
-
-    stop_point_hit(tc);
 }
 
 void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, MVMuint32 line_no) {
     MVMDebugServerData *debugserver = tc->instance->debugserver;
-
-    /* TODO clarify what happens if a step point coincides with a breakpoint */
+    MVMuint8 shall_suspend = 0;
 
     tc->cur_line_no = line_no;
     tc->cur_file_idx = file_idx;
+
+    if (debugserver->any_breakpoints_at_all) {
+        MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
+        MVMDebugServerBreakpointFileTable *found = &table->files[file_idx];
+
+        if (debugserver->any_breakpoints_at_all && found->breakpoints_used && found->lines_active[line_no]) {
+            shall_suspend = 1;
+            breakpoint_hit(tc, found, line_no);
+        }
+    }
 
     if (tc->step_mode) {
         if (tc->step_mode == MVMDebugSteppingMode_STEP_OVER) {
@@ -305,6 +311,7 @@ void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, 
                 if (tc->instance->debugserver->debugspam_protocol)
                     fprintf(stderr, "hit a stepping point: step over; %u != %u, %p == %p\n", line_no, tc->step_mode_line_no, tc->step_mode_frame, tc->cur_frame);
                 step_point_hit(tc);
+                shall_suspend = 1;
             }
         }
         else if (tc->step_mode == MVMDebugSteppingMode_STEP_INTO) {
@@ -318,20 +325,15 @@ void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, 
                         fprintf(stderr, "hit a stepping point: step into; %u,   %u, %p != %p\n",
                                 line_no, tc->step_mode_line_no, tc->step_mode_frame, tc->cur_frame);
                 step_point_hit(tc);
+                shall_suspend = 1;
             }
         }
         /* Nothing to do for STEP_OUT. */
         /* else if (tc->step_mode == MVMDebugSteppingMode_STEP_OUT) { } */
     }
 
-    if (debugserver->any_breakpoints_at_all) {
-        MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
-        MVMDebugServerBreakpointFileTable *found = &table->files[file_idx];
-
-        if (debugserver->any_breakpoints_at_all && found->breakpoints_used && found->lines_active[line_no]) {
-            breakpoint_hit(tc, found, line_no);
-        }
-    }
+    if (shall_suspend)
+        stop_point_hit(tc);
 }
 
 
