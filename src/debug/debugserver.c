@@ -445,7 +445,7 @@ static void send_greeting(Socket *sock) {
 
 static int receive_greeting(Socket *sock) {
     const char *expected = "MOARVM-REMOTE-CLIENT-OK";
-    char buffer[strlen(expected) + 1];
+    char buffer[24];
     int received = 0;
 
     memset(buffer, 0, sizeof(buffer));
