@@ -12,4 +12,4 @@
 	url = https://github.com/MoarVM/libtommath
 [submodule "3rdparty/cmp"]
 	path = 3rdparty/cmp
-	url = https://github.com/camgunz/cmp.git
+	url = https://github.com/MoarVM/cmp.git
