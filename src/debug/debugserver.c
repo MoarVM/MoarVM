@@ -413,16 +413,28 @@ MVMuint8 check_requirements(request_data *data) {
     }
 }
 
+static MVMuint16 big_endian_16(MVMuint16 number) {
+#ifdef MVM_BIGENDIAN
+    return number;
+#else
+    char *bytes = (char *)&number;
+    char tmp;
+    tmp = bytes[1];
+    bytes[1] = bytes[0];
+    bytes[0] = tmp;
+    return *((MVMuint16 *)bytes);
+#endif
+}
+
 static void send_greeting(Socket *sock) {
     char buffer[24] = "MOARVM-REMOTE-DEBUG\0";
-    MVMuint32 version = htobe16(1);
-
+    MVMuint16 version = big_endian_16(1);
     MVMuint16 *verptr = (MVMuint16 *)(&buffer[strlen("MOARVM-REMOTE-DEBUG") + 1]);
 
     *verptr = version;
     verptr++;
 
-    version = htobe16(0);
+    version = big_endian_16(0);
 
     *verptr = version;
     send(*sock, buffer, 24, 0);
