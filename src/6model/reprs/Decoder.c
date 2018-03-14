@@ -24,6 +24,10 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
 /* Called by the VM to mark any GCable items. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+    MVMDecoderBody *decoder = (MVMDecoderBody*)data;
+    if (decoder->ds) {
+        MVM_gc_worklist_add(tc, worklist, &(decoder->ds->replacement));
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -152,7 +156,8 @@ void MVM_decoder_configure(MVMThreadContext *tc, MVMDecoder *decoder,
             should_translate_newlines(tc, config));
         decoder->body.sep_spec = MVM_malloc(sizeof(MVMDecodeStreamSeparators));
         MVM_string_decode_stream_sep_default(tc, decoder->body.sep_spec);
-        decoder->body.ds->replacement = has_replacement(tc, config);
+        MVM_ASSIGN_REF(tc, &(decoder->common.header), decoder->body.ds->replacement,
+            has_replacement(tc, config));
         decoder->body.ds->config      = has_config(tc, config);
         exit_single_user(tc, decoder);
     }
