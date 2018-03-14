@@ -135,7 +135,7 @@ static MVMint32 request_all_threads_suspend(MVMThreadContext *dtc, cmp_ctx_t *ct
 static MVMuint64 allocate_handle(MVMThreadContext *dtc, MVMObject *target);
 
 /* Breakpoint stuff */
-void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 filename_len, MVMuint32 line_no,  MVMuint32 *file_idx) {
+MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 filename_len, MVMuint32 line_no,  MVMuint32 *file_idx) {
     MVMDebugServerData *debugserver = tc->instance->debugserver;
     MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
     MVMDebugServerBreakpointFileTable *found = NULL;
@@ -290,7 +290,7 @@ static void step_point_hit(MVMThreadContext *tc) {
     tc->step_mode_frame = NULL;
 }
 
-void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, MVMuint32 line_no) {
+MVM_PUBLIC void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, MVMuint32 line_no) {
     MVMDebugServerData *debugserver = tc->instance->debugserver;
     MVMuint8 shall_suspend = 0;
 
@@ -485,7 +485,7 @@ static void communicate_success(MVMThreadContext *tc, cmp_ctx_t *ctx, request_da
 }
 
 /* Send spontaneous events */
-void MVM_debugserver_notify_thread_creation(MVMThreadContext *tc) {
+MVM_PUBLIC void MVM_debugserver_notify_thread_creation(MVMThreadContext *tc) {
     if (tc->instance->debugserver && tc->instance->debugserver->messagepack_data) {
         cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
         MVMuint64 event_id;
@@ -514,7 +514,7 @@ void MVM_debugserver_notify_thread_creation(MVMThreadContext *tc) {
     }
 }
 
-void MVM_debugserver_notify_thread_destruction(MVMThreadContext *tc) {
+MVM_PUBLIC void MVM_debugserver_notify_thread_destruction(MVMThreadContext *tc) {
     if (tc->instance->debugserver && tc->instance->debugserver->messagepack_data) {
         cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
         MVMuint64 event_id;
@@ -537,7 +537,7 @@ void MVM_debugserver_notify_thread_destruction(MVMThreadContext *tc) {
     }
 }
 
-void MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc, MVMException *ex) {
+MVM_PUBLIC void MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc, MVMException *ex) {
     if (tc->instance->debugserver && tc->instance->debugserver->messagepack_data) {
         cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
         MVMuint64 event_id;
@@ -2492,7 +2492,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
         exit(1); \
     } \
 } while (0)
-void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
+MVM_PUBLIC void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
     MVMInstance *vm = tc->instance;
     MVMDebugServerData *debugserver = MVM_calloc(1, sizeof(MVMDebugServerData));
     MVMObject *worker_entry_point;
@@ -2539,7 +2539,7 @@ void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
     MVM_thread_run(tc, MVM_thread_new(tc, worker_entry_point, 1));
 }
 
-void MVM_debugserver_mark_handles(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
+MVM_PUBLIC void MVM_debugserver_mark_handles(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
     MVMInstance *vm = tc->instance;
     if (vm->debugserver) {
         MVMDebugServerHandleTable *table = vm->debugserver->handle_table;

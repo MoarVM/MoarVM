@@ -78,13 +78,13 @@ struct MVMDebugServerData {
     MVMuint8 debugspam_protocol;
 };
 
-void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port);
-void MVM_debugserver_mark_handles(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot);
+MVM_PUBLIC void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port);
+MVM_PUBLIC void MVM_debugserver_mark_handles(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot);
 
-void MVM_debugserver_notify_thread_creation(MVMThreadContext *tc);
-void MVM_debugserver_notify_thread_destruction(MVMThreadContext *tc);
+MVM_PUBLIC void MVM_debugserver_notify_thread_creation(MVMThreadContext *tc);
+MVM_PUBLIC void MVM_debugserver_notify_thread_destruction(MVMThreadContext *tc);
 
-void MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc, MVMException *ex);
+MVM_PUBLIC void MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc, MVMException *ex);
 
-void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 filename_len, MVMuint32 line_no,  MVMuint32 *file_idx);
-void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, MVMuint32 line_no);
+MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 filename_len, MVMuint32 line_no,  MVMuint32 *file_idx);
+MVM_PUBLIC void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, MVMuint32 line_no);
