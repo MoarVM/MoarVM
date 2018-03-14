@@ -31,6 +31,10 @@
 #  define snprintf _snprintf
 #endif
 
+#if defined(_MSC_VER)
+#define strtoll _strtoi64
+#endif
+
 /* flags need to be sorted alphabetically */
 
 enum {
