@@ -84,6 +84,8 @@ struct MVMStringConsts {
     MVMString *translate_newlines;
     MVMString *platform_newline;
     MVMString *path;
+    MVMString *config;
+    MVMString *replacement;
 };
 
 /* An entry in the representations registry. */
