@@ -489,6 +489,10 @@ struct MVMInstance {
      * Debugging
      ************************************************************************/
 
+    MVMDebugServerData *debugserver;
+
+    MVMuint32 speshworker_thread_id;
+
     /* Log file for dynamic var performance, if we're to log it. */
     FILE *dynvar_log_fh;
     MVMint64 dynvar_log_lasttime;

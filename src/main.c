@@ -31,6 +31,10 @@
 #  define snprintf _snprintf
 #endif
 
+#if defined(_MSC_VER)
+#define strtoll _strtoi64
+#endif
+
 /* flags need to be sorted alphabetically */
 
 enum {
@@ -38,6 +42,7 @@ enum {
     UNKNOWN_FLAG = -1,
 
     FLAG_CRASH,
+    FLAG_SUSPEND,
     FLAG_DUMP,
     FLAG_FULL_CLEANUP,
     FLAG_HELP,
@@ -45,11 +50,13 @@ enum {
     FLAG_VERSION,
 
     OPT_EXECNAME,
-    OPT_LIBPATH
+    OPT_LIBPATH,
+    OPT_DEBUGPORT
 };
 
 static const char *const FLAGS[] = {
     "--crash",
+    "--debug-suspend",
     "--dump",
     "--full-cleanup",
     "--help",
@@ -67,7 +74,9 @@ USAGE: moar [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [program args]
     --full-cleanup    try to free all memory and exit cleanly\n\
     --crash           abort instead of exiting on unhandled exception\n\
     --libpath         specify path loadbytecode should search in\n\
-    --version         show version information"
+    --version         show version information\n\
+    --debug-port=1234 listen for incoming debugger connections\n\
+    --debug-suspend   pause execution at the entry point"
     TRACING_USAGE
     "\n\
 \n\
@@ -118,6 +127,8 @@ static int parse_flag(const char *arg)
         return OPT_LIBPATH;
     else if (starts_with(arg, "--execname="))
         return OPT_EXECNAME;
+    else if (starts_with(arg, "--debug-port="))
+        return OPT_DEBUGPORT;
     else
         return UNKNOWN_FLAG;
 }
@@ -146,6 +157,9 @@ int wmain(int argc, wchar_t *wargv[])
     unsigned int interval_id;
     char telemeh_inited = 0;
 
+    MVMuint32 debugserverport = 0;
+    int start_suspended = 0;
+
     for (; (flag = parse_flag(argv[argi])) != NOT_A_FLAG; ++argi) {
         switch (flag) {
             case FLAG_CRASH:
@@ -169,6 +183,10 @@ int wmain(int argc, wchar_t *wargv[])
             MVM_interp_enable_tracing();
             continue;
 #endif
+
+            case FLAG_SUSPEND:
+            start_suspended = 1;
+            continue;
 
             case OPT_EXECNAME:
             executable_name = argv[argi] + strlen("--execname=");
@@ -201,6 +219,23 @@ int wmain(int argc, wchar_t *wargv[])
             }
             printf("\n");
             return EXIT_SUCCESS;
+            }
+
+            case OPT_DEBUGPORT: {
+                MVMint64 port;
+                char *portstr = argv[argi] + strlen("--debugport=") + 1;
+                char *endptr;
+                port = strtoll(portstr, &endptr, 10);
+                if (*endptr != '\0') {
+                    fprintf(stderr, "ERROR: Invalid characters in debug port flag: %s\n", portstr);
+                    return EXIT_FAILURE;
+                }
+                if (port <= 1024 || port > 65535) {
+                    fprintf(stderr, "ERROR: debug server port out of range. We only accept ports above 1024 and below 65535. (got: %lu)\n", port);
+                    return EXIT_FAILURE;
+                }
+                debugserverport = (MVMuint32)port;
+                break;
             }
 
             default:
@@ -251,6 +286,14 @@ int wmain(int argc, wchar_t *wargv[])
 #ifndef _WIN32
     signal(SIGPIPE, SIG_IGN);
 #endif
+
+    if (debugserverport > 0) {
+        MVM_debugserver_init(instance->main_thread, debugserverport);
+
+        if (start_suspended) {
+            instance->main_thread->gc_status = MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST;
+        }
+    }
 
     if (dump) MVM_vm_dump_file(instance, input_file);
     else MVM_vm_run_file(instance, input_file);
