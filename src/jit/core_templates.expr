@@ -229,7 +229,7 @@
         (carg (^stable $1) ptr)
         (carg $1 ptr)
         (carg (^body $1) ptr)
-        (carg $2 ptr)) int))
+        (carg $2 ptr)) int_sz))
 
 (template: gethow
    (let: (($how (^getf (^stable $1) MVMSTable HOW)))
