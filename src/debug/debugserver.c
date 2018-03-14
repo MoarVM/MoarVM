@@ -1,7 +1,10 @@
 #include "moar.h"
 #include "platform/threads.h"
 
-#include <stdbool.h>
+#define bool int
+#define true TRUE
+#define false FALSE
+
 #include "cmp.h"
 
 #ifdef _WIN32
