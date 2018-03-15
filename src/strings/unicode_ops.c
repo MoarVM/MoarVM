@@ -381,7 +381,7 @@ static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack,
     int query = -1;
     int cp_num_orig = cp_num;
     /* If supplied -1 that means we need to grab it from the codepoint iterator. Otherwise
-     * the value we were passed is the codepoint we should proces */
+     * the value we were passed is the codepoint we should process */
     if (cp_num == 0) {
         cps[0] = MVM_string_ci_get_codepoint(tc, ci);
         cp_num = 1;

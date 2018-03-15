@@ -24,6 +24,10 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
 /* Called by the VM to mark any GCable items. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+    MVMDecoderBody *decoder = (MVMDecoderBody*)data;
+    if (decoder->ds) {
+        MVM_gc_worklist_add(tc, worklist, &(decoder->ds->replacement));
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -124,6 +128,25 @@ static int should_translate_newlines(MVMThreadContext *tc, MVMObject *config) {
     }
     return 0;
 }
+static MVMString * has_replacement(MVMThreadContext *tc, MVMObject *config) {
+    if (IS_CONCRETE(config) && REPR(config)->ID == MVM_REPR_ID_MVMHash) {
+        MVMObject *value = MVM_repr_at_key_o(tc, config,
+            tc->instance->str_consts.replacement);
+        return IS_CONCRETE(value)
+            ? MVM_repr_get_str(tc, value)
+            : NULL;
+    }
+    return NULL;
+}
+static int has_config(MVMThreadContext *tc, MVMObject *config) {
+    if (IS_CONCRETE(config) && REPR(config)->ID == MVM_REPR_ID_MVMHash) {
+        MVMObject *value = MVM_repr_at_key_o(tc, config,
+            tc->instance->str_consts.config);
+        return IS_CONCRETE(value) ? MVM_repr_get_int(tc, value) : 0;
+    }
+    return 0;
+
+}
 void MVM_decoder_configure(MVMThreadContext *tc, MVMDecoder *decoder,
                            MVMString *encoding, MVMObject *config) {
     if (!decoder->body.ds) {
@@ -133,6 +156,9 @@ void MVM_decoder_configure(MVMThreadContext *tc, MVMDecoder *decoder,
             should_translate_newlines(tc, config));
         decoder->body.sep_spec = MVM_malloc(sizeof(MVMDecodeStreamSeparators));
         MVM_string_decode_stream_sep_default(tc, decoder->body.sep_spec);
+        MVM_ASSIGN_REF(tc, &(decoder->common.header), decoder->body.ds->replacement,
+            has_replacement(tc, config));
+        decoder->body.ds->config      = has_config(tc, config);
         exit_single_user(tc, decoder);
     }
     else {

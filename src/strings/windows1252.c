@@ -340,9 +340,8 @@ static MVMuint8 windows1251_cp_to_char(MVMint32 codepoint) {
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_windows125X_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                                          const MVMint32 *stopper_chars,
-                                         MVMDecodeStreamSeparators *seps, MVMString *replacement,
-                                         const MVMuint16 *codetable,
-                                         MVMint64 config) {
+                                         MVMDecodeStreamSeparators *seps,
+                                         const MVMuint16 *codetable) {
     MVMint32 count = 0, total = 0;
     MVMint32 bufsize;
     MVMGrapheme32 *buffer = NULL;
@@ -350,15 +349,9 @@ MVMuint32 MVM_string_windows125X_decodestream(MVMThreadContext *tc, MVMDecodeStr
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
     MVMint32 last_accept_pos, last_was_cr;
     MVMuint32 reached_stopper;
-    MVMStringIndex repl_length;
-    if (replacement) {
-        repl_length = MVM_string_graphs(tc, replacement);
-        if (1 < repl_length) {
-            MVM_exception_throw_adhoc(tc,
-            "Windows-1252 and Windows-1251 decoding with a replacement string with more than one grapheme is not yet implemented.\n"
-            "Provided string had %"PRIu32" graphemes\n", repl_length);
-        }
-    }
+    MVMStringIndex repl_length = ds->replacement ? MVM_string_graphs(tc, ds->replacement) : 0;
+    MVMStringIndex repl_pos = 0;
+
     /* If there's no buffers, we're done. */
     if (!ds->bytes_head)
         return 0;
@@ -382,19 +375,30 @@ MVMuint32 MVM_string_windows125X_decodestream(MVMThreadContext *tc, MVMDecodeStr
         while (pos < cur_bytes->length) {
             MVMGrapheme32 graph;
             MVMCodepoint codepoint = codetable[bytes[pos++]];
-            if (codepoint == UNMAPPED) {
-                if (MVM_ENCODING_CONFIG_STRICT(config)) {
-                    /* Throw if it's unmapped */
-                    char *enc_name = codetable == windows1252_codepoints
-                        ? "Windows-1252" : "Windows-1251";
-                    MVM_free(buffer);
-                    MVM_exception_throw_adhoc(tc,
-                        "Error decoding %s string: could not decode codepoint %d",
-                         enc_name,
-                         codepoint);
-                }
-                else if (replacement) {
-                    graph = MVM_string_get_grapheme_at_nocheck(tc, replacement, 0);
+            if (repl_pos) {
+                graph = MVM_string_get_grapheme_at_nocheck(tc, ds->replacement, repl_pos++);
+                if (repl_length <= repl_pos) repl_pos = 0;
+                pos--;
+            }
+            else if (codepoint == UNMAPPED) {
+                if (MVM_ENCODING_CONFIG_STRICT(ds->config)) {
+                    if (ds->replacement) {
+                        graph = MVM_string_get_grapheme_at_nocheck(tc, ds->replacement, repl_pos);
+                        /* If the replacement is more than one grapheme we need
+                         * to set repl_pos++ so we will grab the next grapheme on
+                         * the next loop */
+                        if (1 < repl_length) repl_pos++;
+                    }
+                    else {
+                        /* Throw if it's unmapped */
+                        char *enc_name = codetable == windows1252_codepoints
+                            ? "Windows-1252" : "Windows-1251";
+                        MVM_free(buffer);
+                        MVM_exception_throw_adhoc(tc,
+                            "Error decoding %s string: could not decode codepoint %d",
+                             enc_name,
+                             bytes[pos - 1]);
+                    }
                 }
                 else {
                     /* Set it without translating, even though it creates
@@ -460,28 +464,14 @@ MVMuint32 MVM_string_windows125X_decodestream(MVMThreadContext *tc, MVMDecodeStr
 MVMuint32 MVM_string_windows1252_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                                          const MVMint32 *stopper_chars,
                                          MVMDecodeStreamSeparators *seps) {
-    return MVM_string_windows125X_decodestream(tc, ds, stopper_chars, seps, NULL, windows1252_codepoints, MVM_ENCODING_PERMISSIVE);
+    return MVM_string_windows125X_decodestream(tc, ds, stopper_chars, seps, windows1252_codepoints);
 }
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_windows1251_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                                          const MVMint32 *stopper_chars,
                                          MVMDecodeStreamSeparators *seps) {
-    return MVM_string_windows125X_decodestream(tc, ds, stopper_chars, seps, NULL, windows1251_codepoints, MVM_ENCODING_PERMISSIVE);
-}
-/* Decodes using a decodestream. Decodes as far as it can with the input
- * buffers, or until a stopper is reached. */
-MVMuint32 MVM_string_windows1252_decodestream_config(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                         const MVMint32 *stopper_chars,
-                                         MVMDecodeStreamSeparators *seps, MVMString *replacement, MVMint64 config) {
-    return MVM_string_windows125X_decodestream(tc, ds, stopper_chars, seps, replacement, windows1252_codepoints, config);
-}
-/* Decodes using a decodestream. Decodes as far as it can with the input
- * buffers, or until a stopper is reached. */
-MVMuint32 MVM_string_windows1251_decodestream_config(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                         const MVMint32 *stopper_chars,
-                                         MVMDecodeStreamSeparators *seps, MVMString *replacement, MVMint64 config) {
-    return MVM_string_windows125X_decodestream(tc, ds, stopper_chars, seps, replacement, windows1251_codepoints, config);
+    return MVM_string_windows125X_decodestream(tc, ds, stopper_chars, seps, windows1251_codepoints);
 }
 
 /* Decodes the specified number of bytes of windows1252 into an NFG string,
@@ -492,33 +482,40 @@ MVMString * MVM_string_windows125X_decode(MVMThreadContext *tc,
         MVMString *replacement, const MVMuint16 *codetable, MVMint64 config) {
     MVMuint8 *windows125X = (MVMuint8 *)windows125X_c;
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
-    size_t i, result_graphs;
-    MVMStringIndex repl_length;
-    if (replacement) {
-        repl_length = MVM_string_graphs(tc, replacement);
-        if (1 < repl_length) {
-            MVM_exception_throw_adhoc(tc,
-            "Windows-1252 and Windows-1251 decoding with a replacement string with more than one grapheme is not yet implemented.\n"
-            "Provided string had %"PRIu32" graphemes\n", repl_length);
-        }
-    }
+    size_t pos, result_graphs, additional_bytes = 0;
+    MVMStringIndex repl_length = replacement ? MVM_string_graphs(tc, replacement) : 0;
 
     result->body.storage_type    = MVM_STRING_GRAPHEME_32;
     result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
 
     result_graphs = 0;
-    for (i = 0; i < bytes; i++) {
-        if (windows125X[i] == '\r' && i + 1 < bytes && windows125X[i + 1] == '\n') {
-            result->body.storage.blob_32[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
-            i++;
+    for (pos = 0; pos < bytes; pos++) {
+        MVMGrapheme32 codepoint;
+        if (windows125X[pos] == '\r' && pos + 1 < bytes && windows125X[pos + 1] == '\n') {
+            codepoint = MVM_nfg_crlf_grapheme(tc);
+            pos++;
         }
         else {
-            MVMuint16 codepoint = codetable[windows125X[i]];
+            codepoint = codetable[windows125X[pos]];
             if (codepoint == UNMAPPED) {
                 /* Since things we are decoding always fit into Unicode, if we are
                  * using a replacement, it won't get used unless we use strict */
                 if (replacement && MVM_ENCODING_CONFIG_STRICT(config)) {
-                    codepoint = MVM_string_get_grapheme_at(tc, replacement, 0);
+                    int i = 0;
+                    /* Only triggered if repl_length > 1. Copies all but the last
+                     * grapheme in the replacement string */
+                    if (1 < repl_length) {
+                        additional_bytes += repl_length - 1;
+                        result->body.storage.blob_32 = realloc(result->body.storage.blob_32,
+                            sizeof(MVMGrapheme32) * (additional_bytes + bytes));
+                        for (; i < repl_length - 1; i++) {
+                            MVMGrapheme32 graph = MVM_string_get_grapheme_at(tc, replacement, i);
+                            result->body.storage.blob_32[result_graphs++] = graph;
+                        }
+                    }
+                    /* Now we set `codepoint` to the last grapheme in the replacement
+                     * and proceed normally from here. */
+                    codepoint = MVM_string_get_grapheme_at(tc, replacement, i);
                 }
                 else if (MVM_ENCODING_CONFIG_STRICT(config)) {
                     /* Throw an exception if that codepoint has no mapping */
@@ -527,17 +524,17 @@ MVMString * MVM_string_windows125X_decode(MVMThreadContext *tc,
                     MVM_exception_throw_adhoc(tc,
                         "Error decoding %s string: could not decode codepoint %d",
                          enc_name,
-                         windows125X[i]);
+                         windows125X[pos]);
                 }
                 else {
                     /* Don't convert and just map to identical. This creates
                      * standards uncompliant results, but will decode buggy
                      * input */
-                    codepoint = windows125X[i];
+                    codepoint = windows125X[pos];
                 }
             }
-            result->body.storage.blob_32[result_graphs++] = codepoint;
         }
+        result->body.storage.blob_32[result_graphs++] = codepoint;
     }
     result->body.num_graphs = result_graphs;
 

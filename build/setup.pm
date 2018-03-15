@@ -51,6 +51,12 @@ our %TP_DL = (
     dummy => 1, # created as part of dyncall build
 );
 
+our %TP_CMP = (
+    name => 'cmp',
+    path => '3rdparty/cmp',
+    src  => [ '3rdparty/cmp' ],
+);
+
 our %TP_UVDUMMY = (
     name => 'uv',
     path => '3rdparty/libuv',
@@ -75,6 +81,7 @@ our %THIRDPARTY = (
     dcb => { %TP_DCB },
     dl  => { %TP_DL },
     uv  => { %TP_UVDUMMY },
+    cmp => { %TP_CMP },
 );
 
 # shell configuration

@@ -84,6 +84,8 @@ struct MVMStringConsts {
     MVMString *translate_newlines;
     MVMString *platform_newline;
     MVMString *path;
+    MVMString *config;
+    MVMString *replacement;
 };
 
 /* An entry in the representations registry. */
@@ -494,6 +496,10 @@ struct MVMInstance {
     /************************************************************************
      * Debugging
      ************************************************************************/
+
+    MVMDebugServerData *debugserver;
+
+    MVMuint32 speshworker_thread_id;
 
     /* Log file for dynamic var performance, if we're to log it. */
     FILE *dynvar_log_fh;

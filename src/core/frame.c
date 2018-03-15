@@ -106,6 +106,8 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
         MVM_cross_thread_write_instrument(tc, static_frame);
     else if (tc->instance->coverage_logging)
         MVM_line_coverage_instrument(tc, static_frame);
+    else if (tc->instance->debugserver)
+        MVM_breakpoint_instrument(tc, static_frame);
     else
         MVM_profile_ensure_uninstrumented(tc, static_frame);
 }
@@ -715,6 +717,112 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     /* Hand back new location of promoted frame. */
     if (!result)
         MVM_panic(1, "Failed to find frame to promote on call stack");
+    return result;
+}
+
+/* This function is to be used by the debugserver if a thread is currently
+ * blocked. */
+MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *tc, MVMThreadContext *owner, MVMFrame *frame) {
+    /* To keep things simple, we'll promote the entire stack. */
+    MVMFrame *cur_to_promote = owner->cur_frame;
+    MVMFrame *new_cur_frame = NULL;
+    MVMFrame *update_caller = NULL;
+    MVMFrame *result = NULL;
+    MVM_CHECK_CALLER_CHAIN(tc, cur_to_promote);
+    MVMROOT3(tc, new_cur_frame, update_caller, result, {
+        while (cur_to_promote) {
+            /* Allocate a heap frame. */
+            MVMFrame *promoted = MVM_gc_allocate_frame(tc);
+
+            /* Bump heap promotion counter, to encourage allocating this kind
+             * of frame directly on the heap in the future. If the frame was
+             * entered at least 50 times, and over 80% of the entries lead to
+             * an eventual heap promotion, them we'll mark it to be allocated
+             * right away on the heap. Note that entries is only bumped when
+             * spesh logging is taking place, so we only bump the number of
+             * heap promotions in that case too. */
+            MVMStaticFrame *sf = cur_to_promote->static_info;
+            if (!sf->body.allocate_on_heap && cur_to_promote->spesh_correlation_id) {
+                MVMuint32 promos = sf->body.spesh->body.num_heap_promotions++;
+                MVMuint32 entries = sf->body.spesh->body.spesh_entries_recorded;
+                if (entries > 50 && promos > (4 * entries) / 5)
+                    sf->body.allocate_on_heap = 1;
+            }
+
+            /* Copy current frame's body to it. */
+            memcpy(
+                (char *)promoted + sizeof(MVMCollectable),
+                (char *)cur_to_promote + sizeof(MVMCollectable),
+                sizeof(MVMFrame) - sizeof(MVMCollectable));
+
+            /* Update caller of previously promoted frame, if any. This is the
+             * only reference that might point to a non-heap frame. */
+            if (update_caller) {
+                MVM_ASSIGN_REF(tc, &(update_caller->header),
+                    update_caller->caller, promoted);
+            }
+
+            /* If we're the first time through the lopo, then we're instead
+             * replacing the current stack top. Note we do it at the end,
+             * so that the GC can still walk unpromoted frames if it runs
+             * in this loop. */
+            else {
+                new_cur_frame = promoted;
+            }
+
+            /* If the frame we're promoting was in the active handlers list,
+             * update the address there. */
+            if (owner->active_handlers) {
+                MVMActiveHandler *ah = owner->active_handlers;
+                while (ah) {
+                    if (ah->frame == cur_to_promote)
+                        ah->frame = promoted;
+                    ah = ah->next_handler;
+                }
+            }
+
+            /* If we're replacing the frame we were asked to promote, that will
+             * become our result. */
+            if (cur_to_promote == frame)
+                result = promoted;
+
+            /* Check if there's a caller, or if we reached the end of the
+             * chain. */
+            if (cur_to_promote->caller) {
+                /* If the caller is on the stack then it needs promotion too.
+                 * If not, we're done. */
+                if (MVM_FRAME_IS_ON_CALLSTACK(tc, cur_to_promote->caller)) {
+                    /* Clear caller in promoted frame, to avoid a heap -> stack
+                     * reference if we GC during this loop. */
+                    promoted->caller = NULL;
+                    update_caller = promoted;
+                    cur_to_promote = cur_to_promote->caller;
+                }
+                else {
+                    if (cur_to_promote == owner->thread_entry_frame)
+                        owner->thread_entry_frame = promoted;
+                    cur_to_promote = NULL;
+                }
+            }
+            else {
+                /* End of caller chain; check if we promoted the entry
+                 * frame */
+                if (cur_to_promote == owner->thread_entry_frame)
+                    owner->thread_entry_frame = promoted;
+                cur_to_promote = NULL;
+            }
+        }
+    });
+    MVM_CHECK_CALLER_CHAIN(tc, new_cur_frame);
+
+    /* All is promoted. Update thread's current frame and reset the thread
+     * local callstack. */
+    owner->cur_frame = new_cur_frame;
+    MVM_callstack_reset(owner);
+
+    /* Hand back new location of promoted frame. */
+    if (!result)
+        MVM_panic(1, "Failed to find frame to promote on foreign thread's call stack");
     return result;
 }
 

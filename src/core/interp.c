@@ -5911,6 +5911,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 20;
                 goto NEXT;
             }
+            OP(breakpoint): {
+                MVMuint32 file_idx = GET_UI32(cur_op, 0);
+                MVMuint32 line_no  = GET_UI32(cur_op, 4);
+                MVM_debugserver_breakpoint_check(tc, file_idx, line_no);
+                cur_op += 8;
+                goto NEXT;
+            }
             OP(coveragecontrol): {
                 MVMuint32 cc = (MVMuint32)GET_REG(cur_op, 0).i64;
                 if (tc->instance->coverage_control && (cc == 0 || cc == 1))

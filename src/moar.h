@@ -123,6 +123,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "core/nativecall.h"
 #include "core/dll.h"
 #include "core/continuation.h"
+#include "debug/debugserver.h"
 #include "6model/reprs.h"
 #include "6model/reprconv.h"
 #include "6model/bootstrap.h"

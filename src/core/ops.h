@@ -863,6 +863,7 @@
 #define MVM_OP_prof_allocated 859
 #define MVM_OP_ctw_check 860
 #define MVM_OP_coverage_log 861
+#define MVM_OP_breakpoint 862
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

@@ -10,6 +10,9 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
         tc->instance->boot_types.BOOTArray);
     MVMObject *previous_static_frames = MVM_repr_alloc_init(tc,
         tc->instance->boot_types.BOOTArray);
+
+    tc->instance->speshworker_thread_id = tc->thread_obj->body.thread_id;
+
     MVMROOT2(tc, updated_static_frames, previous_static_frames, {
         while (1) {
             MVMObject *log_obj;
