@@ -1869,6 +1869,36 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
         MVM_free(value);
     }
+    else if (repr_id == MVM_REPR_ID_ReentrantMutex && IS_CONCRETE(target)) {
+        MVMReentrantMutexBody *body = (MVMReentrantMutexBody *)OBJECT_BODY(target);
+
+        slots += 3;
+        slots += 3; /* features */
+
+        cmp_write_map(ctx, slots);
+
+        cmp_write_str(ctx, "mutex_identity", 14);
+        cmp_write_int(ctx, (uintptr_t)body->mutex);
+        cmp_write_str(ctx, "mutex_holder", 12);
+        cmp_write_int(ctx, MVM_load(&body->holder_id));
+        cmp_write_str(ctx, "mutex_lock_count", 16);
+        cmp_write_int(ctx, MVM_load(&body->lock_count));
+
+        write_object_features(dtc, ctx, 0, 0, 0);
+    }
+    else if (repr_id == MVM_REPR_ID_Semaphore && IS_CONCRETE(target)) {
+        MVMSemaphoreBody *body = (MVMSemaphoreBody *)OBJECT_BODY(target);
+
+        slots += 1;
+        slots += 3; /* features */
+
+        cmp_write_map(ctx, slots);
+
+        cmp_write_str(ctx, "semaphore_identity", 14);
+        cmp_write_int(ctx, (uintptr_t)body->sem);
+
+        write_object_features(dtc, ctx, 0, 0, 0);
+    }
     else {
         cmp_write_map(ctx, slots);
     }
