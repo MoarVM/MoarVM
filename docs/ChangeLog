@@ -12,7 +12,6 @@ Miscellaneous
   + Setting breakpoints and getting notified if they are hit (and, optionally, suspending execution)
   + Stepping
   + Fetching object attributes, array elements, and hash keys/values
-+ Use _strtoi64 on MSVC instead of strtoll
 + Add getppid op. Allows a child process to get the parent process id, and thus
     guess if it has become orphaned.
 + Panic when Dyncall fails to allocate native callbacks
@@ -42,16 +41,12 @@ Tooling:
 + Add CMP library to ./3rdparty which is used for supporting the debug server
 + Add debug server protocol documentation
 
-GC:
-+ Fix possible deadlock in unblocking thread GC
-
 JIT:
 + Add JIT template for ne_s, const_n64, not_i, is(int|num|str|list), existskey,
   eqat_s, concat_s, isnull_s, isfalse, istrue, ishash
 + Enable box_i and box_s templates
 + Release only spill slots without active overlap
 + Warn for things that should be a size but may not be in the expr JIT compiler
-+ Fix CALL's size parameter in existskey template
 + Create store_write_barrier macro
 
 Profiler:
