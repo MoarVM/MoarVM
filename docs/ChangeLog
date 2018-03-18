@@ -1,6 +1,67 @@
 See https://github.com/MoarVM/MoarVM/wiki/ChangeLog-Draft for the draft changelog
 since the previous release.
 
+New in 2018.03
+
+Miscellaneous
++ Add remote debugging support, optionally enabled with the --debug-port option
+  to MoarVM. This uses the MessagePack and allows:
+  + Suspending and resuming all threads, or individual threads
+  + Enumerating threads and, when they are suspended, getting their stack traces
+  + Reading the lexical variables of a callframe
+  + Setting breakpoints and getting notified if they are hit (and, optionally, suspending execution)
+  + Stepping
+  + Fetching object attributes, array elements, and hash keys/values
++ Use _strtoi64 on MSVC instead of strtoll
++ Add getppid op. Allows a child process to get the parent process id, and thus
+    guess if it has become orphaned.
++ Panic when Dyncall fails to allocate native callbacks
++ Use uv_fs_copyfile API in MVM_file_copy
++ Make IO signal handlers cancellable
++ Add an tryfindmethod op which evaluates to null in the event that the method
+  cannot be found
+
+Network:
++ Ignore libuv-caused "fake" empty datagrams
++ Expose both hostname and port of received datagrams
+
+Encodings:
++ Change arguments for windows1252/1 decodestream ops
++ Add proper support for replacements in decodestream for windows1252/1
++ Add ops for strict decoding of windows-1251/1252, decoderepconfig, encodeconfig,
+  decodeconfig and encoderepconfig
++ Add support for replacements with more than one character for windows-1251 and windows-1252
++ Add some string consts in MVMStringConsts for MVMDecodeStream
+
+Spesh:
++ optimize eq_s and ne_s against empty string in spesh
+
+Tooling:
++ Bump libuv version 1.19.2
++ Move moarvm.org tool into proper folder. Add more release guide info
++ Add CMP library to ./3rdparty which is used for supporting the debug server
++ Add debug server protocol documentation
+
+GC:
++ Fix possible deadlock in unblocking thread GC
+
+JIT:
++ Add JIT template for ne_s, const_n64, not_i, is(int|num|str|list), existskey,
+  eqat_s, concat_s, isnull_s, isfalse, istrue, ishash
++ Enable box_i and box_s templates
++ Release only spill slots without active overlap
++ Warn for things that should be a size but may not be in the expr JIT compiler
++ Fix CALL's size parameter in existskey template
++ Create store_write_barrier macro
+
+Profiler:
++ Support for threaded profiling has been added, although it is not fully stable yet
++ Record thread id in profile data
++ Record if a thread is responsible for a gc
++ Count spesh time properly
++ Record when gc happens (msecs since start)
++ Fix for gigantic and wrong spesh time in profiles
+
 New in 2018.02
 
 Miscellaneous:
