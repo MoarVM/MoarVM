@@ -224,6 +224,8 @@ static void populate_sig_values(MVMint8 *sig_vals) {
 #endif
 }
 
+#define SIG_SHIFT(s) (1 << s - 1)
+
 static void populate_instance_valid_sigs(MVMThreadContext *tc, MVMint8 *sig_vals) {
     MVMuint64 valid_sigs = 0;
     MVMint8 i;
@@ -232,7 +234,7 @@ static void populate_instance_valid_sigs(MVMThreadContext *tc, MVMint8 *sig_vals
 
     for (i = 0; i < NUM_SIG_WANTED; i++) {
         if (sig_vals[i]) {
-            valid_sigs |=  1 << sig_vals[i] - 1;
+            valid_sigs |=  SIG_SHIFT(sig_vals[i]);
         }
     }
     tc->instance->valid_sigs = valid_sigs;
@@ -290,7 +292,7 @@ MVMObject * MVM_io_signal_handle(MVMThreadContext *tc, MVMObject *queue,
         populate_sig_values(sig_wanted_vals);
         populate_instance_valid_sigs(tc, sig_wanted_vals);
     }
-    if ( signal <= 0 || !(instance->valid_sigs & 1 << signal - 1 ) ) {
+    if ( signal <= 0 || !(instance->valid_sigs & SIG_SHIFT(signal) ) ) {
         MVM_exception_throw_adhoc(tc, "Unsupported signal handler %d",
             (int)signal);
     }
