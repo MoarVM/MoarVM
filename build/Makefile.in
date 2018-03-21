@@ -371,6 +371,7 @@ HEADERS = src/moar.h \
           src/strings/latin1.h \
           src/strings/utf16.h \
           src/strings/windows1252.h \
+          src/strings/shiftjis_codeindex.h \
           src/math/bigintops.h \
           src/profiler/instrument.h \
           src/profiler/log.h \
