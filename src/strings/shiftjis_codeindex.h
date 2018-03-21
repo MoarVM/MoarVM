@@ -1,4 +1,5 @@
-MVMCodepoint shift_jis_index_to_cp (MVMuint16 index) {
+#define SHIFTJIS_NULL -1
+MVMGrapheme32 shift_jis_index_to_cp (MVMint16 index) {
     switch (index) {
         case 0: return 0x3000;
         case 1: return 0x3001;
@@ -7350,11 +7351,11 @@ MVMCodepoint shift_jis_index_to_cp (MVMuint16 index) {
         case 11101: return 0xFA2D;
         case 11102: return 0x9E19;
         case 11103: return 0x9ED1;
-        default: return 0;
+        default: return SHIFTJIS_NULL;
     }
 }
 
-MVMuint16 shift_jis_cp_to_index (MVMCodepoint codepoint) {
+MVMint16 shift_jis_cp_to_index (MVMGrapheme32 codepoint) {
     switch (codepoint) {
         case 0xA7: return 87;
         case 0xA8: return 14;
@@ -14682,6 +14683,6 @@ MVMuint16 shift_jis_cp_to_index (MVMCodepoint codepoint) {
         case 0xFFE3: return 16;
         case 0xFFE4: return 10737;
         case 0xFFE5: return 78;
-        default: return 0;
+        default: return SHIFTJIS_NULL;
     }
 }
