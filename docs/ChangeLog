@@ -3,7 +3,7 @@ since the previous release.
 
 New in 2018.03
 
-Miscellaneous
+Miscellaneous:
 + Add remote debugging support, optionally enabled with the --debug-port option
   to MoarVM. This uses the MessagePack and allows:
   + Suspending and resuming all threads, or individual threads
