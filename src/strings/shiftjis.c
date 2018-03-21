@@ -39,9 +39,9 @@ char * MVM_string_shiftjis_encode_substr(MVMThreadContext *tc, MVMString *str,
         MVM_string_ci_init(tc, &ci, str, translate_newlines, 0);
         while (MVM_string_ci_has_more(tc, &ci)) {
             MVMCodepoint codepoint = MVM_string_ci_get_codepoint(tc, &ci);
-            if (out_pos == result_alloc) {
+            if (result_alloc <= out_pos + 1) {
                 result_alloc += 8;
-                result = MVM_realloc(result, result_alloc + 1);
+                result = MVM_realloc(result, result_alloc + 2);
             }
             /* If code point is an ASCII code point or U+0080, return a byte
              * whose value is code point. */
