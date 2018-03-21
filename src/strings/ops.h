@@ -7,7 +7,8 @@
 #define MVM_encoding_type_windows1252   5
 #define MVM_encoding_type_utf8_c8       6
 #define MVM_encoding_type_windows1251   7
-#define MVM_encoding_type_MAX           7
+#define MVM_encoding_type_shiftjis      8
+#define MVM_encoding_type_MAX           8
 #define ENCODING_VALID(enc) \
     (((enc) >= MVM_encoding_type_MIN && (enc) <= MVM_encoding_type_MAX) \
     || (MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", (enc)),1))

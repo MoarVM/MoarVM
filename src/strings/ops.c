@@ -1574,6 +1574,8 @@ char * MVM_string_encode_config(MVMThreadContext *tc, MVMString *s, MVMint64 sta
             return MVM_string_windows1252_encode_substr_config(tc, s, output_size, start, length, replacement, translate_newlines, config);
         case MVM_encoding_type_windows1251:
             return MVM_string_windows1251_encode_substr_config(tc, s, output_size, start, length, replacement, translate_newlines, config);
+        case MVM_encoding_type_shiftjis:
+            return MVM_string_shiftjis_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines, config);
         case MVM_encoding_type_utf8_c8:
             return MVM_string_utf8_c8_encode_substr(tc, s, output_size, start, length, replacement);
         default:
@@ -2560,6 +2562,7 @@ static MVMString *encoding_latin1_name       = NULL;
 static MVMString *encoding_utf16_name        = NULL;
 static MVMString *encoding_windows1252_name  = NULL;
 static MVMString *encoding_windows1251_name  = NULL;
+static MVMString *encoding_shiftjis_name     = NULL;
 static MVMString *encoding_utf8_c8_name      = NULL;
 MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
     MVM_string_check_arg(tc, name, "find encoding");
@@ -2577,6 +2580,8 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_windows1252_name, "Encoding name");
         encoding_windows1251_name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "windows-1251");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_windows1251_name, "Encoding name");
+        encoding_shiftjis_name     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "shiftjis");
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_shiftjis_name, "Encoding name");
         encoding_utf8_c8_name     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "utf8-c8");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_utf8_c8_name, "Encoding name");
         encoding_name_init   = 1;
@@ -2603,6 +2608,9 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
     }
     else if (MVM_string_equal(tc, name, encoding_utf8_c8_name)) {
         return MVM_encoding_type_utf8_c8;
+    }
+    else if (MVM_string_equal(tc, name, encoding_shiftjis_name)) {
+        return MVM_encoding_type_shiftjis;
     }
     else {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
