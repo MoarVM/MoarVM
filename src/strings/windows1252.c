@@ -372,7 +372,7 @@ MVMuint32 MVM_string_windows125X_decodestream(MVMThreadContext *tc, MVMDecodeStr
         /* Process this buffer. */
         MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
         unsigned char *bytes = (unsigned char *)cur_bytes->bytes;
-        while (pos < cur_bytes->length) {
+        while (pos < cur_bytes->length || repl_pos) {
             MVMGrapheme32 graph;
             MVMCodepoint codepoint = codetable[bytes[pos++]];
             if (repl_pos) {
@@ -569,15 +569,15 @@ char * MVM_string_windows125X_encode_substr(MVMThreadContext *tc, MVMString *str
     MVMuint32 startu = (MVMuint32)start;
     MVMStringIndex strgraphs = MVM_string_graphs(tc, str);
     MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - startu : length);
-    MVMuint8 *result;
+    MVMuint8 *result  = NULL;
     size_t result_alloc;
     MVMuint8 *repl_bytes = NULL;
     MVMuint64 repl_length;
 
     /* must check start first since it's used in the length check */
-    if (start < 0 || start > strgraphs)
+    if (start < 0 || strgraphs < start)
         MVM_exception_throw_adhoc(tc, "start out of range");
-    if (length < -1 || start + lengthu > strgraphs)
+    if (length < -1 || strgraphs < start + lengthu)
         MVM_exception_throw_adhoc(tc, "length out of range");
 
     if (replacement)
@@ -594,33 +594,32 @@ char * MVM_string_windows125X_encode_substr(MVMThreadContext *tc, MVMString *str
             *output_size = lengthu;
     }
     else {
-        MVMuint32 i = 0;
+        MVMuint32 pos = 0;
         MVMCodepointIter ci;
         MVM_string_ci_init(tc, &ci, str, translate_newlines, 0);
         while (MVM_string_ci_has_more(tc, &ci)) {
             MVMCodepoint codepoint = MVM_string_ci_get_codepoint(tc, &ci);
-
-            if (i == result_alloc) {
+            if (result_alloc <= pos) {
                 result_alloc += 8;
                 result = MVM_realloc(result, result_alloc + 1);
             }
             /* If it's within ASCII just pass it through */
             if (0 <= codepoint && codepoint <= 127) {
-                result[i] = (MVMuint8)codepoint;
-                i++;
+                result[pos] = (MVMuint8)codepoint;
+                pos++;
             }
-            else if ((result[i] = cp_to_char(codepoint)) != '\0') {
-                i++;
+            else if ((result[pos] = cp_to_char(codepoint)) != '\0') {
+                pos++;
             }
             /* If we have a replacement and are we either have it set to strict,
              * or the codepoint can't fit within one byte, insert a replacement */
             else if (replacement && (MVM_ENCODING_CONFIG_STRICT(config) || codepoint < 0 || 255 < codepoint)) {
-                if (repl_length >= result_alloc || i >= result_alloc - repl_length) {
+                if (result_alloc <= pos + repl_length) {
                     result_alloc += repl_length;
                     result = MVM_realloc(result, result_alloc + 1);
                 }
-                memcpy(result + i, repl_bytes, repl_length);
-                i += repl_length;
+                memcpy(result + pos, repl_bytes, repl_length);
+                pos += repl_length;
             }
             else {
                 /* If we're decoding strictly or the codepoint cannot fit in
@@ -638,13 +637,13 @@ char * MVM_string_windows125X_encode_substr(MVMThreadContext *tc, MVMString *str
                 /* It fits in one byte and we're not decoding strictly, so pass
                  * it through unchanged */
                 else {
-                    result[i++] = codepoint;
+                    result[pos++] = codepoint;
                 }
             }
         }
-        result[i] = 0;
+        result[pos] = 0;
         if (output_size)
-            *output_size = i;
+            *output_size = pos;
     }
 
     MVM_free(repl_bytes);
