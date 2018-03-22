@@ -278,6 +278,12 @@ MVMString * MVM_string_shiftjis_decode(MVMThreadContext *tc,
         }
         result->body.storage.blob_32[result_graphs++] = graph;
     }
+    /* If we end up with Shift_JIS_lead still set, that means we're missing a byte
+     * that should have followed it. */
+    if (Shift_JIS_lead != 0x00) {
+        MVM_exception_throw_adhoc(tc, "Error, ended decode of shiftjis expecting another byte. "
+            "Last byte seen was 0x%hhX\n", Shift_JIS_lead);
+    }
     result->body.storage.blob_32 = MVM_realloc(result->body.storage.blob_32,
         result_graphs * sizeof(MVMGrapheme32));
     result->body.num_graphs = result_graphs;
@@ -411,13 +417,6 @@ MVMuint32 MVM_string_shiftjis_decodestream(MVMThreadContext *tc, MVMDecodeStream
         cur_bytes = cur_bytes->next;
     }
   done:
-    /* If we end up with Shift_JIS_lead still set, that means we're missing a byte
-     * that should have followed it. */
-    if (Shift_JIS_lead != 0x00) {
-        Shift_JIS_lead = 0x00;
-        MVM_free(buffer);
-        MVM_exception_throw_adhoc(tc, "Error, ended decode of shiftjis expecting another byte.\n");
-    }
     /* Attach what we successfully parsed as a result buffer, and trim away
      * what we chewed through. */
     if (count) {
