@@ -21,7 +21,6 @@
 
 #include "grisu.h"
 #include <stdint.h> // uint64_t etc.
-#include <assert.h> // assert
 #include <math.h>   // ceil
 #include <stdio.h>  // snprintf
 
@@ -162,7 +161,6 @@ static int cached_pow(int exp, diy_fp *p)
 static diy_fp minus(diy_fp x, diy_fp y)
 {
         diy_fp d; d.f = x.f - y.f; d.e = x.e;
-        assert(x.e == y.e && x.f >= y.f);
         return d;
 }
 
@@ -183,7 +181,6 @@ static diy_fp multiply(diy_fp x, diy_fp y)
 
 static diy_fp normalize_diy_fp(diy_fp n)
 {
-        assert(n.f != 0);
         while(!(n.f & 0xFFC0000000000000ULL)) { n.f <<= 10; n.e -= 10; }
         while(!(n.f & D64_SIGN)) { n.f <<= 1; --n.e; }
         return n;
@@ -280,7 +277,6 @@ static int grisu3(double v, char *buffer, int *length, int *d_exp)
         diy_fp b_minus;
         diy_fp c_mk; // Cached power of ten: 10^-k
         uint64_t u64 = CAST_U64(v);
-        assert(v > 0 && v <= 1.7976931348623157e308); // Grisu only handles strictly positive finite numbers.
         if (!(u64 & D64_FRACT_MASK) && (u64 & D64_EXP_MASK) != 0) { b_minus.f = (dfp.f << 2) - 1; b_minus.e =  dfp.e - 2;} // lower boundary is closer?
         else { b_minus.f = (dfp.f << 1) - 1; b_minus.e = dfp.e - 1; }
         b_minus.f = b_minus.f << (b_minus.e - b_plus.e);
@@ -297,20 +293,19 @@ static int grisu3(double v, char *buffer, int *length, int *d_exp)
         return success;
 }
 
-// Returns length of u when written out as a string, u must be in the range of [-9999, 9999].
-static int exp_len(int u)
-{
-        if (u > 0) return u >= 1000 ? 4 : (u >= 100 ? 3 : (u >= 10 ? 2 : 1));
-        else if (u < 0) return u <= -1000 ? 5 : (u <= -100 ? 4 : (u <= -10 ? 3 : 2));
-        else return 1;
-}
-
 static int i_to_str(int val, char *str)
 {
         int len, i;
         char *s;
         char *begin = str;
-        if (val < 0) { *str++ = '-'; val = -val; }
+        if (val < 0) {
+            *str++ = '-';
+            if (val > -10)
+                *str++ = '0';
+            val = -val;
+        }
+        else
+            *str++ = '+';
         s = str;
 
         for(;;)
@@ -335,10 +330,9 @@ static int i_to_str(int val, char *str)
 }
 
 int dtoa_grisu3(double v, char *dst, int size) {
-        int d_exp, len, success, decimals, i;
+        int d_exp, len, success, i;
         uint64_t u64 = CAST_U64(v);
         char *s2 = dst;
-        assert(dst);
 
         // Prehandle NaNs
         if ((u64 << 1) > 0xFFE0000000000000ULL) {
@@ -364,26 +358,29 @@ int dtoa_grisu3(double v, char *dst, int size) {
         // If grisu3 was not able to convert the number to a string, then use old snprintf (suboptimal).
         if (!success) return snprintf(s2, size, "%.17g", v) + (int)(s2 - dst);
 
-        decimals = MIN(-d_exp, MAX(1, len-1));
-        if (d_exp < 0 && (len >= -d_exp || exp_len(d_exp+decimals)+1 <= exp_len(d_exp))) // Add decimal point?
-        {
-                for(i = 0; i < decimals; ++i) s2[len-i] = s2[len-i-1];
-                s2[len++ - decimals] = '.';
-                d_exp += decimals;
-                // Need scientific notation as well?
-                if (d_exp != 0) { s2[len++] = 'e'; len += i_to_str(d_exp, s2+len); }
+        if (d_exp < -5 || d_exp >= 14) {
+            for (i = 0; i < len; ++i)
+                s2[len-i] = s2[len-i-1];
+            s2[1] = '.';
+            d_exp += len-1;
+            ++len;
+            if (d_exp !=0 ) {
+                s2[len++] = 'e';
+                len += i_to_str(d_exp, s2+len);
+            }
         }
-        else if (d_exp < 0 && d_exp >= -3) // Add decimal point for numbers of form 0.000x where it's shorter?
-        {
-                for(i = 0; i < len; ++i) s2[len-d_exp-1-i] = s2[len-i-1];
-                s2[0] = '.';
-                for(i = 1; i < -d_exp; ++i) s2[i] = '0';
-                len += -d_exp;
+        else if (d_exp < 0) {
+            for (i = 0; i < len; ++i)
+                s2[len-d_exp-1-i] = s2[len-i-1];
+            s2[0] = '0';
+            s2[1] = '.';
+            for (i = 2; i < -d_exp; ++i)
+                s2[i] = '0';
+            len += -d_exp;
         }
-        // Add scientific notation?
-        else if (d_exp < 0 || d_exp > 2) { s2[len++] = 'e'; len += i_to_str(d_exp, s2+len); }
-        // Add zeroes instead of scientific notation?
-        else if (d_exp > 0) { while(d_exp-- > 0) s2[len++] = '0'; }
+        else if (d_exp < 14)
+            while (d_exp-- > 0) s2[len++] = '0';
+
         s2[len] = '\0'; // grisu3 doesn't null terminate, so ensure termination.
         return (int)(s2+len-dst);
 }
