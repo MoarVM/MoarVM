@@ -339,10 +339,11 @@ static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
 
 /* iffy ops that operate on a known value register can turn into goto
  * or be dropped. */
-static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
+static int optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
     MVMSpeshFacts *flag_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
     MVMuint8 negated_op;
     MVMuint8 truthvalue;
+    int removed = 0;
 
     switch (ins->info->opcode) {
         case MVM_OP_if_i:
@@ -359,7 +360,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             negated_op = 1;
             break;
         default:
-            return;
+            return removed;
     }
 
     if (flag_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
@@ -387,7 +388,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
                         break;
                     case MVM_BOOL_MODE_CALL_METHOD:
                     default:
-                        return;
+                        return removed;
                 }
                 break;
             }
@@ -396,7 +397,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
                 truthvalue = flag_facts->value.n != 0.0;
                 break;
             default:
-                return;
+                return removed;
         }
 
         MVM_spesh_use_facts(tc, g, flag_facts);
@@ -415,13 +416,14 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             /* This conditional can be dropped completely. */
             MVM_spesh_manipulate_remove_successor(tc, bb, ins->operands[1].ins_bb);
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+            removed = 1;
         }
 
         /* Since the CFG has changed, we may have some dead basic blocks; do
          * an elimination pass. */
         MVM_spesh_eliminate_dead_bbs(tc, g, 1);
 
-        return;
+        return removed;
     }
 
     /* Sometimes our code-gen ends up boxing an integer and immediately
@@ -492,7 +494,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
                     flag_facts->usages--;
                     MVM_spesh_get_and_use_facts(tc, g, cur->operands[1])->usages++;
                     optimize_iffy(tc, g, ins, bb);
-                    return;
+                    return removed;
                 }
             }
         }
@@ -557,7 +559,7 @@ static void decompose_object_conditional(MVMThreadContext *tc, MVMSpeshGraph *g,
         }
     }
 
-    /* We're infserting a new instruction for the test (which we may have made
+    /* We're inserting a new instruction for the test (which we may have made
      * cheaper) and put the result into the temporary register. */
     new_ins->info = op_info;
     new_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 2);
@@ -2068,12 +2070,18 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_if_n:
         case MVM_OP_unless_n:
         case MVM_OP_if_o:
-        case MVM_OP_unless_o:
-            optimize_iffy(tc, g, ins, bb);
-            if (ins->info->opcode == MVM_OP_if_o || ins->info->opcode == MVM_OP_unless_o) {
+        case MVM_OP_unless_o: {
+            int removed = optimize_iffy(tc, g, ins, bb);
+            if (!removed
+                && (
+                       ins->info->opcode == MVM_OP_if_o
+                    || ins->info->opcode == MVM_OP_unless_o
+                )
+            ) {
                 decompose_object_conditional(tc, g, ins, bb);
             }
             break;
+        }
         case MVM_OP_not_i:
             optimize_not_i(tc, g, ins, bb);
             break;
