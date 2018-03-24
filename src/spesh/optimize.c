@@ -994,7 +994,6 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
         MVMBoolificationSpec *bs   = type->st->boolification_spec;
         MVMuint8 guaranteed_concrete = input_facts->flags & MVM_SPESH_FACT_CONCRETE;
         MVMuint8 mode = bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode;
-        MVMSpeshOperand orig = ins->operands[0];
 
         switch (mode) {
         case MVM_BOOL_MODE_ITER:
@@ -1030,7 +1029,7 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
         case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
             ins->info = MVM_op_get_op(MVM_OP_isconcrete);
             /* And now defer another bit of optimization */
-//            optimize_isconcrete(tc, g, ins);
+            optimize_isconcrete(tc, g, ins);
             break;
             /* We need to change the register type for our result for this,
              * means we need to insert a temporarary and a coerce:
@@ -1041,7 +1040,6 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
         default:
             return;
         }
-//        fprintf(stderr, "Known type optimized to %s\n", ins->info->name);
         /* Now we can take care of the negation. - NB I'm not entirely sure why
          * this would need it's own register though! */
         if (negated_op) {
@@ -1053,7 +1051,6 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
             MVMSpeshIns     *new_ins   = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
             MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
             MVMSpeshFacts  *temp_facts = MVM_spesh_get_facts(tc,g,temp);
-/*          fprintf(stderr, "inserting not_i to negate istrue\n"); */
             new_ins->info = MVM_op_get_op(MVM_OP_not_i);
             new_ins->operands = operands;
             operands[0] = orig;
@@ -1061,17 +1058,16 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
             ins->operands[0] = temp;
             MVM_spesh_manipulate_insert_ins(tc, bb, ins, new_ins);
             MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
-
-            /* Set facts on temporary - NB this is *very* confusing */
+            /* temp is now put in the place of orig (results). Thus
+             * all facts computed on results are now true about temp */
+            copy_facts(tc, g, temp, orig);
+            /* however, only one usage */
             temp_facts->usages = 1;
-            temp_facts->writer = ins;
-            input_facts->writer = new_ins;
-            if (input_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-                fprintf(stderr, "Negated and known value\n");
-                temp_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
-                temp_facts->value = input_facts->value;
-                input_facts->value.i = !input_facts->value.i;
-            }
+            /* the new writer of the result facts = new_ins */
+            result_facts->writer = new_ins;
+            /* finally, if result_facts had a known value, forget it.
+             * (optimize_not_i will set it) */
+            result_facts->flags &= ~MVM_SPESH_FACT_KNOWN_VALUE;
         }
 
         MVM_spesh_use_facts(tc, g, input_facts);
