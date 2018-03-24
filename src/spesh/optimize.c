@@ -500,7 +500,7 @@ static int optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *in
         }
     }
 
-
+    return removed;
 }
 
 /* break if_o/unless_o into an istrue/if_i, which is much JIT friendlier */
