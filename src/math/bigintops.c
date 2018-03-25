@@ -1,6 +1,10 @@
 #include "moar.h"
 #include <math.h>
 
+#ifndef MANTISSA_DIGITS_IN_DOUBLE
+#define MANTISSA_DIGITS_IN_DOUBLE 53
+#endif
+
 #ifndef MAX
     #define MAX(x,y) ((x)>(y)?(x):(y))
 #endif
@@ -45,33 +49,34 @@ int MVM_bigint_mp_set_uint64(mp_int * a, MVMuint64 b) {
   return MP_OKAY;
 }
 
+/*
+ *  Convert to double, assumes IEEE-754 conforming double. Taken from
+ *  https://github.com/czurnieden/libtommath/blob/master/bn_mp_get_double.c
+ *  and slightly modified to fit MoarVM's setup.
+ */
+static const int mp_get_double_digits_needed
+= ((MANTISSA_DIGITS_IN_DOUBLE + DIGIT_BIT) / DIGIT_BIT) + 1;
+static const double mp_get_double_multiplier = (double)(MP_MASK + 1);
+
 static MVMnum64 mp_get_double(mp_int *a) {
-    MVMnum64 d    = 0.0;
-    MVMnum64 sign = SIGN(a) == MP_NEG ? -1.0 : 1.0;
-    int i;
-    if (USED(a) == 0)
-        return d;
-    if (USED(a) == 1)
-        return sign * (MVMnum64) DIGIT(a, 0);
+    MVMnum64 d;
+    int i, limit;
+    d = 0.0;
 
     mp_clamp(a);
-    i = USED(a) - 1;
-    d = (MVMnum64) DIGIT(a, i);
-    i--;
-    if (i == -1) {
-        return sign * d;
-    }
-    d *= pow(2.0, DIGIT_BIT);
-    d += (MVMnum64) DIGIT(a, i);
+    i = a->used;
+    limit = (i <= mp_get_double_digits_needed)
+        ? 0 : i - mp_get_double_digits_needed;
 
-    if (USED(a) > 2) {
-        i--;
-        d *= pow(2.0, DIGIT_BIT);
-        d += (MVMnum64) DIGIT(a, i);
+    while (i-- > limit) {
+        d += a->dp[i];
+        d *= mp_get_double_multiplier;
     }
 
-    d *= pow(2.0, DIGIT_BIT * i);
-    return sign * d;
+    if (a->sign == MP_NEG)
+        d *= -1.0;
+
+    return d * pow(2.0, i * DIGIT_BIT);
 }
 
 static void from_num(MVMnum64 d, mp_int *a) {

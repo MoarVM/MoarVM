@@ -94,6 +94,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/core/hll@obj@ \
           src/core/loadbytecode@obj@ \
           src/math/num@obj@ \
+		  src/math/grisu@obj@ \
           src/core/coerce@obj@ \
           src/core/dll@obj@ \
           src/core/ext@obj@ \
@@ -252,6 +253,7 @@ HEADERS = src/moar.h \
           src/core/loadbytecode.h \
           src/core/bitmap.h \
           src/math/num.h \
+		  src/math/grisu.h \
           src/core/coerce.h \
           src/core/dll.h \
           src/core/ext.h \
