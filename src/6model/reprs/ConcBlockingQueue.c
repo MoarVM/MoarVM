@@ -281,6 +281,14 @@ static const MVMREPROps ConcBlockingQueue_this_repr = {
     NULL, /* describe_refs */
 };
 
+MVMObject * MVM_concblockingqueue_jit_poll(MVMThreadContext *tc, MVMObject *queue) {
+    if (REPR(queue)->ID == MVM_REPR_ID_ConcBlockingQueue && IS_CONCRETE(queue))
+        return MVM_concblockingqueue_poll(tc, (MVMConcBlockingQueue *)queue);
+    else
+        MVM_exception_throw_adhoc(tc,
+                "queuepoll requires a concrete object with REPR ConcBlockingQueue");
+}
+
 /* Polls a queue for a value, returning NULL if none is available. */
 MVMObject * MVM_concblockingqueue_poll(MVMThreadContext *tc, MVMConcBlockingQueue *queue) {
     MVMConcBlockingQueue *cbq = (MVMConcBlockingQueue *)queue;

@@ -1,6 +1,9 @@
 #include "moar.h"
 #include "math.h"
 
+#include "platform/sys.h"
+#include "platform/time.h"
+
 static void jg_append_node(MVMJitGraph *jg, MVMJitNode *node) {
     if (jg->last_node) {
         jg->last_node->next = node;
@@ -217,6 +220,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
 
     case MVM_OP_gt_s: case MVM_OP_ge_s: case MVM_OP_lt_s: case MVM_OP_le_s: case MVM_OP_cmp_s: return MVM_string_compare;
 
+    case MVM_OP_queuepoll: return MVM_concblockingqueue_jit_poll;
+
     case MVM_OP_open_fh: return MVM_file_open_fh;
     case MVM_OP_close_fh: return MVM_io_close;
     case MVM_OP_eof_fh: return MVM_io_eof;
@@ -314,6 +319,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_decont_n: return MVM_6model_container_decont_n;
     case MVM_OP_decont_s: return MVM_6model_container_decont_s;
     case MVM_OP_getrusage: return MVM_proc_getrusage;
+    case MVM_OP_cpucores: return MVM_platform_cpu_count;
+    case MVM_OP_sleep: return MVM_platform_sleep;
     case MVM_OP_getlexref_i32: case MVM_OP_getlexref_i16: case MVM_OP_getlexref_i8: case MVM_OP_getlexref_i: return MVM_nativeref_lex_i;
     case MVM_OP_getlexref_n32: case MVM_OP_getlexref_n: return MVM_nativeref_lex_n;
     case MVM_OP_getlexref_s: return MVM_nativeref_lex_s;
@@ -2295,6 +2302,14 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                           MVM_JIT_RV_VOID, -1);
         break;
     }
+    case MVM_OP_queuepoll: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
     case MVM_OP_close_fh: {
         MVMint16 fho = ins->operands[0].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
@@ -2984,6 +2999,21 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 1, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_cpucores: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 0, NULL, MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_sleep: {
+        MVMint16 time = ins->operands[0].reg.orig;
+        MVMJitCallArg block_args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } } };
+        MVMJitCallArg sleep_args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                       { MVM_JIT_REG_VAL, { time } } };
+        jg_append_call_c(tc, jg, MVM_gc_mark_thread_blocked, 1, block_args, MVM_JIT_RV_VOID, -1);
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, sleep_args, MVM_JIT_RV_VOID, -1);
+        jg_append_call_c(tc, jg, MVM_gc_mark_thread_unblocked, 1, block_args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_getlexref_i:
