@@ -330,7 +330,7 @@ static int i_to_str(int val, char *str)
 }
 
 int dtoa_grisu3(double v, char *dst, int size) {
-        int d_exp, len, success, i;
+        int d_exp, len, success, i, decimal_pos;
         uint64_t u64 = CAST_U64(v);
         char *s2 = dst;
 
@@ -358,28 +358,52 @@ int dtoa_grisu3(double v, char *dst, int size) {
         // If grisu3 was not able to convert the number to a string, then use old snprintf (suboptimal).
         if (!success) return snprintf(s2, size, "%.17g", v) + (int)(s2 - dst);
 
-        if (d_exp < -5 || d_exp >= 14) {
-            for (i = 0; i < len; ++i)
-                s2[len-i] = s2[len-i-1];
-            s2[1] = '.';
-            d_exp += len-1;
-            ++len;
-            if (d_exp !=0 ) {
-                s2[len++] = 'e';
-                len += i_to_str(d_exp, s2+len);
+        decimal_pos = len + d_exp;
+        if (decimal_pos > 0) {
+            decimal_pos -= len;
+            if (decimal_pos > 0) {
+                if (len + d_exp <= 15) {
+                    while (decimal_pos--) s2[len++] = '0';
+                }
+                else {
+                    if (len > 1) {
+                        for (i = 0; i < len-1; i++)
+                            s2[len-i] = s2[len-i-1];
+                        d_exp += i;
+                        s2[1] = '.';
+                        len++;
+                    }
+                    s2[len++] = 'e';
+                    len += i_to_str(d_exp, s2+len);
+                }
+            }
+            else if (decimal_pos < 0) {
+                for (i = 0; i < -decimal_pos; i++)
+                    s2[len-i] = s2[len-i-1];
+                s2[len + decimal_pos] = '.';
+                len++;
             }
         }
-        else if (d_exp < 0) {
-            for (i = 0; i < len; ++i)
-                s2[len-d_exp-1-i] = s2[len-i-1];
+        else if (decimal_pos > -4) {
+            for (i = 0; i < len; i++)
+                s2[len-decimal_pos-i+1] = s2[len-i-1];
             s2[0] = '0';
             s2[1] = '.';
-            for (i = 2; i < -d_exp; ++i)
-                s2[i] = '0';
-            len += -d_exp;
+            for (i = 0; i < -decimal_pos; i++)
+                s2[2+i] = '0';
+            len -= decimal_pos-2;
         }
-        else if (d_exp < 14)
-            while (d_exp-- > 0) s2[len++] = '0';
+        else {
+            if (len > 1) {
+                for (i = 0; i < len-1; i++)
+                    s2[len-i] = s2[len-i-1];
+                d_exp += i;
+                s2[1] = '.';
+                len++;
+            }
+            s2[len++] = 'e';
+            len += i_to_str(d_exp, s2+len);
+        }
 
         s2[len] = '\0'; // grisu3 doesn't null terminate, so ensure termination.
         return (int)(s2+len-dst);
