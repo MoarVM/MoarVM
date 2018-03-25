@@ -302,8 +302,7 @@ MVM_PUBLIC void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32
         MVMDebugServerBreakpointFileTable *found = &table->files[file_idx];
 
         if (debugserver->any_breakpoints_at_all && found->breakpoints_used && found->lines_active[line_no]) {
-            shall_suspend = 1;
-            breakpoint_hit(tc, found, line_no);
+            shall_suspend |= breakpoint_hit(tc, found, line_no);
         }
     }
 
