@@ -1543,6 +1543,8 @@ MVMString * MVM_string_decode_config(MVMThreadContext *tc,
             return MVM_string_windows1252_decode_config(tc, type_object, Cbuf, byte_length, replacement, config);
         case MVM_encoding_type_windows1251:
             return MVM_string_windows1251_decode_config(tc, type_object, Cbuf, byte_length, replacement, config);
+        case MVM_encoding_type_shiftjis:
+            return MVM_string_shiftjis_decode(tc, type_object, Cbuf, byte_length, replacement, config);
         case MVM_encoding_type_utf8_c8:
             return MVM_string_utf8_c8_decode(tc, type_object, Cbuf, byte_length);
         default:
@@ -2580,7 +2582,7 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_windows1252_name, "Encoding name");
         encoding_windows1251_name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "windows-1251");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_windows1251_name, "Encoding name");
-        encoding_shiftjis_name     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "shiftjis");
+        encoding_shiftjis_name     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "windows-932");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_shiftjis_name, "Encoding name");
         encoding_utf8_c8_name     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "utf8-c8");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_utf8_c8_name, "Encoding name");
