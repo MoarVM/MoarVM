@@ -4,6 +4,9 @@
 #ifndef MANTISSA_DIGITS_IN_DOUBLE
 #define MANTISSA_DIGITS_IN_DOUBLE 53
 #endif
+#ifndef MAX_BIGINT_BITS_IN_DOUBLE
+#define MAX_BIGINT_BITS_IN_DOUBLE 1023
+#endif
 
 #ifndef MAX
     #define MAX(x,y) ((x)>(y)?(x):(y))
@@ -58,7 +61,7 @@ static const int mp_get_double_digits_needed
 = ((MANTISSA_DIGITS_IN_DOUBLE + DIGIT_BIT) / DIGIT_BIT) + 1;
 static const double mp_get_double_multiplier = (double)(MP_MASK + 1);
 
-static MVMnum64 mp_get_double(mp_int *a) {
+static MVMnum64 mp_get_double(mp_int *a, int shift) {
     MVMnum64 d;
     int i, limit;
     d = 0.0;
@@ -76,7 +79,7 @@ static MVMnum64 mp_get_double(mp_int *a) {
     if (a->sign == MP_NEG)
         d *= -1.0;
 
-    return d * pow(2.0, i * DIGIT_BIT);
+    return d * pow(2.0, i * DIGIT_BIT - shift);
 }
 
 static void from_num(MVMnum64 d, mp_int *a) {
@@ -679,8 +682,8 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
         }
     }
     else {
-        MVMnum64 f_base = mp_get_double(base);
-        MVMnum64 f_exp = mp_get_double(exponent);
+        MVMnum64 f_base = mp_get_double(base, 0);
+        MVMnum64 f_exp = mp_get_double(exponent, 0);
         r = MVM_repr_box_num(tc, num_type, pow(f_base, f_exp));
     }
     clear_temp_bigints(tmp, 2);
@@ -906,7 +909,7 @@ MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a) {
 
     if (MVM_BIGINT_IS_BIG(ba)) {
         mp_int *ia = ba->u.bigint;
-        return mp_get_double(ia);
+        return mp_get_double(ia, 0);
     } else {
         return (double)ba->u.smallint.value;
     }
@@ -932,18 +935,12 @@ MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
         mp_int *ia = force_bigint(ba, tmp);
         mp_int *ib = force_bigint(bb, tmp);
 
-        int max_size = DIGIT_BIT * MAX(USED(ia), USED(ib));
-        if (max_size > 1023) {
-            mp_int reduced_a, reduced_b;
-            mp_init(&reduced_a);
-            mp_init(&reduced_b);
-            mp_div_2d(ia, max_size - 1023, &reduced_a, NULL);
-            mp_div_2d(ib, max_size - 1023, &reduced_b, NULL);
-            c = mp_get_double(&reduced_a) / mp_get_double(&reduced_b);
-            mp_clear(&reduced_a);
-            mp_clear(&reduced_b);
+        int max_bits = MAX(mp_count_bits(ia), mp_count_bits(ib));
+        if (max_bits > MAX_BIGINT_BITS_IN_DOUBLE) {
+            c = mp_get_double(ia, max_bits - MAX_BIGINT_BITS_IN_DOUBLE)
+              / mp_get_double(ib, max_bits - MAX_BIGINT_BITS_IN_DOUBLE);
         } else {
-            c = mp_get_double(ia) / mp_get_double(ib);
+            c = mp_get_double(ia, 0) / mp_get_double(ib, 0);
         }
         clear_temp_bigints(tmp, 2);
     } else {
