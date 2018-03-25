@@ -1543,6 +1543,8 @@ MVMString * MVM_string_decode_config(MVMThreadContext *tc,
             return MVM_string_windows1252_decode_config(tc, type_object, Cbuf, byte_length, replacement, config);
         case MVM_encoding_type_windows1251:
             return MVM_string_windows1251_decode_config(tc, type_object, Cbuf, byte_length, replacement, config);
+        case MVM_encoding_type_shiftjis:
+            return MVM_string_shiftjis_decode(tc, type_object, Cbuf, byte_length, replacement, config);
         case MVM_encoding_type_utf8_c8:
             return MVM_string_utf8_c8_decode(tc, type_object, Cbuf, byte_length);
         default:

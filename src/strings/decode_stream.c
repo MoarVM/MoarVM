@@ -126,6 +126,9 @@ static MVMuint32 run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVM
     case MVM_encoding_type_windows1251:
         reached_stopper = MVM_string_windows1251_decodestream(tc, ds, stopper_chars, sep_spec);
         break;
+    case MVM_encoding_type_shiftjis:
+        reached_stopper = MVM_string_shiftjis_decodestream(tc, ds, stopper_chars, sep_spec);
+        break;
     case MVM_encoding_type_utf8_c8:
         reached_stopper = MVM_string_utf8_c8_decodestream(tc, ds, stopper_chars, sep_spec, eof);
         break;

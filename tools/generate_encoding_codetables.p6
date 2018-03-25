@@ -38,25 +38,35 @@ sub process-shift-jis-index (Str:D $filename) {
     }
     my @cp_to_index;
     my @index_to_cp;
+    my @index_to_cp_array;
     for %unis.sort(*.key.Int) -> $pair {
         my ($uni, $index) = ($pair.kv);
         push @cp_to_index, make-case($uni.fmt("0x%X"), $index);
     }
     @cp_to_index.push: "default: return 0;";
+    my $last_seen_index = -1;
     for %indexes.sort(*.key.Int) -> $pair {
         my ($index, $uni) = ($pair.kv);
+        #say "lastseen $last_seen_index $index uni $uni";
+        if $last_seen_index+1 != $index {
+            note "last seen was $last_seen_index. current is $index";
+            note "if (index > $last_seen_index) counter += " ~ ($index - $last_seen_index - 1);
+
+        }
+        $last_seen_index = $index;
+        #say "set it to $index";
         push @index_to_cp, make-case($index, $uni.fmt("0x%X"));
     }
     @index_to_cp.push: "default: return 0;";
-    my $cp_to_index_str = "int shift_jis_cp_to_index (long int codepoint) \{\n" ~
+    my $cp_to_index_str = "MVMuint16 shift_jis_cp_to_index (MVMCodepoint codepoint) \{\n" ~
         ("switch (codepoint) \{\n" ~ @cp_to_index.join("\n").indent(4) ~ "\n}").indent(4) ~
         "\n\}\n";
-    my $index_to_cp_str = "long int shift_jis_index_to_cp (int index) \{\n" ~
+    my $index_to_cp_str = "MVMCodepoint shift_jis_index_to_cp (MVMuint16 index) \{\n" ~
     ("switch (index) \{\n" ~ @index_to_cp.join("\n").indent(4) ~ "\n}").indent(4) ~
     "\n\}\n";
     # Don't use $index_to_cp_str except for development. We will make an array
     # instead since are sequential, unlike mapping the opposite direction
-    #$index_to_cp_str ~ "\n" ~
+    $index_to_cp_str ~ "\n" ~
     $cp_to_index_str;
 
 }
