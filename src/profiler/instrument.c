@@ -338,6 +338,40 @@ typedef struct {
     MVMString *native_lib;
 } ProfDumpStrs;
 
+typedef struct {
+    MVMThreadContext *tc;
+    ProfDumpStrs *pds;
+} ProfTcPdsStruct;
+
+static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds, const MVMProfileCallNode *pcn);
+static MVMObject * dump_call_graph_node_loop(ProfTcPdsStruct *tcpds, const MVMProfileCallNode *pcn) {
+    MVMuint32 i;
+    MVMObject *node_hash;
+
+    node_hash = dump_call_graph_node(tcpds->tc, tcpds->pds, pcn);
+
+    /* Visit successors in the call graph, dumping them and working out the
+     * exclusive time. */
+    if (pcn->num_succ) {
+        MVMObject *callees        = new_array(tcpds->tc);
+        MVMuint64  exclusive_time = pcn->total_time;
+        for (i = 0; i < pcn->num_succ; i++) {
+            MVM_repr_push_o(tcpds->tc, callees,
+                dump_call_graph_node_loop(tcpds, pcn->succ[i]));
+            exclusive_time -= pcn->succ[i]->total_time;
+        }
+        MVM_repr_bind_key_o(tcpds->tc, node_hash, tcpds->pds->exclusive_time,
+            box_i(tcpds->tc, exclusive_time / 1000));
+        MVM_repr_bind_key_o(tcpds->tc, node_hash, tcpds->pds->callees, callees);
+    }
+    else {
+        MVM_repr_bind_key_o(tcpds->tc, node_hash, tcpds->pds->exclusive_time,
+            box_i(tcpds->tc, pcn->total_time / 1000));
+    }
+
+    return node_hash;
+}
+
 /* Dumps a call graph node. */
 static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
                                         const MVMProfileCallNode *pcn) {
@@ -419,25 +453,6 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
         MVM_repr_bind_key_o(tc, node_hash, pds->deopt_all,
             box_i(tc, pcn->deopt_all_count));
 
-    /* Visit successors in the call graph, dumping them and working out the
-     * exclusive time. */
-    if (pcn->num_succ) {
-        MVMObject *callees        = new_array(tc);
-        MVMuint64  exclusive_time = pcn->total_time;
-        for (i = 0; i < pcn->num_succ; i++) {
-            MVM_repr_push_o(tc, callees,
-                dump_call_graph_node(tc, pds, pcn->succ[i]));
-            exclusive_time -= pcn->succ[i]->total_time;
-        }
-        MVM_repr_bind_key_o(tc, node_hash, pds->exclusive_time,
-            box_i(tc, exclusive_time / 1000));
-        MVM_repr_bind_key_o(tc, node_hash, pds->callees, callees);
-    }
-    else {
-        MVM_repr_bind_key_o(tc, node_hash, pds->exclusive_time,
-            box_i(tc, pcn->total_time / 1000));
-    }
-
     if (pcn->num_alloc) {
         /* Emit allocations. */
         MVMObject *alloc_list = new_array(tc);
@@ -476,6 +491,11 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
     MVMuint64 absolute_start_time;
     MVMuint32  i;
 
+    ProfTcPdsStruct tcpds;
+
+    tcpds.tc = tc;
+    tcpds.pds = pds;
+
     /* Use the main thread's start time for absolute timings */
     absolute_start_time = tc->instance->main_thread->prof_data->start_time;
 
@@ -486,7 +506,7 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
     /* Add call graph. */
     if (ptd->call_graph)
         MVM_repr_bind_key_o(tc, thread_hash, pds->call_graph,
-            dump_call_graph_node(tc, pds, ptd->call_graph));
+            dump_call_graph_node_loop(&tcpds, ptd->call_graph));
 
     /* Add GCs. */
     for (i = 0; i < ptd->num_gcs; i++) {
