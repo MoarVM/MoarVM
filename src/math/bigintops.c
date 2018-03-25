@@ -1,8 +1,8 @@
 #include "moar.h"
 #include <math.h>
 
-#ifndef MANTISSA_DIGITS_IN_DOUBLE
-#define MANTISSA_DIGITS_IN_DOUBLE 53
+#ifndef MANTISSA_BITS_IN_DOUBLE
+#define MANTISSA_BITS_IN_DOUBLE 53
 #endif
 #ifndef MAX_BIGINT_BITS_IN_DOUBLE
 #define MAX_BIGINT_BITS_IN_DOUBLE 1023
@@ -58,7 +58,7 @@ int MVM_bigint_mp_set_uint64(mp_int * a, MVMuint64 b) {
  *  and slightly modified to fit MoarVM's setup.
  */
 static const int mp_get_double_digits_needed
-= ((MANTISSA_DIGITS_IN_DOUBLE + DIGIT_BIT) / DIGIT_BIT) + 1;
+= ((MANTISSA_BITS_IN_DOUBLE + DIGIT_BIT) / DIGIT_BIT) + 1;
 static const double mp_get_double_multiplier = (double)(MP_MASK + 1);
 
 static MVMnum64 mp_get_double(mp_int *a, int shift) {
