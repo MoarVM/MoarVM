@@ -696,15 +696,12 @@ static void optimize_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
         return;
     }
 
-    /* As far as I can determine, in rakudo buiding or spectests, this runs
-     * never. So I'm not confident actually enabling it. */
-    return;
-
     box_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     if (box_facts->flags & MVM_SPESH_FACT_KNOWN_BOX_SRC && box_facts->writer) {
         /* We may have to go through several layers of set instructions to find
          * the proper writer. */
         MVMSpeshIns *cur = box_facts->writer;
+        MVMSpeshBB  *cur_bb = bb;
         while (cur && cur->info->opcode == MVM_OP_set) {
             cur = MVM_spesh_get_facts(tc, g, cur->operands[1])->writer;
         }
@@ -741,15 +738,22 @@ static void optimize_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
                     break;
                 }
                 safety_cur = safety_cur->prev;
+
+                if (!safety_cur && cur_bb->num_pred == 1) {
+                    cur_bb = cur_bb->pred[0];
+                    safety_cur = cur_bb->last_ins;
+                }
             }
 
             if (safety_cur) {
                 /* this reduces to a set */
                 ins->info = MVM_op_get_op(MVM_OP_set);
-                ins->operands[1] = cur->operands[0];
+                ins->operands[1] = cur->operands[1];
                 box_facts->usages--;
                 MVM_spesh_get_and_use_facts(tc, g, cur->operands[1])->usages++;
                 copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+                /*fprintf(stderr, "in graph %p bb %p optimized an unbox coming from bb %p\n",*/
+                        /*g, bb, cur_bb);*/
                 return;
             }
         }
