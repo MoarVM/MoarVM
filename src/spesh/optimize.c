@@ -1020,32 +1020,35 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
  *
  * If the optimization has yielded a known value, we may be able to remove the
  * branch entirely (e.g. optimize_iffy)
+ *
+ * We push the newly split if_i / unless_i forward (rather than pushing the
+ * istrue 'backward'), so that the 'normal' optimizer routines pick them up,
+ * rather than having to force picking them ourselves.
  */
 static void optimize_object_conditional(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
     MVMSpeshOperand temp      = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+    MVMSpeshOperand condition = ins->operands[0];
+    MVMSpeshOperand target    = ins->operands[1];
     MVMSpeshFacts *temp_facts = MVM_spesh_get_facts(tc, g, temp);
     MVMSpeshIns *new_ins      = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
 
-    /* Create a new instruction to boolify the input operand of if_o */
-    new_ins->info = MVM_op_get_op(MVM_OP_istrue);
+    /* Insert if_i/unless_i after the current one */
+    new_ins->info = MVM_op_get_op(ins->info->opcode == MVM_OP_unless_o ? MVM_OP_unless_i : MVM_OP_if_i);
     new_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 2);
     new_ins->operands[0] = temp;
-    new_ins->operands[1] = ins->operands[0];
-    MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, new_ins);
+    new_ins->operands[1] = target;
+    MVM_spesh_manipulate_insert_ins(tc, bb, ins, new_ins);
 
-    /* Tweak existing instruction to if_i / unless_i on result value */
-    ins->info = MVM_op_get_op(ins->info->opcode == MVM_OP_unless_o ? MVM_OP_unless_i : MVM_OP_if_i);
+    /* Tweak existing instruction to istrue */
+    ins->info = MVM_op_get_op(MVM_OP_istrue);
+    ins->operands[1] = condition;
     ins->operands[0] = temp;
+
     temp_facts->usages++;
     temp_facts->writer = new_ins;
 
-    /* Now that we have decomposed the if_o, annotations should be moved to
-     * the new_ins */
-    new_ins->annotations = ins->annotations;
-    ins->annotations = NULL;
-
     /* try to optimize the istrue */
-    optimize_istrue_isfalse(tc, g, bb, new_ins);
+    optimize_istrue_isfalse(tc, g, bb, ins);
 
     /* Release the temporary register */
     MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
