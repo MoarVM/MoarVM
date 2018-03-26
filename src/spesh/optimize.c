@@ -686,6 +686,77 @@ static void optimize_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     }
 }
 
+static void optimize_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    /* try to remove boxing-unboxing sequences */
+    MVMSpeshFacts *box_facts;
+    switch (ins->info->opcode) {
+    case MVM_OP_unbox_i:
+        break;
+    default:
+        return;
+    }
+
+    /* As far as I can determine, in rakudo buiding or spectests, this runs
+     * never. So I'm not confident actually enabling it. */
+    return;
+
+    box_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    if (box_facts->flags & MVM_SPESH_FACT_KNOWN_BOX_SRC && box_facts->writer) {
+        /* We may have to go through several layers of set instructions to find
+         * the proper writer. */
+        MVMSpeshIns *cur = box_facts->writer;
+        while (cur && cur->info->opcode == MVM_OP_set) {
+            cur = MVM_spesh_get_facts(tc, g, cur->operands[1])->writer;
+        }
+
+        if (cur) {
+            MVMSpeshIns *safety_cur;
+            MVMuint8 orig_operand_type = cur->info->operands[1] & MVM_operand_type_mask;
+
+            /* Now we have to be extra careful. Any operation that writes to
+             * our "unboxed flag" register (in any register version) will be
+             * trouble. Also, we'd have to take more care with PHI nodes,
+             * which we'll just consider immediate failure for now. */
+
+            safety_cur = ins;
+            while (safety_cur) {
+                if (safety_cur == cur) {
+                    /* If we've made it to here without finding anything
+                     * dangerous, we can consider this optimization
+                     * a winner. */
+                    break;
+                }
+                if (safety_cur->info->opcode == MVM_SSA_PHI) {
+                    /* Oh dear god in heaven! A PHI! */
+                    safety_cur = NULL;
+                    break;
+                }
+                if (((safety_cur->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg)
+                    && (safety_cur->operands[0].reg.orig == cur->operands[1].reg.orig)) {
+                    /* Someone's clobbering our register between the boxing and
+                     * our attempt to unbox it. We shall give up.
+                     * Maybe in the future we can be clever/sneaky and use
+                     * some other register for bridging the gap? */
+                    safety_cur = NULL;
+                    break;
+                }
+                safety_cur = safety_cur->prev;
+            }
+
+            if (safety_cur) {
+                /* this reduces to a set */
+                ins->info = MVM_op_get_op(MVM_OP_set);
+                ins->operands[1] = cur->operands[0];
+                box_facts->usages--;
+                MVM_spesh_get_and_use_facts(tc, g, cur->operands[1])->usages++;
+                copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+                return;
+            }
+        }
+    }
+    optimize_repr_op(tc, g, bb, ins, 1);
+}
+
 /* If we know the type of a significant operand, we might try to specialize by
  * representation. */
 static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -943,7 +1014,7 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
                 /* We can just unbox the int and pretend it's a bool. */
             ins->info = MVM_op_get_op(MVM_OP_unbox_i);
             /* And then we might be able to optimize this even further. */
-            optimize_repr_op(tc, g, bb, ins, 1);
+            optimize_unbox(tc, g, bb, ins);
             break;
         case MVM_BOOL_MODE_BIGINT:
             if (!guaranteed_concrete)
@@ -2168,6 +2239,11 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_box_n:
         case MVM_OP_box_s:
             optimize_repr_op(tc, g, bb, ins, 2);
+            break;
+        case MVM_OP_unbox_i:
+        case MVM_OP_unbox_n:
+        case MVM_OP_unbox_s:
+            optimize_unbox(tc, g, bb, ins);
             break;
         case MVM_OP_ne_s:
         case MVM_OP_eq_s:
