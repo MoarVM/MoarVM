@@ -625,6 +625,11 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[4].reg.orig, ins->operands[4].reg.i);
             break;
+        case MVM_OP_getrusage:
+            create_facts_with_type(tc, g,
+                ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                tc->instance->boot_types.BOOTIntArray);
+            break;
         case MVM_OP_cas_o:
         case MVM_OP_atomicload_o: {
             MVMSpeshOperand result = ins->operands[0];
