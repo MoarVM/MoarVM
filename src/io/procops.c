@@ -1128,13 +1128,15 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
 
 /* Gets resource usage statistics, so far as they are portably available (see
  * libuv docs) and puts them into an integer array. */
-MVMObject * MVM_proc_getrusage(MVMThreadContext *tc) {
-    MVMObject *result;
+void MVM_proc_getrusage(MVMThreadContext *tc, MVMObject *result) {
     uv_rusage_t usage;
     int r;
     if ((r = uv_getrusage(&usage)) > 0)
         MVM_exception_throw_adhoc(tc, "Unable to getrusage: %s", uv_strerror(r));
-    result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
+    if (REPR(result)->ID != MVM_REPR_ID_VMArray || !IS_CONCRETE(result) ||
+            ((MVMArrayREPRData *)STABLE(result)->REPR_data)->slot_type != MVM_ARRAY_I64) {
+        MVM_exception_throw_adhoc(tc, "getrusage needs a concrete 64bit int array.");
+    }
     MVM_repr_bind_pos_i(tc, result, 0, usage.ru_utime.tv_sec);
     MVM_repr_bind_pos_i(tc, result, 1, usage.ru_utime.tv_usec);
     MVM_repr_bind_pos_i(tc, result, 2, usage.ru_stime.tv_sec);
@@ -1153,5 +1155,4 @@ MVMObject * MVM_proc_getrusage(MVMThreadContext *tc) {
     MVM_repr_bind_pos_i(tc, result, 15, usage.ru_nsignals);
     MVM_repr_bind_pos_i(tc, result, 16, usage.ru_nvcsw);
     MVM_repr_bind_pos_i(tc, result, 17, usage.ru_nivcsw);
-    return result;
 }

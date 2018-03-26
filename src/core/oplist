@@ -686,7 +686,7 @@ assign_s            r(obj) r(str) :invokish
 decont_i            w(int64) r(obj) :pure :invokish
 decont_n            w(num64) r(obj) :pure :invokish
 decont_s            w(str) r(obj) :pure :invokish
-getrusage           w(obj) :pure
+getrusage           r(obj) :pure
 threadlockcount     w(int64) r(obj)
 DEPRECATED_4        w(obj) r(str) :pure :noinline
 getlexref_i         w(obj) rl(int64) :pure :noinline

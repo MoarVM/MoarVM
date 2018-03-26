@@ -4540,7 +4540,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(getrusage):
-                GET_REG(cur_op, 0).o = MVM_proc_getrusage(tc);
+                MVM_proc_getrusage(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
             OP(threadlockcount):
