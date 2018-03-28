@@ -708,6 +708,9 @@ static void optimize_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
 
         if (cur) {
             MVMSpeshIns *safety_cur;
+            /* We use this to keep track of what set instructions
+             * our data has been going through */
+            MVMSpeshOperand *translated;
             MVMuint8 orig_operand_type = cur->info->operands[1] & MVM_operand_type_mask;
 
             /* Now we have to be extra careful. Any operation that writes to
@@ -716,6 +719,7 @@ static void optimize_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
              * which we'll just consider immediate failure for now. */
 
             safety_cur = ins;
+            translated = &ins->operands[1];
             while (safety_cur) {
                 if (safety_cur == cur) {
                     /* If we've made it to here without finding anything
@@ -723,19 +727,27 @@ static void optimize_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
                      * a winner. */
                     break;
                 }
-                if (safety_cur->info->opcode == MVM_SSA_PHI) {
+                if (safety_cur->info->opcode == MVM_SSA_PHI &&
+                        safety_cur->info->num_operands > 2 &&
+                        safety_cur->operands[0].reg.orig == translated->reg.orig) {
                     /* Oh dear god in heaven! A PHI! */
                     safety_cur = NULL;
                     break;
                 }
                 if (((safety_cur->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg)
-                    && (safety_cur->operands[0].reg.orig == cur->operands[1].reg.orig)) {
-                    /* Someone's clobbering our register between the boxing and
-                     * our attempt to unbox it. We shall give up.
-                     * Maybe in the future we can be clever/sneaky and use
-                     * some other register for bridging the gap? */
-                    safety_cur = NULL;
-                    break;
+                    && (safety_cur->operands[0].reg.orig == translated->reg.orig)) {
+                    /* Maybe this is just a set instruction and we can start
+                     * looking at a different operand from here on out */
+                    if (safety_cur->info->opcode == MVM_OP_set) {
+                        translated = &safety_cur->operands[1];
+                    } else {
+                        /* Someone's clobbering our register between the boxing and
+                         * our attempt to unbox it. We shall give up.
+                         * Maybe in the future we can be clever/sneaky and use
+                         * some other register for bridging the gap? */
+                        safety_cur = NULL;
+                        break;
+                    }
                 }
                 safety_cur = safety_cur->prev;
 
@@ -750,10 +762,10 @@ static void optimize_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
                 ins->info = MVM_op_get_op(MVM_OP_set);
                 ins->operands[1] = cur->operands[1];
                 box_facts->usages--;
-                MVM_spesh_get_and_use_facts(tc, g, cur->operands[1])->usages++;
                 copy_facts(tc, g, ins->operands[0], ins->operands[1]);
-                /*fprintf(stderr, "in graph %p bb %p optimized an unbox coming from bb %p\n",*/
-                        /*g, bb, cur_bb);*/
+                MVM_spesh_get_and_use_facts(tc, g, cur->operands[1])->usages++;
+                fprintf(stderr, "in graph %p %sbb %p optimized an unbox coming from %sbb %p\n",
+                        g, bb->inlined ? "inlined " : "", bb, cur_bb->inlined ? "inlined " : "", cur_bb);
                 return;
             }
         }
