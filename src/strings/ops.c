@@ -495,7 +495,7 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *
                     }
                 } /* If we aren't on a 32 bit boundary then continue from where we left off (unlikely but possible) */
                 while ( ( (char*)mm_return_32 - (char*)Haystack->body.storage.blob_32) % sizeof(MVMGrapheme32)
-                    && ( start_ptr = mm_return_32 + 1) /* Set the new start pointer right after where we left off */
+                    && ( start_ptr = (char*)mm_return_32 + 1) /* Set the new start pointer right after where we left off */
                     && ( start_ptr < end_ptr ) /* Check we aren't past the end of the string just in case */
                 );
                 if (needle_buf) MVM_free(needle_buf);
