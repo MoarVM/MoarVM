@@ -158,31 +158,35 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
         frame->env = MVM_fixed_size_alloc(tc, tc->instance->fsa, static_frame->body.env_size);
         frame->allocd_env = static_frame->body.env_size;
         if (autoclose) {
-            MVMuint16 i, num_lexicals = static_frame->body.num_lexicals;
+            MVMROOT(tc, frame, {
+                MVMuint16 i;
+                MVMuint16 num_lexicals = static_frame->body.num_lexicals;
 
-            MVM_gc_root_temp_push(tc, (MVMCollectable **)&static_frame);
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&static_frame);
 
-            for (i = 0; i < num_lexicals; i++) {
-                if (!static_frame->body.static_env[i].o && static_frame->body.static_env_flags[i] == 1) {
-                    MVMint32 scid, objid;
-                    if (MVM_bytecode_find_static_lexical_scref(tc, static_frame->body.cu,
-                            static_frame, i, &scid, &objid)) {
-                        MVMObject *resolved;
-                        MVMSerializationContext *sc = MVM_sc_get_sc(tc, static_frame->body.cu, scid);
+                for (i = 0; i < num_lexicals; i++) {
+                    if (!static_frame->body.static_env[i].o && static_frame->body.static_env_flags[i] == 1) {
+                        MVMint32 scid;
+                        MVMint32 objid;
+                        if (MVM_bytecode_find_static_lexical_scref(tc, static_frame->body.cu,
+                                static_frame, i, &scid, &objid)) {
+                            MVMObject *resolved;
+                            MVMSerializationContext *sc = MVM_sc_get_sc(tc, static_frame->body.cu, scid);
 
-                        if (sc == NULL)
-                            MVM_exception_throw_adhoc(tc,
-                                "SC not yet resolved; lookup failed");
+                            if (sc == NULL)
+                                MVM_exception_throw_adhoc(tc,
+                                    "SC not yet resolved; lookup failed");
 
-                        resolved = MVM_sc_get_object(tc, sc, objid);
+                            resolved = MVM_sc_get_object(tc, sc, objid);
 
-                        MVM_ASSIGN_REF(tc, &(static_frame->common.header),
-                            static_frame->body.static_env[i].o,
-                            resolved);
+                            MVM_ASSIGN_REF(tc, &(static_frame->common.header),
+                                static_frame->body.static_env[i].o,
+                                resolved);
+                        }
                     }
                 }
-            }
-            MVM_gc_root_temp_pop(tc);
+                MVM_gc_root_temp_pop(tc);
+            });
         }
         memcpy(frame->env, static_frame->body.static_env, static_frame->body.env_size);
     }
