@@ -186,9 +186,8 @@ static void move_strands(MVMThreadContext *tc, const MVMString *from, MVMuint16 
         num_strands * sizeof(MVMStringStrand));
 }
 
-MVM_STATIC_INLINE int can_fit_into_8bit (MVMGrapheme32 g) {
-    return -128 <= g && g <= 127;
-}
+#define can_fit_into_8bit(g) ((-128 <= (g) && (g) <= 127))
+
 MVM_STATIC_INLINE int can_fit_into_ascii (MVMGrapheme32 g) {
     return 0 <= g && g <= 127;
 }
@@ -206,38 +205,130 @@ static void turn_32bit_into_8bit_unchecked(MVMThreadContext *tc, MVMString *str)
 
     MVM_free(old_buf);
 }
+/* Checks if the next num_graphs graphemes in the iterator can fit into 8 bits.
+ * This was written to take advantage of SIMD vectorization, so we use a multiple
+ * bitwise operations to check, and biwise OR it with val. Care must be taken
+ * to not use any variables altered by the loop outside of the loop and to not
+ * have any branching or funcion calls. `i` is not used outside the loop
+ * `val` is allowed as biwise OR works with the vectorization well.
+ * NOTE: Final state of the grapheme iterator passed into i is undefined. It should
+ * not be reused. */
+static int string_can_be_8bit(MVMThreadContext *tc, MVMGraphemeIter *gi, MVMStringIndex num_graphs) {
+    int val = 0;
+    MVMStringIndex pos = 0;
+    while (1) {
+        size_t strand_len = gi->end - gi->pos;
+        if (gi->blob_type == MVM_STRING_GRAPHEME_32) {
+            size_t i = 0;
+            size_t togo     = strand_len > num_graphs - pos ? num_graphs - pos : strand_len;
+            size_t togofull = togo + gi->pos;
+            for (i = gi->pos; i  < togofull; i++) {
+                val |= ((gi->active_blob.blob_32[i] & 0xffffff80) + 0x80) & (0xffffff80-1);
+            }
+            if (val) return 0;
+            pos += togo;
+        }
+        else {
+            size_t togo = strand_len > num_graphs - pos ? num_graphs - pos : strand_len;
+            pos += togo;
+        }
+        if (num_graphs == pos || (!gi->strands_remaining && !gi->repetitions)) {
+            break;
+        }
+        MVM_string_gi_next_strand(tc, gi);
+    }
+    return 1;
 
+}
 /* Accepts an allocated string that should have body.num_graphs set but the blob
  * unallocated. This function will allocate the space for the blob and iterate
- * the supplied grapheme iterator for the length of body.num_graphs */
-static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MVMString *result) {
-    MVMuint64 i;
-    result->body.storage_type    = MVM_STRING_GRAPHEME_8;
-    result->body.storage.blob_8  = MVM_malloc(result->body.num_graphs * sizeof(MVMGrapheme8));
-    for (i = 0; i < result->body.num_graphs; i++) {
-        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, gi);
-        result->body.storage.blob_8[i] = g;
-        if (!can_fit_into_8bit(g)) {
-            /* If we get here, we saw a codepoint lower than -127 or higher than 127
-             * so turn it into a 32 bit string instead */
-            /* Store the old string pointer and previous value of i */
-            MVMGrapheme8 *old_ref = result->body.storage.blob_8;
-            MVMuint64 prev_i = i;
-            /* Set up the string as 32bit now and allocate space for it */
-            result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-            result->body.storage.blob_32 = MVM_malloc(result->body.num_graphs * sizeof(MVMGrapheme32));
-            /* Copy the data so far copied from the 8bit blob since it's faster than
-             * setting up the grapheme iterator again */
-            for (i = 0; i < prev_i; i++) {
-                result->body.storage.blob_32[i] = old_ref[i];
+ * the supplied grapheme iterator for the length of body.num_graphs. Very fast
+ * since compilers will convert them to SIMD vector operations. */
+static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MVMString *result, MVMString *orig, MVMStringIndex num) {
+    MVMStringIndex result_pos = 0;
+    MVMGrapheme8   *result8 = NULL;
+    MVMGrapheme32 *result32 = NULL;
+    MVMGraphemeIter gi_copy;
+    MVMStringIndex result_graphs = result->body.num_graphs;
+    if (!result_graphs) {
+        return;
+    }
+    memcpy(&gi_copy, gi, sizeof(MVMGraphemeIter));
+    if (string_can_be_8bit(tc, gi, result_graphs)) {
+        size_t result_pos = 0;
+        result->body.storage_type    = MVM_STRING_GRAPHEME_8;
+        result8 = result->body.storage.blob_8 =
+            result_graphs ? MVM_malloc(result_graphs * sizeof(MVMGrapheme8)) : NULL;
+        while (1) {
+            switch (gi_copy.blob_type) {
+                case MVM_STRING_GRAPHEME_32: {
+                    MVMStringIndex i = gi_copy.pos;
+                    MVMGrapheme32 *active_blob = gi_copy.active_blob.blob_32;
+                    while (i < gi_copy.end && result_pos < result_graphs) {
+                        result8[result_pos++] = active_blob[i++];
+                    }
+                    break;
+                }
+                case MVM_STRING_GRAPHEME_8:
+                case MVM_STRING_GRAPHEME_ASCII: {
+                    size_t to_copy = result_graphs - result_pos < gi_copy.end - gi_copy.pos
+                        ? result_graphs - result_pos
+                        : gi_copy.end - gi_copy.pos;
+                    memcpy(
+                        result8 + result_pos,
+                        gi_copy.active_blob.blob_8 + gi_copy.pos,
+                        to_copy * sizeof(MVMGrapheme8)
+                    );
+                    result_pos += to_copy;
+                    break;
+                }
+                default:
+                    MVM_exception_throw_adhoc(tc,
+                        "Internal error, string corruption in iterate_gi_into_string\n");
             }
-            MVM_free(old_ref);
-            /* Store the grapheme which interupted the sequence. After that we can
-             * continue from where we left off using the grapheme iterator */
-            result->body.storage.blob_32[prev_i] = g;
-            for (i = prev_i + 1; i < result->body.num_graphs; i++) {
-                result->body.storage.blob_32[i] = MVM_string_gi_get_grapheme(tc, gi);
+            if (result_graphs <= result_pos || (!gi_copy.strands_remaining && !gi_copy.repetitions)) {
+                break;
             }
+            MVM_string_gi_next_strand(tc, &gi_copy);
+        }
+    }
+    else {
+        size_t result_pos = 0;
+        result->body.storage_type     = MVM_STRING_GRAPHEME_32;
+        result32 = result->body.storage.blob_32 =
+            result_graphs ? MVM_malloc(result_graphs * sizeof(MVMGrapheme32)) : NULL;
+        while (1) {
+            switch (gi_copy.blob_type) {
+                case MVM_STRING_GRAPHEME_8:
+                case MVM_STRING_GRAPHEME_ASCII: {
+                    size_t i = gi_copy.pos;
+                    MVMGrapheme8 *active_blob = gi_copy.active_blob.blob_8;
+                    #pragma clang loop vectorize(enable) interleave(enable)
+                    while (i < gi_copy.end && result_pos < result_graphs) {
+                        result32[result_pos++] = active_blob[i++];
+                    }
+                    break;
+                }
+                case MVM_STRING_GRAPHEME_32: {
+                    size_t to_copy = result_graphs - result_pos < gi_copy.end - gi_copy.pos
+                        ? result_graphs - result_pos
+                        : gi_copy.end - gi_copy.pos;
+                    memcpy(
+                        result32 + result_pos,
+                        gi_copy.active_blob.blob_32 + gi_copy.pos,
+                        to_copy * sizeof(MVMGrapheme32)
+                    );
+                    result_pos += to_copy;
+                    break;
+                }
+                default:
+                    MVM_exception_throw_adhoc(tc,
+                        "Internal error, string corruption in iterate_gi_into_string\n");
+            }
+            if (result_graphs <= result_pos || (!gi_copy.strands_remaining && !gi_copy.repetitions)) {
+                break;
+            }
+            MVM_string_gi_next_strand(tc, &gi_copy);
         }
     }
 }
@@ -307,7 +398,7 @@ static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
                 default: {
                     MVMGraphemeIter gi;
                     MVM_string_gi_init(tc, &gi, orig);
-                    iterate_gi_into_string(tc, &gi, result);
+                    iterate_gi_into_string(tc, &gi, result, orig, 0);
                 }
             }
         });
@@ -692,7 +783,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
             MVMGraphemeIter gi;
             MVM_string_gi_init(tc, &gi, a);
             MVM_string_gi_move_to(tc, &gi, start_pos);
-            iterate_gi_into_string(tc, &gi, result);
+            iterate_gi_into_string(tc, &gi, result, a, start_pos);
         }
     });
 

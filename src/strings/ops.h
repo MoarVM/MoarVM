@@ -119,11 +119,11 @@ MVMString * MVM_string_chr(MVMThreadContext *tc, MVMint64 cp);
 void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s);
 /* If MVM_DEBUG_NFG is 1, calls to NFG_CHECK will re_nfg the given string
  * and compare num_graphs before and after the normalization.
- * If it is different debug information will be printed out.
-#define MVM_DEBUG_NFG 1 */
+ * If it is different debug information will be printed out.*/
+#define MVM_DEBUG_NFG 0
 /* MVM_DEBUG_NFG_STRICT does as above but does not only rely on num_graphs. It
- * always checks every grapheme manually. Slower. (requires MVM_DEBUG_NFG)
-#define MVM_DEBUG_NFG_STRICT 0 */
+ * always checks every grapheme manually. Slower. (requires MVM_DEBUG_NFG)*/
+#define MVM_DEBUG_NFG_STRICT 0
 #if MVM_DEBUG_NFG
 void NFG_check (MVMThreadContext *tc, MVMString *orig, char *varname);
 void NFG_check_concat (MVMThreadContext *tc, MVMString *result, MVMString *a, MVMString *b, char *varname);

@@ -53,6 +53,24 @@ MVM_STATIC_INLINE void MVM_string_gi_init(MVMThreadContext *tc, MVMGraphemeIter 
     (gi->end - gi->pos + gi->repetitions * (gi->end - gi->start))
 /* graphs left in strand + graphs left in repetitions of current strand */
 
+static void MVM_string_gi_next_strand (MVMThreadContext *tc, MVMGraphemeIter *gi) {
+    MVMStringStrand *next = NULL;
+    if (gi->repetitions) {
+        gi->pos = gi->start;
+        gi->repetitions--;
+        return;
+    }
+    if (gi->strands_remaining <= 0)
+        MVM_exception_throw_adhoc(tc, "Iteration past end of grapheme iterator\n");
+
+    next = (gi->next_strand)++;
+    gi->pos = gi->start = next->start;
+    gi->end             = next->end;
+    gi->repetitions     = next->repetitions;
+    gi->blob_type       = next->blob_string->body.storage_type;
+    gi->active_blob.any = next->blob_string->body.storage.any;
+    gi->strands_remaining--;
+}
 /* Sets the position of the iterator. (Can be optimized in many ways in the
  * repetitions and strands branches.) */
 MVM_STATIC_INLINE void MVM_string_gi_move_to(MVMThreadContext *tc, MVMGraphemeIter *gi, MVMuint32 pos) {
