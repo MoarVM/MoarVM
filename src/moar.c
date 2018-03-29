@@ -127,8 +127,8 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up extension op registry mutex. */
     init_mutex(instance->mutex_extop_registry, "extension op registry");
 
-    /* Set up weak reference hash mutex. */
-    init_mutex(instance->mutex_sc_weakhash, "sc weakhash");
+    /* Set up SC registry mutex. */
+    init_mutex(instance->mutex_sc_registry, "sc registry");
 
     /* Set up loaded compunits hash mutex. */
     init_mutex(instance->mutex_loaded_compunits, "loaded compunits");
@@ -528,7 +528,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_HASH_DESTROY(hash_handle, MVMExtOpRegistry, instance->extop_registry);
 
     /* Clean up Hash of all known serialization contexts, along with list. */
-    uv_mutex_destroy(&instance->mutex_sc_weakhash);
+    uv_mutex_destroy(&instance->mutex_sc_registry);
     MVM_HASH_DESTROY(hash_handle, MVMSerializationContextBody, instance->sc_weakhash);
     MVM_free(instance->all_scs);
 

@@ -90,10 +90,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         return;
 
     /* Remove from weakref lookup hash (which doesn't count as a root). */
-    uv_mutex_lock(&tc->instance->mutex_sc_weakhash);
+    uv_mutex_lock(&tc->instance->mutex_sc_registry);
     HASH_DELETE(hash_handle, tc->instance->sc_weakhash, sc->body);
     tc->instance->all_scs[sc->body->sc_idx] = NULL;
-    uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);
+    uv_mutex_unlock(&tc->instance->mutex_sc_registry);
 
     /* Free manually managed object and STable root list memory. */
     MVM_free(sc->body->root_objects);

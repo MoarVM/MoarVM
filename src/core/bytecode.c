@@ -282,7 +282,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
         handle = MVM_cu_string(tc, cu, sh_idx);
 
         /* See if we can resolve it. */
-        uv_mutex_lock(&tc->instance->mutex_sc_weakhash);
+        uv_mutex_lock(&tc->instance->mutex_sc_registry);
         MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
         if (scb && scb->sc) {
             cu_body->scs_to_resolve[i] = NULL;
@@ -299,7 +299,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
             cu_body->scs_to_resolve[i] = scb;
             cu_body->scs[i] = NULL;
         }
-        uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);
+        uv_mutex_unlock(&tc->instance->mutex_sc_registry);
     }
 }
 

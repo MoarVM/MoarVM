@@ -12,14 +12,14 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
         sc = (MVMSerializationContext *)REPR(tc->instance->SCRef)->allocate(tc, STABLE(tc->instance->SCRef));
         MVMROOT(tc, sc, {
             /* Add to weak lookup hash. */
-            uv_mutex_lock(&tc->instance->mutex_sc_weakhash);
+            uv_mutex_lock(&tc->instance->mutex_sc_registry);
             MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
             if (!scb) {
                 sc->body = scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
                 MVM_ASSIGN_REF(tc, &(sc->common.header), scb->handle, handle);
                 MVM_HASH_BIND(tc, tc->instance->sc_weakhash, handle, scb);
                 /* Calling repr_init will allocate, BUT if it does so, and we
-                 * get unlucky, the GC will try to acquire mutex_sc_weakhash.
+                 * get unlucky, the GC will try to acquire mutex_sc_registry.
                  * This deadlocks. Thus, we force allocation in gen2, which
                  * can never trigger GC. Note that releasing the mutex early
                  * is not a good way to fix this, as it leaves a race to
@@ -43,7 +43,7 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
                 MVM_repr_init(tc, (MVMObject *)sc);
                 MVM_gc_allocate_gen2_default_clear(tc);
             }
-            uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);
+            uv_mutex_unlock(&tc->instance->mutex_sc_registry);
         });
     });
 
@@ -319,9 +319,9 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
 /* Resolves an SC handle using the SC weakhash. */
 MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString *handle) {
     MVMSerializationContextBody *scb;
-    uv_mutex_lock(&tc->instance->mutex_sc_weakhash);
+    uv_mutex_lock(&tc->instance->mutex_sc_registry);
     MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
-    uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);
+    uv_mutex_unlock(&tc->instance->mutex_sc_registry);
     return scb && scb->sc ? scb->sc : NULL;
 }
 
