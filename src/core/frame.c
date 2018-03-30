@@ -158,12 +158,9 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
         frame->env = MVM_fixed_size_alloc(tc, tc->instance->fsa, static_frame->body.env_size);
         frame->allocd_env = static_frame->body.env_size;
         if (autoclose) {
-            MVMROOT(tc, frame, {
+            MVMROOT2(tc, frame, static_frame, {
                 MVMuint16 i;
                 MVMuint16 num_lexicals = static_frame->body.num_lexicals;
-
-                MVM_gc_root_temp_push(tc, (MVMCollectable **)&static_frame);
-
                 for (i = 0; i < num_lexicals; i++) {
                     if (!static_frame->body.static_env[i].o && static_frame->body.static_env_flags[i] == 1) {
                         MVMint32 scid;
@@ -185,7 +182,6 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
                         }
                     }
                 }
-                MVM_gc_root_temp_pop(tc);
             });
         }
         memcpy(frame->env, static_frame->body.static_env, static_frame->body.env_size);
