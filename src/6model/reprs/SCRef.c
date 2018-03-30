@@ -79,6 +79,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         MVM_gc_worklist_add(tc, worklist, &(sc->sr->root.string_comp_unit));
         MVM_gc_worklist_add(tc, worklist, &(sc->sr->codes_list));
         MVM_gc_worklist_add(tc, worklist, &(sc->sr->current_object));
+        for (i = 0; i < sc->sr->root.num_contexts; i++)
+            MVM_gc_worklist_add(tc, worklist, &(sc->sr->contexts[i]));
     }
 }
 
