@@ -846,6 +846,7 @@ encodeconf          w(obj) r(str) r(str) r(obj) r(int64)
 decodeconf          w(str) r(obj) r(str) r(int64)
 decoderepconf       w(str) r(obj) r(str) r(str) r(int64)
 getppid             w(int64)
+getsignals          w(obj) :useshll
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

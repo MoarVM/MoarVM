@@ -351,6 +351,12 @@ struct MVMInstance {
     /* Cache the environment hash */
     MVMObject      *env_hash;
 
+    /* Cache the signal hash */
+    MVMObject      *sig_hash;
+
+    /* Flags indicating the signals available on the host system */
+    MVMuint64       valid_sigs;
+
     /************************************************************************
      * Caching and interning
      ************************************************************************/
