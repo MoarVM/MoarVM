@@ -8,14 +8,18 @@
 #if MVM_GC_DEBUG
 #define MVM_ASSERT_NOT_FROMSPACE(tc, c) do { \
     MVMThread *cur_thread = tc->instance->threads; \
-    while (cur_thread) { \
-        MVMThreadContext *thread_tc = cur_thread->body.tc; \
-        if (thread_tc && thread_tc->nursery_fromspace && \
-                (char *)(c) >= (char *)thread_tc->nursery_fromspace && \
-                (char *)(c) < (char *)thread_tc->nursery_fromspace + \
-                    thread_tc->nursery_fromspace_size) \
-            MVM_panic(1, "Collectable %p in fromspace accessed", c); \
-        cur_thread = cur_thread->body.next; \
+    if (c) { \
+        while (cur_thread) { \
+            MVMThreadContext *thread_tc = cur_thread->body.tc; \
+            if (thread_tc && thread_tc->nursery_fromspace && \
+                    (char *)(c) >= (char *)thread_tc->nursery_fromspace && \
+                    (char *)(c) < (char *)thread_tc->nursery_fromspace + \
+                        thread_tc->nursery_fromspace_size) \
+                MVM_panic(1, "Collectable %p in fromspace accessed", c); \
+            cur_thread = cur_thread->body.next; \
+        } \
+        if (((MVMCollectable *)c)->flags & MVM_CF_DEBUG_IN_GEN2_FREE_LIST) \
+            MVM_panic(1, "Collectable %p in a gen2 freelist accessed", c); \
     } \
 } while (0)
 #define MVM_CHECK_CALLER_CHAIN(tc, f) do { \

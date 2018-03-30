@@ -134,7 +134,11 @@ typedef enum {
     /* Note: if you're hunting for a flag, some day in the future when we
      * have used them all, this one is easy enough to eliminate by having the
      * tiny number of objects marked this way in a remembered set. */
-    MVM_CF_NEVER_REPOSSESS = 2048
+    MVM_CF_NEVER_REPOSSESS = 2048,
+
+    /* Has this item been chained into a gen2 freelist? This is only used in
+     * GC debug more. */
+    MVM_CF_DEBUG_IN_GEN2_FREE_LIST = 4096,
 } MVMCollectableFlags;
 
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
