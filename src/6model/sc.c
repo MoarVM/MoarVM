@@ -183,6 +183,17 @@ MVM_STATIC_INLINE MVMint64 sc_working(MVMSerializationContext *sc) {
     return sr && sr->working;
 }
 
+MVMuint8 MVM_sc_is_object_immediately_available(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
+    MVMObject **roots = sc->body->root_objects;
+    MVMint64    count = sc->body->num_objects;
+    if (idx >= 0 && idx < count) {
+        if (roots[idx] && !sc_working(sc)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* Given an SC and an index, fetch the object stored there. */
 MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     MVMObject **roots = sc->body->root_objects;

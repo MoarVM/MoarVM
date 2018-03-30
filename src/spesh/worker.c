@@ -94,7 +94,13 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                     /* Implement the plan and then discard it. */
                     n = tc->instance->spesh_plan->num_planned;
                     for (i = 0; i < n; i++) {
-                        MVM_spesh_candidate_add(tc, &(tc->instance->spesh_plan->planned[i]));
+                        MVMuint8 tries = 3;
+                        while (tc->instance->spesh_plan->planned[i].should_retry && tries-- > 0) {
+                            MVM_spesh_candidate_add(tc, &(tc->instance->spesh_plan->planned[i]));
+                        }
+                        if (tries == 0 && tc->instance->spesh_log_fh)
+                            fprintf(tc->instance->spesh_log_fh,
+                                "Retries exhausted for specializing this frame.\n\n");
                         GC_SYNC_POINT(tc);
                     }
                     MVM_spesh_plan_destroy(tc, tc->instance->spesh_plan);
