@@ -792,6 +792,14 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |3:
         break;
     }
+    case MVM_OP_ctx: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        | mov ARG1, TC;
+        | mov ARG2, TC->cur_frame;
+        | callp &MVM_frame_context_wrapper;
+        | mov WORK[dst], RV;
+        break;
+    }
     case MVM_OP_curcode: {
         MVMint16 dst = ins->operands[0].reg.orig;
         | mov TMP1, TC->cur_frame;
