@@ -24,6 +24,11 @@ static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
 #else
 #define STRAND_CHECK(tc, s)
 #endif
+#if __clang__
+#define MVM_VECTORIZE_LOOP _Pragma ("clang loop vectorize(enable)")
+#else
+#define MVM_VECTORIZE_LOOP _Pragma ("GCC ivdep")
+#endif
 
 static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in);
 #if MVM_DEBUG_NFG
@@ -211,31 +216,34 @@ static void turn_32bit_into_8bit_unchecked(MVMThreadContext *tc, MVMString *str)
  * to not use any variables altered by the loop outside of the loop and to not
  * have any branching or funcion calls. `i` is not used outside the loop
  * `val` is allowed as biwise OR works with the vectorization well.
- * NOTE: Final state of the grapheme iterator passed into i is undefined. It should
- * not be reused. */
-static int string_can_be_8bit(MVMThreadContext *tc, MVMGraphemeIter *gi, MVMStringIndex num_graphs) {
-    int val = 0;
+ * NOTE: GraphemeIter is not modified by this function. */
+static int string_can_be_8bit(MVMThreadContext *tc, MVMGraphemeIter *gi_orig, MVMStringIndex num_graphs) {
     MVMStringIndex pos = 0;
+    MVMGraphemeIter gi;
+    memcpy(&gi, gi_orig, sizeof(MVMGraphemeIter));
     while (1) {
-        size_t strand_len = gi->end - gi->pos;
-        if (gi->blob_type == MVM_STRING_GRAPHEME_32) {
-            size_t i = 0;
-            size_t togo     = strand_len > num_graphs - pos ? num_graphs - pos : strand_len;
-            size_t togofull = togo + gi->pos;
-            for (i = gi->pos; i  < togofull; i++) {
-                val |= ((gi->active_blob.blob_32[i] & 0xffffff80) + 0x80) & (0xffffff80-1);
+        MVMStringIndex strand_len = MVM_string_gi_graphs_left_in_strand(tc, &gi);
+        MVMStringIndex togo = num_graphs - pos < strand_len
+            ? num_graphs - pos
+            : strand_len;
+        if (MVM_string_gi_blob_type(tc, &gi) == MVM_STRING_GRAPHEME_32) {
+            MVMStringIndex i;
+            MVMGrapheme32 val = 0;
+            MVMGrapheme32 *active_blob = MVM_string_gi_active_blob_32_pos(tc, &gi);
+            MVM_VECTORIZE_LOOP
+            for (i = 0; i  < togo; i++) {
+                /* This could be written val |= ..., but GCC 7 doesn't recognize the
+                 * operation as ossociative unless we use a temp variable (clang has no issue). */
+                MVMGrapheme32 val2 = ((active_blob[i] & 0xffffff80) + 0x80) & (0xffffff80-1);
+                val |= val2;
             }
             if (val) return 0;
-            pos += togo;
         }
-        else {
-            size_t togo = strand_len > num_graphs - pos ? num_graphs - pos : strand_len;
-            pos += togo;
-        }
-        if (num_graphs == pos || (!gi->strands_remaining && !gi->repetitions)) {
+        pos += togo;
+        if (num_graphs == pos || !MVM_string_gi_has_more_strands_rep(tc, &gi)) {
             break;
         }
-        MVM_string_gi_next_strand(tc, gi);
+        MVM_string_gi_next_strand_rep(tc, &gi);
     }
     return 1;
 
@@ -245,90 +253,96 @@ static int string_can_be_8bit(MVMThreadContext *tc, MVMGraphemeIter *gi, MVMStri
  * the supplied grapheme iterator for the length of body.num_graphs. Very fast
  * since compilers will convert them to SIMD vector operations. */
 static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MVMString *result, MVMString *orig, MVMStringIndex num) {
-    MVMStringIndex result_pos = 0;
-    MVMGrapheme8   *result8 = NULL;
-    MVMGrapheme32 *result32 = NULL;
-    MVMGraphemeIter gi_copy;
-    MVMStringIndex result_graphs = result->body.num_graphs;
-    if (!result_graphs) {
+    int result_pos = 0;
+    MVMGrapheme8   *result8   = NULL;
+    MVMGrapheme32 *result32   = NULL;
+    MVMStringIndex result_graphs = MVM_string_graphs_nocheck(tc, result);
+    if (!result_graphs)
         return;
-    }
-    memcpy(&gi_copy, gi, sizeof(MVMGraphemeIter));
+
     if (string_can_be_8bit(tc, gi, result_graphs)) {
-        size_t result_pos = 0;
-        result->body.storage_type    = MVM_STRING_GRAPHEME_8;
+        MVMStringIndex result_pos = 0;
+        result->body.storage_type = MVM_STRING_GRAPHEME_8;
         result8 = result->body.storage.blob_8 =
-            result_graphs ? MVM_malloc(result_graphs * sizeof(MVMGrapheme8)) : NULL;
+            MVM_malloc(result_graphs * sizeof(MVMGrapheme8));
         while (1) {
-            switch (gi_copy.blob_type) {
-                case MVM_STRING_GRAPHEME_32: {
-                    MVMStringIndex i = gi_copy.pos;
-                    MVMGrapheme32 *active_blob = gi_copy.active_blob.blob_32;
-                    while (i < gi_copy.end && result_pos < result_graphs) {
-                        result8[result_pos++] = active_blob[i++];
-                    }
-                    break;
+            MVMStringIndex strand_len =
+                MVM_string_gi_graphs_left_in_strand(tc, gi);
+            MVMStringIndex to_copy = result_graphs - result_pos < strand_len
+                ? result_graphs - result_pos
+                : strand_len;
+            MVMGrapheme8  *result_blob8 = result8 + result_pos;
+            switch (MVM_string_gi_blob_type(tc, gi)) {
+            case MVM_STRING_GRAPHEME_32: {
+                MVMStringIndex i;
+                MVMGrapheme32 *active_blob =
+                    MVM_string_gi_active_blob_32_pos(tc, gi);
+                MVM_VECTORIZE_LOOP
+                for (i = 0; i < to_copy; i++) {
+                    result_blob8[i] = active_blob[i];
                 }
-                case MVM_STRING_GRAPHEME_8:
-                case MVM_STRING_GRAPHEME_ASCII: {
-                    size_t to_copy = result_graphs - result_pos < gi_copy.end - gi_copy.pos
-                        ? result_graphs - result_pos
-                        : gi_copy.end - gi_copy.pos;
-                    memcpy(
-                        result8 + result_pos,
-                        gi_copy.active_blob.blob_8 + gi_copy.pos,
-                        to_copy * sizeof(MVMGrapheme8)
-                    );
-                    result_pos += to_copy;
-                    break;
-                }
-                default:
-                    MVM_exception_throw_adhoc(tc,
-                        "Internal error, string corruption in iterate_gi_into_string\n");
-            }
-            if (result_graphs <= result_pos || (!gi_copy.strands_remaining && !gi_copy.repetitions)) {
                 break;
             }
-            MVM_string_gi_next_strand(tc, &gi_copy);
+            case MVM_STRING_GRAPHEME_8:
+            case MVM_STRING_GRAPHEME_ASCII: {
+                memcpy(
+                    result_blob8,
+                    MVM_string_gi_active_blob_8_pos(tc, gi),
+                    to_copy * sizeof(MVMGrapheme8)
+                );
+                break;
+            }
+            default:
+                MVM_exception_throw_adhoc(tc,
+                    "Internal error, string corruption in iterate_gi_into_string\n");
+            }
+            result_pos += to_copy;
+            if (result_graphs <= result_pos || !MVM_string_gi_has_more_strands_rep(tc, gi)) {
+                break;
+            }
+            MVM_string_gi_next_strand_rep(tc, gi);
         }
     }
     else {
-        size_t result_pos = 0;
-        result->body.storage_type     = MVM_STRING_GRAPHEME_32;
+        MVMStringIndex result_pos = 0;
+        result->body.storage_type            = MVM_STRING_GRAPHEME_32;
         result32 = result->body.storage.blob_32 =
             result_graphs ? MVM_malloc(result_graphs * sizeof(MVMGrapheme32)) : NULL;
         while (1) {
-            switch (gi_copy.blob_type) {
+            MVMStringIndex strand_len = MVM_string_gi_graphs_left_in_strand(tc, gi);
+            MVMStringIndex to_copy = result_graphs - result_pos < strand_len
+                ? result_graphs - result_pos
+                : strand_len;
+            switch (MVM_string_gi_blob_type(tc, gi)) {
                 case MVM_STRING_GRAPHEME_8:
                 case MVM_STRING_GRAPHEME_ASCII: {
-                    size_t i = gi_copy.pos;
-                    MVMGrapheme8 *active_blob = gi_copy.active_blob.blob_8;
-                    #pragma clang loop vectorize(enable) interleave(enable)
-                    while (i < gi_copy.end && result_pos < result_graphs) {
-                        result32[result_pos++] = active_blob[i++];
+                    MVMGrapheme8  *active_blob =
+                        MVM_string_gi_active_blob_8_pos(tc, gi);
+                    MVMGrapheme32 *result_blob32 = result32 + result_pos;
+                    MVMStringIndex i;
+                    MVM_VECTORIZE_LOOP
+                    for (i = 0; i < to_copy; i++) {
+                        result_blob32[i] = active_blob[i];
                     }
                     break;
                 }
                 case MVM_STRING_GRAPHEME_32: {
-                    size_t to_copy = result_graphs - result_pos < gi_copy.end - gi_copy.pos
-                        ? result_graphs - result_pos
-                        : gi_copy.end - gi_copy.pos;
                     memcpy(
                         result32 + result_pos,
-                        gi_copy.active_blob.blob_32 + gi_copy.pos,
+                        MVM_string_gi_active_blob_32_pos(tc, gi),
                         to_copy * sizeof(MVMGrapheme32)
                     );
-                    result_pos += to_copy;
                     break;
                 }
                 default:
                     MVM_exception_throw_adhoc(tc,
                         "Internal error, string corruption in iterate_gi_into_string\n");
             }
-            if (result_graphs <= result_pos || (!gi_copy.strands_remaining && !gi_copy.repetitions)) {
+            result_pos += to_copy;
+            if (result_graphs <= result_pos || !MVM_string_gi_has_more_strands_rep(tc, gi)) {
                 break;
             }
-            MVM_string_gi_next_strand(tc, &gi_copy);
+            MVM_string_gi_next_strand_rep(tc, gi);
         }
     }
 }
@@ -567,9 +581,7 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *
                     needle_buf = MVM_malloc(needle->body.num_graphs * sizeof(MVMGrapheme32));
                     if (needle->body.storage_type != MVM_STRING_GRAPHEME_8) MVM_string_gi_init(tc, &n_gi, needle);
                     for (i = 0; i < needle->body.num_graphs; i++) {
-                        needle_buf[i] = needle->body.storage_type == MVM_STRING_GRAPHEME_8
-                            ? needle->body.storage.blob_8[i]
-                            : MVM_string_gi_get_grapheme(tc, &n_gi);
+                        needle_buf[i] = needle->body.storage_type == MVM_STRING_GRAPHEME_8 ? needle->body.storage.blob_8[i] : MVM_string_gi_get_grapheme(tc, &n_gi);
                     }
                 }
                 do {
@@ -1610,6 +1622,7 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
                     result_graphs += num_transformed - 1;
                     result_buf = MVM_realloc(result_buf,
                         result_graphs * sizeof(MVMGrapheme32));
+                    MVM_VECTORIZE_LOOP
                     for (j = 0; j < num_transformed; j++)
                         result_buf[i++] = transformed[j];
                     changed = 1;
