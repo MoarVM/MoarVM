@@ -95,6 +95,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                     n = tc->instance->spesh_plan->num_planned;
                     for (i = 0; i < n; i++) {
                         MVMuint8 tries = 3;
+                        tc->instance->spesh_plan->planned[i].should_retry = 1;
                         while (tc->instance->spesh_plan->planned[i].should_retry && tries-- > 0) {
                             MVM_spesh_candidate_add(tc, &(tc->instance->spesh_plan->planned[i]));
                         }
