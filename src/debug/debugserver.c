@@ -141,6 +141,14 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
     MVMDebugServerBreakpointFileTable *found = NULL;
     MVMuint32 index = 0;
 
+    char *open_paren_pos = (char *)memchr(filename, '(', filename_len);
+
+    if (open_paren_pos) {
+        if (open_paren_pos[-1] == ' ') {
+            filename_len = open_paren_pos - filename - 1;
+        }
+    }
+
     uv_mutex_lock(&debugserver->mutex_breakpoints);
 
     if (*file_idx < table->files_used) {
@@ -176,11 +184,11 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
 
         found = &table->files[table->files_used - 1];
 
-        if (tc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "created new file entry at %u for %s\n", table->files_used - 1, filename);
-
         found->filename = MVM_calloc(filename_len + 1, sizeof(char));
         strncpy(found->filename, filename, filename_len);
+
+        if (tc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "created new file entry at %u for %s\n", table->files_used - 1, found->filename);
 
         found->filename_length = filename_len;
 
@@ -198,7 +206,7 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
         MVMuint32 old_size = found->lines_active_alloc;
         found->lines_active_alloc *= 2;
         if (tc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "increasing line number table for %s from %u to %u slots\n", filename, old_size, found->lines_active_alloc);
+            fprintf(stderr, "increasing line number table for %s from %u to %u slots\n", found->filename, old_size, found->lines_active_alloc);
         found->lines_active = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa,
                 found->lines_active, old_size, found->lines_active_alloc);
         memset((char *)found->lines_active + old_size, 0, found->lines_active_alloc - old_size - 1);
