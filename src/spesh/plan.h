@@ -69,6 +69,8 @@ struct MVMSpeshPlanned {
     /* Number of entries in the type_stats array. (For an observed type
      * specialization, this would be 1.) */
     MVMuint32 num_type_stats;
+
+    MVMuint8 should_retry;
 };
 
 MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_frames);

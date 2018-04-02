@@ -224,10 +224,39 @@ static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     if (dep >= 0 && dep < cu->body.num_scs) {
         MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, dep);
         if (sc) {
-            MVMObject *obj = MVM_sc_get_object(tc, sc, idx);
-            MVMint16   ss  = MVM_spesh_add_spesh_slot(tc, inliner, (MVMCollectable *)obj);
-            to_fix->info   = MVM_op_get_op(MVM_OP_sp_getspeshslot);
-            to_fix->operands[1].lit_i16 = ss;
+            if (MVM_sc_is_object_immediately_available(tc, sc, idx)) {
+                MVMObject *obj = MVM_sc_get_object(tc, sc, idx);
+                MVMint16   ss  = MVM_spesh_add_spesh_slot(tc, inliner, (MVMCollectable *)obj);
+                to_fix->info   = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+                to_fix->operands[1].lit_i16 = ss;
+            }
+            else {
+                if (inliner->sc_idx_resolve_alloc == 0) {
+                    inliner->scs_to_resolve_from =
+                        MVM_spesh_alloc(tc, inliner, 4 * sizeof(MVMSerializationContext *));
+                    inliner->sc_idx_to_resolve =
+                        MVM_spesh_alloc(tc, inliner, 4 * sizeof(MVMuint64));
+                    inliner->sc_idx_resolve_alloc = 4;
+                }
+                else if (inliner->sc_idx_resolve_used > inliner->sc_idx_resolve_alloc) {
+                    MVMuint32 new_size = inliner->sc_idx_resolve_alloc * 2;
+                    MVMSerializationContext **old_sc_array = inliner->scs_to_resolve_from;
+                    MVMuint64 **old_idx_array = inliner->sc_idx_to_resolve;
+                    inliner->scs_to_resolve_from =
+                        MVM_spesh_alloc(tc, inliner, new_size * sizeof(MVMSerializationContext *));
+                    inliner->sc_idx_to_resolve =
+                        MVM_spesh_alloc(tc, inliner, new_size * sizeof(MVMuint64));
+
+                    memcpy(inliner->scs_to_resolve_from, old_sc_array, new_size * sizeof(MVMSerializationContext *));
+                    memcpy(inliner->sc_idx_to_resolve, old_idx_array, new_size * sizeof(MVMuint64));
+
+                    inliner->sc_idx_resolve_alloc = new_size;
+                }
+
+                inliner->scs_to_resolve_from[inliner->sc_idx_resolve_used] = sc;
+                inliner->sc_idx_to_resolve[inliner->sc_idx_resolve_used] = idx;
+                inliner->sc_idx_resolve_used++;
+            }
         }
         else {
             MVM_oops(tc,
