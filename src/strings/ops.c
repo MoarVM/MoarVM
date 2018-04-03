@@ -24,11 +24,6 @@ static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
 #else
 #define STRAND_CHECK(tc, s)
 #endif
-#if __clang__
-#define MVM_VECTORIZE_LOOP _Pragma ("clang loop vectorize(enable)")
-#else
-#define MVM_VECTORIZE_LOOP _Pragma ("GCC ivdep")
-#endif
 
 static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in);
 #if MVM_DEBUG_NFG
