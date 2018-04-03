@@ -359,8 +359,10 @@ if (exists $args{'show-autovect-failed'}) {
     push @cflags, ("-ftree-vectorizer-verbose=" . ($args{'show-autovect-failed'} || 1), "-fopt-info-vec-missed")
         if $config{cc} eq 'gcc';
 }
-push @cflags, '-Rpass-analysis=loop-vectorize' if 2 <= $args{'show-autovect-failed'} && $config{cc} eq 'clang';
-push @cflags, '-fsave-optimization-record '    if 3 <= $args{'show-autovect-failed'} && $config{cc} eq 'clang';
+if ($args{'show-autovect-failed'}) {
+    push @cflags, '-Rpass-analysis=loop-vectorize' if 2 <= $args{'show-autovect-failed'} && $config{cc} eq 'clang';
+    push @cflags, '-fsave-optimization-record '    if 3 <= $args{'show-autovect-failed'} && $config{cc} eq 'clang';
+}
 push @cflags, '-fno-omit-frame-pointer' if $args{asan} or $args{ubsan};
 push @cflags, '-fsanitize=address' if $args{asan};
 push @cflags, '-fsanitize=undefined' if $args{ubsan};
