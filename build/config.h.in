@@ -61,3 +61,4 @@
 #define MVM_JIT_ARCH @jit_arch@
 #define MVM_JIT_PLATFORM @jit_platform@
 
+#define MVM_VECTORIZE_LOOP @vectorizerspecifier@

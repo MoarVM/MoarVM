@@ -310,6 +310,7 @@ our %COMPILERS = (
         noreturnspecifier => '',
         noreturnattribute => '__attribute__((noreturn))',
         formatattribute   => '__attribute__((format(X, Y, Z)))',
+        vectorizerspecifier => '_Pragma ("clang loop vectorize(enable)")'
     },
 
     cl => {

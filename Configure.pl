@@ -142,6 +142,7 @@ $config{dllimport}                = '' unless defined $config{dllimport};
 $config{dllexport}                = '' unless defined $config{dllexport};
 $config{dlllocal}                 = '' unless defined $config{dlllocal};
 $config{translate_newline_output} = 0  unless defined $config{translate_newline_output};
+$config{vectorizerspecifier}      = '' unless defined $config{vectorizerspecifier};
 
 # assume the compiler can be used as linker frontend
 $config{ld}           = $config{cc} unless defined $config{ld};

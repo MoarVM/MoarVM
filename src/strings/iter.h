@@ -48,11 +48,30 @@ MVM_STATIC_INLINE void MVM_string_gi_init(MVMThreadContext *tc, MVMGraphemeIter 
     }
 };
 /* Gets the number of graphemes remaining in the current strand of the grapheme
- * iterator */
-#define MVM_string_gi_graphs_left_in_strand(gi) \
+ * iterator, including repetitions */
+#define MVM_string_gi_graphs_left_in_strand_rep(gi) \
     (gi->end - gi->pos + gi->repetitions * (gi->end - gi->start))
 /* graphs left in strand + graphs left in repetitions of current strand */
 
+/* Moves to the next strand, or repetition if there is one. */
+static void MVM_string_gi_next_strand_rep(MVMThreadContext *tc, MVMGraphemeIter *gi) {
+    MVMStringStrand *next = NULL;
+    if (gi->repetitions) {
+        gi->pos = gi->start;
+        gi->repetitions--;
+        return;
+    }
+    if (gi->strands_remaining <= 0)
+        MVM_exception_throw_adhoc(tc, "Iteration past end of grapheme iterator\n");
+
+    next = (gi->next_strand)++;
+    gi->pos = gi->start = next->start;
+    gi->end             = next->end;
+    gi->repetitions     = next->repetitions;
+    gi->blob_type       = next->blob_string->body.storage_type;
+    gi->active_blob.any = next->blob_string->body.storage.any;
+    gi->strands_remaining--;
+}
 /* Sets the position of the iterator. (Can be optimized in many ways in the
  * repetitions and strands branches.) */
 MVM_STATIC_INLINE void MVM_string_gi_move_to(MVMThreadContext *tc, MVMGraphemeIter *gi, MVMuint32 pos) {
@@ -62,7 +81,7 @@ MVM_STATIC_INLINE void MVM_string_gi_move_to(MVMThreadContext *tc, MVMGraphemeIt
 
     /* Find the appropriate strand. */
     /* Set strand_graphs to the number of graphemes */
-    while (remaining > (strand_graphs = MVM_string_gi_graphs_left_in_strand(gi))) {
+    while (remaining > (strand_graphs = MVM_string_gi_graphs_left_in_strand_rep(gi))) {
         remaining -= strand_graphs;
         if (!(gi->strands_remaining--))
             MVM_exception_throw_adhoc(tc, "Iteration past end of grapheme iterator");
@@ -115,7 +134,23 @@ MVM_STATIC_INLINE void MVM_string_gi_move_to(MVMThreadContext *tc, MVMGraphemeIt
 MVM_STATIC_INLINE MVMint32 MVM_string_gi_has_more(MVMThreadContext *tc, MVMGraphemeIter *gi) {
     return gi->pos < gi->end || gi->repetitions || gi->strands_remaining;
 }
-
+/* Returns number of graphs left in the strand, ignoring repetitions */
+MVM_STATIC_INLINE MVMStringIndex MVM_string_gi_graphs_left_in_strand(MVMThreadContext *tc, MVMGraphemeIter *gi) {
+    return gi->end - gi->pos;
+}
+MVM_STATIC_INLINE MVMGrapheme8 * MVM_string_gi_active_blob_8_pos(MVMThreadContext *tc, MVMGraphemeIter *gi) {
+    return gi->active_blob.blob_8 + gi->pos;
+}
+MVM_STATIC_INLINE MVMGrapheme32 * MVM_string_gi_active_blob_32_pos(MVMThreadContext *tc, MVMGraphemeIter *gi) {
+    return gi->active_blob.blob_32 + gi->pos;
+}
+MVM_STATIC_INLINE MVMuint16 MVM_string_gi_blob_type(MVMThreadContext *tc, MVMGraphemeIter *gi) {
+    return gi->blob_type;
+}
+/* Returns if there are more strands left in the gi, including repetitions */
+MVM_STATIC_INLINE int MVM_string_gi_has_more_strands_rep(MVMThreadContext *tc, MVMGraphemeIter *gi) {
+    return !!(gi->strands_remaining || gi->repetitions);
+}
 /* Gets the next grapheme. */
 MVM_STATIC_INLINE MVMGrapheme32 MVM_string_gi_get_grapheme(MVMThreadContext *tc, MVMGraphemeIter *gi) {
     while (1) {
