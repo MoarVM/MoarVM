@@ -1819,7 +1819,7 @@ New in 2014.11
   escape, blshift_i,  brshift_i, write_fhs, cmp_I
 + Optimize out a bunch of unnecessary "set" instructions
 + Turn a bunch of const_s + findmeth_s into cheaper findmeth
-+ Implement nqp::closefh_i which retuns the exit code of a pipe
++ Implement nqp::closefh_i which returns the exit code of a pipe
 + Allow nativecasting a CStruct to another CStruct
 + Fix temp register usage in optimize_istrue_isfalse
 + Fix a regression by eagerly deserializing stables/objects
