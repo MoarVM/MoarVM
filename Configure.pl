@@ -39,7 +39,7 @@ GetOptions(\%args, qw(
     static has-libtommath has-libatomic_ops
     has-dyncall has-libffi pkgconfig=s
     build=s host=s big-endian jit! enable-jit
-    prefix=s bindir=s libdir=s mastdir=s make-install asan ubsan valgrind telemeh),
+    prefix=s bindir=s libdir=s mastdir=s make-install asan ubsan valgrind telemeh show-autovect show-autovect-failed:s),
 
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 },
@@ -80,7 +80,7 @@ $args{debug}        = 3 if defined $args{debug} and $args{debug} eq "";
 
 
 for (qw(coverage instrument static big-endian has-libtommath has-sha has-libuv
-        has-libatomic_ops asan ubsan valgrind)) {
+        has-libatomic_ops asan ubsan valgrind show-vec)) {
     $args{$_} = 0 unless defined $args{$_};
 }
 
@@ -348,6 +348,19 @@ push @cflags, $config{ld_covflags}  if $args{coverage};
 push @cflags, $config{ccwarnflags};
 push @cflags, $config{ccdefflags};
 push @cflags, $config{ccshared}     unless $args{static};
+push @cflags,
+$config{cc} eq 'clang'
+    ? '-Rpass=loop-vectorize'
+: $config{cc} eq 'gcc'
+    ? '-fopt-info-vec-optimized'
+    : die if $args{'show-autovect'};
+if (exists $args{'show-autovect-failed'}) {
+    push @cflags, '-Rpass-missed=loop-vectorize' if $config{cc} eq 'clang';
+    push @cflags, ("-ftree-vectorizer-verbose=" . ($args{'show-autovect-failed'} || 1), "-fopt-info-vec-missed")
+        if $config{cc} eq 'gcc';
+}
+push @cflags, '-Rpass-analysis=loop-vectorize' if 2 <= $args{'show-autovect-failed'} && $config{cc} eq 'clang';
+push @cflags, '-fsave-optimization-record '    if 3 <= $args{'show-autovect-failed'} && $config{cc} eq 'clang';
 push @cflags, '-fno-omit-frame-pointer' if $args{asan} or $args{ubsan};
 push @cflags, '-fsanitize=address' if $args{asan};
 push @cflags, '-fsanitize=undefined' if $args{ubsan};
@@ -907,6 +920,19 @@ options.
 
 Explicitly set the compiler without affecting other configuration
 options.
+
+=item --show-autovect
+
+Prints debug messages when compiling showing which loops were auto vectorized
+to SIMD instructions during build. Option is supported for Clang and GCC only.
+
+=item --show-autovect-failed
+
+Prints debug messages which hopefully reveal why autovectorization has failed
+for a loop. Verbosity level is 1-3 for clang, for GCC it is likely 1-2.
+If you are trying to vectorize code, it's *highly* recommended to try using clang
+first as it's smarter and has more useful messages. Then once it is working,
+try to get it working on gcc.
 
 =item --asan
 
