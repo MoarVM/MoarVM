@@ -224,7 +224,7 @@ static void populate_sig_values(MVMint8 *sig_vals) {
 #endif
 }
 
-#define SIG_SHIFT(s) (1 << s - 1)
+#define SIG_SHIFT(s) (1 << ((s) - 1))
 
 static void populate_instance_valid_sigs(MVMThreadContext *tc, MVMint8 *sig_vals) {
     MVMuint64 valid_sigs = 0;
