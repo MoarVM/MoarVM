@@ -2228,6 +2228,29 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
     }
 }
 
+void MVM_jit_emit_guarded_call(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                         MVMJitGuardedCall * guard_spec) {
+    MVMuint8 operand;
+    MVMuint8 repr_id = 0;
+    for (operand = 0; operand < guard_spec->ins->info->operands; operand++) {
+        if (guard_spec->concreteness_guards & (1 << operand)) {
+            | is_type_object TMP1;
+            | jnz >1;
+        }
+        if (guard_spec->reprid_guards & (1 << operand)) {
+            | mov TMP2, OBJECT:TMP1->st;
+            | mov TMP2, STABLE:TMP2->REPR;
+            | cmp dword REPR:TMP2->ID, guard_spec->IDs[repr_id];
+            | je >2;
+            repr_id++;
+        }
+    }
+    |1:
+    /* else throw */
+    | throw_adhoc guard_spec->ins->info->name;
+    |2:
+}
+
 void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                                MVMJitBranch * branch) {
     MVMSpeshIns *ins = branch->ins;

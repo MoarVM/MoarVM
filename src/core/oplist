@@ -98,8 +98,8 @@ getlex_ng           w(obj) r(str) :pure :noinline :useshll
 bindlex_ng          r(str) r(obj) :noinline :useshll
 getdynlex           w(obj) r(str) :pure :noinline :useshll
 binddynlex          r(str) r(obj) :noinline
-setlexvalue         r(obj) str r(obj) int16
-lexprimspec         w(int64) r(obj) r(str) :pure
+setlexvalue         r(obj)! str r(obj) int16 :repr(MVMCode)
+lexprimspec         w(int64) r(obj)! r(str) :pure :repr(MVMContext)
 return_i         .r r(int64) :useshll
 return_n         .r r(num64) :useshll
 return_s         .r r(str) :useshll
@@ -213,10 +213,10 @@ caller              w(obj) r(int64) :pure :noinline
 capturelex          r(obj) :noinline
 takeclosure         w(obj) r(obj) :noinline
 exception           w(obj)
-bindexmessage       r(obj) r(str)
+bindexmessage       r(obj)! r(str) :reprid(MVMException)
 bindexpayload       r(obj) r(obj)
 bindexcategory      r(obj) r(int64)
-getexmessage        w(str) r(obj) :pure
+getexmessage        w(str) r(obj)! :pure :reprid(MVMException)
 getexpayload        w(obj) r(obj) :pure
 getexcategory       w(int64) r(obj) :pure
 throwdyn            w(obj) r(obj) :throwish
@@ -234,15 +234,15 @@ DEPRECATED_34       w(obj) r(obj)
 backtracestrings    w(obj) r(obj) :pure
 usecapture          w(obj) :noinline
 savecapture         w(obj) :noinline
-captureposelems     w(int64) r(obj) :pure
-captureposarg       w(obj) r(obj) r(int64) :pure :useshll
-captureposarg_i     w(int64) r(obj) r(int64) :pure
-captureposarg_n     w(num64) r(obj) r(int64) :pure
-captureposarg_s     w(str) r(obj) r(int64) :pure
-captureposprimspec  w(int64) r(obj) r(int64) :pure
-captureexistsnamed  w(int64) r(obj) r(str) :pure
-capturehasnameds    w(int64) r(obj) :pure :useshll
-invokewithcapture   w(obj) r(obj) r(obj) :invokish
+captureposelems     w(int64) r(obj)! :pure :reprid(MVMCallCapture)
+captureposarg       w(obj) r(obj)! r(int64) :pure :useshll :reprid(MVMCallCapture)
+captureposarg_i     w(int64) r(obj)! r(int64) :pure :reprid(MVMCallCapture)
+captureposarg_n     w(num64) r(obj)! r(int64) :pure :reprid(MVMCallCapture)
+captureposarg_s     w(str) r(obj)! r(int64) :pure :reprid(MVMCallCapture)
+captureposprimspec  w(int64) r(obj)! r(int64) :pure :reprid(MVMCallCapture)
+captureexistsnamed  w(int64) r(obj)! r(str) :pure :reprid(MVMCallCapture)
+capturehasnameds    w(int64) r(obj)! :pure :useshll :reprid(MVMCallCapture)
+invokewithcapture   w(obj) r(obj) r(obj)! :invokish :reprid(MVMCallCapture)
 multicacheadd       w(obj) r(obj) r(obj) r(obj)
 multicachefind      w(obj) r(obj) r(obj)
 null_s              w(str) :pure
@@ -317,29 +317,29 @@ setwho              w(obj) r(obj) r(obj)
 reprname            w(str) r(obj) :pure
 getwhere            w(int64) r(obj) :pure
 eqaddr              w(int64) r(obj) r(obj) :pure
-bindattr_i          r(obj) r(obj) str r(int64) int16
-bindattr_n          r(obj) r(obj) str r(num64) int16
-bindattr_s          r(obj) r(obj) str r(str) int16
-bindattr_o          r(obj) r(obj) str r(obj) int16
-bindattrs_i         r(obj) r(obj) r(str) r(int64)
-bindattrs_n         r(obj) r(obj) r(str) r(num64)
-bindattrs_s         r(obj) r(obj) r(str) r(str)
-bindattrs_o         r(obj) r(obj) r(str) r(obj)
-getattr_i           w(int64) r(obj) r(obj) str int16
-getattr_n           w(num64) r(obj) r(obj) str int16
-getattr_s           w(str) r(obj) r(obj) str int16
-getattr_o           w(obj) r(obj) r(obj) str int16 :deoptonepoint :logged
-getattrs_i          w(int64) r(obj) r(obj) r(str)
-getattrs_n          w(num64) r(obj) r(obj) r(str)
-getattrs_s          w(str) r(obj) r(obj) r(str)
-getattrs_o          w(obj) r(obj) r(obj) r(str) :deoptonepoint :logged
-attrinited          w(int64) r(obj) r(obj) r(str)
+bindattr_i          r(obj) r(obj)! str r(int64) int16
+bindattr_n          r(obj) r(obj)! str r(num64) int16
+bindattr_s          r(obj) r(obj)! str r(str) int16
+bindattr_o          r(obj) r(obj)! str r(obj) int16
+bindattrs_i         r(obj) r(obj)! r(str) r(int64)
+bindattrs_n         r(obj) r(obj)! r(str) r(num64)
+bindattrs_s         r(obj) r(obj)! r(str) r(str)
+bindattrs_o         r(obj) r(obj)! r(str) r(obj)
+getattr_i           w(int64) r(obj)! r(obj) str int16
+getattr_n           w(num64) r(obj)! r(obj) str int16
+getattr_s           w(str) r(obj)! r(obj) str int16
+getattr_o           w(obj) r(obj)! r(obj) str int16 :deoptonepoint :logged
+getattrs_i          w(int64) r(obj)! r(obj) r(str)
+getattrs_n          w(num64) r(obj)! r(obj) r(str)
+getattrs_s          w(str) r(obj)! r(obj) r(str)
+getattrs_o          w(obj) r(obj)! r(obj) r(str) :deoptonepoint :logged
+attrinited          w(int64) r(obj)! r(obj) r(str)
 box_i               w(obj) r(int64) r(obj) :pure
 box_n               w(obj) r(num64) r(obj) :pure
 box_s               w(obj) r(str) r(obj) :pure
-unbox_i             w(int64) r(obj) :pure
-unbox_n             w(num64) r(obj) :pure
-unbox_s             w(str) r(obj) :pure
+unbox_i             w(int64) r(obj)! :pure
+unbox_n             w(num64) r(obj)! :pure
+unbox_s             w(str) r(obj)! :pure
 atpos_i             w(int64) r(obj) r(int64)
 atpos_n             w(num64) r(obj) r(int64)
 atpos_s             w(str) r(obj) r(int64)
@@ -423,19 +423,19 @@ usecompilerhllconfig :useshll
 iter                w(obj) r(obj) :pure :useshll
 iterkey_s           w(str) r(obj) :pure
 iterval             w(obj) r(obj) :pure
-getcodename         w(str) r(obj) :pure
+getcodename         w(str) r(obj)! :pure :reprid(MVMCode)
 iscoderef           w(int64) r(obj) :pure
 getcodeobj          w(obj) r(obj) :pure
-setcodeobj          r(obj) r(obj)
-setcodename         r(obj) r(str)
-forceouterctx       r(obj) r(obj)
+setcodeobj          r(obj) r(obj)? :reprid(MVMCode)
+setcodename         r(obj)! r(str) :reprid(MVMCode)
+forceouterctx       r(obj)! r(obj)! :reprid(MVMCode) :reprid(MVMContext)
 setinvokespec       r(obj) r(obj) r(str) r(obj)
 isinvokable         w(int64) r(obj) :pure
-freshcoderef        w(obj) r(obj)
-markcodestatic      r(obj)
-markcodestub        r(obj)
-getstaticcode       w(obj) r(obj) :pure
-getcodecuid         w(str) r(obj) :pure
+freshcoderef        w(obj) r(obj)? :reprid(MVMCode)
+markcodestatic      r(obj)? :reprid(MVMCode)
+markcodestub        r(obj)? :reprid(MVMCode)
+getstaticcode       w(obj) r(obj)? :pure :reprid(MVMCode)
+getcodecuid         w(str) r(obj)! :pure :reprid(MVMCode)
 setdispatcher       r(obj)
 takedispatcher      w(obj)
 assign              r(obj) r(obj) :invokish
@@ -445,34 +445,34 @@ decont              w(obj) r(obj) :pure :invokish :deoptonepoint
 setcontspec         r(obj) r(str) r(obj)
 sha1                w(str) r(str) :pure
 createsc            w(obj) r(str)
-scsetobj            r(obj) r(int64) r(obj)
-scsetcode           r(obj) r(int64) r(obj)
-scgetobj            w(obj) r(obj) r(int64)
-scgethandle         w(str) r(obj)
-scgetobjidx         w(int64) r(obj) r(obj)
-scsetdesc           r(obj) r(str)
-scobjcount          w(int64) r(obj)
-setobjsc            r(obj) r(obj)
-getobjsc            w(obj) r(obj)
-serialize           w(str) r(obj) r(obj)
-deserialize         r(str) r(obj) r(obj) r(obj) r(obj)
+scsetobj            r(obj)? r(int64) r(obj) :reprid(SCRef)
+scsetcode           r(obj)? r(int64) r(obj) :reprid(SCRef)
+scgetobj            w(obj)? r(obj) r(int64) :reprid(SCRef)
+scgethandle         w(str) r(obj)? :reprid(SCRef)
+scgetobjidx         w(int64) r(obj)? r(obj) :reprid(SCRef)
+scsetdesc           r(obj)? r(str) :reprid(SCRef)
+scobjcount          w(int64) r(obj)? :reprid(SCRef)
+setobjsc            r(obj)? r(obj) :reprid(SCRef)
+getobjsc            w(obj) r(obj)?
+serialize           w(str) r(obj)? r(obj) :reprid(SCRef)
+deserialize         r(str) r(obj)? r(obj) r(obj) r(obj) :reprid(SCRef)
 wval                w(obj) int16 int16 :pure
 wval_wide           w(obj) int16 int64 :pure
 scwbdisable         w(int64)
 scwbenable          w(int64)
-pushcompsc          r(obj)
+pushcompsc          r(obj)? :reprid(SCRef)
 popcompsc           w(obj)
-scgetdesc           w(str) r(obj)
+scgetdesc           w(str) r(obj)? :reprid(SCRef)
 loadbytecode        w(str) r(str) :invokish
 masttofile          r(obj) r(obj) r(str)
 masttocu            w(obj) r(obj) r(obj) :invokish
 iscompunit          w(int64) r(obj) :pure
-compunitmainline    w(obj) r(obj)
-compunitcodes       w(obj) r(obj)
+compunitmainline    w(obj) r(obj)? :reprid(MVMCompUnit)
+compunitcodes       w(obj) r(obj)? :reprid(MVMCompUnit)
 ctx                 w(obj) :noinline
-ctxouter            w(obj) r(obj)
-ctxcaller           w(obj) r(obj)
-ctxlexpad           w(obj) r(obj)
+ctxouter            w(obj) r(obj)! :reprid(MVMContext)
+ctxcaller           w(obj) r(obj)! :reprid(MVMContext)
+ctxlexpad           w(obj) r(obj)! :reprid(MVMContext)
 curcode             w(obj) :noinline
 callercode          w(obj) :noinline
 add_I               w(obj) r(obj) r(obj) r(obj) :pure
@@ -572,9 +572,9 @@ dropsym             r(obj)
 loadext             r(str) r(str)
 backendconfig       w(obj)
 getlexouter         w(obj) r(str) :pure :noinline :useshll
-getlexrel           w(obj) r(obj) r(str) :pure :useshll
-getlexreldyn        w(obj) r(obj) r(str) :pure :useshll
-getlexrelcaller     w(obj) r(obj) r(str) :pure :useshll
+getlexrel           w(obj) r(obj)! r(str) :pure :useshll :reprid(MVMContext)
+getlexreldyn        w(obj) r(obj)! r(str) :pure :useshll :reprid(MVMContext)
+getlexrelcaller     w(obj) r(obj)! r(str) :pure :useshll :reprid(MVMContext)
 getlexcaller        w(obj) r(str) :pure :noinline :useshll
 bitand_s            w(str) r(str) r(str) :pure
 bitor_s             w(str) r(str) r(str) :pure
@@ -589,7 +589,7 @@ filereadable        w(int64) r(str)
 filewritable        w(int64) r(str)
 fileexecutable      w(int64) r(str)
 DEPRECATED_19       w(int64) r(obj) r(str)
-capturenamedshash   w(obj) r(obj) :pure :useshll
+capturenamedshash   w(obj) r(obj)! :pure :useshll :reprid(MVMCallCapture)
 read_fhb            r(obj) r(obj) r(int64)
 write_fhb           r(obj) r(obj)
 replace             w(str) r(str) r(int64) r(int64) r(str)
@@ -624,17 +624,17 @@ threadyield
 currentthread       w(obj)
 lock                r(obj)
 unlock              r(obj)
-semacquire          r(obj)
-semtryacquire       w(int64) r(obj)
-semrelease          r(obj)
-getlockcondvar      w(obj) r(obj) r(obj)
-condwait            r(obj)
-condsignalone       r(obj)
-condsignalall       r(obj)
-queuepoll           w(obj) r(obj)
+semacquire          r(obj)! :reprid(Semaphore)
+semtryacquire       w(int64) r(obj)! :reprid(Semaphore)
+semrelease          r(obj)! :reprid(Semaphore)
+getlockcondvar      w(obj) r(obj)! r(obj) :reprid(ReentrantMutex)
+condwait            r(obj)! :reprid(ConditionVariable)
+condsignalone       r(obj)! :reprid(ConditionVariable)
+condsignalall       r(obj)! :reprid(ConditionVariable)
+queuepoll           w(obj) r(obj)! :reprid(CondBlockingQueue)
 setmultispec        r(obj) r(obj) r(str) r(str)
-ctxouterskipthunks  w(obj) r(obj) :noinline
-ctxcallerskipthunks w(obj) r(obj) :noinline
+ctxouterskipthunks  w(obj) r(obj)! :noinline :reprid(MVMContext)
+ctxcallerskipthunks w(obj) r(obj)! :noinline :reprid(MVMContext)
 timer               w(obj) r(obj) r(obj) r(int64) r(int64) r(obj)
 cancel              r(obj)
 signal              w(obj) r(obj) r(obj) r(int64) r(obj)
@@ -742,7 +742,7 @@ bindposnd_o         r(obj) r(obj) r(obj)
 dimensions          w(obj) r(obj)
 setdimensions       r(obj) r(obj)
 numdimensions       w(int64) r(obj) :pure
-ctxcode             w(obj) r(obj)
+ctxcode             w(obj) r(obj)! :reprid(MVMContext)
 isrwcont            w(int64) r(obj) :pure
 fc                  w(str) r(str) :pure
 DEPRECATED_25       r(obj) r(obj)
@@ -767,7 +767,7 @@ getlexref_i16       w(obj) rl(int16) :pure :noinline
 getlexref_i8        w(obj) rl(int8) :pure :noinline
 getlexref_n32       w(obj) rl(num32) :pure :noinline
 box_u               w(obj) r(uint64) r(obj) :pure
-unbox_u             w(uint64) r(obj) :pure
+unbox_u             w(uint64) r(obj)! :pure
 coerce_iu           w(uint64) r(int64) :pure
 coerce_ui           w(int64) r(uint64) :pure
 coerce_nu           w(uint64) r(num64) :pure

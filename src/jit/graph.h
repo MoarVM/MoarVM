@@ -201,6 +201,15 @@ struct MVMJitStackSlot {
     MVMint16 slot;
 };
 
+struct MVMJitGuardedCall {
+    /* Bitmask */
+    MVMint16     reprid_guards;
+    MVMint16     concreteness_guards;
+    MVMuint32   *IDs;
+    MVMSpeshIns *ins;
+}
+
+
 /* Node types */
 typedef enum {
     MVM_JIT_NODE_PRIMITIVE,
@@ -214,23 +223,25 @@ typedef enum {
     MVM_JIT_NODE_DATA,
     MVM_JIT_NODE_EXPR_TREE,
     MVM_JIT_NODE_SAVE_RV,
+    MVM_JIT_NODE_GUARDED_CALL,
 } MVMJitNodeType;
 
 struct MVMJitNode {
     MVMJitNode   * next; /* linked list */
     MVMJitNodeType type; /* tag */
     union {
-        MVMJitPrimitive prim;
-        MVMJitCallC     call;
-        MVMJitBranch    branch;
-        MVMJitLabel     label;
-        MVMJitGuard     guard;
-        MVMJitInvoke    invoke;
-        MVMJitJumpList  jumplist;
-        MVMJitControl   control;
-        MVMJitData      data;
-        MVMJitExprTree *tree;
-        MVMJitStackSlot stack;
+        MVMJitPrimitive    prim;
+        MVMJitCallC        call;
+        MVMJitBranch       branch;
+        MVMJitLabel        label;
+        MVMJitGuard        guard;
+        MVMJitInvoke       invoke;
+        MVMJitJumpList     jumplist;
+        MVMJitControl      control;
+        MVMJitData         data;
+        MVMJitExprTree    *tree;
+        MVMJitStackSlot    stack;
+        MVMJitGuardedCall *guarded;
     } u;
 };
 
