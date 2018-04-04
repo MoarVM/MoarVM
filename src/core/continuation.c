@@ -136,6 +136,10 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
 
 void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
                              MVMObject *code, MVMRegister *res_reg) {
+    /* First of all do a repr id check */
+    if (REPR(cont)->ID != MVM_REPR_ID_MVMContinuation)
+        MVM_exception_throw_adhoc(tc, "continuationinvoke expects an MVMContinuation");
+
     /* Ensure we are the only invoker of the continuation. */
     if (!MVM_trycas(&(cont->body.invoked), 0, 1))
         MVM_exception_throw_adhoc(tc, "This continuation has already been invoked");

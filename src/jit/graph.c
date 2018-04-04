@@ -134,6 +134,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_resume: return MVM_exception_resume;
     case MVM_OP_continuationreset: return MVM_continuation_reset;
     case MVM_OP_continuationcontrol: return MVM_continuation_control;
+    case MVM_OP_continuationinvoke: return MVM_continuation_invoke;
     case MVM_OP_smrt_numify: return MVM_coerce_smart_numify;
     case MVM_OP_smrt_strify: return MVM_coerce_smart_stringify;
     case MVM_OP_gethow: return MVM_6model_get_how_obj;
@@ -2172,6 +2173,17 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_REG_VAL, { code } },
                                  { MVM_JIT_REG_ADDR, { reg } }};
         jg_append_call_c(tc, jg, op_to_func(tc, op), 5, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_continuationinvoke: {
+        MVMint16 reg  = ins->operands[0].reg.orig;
+        MVMint16 cont  = ins->operands[1].reg.orig;
+        MVMint16 code = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { cont } },
+                                 { MVM_JIT_REG_VAL, { code } },
+                                 { MVM_JIT_REG_ADDR, { reg } }};
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_sp_boolify_iter: {

@@ -3974,10 +3974,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject   *cont = GET_REG(cur_op, 2).o;
                 MVMObject   *code = GET_REG(cur_op, 4).o;
                 cur_op += 6;
-                if (REPR(cont)->ID == MVM_REPR_ID_MVMContinuation)
-                    MVM_continuation_invoke(tc, (MVMContinuation *)cont, code, res);
-                else
-                    MVM_exception_throw_adhoc(tc, "continuationinvoke expects an MVMContinuation");
+                MVM_continuation_invoke(tc, (MVMContinuation *)cont, code, res);
                 goto NEXT;
             }
             OP(randscale_n):
