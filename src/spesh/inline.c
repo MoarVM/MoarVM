@@ -241,7 +241,7 @@ static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 else if (inliner->sc_idx_resolve_used > inliner->sc_idx_resolve_alloc) {
                     MVMuint32 new_size = inliner->sc_idx_resolve_alloc * 2;
                     MVMSerializationContext **old_sc_array = inliner->scs_to_resolve_from;
-                    MVMuint64 **old_idx_array = inliner->sc_idx_to_resolve;
+                    MVMuint64 *old_idx_array = inliner->sc_idx_to_resolve;
                     inliner->scs_to_resolve_from =
                         MVM_spesh_alloc(tc, inliner, new_size * sizeof(MVMSerializationContext *));
                     inliner->sc_idx_to_resolve =
