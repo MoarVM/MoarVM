@@ -2295,7 +2295,7 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
 /* Compares two strings, returning -1, 0 or 1 to indicate less than,
  * equal or greater than. */
 MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    MVMStringIndex alen, blen, i, scanlen;
+    MVMStringIndex alen, blen, i = 0, scanlen;
     MVMGraphemeIter gi_a, gi_b;
 
     MVM_string_check_arg(tc, a, "compare");
@@ -2311,9 +2311,66 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
 
     /* Otherwise, need to scan them. */
     scanlen = blen < alen ? blen : alen;
+
+    /* Short circuit a case where the other conditionals won't speed it up */
+    if (a->body.storage_type == MVM_STRING_STRAND || b->body.storage_type == MVM_STRING_STRAND) {
+
+    }
+    else if ((a->body.storage_type == MVM_STRING_GRAPHEME_8 || a->body.storage_type == MVM_STRING_GRAPHEME_ASCII)
+          && (b->body.storage_type == MVM_STRING_GRAPHEME_8 || b->body.storage_type == MVM_STRING_GRAPHEME_ASCII)) {
+        MVMGrapheme8  *a_blob8 = a->body.storage.blob_8;
+        MVMGrapheme8  *b_blob8 = b->body.storage.blob_8;
+        while (a_blob8[i] == b_blob8[i] && i < scanlen) {
+            i++;
+        }
+    }
+    else if (a->body.storage_type == MVM_STRING_GRAPHEME_32 && b->body.storage_type == MVM_STRING_GRAPHEME_32) {
+        MVMGrapheme32  *a_blob32 = a->body.storage.blob_32;
+        MVMGrapheme32  *b_blob32 = b->body.storage.blob_32;
+        while (a_blob32[i] == b_blob32[i] && i < scanlen) {
+            i++;
+        }
+    }
+    /* a= 32 b =unknown; blob32 = a; blob8 = a */
+    else {
+        MVMGrapheme32 *blob32 = NULL;
+        MVMGrapheme8  *blob8  = NULL;
+        switch (a->body.storage_type) {
+            case MVM_STRING_GRAPHEME_8:
+            case MVM_STRING_GRAPHEME_ASCII:
+                blob8 = a->body.storage.blob_8;
+                break;
+            case MVM_STRING_GRAPHEME_32:
+                blob32 = a->body.storage.blob_32;
+                break;
+            default:
+                MVM_exception_throw_adhoc(tc,
+                    "String corruption in string compare. Unknown string type.");
+        }
+        switch (b->body.storage_type) {
+            case MVM_STRING_GRAPHEME_8:
+            case MVM_STRING_GRAPHEME_ASCII:
+                blob8 = b->body.storage.blob_8;
+                break;
+            case MVM_STRING_GRAPHEME_32:
+                blob32 = b->body.storage.blob_32;
+                break;
+            default:
+                MVM_exception_throw_adhoc(tc,
+                    "String corruption in string compare. Unknown string type.");
+        }
+        while (blob32[i] == blob8[i] && i < scanlen) {
+            i++;
+        }
+    }
+
     MVM_string_gi_init(tc, &gi_a, a);
     MVM_string_gi_init(tc, &gi_b, b);
-    for (i = 0; i < scanlen; i++) {
+    if (i) {
+        MVM_string_gi_move_to(tc, &gi_a, i);
+        MVM_string_gi_move_to(tc, &gi_b, i);
+    }
+    for (; i < scanlen; i++) {
         MVMGrapheme32 g_a = MVM_string_gi_get_grapheme(tc, &gi_a);
         MVMGrapheme32 g_b = MVM_string_gi_get_grapheme(tc, &gi_b);
         if (g_a != g_b) {
