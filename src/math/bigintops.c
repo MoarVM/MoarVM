@@ -63,7 +63,7 @@ static const double mp_get_double_multiplier = (double)(MP_MASK + 1);
 
 static MVMnum64 mp_get_double(mp_int *a, int shift) {
     MVMnum64 d;
-    int i, limit;
+    int i, limit, final_shift;
     d = 0.0;
 
     mp_clamp(a);
@@ -78,8 +78,21 @@ static MVMnum64 mp_get_double(mp_int *a, int shift) {
 
     if (a->sign == MP_NEG)
         d *= -1.0;
-
-    return d * pow(2.0, i * DIGIT_BIT - shift);
+    final_shift = i * DIGIT_BIT - shift;
+    if (final_shift < 0) {
+        while (final_shift < -1023) {
+            d *= pow(2.0, -1023);
+            final_shift += 1023;
+        }
+    }
+    else {
+        while (final_shift > 1023) {
+            d *= pow(2.0, 1023);
+            final_shift -= 1023;
+        }
+    }
+    d *= pow(2.0, final_shift);
+    return d;
 }
 
 static void from_num(MVMnum64 d, mp_int *a) {
@@ -935,12 +948,32 @@ MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
         mp_int *ia = force_bigint(ba, tmp);
         mp_int *ib = force_bigint(bb, tmp);
 
-        int max_bits = MAX(mp_count_bits(ia), mp_count_bits(ib));
-        if (max_bits > MAX_BIGINT_BITS_IN_DOUBLE) {
-            c = mp_get_double(ia, max_bits - MAX_BIGINT_BITS_IN_DOUBLE)
-              / mp_get_double(ib, max_bits - MAX_BIGINT_BITS_IN_DOUBLE);
-        } else {
-            c = mp_get_double(ia, 0) / mp_get_double(ib, 0);
+        mp_clamp(ib);
+        if (ib->used == 0) { /* zero-denominator special case */
+            if (ia->sign == MP_NEG)
+                c = -1e0/0e0;
+            else
+                c = 1e0/0e0;
+            /*
+             * we won't have NaN case here, since the branch requires at
+             * least one bigint to be big
+             */
+        }
+        else {
+            mp_int scaled;
+            int bbits = mp_count_bits(ib)+64;
+
+            if (mp_init(&scaled) != MP_OKAY)
+                MVM_exception_throw_adhoc(tc,
+                    "Failed to initialize bigint for scaled divident");
+            if (mp_mul_2d(ia, bbits, &scaled) != MP_OKAY)
+                MVM_exception_throw_adhoc(tc, "Failed to scale divident");
+            // simply re-use &scaled for result
+            if (mp_div(&scaled, ib, &scaled, NULL) != MP_OKAY)
+                MVM_exception_throw_adhoc(tc,
+                    "Failed to preform bigint division");
+            c = mp_get_double(&scaled, bbits);
+            mp_clear(&scaled);
         }
         clear_temp_bigints(tmp, 2);
     } else {
