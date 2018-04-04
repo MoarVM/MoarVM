@@ -2320,18 +2320,17 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
           && (b->body.storage_type == MVM_STRING_GRAPHEME_8 || b->body.storage_type == MVM_STRING_GRAPHEME_ASCII)) {
         MVMGrapheme8  *a_blob8 = a->body.storage.blob_8;
         MVMGrapheme8  *b_blob8 = b->body.storage.blob_8;
-        while (a_blob8[i] == b_blob8[i] && i < scanlen) {
+        while (i < scanlen && a_blob8[i] == b_blob8[i]) {
             i++;
         }
     }
     else if (a->body.storage_type == MVM_STRING_GRAPHEME_32 && b->body.storage_type == MVM_STRING_GRAPHEME_32) {
         MVMGrapheme32  *a_blob32 = a->body.storage.blob_32;
         MVMGrapheme32  *b_blob32 = b->body.storage.blob_32;
-        while (a_blob32[i] == b_blob32[i] && i < scanlen) {
+        while (i < scanlen && a_blob32[i] == b_blob32[i]) {
             i++;
         }
     }
-    /* a= 32 b =unknown; blob32 = a; blob8 = a */
     else {
         MVMGrapheme32 *blob32 = NULL;
         MVMGrapheme8  *blob8  = NULL;
@@ -2359,16 +2358,19 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
                 MVM_exception_throw_adhoc(tc,
                     "String corruption in string compare. Unknown string type.");
         }
-        while (blob32[i] == blob8[i] && i < scanlen) {
+        while (i < scanlen && blob32[i] == blob8[i]) {
             i++;
         }
     }
-
-    MVM_string_gi_init(tc, &gi_a, a);
-    MVM_string_gi_init(tc, &gi_b, b);
-    if (i) {
-        MVM_string_gi_move_to(tc, &gi_a, i);
-        MVM_string_gi_move_to(tc, &gi_b, i);
+    /* If one of the strings was a strand or we encountered a differing character
+     * while scanning in the loops above. */
+    if (i < scanlen) {
+        MVM_string_gi_init(tc, &gi_a, a);
+        MVM_string_gi_init(tc, &gi_b, b);
+        if (i) {
+            MVM_string_gi_move_to(tc, &gi_a, i);
+            MVM_string_gi_move_to(tc, &gi_b, i);
+        }
     }
     for (; i < scanlen; i++) {
         MVMGrapheme32 g_a = MVM_string_gi_get_grapheme(tc, &gi_a);
