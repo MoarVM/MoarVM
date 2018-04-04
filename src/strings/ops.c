@@ -2296,6 +2296,7 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
  * equal or greater than. */
 MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMStringIndex alen, blen, i, scanlen;
+    MVMGraphemeIter gi_a, gi_b;
 
     MVM_string_check_arg(tc, a, "compare");
     MVM_string_check_arg(tc, b, "compare");
@@ -2310,9 +2311,11 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
 
     /* Otherwise, need to scan them. */
     scanlen = blen < alen ? blen : alen;
+    MVM_string_gi_init(tc, &gi_a, a);
+    MVM_string_gi_init(tc, &gi_b, b);
     for (i = 0; i < scanlen; i++) {
-        MVMGrapheme32 g_a = MVM_string_get_grapheme_at_nocheck(tc, a, i);
-        MVMGrapheme32 g_b = MVM_string_get_grapheme_at_nocheck(tc, b, i);
+        MVMGrapheme32 g_a = MVM_string_gi_get_grapheme(tc, &gi_a);
+        MVMGrapheme32 g_b = MVM_string_gi_get_grapheme(tc, &gi_b);
         if (g_a != g_b) {
             MVMint64 rtrn;
             /* If one of the deciding graphemes is a synthetic then we need to
