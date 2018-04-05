@@ -15,6 +15,7 @@ contain the third party libraries needed to successfully build MoarVM.
 
 ## Build It
 [![Build Status](https://travis-ci.org/MoarVM/MoarVM.svg?branch=master)](https://travis-ci.org/MoarVM/MoarVM)
+[![Build Status](https://ci.appveyor.com/api/projects/status/github/timo/moarvm-5bpx6?svg=true)](https://ci.appveyor.com/project/timo/moarvm-5bpx6/branch/master)
 
 Building the VM itself takes just:
 
