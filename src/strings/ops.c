@@ -2260,23 +2260,40 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
     sgraphs = MVM_string_graphs_nocheck(tc, s);
     rpos    = sgraphs;
 
-    if (s->body.storage_type == MVM_STRING_GRAPHEME_8) {
+    switch (s->body.storage_type) {
+    case MVM_STRING_GRAPHEME_ASCII:
+    case MVM_STRING_GRAPHEME_8: {
         MVMGrapheme8   *rbuffer;
+        /* Copy the variables, so we can use them just for the loop. This way
+         * the loop will vectorize since we won't refer to their values except
+         * in the loop. Use size_t to coerce vectorization.  */
+        size_t spos_l = spos, rpos_l = rpos;
         rbuffer = MVM_malloc(sizeof(MVMGrapheme8) * sgraphs);
+        MVM_VECTORIZE_LOOP
+        while (spos_l < s->body.num_graphs)
+            rbuffer[--rpos_l] = s->body.storage.blob_8[spos_l++];
 
-        for (; spos < sgraphs; spos++)
-            rbuffer[--rpos] = s->body.storage.blob_8[spos];
+        spos += sgraphs - spos;
+        rpos -= sgraphs - spos;
 
         res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-        res->body.storage_type    = MVM_STRING_GRAPHEME_8;
+        res->body.storage_type    = s->body.storage_type;
         res->body.storage.blob_8  = rbuffer;
-    } else {
+        break;
+    }
+    default: {
         MVMGrapheme32  *rbuffer;
         rbuffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
 
-        if (s->body.storage_type == MVM_STRING_GRAPHEME_32)
-            for (; spos < sgraphs; spos++)
-                rbuffer[--rpos] = s->body.storage.blob_32[spos];
+        if (s->body.storage_type == MVM_STRING_GRAPHEME_32) {
+            size_t spos_l = spos, rpos_l = rpos;
+            MVM_VECTORIZE_LOOP
+            while (spos_l < s->body.num_graphs)
+                rbuffer[--rpos_l] = s->body.storage.blob_32[spos_l++];
+
+            spos += sgraphs - spos;
+            rpos -= sgraphs - spos;
+        }
         else
             for (; spos < sgraphs; spos++)
                 rbuffer[--rpos] = MVM_string_get_grapheme_at_nocheck(tc, s, spos);
@@ -2284,7 +2301,7 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
         res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
         res->body.storage_type    = MVM_STRING_GRAPHEME_32;
         res->body.storage.blob_32 = rbuffer;
-    }
+    }}
 
     res->body.num_graphs      = sgraphs;
 
