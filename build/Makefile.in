@@ -670,6 +670,7 @@ realclean: clean
 	-$(CMD)@shaclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@mtclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@dcclean@ $(NOOUT) $(NOERR)
+	-$(CMD)@cmpclean@ $(NOOUT) $(NOERR)
 
 distclean: realclean
 	$(MSG) remove executable and libraries
