@@ -951,9 +951,9 @@ MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
         mp_clamp(ib);
         if (ib->used == 0) { /* zero-denominator special case */
             if (ia->sign == MP_NEG)
-                c = -1e0/0e0;
+                c = -INFINITY;
             else
-                c = 1e0/0e0;
+                c =  INFINITY;
             /*
              * we won't have NaN case here, since the branch requires at
              * least one bigint to be big
