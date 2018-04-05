@@ -6,6 +6,8 @@ use warnings FATAL => 'all';
 
 use Getopt::Long;
 use File::Spec;
+use Scalar::Util qw(looks_like_number);
+
 # use my libs
 use FindBin;
 use lib $FindBin::Bin;
@@ -67,6 +69,14 @@ my %EXPR_OP_TYPES = (
     guard => 'void',
 );
 
+# which list item is the size
+my %OP_SIZE_ARG = (
+    load => 2,
+    store => 3,
+    call => 3,
+    const => 2,
+    cast => 2,
+);
 
 
 sub validate_template {
@@ -84,6 +94,8 @@ sub validate_template {
 
     die "Unknown node type $node" unless exists $EXPR_OPS{$node};
 
+    # NB - this inserts the template length parameter into the list,
+    # which is necessary for the template builder (runtime)
     my ($nchild, $narg) = @{$EXPR_OPS{$node}}{qw(num_childs num_args)};;
     my $offset = 1;
     if ($nchild < 0) {
@@ -137,6 +149,20 @@ sub validate_template {
             die "Child $i of $txt is not an argument";
         }
     }
+
+    if (exists $OP_SIZE_ARG{$node}) {
+        # does this look like a size argument?
+        my $size_arg = $template->[$OP_SIZE_ARG{$node}];
+        if (ref($size_arg)) {
+            warn sprintf("size argument '%s' for node '%s' is not a macro",
+                         sexpr::encode($size_arg), $node)
+                if $size_arg->[0] !~ m/\A&\w+/
+        } elsif (!looks_like_number($size_arg) && $size_arg !~ m/_sz\z/) {
+            warn sprintf("size argument '%s' for node '%s' may not be a size",
+                         $size_arg, $node);
+        }
+    }
+
 }
 
 sub apply_macros {

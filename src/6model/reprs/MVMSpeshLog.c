@@ -96,6 +96,11 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMSpeshLog);
 }
 
+static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    MVMSpeshLogBody *log = (MVMSpeshLogBody *)data;
+    return log->limit * sizeof(MVMSpeshLogEntry);
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMSpeshLog_initialize(MVMThreadContext *tc) {
     return &SpeshLog_this_repr;
@@ -127,6 +132,6 @@ static const MVMREPROps SpeshLog_this_repr = {
     NULL, /* spesh */
     "MVMSpeshLog", /* name */
     MVM_REPR_ID_MVMSpeshLog,
-    NULL, /* unmanaged_size */
+    unmanaged_size,
     NULL, /* describe_refs */
 };

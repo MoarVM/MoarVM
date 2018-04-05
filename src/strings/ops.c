@@ -186,9 +186,8 @@ static void move_strands(MVMThreadContext *tc, const MVMString *from, MVMuint16 
         num_strands * sizeof(MVMStringStrand));
 }
 
-MVM_STATIC_INLINE int can_fit_into_8bit (MVMGrapheme32 g) {
-    return -128 <= g && g <= 127;
-}
+#define can_fit_into_8bit(g) ((-128 <= (g) && (g) <= 127))
+
 MVM_STATIC_INLINE int can_fit_into_ascii (MVMGrapheme32 g) {
     return 0 <= g && g <= 127;
 }
@@ -197,47 +196,150 @@ MVM_STATIC_INLINE int can_fit_into_ascii (MVMGrapheme32 g) {
 static void turn_32bit_into_8bit_unchecked(MVMThreadContext *tc, MVMString *str) {
     MVMGrapheme32 *old_buf = str->body.storage.blob_32;
     MVMStringIndex i;
-    str->body.storage_type = MVM_STRING_GRAPHEME_8;
-    str->body.storage.blob_8 = MVM_malloc(str->body.num_graphs * sizeof(MVMGrapheme8));
-
-    for (i = 0; i < str->body.num_graphs; i++) {
-        str->body.storage.blob_8[i] = old_buf[i];
+    MVMGrapheme8 *dest_buf = NULL;
+    MVMStringIndex num_graphs = MVM_string_graphs_nocheck(tc, str);
+    str->body.storage_type   = MVM_STRING_GRAPHEME_8;
+    dest_buf = str->body.storage.blob_8 = MVM_malloc(str->body.num_graphs * sizeof(MVMGrapheme8));
+    MVM_VECTORIZE_LOOP
+    for (i = 0; i < num_graphs; i++) {
+        dest_buf[i] = old_buf[i];
     }
 
     MVM_free(old_buf);
 }
+/* Checks if the next num_graphs graphemes in the iterator can fit into 8 bits.
+ * This was written to take advantage of SIMD vectorization, so we use a multiple
+ * bitwise operations to check, and biwise OR it with val. Care must be taken
+ * to not use any variables altered by the loop outside of the loop and to not
+ * have any branching or funcion calls. `i` is not used outside the loop
+ * `val` is allowed as biwise OR works with the vectorization well.
+ * NOTE: GraphemeIter is not modified by this function. */
+static int string_can_be_8bit(MVMThreadContext *tc, MVMGraphemeIter *gi_orig, MVMStringIndex num_graphs) {
+    MVMStringIndex pos = 0;
+    MVMGraphemeIter gi;
+    memcpy(&gi, gi_orig, sizeof(MVMGraphemeIter));
+    while (1) {
+        MVMStringIndex strand_len = MVM_string_gi_graphs_left_in_strand(tc, &gi);
+        MVMStringIndex togo = num_graphs - pos < strand_len
+            ? num_graphs - pos
+            : strand_len;
+        if (MVM_string_gi_blob_type(tc, &gi) == MVM_STRING_GRAPHEME_32) {
+            MVMStringIndex i;
+            MVMGrapheme32 val = 0;
+            MVMGrapheme32 *active_blob = MVM_string_gi_active_blob_32_pos(tc, &gi);
+            MVM_VECTORIZE_LOOP
+            for (i = 0; i  < togo; i++) {
+                /* This could be written val |= ..., but GCC 7 doesn't recognize the
+                 * operation as ossociative unless we use a temp variable (clang has no issue). */
+                MVMGrapheme32 val2 = ((active_blob[i] & 0xffffff80) + 0x80) & (0xffffff80-1);
+                val |= val2;
+            }
+            if (val) return 0;
+        }
+        pos += togo;
+        if (num_graphs == pos || !MVM_string_gi_has_more_strands_rep(tc, &gi)) {
+            break;
+        }
+        MVM_string_gi_next_strand_rep(tc, &gi);
+    }
+    return 1;
 
+}
 /* Accepts an allocated string that should have body.num_graphs set but the blob
  * unallocated. This function will allocate the space for the blob and iterate
- * the supplied grapheme iterator for the length of body.num_graphs */
-static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MVMString *result) {
-    MVMuint64 i;
-    result->body.storage_type    = MVM_STRING_GRAPHEME_8;
-    result->body.storage.blob_8  = MVM_malloc(result->body.num_graphs * sizeof(MVMGrapheme8));
-    for (i = 0; i < result->body.num_graphs; i++) {
-        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, gi);
-        result->body.storage.blob_8[i] = g;
-        if (!can_fit_into_8bit(g)) {
-            /* If we get here, we saw a codepoint lower than -127 or higher than 127
-             * so turn it into a 32 bit string instead */
-            /* Store the old string pointer and previous value of i */
-            MVMGrapheme8 *old_ref = result->body.storage.blob_8;
-            MVMuint64 prev_i = i;
-            /* Set up the string as 32bit now and allocate space for it */
-            result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-            result->body.storage.blob_32 = MVM_malloc(result->body.num_graphs * sizeof(MVMGrapheme32));
-            /* Copy the data so far copied from the 8bit blob since it's faster than
-             * setting up the grapheme iterator again */
-            for (i = 0; i < prev_i; i++) {
-                result->body.storage.blob_32[i] = old_ref[i];
+ * the supplied grapheme iterator for the length of body.num_graphs. Very fast
+ * since compilers will convert them to SIMD vector operations. */
+static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MVMString *result, MVMString *orig, MVMStringIndex num) {
+    int result_pos = 0;
+    MVMGrapheme8   *result8   = NULL;
+    MVMGrapheme32 *result32   = NULL;
+    MVMStringIndex result_graphs = MVM_string_graphs_nocheck(tc, result);
+    if (!result_graphs)
+        return;
+
+    if (string_can_be_8bit(tc, gi, result_graphs)) {
+        MVMStringIndex result_pos = 0;
+        result->body.storage_type = MVM_STRING_GRAPHEME_8;
+        result8 = result->body.storage.blob_8 =
+            MVM_malloc(result_graphs * sizeof(MVMGrapheme8));
+        while (1) {
+            MVMStringIndex strand_len =
+                MVM_string_gi_graphs_left_in_strand(tc, gi);
+            MVMStringIndex to_copy = result_graphs - result_pos < strand_len
+                ? result_graphs - result_pos
+                : strand_len;
+            MVMGrapheme8  *result_blob8 = result8 + result_pos;
+            switch (MVM_string_gi_blob_type(tc, gi)) {
+            case MVM_STRING_GRAPHEME_32: {
+                MVMStringIndex i;
+                MVMGrapheme32 *active_blob =
+                    MVM_string_gi_active_blob_32_pos(tc, gi);
+                MVM_VECTORIZE_LOOP
+                for (i = 0; i < to_copy; i++) {
+                    result_blob8[i] = active_blob[i];
+                }
+                break;
             }
-            MVM_free(old_ref);
-            /* Store the grapheme which interupted the sequence. After that we can
-             * continue from where we left off using the grapheme iterator */
-            result->body.storage.blob_32[prev_i] = g;
-            for (i = prev_i + 1; i < result->body.num_graphs; i++) {
-                result->body.storage.blob_32[i] = MVM_string_gi_get_grapheme(tc, gi);
+            case MVM_STRING_GRAPHEME_8:
+            case MVM_STRING_GRAPHEME_ASCII: {
+                memcpy(
+                    result_blob8,
+                    MVM_string_gi_active_blob_8_pos(tc, gi),
+                    to_copy * sizeof(MVMGrapheme8)
+                );
+                break;
             }
+            default:
+                MVM_exception_throw_adhoc(tc,
+                    "Internal error, string corruption in iterate_gi_into_string\n");
+            }
+            result_pos += to_copy;
+            if (result_graphs <= result_pos || !MVM_string_gi_has_more_strands_rep(tc, gi)) {
+                break;
+            }
+            MVM_string_gi_next_strand_rep(tc, gi);
+        }
+    }
+    else {
+        MVMStringIndex result_pos = 0;
+        result->body.storage_type            = MVM_STRING_GRAPHEME_32;
+        result32 = result->body.storage.blob_32 =
+            result_graphs ? MVM_malloc(result_graphs * sizeof(MVMGrapheme32)) : NULL;
+        while (1) {
+            MVMStringIndex strand_len = MVM_string_gi_graphs_left_in_strand(tc, gi);
+            MVMStringIndex to_copy = result_graphs - result_pos < strand_len
+                ? result_graphs - result_pos
+                : strand_len;
+            switch (MVM_string_gi_blob_type(tc, gi)) {
+                case MVM_STRING_GRAPHEME_8:
+                case MVM_STRING_GRAPHEME_ASCII: {
+                    MVMGrapheme8  *active_blob =
+                        MVM_string_gi_active_blob_8_pos(tc, gi);
+                    MVMGrapheme32 *result_blob32 = result32 + result_pos;
+                    MVMStringIndex i;
+                    MVM_VECTORIZE_LOOP
+                    for (i = 0; i < to_copy; i++) {
+                        result_blob32[i] = active_blob[i];
+                    }
+                    break;
+                }
+                case MVM_STRING_GRAPHEME_32: {
+                    memcpy(
+                        result32 + result_pos,
+                        MVM_string_gi_active_blob_32_pos(tc, gi),
+                        to_copy * sizeof(MVMGrapheme32)
+                    );
+                    break;
+                }
+                default:
+                    MVM_exception_throw_adhoc(tc,
+                        "Internal error, string corruption in iterate_gi_into_string\n");
+            }
+            result_pos += to_copy;
+            if (result_graphs <= result_pos || !MVM_string_gi_has_more_strands_rep(tc, gi)) {
+                break;
+            }
+            MVM_string_gi_next_strand_rep(tc, gi);
         }
     }
 }
@@ -307,7 +409,7 @@ static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
                 default: {
                     MVMGraphemeIter gi;
                     MVM_string_gi_init(tc, &gi, orig);
-                    iterate_gi_into_string(tc, &gi, result);
+                    iterate_gi_into_string(tc, &gi, result, orig, 0);
                 }
             }
         });
@@ -465,37 +567,70 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *
      * Crochemore+Perrin two-way string matching */
     switch (Haystack->body.storage_type) {
         case MVM_STRING_GRAPHEME_32:
-            if (needle->body.storage_type == MVM_STRING_GRAPHEME_32) {
+            if (needle->body.storage_type == MVM_STRING_GRAPHEME_32 || needle->body.num_graphs < 100) {
                 void *start_ptr = Haystack->body.storage.blob_32 + start;
-                void *mm_return_32;
+                void *mm_return_32 = NULL;
                 void *end_ptr = (char*)start_ptr + sizeof(MVMGrapheme32) * (H_graphs - start);
+                MVMGrapheme32 *needle_buf = NULL;
+                if (needle->body.storage_type != MVM_STRING_GRAPHEME_32) {
+                    MVMStringIndex i;
+                    MVMGraphemeIter n_gi;
+                    needle_buf = MVM_malloc(needle->body.num_graphs * sizeof(MVMGrapheme32));
+                    if (needle->body.storage_type != MVM_STRING_GRAPHEME_8) MVM_string_gi_init(tc, &n_gi, needle);
+                    for (i = 0; i < needle->body.num_graphs; i++) {
+                        needle_buf[i] = needle->body.storage_type == MVM_STRING_GRAPHEME_8 ? needle->body.storage.blob_8[i] : MVM_string_gi_get_grapheme(tc, &n_gi);
+                    }
+                }
                 do {
                     /* Keep as void* to not lose precision */
                     mm_return_32 = MVM_memmem(
                         start_ptr, /* start position */
                         (char*)end_ptr - (char*)start_ptr, /* length of Haystack from start position to end */
-                        needle->body.storage.blob_32, /* needle start */
+                        needle_buf ? needle_buf : needle->body.storage.blob_32, /* needle start */
                         n_graphs * sizeof(MVMGrapheme32) /* needle length */
                     );
-                    if (mm_return_32 == NULL)
+                    if (mm_return_32 == NULL) {
+                        if (needle_buf) MVM_free(needle_buf);
                         return -1;
+                    }
                 } /* If we aren't on a 32 bit boundary then continue from where we left off (unlikely but possible) */
                 while ( ( (char*)mm_return_32 - (char*)Haystack->body.storage.blob_32) % sizeof(MVMGrapheme32)
-                    && ( start_ptr = mm_return_32 ) /* Set the new start pointer at where we left off */
+                    && ( start_ptr = (char*)mm_return_32 + 1) /* Set the new start pointer right after where we left off */
                     && ( start_ptr < end_ptr ) /* Check we aren't past the end of the string just in case */
                 );
-
+                if (needle_buf) MVM_free(needle_buf);
                 return (MVMGrapheme32*)mm_return_32 - Haystack->body.storage.blob_32;
             }
             break;
         case MVM_STRING_GRAPHEME_8:
-            if (needle->body.storage_type == MVM_STRING_GRAPHEME_8) {
-                void *mm_return_8 = MVM_memmem(
+            if (needle->body.storage_type == MVM_STRING_GRAPHEME_8 || needle->body.num_graphs < 100) {
+                void         *mm_return_8 = NULL;
+                MVMGrapheme8 *needle_buf  = NULL;
+                if (needle->body.storage_type != MVM_STRING_GRAPHEME_8) {
+                    MVMStringIndex i;
+                    MVMGraphemeIter n_gi;
+                    needle_buf = MVM_malloc(needle->body.num_graphs * sizeof(MVMGrapheme8));
+                    if (needle->body.storage_type != MVM_STRING_GRAPHEME_32) MVM_string_gi_init(tc, &n_gi, needle);
+                    for (i = 0; i < needle->body.num_graphs; i++) {
+                        MVMGrapheme32 g = needle->body.storage_type == MVM_STRING_GRAPHEME_32
+                            ? needle->body.storage.blob_32[i]
+                            : MVM_string_gi_get_grapheme(tc, &n_gi);
+                        /* Haystack is 8 bit, needle is 32 bit. if we encounter a non8bit grapheme
+                         * it's impossible to match */
+                        if (!can_fit_into_8bit(g)) {
+                            MVM_free(needle_buf);
+                            return -1;
+                        }
+                        needle_buf[i] = g;
+                    }
+                }
+                mm_return_8 = MVM_memmem(
                     Haystack->body.storage.blob_8 + start, /* start position */
                     (H_graphs - start) * sizeof(MVMGrapheme8), /* length of Haystack from start position to end */
-                    needle->body.storage.blob_8, /* needle start */
+                    needle_buf ? needle_buf : needle->body.storage.blob_8, /* needle start */
                     n_graphs * sizeof(MVMGrapheme8) /* needle length */
                 );
+                if (needle_buf) MVM_free(needle_buf);
                 if (mm_return_8 == NULL)
                     return -1;
                 else
@@ -657,7 +792,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
             MVMGraphemeIter gi;
             MVM_string_gi_init(tc, &gi, a);
             MVM_string_gi_move_to(tc, &gi, start_pos);
-            iterate_gi_into_string(tc, &gi, result);
+            iterate_gi_into_string(tc, &gi, result, a, start_pos);
         }
     });
 
@@ -1484,6 +1619,7 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
                     result_graphs += num_transformed - 1;
                     result_buf = MVM_realloc(result_buf,
                         result_graphs * sizeof(MVMGrapheme32));
+                    MVM_VECTORIZE_LOOP
                     for (j = 0; j < num_transformed; j++)
                         result_buf[i++] = transformed[j];
                     changed = 1;
@@ -1517,9 +1653,19 @@ MVMString * MVM_string_fc(MVMThreadContext *tc, MVMString *s) {
     return do_case_change(tc, s, MVM_unicode_case_change_type_fold, "fc");
 }
 
-/* Decodes a C buffer to an MVMString, dependent on the encoding type flag. */
-MVMString * MVM_string_decode(MVMThreadContext *tc,
-        const MVMObject *type_object, char *Cbuf, MVMint64 byte_length, MVMint64 encoding_flag) {
+/* "Strict"ly (if possible) decodes a C buffer to an MVMString, dependent on the
+ * encoding type flag. Unlike MVM_string_decode, it will not pass through
+ * codepoints which have no official mapping. `config` can be set to 1 to indicate
+ * that you want to decode non-strict ("permissive"), which will try and decode
+ * as long as it's possible (For example codepoint 129 in windows-1252 is invalid,
+ * but is technically possible to use Unicode codepoint 129 instead (though it's
+ * most likely this means the input is actually *not* windows-1252).
+ * For now windows-1252 and windows-1251 are the only ones this makes a difference
+ * on. And it is mostly irrelevant for utf8/utf8-c8 encodings since they can
+ * already represent all codepoints below 0x10FFFF */
+MVMString * MVM_string_decode_config(MVMThreadContext *tc,
+        const MVMObject *type_object, char *Cbuf, MVMint64 byte_length,
+        MVMint64 encoding_flag, MVMString *replacement, MVMint64 config) {
     switch(encoding_flag) {
         case MVM_encoding_type_utf8:
             return MVM_string_utf8_decode_strip_bom(tc, type_object, Cbuf, byte_length);
@@ -1530,20 +1676,29 @@ MVMString * MVM_string_decode(MVMThreadContext *tc,
         case MVM_encoding_type_utf16:
             return MVM_string_utf16_decode(tc, type_object, Cbuf, byte_length);
         case MVM_encoding_type_windows1252:
-            return MVM_string_windows1252_decode(tc, type_object, Cbuf, byte_length);
+            return MVM_string_windows1252_decode_config(tc, type_object, Cbuf, byte_length, replacement, config);
         case MVM_encoding_type_windows1251:
-            return MVM_string_windows1251_decode(tc, type_object, Cbuf, byte_length);
+            return MVM_string_windows1251_decode_config(tc, type_object, Cbuf, byte_length, replacement, config);
+        case MVM_encoding_type_shiftjis:
+            return MVM_string_shiftjis_decode(tc, type_object, Cbuf, byte_length, replacement, config);
         case MVM_encoding_type_utf8_c8:
             return MVM_string_utf8_c8_decode(tc, type_object, Cbuf, byte_length);
         default:
             MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRId64, encoding_flag);
     }
 }
+/* Strictly decodes a C buffer to an MVMString, dependent on the encoding type flag.
+ * See the comments above MVM_string_decode_config() above for more details. */
+MVMString * MVM_string_decode(MVMThreadContext *tc,
+        const MVMObject *type_object, char *Cbuf, MVMint64 byte_length, MVMint64 encoding_flag) {
+    return MVM_string_decode_config(tc, type_object, Cbuf, byte_length, encoding_flag, NULL, MVM_ENCODING_PERMISSIVE);
+}
 
-/* Encodes an MVMString to a C buffer, dependent on the encoding type flag */
-char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start,
+/* Strictly encodes an MVMString to a C buffer, dependent on the encoding type flag.
+ * See comments for MVM_string_decode_config() above for more details. */
+char * MVM_string_encode_config(MVMThreadContext *tc, MVMString *s, MVMint64 start,
         MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag,
-        MVMString *replacement, MVMint32 translate_newlines) {
+        MVMString *replacement, MVMint32 translate_newlines, MVMuint8 config) {
     switch(encoding_flag) {
         case MVM_encoding_type_utf8:
             return MVM_string_utf8_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
@@ -1554,20 +1709,27 @@ char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start,
         case MVM_encoding_type_utf16:
             return MVM_string_utf16_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
         case MVM_encoding_type_windows1252:
-            return MVM_string_windows1252_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
+            return MVM_string_windows1252_encode_substr_config(tc, s, output_size, start, length, replacement, translate_newlines, config);
         case MVM_encoding_type_windows1251:
-            return MVM_string_windows1251_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
+            return MVM_string_windows1251_encode_substr_config(tc, s, output_size, start, length, replacement, translate_newlines, config);
+        case MVM_encoding_type_shiftjis:
+            return MVM_string_shiftjis_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines, config);
         case MVM_encoding_type_utf8_c8:
             return MVM_string_utf8_c8_encode_substr(tc, s, output_size, start, length, replacement);
         default:
             MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRId64, encoding_flag);
     }
 }
+char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start,
+        MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag,
+        MVMString *replacement, MVMint32 translate_newlines) {
+    return MVM_string_encode_config(tc, s, start, length, output_size, encoding_flag, replacement, translate_newlines, MVM_ENCODING_PERMISSIVE);
+}
 
-/* Encodes a string, and writes the encoding string into the supplied Buf
+/* Strictly encodes a string, and writes the encoding string into the supplied Buf
  * instance, which should be an integer array with MVMArray REPR. */
-MVMObject * MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc_name,
-        MVMObject *buf, MVMString *replacement) {
+MVMObject * MVM_string_encode_to_buf_config(MVMThreadContext *tc, MVMString *s, MVMString *enc_name,
+        MVMObject *buf, MVMString *replacement, MVMint64 config) {
     MVMuint64 output_size;
     MVMuint8 *encoded;
     MVMArrayREPRData *buf_rd;
@@ -1599,8 +1761,8 @@ MVMObject * MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMStri
      * in case. */
     MVMROOT2(tc, buf, s, {
         const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, enc_name);
-        encoded = (MVMuint8 *)MVM_string_encode(tc, s, 0, MVM_string_graphs_nocheck(tc, s), &output_size,
-            encoding_flag, replacement, 0);
+        encoded = (MVMuint8 *)MVM_string_encode_config(tc, s, 0, MVM_string_graphs_nocheck(tc, s), &output_size,
+            encoding_flag, replacement, 0, config);
     });
 
     /* Stash the encoded data in the VMArray. */
@@ -1610,9 +1772,14 @@ MVMObject * MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMStri
     ((MVMArray *)buf)->body.elems    = output_size / elem_size;
     return buf;
 }
-
-/* Decodes a string using the data from the specified Buf. */
-MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVMString *enc_name) {
+MVMObject * MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc_name,
+        MVMObject *buf, MVMString *replacement) {
+    return MVM_string_encode_to_buf_config(tc, s, enc_name, buf, replacement, MVM_ENCODING_PERMISSIVE);
+}
+/* Decodes a string using the data from the specified Buf. Decodes "strict" by
+ * default, but optionally can be "permissive". */
+MVMString * MVM_string_decode_from_buf_config(MVMThreadContext *tc, MVMObject *buf,
+        MVMString *enc_name, MVMString *replacement, MVMint64 config) {
     MVMArrayREPRData *buf_rd;
     MVMuint8 encoding_flag;
     MVMuint8 elem_size = 0;
@@ -1640,10 +1807,13 @@ MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVM
     MVMROOT(tc, buf, {
         encoding_flag = MVM_string_find_encoding(tc, enc_name);
     });
-    return MVM_string_decode(tc, tc->instance->VMString,
+    return MVM_string_decode_config(tc, tc->instance->VMString,
         (char *)(((MVMArray *)buf)->body.slots.i8 + ((MVMArray *)buf)->body.start),
         ((MVMArray *)buf)->body.elems * elem_size,
-        encoding_flag);
+        encoding_flag, replacement, config);
+}
+MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVMString *enc_name) {
+    return MVM_string_decode_from_buf_config(tc, buf, enc_name, NULL, MVM_ENCODING_PERMISSIVE);
 }
 
 MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMString *input) {
@@ -2092,23 +2262,40 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
     sgraphs = MVM_string_graphs_nocheck(tc, s);
     rpos    = sgraphs;
 
-    if (s->body.storage_type == MVM_STRING_GRAPHEME_8) {
+    switch (s->body.storage_type) {
+    case MVM_STRING_GRAPHEME_ASCII:
+    case MVM_STRING_GRAPHEME_8: {
         MVMGrapheme8   *rbuffer;
+        /* Copy the variables, so we can use them just for the loop. This way
+         * the loop will vectorize since we won't refer to their values except
+         * in the loop. Use size_t to coerce vectorization.  */
+        size_t spos_l = spos, rpos_l = rpos;
         rbuffer = MVM_malloc(sizeof(MVMGrapheme8) * sgraphs);
+        MVM_VECTORIZE_LOOP
+        while (spos_l < s->body.num_graphs)
+            rbuffer[--rpos_l] = s->body.storage.blob_8[spos_l++];
 
-        for (; spos < sgraphs; spos++)
-            rbuffer[--rpos] = s->body.storage.blob_8[spos];
+        spos += sgraphs - spos;
+        rpos -= sgraphs - spos;
 
         res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-        res->body.storage_type    = MVM_STRING_GRAPHEME_8;
+        res->body.storage_type    = s->body.storage_type;
         res->body.storage.blob_8  = rbuffer;
-    } else {
+        break;
+    }
+    default: {
         MVMGrapheme32  *rbuffer;
         rbuffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
 
-        if (s->body.storage_type == MVM_STRING_GRAPHEME_32)
-            for (; spos < sgraphs; spos++)
-                rbuffer[--rpos] = s->body.storage.blob_32[spos];
+        if (s->body.storage_type == MVM_STRING_GRAPHEME_32) {
+            size_t spos_l = spos, rpos_l = rpos;
+            MVM_VECTORIZE_LOOP
+            while (spos_l < s->body.num_graphs)
+                rbuffer[--rpos_l] = s->body.storage.blob_32[spos_l++];
+
+            spos += sgraphs - spos;
+            rpos -= sgraphs - spos;
+        }
         else
             for (; spos < sgraphs; spos++)
                 rbuffer[--rpos] = MVM_string_get_grapheme_at_nocheck(tc, s, spos);
@@ -2116,7 +2303,7 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
         res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
         res->body.storage_type    = MVM_STRING_GRAPHEME_32;
         res->body.storage.blob_32 = rbuffer;
-    }
+    }}
 
     res->body.num_graphs      = sgraphs;
 
@@ -2127,7 +2314,8 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
 /* Compares two strings, returning -1, 0 or 1 to indicate less than,
  * equal or greater than. */
 MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    MVMStringIndex alen, blen, i, scanlen;
+    MVMStringIndex alen, blen, i = 0, scanlen;
+    MVMGraphemeIter gi_a, gi_b;
 
     MVM_string_check_arg(tc, a, "compare");
     MVM_string_check_arg(tc, b, "compare");
@@ -2142,9 +2330,70 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
 
     /* Otherwise, need to scan them. */
     scanlen = blen < alen ? blen : alen;
-    for (i = 0; i < scanlen; i++) {
-        MVMGrapheme32 g_a = MVM_string_get_grapheme_at_nocheck(tc, a, i);
-        MVMGrapheme32 g_b = MVM_string_get_grapheme_at_nocheck(tc, b, i);
+
+    /* Short circuit a case where the other conditionals won't speed it up */
+    if (a->body.storage_type == MVM_STRING_STRAND || b->body.storage_type == MVM_STRING_STRAND) {
+
+    }
+    else if ((a->body.storage_type == MVM_STRING_GRAPHEME_8 || a->body.storage_type == MVM_STRING_GRAPHEME_ASCII)
+          && (b->body.storage_type == MVM_STRING_GRAPHEME_8 || b->body.storage_type == MVM_STRING_GRAPHEME_ASCII)) {
+        MVMGrapheme8  *a_blob8 = a->body.storage.blob_8;
+        MVMGrapheme8  *b_blob8 = b->body.storage.blob_8;
+        while (i < scanlen && a_blob8[i] == b_blob8[i]) {
+            i++;
+        }
+    }
+    else if (a->body.storage_type == MVM_STRING_GRAPHEME_32 && b->body.storage_type == MVM_STRING_GRAPHEME_32) {
+        MVMGrapheme32  *a_blob32 = a->body.storage.blob_32;
+        MVMGrapheme32  *b_blob32 = b->body.storage.blob_32;
+        while (i < scanlen && a_blob32[i] == b_blob32[i]) {
+            i++;
+        }
+    }
+    else {
+        MVMGrapheme32 *blob32 = NULL;
+        MVMGrapheme8  *blob8  = NULL;
+        switch (a->body.storage_type) {
+            case MVM_STRING_GRAPHEME_8:
+            case MVM_STRING_GRAPHEME_ASCII:
+                blob8 = a->body.storage.blob_8;
+                break;
+            case MVM_STRING_GRAPHEME_32:
+                blob32 = a->body.storage.blob_32;
+                break;
+            default:
+                MVM_exception_throw_adhoc(tc,
+                    "String corruption in string compare. Unknown string type.");
+        }
+        switch (b->body.storage_type) {
+            case MVM_STRING_GRAPHEME_8:
+            case MVM_STRING_GRAPHEME_ASCII:
+                blob8 = b->body.storage.blob_8;
+                break;
+            case MVM_STRING_GRAPHEME_32:
+                blob32 = b->body.storage.blob_32;
+                break;
+            default:
+                MVM_exception_throw_adhoc(tc,
+                    "String corruption in string compare. Unknown string type.");
+        }
+        while (i < scanlen && blob32[i] == blob8[i]) {
+            i++;
+        }
+    }
+    /* If one of the strings was a strand or we encountered a differing character
+     * while scanning in the loops above. */
+    if (i < scanlen) {
+        MVM_string_gi_init(tc, &gi_a, a);
+        MVM_string_gi_init(tc, &gi_b, b);
+        if (i) {
+            MVM_string_gi_move_to(tc, &gi_a, i);
+            MVM_string_gi_move_to(tc, &gi_b, i);
+        }
+    }
+    for (; i < scanlen; i++) {
+        MVMGrapheme32 g_a = MVM_string_gi_get_grapheme(tc, &gi_a);
+        MVMGrapheme32 g_b = MVM_string_gi_get_grapheme(tc, &gi_b);
         if (g_a != g_b) {
             MVMint64 rtrn;
             /* If one of the deciding graphemes is a synthetic then we need to
@@ -2530,6 +2779,7 @@ static MVMString *encoding_latin1_name       = NULL;
 static MVMString *encoding_utf16_name        = NULL;
 static MVMString *encoding_windows1252_name  = NULL;
 static MVMString *encoding_windows1251_name  = NULL;
+static MVMString *encoding_shiftjis_name     = NULL;
 static MVMString *encoding_utf8_c8_name      = NULL;
 MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
     MVM_string_check_arg(tc, name, "find encoding");
@@ -2547,6 +2797,8 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_windows1252_name, "Encoding name");
         encoding_windows1251_name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "windows-1251");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_windows1251_name, "Encoding name");
+        encoding_shiftjis_name     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "windows-932");
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_shiftjis_name, "Encoding name");
         encoding_utf8_c8_name     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "utf8-c8");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_utf8_c8_name, "Encoding name");
         encoding_name_init   = 1;
@@ -2573,6 +2825,9 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
     }
     else if (MVM_string_equal(tc, name, encoding_utf8_c8_name)) {
         return MVM_encoding_type_utf8_c8;
+    }
+    else if (MVM_string_equal(tc, name, encoding_shiftjis_name)) {
+        return MVM_encoding_type_shiftjis;
     }
     else {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);

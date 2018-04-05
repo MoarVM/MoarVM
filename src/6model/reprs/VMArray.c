@@ -325,9 +325,9 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
         zero_slots(tc, body, n+start, start+elems, repr_data->slot_type);
     }
 
-    body->elems = n;
     if (n <= ssize) {
         /* we already have n slots available, we can just return */
+        body->elems = n;
         return;
     }
 
@@ -368,6 +368,8 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
     zero_slots(tc, body, elems, ssize, repr_data->slot_type);
 
     body->ssize = ssize;
+    /* set elems last so no thread tries to access slots before they are available */
+    body->elems = n;
 }
 
 static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {

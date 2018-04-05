@@ -690,13 +690,17 @@ static void insert_object_null_instructions(MVMThreadContext *tc, MVMSpeshGraph 
     MVMuint16 *local_types = g->sf->body.local_types;
     MVMuint16  num_locals = g->sf->body.num_locals;
     MVMuint16 i;
+    MVMSpeshIns *insert_after = NULL;
+    if (insert_bb->first_ins && insert_bb->first_ins->info->opcode == MVM_OP_prof_enter) {
+        insert_after = insert_bb->first_ins;
+    }
     for (i = 0; i < num_locals; i++) {
         if (local_types[i] == MVM_reg_obj && !is_handler_reg(tc, g, i)) {
             MVMSpeshIns *null_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
             null_ins->info = MVM_op_get_op(MVM_OP_null);
             null_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand));
             null_ins->operands[0].reg.orig = i;
-            MVM_spesh_manipulate_insert_ins(tc, insert_bb, NULL, null_ins);
+            MVM_spesh_manipulate_insert_ins(tc, insert_bb, insert_after, null_ins);
         }
     }
 }

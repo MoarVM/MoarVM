@@ -37,7 +37,8 @@ static const char * get_typename(MVMuint16 type) {
         case MVM_reg_uint16: return "uint16";
         case MVM_reg_uint32: return "uint32";
         case MVM_reg_uint64: return "uint";
-        default           : return "UNKNOWN";
+        default           : fprintf(stderr, "unknown type %d\n", type);
+                             return "UNKNOWN";
     }
 }
 
@@ -130,7 +131,7 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
         cur_op += 2;
         if (op_num < MVM_OP_EXT_BASE) {
             op_info = MVM_op_get_op(op_num);
-            a("%-12s ", op_info->name);
+            a("%-18s ", op_info->name);
         }
         else {
             MVMint16 ext_op_num = op_num - MVM_OP_EXT_BASE;
@@ -179,6 +180,22 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
                         operand_size = 8;
                         a("%"PRId64, MVM_BC_get_I64(cur_op, 0));
                         break;
+                    case MVM_operand_uint8:
+                        operand_size = 1;
+                        a("%"PRIu8, GET_I8(cur_op, 0));
+                        break;
+                    case MVM_operand_uint16:
+                        operand_size = 2;
+                        a("%"PRIu16, GET_I16(cur_op, 0));
+                        break;
+                    case MVM_operand_uint32:
+                        operand_size = 4;
+                        a("%"PRIu32, GET_I32(cur_op, 0));
+                        break;
+                    case MVM_operand_uint64:
+                        operand_size = 8;
+                        a("%"PRIu64, MVM_BC_get_I64(cur_op, 0));
+                        break;
                     case MVM_operand_num32:
                         operand_size = 4;
                         a("%f", GET_N32(cur_op, 0));
@@ -221,14 +238,18 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
                         a("sslot(%d)", GET_UI16(cur_op, 0));
                         break;
                     default:
+                        fprintf(stderr, "what is an operand of type %d??\n", op_type);
                         abort(); /* never reached, silence compiler warnings */
                 }
             }
             else if (op_rw == MVM_operand_read_reg || op_rw == MVM_operand_write_reg) {
                 /* register operand */
+                MVMuint8 frame_has_inlines = maybe_candidate && maybe_candidate->num_inlines ? 1 : 0;
+                MVMuint16 *local_types = frame_has_inlines ? maybe_candidate->local_types : frame->body.local_types;
+                MVMuint16 num_locals   = frame_has_inlines ? maybe_candidate->num_locals : frame->body.num_locals;
                 operand_size = 2;
                 a("loc_%u_%s", GET_REG(cur_op, 0),
-                    get_typename(frame->body.local_types[GET_REG(cur_op, 0)]));
+                    get_typename(local_types[GET_REG(cur_op, 0)]));
             }
             else if (op_rw == MVM_operand_read_lex || op_rw == MVM_operand_write_lex) {
                 /* lexical operand */

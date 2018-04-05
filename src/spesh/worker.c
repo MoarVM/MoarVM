@@ -10,6 +10,9 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
         tc->instance->boot_types.BOOTArray);
     MVMObject *previous_static_frames = MVM_repr_alloc_init(tc,
         tc->instance->boot_types.BOOTArray);
+
+    tc->instance->speshworker_thread_id = tc->thread_obj->body.thread_id;
+
     MVMROOT2(tc, updated_static_frames, previous_static_frames, {
         while (1) {
             MVMObject *log_obj;
@@ -25,6 +28,9 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                     "Was waiting %dus for logs on the log queue.\n\n",
                     (int)((uv_hrtime() - start_time) / 1000));
             }
+
+            if (tc->instance->main_thread->prof_data)
+                MVM_profiler_log_spesh_start(tc);
 
             interval_id = MVM_telemetry_interval_start(tc, "spesh worker consuming a log");
 
@@ -88,7 +94,14 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                     /* Implement the plan and then discard it. */
                     n = tc->instance->spesh_plan->num_planned;
                     for (i = 0; i < n; i++) {
-                        MVM_spesh_candidate_add(tc, &(tc->instance->spesh_plan->planned[i]));
+                        MVMuint8 tries = 3;
+                        tc->instance->spesh_plan->planned[i].should_retry = 1;
+                        while (tc->instance->spesh_plan->planned[i].should_retry && tries-- > 0) {
+                            MVM_spesh_candidate_add(tc, &(tc->instance->spesh_plan->planned[i]));
+                        }
+                        if (tries == 0 && tc->instance->spesh_log_fh)
+                            fprintf(tc->instance->spesh_log_fh,
+                                "Retries exhausted for specializing this frame.\n\n");
                         GC_SYNC_POINT(tc);
                     }
                     MVM_spesh_plan_destroy(tc, tc->instance->spesh_plan);
@@ -129,6 +142,9 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
             }
 
             MVM_telemetry_interval_stop(tc, interval_id, "spesh worker finished");
+
+            if (tc->instance->main_thread->prof_data)
+                MVM_profiler_log_spesh_end(tc);
 
             uv_mutex_lock(&(tc->instance->mutex_spesh_sync));
             tc->instance->spesh_working = 0;

@@ -26,8 +26,10 @@ static void add_work(MVMThreadContext *tc, MVMThreadContext *stolen) {
 static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_signal) {
     /* Loop here since we may not succeed first time (e.g. the status of the
      * thread may change between the two ways we try to twiddle it). */
+    int had_suspend_request = 0;
     while (1) {
-        switch (MVM_load(&to_signal->gc_status)) {
+        AO_t current = MVM_load(&to_signal->gc_status);
+        switch (current) {
             case MVMGCStatus_NONE:
                 /* Try to set it from running to interrupted - the common case. */
                 if (MVM_cas(&to_signal->gc_status, MVMGCStatus_NONE,
@@ -36,13 +38,17 @@ static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_si
                     return 1;
                 }
                 break;
+            case MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST:
             case MVMGCStatus_INTERRUPT:
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : thread %d already interrupted\n", to_signal->thread_id);
                 return 0;
+            case MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST:
+            case MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED:
+                had_suspend_request = current & MVMSUSPENDSTATUS_MASK;
             case MVMGCStatus_UNABLE:
                 /* Otherwise, it's blocked; try to set it to work Stolen. */
-                if (MVM_cas(&to_signal->gc_status, MVMGCStatus_UNABLE,
-                        MVMGCStatus_STOLEN) == MVMGCStatus_UNABLE) {
+                if (MVM_cas(&to_signal->gc_status, MVMGCStatus_UNABLE | had_suspend_request,
+                        MVMGCStatus_STOLEN | had_suspend_request) == (MVMGCStatus_UNABLE | had_suspend_request)) {
                     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : A blocked thread %d spotted; work stolen\n", to_signal->thread_id);
                     add_work(tc, to_signal);
                     return 0;
@@ -50,6 +56,8 @@ static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_si
                 break;
             /* this case occurs if a child thread is Stolen by its parent
              * before we get to it in the chain. */
+            case MVMGCStatus_STOLEN | MVMSuspendState_SUSPEND_REQUEST:
+            case MVMGCStatus_STOLEN | MVMSuspendState_SUSPENDED:
             case MVMGCStatus_STOLEN:
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : thread %d already stolen (it was a spawning child)\n", to_signal->thread_id);
                 return 0;
@@ -176,6 +184,7 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
             "Thread %d run %d : Co-ordinator handling fixed-size allocator safepoint frees\n");
         MVM_fixed_size_safepoint(tc, tc->instance->fsa);
 
+        MVM_profile_dump_instrumented_data(tc);
         MVM_profile_heap_take_snapshot(tc);
 
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
@@ -271,6 +280,10 @@ void MVM_gc_mark_thread_blocked(MVMThreadContext *tc) {
                 MVMGCStatus_UNABLE) == MVMGCStatus_NONE)
             return;
 
+        if (MVM_cas(&tc->gc_status, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST,
+                MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED) == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST))
+            return;
+
         /* The only way this can fail is if another thread just decided we're to
          * participate in a GC run. */
         if (MVM_load(&tc->gc_status) == MVMGCStatus_INTERRUPT)
@@ -298,7 +311,32 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
         }
         else {
             uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
-            MVM_platform_thread_yield();
+            if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPEND_REQUEST) {
+                while (1) {
+                    /* Let's try to unblock into INTERRUPT mode and keep the
+                     * suspend request, then immediately enter_from_interrupt,
+                     * so we actually wait to be woken up. */
+                    if (MVM_cas(&tc->gc_status, MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST,
+                                MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST) ==
+                            (MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST)) {
+                        MVM_gc_enter_from_interrupt(tc);
+                        break;
+                    }
+                    /* If we're being resumed while trying to unblock into
+                     * suspend request, we'd block forever. Therefor we have
+                     * to check if we've been un-requested. */
+                    if (MVM_cas(&tc->gc_status, MVMGCStatus_UNABLE,
+                                MVMGCStatus_NONE) ==
+                            MVMGCStatus_UNABLE) {
+                        return;
+                    }
+                }
+            } else if (MVM_load(&tc->gc_status) == MVMGCStatus_NONE) {
+                fprintf(stderr, "marking thread %d unblocked, but its status is already NONE.\n", tc->thread_id);
+                break;
+            } else {
+                MVM_platform_thread_yield();
+            }
         }
     }
 }
@@ -312,7 +350,7 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
  * these cases are handled in MVM_gc_mark_thread_unblocked. Note that this
  * relies on a thread itself only ever calling block/unblock. */
 MVMint32 MVM_gc_is_thread_blocked(MVMThreadContext *tc) {
-    AO_t gc_status = MVM_load(&(tc->gc_status));
+    AO_t gc_status = MVM_load(&(tc->gc_status)) & MVMGCSTATUS_MASK;
     return gc_status == MVMGCStatus_UNABLE ||
            gc_status == MVMGCStatus_STOLEN;
 }
@@ -415,7 +453,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
 
         /* If profiling, record that GC is starting. */
         if (tc->instance->profiling)
-            MVM_profiler_log_gc_start(tc, tc->instance->gc_full_collect);
+            MVM_profiler_log_gc_start(tc, tc->instance->gc_full_collect, 1);
 
         /* Ensure our stolen list is empty. */
         tc->gc_work_count = 0;
@@ -501,19 +539,51 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
     }
 }
 
-/* This is called when a thread hits an interrupt at a GC safe point. This means
- * that another thread is already trying to start a GC run, so we don't need to
- * try and do that, just enlist in the run. */
+/* This is called when a thread hits an interrupt at a GC safe point.
+ *
+ * There are two interpretations for this:
+ * * That another thread is already trying to start a GC run, so we don't need
+ *   to try and do that, just enlist in the run.
+ * * The debug remote is asking this thread to suspend execution.
+ *
+ * Those cases can be distinguished by the gc state masked with
+ * MVMSUSPENDSTATUS_MASK.
+ *   */
 void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     AO_t curr;
 
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from interrupt\n");
 
+
+    if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPEND_REQUEST) {
+        if (tc->instance->debugserver && tc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "thread %d reacting to suspend request\n", tc->thread_id);
+        MVM_gc_mark_thread_blocked(tc);
+        while (1) {
+            uv_cond_wait(&tc->instance->debugserver->tell_threads, &tc->instance->debugserver->mutex_cond);
+            if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_NONE) {
+                if (tc->instance->debugserver && tc->instance->debugserver->debugspam_protocol)
+                    fprintf(stderr, "thread %d got un-suspended\n", tc->thread_id);
+                break;
+            } else {
+                if (tc->instance->debugserver && tc->instance->debugserver->debugspam_protocol)
+                    fprintf(stderr, "something happened, but we're still suspended.\n");
+            }
+        }
+        MVM_gc_mark_thread_unblocked(tc);
+        return;
+    } else if (MVM_load(&tc->gc_status) == (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED)) {
+        /* The thread that the tc belongs to is already waiting in that loop
+         * up there. If we reach this piece of code the active thread must be
+         * the debug remote using a suspended thread's ThreadContext. */
+        return;
+    }
+
     MVM_telemetry_timestamp(tc, "gc_enter_from_interrupt");
 
     /* If profiling, record that GC is starting. */
     if (tc->instance->profiling)
-        MVM_profiler_log_gc_start(tc, is_full_collection(tc));
+        MVM_profiler_log_gc_start(tc, is_full_collection(tc), 0);
 
     /* We'll certainly take care of our own work. */
     tc->gc_work_count = 0;

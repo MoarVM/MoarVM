@@ -84,6 +84,8 @@ struct MVMStringConsts {
     MVMString *translate_newlines;
     MVMString *platform_newline;
     MVMString *path;
+    MVMString *config;
+    MVMString *replacement;
 };
 
 /* An entry in the representations registry. */
@@ -227,12 +229,13 @@ struct MVMInstance {
      * the item is unresolved. Also, array of all SCs, used for the
      * index stored in object headers. When an SC goes away this is
      * simply nulled. That makes it a small memory leak if a lot of
-     * SCs are created and go away over time. */
+     * SCs are created and go away over time. The mutex protects all
+     * the weakhash and all SCs list. */
     MVMSerializationContextBody  *sc_weakhash;
-    uv_mutex_t                    mutex_sc_weakhash;
     MVMSerializationContextBody **all_scs;
     MVMuint32                     all_scs_next_idx;
     MVMuint32                     all_scs_alloc;
+    uv_mutex_t                    mutex_sc_registry;
 
     /* Mutex to serialize additions of type parameterizations. Global rather
      * than per STable, as this doesn't happen often. */
@@ -348,6 +351,12 @@ struct MVMInstance {
 
     /* Cache the environment hash */
     MVMObject      *env_hash;
+
+    /* Cache the signal hash */
+    MVMObject      *sig_hash;
+
+    /* Flags indicating the signals available on the host system */
+    MVMuint64       valid_sigs;
 
     /************************************************************************
      * Caching and interning
@@ -488,6 +497,10 @@ struct MVMInstance {
     /************************************************************************
      * Debugging
      ************************************************************************/
+
+    MVMDebugServerData *debugserver;
+
+    MVMuint32 speshworker_thread_id;
 
     /* Log file for dynamic var performance, if we're to log it. */
     FILE *dynvar_log_fh;

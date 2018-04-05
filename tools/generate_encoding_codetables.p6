@@ -20,8 +20,57 @@ sub process-file (Str:D $filename, Str:D $encoding) {
     die unless elems %to-hex1252 == 256;
     %to-hex1252;
 }
+sub process-shift-jis-index (Str:D $filename) {
+    my %indexes;
+    my %unis;
+    for $filename.IO.slurp.lines -> $line {
+        next if $line ~~ /^\s*$/ || $line ~~ /^\s*'#'/;
+        my ($index, $uni) = $line.split(/\s+/, :skip-empty);
+        # Let index be index jis0208 excluding all entries whose pointer is in the range 8272 to 8835, inclusive.
+        next if 8272 <= $index && $index <= 8835;
+        my $uni_int = $uni.subst(/^0x/, "").parse-base(16);
+        note "index $index already exists with codepoint %indexes{$index}. Adding for codepoint $uni" if %indexes{$index}:exists;
+        # The index pointer for code point in index is the first pointer corresponding to code point in index, or null if code point is not in index.
+        %indexes{$index} = $uni_int;
+        if %unis{$uni_int}:!exists {
+            %unis{$uni_int} = $index;
+        }
+    }
+    my @cp_to_index;
+    my @index_to_cp;
+    my @index_to_cp_array;
+    for %unis.sort(*.key.Int) -> $pair {
+        my ($uni, $index) = ($pair.kv);
+        push @cp_to_index, make-case($uni.fmt("0x%X"), $index);
+    }
+    @cp_to_index.push: "default: return SHIFTJIS_NULL;";
+    my $last_seen_index = -1;
+    for %indexes.sort(*.key.Int) -> $pair {
+        my ($index, $uni) = ($pair.kv);
+        # This part may be used if we switch to an array instead of a switch
+        #`(if $last_seen_index+1 != $index {
+            note "last seen was $last_seen_index. current is $index";
+            note "if (index > $last_seen_index) counter += " ~ ($index - $last_seen_index - 1);
+        }
+        $last_seen_index = $index;)
+        push @index_to_cp, make-case($index, $uni.fmt("0x%X"));
+    }
+    @index_to_cp.push: "default: return SHIFTJIS_NULL;";
+    my $cp_to_index_str = "MVMint16 shift_jis_cp_to_index (MVMGrapheme32 codepoint) \{\n" ~
+        ("switch (codepoint) \{\n" ~ @cp_to_index.join("\n").indent(4) ~ "\n}").indent(4) ~
+        "\n\}\n";
+    my $index_to_cp_str = "MVMGrapheme32 shift_jis_index_to_cp (MVMint16 index) \{\n" ~
+    ("switch (index) \{\n" ~ @index_to_cp.join("\n").indent(4) ~ "\n}").indent(4) ~
+    "\n\}\n";
+
+    "#define SHIFTJIS_NULL -1\n" ~
+    $index_to_cp_str ~ "\n" ~
+    $cp_to_index_str;
+
+}
 sub MAIN {
     my $DIR = "UNIDATA/CODETABLES";
+    say process-shift-jis-index("$DIR/index-jis0208.txt");
     my @info = %(encoding => 'windows1252', filename => "$DIR/CP1252.TXT", comment => "/* Windows-1252 Latin */"),
         %( encoding => 'windows1251', filename => "$DIR/CP1251.TXT", comment => "/* Windows-1251 Cyrillic */");
     my %win1252 = process-file(@info[0]<filename>, @info[0]<encoding>);

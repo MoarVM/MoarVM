@@ -30,6 +30,10 @@ struct MVMProfileThreadData {
      * often if there's a conditionally-allocating operation (like getlex)
      * that gets called multiple times with no actual allocations in between */
     MVMObject *last_counted_allocation;
+
+    /* Used to pass generated data structure from the gc-orchestrated
+     * dumping function back to the dump function that ends the profile */
+    MVMObject *collected_data;
 };
 
 /* Information collected about a GC run. */
@@ -37,8 +41,19 @@ struct MVMProfileGC {
     /* How long the collection took. */
     MVMuint64 time;
 
+    /* When, relative to program start, did this GC take place? */
+    MVMuint64 abstime;
+
     /* Was it a full collection? */
-    MVMuint32 full;
+    MVMuint16 full;
+
+    /* Was this thread responsible? */
+    MVMuint16 responsible;
+
+    /* Which GC run does this belong to?
+     * (Good to know in multithreaded situations where
+     * some threads have their work stolen) */
+    AO_t gc_seq_num;
 
     /* Nursery statistics. */
     MVMuint32 cleared_bytes;
@@ -153,7 +168,7 @@ void MVM_profile_log_unwind(MVMThreadContext *tc);
 MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadContext *tc, const MVMFrame *root_frame);
 void MVM_profile_log_continuation_invoke(MVMThreadContext *tc, const MVMProfileContinuationData *cd);
 void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj);
-void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full);
+void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full, MVMuint32 this_thread_responsible);
 void MVM_profiler_log_gc_end(MVMThreadContext *tc);
 void MVM_profiler_log_spesh_start(MVMThreadContext *tc);
 void MVM_profiler_log_spesh_end(MVMThreadContext *tc);

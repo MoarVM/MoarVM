@@ -34,7 +34,7 @@ typedef struct {
     /* Is it seekable? */
     short seekable;
 
-    /* Is it know to be writable? */
+    /* Is it known to be writable? */
     short known_writable;
 
     /* How many bytes have we read/written? Used to fake tell on handles that
@@ -124,7 +124,7 @@ static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
     }
 }
 
-/* Reads the specified number of bytes into a the supplied buffer, returning
+/* Reads the specified number of bytes into the supplied buffer, returning
  * the number actually read. */
 static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out, MVMint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
@@ -170,10 +170,10 @@ static MVMint64 mvm_eof(MVMThreadContext *tc, MVMOSHandle *h) {
                 strerror(errno));
         if ((seek_pos = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
             MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
-        /* Comparison with seek_pos for some special files, like those in /proc,
-         * which file size is 0 can be false. In that case, we fall back to check
-         * file size to detect EOF. */
-        return statbuf.st_size <= seek_pos || statbuf.st_size == 0;
+        /* For some special files, like those in /proc, the file size is 0,
+         * so in those cases, fall back to eof_reported flag to detect EOF. */
+        return statbuf.st_size
+             ? statbuf.st_size <= seek_pos : data->eof_reported;
     }
     else {
         return data->eof_reported;

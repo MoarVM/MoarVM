@@ -228,21 +228,19 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
     return num;
 }
 
-static MVMint32 can_getlex(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns *ins) {
-    MVMint32 outers = ins->operands[1].lex.outers;
-    MVMint32 idx    = ins->operands[1].lex.idx;
-    MVMStaticFrame *sf = jg->sg->sf;
-    MVMuint16 *lexical_types;
-    MVMint32 i;
-    for (i = 0; i < outers; i++) {
-        sf = sf->body.outer;
-    }
-    /* Use speshed lexical types, if necessary */
-    lexical_types = (outers == 0 && jg->sg->lexical_types != NULL ?
-                     jg->sg->lexical_types : sf->body.lexical_types);
-    /* can't do getlex yet, if we have an object register */
-    return lexical_types[idx] != MVM_reg_obj;
+static MVMint32 getlex_needs_autoviv(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns *ins) {
+    MVMSpeshOperand opr = ins->operands[1];
+    MVMuint16 lexical_type = MVM_spesh_get_lex_type(tc, jg->sg, opr.lex.outers, opr.lex.idx);
+    return lexical_type == MVM_reg_obj;
 }
+
+static MVMint32 bindlex_needs_write_barrier(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns *ins) {
+    MVMSpeshOperand opr = ins->operands[0];
+    MVMuint16 lexical_type = MVM_spesh_get_lex_type(tc, jg->sg, opr.lex.outers, opr.lex.idx);
+    /* need to hit a write barrier if we bindlex to a string */
+    return lexical_type == MVM_reg_obj || lexical_type == MVM_reg_str;
+}
+
 
 static MVMint32 ins_has_single_input_output_operand(MVMSpeshIns *ins) {
     switch (ins->info->opcode) {
@@ -717,7 +715,8 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         struct ValueDefinition *defined_value = NULL;
 
         /* check if this is a getlex and if we can handle it */
-        BAIL(opcode == MVM_OP_getlex && !can_getlex(tc, jg, ins), "Can't compile object getlex");
+        BAIL(opcode == MVM_OP_getlex && getlex_needs_autoviv(tc, jg, ins), "Can't compile object getlex");
+        BAIL(opcode == MVM_OP_bindlex && bindlex_needs_write_barrier(tc, jg, ins), "Can't compile write-barrier bindlex");
 
         /* Check annotations that may require handling or wrapping the expression */
         for (ann = ins->annotations; ann != NULL; ann = ann->next) {

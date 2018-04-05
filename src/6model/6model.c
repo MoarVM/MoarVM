@@ -40,6 +40,7 @@ typedef struct {
     MVMObject   *obj;
     MVMString   *name;
     MVMRegister *res;
+    MVMint64     throw_if_not_found;
 } FindMethodSRData;
 static void die_over_missing_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
     MVMObject *handler = MVM_hll_current(tc)->method_not_found_error;
@@ -63,10 +64,16 @@ static void die_over_missing_method(MVMThreadContext *tc, MVMObject *obj, MVMStr
 static void late_bound_find_method_return(MVMThreadContext *tc, void *sr_data) {
     FindMethodSRData *fm = (FindMethodSRData *)sr_data;
     if (MVM_is_null(tc, fm->res->o) || !IS_CONCRETE(fm->res->o)) {
-        MVMObject *obj  = fm->obj;
-        MVMString *name = fm->name;
-        MVM_free(fm);
-        die_over_missing_method(tc, obj, name);
+        if (fm->throw_if_not_found) {
+            MVMObject *obj  = fm->obj;
+            MVMString *name = fm->name;
+            MVM_free(fm);
+            die_over_missing_method(tc, obj, name);
+        }
+        else {
+            fm->res->o = tc->instance->VMNull;
+            MVM_free(fm);
+        }
     }
     else {
         MVM_free(fm);
@@ -77,7 +84,8 @@ static void mark_find_method_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMG
     MVM_gc_worklist_add(tc, worklist, &fm->obj);
     MVM_gc_worklist_add(tc, worklist, &fm->name);
 }
-void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res) {
+void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name,
+                            MVMRegister *res, MVMint64 throw_if_not_found) {
     MVMObject *cache = NULL, *HOW = NULL, *find_method = NULL, *code = NULL;
     MVMCallsite *findmeth_callsite = NULL;
 
@@ -102,7 +110,10 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
             return;
         }
         if (STABLE(obj)->mode_flags & MVM_METHOD_CACHE_AUTHORITATIVE) {
-            die_over_missing_method(tc, obj, name);
+            if (throw_if_not_found)
+                die_over_missing_method(tc, obj, name);
+            else
+                res->o = tc->instance->VMNull;
             return;
         }
     }
@@ -132,6 +143,7 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
         fm->obj  = obj;
         fm->name = name;
         fm->res  = res;
+        fm->throw_if_not_found = throw_if_not_found;
         MVM_frame_special_return(tc, tc->cur_frame, late_bound_find_method_return,
             NULL, fm, mark_find_method_sr_data);
     }
@@ -172,7 +184,7 @@ MVMint32 MVM_6model_find_method_spesh(MVMThreadContext *tc, MVMObject *obj, MVMS
     }
     else {
         /* Fully late-bound. */
-        MVM_6model_find_method(tc, obj, name, res);
+        MVM_6model_find_method(tc, obj, name, res, 1);
         return 1;
     }
 }

@@ -7,7 +7,8 @@ static const MVMREPROps CStruct_this_repr;
  * list of attributes (populating the passed flat_list). Also builds
  * the index mapping for doing named lookups. Note index is not related
  * to the storage position. */
-static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *mro, MVMCStructREPRData *repr_data) {
+static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *mro,
+        MVMCStructREPRData *repr_data, MVMSTable *st) {
     MVMInstance *instance  = tc->instance;
     MVMObject *flat_list, *class_list, *attr_map_list;
     MVMint32  num_classes, i, current_slot = 0;
@@ -15,6 +16,7 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
 
     MVMint32 mro_idx = MVM_repr_elems(tc, mro);
 
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&st);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&mro);
 
     flat_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
@@ -88,15 +90,17 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
         MVM_gc_root_temp_pop(tc); /* current_class */
     }
 
-    MVM_gc_root_temp_pop_n(tc, 4);
+    MVM_gc_root_temp_pop_n(tc, 5);
 
     /* We can now form the name map. */
     num_classes = MVM_repr_elems(tc, class_list);
     result = (MVMCStructNameMap *) MVM_malloc(sizeof(MVMCStructNameMap) * (1 + num_classes));
 
     for (i = 0; i < num_classes; i++) {
-        result[i].class_key = MVM_repr_at_pos_o(tc, class_list, i);
-        result[i].name_map  = MVM_repr_at_pos_o(tc, attr_map_list, i);
+        MVM_ASSIGN_REF(tc, &(st->header), result[i].class_key,
+            MVM_repr_at_pos_o(tc, class_list, i));
+        MVM_ASSIGN_REF(tc, &(st->header), result[i].name_map,
+            MVM_repr_at_pos_o(tc, attr_map_list, i));
     }
 
     /* set the end to be NULL, it's useful for iteration. */
@@ -118,7 +122,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
     /* Compute index mapping table and get flat list of attributes. */
     MVMObject *flat_list;
     MVMROOT(tc, st, {
-        flat_list = index_mapping_and_flat_list(tc, repr_info, repr_data);
+        flat_list = index_mapping_and_flat_list(tc, repr_info, repr_data, st);
     });
 
     /* If we have no attributes in the index mapping, then just the header. */

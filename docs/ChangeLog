@@ -1,6 +1,111 @@
 See https://github.com/MoarVM/MoarVM/wiki/ChangeLog-Draft for the draft changelog
 since the previous release.
 
+New in 2018.03
+
+Miscellaneous:
++ Add remote debugging support, optionally enabled with the --debug-port option
+  to MoarVM. This uses the MessagePack and allows:
+  + Suspending and resuming all threads, or individual threads
+  + Enumerating threads and, when they are suspended, getting their stack traces
+  + Reading the lexical variables of a callframe
+  + Setting breakpoints and getting notified if they are hit (and, optionally, suspending execution)
+  + Stepping
+  + Fetching object attributes, array elements, and hash keys/values
++ Add getppid op. Allows a child process to get the parent process id, and thus
+    guess if it has become orphaned.
++ Panic when Dyncall fails to allocate native callbacks
++ Use uv_fs_copyfile API in MVM_file_copy
++ Make IO signal handlers cancellable
++ Add an tryfindmethod op which evaluates to null in the event that the method
+  cannot be found
+
+Network:
++ Ignore libuv-caused "fake" empty datagrams
++ Expose both hostname and port of received datagrams
+
+Encodings:
++ Change arguments for windows1252/1 decodestream ops
++ Add proper support for replacements in decodestream for windows1252/1
++ Add ops for strict decoding of windows-1251/1252, decoderepconfig, encodeconfig,
+  decodeconfig and encoderepconfig
++ Add support for replacements with more than one character for windows-1251 and windows-1252
++ Add some string consts in MVMStringConsts for MVMDecodeStream
+
+Spesh:
++ optimize eq_s and ne_s against empty string in spesh
+
+Tooling:
++ Bump libuv version 1.19.2
++ Move moarvm.org tool into proper folder. Add more release guide info
++ Add CMP library to ./3rdparty which is used for supporting the debug server
++ Add debug server protocol documentation
+
+JIT:
++ Add JIT template for ne_s, const_n64, not_i, is(int|num|str|list), existskey,
+  eqat_s, concat_s, isnull_s, isfalse, istrue, ishash
++ Enable box_i and box_s templates
++ Release only spill slots without active overlap
++ Warn for things that should be a size but may not be in the expr JIT compiler
++ Create store_write_barrier macro
+
+Profiler:
++ Support for threaded profiling has been added, although it is not fully stable yet
++ Record thread id in profile data
++ Record if a thread is responsible for a gc
++ Count spesh time properly
++ Record when gc happens (msecs since start)
++ Fix for gigantic and wrong spesh time in profiles
+
+New in 2018.02
+
+Miscellaneous:
++ Clean up one-shot timers after firing
++ Fix SEGV in profiler by testing the current thread's frame in heap snapshot
++ Fix missing argument to syncsocket error message
++ Fix EOF detection on zero-size files
+
+Strings:
++ Add windows-1251 (Cyrillic) decode/encode support
++ Refactor so code is shared between windows-1251 & 1252
++ Fix a bug causing encoding of ›, ˜, œ, ž, Ÿ, ™ and š with windows-1252 (Latin)
+  to throw or fail encoding
+
+Spesh:
++ Make MVM_spesh_manipulate_remove_handler_successors() public
++ Move annotations to istrue when split from if_o
++ Always split if_o into istrue and if_i
++ Fix MVM_spesh_log_decont not logging anything
++ Don't spesh log if we have a spesh_cand
++ Don't optimize getattr unless known concrete
++ Implement unmanaged_size in MVMSpeshLog repr
++ Run basic facts discovery on inlined code
++ Clean up handler successors after throwish ops become non-throwing
++ Put inlined blocks between their caller and its successor
++ Fix an off-by-one in uninline
++ Remove superfluous DEOPT_ONE_INS annotation on some deconts
++ Work around a segfault caused by type tuple without type information
++ Revive removal of dead instructions after the first inlined function
++ Fix SEGV when opening MVM_*_LOG files
+
+JIT:
++ Add JIT templates for more than 44 ops
++ Disable getlexstatic_o for the time being for stability reasons
++ Fix segfault in JIT bytecode dumper on code without static frame
++ Add NOOP expr JIT operator
++ Don't output PHI in expr JIT log
++ Better error in boxed ref for repr_id mismatch
++ Add tiles for binary XOR and NOT
++ Fix a miscompile in sp_p6ogetvt_o
++ Only BAIL on DEOPT_ONE annotations on actual guard ops in expr JIT
++ Merge non-control-flow basic blocks so expr JIT has more code to optimize
+
+Tooling:
++ Update release_guide.md with info on generating releases.html
++ Add script that generates moarvm.org/releases.html
++ Edit the ChangeLog to include the original release
++ Add script to generate Windows-1251 and 1252 codetables
+
 New in 2018.01
 
 Miscellaneous:
@@ -1714,7 +1819,7 @@ New in 2014.11
   escape, blshift_i,  brshift_i, write_fhs, cmp_I
 + Optimize out a bunch of unnecessary "set" instructions
 + Turn a bunch of const_s + findmeth_s into cheaper findmeth
-+ Implement nqp::closefh_i which retuns the exit code of a pipe
++ Implement nqp::closefh_i which returns the exit code of a pipe
 + Allow nativecasting a CStruct to another CStruct
 + Fix temp register usage in optimize_istrue_isfalse
 + Fix a regression by eagerly deserializing stables/objects

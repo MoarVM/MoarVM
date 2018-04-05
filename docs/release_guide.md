@@ -49,7 +49,7 @@ be made, they should be numbered as 2041.01.1, 2041.01.2, etc.
 
 11. Make sure you have the Text::Markdown Perl 5 module and run:
 
-        tools/moarvm.org_releases.pl > ../moarvm.org/releases.html
+        ./tools/moarvm.org_releases.pl > ../moarvm.org/releases.html
 
    It should output to STDERR all the versions it found in ChangeLog make sure
    the most recent release appears first and all releases going back to 2014.01
@@ -57,6 +57,10 @@ be made, they should be numbered as 2041.01.1, 2041.01.2, etc.
 
 12. Manually edit moarvm.org/index.html to have the DL link and mention the most
     recent release.
+    Changes need to be made on lines:
+  - 36: Large text
+  - 38: Description text
+  - 41: Download link
 
 13. Optionally, update the ports/macports/Portfile to reflect this latest
    version, and open a ticket at https://trac.macports.org/newticket to get

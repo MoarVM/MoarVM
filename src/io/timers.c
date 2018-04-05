@@ -9,12 +9,25 @@ typedef struct {
     int work_idx;
 } TimerInfo;
 
+/* Frees the timer's handle memory. */
+static void free_timer(uv_handle_t *handle) {
+    MVM_free(handle);
+}
+
 /* Timer callback; dispatches schedulee to the queue. */
 static void timer_cb(uv_timer_t *handle) {
     TimerInfo        *ti = (TimerInfo *)handle->data;
     MVMThreadContext *tc = ti->tc;
     MVMAsyncTask     *t  = MVM_io_eventloop_get_active_work(tc, ti->work_idx);
     MVM_repr_push_o(tc, t->body.queue, t->body.schedulee);
+    if (!ti->repeat && ti->work_idx >= 0) {
+        /* The timer will only fire once. Having now fired, stop the callback,
+         * clean up the handle, and remove the active work so that we will not
+         * hold on to the callback and its associated memory. */
+        uv_timer_stop(ti->handle);
+        uv_close((uv_handle_t *)ti->handle, free_timer);
+        MVM_io_eventloop_remove_active_work(tc, &(ti->work_idx));
+    }
 }
 
 /* Sets the timer up on the event loop. */
@@ -29,16 +42,15 @@ static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, 
 }
 
 /* Stops the timer. */
-static void free_timer(uv_handle_t *handle) {
-    MVM_free(handle);
-}
 static void cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     TimerInfo *ti = (TimerInfo *)data;
-    uv_timer_stop(ti->handle);
-    uv_close((uv_handle_t *)ti->handle, free_timer);
-    MVM_io_eventloop_send_cancellation_notification(ti->tc,
-        MVM_io_eventloop_get_active_work(tc, ti->work_idx));
-    MVM_io_eventloop_remove_active_work(tc, &(ti->work_idx));
+    if (ti->work_idx >= 0) {
+        uv_timer_stop(ti->handle);
+        uv_close((uv_handle_t *)ti->handle, free_timer);
+        MVM_io_eventloop_send_cancellation_notification(ti->tc,
+            MVM_io_eventloop_get_active_work(tc, ti->work_idx));
+        MVM_io_eventloop_remove_active_work(tc, &(ti->work_idx));
+    }
 }
 
 /* Frees data associated with a timer async task. */

@@ -549,8 +549,8 @@ say                 r(str)
 DEPRECATED_22       w(str) r(obj)
 tell_fh             w(int64) r(obj)
 stat                w(int64) r(str) r(int64)
-DEPRECATED_20       w(str) r(obj)
-DEPRECATED_26       w(str) r(obj) r(str)
+tryfindmeth         w(obj) r(obj) str :pure :invokish
+tryfindmeth_s       w(obj) r(obj) r(str) :pure :invokish
 chdir               r(str)
 srand               r(int64)
 rand_i              w(int64)
@@ -686,7 +686,7 @@ assign_s            r(obj) r(str) :invokish
 decont_i            w(int64) r(obj) :pure :invokish
 decont_n            w(num64) r(obj) :pure :invokish
 decont_s            w(str) r(obj) :pure :invokish
-getrusage           w(obj) :pure
+getrusage           r(obj) :pure
 threadlockcount     w(int64) r(obj)
 DEPRECATED_4        w(obj) r(str) :pure :noinline
 getlexref_i         w(obj) rl(int64) :pure :noinline
@@ -841,6 +841,12 @@ getarg_n            w(num64) r(int16)
 getarg_s            w(str) r(int16)
 getarg_o            w(obj) r(int16)
 coerce_II           w(obj) r(obj) r(obj) :pure
+encoderepconf       w(obj) r(str) r(str) r(str) r(obj) r(int64)
+encodeconf          w(obj) r(str) r(str) r(obj) r(int64)
+decodeconf          w(str) r(obj) r(str) r(int64)
+decoderepconf       w(str) r(obj) r(str) r(str) r(int64)
+getppid             w(int64)
+getsignals          w(obj) :useshll
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
@@ -982,3 +988,5 @@ prof_allocated   .s r(obj)
 ctw_check        .s r(obj) int16
 
 coverage_log     .s str int32 int32 int64
+
+breakpoint       .s int32 int32

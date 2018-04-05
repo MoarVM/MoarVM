@@ -81,8 +81,12 @@ static void start_thread(void *data) {
     if (REPR(tc->thread_obj->body.invokee)->ID != MVM_REPR_ID_MVMCFunction)
         MVM_spesh_log_initialize_thread(tc, 0);
 
+    MVM_debugserver_notify_thread_creation(tc);
+
     /* Enter the interpreter, to run code. */
     MVM_interp_run(tc, thread_initial_invoke, ts);
+
+    MVM_debugserver_notify_thread_destruction(tc);
 
     /* Pop the temp root stack's ts->thread_obj, if it's still there (if we
      * cleared the temp root stack on exception at some point, it'll already be

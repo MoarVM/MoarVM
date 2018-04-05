@@ -1,6 +1,9 @@
 #include "moar.h"
 #include "math.h"
 
+#include "platform/sys.h"
+#include "platform/time.h"
+
 static void jg_append_node(MVMJitGraph *jg, MVMJitNode *node) {
     if (jg->last_node) {
         jg->last_node->next = node;
@@ -131,6 +134,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_resume: return MVM_exception_resume;
     case MVM_OP_continuationreset: return MVM_continuation_reset;
     case MVM_OP_continuationcontrol: return MVM_continuation_control;
+    case MVM_OP_continuationinvoke: return MVM_continuation_invoke;
     case MVM_OP_smrt_numify: return MVM_coerce_smart_numify;
     case MVM_OP_smrt_strify: return MVM_coerce_smart_stringify;
     case MVM_OP_gethow: return MVM_6model_get_how_obj;
@@ -150,6 +154,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_binddynlex: return MVM_frame_binddynlex;
     case MVM_OP_getlexouter: return MVM_frame_find_lexical_by_name_outer;
     case MVM_OP_findmeth: case MVM_OP_findmeth_s: return MVM_6model_find_method;
+    case MVM_OP_tryfindmeth: case MVM_OP_tryfindmeth_s: return MVM_6model_find_method;
     case MVM_OP_multicacheadd: return MVM_multi_cache_add;
     case MVM_OP_multicachefind: return MVM_multi_cache_find;
     case MVM_OP_can: case MVM_OP_can_s: return MVM_6model_can_method;
@@ -215,6 +220,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_hintfor: return MVM_repr_hint_for;
 
     case MVM_OP_gt_s: case MVM_OP_ge_s: case MVM_OP_lt_s: case MVM_OP_le_s: case MVM_OP_cmp_s: return MVM_string_compare;
+
+    case MVM_OP_queuepoll: return MVM_concblockingqueue_jit_poll;
 
     case MVM_OP_open_fh: return MVM_file_open_fh;
     case MVM_OP_close_fh: return MVM_io_close;
@@ -313,6 +320,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_decont_n: return MVM_6model_container_decont_n;
     case MVM_OP_decont_s: return MVM_6model_container_decont_s;
     case MVM_OP_getrusage: return MVM_proc_getrusage;
+    case MVM_OP_cpucores: return MVM_platform_cpu_count;
+    case MVM_OP_sleep: return MVM_platform_sleep;
     case MVM_OP_getlexref_i32: case MVM_OP_getlexref_i16: case MVM_OP_getlexref_i8: case MVM_OP_getlexref_i: return MVM_nativeref_lex_i;
     case MVM_OP_getlexref_n32: case MVM_OP_getlexref_n: return MVM_nativeref_lex_n;
     case MVM_OP_getlexref_s: return MVM_nativeref_lex_s;
@@ -345,6 +354,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_getexcategory: return MVM_get_exception_category;
     case MVM_OP_bindexcategory: return MVM_bind_exception_category;
     case MVM_OP_exreturnafterunwind: return MVM_exception_returnafterunwind;
+
+    case MVM_OP_breakpoint: return MVM_debugserver_breakpoint_check;
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
     }
@@ -1588,6 +1599,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_getspeshslot:
     case MVM_OP_takedispatcher:
     case MVM_OP_setdispatcher:
+    case MVM_OP_ctx:
     case MVM_OP_curcode:
     case MVM_OP_getcode:
     case MVM_OP_callercode:
@@ -1691,46 +1703,13 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_unless_s0:
         jg_append_branch(tc, jg, 0, ins);
         break;
+        /* never any need to implement them anymore, since they're automatically
+           lowered for us by spesh into istrue + if_i. We can't properly compile
+           if_o / unless_o as-is because they're both invokish and branching. */
     case MVM_OP_if_o:
-    case MVM_OP_unless_o: {
-        /* Very special / funky branches. The function involved in
-         * making this decision - namely, MVM_coerse_istrue - expects
-         * to take a return register address /or/ two bytecode
-         * addresses.  This is a reasonable decision with regards to
-         * invocation nesting in the interpreter, but not for the
-         * JIT. Hence, we will transform this into the istrue /
-         * isfalse primitive combined with the if_i branch. A special
-         * problem is that there really isn't any 'real' work space
-         * available to store the result. Instead, we'll use the
-         * args space to store and read the result */
-        MVMint16 obj = ins->operands[0].reg.orig;
-        /* Assign the very last register allocated */
-        MVMint16 dst = jg->sg->num_locals + jg->sg->sf->body.cu->body.max_callsite_size - 1;
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_REG_VAL,  { obj } },
-                                 { MVM_JIT_REG_ADDR, { dst } }, /* destination register (in args space) */
-                                 { MVM_JIT_LITERAL, { 0 } }, /* true code */
-                                 { MVM_JIT_LITERAL, { 0 } }, /* false code */
-                                 { MVM_JIT_LITERAL, { op == MVM_OP_unless_o } }}; /* switch */
-        MVMSpeshIns * branch = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMSpeshIns));
-        if (dst + 1 <= jg->sg->num_locals) {
-            MVM_oops(tc, "JIT: no space in args buffer to store"
-                     " temporary result for <%s>", ins->info->name);
-        }
-        /* This is now necessary for the invokish control to work correctly */
-        jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_THROWISH_PRE);
-        jg_append_call_c(tc, jg, op_to_func(tc, MVM_OP_istrue), 6,
-                         args, MVM_JIT_RV_VOID, -1);
-        /* guard the potential invoke */
-        jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_INVOKISH);
-        /* branch if true (switch is done by coercion) */
-        branch->info = MVM_op_get_op(MVM_OP_if_i);
-        branch->operands = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMSpeshOperand) * 2);
-        branch->operands[0].reg.orig = dst;
-        branch->operands[1].ins_bb = ins->operands[1].ins_bb;
-        jg_append_branch(tc, jg, 0, branch);
+    case MVM_OP_unless_o:
+        MVM_oops(tc, "Trying to compile if_o/unless_o, should never happen");
         break;
-    }
         /* some functions */
     case MVM_OP_gethow: {
         MVMint16 dst = ins->operands[0].reg.orig;
@@ -2196,6 +2175,17 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, op_to_func(tc, op), 5, args, MVM_JIT_RV_VOID, -1);
         break;
     }
+    case MVM_OP_continuationinvoke: {
+        MVMint16 reg  = ins->operands[0].reg.orig;
+        MVMint16 cont  = ins->operands[1].reg.orig;
+        MVMint16 code = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { cont } },
+                                 { MVM_JIT_REG_VAL, { code } },
+                                 { MVM_JIT_REG_ADDR, { reg } }};
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
     case MVM_OP_sp_boolify_iter: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[1].reg.orig;
@@ -2214,8 +2204,24 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_REG_VAL, { obj } },
                                  { (op == MVM_OP_findmeth_s ? MVM_JIT_REG_VAL :
                                     MVM_JIT_STR_IDX), { name } },
-                                 { MVM_JIT_REG_ADDR, { dst } } };
-        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+                                 { MVM_JIT_REG_ADDR, { dst } },
+                                 { MVM_JIT_LITERAL, { 1 } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 5, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_tryfindmeth:
+    case MVM_OP_tryfindmeth_s: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMint32 name = (op == MVM_OP_tryfindmeth_s ? ins->operands[2].reg.orig :
+                         ins->operands[2].lit_str_idx);
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } },
+                                 { (op == MVM_OP_tryfindmeth_s ? MVM_JIT_REG_VAL :
+                                    MVM_JIT_STR_IDX), { name } },
+                                 { MVM_JIT_REG_ADDR, { dst } },
+                                 { MVM_JIT_LITERAL, { 0 } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 5, args, MVM_JIT_RV_VOID, -1);
         break;
     }
 
@@ -2307,6 +2313,14 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_REG_ADDR, { dst } }};
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args,
                           MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_queuepoll: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
     }
     case MVM_OP_close_fh: {
@@ -2995,9 +3009,25 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         break;
     }
     case MVM_OP_getrusage: {
+        MVMint16 obj = ins->operands[0].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_cpucores: {
         MVMint16 dst = ins->operands[0].reg.orig;
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } } };
-        jg_append_call_c(tc, jg, op_to_func(tc, op), 1, args, MVM_JIT_RV_PTR, dst);
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 0, NULL, MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_sleep: {
+        MVMint16 time = ins->operands[0].reg.orig;
+        MVMJitCallArg block_args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } } };
+        MVMJitCallArg sleep_args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                       { MVM_JIT_REG_VAL, { time } } };
+        jg_append_call_c(tc, jg, MVM_gc_mark_thread_blocked, 1, block_args, MVM_JIT_RV_VOID, -1);
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, sleep_args, MVM_JIT_RV_VOID, -1);
+        jg_append_call_c(tc, jg, MVM_gc_mark_thread_unblocked, 1, block_args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_getlexref_i:
@@ -3138,6 +3168,15 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { obj } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_breakpoint: {
+        MVMint32 file_idx = ins->operands[0].lit_i16;
+        MVMint32 line_no  = ins->operands[1].lit_i16;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_LITERAL, file_idx },
+                                 { MVM_JIT_LITERAL, line_no } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     default: {

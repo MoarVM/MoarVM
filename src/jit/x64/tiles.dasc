@@ -605,6 +605,10 @@ MVM_JIT_TILE_DECL(test) {
         | test Rd(reg), Rd(reg);
         break;
     case 8:
+    default:
+        /* NB - this is a hack, because we don't assign a size to the result of
+         * CALL, its size would be 0, and we'd have nothing compiled. Better fix
+         * would be to assign a result size to CALL. */
         | test Rq(reg), Rq(reg);
         break;
     }

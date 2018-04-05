@@ -7,7 +7,8 @@
 #define MVM_encoding_type_windows1252   5
 #define MVM_encoding_type_utf8_c8       6
 #define MVM_encoding_type_windows1251   7
-#define MVM_encoding_type_MAX           7
+#define MVM_encoding_type_shiftjis      8
+#define MVM_encoding_type_MAX           8
 #define ENCODING_VALID(enc) \
     (((enc) >= MVM_encoding_type_MIN && (enc) <= MVM_encoding_type_MAX) \
     || (MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", (enc)),1))
@@ -88,7 +89,10 @@ MVMString * MVM_string_fc(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_decode(MVMThreadContext *tc, const MVMObject *type_object, char *Cbuf, MVMint64 byte_length, MVMint64 encoding_flag);
 char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag, MVMString *replacement, MVMint32 translate_newlines);
 MVMObject * MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc_name, MVMObject *buf, MVMString *replacement);
+MVMObject * MVM_string_encode_to_buf_config(MVMThreadContext *tc, MVMString *s, MVMString *enc_name, MVMObject *buf, MVMString *replacement, MVMint64 bitmap);
 MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVMString *enc_name);
+MVMString * MVM_string_decode_from_buf_config(MVMThreadContext *tc, MVMObject *buf,
+        MVMString *enc_name, MVMString *replacement, MVMint64 bitmap);
 MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMString *input);
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObject *input);
 MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint64 offset, MVMString *b);
@@ -115,11 +119,11 @@ MVMString * MVM_string_chr(MVMThreadContext *tc, MVMint64 cp);
 void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s);
 /* If MVM_DEBUG_NFG is 1, calls to NFG_CHECK will re_nfg the given string
  * and compare num_graphs before and after the normalization.
- * If it is different debug information will be printed out.
-#define MVM_DEBUG_NFG 1 */
+ * If it is different debug information will be printed out.*/
+#define MVM_DEBUG_NFG 0
 /* MVM_DEBUG_NFG_STRICT does as above but does not only rely on num_graphs. It
- * always checks every grapheme manually. Slower. (requires MVM_DEBUG_NFG)
-#define MVM_DEBUG_NFG_STRICT 0 */
+ * always checks every grapheme manually. Slower. (requires MVM_DEBUG_NFG)*/
+#define MVM_DEBUG_NFG_STRICT 0
 #if MVM_DEBUG_NFG
 void NFG_check (MVMThreadContext *tc, MVMString *orig, char *varname);
 void NFG_check_concat (MVMThreadContext *tc, MVMString *result, MVMString *a, MVMString *b, char *varname);

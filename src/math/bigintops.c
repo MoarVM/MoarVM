@@ -1,6 +1,13 @@
 #include "moar.h"
 #include <math.h>
 
+#ifndef MANTISSA_BITS_IN_DOUBLE
+#define MANTISSA_BITS_IN_DOUBLE 53
+#endif
+#ifndef MAX_BIGINT_BITS_IN_DOUBLE
+#define MAX_BIGINT_BITS_IN_DOUBLE 1023
+#endif
+
 #ifndef MAX
     #define MAX(x,y) ((x)>(y)?(x):(y))
 #endif
@@ -45,33 +52,47 @@ int MVM_bigint_mp_set_uint64(mp_int * a, MVMuint64 b) {
   return MP_OKAY;
 }
 
-static MVMnum64 mp_get_double(mp_int *a) {
-    MVMnum64 d    = 0.0;
-    MVMnum64 sign = SIGN(a) == MP_NEG ? -1.0 : 1.0;
-    int i;
-    if (USED(a) == 0)
-        return d;
-    if (USED(a) == 1)
-        return sign * (MVMnum64) DIGIT(a, 0);
+/*
+ *  Convert to double, assumes IEEE-754 conforming double. Taken from
+ *  https://github.com/czurnieden/libtommath/blob/master/bn_mp_get_double.c
+ *  and slightly modified to fit MoarVM's setup.
+ */
+static const int mp_get_double_digits_needed
+= ((MANTISSA_BITS_IN_DOUBLE + DIGIT_BIT) / DIGIT_BIT) + 1;
+static const double mp_get_double_multiplier = (double)(MP_MASK + 1);
+
+static MVMnum64 mp_get_double(mp_int *a, int shift) {
+    MVMnum64 d;
+    int i, limit, final_shift;
+    d = 0.0;
 
     mp_clamp(a);
-    i = USED(a) - 1;
-    d = (MVMnum64) DIGIT(a, i);
-    i--;
-    if (i == -1) {
-        return sign * d;
-    }
-    d *= pow(2.0, DIGIT_BIT);
-    d += (MVMnum64) DIGIT(a, i);
+    i = a->used;
+    limit = (i <= mp_get_double_digits_needed)
+        ? 0 : i - mp_get_double_digits_needed;
 
-    if (USED(a) > 2) {
-        i--;
-        d *= pow(2.0, DIGIT_BIT);
-        d += (MVMnum64) DIGIT(a, i);
+    while (i-- > limit) {
+        d += a->dp[i];
+        d *= mp_get_double_multiplier;
     }
 
-    d *= pow(2.0, DIGIT_BIT * i);
-    return sign * d;
+    if (a->sign == MP_NEG)
+        d *= -1.0;
+    final_shift = i * DIGIT_BIT - shift;
+    if (final_shift < 0) {
+        while (final_shift < -1023) {
+            d *= pow(2.0, -1023);
+            final_shift += 1023;
+        }
+    }
+    else {
+        while (final_shift > 1023) {
+            d *= pow(2.0, 1023);
+            final_shift -= 1023;
+        }
+    }
+    d *= pow(2.0, final_shift);
+    return d;
 }
 
 static void from_num(MVMnum64 d, mp_int *a) {
@@ -674,8 +695,8 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
         }
     }
     else {
-        MVMnum64 f_base = mp_get_double(base);
-        MVMnum64 f_exp = mp_get_double(exponent);
+        MVMnum64 f_base = mp_get_double(base, 0);
+        MVMnum64 f_exp = mp_get_double(exponent, 0);
         r = MVM_repr_box_num(tc, num_type, pow(f_base, f_exp));
     }
     clear_temp_bigints(tmp, 2);
@@ -901,7 +922,7 @@ MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a) {
 
     if (MVM_BIGINT_IS_BIG(ba)) {
         mp_int *ia = ba->u.bigint;
-        return mp_get_double(ia);
+        return mp_get_double(ia, 0);
     } else {
         return (double)ba->u.smallint.value;
     }
@@ -927,18 +948,32 @@ MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
         mp_int *ia = force_bigint(ba, tmp);
         mp_int *ib = force_bigint(bb, tmp);
 
-        int max_size = DIGIT_BIT * MAX(USED(ia), USED(ib));
-        if (max_size > 1023) {
-            mp_int reduced_a, reduced_b;
-            mp_init(&reduced_a);
-            mp_init(&reduced_b);
-            mp_div_2d(ia, max_size - 1023, &reduced_a, NULL);
-            mp_div_2d(ib, max_size - 1023, &reduced_b, NULL);
-            c = mp_get_double(&reduced_a) / mp_get_double(&reduced_b);
-            mp_clear(&reduced_a);
-            mp_clear(&reduced_b);
-        } else {
-            c = mp_get_double(ia) / mp_get_double(ib);
+        mp_clamp(ib);
+        if (ib->used == 0) { /* zero-denominator special case */
+            if (ia->sign == MP_NEG)
+                c = -1e0/0e0;
+            else
+                c = 1e0/0e0;
+            /*
+             * we won't have NaN case here, since the branch requires at
+             * least one bigint to be big
+             */
+        }
+        else {
+            mp_int scaled;
+            int bbits = mp_count_bits(ib)+64;
+
+            if (mp_init(&scaled) != MP_OKAY)
+                MVM_exception_throw_adhoc(tc,
+                    "Failed to initialize bigint for scaled divident");
+            if (mp_mul_2d(ia, bbits, &scaled) != MP_OKAY)
+                MVM_exception_throw_adhoc(tc, "Failed to scale divident");
+            // simply re-use &scaled for result
+            if (mp_div(&scaled, ib, &scaled, NULL) != MP_OKAY)
+                MVM_exception_throw_adhoc(tc,
+                    "Failed to preform bigint division");
+            c = mp_get_double(&scaled, bbits);
+            mp_clear(&scaled);
         }
         clear_temp_bigints(tmp, 2);
     } else {

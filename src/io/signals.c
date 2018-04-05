@@ -40,6 +40,15 @@ static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, 
     uv_signal_start(&si->handle, signal_cb, si->signum);
 }
 
+static void cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
+    SignalInfo *si = (SignalInfo *)data;
+    if (si->work_idx >= 0) {
+        if (!uv_is_closing((uv_handle_t *)&(si->handle)))
+            uv_signal_stop(&si->handle);
+        MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
+    }
+}
+
 /* Frees data associated with a timer async task. */
 static void gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data)
@@ -50,123 +59,240 @@ static void gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
 static const MVMAsyncTaskOps op_table = {
     setup,
     NULL,
-    NULL,
+    cancel,
     NULL,
     gc_free
 };
 
-/* Creates a new timer. */
+#define NUM_SIG_WANTED  35
+#define PROCESS_SIGS(X) \
+    X( MVM_SIGHUP    )  \
+    X( MVM_SIGINT    )  \
+    X( MVM_SIGQUIT   )  \
+    X( MVM_SIGILL    )  \
+    X( MVM_SIGTRAP   )  \
+    X( MVM_SIGABRT   )  \
+    X( MVM_SIGEMT    )  \
+    X( MVM_SIGFPE    )  \
+    X( MVM_SIGKILL   )  \
+    X( MVM_SIGBUS    )  \
+    X( MVM_SIGSEGV   )  \
+    X( MVM_SIGSYS    )  \
+    X( MVM_SIGPIPE   )  \
+    X( MVM_SIGALRM   )  \
+    X( MVM_SIGTERM   )  \
+    X( MVM_SIGURG    )  \
+    X( MVM_SIGSTOP   )  \
+    X( MVM_SIGTSTP   )  \
+    X( MVM_SIGCONT   )  \
+    X( MVM_SIGCHLD   )  \
+    X( MVM_SIGTTIN   )  \
+    X( MVM_SIGTTOU   )  \
+    X( MVM_SIGIO     )  \
+    X( MVM_SIGXCPU   )  \
+    X( MVM_SIGXFSZ   )  \
+    X( MVM_SIGVTALRM )  \
+    X( MVM_SIGPROF   )  \
+    X( MVM_SIGWINCH  )  \
+    X( MVM_SIGINFO   )  \
+    X( MVM_SIGUSR1   )  \
+    X( MVM_SIGUSR2   )  \
+    X( MVM_SIGTHR    )  \
+    X( MVM_SIGSTKFLT )  \
+    X( MVM_SIGPWR    )  \
+    X( MVM_SIGBREAK  )
+
+#define GEN_ENUMS(v)   v,
+#define GEN_STRING(v) #v,
+
+static enum {
+    PROCESS_SIGS(GEN_ENUMS)
+} MVM_sig_names;
+
+static char const * const SIG_WANTED[NUM_SIG_WANTED] = {
+    PROCESS_SIGS(GEN_STRING)
+};
+
+static void populate_sig_values(MVMint8 *sig_vals) {
+    MVMint8 i;
+    for (i = 0; i < NUM_SIG_WANTED; i++) { sig_vals[i] = 0; }
+
+#ifdef SIGHUP
+    sig_vals[MVM_SIGHUP]    = SIGHUP;
+#endif
+#ifdef SIGINT
+    sig_vals[MVM_SIGINT]    = SIGINT;
+#endif
+#ifdef SIGQUIT
+    sig_vals[MVM_SIGQUIT]   = SIGQUIT;
+#endif
+#ifdef SIGILL
+    sig_vals[MVM_SIGILL]    = SIGILL;
+#endif
+#ifdef SIGTRAP
+    sig_vals[MVM_SIGTRAP]   = SIGTRAP;
+#endif
+#ifdef SIGABRT
+    sig_vals[MVM_SIGABRT]   = SIGABRT;
+#endif
+#ifdef SIGEMT
+    sig_vals[MVM_SIGEMT]    = SIGEMT;
+#endif
+#ifdef SIGFPE
+    sig_vals[MVM_SIGFPE]    = SIGFPE;
+#endif
+#ifdef SIGKILL
+    sig_vals[MVM_SIGKILL]   = SIGKILL;
+#endif
+#ifdef SIGBUS
+    sig_vals[MVM_SIGBUS]    = SIGBUS;
+#endif
+#ifdef SIGSEGV
+    sig_vals[MVM_SIGSEGV]   = SIGSEGV;
+#endif
+#ifdef SIGSYS
+    sig_vals[MVM_SIGSYS]    = SIGSYS;
+#endif
+#ifdef SIGPIPE
+    sig_vals[MVM_SIGPIPE]   = SIGPIPE;
+#endif
+#ifdef SIGALRM
+    sig_vals[MVM_SIGALRM]   = SIGALRM;
+#endif
+#ifdef SIGTERM
+    sig_vals[MVM_SIGTERM]   = SIGTERM;
+#endif
+#ifdef SIGURG
+    sig_vals[MVM_SIGURG]    = SIGURG;
+#endif
+#ifdef SIGSTOP
+    sig_vals[MVM_SIGSTOP]   = SIGSTOP;  /* hammer time */
+#endif
+#ifdef SIGTSTP
+    sig_vals[MVM_SIGTSTP]   = SIGTSTP;
+#endif
+#ifdef SIGCONT
+    sig_vals[MVM_SIGCONT]   = SIGCONT;
+#endif
+#ifdef SIGCHLD
+    sig_vals[MVM_SIGCHLD]   = SIGCHLD;
+#endif
+#ifdef SIGTTIN
+    sig_vals[MVM_SIGTTIN]   = SIGTTIN;
+#endif
+#ifdef SIGTTOU
+    sig_vals[MVM_SIGTTOU]   = SIGTTOU;
+#endif
+#ifdef SIGIO
+    sig_vals[MVM_SIGIO]     = SIGIO;
+#endif
+#ifdef SIGXCPU
+    sig_vals[MVM_SIGXCPU]   = SIGXCPU;
+#endif
+#ifdef SIGXFSZ
+    sig_vals[MVM_SIGXFSZ]   = SIGXFSZ;
+#endif
+#ifdef SIGVTALRM
+    sig_vals[MVM_SIGVTALRM] = SIGVTALRM;
+#endif
+#ifdef SIGPROF
+    sig_vals[MVM_SIGPROF]   = SIGPROF;
+#endif
+#ifdef SIGWINCH
+    sig_vals[MVM_SIGWINCH]  = SIGWINCH;
+#endif
+#ifdef SIGINFO
+    sig_vals[MVM_SIGINFO]   = SIGINFO;
+#endif
+#ifdef SIGUSR1
+    sig_vals[MVM_SIGUSR1]   = SIGUSR1;
+#endif
+#ifdef SIGUSR2
+    sig_vals[MVM_SIGUSR2]   = SIGUSR2;
+#endif
+#ifdef SIGTHR
+    sig_vals[MVM_SIGTHR]    = SIGTHR;
+#endif
+#ifdef SIGSTKFLT
+    sig_vals[MVM_SIGSTKFLT] = SIGSTKFLT;
+#endif
+#ifdef SIGPWR
+    sig_vals[MVM_SIGPWR]    = SIGPWR;
+#endif
+#ifdef SIGBREAK
+    sig_vals[MVM_SIGBREAK]  = SIGBREAK;
+#endif
+}
+
+#define SIG_SHIFT(s) (1 << ((s) - 1))
+
+static void populate_instance_valid_sigs(MVMThreadContext *tc, MVMint8 *sig_vals) {
+    MVMuint64 valid_sigs = 0;
+    MVMint8 i;
+
+    if ( tc->instance->valid_sigs ) return;
+
+    for (i = 0; i < NUM_SIG_WANTED; i++) {
+        if (sig_vals[i]) {
+            valid_sigs |=  SIG_SHIFT(sig_vals[i]);
+        }
+    }
+    tc->instance->valid_sigs = valid_sigs;
+}
+
+MVMObject * MVM_io_get_signals(MVMThreadContext *tc) {
+    MVMInstance  * const instance = tc->instance;
+    MVMHLLConfig *       hll      = MVM_hll_current(tc);
+    MVMObject    *       sig_hash;
+
+    MVMint8 sig_wanted_vals[NUM_SIG_WANTED];
+    populate_sig_values(sig_wanted_vals);
+
+    if (instance->sig_hash) {
+        return instance->sig_hash;
+    }
+
+    sig_hash = MVM_repr_alloc_init(tc, hll->slurpy_hash_type);
+    MVMROOT(tc, sig_hash, {
+        MVMint8 i;
+        for (i = 0; i < NUM_SIG_WANTED; i++) {
+            MVMString *key      = NULL;
+            MVMString *full_key = NULL;
+            MVMObject *val      = NULL;
+
+            MVMROOT3(tc, key, full_key, val, {
+                full_key = MVM_string_utf8_c8_decode(
+                    tc, instance->VMString, SIG_WANTED[i], strlen(SIG_WANTED[i])
+                );
+
+                key = MVM_string_substring(tc, full_key, 4, -1);
+                val = MVM_repr_box_int(tc, hll->int_box_type, sig_wanted_vals[i]);
+
+                MVM_repr_bind_key_o(tc, sig_hash, key, val);
+            });
+        }
+
+        populate_instance_valid_sigs(tc, sig_wanted_vals);
+        instance->sig_hash = sig_hash;
+    });
+
+    return sig_hash;
+}
+
+/* Register a new signal handler. */
 MVMObject * MVM_io_signal_handle(MVMThreadContext *tc, MVMObject *queue,
                                  MVMObject *schedulee, MVMint64 signal,
                                  MVMObject *async_type) {
     MVMAsyncTask *task;
     SignalInfo   *signal_info;
-    int           signum;
+    MVMInstance  * const instance = tc->instance;
 
-    /* Transform the signal number. */
-    switch (signal) {
-    case MVM_SIG_HUP:       signum = SIGHUP;    break;
-    case MVM_SIG_INT:       signum = SIGINT;    break;
-#ifdef SIGQUIT
-    case MVM_SIG_QUIT:      signum = SIGQUIT;   break;
-#endif
-#ifdef SIGILL
-    case MVM_SIG_ILL:       signum = SIGILL;    break;
-#endif
-#ifdef SIGTRAP
-    case MVM_SIG_TRAP:      signum = SIGTRAP;   break;
-#endif
-#ifdef SIGABRT
-    case MVM_SIG_ABRT:      signum = SIGABRT;   break;
-#endif
-#ifdef SIGEMT
-    case MVM_SIG_EMT:       signum = SIGEMT;    break;
-#endif
-#ifdef SIGFPE
-    case MVM_SIG_FPE:       signum = SIGFPE;    break;
-#endif
-#ifdef SIGKILL
-    case MVM_SIG_KILL:      signum = SIGKILL;   break;
-#endif
-#ifdef SIGBUS
-    case MVM_SIG_BUS:       signum = SIGBUS;    break;
-#endif
-#ifdef SIGSEGV
-    case MVM_SIG_SEGV:      signum = SIGSEGV;   break;
-#endif
-#ifdef SIGSYS
-    case MVM_SIG_SYS:       signum = SIGSYS;    break;
-#endif
-#ifdef SIGPIPE
-    case MVM_SIG_PIPE:      signum = SIGPIPE;   break;
-#endif
-#ifdef SIGALRM
-    case MVM_SIG_ALRM:      signum = SIGALRM;   break;
-#endif
-#ifdef SIGTERM
-    case MVM_SIG_TERM:      signum = SIGTERM;   break;
-#endif
-#ifdef SIGURG
-    case MVM_SIG_URG:       signum = SIGURG;    break;
-#endif
-#ifdef SIGSTOP
-    case MVM_SIG_STOP:      signum = SIGSTOP;   break; /* hammer time */
-#endif
-#ifdef SIGTSTP
-    case MVM_SIG_TSTP:      signum = SIGTSTP;   break;
-#endif
-#ifdef SIGCONT
-    case MVM_SIG_CONT:      signum = SIGCONT;   break;
-#endif
-#ifdef SIGCHLD
-    case MVM_SIG_CHLD:      signum = SIGCHLD;   break;
-#endif
-#ifdef SIGTTIN
-    case MVM_SIG_TTIN:      signum = SIGTTIN;   break;
-#endif
-#ifdef SIGTTOU
-    case MVM_SIG_TTOU:      signum = SIGTTOU;   break;
-#endif
-#ifdef SIGIO
-    case MVM_SIG_IO:        signum = SIGIO;     break;
-#endif
-#ifdef SIGXCPU
-    case MVM_SIG_XCPU:      signum = SIGXCPU;   break;
-#endif
-#ifdef SIGXFSZ
-    case MVM_SIG_XFSZ:      signum = SIGXFSZ;   break;
-#endif
-#ifdef SIGVTALRM
-    case MVM_SIG_VTALRM:    signum = SIGVTALRM; break;
-#endif
-#ifdef SIGPROF
-    case MVM_SIG_PROF:      signum = SIGPROF;   break;
-#endif
-#ifdef SIGWINCH
-    case MVM_SIG_WINCH:     signum = SIGWINCH;  break;
-#endif
-#ifdef SIGINFO
-    case MVM_SIG_INFO:      signum = SIGINFO;   break;
-#endif
-#ifdef SIGUSR1
-    case MVM_SIG_USR1:      signum = SIGUSR1;   break;
-#endif
-#ifdef SIGUSR2
-    case MVM_SIG_USR2:      signum = SIGUSR2;   break;
-#endif
-#ifdef SIGTHR
-    case MVM_SIG_THR:       signum = SIGTHR;    break;
-#endif
-#ifdef SIGSTKFLT
-    case MVM_SIG_STKFLT:    signum = SIGSTKFLT; break;
-#endif
-#ifdef SIGPWR
-    case MVM_SIG_PWR:       signum = SIGPWR;    break;
-#endif
-#ifdef SIGBREAK
-    case MVM_SIG_BREAK:     signum = SIGBREAK;  break;
-#endif
-    default:
+    if ( !instance->valid_sigs ) {
+        MVMint8 sig_wanted_vals[NUM_SIG_WANTED];
+        populate_sig_values(sig_wanted_vals);
+        populate_instance_valid_sigs(tc, sig_wanted_vals);
+    }
+    if ( signal <= 0 || !(instance->valid_sigs & SIG_SHIFT(signal) ) ) {
         MVM_exception_throw_adhoc(tc, "Unsupported signal handler %d",
             (int)signal);
     }
@@ -187,7 +313,7 @@ MVMObject * MVM_io_signal_handle(MVMThreadContext *tc, MVMObject *queue,
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops      = &op_table;
     signal_info         = MVM_malloc(sizeof(SignalInfo));
-    signal_info->signum = signum;
+    signal_info->signum = signal;
     task->body.data     = signal_info;
 
     /* Hand the task off to the event loop. */

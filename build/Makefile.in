@@ -42,6 +42,7 @@ CINCLUDES = @cincludes@ \
             @ccinc@@shaincludedir@ \
             @ccinc@3rdparty/tinymt \
             @ccinc@3rdparty/dynasm \
+            @ccinc@3rdparty/cmp \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
@@ -93,6 +94,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/core/hll@obj@ \
           src/core/loadbytecode@obj@ \
           src/math/num@obj@ \
+		  src/math/grisu@obj@ \
           src/core/coerce@obj@ \
           src/core/dll@obj@ \
           src/core/ext@obj@ \
@@ -102,6 +104,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/core/intcache@obj@ \
           src/core/fixedsizealloc@obj@ \
           src/core/regionalloc@obj@ \
+          src/debug/debugserver@obj@ \
           src/gen/config@obj@ \
           src/gc/orchestrate@obj@ \
           src/gc/allocation@obj@ \
@@ -212,6 +215,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/strings/latin1@obj@ \
           src/strings/utf16@obj@ \
           src/strings/windows1252@obj@ \
+          src/strings/shiftjis@obj@ \
           src/math/bigintops@obj@ \
           src/profiler/instrument@obj@ \
           src/profiler/log@obj@ \
@@ -249,6 +253,7 @@ HEADERS = src/moar.h \
           src/core/loadbytecode.h \
           src/core/bitmap.h \
           src/math/num.h \
+		  src/math/grisu.h \
           src/core/coerce.h \
           src/core/dll.h \
           src/core/ext.h \
@@ -257,6 +262,7 @@ HEADERS = src/moar.h \
           src/core/intcache.h \
           src/core/fixedsizealloc.h \
           src/core/regionalloc.h \
+          src/debug/debugserver.h \
           src/io/io.h \
           src/io/eventloop.h \
           src/io/syncfile.h \
@@ -367,6 +373,7 @@ HEADERS = src/moar.h \
           src/strings/latin1.h \
           src/strings/utf16.h \
           src/strings/windows1252.h \
+          src/strings/shiftjis_codeindex.h \
           src/math/bigintops.h \
           src/profiler/instrument.h \
           src/profiler/log.h \
@@ -391,7 +398,9 @@ HEADERS = src/moar.h \
           src/instrument/crossthreadwrite.h \
           src/instrument/line_coverage.h \
           src/gen/config.h \
-          3rdparty/uthash.h
+          src/debug/debugserver.h \
+          3rdparty/uthash.h \
+          3rdparty/cmp/cmp.h
 
 UV_UNIX = 3rdparty/libuv/src/fs-poll@obj@ \
           3rdparty/libuv/src/inet@obj@ \
@@ -489,6 +498,7 @@ install: all
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/platform"
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/profiler"
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/spesh"
+	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/debug"
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/strings"
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/jit"
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/instrument"
@@ -505,6 +515,7 @@ install: all
 	$(CP) src/platform/*.h "$(DESTDIR)$(PREFIX)/include/moar/platform"
 	$(CP) src/profiler/*.h "$(DESTDIR)$(PREFIX)/include/moar/profiler"
 	$(CP) src/spesh/*.h "$(DESTDIR)$(PREFIX)/include/moar/spesh"
+	$(CP) src/debug/*.h "$(DESTDIR)$(PREFIX)/include/moar/debug"
 	$(CP) src/strings/*.h "$(DESTDIR)$(PREFIX)/include/moar/strings"
 	$(CP) src/jit/*.h "$(DESTDIR)$(PREFIX)/include/moar/jit"
 	$(CP) src/instrument/*.h "$(DESTDIR)$(PREFIX)/include/moar/instrument"
@@ -630,6 +641,10 @@ src/jit/compile@obj@ src/jit/linear_scan@obj@ src/jit/x64/arch@obj@ @jit_obj@: s
 @mtlib@: @mtobjects@
 	$(MSG) linking $@
 	$(CMD)@mtrule@ $(NOOUT)
+
+@cmplib@: @cmpobjects@
+	$(MSG) linking $@
+	$(CMD)@cmprule@ $(NOOUT)
 
 @dclib@:
 	$(MSG) building dyncall...

@@ -43,13 +43,19 @@
           ptr_sz))
 
 (macro: ^objflag (,cv) (const (&QUOTE ,cv) (&SIZEOF_MEMBER MVMObject header.flags)))
-(macro: ^write_barrier (,obj ,ref)
-   (when (all (nz (and (^getf ,obj MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN)))
-              (nz ,ref)
-              (zr (and (^getf ,ref MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN))))
-         (callv (^func &MVM_gc_write_barrier_hit)
-                (arglist (carg (tc) ptr)
-                         (carg ,obj ptr)))))
+
+(macro: ^write_barrier (,root ,obj)
+  (when (all (nz (and (^getf ,root MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN)))
+             (nz ,obj)
+             (zr (and (^getf ,obj MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN))))
+    (callv (^func &MVM_gc_write_barrier_hit)
+     (arglist (carg (tc) ptr)
+              (carg ,root ptr)))))
+
+(macro: ^store_write_barrier! (,root ,addr ,obj)
+  (dov
+    (store ,addr ,obj ptr_sz)
+    (^write_barrier ,root ,obj)))
 
 
 (macro: ^repr (,obj) (^getf (^stable ,obj) MVMSTable REPR))

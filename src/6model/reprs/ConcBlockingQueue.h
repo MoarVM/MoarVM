@@ -35,3 +35,6 @@ const MVMREPROps * MVMConcBlockingQueue_initialize(MVMThreadContext *tc);
 
 /* Operations on concurrent blocking queues. */
 MVMObject * MVM_concblockingqueue_poll(MVMThreadContext *tc, MVMConcBlockingQueue *queue);
+
+/* Purely for the convenience of the jit */
+MVMObject * MVM_concblockingqueue_jit_poll(MVMThreadContext *tc, MVMObject *queue);

@@ -73,7 +73,7 @@ script:
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo bash -c "echo \"${MOAR_PREFIX}/core.%p.%E\" > /proc/sys/kernel/core_pattern"; sudo cat /proc/sys/kernel/core_pattern; fi
   - echo "perl Configure.pl --prefix=$MOAR_PREFIX $MVM_OPTIONS --cc=\"$CC\" $MVM_debug $MVM_optimize;"
   - perl Configure.pl --prefix=$MOAR_PREFIX $MVM_OPTIONS --cc="$CC" $MVM_debug $MVM_optimize;
-  - make install;
+  - make -j2 install;
   - cd -- "$NQP_FOLDER";
   - echo "perl Configure.pl --prefix=$MOAR_PREFIX --backends=moar;"
   - perl Configure.pl --prefix=$MOAR_PREFIX --backends=moar;

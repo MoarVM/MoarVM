@@ -279,8 +279,9 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
 }
 
 /* Logs the start of a GC run. */
-void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full) {
+void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full, MVMuint32 this_thread_responsible) {
     MVMProfileThreadData *ptd = get_thread_data(tc);
+    MVMProfileGC *gc;
 
     /* Make a new entry in the GCs. We use the cleared_bytes to store the
      * maximum that could be cleared, and after GC is done will subtract
@@ -289,12 +290,17 @@ void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full) {
         ptd->alloc_gcs += 16;
         ptd->gcs = MVM_realloc(ptd->gcs, ptd->alloc_gcs * sizeof(MVMProfileGC));
     }
-    ptd->gcs[ptd->num_gcs].full          = full;
-    ptd->gcs[ptd->num_gcs].cleared_bytes = (char *)tc->nursery_alloc -
-                                           (char *)tc->nursery_tospace;
+    gc = &ptd->gcs[ptd->num_gcs];
+    gc->full          = full;
+    gc->cleared_bytes = (char *)tc->nursery_alloc -
+                        (char *)tc->nursery_tospace;
+    gc->responsible   = this_thread_responsible;
+    gc->gc_seq_num    = MVM_load(&tc->instance->gc_seq_number);
 
     /* Record start time. */
     ptd->cur_gc_start_time = uv_hrtime();
+    /* Also store this time in the GC data */
+    gc->abstime = ptd->cur_gc_start_time;
 }
 
 /* Logs the end of a GC run. */
@@ -332,25 +338,24 @@ void MVM_profiler_log_gc_end(MVMThreadContext *tc) {
 /* Log that we're starting some work on bytecode specialization or JIT. */
 void MVM_profiler_log_spesh_start(MVMThreadContext *tc) {
     /* Record start time. */
-    MVMProfileThreadData *ptd = get_thread_data(tc);
+    MVMProfileThreadData *ptd = get_thread_data(tc->instance->main_thread);
     ptd->cur_spesh_start_time = uv_hrtime();
 }
 
 /* Log that we've finished doing bytecode specialization or JIT. */
 void MVM_profiler_log_spesh_end(MVMThreadContext *tc) {
-    MVMProfileThreadData *ptd = get_thread_data(tc);
-    MVMProfileCallNode   *pcn = ptd->current_call;
+    MVMProfileThreadData *ptd = get_thread_data(tc->instance->main_thread);
     MVMuint64 spesh_time;
+
+    /* Because spesh workers might start before profiling starts,
+     * MVM_profiler_log_spesh_end might get called before
+     * MVM_profiler_log_spesh_start. */
+    if (ptd->cur_spesh_start_time == 0)
+        ptd->cur_spesh_start_time = ptd->start_time;
 
     /* Record time spent. */
     spesh_time = uv_hrtime() - ptd->cur_spesh_start_time;
     ptd->spesh_time += spesh_time;
-
-    /* Discount spesh time from all active frames. */
-    while (pcn) {
-        pcn->cur_skip_time += spesh_time;
-        pcn = pcn->pred;
-    }
 }
 
 /* Log that an on stack replacement took place. */

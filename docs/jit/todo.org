@@ -203,6 +203,17 @@ should allow for some control on the iteration order
 
 
 * Register Allocator
+** Switch to storing register numbers in a stack rather than in a ring
+
+Using a ring has the disadvantage that register values are
+'continuously moving', even when they do not need to be.
+
+** Dump register allocator graph
+
+I think it should be possible to dump the (result) of register
+allocation. That is to say, create a graph that displays all tiles,
+their basic block structure, the live range structure, and their
+spills.
 
 ** Support multiple register classes
 
@@ -211,7 +222,6 @@ I want to distinguish register classes using ranges, i.e. on x86-64,
 
 *** Find out if register selection for FPRs is supported
 *** Support register buffers per class
-
 
 ** Generalized 3-operand to 2-operand conversion
 

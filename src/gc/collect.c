@@ -677,6 +677,9 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc, MVMint32 global_des
                 else {
                     GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : collecting an object %p in the gen2\n", col);
                     /* No, it's dead. Do any cleanup. */
+#if MVM_GC_DEBUG
+                    col->flags |= MVM_CF_DEBUG_IN_GEN2_FREE_LIST;
+#endif
                     if (col->flags & MVM_CF_TYPE_OBJECT) {
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
                         if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)

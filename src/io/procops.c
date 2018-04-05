@@ -769,19 +769,18 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
     }
     else {
-        MVMOSHandle           *handle  = (MVMOSHandle *)si->handle;
-        MVMIOAsyncProcessData *apd     = (MVMIOAsyncProcessData *)handle->body.data;
-        MVMObject *ready_cb;
-        apd->handle                    = process;
-
-        ready_cb = MVM_repr_at_key_o(tc, si->callbacks,
+        MVMOSHandle *handle = (MVMOSHandle *)si->handle;
+        MVMIOAsyncProcessData *apd = (MVMIOAsyncProcessData *)handle->body.data;
+        MVMObject *ready_cb = MVM_repr_at_key_o(tc, si->callbacks,
             tc->instance->str_consts.ready);
+        apd->handle = process;
         si->state = STATE_STARTED;
 
         if (!MVM_is_null(tc, ready_cb)) {
             MVMROOT2(tc, ready_cb, async_task, {
                 MVMObject *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
                 MVMROOT(tc, arr, {
+                    MVMObject *pid;
                     MVMObject *handle_arr = MVM_repr_alloc_init(tc,
                         tc->instance->boot_types.BOOTIntArray);
                     MVM_repr_push_i(tc, handle_arr, si->pipe_stdout
@@ -792,6 +791,8 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                         : -1);
                     MVM_repr_push_o(tc, arr, ready_cb);
                     MVM_repr_push_o(tc, arr, handle_arr);
+                    pid = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, process->pid);
+                    MVM_repr_push_o(tc, arr, pid);
                     MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
                 });
             });
@@ -1021,6 +1022,11 @@ MVMint64 MVM_proc_getpid(MVMThreadContext *tc) {
 #endif
 }
 
+/* Get the process ID of the parent process */
+MVMint64 MVM_proc_getppid(MVMThreadContext *tc) {
+    return uv_os_getppid();
+}
+
 /* generates a random int64 */
 MVMint64 MVM_proc_rand_i(MVMThreadContext *tc) {
     MVMuint64 result = tinymt64_generate_uint64(tc->rand_state);
@@ -1122,13 +1128,15 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
 
 /* Gets resource usage statistics, so far as they are portably available (see
  * libuv docs) and puts them into an integer array. */
-MVMObject * MVM_proc_getrusage(MVMThreadContext *tc) {
-    MVMObject *result;
+void MVM_proc_getrusage(MVMThreadContext *tc, MVMObject *result) {
     uv_rusage_t usage;
     int r;
     if ((r = uv_getrusage(&usage)) > 0)
         MVM_exception_throw_adhoc(tc, "Unable to getrusage: %s", uv_strerror(r));
-    result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
+    if (REPR(result)->ID != MVM_REPR_ID_VMArray || !IS_CONCRETE(result) ||
+            ((MVMArrayREPRData *)STABLE(result)->REPR_data)->slot_type != MVM_ARRAY_I64) {
+        MVM_exception_throw_adhoc(tc, "getrusage needs a concrete 64bit int array.");
+    }
     MVM_repr_bind_pos_i(tc, result, 0, usage.ru_utime.tv_sec);
     MVM_repr_bind_pos_i(tc, result, 1, usage.ru_utime.tv_usec);
     MVM_repr_bind_pos_i(tc, result, 2, usage.ru_stime.tv_sec);
@@ -1147,5 +1155,4 @@ MVMObject * MVM_proc_getrusage(MVMThreadContext *tc) {
     MVM_repr_bind_pos_i(tc, result, 15, usage.ru_nsignals);
     MVM_repr_bind_pos_i(tc, result, 16, usage.ru_nvcsw);
     MVM_repr_bind_pos_i(tc, result, 17, usage.ru_nivcsw);
-    return result;
 }

@@ -1,8 +1,6 @@
 #include "moar.h"
 #define UNMAPPED 0xFFFF
-/* Controls whether we throw on codepoints which don't have mappings (yet still
- * fit in one byte). If set to 0 we pass through the codepoint unchanged. */
-#define USE_STRICT 0
+
 /* Windows-1252 Latin */
 static const MVMuint16 windows1252_codepoints[] = {
     0x0000,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
@@ -340,16 +338,19 @@ static MVMuint8 windows1251_cp_to_char(MVMint32 codepoint) {
 
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
-MVMuint32 MVM_string_windows1251_1252_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
+MVMuint32 MVM_string_windows125X_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                                          const MVMint32 *stopper_chars,
-                                         MVMDecodeStreamSeparators *seps, const MVMuint16 *codetable) {
+                                         MVMDecodeStreamSeparators *seps,
+                                         const MVMuint16 *codetable) {
     MVMint32 count = 0, total = 0;
     MVMint32 bufsize;
-    MVMGrapheme32 *buffer;
-    MVMDecodeStreamBytes *cur_bytes;
+    MVMGrapheme32 *buffer = NULL;
+    MVMDecodeStreamBytes *cur_bytes = NULL;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
     MVMint32 last_accept_pos, last_was_cr;
     MVMuint32 reached_stopper;
+    MVMStringIndex repl_length = ds->replacement ? MVM_string_graphs(tc, ds->replacement) : 0;
+    MVMStringIndex repl_pos = 0;
 
     /* If there's no buffers, we're done. */
     if (!ds->bytes_head)
@@ -371,19 +372,33 @@ MVMuint32 MVM_string_windows1251_1252_decodestream(MVMThreadContext *tc, MVMDeco
         /* Process this buffer. */
         MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
         unsigned char *bytes = (unsigned char *)cur_bytes->bytes;
-        while (pos < cur_bytes->length) {
+        while (pos < cur_bytes->length || repl_pos) {
             MVMGrapheme32 graph;
             MVMCodepoint codepoint = codetable[bytes[pos++]];
-            if (codepoint == UNMAPPED) {
-                if (USE_STRICT) {
-                    /* Throw if it's unmapped */
-                    char *enc_name = codetable == windows1252_codepoints
-                        ? "Windows-1252" : "Windows-1251";
-                    MVM_free(buffer);
-                    MVM_exception_throw_adhoc(tc,
-                        "Error decoding %s string: could not decode codepoint %d",
-                         enc_name,
-                         codepoint);
+            if (repl_pos) {
+                graph = MVM_string_get_grapheme_at_nocheck(tc, ds->replacement, repl_pos++);
+                if (repl_length <= repl_pos) repl_pos = 0;
+                pos--;
+            }
+            else if (codepoint == UNMAPPED) {
+                if (MVM_ENCODING_CONFIG_STRICT(ds->config)) {
+                    if (ds->replacement) {
+                        graph = MVM_string_get_grapheme_at_nocheck(tc, ds->replacement, repl_pos);
+                        /* If the replacement is more than one grapheme we need
+                         * to set repl_pos++ so we will grab the next grapheme on
+                         * the next loop */
+                        if (1 < repl_length) repl_pos++;
+                    }
+                    else {
+                        /* Throw if it's unmapped */
+                        char *enc_name = codetable == windows1252_codepoints
+                            ? "Windows-1252" : "Windows-1251";
+                        MVM_free(buffer);
+                        MVM_exception_throw_adhoc(tc,
+                            "Error decoding %s string: could not decode codepoint %d",
+                             enc_name,
+                             bytes[pos - 1]);
+                    }
                 }
                 else {
                     /* Set it without translating, even though it creates
@@ -449,55 +464,77 @@ MVMuint32 MVM_string_windows1251_1252_decodestream(MVMThreadContext *tc, MVMDeco
 MVMuint32 MVM_string_windows1252_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                                          const MVMint32 *stopper_chars,
                                          MVMDecodeStreamSeparators *seps) {
-    return MVM_string_windows1251_1252_decodestream(tc, ds, stopper_chars, seps, windows1252_codepoints);
+    return MVM_string_windows125X_decodestream(tc, ds, stopper_chars, seps, windows1252_codepoints);
 }
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_windows1251_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                                          const MVMint32 *stopper_chars,
                                          MVMDecodeStreamSeparators *seps) {
-    return MVM_string_windows1251_1252_decodestream(tc, ds, stopper_chars, seps, windows1251_codepoints);
+    return MVM_string_windows125X_decodestream(tc, ds, stopper_chars, seps, windows1251_codepoints);
 }
 
 /* Decodes the specified number of bytes of windows1252 into an NFG string,
  * creating a result of the specified type. The type must have the MVMString
  * REPR. */
-MVMString * MVM_string_windows1251_1252_decode(MVMThreadContext *tc,
-        const MVMObject *result_type, char *windows125X_c, size_t bytes, const MVMuint16 *codetable) {
+MVMString * MVM_string_windows125X_decode(MVMThreadContext *tc,
+        const MVMObject *result_type, char *windows125X_c, size_t bytes,
+        MVMString *replacement, const MVMuint16 *codetable, MVMint64 config) {
     MVMuint8 *windows125X = (MVMuint8 *)windows125X_c;
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
-    size_t i, result_graphs;
+    size_t pos, result_graphs, additional_bytes = 0;
+    MVMStringIndex repl_length = replacement ? MVM_string_graphs(tc, replacement) : 0;
 
     result->body.storage_type    = MVM_STRING_GRAPHEME_32;
     result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
 
     result_graphs = 0;
-    for (i = 0; i < bytes; i++) {
-        if (windows125X[i] == '\r' && i + 1 < bytes && windows125X[i + 1] == '\n') {
-            result->body.storage.blob_32[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
-            i++;
+    for (pos = 0; pos < bytes; pos++) {
+        MVMGrapheme32 codepoint;
+        if (windows125X[pos] == '\r' && pos + 1 < bytes && windows125X[pos + 1] == '\n') {
+            codepoint = MVM_nfg_crlf_grapheme(tc);
+            pos++;
         }
         else {
-            MVMuint16 codepoint = codetable[windows125X[i]];
+            codepoint = codetable[windows125X[pos]];
             if (codepoint == UNMAPPED) {
-                if (USE_STRICT) {
+                /* Since things we are decoding always fit into Unicode, if we are
+                 * using a replacement, it won't get used unless we use strict */
+                if (replacement && MVM_ENCODING_CONFIG_STRICT(config)) {
+                    int i = 0;
+                    /* Only triggered if repl_length > 1. Copies all but the last
+                     * grapheme in the replacement string */
+                    if (1 < repl_length) {
+                        additional_bytes += repl_length - 1;
+                        result->body.storage.blob_32 = realloc(result->body.storage.blob_32,
+                            sizeof(MVMGrapheme32) * (additional_bytes + bytes));
+                        for (; i < repl_length - 1; i++) {
+                            MVMGrapheme32 graph = MVM_string_get_grapheme_at(tc, replacement, i);
+                            result->body.storage.blob_32[result_graphs++] = graph;
+                        }
+                    }
+                    /* Now we set `codepoint` to the last grapheme in the replacement
+                     * and proceed normally from here. */
+                    codepoint = MVM_string_get_grapheme_at(tc, replacement, i);
+                }
+                else if (MVM_ENCODING_CONFIG_STRICT(config)) {
                     /* Throw an exception if that codepoint has no mapping */
                     char *enc_name = codetable == windows1252_codepoints
                         ? "Windows-1252" : "Windows-1251";
                     MVM_exception_throw_adhoc(tc,
                         "Error decoding %s string: could not decode codepoint %d",
                          enc_name,
-                         windows125X[i]);
+                         windows125X[pos]);
                 }
                 else {
                     /* Don't convert and just map to identical. This creates
                      * standards uncompliant results, but will decode buggy
                      * input */
-                    codepoint = windows125X[i];
+                    codepoint = windows125X[pos];
                 }
             }
-            result->body.storage.blob_32[result_graphs++] = codepoint;
         }
+        result->body.storage.blob_32[result_graphs++] = codepoint;
     }
     result->body.num_graphs = result_graphs;
 
@@ -505,39 +542,47 @@ MVMString * MVM_string_windows1251_1252_decode(MVMThreadContext *tc,
 }
 MVMString * MVM_string_windows1252_decode(MVMThreadContext *tc,
         const MVMObject *result_type, char *windows125X_c, size_t bytes) {
-    return MVM_string_windows1251_1252_decode(tc, result_type, windows125X_c, bytes, windows1252_codepoints);
+    return MVM_string_windows125X_decode(tc, result_type, windows125X_c, bytes, NULL, windows1252_codepoints, MVM_ENCODING_PERMISSIVE);
 }
 MVMString * MVM_string_windows1251_decode(MVMThreadContext *tc,
         const MVMObject *result_type, char *windows125X_c, size_t bytes) {
-    return MVM_string_windows1251_1252_decode(tc, result_type, windows125X_c, bytes, windows1251_codepoints);
+    return MVM_string_windows125X_decode(tc, result_type, windows125X_c, bytes, NULL, windows1251_codepoints, MVM_ENCODING_PERMISSIVE);
+}
+MVMString * MVM_string_windows1252_decode_config(MVMThreadContext *tc,
+        const MVMObject *result_type, char *windows125X_c, size_t bytes, MVMString *replacement, MVMint64 config) {
+    return MVM_string_windows125X_decode(tc, result_type, windows125X_c, bytes, replacement, windows1252_codepoints, config);
+}
+MVMString * MVM_string_windows1251_decode_config(MVMThreadContext *tc,
+        const MVMObject *result_type, char *windows125X_c, size_t bytes, MVMString *replacement, MVMint64 config) {
+    return MVM_string_windows125X_decode(tc, result_type, windows125X_c, bytes, replacement, windows1251_codepoints, config);
 }
 /* Encodes the specified substring to Windows-1252 or Windows-1251. It is passed
  * in the encoding, as well as the function that resolves Unicode to the result
  * encoding. Anything not in range will cause an exception unless a replacement
  * string is supplied. The result string is NULL terminated, but the specified
  * size is the non-null part. */
-char * MVM_string_windows1251_1252_encode_substr(MVMThreadContext *tc, MVMString *str,
+char * MVM_string_windows125X_encode_substr(MVMThreadContext *tc, MVMString *str,
         MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement,
-        MVMint32 translate_newlines, MVMuint8(*cp_to_char)(MVMint32)) {
+        MVMint32 translate_newlines, MVMuint8(*cp_to_char)(MVMint32), MVMint64 config) {
     /* Windows-1252 and Windows-1251 are single byte encodings, so each grapheme
      * will just become a single byte. */
     MVMuint32 startu = (MVMuint32)start;
     MVMStringIndex strgraphs = MVM_string_graphs(tc, str);
     MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - startu : length);
-    MVMuint8 *result;
+    MVMuint8 *result  = NULL;
     size_t result_alloc;
     MVMuint8 *repl_bytes = NULL;
     MVMuint64 repl_length;
 
     /* must check start first since it's used in the length check */
-    if (start < 0 || start > strgraphs)
+    if (start < 0 || strgraphs < start)
         MVM_exception_throw_adhoc(tc, "start out of range");
-    if (length < -1 || start + lengthu > strgraphs)
+    if (length < -1 || strgraphs < start + lengthu)
         MVM_exception_throw_adhoc(tc, "length out of range");
 
     if (replacement)
-        repl_bytes = (MVMuint8 *) MVM_string_windows1251_1252_encode_substr(tc,
-            replacement, &repl_length, 0, -1, NULL, translate_newlines, cp_to_char);
+        repl_bytes = (MVMuint8 *) MVM_string_windows125X_encode_substr(tc,
+            replacement, &repl_length, 0, -1, NULL, translate_newlines, cp_to_char, config);
 
     result_alloc = lengthu;
     result = MVM_malloc(result_alloc + 1);
@@ -549,36 +594,37 @@ char * MVM_string_windows1251_1252_encode_substr(MVMThreadContext *tc, MVMString
             *output_size = lengthu;
     }
     else {
-        MVMuint32 i = 0;
+        MVMuint32 pos = 0;
         MVMCodepointIter ci;
         MVM_string_ci_init(tc, &ci, str, translate_newlines, 0);
         while (MVM_string_ci_has_more(tc, &ci)) {
             MVMCodepoint codepoint = MVM_string_ci_get_codepoint(tc, &ci);
-
-            if (i == result_alloc) {
+            if (result_alloc <= pos) {
                 result_alloc += 8;
                 result = MVM_realloc(result, result_alloc + 1);
             }
             /* If it's within ASCII just pass it through */
             if (0 <= codepoint && codepoint <= 127) {
-                result[i] = (MVMuint8)codepoint;
-                i++;
+                result[pos] = (MVMuint8)codepoint;
+                pos++;
             }
-            else if ((result[i] = cp_to_char(codepoint)) != '\0') {
-                i++;
+            else if ((result[pos] = cp_to_char(codepoint)) != '\0') {
+                pos++;
             }
-            else if (replacement) {
-                if (repl_length >= result_alloc || i >= result_alloc - repl_length) {
+            /* If we have a replacement and are we either have it set to strict,
+             * or the codepoint can't fit within one byte, insert a replacement */
+            else if (replacement && (MVM_ENCODING_CONFIG_STRICT(config) || codepoint < 0 || 255 < codepoint)) {
+                if (result_alloc <= pos + repl_length) {
                     result_alloc += repl_length;
                     result = MVM_realloc(result, result_alloc + 1);
                 }
-                memcpy(result + i, repl_bytes, repl_length);
-                i += repl_length;
+                memcpy(result + pos, repl_bytes, repl_length);
+                pos += repl_length;
             }
             else {
                 /* If we're decoding strictly or the codepoint cannot fit in
                  * one byte, throw an exception */
-                if (USE_STRICT || codepoint < 0 || 255 < codepoint) {
+                if (MVM_ENCODING_CONFIG_STRICT(config) || codepoint < 0 || 255 < codepoint) {
                     char *enc_name = cp_to_char == windows1252_cp_to_char
                         ? "Windows-1252" : "Windows-1251";
                     MVM_free(result);
@@ -591,13 +637,13 @@ char * MVM_string_windows1251_1252_encode_substr(MVMThreadContext *tc, MVMString
                 /* It fits in one byte and we're not decoding strictly, so pass
                  * it through unchanged */
                 else {
-                    result[i++] = codepoint;
+                    result[pos++] = codepoint;
                 }
             }
         }
-        result[i] = 0;
+        result[pos] = 0;
         if (output_size)
-            *output_size = i;
+            *output_size = pos;
     }
 
     MVM_free(repl_bytes);
@@ -606,10 +652,20 @@ char * MVM_string_windows1251_1252_encode_substr(MVMThreadContext *tc, MVMString
 char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str,
         MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement,
         MVMint32 translate_newlines) {
-    return MVM_string_windows1251_1252_encode_substr(tc, str, output_size, start, length, replacement, translate_newlines, windows1252_cp_to_char);
+    return MVM_string_windows125X_encode_substr(tc, str, output_size, start, length, replacement, translate_newlines, windows1252_cp_to_char, MVM_ENCODING_PERMISSIVE);
 }
 char * MVM_string_windows1251_encode_substr(MVMThreadContext *tc, MVMString *str,
         MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement,
         MVMint32 translate_newlines) {
-    return MVM_string_windows1251_1252_encode_substr(tc, str, output_size, start, length, replacement, translate_newlines, windows1251_cp_to_char);
+    return MVM_string_windows125X_encode_substr(tc, str, output_size, start, length, replacement, translate_newlines, windows1251_cp_to_char, MVM_ENCODING_PERMISSIVE);
+}
+char * MVM_string_windows1252_encode_substr_config(MVMThreadContext *tc, MVMString *str,
+        MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement,
+        MVMint32 translate_newlines, MVMint64 config) {
+    return MVM_string_windows125X_encode_substr(tc, str, output_size, start, length, replacement, translate_newlines, windows1252_cp_to_char, config);
+}
+char * MVM_string_windows1251_encode_substr_config(MVMThreadContext *tc, MVMString *str,
+        MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement,
+        MVMint32 translate_newlines, MVMint64 config) {
+    return MVM_string_windows125X_encode_substr(tc, str, output_size, start, length, replacement, translate_newlines, windows1251_cp_to_char, config);
 }

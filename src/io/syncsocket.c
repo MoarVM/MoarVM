@@ -33,7 +33,7 @@ MVM_NO_RETURN static void throw_error(MVMThreadContext *tc, int r, char *operati
         if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
                 NULL, error, 0, (LPTSTR)&error_string, 0, NULL) == 0) {
             /* Couldn't get error string; throw with code. */
-            MVM_exception_throw_adhoc(tc, "Could not %s: error code %d", error);
+            MVM_exception_throw_adhoc(tc, "Could not %s: error code %d", operation, error);
         }
         MVM_exception_throw_adhoc(tc, "Could not %s: %s", operation, error_string);
     }

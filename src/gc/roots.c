@@ -119,6 +119,11 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 
     add_collectable(tc, worklist, snapshot, tc->instance->env_hash,
         "Cached environment variable hash");
+
+    add_collectable(tc, worklist, snapshot, tc->instance->sig_hash,
+        "Cached signal mapping hash");
+
+    MVM_debugserver_mark_handles(tc, worklist, snapshot);
 }
 
 /* Adds anything that is a root thanks to being referenced by a thread,
@@ -189,6 +194,10 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     else {
         MVM_spesh_sim_stack_gc_describe(tc, snapshot, tc->spesh_sim_stack);
     }
+
+    if (tc->step_mode_frame)
+        add_collectable(tc, worklist, snapshot, tc->step_mode_frame,
+                "Frame referenced for stepping mode");
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */

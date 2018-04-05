@@ -4,8 +4,10 @@ use v6;
 my $UCD-zip-lnk = "ftp://ftp.unicode.org/Public/UCD/latest/ucd/UCD.zip";
 my $UCA-all-keys = "ftp://ftp.unicode.org/Public/UCA/latest/allkeys.txt";
 my $UCA-collation-test = "ftp://ftp.unicode.org/Public/UCA/latest/CollationTest.zip";
-my $MS_CODETABLES_URL = 'ftp://ftp.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/';
-my @MS_CODETABLES = 'CP1252.TXT', 'CP1251.TXT';
+my $CODETABLES_URL = 'ftp://ftp.unicode.org/Public/MAPPINGS/';
+my @CODETABLES =
+    'VENDORS/MICSFT/WINDOWS/CP1252.TXT',
+    'VENDORS/MICSFT/WINDOWS/CP1251.TXT';
 my IO::Path $unidata = "UNIDATA".IO.absolute.IO;
 sub MAIN {
     if ! so $unidata.d {
@@ -57,13 +59,14 @@ sub MAIN {
         chdir '..';
     }
     if ! "CODETABLES".IO.d {
-        say "Downloading codetables from $MS_CODETABLES_URL";
+        say "Downloading codetables from $CODETABLES_URL";
         mkdir "CODETABLES";
         chdir "CODETABLES";
-        for @MS_CODETABLES {
-            say "dling $MS_CODETABLES_URL$_";
-            download-file("$MS_CODETABLES_URL$_", $_);
+        for @CODETABLES {
+            say "dling $CODETABLES_URL$_";
+            download-file("$CODETABLES_URL$_", urlfilename($_));
         }
+        download-file("https://encoding.spec.whatwg.org/index-jis0208.txt", urlfilename("index-jis0208.txt"));
     }
     get-emoji();
 }
@@ -84,6 +87,9 @@ sub download-set-file ( Str:D $url, Str:D $filename, Str:D $dir) {
         unzip-file($filename);
         chdir $cwd;
     }
+}
+sub urlfilename (Str:D $str) {
+    $str.subst: /^.*\//, ""
 }
 sub unzip-file ( Str:D $zip ) {
     qqx{unzip "$zip"};
