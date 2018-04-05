@@ -196,11 +196,13 @@ MVM_STATIC_INLINE int can_fit_into_ascii (MVMGrapheme32 g) {
 static void turn_32bit_into_8bit_unchecked(MVMThreadContext *tc, MVMString *str) {
     MVMGrapheme32 *old_buf = str->body.storage.blob_32;
     MVMStringIndex i;
-    str->body.storage_type = MVM_STRING_GRAPHEME_8;
-    str->body.storage.blob_8 = MVM_malloc(str->body.num_graphs * sizeof(MVMGrapheme8));
-
-    for (i = 0; i < str->body.num_graphs; i++) {
-        str->body.storage.blob_8[i] = old_buf[i];
+    MVMGrapheme8 *dest_buf = NULL;
+    MVMStringIndex num_graphs = MVM_string_graphs_nocheck(tc, str);
+    str->body.storage_type   = MVM_STRING_GRAPHEME_8;
+    dest_buf = str->body.storage.blob_8 = MVM_malloc(str->body.num_graphs * sizeof(MVMGrapheme8));
+    MVM_VECTORIZE_LOOP
+    for (i = 0; i < num_graphs; i++) {
+        dest_buf[i] = old_buf[i];
     }
 
     MVM_free(old_buf);
