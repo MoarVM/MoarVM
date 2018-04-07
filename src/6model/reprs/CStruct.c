@@ -162,8 +162,19 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
             MVMObject *type  = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.type);
             MVMObject *inlined_val = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.inlined);
             MVMint64 inlined = !MVM_is_null(tc, inlined_val) && MVM_repr_get_int(tc, inlined_val);
+            MVMObject *dimensions         = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.dimensions);
+            MVMP6opaqueREPRData *dim_repr = (MVMP6opaqueREPRData *)STABLE(dimensions)->REPR_data;
+            MVMint64 num_dimensions       = dim_repr && dim_repr->pos_del_slot >= 0
+                                          ? MVM_repr_elems(tc, dimensions)
+                                          : 0;
             MVMint32   bits  = sizeof(void *) * 8;
             MVMint32   align = ALIGNOF(void *);
+
+            if (num_dimensions > 1) {
+                MVM_exception_throw_adhoc(tc,
+                    "Only one dimensions supported in CStruct attribute");
+            }
+
             if (!MVM_is_null(tc, type)) {
                 /* See if it's a type that we know how to handle in a C struct. */
                 const MVMStorageSpec *spec = REPR(type)->get_storage_spec(tc, STABLE(type));
@@ -207,6 +218,27 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     repr_data->num_child_objs++;
                     repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CSTRUCT_ATTR_SHIFT) | MVM_CSTRUCT_ATTR_CARRAY;
                     MVM_ASSIGN_REF(tc, &(st->header), repr_data->member_types[i], type);
+                    if (inlined) {
+                        MVMCArrayREPRData *carray_repr_data = (MVMCArrayREPRData *)STABLE(type)->REPR_data;
+                        bits                                = carray_repr_data->elem_size * 8;
+                        repr_data->attribute_locations[i]  |= MVM_CSTRUCT_ATTR_INLINED;
+
+                        if (num_dimensions > 0) {
+                            MVMint64 dim_one =  MVM_repr_at_pos_i(tc, dimensions, 0);
+
+                            // How do we distinguish between these members:
+                            // a) struct  foo [32] alias;
+                            // b) struct *foo [32] alias;
+                            if (carray_repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CSTRUCT) {
+                                MVMCStructREPRData *cstruct_repr_data = (MVMCStructREPRData *)STABLE(carray_repr_data->elem_type)->REPR_data;
+                                bits                                  = cstruct_repr_data->struct_size * 8 * dim_one;
+                                align                                 = cstruct_repr_data->struct_align;
+                            }
+                            else {
+                                bits  = bits * dim_one;
+                            }
+                        }
+                    }
                 }
                 else if (type_id == MVM_REPR_ID_MVMCStruct) {
                     /* It's a CStruct. */
