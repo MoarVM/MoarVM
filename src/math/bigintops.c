@@ -1,6 +1,11 @@
 #include "moar.h"
 #include <math.h>
 
+#if defined(_MSC_VER) && ! defined(INFINITY)
+#include <float.h>
+#define INFINITY (DBL_MAX + DBL_MAX)
+#endif
+
 #ifndef MANTISSA_BITS_IN_DOUBLE
 #define MANTISSA_BITS_IN_DOUBLE 53
 #endif
