@@ -1718,6 +1718,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVM_spesh_get_facts(tc, g, code_ref_reg)->usages++;
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
                         code_ref_reg);
+                MVM_free(inline_graph->spesh_slots);
 #if MVM_LOG_INLINES
                 if (g->sc_idx_resolve_used)
                     fprintf(stderr, "There were wval references that could not be fixed up yet.\n");

@@ -203,8 +203,25 @@ static void fix_callsite(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         inlinee->sf->body.cu->body.callsites[to_fix->callsite_idx]);
 }
 static void fix_coderef(MVMThreadContext *tc, MVMSpeshGraph *inliner,
-                        MVMSpeshGraph *inlinee, MVMSpeshOperand *to_fix) {
+                        MVMSpeshGraph *inlinee, MVMSpeshIns *to_fix) {
     MVM_oops(tc, "Spesh inline: fix_coderef NYI");
+}
+static void fix_const_str(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+                    MVMSpeshGraph *inlinee, MVMSpeshIns *to_fix) {
+    MVMCompUnit *cu = inlinee->sf->body.cu;
+    MVMuint16 sslot;
+    MVMSpeshOperand dest = to_fix->operands[0];
+    MVMuint16 str_idx = to_fix->operands[1].lit_str_idx;
+
+    sslot = MVM_spesh_add_spesh_slot(tc, inlinee, (MVMCollectable *)cu);
+
+    /*fprintf(stderr, "fixed up string get to use spesh slot %u\n", sslot);*/
+
+    to_fix->info = MVM_op_get_op(MVM_OP_sp_getstringfrom);
+    to_fix->operands = MVM_spesh_alloc(tc, inliner, 3 * sizeof(MVMSpeshOperand));
+    to_fix->operands[0] = dest;
+    to_fix->operands[1].lit_i16 = sslot;
+    to_fix->operands[2].lit_str_idx = str_idx;
 }
 static void fix_str(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     MVMSpeshGraph *inlinee, MVMSpeshOperand *to_fix) {
@@ -216,46 +233,25 @@ static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* Resolve object, then just put it into a spesh slot. (Could do some
      * smarter things like trying to see if the SC is referenced by both
      * compilation units, too.) */
-    MVMCompUnit *cu  = inlinee->sf->body.cu;
-    MVMint16     dep = to_fix->operands[1].lit_i16;
-    MVMint64     idx = to_fix->info->opcode == MVM_OP_wval
+    MVMCompUnit *targetcu = inliner->sf->body.cu;
+    MVMCompUnit *sourcecu = inlinee->sf->body.cu;
+    MVMint16     dep      = to_fix->operands[1].lit_i16;
+    MVMint64     idx      = to_fix->info->opcode == MVM_OP_wval
         ? to_fix->operands[2].lit_i16
         : to_fix->operands[2].lit_i64;
-    if (dep >= 0 && dep < cu->body.num_scs) {
-        MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, dep);
+    if (dep >= 0 && dep < sourcecu->body.num_scs) {
+        MVMSerializationContext *sc = MVM_sc_get_sc(tc, sourcecu, dep);
         if (sc) {
             if (MVM_sc_is_object_immediately_available(tc, sc, idx)) {
-                MVMObject *obj = MVM_sc_get_object(tc, sc, idx);
-                MVMint16   ss  = MVM_spesh_add_spesh_slot(tc, inliner, (MVMCollectable *)obj);
-                to_fix->info   = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+                MVMint16 ss  = MVM_spesh_add_spesh_slot(tc, inliner, (MVMCollectable *)MVM_sc_get_object(tc, sc, idx));
+                to_fix->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
                 to_fix->operands[1].lit_i16 = ss;
             }
             else {
-                if (inliner->sc_idx_resolve_alloc == 0) {
-                    inliner->scs_to_resolve_from =
-                        MVM_spesh_alloc(tc, inliner, 4 * sizeof(MVMSerializationContext *));
-                    inliner->sc_idx_to_resolve =
-                        MVM_spesh_alloc(tc, inliner, 4 * sizeof(MVMuint64));
-                    inliner->sc_idx_resolve_alloc = 4;
-                }
-                else if (inliner->sc_idx_resolve_used > inliner->sc_idx_resolve_alloc) {
-                    MVMuint32 new_size = inliner->sc_idx_resolve_alloc * 2;
-                    MVMSerializationContext **old_sc_array = inliner->scs_to_resolve_from;
-                    MVMuint64 *old_idx_array = inliner->sc_idx_to_resolve;
-                    inliner->scs_to_resolve_from =
-                        MVM_spesh_alloc(tc, inliner, new_size * sizeof(MVMSerializationContext *));
-                    inliner->sc_idx_to_resolve =
-                        MVM_spesh_alloc(tc, inliner, new_size * sizeof(MVMuint64));
-
-                    memcpy(inliner->scs_to_resolve_from, old_sc_array, new_size * sizeof(MVMSerializationContext *));
-                    memcpy(inliner->sc_idx_to_resolve, old_idx_array, new_size * sizeof(MVMuint64));
-
-                    inliner->sc_idx_resolve_alloc = new_size;
-                }
-
-                inliner->scs_to_resolve_from[inliner->sc_idx_resolve_used] = sc;
-                inliner->sc_idx_to_resolve[inliner->sc_idx_resolve_used] = idx;
-                inliner->sc_idx_resolve_used++;
+                MVMint16 ss  = MVM_spesh_add_spesh_slot(tc, inliner, (MVMCollectable *)sc);
+                to_fix->info = MVM_op_get_op(MVM_OP_sp_getwvalfrom);
+                to_fix->operands[1].lit_i16 = ss;
+                to_fix->operands[2].lit_i64 = idx;
             }
         }
         else {
@@ -363,6 +359,12 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                         MVM_OP_sp_getlexvia_ins, code_ref_reg);
             }
             else {
+                if (!same_comp_unit) {
+                    if (ins->info->opcode == MVM_OP_const_s) {
+                        fix_const_str(tc, inliner, inlinee, ins);
+                    }
+                }
+
                 for (i = 0; i < ins->info->num_operands; i++) {
                     MVMuint8 flags = ins->info->operands[i];
                     switch (flags & MVM_operand_rw_mask) {
@@ -379,17 +381,18 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                         if (type == MVM_operand_spesh_slot) {
                             ins->operands[i].lit_i16 += inliner->num_spesh_slots;
                         }
-                        else if (type == MVM_operand_callsite) {
-                            if (!same_comp_unit)
-                                fix_callsite(tc, inliner, inlinee, &(ins->operands[i]));
-                        }
                         else if (type == MVM_operand_coderef) {
                             if (!same_comp_unit)
-                                fix_coderef(tc, inliner, inlinee, &(ins->operands[i]));
+                                /* NYI, but apparently this never happens?! */
+                                fix_coderef(tc, inliner, inlinee, ins);
                         }
                         else if (type == MVM_operand_str) {
                             if (!same_comp_unit)
                                 fix_str(tc, inliner, inlinee, &(ins->operands[i]));
+                        }
+                        else if (type == MVM_operand_callsite) {
+                            if (!same_comp_unit)
+                                fix_callsite(tc, inliner, inlinee, &(ins->operands[i]));
                         }
                         break;
                         }

@@ -1255,10 +1255,14 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     g->deopt_named_used_bit_field = cand->deopt_named_used_bit_field;
     g->local_types       = cand->local_types;
     g->lexical_types     = cand->lexical_types;
-    g->spesh_slots       = cand->spesh_slots;
     g->num_spesh_slots   = cand->num_spesh_slots;
+    g->alloc_spesh_slots = cand->num_spesh_slots;
     g->phi_infos         = MVM_spesh_alloc(tc, g, MVMPhiNodeCacheSize * sizeof(MVMOpInfo));
     g->cand              = cand;
+
+    g->spesh_slots       = MVM_malloc(g->alloc_spesh_slots * sizeof(MVMCollectable *));
+
+    memcpy(g->spesh_slots, cand->spesh_slots, sizeof(MVMCollectable *) * g->num_spesh_slots);
 
     /* Ensure the frame is validated, since we'll rely on this. */
     if (sf->body.instrumentation_level == 0) {
