@@ -1106,14 +1106,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | movsd qword WORK[reg_a], xmm0;
         break;
     }
-    case MVM_OP_floor_n: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 src = ins->operands[1].reg.orig;
-        | movsd xmm0, qword WORK[src];
-        | roundsd xmm0, xmm0, 9;
-        | movsd qword WORK[dst], xmm0;
-        break;
-    }
     case MVM_OP_coerce_in: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
