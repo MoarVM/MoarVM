@@ -1513,6 +1513,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_div_n:
     case MVM_OP_neg_n:
         /* number coercion */
+    case MVM_OP_floor_n:
     case MVM_OP_coerce_ni:
     case MVM_OP_coerce_in:
     case MVM_OP_extend_i32:
