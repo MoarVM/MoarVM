@@ -18,11 +18,11 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
             MVMObject *log_obj;
             MVMuint64 start_time;
             unsigned int interval_id;
-            if (tc->instance->spesh_log_fh)
+            if (MVM_spesh_debug_enabled(tc))
                 start_time = uv_hrtime();
             log_obj = MVM_repr_shift_o(tc, tc->instance->spesh_queue);
-            if (tc->instance->spesh_log_fh) {
-                fprintf(tc->instance->spesh_log_fh,
+            if (MVM_spesh_debug_enabled(tc)) {
+                MVM_spesh_debug_printf(tc,
                     "Received Logs\n"
                     "=============\n\n"
                     "Was waiting %dus for logs on the log queue.\n\n",
@@ -49,12 +49,12 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
 
                     /* Update stats, and if we're logging dump each of them. */
                     tc->instance->spesh_stats_version++;
-                    if (tc->instance->spesh_log_fh)
+                    if (MVM_spesh_debug_enabled(tc))
                         start_time = uv_hrtime();
                     MVM_spesh_stats_update(tc, sl, updated_static_frames);
                     n = MVM_repr_elems(tc, updated_static_frames);
-                    if (tc->instance->spesh_log_fh) {
-                        fprintf(tc->instance->spesh_log_fh,
+                    if (MVM_spesh_debug_enabled(tc)) {
+                        MVM_spesh_debug_printf(tc,
                             "Statistics Updated\n"
                             "==================\n"
                             "%d frames had their statistics updated in %dus.\n\n",
@@ -62,7 +62,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                         for (i = 0; i < n; i++) {
                             char *dump = MVM_spesh_dump_stats(tc, (MVMStaticFrame* )
                                 MVM_repr_at_pos_o(tc, updated_static_frames, i));
-                            fprintf(tc->instance->spesh_log_fh, "%s==========\n\n", dump);
+                            MVM_spesh_debug_printf(tc, "%s==========\n\n", dump);
                             MVM_free(dump);
                         }
                     }
@@ -70,12 +70,12 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                     GC_SYNC_POINT(tc);
 
                     /* Form a specialization plan. */
-                    if (tc->instance->spesh_log_fh)
+                    if (MVM_spesh_debug_enabled(tc))
                         start_time = uv_hrtime();
                     tc->instance->spesh_plan = MVM_spesh_plan(tc, updated_static_frames);
-                    if (tc->instance->spesh_log_fh) {
+                    if (MVM_spesh_debug_enabled(tc)) {
                         n = tc->instance->spesh_plan->num_planned;
-                        fprintf(tc->instance->spesh_log_fh,
+                        MVM_spesh_debug_printf(tc,
                             "Specialization Plan\n"
                             "===================\n"
                             "%u specialization(s) will be produced (planned in %dus).\n\n",
@@ -83,7 +83,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                         for (i = 0; i < n; i++) {
                             char *dump = MVM_spesh_dump_planned(tc,
                                 &(tc->instance->spesh_plan->planned[i]));
-                            fprintf(tc->instance->spesh_log_fh, "%s==========\n\n", dump);
+                            MVM_spesh_debug_printf(tc, "%s==========\n\n", dump);
                             MVM_free(dump);
                         }
                     }
