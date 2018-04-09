@@ -54,6 +54,7 @@ static char get_signature_char(MVMint16 type_id) {
         case MVM_NATIVECALL_ARG_UTF8STR:
         case MVM_NATIVECALL_ARG_UTF16STR:
         case MVM_NATIVECALL_ARG_CSTRUCT:
+        case MVM_NATIVECALL_ARG_CPPSTRUCT:
         case MVM_NATIVECALL_ARG_CPOINTER:
         case MVM_NATIVECALL_ARG_CARRAY:
         case MVM_NATIVECALL_ARG_CUNION:
@@ -267,6 +268,12 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
                 num_roots++;
                 break;
+            case MVM_NATIVECALL_ARG_CPPSTRUCT:
+                args[i - 1].o = MVM_nativecall_make_cppstruct(tc, type,
+                    dcbArgPointer(cb_args));
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
+                num_roots++;
+                break;
             case MVM_NATIVECALL_ARG_CPOINTER:
                 args[i - 1].o = MVM_nativecall_make_cpointer(tc, type,
                     dcbArgPointer(cb_args));
@@ -386,6 +393,9 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
             break;
         case MVM_NATIVECALL_ARG_CSTRUCT:
             cb_result->p = MVM_nativecall_unmarshal_cstruct(tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_CPPSTRUCT:
+            cb_result->p = MVM_nativecall_unmarshal_cppstruct(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_CPOINTER:
             cb_result->p = MVM_nativecall_unmarshal_cpointer(tc, res.o);

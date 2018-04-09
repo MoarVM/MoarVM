@@ -265,6 +265,11 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
                 num_roots++;
                 break;
+            case MVM_NATIVECALL_ARG_CPPSTRUCT:
+                args[i - 1].o = MVM_nativecall_make_cppstruct(tc, type, *(void **)cb_args[i - 1]);
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
+                num_roots++;
+                break;
             case MVM_NATIVECALL_ARG_CPOINTER:
                 args[i - 1].o = MVM_nativecall_make_cpointer(tc, type, *(void **)cb_args[i - 1]);
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
@@ -380,6 +385,9 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
             break;
         case MVM_NATIVECALL_ARG_CSTRUCT:
             *(void **)cb_result = MVM_nativecall_unmarshal_cstruct(tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_CPPSTRUCT:
+            *(void **)cb_result = MVM_nativecall_unmarshal_cppstruct(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_CPOINTER:
             *(void **)cb_result = MVM_nativecall_unmarshal_cpointer(tc, res.o);

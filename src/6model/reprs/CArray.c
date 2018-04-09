@@ -58,6 +58,14 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_CSTRUCT;
             repr_data->elem_size = sizeof(void *);
         }
+        else if (type_id == MVM_REPR_ID_MVMCPPStruct) {
+            repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_CPPSTRUCT;
+            repr_data->elem_size = sizeof(void *);
+        }
+        else if (type_id == MVM_REPR_ID_MVMCUnion) {
+            repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_CUNION;
+            repr_data->elem_size = sizeof(void *);
+        }
         else if (type_id == MVM_REPR_ID_MVMCPointer) {
             repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_CPOINTER;
             repr_data->elem_size = sizeof(void *);
@@ -197,6 +205,8 @@ static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArray
     is_complex = (repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CARRAY
                || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CPOINTER
                || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CSTRUCT
+               || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CPPSTRUCT
+               || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CUNION
                || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_STRING);
 
     if (is_complex) {
@@ -370,6 +380,18 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
                 MVM_exception_throw_adhoc(tc, "CArray of CStruct passed non-CStruct object");
             bind_wrapper_and_ptr(tc, root, body, index, value.o,
                 IS_CONCRETE(value.o) ? ((MVMCStruct *)value.o)->body.cstruct : NULL);
+            break;
+        case MVM_CARRAY_ELEM_KIND_CPPSTRUCT:
+            if (REPR(value.o)->ID != MVM_REPR_ID_MVMCPPStruct)
+                MVM_exception_throw_adhoc(tc, "CArray of CPPStruct passed non-CStruct object");
+            bind_wrapper_and_ptr(tc, root, body, index, value.o,
+                IS_CONCRETE(value.o) ? ((MVMCPPStruct *)value.o)->body.cppstruct : NULL);
+            break;
+        case MVM_CARRAY_ELEM_KIND_CUNION:
+            if (REPR(value.o)->ID != MVM_REPR_ID_MVMCUnion)
+                MVM_exception_throw_adhoc(tc, "CArray of CUnion passed non-CStruct object");
+            bind_wrapper_and_ptr(tc, root, body, index, value.o,
+                IS_CONCRETE(value.o) ? ((MVMCUnion *)value.o)->body.cunion : NULL);
             break;
         default:
             MVM_exception_throw_adhoc(tc, "Unknown element type in CArray");

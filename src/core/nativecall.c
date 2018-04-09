@@ -838,6 +838,9 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
             case MVM_REPR_ID_MVMCStruct:
                 result = MVM_nativecall_make_cstruct(tc, target_type, (void *)cpointer_body);
                 break;
+            case MVM_REPR_ID_MVMCPPStruct:
+                result = MVM_nativecall_make_cppstruct(tc, target_type, (void *)cpointer_body);
+                break;
             case MVM_REPR_ID_MVMCUnion:
                 result = MVM_nativecall_make_cunion(tc, target_type, (void *)cpointer_body);
                 break;
@@ -976,6 +979,9 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                     case MVM_CARRAY_ELEM_KIND_CSTRUCT:
                         objptr = ((MVMCStructBody *)OBJECT_BODY(body->child_objs[i]))->cstruct;
                         break;
+                    case MVM_CARRAY_ELEM_KIND_CPPSTRUCT:
+                        objptr = ((MVMCPPStructBody *)OBJECT_BODY(body->child_objs[i]))->cppstruct;
+                        break;
                     case MVM_CARRAY_ELEM_KIND_CUNION:
                         objptr = ((MVMCUnionBody *)OBJECT_BODY(body->child_objs[i]))->cunion;
                         break;
@@ -1025,6 +1031,9 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                     case MVM_CSTRUCT_ATTR_CSTRUCT:
                         objptr = (MVMCStructBody *)OBJECT_BODY(body->child_objs[slot]);
                         break;
+                    case MVM_CSTRUCT_ATTR_CPPSTRUCT:
+                        objptr = (MVMCPPStructBody *)OBJECT_BODY(body->child_objs[slot]);
+                        break;
                     case MVM_CSTRUCT_ATTR_CUNION:
                         objptr = (MVMCUnionBody *)OBJECT_BODY(body->child_objs[slot]);
                         break;
@@ -1073,6 +1082,12 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                         break;
                     case MVM_CPPSTRUCT_ATTR_CSTRUCT:
                         objptr = (MVMCStructBody *)OBJECT_BODY(body->child_objs[slot]);
+                        break;
+                    case MVM_CPPSTRUCT_ATTR_CPPSTRUCT:
+                        objptr = (MVMCPPStructBody *)OBJECT_BODY(body->child_objs[slot]);
+                        break;
+                    case MVM_CPPSTRUCT_ATTR_CUNION:
+                        objptr = (MVMCUnionBody *)OBJECT_BODY(body->child_objs[slot]);
                         break;
                     case MVM_CPPSTRUCT_ATTR_STRING:
                         objptr = NULL;
