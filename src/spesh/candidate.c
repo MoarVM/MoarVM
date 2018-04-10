@@ -29,8 +29,6 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     MVMStaticFrameSpesh *spesh;
     MVMuint64 start_time;
 
-    p->should_retry = 0;
-
     /* If we've reached our specialization limit, don't continue. */
     if (tc->instance->spesh_limit)
         if (++tc->instance->spesh_produced > tc->instance->spesh_limit)
@@ -68,21 +66,11 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
 #if MVM_GC_DEBUG
         tc->in_spesh = 0;
 #endif
-        p->should_retry = 1;
 
         if (tc->instance->spesh_log_fh)
             fprintf(tc->instance->spesh_log_fh,
                     "Specialization bailed out due to %u unresolved WVals\n",
                     sg->sc_idx_resolve_used);
-
-        for (idxidx = 0; idxidx < sg->sc_idx_resolve_used; idxidx++) {
-            MVM_gc_root_temp_push(tc, (MVMCollectable **)&sg->scs_to_resolve_from[idxidx]);
-        }
-        for (idxidx = 0; idxidx < sg->sc_idx_resolve_used; idxidx++) {
-            MVM_sc_get_object(tc, sg->scs_to_resolve_from[idxidx], sg->sc_idx_to_resolve[idxidx]);
-        }
-        MVM_gc_root_temp_pop_n(tc, sg->sc_idx_resolve_used);
-        MVM_spesh_graph_destroy(tc, sg);
         return;
     }
 
