@@ -1,11 +1,6 @@
 #include "moar.h"
 #include <math.h>
 
-#if defined(_MSC_VER) && ! defined(INFINITY)
-#include <float.h>
-#define INFINITY (DBL_MAX + DBL_MAX)
-#endif
-
 #ifndef MANTISSA_BITS_IN_DOUBLE
 #define MANTISSA_BITS_IN_DOUBLE 53
 #endif
@@ -956,9 +951,9 @@ MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
         mp_clamp(ib);
         if (ib->used == 0) { /* zero-denominator special case */
             if (ia->sign == MP_NEG)
-                c = -INFINITY;
+                c = MVM_NUM_NEGINF;
             else
-                c =  INFINITY;
+                c =  MVM_NUM_POSINF;
             /*
              * we won't have NaN case here, since the branch requires at
              * least one bigint to be big
