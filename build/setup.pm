@@ -499,7 +499,7 @@ our %OS_SOLARIS = (
 
     -thirdparty => {
         dc => { %TP_DC,
-	        rule  => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile.embedded sun',
+	        rule  => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS) -U_FILE_OFFSET_BITS\' $(MAKE) -f Makefile.embedded sun',
 	        clean => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile.embedded clean',
 	    },
         uv => { %TP_UVDUMMY, objects => '$(UV_SOLARIS)' },
