@@ -11,7 +11,7 @@ our %TP_LAO = (
     name  => 'atomic_ops',
     path  => '3rdparty/libatomic_ops/src',
     rule  => 'cd 3rdparty/libatomic_ops && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' ./configure @crossconf@ && cd src && $(MAKE) && cd ..',
-    clean => 'cd 3rdparty/libatomic_ops/src && $(MAKE) distclean',
+    clean => 'cd 3rdparty/libatomic_ops/src && $(RM) libatomic_ops.a && $(MAKE) distclean',
 );
 
 our %TP_SHA = (
@@ -55,6 +55,7 @@ our %TP_CMP = (
     name => 'cmp',
     path => '3rdparty/cmp',
     src  => [ '3rdparty/cmp' ],
+    clean => 'cd 3rdparty/cmp && $(RM) libcmp.a && $(MAKE) clean'
 );
 
 our %TP_UVDUMMY = (
