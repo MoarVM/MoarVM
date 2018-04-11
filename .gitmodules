@@ -10,9 +10,9 @@
 [submodule "3rdparty/libtommath"]
 	path = 3rdparty/libtommath
 	url = https://github.com/MoarVM/libtommath
-[submodule "3rdparty/libatomic_ops"]
-	path = 3rdparty/libatomic_ops
-	url = https://github.com/MoarVM/libatomic_ops
 [submodule "3rdparty/cmp"]
 	path = 3rdparty/cmp
 	url = https://github.com/MoarVM/cmp.git
+[submodule "3rdparty/libatomicops"]
+	path = 3rdparty/libatomicops
+	url = https://github.com/MoarVM/libatomic_ops

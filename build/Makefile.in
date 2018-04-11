@@ -676,7 +676,7 @@ distclean: realclean
 	-$(CMD)$(RM) moar@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
 	$(MSG) remove configuration and generated files
 	-$(CMD)$(RM) Makefile src/gen/config.h src/gen/config.c src/strings/unicode.c \
-	    tools/check.mk 3rdparty/libatomic_ops/config.log 3rdparty/libatomic_ops/config.status $(NOOUT) $(NOERR)
+	    tools/check.mk 3rdparty/libatomicops/config.log 3rdparty/libatomicops/config.status $(NOOUT) $(NOERR)
 	-$(CMD)$(RM_RF) build/mk-moar-pc.pl pkgconfig/ $(NOOUT) $(NOERR)
 
 release:
