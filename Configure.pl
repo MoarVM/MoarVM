@@ -28,7 +28,9 @@ my $failed = 0;
 my %args;
 my %defaults;
 my %config;
-
+# In case a submodule folder needs to be deleted. We set this and print it
+# out at the very end.
+my $folder_to_delete = '';
 my @args = @ARGV;
 
 GetOptions(\%args, qw(
@@ -71,7 +73,13 @@ if (-d '.git') {
     print dots("Updating submodules");
     my $msg = qx{git submodule sync --quiet && git submodule --quiet update --init 2>&1};
     if ($? >> 8 == 0) { print "OK\n" }
-    else { softfail("git error: $msg") }
+    else {
+        if ($msg =~ /[']([^']+)[']\s+already exists and is not an empty/) {
+            $folder_to_delete = "\n\nERROR: Cannot update submodule because directory exists and is not empty.\n" .
+            ">>> Please delete the following folder and try again:\n$1\n\n";
+        }
+        softfail("git error: $msg")
+    }
 }
 
 # fiddle with flags
@@ -599,7 +607,7 @@ TERM2
 if (!$failed && $args{'make-install'}) {
     system($config{make}, 'install');
 }
-
+print $folder_to_delete if $folder_to_delete;
 exit $failed;
 
 # helper functions
