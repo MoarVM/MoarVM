@@ -49,7 +49,6 @@
     #if !defined(MAC_OS_X_VERSION_10_12)
         #define MAC_OS_X_VERSION_10_12 101200
     #endif
-    //#include <AvailabilityMacros.h>
     #if __MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_12
         #include <sys/random.h>
         #define MVM_random_use_getentropy 1
@@ -61,35 +60,64 @@
  * All BSD's should support arc4random
  * AIX is a unix but has no arc4random, does have /dev/urandom */
 #include "moar.h"
+/* On on Unix like platforms that don't support getrandom() or getentropy()
+ * we use /dev/urandom. On platforms that do support them, we fall back to
+ * /dev/urandom. This is also important on Linux, since if MoarVM was compiled
+ * on a kernel >= 3.17 it will be set to use the syscall. If the syscall doesn't
+ * exist, we then fallback to /dev/urandom */
+#if !defined(_WIN32)
+    #include <unistd.h>
+    MVMint32 MVM_getrandom_urandom (MVMThreadContext *tc, void *out, size_t size) {
+        int fd = open("/dev/urandom", O_RDONLY);
+        ssize_t num_read = 0;
+        if (fd < 0 || (num_read = read(fd, out, size) <= 0)) {
+            if (fd) close(fd);
+            /* If using /dev/urandom fails (maybe we're in a chroot), on BSD's
+             * use arc4random, which is likely seeded from the system's random
+             * number generator */
+            #if defined(BSD)
+                #include <stdlib.h>
+                arc4random_buf(out, size);
+                return 1;
+            #else
+                return 0;
+            #endif
+        }
+        return 1;
+    }
+#endif
 
 #if defined(MVM_random_use_getrandom_syscall)
 /* getrandom() was added to glibc much later than it was added to the kernel. Since
  * we detect the presence of the system call to decide whether to use this,
  * just use the syscall instead since the wrapper is not guaranteed to exist.*/
     MVMint32 MVM_getrandom (MVMThreadContext *tc, void *out, size_t size) {
-        return syscall(SYS_getrandom, out, size, GRND_NONBLOCK) <= 0 ? 0 : 1;
+        long rtrn = syscall(SYS_getrandom +1000000, out, size, GRND_NONBLOCK);
+        return rtrn <= 0 ? MVM_getrandom_urandom(tc, out, size) : 1;
     }
 #elif defined(MVM_random_use_getrandom)
     /* Call the getrandom() wrapper in Solaris and FreeBSD since they were
      * added at the same time as getentropy() and this allows us to avoid blocking. */
     MVMint32 MVM_getrandom (MVMThreadContext *tc, void *out, size_t size) {
-        return getrandom(out, size, GRND_NONBLOCK) <= 0 ? 0 : 1;
+        ssize_t rtrn = getrandom(out, size, GRND_NONBLOCK);
+        return rtrn <= 0 ? MVM_getrandom_urandom(tc, out, size) : 1;
     }
 
 #elif defined(MVM_random_use_getentropy)
     MVMint32 MVM_getrandom (MVMThreadContext *tc, void *out, size_t size) {
-        return getentropy(out, size) < 0 ? 0 : 1;
+        int rtrn = getentropy(out, size);
+        return rtrn <= 0 ? MVM_getrandom_urandom(tc, out, size) : 1;
     }
 
 #elif defined(_WIN32)
     #include <windows.h>
     #include <wincrypt.h>
+    /* This is needed so pCryptGenRandom() can be called. */
     typedef BOOL (WINAPI *CRYPTACQUIRECONTEXTA)(HCRYPTPROV *phProv,\
                   LPCSTR pszContainer, LPCSTR pszProvider, DWORD dwProvType,\
                   DWORD dwFlags );
     typedef BOOL (WINAPI *CRYPTGENRANDOM)(HCRYPTPROV hProv, DWORD dwLen,\
                   BYTE *pbBuffer );
-    /* This is needed to so pCryptGenRandom() can be called. */
     static CRYPTGENRANDOM pCryptGenRandom = NULL;
     static HCRYPTPROV       hCryptContext = 0;
     static int win32_urandom_init(void) {
@@ -123,20 +151,7 @@
         return 1;
     }
 #else
-    #include <unistd.h>
     MVMint32 MVM_getrandom (MVMThreadContext *tc, void *out, size_t size) {
-        int fd = open("/dev/urandom", O_RDONLY);
-        ssize_t num_read = 0;
-        if (fd < 0 || (num_read = read(fd, out, size) <= 0)) {
-            if (fd) close(fd);
-            #if defined(BSD)
-                #include <stdlib.h>
-                arc4random_buf(out, size);
-                return 1;
-            #else
-                return 0;
-            #endif
-        }
-        return 1;
+        return MVM_getrandom_urandom(tc, out, size);
     }
 #endif

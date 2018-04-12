@@ -88,7 +88,6 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVMuint32 hashSecret;
     MVMuint64 now = MVM_platform_now();
 
-
     /* Set up instance data structure. */
     instance = MVM_calloc(1, sizeof(MVMInstance));
 
