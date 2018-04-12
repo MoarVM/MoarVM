@@ -10,7 +10,7 @@
         #define MVM_random_use_getrandom 1
     #endif
 #endif
-/* Linux added getrandom to kernel in 3.17 */
+/* Linux added getrandom to the kernel in 3.17 */
 #if defined(__linux__)
     #include <sys/syscall.h>
     #if defined(SYS_getrandom)
@@ -25,7 +25,7 @@
     #endif
 #endif
 /* FreeBSD added it with SVN revision 331279 Wed Mar 21, 2018
- * This coorasponds to __FreeBSD_version version identifier: 1200061.
+ * This corresponds to __FreeBSD_version version identifier: 1200061.
  * https://svnweb.freebsd.org/base?view=revision&revision=r331279 */
 #if defined(__FreeBSD__)
     #include <osreldate.h>
@@ -55,16 +55,17 @@
     #endif
 #endif
 /* Other info:
- * NetBSD: I have not found evidence it has getentropy() or getrandom()
- *   Note: Uses __NetBSD_Version__ included from file <sys/param.h>.
- * All BSD's should support arc4random
- * AIX is a unix but has no arc4random, does have /dev/urandom */
+ * - All BSD's should support arc4random
+ * - AIX is a Unix but has no arc4random, does have /dev/urandom.
+ * - NetBSD: I have not found evidence it has getentropy() or getrandom()
+ *     Note: Uses __NetBSD_Version__ included from file <sys/param.h>. */
 #include "moar.h"
-/* On on Unix like platforms that don't support getrandom() or getentropy()
- * we use /dev/urandom. On platforms that do support them, we fall back to
- * /dev/urandom. This is also important on Linux, since if MoarVM was compiled
- * on a kernel >= 3.17 it will be set to use the syscall. If the syscall doesn't
- * exist, we then fallback to /dev/urandom */
+/* On Unix like platforms that don't support getrandom() or getentropy()
+ * we defualt to /dev/urandom. On platforms that do support these calls, we
+ * only use /dev/urandom if those calls fail. This is also important on Linux,
+ * since if MoarVM was compiled on a kernel >= 3.17 it will be set to use the
+ * syscall. If the syscall doesn't exist, the syscall wrapper will gracefully
+ * return a false return value and we will fallback to /dev/urandom */
 #if !defined(_WIN32)
     #include <unistd.h>
     MVMint32 MVM_getrandom_urandom (MVMThreadContext *tc, void *out, size_t size) {
