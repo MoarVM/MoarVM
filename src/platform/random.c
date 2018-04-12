@@ -112,43 +112,36 @@
 #elif defined(_WIN32)
     #include <windows.h>
     #include <wincrypt.h>
-    /* This is needed so pCryptGenRandom() can be called. */
+    /* Signatures for pCryptAcquireContext() and pCryptGenRandom() */
     typedef BOOL (WINAPI *CRYPTACQUIRECONTEXTA)(HCRYPTPROV *phProv,\
                   LPCSTR pszContainer, LPCSTR pszProvider, DWORD dwProvType,\
                   DWORD dwFlags );
     typedef BOOL (WINAPI *CRYPTGENRANDOM)(HCRYPTPROV hProv, DWORD dwLen,\
                   BYTE *pbBuffer );
+    /* The functions themselves */
     static CRYPTGENRANDOM pCryptGenRandom = NULL;
     static HCRYPTPROV       hCryptContext = 0;
     static int win32_urandom_init(void) {
-        HINSTANCE hAdvAPI32 = NULL;
-        /* This is needed to so pCryptAcquireContext() can be called. */
-        CRYPTACQUIRECONTEXTA pCryptAcquireContext = NULL;
         /* Get Module Handle to CryptoAPI */
-        hAdvAPI32 = GetModuleHandle("advapi32.dll");
-        if (hAdvAPI32 == NULL) return 0;
-        /* Check the pointers to the CryptoAPI functions. These shouldn't fail
-         * but makes sure we won't have problems getting the context or getting
-         * random. */
-        if (!GetProcAddress(hAdvAPI32, "CryptAcquireContextA")
-        ||  !GetProcAddress(hAdvAPI32, "CryptGenRandom")) {
-            return 0;
+        HINSTANCE hAdvAPI32 = GetModuleHandle("advapi32.dll");
+        if (hAdvAPI32) {
+            CRYPTACQUIRECONTEXTA pCryptAcquireContext =
+                              GetProcAddress(hAdvAPI32, "CryptAcquireContextA");
+            pCryptGenRandom = GetProcAddress(hAdvAPI32, "CryptGenRandom");
+            /* Check the pointers to the CryptoAPI functions. These shouldn't fail
+             * but makes sure we won't have problems getting the context or getting
+             * random. If those aren't NULL then get the pCrypt context */
+            return pCryptAcquireContext && pCryptGenRandom &&
+                pCryptAcquireContext(&hCryptContext, NULL, NULL, PROV_RSA_FULL,
+                CRYPT_VERIFYCONTEXT) ? 1 : 0;
         }
-        /* Get the pCrypt Context */
-        if (!pCryptAcquireContext(&hCryptContext, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
-            return 0;
-
-        return 1;
+        return 0;
     }
     MVMint32 MVM_getrandom (MVMThreadContext *tc, void *out, size_t size) {
-        if (!hCryptContext) {
-            int rtrn = win32_urandom_init();
-            if (!rtrn) return 0;
-        }
-        if (!pCryptGenRandom(hCryptContext, (DWORD)size, (BYTE*)out)) {
+        /* Return 0 if the context doesn't exist and we are unable to create it */
+        if (!hCryptContext && !win32_urandom_init())
             return 0;
-        }
-        return 1;
+        return pCryptGenRandom(hCryptContext, (DWORD)size, (BYTE*)out) ? 1 : 0;
     }
 #else
     MVMint32 MVM_getrandom (MVMThreadContext *tc, void *out, size_t size) {
