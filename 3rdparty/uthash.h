@@ -295,7 +295,7 @@ do {                                                                            
 do {                                                                             \
   unsigned _hj_i,_hj_j,_hj_k;                                                    \
   unsigned char *_hj_key=(unsigned char*)(key);                                  \
-  hashv = 0xfeedbeef;                                                            \
+  hashv = tc->instance->hashSecret;                                                            \
   _hj_i = _hj_j = 0x9e3779b9;                                                    \
   _hj_k = (unsigned)(keylen);                                                    \
   while (_hj_k >= 12) {                                                          \

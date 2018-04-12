@@ -225,6 +225,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/instrument/crossthreadwrite@obj@ \
           src/instrument/line_coverage@obj@ \
           src/platform/sys@obj@ \
+          src/platform/random@obj@ \
           src/moar@obj@ \
           @platform@ \
           @jit_obj@
@@ -387,6 +388,7 @@ HEADERS = src/moar.h \
           src/platform/sys.h \
           src/platform/setjmp.h \
           src/platform/memmem.h \
+          src/platform/random.h \
           src/jit/graph.h \
           src/jit/label.h \
           src/jit/expr.h \
