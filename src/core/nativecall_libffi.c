@@ -353,16 +353,16 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
         case MVM_NATIVECALL_ARG_VOID:
             break;
         case MVM_NATIVECALL_ARG_CHAR:
-            *(signed char *)cb_result = MVM_nativecall_unmarshal_char(tc, res.o);
+            *(ffi_sarg *)cb_result = MVM_nativecall_unmarshal_char(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_SHORT:
-            *(signed short *)cb_result = MVM_nativecall_unmarshal_short(tc, res.o);
+            *(ffi_sarg *)cb_result = MVM_nativecall_unmarshal_short(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_INT:
-            *(signed int *)cb_result = MVM_nativecall_unmarshal_int(tc, res.o);
+            *(ffi_sarg *)cb_result = MVM_nativecall_unmarshal_int(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_LONG:
-            *(signed long *)cb_result = MVM_nativecall_unmarshal_long(tc, res.o);
+            *(ffi_sarg *)cb_result = MVM_nativecall_unmarshal_long(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_LONGLONG:
             *(signed long long *)cb_result = MVM_nativecall_unmarshal_longlong(tc, res.o);
@@ -397,16 +397,16 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
             *(void **)cb_result = unmarshal_callback(tc, res.o, data->types[0]);
             break;
         case MVM_NATIVECALL_ARG_UCHAR:
-            *(unsigned char *)cb_result = MVM_nativecall_unmarshal_uchar(tc, res.o);
+            *(ffi_arg *)cb_result = MVM_nativecall_unmarshal_uchar(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_USHORT:
-            *(unsigned short *)cb_result = MVM_nativecall_unmarshal_ushort(tc, res.o);
+            *(ffi_arg *)cb_result = MVM_nativecall_unmarshal_ushort(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_UINT:
-            *(unsigned int *)cb_result = MVM_nativecall_unmarshal_uint(tc, res.o);
+            *(ffi_arg *)cb_result = MVM_nativecall_unmarshal_uint(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_ULONG:
-            *(unsigned long *)cb_result = MVM_nativecall_unmarshal_ulong(tc, res.o);
+            *(ffi_arg *)cb_result = MVM_nativecall_unmarshal_ulong(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_ULONGLONG:
             *(unsigned long long *)cb_result = MVM_nativecall_unmarshal_ulonglong(tc, res.o);
