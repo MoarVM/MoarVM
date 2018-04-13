@@ -459,6 +459,9 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
 static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
     MVM_exception_throw_adhoc(tc, "Cannot shift a fixed dimension array");
 }
+static void aslice(MVMThreadContext *tc, MVMSTable *st, MVMObject *src, void *data, MVMObject *dest, MVMint64 start, MVMint64 end) {
+    MVM_exception_throw_adhoc(tc, "Multidim slice not yet implemented");
+}
 static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *from, MVMint64 offset, MVMuint64 count) {
     MVM_exception_throw_adhoc(tc, "Cannot splice a fixed dimension array");
 }
@@ -803,6 +806,7 @@ static const MVMREPROps MultiDimArray_this_repr = {
         pop,
         unshift,
         shift,
+        aslice,
         asplice,
         at_pos_multidim,
         bind_pos_multidim,

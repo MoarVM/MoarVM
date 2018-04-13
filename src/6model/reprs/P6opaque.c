@@ -1296,6 +1296,16 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     REPR(del)->pos_funcs.shift(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
 }
 
+static void oslice(MVMThreadContext *tc, MVMSTable *st, MVMObject *src, void *data, MVMObject *dest, MVMint64 start, MVMint64 end) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    MVMObject *del;
+    if (repr_data->pos_del_slot == -1)
+        die_no_pos_del(tc, st);
+    data = MVM_p6opaque_real_data(tc, data);
+    del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
+    REPR(del)->pos_funcs.slice(tc, STABLE(del), del, OBJECT_BODY(del), dest, start, end);
+}
+
 static void osplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMint64 offset, MVMuint64 elems) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
@@ -1626,6 +1636,7 @@ static const MVMREPROps P6opaque_this_repr = {
         pop,
         unshift,
         shift,
+        oslice,
         osplice,
         MVM_REPR_DEFAULT_AT_POS_MULTIDIM,
         MVM_REPR_DEFAULT_BIND_POS_MULTIDIM,

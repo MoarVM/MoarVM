@@ -8,8 +8,9 @@ void MVM_cross_thread_write_check(MVMThreadContext *tc, MVMObject *written, MVMi
 #define MVM_CTW_POP             4
 #define MVM_CTW_SHIFT           5
 #define MVM_CTW_UNSHIFT         6
-#define MVM_CTW_SPLICE          7
-#define MVM_CTW_BIND_KEY        8
-#define MVM_CTW_DELETE_KEY      9
-#define MVM_CTW_ASSIGN          10
-#define MVM_CTW_REBLESS         11
+#define MVM_CTW_SLICE           7
+#define MVM_CTW_SPLICE          8
+#define MVM_CTW_BIND_KEY        9
+#define MVM_CTW_DELETE_KEY      10
+#define MVM_CTW_ASSIGN          11
+#define MVM_CTW_REBLESS         12

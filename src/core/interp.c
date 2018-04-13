@@ -5313,6 +5313,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = MVM_io_get_signals(tc);
                 cur_op += 2;
                 goto NEXT;
+            OP(slice): {
+                MVMObject *src = GET_REG(cur_op, 2).o;
+                MVMROOT(tc, src, {
+                    MVMObject *dest = MVM_repr_alloc_init(tc, src);
+                    REPR(src)->pos_funcs.slice(tc, STABLE(src), src,
+                        OBJECT_BODY(src), dest,
+                        GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
+                    GET_REG(cur_op, 0).o = dest;
+                });
+                cur_op += 8;
+                goto NEXT;
+            }
             OP(sp_guard): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame

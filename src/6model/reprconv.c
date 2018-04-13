@@ -70,6 +70,10 @@ void MVM_repr_set_dimensions(MVMThreadContext *tc, MVMObject *obj, MVMObject *di
     }
 }
 
+MVM_PUBLIC void MVM_repr_pos_slice(MVMThreadContext *tc, MVMObject *src, MVMObject *dest, MVMint64 start, MVMint64 end) {
+    REPR(src)->pos_funcs.slice(tc, STABLE(src), src, OBJECT_BODY(src), dest, start, end);
+}
+
 MVM_PUBLIC void MVM_repr_pos_splice(MVMThreadContext *tc, MVMObject *obj, MVMObject *replacement, MVMint64 offset, MVMint64 count) {
     REPR(obj)->pos_funcs.splice(tc, STABLE(obj), obj,
         OBJECT_BODY(obj), replacement,
