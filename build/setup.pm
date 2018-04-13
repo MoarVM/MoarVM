@@ -9,9 +9,9 @@ my $devnull = devnull();
 
 our %TP_LAO = (
     name  => 'atomic_ops',
-    path  => '3rdparty/libatomic_ops/src',
-    rule  => 'cd 3rdparty/libatomic_ops && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' ./configure @crossconf@ && cd src && $(MAKE) && cd ..',
-    clean => 'cd 3rdparty/libatomic_ops/src && $(MAKE) distclean',
+    path  => '3rdparty/libatomicops/src',
+    rule  => 'cd 3rdparty/libatomicops && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' ./configure @crossconf@ && cd src && $(MAKE) && cd ..',
+    clean => 'cd 3rdparty/libatomicops/src && $(MAKE) distclean',
 );
 
 our %TP_SHA = (
