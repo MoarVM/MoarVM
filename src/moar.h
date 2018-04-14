@@ -253,3 +253,8 @@ AO_t AO_fetch_compare_and_swap_emulation(volatile AO_t *addr, AO_t old_val, AO_t
  * which the other atomic operation macros are used... */
 #define MVM_store(addr, new) AO_store_full((volatile AO_t *)(addr), (AO_t)(new))
 #define MVM_load(addr) AO_load_full((volatile AO_t *)(addr))
+
+/* Set and check bit flags in variable byte bit array by number */
+#define MVM_BITARR8_BYTES_NEEDED(n) ((n) / 8 + ((n) % 8 ? 1 : 0))
+#define MVM_BITARR8_CHECK(var, n)   ((var)[(n) / 8] &  1 << (n) % 8)
+#define MVM_BITARR8_SET(var, n)     ((var)[(n) / 8] |= 1 << (n) % 8)
