@@ -213,7 +213,7 @@ static void fix_const_str(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVMSpeshOperand dest = to_fix->operands[0];
     MVMuint16 str_idx = to_fix->operands[1].lit_str_idx;
 
-    sslot = MVM_spesh_add_spesh_slot(tc, inlinee, (MVMCollectable *)cu);
+    sslot = MVM_spesh_add_spesh_slot_try_reuse(tc, inlinee, (MVMCollectable *)cu);
 
     /*fprintf(stderr, "fixed up string get to use spesh slot %u\n", sslot);*/
 
@@ -243,12 +243,12 @@ static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         MVMSerializationContext *sc = MVM_sc_get_sc(tc, sourcecu, dep);
         if (sc) {
             if (MVM_sc_is_object_immediately_available(tc, sc, idx)) {
-                MVMint16 ss  = MVM_spesh_add_spesh_slot(tc, inliner, (MVMCollectable *)MVM_sc_get_object(tc, sc, idx));
+                MVMint16 ss  = MVM_spesh_add_spesh_slot_try_reuse(tc, inliner, (MVMCollectable *)MVM_sc_get_object(tc, sc, idx));
                 to_fix->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
                 to_fix->operands[1].lit_i16 = ss;
             }
             else {
-                MVMint16 ss  = MVM_spesh_add_spesh_slot(tc, inliner, (MVMCollectable *)sc);
+                MVMint16 ss  = MVM_spesh_add_spesh_slot_try_reuse(tc, inliner, (MVMCollectable *)sc);
                 to_fix->info = MVM_op_get_op(MVM_OP_sp_getwvalfrom);
                 to_fix->operands[1].lit_i16 = ss;
                 to_fix->operands[2].lit_i64 = idx;
