@@ -105,12 +105,6 @@ struct MVMSpeshGraph {
 
     /* Did we specialize on the invocant type? */
     MVMuint8 specialized_on_invocant;
-
-    MVMSerializationContext **scs_to_resolve_from;
-    MVMuint64               *sc_idx_to_resolve;
-
-    MVMuint32 sc_idx_resolve_alloc;
-    MVMuint32 sc_idx_resolve_used;
 };
 
 /* A temporary register, added to support transformations. */
