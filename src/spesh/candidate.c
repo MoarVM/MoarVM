@@ -61,19 +61,6 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     MVM_spesh_facts_discover(tc, sg, p);
     MVM_spesh_optimize(tc, sg, p);
 
-    if (sg->sc_idx_resolve_used > 0) {
-        MVMuint32 idxidx;
-#if MVM_GC_DEBUG
-        tc->in_spesh = 0;
-#endif
-
-        if (tc->instance->spesh_log_fh)
-            fprintf(tc->instance->spesh_log_fh,
-                    "Specialization bailed out due to %u unresolved WVals\n",
-                    sg->sc_idx_resolve_used);
-        return;
-    }
-
     if (tc->instance->spesh_log_fh) {
         char *after = MVM_spesh_dump(tc, sg);
         fprintf(tc->instance->spesh_log_fh, "After:\n%s", after);

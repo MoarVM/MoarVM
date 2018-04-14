@@ -951,6 +951,9 @@ sp_deref_bind_n       .s r(obj) r(num64) int16
 sp_getlexvia_o        .s w(obj) int16 int16 r(obj) :pure
 sp_getlexvia_ins      .s w(`1) int16 int16 r(obj) :pure
 
+sp_getstringfrom      .s w(str) sslot int32 :pure
+sp_getwvalfrom        .s w(obj) sslot int64 :pure
+
 # Enter the JIT
 sp_jit_enter     .s w(obj)
 

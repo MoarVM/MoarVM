@@ -5761,6 +5761,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             }
+            OP(sp_getstringfrom): {
+                MVMCompUnit *dep = (MVMCompUnit *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                MVMuint16 idx = GET_UI32(cur_op, 4);
+                GET_REG(cur_op, 0).s = MVM_cu_string(tc, dep, idx);
+                cur_op += 8;
+                goto NEXT;
+            }
+            OP(sp_getwvalfrom): {
+                MVMSerializationContext *dep = (MVMSerializationContext *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                MVMuint64 idx = MVM_BC_get_I64(cur_op, 4);
+                GET_REG(cur_op, 0).o = MVM_sc_get_object(tc, dep, idx);
+                cur_op += 12;
+                goto NEXT;
+            }
             OP(sp_jit_enter): {
                 if (tc->cur_frame->spesh_cand->jitcode == NULL) {
                     MVM_exception_throw_adhoc(tc, "Try to enter NULL jitcode");

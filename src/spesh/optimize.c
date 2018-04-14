@@ -1718,10 +1718,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVM_spesh_get_facts(tc, g, code_ref_reg)->usages++;
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
                         code_ref_reg);
-#if MVM_LOG_INLINES
-                if (g->sc_idx_resolve_used)
-                    fprintf(stderr, "There were wval references that could not be fixed up yet.\n");
-#endif
+                MVM_free(inline_graph->spesh_slots);
             }
             else {
                 /* Can't inline, so just identify candidate. */
@@ -2325,10 +2322,6 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
      * trash the stack. (needed on musl) */
     optimize_bb_switch(tc, g, bb, p);
 
-    /* Quick bail-out if a wval fix went wrong. */
-    if (g->sc_idx_resolve_used > 0)
-        return;
-
     /* Optimize the case where we only have one child. This avoids having
      * to do a recursive call to optimize_bb() */
     while (bb->num_children == 1) {
@@ -2336,13 +2329,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         /* Keep following the nodes and running optimize_bb_switch() on them
          * until we hit one with more than 1 child. */
         optimize_bb_switch(tc, g, bb, p);
-        if (g->sc_idx_resolve_used > 0)
-            return;
     }
     /* Visit children. */
     for (; i < bb->num_children; i++) {
-        if (g->sc_idx_resolve_used > 0)
-            return;
         optimize_bb(tc, g, bb->children[i], p);
     }
 }
@@ -2593,13 +2582,6 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
     /* Perform initial optimization pass, which performs a range of opts
      * including, most notably, inlining. */
     optimize_bb(tc, g, g->entry, p);
-
-    if (g->sc_idx_resolve_used > 0) {
-        /* Some inline failed and we bailed out.
-         * We shouldn't try to do anything more with
-         * this graph. */
-        return;
-    }
 
     /* Clear up the graph after this initial pass. */
     MVM_spesh_eliminate_dead_bbs(tc, g, 1);
