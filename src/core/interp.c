@@ -5763,7 +5763,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sp_getstringfrom): {
                 MVMCompUnit *dep = (MVMCompUnit *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 2)];
-                MVMuint16 idx = GET_UI32(cur_op, 4);
+                MVMuint32 idx = GET_UI32(cur_op, 4);
                 GET_REG(cur_op, 0).s = MVM_cu_string(tc, dep, idx);
                 cur_op += 8;
                 goto NEXT;
