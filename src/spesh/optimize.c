@@ -1707,6 +1707,11 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
                 target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
                 ins, &no_inline_reason);
+            if (inline_graph != NULL && MVM_spesh_debug_enabled(tc)) {
+                char *dump = MVM_spesh_dump(tc, inline_graph);
+                MVM_spesh_debug_printf(tc, "Inlining graph\n%s\n", dump);
+                MVM_free(dump);
+            }
 #if MVM_LOG_INLINES
             {
                 char *c_name_i = MVM_string_utf8_encode_C_string(tc, target_sf->body.name);
