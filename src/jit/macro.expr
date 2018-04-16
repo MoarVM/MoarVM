@@ -14,8 +14,10 @@
 (macro: ^caller () (^getf (^frame) MVMFrame caller))
 
 # get spesh slot address
-(macro: ^spesh_slot (,a)
+(macro: ^spesh_slot_addr (,a)
    (idx (^getf (^frame) MVMFrame effective_spesh_slots) ,a ptr_sz))
+(macro: ^spesh_slot_value (,a)
+    (load (^spesh_slot_addr ,a) ptr_sz))
 
 (macro: ^vmnull ()
     (^getf

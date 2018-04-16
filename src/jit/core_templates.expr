@@ -47,7 +47,7 @@
 (template: sp_getarg_n (load (^parg $1) int_sz))
 
 
-(template: sp_getspeshslot (load (^spesh_slot $1) ptr_sz))
+(template: sp_getspeshslot (^spesh_slot_value $1))
 
 (template: null_s (const 0 ptr_sz))
 
@@ -122,7 +122,7 @@
          ($val (load $addr ptr_sz)))
     (if (nz $val)
        $val
-       (let: (($type (load (^spesh_slot $3) ptr_sz)))
+       (let: (($type (^spesh_slot_value $3)))
          (^store_write_barrier! $1 $addr $type)
          (copy $type)))))
 
@@ -164,11 +164,10 @@
 
 
 (template: sp_getstringfrom
-    (let: (($cu (load (^spesh_slot $1) ptr_sz)))
-        (call (^func MVM_cu_string)
-              (arglist (carg (tc) ptr)
-                       (carg $cu ptr)
-                       (carg $2 int)) ptr_sz)))
+    (call (^func MVM_cu_string)
+          (arglist (carg (tc) ptr)
+                   (carg (^spesh_slot_value $1) ptr)
+                   (carg $2 int)) ptr_sz))
 
 (template: wval
     (call (^func MVM_sc_get_sc_object)
@@ -182,11 +181,10 @@
 # GET_REG(cur_op, 0).o = MVM_sc_get_object(tc, dep, idx);
 
 (template: sp_getwvalfrom
-    (let: (($sc (load (^spesh_slot $1) ptr_sz)))
-        (call (^func MVM_sc_get_object)
-            (arglist (carg (tc) ptr)
-                     (carg $sc ptr)
-                     (carg $2 int)) ptr_sz)))
+    (call (^func MVM_sc_get_object)
+          (arglist (carg (tc) ptr)
+                   (carg (^spesh_slot_value $1) ptr)
+                   (carg $2 int)) ptr_sz))
 
 #  GET_REG(cur_op, 0).i64 = (MVMint64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
 
@@ -323,7 +321,7 @@
            (call (^func &MVM_gc_allocate_zeroed)
                  (arglist (carg (tc) ptr)
                           (carg $1 int)) ptr_sz)))
-          (^setf $block MVMObject st (load (^spesh_slot $2) ptr_sz))
+          (^setf $block MVMObject st (^spesh_slot_value $2))
           (^setf $block MVMObject header.size $1)
           (^setf $block MVMObject header.owner (^getf (tc) MVMThreadContext thread_id))
           (store $0 $block ptr_sz)))
