@@ -180,6 +180,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
 
     /* If we can't find a way to inline, we end up here. */
   not_inlinable:
+    MVM_free(ig->spesh_slots);
     MVM_spesh_graph_destroy(tc, ig);
     return NULL;
 }
