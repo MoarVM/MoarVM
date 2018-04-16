@@ -39,10 +39,15 @@
 
 
 (macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
+(macro: ^indirect_cu_string (,cu ,a)
+    (let: (($str (load (idx (^getf ,cu  MVMCompUnit body.strings) ,a ptr_sz) ptr_sz)))
+    (if (nz $str) $str
+        (call (^func MVM_cu_string)
+              (arglist (carg (tc) ptr) (carg ,cu ptr) (carg ,a int))
+              ptr_sz))))
+
 (macro: ^cu_string (,a)
-    (call (^func MVM_cu_string)
-          (arglist (carg (tc) ptr) (carg (cu) ptr) (carg ,a int))
-          ptr_sz))
+    (^indirect_cu_string (cu) ,a))
 
 (macro: ^objflag (,cv) (const (&QUOTE ,cv) (&SIZEOF_MEMBER MVMObject header.flags)))
 

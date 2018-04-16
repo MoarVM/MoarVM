@@ -164,10 +164,7 @@
 
 
 (template: sp_getstringfrom
-    (call (^func MVM_cu_string)
-          (arglist (carg (tc) ptr)
-                   (carg (^spesh_slot_value $1) ptr)
-                   (carg $2 int)) ptr_sz))
+    (^indirect_cu_string (^spesh_slot_value $1) $2))
 
 (template: wval
     (call (^func MVM_sc_get_sc_object)
