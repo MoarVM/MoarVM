@@ -165,16 +165,6 @@
                  (carg $1 int)
                  (carg $2 int)) ptr_sz))
 
-# MVMSerializationContext *dep = (MVMSerializationContext *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 2)];
-# MVMuint64 idx = MVM_BC_get_I64(cur_op, 4);
-# GET_REG(cur_op, 0).o = MVM_sc_get_object(tc, dep, idx);
-
-(template: sp_getwvalfrom
-    (call (^func MVM_sc_get_object)
-        (arglist (carg (tc) ptr)
-                 (carg (^spesh_slot $1) ptr)
-                 (carg $2 int)) ptr_sz))
-
 #  GET_REG(cur_op, 0).i64 = (MVMint64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
 
 (template: elems
