@@ -620,6 +620,46 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
 void MVM_gc_global_destruction(MVMThreadContext *tc) {
     char *nursery_tmp;
 
+    MVMInstance *vm = tc->instance;
+    MVMThread *cur_thread = 0;
+
+    /* Ask all threads to suspend on the next chance they get */
+    uv_mutex_lock(&vm->mutex_threads);
+
+    cur_thread = vm->threads;
+    while (cur_thread) {
+       if (cur_thread->body.tc != tc) {
+            while (1) {
+                /* Is the thread currently doing completely ordinary code execution? */
+                if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
+                        == MVMGCStatus_NONE) {
+                    break;
+                }
+                /* Is the thread in question currently blocked, i.e. spending time in
+                 * some long-running piece of C code, waiting for I/O, etc.?
+                 * If so, just store the suspend request bit so when it unblocks itself
+                 * it'll suspend execution. */
+                if (MVM_cas(&tc->gc_status, MVMGCStatus_UNABLE, MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST)
+                        == MVMGCStatus_UNABLE) {
+                    break;
+                }
+                /* Was the thread faster than us? For example by running into
+                 * a breakpoint, completing a step, or encountering an
+                 * unhandled exception? If so, we're done here. */
+                if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPEND_REQUEST) {
+                    break;
+                }
+                MVM_platform_thread_yield();
+            }
+       }
+       cur_thread = cur_thread->body.next;
+    }
+
+    uv_mutex_unlock(&vm->mutex_threads);
+
+    /* Allow other threads to do a little more work before we continue here */
+    MVM_platform_thread_yield();
+
     /* Fake a nursery collection run by swapping the semi-
      * space nurseries. */
     nursery_tmp = tc->nursery_fromspace;
