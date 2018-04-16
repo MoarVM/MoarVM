@@ -230,9 +230,19 @@ static void fix_str(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 }
 static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                      MVMSpeshGraph *inlinee, MVMSpeshIns *to_fix) {
-    /* Resolve object, then just put it into a spesh slot. (Could do some
-     * smarter things like trying to see if the SC is referenced by both
-     * compilation units, too.) */
+    /* We have three different ways to make a wval refer to the right
+     * object after an inline:
+     * - If a simple change of the dep parameter lets us refer to the
+     *   same SC in the inliner's dependency list, just change that.
+     * - If the object had already been deserialized, we can just
+     *   stash it away in a spesh slot.
+     * - If the object hadn't been deserialized yet, an indirect lookup
+     *   via a spesh slot holding the actual SC is possible.
+     *
+     * The last option is needed because deserializing objects causes
+     * allocations, which lead to GC, which is not supported inside
+     * the spesh process.
+     */
     MVMCompUnit *targetcu = inliner->sf->body.cu;
     MVMCompUnit *sourcecu = inlinee->sf->body.cu;
     MVMint16     dep      = to_fix->operands[1].lit_i16;
@@ -242,6 +252,14 @@ static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     if (dep >= 0 && dep < sourcecu->body.num_scs) {
         MVMSerializationContext *sc = MVM_sc_get_sc(tc, sourcecu, dep);
         if (sc) {
+            MVMuint16 otherdep;
+            for (otherdep = 0; otherdep < targetcu->body.num_scs; otherdep++) {
+                MVMSerializationContext *othersc = MVM_sc_get_sc(tc, targetcu, otherdep);
+                if (sc == othersc) {
+                    to_fix->operands[1].lit_i16 = otherdep;
+                    return;
+                }
+            }
             if (MVM_sc_is_object_immediately_available(tc, sc, idx)) {
                 MVMint16 ss  = MVM_spesh_add_spesh_slot_try_reuse(tc, inliner, (MVMCollectable *)MVM_sc_get_object(tc, sc, idx));
                 to_fix->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
