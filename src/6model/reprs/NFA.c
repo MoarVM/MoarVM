@@ -79,16 +79,23 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     /* Write number of states. */
     MVM_serialization_write_int(tc, writer, body->num_states);
 
-    /* Write state edge list counts. */
-    for (i = 0; i < body->num_states; i++)
-        MVM_serialization_write_int(tc, writer, body->num_state_edges[i]);
+    /* Write state edge list counts, skipping synthetic start node. */
+    for (i = 0; i < body->num_states; i++) {
+        MVMint64 sig_edges = body->num_state_edges[i];
+        if (sig_edges && body->states[i][0].act == MVM_NFA_EDGE_SYNTH_CP_COUNT)
+            sig_edges--;
+        MVM_serialization_write_int(tc, writer, sig_edges);
+    }
 
     /* Write state graph. */
     for (i = 0; i < body->num_states; i++) {
         for (j = 0; j < body->num_state_edges[i]; j++) {
-            MVM_serialization_write_int(tc, writer, body->states[i][j].act);
+            MVMint64 act = body->states[i][j].act;
+            if (act == MVM_NFA_EDGE_SYNTH_CP_COUNT)
+                continue;
+            MVM_serialization_write_int(tc, writer, act);
             MVM_serialization_write_int(tc, writer, body->states[i][j].to);
-            switch (body->states[i][j].act & 0xff) {
+            switch (act & 0xff) {
                 case MVM_NFA_EDGE_FATE:
                     MVM_serialization_write_int(tc, writer, body->states[i][j].arg.i);
                     break;
@@ -135,6 +142,72 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
                     break;
                 }
             }
+        }
+    }
+}
+
+/* Go through each state and see if there are at least four edges involving
+ * a simple codepoint match. If so, sort them to the start and stick in a
+ * synthetic edge which indicates the number of codepoint edges ahead. This
+ * means that our matching can binary search with the codepoint it has, and
+ * skip over any inappropriate edges. */
+static int classify_edge(MVMNFAStateInfo *e) {
+    switch (e->act) {
+        case MVM_NFA_EDGE_SYNTH_CP_COUNT:
+            return 0;
+        case MVM_NFA_EDGE_CODEPOINT:
+        case MVM_NFA_EDGE_CODEPOINT_LL:
+            return 1;
+        default:
+            return 2;
+    }
+}
+static int opt_edge_comp(const void *av, const void *bv) {
+    MVMNFAStateInfo *a = (MVMNFAStateInfo *)av;
+    MVMNFAStateInfo *b = (MVMNFAStateInfo *)bv;
+    MVMint32 type_a = classify_edge(a);
+    MVMint32 type_b = classify_edge(b);
+    if (type_a < type_b)
+        return -1;
+    if (type_a > type_b)
+        return 1;
+    if (type_a == 1) {
+        return a->arg.g < b->arg.g ? -1 :
+               a->arg.g > b->arg.g ?  1 :
+                                      0;
+    }
+    else {
+        return 0;
+    }
+}
+static void sort_states_and_add_synth_cp_node(MVMThreadContext *tc, MVMNFABody *body) {
+    MVMint64 s;
+    for (s = 0; s < body->num_states; s++) {
+        /* See if there's enough interesting edges to do the opt. */
+        MVMint32 applicable_edges = 0;
+        MVMint64 num_orig_edges = body->num_state_edges[s];
+        if (num_orig_edges >= 4) {
+            MVMint64 e;
+            for (e = 0; e < num_orig_edges; e++) {
+                MVMint64 act = body->states[s][e].act;
+                if (act == MVM_NFA_EDGE_CODEPOINT || act == MVM_NFA_EDGE_CODEPOINT_LL)
+                    applicable_edges++;
+            }
+        }
+
+        /* If enough edges, insert synthetic and so the sort. */
+        if (applicable_edges >= 4) {
+            MVMint64 num_new_edges = num_orig_edges + 1;
+            MVMNFAStateInfo *new_edges = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+                num_new_edges * sizeof(MVMNFAStateInfo));
+            new_edges[0].act = MVM_NFA_EDGE_SYNTH_CP_COUNT;
+            new_edges[0].arg.i = applicable_edges;
+            memcpy(new_edges + 1, body->states[s], num_orig_edges * sizeof(MVMNFAStateInfo));
+            qsort(new_edges, num_new_edges, sizeof(MVMNFAStateInfo), opt_edge_comp);
+            MVM_fixed_size_free(tc, tc->instance->fsa, num_orig_edges * sizeof(MVMNFAStateInfo),
+                    body->states[s]);
+            body->states[s] = new_edges;
+            body->num_state_edges[s] = num_new_edges;
         }
     }
 }
@@ -215,6 +288,8 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
             }
         }
     }
+
+    sort_states_and_add_synth_cp_node(tc, body);
 }
 
 /* Compose the representation. */
@@ -390,6 +465,8 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
             }
         }
     });
+
+    sort_states_and_add_synth_cp_node(tc, nfa);
 
     return nfa_obj;
 }
@@ -716,6 +793,58 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             if (ord < lc_arg || ord > uc_arg)
                                 nextst[numnext++] = to;
                             continue;
+                        }
+                        case MVM_NFA_EDGE_SYNTH_CP_COUNT: {
+                            /* Binary search the edges ahead for the grapheme. */
+                            MVMGrapheme32 search = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                            MVMint64 num_possibilities = edge_info[i].arg.i;
+                            MVMint64 l = i + 1;
+                            MVMint64 r = i + num_possibilities;
+                            MVMint64 found = -1;
+                            while (l <= r) {
+                                MVMint64 m = l + (r - l) / 2;
+                                MVMGrapheme32 test = edge_info[m].arg.g;
+                                if (test == search) {
+                                    /* We found it, but important we get the first edge
+                                     * that matches. */
+                                    found = m;
+                                    while (found > i + 1 && edge_info[found - 1].arg.g == search)
+                                        found--;
+                                    break;
+                                }
+                                if (test < search)
+                                    l = m + 1;
+                                else
+                                    r = m - 1;
+                            }
+                            if (found == -1) {
+                                /* Binary search failed to find a match, so just skip all
+                                 * the nodes. */
+                                i += num_possibilities;
+                            }
+                            else {
+                                /* Add all states that match. */
+                                while (edge_info[found].arg.g == search) {
+                                    to = edge_info[found].to;
+                                    if (edge_info[found].act == MVM_NFA_EDGE_CODEPOINT) {
+                                        nextst[numnext++] = to;
+                                        if (nfadeb)
+                                            fprintf(stderr, "%d->%d ", (int)found, (int)to);
+                                    }
+                                    else {
+                                        MVMint64 fate = (edge_info[found].act >> 8) & 0xfffff;
+                                        nextst[numnext++] = to;
+                                        while (usedlonglit <= fate)
+                                            longlit[usedlonglit++] = 0;
+                                        longlit[fate] = offset - orig_offset + 1;
+                                        if (nfadeb)
+                                            fprintf(stderr, "%d->%d ", (int)found, (int)to);
+                                    }
+                                    found++;
+                                }
+                                i += num_possibilities;
+                            }
+                            break;
                         }
                     }
                 }
