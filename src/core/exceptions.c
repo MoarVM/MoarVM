@@ -504,12 +504,83 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame,
     return o;
 }
 
+MVMObject * MVM_exception_add_backtrace_entry(MVMThreadContext *tc, MVMObject *arr, MVMStaticFrame *static_info, MVMObject *code_ref, MVMuint32 offset) {
+    MVMObject *annotations = NULL, *row = NULL, *value = NULL;
+    MVMString *k_file = NULL, *k_line = NULL, *k_sub = NULL, *k_anno = NULL;
+
+    MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &static_info->body,
+                                        offset > 0 ? offset - 1 : 0);
+    MVMint32              fshi   = annot ? (MVMint32)annot->filename_string_heap_index : -1;
+    char            *line_number = MVM_malloc(16);
+    MVMString      *filename_str;
+
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&annotations);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&value);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_file);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_line);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_sub);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_anno);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&row);
+
+    k_file = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "file");
+    k_line = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "line");
+    k_sub  = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "sub");
+    k_anno = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "annotations");
+
+    snprintf(line_number, 16, "%d", annot ? annot->line_number : 1);
+
+    /* annotations hash will contain "file" and "line" */
+    annotations = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+
+    /* file */
+    filename_str = fshi >= 0 && fshi < static_info->body.cu->body.num_strings
+         ? MVM_cu_string(tc, static_info->body.cu, fshi)
+         : static_info->body.cu->body.filename;
+    value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type,
+        filename_str ? filename_str : tc->instance->str_consts.empty);
+    MVM_repr_bind_key_o(tc, annotations, k_file, value);
+
+    /* line */
+    value = (MVMObject *)MVM_string_ascii_decode_nt(tc, tc->instance->VMString, line_number);
+    value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, (MVMString *)value);
+    MVM_repr_bind_key_o(tc, annotations, k_line, value);
+    MVM_free(line_number);
+
+    /* row will contain "sub" and "annotations" */
+    row = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+    if (code_ref)
+        MVM_repr_bind_key_o(tc, row, k_sub, code_ref);
+    MVM_repr_bind_key_o(tc, row, k_anno, annotations);
+
+    MVM_repr_push_o(tc, arr, row);
+    MVM_free(annot);
+
+    MVM_gc_root_temp_pop_n(tc, 7);
+}
+
+static void uninline(MVMThreadContext *tc, MVMObject *arr, MVMFrame *f,
+                     MVMSpeshCandidate *cand, MVMint32 offset) {
+    MVMint32 i;
+    fprintf(stderr, "uninlining (%d, %d)\n", cand->num_inlines, offset);
+    for (i = 0; i < cand->num_inlines; i++) {
+        fprintf(stderr, "uninlining %d: %d - %d\n", i, cand->inlines[i].start, cand->inlines[i].end);
+        if (offset > cand->inlines[i].start && offset <= cand->inlines[i].end) {
+            /* Create the frame. */
+            MVMCode        *ucode = f->work ? (MVMCode *)f->work[cand->inlines[i].code_ref_reg].o : NULL;
+            MVMStaticFrame *usf   = cand->inlines[i].sf;
+            if (ucode && REPR(ucode)->ID != MVM_REPR_ID_MVMCode)
+                MVM_panic(1, "Deopt: did not find code object when uninlining");
+            fprintf(stderr, "found a cand\n");
+            MVM_exception_add_backtrace_entry(tc, arr, usf, (MVMObject *)ucode, offset);
+        }
+    }
+}
+
 /* Returns a list of hashes containing file, line, sub and annotations. */
 MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
     MVMFrame *cur_frame;
-    MVMObject *arr = NULL, *annotations = NULL, *row = NULL, *value = NULL;
+    MVMObject *arr = NULL;
     MVMuint32 count = 0;
-    MVMString *k_file = NULL, *k_line = NULL, *k_sub = NULL, *k_anno = NULL;
     MVMuint8 *throw_address;
 
     if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException) {
@@ -521,64 +592,65 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
     }
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&arr);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&annotations);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&row);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&value);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_file);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_line);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_sub);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_anno);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&cur_frame);
-
-    k_file = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "file");
-    k_line = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "line");
-    k_sub  = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "sub");
-    k_anno = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "annotations");
 
     arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
 
     while (cur_frame != NULL) {
-        MVMuint8             *cur_op = count ? cur_frame->return_address : throw_address;
-        MVMuint32             offset = cur_op - MVM_frame_effective_bytecode(cur_frame);
-        MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body,
-                                            offset > 0 ? offset - 1 : 0);
-        MVMint32              fshi   = annot ? (MVMint32)annot->filename_string_heap_index : -1;
-        char            *line_number = MVM_malloc(16);
-        MVMString      *filename_str;
-        snprintf(line_number, 16, "%d", annot ? annot->line_number : 1);
+        MVMuint8 *cur_op = count ? cur_frame->return_address : throw_address;
+        MVMuint32 offset = cur_op - MVM_frame_effective_bytecode(cur_frame);
 
-        /* annotations hash will contain "file" and "line" */
-        annotations = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+        if (cur_frame->spesh_cand && cur_frame->spesh_cand->inlines) {
+            //fprintf(stderr, "Has spesh cand %d: %p, %p\n", count, cur_frame->spesh_cand, cur_frame->spesh_cand->jitcode);
+            if (cur_frame->spesh_cand->jitcode && cur_frame->jit_entry_label) {
+                MVMint32 num_deopts = cur_frame->spesh_cand->jitcode->num_deopts;
+                MVMJitDeopt *deopts = cur_frame->spesh_cand->jitcode->deopts;
+                void       **labels = cur_frame->spesh_cand->jitcode->labels;
+                void        *nearest = NULL;
+                MVMint32     nearest_idx = -1;
+                MVMint32 i;
+                fprintf(stderr, "looking for label: %p\n", cur_frame->jit_entry_label);
+                for (i = 0; i < num_deopts; i++) {
+                    void *label = labels[deopts[i].label];
+                    fprintf(stderr, "JIT deopt label: %p %d %d\n", labels[deopts[i].label], deopts[i].idx, cur_frame->spesh_cand->deopts[2 * deopts[i].idx + 1]);
+                    if (label == cur_frame->jit_entry_label) {
+                        /* Resolve offset and target. */
+                        MVMint32 deopt_idx    = deopts[i].idx;
+                        MVMint32 deopt_offset = cur_frame->spesh_cand->deopts[2 * deopt_idx + 1];
 
-        /* file */
-        filename_str = fshi >= 0 && fshi < cur_frame->static_info->body.cu->body.num_strings
-             ? MVM_cu_string(tc, cur_frame->static_info->body.cu, fshi)
-             : cur_frame->static_info->body.cu->body.filename;
-        value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type,
-            filename_str ? filename_str : tc->instance->str_consts.empty);
-        MVM_repr_bind_key_o(tc, annotations, k_file, value);
+                        fprintf(stderr, "uninlining JITed code\n");
+                        uninline(tc, arr, cur_frame, cur_frame->spesh_cand, deopt_offset);
+                        nearest = NULL;
 
-        /* line */
-        value = (MVMObject *)MVM_string_ascii_decode_nt(tc, tc->instance->VMString, line_number);
-        value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, (MVMString *)value);
-        MVM_repr_bind_key_o(tc, annotations, k_line, value);
-        MVM_free(line_number);
+                        break;
+                    }
+                    else if (label < cur_frame->jit_entry_label && label > nearest) {
+                        nearest = label;
+                        nearest_idx = deopts[i].idx;
+                        fprintf(stderr, "nearest is: %p %d %d\n", nearest, nearest_idx, cur_frame->spesh_cand->deopts[2 * deopts[i].idx + 1]);
+                    }
+                }
+                if (nearest) {
+                    MVMint32 deopt_offset = cur_frame->spesh_cand->deopts[2 * nearest_idx + 1];
+                    fprintf(stderr, "uninlining JITed code from nearest deopt point: %d\n", deopt_offset);
+                    uninline(tc, arr, cur_frame, cur_frame->spesh_cand, deopt_offset);
+                }
+            }
+            else {
+                //fprintf(stderr, "looking for offset: %d\n", offset);
+                uninline(tc, arr, cur_frame, cur_frame->spesh_cand, offset);
+            }
+        }
 
-        /* row will contain "sub" and "annotations" */
-        row = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
-        MVM_repr_bind_key_o(tc, row, k_sub, cur_frame->code_ref);
-        MVM_repr_bind_key_o(tc, row, k_anno, annotations);
-
-        MVM_repr_push_o(tc, arr, row);
-        MVM_free(annot);
+        if (! cur_frame->static_info->body.is_thunk) {
+            MVM_exception_add_backtrace_entry(tc, arr, cur_frame->static_info, cur_frame->code_ref, offset);
+        }
 
         cur_frame = cur_frame->caller;
-        while (cur_frame && cur_frame->static_info->body.is_thunk)
-            cur_frame = cur_frame->caller;
         count++;
     }
 
-    MVM_gc_root_temp_pop_n(tc, 9);
+    MVM_gc_root_temp_pop_n(tc, 2);
 
     return arr;
 }
