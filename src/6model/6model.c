@@ -90,11 +90,17 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
     MVMCallsite *findmeth_callsite = NULL;
 
     if (MVM_is_null(tc, obj)) {
-        char *c_name  = MVM_string_utf8_encode_C_string(tc, name);
-        char *waste[] = { c_name, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste,
-            "Cannot call method '%s' on a null object",
-             c_name);
+        if (throw_if_not_found) {
+            char *c_name  = MVM_string_utf8_encode_C_string(tc, name);
+            char *waste[] = { c_name, NULL };
+            MVM_exception_throw_adhoc_free(tc, waste,
+                "Cannot call method '%s' on a null object",
+                 c_name);
+        }
+        else {
+            res->o = tc->instance->VMNull;
+            return;
+        }
     }
 
     /* First try to find it in the cache. If we find it, we have a result.
@@ -127,11 +133,17 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
     });
 
     if (MVM_is_null(tc, find_method)) {
-        char *c_name  = MVM_string_utf8_encode_C_string(tc, name);
-        char *waste[] = { c_name, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste,
-            "Cannot find method '%s': no method cache and no .^find_method",
-             c_name);
+        if (throw_if_not_found) {
+            char *c_name  = MVM_string_utf8_encode_C_string(tc, name);
+            char *waste[] = { c_name, NULL };
+            MVM_exception_throw_adhoc_free(tc, waste,
+                "Cannot find method '%s': no method cache and no .^find_method",
+                 c_name);
+        }
+        else {
+            res->o = tc->instance->VMNull;
+            return;
+        }
     }
 
     /* Set up the call, using the result register as the target. */
