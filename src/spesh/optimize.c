@@ -133,6 +133,8 @@ static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
 
             /* Tweak facts for the target, given we know the method. */
             MVMSpeshFacts *meth_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[0]);
+            meth_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+            meth_facts->type = meth->st->WHAT;
             meth_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
             meth_facts->value.o = meth;
 
