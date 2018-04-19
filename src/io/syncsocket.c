@@ -313,7 +313,9 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
 
     snprintf(port_cstr, 8, "%d", (int)port);
 
+    MVM_gc_mark_thread_blocked(tc);
     error = getaddrinfo(host_cstr, port_cstr, &hints, &result);
+    MVM_gc_mark_thread_unblocked(tc);
     if (error == 0) {
         size_t size = get_struct_size_for_family(result->ai_addr->sa_family);
         MVM_free(host_cstr);

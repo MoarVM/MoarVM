@@ -385,11 +385,11 @@ static MVMAsyncTask * write_bytes_to(MVMThreadContext *tc, MVMOSHandle *h, MVMOb
         && ((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != MVM_ARRAY_I8)
         MVM_exception_throw_adhoc(tc, "asyncwritebytesto requires a native array of uint8 or int8");
 
-    /* Resolve destination. */
-    dest_addr = MVM_io_resolve_host_name(tc, host, port);
-
-    /* Create async task handle. */
+    /* Resolve destination and create async task handle. */
     MVMROOT4(tc, queue, schedulee, h, buffer, {
+        MVMROOT(tc, async_type, {
+            dest_addr = MVM_io_resolve_host_name(tc, host, port);
+        });
         task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, async_type);
     });
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
@@ -556,8 +556,11 @@ MVMObject * MVM_io_socket_udp_async(MVMThreadContext *tc, MVMObject *queue,
             "asyncudp result type must have REPR AsyncTask");
 
     /* Resolve hostname. (Could be done asynchronously too.) */
-    if (host && IS_CONCRETE(host))
-        bind_addr = MVM_io_resolve_host_name(tc, host, port);
+    if (host && IS_CONCRETE(host)) {
+        MVMROOT3(tc, queue, schedulee, async_type, {
+            bind_addr = MVM_io_resolve_host_name(tc, host, port);
+        });
+    }
 
     /* Create async task handle. */
     MVMROOT2(tc, queue, schedulee, {

@@ -617,9 +617,7 @@ MVMObject * MVM_io_socket_connect_async(MVMThreadContext *tc, MVMObject *queue,
                                         MVMint64 port, MVMObject *async_type) {
     MVMAsyncTask *task;
     ConnectInfo  *ci;
-
-    /* Resolve hostname. (Could be done asynchronously too.) */
-    struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port);
+    struct sockaddr *dest;
 
     /* Validate REPRs. */
     if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
@@ -628,6 +626,11 @@ MVMObject * MVM_io_socket_connect_async(MVMThreadContext *tc, MVMObject *queue,
     if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask)
         MVM_exception_throw_adhoc(tc,
             "asyncconnect result type must have REPR AsyncTask");
+
+    /* Resolve hostname. (Could be done asynchronously too.) */
+    MVMROOT3(tc, queue, schedulee, async_type, {
+        dest = MVM_io_resolve_host_name(tc, host, port);
+    });
 
     /* Create async task handle. */
     MVMROOT2(tc, queue, schedulee, {
@@ -796,9 +799,7 @@ MVMObject * MVM_io_socket_listen_async(MVMThreadContext *tc, MVMObject *queue,
                                        MVMint64 port, MVMint32 backlog, MVMObject *async_type) {
     MVMAsyncTask *task;
     ListenInfo   *li;
-
-    /* Resolve hostname. (Could be done asynchronously too.) */
-    struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port);
+    struct sockaddr *dest;
 
     /* Validate REPRs. */
     if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
@@ -807,6 +808,11 @@ MVMObject * MVM_io_socket_listen_async(MVMThreadContext *tc, MVMObject *queue,
     if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask)
         MVM_exception_throw_adhoc(tc,
             "asynclisten result type must have REPR AsyncTask");
+
+    /* Resolve hostname. (Could be done asynchronously too.) */
+    MVMROOT3(tc, queue, schedulee, async_type, {
+        dest = MVM_io_resolve_host_name(tc, host, port);
+    });
 
     /* Create async task handle. */
     MVMROOT2(tc, queue, schedulee, {
