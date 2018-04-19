@@ -1208,8 +1208,8 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
             MVMROOT(tc, f, {
                 resolved = MVM_sc_get_object(tc, sc, objid);
             });
-            MVM_ASSIGN_REF(tc, &(f->static_info->common.header),
-                f->static_info->body.static_env[effective_idx].o,
+            MVM_ASSIGN_REF(tc, &(effective_sf->common.header),
+                effective_sf->body.static_env[effective_idx].o,
                 resolved);
         }
     }
