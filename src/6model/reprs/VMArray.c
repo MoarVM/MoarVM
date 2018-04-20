@@ -865,7 +865,7 @@ static void aslice(MVMThreadContext *tc, MVMSTable *st, MVMObject *src, void *da
     if ( last_elem < start || last_elem < end
          || (end < start && 0 <= start && 0 <= end) )
     {
-        MVM_exception_throw_adhoc(tc, "MVMArray: Slice Index Out of Bounds");
+        MVM_exception_throw_adhoc(tc, "MVMArray: Slice index out of bounds");
     }
 
     start = 0 <= start ? start : 0;
