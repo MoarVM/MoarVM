@@ -92,10 +92,18 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     /* Try to JIT compile the optimised graph. The JIT graph hangs from
      * the spesh graph and can safely be deleted with it. */
     if (tc->instance->jit_enabled) {
-        MVMJitGraph *jg = MVM_jit_try_make_graph(tc, sg);
+        MVMJitGraph *jg;
+        if (tc->instance->spesh_log_fh)
+            start_time = uv_hrtime();
+        jg = MVM_jit_try_make_graph(tc, sg);
         if (jg != NULL) {
             candidate->jitcode = MVM_jit_compile_graph(tc, jg);
             MVM_jit_graph_destroy(tc, jg);
+        }
+        if (tc->instance->spesh_log_fh) {
+            fprintf(tc->instance->spesh_log_fh, "JIT was %s and compilation took %" PRIu64 "us\n",
+                    candidate->jitcode ? "successful" : "not successful",
+                    (uv_hrtime() - start_time) / 1000);
         }
     }
 
