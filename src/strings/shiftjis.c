@@ -69,7 +69,7 @@ char * MVM_string_shiftjis_encode_substr(MVMThreadContext *tc, MVMString *str,
                     codepoint = 0xFF0D;
                 }
                 /* Let pointer be the index Shift_JIS pointer for code point. */
-                pointer = shift_jis_cp_to_index(codepoint);
+                pointer = shift_jis_cp_to_index(tc, codepoint);
                 /* If pointer is null, return error with code point. */
                 if (pointer == SHIFTJIS_NULL) {
                     if (replacement) {
@@ -118,7 +118,7 @@ char * MVM_string_shiftjis_encode_substr(MVMThreadContext *tc, MVMString *str,
 #define DECODE_CONTINUE -2
 #define DECODE_CODEPOINT -4
 #define DECODE_PREPEND_TO_STREAM -5
-static int decoder_handler (MVMuint8 *Shift_JIS_lead, MVMuint8 byte, MVMCodepoint *out) {
+static int decoder_handler (MVMThreadContext *tc, MVMuint8 *Shift_JIS_lead, MVMuint8 byte, MVMCodepoint *out) {
     /* If Shift_JIS lead is not 0x00 */
     if (*Shift_JIS_lead != 0x00) {
         /* let lead be Shift_JIS lead, */
@@ -149,7 +149,7 @@ static int decoder_handler (MVMuint8 *Shift_JIS_lead, MVMuint8 byte, MVMCodepoin
         }
         /*  And the index code point for pointer in index jis0208 otherwise. */
         else {
-            codepoint = shift_jis_index_to_cp(pointer);
+            codepoint = shift_jis_index_to_cp(tc, pointer);
         }
         /* 6. If code point is non-null, return a code point whose value is code point. */
         if (codepoint != SHIFTJIS_NULL) {
@@ -223,7 +223,7 @@ MVMString * MVM_string_shiftjis_decode(MVMThreadContext *tc,
         }
         /* graph will be SHIFTJIS_NULL unless we just grabbed a replacement grapheme */
         if (graph == SHIFTJIS_NULL) {
-            int handler_rtrn = decoder_handler(&Shift_JIS_lead, byte, &codepoint);
+            int handler_rtrn = decoder_handler(tc, &Shift_JIS_lead, byte, &codepoint);
             if (handler_rtrn == DECODE_CODEPOINT) {
                 graph = codepoint;
             }
@@ -345,7 +345,7 @@ MVMuint32 MVM_string_shiftjis_decodestream(MVMThreadContext *tc, MVMDecodeStream
             }
             /* graph will be -1 unless we just grabbed a replacement grapheme */
             if (graph == -1) {
-                handler_rtrn = decoder_handler(&Shift_JIS_lead, byte, &codepoint);
+                handler_rtrn = decoder_handler(tc, &Shift_JIS_lead, byte, &codepoint);
                 if (handler_rtrn == DECODE_CODEPOINT) {
                     graph = codepoint;
                 }

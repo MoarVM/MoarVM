@@ -45,32 +45,48 @@ sub process-shift-jis-index (Str:D $filename) {
     }
     @cp_to_index.push: "default: return SHIFTJIS_NULL;";
     my $last_seen_index = -1;
+    my @data;
+    my @points;
+    my $max_index;
     for %indexes.sort(*.key.Int) -> $pair {
         my ($index, $uni) = ($pair.kv);
-        # This part may be used if we switch to an array instead of a switch
-        #`(if $last_seen_index+1 != $index {
-            note "last seen was $last_seen_index. current is $index";
-            note "if (index > $last_seen_index) counter += " ~ ($index - $last_seen_index - 1);
+        if $last_seen_index+1 != $index {
+            push @data, sprintf("\{%4i, %4i\}", $last_seen_index, $index - $last_seen_index - 1);
         }
-        $last_seen_index = $index;)
+        $last_seen_index = $index;
+        push @points, $uni;
         push @index_to_cp, make-case($index, $uni.fmt("0x%X"));
+        $max_index = $index if !$max_index.defined || $max_index < $index;
     }
+    my $offset-values-name = "shiftjis_offset_values";
+    my $codepoint-array    = "shiftjis_index_to_cp_codepoints";
+    my $max_index-name     = "shiftjis_max_index".uc;
+    my @index_to_cp_str_out;
+    @index_to_cp_str_out.push: "#define {"{$offset-values-name}_elems".uc} @data.elems()";
+    @index_to_cp_str_out.push: "#define {"{$codepoint-array}_elems".uc} @points.elems()";
+    @index_to_cp_str_out.push: "#define $max_index-name $max_index";
+    @index_to_cp_str_out.push: [~] "const static struct shiftjis_offset $offset-values-name\[{@data.elems}] = \{", "\n", @data.join(",\n").indent(4), "\n", '};';
+    use lib 'tools/lib';
+    use ArrayCompose;
+    use IntWidth;
+    @index_to_cp_str_out.push: compose-array(
+        'const static MVMuint16',
+        $codepoint-array,
+        @points);
     @index_to_cp.push: "default: return SHIFTJIS_NULL;";
-    my $cp_to_index_str = "MVMint16 shift_jis_cp_to_index (MVMGrapheme32 codepoint) \{\n" ~
+    my $cp_to_index_str = "static MVMint16 shift_jis_cp_to_index (MVMThreadContext *tc, MVMGrapheme32 codepoint) \{\n" ~
         ("switch (codepoint) \{\n" ~ @cp_to_index.join("\n").indent(4) ~ "\n}").indent(4) ~
         "\n\}\n";
-    my $index_to_cp_str = "MVMGrapheme32 shift_jis_index_to_cp (MVMint16 index) \{\n" ~
-    ("switch (index) \{\n" ~ @index_to_cp.join("\n").indent(4) ~ "\n}").indent(4) ~
-    "\n\}\n";
 
     "#define SHIFTJIS_NULL -1\n" ~
-    $index_to_cp_str ~ "\n" ~
+    @index_to_cp_str_out.join("\n") ~ "\n" ~
     $cp_to_index_str;
 
 }
 sub MAIN {
     my $DIR = "UNIDATA/CODETABLES";
     say process-shift-jis-index("$DIR/index-jis0208.txt");
+    exit;
     my @info = %(encoding => 'windows1252', filename => "$DIR/CP1252.TXT", comment => "/* Windows-1252 Latin */"),
         %( encoding => 'windows1251', filename => "$DIR/CP1251.TXT", comment => "/* Windows-1251 Cyrillic */");
     my %win1252 = process-file(@info[0]<filename>, @info[0]<encoding>);
