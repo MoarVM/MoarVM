@@ -343,7 +343,7 @@ HEADERS = src/moar.h \
           src/mast/driver.h \
           src/mast/nodes.h \
           src/spesh/dump.h \
-	  src/spesh/debug.h \
+          src/spesh/debug.h \
           src/spesh/graph.h \
           src/spesh/codegen.h \
           src/spesh/candidate.h \
