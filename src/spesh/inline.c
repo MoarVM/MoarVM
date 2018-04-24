@@ -946,13 +946,14 @@ static void annotate_inline_start_end(MVMThreadContext *tc, MVMSpeshGraph *inlin
                                MVMSpeshBB *inlinee_last_bb,
                                MVMuint32 inline_boundary_handler) {
     /* Annotate first instruction as an inline start. */
-    MVMSpeshAnn *start_ann     = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshAnn));
-    MVMSpeshAnn *end_ann       = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshAnn));
-    MVMSpeshBB *bb             = inlinee->entry->succ[0];
-    start_ann->next            = bb->first_ins->annotations;
-    start_ann->type            = MVM_SPESH_ANN_INLINE_START;
-    start_ann->data.inline_idx = idx;
-    bb->first_ins->annotations = start_ann;
+    MVMSpeshAnn *start_ann       = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshAnn));
+    MVMSpeshAnn *start_deopt_ann = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshAnn));
+    MVMSpeshAnn *end_ann         = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshAnn));
+    MVMSpeshBB *bb               = inlinee->entry->succ[0];
+    start_ann->next              = bb->first_ins->annotations;
+    start_ann->type              = MVM_SPESH_ANN_INLINE_START;
+    start_ann->data.inline_idx   = idx;
+    bb->first_ins->annotations   = start_ann;
 
     /* Insert annotation for handler boundary indicator fixup. */
     start_ann = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshAnn));
@@ -980,6 +981,8 @@ static void annotate_inline_start_end(MVMThreadContext *tc, MVMSpeshGraph *inlin
     end_ann->type = MVM_SPESH_ANN_FH_GOTO;
     end_ann->data.frame_handler_index = inline_boundary_handler;
     inlinee_last_bb->last_ins->annotations = end_ann;
+
+    MVM_spesh_graph_add_deopt_annotation(tc, inliner, bb->first_ins, bb->initial_pc, MVM_SPESH_ANN_DEOPT_ALL_INS);
 
     return;
 }

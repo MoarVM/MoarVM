@@ -561,16 +561,16 @@ MVMObject * MVM_exception_add_backtrace_entry(MVMThreadContext *tc, MVMObject *a
 static void uninline(MVMThreadContext *tc, MVMObject *arr, MVMFrame *f,
                      MVMSpeshCandidate *cand, MVMint32 offset) {
     MVMint32 i;
-    fprintf(stderr, "uninlining (%d, %d)\n", cand->num_inlines, offset);
+    //fprintf(stderr, "uninlining (%d, %d)\n", cand->num_inlines, offset);
     for (i = 0; i < cand->num_inlines; i++) {
-        fprintf(stderr, "uninlining %d: %d - %d\n", i, cand->inlines[i].start, cand->inlines[i].end);
+        //fprintf(stderr, "uninlining %d: %d - %d\n", i, cand->inlines[i].start, cand->inlines[i].end);
         if (offset > cand->inlines[i].start && offset <= cand->inlines[i].end) {
             /* Create the frame. */
             MVMCode        *ucode = f->work ? (MVMCode *)f->work[cand->inlines[i].code_ref_reg].o : NULL;
             MVMStaticFrame *usf   = cand->inlines[i].sf;
             if (ucode && REPR(ucode)->ID != MVM_REPR_ID_MVMCode)
                 MVM_panic(1, "Deopt: did not find code object when uninlining");
-            fprintf(stderr, "found a cand\n");
+            //fprintf(stderr, "found a cand\n");
             MVM_exception_add_backtrace_entry(tc, arr, usf, (MVMObject *)ucode, offset);
         }
     }
@@ -609,16 +609,16 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
                 void        *nearest = NULL;
                 MVMint32     nearest_idx = -1;
                 MVMint32 i;
-                fprintf(stderr, "looking for label: %p\n", cur_frame->jit_entry_label);
+                //fprintf(stderr, "looking for label: %p\n", cur_frame->jit_entry_label);
                 for (i = 0; i < num_deopts; i++) {
                     void *label = labels[deopts[i].label];
-                    fprintf(stderr, "JIT deopt label: %p %d %d\n", labels[deopts[i].label], deopts[i].idx, cur_frame->spesh_cand->deopts[2 * deopts[i].idx + 1]);
+                    //fprintf(stderr, "JIT deopt label: %p %d %d\n", labels[deopts[i].label], deopts[i].idx, cur_frame->spesh_cand->deopts[2 * deopts[i].idx + 1]);
                     if (label == cur_frame->jit_entry_label) {
                         /* Resolve offset and target. */
                         MVMint32 deopt_idx    = deopts[i].idx;
                         MVMint32 deopt_offset = cur_frame->spesh_cand->deopts[2 * deopt_idx + 1];
 
-                        fprintf(stderr, "uninlining JITed code\n");
+                        //fprintf(stderr, "uninlining JITed code\n");
                         uninline(tc, arr, cur_frame, cur_frame->spesh_cand, deopt_offset);
                         nearest = NULL;
 
@@ -627,12 +627,12 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
                     else if (label < cur_frame->jit_entry_label && label > nearest) {
                         nearest = label;
                         nearest_idx = deopts[i].idx;
-                        fprintf(stderr, "nearest is: %p %d %d\n", nearest, nearest_idx, cur_frame->spesh_cand->deopts[2 * deopts[i].idx + 1]);
+                        //fprintf(stderr, "nearest is: %p %d %d\n", nearest, nearest_idx, cur_frame->spesh_cand->deopts[2 * deopts[i].idx + 1]);
                     }
                 }
                 if (nearest) {
                     MVMint32 deopt_offset = cur_frame->spesh_cand->deopts[2 * nearest_idx + 1];
-                    fprintf(stderr, "uninlining JITed code from nearest deopt point: %d\n", deopt_offset);
+                    //fprintf(stderr, "uninlining JITed code from nearest deopt point: %d\n", deopt_offset);
                     uninline(tc, arr, cur_frame, cur_frame->spesh_cand, deopt_offset);
                 }
             }
