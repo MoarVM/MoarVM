@@ -60,7 +60,8 @@ PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
                  src/platform/posix/io@obj@
 
 DASM_FLAGS   = @dasm_flags@
-JIT_ARCH_X64 = src/jit/x64/emit@obj@ src/jit/x64/arch@obj@
+JIT_ARCH_X64 = src/jit/x64/emit@obj@ src/jit/x64/arch@obj@ \
+               src/jit/x64/stack_walk@obj@
 JIT_STUB     = src/jit/stub@obj@
 JIT_OBJECTS  = src/jit/graph@obj@ \
                src/jit/label@obj@ \
@@ -69,6 +70,7 @@ JIT_OBJECTS  = src/jit/graph@obj@ \
                src/jit/expr@obj@ \
                src/jit/tile@obj@ \
                src/jit/linear_scan@obj@
+
 
 # JIT intermediate files which clean should remove
 JIT_INTERMEDIATES = src/jit/x64/emit.c \
