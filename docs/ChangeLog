@@ -1,6 +1,100 @@
 See https://github.com/MoarVM/MoarVM/wiki/ChangeLog-Draft for the draft changelog
 since the previous release.
 
+New in 2018.04
+**⚠ Feel free to edit this page.**
+
+New in 2018.04
+
+Strings:
++ Speed up collapse_strands 4x by rewriting to target compiler auto vectorization
++ Vectorize turn_32bit_into_8bit_unchecked, 10% speedup for string_escape()
++ Vectorize string flip operation for flat strings, ~25% speedup
++ Speed up string cmp by 3-5x in the general case and by 6-10x if both strings are flat
++ Speed up string index by 1.5x for a flat haystack and a needle of a differing type
++ Add support for the windows-932 variant of the ShiftJIS encoding
++ Fix bug in windows-1252 and windows-1252 decodestream with replacement when a replacement occurs in the last position of the input stream
+
+JIT:
++ Inline simple cu string access into exprjit template
++ Rename ^spesh_slot to ^spesh_slot_addr and add ^spesh_slot_value
++ JIT expr templates for getstringfrom and getwvalfrom
++ JIT floor_n, continuationinvoke, ctx
++ JIT a few ops that ThreadPoolScheduler uses
++ Measure and report time spent on JIT compilation
+
+Garbage Collection/Memory:
++ Ensure memory blocks in the nursery are aligned where necessary
++ Suspend other threads during global destruction
++ Spot use of an item already put in a gen2 freelist
++ Register sig_hash as an Instance root
+
+Math:
++ Fix drift in Num->Str roundtrip; As a side effect effect div_In op becomes 14x slower
++ Use Grisu3 algorithm for stringifying Num's, makes Num stringification 2x faster
++ Fix handling of denormals in div_In op
++ Generalize mp_get_double()
+
+Profiler:
++ Log getrusage in the profile
+
+Ops:
++ Add getsignals op, queries for valid signals
+
+Libraries:
++ Patch libtommath to fix build on Solaris
++ Add libatomic_ops as a submodule instead of in-tree
+
+6Model:
++ Make tryfindmeth not throw in some cases it did
++ Add missing write barrier enforcement in CPPStruct, CStruct
++ Fix missing GC mark of deserializer contexts list
++ Use Fixed Size Allocator for all_scs list
++ Rename sc_weakhash mutex for more clarity over what it covers
++ Fix segfault on concurrent array access while resizing
+
+IO:
++ Mark thread blocked around getaddrinfo
++ Make getrusage op modify an existing array instead of allocating one in the op itself
++ Convey the process ID of a started child
++ Guard against negative and zero signals in MVM_io_signal_handle
++ Populate valid_sigs flag set handler function if not set
++ Create bit-flag to indicate signals found on host
+
+Spesh:
++ Keep wvals if only dep needs changing
++ Fix fixing of wvals during inline
++ Fix negated spesh of known type
++ Add optimize_unbox
++ Optimize known values for istrue
++ Remove object boolification from optimize_iffy
++ Discover type of getrusage in spesh
++ Fix optimization of zombie conditional causing segfault
++ Insert null-out-instructions before prof_enter
+
+Debug Server
++ Cut module names out of filenames
++ Only suspend on actually must-suspend breakpoints
++ Add metadata for ReentrantMutex and Semaphore
+
+Tooling/Build:
++ Fix loading bytecode on big endian systems
++ Move libatomic_ops module to a different directory
++ Tell user to delete folder if submodule dir already exists
++ Don't build specify -D_FILE_OFFSET_BITS for dyncall
++ Fix Solaris 32-bit build: don't build specify -D_FILE_OFFSET_BITS for dyncall
++ Fix Configure.pl --asan flag on clang
++ Add --show-autovect --show-autovect-failed flags to Configure.pl
++ Use Configure.pl to generate vectorization defines on clang, so we get a warning
+  if vectorization fails for specific loops
+
+Miscellaneous:
++ Fix confused pointer offsetting in FSA_SIZE_DEBUG
++ Fix memory corruption when running with FSA_SIZE_DEBUG set
++ Correct lazy static lexical deserialization
++ Fix small integer return values of libffi callbacks
++ Fix bytecodedump to understand inlines
+
 New in 2018.03
 
 Miscellaneous:
