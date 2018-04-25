@@ -200,6 +200,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "jit/tile.h"
 #include "jit/compile.h"
 #include "jit/log.h"
+#include "jit/interface.h"
 #include "profiler/instrument.h"
 #include "profiler/log.h"
 #include "profiler/profile.h"

@@ -17,10 +17,22 @@ void MVM_jit_graph_destroy(MVMThreadContext *tc, MVMJitGraph *graph) {
     return;
 }
 
-void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
+void MVM_jit_code_destroy(MVMThreadContext *tc, MVMJitCode *code) {
     return;
 }
 
-void MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu, MVMJitCode *code) {
+void MVM_jit_code_enter(MVMThreadContext *tc, MVMCompUnit *cu, MVMJitCode *code) {
     return;
+}
+
+MVMint32 MVM_jit_code_get_active_handlers(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame, MVMint32 *handlers) {
+    return 0;
+}
+
+MVMint32 MVM_jit_code_get_active_inlines(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame,  MVMint32 *inlines) {
+    return 0;
+}
+
+MVMint32 MVM_jit_code_get_active_deopt_idx(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame) {
+    return 0;
 }

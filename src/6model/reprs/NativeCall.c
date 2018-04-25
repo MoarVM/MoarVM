@@ -90,7 +90,7 @@ static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
     if (body->arg_info)
         MVM_free(body->arg_info);
     if (body->jitcode)
-        MVM_jit_destroy_code(tc, body->jitcode);
+        MVM_jit_code_destroy(tc, body->jitcode);
 }
 
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {

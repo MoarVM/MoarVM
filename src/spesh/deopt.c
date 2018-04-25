@@ -260,40 +260,36 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
         if (f->spesh_cand) {
             /* Found one. Is it JITted code? */
             if (f->spesh_cand->jitcode && f->jit_entry_label) {
-                MVMint32 num_deopts = f->spesh_cand->jitcode->num_deopts;
-                MVMJitDeopt *deopts = f->spesh_cand->jitcode->deopts;
-                void       **labels = f->spesh_cand->jitcode->labels;
-                MVMint32 i;
-                for (i = 0; i < num_deopts; i++) {
-                    if (labels[deopts[i].label] == f->jit_entry_label) {
-                        /* Resolve offset and target. */
-                        MVMint32 deopt_idx    = deopts[i].idx;
-                        MVMint32 deopt_offset = f->spesh_cand->deopts[2 * deopt_idx + 1];
-                        MVMint32 deopt_target = f->spesh_cand->deopts[2 * deopt_idx];
+                MVMJitCode *jitcode = f->spesh_cand->jitcode;
+                MVMint32 idx = MVM_jit_code_get_active_deopt_idx(tc, jitcode, f);
+                if (idx < jitcode->num_deopts) {
+                    /* Resolve offset and target. */
+                    MVMint32 deopt_idx    = jitcode->deopts[idx].idx;
+                    MVMint32 deopt_offset = f->spesh_cand->deopts[2 * deopt_idx + 1];
+                    MVMint32 deopt_target = f->spesh_cand->deopts[2 * deopt_idx];
 #if MVM_LOG_DEOPTS
-                        fprintf(stderr, "Found deopt label for JIT (%d) (label %d idx %d)\n", i,
-                                deopts[i].label, deopts[i].idx);
+                    fprintf(stderr, "Found deopt label for JIT (%d) (label %d idx %d)\n", i,
+                            deopts[i].label, deopts[i].idx);
 #endif
 
-                        /* Re-create any frames needed if we're in an inline; if not,
-                        * just update return address. */
-                        if (f->spesh_cand->inlines) {
-                            MVMROOT2(tc, f, l, {
-                                uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, l);
-                            });
-                        }
-                        else {
-                            f->return_address = f->static_info->body.bytecode + deopt_target;
-                        }
-
-                        /* No spesh cand/slots needed now. */
-                        deopt_named_args_used(tc, f);
-                        f->effective_spesh_slots = NULL;
-                        f->spesh_cand            = NULL;
-                        f->jit_entry_label       = NULL;
-
-                        break;
+                    /* Re-create any frames needed if we're in an inline; if not,
+                     * just update return address. */
+                    if (f->spesh_cand->inlines) {
+                        MVMROOT2(tc, f, l, {
+                            uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, l);
+                        });
                     }
+                    else {
+                        f->return_address = f->static_info->body.bytecode + deopt_target;
+                    }
+
+                    /* No spesh cand/slots needed now. */
+                    deopt_named_args_used(tc, f);
+                    f->effective_spesh_slots = NULL;
+                    f->spesh_cand            = NULL;
+                    f->jit_entry_label       = NULL;
+
+                    break;
                 }
 #if MVM_LOG_DEOPTS
                 if (i == num_deopts)

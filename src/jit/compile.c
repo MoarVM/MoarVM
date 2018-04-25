@@ -185,7 +185,7 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     return code;
 }
 
-void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
+void MVM_jit_code_destroy(MVMThreadContext *tc, MVMJitCode *code) {
     MVM_platform_free_pages(code->func_ptr, code->size);
     MVM_free(code->labels);
     MVM_free(code->deopts);
@@ -316,18 +316,4 @@ void MVM_jit_spill_memory_release(MVMThreadContext *tc, MVMJitCompiler *compiler
     MVMint8 bucket = reg_type_bucket(reg_type);
     compiler->spills[idx].next    = compiler->spills_free[bucket];
     compiler->spills_free[bucket] = idx;
-}
-
-/* Enter the JIT code segment. The label is a continuation point where control
- * is resumed after the frame is properly setup. */
-void MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
-                        MVMJitCode *code) {
-    void *label = tc->cur_frame->jit_entry_label;
-    MVMint32 ofs = (char*)label - (char*)code->func_ptr;
-    if (ofs < 0 || ofs >= code->size)
-        MVM_oops(tc, "JIT entry label out of range for code!\n"
-                 "(label %p, func_ptr %p, code size %lui, offset %li, frame_nr %i, seq nr %i)",
-                 label, code->func_ptr, code->size, ((char*)label) - ((char*)code->func_ptr),
-                 tc->cur_frame->sequence_nr, code->seq_nr);
-    code->func_ptr(tc, cu, label);
 }
