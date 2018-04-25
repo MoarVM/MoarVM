@@ -909,7 +909,7 @@ static void send_thread_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data
         cmp_write_bool(ctx, (MVM_load(&cur_thread->body.tc->gc_status) & MVMSUSPENDSTATUS_MASK) != MVMSuspendState_NONE);
 
         cmp_write_str(ctx, "num_locks", 9);
-        cmp_write_integer(ctx, cur_thread->body.tc->num_locks);
+        cmp_write_integer(ctx, MVM_thread_lock_count(dtc, (MVMObject *)cur_thread));
 
         cur_thread = cur_thread->body.next;
     }
