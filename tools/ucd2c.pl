@@ -1798,6 +1798,29 @@ sub UnicodeData {
         if ($name =~ /(Ideograph|Syllable|Private|Surrogate) (\s|.)*? First/x) {
             $ideograph_start = $point;
             $point->{name}   =~ s/, First//;
+            if ($point->{name} eq '<CJK Ideograph Extension A>' ||
+                $point->{name} eq '<CJK Ideograph>' ||
+                $point->{name} eq '<CJK Ideograph Extension B>' ||
+                $point->{name} eq '<CJK Ideograph Extension C>' ||
+                $point->{name} eq '<CJK Ideograph Extension D>' ||
+                $point->{name} eq '<CJK Ideograph Extension E>' ||
+                $point->{name} eq '<CJK Ideograph Extension F>')
+            {
+                $point->{name} = '<CJK Unified Ideograph>'
+            }
+            elsif ($point->{name} eq '<Hangul Syllable>' ||
+                $point->{name} eq '<Non Private Use High Surrogate>' ||
+                $point->{name} eq '<Private Use High Surrogate>' ||
+                $point->{name} eq '<Low Surrogate>' ||
+                $point->{name} eq '<Private Use>' ||
+                $point->{name} eq '<Tangut Ideograph>' ||
+                $point->{name} =~ /^<Plane \d+ Private Use>$/) {
+            }
+            else {
+                die "$point->{name} encountered. Make sure to check https://www.unicode.org/versions/Unicode10.0.0/ch04.pdf for Name Derivation Rule Prefix Strings";
+                say $code_str;
+                exit;
+            }
         }
         elsif ($ideograph_start) {
             $point->{name} = $ideograph_start->{name};

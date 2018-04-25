@@ -748,21 +748,22 @@ MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
             char *new_name = NULL;
             /* We pad to 4 width, so make sure the number is accurate */
             num_len = num_len < 4 ? 4 : num_len;
-            new_length = name_len + 1 + num_len * sizeof(char);
+            /* The new_length is 1 more than we need since snprintf adds a null */
+            new_length = name_len + num_len * sizeof(char);
             new_name = alloca(new_length);
             for (i = 0; i < name_len; i++) {
                 if (name[i] == '>') {
-                    snprintf(new_name + i, new_length - i, "-%.4"PRIX32"", (MVMuint32)codepoint);
+                    snprintf(new_name + i - 1, new_length - (i - 1) ,
+                        "-%.4"PRIX32"", (MVMuint32)codepoint);
                     /* snprintf adds a null terminator at the end. We don't need
                      * this, so replace with a > instead of using snprintf to add
                      * it. Note: new has no NULL terminator */
-                    new_name[new_length - 1] = '>';
                     break;
                 }
-                new_name[i] = name[i];
+                new_name[i] = name[i+1];
             }
-            name = new_name;
-            name_len = new_length;
+            name     = new_name;
+            name_len = new_length - 1;
         }
     }
 
