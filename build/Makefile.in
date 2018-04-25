@@ -69,7 +69,8 @@ JIT_OBJECTS  = src/jit/graph@obj@ \
                src/jit/log@obj@ \
                src/jit/expr@obj@ \
                src/jit/tile@obj@ \
-               src/jit/linear_scan@obj@
+               src/jit/linear_scan@obj@ \
+               src/jit/interface@obj@
 
 
 # JIT intermediate files which clean should remove
@@ -402,6 +403,7 @@ HEADERS = src/moar.h \
           src/jit/compile.h \
           src/jit/tile.h \
           src/jit/register.h \
+          src/jit/interface.h \
           src/jit/log.h \
           src/instrument/crossthreadwrite.h \
           src/instrument/line_coverage.h \
