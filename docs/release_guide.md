@@ -41,7 +41,7 @@ be made, they should be numbered as 2041.01.1, 2041.01.2, etc.
 
         git tag -as 2017.10
 
-9. Run git verify-tag 2017.10 to make sure the signature is valid and the tag
+9. Run `git verify-tag 2017.10` to make sure the signature is valid and the tag
    was actually signed.
 
 10. Upload it by committing the tar file
@@ -62,9 +62,20 @@ be made, they should be numbered as 2041.01.1, 2041.01.2, etc.
   - 38: Description text
   - 41: Download link
 
-13. Optionally, update the ports/macports/Portfile to reflect this latest
+13. Create a gpg signature
+
+         gpg --detach-sign --armor MoarVM-2018.04.tar.gz
+
+   Verify the signature:
+         gpg --verify MoarVM-2018.04.tar.gz.asc
+
+14. Copy the tar.gz and the signature:
+
+         cp MoarVM-2018.04.tar.gz MoarVM-2018.04.tar.gz.asc ../moarvm.org/releases
+
+15. Optionally, update the ports/macports/Portfile to reflect this latest
    version, and open a ticket at https://trac.macports.org/newticket to get
    the macport updated. (For now, just make Coke do it.)
 
-13. Do something fun to celebrate. Like watching nyan cat, or having a beer. Or
+16. Do something fun to celebrate. Like watching nyan cat, or having a beer. Or
    why not both?
