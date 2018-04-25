@@ -1213,7 +1213,6 @@ static void send_handle_equivalence_classes(MVMThreadContext *dtc, cmp_ctx_t *ct
                 continue;
             if (objects[idx] == objects[other_idx]) {
                 representant[other_idx] = idx;
-                fprintf(stderr, "representant for %3d is now %3d\n", other_idx, idx);
             }
         }
     }
@@ -1223,7 +1222,6 @@ static void send_handle_equivalence_classes(MVMThreadContext *dtc, cmp_ctx_t *ct
     for (idx = 0; idx < argument->handle_count; idx++) {
         MVMuint16 the_repr = find_representant(representant, idx);
         counts[the_repr]++;
-        fprintf(stderr, "%3d increased %3d count to %d\n", idx, the_repr, counts[the_repr]);
         if (counts[the_repr] == 2)
             classes_count++;
     }
@@ -1236,8 +1234,6 @@ static void send_handle_equivalence_classes(MVMThreadContext *dtc, cmp_ctx_t *ct
     cmp_write_integer(ctx, MT_HandleEquivalenceResponse);
     cmp_write_str(ctx, "classes", 7);
 
-    fprintf(stderr, "number of classes: %d\n", classes_count);
-
     /* Now we can write out the classes by following the representant
      * chain until we find one whose representant is itself. */
     cmp_write_array(ctx, classes_count);
@@ -1246,21 +1242,16 @@ static void send_handle_equivalence_classes(MVMThreadContext *dtc, cmp_ctx_t *ct
             MVMuint16 count = counts[find_representant(representant, idx)];
             MVMuint16 pointer = idx;
             cmp_write_array(ctx, count);
-            fprintf(stderr, "writing class of %3d starting at %3d: ", count, idx);
             do {
                 MVMuint16 current_representant = representant[pointer];
                 representant[pointer] = pointer;
                 cmp_write_integer(ctx, argument->handles[pointer]);
                 pointer = current_representant;
-                fprintf(stderr, "%3d ", pointer);
             } while (representant[pointer] != pointer);
 
             cmp_write_integer(ctx, argument->handles[pointer]);
-            fprintf(stderr, "\n");
         }
     }
-
-    fprintf(stderr, "done!\n");
 
     MVM_free(representant);
     MVM_free(objects);
