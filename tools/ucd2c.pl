@@ -1806,7 +1806,10 @@ sub UnicodeData {
                 $point->{name} eq '<CJK Ideograph Extension E>' ||
                 $point->{name} eq '<CJK Ideograph Extension F>')
             {
-                $point->{name} = '<CJK Unified Ideograph>'
+                $point->{name} = '<CJK UNIFIED IDEOGRAPH>'
+            }
+            elsif ($point->{name} eq '<Tangut Ideograph>') {
+                $point->{name} = '<TANGUT IDEOGRAPH>';
             }
             elsif ($point->{name} eq '<Hangul Syllable>' ||
                 $point->{name} eq '<Non Private Use High Surrogate>' ||
@@ -1817,7 +1820,8 @@ sub UnicodeData {
                 $point->{name} =~ /^<Plane \d+ Private Use>$/) {
             }
             else {
-                die "$point->{name} encountered. Make sure to check https://www.unicode.org/versions/Unicode10.0.0/ch04.pdf for Name Derivation Rule Prefix Strings";
+                die "$point->{name} encountered. Make sure to check https://www.unicode.org/versions/Unicode10.0.0/ch04.pdf for Name Derivation Rule Prefix Strings\n" .
+                "Also you will likely have to make a change to MVM_unicode_get_name() and add a test to nqp";
                 say $code_str;
                 exit;
             }
