@@ -922,3 +922,30 @@ associative features, like a hash.
             }
         }
     }
+
+### Handle Equivalence Request (46)
+
+Ask the debugserver to check if handles refer to the same object.
+
+    {
+        "type": 46,
+        "id": $id,
+        "handles": [
+            1, 2, 3, 4, 5, 6, 7
+        ]
+    }
+
+### Handle equivalence Response (47)
+
+For any object that is referred to by multiple handles from
+the request, return a list of all the handles that belong to
+the given object.
+
+    {
+        "type": 47,
+        "id": $id,
+        "classes": [
+            [1, 3],
+            [2, 5, 7]
+        ]
+    }

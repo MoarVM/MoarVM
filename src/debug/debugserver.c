@@ -68,6 +68,8 @@ typedef enum {
     MT_ObjectPositionalsResponse,
     MT_ObjectAssociativesRequest,
     MT_ObjectAssociativesResponse,
+    MT_HandleEquivalenceRequest,
+    MT_HandleEquivalenceResponse,
 } message_type;
 
 typedef enum {
@@ -381,6 +383,7 @@ MVMuint8 check_requirements(request_data *data) {
             REQUIRE(FS_line, "A line field is required");
             break;
 
+        case MT_HandleEquivalenceRequest:
         case MT_ReleaseHandles:
             REQUIRE(FS_handles, "A handles field is required");
             break;
@@ -1171,6 +1174,93 @@ static MVMObject *find_handle_target(MVMThreadContext *dtc, MVMuint64 id) {
             return dht->entries[index].target;
     }
     return NULL;
+}
+
+static MVMuint64 find_representant(MVMint16 *representant, MVMuint64 index) {
+    MVMuint64 last = index;
+
+    while (representant[last] != last) {
+        last = representant[last];
+    }
+
+    return last;
+}
+
+static void send_handle_equivalence_classes(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMuint16  *representant = MVM_calloc(argument->handle_count, sizeof(MVMuint64));
+    MVMObject **objects      = MVM_calloc(argument->handle_count, sizeof(MVMObject *));
+    MVMuint16  *counts       = MVM_calloc(argument->handle_count, sizeof(MVMuint16));
+    MVMuint16   idx;
+    MVMuint16   classes_count = 0;
+
+    /* Set up our sentinel values. Any object that represents itself
+     * is the end of a chain. At the beginning, everything represents
+     * itself.
+     * Critically, this allows us to use 0 as a valid representant. */
+    for (idx = 0; idx < argument->handle_count; idx++) {
+        representant[idx] = idx;
+    }
+
+    for (idx = 0; idx < argument->handle_count; idx++) {
+        MVMuint16 other_idx;
+        objects[idx] = find_handle_target(dtc, argument->handles[idx]);
+
+        for (other_idx = 0; other_idx < idx; other_idx++) {
+            if (representant[other_idx] != other_idx)
+                continue;
+            if (objects[idx] == objects[other_idx]) {
+                representant[other_idx] = idx;
+                fprintf(stderr, "representant for %3d is now %3d\n", other_idx, idx);
+            }
+        }
+    }
+
+    /* First, we have to count how many distinct classes there are.
+     * Whenever we hit 2, we know we've found a class. */
+    for (idx = 0; idx < argument->handle_count; idx++) {
+        MVMuint16 the_repr = find_representant(representant, idx);
+        counts[the_repr]++;
+        fprintf(stderr, "%3d increased %3d count to %d\n", idx, the_repr, counts[the_repr]);
+        if (counts[the_repr] == 2)
+            classes_count++;
+    }
+
+    /* Send the header of the message */
+    cmp_write_map(ctx, 3);
+    cmp_write_str(ctx, "id", 2);
+    cmp_write_integer(ctx, argument->id);
+    cmp_write_str(ctx, "type", 4);
+    cmp_write_integer(ctx, MT_HandleEquivalenceResponse);
+    cmp_write_str(ctx, "classes", 7);
+
+    fprintf(stderr, "number of classes: %d\n", classes_count);
+
+    /* Now we can write out the classes by following the representant
+     * chain until we find one whose representant is itself. */
+    cmp_write_array(ctx, classes_count);
+    for (idx = 0; idx < argument->handle_count; idx++) {
+        if (representant[idx] != idx) {
+            MVMuint16 count = counts[find_representant(representant, idx)];
+            MVMuint16 pointer = idx;
+            cmp_write_array(ctx, count);
+            fprintf(stderr, "writing class of %3d starting at %3d: ", count, idx);
+            do {
+                MVMuint16 current_representant = representant[pointer];
+                representant[pointer] = pointer;
+                cmp_write_integer(ctx, argument->handles[pointer]);
+                pointer = current_representant;
+                fprintf(stderr, "%3d ", pointer);
+            } while (representant[pointer] != pointer);
+
+            cmp_write_integer(ctx, argument->handles[pointer]);
+            fprintf(stderr, "\n");
+        }
+    }
+
+    fprintf(stderr, "done!\n");
+
+    MVM_free(representant);
+    MVM_free(objects);
 }
 
 static MVMint32 create_context_or_code_obj_debug_handle(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
@@ -2497,6 +2587,9 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                     if (request_object_associatives(tc, &ctx, &argument)) {
                         communicate_error(tc, &ctx, &argument);
                     }
+                    break;
+                case MT_HandleEquivalenceRequest:
+                    send_handle_equivalence_classes(tc, &ctx, &argument);
                     break;
                 default: /* Unknown command or NYI */
                     if (tc->instance->debugserver->debugspam_protocol)
