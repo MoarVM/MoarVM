@@ -848,6 +848,13 @@ decoderepconf       w(str) r(obj) r(str) r(str) r(int64)
 getppid             w(int64)
 getsignals          w(obj) :useshll
 slice               w(obj) r(obj) r(int64) r(int64)
+speshreg            r(str) r(str) r(obj)
+speshresolve     -a w(obj) str
+speshguardtype      r(obj) r(obj)
+speshguardconcrete  r(obj)
+speshguardtypeobj   r(obj)
+speshguardobj       r(obj)
+speshguardgetattr   w(obj) r(obj) r(obj) str
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

@@ -5323,6 +5323,45 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             }
+            OP(speshreg):
+                MVM_spesh_plugin_register(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s,
+                    GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
+            OP(speshresolve): {
+                MVMObject *resolver = MVM_spesh_plugin_resolve(tc,
+                    MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)));
+                MVMRegister *args = tc->cur_frame->args;
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type = MVM_RETURN_OBJ;
+                cur_op += 6;
+                tc->cur_frame->return_address = cur_op;
+                STABLE(resolver)->invoke(tc, resolver, cur_callsite, args);
+                goto NEXT;
+            }
+            OP(speshguardtype):
+                MVM_spesh_plugin_addguard_type(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
+            OP(speshguardconcrete):
+                MVM_spesh_plugin_addguard_concrete(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
+            OP(speshguardtypeobj):
+                MVM_spesh_plugin_addguard_typeobj(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
+            OP(speshguardobj):
+                MVM_spesh_plugin_addguard_obj(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
+            OP(speshguardgetattr):
+                GET_REG(cur_op, 0).o = MVM_spesh_plugin_addguard_getattr(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
+                    MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)));
+                cur_op += 10;
+                goto NEXT;
             OP(sp_guard): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
