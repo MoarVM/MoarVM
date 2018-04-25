@@ -1,6 +1,9 @@
 #include "moar.h"
 #include "platform/threads.h"
 
+#define DEBUGSERVER_MAJOR_PROTOCOL_VERSION 1
+#define DEBUGSERVER_MINOR_PROTOCOL_VERSION 1
+
 #define bool int
 #define true TRUE
 #define false FALSE
@@ -441,13 +444,13 @@ static MVMuint16 big_endian_16(MVMuint16 number) {
 
 static void send_greeting(Socket *sock) {
     char buffer[24] = "MOARVM-REMOTE-DEBUG\0";
-    MVMuint16 version = big_endian_16(1);
+    MVMuint16 version = big_endian_16(DEBUGSERVER_MAJOR_PROTOCOL_VERSION);
     MVMuint16 *verptr = (MVMuint16 *)(&buffer[strlen("MOARVM-REMOTE-DEBUG") + 1]);
 
     *verptr = version;
     verptr++;
 
-    version = big_endian_16(0);
+    version = big_endian_16(DEBUGSERVER_MINOR_PROTOCOL_VERSION);
 
     *verptr = version;
     send(*sock, buffer, 24, 0);
