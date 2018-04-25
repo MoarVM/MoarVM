@@ -508,4 +508,8 @@ struct MVMInstance {
 
     /* Flag for if NFA debugging is enabled. */
     MVMint8 nfa_debug_enabled;
+
+    /* Hash Secret which is used as the hash seed. This is to avoid denial of
+     * service type attacks. */
+    MVMuint32 hashSecret;
 };
