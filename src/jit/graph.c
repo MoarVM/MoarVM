@@ -812,6 +812,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
         case MVM_OP_getattrs_o:
         case MVM_OP_attrinited:
         case MVM_OP_hintfor:
+        case MVM_OP_slice:
             type_operand = ins->operands[1];
             break;
         case MVM_OP_box_i:
@@ -2114,6 +2115,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_existskey:
     case MVM_OP_existspos:
     case MVM_OP_setelemspos:
+    case MVM_OP_slice:
     case MVM_OP_splice:
     case MVM_OP_atpos_i:
     case MVM_OP_atpos_n:
