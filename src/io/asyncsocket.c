@@ -523,8 +523,7 @@ static void on_connect(uv_connect_t* req, int status) {
             result->body.data            = data;
             MVM_repr_push_o(tc, arr, (MVMObject *)result);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
-
-            MVMROOT(tc, arr, {
+            {
                 struct sockaddr_storage sockaddr;
                 int name_len = sizeof(struct sockaddr_storage);
 
@@ -533,7 +532,7 @@ static void on_connect(uv_connect_t* req, int status) {
 
                 uv_tcp_getsockname(ci->socket, (struct sockaddr *)&sockaddr, &name_len);
                 push_name_and_port(tc, &sockaddr, arr);
-            });
+            }
         });
     }
     else {
@@ -692,7 +691,7 @@ static void on_connection(uv_stream_t *server, int status) {
             MVM_repr_push_o(tc, arr, (MVMObject *)result);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
 
-            MVMROOT(tc, arr, {
+            {
                 struct sockaddr_storage sockaddr;
                 int name_len = sizeof(struct sockaddr_storage);
 
@@ -701,7 +700,7 @@ static void on_connection(uv_stream_t *server, int status) {
 
                 uv_tcp_getsockname(client, (struct sockaddr *)&sockaddr, &name_len);
                 push_name_and_port(tc, &sockaddr, arr);
-            });
+            }
         });
     }
     else {
