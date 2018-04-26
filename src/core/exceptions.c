@@ -101,19 +101,17 @@ static MVMint32 search_frame_handlers_dyn(MVMThreadContext *tc, MVMFrame *f,
                                           LocatedHandler *lh) {
     MVMuint32  i;
     if (f->spesh_cand && f->spesh_cand->jitcode && f->jit_entry_label) {
+        MVMJitCode *jitcode = f->spesh_cand->jitcode;
+        MVMint32 *active_handlers = alloca(sizeof(MVMint32) * jitcode->num_handlers);
+        MVMint32 num_active = MVM_jit_code_get_active_handlers(tc, jitcode, f, active_handlers);
         MVMJitHandler    *jhs = f->spesh_cand->jitcode->handlers;
         MVMFrameHandler  *fhs = MVM_frame_effective_handlers(f);
-        MVMint32 num_handlers = f->spesh_cand->jitcode->num_handlers;
-        void         **labels = f->spesh_cand->jitcode->labels;
-        void       *cur_label = f->jit_entry_label;
-        for (i = 0; i < num_handlers; i++) {
-            if (!handler_can_handle(f, &fhs[i], cat, payload))
-                continue;
-            if (cur_label >= labels[jhs[i].start_label] &&
-                cur_label <= labels[jhs[i].end_label] &&
-                !in_handler_stack(tc, &fhs[i], f)) {
-                lh->handler     = &fhs[i];
-                lh->jit_handler = &jhs[i];
+        for (i = 0; i < num_active; i++) {
+            MVMint32 j = active_handlers[i];
+            if (handler_can_handle(f, &fhs[j], cat, payload) &&
+                !in_handler_stack(tc, &fhs[j], f)) {
+                lh->handler     = &fhs[j];
+                lh->jit_handler = &jhs[j];
                 return 1;
             }
         }
