@@ -6,6 +6,8 @@
 static MVMOSHandle * verify_is_handle(MVMThreadContext *tc, MVMObject *oshandle, const char *op) {
     if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle)
         MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle (got %s with REPR %s)", op, MVM_6model_get_debug_name(tc, oshandle), REPR(oshandle)->name);
+    if (!IS_CONCRETE(oshandle))
+        MVM_exception_throw_adhoc(tc, "%s requires a concrete MVMOSHandle, but got a type object", op);
     return (MVMOSHandle *)oshandle;
 }
 
