@@ -524,7 +524,7 @@ static void on_connect(uv_connect_t* req, int status) {
             MVM_repr_push_o(tc, arr, (MVMObject *)result);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
 
-            MVMROOT(tc, result, {
+            MVMROOT(tc, arr, {
                 struct sockaddr_storage sockaddr;
                 int name_len = sizeof(struct sockaddr_storage);
 
@@ -692,7 +692,7 @@ static void on_connection(uv_stream_t *server, int status) {
             MVM_repr_push_o(tc, arr, (MVMObject *)result);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
 
-            MVMROOT(tc, result, {
+            MVMROOT(tc, arr, {
                 struct sockaddr_storage sockaddr;
                 int name_len = sizeof(struct sockaddr_storage);
 
