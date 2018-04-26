@@ -798,8 +798,9 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             /* Binary search the edges ahead for the grapheme. */
                             MVMGrapheme32 search = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
                             MVMint64 num_possibilities = edge_info[i].arg.i;
+                            MVMint64 end = i + num_possibilities;
                             MVMint64 l = i + 1;
-                            MVMint64 r = i + num_possibilities;
+                            MVMint64 r = end;
                             MVMint64 found = -1;
                             while (l <= r) {
                                 MVMint64 m = l + (r - l) / 2;
@@ -824,7 +825,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             }
                             else {
                                 /* Add all states that match. */
-                                while (edge_info[found].arg.g == search) {
+                                while (found <= end && edge_info[found].arg.g == search) {
                                     to = edge_info[found].to;
                                     if (edge_info[found].act == MVM_NFA_EDGE_CODEPOINT) {
                                         nextst[numnext++] = to;
