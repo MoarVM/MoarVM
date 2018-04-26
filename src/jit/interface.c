@@ -17,21 +17,6 @@ void MVM_jit_code_enter(MVMThreadContext *tc, MVMCompUnit *cu,
     code->func_ptr(tc, cu, label);
 }
 
-MVMint32 MVM_jit_code_get_active_handlers(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame, MVMint32 *handlers_out) {
-    MVMint32 i;
-    MVMint32 j = 0;
-    void *current_position = frame->jit_entry_label;
-    fprintf(stderr, "Get active deopt idx: %" PRIx64 "\n", current_position);
-    for (i = 0; i < code->num_handlers; i++) {
-        void *start_label = code->labels[code->handlers[i].start_label];
-        void *end_label   = code->labels[code->handlers[i].end_label];
-        if (start_label <= current_position && end_label >= current_position) {
-            handlers_out[j++] = i;
-        }
-    }
-    return j;
-}
-
 MVMint32 MVM_jit_code_get_active_deopt_idx(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame) {
     MVMint32 i;
     void *current_position = frame->jit_entry_label;
@@ -43,6 +28,30 @@ MVMint32 MVM_jit_code_get_active_deopt_idx(MVMThreadContext *tc, MVMJitCode *cod
     return i;
 }
 
-MVMint32 MVM_jit_code_get_active_inlines(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame,  MVMint32 *inlines) {
-    return 0;
+MVMint32 MVM_jit_code_get_active_handlers(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame, MVMint32 *handlers_out) {
+    MVMint32 i;
+    MVMint32 j = 0;
+    void *current_position = frame->jit_entry_label;
+    for (i = 0; i < code->num_handlers; i++) {
+        void *start_label = code->labels[code->handlers[i].start_label];
+        void *end_label   = code->labels[code->handlers[i].end_label];
+        if (start_label <= current_position && current_position <= end_label) {
+            handlers_out[j++] = i;
+        }
+    }
+    return j;
+}
+
+MVMint32 MVM_jit_code_get_active_inlines(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame, MVMint32 *inlines_out) {
+    MVMint32 i;
+    MVMint32 j = 0;
+    void *current_position = frame->jit_entry_label;
+    for (i = 0; i < code->num_inlines; i++) {
+        void *inline_start = code->labels[code->inlines[i].start_label];
+        void *inline_end   = code->labels[code->inlines[j].end_label];
+        if (inline_start <= current_position && current_position <= inline_end) {
+            inlines_out[j++] = i;
+        }
+    }
+    return j;
 }
