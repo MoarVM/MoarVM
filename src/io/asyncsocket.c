@@ -580,11 +580,11 @@ static void connect_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *asyn
                     tc->instance->VMString, uv_strerror(r));
                 MVMObject *msg_box = MVM_repr_box_str(tc,
                     tc->instance->boot_types.BOOTStr, msg_str);
-                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
-                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
-                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
-                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
                 MVM_repr_push_o(tc, arr, msg_box);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             });
             MVM_repr_push_o(tc, t->body.queue, arr);
         });
