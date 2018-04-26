@@ -2015,7 +2015,7 @@ sub Jamo {
     my @out_lines = split "\n", $out;
     my $i = 0;
     for my $line (@out_lines) {
-        my $final_name = 'Hangul Syllable ';
+        my $final_name = 'HANGUL SYLLABLE ';
         my $hs_cps = $hangul_syllables[$i++];
         my @a = split ',', $line;
         for my $cp (@a) {
