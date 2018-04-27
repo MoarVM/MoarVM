@@ -55,7 +55,7 @@ static void parse_error(MVMThreadContext *tc, MVMString *s, const char* reason) 
 
 static void skip_whitespace(MVMThreadContext *tc, MVMCodepointIter *ci, MVMCodepoint *cp) {
     while (is_whitespace(tc, *cp)) {
-        if (get_cp(tc, ci, cp)) return; 
+        if (get_cp(tc, ci, cp)) return;
     }
 }
 
@@ -297,7 +297,7 @@ MVMnum64 MVM_coerce_s_n(MVMThreadContext *tc, MVMString *s) {
     MVMnum64  n = 123;
     MVM_string_ci_init(tc, &ci, s, 0, 0);
 
-    if (get_cp(tc, &ci, &cp)) return 0; 
+    if (get_cp(tc, &ci, &cp)) return 0;
 
     skip_whitespace(tc, &ci, &cp);
 
