@@ -17,6 +17,11 @@ use build::probe;
 sub defined_or($$) {
     defined $_[0] ? $_[0] : $_[1]
 }
+# This allows us to run on broken perls
+sub uniq {
+    my %s; grep { !$s{$_}++ } @_;
+}
+
 
 my $NAME    = 'moar';
 my $GENLIST = 'build/gen.list';
@@ -159,6 +164,8 @@ $config{ldsys}        = $config{ldusr} unless defined $config{ldsys};
 $config{ldoptiflags}  = $config{ccoptiflags} unless defined $config{ldoptiflags};
 $config{lddebugflags} = $config{ccdebugflags} unless defined $config{lddebugflags};
 $config{ldinstflags}  = $config{ccinstflags} unless defined $config{ldinstflags};
+
+$config{as}           = $config{cc} unless defined $config{as};
 
 # Probe the compiler.
 build::probe::compiler_usability(\%config, \%defaults);
@@ -361,7 +368,12 @@ $config{cc} eq 'clang'
     ? '-Rpass=loop-vectorize'
 : $config{cc} eq 'gcc'
     ? '-fopt-info-vec-optimized'
-    : die if $args{'show-autovect'};
+  : die if $args{'show-autovect'};
+# TODO - we need to do -fno-omit-frame-pointer anyway if we run the JIT
+push @cflags, $config{cc} eq 'cl' ? '/Oy' :
+  ($config{cc} eq 'gcc' || $config{cc} eq 'clang') ? '-fno-omit-frame-pointer' : ()
+  if $args{jit};
+
 if (exists $args{'show-autovect-failed'}) {
     push @cflags, '-Rpass-missed=loop-vectorize' if $config{cc} eq 'clang';
     push @cflags, ("-ftree-vectorizer-verbose=" . ($args{'show-autovect-failed'} || 1), "-fopt-info-vec-missed")
@@ -381,7 +393,7 @@ push @cflags, '-DHAVE_TELEMEH' if $args{telemeh};
 push @cflags, '-DWORDS_BIGENDIAN' if $config{be}; # 3rdparty/sha1 needs it and it isnt set on mips;
 push @cflags, $ENV{CFLAGS} if $ENV{CFLAGS};
 push @cflags, $ENV{CPPFLAGS} if $ENV{CPPFLAGS};
-$config{cflags} = join ' ', @cflags;
+$config{cflags} = join ' ', uniq(@cflags);
 
 # generate LDFLAGS
 my @ldflags = ($config{ldmiscflags});

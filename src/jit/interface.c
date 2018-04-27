@@ -1,7 +1,9 @@
 #include "moar.h"
 #include "internal.h"
 
-void * stack_find_return_address(void *base, void *end, MVMint64 depth);
+/* Walk stack to find the current return address in a code frame */
+void * stack_find_return_address_posix(void *base, size_t size, void *top);
+void * stack_find_return_address_win64(void *base, size_t size, void *top);
 
 /* Enter the JIT code segment. The label is a continuation point where control
  * is resumed after the frame is properly setup. */
