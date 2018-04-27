@@ -572,7 +572,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMRegister *state     = NULL;
         MVMint64     state_act = 0; /* 0 = none so far, 1 = first time, 2 = later */
         MVMint64 i;
-        MVMROOT(tc, frame, {
+        MVMROOT2(tc, frame, cref, {
             for (i = 0; i < numlex; i++) {
                 if (flags[i] == 2) {
                     redo_state:
