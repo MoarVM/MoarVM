@@ -68,9 +68,9 @@
    - src/exceptions.c: search_frame_handlers (we compare the current
      jit label, but we're interested in the current position); other
      than that, the only updates are to the goto_handlers, and/or
-     setting the resum labels, but that only ever happens with
+     setting the resume labels, but that only ever happens with
      throwobj, and that one is explicitly throwish anyway, so the
-     jit_entry_label will be set correct.y
+     jit_entry_label will be set correctly.
    - src/core/frame.c: assignments from predefined labels, but, also,
      MVM_frame_find_contextual_by_name, which uses it as a location
      marker. For frames higher in the callstack, that is correct,
@@ -80,7 +80,7 @@
      matches, and anything invoking anything that could deopt_all must
      set the label anyway.
  - Finally, configure our toolchain so they have
-   -fno-omit-frame-pointer portably, this is spelled [[https://msdn.microsoft.com/en-us/library/2kxx5t2c.aspx][/Oy]] in microsoft
+   =-fno-omit-frame-pointer= portably, this is spelled =[[https://msdn.microsoft.com/en-us/library/2kxx5t2c.aspx][/Oy]]= in microsoft
    land.
  - Integrate this in the build system. clang and gcc can build this
    just fine (clang is ... whiney about comment syntax).  Microsoft
@@ -89,6 +89,18 @@
    assembler, but what I can do is use the C preprocessor to smoothen
    out the differences (with $(CC) -E or whatever is the equivalent for
    windows).
+
+*** DONE stack walker itself
+*** DONE hide jit_entry_label from core
+
+*** DONE activate stack walker
+*** DONE remove eager dynamic label storage
+*** TODO build system integration
+
+This works without issues on linux/gcc, but I'll have to see about MSVC and apple/clang
+I think I need to define a rule for '.s' just like there is for .c.
+
+
 * Tools
 ** Make jit-dump work on windows
 

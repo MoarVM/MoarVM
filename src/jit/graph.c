@@ -699,7 +699,7 @@ static void before_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     }
     if (has_dynamic_control) {
         MVM_jit_log(tc, "Dynamic control label on ins %s\n", ins->info->name);
-        jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_DYNAMIC_LABEL);
+/*        jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_DYNAMIC_LABEL); */
     }
 
     if (ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
@@ -3341,7 +3341,7 @@ static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
      * we need a location update. This came to light in the case that we left an
      * inline (which is a jump) and came back to a region where a handler should
      * be in force, and it failed to be. */
-    jg_append_control(tc, jg, bb->first_ins, MVM_JIT_CONTROL_DYNAMIC_LABEL);
+    /* jg_append_control(tc, jg, bb->first_ins, MVM_JIT_CONTROL_DYNAMIC_LABEL); */
 
     /* add a jit breakpoint if required */
     for (i = 0; i < tc->instance->jit_breakpoints_num; i++) {
