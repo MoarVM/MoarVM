@@ -176,44 +176,41 @@ static MVMint32 search_frame_handlers_lex(MVMThreadContext *tc, MVMFrame *f,
     MVMuint32 skipping = *skip_first_inlinee;
     MVMFrameHandler *fhs = MVM_frame_effective_handlers(f);
     if (f->spesh_cand && f->spesh_cand->jitcode && f->jit_entry_label) {
-        MVMJitHandler    *jhs = f->spesh_cand->jitcode->handlers;
-        MVMint32 num_handlers = f->spesh_cand->jitcode->num_handlers;
-        void         **labels = f->spesh_cand->jitcode->labels;
-        void       *cur_label = f->jit_entry_label;
-        for (i = 0; i < num_handlers; i++) {
-            MVMFrameHandler *fh = &(fhs[i]);
+        MVMJitCode *jitcode = f->spesh_cand->jitcode;
+        MVMint32 *active_handlers = alloca(sizeof(MVMint32) * jitcode->num_handlers);
+        MVMint32 num_active = MVM_jit_code_get_active_handlers(tc, jitcode, f, active_handlers);
+        MVMJitHandler    *jhs = jitcode->handlers;
+        MVMint32 num_handlers = jitcode->num_handlers;
+        /* I struggle to understand what is going on here */
+        for (i = 0; i < num_active; i++) {
+            MVMint32 idx = active_handlers[i];
+            MVMFrameHandler *fh = &(fhs[idx]);
             if (skip_all_inlinees && fh->inlinee >= 0)
                 continue;
             if (fh->category_mask == MVM_EX_INLINE_BOUNDARY) {
-                if (cur_label >= labels[jhs[i].start_label] &&
-                        cur_label <= labels[jhs[i].end_label]) {
-                    if (skipping) {
-                        skipping = 0;
-                        *skip_first_inlinee = 0;
+                if (skipping) {
+                    skipping = 0;
+                    *skip_first_inlinee = 0;
+                }
+                else {
+                    MVMuint16 cr_reg = f->spesh_cand->inlines[fh->inlinee].code_ref_reg;
+                    MVMFrame *inline_outer = ((MVMCode *)f->work[cr_reg].o)->body.outer;
+                    if (inline_outer == f) {
+                        skip_all_inlinees = 1;
                     }
                     else {
-                        MVMuint16 cr_reg = f->spesh_cand->inlines[fh->inlinee].code_ref_reg;
-                        MVMFrame *inline_outer = ((MVMCode *)f->work[cr_reg].o)->body.outer;
-                        if (inline_outer == f) {
-                            skip_all_inlinees = 1;
-                        }
-                        else {
-                            *next_outer = inline_outer;
-                            return 0;
-                        }
+                        *next_outer = inline_outer;
+                        return 0;
                     }
                 }
-                continue;
             }
             if (skipping || !handler_can_handle(f, fh, cat, payload))
                 continue;
-            if (cur_label >= labels[jhs[i].start_label] &&
-                    cur_label <= labels[jhs[i].end_label] &&
-                    !in_handler_stack(tc, fh, f)) {
+            if (!in_handler_stack(tc, fh, f)) {
                 if (skipping && f->static_info->body.is_thunk)
                     return 0;
                 lh->handler     = fh;
-                lh->jit_handler = &jhs[i];
+                lh->jit_handler = &jhs[idx];
                 return 1;
             }
         }
