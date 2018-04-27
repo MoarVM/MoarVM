@@ -425,7 +425,7 @@ MVMuint8 check_requirements(MVMThreadContext *tc, request_data *data) {
 
     if (data->fields_set != accepted) {
         if (tc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "debugserver: too many fields in message of type %d: accepted %b, got %b\n", data->type, accepted, data->fields_set);
+            fprintf(stderr, "debugserver: too many fields in message of type %d: accepted 0x%x, got 0x%x\n", data->type, accepted, data->fields_set);
     }
 }
 
