@@ -2747,7 +2747,8 @@ MVM_PUBLIC void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
 
     debugserver->breakpoints->files_alloc = 32;
     debugserver->breakpoints->files_used  = 0;
-    debugserver->breakpoints->files       = MVM_calloc(debugserver->breakpoints->files_alloc, sizeof(MVMDebugServerBreakpointFileTable));
+    debugserver->breakpoints->files       =
+        MVM_fixed_size_alloc_zeroed(tc, vm->fsa, debugserver->breakpoints->files_alloc * sizeof(MVMDebugServerBreakpointFileTable));
 
     debugserver->event_id = 2;
     debugserver->port = port;
