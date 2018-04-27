@@ -88,78 +88,92 @@ static double parse_decimal_integer(MVMThreadContext *tc, MVMCodepointIter *ci, 
 }
 
 static double parse_int_frac_exp(MVMThreadContext *tc, MVMCodepointIter *ci, MVMCodepoint *cp, MVMString* s, double radix, int leading_zero) {
-    double integer = 0;
-    double frac = 0;
-    double base = 1;
+    /*
+     * What we do here is extract the digits from the original string,
+     * effectively stripping off underscores and converting fancy Unicode
+     * digits to regular ones. We then ASCII-fy those digits and stuff
+     * them into digits_buf (along with double-ish things like the dot
+     * and 'e'). At the end we give the resultant string to strtod() to
+     * do all the dirty work for us, so we don't have to worry about
+     * handling denormals or picking closest representable double
+     */
     int digits = 0;
     int frac_digits = 0;
     int digit;
     int ends_with_underscore = 0;
+    char *digits_buf = (char *)MVM_malloc(1 + MVM_string_graphs(tc, s));
+    char *digits_buf_tail = digits_buf;
+    double result;
 
-    if (*cp == '_') parse_error(tc, s, "number can't start with _");
+    if (*cp == '_')
+        parse_error(tc, s, "number can't start with _");
 
     if (*cp != '.') {
         while (*cp == '_' || (digit = cp_value(tc, *cp)) != -1) {
             ends_with_underscore = *cp == '_';
             if (*cp != '_') {
                 if (digit >= radix) break;
-                integer = integer * radix + digit;
+                *digits_buf_tail++ = '0' + digit;
                 digits++;
             }
             get_cp(tc, ci, cp);
         }
-        if (ends_with_underscore) parse_error(tc, s, "a number can't end in underscore");
+        if (ends_with_underscore)
+            parse_error(tc, s, "a number can't end in underscore");
     }
 
 
     if (*cp == '.') {
+        *digits_buf_tail++ = '.';
         get_cp(tc, ci, cp);
-        if (*cp == '_') parse_error(tc, s, "radix point can't be followed by _");
+        if (*cp == '_')
+            parse_error(tc, s, "radix point can't be followed by _");
         while (*cp == '_' || (digit = cp_value(tc, *cp)) != -1) {
             ends_with_underscore = *cp == '_';
             if (*cp != '_') {
                 if (digit >= radix) break;
-                frac = frac * radix + digit;
-                base = base * radix;
+                *digits_buf_tail++ = '0' + digit;
                 frac_digits++;
             }
             get_cp(tc, ci, cp);
         }
-        if (frac_digits == 0) {
-            parse_error(tc, s, "radix point must be followed by one or more valid digits");
-        }
-        if (ends_with_underscore) parse_error(tc, s, "a number can't end in underscore");
+        if (frac_digits == 0)
+            parse_error(tc, s,
+                "radix point must be followed by one or more valid digits");
+        if (ends_with_underscore)
+            parse_error(tc, s, "a number can't end in underscore");
     }
 
-    if (digits == 0 && frac_digits == 0 && !leading_zero) parse_error(tc, s, "expecting a number");
+    if (digits == 0 && frac_digits == 0 && !leading_zero)
+        parse_error(tc, s, "expecting a number");
 
     if (*cp == 'E' || *cp == 'e') {
         int e_digits = 0;
-        double exponent = 0;
-        double sign;
 
+        *digits_buf_tail++ = 'e';
         get_cp(tc, ci, cp);
 
-        sign = parse_sign(tc, ci, cp);
-
-        if (*cp == '_') parse_error(tc, s, "'e' or 'E' can't be followed by _");
+        if (parse_sign(tc, ci, cp) == -1)
+            *digits_buf_tail++ = '-';
+        if (*cp == '_')
+            parse_error(tc, s, "'e' or 'E' can't be followed by _");
         while (*cp == '_' || (digit = cp_value(tc, *cp)) != -1) {
             if (*cp != '_') {
                 if (digit >= radix) break;
-                exponent = exponent * radix + digit;
+                *digits_buf_tail++ = '0' + digit;
                 e_digits++;
             }
             get_cp(tc, ci, cp);
         }
-        if (e_digits == 0) {
-            parse_error(tc, s, "'e' or 'E' must be followed by one or more valid digits");
-        }
+        if (e_digits == 0)
+            parse_error(tc, s,
+                "'e' or 'E' must be followed by one or more valid digits");
+    }
 
-        return (integer + frac/base) * pow(10, sign * exponent);
-    }
-    else {
-        return integer + frac/base;
-    }
+    *digits_buf_tail = '\0';
+    result = strtod(digits_buf, NULL);
+    MVM_free(digits_buf);
+    return result;
 }
 
 static int match_word(MVMThreadContext *tc,  MVMCodepointIter *ci, MVMCodepoint *cp, char word[3], MVMString *s) {
