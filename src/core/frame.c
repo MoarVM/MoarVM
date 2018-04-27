@@ -1453,39 +1453,35 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
          * knows where to find them */
         if (cand && cand->num_inlines) {
             if (cand->jitcode) {
-                void      **labels = cand->jitcode->labels;
-                void *return_label = cur_frame->jit_entry_label;
-                MVMJitInline *inls = cand->jitcode->inlines;
+                MVMint32 *active_inlines = alloca(sizeof(MVMint32) * cand->num_inlines);
+                MVMint32 num_active = MVM_jit_code_get_active_inlines(tc, cand->jitcode, cur_frame, active_inlines);
                 MVMint32 i;
-                if (MVM_UNLIKELY(return_label == NULL))
-                    MVM_oops(tc, "Return label is NULL!\n");
-                for (i = 0; i < cand->jitcode->num_inlines; i++) {
+                for (i = 0; i < num_active; i++) {
+                    MVMint32 idx = active_inlines[i];
+                    MVMStaticFrame *isf = cand->inlines[idx].sf;
                     icost++;
-                    if (return_label >= labels[inls[i].start_label] && return_label <= labels[inls[i].end_label]) {
-                        MVMStaticFrame *isf = cand->inlines[i].sf;
-                        if ((lexical_names = isf->body.lexical_names)) {
-                            MVMLexicalRegistry *entry;
-                            MVM_HASH_GET(tc, lexical_names, name, entry);
-                            if (entry) {
-                                MVMuint16    lexidx = cand->inlines[i].lexicals_start + entry->value;
-                                MVMRegister *result = &cur_frame->env[lexidx];
-                                *type = cand->lexical_types[lexidx];
-                                if (vivify && *type == MVM_reg_obj && !result->o) {
-                                    MVMROOT3(tc, cur_frame, initial_frame, name, {
-                                        MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
-                                    });
-                                }
-                                if (fcost+icost > 1)
-                                  try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
-                                if (dlog) {
-                                    fprintf(dlog, "I %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
-                                    fflush(dlog);
-                                    MVM_free(c_name);
-                                    tc->instance->dynvar_log_lasttime = uv_hrtime();
-                                }
-                                *found_frame = cur_frame;
-                                return result;
+                    if ((lexical_names = isf->body.lexical_names)) {
+                        MVMLexicalRegistry *entry;
+                        MVM_HASH_GET(tc, lexical_names, name, entry);
+                        if (entry) {
+                            MVMuint16    lexidx = cand->inlines[idx].lexicals_start + entry->value;
+                            MVMRegister *result = &cur_frame->env[lexidx];
+                            *type = cand->lexical_types[lexidx];
+                            if (vivify && *type == MVM_reg_obj && !result->o) {
+                                MVMROOT3(tc, cur_frame, initial_frame, name, {
+                                    MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
+                                });
                             }
+                            if (fcost+icost > 1)
+                                try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
+                            if (dlog) {
+                                fprintf(dlog, "I %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
+                                fflush(dlog);
+                                MVM_free(c_name);
+                                tc->instance->dynvar_log_lasttime = uv_hrtime();
+                            }
+                            *found_frame = cur_frame;
+                            return result;
                         }
                     }
                 }
