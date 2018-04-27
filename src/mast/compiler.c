@@ -855,12 +855,17 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
     }
     else if (ISTYPE(vm, node, ws->types->Call)) {
         MAST_Call *c           = GET_Call(node);
-        unsigned short call_op  = c->op == 0 ? MVM_OP_invoke_v : MVM_OP_nativeinvoke_v;
         unsigned char res_type = 0;
-        unsigned short num_flags, flag_pos, arg_pos, arg_out_pos;
+        unsigned short num_flags, flag_pos, arg_pos, arg_out_pos, callsite_id;
+        unsigned short call_op;
+        switch (c->op) {
+            case 1: call_op = MVM_OP_nativeinvoke_v; break;
+            case 2: call_op = MVM_OP_speshresolve; break;
+            default: call_op = MVM_OP_invoke_v; break;
+        }
 
         /* Emit callsite (may re-use existing one) and emit loading of it. */
-        unsigned short callsite_id = get_callsite_id(vm, ws, c->flags, c->args);
+        callsite_id = get_callsite_id(vm, ws, c->flags, c->args);
         ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 4);
         write_int16(ws->bytecode_seg, ws->bytecode_pos, MVM_OP_prepargs);
         ws->bytecode_pos += 2;
@@ -873,12 +878,17 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
 
         /* Set up args. */
         num_flags = (unsigned short)ELEMS(vm, c->flags);
-        arg_pos = c->op == 0 ? 0 : 1;
+        arg_pos = c->op == 1 ? 1 : 0;
         arg_out_pos = 0;
         for (flag_pos = 0; flag_pos < num_flags; flag_pos++) {
             /* Handle any special flags. */
             unsigned char flag = (unsigned char)ATPOS_I_C(vm, c->flags, flag_pos);
             if (flag & MVM_CALLSITE_ARG_NAMED) {
+                if (c->op == 2) {
+                    cleanup_all(vm, ws);
+                    DIE(vm, "At Frame %u, Instruction %u, illegal named arg to speshresolve.",
+                        ws->current_frame_idx, ws->current_ins_idx);
+                }
                 ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 6);
                 write_int16(ws->bytecode_seg, ws->bytecode_pos, MVM_OP_argconst_s);
                 ws->bytecode_pos += 2;
@@ -889,11 +899,21 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
                 arg_out_pos++;
             }
             else if (flag & MVM_CALLSITE_ARG_FLAT) {
+                if (c->op == 2) {
+                    cleanup_all(vm, ws);
+                    DIE(vm, "At Frame %u, Instruction %u, illegal flat arg to speshresolve.",
+                        ws->current_frame_idx, ws->current_ins_idx);
+                }
                 /* don't need to do anything special */
             }
 
             /* Now go by flag type. */
             ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 6);
+            if (c->op == 2 && !(flag & MVM_CALLSITE_ARG_OBJ)) {
+                cleanup_all(vm, ws);
+                DIE(vm, "At Frame %u, Instruction %u, illegal non-object arg to speshresolve.",
+                    ws->current_frame_idx, ws->current_ins_idx);
+            }
             if (flag & MVM_CALLSITE_ARG_OBJ) {
                 write_int16(ws->bytecode_seg, ws->bytecode_pos, MVM_OP_arg_o);
                 ws->bytecode_pos += 2;
@@ -948,7 +968,27 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         }
 
         /* Select operation based on return type. */
-        if (ISTYPE(vm, c->result, ws->types->Local)) {
+        if (c->op == 2) {
+            if (ISTYPE(vm, c->result, ws->types->Local)) {
+                MAST_Local *l = GET_Local(c->result);
+                if (l->index >= ws->cur_frame->num_locals) {
+                    cleanup_all(vm, ws);
+                    DIE(vm, "MAST::Local index out of range");
+                }
+                if (ws->cur_frame->local_types[l->index] != MVM_reg_obj) {
+                    cleanup_all(vm, ws);
+                    DIE(vm, "At Frame %u, Instruction %u, speshresolve must have an object result.",
+                        ws->current_frame_idx, ws->current_ins_idx);
+                }
+                res_type = MVM_operand_obj;
+            }
+            else {
+                cleanup_all(vm, ws);
+                DIE(vm, "At Frame %u, Instruction %u, speshresolve must have a result.",
+                    ws->current_frame_idx, ws->current_ins_idx);
+            }
+        }
+        else if (ISTYPE(vm, c->result, ws->types->Local)) {
             MAST_Local *l = GET_Local(c->result);
 
             /* Ensure it's within the set of known locals. */
@@ -987,8 +1027,11 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         ws->bytecode_pos += 2;
         if (call_op != MVM_OP_invoke_v && call_op != MVM_OP_nativeinvoke_v)
             compile_operand(vm, ws, MVM_operand_read_reg | res_type, c->result);
-        compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_obj, c->target);
-        if (c->op != 0)
+        if (c->op == 2)
+            compile_operand(vm, ws, MVM_operand_str, c->target);
+        else
+            compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_obj, c->target);
+        if (c->op == 1)
             compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_obj, ATPOS(vm, c->args, 0));
     }
     else if (ISTYPE(vm, node, ws->types->Annotated)) {
