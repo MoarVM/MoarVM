@@ -50,7 +50,7 @@ MVMint32 MVM_jit_code_get_active_inlines(MVMThreadContext *tc, MVMJitCode *code,
     void *current_position = frame->jit_entry_label;
     for (i = 0; i < code->num_inlines; i++) {
         void *inline_start = code->labels[code->inlines[i].start_label];
-        void *inline_end   = code->labels[code->inlines[j].end_label];
+        void *inline_end   = code->labels[code->inlines[i].end_label];
         if (inline_start <= current_position && current_position <= inline_end) {
             inlines_out[j++] = i;
         }
