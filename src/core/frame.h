@@ -246,6 +246,7 @@ MVMObject * MVM_frame_getdynlex_with_frame_walker(MVMThreadContext *tc, MVMSpesh
         MVMString *name);
 MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame);
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame);
+MVMint64 MVM_frame_lexical_idx(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
 MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
 MVM_PUBLIC MVMRegister * MVM_frame_try_get_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name, MVMuint16 type);
 MVMuint16 MVM_frame_translate_to_primspec(MVMThreadContext *tc, MVMuint16 kind);

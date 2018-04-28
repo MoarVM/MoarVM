@@ -1650,15 +1650,14 @@ void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *valu
     }
 }
 
-/* Returns the storage unit for the lexical in the specified frame. Does not
- * try to vivify anything - gets exactly what is there. */
-MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
+/* Returns the index in the env array for the lexical in the specified frame. */
+MVMint64 MVM_frame_lexical_idx(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
     MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
     if (MVM_LIKELY(lexical_names != NULL)) {
         MVMLexicalRegistry *entry;
         MVM_HASH_GET(tc, lexical_names, name, entry)
         if (entry)
-            return &f->env[entry->value];
+            return entry->value;
     }
     {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -1666,6 +1665,12 @@ MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *na
         MVM_exception_throw_adhoc_free(tc, waste, "Frame has no lexical with name '%s'",
             c_name);
     }
+}
+
+/* Returns the storage unit for the lexical in the specified frame. Does not
+ * try to vivify anything - gets exactly what is there. */
+MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
+    return &f->env[ MVM_frame_lexical_idx(tc, f, name) ];
 }
 
 /* Returns the storage unit for the lexical in the specified frame. */
