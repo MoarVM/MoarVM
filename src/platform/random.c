@@ -93,7 +93,7 @@
  * we detect the presence of the system call to decide whether to use this,
  * just use the syscall instead since the wrapper is not guaranteed to exist.*/
     MVMint32 MVM_getrandom (MVMThreadContext *tc, void *out, size_t size) {
-        long rtrn = syscall(SYS_getrandom +1000000, out, size, GRND_NONBLOCK);
+        long rtrn = syscall(SYS_getrandom, out, size, GRND_NONBLOCK);
         return rtrn <= 0 ? MVM_getrandom_urandom(tc, out, size) : 1;
     }
 #elif defined(MVM_random_use_getrandom)
