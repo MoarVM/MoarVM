@@ -60,6 +60,9 @@ struct MVMHLLConfig {
     /* Array of types to pass to compiler.c */
     MVMObject *mast_types;
 
+    /* Spesh plugins hash. */
+    MVMObject *spesh_plugins;
+
     /* HLL name. */
     MVMString *name;
 

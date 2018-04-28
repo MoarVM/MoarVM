@@ -8,11 +8,30 @@
 /* Registers a new spesh plugin. */
 void MVM_spesh_plugin_register(MVMThreadContext *tc, MVMString *language,
         MVMString *name, MVMObject *plugin) {
+    MVMHLLConfig *hll = MVM_hll_get_config_for(tc, language);
+    uv_mutex_lock(&tc->instance->mutex_hllconfigs);
+    if (!hll->spesh_plugins)
+        hll->spesh_plugins = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+    MVM_repr_bind_key_o(tc, hll->spesh_plugins, name, plugin);
+    uv_mutex_unlock(&tc->instance->mutex_hllconfigs);
 }
 
 /* Resolves a spesh plugin for the current HLL. */
 MVMObject * MVM_spesh_plugin_resolve(MVMThreadContext *tc, MVMString *name) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMHLLConfig *hll = MVM_hll_current(tc);
+    MVMObject *resolved = NULL;
+    uv_mutex_lock(&tc->instance->mutex_hllconfigs);
+    if (hll->spesh_plugins)
+        resolved = MVM_repr_at_key_o(tc, hll->spesh_plugins, name);
+    uv_mutex_unlock(&tc->instance->mutex_hllconfigs);
+    if (MVM_is_null(tc, resolved)) {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
+            "No such spesh plugin '%s' for current language",
+            c_name);
+    }
+    return resolved;
 }
 
 /* Adds a guard that the guardee must have exactly the specified type. Will
