@@ -740,10 +740,9 @@ MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
         name_len = strlen(name);
         /* Turn non-unique codepoint names into unique ones by adding the
          * codepoint
-         * i.e. <CJK Ideograph Extension B> → <CJK Ideograph Extension B-20000>
-         * The ASCII codepoints already have the hex code in them, so no need
-         * to add it */
-        if (name && name[0] == '<' && 255 < codepoint) {
+         * i.e. <CJK UNIFIED IDEOGRAPH> → CJK UNIFIED IDEOGRAPH-20000
+         *      <control> → <control-0000> */
+        if (name && name[0] == '<') {
             size_t i, new_length, num_len = length_of_num_16(codepoint);
             char *new_name = NULL;
             int remove_brack = !strncmp(name, "<CJK", 4) ||

@@ -1762,9 +1762,6 @@ sub UnicodeData {
 
         my $code = hex $code_str;
         my $plane_num = $code >> 16;
-        if ($name eq '<control>' ) {
-            $name = sprintf '<control-%.4X>', $code;
-        }
         my $point = get_next_point($code, 1);
         my $hashy = {
             # Unicode_1_Name is not used yet. We should make sure it ends up
@@ -1798,33 +1795,6 @@ sub UnicodeData {
         if ($name =~ /(Ideograph|Syllable|Private|Surrogate) (\s|.)*? First/x) {
             $ideograph_start = $point;
             $point->{name}   =~ s/, First//;
-            if ($point->{name} eq '<CJK Ideograph Extension A>' ||
-                $point->{name} eq '<CJK Ideograph>' ||
-                $point->{name} eq '<CJK Ideograph Extension B>' ||
-                $point->{name} eq '<CJK Ideograph Extension C>' ||
-                $point->{name} eq '<CJK Ideograph Extension D>' ||
-                $point->{name} eq '<CJK Ideograph Extension E>' ||
-                $point->{name} eq '<CJK Ideograph Extension F>')
-            {
-                $point->{name} = '<CJK UNIFIED IDEOGRAPH>'
-            }
-            elsif ($point->{name} eq '<Tangut Ideograph>') {
-                $point->{name} = '<TANGUT IDEOGRAPH>';
-            }
-            elsif ($point->{name} eq '<Hangul Syllable>' ||
-                $point->{name} eq '<Non Private Use High Surrogate>' ||
-                $point->{name} eq '<Private Use High Surrogate>' ||
-                $point->{name} eq '<Low Surrogate>' ||
-                $point->{name} eq '<Private Use>' ||
-                $point->{name} eq '<Tangut Ideograph>' ||
-                $point->{name} =~ /^<Plane \d+ Private Use>$/) {
-            }
-            else {
-                die "$point->{name} encountered. Make sure to check https://www.unicode.org/versions/Unicode10.0.0/ch04.pdf for Name Derivation Rule Prefix Strings\n" .
-                "Also you will likely have to make a change to MVM_unicode_get_name() and add a test to nqp";
-                say $code_str;
-                exit;
-            }
         }
         elsif ($ideograph_start) {
             $point->{name} = $ideograph_start->{name};
@@ -1837,6 +1807,54 @@ sub UnicodeData {
                 }
             }
             $ideograph_start = 0;
+        }
+        if (substr($point->{name}, 0, 1) eq '<') {
+            if ($point->{name} eq '<CJK Ideograph Extension A>'
+             || $point->{name} eq '<CJK Ideograph>'
+             || $point->{name} eq '<CJK Ideograph Extension B>'
+             || $point->{name} eq '<CJK Ideograph Extension C>'
+             || $point->{name} eq '<CJK Ideograph Extension D>'
+             || $point->{name} eq '<CJK Ideograph Extension E>'
+             || $point->{name} eq '<CJK Ideograph Extension F>')
+            {
+                $point->{name} = '<CJK UNIFIED IDEOGRAPH>'
+            }
+            elsif ($point->{name} eq '<Tangut Ideograph>') {
+                $point->{name} = '<TANGUT IDEOGRAPH>';
+            }
+            elsif ($point->{name} eq '<Hangul Syllable>') {
+                $point->{name} = '<HANGUL SYLLABLE>';
+            }
+            elsif ($point->{name} eq '<Private Use>'
+                || $point->{name} =~ /^<Plane \d+ Private Use>$/)
+            {
+                die unless $gencat eq 'Co';
+                $point->{name} = '<private-use>';
+            }
+            elsif ($point->{name} eq '<Non Private Use High Surrogate>'
+                || $point->{name} eq '<Private Use High Surrogate>'
+                || $point->{name} eq '<Low Surrogate>')
+            {
+                die unless $gencat eq 'Cs';
+                $point->{name} = '<surrogate>';
+            }
+            if ($point->{name} eq '<HANGUL SYLLABLE>'
+             || $point->{name} eq '<control>'
+             || $point->{name} eq '<CJK UNIFIED IDEOGRAPH>'
+             || $point->{name} eq '<private-use>'
+             || $point->{name} eq '<surrogate>'
+             || $point->{name} eq '<TANGUT IDEOGRAPH>') {
+            }
+            else {
+                die "$point->{name} encountered. Make sure to check https://www.unicode.org/versions/Unicode10.0.0/ch04.pdf for Name Derivation Rule Prefix Strings\n" .
+                "Also you will likely have to make a change to MVM_unicode_get_name() and add a test to nqp";
+                say $code_str;
+                exit;
+            }
+        }
+        if ($point->{name} =~ /^CJK COMPATIBILITY IDEOGRAPH-([A-F0-9]+)$/) {
+            die unless sprintf("%.4X", $code) eq $1;
+            $point->{name} = "<CJK COMPATIBILITY IDEOGRAPH>";
         }
     };
     each_line('UnicodeData', $s);
@@ -2006,7 +2024,7 @@ sub Jamo {
     });
     my @hangul_syllables;
     for my $key (sort keys %{$POINTS_BY_CODE}) {
-        if ($POINTS_BY_CODE->{$key}->{name} and $POINTS_BY_CODE->{$key}->{name} eq '<Hangul Syllable>') {
+        if ($POINTS_BY_CODE->{$key}->{name} and $POINTS_BY_CODE->{$key}->{name} eq '<HANGUL SYLLABLE>') {
             push @hangul_syllables, $key;
         }
     }
