@@ -689,7 +689,43 @@ MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) 
         generate_codepoints_by_name(tc);
     }
     HASH_FIND(hash_handle, codepoints_by_name, cname, cname_len, result);
-
+    if (!result) {
+        #define prefixes_len 7
+        const char *prefixes[prefixes_len] = {
+            "CJK UNIFIED IDEOGRAPH-",
+            "CJK COMPATIBILITY IDEOGRAPH-",
+            "<CONTROL-",
+            "<RESERVED-",
+            "<SURROGATE-",
+            "<PRIVATE-USE-",
+            "TANGUT IDEOGRAPH-"
+        };
+        int i;
+        for (i = 0; i < prefixes_len; i++) {
+            int str_len = strlen(prefixes[i]);
+            if (cname_len <= str_len)
+                continue;
+            /* Make sure to catch conditions which strtoll is ok with but we
+             * don't want to allow. So don't allow leading space, or -/+ and don't
+             * allow 0x */
+            if (cname[str_len] == '-' || cname[str_len] == '+' || cname[str_len] == ' ')
+                continue;
+            if (cname_len >= str_len + 2 && cname[str_len+1] == 'X')
+                continue;
+            if (!strncmp(cname, prefixes[i], str_len)) {
+                char *reject = NULL;
+                MVMint64 rtrn = strtoll(cname + strlen(prefixes[i]), &reject, 16);
+                if (prefixes[i][0] == '<' && *reject == '>' && reject - cname + 1 == cname_len) {
+                    MVM_free(cname);
+                    return rtrn;
+                }
+                else if ((*reject == '\0' && !(rtrn == 0 && reject == cname + str_len))) {
+                    MVM_free(cname);
+                    return rtrn;
+                }
+            }
+        }
+    }
     MVM_free(cname);
     return result ? result->codepoint : -1;
 }
