@@ -714,7 +714,7 @@ MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) 
                 continue;
             if (!strncmp(cname, prefixes[i], str_len)) {
                 char *reject = NULL;
-                MVMint64 rtrn = strtoll(cname + strlen(prefixes[i]), &reject, 16);
+                MVMint64 rtrn = strtol(cname + strlen(prefixes[i]), &reject, 16);
                 if (prefixes[i][0] == '<' && *reject == '>' && reject - cname + 1 == cname_len) {
                     MVM_free(cname);
                     return rtrn;
