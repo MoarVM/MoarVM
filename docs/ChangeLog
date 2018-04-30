@@ -1,6 +1,11 @@
 See https://github.com/MoarVM/MoarVM/wiki/ChangeLog-Draft for the draft changelog
 since the previous release.
 
+New in 2018.04.1
+
+Math:
++ Fix denormals and precision issues in Num parser
+
 New in 2018.04
 
 Strings:
