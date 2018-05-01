@@ -26,6 +26,9 @@ struct MVMSpeshPluginGuardSet {
     MVMuint32 num_guards;
 };
 
+/* The maximum number of guards a spesh plugin can set up. */
+#define MVM_SPESH_PLUGIN_GUARD_LIMIT    16
+
 /* Types of guard that we have. */
 #define MVM_SPESH_PLUGIN_GUARD_RESULT   0   /* Node indicating a match */
 #define MVM_SPESH_PLUGIN_GUARD_OBJ      1   /* Literal object match */
@@ -78,5 +81,7 @@ MVMObject * MVM_spesh_plugin_addguard_getattr(MVMThreadContext *tc, MVMObject *g
     MVMObject *class_handle, MVMString *name);
 
 /* Functions for dealing with spesh plugin state. */
+void MVM_spesh_plugin_guard_list_mark(MVMThreadContext *tc, MVMSpeshPluginGuard *guards,
+    MVMuint32 num_guards, MVMGCWorklist *worklist);
 void MVM_spesh_plugin_state_mark(MVMThreadContext *tc, MVMSpeshPluginState *ps, MVMGCWorklist *worklist);
 void MVM_spesh_plugin_state_free(MVMThreadContext *tc, MVMSpeshPluginState *ps);

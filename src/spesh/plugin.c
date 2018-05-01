@@ -49,12 +49,23 @@ static MVMSpeshPluginGuardSet * guard_set_for_position(MVMThreadContext *tc,
 static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet *gs) {
     MVMuint32 pos = 0;
     MVMuint32 end = gs->num_guards;
+    MVMRegister *args = tc->cur_frame->args;
     while (pos < end) {
-        switch (gs->guards[pos].kind) {
-            case MVM_SPESH_PLUGIN_GUARD_RESULT:
-                return gs->guards[pos].u.result;
-            default:
-                MVM_panic(1, "Guard kind NYI");
+        MVMuint16 kind = gs->guards[pos].kind;
+        if (kind == MVM_SPESH_PLUGIN_GUARD_RESULT) {
+            return gs->guards[pos].u.result;
+        }
+        else {
+            MVMObject *test = args[gs->guards[pos].test_idx].o;
+            switch (kind) {
+                case MVM_SPESH_PLUGIN_GUARD_OBJ:
+                    pos += test == gs->guards[pos].u.object
+                        ? 1
+                        : gs->guards[pos].skip_on_fail;
+                    break;
+                default:
+                    MVM_panic(1, "Guard kind NYI");
+            }
         }
     }
     return NULL;
@@ -70,21 +81,49 @@ static MVMObject * resolve_using_guards(MVMThreadContext *tc, MVMuint32 cur_posi
 /* Produces an updated guard set with the given resolution result. Returns
  * the base guard set if we already having a matching guard (which means two
  * threads raced to do this resolution). */
-/* TODO Update this when we actually have guards recorded etc. */
+static MVMint32 already_have_guard(MVMThreadContext *tc, MVMSpeshPluginGuardSet *base_guards) {
+    return 0;
+}
 static MVMSpeshPluginGuardSet * append_guard(MVMThreadContext *tc,
         MVMSpeshPluginGuardSet *base_guards, MVMObject *resolved,
         MVMStaticFrameSpesh *barrier) {
     MVMSpeshPluginGuardSet *result;
-    if (!base_guards) {
-        result = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMSpeshPluginGuardSet));
-        result->num_guards = 1;
-        result->guards = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-                sizeof(MVMSpeshPluginGuard) * result->num_guards);
-        result->guards[0].kind = MVM_SPESH_PLUGIN_GUARD_RESULT;
-        MVM_ASSIGN_REF(tc, &(barrier->common.header), result->guards[0].u.result, resolved);
+    if (base_guards && already_have_guard(tc, base_guards)) {
+        result = base_guards;
     }
     else {
-        result = base_guards;
+        MVMuint32 insert_pos, i;
+        result = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMSpeshPluginGuardSet));
+        result->num_guards = (base_guards ? base_guards->num_guards : 0) +
+            tc->num_plugin_guards + 1; /* + 1 for result node */
+        result->guards = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+                sizeof(MVMSpeshPluginGuard) * result->num_guards);
+        if (base_guards) {
+            memcpy(result->guards, base_guards->guards,
+                    base_guards->num_guards * sizeof(MVMSpeshPluginGuard));
+            insert_pos = base_guards->num_guards;
+        }
+        else {
+            insert_pos = 0;
+        }
+        for (i = 0; i < tc->num_plugin_guards; i++) {
+            result->guards[insert_pos].kind = tc->plugin_guards[i].kind;
+            result->guards[insert_pos].test_idx = tc->plugin_guards[i].test_idx;
+            result->guards[insert_pos].skip_on_fail = 1 + tc->num_plugin_guards - i;
+            switch (tc->plugin_guards[i].kind) {
+                case MVM_SPESH_PLUGIN_GUARD_OBJ:
+                    MVM_ASSIGN_REF(tc, &(barrier->common.header),
+                            result->guards[insert_pos].u.object,
+                            tc->plugin_guards[i].u.object);
+                    break;
+                default:
+                    MVM_panic(1, "Unexpected spesh plugin guard type");
+            }
+            insert_pos++;
+        }
+        result->guards[insert_pos].kind = MVM_SPESH_PLUGIN_GUARD_RESULT;
+        MVM_ASSIGN_REF(tc, &(barrier->common.header),
+                result->guards[insert_pos].u.result, resolved);
     }
     return result;
 }
@@ -193,6 +232,14 @@ static void add_resolution_to_guard_set(MVMThreadContext *tc, void *sr_data) {
             free_dead_state(tc, new_state);
         }
     }
+
+    /* Clear up recording state. */
+    MVM_fixed_size_free(tc, tc->instance->fsa,
+            MVM_SPESH_PLUGIN_GUARD_LIMIT * sizeof(MVMSpeshPluginGuard),
+            tc->plugin_guards);
+    tc->plugin_guards = NULL;
+    tc->plugin_guard_args = NULL;
+
     MVM_free(srd);
 }
 
@@ -200,6 +247,29 @@ static void add_resolution_to_guard_set(MVMThreadContext *tc, void *sr_data) {
  * recorded guards so as not to leak memory. */
 static void cleanup_recorded_guards(MVMThreadContext *tc, void *sr_data) {
     MVM_panic(1, "NYI");
+}
+
+/* Sets up state in the current thread context for recording guards. */
+static void setup_for_guard_recording(MVMThreadContext *tc, MVMCallsite *callsite) {
+    /* Validate the callsite meets restrictions. */
+    MVMuint32 i = 0;
+    if (tc->plugin_guards)
+        MVM_exception_throw_adhoc(tc, "Recursive spesh plugin setup not yet implemented");
+    if (callsite->num_pos != callsite->flag_count)
+        MVM_exception_throw_adhoc(tc, "A spesh plugin must have only positional args");
+    if (callsite->has_flattening)
+        MVM_exception_throw_adhoc(tc, "A spesh plugin must not have flattening args");
+    for (i = 0; i < callsite->flag_count; i++)
+        if (callsite->arg_flags[i] != MVM_CALLSITE_ARG_OBJ)
+            MVM_exception_throw_adhoc(tc, "A spesh plugin must only be passed object args");
+
+    /* Set up guard recording space and arguments array. */
+    tc->plugin_guards = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+            MVM_SPESH_PLUGIN_GUARD_LIMIT * sizeof(MVMSpeshPluginGuard));
+    tc->num_plugin_guards = 0;
+    tc->plugin_guard_args = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+    for (i = 0; i < callsite->flag_count; i++)
+        MVM_repr_push_o(tc, tc->plugin_guard_args, tc->cur_frame->args[i].o);
 }
 
 /* Resolves a spesh plugin for the current HLL. */
@@ -230,6 +300,11 @@ void MVM_spesh_plugin_resolve(MVMThreadContext *tc, MVMString *name,
                 c_name);
         }
 
+        /* Set up the guard state to record into. */
+        MVMROOT(tc, plugin, {
+            setup_for_guard_recording(tc, callsite);
+        });
+
         /* Run it, registering handlers to save or discard guards and result. */
         tc->cur_frame->return_value = result;
         tc->cur_frame->return_type = MVM_RETURN_OBJ;
@@ -241,6 +316,32 @@ void MVM_spesh_plugin_resolve(MVMThreadContext *tc, MVMString *name,
                 cleanup_recorded_guards, srd, NULL);
         STABLE(plugin)->invoke(tc, plugin, callsite, tc->cur_frame->args);
     }
+}
+
+/* Returns a pointer into the current recording guard set for the guard we
+ * should write into. */
+MVMSpeshPluginGuard * get_guard_to_record_into(MVMThreadContext *tc) {
+    if (tc->plugin_guards) {
+        if (tc->num_plugin_guards < MVM_SPESH_PLUGIN_GUARD_LIMIT) {
+            return &(tc->plugin_guards[tc->num_plugin_guards++]);
+        }
+        else {
+            MVM_exception_throw_adhoc(tc, "Too many guards recorded by spesh plugin");
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Not in a spesh plugin, so cannot record a guard");
+    }
+}
+
+/* Gets the index of the guarded args to record a guard against. */
+MVMuint16 get_guard_arg_index(MVMThreadContext *tc, MVMObject *find) {
+    MVMint64 n = MVM_repr_elems(tc, tc->plugin_guard_args);
+    MVMint64 i;
+    for (i = 0; i < n; i++)
+        if (MVM_repr_at_pos_o(tc, tc->plugin_guard_args, i) == find)
+            return (MVMuint16)i;
+    MVM_exception_throw_adhoc(tc, "Object not in set of those to guard against");
 }
 
 /* Adds a guard that the guardee must have exactly the specified type. Will
@@ -261,6 +362,11 @@ void MVM_spesh_plugin_addguard_typeobj(MVMThreadContext *tc, MVMObject *guardee)
 /* Adds a guard that the guardee must exactly match the provided object
  * literal. Will throw if we are not currently inside of a spesh plugin. */
 void MVM_spesh_plugin_addguard_obj(MVMThreadContext *tc, MVMObject *guardee) {
+    MVMuint16 idx = get_guard_arg_index(tc, guardee);
+    MVMSpeshPluginGuard *guard = get_guard_to_record_into(tc);
+    guard->kind = MVM_SPESH_PLUGIN_GUARD_OBJ;
+    guard->test_idx = idx;
+    guard->u.object = guardee;
 }
 
 /* Gets an attribute and adds that object to the set of objects that we may
@@ -271,30 +377,37 @@ MVMObject * MVM_spesh_plugin_addguard_getattr(MVMThreadContext *tc, MVMObject *g
     return MVM_repr_get_attr_o(tc, guardee, class_handle, name, MVM_NO_HINT);
 }
 
+/* Called to mark a guard list. */
+void MVM_spesh_plugin_guard_list_mark(MVMThreadContext *tc, MVMSpeshPluginGuard *guards,
+                                      MVMuint32 num_guards, MVMGCWorklist *worklist) {
+    MVMuint32 i;
+    for (i = 0; i < num_guards; i++) {
+        switch (guards[i].kind) {
+            case MVM_SPESH_PLUGIN_GUARD_RESULT:
+                MVM_gc_worklist_add(tc, worklist, guards[i].u.result);
+                break;
+            case MVM_SPESH_PLUGIN_GUARD_OBJ:
+                MVM_gc_worklist_add(tc, worklist, guards[i].u.object);
+                break;
+            case MVM_SPESH_PLUGIN_GUARD_TYPE:
+                MVM_gc_worklist_add(tc, worklist, guards[i].u.type);
+                break;
+            case MVM_SPESH_PLUGIN_GUARD_GETATTR:
+                MVM_gc_worklist_add(tc, worklist, guards[i].u.attr.class_handle);
+                MVM_gc_worklist_add(tc, worklist, guards[i].u.attr.name);
+                break;
+        }
+    }
+}
+
 /* Called from the GC to mark the spesh plugin state. */
 void MVM_spesh_plugin_state_mark(MVMThreadContext *tc, MVMSpeshPluginState *ps,
                                  MVMGCWorklist *worklist) {
     if (ps) {
-        MVMuint32 i, j;
+        MVMuint32 i;
         for (i = 0; i < ps->num_positions; i++) {
             MVMSpeshPluginGuardSet *gs = ps->positions[i].guard_set;
-            for (j = 0; j < gs->num_guards; j++) {
-                switch (gs->guards[j].kind) {
-                    case MVM_SPESH_PLUGIN_GUARD_RESULT:
-                        MVM_gc_worklist_add(tc, worklist, &gs->guards[j].u.result);
-                        break;
-                    case MVM_SPESH_PLUGIN_GUARD_OBJ:
-                        MVM_gc_worklist_add(tc, worklist, &gs->guards[j].u.object);
-                        break;
-                    case MVM_SPESH_PLUGIN_GUARD_TYPE:
-                        MVM_gc_worklist_add(tc, worklist, &gs->guards[j].u.type);
-                        break;
-                    case MVM_SPESH_PLUGIN_GUARD_GETATTR:
-                        MVM_gc_worklist_add(tc, worklist, &gs->guards[j].u.attr.class_handle);
-                        MVM_gc_worklist_add(tc, worklist, &gs->guards[j].u.attr.name);
-                        break;
-                }
-            }
+            MVM_spesh_plugin_guard_list_mark(tc, gs->guards, gs->num_guards, worklist);
         }
     }
 }
