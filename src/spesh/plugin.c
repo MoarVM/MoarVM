@@ -46,17 +46,22 @@ static MVMSpeshPluginGuardSet * guard_set_for_position(MVMThreadContext *tc,
 }
 
 /* Looks through a guard set and returns any result that matches. */
-static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet *gs) {
+static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet *gs, MVMCallsite *callsite) {
     MVMuint32 pos = 0;
     MVMuint32 end = gs->num_guards;
     MVMRegister *args = tc->cur_frame->args;
+    MVMuint32 arg_end = callsite->flag_count;
+    MVMObject *collected_objects = tc->instance->VMNull;
     while (pos < end) {
         MVMuint16 kind = gs->guards[pos].kind;
         if (kind == MVM_SPESH_PLUGIN_GUARD_RESULT) {
             return gs->guards[pos].u.result;
         }
         else {
-            MVMObject *test = args[gs->guards[pos].test_idx].o;
+            MVMuint16 test_idx = gs->guards[pos].test_idx;
+            MVMObject *test = test_idx < arg_end
+                    ? args[test_idx].o
+                    : MVM_repr_at_pos_o(tc, collected_objects, test_idx - arg_end);
             switch (kind) {
                 case MVM_SPESH_PLUGIN_GUARD_OBJ:
                     pos += test == gs->guards[pos].u.object
@@ -74,8 +79,18 @@ static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet 
                 case MVM_SPESH_PLUGIN_GUARD_TYPEOBJ:
                     pos += IS_CONCRETE(test) ? gs->guards[pos].skip_on_fail : 1;
                     break;
+                case MVM_SPESH_PLUGIN_GUARD_GETATTR:
+                    if (MVM_is_null(tc, collected_objects))
+                        collected_objects = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+                    MVMROOT(tc, collected_objects, {
+                        MVMObject *attr = MVM_repr_get_attr_o(tc, test,
+                                gs->guards[pos].u.attr.class_handle, gs->guards[pos].u.attr.name, MVM_NO_HINT);
+                        MVM_repr_push_o(tc, collected_objects, attr);
+                    });
+                    pos++;
+                    break;
                 default:
-                    MVM_panic(1, "Guard kind NYI");
+                    MVM_panic(1, "Guard kind unrecognized in spesh plugin guard set");
             }
         }
     }
@@ -83,10 +98,10 @@ static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet 
 }
 
 /* Tries to resolve a plugin by looking at the guards for the position. */
-static MVMObject * resolve_using_guards(MVMThreadContext *tc, MVMuint32 cur_position) {
+static MVMObject * resolve_using_guards(MVMThreadContext *tc, MVMuint32 cur_position, MVMCallsite *callsite) {
     MVMSpeshPluginState *ps = get_plugin_state(tc, tc->cur_frame->static_info);
     MVMSpeshPluginGuardSet *gs = guard_set_for_position(tc, cur_position, ps);
-    return gs ? evaluate_guards(tc, gs) : NULL;
+    return gs ? evaluate_guards(tc, gs, callsite) : NULL;
 }
 
 /* Produces an updated guard set with the given resolution result. Returns
@@ -135,6 +150,14 @@ static MVMSpeshPluginGuardSet * append_guard(MVMThreadContext *tc,
                 case MVM_SPESH_PLUGIN_GUARD_CONC:
                 case MVM_SPESH_PLUGIN_GUARD_TYPEOBJ:
                     /* These carry no extra argument. */
+                    break;
+                case MVM_SPESH_PLUGIN_GUARD_GETATTR:
+                    MVM_ASSIGN_REF(tc, &(barrier->common.header),
+                            result->guards[insert_pos].u.attr.class_handle,
+                            tc->plugin_guards[i].u.attr.class_handle);
+                    MVM_ASSIGN_REF(tc, &(barrier->common.header),
+                            result->guards[insert_pos].u.attr.name,
+                            tc->plugin_guards[i].u.attr.name);
                     break;
                 default:
                     MVM_panic(1, "Unexpected spesh plugin guard type");
@@ -297,7 +320,10 @@ void MVM_spesh_plugin_resolve(MVMThreadContext *tc, MVMString *name,
                               MVMRegister *result, MVMuint8 *op_addr,
                               MVMuint8 *next_addr, MVMCallsite *callsite) {
     MVMuint32 position = (MVMuint32)(op_addr - *tc->interp_bytecode_start);
-    MVMObject *resolved = resolve_using_guards(tc, position);
+    MVMObject *resolved;
+    MVMROOT(tc, name, {
+        resolved = resolve_using_guards(tc, position, callsite);
+    });
     if (resolved) {
         /* Resolution through guard tree successful, so no invoke needed. */
         result->o = resolved;
@@ -407,7 +433,16 @@ void MVM_spesh_plugin_addguard_obj(MVMThreadContext *tc, MVMObject *guardee) {
  * plugin. */
 MVMObject * MVM_spesh_plugin_addguard_getattr(MVMThreadContext *tc, MVMObject *guardee,
             MVMObject *class_handle, MVMString *name) {
-    return MVM_repr_get_attr_o(tc, guardee, class_handle, name, MVM_NO_HINT);
+    MVMObject *attr;
+    MVMuint16 idx = get_guard_arg_index(tc, guardee);
+    MVMSpeshPluginGuard *guard = get_guard_to_record_into(tc);
+    guard->kind = MVM_SPESH_PLUGIN_GUARD_GETATTR;
+    guard->test_idx = idx;
+    guard->u.attr.class_handle = class_handle;
+    guard->u.attr.name = name;
+    attr = MVM_repr_get_attr_o(tc, guardee, class_handle, name, MVM_NO_HINT);
+    MVM_repr_push_o(tc, tc->plugin_guard_args, attr);
+    return attr;
 }
 
 /* Called to mark a guard list. */
