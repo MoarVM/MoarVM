@@ -18,11 +18,50 @@ struct MVMSpeshPluginPosition {
     MVMuint32 bytecode_position;
 };
 
-/* The guard set held at a particular position. */
+/* The guard set held at a particular position. This is an array of guards
+ * clauses to evaluate, with a count of them to know when we hit the end.
+ * We just append new guard sets to the end. */
 struct MVMSpeshPluginGuardSet {
-    /* TODO Actually implement the guard structure. For now, just always
-     * return the same thing once resolved. */
-    MVMObject *resolved;
+    MVMSpeshPluginGuard *guards;
+    MVMuint32 num_guards;
+};
+
+/* Types of guard that we have. */
+#define MVM_SPESH_PLUGIN_GUARD_RESULT   0   /* Node indicating a match */
+#define MVM_SPESH_PLUGIN_GUARD_OBJ      1   /* Literal object match */
+#define MVM_SPESH_PLUGIN_GUARD_TYPE     2   /* Exact type match guard */
+#define MVM_SPESH_PLUGIN_GUARD_CONC     3   /* Concrete object guard */
+#define MVM_SPESH_PLUGIN_GUARD_TYPEOBJ  4   /* Type object guard */
+#define MVM_SPESH_PLUGIN_GUARD_GETATTR  5   /* Gets an attribute for testing */
+
+/* An individual guard. */
+struct MVMSpeshPluginGuard {
+    /* What kind of guard is this? */
+    MVMuint16 kind;
+
+    /* What arg should we read the value to test from? Up to the number of
+     * callsite positionals will read from the args buffer; beyond that will
+     * read from the buffer of results from a GETATTR guard (those are
+     * appended in the order they happen). */
+    MVMuint16 test_idx;
+
+    /* If we fail this, how many nodes should we skip over? */
+    MVMuint16 skip_on_fail;
+
+    /* Union used depending on the kind of guard. */
+    union {
+        /* The result to return; used for RESULT guard. */
+        MVMObject *result;
+        /* The object literal to test against; used for OBJ guard. */
+        MVMObject *object;
+        /* The type to test against, used for TYPE guard. */
+        MVMObject *type;
+        /* The attribute to load for further testing. */
+        struct {
+            MVMObject *class_handle;
+            MVMString *name;
+        } attr;
+    } u;
 };
 
 /* Functions called from the interpreter as spesh plugins are encountered and

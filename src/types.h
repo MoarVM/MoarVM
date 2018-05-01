@@ -180,6 +180,7 @@ typedef struct MVMSpeshLogEntry MVMSpeshLogEntry;
 typedef struct MVMSpeshPluginState MVMSpeshPluginState;
 typedef struct MVMSpeshPluginPosition MVMSpeshPluginPosition;
 typedef struct MVMSpeshPluginGuardSet MVMSpeshPluginGuardSet;
+typedef struct MVMSpeshPluginGuard MVMSpeshPluginGuard;
 typedef struct MVMSpeshStats MVMSpeshStats;
 typedef struct MVMSpeshStatsByCallsite MVMSpeshStatsByCallsite;
 typedef struct MVMSpeshStatsByType MVMSpeshStatsByType;

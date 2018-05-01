@@ -45,11 +45,26 @@ static MVMSpeshPluginGuardSet * guard_set_for_position(MVMThreadContext *tc,
     return NULL;
 }
 
+/* Looks through a guard set and returns any result that matches. */
+static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet *gs) {
+    MVMuint32 pos = 0;
+    MVMuint32 end = gs->num_guards;
+    while (pos < end) {
+        switch (gs->guards[pos].kind) {
+            case MVM_SPESH_PLUGIN_GUARD_RESULT:
+                return gs->guards[pos].u.result;
+            default:
+                MVM_panic(1, "Guard kind NYI");
+        }
+    }
+    return NULL;
+}
+
 /* Tries to resolve a plugin by looking at the guards for the position. */
 static MVMObject * resolve_using_guards(MVMThreadContext *tc, MVMuint32 cur_position) {
     MVMSpeshPluginState *ps = get_plugin_state(tc, tc->cur_frame->static_info);
     MVMSpeshPluginGuardSet *gs = guard_set_for_position(tc, cur_position, ps);
-    return gs ? gs->resolved : NULL;
+    return gs ? evaluate_guards(tc, gs) : NULL;
 }
 
 /* Produces an updated guard set with the given resolution result. Returns
@@ -62,7 +77,11 @@ static MVMSpeshPluginGuardSet * append_guard(MVMThreadContext *tc,
     MVMSpeshPluginGuardSet *result;
     if (!base_guards) {
         result = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMSpeshPluginGuardSet));
-        MVM_ASSIGN_REF(tc, &(barrier->common.header), result->resolved, resolved);
+        result->num_guards = 1;
+        result->guards = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+                sizeof(MVMSpeshPluginGuard) * result->num_guards);
+        result->guards[0].kind = MVM_SPESH_PLUGIN_GUARD_RESULT;
+        MVM_ASSIGN_REF(tc, &(barrier->common.header), result->guards[0].u.result, resolved);
     }
     else {
         result = base_guards;
@@ -125,9 +144,12 @@ MVMSpeshPluginState * updated_state(MVMThreadContext *tc, MVMSpeshPluginState *b
 
 /* Schedules replaced guards to be freed. */
 void free_dead_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet *gs) {
-    if (gs)
+    if (gs) {
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
+                gs->num_guards * sizeof(MVMSpeshPluginGuard), gs->guards);
         MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
                 sizeof(MVMSpeshPluginGuardSet), gs);
+    }
 }
 
 /* Schedules replaced state to be freed. */
@@ -253,9 +275,27 @@ MVMObject * MVM_spesh_plugin_addguard_getattr(MVMThreadContext *tc, MVMObject *g
 void MVM_spesh_plugin_state_mark(MVMThreadContext *tc, MVMSpeshPluginState *ps,
                                  MVMGCWorklist *worklist) {
     if (ps) {
-        MVMuint32 i;
-        for (i = 0; i < ps->num_positions; i++)
-            MVM_gc_worklist_add(tc, worklist, &ps->positions[i].guard_set->resolved);
+        MVMuint32 i, j;
+        for (i = 0; i < ps->num_positions; i++) {
+            MVMSpeshPluginGuardSet *gs = ps->positions[i].guard_set;
+            for (j = 0; j < gs->num_guards; j++) {
+                switch (gs->guards[j].kind) {
+                    case MVM_SPESH_PLUGIN_GUARD_RESULT:
+                        MVM_gc_worklist_add(tc, worklist, &gs->guards[j].u.result);
+                        break;
+                    case MVM_SPESH_PLUGIN_GUARD_OBJ:
+                        MVM_gc_worklist_add(tc, worklist, &gs->guards[j].u.object);
+                        break;
+                    case MVM_SPESH_PLUGIN_GUARD_TYPE:
+                        MVM_gc_worklist_add(tc, worklist, &gs->guards[j].u.type);
+                        break;
+                    case MVM_SPESH_PLUGIN_GUARD_GETATTR:
+                        MVM_gc_worklist_add(tc, worklist, &gs->guards[j].u.attr.class_handle);
+                        MVM_gc_worklist_add(tc, worklist, &gs->guards[j].u.attr.name);
+                        break;
+                }
+            }
+        }
     }
 }
 
@@ -266,6 +306,9 @@ void MVM_spesh_plugin_state_free(MVMThreadContext *tc, MVMSpeshPluginState *ps) 
     if (ps) {
         MVMuint32 i;
         for (i = 0; i < ps->num_positions; i++) {
+            MVM_fixed_size_free(tc, tc->instance->fsa,
+                    ps->positions[i].guard_set->num_guards * sizeof(MVMSpeshPluginGuard),
+                    ps->positions[i].guard_set->guards);
             MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMSpeshPluginGuardSet),
                     ps->positions[i].guard_set);
         }
