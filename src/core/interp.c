@@ -5329,14 +5329,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(speshresolve): {
-                MVMObject *resolver = MVM_spesh_plugin_resolve(tc,
-                    MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)));
-                MVMRegister *args = tc->cur_frame->args;
-                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
-                tc->cur_frame->return_type = MVM_RETURN_OBJ;
-                cur_op += 6;
-                tc->cur_frame->return_address = cur_op;
-                STABLE(resolver)->invoke(tc, resolver, cur_callsite, args);
+                MVM_spesh_plugin_resolve(tc, MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)),
+                        &GET_REG(cur_op, 0), cur_op - 2, cur_op + 6, cur_callsite);
                 goto NEXT;
             }
             OP(speshguardtype):

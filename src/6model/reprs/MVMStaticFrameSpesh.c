@@ -36,6 +36,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
                 MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i]->inlines[j].sf);
         }
     }
+    MVM_spesh_plugin_state_mark(tc, body->plugin_state, worklist);
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -51,6 +52,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         MVM_fixed_size_free(tc, tc->instance->fsa,
             sfs->body.num_spesh_candidates * sizeof(MVMSpeshCandidate *),
             sfs->body.spesh_candidates);
+    MVM_spesh_plugin_state_free(tc, sfs->body.plugin_state);
 }
 
 static const MVMStorageSpec storage_spec = {
