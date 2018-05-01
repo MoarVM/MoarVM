@@ -141,6 +141,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "gc/finalize.h"
 #include "core/regionalloc.h"
 #include "spesh/dump.h"
+#include "spesh/debug.h"
 #include "spesh/graph.h"
 #include "spesh/codegen.h"
 #include "spesh/candidate.h"

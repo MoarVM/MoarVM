@@ -200,6 +200,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/lookup@obj@ \
           src/spesh/iterator@obj@ \
           src/spesh/worker@obj@ \
+          src/spesh/debug@obj@ \
           src/spesh/stats@obj@ \
           src/spesh/plan@obj@ \
           src/spesh/arg_guard@obj@ \
@@ -255,7 +256,7 @@ HEADERS = src/moar.h \
           src/core/loadbytecode.h \
           src/core/bitmap.h \
           src/math/num.h \
-		  src/math/grisu.h \
+          src/math/grisu.h \
           src/core/coerce.h \
           src/core/dll.h \
           src/core/ext.h \
@@ -342,6 +343,7 @@ HEADERS = src/moar.h \
           src/mast/driver.h \
           src/mast/nodes.h \
           src/spesh/dump.h \
+          src/spesh/debug.h \
           src/spesh/graph.h \
           src/spesh/codegen.h \
           src/spesh/candidate.h \
