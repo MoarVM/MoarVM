@@ -63,6 +63,17 @@ static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet 
                         ? 1
                         : gs->guards[pos].skip_on_fail;
                     break;
+                case MVM_SPESH_PLUGIN_GUARD_TYPE:
+                    pos += STABLE(test) == gs->guards[pos].u.type
+                        ? 1
+                        : gs->guards[pos].skip_on_fail;
+                    break;
+                case MVM_SPESH_PLUGIN_GUARD_CONC:
+                    pos += IS_CONCRETE(test) ? 1 : gs->guards[pos].skip_on_fail;
+                    break;
+                case MVM_SPESH_PLUGIN_GUARD_TYPEOBJ:
+                    pos += IS_CONCRETE(test) ? gs->guards[pos].skip_on_fail : 1;
+                    break;
                 default:
                     MVM_panic(1, "Guard kind NYI");
             }
@@ -115,6 +126,15 @@ static MVMSpeshPluginGuardSet * append_guard(MVMThreadContext *tc,
                     MVM_ASSIGN_REF(tc, &(barrier->common.header),
                             result->guards[insert_pos].u.object,
                             tc->plugin_guards[i].u.object);
+                    break;
+                case MVM_SPESH_PLUGIN_GUARD_TYPE:
+                    MVM_ASSIGN_REF(tc, &(barrier->common.header),
+                            result->guards[insert_pos].u.type,
+                            tc->plugin_guards[i].u.type);
+                    break;
+                case MVM_SPESH_PLUGIN_GUARD_CONC:
+                case MVM_SPESH_PLUGIN_GUARD_TYPEOBJ:
+                    /* These carry no extra argument. */
                     break;
                 default:
                     MVM_panic(1, "Unexpected spesh plugin guard type");
@@ -347,16 +367,29 @@ MVMuint16 get_guard_arg_index(MVMThreadContext *tc, MVMObject *find) {
 /* Adds a guard that the guardee must have exactly the specified type. Will
  * throw if we are not currently inside of a spesh plugin. */
 void MVM_spesh_plugin_addguard_type(MVMThreadContext *tc, MVMObject *guardee, MVMObject *type) {
+    MVMuint16 idx = get_guard_arg_index(tc, guardee);
+    MVMSpeshPluginGuard *guard = get_guard_to_record_into(tc);
+    guard->kind = MVM_SPESH_PLUGIN_GUARD_TYPE;
+    guard->test_idx = idx;
+    guard->u.type = STABLE(type);
 }
 
 /* Adds a guard that the guardee must be concrete. Will throw if we are not
  * currently inside of a spesh plugin. */
 void MVM_spesh_plugin_addguard_concrete(MVMThreadContext *tc, MVMObject *guardee) {
+    MVMuint16 idx = get_guard_arg_index(tc, guardee);
+    MVMSpeshPluginGuard *guard = get_guard_to_record_into(tc);
+    guard->kind = MVM_SPESH_PLUGIN_GUARD_CONC;
+    guard->test_idx = idx;
 }
 
 /* Adds a guard that the guardee must not be concrete. Will throw if we are
  * not currently inside of a spesh plugin. */
 void MVM_spesh_plugin_addguard_typeobj(MVMThreadContext *tc, MVMObject *guardee) {
+    MVMuint16 idx = get_guard_arg_index(tc, guardee);
+    MVMSpeshPluginGuard *guard = get_guard_to_record_into(tc);
+    guard->kind = MVM_SPESH_PLUGIN_GUARD_TYPEOBJ;
+    guard->test_idx = idx;
 }
 
 /* Adds a guard that the guardee must exactly match the provided object

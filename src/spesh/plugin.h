@@ -58,7 +58,7 @@ struct MVMSpeshPluginGuard {
         /* The object literal to test against; used for OBJ guard. */
         MVMObject *object;
         /* The type to test against, used for TYPE guard. */
-        MVMObject *type;
+        MVMSTable *type;
         /* The attribute to load for further testing. */
         struct {
             MVMObject *class_handle;
