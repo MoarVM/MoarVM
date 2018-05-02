@@ -1721,6 +1721,8 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_indexnat:
     case MVM_OP_if_s0:
     case MVM_OP_unless_s0:
+    case MVM_OP_if_s:
+    case MVM_OP_unless_s:
         jg_append_branch(tc, jg, 0, ins);
         break;
         /* never any need to implement them anymore, since they're automatically

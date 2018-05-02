@@ -95,7 +95,7 @@
 |.type COLLECTABLE, MVMCollectable
 |.type STABLE, MVMSTable
 |.type REPR, MVMREPROps
-|.type STRING, MVMString*
+|.type STRING, MVMString
 |.type OBJECTPTR, MVMObject*
 |.type CONTAINERSPEC, MVMContainerSpec
 |.type STORAGESPEC, MVMStorageSpec
@@ -260,7 +260,7 @@ const unsigned int MVM_jit_num_globals(void) {
 |.macro get_string, reg, idx
 || MVM_cu_ensure_string_decoded(tc, jg->sg->sf->body.cu, idx);
 | mov reg, CU->body.strings;
-| mov reg, STRING:reg[idx];
+| mov reg, OBJECTPTR:reg[idx];
 |.endmacro
 
 |.macro is_type_object, reg
@@ -2292,6 +2292,23 @@ void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, M
             | cmp TMP1, TMP2;
             | je >1;
             | jmp =>(name);
+            |1:
+            break;
+        case MVM_OP_if_s:
+            | mov TMP1, WORK[val];
+            | test TMP1, TMP1;
+            | jz >1;
+            | cmp dword STRING:TMP1->body.num_graphs, 0;
+            | je >1;
+            | jmp =>(name);
+            |1:
+            break;
+        case MVM_OP_unless_s:
+            | mov TMP1, WORK[val];
+            | test TMP1, TMP1;
+            | jz =>(name);
+            | cmp dword STRING:TMP1->body.num_graphs, 0;
+            | je =>(name);
             |1:
             break;
         case MVM_OP_indexat:
