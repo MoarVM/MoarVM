@@ -696,6 +696,33 @@
 (template: lastexpayload
   (^getf (tc) MVMThreadContext last_payload))
 
+(template: slice!
+  (let: (
+    ($dest (call (^getf (^repr $1) MVMREPROps allocate)
+      (arglist
+        (carg (tc) ptr)
+        (carg (^stable $1) ptr))
+      ptr_sz))
+    ($initialize (^getf (^repr $1) MVMREPROps initialize)))
+    (dov
+      (store $0 $dest ptr_sz)
+      (when (nz $initialize)
+        (callv $initialize
+          (arglist
+            (carg (tc) ptr)
+            (carg (^stable $dest) ptr)
+            (carg $dest ptr)
+            (carg (^body $dest) ptr))))
+      (callv (^getf (^repr $1) MVMREPROps pos_funcs.slice)
+        (arglist
+          (carg (tc)         ptr)
+          (carg (^stable $1) ptr)
+          (carg $1           ptr)
+          (carg (^body $1)   ptr)
+          (carg $dest        ptr)
+          (carg $2           int)
+          (carg $3           int))))))
+
 (template: sp_resolvecode
   (call (^func &MVM_frame_resolve_invokee_spesh)
     (arglist
