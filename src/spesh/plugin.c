@@ -459,17 +459,17 @@ void MVM_spesh_plugin_guard_list_mark(MVMThreadContext *tc, MVMSpeshPluginGuard 
         for (i = 0; i < num_guards; i++) {
             switch (guards[i].kind) {
                 case MVM_SPESH_PLUGIN_GUARD_RESULT:
-                    MVM_gc_worklist_add(tc, worklist, guards[i].u.result);
+                    MVM_gc_worklist_add(tc, worklist, &guards[i].u.result);
                     break;
                 case MVM_SPESH_PLUGIN_GUARD_OBJ:
-                    MVM_gc_worklist_add(tc, worklist, guards[i].u.object);
+                    MVM_gc_worklist_add(tc, worklist, &guards[i].u.object);
                     break;
                 case MVM_SPESH_PLUGIN_GUARD_TYPE:
-                    MVM_gc_worklist_add(tc, worklist, guards[i].u.type);
+                    MVM_gc_worklist_add(tc, worklist, &guards[i].u.type);
                     break;
                 case MVM_SPESH_PLUGIN_GUARD_GETATTR:
-                    MVM_gc_worklist_add(tc, worklist, guards[i].u.attr.class_handle);
-                    MVM_gc_worklist_add(tc, worklist, guards[i].u.attr.name);
+                    MVM_gc_worklist_add(tc, worklist, &guards[i].u.attr.class_handle);
+                    MVM_gc_worklist_add(tc, worklist, &guards[i].u.attr.name);
                     break;
             }
         }
