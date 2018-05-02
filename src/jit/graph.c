@@ -153,6 +153,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_getdynlex: return MVM_frame_getdynlex;
     case MVM_OP_binddynlex: return MVM_frame_binddynlex;
     case MVM_OP_getlexouter: return MVM_frame_find_lexical_by_name_outer;
+    case MVM_OP_getlexcaller: return MVM_frame_find_lexical_by_name_rel_caller;
     case MVM_OP_findmeth: case MVM_OP_findmeth_s: return MVM_6model_find_method;
     case MVM_OP_tryfindmeth: case MVM_OP_tryfindmeth_s: return MVM_6model_find_method;
     case MVM_OP_multicacheadd: return MVM_multi_cache_add;
@@ -1926,6 +1927,16 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
     }
+    case MVM_OP_getlexcaller: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 name = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { name } },
+                                 { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_CALLER } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+
     case MVM_OP_isfalse:
     case MVM_OP_istrue: {
         MVMint16 obj = ins->operands[1].reg.orig;
