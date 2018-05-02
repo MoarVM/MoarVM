@@ -73,6 +73,7 @@ typedef unsigned char uint8_t;
 #define UTHASH_VERSION 1.9.9
 
 #ifndef uthash_fatal
+#error "uthash_fatal not defined"
 #define uthash_fatal(msg) exit(-1)        /* fatal error (out of memory,etc) */
 #endif
 #ifndef uthash_malloc
@@ -122,10 +123,9 @@ do {                                                                            
          HASH_FCN_VM_STR(tc, key, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt); \
      }                                                                              \
      HASH_FIND_IN_BKT_VM_STR(tc, (head)->hh.tbl, hh,                                \
-         (head)->hh.tbl->buckets[ _hf_bkt ], key, out);                             \
+         (head)->hh.tbl->buckets[ _hf_bkt ], key, out, _hf_hashv);                  \
   }                                                                                 \
 } while (0)
-
 #define HASH_MAKE_TABLE(hh,head)                                                 \
 do {                                                                             \
   (head)->hh.tbl = (UT_hash_table*)uthash_malloc(                                \
@@ -357,12 +357,12 @@ do {                                                                            
 } while(0)
 
 /* iterate over items in a known bucket to find desired item */
-#define HASH_FIND_IN_BKT_VM_STR(tc,tbl,hh,head,key_in,out)                       \
+#define HASH_FIND_IN_BKT_VM_STR(tc,tbl,hh,head,key_in,out,hashval)               \
 do {                                                                             \
  if (head.hh_head) DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,head.hh_head));          \
  else out=NULL;                                                                  \
  while (out) {                                                                   \
-    if (MVM_string_equal(tc, (key_in), (MVMString *)((out)->hh.key)))            \
+    if (hashval == (out)->hh.hashv && MVM_string_equal(tc, (key_in), (MVMString *)((out)->hh.key)))            \
         break;                                                                   \
     if ((out)->hh.hh_next)                                                       \
         DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,(out)->hh.hh_next));                \
