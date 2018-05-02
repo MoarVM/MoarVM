@@ -310,7 +310,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 /* No, so it will live in the nursery for another GC
                  * iteration. Allocate space in the nursery. */
                 new_addr = (MVMCollectable *)tc->nursery_alloc;
-                tc->nursery_alloc = (char *)tc->nursery_alloc + item->size;
+                tc->nursery_alloc = (char *)tc->nursery_alloc + MVM_ALIGN_SIZE(item->size);
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : copying an object %p (reprid %d) of size %d to tospace %p\n",
                     item, REPR(item)->ID, item->size, new_addr);
 
@@ -615,7 +615,7 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
         }
 
         /* Go to the next item. */
-        scan = (char *)scan + item->size;
+        scan = (char *)scan + MVM_ALIGN_SIZE(item->size);
     }
 }
 

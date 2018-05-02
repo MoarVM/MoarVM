@@ -230,10 +230,10 @@ void * MVM_fixed_size_realloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, void 
 /* Reallocs a piece of memory to the specified size, using the FSA. */
 void * MVM_fixed_size_realloc_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *al, void * p, size_t old_bytes, size_t new_bytes) {
 #if FSA_SIZE_DEBUG
-    MVMFixedSizeAllocDebug *dbg = MVM_fixed_size_alloc(tc, al, new_bytes);
-    memcpy(&(dbg->memory), (char *)p, new_bytes > old_bytes ? old_bytes : new_bytes);
+    MVMFixedSizeAllocDebug *new_p = MVM_fixed_size_alloc(tc, al, new_bytes);
+    MVMFixedSizeAllocDebug *dbg = (MVMFixedSizeAllocDebug *)((char *)new_p - 8);
+    memcpy(new_p, (char *)p, new_bytes > old_bytes ? old_bytes : new_bytes);
     MVM_fixed_size_free_at_safepoint(tc, al, old_bytes, p);
-    dbg->alloc_size = new_bytes;
     return &(dbg->memory);
 #else
     MVMuint32 old_bin = bin_for(old_bytes);

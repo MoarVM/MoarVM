@@ -1194,6 +1194,25 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                 MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop\n", ins->info->name);
                 return 1;
             }
+            case MVM_OP_splice: {
+                MVMint16 invocant = ins->operands[0].reg.orig;
+                MVMint16 source   = ins->operands[1].reg.orig;
+                MVMint16 offset   = ins->operands[2].reg.orig;
+                MVMint16 count    = ins->operands[3].reg.orig;
+
+                void *function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.splice;
+
+                MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                         { MVM_JIT_REG_STABLE,  invocant },
+                                         { MVM_JIT_REG_VAL,     invocant },
+                                         { MVM_JIT_REG_OBJBODY, invocant },
+                                         { MVM_JIT_REG_VAL,     source   },
+                                         { MVM_JIT_REG_VAL,     offset   },
+                                         { MVM_JIT_REG_VAL,     count    } };
+                jg_append_call_c(tc, jg, function, 7, args, MVM_JIT_RV_VOID, -1);
+                MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop\n", ins->info->name);
+                return 1;
+            }
             default:
                 MVM_jit_log(tc, "devirt: please implement emitting repr op %s\n", ins->info->name);
         }

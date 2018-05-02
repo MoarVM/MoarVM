@@ -3,10 +3,12 @@ sub MAIN($spesh-log) {
         my $stats = [+] .match(/:r 'statistics updated in ' <( \d+ )> 'us'/, :g);
         my $plan = [+] .match(/:r 'planned in ' <( \d+ )> 'us'/, :g);
         my $spesh = [+] .match(/:r 'Specialization took ' <( \d+ )> 'us'/, :g);
+        my $jit = [+] .match(/:r 'JIT was ' ['not '] ? 'successful and compilation took ' <( \d+ )> 'us'/, :g);
         say qq:to/REPORT/
             Total statistics time:      {$stats / 1000}ms
             Total planning time:        {$plan / 1000}ms
             Total specialization time:  {$spesh / 1000}ms
+            Total JIT time:             {$jit / 1000}ms
             REPORT
     }
 }

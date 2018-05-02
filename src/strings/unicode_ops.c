@@ -689,7 +689,43 @@ MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) 
         generate_codepoints_by_name(tc);
     }
     HASH_FIND(hash_handle, codepoints_by_name, cname, cname_len, result);
-
+    if (!result) {
+        #define prefixes_len 7
+        const char *prefixes[prefixes_len] = {
+            "CJK UNIFIED IDEOGRAPH-",
+            "CJK COMPATIBILITY IDEOGRAPH-",
+            "<CONTROL-",
+            "<RESERVED-",
+            "<SURROGATE-",
+            "<PRIVATE-USE-",
+            "TANGUT IDEOGRAPH-"
+        };
+        int i;
+        for (i = 0; i < prefixes_len; i++) {
+            int str_len = strlen(prefixes[i]);
+            if (cname_len <= str_len)
+                continue;
+            /* Make sure to catch conditions which strtoll is ok with but we
+             * don't want to allow. So don't allow leading space, or -/+ and don't
+             * allow 0x */
+            if (cname[str_len] == '-' || cname[str_len] == '+' || cname[str_len] == ' ')
+                continue;
+            if (cname_len >= str_len + 2 && cname[str_len+1] == 'X')
+                continue;
+            if (!strncmp(cname, prefixes[i], str_len)) {
+                char *reject = NULL;
+                MVMint64 rtrn = strtol(cname + strlen(prefixes[i]), &reject, 16);
+                if (prefixes[i][0] == '<' && *reject == '>' && reject - cname + 1 == cname_len) {
+                    MVM_free(cname);
+                    return rtrn;
+                }
+                else if ((*reject == '\0' && !(rtrn == 0 && reject == cname + str_len))) {
+                    MVM_free(cname);
+                    return rtrn;
+                }
+            }
+        }
+    }
     MVM_free(cname);
     return result ? result->codepoint : -1;
 }
@@ -740,29 +776,34 @@ MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
         name_len = strlen(name);
         /* Turn non-unique codepoint names into unique ones by adding the
          * codepoint
-         * i.e. <CJK Ideograph Extension B> → <CJK Ideograph Extension B-20000>
-         * The ASCII codepoints already have the hex code in them, so no need
-         * to add it */
-        if (name && name[0] == '<' && 255 < codepoint) {
+         * i.e. <CJK UNIFIED IDEOGRAPH> → CJK UNIFIED IDEOGRAPH-20000
+         *      <control> → <control-0000> */
+        if (name && name[0] == '<') {
             size_t i, new_length, num_len = length_of_num_16(codepoint);
             char *new_name = NULL;
+            int remove_brack = !strncmp(name, "<CJK", 4) ||
+                !strncmp(name, "<TANGUT", 7) ? 1 : 0;
             /* We pad to 4 width, so make sure the number is accurate */
             num_len = num_len < 4 ? 4 : num_len;
-            new_length = name_len + 1 + num_len * sizeof(char);
+            /* The new_length is 1 more than we need since snprintf adds a null */
+            new_length = !remove_brack + name_len + num_len * sizeof(char);
             new_name = alloca(new_length);
             for (i = 0; i < name_len; i++) {
                 if (name[i] == '>') {
-                    snprintf(new_name + i, new_length - i, "-%.4"PRIX32"", (MVMuint32)codepoint);
+                    snprintf(new_name + i - remove_brack, new_length - (i - remove_brack) ,
+                        "-%.4"PRIX32"", (MVMuint32)codepoint);
+                    if (!remove_brack) {
+                        new_name[new_length-1] = '>';
+                    }
                     /* snprintf adds a null terminator at the end. We don't need
                      * this, so replace with a > instead of using snprintf to add
                      * it. Note: new has no NULL terminator */
-                    new_name[new_length - 1] = '>';
                     break;
                 }
-                new_name[i] = name[i];
+                new_name[i] = name[i+remove_brack];
             }
-            name = new_name;
-            name_len = new_length;
+            name     = new_name;
+            name_len = new_length - remove_brack;
         }
     }
 

@@ -55,33 +55,36 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
         });
     }
-    else if (nread == UV_EOF) {
-        MVMROOT2(tc, t, arr, {
-            MVMObject *final = MVM_repr_box_int(tc,
-                tc->instance->boot_types.BOOTInt, ri->seq_number);
-            MVM_repr_push_o(tc, arr, final);
-            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
-            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
-        });
-        if (buf->base)
-            MVM_free(buf->base);
-        uv_read_stop(handle);
-        MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
-    }
     else {
-        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
-        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
-        MVMROOT2(tc, t, arr, {
-            MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
-                tc->instance->VMString, uv_strerror(nread));
-            MVMObject *msg_box = MVM_repr_box_str(tc,
-                tc->instance->boot_types.BOOTStr, msg_str);
-            MVM_repr_push_o(tc, arr, msg_box);
-        });
+        MVMIOAsyncSocketData *handle_data = (MVMIOAsyncSocketData *)ri->handle->body.data;
+        uv_handle_t *conn_handle = (uv_handle_t *)handle_data->handle;
+        if (nread == UV_EOF) {
+            MVMROOT2(tc, t, arr, {
+                MVMObject *final = MVM_repr_box_int(tc,
+                    tc->instance->boot_types.BOOTInt, ri->seq_number);
+                MVM_repr_push_o(tc, arr, final);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            });
+        }
+        else {
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVMROOT2(tc, t, arr, {
+                MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
+                    tc->instance->VMString, uv_strerror(nread));
+                MVMObject *msg_box = MVM_repr_box_str(tc,
+                    tc->instance->boot_types.BOOTStr, msg_str);
+                MVM_repr_push_o(tc, arr, msg_box);
+            });
+        }
         if (buf->base)
             MVM_free(buf->base);
-        uv_read_stop(handle);
         MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
+        if (conn_handle && !uv_is_closing(conn_handle)) {
+            handle_data->handle = NULL;
+            uv_close(conn_handle, free_on_close_cb);
+        }
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
 }
@@ -520,8 +523,7 @@ static void on_connect(uv_connect_t* req, int status) {
             result->body.data            = data;
             MVM_repr_push_o(tc, arr, (MVMObject *)result);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
-
-            MVMROOT(tc, result, {
+            {
                 struct sockaddr_storage sockaddr;
                 int name_len = sizeof(struct sockaddr_storage);
 
@@ -530,7 +532,7 @@ static void on_connect(uv_connect_t* req, int status) {
 
                 uv_tcp_getsockname(ci->socket, (struct sockaddr *)&sockaddr, &name_len);
                 push_name_and_port(tc, &sockaddr, arr);
-            });
+            }
         });
     }
     else {
@@ -579,6 +581,10 @@ static void connect_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *asyn
                 MVMObject *msg_box = MVM_repr_box_str(tc,
                     tc->instance->boot_types.BOOTStr, msg_str);
                 MVM_repr_push_o(tc, arr, msg_box);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             });
             MVM_repr_push_o(tc, t->body.queue, arr);
         });
@@ -685,7 +691,7 @@ static void on_connection(uv_stream_t *server, int status) {
             MVM_repr_push_o(tc, arr, (MVMObject *)result);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
 
-            MVMROOT(tc, result, {
+            {
                 struct sockaddr_storage sockaddr;
                 int name_len = sizeof(struct sockaddr_storage);
 
@@ -694,7 +700,7 @@ static void on_connection(uv_stream_t *server, int status) {
 
                 uv_tcp_getsockname(client, (struct sockaddr *)&sockaddr, &name_len);
                 push_name_and_port(tc, &sockaddr, arr);
-            });
+            }
         });
     }
     else {

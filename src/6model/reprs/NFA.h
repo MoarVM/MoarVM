@@ -1,4 +1,4 @@
-/* NFA constants. */
+/* NFA constants that are part of the NFA REPR API. */
 #define MVM_NFA_EDGE_FATE              0
 #define MVM_NFA_EDGE_EPSILON           1
 #define MVM_NFA_EDGE_CODEPOINT         2
@@ -23,6 +23,14 @@
 #define MVM_NFA_EDGE_CODEPOINT_IM_LL   21
 #define MVM_NFA_EDGE_CHARRANGE_M       22
 #define MVM_NFA_EDGE_CHARRANGE_M_NEG   23
+
+/* A synthetic edge we use to let us more optimally handle nodes with a fanout
+ * of many codepoints. We sort the edges of type CODEPOINT and CODEPOINT_LL to
+ * the start of the state out edges list, and insert this node before, which
+ * indicates how many CODEPOINT and CODEPOINT_LL edges there are. We can then
+ * binary search them for the current codepoint, and skip over the rest. This
+ * is especially useful in huge categories, such as infix, prefix, etc. */
+#define MVM_NFA_EDGE_SYNTH_CP_COUNT    64
 
 /* State entry. */
 struct MVMNFAStateInfo {

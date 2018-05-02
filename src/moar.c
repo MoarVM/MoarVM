@@ -1,6 +1,7 @@
 #include "moar.h"
 #include <platform/threads.h>
-
+#include "platform/random.h"
+#include "platform/time.h"
 #if defined(_MSC_VER)
 #define snprintf _snprintf
 #endif
@@ -84,12 +85,17 @@ MVMInstance * MVM_vm_create_instance(void) {
     char *jit_log, *jit_expr_disable, *jit_disable, *jit_bytecode_dir, *jit_last_frame, *jit_last_bb;
     char *dynvar_log;
     int init_stat;
+    MVMuint32 hashSecret;
+    MVMuint64 now = MVM_platform_now();
 
     /* Set up instance data structure. */
     instance = MVM_calloc(1, sizeof(MVMInstance));
 
     /* Create the main thread's ThreadContext and stash it. */
     instance->main_thread = MVM_tc_create(NULL, instance);
+    MVM_getrandom(instance->main_thread, &hashSecret, sizeof(MVMuint32));
+    instance->hashSecret ^= now;
+    instance->hashSecret ^= MVM_proc_getpid(instance->main_thread) * now;
     instance->main_thread->thread_id = 1;
 
     /* Next thread to be created gets ID 2 (the main thread got ID 1). */

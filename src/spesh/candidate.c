@@ -39,16 +39,16 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
 #if MVM_GC_DEBUG
     tc->in_spesh = 1;
 #endif
-    if (tc->instance->spesh_log_fh)
+    if (MVM_spesh_debug_enabled(tc))
         start_time = uv_hrtime();
     sg = MVM_spesh_graph_create(tc, p->sf, 0, 1);
-    if (tc->instance->spesh_log_fh) {
+    if (MVM_spesh_debug_enabled(tc)) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, p->sf->body.name);
         char *c_cuid = MVM_string_utf8_encode_C_string(tc, p->sf->body.cuuid);
         char *before = MVM_spesh_dump(tc, sg);
-        fprintf(tc->instance->spesh_log_fh,
+        MVM_spesh_debug_printf(tc,
             "Specialization of '%s' (cuid: %s)\n\n", c_name, c_cuid);
-        fprintf(tc->instance->spesh_log_fh, "Before:\n%s", before);
+        MVM_spesh_debug_printf(tc, "Before:\n%s", before);
         MVM_free(c_name);
         MVM_free(c_cuid);
         MVM_free(before);
@@ -61,10 +61,11 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     MVM_spesh_facts_discover(tc, sg, p);
     MVM_spesh_optimize(tc, sg, p);
 
-    if (tc->instance->spesh_log_fh) {
+
+    if (MVM_spesh_debug_enabled(tc)) {
         char *after = MVM_spesh_dump(tc, sg);
-        fprintf(tc->instance->spesh_log_fh, "After:\n%s", after);
-        fprintf(tc->instance->spesh_log_fh, "Specialization took %dus\n\n========\n\n",
+        MVM_spesh_debug_printf(tc, "After:\n%s", after);
+        MVM_spesh_debug_printf(tc, "Specialization took %dus\n\n========\n\n",
             (int)((uv_hrtime() - start_time) / 1000));
         MVM_free(after);
         fflush(tc->instance->spesh_log_fh);
@@ -92,10 +93,18 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     /* Try to JIT compile the optimised graph. The JIT graph hangs from
      * the spesh graph and can safely be deleted with it. */
     if (tc->instance->jit_enabled) {
-        MVMJitGraph *jg = MVM_jit_try_make_graph(tc, sg);
+        MVMJitGraph *jg;
+        if (tc->instance->spesh_log_fh)
+            start_time = uv_hrtime();
+        jg = MVM_jit_try_make_graph(tc, sg);
         if (jg != NULL) {
             candidate->jitcode = MVM_jit_compile_graph(tc, jg);
             MVM_jit_graph_destroy(tc, jg);
+        }
+        if (MVM_spesh_debug_enabled(tc)) {
+            MVM_spesh_debug_printf(tc, "JIT was %s and compilation took %" PRIu64 "us\n",
+                                   candidate->jitcode ? "successful" : "not successful",
+                                   (uv_hrtime() - start_time) / 1000);
         }
     }
 
@@ -148,10 +157,10 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     MVM_barrier();
     spesh->body.num_spesh_candidates++;
 
-    /* If we're logging, dump the updated arg guards also. */
-    if (tc->instance->spesh_log_fh) {
+    /* If we're logging, dump the upadated arg guards also. */
+    if (MVM_spesh_debug_enabled(tc)) {
         char *guard_dump = MVM_spesh_dump_arg_guard(tc, p->sf);
-        fprintf(tc->instance->spesh_log_fh, "%s========\n\n", guard_dump);
+        MVM_spesh_debug_printf(tc, "%s========\n\n", guard_dump);
         fflush(tc->instance->spesh_log_fh);
         MVM_free(guard_dump);
     }

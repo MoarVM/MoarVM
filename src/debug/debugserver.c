@@ -1,6 +1,9 @@
 #include "moar.h"
 #include "platform/threads.h"
 
+#define DEBUGSERVER_MAJOR_PROTOCOL_VERSION 1
+#define DEBUGSERVER_MINOR_PROTOCOL_VERSION 1
+
 #define bool int
 #define true TRUE
 #define false FALSE
@@ -68,6 +71,8 @@ typedef enum {
     MT_ObjectPositionalsResponse,
     MT_ObjectAssociativesRequest,
     MT_ObjectAssociativesResponse,
+    MT_HandleEquivalenceRequest,
+    MT_HandleEquivalenceResponse,
 } message_type;
 
 typedef enum {
@@ -349,7 +354,7 @@ MVM_PUBLIC void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32
 
 #define REQUIRE(field, message) do { if(!(data->fields_set & (field))) { data->parse_fail = 1; data->parse_fail_message = (message); return 0; }; accepted = accepted | (field); } while (0)
 
-MVMuint8 check_requirements(request_data *data) {
+MVMuint8 check_requirements(MVMThreadContext *tc, request_data *data) {
     fields_set accepted = FS_id | FS_type;
 
     REQUIRE(FS_id, "An id field is required");
@@ -381,6 +386,7 @@ MVMuint8 check_requirements(request_data *data) {
             REQUIRE(FS_line, "A line field is required");
             break;
 
+        case MT_HandleEquivalenceRequest:
         case MT_ReleaseHandles:
             REQUIRE(FS_handles, "A handles field is required");
             break;
@@ -418,8 +424,8 @@ MVMuint8 check_requirements(request_data *data) {
     }
 
     if (data->fields_set != accepted) {
-        data->parse_fail = 1;
-        data->parse_fail_message = "Too many keys in message";
+        if (tc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "debugserver: too many fields in message of type %d: accepted 0x%x, got 0x%x\n", data->type, accepted, data->fields_set);
     }
 }
 
@@ -438,13 +444,13 @@ static MVMuint16 big_endian_16(MVMuint16 number) {
 
 static void send_greeting(Socket *sock) {
     char buffer[24] = "MOARVM-REMOTE-DEBUG\0";
-    MVMuint16 version = big_endian_16(1);
+    MVMuint16 version = big_endian_16(DEBUGSERVER_MAJOR_PROTOCOL_VERSION);
     MVMuint16 *verptr = (MVMuint16 *)(&buffer[strlen("MOARVM-REMOTE-DEBUG") + 1]);
 
     *verptr = version;
     verptr++;
 
-    version = big_endian_16(0);
+    version = big_endian_16(DEBUGSERVER_MINOR_PROTOCOL_VERSION);
 
     *verptr = version;
     send(*sock, buffer, 24, 0);
@@ -903,7 +909,7 @@ static void send_thread_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data
         cmp_write_bool(ctx, (MVM_load(&cur_thread->body.tc->gc_status) & MVMSUSPENDSTATUS_MASK) != MVMSuspendState_NONE);
 
         cmp_write_str(ctx, "num_locks", 9);
-        cmp_write_integer(ctx, cur_thread->body.tc->num_locks);
+        cmp_write_integer(ctx, MVM_thread_lock_count(dtc, (MVMObject *)cur_thread));
 
         cur_thread = cur_thread->body.next;
     }
@@ -1171,6 +1177,84 @@ static MVMObject *find_handle_target(MVMThreadContext *dtc, MVMuint64 id) {
             return dht->entries[index].target;
     }
     return NULL;
+}
+
+static MVMuint64 find_representant(MVMint16 *representant, MVMuint64 index) {
+    MVMuint64 last = index;
+
+    while (representant[last] != last) {
+        last = representant[last];
+    }
+
+    return last;
+}
+
+static void send_handle_equivalence_classes(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMuint16  *representant = MVM_calloc(argument->handle_count, sizeof(MVMuint64));
+    MVMObject **objects      = MVM_calloc(argument->handle_count, sizeof(MVMObject *));
+    MVMuint16  *counts       = MVM_calloc(argument->handle_count, sizeof(MVMuint16));
+    MVMuint16   idx;
+    MVMuint16   classes_count = 0;
+
+    /* Set up our sentinel values. Any object that represents itself
+     * is the end of a chain. At the beginning, everything represents
+     * itself.
+     * Critically, this allows us to use 0 as a valid representant. */
+    for (idx = 0; idx < argument->handle_count; idx++) {
+        representant[idx] = idx;
+    }
+
+    for (idx = 0; idx < argument->handle_count; idx++) {
+        MVMuint16 other_idx;
+        objects[idx] = find_handle_target(dtc, argument->handles[idx]);
+
+        for (other_idx = 0; other_idx < idx; other_idx++) {
+            if (representant[other_idx] != other_idx)
+                continue;
+            if (objects[idx] == objects[other_idx]) {
+                representant[other_idx] = idx;
+            }
+        }
+    }
+
+    /* First, we have to count how many distinct classes there are.
+     * Whenever we hit 2, we know we've found a class. */
+    for (idx = 0; idx < argument->handle_count; idx++) {
+        MVMuint16 the_repr = find_representant(representant, idx);
+        counts[the_repr]++;
+        if (counts[the_repr] == 2)
+            classes_count++;
+    }
+
+    /* Send the header of the message */
+    cmp_write_map(ctx, 3);
+    cmp_write_str(ctx, "id", 2);
+    cmp_write_integer(ctx, argument->id);
+    cmp_write_str(ctx, "type", 4);
+    cmp_write_integer(ctx, MT_HandleEquivalenceResponse);
+    cmp_write_str(ctx, "classes", 7);
+
+    /* Now we can write out the classes by following the representant
+     * chain until we find one whose representant is itself. */
+    cmp_write_array(ctx, classes_count);
+    for (idx = 0; idx < argument->handle_count; idx++) {
+        if (representant[idx] != idx) {
+            MVMuint16 count = counts[find_representant(representant, idx)];
+            MVMuint16 pointer = idx;
+            cmp_write_array(ctx, count);
+            do {
+                MVMuint16 current_representant = representant[pointer];
+                representant[pointer] = pointer;
+                cmp_write_integer(ctx, argument->handles[pointer]);
+                pointer = current_representant;
+            } while (representant[pointer] != pointer);
+
+            cmp_write_integer(ctx, argument->handles[pointer]);
+        }
+    }
+
+    MVM_free(representant);
+    MVM_free(objects);
 }
 
 static MVMint32 create_context_or_code_obj_debug_handle(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
@@ -2175,8 +2259,98 @@ static bool is_valid_int(cmp_object_t *obj, MVMint64 *result) {
     return 1;
 }
 
-#define CHECK(operation, message) do { if(!(operation)) { data->parse_fail = 1; data->parse_fail_message = (message); if (tc->instance->debugserver->debugspam_protocol) fprintf(stderr, "CMP error: %s\n", cmp_strerror(ctx)); return 0; } } while(0)
+#define CHECK(operation, message) do { if(!(operation)) { data->parse_fail = 1; data->parse_fail_message = (message); if (tc->instance->debugserver->debugspam_protocol) fprintf(stderr, "CMP error: %s; %s\n", cmp_strerror(ctx), message); return 0; } } while(0)
 #define FIELD_FOUND(field, duplicated_message) do { if(data->fields_set & (field)) { data->parse_fail = 1; data->parse_fail_message = duplicated_message;  return 0; }; field_to_set = (field); } while (0)
+
+MVMint8 skip_all_read_data(cmp_ctx_t *ctx, MVMuint32 size) {
+    char dump[1024];
+
+    while (size > 1024) {
+        if (!socket_reader(ctx, dump, 1024)) {
+            return 0;
+        }
+        size -= 1024;
+    }
+    if (!socket_reader(ctx, dump, size)) {
+        return 0;
+    }
+    return 1;
+}
+
+MVMint8 skip_whole_object(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *data) {
+    cmp_object_t obj;
+    MVMuint32 obj_size = 0;
+    MVMuint32 index;
+
+    CHECK(cmp_read_object(ctx, &obj), "couldn't skip object from unknown key");
+
+    switch (obj.type) {
+        case CMP_TYPE_FIXMAP:
+        case CMP_TYPE_MAP16:
+        case CMP_TYPE_MAP32:
+            obj_size = obj.as.map_size * 2;
+
+            for (index = 0; index < obj_size; index++) {
+                if (!skip_whole_object(tc, ctx, data)) {
+                    return 0;
+                }
+            }
+            break;
+        case CMP_TYPE_FIXARRAY:
+        case CMP_TYPE_ARRAY16:
+        case CMP_TYPE_ARRAY32:
+            obj_size = obj.as.array_size;
+
+            for (index = 0; index < obj_size; index++) {
+                if (!skip_whole_object(tc, ctx, data)) {
+                    return 0;
+                }
+            }
+            break;
+        case CMP_TYPE_FIXSTR:
+        case CMP_TYPE_STR8:
+        case CMP_TYPE_STR16:
+        case CMP_TYPE_STR32:
+            obj_size = obj.as.str_size;
+            CHECK(skip_all_read_data(ctx, obj_size), "could not skip string data");
+            break;
+        case CMP_TYPE_BIN8:
+        case CMP_TYPE_BIN16:
+        case CMP_TYPE_BIN32:
+            obj_size = obj.as.bin_size;
+            CHECK(skip_all_read_data(ctx, obj_size), "could not skip string data");
+            break;
+        case CMP_TYPE_EXT8:
+        case CMP_TYPE_EXT16:
+        case CMP_TYPE_EXT32:
+        case CMP_TYPE_FIXEXT1:
+        case CMP_TYPE_FIXEXT2:
+        case CMP_TYPE_FIXEXT4:
+        case CMP_TYPE_FIXEXT8:
+        case CMP_TYPE_FIXEXT16:
+            obj_size = obj.as.ext.size;
+            CHECK(skip_all_read_data(ctx, obj_size), "could not skip string data");
+            break;
+        case CMP_TYPE_POSITIVE_FIXNUM:
+        case CMP_TYPE_NIL:
+        case CMP_TYPE_BOOLEAN:
+        case CMP_TYPE_FLOAT:
+        case CMP_TYPE_DOUBLE:
+        case CMP_TYPE_NEGATIVE_FIXNUM:
+        case CMP_TYPE_UINT8:
+        case CMP_TYPE_UINT16:
+        case CMP_TYPE_UINT32:
+        case CMP_TYPE_UINT64:
+        case CMP_TYPE_SINT8:
+        case CMP_TYPE_SINT16:
+        case CMP_TYPE_SINT32:
+        case CMP_TYPE_SINT64:
+            break;
+        default:
+            CHECK(0, "could not skip object: unhandled type");
+    }
+    return 1;
+}
 
 MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *data) {
     MVMuint32 map_size = 0;
@@ -2206,46 +2380,54 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
         MVMuint32 str_size = 16;
 
         fields_set field_to_set = 0;
-        MVMuint32  type_to_parse = 0;
+        MVMint32   type_to_parse = 0;
 
         CHECK(cmp_read_str(ctx, key_str, &str_size), "Couldn't read string key");
 
         if (strncmp(key_str, "type", 15) == 0) {
             FIELD_FOUND(FS_type, "type field duplicated");
             type_to_parse = 1;
-        } else if (strncmp(key_str, "id", 15) == 0) {
+        }
+        else if (strncmp(key_str, "id", 15) == 0) {
             FIELD_FOUND(FS_id, "id field duplicated");
             type_to_parse = 1;
-        } else if (strncmp(key_str, "thread", 15) == 0) {
+        }
+        else if (strncmp(key_str, "thread", 15) == 0) {
             FIELD_FOUND(FS_thread_id, "thread field duplicated");
             type_to_parse = 1;
-        } else if (strncmp(key_str, "frame", 15) == 0) {
+        }
+        else if (strncmp(key_str, "frame", 15) == 0) {
             FIELD_FOUND(FS_frame_number, "frame number field duplicated");
             type_to_parse = 1;
-        } else if (strncmp(key_str, "handle", 15) == 0) {
+        }
+        else if (strncmp(key_str, "handle", 15) == 0) {
             FIELD_FOUND(FS_handle_id, "handle field duplicated");
             type_to_parse = 1;
-        } else if (strncmp(key_str, "line", 15) == 0) {
+        }
+        else if (strncmp(key_str, "line", 15) == 0) {
             FIELD_FOUND(FS_line, "line field duplicated");
             type_to_parse = 1;
-        } else if (strncmp(key_str, "suspend", 15) == 0) {
+        }
+        else if (strncmp(key_str, "suspend", 15) == 0) {
             FIELD_FOUND(FS_suspend, "suspend field duplicated");
             type_to_parse = 1;
-        } else if (strncmp(key_str, "stacktrace", 15) == 0) {
+        }
+        else if (strncmp(key_str, "stacktrace", 15) == 0) {
             FIELD_FOUND(FS_stacktrace, "stacktrace field duplicated");
             type_to_parse = 1;
-        } else if (strncmp(key_str, "file", 15) == 0) {
+        }
+        else if (strncmp(key_str, "file", 15) == 0) {
             FIELD_FOUND(FS_file, "file field duplicated");
             type_to_parse = 2;
-        } else if (strncmp(key_str, "handles", 15) == 0) {
+        }
+        else if (strncmp(key_str, "handles", 15) == 0) {
             FIELD_FOUND(FS_handles, "handles field duplicated");
             type_to_parse = 3;
-        } else {
+        }
+        else {
             if (tc->instance->debugserver->debugspam_protocol)
                 fprintf(stderr, "the hell is a %s?\n", key_str);
-            data->parse_fail = 1;
-            data->parse_fail_message = "Unknown field encountered (NYI or protocol violation)";
-            return 0;
+            type_to_parse = -1;
         }
 
         if (type_to_parse == 1) {
@@ -2284,7 +2466,8 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
                     return 0;
             }
             data->fields_set = data->fields_set | field_to_set;
-        } else if (type_to_parse == 2) {
+        }
+        else if (type_to_parse == 2) {
             uint32_t strsize = 1024;
             char *string = MVM_calloc(strsize, sizeof(char));
             if (tc->instance->debugserver->debugspam_protocol)
@@ -2301,7 +2484,8 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
                     return 0;
             }
             data->fields_set = data->fields_set | field_to_set;
-        } else if (type_to_parse == 3) {
+        }
+        else if (type_to_parse == 3) {
             uint32_t arraysize = 0;
             uint32_t index;
             CHECK(cmp_read_array(ctx, &arraysize), "Couldn't read array for a key");
@@ -2316,9 +2500,12 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
             }
             data->fields_set = data->fields_set | field_to_set;
         }
+        else if (type_to_parse == -1) {
+            skip_whole_object(tc, ctx, data);
+        }
     }
 
-    return check_requirements(data);
+    return check_requirements(tc, data);
 }
 
 #define COMMUNICATE_RESULT(operation) do { if((operation)) { communicate_error(tc, &ctx, &argument); } else { communicate_success(tc, &ctx, &argument); } } while (0)
@@ -2498,6 +2685,9 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                         communicate_error(tc, &ctx, &argument);
                     }
                     break;
+                case MT_HandleEquivalenceRequest:
+                    send_handle_equivalence_classes(tc, &ctx, &argument);
+                    break;
                 default: /* Unknown command or NYI */
                     if (tc->instance->debugserver->debugspam_protocol)
                         fprintf(stderr, "unknown command type (or NYI)\n");
@@ -2557,7 +2747,8 @@ MVM_PUBLIC void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
 
     debugserver->breakpoints->files_alloc = 32;
     debugserver->breakpoints->files_used  = 0;
-    debugserver->breakpoints->files       = MVM_calloc(debugserver->breakpoints->files_alloc, sizeof(MVMDebugServerBreakpointFileTable));
+    debugserver->breakpoints->files       =
+        MVM_fixed_size_alloc_zeroed(tc, vm->fsa, debugserver->breakpoints->files_alloc * sizeof(MVMDebugServerBreakpointFileTable));
 
     debugserver->event_id = 2;
     debugserver->port = port;

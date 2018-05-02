@@ -80,6 +80,24 @@ MVMint16 MVM_spesh_add_spesh_slot(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCol
     return g->num_spesh_slots++;
 }
 
+/* If an `isnull` is on something we know the type of or value of, then we
+ * can quickly verify the type is not based on the null REPR and turn it
+ * into a constant. */
+static void optimize_isnull(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                            MVMSpeshIns *ins) {
+    MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+        MVMint32 is_null = REPR(obj_facts->type)->ID == MVM_REPR_ID_MVMNull;
+        MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+        MVM_spesh_use_facts(tc, g, obj_facts);
+        ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
+        ins->operands[1].lit_i16 = is_null;
+        result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+        result_facts->value.i = is_null;
+        MVM_spesh_facts_depend(tc, g, result_facts, obj_facts);
+    }
+}
+
 static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                              MVMSpeshIns *ins, MVMint32 type_operand);
 
@@ -115,6 +133,8 @@ static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
 
             /* Tweak facts for the target, given we know the method. */
             MVMSpeshFacts *meth_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[0]);
+            meth_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+            meth_facts->type = meth->st->WHAT;
             meth_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
             meth_facts->value.o = meth;
 
@@ -1687,6 +1707,11 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
                 target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
                 ins, &no_inline_reason);
+            if (inline_graph != NULL && MVM_spesh_debug_enabled(tc)) {
+                char *dump = MVM_spesh_dump(tc, inline_graph);
+                MVM_spesh_debug_printf(tc, "Inlining graph\n%s\n", dump);
+                MVM_free(dump);
+            }
 #if MVM_LOG_INLINES
             {
                 char *c_name_i = MVM_string_utf8_encode_C_string(tc, target_sf->body.name);
@@ -2065,6 +2090,9 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             break;
         case MVM_OP_set:
             copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+            break;
+        case MVM_OP_isnull:
+            optimize_isnull(tc, g, bb, ins);
             break;
         case MVM_OP_istrue:
         case MVM_OP_isfalse:
