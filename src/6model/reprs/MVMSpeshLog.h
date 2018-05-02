@@ -19,7 +19,9 @@ typedef enum {
     /* OSR point. */
     MVM_SPESH_LOG_OSR,
     /* Return from a callframe, possibly with a logged type. */
-    MVM_SPESH_LOG_RETURN
+    MVM_SPESH_LOG_RETURN,
+    /* Spesh plugin resolution result. */
+    MVM_SPESH_LOG_PLUGIN_RESOLUTION,
 } MVMSpeshLogEntryKind;
 
 /* Flags on types. */
@@ -73,6 +75,12 @@ struct MVMSpeshLogEntry {
         struct {
             MVMint32 bytecode_offset;
         } osr;
+
+        /* Spesh log resolution result (PLUGIN_RESOLUTION). */
+        struct {
+            MVMuint32 bytecode_offset;
+            MVMuint16 guard_index;
+        } plugin;
     };
 };
 

@@ -46,7 +46,8 @@ static MVMSpeshPluginGuardSet * guard_set_for_position(MVMThreadContext *tc,
 }
 
 /* Looks through a guard set and returns any result that matches. */
-static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet *gs, MVMCallsite *callsite) {
+static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet *gs,
+        MVMCallsite *callsite, MVMuint16 *guard_offset) {
     MVMuint32 pos = 0;
     MVMuint32 end = gs->num_guards;
     MVMRegister *args = tc->cur_frame->args;
@@ -55,6 +56,7 @@ static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet 
     while (pos < end) {
         MVMuint16 kind = gs->guards[pos].kind;
         if (kind == MVM_SPESH_PLUGIN_GUARD_RESULT) {
+            *guard_offset = pos;
             return gs->guards[pos].u.result;
         }
         else {
@@ -98,10 +100,11 @@ static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet 
 }
 
 /* Tries to resolve a plugin by looking at the guards for the position. */
-static MVMObject * resolve_using_guards(MVMThreadContext *tc, MVMuint32 cur_position, MVMCallsite *callsite) {
+static MVMObject * resolve_using_guards(MVMThreadContext *tc, MVMuint32 cur_position,
+        MVMCallsite *callsite, MVMuint16 *guard_offset) {
     MVMSpeshPluginState *ps = get_plugin_state(tc, tc->cur_frame->static_info);
     MVMSpeshPluginGuardSet *gs = guard_set_for_position(tc, cur_position, ps);
-    return gs ? evaluate_guards(tc, gs, callsite) : NULL;
+    return gs ? evaluate_guards(tc, gs, callsite, guard_offset) : NULL;
 }
 
 /* Produces an updated guard set with the given resolution result. Returns
@@ -321,13 +324,16 @@ void MVM_spesh_plugin_resolve(MVMThreadContext *tc, MVMString *name,
                               MVMuint8 *next_addr, MVMCallsite *callsite) {
     MVMuint32 position = (MVMuint32)(op_addr - *tc->interp_bytecode_start);
     MVMObject *resolved;
+    MVMuint16 guard_offset;
     MVMROOT(tc, name, {
-        resolved = resolve_using_guards(tc, position, callsite);
+        resolved = resolve_using_guards(tc, position, callsite, &guard_offset);
     });
     if (resolved) {
         /* Resolution through guard tree successful, so no invoke needed. */
         result->o = resolved;
         *tc->interp_cur_op = next_addr;
+        if (MVM_spesh_log_is_logging(tc))
+            MVM_spesh_log_plugin_resolution(tc, position, guard_offset);
     }
     else {
         /* No pre-resolved value, so we need to run the plugin. Find it. */

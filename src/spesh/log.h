@@ -42,3 +42,5 @@ void MVM_spesh_log_decont(MVMThreadContext *tc, MVMuint8 *prev_op, MVMObject *va
 void MVM_spesh_log_invoke_target(MVMThreadContext *tc, MVMObject *invoke_target,
     MVMuint16 was_multi);
 void MVM_spesh_log_return_type(MVMThreadContext *tc, MVMObject *value);
+void MVM_spesh_log_plugin_resolution(MVMThreadContext *tc, MVMuint32 bytecode_offset,
+        MVMuint16 guard_index);
