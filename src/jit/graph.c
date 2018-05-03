@@ -3073,6 +3073,11 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, MVM_gc_mark_thread_unblocked, 1, block_args, MVM_JIT_RV_VOID, -1);
         break;
     }
+    case MVM_OP_currentthread: {
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } } };
+        jg_append_call_c(tc, jg, MVM_thread_current, 1, args, MVM_JIT_RV_PTR, ins->operands[0].reg.orig);
+        break;
+    }
     case MVM_OP_getlexref_i:
     case MVM_OP_getlexref_i32:
     case MVM_OP_getlexref_i16:
