@@ -849,7 +849,7 @@ getppid             w(int64)
 getsignals          w(obj) :useshll
 slice               w(obj) r(obj) r(int64) r(int64)
 speshreg            r(str) r(str) r(obj)
-speshresolve     -a w(obj) str
+speshresolve     -a w(obj) str :deoptonepoint :logged
 speshguardtype      r(obj) r(obj)
 speshguardconcrete  r(obj)
 speshguardtypeobj   r(obj)

@@ -184,6 +184,28 @@ void add_invoke_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
     oss->invokes[found].was_multi_count = was_multi ? 1 : 0;
 }
 
+/* Adds/increments the count of a plugin guard index seen at the given offset. */
+void add_plugin_guard_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
+                                MVMuint32 guard_index) {
+    /* If we have it already, increment the count. */
+    MVMuint32 found;
+    MVMuint32 n = oss->num_plugin_guards;
+    for (found = 0; found < n; found++) {
+        if (oss->plugin_guards[found].guard_index == guard_index) {
+            oss->plugin_guards[found].count++;
+            return;
+        }
+    }
+
+    /* Otherwise, add it to the list. */
+    found = oss->num_plugin_guards;
+    oss->num_plugin_guards++;
+    oss->plugin_guards = MVM_realloc(oss->plugin_guards,
+            oss->num_plugin_guards * sizeof(MVMSpeshStatsPluginGuardCount));
+    oss->plugin_guards[found].guard_index = guard_index;
+    oss->plugin_guards[found].count = 1;
+}
+
 /* Adds/increments the count of a type tuple seen at the given offset. */
 void add_type_tuple_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
                               MVMStaticFrame *sf, MVMSpeshSimCallType *info) {
@@ -324,6 +346,12 @@ void incorporate_stats(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
                         e->invoke.bytecode_offset);
                     add_invoke_at_offset(tc, oss, simf->sf, e->invoke.sf,
                         e->invoke.caller_is_outer, e->invoke.was_multi);
+                    break;
+                }
+                case MVM_SPESH_LOG_PLUGIN_RESOLUTION: {
+                    MVMSpeshStatsByOffset *oss = by_offset(tc, tss,
+                        e->plugin.bytecode_offset);
+                    add_plugin_guard_at_offset(tc, oss, e->plugin.guard_index);
                     break;
                 }
             }
@@ -564,7 +592,8 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                 break;
             }
             case MVM_SPESH_LOG_TYPE:
-            case MVM_SPESH_LOG_INVOKE: {
+            case MVM_SPESH_LOG_INVOKE:
+            case MVM_SPESH_LOG_PLUGIN_RESOLUTION: {
                 /* We only incorporate these into the model later, and only
                  * then if we need to. For now, just keep references to
                  * them. */
@@ -738,6 +767,7 @@ void MVM_spesh_stats_destroy(MVMThreadContext *tc, MVMSpeshStats *ss) {
                     for (l = 0; l < by_offset->num_type_tuples; l++)
                         MVM_free(by_offset->type_tuples[l].arg_types);
                     MVM_free(by_offset->type_tuples);
+                    MVM_free(by_offset->plugin_guards);
                 }
                 MVM_free(by_type->by_offset);
                 MVM_free(by_type->arg_types);

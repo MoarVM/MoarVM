@@ -628,6 +628,10 @@ void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCa
                         oss->type_tuples[k].arg_types,
                         "                    ");
                 }
+                for (k = 0; k < oss->num_plugin_guards; k++)
+                    appendf(ds, "                %d x spesh plugin guard index %d\n",
+                        oss->plugin_guards[k].count,
+                        oss->plugin_guards[k].guard_index);
             }
         }
         append(ds, "\n");
