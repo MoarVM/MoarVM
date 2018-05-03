@@ -125,6 +125,8 @@ typedef enum {
     MVM_JIT_PARAM_I64_RW,
     MVM_JIT_PARAM_PTR,
     MVM_JIT_PARAM_VMARRAY,
+    /* spesh slot value */
+    MVM_JIT_SPESH_SLOT_VALUE,
 } MVMJitArgType;
 
 struct MVMJitCallArg {

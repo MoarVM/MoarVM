@@ -358,6 +358,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_exreturnafterunwind: return MVM_exception_returnafterunwind;
 
     case MVM_OP_breakpoint: return MVM_debugserver_breakpoint_check;
+    case MVM_OP_sp_getstringfrom: return MVM_cu_string;
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
     }
@@ -588,6 +589,10 @@ static MVMint32 consume_jumplist(MVMThreadContext *tc, MVMJitGraph *jg,
     iter->bb = bb;
     iter->ins = ins;
     return 1;
+}
+
+static MVMString* wrap_MVM_cu_string(MVMThreadContext *tc, MVMCompUnit *cu, MVMuint32 idx) {
+    return MVM_cu_string(tc, cu, idx);
 }
 
 static MVMint32 jg_add_data_node(MVMThreadContext *tc, MVMJitGraph *jg, void *data, size_t size) {
@@ -1936,7 +1941,6 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
-
     case MVM_OP_isfalse:
     case MVM_OP_istrue: {
         MVMint16 obj = ins->operands[1].reg.orig;
@@ -3206,6 +3210,15 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { obj } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_sp_getstringfrom: {
+        MVMint16 spesh_idx = ins->operands[1].lit_i16;
+        MVMuint32 cu_idx = ins->operands[2].lit_str_idx;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_SPESH_SLOT_VALUE, { spesh_idx } },
+                                 { MVM_JIT_LITERAL, cu_idx } };
+        jg_append_call_c(tc, jg, MVM_cu_string, 3, args, MVM_JIT_RV_PTR, ins->operands[0].reg.orig);
         break;
     }
     case MVM_OP_breakpoint: {
