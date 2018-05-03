@@ -1938,7 +1938,8 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { name } },
                                  { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_CALLER } } };
-        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
+        jg_append_call_c(tc, jg, MVM_frame_find_lexical_by_name_rel_caller,
+                         3, args, MVM_JIT_RV_DEREF_OR_VMNULL, dst);
         break;
     }
     case MVM_OP_isfalse:

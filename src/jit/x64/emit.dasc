@@ -2229,6 +2229,16 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
         | mov TMP2w, word [TMP1 + call_spec->rv_idx*2];
         | mov aword [WORK + TMP2*8], RV;
         break;
+    case MVM_JIT_RV_DEREF_OR_VMNULL:
+        | test RV, RV;
+        | jz >4;
+        | mov TMP1, [RV];
+        | jmp >5;
+        |4:
+        | get_vmnull TMP1;
+        |5:
+        | mov WORK[call_spec->rv_idx], TMP1;
+        break;
     }
 }
 

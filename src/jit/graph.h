@@ -160,6 +160,8 @@ typedef enum {
        we need to do the same as interp.c and address registers relative to
        cur_op. */
     MVM_JIT_RV_DYNIDX,
+    /* store pointer or vmnull */
+    MVM_JIT_RV_DEREF_OR_VMNULL,
 } MVMJitRVMode;
 
 
