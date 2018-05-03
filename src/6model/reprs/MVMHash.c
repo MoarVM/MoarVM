@@ -172,16 +172,30 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 }
 
 /* Serialize the representation. */
+MVMThreadContext *cmp_tc;
+static int cmp_strings(const void *s1, const void *s2) {
+    return MVM_string_compare(cmp_tc, *(MVMString **)s1, *(MVMString **)s2);
+}
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVMHashBody *body = (MVMHashBody *)data;
     MVMHashEntry *current = NULL, *tmp = NULL;
+    MVMuint64 elems = HASH_CNT(hash_handle, body->hash_head);
+    MVMString **keys = MVM_malloc(sizeof(MVMString *) * elems);
     unsigned bucket_tmp;
-    MVM_serialization_write_int(tc, writer, HASH_CNT(hash_handle, body->hash_head));
+    MVMuint64 i = 0;
+    MVM_serialization_write_int(tc, writer, elems);
     HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {
-        MVMString *key = MVM_HASH_KEY(current);
-        MVM_serialization_write_str(tc, writer, key);
-        MVM_serialization_write_ref(tc, writer, current->value);
+        keys[i++] = MVM_HASH_KEY(current);
     }
+    cmp_tc = tc;
+    qsort(keys, elems, sizeof(MVMString*), cmp_strings);
+    for (i = 0; i < elems; i++) {
+        MVMHashEntry *entry;
+        MVM_HASH_GET(tc, body->hash_head, keys[i], entry);
+        MVM_serialization_write_str(tc, writer, keys[i]);
+        MVM_serialization_write_ref(tc, writer, entry->value);
+    }
+    MVM_free(keys);
 }
 
 /* Set the size of the STable. */
