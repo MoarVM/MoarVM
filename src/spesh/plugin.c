@@ -28,10 +28,10 @@ static MVMSpeshPluginState * get_plugin_state(MVMThreadContext *tc, MVMStaticFra
 static MVMSpeshPluginGuardSet * guard_set_for_position(MVMThreadContext *tc,
         MVMuint32 cur_position, MVMSpeshPluginState *ps) {
     if (ps) {
-        MVMuint32 l = 0;
-        MVMuint32 r = ps->num_positions - 1;
+        MVMint32 l = 0;
+        MVMint32 r = ps->num_positions - 1;
         while (l <= r) {
-            MVMuint32 m = l + (r - l) / 2;
+            MVMint32 m = l + (r - l) / 2;
             MVMuint32 test = ps->positions[m].bytecode_position;
             if (test == cur_position) {
                 return ps->positions[m].guard_set;
