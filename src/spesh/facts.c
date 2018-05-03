@@ -353,6 +353,65 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
     }
 }
 
+/* Considers a spesh plugin's logged data. If it gives a consistent result,
+ * then replaces this instruction with a spesh slot that resolves to the
+ * result, and prepends guards as specified by the plugin. */
+static void plugin_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                         MVMSpeshIns *ins, MVMSpeshPlanned *p,
+                         MVMSpeshAnn *deopt_one_ann, MVMSpeshAnn *logged_ann) {
+    /* Search for a stable guard index. (Later, we can stack up a set of
+     * conditions or some such if there's no stable or really popular one. */
+    MVMint32 agg_guard_index = -1;
+    MVMuint32 agg_guard_index_count = 0;
+    MVMuint32 i;
+    for (i = 0; i < p->num_type_stats; i++) {
+        MVMSpeshStatsByType *ts = p->type_stats[i];
+        MVMuint32 j;
+        for (j = 0; j < ts->num_by_offset; j++) {
+            if (ts->by_offset[j].bytecode_offset == logged_ann->data.bytecode_offset) {
+                /* Go over the guard indexes. */
+                MVMuint32 num_plugin_guards = ts->by_offset[j].num_plugin_guards;
+                MVMuint32 k;
+                for (k = 0; k < num_plugin_guards; k++) {
+                    /* If it's inconsistent with the aggregated guard index,
+                     * then first check if the index we're now seeing is either
+                     * massively more popular or massively less popular. If
+                     * massively less, disregard this one. If massively more,
+                     * disregard the previous one. */
+                    MVMuint32 cur_guard_index = ts->by_offset[j].plugin_guards[k].guard_index;
+                    MVMuint32 count = ts->by_offset[j].plugin_guards[k].count;
+                    if (agg_guard_index >= 0) {
+                        if (agg_guard_index != cur_guard_index) {
+                            if (count > 100 * agg_guard_index_count) {
+                                /* This one is hugely more popular. */
+                                agg_guard_index = cur_guard_index;
+                                agg_guard_index_count = 0;
+                            }
+                            else if (agg_guard_index_count > 100 * count) {
+                                /* This one is hugely less popular. */
+                                continue;
+                            }
+                            else {
+                                /* Unstable guard indexes. */
+                                return;
+                            }
+                        }
+                    }
+                    else {
+                        agg_guard_index = cur_guard_index;
+                    }
+                    agg_guard_index_count += count;
+                }
+
+                /* No need to consider searching after this offset. */
+                break;
+            }
+        }
+    }
+
+    /* TODO Actually insert the guards and rewrite the instruction. */
+}
+
 /* Visits the blocks in dominator tree order, recursively. */
 static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                          MVMSpeshPlanned *p, MVMint32 cur_deopt_idx) {
@@ -382,8 +441,12 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             }
             ann = ann->next;
         }
-        if (ann_deopt_one && ann_logged)
-            log_facts(tc, g, bb, ins, p, ann_deopt_one, ann_logged);
+        if (ann_deopt_one && ann_logged) {
+            if (ins->info->opcode != MVM_OP_speshresolve)
+                plugin_facts(tc, g, bb, ins, p, ann_deopt_one, ann_logged);
+            else
+                log_facts(tc, g, bb, ins, p, ann_deopt_one, ann_logged);
+        }
 
         /* Look through operands for reads and writes. */
         is_phi = ins->info->opcode == MVM_SSA_PHI;
