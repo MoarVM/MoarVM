@@ -814,6 +814,20 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], RV;
         break;
     }
+    case MVM_OP_ctxlexpad: {
+        MVMint16 src = ins->operands[1].reg.orig;
+        MVMint16 dst = ins->operands[0].reg.orig;
+        | mov TMP1, WORK[src];
+        | is_type_object TMP1;
+        | je >1;
+        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMContext;
+        | je >2;
+        |1:
+        | throw_adhoc "ctxlexpad needs an MVMContext";
+        |2:
+        | mov WORK[dst], TMP1;
+        break;
+    }
     case MVM_OP_curcode: {
         MVMint16 dst = ins->operands[0].reg.orig;
         | mov TMP1, TC->cur_frame;
