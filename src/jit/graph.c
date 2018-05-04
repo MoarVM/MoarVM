@@ -1676,6 +1676,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_invokewithcapture:
     case MVM_OP_captureposelems:
     case MVM_OP_capturehasnameds:
+    case MVM_OP_captureposarg:
         /* Exception handling */
     case MVM_OP_lastexpayload:
         /* Parameters */
