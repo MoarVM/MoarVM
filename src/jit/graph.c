@@ -1576,6 +1576,8 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_const_i64:
     case MVM_OP_const_n64:
     case MVM_OP_nan:
+    case MVM_OP_inf:
+    case MVM_OP_neginf:
     case MVM_OP_const_s:
     case MVM_OP_null:
         /* argument reading */
