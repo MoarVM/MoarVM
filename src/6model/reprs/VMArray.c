@@ -859,17 +859,14 @@ static void aslice(MVMThreadContext *tc, MVMSTable *st, MVMObject *src, void *da
     MVMArrayREPRData *d_repr_data = REPR(dest)->ID == MVM_REPR_ID_VMArray
                                       ? STABLE(dest)->REPR_data : NULL;
 
-    MVMint64 last_elem = REPR(src)->elems(tc, st, src, s_body) - 1;
+    MVMint64 total_elems = REPR(src)->elems(tc, st, src, s_body);
     MVMint64 elems;
 
-    if ( last_elem < start || last_elem < end
-         || (end < start && 0 <= start && 0 <= end) )
-    {
+    start = start < 0 ? total_elems + start : start;
+    end   = end   < 0 ? total_elems + end   : end;
+    if ( end < start || start < 0 || end < 0 || total_elems <= start || total_elems <= end ) {
         MVM_exception_throw_adhoc(tc, "MVMArray: Slice index out of bounds");
     }
-
-    start = 0 <= start ? start : 0;
-    end   = 0 <= end   ? end   : last_elem;
 
     elems = end - start + 1;
     if (d_repr_data) {
