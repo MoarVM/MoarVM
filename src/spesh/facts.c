@@ -409,7 +409,10 @@ static void plugin_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         }
     }
 
-    /* TODO Actually insert the guards and rewrite the instruction. */
+    /* Insert the guards and rewrite the instruction if appropriate. */
+    if (agg_guard_index != -1)
+        MVM_spesh_plugin_rewrite_resolve(tc, g, bb, ins, logged_ann->data.bytecode_offset,
+                agg_guard_index);
 }
 
 /* Visits the blocks in dominator tree order, recursively. */

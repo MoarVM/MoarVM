@@ -451,6 +451,80 @@ MVMObject * MVM_spesh_plugin_addguard_getattr(MVMThreadContext *tc, MVMObject *g
     return attr;
 }
 
+/* Rewrites a spesh plugin resolve to instead resolve to a spesh slot with the
+ * result of the resolution, inserting guards as needed. */
+static MVMSpeshOperand *arg_ins_to_reg_list(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                                            MVMSpeshIns *ins, MVMuint32 *reg_list_length) {
+    /* Search back to prepargs to find the maximum argument index. */
+    MVMSpeshIns *cursor = ins->prev;
+    MVMSpeshIns *cur_arg;
+    MVMint32 max_arg_idx = -1;
+    while (cursor->info->opcode != MVM_OP_prepargs) {
+        if (cursor->info->opcode == MVM_OP_arg_o) {
+            MVMuint16 idx = cursor->operands[0].lit_ui16;
+            if (idx > max_arg_idx)
+                max_arg_idx = idx;
+        }
+        else {
+            MVM_oops(tc, "Malformed spesh resolve argument sequence");
+        }
+        cursor = cursor->prev;
+    }
+    cur_arg = cursor->next;
+
+    /* Delete the prepargs instruction. */
+    MVM_spesh_manipulate_delete_ins(tc, g, bb, cursor);
+
+    /* If there are any args, collect registers and delete them. */
+    if (max_arg_idx >= 0) {
+        MVMSpeshOperand *result = MVM_malloc((max_arg_idx + 1) * sizeof(MVMSpeshOperand));
+        while (cur_arg->info->opcode == MVM_OP_arg_o) {
+            MVMSpeshIns *next_arg = cur_arg->next;
+            result[cur_arg->operands[0].lit_ui16] = cur_arg->operands[1];
+            MVM_spesh_manipulate_delete_ins(tc, g, bb, cur_arg);
+            cur_arg = next_arg;
+        }
+        *reg_list_length = max_arg_idx + 1;
+        return result;
+    }
+    else {
+        *reg_list_length = 0;
+        return NULL;
+    }
+}
+void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                                      MVMSpeshIns *ins, MVMuint32 bytecode_offset,
+                                      MVMint32 guard_index) {
+    /* Resolve guard set (should never be missing, but fail softly if so). */
+    MVMSpeshPluginState *ps = get_plugin_state(tc, g->sf);
+    MVMSpeshPluginGuardSet *gs = guard_set_for_position(tc, bytecode_offset, ps);
+    if (gs) {
+        /* Collect registers that go with each argument, and delete the arg
+         * and prepargs instructions. */
+        MVMuint32 arg_regs_length;
+        MVMSpeshOperand *arg_regs = arg_ins_to_reg_list(tc, g, bb, ins, &arg_regs_length);
+
+        /* Find result and add it to a spesh slot. */
+        MVMObject *resolvee = gs->guards[guard_index].u.result;
+        MVMuint16 resolvee_slot = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable *)resolvee);
+
+        /* Find guard range. */
+        MVMint32 guards_end = guard_index - 1;
+        MVMint32 guards_start = guards_end;
+        while (guards_start >= 0 && gs->guards[guards_start].kind != MVM_SPESH_PLUGIN_GUARD_RESULT)
+            guards_start--;
+
+        /* Rewrite resolve instruction into a spesh slot lookup. */
+        ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+        ins->operands[1].lit_i16 = resolvee_slot;
+
+        /* Prepend guards. */
+        while (++guards_start <= guards_end) {
+            /* TODO guard insertion */
+        }
+    }
+}
+
 /* Called to mark a guard list. */
 void MVM_spesh_plugin_guard_list_mark(MVMThreadContext *tc, MVMSpeshPluginGuard *guards,
                                       MVMuint32 num_guards, MVMGCWorklist *worklist) {

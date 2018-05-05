@@ -80,6 +80,10 @@ void MVM_spesh_plugin_addguard_obj(MVMThreadContext *tc, MVMObject *guardee);
 MVMObject * MVM_spesh_plugin_addguard_getattr(MVMThreadContext *tc, MVMObject *guardee,
     MVMObject *class_handle, MVMString *name);
 
+/* Rewriting of spesh resolve instructions in the spesh graph. */
+void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+    MVMSpeshIns *ins, MVMuint32 bytecode_offset, MVMint32 guard_index);
+
 /* Functions for dealing with spesh plugin state. */
 void MVM_spesh_plugin_guard_list_mark(MVMThreadContext *tc, MVMSpeshPluginGuard *guards,
     MVMuint32 num_guards, MVMGCWorklist *worklist);
