@@ -442,7 +442,7 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             ann = ann->next;
         }
         if (ann_deopt_one && ann_logged) {
-            if (ins->info->opcode != MVM_OP_speshresolve)
+            if (ins->info->opcode == MVM_OP_speshresolve)
                 plugin_facts(tc, g, bb, ins, p, ann_deopt_one, ann_logged);
             else
                 log_facts(tc, g, bb, ins, p, ann_deopt_one, ann_logged);
