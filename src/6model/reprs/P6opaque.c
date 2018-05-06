@@ -1682,6 +1682,11 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
         MVMint16 const num_attributes = repr_data->num_attributes;
         MVMint16 cur_attribute = 0;
         MVMP6opaqueNameMap * const name_to_index_mapping = repr_data->name_to_index_mapping;
+        if (!IS_CONCRETE(obj)) {
+            fprintf(stderr, "(%s", MVM_6model_get_debug_name(tc, obj));
+            fprintf(stderr, nested ? ")" : ")\n");
+            return;
+        }
         fprintf(stderr, "%s.new(", MVM_6model_get_debug_name(tc, obj));
         if (name_to_index_mapping != NULL) {
             MVMint16 i;
@@ -1710,10 +1715,22 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
                             }
                         }
                         else {
-                            MVMString * const s = attr_st->REPR->box_funcs.get_str(tc, attr_st, obj, (char *)data + offset);
-                            char * const str = MVM_string_utf8_encode_C_string(tc, s);
-                            fprintf(stderr, "='%s'", str);
-                            MVM_free(str);
+                            if (attr_st->REPR->ID == MVM_REPR_ID_P6str) {
+                                char * const str = MVM_string_utf8_encode_C_string(tc, get_obj_at_offset(data, offset));
+                                fprintf(stderr, "='%s'", str);
+                                MVM_free(str);
+                            }
+                            else if (attr_st->REPR->ID == MVM_REPR_ID_P6int) {
+                                MVMint64 val = attr_st->REPR->box_funcs.get_int(tc, attr_st, obj, (char *)data + offset);
+                                fprintf(stderr, "=%ld", val);
+                            }
+                            else {
+                                fprintf(stderr, "[%d]=%s", repr_data->attribute_offsets[slot], MVM_6model_get_stable_debug_name(tc, attr_st));
+                            }
+                            /*MVMString * const s = attr_st->REPR->box_funcs.get_str(tc, attr_st, obj, (char *)data + offset);*/
+                            /*char * const str = MVM_string_utf8_encode_C_string(tc, s);*/
+                            /*fprintf(stderr, "='%s'", str);*/
+                            /*MVM_free(str);*/
                         }
                     }
                     if (cur_attribute++ < num_attributes - 1)
