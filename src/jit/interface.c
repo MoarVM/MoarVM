@@ -1,9 +1,19 @@
 #include "moar.h"
 #include "internal.h"
 
+#if defined(_MSC_VER)
+/* MSVC toolchain compiles only one function name for stack_find_return_address_in_frame */
+#elif defined(__WIN64__)
+/* MSys most likely, entrypoint is suffixed with _win64 */
+#define stack_find_return_address_in_frame stack_find_return_address_in_frame_win64
+#else
+/* Presumably POSIX with gnu or llvm toolchain */
+#define stack_find_return_address_in_frame stack_find_return_address_in_frame_posix
+#endif
+
 /* Walk stack to find the current return address in a code frame */
-void * stack_find_return_address_in_frame_posix(void *base, size_t size, void *top);
-void * stack_find_return_address_in_frame_win64(void *base, size_t size, void *top);
+void * stack_find_return_address_in_frame(void *base, size_t size, void *top);
+
 
 
 MVM_STATIC_INLINE MVMint32 address_within_region(MVMThreadContext *tc, MVMJitCode *code, void *address) {
@@ -30,7 +40,7 @@ void MVM_jit_code_enter(MVMThreadContext *tc, MVMJitCode *code, MVMCompUnit *cu)
 static void * get_current_position(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame) {
     if (tc->cur_frame == frame) {
         /* currently on C stack */
-        void *return_address = stack_find_return_address_in_frame_posix(code->func_ptr, code->size, tc->interp_cur_op);
+        void *return_address = stack_find_return_address_in_frame(code->func_ptr, code->size, tc->interp_cur_op);
         if (address_within_region(tc, code, return_address)) {
             return return_address;
         } else {
