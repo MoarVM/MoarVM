@@ -37,7 +37,7 @@ void MVM_jit_code_enter(MVMThreadContext *tc, MVMJitCode *code, MVMCompUnit *cu)
     code->func_ptr(tc, cu, label);
 }
 
-static void * get_current_position(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame) {
+void * MVM_jit_code_get_current_position(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame) {
     if (tc->cur_frame == frame) {
         /* currently on C stack */
         void *return_address = stack_find_return_address_in_frame(code->func_ptr, code->size, tc->interp_cur_op);
@@ -58,7 +58,7 @@ static void * get_current_position(MVMThreadContext *tc, MVMJitCode *code, MVMFr
 
 MVMint32 MVM_jit_code_get_active_deopt_idx(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame) {
     MVMint32 i;
-    void *current_position = get_current_position(tc, code, frame);
+    void *current_position = MVM_jit_code_get_current_position(tc, code, frame);
     for (i = 0; i < code->num_deopts; i++) {
         if (code->labels[code->deopts[i].label] == current_position) {
             break;
@@ -67,30 +67,23 @@ MVMint32 MVM_jit_code_get_active_deopt_idx(MVMThreadContext *tc, MVMJitCode *cod
     return i;
 }
 
-MVMint32 MVM_jit_code_get_active_handlers(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame, MVMint32 *handlers_out) {
-    MVMint32 i;
-    MVMint32 j = 0;
-    void *current_position = get_current_position(tc, code, frame);
-    for (i = 0; i < code->num_handlers; i++) {
+MVMint32 MVM_jit_code_get_active_handlers(MVMThreadContext *tc, MVMJitCode *code, void *current_position, MVMint32 i) {
+    for (; i < code->num_handlers; i++) {
         void *start_label = code->labels[code->handlers[i].start_label];
         void *end_label   = code->labels[code->handlers[i].end_label];
         if (start_label <= current_position && current_position <= end_label) {
-            handlers_out[j++] = i;
+            break;
         }
     }
-    return j;
+    return i;
 }
 
-MVMint32 MVM_jit_code_get_active_inlines(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame, MVMint32 *inlines_out) {
-    MVMint32 i;
-    MVMint32 j = 0;
-    void *current_position = get_current_position(tc, code, frame);
-    for (i = 0; i < code->num_inlines; i++) {
+MVMint32 MVM_jit_code_get_active_inlines(MVMThreadContext *tc, MVMJitCode *code, void *current_position, MVMint32 i) {
+    for (;i < code->num_inlines; i++) {
         void *inline_start = code->labels[code->inlines[i].start_label];
         void *inline_end   = code->labels[code->inlines[i].end_label];
-        if (inline_start <= current_position && current_position <= inline_end) {
-            inlines_out[j++] = i;
-        }
+        if (inline_start <= current_position && current_position <= inline_end)
+            break;
     }
-    return j;
+    return i;
 }

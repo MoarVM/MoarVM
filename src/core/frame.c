@@ -1453,18 +1453,20 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
          * knows where to find them */
         if (cand && cand->num_inlines) {
             if (cand->jitcode) {
-                MVMint32 *active_inlines = alloca(sizeof(MVMint32) * cand->num_inlines);
-                MVMint32 num_active = MVM_jit_code_get_active_inlines(tc, cand->jitcode, cur_frame, active_inlines);
+                MVMJitCode *jitcode = cand->jitcode;
+                void * current_position = MVM_jit_code_get_current_position(tc, jitcode, cur_frame);
                 MVMint32 i;
-                for (i = 0; i < num_active; i++) {
-                    MVMint32 idx = active_inlines[i];
-                    MVMStaticFrame *isf = cand->inlines[idx].sf;
+
+                for (i = MVM_jit_code_get_active_inlines(tc, jitcode, current_position, 0);
+                     i < jitcode->num_inlines;
+                     i = MVM_jit_code_get_active_inlines(tc, jitcode, current_position, i+1)) {
+                    MVMStaticFrame *isf = cand->inlines[i].sf;
                     icost++;
                     if ((lexical_names = isf->body.lexical_names)) {
                         MVMLexicalRegistry *entry;
                         MVM_HASH_GET(tc, lexical_names, name, entry);
                         if (entry) {
-                            MVMuint16    lexidx = cand->inlines[idx].lexicals_start + entry->value;
+                            MVMuint16    lexidx = cand->inlines[i].lexicals_start + entry->value;
                             MVMRegister *result = &cur_frame->env[lexidx];
                             *type = cand->lexical_types[lexidx];
                             if (vivify && *type == MVM_reg_obj && !result->o) {
