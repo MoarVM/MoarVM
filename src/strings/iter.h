@@ -218,8 +218,8 @@ struct MVMCodepointIter {
     MVMCodepoint  *synth_codes;
     MVMint32       visited_synth_codes;
     MVMint32       total_synth_codes;
-    /* base_code is only used for string_grapheme_ci functions */
-    MVMCodepoint   base_code;
+    /* first_code is only used for string_grapheme_ci functions */
+    MVMCodepoint   first_code;
     /* If we should translate newline \n into \r\n. */
     MVMint32       translate_newlines;
     /* Used to pass through utf8-c8 synthetics, but not any others so we can
@@ -251,26 +251,26 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_grapheme_ci_init(MVMThreadContext *tc
      * and it is a utf8-c8 synthetic */
     if (synth && !(pass_utfc8_synthetics && synth->is_utf8_c8)) {
         /* Set up the iterator so in the next iteration we will start to
-        * hand back codepoints after the initial */
-        /* TODO: for now assumes synthetics start 1 after the first codepoint */
+        * hand back codepoints after the initial.
+        * TODO: This may be able to be optimized
+        * to remove first_code. */
         ci->synth_codes         =  synth->codes + 1;
         ci->visited_synth_codes = -1;
         ci->total_synth_codes   =  synth->num_codes - 1;
-        /* TODO: for now assumes index 0 is the base character */
-        ci->base_code           =  synth->codes[0];
+        ci->first_code          =  synth->codes[0];
     }
     else {
         ci->synth_codes         =  NULL;
         ci->visited_synth_codes = -1;
         ci->total_synth_codes   =  0;
-        ci->base_code           =  g;
+        ci->first_code          =  g;
     }
     return ci->total_synth_codes + 1;
 }
 /* Only for string_grapheme_ci ops */
 MVM_STATIC_INLINE MVMCodepoint MVM_string_grapheme_ci_get_codepoint(MVMThreadContext *tc, MVMCodepointIter *ci) {
     MVMCodepoint result = ci->visited_synth_codes < 0
-        ? ci->base_code
+        ? ci->first_code
         : ci->synth_codes[ci->visited_synth_codes];
     ci->visited_synth_codes++;
     return result;
