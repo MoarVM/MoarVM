@@ -40,12 +40,16 @@ static MVMProfileCallNode *take_node(MVMThreadContext *tc, NodeWorklist *list) {
 }
 
 /* Adds an instruction to log an allocation. */
-static void add_allocation_logging(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+static void add_allocation_logging_at_location(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins, MVMSpeshIns *location) {
     MVMSpeshIns *alloc_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     alloc_ins->info        = MVM_op_get_op(MVM_OP_prof_allocated);
     alloc_ins->operands    = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand));
     alloc_ins->operands[0] = ins->operands[0];
-    MVM_spesh_manipulate_insert_ins(tc, bb, ins, alloc_ins);
+    MVM_spesh_manipulate_insert_ins(tc, bb, location, alloc_ins);
+}
+
+static void add_allocation_logging(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    add_allocation_logging_at_location(tc, g, bb, ins, ins);
 }
 
 static void add_nativecall_logging(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
@@ -109,9 +113,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             }
             case MVM_OP_invoke_o:
             case MVM_OP_param_rp_o:
-            case MVM_OP_param_op_o:
             case MVM_OP_param_rn_o:
-            case MVM_OP_param_on_o:
             case MVM_OP_param_sp:
             case MVM_OP_param_sn:
             case MVM_OP_newexception:
@@ -151,6 +153,14 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_radix_I: {
                 add_allocation_logging(tc, g, bb, ins);
                 break;
+            }
+            case MVM_OP_param_op_o:
+            case MVM_OP_param_on_o: {
+                /* These ops jump to a label if they "succeed", so the
+                 * allocation logging goes in another bb. */
+                MVMSpeshBB  *target   = ins->operands[2].ins_bb;
+                MVMSpeshIns *location = target->first_ins;
+                add_allocation_logging_at_location(tc, g, target, ins, location);
             }
             case MVM_OP_getlex:
             case MVM_OP_getlex_no:
