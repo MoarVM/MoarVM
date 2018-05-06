@@ -546,9 +546,11 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
 /* Returns the location of one string in another or -1  */
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 start) {
     size_t index           = (size_t)start;
-    MVMStringIndex H_graphs = MVM_string_graphs(tc, Haystack), n_graphs = MVM_string_graphs(tc, needle);
+    MVMStringIndex H_graphs, n_graphs;
     MVM_string_check_arg(tc, Haystack, "index search target");
-    MVM_string_check_arg(tc, needle, "index search term");
+    MVM_string_check_arg(tc,   needle, "index search term");
+    H_graphs = MVM_string_graphs_nocheck(tc, Haystack);
+    n_graphs = MVM_string_graphs_nocheck(tc, needle);
 
     if (!n_graphs)
         return start <= H_graphs ? start : -1; /* the empty string is in any other string */
