@@ -102,16 +102,16 @@ static MVMint32 search_frame_handlers_dyn(MVMThreadContext *tc, MVMFrame *f,
     MVMuint32  i;
     if (f->spesh_cand && f->spesh_cand->jitcode && f->jit_entry_label) {
         MVMJitCode *jitcode = f->spesh_cand->jitcode;
-        MVMint32 *active_handlers = alloca(sizeof(MVMint32) * jitcode->num_handlers);
-        MVMint32 num_active = MVM_jit_code_get_active_handlers(tc, jitcode, f, active_handlers);
+        void *current_position = MVM_jit_code_get_current_position(tc, jitcode, f);
         MVMJitHandler    *jhs = f->spesh_cand->jitcode->handlers;
         MVMFrameHandler  *fhs = MVM_frame_effective_handlers(f);
-        for (i = 0; i < num_active; i++) {
-            MVMint32 j = active_handlers[i];
-            if (handler_can_handle(f, &fhs[j], cat, payload) &&
-                !in_handler_stack(tc, &fhs[j], f)) {
-                lh->handler     = &fhs[j];
-                lh->jit_handler = &jhs[j];
+        for (i = MVM_jit_code_get_active_handlers(tc, jitcode, current_position, 0);
+             i < jitcode->num_handlers;
+             i = MVM_jit_code_get_active_handlers(tc, jitcode, current_position, i+1)) {
+            if (handler_can_handle(f, &fhs[i], cat, payload) &&
+                !in_handler_stack(tc, &fhs[i], f)) {
+                lh->handler     = &fhs[i];
+                lh->jit_handler = &jhs[i];
                 return 1;
             }
         }
@@ -177,14 +177,12 @@ static MVMint32 search_frame_handlers_lex(MVMThreadContext *tc, MVMFrame *f,
     MVMFrameHandler *fhs = MVM_frame_effective_handlers(f);
     if (f->spesh_cand && f->spesh_cand->jitcode && f->jit_entry_label) {
         MVMJitCode *jitcode = f->spesh_cand->jitcode;
-        MVMint32 *active_handlers = alloca(sizeof(MVMint32) * jitcode->num_handlers);
-        MVMint32 num_active = MVM_jit_code_get_active_handlers(tc, jitcode, f, active_handlers);
+        void *current_position = MVM_jit_code_get_current_position(tc, jitcode, f);
         MVMJitHandler    *jhs = jitcode->handlers;
-        MVMint32 num_handlers = jitcode->num_handlers;
-        /* I struggle to understand what is going on here */
-        for (i = 0; i < num_active; i++) {
-            MVMint32 idx = active_handlers[i];
-            MVMFrameHandler *fh = &(fhs[idx]);
+        for (i = MVM_jit_code_get_active_handlers(tc, jitcode, current_position, 0);
+             i < jitcode->num_handlers;
+             i = MVM_jit_code_get_active_handlers(tc, jitcode, current_position, i+1)) {
+            MVMFrameHandler *fh = &(fhs[i]);
             if (skip_all_inlinees && fh->inlinee >= 0)
                 continue;
             if (fh->category_mask == MVM_EX_INLINE_BOUNDARY) {
@@ -210,7 +208,7 @@ static MVMint32 search_frame_handlers_lex(MVMThreadContext *tc, MVMFrame *f,
                 if (skipping && f->static_info->body.is_thunk)
                     return 0;
                 lh->handler     = fh;
-                lh->jit_handler = &jhs[idx];
+                lh->jit_handler = &jhs[i];
                 return 1;
             }
         }
