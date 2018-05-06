@@ -66,7 +66,7 @@ void MVM_jit_spill_memory_release(MVMThreadContext *tc, MVMJitCompiler *compiler
 
 
 /* Although we use these only symbolically, we need to assign a temporary value
- * in order to to distinguish between these */
+ * in order to to distinguish between them */
 #define MVM_JIT_ARCH_X64 1
 #define MVM_JIT_PLATFORM_POSIX 1
 #define MVM_JIT_PLATFORM_WIN32 2

@@ -1,12 +1,15 @@
+/* Stack walker for GCC/GAS/CLANG toolchains / platforms */
     .intel_syntax noprefix
     .text
     .globl stack_find_return_address_in_frame_posix
     .globl _stack_find_return_address_in_frame_posix
+/* POSIX ABI entrypoint */
 stack_find_return_address_in_frame_posix:
 _stack_find_return_address_in_frame_posix:
     mov rcx, rdi /* arg0 = start-of-code region */
     mov r8,  rdx /* arg2 = stack base-pointer */
     mov rdx, rsi /* arg1 = size-of-code */
+/* W64 ABI entrypoint (for MSys) */
 _stack_find_return_address_in_frame_win64:
     push rbp
     mov r9, rsp
