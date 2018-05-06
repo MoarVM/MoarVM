@@ -1716,7 +1716,7 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
                         }
                         else {
                             if (attr_st->REPR->ID == MVM_REPR_ID_P6str) {
-                                char * const str = MVM_string_utf8_encode_C_string(tc, get_obj_at_offset(data, offset));
+                                char * const str = MVM_string_utf8_encode_C_string(tc, (MVMString *)get_obj_at_offset(data, offset));
                                 fprintf(stderr, "='%s'", str);
                                 MVM_free(str);
                             }
