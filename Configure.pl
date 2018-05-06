@@ -370,9 +370,7 @@ $config{cc} eq 'clang'
     ? '-fopt-info-vec-optimized'
   : die if $args{'show-autovect'};
 # TODO - we need to do -fno-omit-frame-pointer anyway if we run the JIT
-push @cflags, $config{cc} eq 'cl' ? '/Oy' :
-  ($config{cc} eq 'gcc' || $config{cc} eq 'clang') ? '-fno-omit-frame-pointer' : ()
-  if $args{jit};
+push @cflags, $config{ccjitflags} if $args{jit};
 
 if (exists $args{'show-autovect-failed'}) {
     push @cflags, '-Rpass-missed=loop-vectorize' if $config{cc} eq 'clang';

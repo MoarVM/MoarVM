@@ -1,6 +1,7 @@
 CC     = @cc@
 LD     = @ld@
 AR     = @ar@
+AS     = @as@
 MAKE   = @make@ @mkflags@
 PERL   = @perl@
 RM     = @rm@
@@ -97,7 +98,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/core/hll@obj@ \
           src/core/loadbytecode@obj@ \
           src/math/num@obj@ \
-		  src/math/grisu@obj@ \
+          src/math/grisu@obj@ \
           src/core/coerce@obj@ \
           src/core/dll@obj@ \
           src/core/ext@obj@ \
@@ -586,6 +587,10 @@ switch no-tracing no-cgoto:
 .c@asm@:
 	$(MSG) generating assembler for $@
 	$(CMD)$(CC) @asmswitch@ $(CFLAGS) @objflags@ $(CINCLUDES) @asmout@$@ $*.c
+
+@asm@@obj@:
+	$(MSG) Assembling $@
+	$(CMD)$(AS) $(ASFLAGS) @ccswitch@ @objout@$@ $*@asm@
 
 .c@obj@:
 	$(MSG) compiling $@

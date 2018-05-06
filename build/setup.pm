@@ -113,6 +113,7 @@ our %TC_POSIX = (
     make => 'make',
     ar   => 'ar',
 
+
     ccswitch => '-c',
     ccout    => '-o ',
     ccinc    => '-I',
@@ -123,6 +124,7 @@ our %TC_POSIX = (
 
     asmswitch => '-S',
     asmout    => '-o ',
+    objout    => '-o ',
 
     ldout => undef,
     lddir => '-L',
@@ -204,6 +206,7 @@ our %TC_MSVC = (
 
     asmswitch => '/c /FAs',
     asmout    => '/Fa',
+    objout    => '/Fo',
 
     ldout => '/out:',
     lddir => '/libpath:',
@@ -272,12 +275,14 @@ our %COMPILERS = (
 
         cc => 'gcc',
         ld => undef,
+        as => 'as',
 
         ccmiscflags  => '-Werror=declaration-after-statement -Werror=pointer-arith',
         ccwarnflags  => '',
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
         ccinstflags  => '-pg',
+        ccjitflags   => '-fno-omit-frame-pointer',
 
         ldmiscflags  => '',
         ldoptiflags  => undef,
@@ -325,6 +330,7 @@ our %COMPILERS = (
 
         cc => 'clang',
         ld => undef,
+        as => 'as',
 
         ccmiscflags  =>  '-fno-omit-frame-pointer -fno-optimize-sibling-calls',
         ccwarnflags  => '-Wno-logical-op-parentheses',
@@ -332,6 +338,7 @@ our %COMPILERS = (
         ccdebugflags => '-g%s',
         ccinstflags  => '-fsanitize=address',
         cc_covflags => '-fprofile-instr-generate -fcoverage-mapping',
+        ccjitflags   => '-fno-omit-frame-pointer',
 
         ldmiscflags  => '',
         ldoptiflags  => undef,
@@ -353,12 +360,14 @@ our %COMPILERS = (
 
         cc => 'cl',
         ld => 'link',
+        as => 'ml64',
 
         ccmiscflags  => '/nologo /MT',
         ccwarnflags  => '',
         ccoptiflags  => '/Ox /GL /DNDEBUG',
         ccdebugflags => '/Zi',
         ccinstflags  => '',
+        ccjitflags   => '/Oy-',
 
         ldmiscflags  => '/nologo',
         ldoptiflags  => '/LTCG',
@@ -379,12 +388,14 @@ our %COMPILERS = (
 
         cc => 'cc',
         ld => undef,
+        as => 'as',
 
         ccmiscflags  => '',
         ccwarnflags  => '',
         ccoptiflags  => '-O -DNDEBUG',
         ccdebugflags => '-g',
         ccinstflags  => '',
+        ccjitflags   => '',
 
         ldmiscflags  => '',
         ldoptiflags  => undef,
