@@ -55,6 +55,7 @@ our %TP_CMP = (
     name => 'cmp',
     path => '3rdparty/cmp',
     src  => [ '3rdparty/cmp' ],
+    clean => 'cd 3rdparty/cmp && $(RM) libcmp.a && $(MAKE) clean'
 );
 
 our %TP_UVDUMMY = (
