@@ -161,6 +161,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 MVMSpeshBB  *target   = ins->operands[2].ins_bb;
                 MVMSpeshIns *location = target->first_ins;
                 add_allocation_logging_at_location(tc, g, target, ins, location);
+                break;
             }
             case MVM_OP_getlex:
             case MVM_OP_getlex_no:
