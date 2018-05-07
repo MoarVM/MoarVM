@@ -160,6 +160,10 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
                  * allocation logging goes in another bb. */
                 MVMSpeshBB  *target   = ins->operands[2].ins_bb;
                 MVMSpeshIns *location = target->first_ins;
+                while (location && location->info->opcode == MVM_SSA_PHI) {
+                    location = location->next;
+                }
+                location = location->prev;
                 add_allocation_logging_at_location(tc, g, target, ins, location);
                 break;
             }
