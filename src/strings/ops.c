@@ -1,4 +1,5 @@
 #include "platform/memmem.h"
+#include "platform/memmem32.h"
 #include "moar.h"
 #define MVM_DEBUG_STRANDS 0
 #define MVM_string_KMP_max_pattern_length 8192
@@ -542,7 +543,26 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
         return 1;
     }
 }
-
+static MVMint64 MVM_string_memmem_grapheme32 (MVMThreadContext *tc, MVMGrapheme32 *H_blob32, MVMGrapheme32 *n_blob32, MVMint64 H_start, MVMStringIndex H_graphs, MVMStringIndex n_graphs) {
+    MVMGrapheme32 * rtrn = memmem_uint32(H_blob32 + H_start, H_graphs - H_start, n_blob32, n_graphs);
+    return rtrn == NULL ? -1 : rtrn - H_blob32;
+}
+static MVMint64 MVM_string_memmem_grapheme32str (MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 H_start, MVMStringIndex H_graphs, MVMStringIndex n_graphs) {
+    MVMGrapheme32 *needle_buf = NULL;
+    MVMint64 rtrn;
+    if (needle->body.storage_type != MVM_STRING_GRAPHEME_32) {
+        MVMStringIndex i;
+        MVMGraphemeIter n_gi;
+        needle_buf = MVM_malloc(needle->body.num_graphs * sizeof(MVMGrapheme32));
+        if (needle->body.storage_type != MVM_STRING_GRAPHEME_8) MVM_string_gi_init(tc, &n_gi, needle);
+        for (i = 0; i < needle->body.num_graphs; i++) {
+            needle_buf[i] = needle->body.storage_type == MVM_STRING_GRAPHEME_8 ? needle->body.storage.blob_8[i] : MVM_string_gi_get_grapheme(tc, &n_gi);
+        }
+    }
+    rtrn = MVM_string_memmem_grapheme32(tc, Haystack->body.storage.blob_32, needle_buf ? needle_buf : needle->body.storage.blob_32, H_start, H_graphs, n_graphs);
+    if (needle_buf) MVM_free(needle_buf);
+    return rtrn;
+}
 /* Returns the location of one string in another or -1  */
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 start) {
     size_t index           = (size_t)start;
@@ -570,38 +590,7 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *
     switch (Haystack->body.storage_type) {
         case MVM_STRING_GRAPHEME_32:
             if (needle->body.storage_type == MVM_STRING_GRAPHEME_32 || needle->body.num_graphs < 100) {
-                void *start_ptr = Haystack->body.storage.blob_32 + start;
-                void *mm_return_32 = NULL;
-                void *end_ptr = (char*)start_ptr + sizeof(MVMGrapheme32) * (H_graphs - start);
-                MVMGrapheme32 *needle_buf = NULL;
-                if (needle->body.storage_type != MVM_STRING_GRAPHEME_32) {
-                    MVMStringIndex i;
-                    MVMGraphemeIter n_gi;
-                    needle_buf = MVM_malloc(needle->body.num_graphs * sizeof(MVMGrapheme32));
-                    if (needle->body.storage_type != MVM_STRING_GRAPHEME_8) MVM_string_gi_init(tc, &n_gi, needle);
-                    for (i = 0; i < needle->body.num_graphs; i++) {
-                        needle_buf[i] = needle->body.storage_type == MVM_STRING_GRAPHEME_8 ? needle->body.storage.blob_8[i] : MVM_string_gi_get_grapheme(tc, &n_gi);
-                    }
-                }
-                do {
-                    /* Keep as void* to not lose precision */
-                    mm_return_32 = MVM_memmem(
-                        start_ptr, /* start position */
-                        (char*)end_ptr - (char*)start_ptr, /* length of Haystack from start position to end */
-                        needle_buf ? needle_buf : needle->body.storage.blob_32, /* needle start */
-                        n_graphs * sizeof(MVMGrapheme32) /* needle length */
-                    );
-                    if (mm_return_32 == NULL) {
-                        if (needle_buf) MVM_free(needle_buf);
-                        return -1;
-                    }
-                } /* If we aren't on a 32 bit boundary then continue from where we left off (unlikely but possible) */
-                while ( ( (char*)mm_return_32 - (char*)Haystack->body.storage.blob_32) % sizeof(MVMGrapheme32)
-                    && ( start_ptr = (char*)mm_return_32 + 1) /* Set the new start pointer right after where we left off */
-                    && ( start_ptr < end_ptr ) /* Check we aren't past the end of the string just in case */
-                );
-                if (needle_buf) MVM_free(needle_buf);
-                return (MVMGrapheme32*)mm_return_32 - Haystack->body.storage.blob_32;
+                return MVM_string_memmem_grapheme32str(tc, Haystack, needle, start, H_graphs, n_graphs);
             }
             break;
         case MVM_STRING_GRAPHEME_8:
@@ -2099,50 +2088,46 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     return concats_stable ? result : re_nfg(tc, result);
 }
 
-/* Returning nonzero means it found the char at the position specified in 'a' in 'b'.
+/* Returning nonzero means it found the char at the position specified in 'a' in 'Haystack'.
  * For character enumerations in regexes. */
-MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint64 offset, MVMString *b) {
-    MVMuint32     bgraphs;
+MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint64 offset, MVMString *Haystack) {
+    MVMuint32     H_graphs;
     MVMGrapheme32 search;
 
     MVM_string_check_arg(tc, a, "char_at_in_string");
-    MVM_string_check_arg(tc, b, "char_at_in_string");
+    MVM_string_check_arg(tc, Haystack, "char_at_in_string");
 
     /* We return -2 here only to be able to distinguish between "out of bounds" and "not in string". */
     if (offset < 0 || MVM_string_graphs_nocheck(tc, a) <= offset)
         return -2;
 
     search  = MVM_string_get_grapheme_at_nocheck(tc, a, offset);
-    bgraphs = MVM_string_graphs_nocheck(tc, b);
-    switch (b->body.storage_type) {
-    case MVM_STRING_GRAPHEME_32: {
-        MVMStringIndex i;
-        for (i = 0; i < bgraphs; i++)
-            if (b->body.storage.blob_32[i] == search)
-                return i;
-        break;
-    }
+    H_graphs = MVM_string_graphs_nocheck(tc, Haystack);
+    switch (Haystack->body.storage_type) {
+    case MVM_STRING_GRAPHEME_32:
+        return MVM_string_memmem_grapheme32(tc, Haystack->body.storage.blob_32, &search, 0, H_graphs, 1);
+
     case MVM_STRING_GRAPHEME_ASCII:
         if (can_fit_into_ascii(search)) {
             MVMStringIndex i;
-            for (i = 0; i < bgraphs; i++)
-                if (b->body.storage.blob_ascii[i] == search)
+            for (i = 0; i < H_graphs; i++)
+                if (Haystack->body.storage.blob_ascii[i] == search)
                     return i;
         }
         break;
     case MVM_STRING_GRAPHEME_8:
         if (can_fit_into_8bit(search)) {
             MVMStringIndex i;
-            for (i = 0; i < bgraphs; i++)
-                if (b->body.storage.blob_8[i] == search)
+            for (i = 0; i < H_graphs; i++)
+                if (Haystack->body.storage.blob_8[i] == search)
                     return i;
         }
         break;
     case MVM_STRING_STRAND: {
         MVMGraphemeIter gi;
         MVMStringIndex  i;
-        MVM_string_gi_init(tc, &gi, b);
-        for (i = 0; i < bgraphs; i++)
+        MVM_string_gi_init(tc, &gi, Haystack);
+        for (i = 0; i < H_graphs; i++)
             if (MVM_string_gi_get_grapheme(tc, &gi) == search)
                 return i;
     }

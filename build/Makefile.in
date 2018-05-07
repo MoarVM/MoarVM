@@ -228,6 +228,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/instrument/line_coverage@obj@ \
           src/platform/sys@obj@ \
           src/platform/random@obj@ \
+          src/platform/memmem32@obj@ \
           src/moar@obj@ \
           @platform@ \
           @jit_obj@
@@ -405,7 +406,8 @@ HEADERS = src/moar.h \
           src/gen/config.h \
           src/debug/debugserver.h \
           3rdparty/uthash.h \
-          3rdparty/cmp/cmp.h
+          3rdparty/cmp/cmp.h \
+          src/platform/memmem32.h
 
 UV_UNIX = 3rdparty/libuv/src/fs-poll@obj@ \
           3rdparty/libuv/src/inet@obj@ \
