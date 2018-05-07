@@ -1,4 +1,5 @@
 #include "platform/memmem.h"
+#include "platform/memmem32.h"
 #include "moar.h"
 #define MVM_DEBUG_STRANDS 0
 #define MVM_string_KMP_max_pattern_length 8192
@@ -543,28 +544,12 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
     }
 }
 static MVMint64 MVM_string_memmem_grapheme32 (MVMThreadContext *tc, MVMGrapheme32 *H_blob32, MVMGrapheme32 *n_blob32, MVMint64 H_start, MVMStringIndex H_graphs, MVMStringIndex n_graphs) {
-    void *start_ptr = H_blob32 + H_start;
-    void *mm_return_32 = NULL;
-    void *end_ptr = (char*)start_ptr + sizeof(MVMGrapheme32) * (H_graphs - H_start);
-    do {
-        /* Keep as void* to not lose precision */
-        mm_return_32 = MVM_memmem(
-            start_ptr, /* start position */
-            (char*)end_ptr - (char*)start_ptr, /* length of Haystack from start position to end */
-            n_blob32, /* needle start */
-            n_graphs * sizeof(MVMGrapheme32) /* needle length */
-        );
-        if (mm_return_32 == NULL)
-            return -1;
-    } /* If we aren't on a 32 bit boundary then continue from where we left off (unlikely but possible) */
-    while ( ( (char*)mm_return_32 - (char*)H_blob32) % sizeof(MVMGrapheme32)
-        && ( start_ptr = (char*)mm_return_32 + 1) /* Set the new start pointer right after where we left off */
-        && ( start_ptr < end_ptr ) /* Check we aren't past the end of the string just in case */
-    );
-    return (MVMGrapheme32*)mm_return_32 - H_blob32;
+    MVMGrapheme32 * rtrn = memmem_uint32(H_blob32 + H_start, H_graphs - H_start, n_blob32, n_graphs);
+    return rtrn == NULL ? -1 : rtrn - H_blob32;
 }
 static MVMint64 MVM_string_memmem_grapheme32str (MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 H_start, MVMStringIndex H_graphs, MVMStringIndex n_graphs) {
     MVMGrapheme32 *needle_buf = NULL;
+    MVMint64 rtrn;
     if (needle->body.storage_type != MVM_STRING_GRAPHEME_32) {
         MVMStringIndex i;
         MVMGraphemeIter n_gi;
@@ -574,7 +559,7 @@ static MVMint64 MVM_string_memmem_grapheme32str (MVMThreadContext *tc, MVMString
             needle_buf[i] = needle->body.storage_type == MVM_STRING_GRAPHEME_8 ? needle->body.storage.blob_8[i] : MVM_string_gi_get_grapheme(tc, &n_gi);
         }
     }
-    ssize_t rtrn = MVM_string_memmem_grapheme32(tc, Haystack->body.storage.blob_32, needle_buf ? needle_buf : needle->body.storage.blob_32, H_start, H_graphs, n_graphs);
+    rtrn = MVM_string_memmem_grapheme32(tc, Haystack->body.storage.blob_32, needle_buf ? needle_buf : needle->body.storage.blob_32, H_start, H_graphs, n_graphs);
     if (needle_buf) MVM_free(needle_buf);
     return rtrn;
 }
@@ -604,8 +589,9 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *
      * Crochemore+Perrin two-way string matching */
     switch (Haystack->body.storage_type) {
         case MVM_STRING_GRAPHEME_32:
-            if (needle->body.storage_type == MVM_STRING_GRAPHEME_32 || needle->body.num_graphs < 100)
+            if (needle->body.storage_type == MVM_STRING_GRAPHEME_32 || needle->body.num_graphs < 100) {
                 return MVM_string_memmem_grapheme32str(tc, Haystack, needle, start, H_graphs, n_graphs);
+            }
             break;
         case MVM_STRING_GRAPHEME_8:
             if (needle->body.storage_type == MVM_STRING_GRAPHEME_8 || needle->body.num_graphs < 100) {
