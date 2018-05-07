@@ -125,6 +125,8 @@ typedef enum {
     MVM_JIT_PARAM_I64_RW,
     MVM_JIT_PARAM_PTR,
     MVM_JIT_PARAM_VMARRAY,
+    /* spesh slot value */
+    MVM_JIT_SPESH_SLOT_VALUE,
 } MVMJitArgType;
 
 struct MVMJitCallArg {
@@ -158,6 +160,8 @@ typedef enum {
        we need to do the same as interp.c and address registers relative to
        cur_op. */
     MVM_JIT_RV_DYNIDX,
+    /* store pointer or vmnull */
+    MVM_JIT_RV_DEREF_OR_VMNULL,
 } MVMJitRVMode;
 
 

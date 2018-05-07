@@ -95,7 +95,7 @@
 |.type COLLECTABLE, MVMCollectable
 |.type STABLE, MVMSTable
 |.type REPR, MVMREPROps
-|.type STRING, MVMString*
+|.type STRING, MVMString
 |.type OBJECTPTR, MVMObject*
 |.type CONTAINERSPEC, MVMContainerSpec
 |.type STORAGESPEC, MVMStorageSpec
@@ -260,7 +260,7 @@ const unsigned int MVM_jit_num_globals(void) {
 |.macro get_string, reg, idx
 || MVM_cu_ensure_string_decoded(tc, jg->sg->sf->body.cu, idx);
 | mov reg, CU->body.strings;
-| mov reg, STRING:reg[idx];
+| mov reg, OBJECTPTR:reg[idx];
 |.endmacro
 
 |.macro is_type_object, reg
@@ -279,6 +279,20 @@ const unsigned int MVM_jit_num_globals(void) {
 | mov ARG1, TC;
 | mov64 ARG2, (uintptr_t)(msg);
 | callp &MVM_exception_throw_adhoc;
+|.endmacro
+
+|.macro get_stable, out, in
+| mov out, aword OBJECT:in->st;
+|.endmacro
+
+|.macro get_repr, out, in
+| get_stable out, in;
+| mov out, aword STABLE:out->REPR;
+|.endmacro
+
+|.macro cmp_repr_id, obj, tmp, id
+| get_repr tmp, obj;
+| cmp dword REPR:tmp->ID, id;
 |.endmacro
 
 |.define FRAME_NR, dword [rbp-0x20]
@@ -800,6 +814,20 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], RV;
         break;
     }
+    case MVM_OP_ctxlexpad: {
+        MVMint16 src = ins->operands[1].reg.orig;
+        MVMint16 dst = ins->operands[0].reg.orig;
+        | mov TMP1, WORK[src];
+        | is_type_object TMP1;
+        | je >1;
+        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMContext;
+        | je >2;
+        |1:
+        | throw_adhoc "ctxlexpad needs an MVMContext";
+        |2:
+        | mov WORK[dst], TMP1;
+        break;
+    }
     case MVM_OP_curcode: {
         MVMint16 dst = ins->operands[0].reg.orig;
         | mov TMP1, TC->cur_frame;
@@ -856,7 +884,26 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov qword WORK[dst], TMP2;
         break;
     }
-
+    case MVM_OP_captureposarg: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        MVMint16 pos = ins->operands[2].reg.orig;
+        | mov TMP5, qword WORK[src];
+        | is_type_object TMP5;
+        | jnz >1;
+        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMCallCapture;
+        | jne >1;
+        | mov ARG1, TC;
+        | mov ARG2, aword CAPTURE:TMP5->body.apc;
+        | mov ARG3, WORK[pos];
+        | callp MVM_args_get_required_pos_obj;
+        | mov WORK[dst], RV;
+        | jmp >2;
+        |1:
+        | throw_adhoc "captureposarg needs a MVMCallCapture";
+        |2:
+        break;
+    }
     case MVM_OP_add_i:
     case MVM_OP_sub_i:
     case MVM_OP_bor_i:
@@ -1695,9 +1742,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         /* if (IS_CONCRETE(capture) && REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) */
         | is_type_object TMP1;
         | jnz >1;
-        | mov TMP2, OBJECT:TMP1->st;
-        | mov TMP2, STABLE:TMP2->REPR;
-        | cmp dword REPR:TMP2->ID, MVM_REPR_ID_MVMCallCapture;
+        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCallCapture;
         | je >2;
         |1:
         /* else throw */
@@ -1739,9 +1784,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         /* if (IS_CONCRETE(capture) && REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) */
         | is_type_object TMP1;
         | jnz >1;
-        | mov TMP2, OBJECT:TMP1->st;
-        | mov TMP2, STABLE:TMP2->REPR;
-        | cmp dword REPR:TMP2->ID, MVM_REPR_ID_MVMCallCapture;
+        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCallCapture;
         | je >2;
         |1:
         /* else throw */
@@ -1759,9 +1802,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         /* if (IS_CONCRETE(capture) && REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) */
         | is_type_object TMP1;
         | jnz >1;
-        | mov TMP2, OBJECT:TMP1->st;
-        | mov TMP2, STABLE:TMP2->REPR;
-        | cmp dword REPR:TMP2->ID, MVM_REPR_ID_MVMCallCapture;
+        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCallCapture;
         | je >2;
         |1:
         /* else throw */
@@ -1812,9 +1853,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 code = ins->operands[1].reg.orig;
         | mov TMP1, aword WORK[obj];
         /* if (REPR(obj)->ID == MVM_REPR_ID_MVMCode) */
-        | mov TMP2, OBJECT:TMP1->st;
-        | mov TMP2, STABLE:TMP2->REPR;
-        | cmp dword REPR:TMP2->ID, MVM_REPR_ID_MVMCode;
+        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCode;
         | je >1;
         /* else throw */
         | throw_adhoc "setcodeobj needs a code ref";
@@ -2002,6 +2041,9 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
         | mov TMP6, aword WORK[arg.v.lit_i64];
         | mov TMP6, aword VMARRAY:TMP6->body.slots;
         break;
+    case MVM_JIT_SPESH_SLOT_VALUE:
+        | get_spesh_slot TMP6, arg.v.lit_i64;
+        break;
     default:
         MVM_oops(tc, "JIT: Unknown JIT argument type %d", arg.type);
     }
@@ -2127,6 +2169,7 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitCompiler *compiler, 
         case MVM_JIT_PARAM_I64_RW:
         case MVM_JIT_PARAM_PTR:
         case MVM_JIT_PARAM_VMARRAY:
+        case MVM_JIT_SPESH_SLOT_VALUE:
             if (num_gpr < 6) {
                 in_gpr[num_gpr++] = args[i];
             } else {
@@ -2225,6 +2268,16 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
         | mov TMP2w, word [TMP1 + call_spec->rv_idx*2];
         | mov aword [WORK + TMP2*8], RV;
         break;
+    case MVM_JIT_RV_DEREF_OR_VMNULL:
+        | test RV, RV;
+        | jz >4;
+        | mov TMP1, [RV];
+        | jmp >5;
+        |4:
+        | get_vmnull TMP1;
+        |5:
+        | mov WORK[call_spec->rv_idx], TMP1;
+        break;
     }
 }
 
@@ -2292,6 +2345,23 @@ void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, M
             | cmp TMP1, TMP2;
             | je >1;
             | jmp =>(name);
+            |1:
+            break;
+        case MVM_OP_if_s:
+            | mov TMP1, WORK[val];
+            | test TMP1, TMP1;
+            | jz >1;
+            | cmp dword STRING:TMP1->body.num_graphs, 0;
+            | je >1;
+            | jmp =>(name);
+            |1:
+            break;
+        case MVM_OP_unless_s:
+            | mov TMP1, WORK[val];
+            | test TMP1, TMP1;
+            | jz =>(name);
+            | cmp dword STRING:TMP1->body.num_graphs, 0;
+            | je =>(name);
             |1:
             break;
         case MVM_OP_indexat:
@@ -2411,10 +2481,7 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
         | jne >1;
     } else if (op == MVM_OP_sp_guardsf) {
         /* Should be an MVMCode */
-        MVMint32 reprid = MVM_REPR_ID_MVMCode;
-        | mov TMP3, OBJECT:TMP1->st;
-        | mov TMP3, STABLE:TMP3->REPR;
-        | cmp qword REPR:TMP3->ID, reprid;
+        | cmp_repr_id TMP1, TMP3, MVM_REPR_ID_MVMCode;
         | jne >1;
         | cmp TMP2, CODE:TMP1->body.sf;
         | jne >1;

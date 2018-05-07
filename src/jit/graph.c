@@ -128,7 +128,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_throwcatdyn:
     case MVM_OP_throwcatlex:
     case MVM_OP_throwcatlexotic: return MVM_exception_throwcat;
-    case MVM_OP_throwpayloadlex: return MVM_exception_throwpayload;
+    case MVM_OP_throwpayloadlexcaller: case MVM_OP_throwpayloadlex: return MVM_exception_throwpayload;
     case MVM_OP_bindexpayload: return MVM_bind_exception_payload;
     case MVM_OP_getexpayload: return MVM_get_exception_payload;
     case MVM_OP_resume: return MVM_exception_resume;
@@ -153,6 +153,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_getdynlex: return MVM_frame_getdynlex;
     case MVM_OP_binddynlex: return MVM_frame_binddynlex;
     case MVM_OP_getlexouter: return MVM_frame_find_lexical_by_name_outer;
+    case MVM_OP_getlexcaller: return MVM_frame_find_lexical_by_name_rel_caller;
     case MVM_OP_findmeth: case MVM_OP_findmeth_s: return MVM_6model_find_method;
     case MVM_OP_tryfindmeth: case MVM_OP_tryfindmeth_s: return MVM_6model_find_method;
     case MVM_OP_multicacheadd: return MVM_multi_cache_add;
@@ -357,6 +358,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_exreturnafterunwind: return MVM_exception_returnafterunwind;
 
     case MVM_OP_breakpoint: return MVM_debugserver_breakpoint_check;
+    case MVM_OP_sp_getstringfrom: return MVM_cu_string;
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
     }
@@ -587,6 +589,10 @@ static MVMint32 consume_jumplist(MVMThreadContext *tc, MVMJitGraph *jg,
     iter->bb = bb;
     iter->ins = ins;
     return 1;
+}
+
+static MVMString* wrap_MVM_cu_string(MVMThreadContext *tc, MVMCompUnit *cu, MVMuint32 idx) {
+    return MVM_cu_string(tc, cu, idx);
 }
 
 static MVMint32 jg_add_data_node(MVMThreadContext *tc, MVMJitGraph *jg, void *data, size_t size) {
@@ -1570,6 +1576,8 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_const_i64:
     case MVM_OP_const_n64:
     case MVM_OP_nan:
+    case MVM_OP_inf:
+    case MVM_OP_neginf:
     case MVM_OP_const_s:
     case MVM_OP_null:
         /* argument reading */
@@ -1668,6 +1676,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_invokewithcapture:
     case MVM_OP_captureposelems:
     case MVM_OP_capturehasnameds:
+    case MVM_OP_captureposarg:
         /* Exception handling */
     case MVM_OP_lastexpayload:
         /* Parameters */
@@ -1721,6 +1730,8 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_indexnat:
     case MVM_OP_if_s0:
     case MVM_OP_unless_s0:
+    case MVM_OP_if_s:
+    case MVM_OP_unless_s:
         jg_append_branch(tc, jg, 0, ins);
         break;
         /* never any need to implement them anymore, since they're automatically
@@ -1845,12 +1856,16 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                           4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
+    case MVM_OP_throwpayloadlexcaller:
     case MVM_OP_throwpayloadlex: {
         MVMint16 regi     = ins->operands[0].reg.orig;
         MVMint32 category = (MVMuint32)ins->operands[1].lit_i64;
         MVMint16 payload  = ins->operands[2].reg.orig;
+        MVMuint8 mode = (ins->info->opcode == MVM_OP_throwpayloadlex ?
+                         MVM_EX_THROW_LEX :
+                         MVM_EX_THROW_LEX_CALLER);
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_LITERAL, { MVM_EX_THROW_LEX } },
+                                 { MVM_JIT_LITERAL, { mode } },
                                  { MVM_JIT_LITERAL, { category } },
                                  { MVM_JIT_REG_VAL, { payload } },
                                  { MVM_JIT_REG_ADDR, { regi } }};
@@ -1918,6 +1933,16 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { name } }};
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_getlexcaller: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 name = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { name } },
+                                 { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_CALLER } } };
+        jg_append_call_c(tc, jg, MVM_frame_find_lexical_by_name_rel_caller,
+                         3, args, MVM_JIT_RV_DEREF_OR_VMNULL, dst);
         break;
     }
     case MVM_OP_isfalse:
@@ -3051,6 +3076,11 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, MVM_gc_mark_thread_unblocked, 1, block_args, MVM_JIT_RV_VOID, -1);
         break;
     }
+    case MVM_OP_currentthread: {
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } } };
+        jg_append_call_c(tc, jg, MVM_thread_current, 1, args, MVM_JIT_RV_PTR, ins->operands[0].reg.orig);
+        break;
+    }
     case MVM_OP_getlexref_i:
     case MVM_OP_getlexref_i32:
     case MVM_OP_getlexref_i16:
@@ -3189,6 +3219,15 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { obj } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_sp_getstringfrom: {
+        MVMint16 spesh_idx = ins->operands[1].lit_i16;
+        MVMuint32 cu_idx = ins->operands[2].lit_str_idx;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_SPESH_SLOT_VALUE, { spesh_idx } },
+                                 { MVM_JIT_LITERAL, cu_idx } };
+        jg_append_call_c(tc, jg, MVM_cu_string, 3, args, MVM_JIT_RV_PTR, ins->operands[0].reg.orig);
         break;
     }
     case MVM_OP_breakpoint: {
