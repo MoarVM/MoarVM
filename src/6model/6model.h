@@ -478,8 +478,8 @@ struct MVMREPROps_Positional {
         MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind);
 
     /* Creates a slice of the source array (from start to end) and stores it
-     * within the destination array. If start is a negative, copy from the
-     * beginning. If end is a negative, copy until the end of the array. */
+     * within the destination array. If start or end is "-n", it will be
+     * translated into the nth position relative to the end of the array. */
     void (*slice) (MVMThreadContext *tc, MVMSTable *st,
         MVMObject *src, void *data, MVMObject *dest,
         MVMint64 start, MVMint64 end);
