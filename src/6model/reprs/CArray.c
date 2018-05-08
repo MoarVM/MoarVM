@@ -414,6 +414,10 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     die_pos_nyi(tc);
 }
 
+static void aslice(MVMThreadContext *tc, MVMSTable *st, MVMObject *src, void *data, MVMObject *dest, MVMint64 start, MVMint64 end) {
+    die_pos_nyi(tc);
+}
+
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMCArrayBody *body = (MVMCArrayBody *)data;
 
@@ -477,6 +481,7 @@ static const MVMREPROps CArray_this_repr = {
         pop,
         unshift,
         shift,
+        aslice,
         MVM_REPR_DEFAULT_SPLICE,
         MVM_REPR_DEFAULT_AT_POS_MULTIDIM,
         MVM_REPR_DEFAULT_BIND_POS_MULTIDIM,

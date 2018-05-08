@@ -477,6 +477,13 @@ struct MVMREPROps_Positional {
     void (*shift) (MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind);
 
+    /* Creates a slice of the source array (from start to end) and stores it
+     * within the destination array. If start or end is "-n", it will be
+     * translated into the nth position relative to the end of the array. */
+    void (*slice) (MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *src, void *data, MVMObject *dest,
+        MVMint64 start, MVMint64 end);
+
     /* Splices the specified array into this one. Representations may optimize if
      * they know the type of the passed array, otherwise they should use the REPR
      * API. */

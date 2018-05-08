@@ -59,6 +59,9 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 case MVM_OP_unshift_o:
                     prepend_ctw_check(tc, g, bb, ins, ins->operands[0], MVM_CTW_UNSHIFT);
                     break;
+                case MVM_OP_slice:
+                    prepend_ctw_check(tc, g, bb, ins, ins->operands[0], MVM_CTW_SLICE);
+                    break;
                 case MVM_OP_splice:
                     prepend_ctw_check(tc, g, bb, ins, ins->operands[0], MVM_CTW_SPLICE);
                     break;
@@ -183,6 +186,9 @@ void MVM_cross_thread_write_check(MVMThreadContext *tc, MVMObject *written, MVMi
                 break;
             case MVM_CTW_UNSHIFT:
                 guilty_desc = "unshifted to";
+                break;
+            case MVM_CTW_SLICE:
+                guilty_desc = "sliced";
                 break;
             case MVM_CTW_SPLICE:
                 guilty_desc = "spliced";

@@ -93,6 +93,9 @@ void MVM_REPR_DEFAULT_UNSHIFT(MVMThreadContext *tc, MVMSTable *st, MVMObject *ro
 void MVM_REPR_DEFAULT_SHIFT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
     die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
+void MVM_REPR_DEFAULT_SLICE(MVMThreadContext *tc, MVMSTable *st, MVMObject *src, void *data, MVMObject *dest, MVMint64 start, MVMint64 end) {
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
+}
 void MVM_REPR_DEFAULT_AT_POS_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister *value, MVMuint16 kind) {
     die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }

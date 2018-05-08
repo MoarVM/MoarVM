@@ -176,6 +176,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_shift_s: return MVM_repr_shift_s;
     case MVM_OP_shift_o: return MVM_repr_shift_o;
     case MVM_OP_setelemspos: return MVM_repr_pos_set_elems;
+    case MVM_OP_slice:  return MVM_repr_pos_slice;
     case MVM_OP_splice: return MVM_repr_pos_splice;
 
     case MVM_OP_existskey: return MVM_repr_exists_key;
@@ -817,6 +818,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
         case MVM_OP_getattrs_o:
         case MVM_OP_attrinited:
         case MVM_OP_hintfor:
+        case MVM_OP_slice:
             type_operand = ins->operands[1];
             break;
         case MVM_OP_box_i:
@@ -1299,6 +1301,18 @@ skipdevirt:
                                  { MVM_JIT_REG_VAL, invocant },
                                  { MVM_JIT_REG_VAL, key } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_slice: {
+        MVMint16 dst   = ins->operands[0].reg.orig;
+        MVMint16 src   = ins->operands[1].reg.orig;
+        MVMint16 start = ins->operands[2].reg.orig;
+        MVMint16 end   = ins->operands[3].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, src   },
+                                 { MVM_JIT_REG_VAL, start },
+                                 { MVM_JIT_REG_VAL, end   } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_PTR, dst);
         break;
     }
     case MVM_OP_splice: {
@@ -2145,6 +2159,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_existskey:
     case MVM_OP_existspos:
     case MVM_OP_setelemspos:
+    case MVM_OP_slice:
     case MVM_OP_splice:
     case MVM_OP_atpos_i:
     case MVM_OP_atpos_n:

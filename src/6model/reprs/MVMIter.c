@@ -164,6 +164,7 @@ static const MVMREPROps MVMIter_this_repr = {
         MVM_REPR_DEFAULT_POP,
         MVM_REPR_DEFAULT_UNSHIFT,
         shift,
+        MVM_REPR_DEFAULT_SLICE,
         isplice,
         MVM_REPR_DEFAULT_AT_POS_MULTIDIM,
         MVM_REPR_DEFAULT_BIND_POS_MULTIDIM,
