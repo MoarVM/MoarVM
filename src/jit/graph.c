@@ -3091,6 +3091,14 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
         break;
     }
+    case MVM_OP_threadlockcount: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] =  { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                  { MVM_JIT_REG_VAL, { obj } } };
+        jg_append_call_c(tc, jg, MVM_thread_lock_count, 2, args, MVM_JIT_RV_INT, dst);
+        break;
+    }
     case MVM_OP_cpucores: {
         MVMint16 dst = ins->operands[0].reg.orig;
         jg_append_call_c(tc, jg, op_to_func(tc, op), 0, NULL, MVM_JIT_RV_INT, dst);
