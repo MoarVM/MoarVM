@@ -1642,6 +1642,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_takedispatcher:
     case MVM_OP_setdispatcher:
     case MVM_OP_ctx:
+    case MVM_OP_ctxlexpad:
     case MVM_OP_curcode:
     case MVM_OP_getcode:
     case MVM_OP_callercode:
@@ -2031,15 +2032,29 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         }
         break;
     }
+    case MVM_OP_hllizefor:
     case MVM_OP_hllize: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
-        MVMHLLConfig *hll_config = jg->sg->sf->body.cu->body.hll_config;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { src } },
-                                 { MVM_JIT_LITERAL_PTR, { (MVMint64)hll_config } },
+                                 { MVM_JIT_LITERAL_PTR, 0 },
                                  { MVM_JIT_REG_ADDR, { dst } }};
-        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+
+        MVMHLLConfig *hll_config;
+        if (ins->info->opcode == MVM_OP_hllize) {
+            hll_config = jg->sg->sf->body.cu->body.hll_config;
+        } else {
+            MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[2]);
+            if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+                hll_config = MVM_hll_get_config_for(tc, facts->value.s);
+            } else {
+                MVM_jit_log(tc, "BAIL: op <%s>", ins->info->name);
+                return 0;
+            }
+        }
+        args[2].v.ptr = hll_config;
+        jg_append_call_c(tc, jg, MVM_hll_map, 4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_clone: {
