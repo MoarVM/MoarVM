@@ -1817,6 +1817,23 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dest], rax;
         break;
     }
+    case MVM_OP_capturenamedshash: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        | mov TMP1, WORK[obj];
+        | is_type_object TMP1;
+        | jnz >1;
+        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCallCapture;
+        | je >2;
+        |1:
+        | throw_adhoc "capturenamedshash needs a MVMCallCapture";
+        |2:
+        | mov ARG2, CAPTURE:TMP1->body.apc;
+        | mov ARG1, TC;
+        | callp MVM_args_slurpy_named;
+        | mov WORK[dst], RV;
+        break;
+    }
     case MVM_OP_getstdin:
     case MVM_OP_getstdout:
     case MVM_OP_getstderr: {
