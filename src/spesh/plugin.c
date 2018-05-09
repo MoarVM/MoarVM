@@ -503,6 +503,9 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
          * and prepargs instructions. */
         MVMuint32 arg_regs_length;
         MVMSpeshOperand *arg_regs = arg_ins_to_reg_list(tc, g, bb, ins, &arg_regs_length);
+        MVMuint32 deopt_to = bytecode_offset - (
+                4 * arg_regs_length +   /* The bytes the args instructions use */
+                4);                     /* The bytes of the prepargs instruction */
 
         /* Find result and add it to a spesh slot. */
         MVMObject *resolvee = gs->guards[guard_index].u.result;
@@ -520,7 +523,23 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
 
         /* Prepend guards. */
         while (++guards_start <= guards_end) {
-            /* TODO guard insertion */
+            MVMSpeshPluginGuard *guard = &(gs->guards[guards_start]);
+            switch (guard->kind) {
+                case MVM_SPESH_PLUGIN_GUARD_OBJ: {
+                    MVMSpeshIns *guard_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                    guard_ins->info = MVM_op_get_op(MVM_OP_sp_guardobj);
+                    guard_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                    guard_ins->operands[0] = arg_regs[guard->test_idx];
+                    guard_ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                            (MVMCollectable *)guard->u.object);
+                    guard_ins->operands[2].lit_ui32 = deopt_to;
+                    MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
+                    break;
+                }
+                default:
+                    MVM_panic(1, "Unknown spesh plugin guard kind %d to insert during specialization",
+                            guard->kind);
+            }
         }
     }
 }
