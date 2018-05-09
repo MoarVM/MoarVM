@@ -5404,6 +5404,29 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
                 goto NEXT;
             }
+            OP(sp_guardobj): {
+                MVMObject *check = GET_REG(cur_op, 0).o;
+                MVMObject *want = (MVMObject *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                cur_op += 8;
+                if (check != want)
+                    MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                goto NEXT;
+            }
+            OP(sp_guardjustconc): {
+                MVMObject *check = GET_REG(cur_op, 0).o;
+                cur_op += 6;
+                if (!IS_CONCRETE(check))
+                    MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                goto NEXT;
+            }
+            OP(sp_guardjusttype): {
+                MVMObject *check = GET_REG(cur_op, 0).o;
+                cur_op += 6;
+                if (IS_CONCRETE(check))
+                    MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                goto NEXT;
+            }
             OP(sp_rebless):
                 if (!REPR(GET_REG(cur_op, 2).o)->change_type) {
                     MVM_exception_throw_adhoc(tc, "This REPR cannot change type");
