@@ -1796,6 +1796,25 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dest], TMP2;
         break;
     }
+    case MVM_OP_captureexistsnamed: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMint16 name = ins->operands[2].reg.orig;
+        | mov TMP1, WORK[obj];
+        | is_type_object TMP1;
+        | jnz >1;
+        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCallCapture;
+        | je >2;
+        |1:
+        | throw_adhoc "captureexistsnamed needs a MVMCallCapture";
+        |2:
+        | mov ARG2, CAPTURE:TMP1->body.apc;
+        | mov ARG3, WORK[name];
+        | mov ARG1, TC;
+        | callp MVM_args_has_named;
+        | mov WORK[dst], RV;
+        break;
+    }
     case MVM_OP_capturehasnameds: {
         MVMint16 dest    = ins->operands[0].reg.orig;
         MVMint16 capture = ins->operands[1].reg.orig;
