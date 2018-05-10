@@ -554,6 +554,26 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                     MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
                     break;
                 }
+                case MVM_SPESH_PLUGIN_GUARD_CONC: {
+                    MVMSpeshIns *guard_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                    guard_ins->info = MVM_op_get_op(MVM_OP_sp_guardjustconc);
+                    guard_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+                    guard_ins->operands[0] = arg_regs[guard->test_idx];
+                    MVM_spesh_get_facts(tc, g, arg_regs[guard->test_idx])->usages++;
+                    guard_ins->operands[1].lit_ui32 = deopt_to;
+                    MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
+                    break;
+                }
+                case MVM_SPESH_PLUGIN_GUARD_TYPEOBJ: {
+                    MVMSpeshIns *guard_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                    guard_ins->info = MVM_op_get_op(MVM_OP_sp_guardjusttype);
+                    guard_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+                    guard_ins->operands[0] = arg_regs[guard->test_idx];
+                    MVM_spesh_get_facts(tc, g, arg_regs[guard->test_idx])->usages++;
+                    guard_ins->operands[1].lit_ui32 = deopt_to;
+                    MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
+                    break;
+                }
                 default:
                     MVM_panic(1, "Unknown spesh plugin guard kind %d to insert during specialization",
                             guard->kind);
