@@ -282,7 +282,7 @@ our %COMPILERS = (
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
         ccinstflags  => '-pg',
-        ccjitflags   => '-fno-omit-frame-pointer',
+        ccjitflags   => '',
 
         ldmiscflags  => '',
         ldoptiflags  => undef,
@@ -338,7 +338,7 @@ our %COMPILERS = (
         ccdebugflags => '-g%s',
         ccinstflags  => '-fsanitize=address',
         cc_covflags => '-fprofile-instr-generate -fcoverage-mapping',
-        ccjitflags   => '-fno-omit-frame-pointer',
+        ccjitflags   => '',
 
         ldmiscflags  => '',
         ldoptiflags  => undef,
@@ -367,7 +367,7 @@ our %COMPILERS = (
         ccoptiflags  => '/Ox /GL /DNDEBUG',
         ccdebugflags => '/Zi',
         ccinstflags  => '',
-        ccjitflags   => '/Oy-',
+        ccjitflags   => '',
 
         ldmiscflags  => '/nologo',
         ldoptiflags  => '/LTCG',

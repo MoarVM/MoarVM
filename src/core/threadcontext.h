@@ -213,6 +213,10 @@ struct MVMThreadContext {
     MVMint32 current_frame_nr;
     MVMint32 next_frame_nr;
 
+    /* JIT return address pointer, so we can figure out the current position in
+     * the code */
+    void **jit_return_address;
+
     /* This thread's current spesh log to write in to, if there curently is
      * one. */
     MVMSpeshLog *spesh_log;

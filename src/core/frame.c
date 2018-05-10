@@ -888,6 +888,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     if (caller && returner != tc->thread_entry_frame) {
         tc->cur_frame = caller;
         tc->current_frame_nr = caller->sequence_nr;
+        tc->jit_return_address = NULL;
 
         *(tc->interp_cur_op) = caller->return_address;
         *(tc->interp_bytecode_start) = MVM_frame_effective_bytecode(caller);
