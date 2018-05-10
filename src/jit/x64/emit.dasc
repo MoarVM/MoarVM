@@ -306,7 +306,7 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitCompiler *compiler,
                            MVMJitGraph *jg) {
     |.code
     /* Setup stack */
-    | push rbp; // nb, this aligns the stack to 16 bytes again
+    | push rbp;
     | mov rbp, rsp;
     /* allocate stack space: 0x100 bytes = 256 bytes
      *
@@ -329,6 +329,10 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitCompiler *compiler,
     | mov CU,   ARG2;
     | mov TMP6, TC->cur_frame;
     | mov WORK, FRAME:TMP6->work;
+    /* If in the future we call a function, the return address into the JIT
+     * frame will be stored in this position. */
+    | lea rax, [rsp-0x8];
+    | mov aword TC->jit_return_address, rax;
     /* ARG3 contains our 'entry label' */
     | jmp ARG3
 }
@@ -336,6 +340,9 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitCompiler *compiler,
 /* And a function epilogue is also always the same */
 void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg) {
     | ->exit:
+    /* clear the return address, so that we know there's no longer a JIT frame
+     * on the stack */
+    | mov aword TC->jit_return_address, 0;
     /* restore callee-save registers */
     | mov TC, [rbp-0x8];
     | mov CU, [rbp-0x10];

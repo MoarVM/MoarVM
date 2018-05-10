@@ -1,24 +1,16 @@
 #include "moar.h"
 #include "internal.h"
 
-#if defined(_MSC_VER)
-/* MSVC toolchain compiles only one function name for stack_find_return_address_in_frame */
-#elif defined(__WIN64__)
-/* MSys most likely, entrypoint is suffixed with _win64 */
-#define stack_find_return_address_in_frame stack_find_return_address_in_frame_win64
-#else
-/* Presumably POSIX with gnu or llvm toolchain */
-#define stack_find_return_address_in_frame stack_find_return_address_in_frame_posix
-#endif
-
-/* Walk stack to find the current return address in a code frame */
-void * stack_find_return_address_in_frame(void *base, size_t size, void *top);
-
-
-
-MVM_STATIC_INLINE MVMint32 address_within_region(MVMThreadContext *tc, MVMJitCode *code, void *address) {
+static void assert_within_region(MVMThreadContext *tc, MVMJitCode *code, void *address) {
+#if MVM_JIT_DEBUG
     MVMint32 ofs = (char*)address - (char*)code->func_ptr;
-    return (0 <= ofs) && (ofs < code->size);
+    if ((0 <= ofs) && (ofs < code->size))
+        return;
+    MVM_panic(1, "JIT: address out of range for code!\n"
+              "(label %p, func_ptr %p, code size %lui, offset %li, frame_nr %i, seq nr %i)",
+              address, code->func_ptr, code->size, ofs,
+              tc->cur_frame->sequence_nr, code->seq_nr);
+#endif
 }
 
 
@@ -26,30 +18,18 @@ MVM_STATIC_INLINE MVMint32 address_within_region(MVMThreadContext *tc, MVMJitCod
  * is resumed after the frame is properly setup. */
 void MVM_jit_code_enter(MVMThreadContext *tc, MVMJitCode *code, MVMCompUnit *cu) {
     void *label = tc->cur_frame->jit_entry_label;
-    if (!address_within_region(tc, code, label)) {
-        MVM_panic(1, "JIT entry label out of range for code!\n"
-                  "(label %p, func_ptr %p, code size %lui, offset %li, frame_nr %i, seq nr %i)",
-                  label, code->func_ptr, code->size,
-                  (char*) label - (char *) code->func_ptr
-                  ,
-                  tc->cur_frame->sequence_nr, code->seq_nr);
-    }
+
+    assert_within_region(tc, code, label);
+
     code->func_ptr(tc, cu, label);
 }
 
 void * MVM_jit_code_get_current_position(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame) {
-    if (tc->cur_frame == frame) {
+    if (tc->cur_frame == frame && tc->jit_return_address != NULL) {
         /* currently on C stack */
-        void *return_address = stack_find_return_address_in_frame(code->func_ptr, code->size, tc->interp_cur_op);
-        if (address_within_region(tc, code, return_address)) {
-            return return_address;
-        } else {
-            /* this can only happen if we need to look up the current position
-             * (e.g. for throwing an exception) while changing the current
-             * frame, e.g. during special unwinding, in which case the
-             * jit_entry_label must be correct */
-            return frame->jit_entry_label;
-        }
+        void *return_address = *tc->jit_return_address;
+        assert_within_region(tc, code, return_address);
+        return return_address;
     } else {
         /* trampolined-out of this frame, so jit_entry_label is correct */
         return frame->jit_entry_label;
