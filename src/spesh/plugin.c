@@ -292,7 +292,12 @@ static void add_resolution_to_guard_set(MVMThreadContext *tc, void *sr_data) {
 /* When we throw an exception when evaluating a resolver, then clean up any
  * recorded guards so as not to leak memory. */
 static void cleanup_recorded_guards(MVMThreadContext *tc, void *sr_data) {
-    MVM_panic(1, "NYI");
+    MVM_fixed_size_free(tc, tc->instance->fsa,
+            MVM_SPESH_PLUGIN_GUARD_LIMIT * sizeof(MVMSpeshPluginGuard),
+            tc->plugin_guards);
+    tc->plugin_guards = NULL;
+    tc->plugin_guard_args = NULL;
+    MVM_free(sr_data);
 }
 
 /* Sets up state in the current thread context for recording guards. */
