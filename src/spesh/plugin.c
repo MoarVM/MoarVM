@@ -504,7 +504,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
         MVMuint32 arg_regs_length;
         MVMSpeshOperand *arg_regs = arg_ins_to_reg_list(tc, g, bb, ins, &arg_regs_length);
         MVMuint32 deopt_to = bytecode_offset - (
-                4 * arg_regs_length +   /* The bytes the args instructions use */
+                6 * arg_regs_length +   /* The bytes the args instructions use */
                 4);                     /* The bytes of the prepargs instruction */
 
         /* Find result and add it to a spesh slot. */
