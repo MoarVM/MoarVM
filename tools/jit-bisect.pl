@@ -200,10 +200,10 @@ if ($OPTS{spesh}) {
     }
     # spesh limit is one-offset, so this is actually the first bad frame
     my $first_bad_frame = bisect('MVM_SPESH_LIMIT', \@command, $spesh_flags, $timeout);
-    printf STDERR ("SPESH Broken frame: %d.\n", $last_good_frame);
+    printf STDERR ("SPESH Broken frame: %d.\n", $first_bad_frame);
 
     # alright, get a spesh diff
-    my $log_file = sprintf("spesh-%04d.txt", $last_good_frame+1);
+    my $log_file = sprintf("spesh-%04d.txt", $first_bad_frame);
     printf STDERR ("SPESH Acquiring log: %s\n", $log_file);
     run_with(\@command, {
         %$spesh_flags,
