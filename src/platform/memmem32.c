@@ -1,6 +1,6 @@
 /*-
  * Original FreeBSD code Copyright (c) 2005-2014 Rich Felker, et al.
- * Modifications for 32 bit search Copyright (c) 2018 Samantha McVey
+ * Modifications for MVM 32 bit search Copyright (c) 2018 Samantha McVey
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -21,11 +21,16 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-/*#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");*/
 
 #include <string.h>
 #include <stdint.h>
+/* memmem_two_uint32 uses 64 bit integer reads extensively. Only use it on 64
+ * bit processors since it will likely be slower on 32 bit processors. */
+#include "moar.h"
+#if 8 <= MVM_PTR_SIZE
+#define USE_MEMMEM_TWO_UINT32 1
+#endif
+
 /* This is a modification of the memmem used in FreeBSD to allow us to quickly
  * search 32 bit strings. This is much more efficient than searching by byte
  * since we can skip every 4 bytes instead of every 1 byte, as well as the fact
@@ -34,20 +39,40 @@ __FBSDID("$FreeBSD$");*/
  * The only caveats is the table uses a modulus so it can only jump to the next
  * codepoint of the same modulus. */
 
-static uint32_t * memmem_one_uint32(const uint32_t *h0, const uint32_t n, const uint32_t *end_h) {
-	uint32_t *h = (uint32_t*)h0;
-	for (; h < end_h; h++) {
+/* For memmem_one32 we just look for a single 32 bit integer in the haystack,
+ * simple. */
+static uint32_t * memmem_one_uint32(const uint32_t *h0, const uint32_t *n0, const uint32_t *end_h0) {
+	uint32_t *h           = (uint32_t*)h0;
+	const uint32_t  n     = *n0;
+	const uint32_t *end_h = end_h0 - 1;
+	for (; h <= end_h; h++) {
 		if (*h == n) return h;
 	}
 	return NULL;
 }
+/* For memmem_two_uint32 we work similarly to memmem_one_uint32 except we read
+ * the needle of length 2 as a 64 bit integer, progressing along the haystack
+ * 32 bits at a time, and comparing the 64 bit needle to the haystack's pointer
+ * casted as a 64 bit integer. */
+#if defined(USE_MEMMEM_TWO_UINT32)
+static uint32_t * memmem_two_uint32(const uint32_t *h0, const uint32_t *n0, const uint32_t *end_h0) {
+	uint32_t *h           = (uint32_t*)h0;
+	const uint64_t  n     = *((uint64_t*)n0);
+	const uint32_t *end_h = end_h0 - 2;
+	for (; h <= end_h; h++) {
+		if (*((uint64_t*)h) == n) return h;
+	}
+	return NULL;
+}
+#endif
+
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
 
 #define BITOP(a,b,op) \
  ((a)[(size_t)(b)/(8*sizeof *(a))] op (size_t)1<<((size_t)(b)%(8*sizeof *(a))))
 
-/*
+/* Original FreeBSD comment:
  * Two Way string search algorithm, with a bad shift table applied to the last
  * byte of the window. A bit array marks which entries in the shift table are
  * initialized to avoid fully initializing a 1kb/2kb table.
@@ -55,6 +80,7 @@ static uint32_t * memmem_one_uint32(const uint32_t *h0, const uint32_t n, const 
  * Reference: CROCHEMORE M., PERRIN D., 1991, Two-way string-matching,
  * Journal of the ACM 38(3):651-675
  */
+
 /* The modulus number is the length of the shift table. We use this to quickly
  * lookup a codepoint and see how much we can shift forward. Caveat: if two numbers
  * have the same modulus we can only shift as much forward as much as a codepoint
@@ -158,21 +184,47 @@ static char *twoway_memmem_uint32(const uint32_t *h, const uint32_t *z, const ui
 		mem = mem0;
 	}
 }
-void *memmem_uint32(const void *h0, size_t k, const void *n0, size_t l)
+/* Finds the memory location of the needle in the haystack. Arguments are the
+ * memory location of the start of the Haystack, the memory location of the start
+ * of the needle and the needle length as well as the Haystack length.
+ * H_len and n_len are measured the size of a uint32_t. */
+void * memmem_uint32(const void *h0, size_t H_len, const void *n0, size_t n_len)
 {
-	const uint32_t *h = (uint32_t*)h0, *n = (uint32_t*)n0;
+	const uint32_t *h = (uint32_t*)h0,
+	               *n = (uint32_t*)n0;
 
-	/* Return immediately on empty needle */
-	if (!l) return (void *)h;
+	/* The empty string can be found at the start of any string. */
+	if (!n_len) return (void *)h;
 
-	/* Return immediately when needle is longer than haystack */
-	if (k<l) return 0;
+	/* Return immediately when needle is longer than haystack. */
+	if (H_len < n_len)
+		return NULL;
 
-	/* Use faster algorithms for short needles */
-	h = memmem_one_uint32((uint32_t*)h, *n, h+k);
-	if (!h || l == 1) return (void *)h;
-	k -= h - (uint32_t*)h0;
-	if (k<l) return 0;
+#if defined(USE_MEMMEM_TWO_UINT32)
+	if (n_len == 1) {
+		return memmem_one_uint32(h, n, h+H_len);
+	}
+	/* Otherwise do a search for the first two uint32_t integers at the start
+	 * of the needle. */
+	else {
+		h = memmem_two_uint32(h, n, h+H_len);
+	}
+	/* If nothing found or if we have a needle of length 2, we already have
+	 * our result. */
+	if (!h || n_len == 2)
+		return (void *)h;
+#else
+	/* With needle length 1 use fast search for only one uint32_t. */
+	h = memmem_one_uint32(h, n, h+H_len);
+	if (!h || n_len == 1)
+		return (void *)h;
+#endif
+	/* Since our Haystack (may) have been moved forward to the first match
+	 * of the start of the needle, also reduce the Haystack's length to match. */
+	H_len -= h - (uint32_t*)h0;
+	/* No more work to do if the needle is longer than where we are now. */
+	if (H_len < n_len)
+		return NULL;
 
-	return twoway_memmem_uint32(h, h+k, n, l);
+	return twoway_memmem_uint32(h, h+H_len, n, n_len);
 }
