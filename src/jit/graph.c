@@ -1642,6 +1642,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_takedispatcher:
     case MVM_OP_setdispatcher:
     case MVM_OP_ctx:
+    case MVM_OP_ctxlexpad:
     case MVM_OP_curcode:
     case MVM_OP_getcode:
     case MVM_OP_callercode:
