@@ -406,13 +406,18 @@ void init_c_call_node(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMJitNode *node,
     node->u.call.num_args = num_args;
     node->u.call.has_vargs = 0;
     node->u.call.rv_mode = MVM_JIT_RV_VOID;
-    node->u.call.rv_idx = -1;
+    node->u.call.rv_idx  = -1;
+}
+
+void save_rv_to_stack(MVMThreadContext *tc, MVMJitNode *node, MVMint32 storage_pos) {
+    node->u.call.rv_mode = MVM_JIT_RV_TO_STACK;
+    node->u.call.rv_idx = storage_pos;
 }
 
 void init_box_call_node(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMJitNode *box_rv_node, void *func_ptr, MVMint16 restype, MVMint16 dst) {
     MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } },
                              { MVM_JIT_REG_DYNIDX, { 2 } },
-                             { MVM_JIT_SAVED_RV, { 0 } }};
+                             { MVM_JIT_STACK_VALUE, { 0 } }};
     init_c_call_node(tc, sg, box_rv_node, func_ptr, 3, args);
     box_rv_node->next = NULL;
     if (dst == -1) {
@@ -440,25 +445,20 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
     MVMJitNode *block_gc_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
     MVMJitNode *unblock_gc_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
     MVMJitNode *call_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
-    MVMJitNode *save_rv_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
     MVMJitNode *box_rv_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
     MVMJitCode *jitcode = NULL;
     MVMJitCallArg block_gc_args[] = { { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } } };
 
     jg->sg = sg;
     jg->first_node = block_gc_node;
-
-    save_rv_node->type = MVM_JIT_NODE_SAVE_RV;
-    save_rv_node->u.stack.slot = 0;
-    save_rv_node->next = unblock_gc_node;
-
     init_c_call_node(tc, sg, block_gc_node,   &MVM_gc_mark_thread_blocked, 1, block_gc_args);
     block_gc_node->next = call_node;
+    init_c_call_node(tc, sg, call_node, body->entry_point, 0, NULL); /* we handle args manually */
+    save_rv_to_stack(tc, call_node, 0);
 
     init_c_call_node(tc, sg, unblock_gc_node, &MVM_gc_mark_thread_unblocked, 1, block_gc_args);
 
-    init_c_call_node(tc, sg, call_node, body->entry_point, 0, NULL); /* we handle args manually */
-    call_node->next = save_rv_node;
+    call_node->next = unblock_gc_node;
     call_node->u.call.num_args = body->num_args;
     jg->last_node = unblock_gc_node->next = box_rv_node;
 
@@ -468,16 +468,10 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
         for (i = 0; i < body->num_args; i++) {
             if ((body->arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) == MVM_NATIVECALL_ARG_UTF8STR) {
                 MVMJitNode *unbox_str_node;
-                MVMJitNode *save_str_rv_node;
                 MVMJitNode *free_str_node;
 
                 if (7 < ++str_arg_count) /* only got 7 empty slots in the stack scratch space */
                     goto fail;
-
-                save_str_rv_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
-                save_str_rv_node->type = MVM_JIT_NODE_SAVE_RV;
-                save_str_rv_node->u.stack.slot = str_arg_count;
-                save_str_rv_node->next = jg->first_node;
 
                 unbox_str_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
                 {
@@ -489,16 +483,17 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
                         }
                     };
                     init_c_call_node(tc, sg, unbox_str_node, &MVM_string_utf8_maybe_encode_C_string, 2, unbox_str_args);
+                    save_rv_to_stack(tc, unbox_str_node, str_arg_count);
                 }
-                unbox_str_node->next = save_str_rv_node;
+                unbox_str_node->next = jg->first_node;
                 jg->first_node = unbox_str_node;
 
-                call_node->u.call.args[i].type = MVM_JIT_SAVED_RV;
+                call_node->u.call.args[i].type = MVM_JIT_STACK_VALUE;
                 call_node->u.call.args[i].v.lit_i64 = str_arg_count;
 
                 if ((body->arg_types[i] & MVM_NATIVECALL_ARG_FREE_STR_MASK) != 0) {
                     MVMJitCallArg free_str_args[] = {
-                        { MVM_JIT_SAVED_RV , { str_arg_count } }
+                        { MVM_JIT_STACK_VALUE , { str_arg_count } }
                     };
                     free_str_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
                     init_c_call_node(tc, sg, free_str_node, &MVM_free, 1, free_str_args);
@@ -570,7 +565,7 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_DYNIDX, { 2 } },
                                  { MVM_JIT_LITERAL, { MVM_NATIVECALL_ARG_UTF8STR } },
-                                 { MVM_JIT_SAVED_RV, { 0 } }};
+                                 { MVM_JIT_STACK_VALUE, { 0 } }};
         init_c_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_str, 4, args);
         box_rv_node->next = NULL;
         if (dst == -1) {

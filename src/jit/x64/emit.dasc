@@ -2039,9 +2039,6 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
     case MVM_JIT_DATA_LABEL:
         | lea TMP6, [=>(arg.v.lit_i64)];
         break;
-    case MVM_JIT_SAVED_RV:
-        | mov TMP6, [rbp-(0x28+arg.v.lit_i64*8)];
-        break;
     case MVM_JIT_ARG_I64:
         | mov TMP6, TC->cur_frame;
         | mov TMP6, FRAME:TMP6->args;
@@ -2080,6 +2077,9 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
         break;
     case MVM_JIT_SPESH_SLOT_VALUE:
         | get_spesh_slot TMP6, arg.v.lit_i64;
+        break;
+    case MVM_JIT_STACK_VALUE:
+        | mov TMP6, [rbp-(0x28+arg.v.lit_i64*8)];
         break;
     default:
         MVM_oops(tc, "JIT: Unknown JIT argument type %d", arg.type);
@@ -2197,7 +2197,6 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitCompiler *compiler, 
         case MVM_JIT_LITERAL_64:
         case MVM_JIT_LITERAL_PTR:
         case MVM_JIT_DATA_LABEL:
-        case MVM_JIT_SAVED_RV:
         case MVM_JIT_ARG_I64:
         case MVM_JIT_ARG_I64_RW:
         case MVM_JIT_ARG_PTR:
@@ -2207,6 +2206,7 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitCompiler *compiler, 
         case MVM_JIT_PARAM_PTR:
         case MVM_JIT_PARAM_VMARRAY:
         case MVM_JIT_SPESH_SLOT_VALUE:
+        case MVM_JIT_STACK_VALUE:
             if (num_gpr < 6) {
                 in_gpr[num_gpr++] = args[i];
             } else {
@@ -2314,6 +2314,9 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
         | get_vmnull TMP1;
         |5:
         | mov WORK[call_spec->rv_idx], TMP1;
+        break;
+    case MVM_JIT_RV_TO_STACK:
+        | mov [rbp-(0x28+call_spec->rv_idx*8)], RV;
         break;
     }
 }
@@ -2844,10 +2847,6 @@ void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitDat
         |.byte bytes[i];
     }
     |.code
-}
-
-void MVM_jit_emit_save_rv(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint16 slot) {
-    | mov [rbp-(0x28+slot*8)], RV;
 }
 
 /* import tiles */

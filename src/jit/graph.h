@@ -108,7 +108,6 @@ typedef enum {
        cur_op. */
     MVM_JIT_REG_DYNIDX,
     MVM_JIT_DATA_LABEL,
-    MVM_JIT_SAVED_RV,
     /* The MVM_JIT_ARG_* types are used when the offset into the WORK array is
        not known yet, i.e. for ahead of time compiled native calls. */
     MVM_JIT_ARG_I64,
@@ -127,6 +126,8 @@ typedef enum {
     MVM_JIT_PARAM_VMARRAY,
     /* spesh slot value */
     MVM_JIT_SPESH_SLOT_VALUE,
+    /* stack relative address */
+    MVM_JIT_STACK_VALUE,
 } MVMJitArgType;
 
 struct MVMJitCallArg {
@@ -162,6 +163,8 @@ typedef enum {
     MVM_JIT_RV_DYNIDX,
     /* store pointer or vmnull */
     MVM_JIT_RV_DEREF_OR_VMNULL,
+    /* store on stack with offset */
+    MVM_JIT_RV_TO_STACK,
 } MVMJitRVMode;
 
 
@@ -217,7 +220,6 @@ typedef enum {
     MVM_JIT_NODE_CONTROL,
     MVM_JIT_NODE_DATA,
     MVM_JIT_NODE_EXPR_TREE,
-    MVM_JIT_NODE_SAVE_RV,
 } MVMJitNodeType;
 
 struct MVMJitNode {
