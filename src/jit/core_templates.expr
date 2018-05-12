@@ -56,6 +56,7 @@
 (template: le_i (flagval (le $1 $2)))
 (template: gt_i (flagval (gt $1 $2)))
 (template: ge_i (flagval (ge $1 $2)))
+(template: cmp_i (sub (flagval (gt $1 $2)) (flagval (lt $1 $2))))
 
 (template: add_i (add $1 $2))
 (template: sub_i (sub $1 $2))
@@ -122,6 +123,53 @@
         (carg (tc) ptr)
         (carg $1 ptr)
         (carg $2 ptr)) int_sz))))
+
+(template: gt_s
+  (flagval
+    (gt
+      (call (^func &MVM_string_compare)
+        (arglist
+          (carg (tc) ptr)
+          (carg $1 ptr)
+          (carg $2 ptr)) int_sz)
+      (const 0 int_sz))))
+
+(template: ge_s
+  (flagval
+    (ge
+      (call (^func &MVM_string_compare)
+        (arglist
+          (carg (tc) ptr)
+          (carg $1 ptr)
+          (carg $2 ptr)) int_sz)
+      (const 0 int_sz))))
+
+(template: lt_s
+  (flagval
+    (lt
+      (call (^func &MVM_string_compare)
+        (arglist
+          (carg (tc) ptr)
+          (carg $1 ptr)
+          (carg $2 ptr)) int_sz)
+      (const 0 int_sz))))
+
+(template: le_s
+  (flagval
+    (le
+      (call (^func &MVM_string_compare)
+        (arglist
+          (carg (tc) ptr)
+          (carg $1 ptr)
+          (carg $2 ptr)) int_sz)
+      (const 0 int_sz))))
+
+(template: cmp_s
+  (call (^func &MVM_string_compare)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)) int_sz))
 
 (template: eqat_s
   (call (^func &MVM_string_equal_at)
