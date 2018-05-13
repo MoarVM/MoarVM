@@ -54,10 +54,16 @@ static void append_null(DumpStr *ds) {
     ds->buffer[ds->pos - 1] = '\0';
 }
 
+typedef struct {
+    MVMuint32 total_size;
+    MVMuint32 inlined_size;
+} SpeshGraphSizeStats;
+
 /* Dumps a basic block. */
-static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpeshBB *bb) {
+static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpeshBB *bb, SpeshGraphSizeStats *stats) {
     MVMSpeshIns *cur_ins;
     MVMint64     i;
+    MVMint32     size = 0;
 
     /* Heading. */
     appendf(ds, "  BB %d (%p):\n", bb->idx, bb);
@@ -169,6 +175,8 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
             }
         }
         else {
+            /* Count the opcode itself */
+            size += 2;
             for (i = 0; i < cur_ins->info->num_operands; i++) {
                 if (i)
                     append(ds, ", ");
@@ -180,6 +188,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         if (orig < 10) append(ds, " ");
                         if (regi < 10) append(ds, " ");
                         appendf(ds, "r%d(%d)", orig, regi);
+                        size += 4;
                         break;
                     }
                     case MVM_operand_read_lex:
@@ -202,6 +211,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         } else {
                             append(ds, ",<pending deserialization>)");
                         }
+                        size += 4;
                         break;
                     }
                     case MVM_operand_literal: {
@@ -212,34 +222,43 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             if (bb_idx < 100) append(ds, " ");
                             if (bb_idx < 10)  append(ds, " ");
                             appendf(ds, "BB(%d)", bb_idx);
+                            size += 4;
                             break;
                         }
                         case MVM_operand_int8:
                             appendf(ds, "liti8(%"PRId8")", cur_ins->operands[i].lit_i8);
+                            size += 2;
                             break;
                         case MVM_operand_int16:
                             appendf(ds, "liti16(%"PRId16")", cur_ins->operands[i].lit_i16);
+                            size += 2;
                             break;
                         case MVM_operand_int32:
                             appendf(ds, "liti32(%"PRId32")", cur_ins->operands[i].lit_i32);
+                            size += 4;
                             break;
                         case MVM_operand_uint32:
                             appendf(ds, "litui32(%"PRIu32")", cur_ins->operands[i].lit_ui32);
+                            size += 4;
                             break;
                         case MVM_operand_int64:
                             appendf(ds, "liti64(%"PRId64")", cur_ins->operands[i].lit_i64);
+                            size += 8;
                             break;
                         case MVM_operand_num32:
                             appendf(ds, "litn32(%f)", cur_ins->operands[i].lit_n32);
+                            size += 4;
                             break;
                         case MVM_operand_num64:
                             appendf(ds, "litn64(%g)", cur_ins->operands[i].lit_n64);
+                            size += 8;
                             break;
                         case MVM_operand_str: {
                             char *cstr = MVM_string_utf8_encode_C_string(tc,
                                 MVM_cu_string(tc, g->sf->body.cu, cur_ins->operands[i].lit_str_idx));
                             appendf(ds, "lits(%s)", cstr);
                             MVM_free(cstr);
+                            size += 8;
                             break;
                         }
                         case MVM_operand_callsite: {
@@ -249,11 +268,13 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                                     callsite->arg_count, callsite->num_pos,
                                     callsite->has_flattening ? "flattening" : "nonflattening",
                                     callsite->is_interned ? "interned" : "noninterned");
+                            size += 2;
                             break;
 
                         }
                         case MVM_operand_spesh_slot:
                             appendf(ds, "sslot(%"PRId16")", cur_ins->operands[i].lit_i16);
+                            size += 2;
                             break;
                         case MVM_operand_coderef: {
                             MVMCodeBody *body = &((MVMCode*)g->sf->body.cu->body.coderefs[cur_ins->operands[i].coderef_idx])->body;
@@ -269,6 +290,8 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             } else {
                                 append(ds, "??\?)");
                             }
+
+                            size += 2;
 
                             MVM_free(anno);
                             break;
@@ -318,6 +341,12 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
         }
         append(ds, "\n");
         cur_ins = cur_ins->next;
+    }
+
+    if (stats) {
+        if (bb->inlined)
+            stats->inlined_size += size;
+        stats->total_size += size;
     }
 
     /* Predecessors and successors. */
@@ -457,9 +486,13 @@ static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMStaticFrame *sf)
 /* Dump a spesh graph into string form, for debugging purposes. */
 char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *cur_bb;
+    SpeshGraphSizeStats stats;
+    DumpStr ds;
+
+    stats.total_size = 0;
+    stats.inlined_size = 0;
 
     /* Allocate buffer. */
-    DumpStr ds;
     ds.alloc  = 8192;
     ds.buffer = MVM_malloc(ds.alloc);
     ds.pos    = 0;
@@ -480,7 +513,7 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Go over all the basic blocks and dump them. */
     cur_bb = g->entry;
     while (cur_bb) {
-        dump_bb(tc, &ds, g, cur_bb);
+        dump_bb(tc, &ds, g, cur_bb, &stats);
         cur_bb = cur_bb->linear_next;
     }
 
@@ -511,6 +544,13 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     }
 
     append(&ds, "\n");
+
+    /* Print out frame size */
+    if (stats.inlined_size)
+        appendf(&ds, "Frame size: %ld bytes (%ld from inlined frames)\n", stats.total_size, stats.inlined_size);
+    else
+        appendf(&ds, "Frame size: %ld bytes\n", stats.total_size);
+
     append_null(&ds);
     return ds.buffer;
 }
