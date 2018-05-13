@@ -1,11 +1,18 @@
 #!/usr/bin/env perl
 use strict;
-use Data::Dumper;
+use warnings;
+use Getopt::Long;
+#use Data::Dumper;
+my %OPTIONS = (break_ret => 1);
+
+GetOptions(\%OPTIONS, qw(break_ret! crlf));
+
 my %names;
 my %labels;
 my @instructions;
 my $next_global = 0;
 my $riprel = undef;
+local $/ = "\r\n" if $OPTIONS{crlf};
 
 while (<>) {
     chomp;
@@ -51,11 +58,13 @@ for (my $i = 0; $i < @instructions; $i++) {
     if ($opcode eq 'movabs') {
         my ($reg,$val) = split /,/, $arg;
         $arg = sprintf('%s,%s', $reg, $names{$val});
-    } elsif ($opcode =~ m/^\j\w+$/ && $arg =~ m/^0x/) {
+    } elsif ($opcode =~ m/^j\w+$/ && $arg =~ m/^0x/) {
+
         $arg = sprintf('label_%03d', $labels{hex($arg)});
     } elsif ($arg =~ m/\[rip\+(0x[0-9a-f]+)\]/i) {
         my $pos = hex($1) + $instructions[$i+1]->[0];
         $arg = substr($arg,0,$-[0]) . sprintf('label_%03d # rip', $labels{$pos});
     }
     print "$opcode $arg\n";
+    last if $OPTIONS{break_ret} and $opcode eq 'ret';
 }
