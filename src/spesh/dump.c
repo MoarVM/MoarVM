@@ -547,9 +547,9 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
     /* Print out frame size */
     if (stats.inlined_size)
-        appendf(&ds, "Frame size: %ld bytes (%ld from inlined frames)\n", stats.total_size, stats.inlined_size);
+        appendf(&ds, "Frame size: %u bytes (%u from inlined frames)\n", stats.total_size, stats.inlined_size);
     else
-        appendf(&ds, "Frame size: %ld bytes\n", stats.total_size);
+        appendf(&ds, "Frame size: %u bytes\n", stats.total_size);
 
     append_null(&ds);
     return ds.buffer;
