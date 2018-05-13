@@ -700,6 +700,18 @@
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
 
+(template: iterkey_s
+  (call (^func &MVM_iterkey_s)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) ptr_sz))
+
+(template: iterval
+  (call (^func &MVM_iterval)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) ptr_sz))
+
 (template: takedispatcher
   (let: (($disp     (^getf (tc) MVMThreadContext cur_dispatcher))
          ($disp_for (^getf (tc) MVMThreadContext cur_dispatcher_for))
