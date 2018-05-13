@@ -503,6 +503,17 @@
       (carg $0 ptr)
       (carg (const (&QUOTE MVM_reg_obj) int_sz) int))))
 
+(template: splice!
+  (callv (^getf (^repr $0) MVMREPROps pos_funcs.splice)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $0) ptr)
+      (carg $0 ptr)
+      (carg (^body $0) ptr)
+      (carg $1 ptr)
+      (carg $2 int)
+      (carg $3 int))))
+
 (template: setelemspos!
   (callv (^getf (^repr $0) MVMREPROps pos_funcs.set_elems)
     (arglist
