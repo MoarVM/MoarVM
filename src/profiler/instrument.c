@@ -264,18 +264,11 @@ void MVM_profile_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
 
 /* Ensures we're no longer in instrumented code. */
 void MVM_profile_ensure_uninstrumented(MVMThreadContext *tc, MVMStaticFrame *sf) {
-    if (sf->body.instrumentation && sf->body.bytecode == sf->body.instrumentation->instrumented_bytecode) {
-        /* Switch to uninstrumented code. */
-        sf->body.bytecode      = sf->body.instrumentation->uninstrumented_bytecode;
-        sf->body.handlers      = sf->body.instrumentation->uninstrumented_handlers;
-        sf->body.bytecode_size = sf->body.instrumentation->uninstrumented_bytecode_size;
-
-        /* Throw away specializations, which may also be instrumented. */
-        MVM_spesh_arg_guard_discard(tc, sf);
-
-        /* XXX For now, due to bugs, disable spesh here. */
-        tc->instance->spesh_enabled = 0;
-    }
+    /* XXX due to multithreading trouble, just turning instrumentation off by
+     * switching bytecode back does not work. Profiling instrumentation is
+     * safe to keep around with only a small performance penalty, and CTW
+     * instrumentation is normally not turned off during run time,
+     * so for now we'll just do nothing. */
 }
 
 /* Starts instrumented profiling. */

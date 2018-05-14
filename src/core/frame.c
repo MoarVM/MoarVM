@@ -109,6 +109,9 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
     else if (tc->instance->debugserver)
         MVM_breakpoint_instrument(tc, static_frame);
     else
+        /* XXX uninstrumenting is currently turned off, due to multithreading
+         * woes. If you add an instrumentation that has to be "turned off"
+         * again at some point, a solution for this problem must be found. */
         MVM_profile_ensure_uninstrumented(tc, static_frame);
 }
 
