@@ -1642,6 +1642,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_takedispatcher:
     case MVM_OP_setdispatcher:
     case MVM_OP_ctx:
+    case MVM_OP_ctxlexpad:
     case MVM_OP_curcode:
     case MVM_OP_getcode:
     case MVM_OP_callercode:
@@ -1665,6 +1666,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_ishash:
     case MVM_OP_sp_boolify_iter_arr:
     case MVM_OP_sp_boolify_iter_hash:
+    case MVM_OP_lexprimspec:
     case MVM_OP_objprimspec:
     case MVM_OP_objprimbits:
     case MVM_OP_takehandlerresult:
@@ -1691,6 +1693,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_captureposelems:
     case MVM_OP_capturehasnameds:
     case MVM_OP_captureposarg:
+    case MVM_OP_captureexistsnamed:
     case MVM_OP_capturenamedshash:
         /* Exception handling */
     case MVM_OP_lastexpayload:
