@@ -95,17 +95,93 @@
 
 *** DONE activate stack walker
 *** DONE remove eager dynamic label storage
-*** TODO build system integration
+*** DONE build system integration
 
-This works without issues on linux/gcc, but I'll have to see about MSVC and apple/clang
-I think I need to define a rule for '.s' just like there is for .c.
+This works without issues on linux/gcc, but I'll have to see about
+MSVC and apple/clang I think I need to define a rule for '.s' just
+like there is for .c.
+
+*** DONE replace with return address pointer pointer
+
+Even with =/Oy-= (and =-fno-omit-frame-pointer=) we can't reliably
+walk the stack on windows, because we can store other things than
+=rbp= under the =rsp= - so the 'linked list' is simply not respectd.
+
+What we *can* do instead, is take a pointer to where we know the
+return address will be (which is =rsp-0x8=, because that is fully
+under our control. This works (but uncovers an existing bug (somehow)
+in the expr JIT).
+
+*** TODO the windows bug
+
+- This appears to be a broken label issue (backwards halfway into an
+  instruction)
+- I need to know where that label is supposed to point too though, and
+  how far it is supposed to go
+
+*** TODO Replace 'invokish' and 'throwish' check code with return address updates
+
+Currently, we have to check arround every 'invokish' opcode whether or
+not we have in fact invoked (by comparing the current frame sequence
+number with the stored frame sequence number). If we have, we need to
+jump out to the interpreter.
+
+For throwish opcodes, we go a bit further; becuase we may require a
+jump within the frame (to go to the correct frame handler), we load
+the jit-entry-label after the opcode, then jump towards that after the
+throwish opocde (if we haven't already jumped out due to different
+frame nrs). If we haven't in fact thrown, this is effectively a no-op.
+
+We can completely avoid doing either of those things if we update the
+return address instead.
+
+- invokish/throwish opcodes that need to trampoline to the interpreter
+  can do so by setting the return label to the =-exit= pointer
+  instead, see [[https://corsix.github.io/dynasm-doc/reference.html#dasm_setupglobal][dasm_setupglobal]] on how to get this label
+- throwish opcodes that need to do an 'internal' jump can also update
+  this pointer, and execution will automatically continue there.
+
+Have to investigate if there are more options than that, but I don't
+really think so. This makes invokish ops nearly free if not actually
+invoking.
+
+We can *not* update an invokee's frame that way, because the relevant
+=rbx= register will point to the wrong frame. (Unfortunately!)
+
+This calls for an abstraction: =MVM_jit_code_set_continuation_label=
+that sets the return address or reentry label as needed.
+
+- [x] get exit label.
+  we unfortunately can't get the exact constant name because it is
+  only defined in the 'dasc' file
+- [x] assign a new label
+- [ ] frame.c
+  - frame entry
+  - frame exit
+- [ ] deopt.c
+  - frame exit
+- [ ] exceptions.c
+  - frame exit
+  - within-frame jump
+- [ ] emit.dasc
 
 
 * Tools
-** Make jit-dump work on windows
+** Make =jit-dump.pl= work on windows
 
  This should be doable, really, if rather than pipe-and-fork, we simply
  use a temporary file and use that as an intermediate.
+
+First problem is to make it capture the output in the first
+place. (Backticks work, it seems, so we can always try that).
+
+** Make =jit-comparify-asm.pl= warn about broken labels
+
+Currently, we try to resovle the link address directly. What we should
+probably do is compute a table of linked addresses and code addresses,
+and then warn about anything that's not a link address.
+
+
 
 * Expression Tree
 
@@ -388,4 +464,3 @@ Walks should be single-visit.
 - CONST copying
   - A const never needs to be kept in memory, and it is just as well
     to keep just a single reference to it.
-
