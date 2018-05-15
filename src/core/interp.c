@@ -4194,7 +4194,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *this_ctx = GET_REG(cur_op, 2).o, *ctx = NULL;
                 MVMFrame *frame;
                 if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
-                    MVM_exception_throw_adhoc(tc, "ctxcaller needs an MVMContext");
+                    MVM_exception_throw_adhoc(tc, "ctxcallerskipthunks needs an MVMContext");
                 }
                 frame = ((MVMContext *)this_ctx)->body.context->caller;
                 while (frame && frame->static_info->body.is_thunk)
