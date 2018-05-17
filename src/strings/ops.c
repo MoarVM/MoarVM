@@ -2882,7 +2882,8 @@ void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
      * we'll use the bytes view of that in the hashing function. */
     MVMJenHashGraphemeView hash_block;
     MVMGraphemeIter gi;
-    MVMuint32 graphs_remaining = MVM_string_graphs(tc, s);
+    MVMStringIndex graphs_remaining, sgraphs;
+    graphs_remaining = sgraphs = MVM_string_graphs(tc, s);
 
     /* Initialize hash state. */
     MVMhashv hashv = tc->instance->hashSecret;
@@ -2911,7 +2912,7 @@ void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
     }
 
     /* Mix in key length (in bytes, not graphemes). */
-    hashv += MVM_string_graphs(tc, s) * sizeof(MVMGrapheme32);
+    hashv += sgraphs * sizeof(MVMGrapheme32);
 
     /* Now handle trailing graphemes (must be 2, 1, or 0). */
     switch (graphs_remaining) {
@@ -2931,6 +2932,16 @@ void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
     }
     HASH_JEN_MIX(_hj_i, _hj_j, hashv);
 
+    /* Because we check if MVMString->body.cached_hash_code == 0 to tell if
+     * we have not yet computed the hash code, ensure that hashv is never 0
+     * by adding the length of the string to hashv iff hashv == 0. Since both
+     * the hashv and MVMStringIndex are both uint32, there should never be any
+     * overflow. Only problematic case is if the string is of length 0 and
+     * hashv is zero, though this is very very unlikely (if possible at all)
+     * and it should be very fast to calculate the hash so as to be negligible. */
+    if (hashv == 0) {
+        hashv += sgraphs;
+    }
     /* Store computed hash value. */
     s->body.cached_hash_code = hashv;
 }

@@ -331,6 +331,9 @@ do {                                                                            
      case 1:  _hj_i += _hj_key[0];                                               \
   }                                                                              \
   HASH_JEN_MIX(_hj_i, _hj_j, hashv);                                             \
+  if (hashv == 0) {                                                              \
+      hashv += keylen;                                                           \
+  }                                                                              \
   bkt = hashv & (num_bkts-1);                                                    \
 } while(0)
 
