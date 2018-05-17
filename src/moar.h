@@ -15,6 +15,7 @@
 
 /* stuff for uthash */
 #define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
+typedef uint32_t MVMhashv;
 
 #include <uthash.h>
 

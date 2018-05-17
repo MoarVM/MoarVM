@@ -100,7 +100,8 @@ typedef unsigned char uint8_t;
 
 #define HASH_FIND(hh,head,keyptr,keylen,out)                                     \
 do {                                                                             \
-  unsigned _hf_bkt,_hf_hashv;                                                    \
+  MVMhashv _hf_hashv;                                                            \
+  unsigned _hf_bkt;                                                              \
   out=NULL;                                                                      \
   if (head) {                                                                    \
      HASH_FCN(keyptr,keylen, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt);   \
@@ -111,10 +112,11 @@ do {                                                                            
 
 #define HASH_FIND_VM_STR(tc,hh,head,key,out)                                        \
 do {                                                                                \
-  unsigned _hf_bkt,_hf_hashv;                                                       \
+  MVMhashv _hf_hashv;                                                               \
+  unsigned _hf_bkt;                                                                 \
   out=NULL;                                                                         \
   if (head) {                                                                       \
-     unsigned cached_hash = (key)->body.cached_hash_code;                           \
+     MVMhashv cached_hash = (key)->body.cached_hash_code;                           \
      if (cached_hash) {                                                             \
          _hf_hashv = cached_hash;                                                   \
          _hf_bkt = ((_hf_hashv) & (((head)->hh.tbl->num_buckets) - 1));             \
@@ -162,7 +164,7 @@ do {                                                                            
 #define HASH_ADD_KEYPTR_VM_STR(tc,hh,head,key_in,add)                            \
 do {                                                                             \
  unsigned _ha_bkt;                                                               \
- unsigned cached_hash = (key_in)->body.cached_hash_code;                         \
+ MVMhashv cached_hash = (key_in)->body.cached_hash_code;                         \
  (add)->hh.key = (key_in);                                                       \
  if (!(head)) {                                                                  \
     head = (add);                                                                \
@@ -539,7 +541,7 @@ typedef struct UT_hash_handle {
                                       * low-level hashes, MVMString * for high level
                                       * hashes) */
    unsigned keylen;                  /* enclosing struct's key len     */
-   unsigned hashv;                   /* result of hash-fcn(key)        */
+   MVMhashv hashv;                   /* result of hash-fcn(key)        */
 } UT_hash_handle;
 
 MVM_STATIC_INLINE void * HASH_ITER_FIRST_ITEM(
