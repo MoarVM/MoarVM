@@ -678,11 +678,11 @@
 (template: hllboxtype_i
   (^getf (^hllconfig) MVMHLLConfig int_box_type))
 
-(template: hllboxtype_s
-  (^getf (^hllconfig) MVMHLLConfig str_box_type))
-
 (template: hllboxtype_n
   (^getf (^hllconfig) MVMHLLConfig num_box_type))
+
+(template: hllboxtype_s
+  (^getf (^hllconfig) MVMHLLConfig str_box_type))
 
 (template: hllize!
   (callv (^func &MVM_hll_map)
