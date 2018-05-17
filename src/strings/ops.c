@@ -2883,12 +2883,12 @@ void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
     MVMJenHashGraphemeView hash_block;
     MVMGraphemeIter gi;
     MVMStringIndex graphs_remaining, sgraphs;
-    graphs_remaining = sgraphs = MVM_string_graphs(tc, s);
 
     /* Initialize hash state. */
     MVMhashv hashv = tc->instance->hashSecret;
     MVMuint32 _hj_i, _hj_j;
     _hj_i = _hj_j = 0x9e3779b9;
+    graphs_remaining = sgraphs = MVM_string_graphs(tc, s);
 
     /* Work through the string 3 graphemes at a time. */
     MVM_string_gi_init(tc, &gi, s);
