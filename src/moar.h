@@ -17,7 +17,7 @@
 #define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
 typedef uint32_t MVMhashv;
 
-#include <uthash.h>
+#include "strings/uthash.h"
 
 /* libuv
  * must precede atomic_ops.h so we get the ordering of Winapi headers right

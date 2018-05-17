@@ -405,7 +405,7 @@ HEADERS = src/moar.h \
           src/instrument/line_coverage.h \
           src/gen/config.h \
           src/debug/debugserver.h \
-          3rdparty/uthash.h \
+          src/strings/uthash.h \
           3rdparty/cmp/cmp.h \
           src/platform/memmem32.h
 
