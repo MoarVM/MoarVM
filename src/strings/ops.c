@@ -1443,6 +1443,10 @@ MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b) {
 
     if (agraphs != bgraphs)
         return 0;
+    /* If we have cached hash codes from both a and b we can compare if they are identical.
+     * If they don't match then we already know the two strings are not equal. */
+    if (a->body.cached_hash_code && b->body.cached_hash_code && a->body.cached_hash_code != b->body.cached_hash_code)
+        return 0;
 
     return MVM_string_substrings_equal_nocheck(tc, a, 0, bgraphs, b, 0);
 }
