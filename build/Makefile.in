@@ -393,6 +393,7 @@ HEADERS = src/moar.h \
           src/platform/setjmp.h \
           src/platform/memmem.h \
           src/platform/random.h \
+          src/platform/rotate.h \
           src/jit/graph.h \
           src/jit/label.h \
           src/jit/expr.h \
