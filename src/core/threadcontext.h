@@ -309,6 +309,7 @@ struct MVMThreadContext {
 
     MVMuint32 cur_file_idx;
     MVMuint32 cur_line_no;
+    MVMHashBucketRand hashbucket_rand;
 };
 
 MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance);

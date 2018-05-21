@@ -441,8 +441,9 @@ do {                                                                            
  *      ceil(n/b) = (n>>lb) + ( (n & (b-1)) ? 1:0)
  *
  */
-#define GET_NEW_OFFSET(tc) \
-    (tinymt64_generate_double((tc)->rand_state) * sizeof(MVMhashv))
+#define GET_NEW_OFFSET(tc, offset) \
+    get_0_to_31(tc)
+    //(tinymt64_generate_double((tc)->rand_state) * sizeof(MVMhashv) * 8)
 #define HASH_EXPAND_BUCKETS(tbl)                                                 \
 do {                                                                             \
     unsigned _he_bkt;                                                            \

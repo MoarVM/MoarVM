@@ -16,8 +16,25 @@
 /* stuff for uthash */
 #define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
 typedef uint32_t MVMhashv;
-#include "platform/rotate.h"
-#include "strings/uthash.h"
+struct MVMHashBucketRand {
+    uint64_t data;
+    uint8_t location;
+};
+typedef struct MVMHashBucketRand MVMHashBucketRand;
+/* forward declarations */
+#include "types.h"
+
+/* Sized types. */
+typedef int8_t   MVMint8;
+typedef uint8_t  MVMuint8;
+typedef int16_t  MVMint16;
+typedef uint16_t MVMuint16;
+typedef int32_t  MVMint32;
+typedef uint32_t MVMuint32;
+typedef int64_t  MVMint64;
+typedef uint64_t MVMuint64;
+typedef float    MVMnum32;
+typedef double   MVMnum64;
 
 /* libuv
  * must precede atomic_ops.h so we get the ordering of Winapi headers right
@@ -36,21 +53,6 @@ typedef uint32_t MVMhashv;
 #include <dyncall.h>
 #include <dyncall_callback.h>
 #endif
-
-/* forward declarations */
-#include "types.h"
-
-/* Sized types. */
-typedef int8_t   MVMint8;
-typedef uint8_t  MVMuint8;
-typedef int16_t  MVMint16;
-typedef uint16_t MVMuint16;
-typedef int32_t  MVMint32;
-typedef uint32_t MVMuint32;
-typedef int64_t  MVMint64;
-typedef uint64_t MVMuint64;
-typedef float    MVMnum32;
-typedef double   MVMnum64;
 
 /* Alignment. */
 #if HAVE_ALIGNOF
@@ -97,6 +99,10 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "gc/wb.h"
 #include "core/vector.h"
 #include "core/threadcontext.h"
+#include "platform/rotate.h"
+
+#include "strings/uthash.h"
+
 #include "core/instance.h"
 #include "core/interp.h"
 #include "core/callsite.h"
