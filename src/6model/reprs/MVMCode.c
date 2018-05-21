@@ -69,6 +69,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCode *code_obj = (MVMCode *)obj;
     MVM_free(code_obj->body.state_vars);
+    MVM_free(code_obj->body.state_vars_is_hll_init);
 }
 
 static const MVMStorageSpec storage_spec = {

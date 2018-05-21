@@ -6,6 +6,7 @@ struct MVMCodeBody {
     MVMObject      *code_object;
     MVMString      *name;
     MVMRegister    *state_vars;
+    MVMuint8       *state_vars_is_hll_init;
     MVMuint16       is_static;
     MVMuint16       is_compiler_stub;
 };
