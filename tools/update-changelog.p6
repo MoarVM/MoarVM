@@ -1,4 +1,7 @@
 #!/usr/bin/env perl6
+# This script is meant to automate part of the creation of the ChangeLog.
+# Some of it could be cleaned up, such as the get-log() sub, but it performs its
+# function. For editing
 sub git (*@args) {
     my $cmd = run 'git', @args, :out, :err;
     my $out = $cmd.out.slurp;
@@ -105,6 +108,9 @@ class datay {
         return False;
     }
 }
+# @keywords is used to help the categorizer. Keyword is checked first, then
+# the directory (which can be either a string or an array of strings) is checked.
+# The `title` is the title it should be in the final ChangeLog
 my @keywords =
     datay.new(keywords => 'JIT', directory => 'src/jit', title => 'JIT'),
     datay.new(keywords => 'Spesh', directory => 'src/spesh', title => 'Spesh'),
@@ -114,7 +120,8 @@ my @keywords =
     datay.new(title => '6model', directory => 'src/6model'),
     datay.new(title => 'Documentation', directory => 'docs'),
     datay.new(title => 'Tooling/Build', keywords => 'Tools'),
-    datay.new(title => 'Profiler', keywords => 'Profiler', directory => 'src/profiler');
+    datay.new(title => 'Profiler', keywords => 'Profiler', directory => 'src/profiler'),
+        datay.new(title => 'Platform', directory => 'src/platform');
 for @out2 -> $change {
     my $has-pushed = False;
     for @keywords -> $keyword {
@@ -170,7 +177,7 @@ my %names =
 for %categories.keys.sort -> $key {
     my $title;
     # $extra is used to print out the files modified at the end of the line
-    my $extra = True;
+    my $extra = False;
     #if %names{$key} {
     #    $title = %names{$key};
     #}
@@ -178,5 +185,5 @@ for %categories.keys.sort -> $key {
         $title = $key;
     #}
     say "\n$title:";
-    say '+ ' ~ %categories{$key}.map({"$_.key()" ~ " | $_.value.join(", ")" if .value && $extra}).join("\n+ ");
+    say '+ ' ~ %categories{$key}.map({"$_.key()" ~ (" | $_.value.join(", ")" if .value && $extra)}).join("\n+ ");
 }
