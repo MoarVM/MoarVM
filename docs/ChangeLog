@@ -1,6 +1,101 @@
 See https://github.com/MoarVM/MoarVM/wiki/ChangeLog-Draft for the draft changelog
 since the previous release.
 
+New in 2018.05
+
+Miscellaneous:
++ Correct op name in exception message for ctxcallerskipthunks
++ Remove explicit temp rooting in 'slice' interp op
+
+6model:
++ Fix warning about missing cast
++ Improve debug helper for p6opaque dumping
++ Sort hashes before serialization for more reproducible builds
++ Add CPPStruct/CUnion-reprs where it was forgotten
++ Implement one dimensional inlined shaped CArrays
++ Fix missing bounds check in NFA results push
++ Change multidim implementation exception message
++ Make error msg lowercase; match overall msg style
++ Add 'slice' positional op for VMArray
++ For NFAs with many codepoints, use binary search
+
+Documentation:
++ Add instructions to the release guide about gpg signing
+
+IO:
++ Push error string argument in the right place
++ Check we have a concrete OS handle in IO ops
++ Remove repeated MVMROOT
++ Root correct object when pushing host/port info
++ Close server socket handle when client side closes
+
+Ops:
++ Add new slice op
+
+Strings:
++ Randomly seed a hash secret to mitigate ease of DOS attack. For more
+  information see https://cry.nu/perl6/secure-hashing-for-moarvm
++ Check hash value before str eq in hash buckets. 15% faster hash lookups and insertion
++ Make sure hashing function never returns 0 to prevent cached_hash_code from being regenerated each time in those cases
++ In string index, avoid checking for concreteness multiple times
++ Make sure `getstrfromname` will resolve generated names
++ Use `<private-use-XXXX>` and `<surrogate-XXXX>` for as Unicode names for private
+  use and surrogates as recommended by Unicode
++ Use all uppercase for Hangul Syllable names
++ Fix CJK Unified Ideograph and other derived Unicode names to match Unicode spec
++ Add a new MVMhashv type for representing the hash value
++ Implement memmem_two_uint32(), up to 45% faster index of short (2-3 grapheme) needles in a flat 32 bit haystack
++ Implement an optimized memmem for 32 bit string search 4-15x faster for flat 32 bit haystacks
+
+JIT:
++ Add getlexcaller, sp_getstringfrom, iterkey_s, iterval, splice, slice, cmp_i,
+  string cmp, lexprimspec, ctxlexpad, captureposarg, inf, neginf, currentthread,
+  unless_s, if_s, threadlockcount, capturenamedshash JIT expr templates
++ Implement 'SAVE_RV' JIT node as RV mode
++ Fix ctxlexpad
++ captureexistsnamed
++ Disable ctxlexpad inlining
++ Enable ctxlexpad and hllizefor (with constant argument)
++ Put jit templates in same order as ops in interp.c
+
+Spesh:
++ Add bytecode size to inline log
++ Fix format string parameters
++ Put sizes of spesh graphs into the spesh log
++ Don't leak CUUID/name
++ Log graph of inlinee prior to inlining
++ Wrap debug printing
++ Set type facts on a resolved method
++ Specialize isnull
+
+Profiler:
++ Extract recursion loop for smaller stack frames
++ Don't uninstrument any more
++ Store the size we malloc and use it with strncpy
++ Fix off-by-one in profile's GC dumping
++ Insert prof_allocated in the exact right place
++ Add missing break statement
++ Fix optional parameter allocations
+
+Debug Server:
++ Don't use %b in format string
++ Fix mixed usage of malloc and FSA
++ Use official API for thread lock count
++ Allow unrecognized fields in messages
++ Throw out superfluous debugspam
++ Add a "handle equivalence class" command
++ Bump minor protocol version to 1.1 for new messagetype
+
+Tooling/Build:
++ Add `update-changelog.p6` tool for faster categorization of commits into the ChangeLog
++ Move uthash.h from 3rdparty to src/strings since it is heavily modified and
+  cannot be substituted for the generic version of the library
++ Make jit-comparify break on 'ret'
++ Ensure `make realclean` cleans 3rdparty/cmp
++ Fix off by one issue in jit-bisect.pl
++ Fix Makefile indentation
++ Report time spent on JIT in spesh-time.p6 tool
+
 New in 2018.04.1
 
 Math:
