@@ -40,7 +40,7 @@ my $start = <<"END";
         <div class="panel-body">
 END
         my $end = <<"END";
-<p><a href="releases/$release.tar.gz" class="btn btn-primary" role="button">Download</a></p>
+<p><a href="releases/MoarVM-{$release}.tar.gz" class="btn btn-primary" role="button">Download</a></p>
 </div>
 </div>
 END
@@ -73,7 +73,7 @@ END
 sub end_enclosing_text {
   my ($release) = @_;
   my $end = <<"END";
-<p><a href="releases/$release.tar.gz" class="btn btn-primary" role="button">Download</a></p>
+<p><a href="releases/MoarVM-$release.tar.gz" class="btn btn-primary" role="button">Download</a></p>
 </div>
 </div>
 END
