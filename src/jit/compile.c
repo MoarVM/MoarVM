@@ -14,11 +14,9 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
 static const MVMuint16 MAGIC_BYTECODE[] = { MVM_OP_sp_jit_enter, 0 };
 
 void MVM_jit_compiler_init(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitGraph *jg) {
-    MVMint32  num_globals = MVM_jit_num_globals();
     /* Create dasm state */
     dasm_init(cl, 2);
-    cl->dasm_globals = MVM_malloc(num_globals * sizeof(void*));
-    dasm_setupglobal(cl, cl->dasm_globals, num_globals);
+    dasm_setupglobal(cl, cl->dasm_globals, MVM_JIT_MAX_GLOBALS);
     dasm_setup(cl, MVM_jit_actions());
 
     /* Store graph we're compiling */
@@ -32,13 +30,11 @@ void MVM_jit_compiler_init(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitGraph
     cl->spills_base = jg->sg->num_locals * sizeof(MVMRegister);
     memset(cl->spills_free, -1, sizeof(cl->spills_free));
     MVM_VECTOR_INIT(cl->spills, 4);
-
 }
 
 
 void MVM_jit_compiler_deinit(MVMThreadContext *tc, MVMJitCompiler *cl) {
     dasm_free(cl);
-    MVM_free(cl->dasm_globals);
     MVM_VECTOR_DESTROY(cl->spills);
 }
 
@@ -168,6 +164,8 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
             MVM_jit_log(tc, "Got negative offset for dynamic label %d\n", i);
         code->labels[i] = memory + offset;
     }
+    /* We only ever use one global label, which is the exit label */
+    code->exit_label = cl->dasm_globals[0];
 
     /* Copy the deopts, inlines, and handlers. Because these use the
      * label index rather than the direct pointer, no fixup is

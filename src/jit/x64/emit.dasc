@@ -75,6 +75,10 @@
 |.section code, data
 |.globals MVM_JIT_LABEL_
 
+#if MVM_JIT_LABEL__MAX > MVM_JIT_MAX_GLOBALS
+#error "Not enough space for labels"
+#endif
+
 /* type declarations */
 |.type REGISTER, MVMRegister
 |.type FRAME, MVMFrame
@@ -140,11 +144,6 @@ const MVMint32 MVM_jit_support(void) {
 const unsigned char * MVM_jit_actions(void) {
     return actions;
 }
-
-const unsigned int MVM_jit_num_globals(void) {
-    return MVM_JIT_LABEL__MAX;
-}
-
 
 /* C Call argument registers */
 |.if WIN32
@@ -2749,11 +2748,6 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler,
         | jmp ->exit;
         /* I assume we *never* use a local label 9 in the code between
          * pre-and-post throwish */
-        |9:
-    } else if (type == MVM_JIT_CONTROL_CHECK_RETURN) {
-        /* special case for sp_findmeth */
-        | test RV, RV;
-        | jnz ->exit;
         |9:
     } else if (type == MVM_JIT_CONTROL_BREAKPOINT) {
         /* brrts evil testing purposes breakpoint */

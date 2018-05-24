@@ -8,9 +8,10 @@
 #define Dst (compiler)
 #include "dasm_proto.h"
 
+#define MVM_JIT_MAX_GLOBALS 1
+
 struct MVMJitCompiler {
     dasm_State *dasm_handle;
-    void      **dasm_globals;
     MVMJitGraph   *graph;
 
     MVMint32    label_offset;
@@ -20,12 +21,13 @@ struct MVMJitCompiler {
     MVMint32    spills_base;
     MVMint32    spills_free[4];
     MVM_VECTOR_DECL(struct { MVMint8 reg_type; MVMint32 next; }, spills);
+
+    void *dasm_globals[MVM_JIT_MAX_GLOBALS];
 };
 
 /* Declarations for architecture-specific codegen stuff */
 const MVMint32 MVM_jit_support(void);
 const unsigned char * MVM_jit_actions(void);
-const unsigned int MVM_jit_num_globals(void);
 void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg);
 void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg);
 void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler,

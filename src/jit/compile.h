@@ -14,6 +14,7 @@ struct MVMJitCode {
      * me now, and super-easy to optimise at a later date */
     MVMint32   num_labels;
     void     **labels;
+    void      *exit_label;
 
     MVMint32       num_deopts;
     MVMint32       num_inlines;
