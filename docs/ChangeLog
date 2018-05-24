@@ -50,13 +50,11 @@ Strings:
 JIT:
 + Add getlexcaller, sp_getstringfrom, iterkey_s, iterval, splice, slice, cmp_i,
   string cmp, lexprimspec, ctxlexpad, captureposarg, inf, neginf, currentthread,
-  unless_s, if_s, threadlockcount, capturenamedshash JIT expr templates
-+ Implement 'SAVE_RV' JIT node as RV mode
-+ Fix ctxlexpad
-+ captureexistsnamed
-+ Disable ctxlexpad inlining
-+ Enable ctxlexpad and hllizefor (with constant argument)
+  unless_s, if_s, threadlockcount, capturenamedshash, captureexistsnamed, and
+  hllizefor JIT templates
++ Refactor storage of temporary variables in NativeCall-JIT code
 + Put jit templates in same order as ops in interp.c
++ Fix a DynASM issue that caused integer overflow in encoding jump offsets
 
 Spesh:
 + Add bytecode size to inline log
