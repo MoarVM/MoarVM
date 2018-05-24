@@ -38,14 +38,15 @@ be made, they should be numbered as 2041.01.1, 2041.01.2, etc.
    able to sign your commits. The -a option adds a tag while the -s makes sure
    the tag is signed. Even if your commits are signed by default, you will need
    the -s option as well.
+   Note: For the tag's message, in the past we have used:
+   '2018.05 release'. To see the past release messages use `git tag -n9`
 
         git tag -as 2017.10
 
 9. Run `git verify-tag 2017.10` to make sure the signature is valid and the tag
    was actually signed.
 
-10. Upload it by committing the tar file
-   to https://github.com/MoarVM/moarvm.org/ in the releases directory.
+10. From here on this assumes you have the https://github.com/MoarVM/moarvm.org/ repository in the same folder as the main MoarVM repo
 
 11. Make sure you have the Text::Markdown Perl 5 module and run:
 
@@ -73,9 +74,14 @@ be made, they should be numbered as 2041.01.1, 2041.01.2, etc.
 
          cp MoarVM-2018.04.tar.gz MoarVM-2018.04.tar.gz.asc ../moarvm.org/releases
 
-15. Optionally, update the ports/macports/Portfile to reflect this latest
+15. Commit release to moarvm.org repo and check moarvm.org after 5-10 minutes and
+    make sure download works.
+
+16. Update MoarVM article on Wikipedia with the latest release https://en.wikipedia.org/wiki/MoarVM
+
+17. Optionally, update the ports/macports/Portfile to reflect this latest
    version, and open a ticket at https://trac.macports.org/newticket to get
    the macport updated. (For now, just make Coke do it.)
 
-16. Do something fun to celebrate. Like watching nyan cat, or having a beer. Or
+18. Do something fun to celebrate. Like watching nyan cat, or having a beer. Or
    why not both?
