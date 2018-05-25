@@ -541,8 +541,8 @@ static void write_code_ref(MVMThreadContext *tc, MVMSerializationWriter *writer,
     MVMint32  idx     = (MVMint32)MVM_sc_find_code_idx(tc, sc, code);
     write_locate_sc_and_index(tc, writer, sc_id, idx);
 }
-
-void throw_closure_serialization_error(MVMThreadContext *tc, MVMCode *closure, const char *message) {
+MVM_NO_RETURN void throw_closure_serialization_error(MVMThreadContext *tc, MVMCode *closure, const char *message) MVM_NO_RETURN_ATTRIBUTE;
+MVM_NO_RETURN void throw_closure_serialization_error(MVMThreadContext *tc, MVMCode *closure, const char *message) {
     MVMString *file;
     MVMint32 line;
     MVM_gc_enter_from_allocator(tc); /* opportunity for creating a heap snapshot for debugging */
@@ -1490,11 +1490,9 @@ static MVMnum64 read_double(const char *buffer, size_t offset) {
 }
 
 /* If deserialization should fail, cleans up before throwing an exception. */
-MVM_NO_RETURN
-static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reader,
-                             const char *messageFormat, ...) MVM_NO_RETURN_GCC MVM_FORMAT(printf, 3, 4);
-MVM_NO_RETURN
-static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reader,
+MVM_NO_RETURN static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reader,
+                             const char *messageFormat, ...) MVM_NO_RETURN_ATTRIBUTE MVM_FORMAT(printf, 3, 4);
+MVM_NO_RETURN static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reader,
         const char *messageFormat, ...) {
     va_list args;
     if (reader->data_needs_free && reader->data)

@@ -823,8 +823,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
  * Use MVM_oops in the case a thread context is available.
  * TODO: Some hook for embedders.
  */
-MVM_NO_RETURN
-void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) {
+MVM_NO_RETURN void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) {
     va_list args;
     fprintf(stderr, "MoarVM panic: ");
     va_start(args, messageFormat);
@@ -837,15 +836,13 @@ void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) {
         exit(exitCode);
 }
 
-MVM_NO_RETURN
-void MVM_panic_allocation_failed(size_t len) {
+MVM_NO_RETURN void MVM_panic_allocation_failed(size_t len) {
     MVM_panic(1, "Memory allocation failed; could not allocate %"MVM_PRSz" bytes", len);
 }
 
 /* A kinder MVM_panic() that doesn't assume our memory is corrupted (but does kill the
  * process to indicate that we've made an error */
-MVM_NO_RETURN
-void MVM_oops(MVMThreadContext *tc, const char *messageFormat, ...) {
+MVM_NO_RETURN void MVM_oops(MVMThreadContext *tc, const char *messageFormat, ...) {
     va_list args;
     fprintf(stderr, "MoarVM oops: ");
     va_start(args, messageFormat);
@@ -860,8 +857,7 @@ void MVM_oops(MVMThreadContext *tc, const char *messageFormat, ...) {
 }
 
 /* Throws an ad-hoc (untyped) exception. */
-MVM_NO_RETURN
-void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *messageFormat, ...) {
+MVM_NO_RETURN void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *messageFormat, ...) {
     va_list args;
     va_start(args, messageFormat);
     MVM_exception_throw_adhoc_free_va(tc, NULL, messageFormat, args);
@@ -869,15 +865,13 @@ void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *messageFormat, 
 }
 
 /* Throws an ad-hoc (untyped) exception. */
-MVM_NO_RETURN
-void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageFormat, va_list args) {
+MVM_NO_RETURN void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageFormat, va_list args) {
     MVM_exception_throw_adhoc_free_va(tc, NULL, messageFormat, args);
 }
 
 /* Throws an ad-hoc (untyped) exception, taking a NULL-terminated array of
  * char pointers to deallocate after message construction. */
-MVM_NO_RETURN
-void MVM_exception_throw_adhoc_free(MVMThreadContext *tc, char **waste, const char *messageFormat, ...) {
+MVM_NO_RETURN void MVM_exception_throw_adhoc_free(MVMThreadContext *tc, char **waste, const char *messageFormat, ...) {
     va_list args;
     va_start(args, messageFormat);
     MVM_exception_throw_adhoc_free_va(tc, waste, messageFormat, args);
@@ -886,8 +880,7 @@ void MVM_exception_throw_adhoc_free(MVMThreadContext *tc, char **waste, const ch
 
 /* Throws an ad-hoc (untyped) exception, taking a NULL-terminated array of
  * char pointers to deallocate after message construction. */
-MVM_NO_RETURN
-void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const char *messageFormat, va_list args) {
+MVM_NO_RETURN void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const char *messageFormat, va_list args) {
     LocatedHandler lh;
     MVMException *ex;
     /* The current frame will be assigned as the thrower of the exception, so

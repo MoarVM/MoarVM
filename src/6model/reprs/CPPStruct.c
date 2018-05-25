@@ -404,7 +404,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 }
 
 /* Helper for complaining about attribute access errors. */
-MVM_NO_RETURN static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) MVM_NO_RETURN_GCC;
+MVM_NO_RETURN static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) MVM_NO_RETURN_ATTRIBUTE;
 static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) {
     char *c_name = MVM_string_utf8_encode_C_string(tc, name);
     char *waste[] = { c_name, NULL };
@@ -413,7 +413,7 @@ static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObjec
 }
 
 /* Helper to die because this type doesn't support attributes. */
-MVM_NO_RETURN static void die_no_attrs(MVMThreadContext *tc) MVM_NO_RETURN_GCC;
+MVM_NO_RETURN static void die_no_attrs(MVMThreadContext *tc) MVM_NO_RETURN_ATTRIBUTE;
 static void die_no_attrs(MVMThreadContext *tc) {
     MVM_exception_throw_adhoc(tc,
         "CPPStruct representation attribute not yet fully implemented");

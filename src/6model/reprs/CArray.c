@@ -180,7 +180,7 @@ static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *
 }
 
 
-MVM_NO_RETURN static void die_pos_nyi(MVMThreadContext *tc) MVM_NO_RETURN_GCC;
+MVM_NO_RETURN static void die_pos_nyi(MVMThreadContext *tc) MVM_NO_RETURN_ATTRIBUTE;
 static void die_pos_nyi(MVMThreadContext *tc) {
     MVM_exception_throw_adhoc(tc,
         "CArray representation does not fully positional storage yet");

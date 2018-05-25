@@ -203,15 +203,15 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
 }
 
 /* Helper for complaining about attribute access errors. */
-MVM_NO_RETURN
-static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name, MVMSTable *target_type) {
+MVM_NO_RETURN static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name, MVMSTable *target_type) MVM_NO_RETURN_ATTRIBUTE;
+MVM_NO_RETURN static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name, MVMSTable *target_type) {
     char *c_name = MVM_string_utf8_encode_C_string(tc, name);
     char *waste[] = { c_name, NULL };
     MVM_exception_throw_adhoc_free(tc, waste, "P6opaque: no such attribute '%s' on type %s in a %s when trying to %s", c_name, MVM_6model_get_debug_name(tc, class_handle), MVM_6model_get_stable_debug_name(tc, target_type), action);
 }
 
-MVM_NO_RETURN
-static void invalid_access_kind(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name, const char *kind_desc) {
+MVM_NO_RETURN static void invalid_access_kind(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name, const char *kind_desc) MVM_NO_RETURN_ATTRIBUTE;
+MVM_NO_RETURN static void invalid_access_kind(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name, const char *kind_desc) {
     char *c_name = MVM_string_utf8_encode_C_string(tc, name);
     char *waste[] = { c_name, NULL };
     MVM_exception_throw_adhoc_free(tc, waste, "P6opaque: invalid %s attribute '%s' in type %s for kind %s", action, c_name, MVM_6model_get_debug_name(tc, class_handle), kind_desc);
