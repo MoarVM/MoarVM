@@ -62,3 +62,8 @@
 #define MVM_JIT_PLATFORM @jit_platform@
 
 #define MVM_VECTORIZE_LOOP @vectorizerspecifier@
+
+/* Branch condition compiler hints */
+#define MVM_LIKELY(condition) @expect_likely@
+#define MVM_UNLIKELY(condition) @expect_unlikely@
+#define MVM_EXPECT(condition, expection) @expect_condition@
