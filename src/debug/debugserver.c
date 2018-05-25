@@ -2223,7 +2223,7 @@ static size_t socket_writer(cmp_ctx_t *ctx, const void *data, size_t limit) {
     return 1;
 }
 
-static bool is_valid_int(cmp_object_t *obj, MVMint64 *result) {
+static bool is_valid_int(cmp_object_t *obj, MVMuint64 *result) {
     switch (obj->type) {
         case CMP_TYPE_POSITIVE_FIXNUM:
         case CMP_TYPE_UINT8:
