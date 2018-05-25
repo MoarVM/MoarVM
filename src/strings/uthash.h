@@ -106,7 +106,7 @@ do {                                                                            
   if (head) {                                                                    \
      HASH_FCN(keyptr,keylen, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt);   \
      HASH_FIND_IN_BKT((head)->hh.tbl, hh, (head)->hh.tbl->buckets[ _hf_bkt ],  \
-                      keyptr,keylen,out);                                      \
+                      keyptr,keylen,out,_hf_hashv);                             \
   }                                                                              \
 } while (0)
 
@@ -348,12 +348,12 @@ do {                                                                            
 #define HASH_KEYCMP(a,b,len) memcmp(a,b,len)
 
 /* iterate over items in a known bucket to find desired item */
-#define HASH_FIND_IN_BKT(tbl,hh,head,keyptr,keylen_in,out)                       \
+#define HASH_FIND_IN_BKT(tbl,hh,head,keyptr,keylen_in,out, hashval)              \
 do {                                                                             \
  if (head.hh_head) DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,head.hh_head));          \
  else out=NULL;                                                                  \
  while (out) {                                                                   \
-    if ((out)->hh.keylen == keylen_in) {                                           \
+    if ((out)->hh.hashv == hashval && (out)->hh.keylen == keylen_in) {                                           \
         if ((HASH_KEYCMP((out)->hh.key,keyptr,keylen_in)) == 0) break;             \
     }                                                                            \
     if ((out)->hh.hh_next) DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,(out)->hh.hh_next)); \
