@@ -211,7 +211,7 @@ do {                                                                            
  (add)->hh.tbl = (head)->hh.tbl;                                                 \
  HASH_FCN(keyptr,keylen_in, (head)->hh.tbl->num_buckets,                         \
          (add)->hh.hashv, _ha_bkt);                                              \
- HASH_ADD_TO_BKT((head)->hh.tbl->buckets[_ha_bkt],&(add)->hh);                   \
+ HASH_ADD_TO_BKT(tc, &((head)->hh.tbl->buckets[_ha_bkt]),&(add)->hh);            \
  HASH_FSCK(hh,head);                                                             \
 } while(0)
 
@@ -234,7 +234,7 @@ do {                                                                            
      HASH_FCN_VM_STR(tc, key_in, (head)->hh.tbl->num_buckets,                    \
              (add)->hh.hashv, _ha_bkt);                                          \
  }                                                                               \
- HASH_ADD_TO_BKT((head)->hh.tbl->buckets[_ha_bkt],&(add)->hh);                   \
+ HASH_ADD_TO_BKT(tc, &((head)->hh.tbl->buckets[_ha_bkt]),&(add)->hh);            \
  HASH_FSCK(hh,head);                                                             \
 } while(0)
 
@@ -430,33 +430,6 @@ do {                                                                            
  }                                                                               \
 } while(0)
 
-/* add an item to a bucket  */
-#define HASH_ADD_TO_BKT(head,addhh)                                              \
-do {                                                                             \
- head.count++;                                                                   \
- (addhh)->hh_next = head.hh_head;                                                \
- (addhh)->hh_prev = NULL;                                                        \
- if (head.hh_head) { (head).hh_head->hh_prev = (addhh); }                        \
- (head).hh_head=addhh;                                                           \
- if (head.count >= ((head.expand_mult+1) * HASH_BKT_CAPACITY_THRESH)             \
-     && (addhh)->tbl->noexpand != 1) {                                           \
-       HASH_EXPAND_BUCKETS((addhh)->tbl);                                        \
- }                                                                               \
-} while(0)
-
-/* remove an item from a given bucket */
-#define HASH_DEL_IN_BKT(hh,head,hh_del)                                          \
-    (head).count--;                                                              \
-    if ((head).hh_head == hh_del) {                                              \
-      (head).hh_head = hh_del->hh_next;                                          \
-    }                                                                            \
-    if (hh_del->hh_prev) {                                                       \
-        hh_del->hh_prev->hh_next = hh_del->hh_next;                              \
-    }                                                                            \
-    if (hh_del->hh_next) {                                                       \
-        hh_del->hh_next->hh_prev = hh_del->hh_prev;                              \
-    }
-
 /* Bucket expansion has the effect of doubling the number of buckets
  * and redistributing the items into the new buckets. Ideally the
  * items will distribute more or less evenly into the new buckets
@@ -533,6 +506,33 @@ do {                                                                            
     }                                                                            \
     uthash_expand_fyi(tbl);                                                      \
 } while(0)
+
+/* add an item to a bucket  */
+MVM_STATIC_INLINE void HASH_ADD_TO_BKT(MVMThreadContext *tc, UT_hash_bucket *head, UT_hash_handle *addhh) {
+ head->count++;
+ addhh->hh_next = head->hh_head;
+ addhh->hh_prev = NULL;
+ if (head->hh_head) { head->hh_head->hh_prev = addhh; }
+ head->hh_head = addhh;
+ if (head->count >= ((head->expand_mult+1) * HASH_BKT_CAPACITY_THRESH)
+     && addhh->tbl->noexpand != 1) {
+       HASH_EXPAND_BUCKETS(addhh->tbl);
+ }
+}
+
+/* remove an item from a given bucket */
+#define HASH_DEL_IN_BKT(hh,head,hh_del)                                          \
+    (head).count--;                                                              \
+    if ((head).hh_head == hh_del) {                                              \
+      (head).hh_head = hh_del->hh_next;                                          \
+    }                                                                            \
+    if (hh_del->hh_prev) {                                                       \
+        hh_del->hh_prev->hh_next = hh_del->hh_next;                              \
+    }                                                                            \
+    if (hh_del->hh_next) {                                                       \
+        hh_del->hh_next->hh_prev = hh_del->hh_prev;                              \
+    }
+
 
 #define HASH_CLEAR(hh,head)                                                      \
 do {                                                                             \
