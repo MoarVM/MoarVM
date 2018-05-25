@@ -2587,7 +2587,7 @@ void MVM_string_cclass_init(MVMThreadContext *tc) {
 static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGrapheme32 g) {
     /* If it's a synthetic, then grab the base codepoint. */
     MVMCodepoint cp;
-    if (g >= 0)
+    if (MVM_LIKELY(g >= 0))
         cp = (MVMCodepoint)g;
     else
         cp = MVM_nfg_get_synthetic_info(tc, g)->codes[0];

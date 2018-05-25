@@ -752,17 +752,17 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint64 codepo
 
     MVMint32 plane = codepoint >> 16;
 
-    if (codepoint < 0) {
+    if (MVM_UNLIKELY(codepoint < 0)) {
         MVM_exception_throw_adhoc(tc,
             "Internal Error: MVM_codepoint_to_row_index call requested a synthetic codepoint that does not exist.\n"
             "Requested synthetic %%"PRId64" when only %%"PRId32" have been created.",
             -codepoint, tc->instance->nfg->num_synthetics);
     }
 
-    if (plane == 0) {%s
+    if (MVM_LIKELY(plane == 0)) {%s
     }
     else {
-        if (plane < 0 || plane > 16 || codepoint > 0x10FFFD) {
+        if (MVM_UNLIKELY(plane < 0 || plane > 16 || codepoint > 0x10FFFD)) {
             return -1;
         }
         else {%s
@@ -859,7 +859,6 @@ sub emit_property_value_lookup {
     chomp(my $int_out = <<'END');
 
 static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
-    MVMuint32 switch_val = (MVMuint32)property_code;
     MVMint32 result_val = 0; /* we'll never have negatives, but so */
     MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
     MVMuint16 bitfield_row;
@@ -868,13 +867,11 @@ static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint64 code
         /* Unassigned codepoints have General Category Cn. Since this returns 0
          * for unknowns, unless we return 1 for property C then these unknows
          * won't match with <:C> */
-        if (property_code == MVM_UNICODE_PROPERTY_C)
-            return 1;
-        return 0;
+        return property_code == MVM_UNICODE_PROPERTY_C ? 1 : 0;
     }
     bitfield_row = codepoint_bitfield_indexes[codepoint_row];
 
-    switch (switch_val) {
+    switch (MVM_EXPECT(property_code, MVM_UNICODE_PROPERTY_GENERAL_CATEGORY)) {
         case 0: return 0;
 END
 
