@@ -13,12 +13,6 @@
 /* platform-specific setjmp override */
 #include <platform/setjmp.h>
 
-/* stuff for uthash */
-#define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
-typedef uint32_t MVMhashv;
-
-#include "strings/uthash.h"
-
 /* libuv
  * must precede atomic_ops.h so we get the ordering of Winapi headers right
  */
@@ -87,6 +81,12 @@ typedef double   MVMnum64;
 #else
 #  define MVM_USED_BY_JIT
 #endif
+
+/* stuff for uthash */
+#define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
+typedef uint32_t MVMhashv;
+
+#include "strings/uthash.h"
 
 MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 
