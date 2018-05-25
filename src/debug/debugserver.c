@@ -332,13 +332,14 @@ MVM_PUBLIC void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32
         else if (tc->step_mode == MVMDebugSteppingMode_STEP_INTO) {
             if (line_no != tc->step_mode_line_no && tc->step_mode_frame == tc->cur_frame
                     || tc->step_mode_frame != tc->cur_frame) {
-                if (tc->instance->debugserver->debugspam_protocol)
+                if (tc->instance->debugserver->debugspam_protocol) {
                     if (line_no != tc->step_mode_line_no && tc->step_mode_frame == tc->cur_frame)
                         fprintf(stderr, "hit a stepping point: step into; %u != %u, %p == %p\n",
                                 line_no, tc->step_mode_line_no, tc->step_mode_frame, tc->cur_frame);
                     else
                         fprintf(stderr, "hit a stepping point: step into; %u,   %u, %p != %p\n",
                                 line_no, tc->step_mode_line_no, tc->step_mode_frame, tc->cur_frame);
+                }
                 step_point_hit(tc);
                 shall_suspend = 1;
             }
@@ -1179,7 +1180,7 @@ static MVMObject *find_handle_target(MVMThreadContext *dtc, MVMuint64 id) {
     return NULL;
 }
 
-static MVMuint64 find_representant(MVMint16 *representant, MVMuint64 index) {
+static MVMuint64 find_representant(MVMuint16 *representant, MVMuint64 index) {
     MVMuint64 last = index;
 
     while (representant[last] != last) {
