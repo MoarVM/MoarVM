@@ -282,7 +282,7 @@ do {                                                                            
           REPLACED_HEAD: ;                                                       \
         }                                                                        \
         HASH_TO_BKT( _hd_hh_del->hashv, (head)->hh.tbl->num_buckets, _hd_bkt);   \
-        HASH_DEL_IN_BKT(hh,(head)->hh.tbl->buckets[_hd_bkt], _hd_hh_del);        \
+        HASH_DEL_IN_BKT(&((head)->hh.tbl->buckets[_hd_bkt]), _hd_hh_del);        \
         (head)->hh.tbl->num_items--;                                             \
     }                                                                            \
     HASH_FSCK(hh,head);                                                          \
@@ -459,53 +459,52 @@ do {                                                                            
  *      ceil(n/b) = (n>>lb) + ( (n & (b-1)) ? 1:0)
  *
  */
-#define HASH_EXPAND_BUCKETS(tbl)                                                 \
-do {                                                                             \
-    unsigned _he_bkt;                                                            \
-    unsigned _he_bkt_i;                                                          \
-    struct UT_hash_handle *_he_thh, *_he_hh_nxt;                                 \
-    UT_hash_bucket *_he_new_buckets, *_he_newbkt;                                \
-    _he_new_buckets = (UT_hash_bucket*)uthash_malloc(                            \
-             2 * tbl->num_buckets * sizeof(struct UT_hash_bucket));              \
-    if (!_he_new_buckets) { uthash_fatal( "out of memory"); }                    \
-    memset(_he_new_buckets, 0,                                                   \
-            2 * tbl->num_buckets * sizeof(struct UT_hash_bucket));               \
-    tbl->ideal_chain_maxlen =                                                    \
-       (tbl->num_items >> (tbl->log2_num_buckets+1)) +                           \
-       ((tbl->num_items & ((tbl->num_buckets*2)-1)) ? 1 : 0);                    \
-    tbl->nonideal_items = 0;                                                     \
-    for(_he_bkt_i = 0; _he_bkt_i < tbl->num_buckets; _he_bkt_i++)                \
-    {                                                                            \
-        _he_thh = tbl->buckets[ _he_bkt_i ].hh_head;                             \
-        while (_he_thh) {                                                        \
-           _he_hh_nxt = _he_thh->hh_next;                                        \
-           HASH_TO_BKT( _he_thh->hashv, tbl->num_buckets*2, _he_bkt);            \
-           _he_newbkt = &(_he_new_buckets[ _he_bkt ]);                           \
-           if (++(_he_newbkt->count) > tbl->ideal_chain_maxlen) {                \
-             tbl->nonideal_items++;                                              \
-             _he_newbkt->expand_mult = _he_newbkt->count /                       \
-                                        tbl->ideal_chain_maxlen;                 \
-           }                                                                     \
-           _he_thh->hh_prev = NULL;                                              \
-           _he_thh->hh_next = _he_newbkt->hh_head;                               \
-           if (_he_newbkt->hh_head) _he_newbkt->hh_head->hh_prev =               \
-                _he_thh;                                                         \
-           _he_newbkt->hh_head = _he_thh;                                        \
-           _he_thh = _he_hh_nxt;                                                 \
-        }                                                                        \
-    }                                                                            \
-    uthash_free( tbl->buckets, tbl->num_buckets*sizeof(struct UT_hash_bucket) ); \
-    tbl->num_buckets *= 2;                                                       \
-    tbl->log2_num_buckets++;                                                     \
-    tbl->buckets = _he_new_buckets;                                              \
-    tbl->ineff_expands = (tbl->nonideal_items > (tbl->num_items >> 1)) ?         \
-        (tbl->ineff_expands+1) : 0;                                              \
-    if (tbl->ineff_expands > 1) {                                                \
-        tbl->noexpand=1;                                                         \
-        uthash_noexpand_fyi(tbl);                                                \
-    }                                                                            \
-    uthash_expand_fyi(tbl);                                                      \
-} while(0)
+MVM_STATIC_INLINE void HASH_EXPAND_BUCKETS(MVMThreadContext *tc, UT_hash_table *tbl) {
+    unsigned _he_bkt;
+    unsigned _he_bkt_i;
+    struct UT_hash_handle *_he_thh, *_he_hh_nxt;
+    UT_hash_bucket *_he_new_buckets, *_he_newbkt;
+    _he_new_buckets = (UT_hash_bucket*)uthash_malloc(
+             2 * tbl->num_buckets * sizeof(struct UT_hash_bucket));
+    if (!_he_new_buckets) { uthash_fatal( "out of memory"); }
+    memset(_he_new_buckets, 0,
+            2 * tbl->num_buckets * sizeof(struct UT_hash_bucket));
+    tbl->ideal_chain_maxlen =
+       (tbl->num_items >> (tbl->log2_num_buckets+1)) +
+       ((tbl->num_items & ((tbl->num_buckets*2)-1)) ? 1 : 0);
+    tbl->nonideal_items = 0;
+    for(_he_bkt_i = 0; _he_bkt_i < tbl->num_buckets; _he_bkt_i++)
+    {
+        _he_thh = tbl->buckets[ _he_bkt_i ].hh_head;
+        while (_he_thh) {
+           _he_hh_nxt = _he_thh->hh_next;
+           HASH_TO_BKT( _he_thh->hashv, tbl->num_buckets*2, _he_bkt);
+           _he_newbkt = &(_he_new_buckets[ _he_bkt ]);
+           if (++(_he_newbkt->count) > tbl->ideal_chain_maxlen) {
+             tbl->nonideal_items++;
+             _he_newbkt->expand_mult = _he_newbkt->count /
+                                        tbl->ideal_chain_maxlen;
+           }
+           _he_thh->hh_prev = NULL;
+           _he_thh->hh_next = _he_newbkt->hh_head;
+           if (_he_newbkt->hh_head) _he_newbkt->hh_head->hh_prev =
+                _he_thh;
+           _he_newbkt->hh_head = _he_thh;
+           _he_thh = _he_hh_nxt;
+        }
+    }
+    uthash_free( tbl->buckets, tbl->num_buckets*sizeof(struct UT_hash_bucket) );
+    tbl->num_buckets *= 2;
+    tbl->log2_num_buckets++;
+    tbl->buckets = _he_new_buckets;
+    tbl->ineff_expands = (tbl->nonideal_items > (tbl->num_items >> 1)) ?
+        (tbl->ineff_expands+1) : 0;
+    if (tbl->ineff_expands > 1) {
+        tbl->noexpand=1;
+        uthash_noexpand_fyi(tbl);
+    }
+    uthash_expand_fyi(tbl);
+}
 
 /* add an item to a bucket  */
 MVM_STATIC_INLINE void HASH_ADD_TO_BKT(MVMThreadContext *tc, UT_hash_bucket *head, UT_hash_handle *addhh) {
@@ -516,23 +515,23 @@ MVM_STATIC_INLINE void HASH_ADD_TO_BKT(MVMThreadContext *tc, UT_hash_bucket *hea
  head->hh_head = addhh;
  if (head->count >= ((head->expand_mult+1) * HASH_BKT_CAPACITY_THRESH)
      && addhh->tbl->noexpand != 1) {
-       HASH_EXPAND_BUCKETS(addhh->tbl);
+       HASH_EXPAND_BUCKETS(tc, addhh->tbl);
  }
 }
 
 /* remove an item from a given bucket */
-#define HASH_DEL_IN_BKT(hh,head,hh_del)                                          \
-    (head).count--;                                                              \
-    if ((head).hh_head == hh_del) {                                              \
-      (head).hh_head = hh_del->hh_next;                                          \
-    }                                                                            \
-    if (hh_del->hh_prev) {                                                       \
-        hh_del->hh_prev->hh_next = hh_del->hh_next;                              \
-    }                                                                            \
-    if (hh_del->hh_next) {                                                       \
-        hh_del->hh_next->hh_prev = hh_del->hh_prev;                              \
+MVM_STATIC_INLINE void HASH_DEL_IN_BKT(UT_hash_bucket *head, UT_hash_handle *hh_del) {
+    head->count--;
+    if (head->hh_head == hh_del) {
+      head->hh_head = hh_del->hh_next;
     }
-
+    if (hh_del->hh_prev) {
+        hh_del->hh_prev->hh_next = hh_del->hh_next;
+    }
+    if (hh_del->hh_next) {
+        hh_del->hh_next->hh_prev = hh_del->hh_prev;
+    }
+}
 
 #define HASH_CLEAR(hh,head)                                                      \
 do {                                                                             \
