@@ -287,9 +287,9 @@ our %COMPILERS = (
         noreturnspecifier => '',
         noreturnattribute => '__attribute__((noreturn))',
         formatattribute   => '__attribute__((format(X, Y, Z)))',
-        expect_likely => '__builtin_expect((condition), 1)',
-        expect_unlikely => '__builtin_expect((condition), 0)',
-        expect_condition => '__builtin_expect((condition), (expection))'
+        expect_likely => '__builtin_expect(!!(condition), 1)',
+        expect_unlikely => '__builtin_expect(!!(condition), 0)',
+        expect_condition => '__builtin_expect(!!(condition), (expection))'
     },
 
     clang => {
@@ -315,9 +315,9 @@ our %COMPILERS = (
         noreturnattribute => '__attribute__((noreturn))',
         formatattribute   => '__attribute__((format(X, Y, Z)))',
         vectorizerspecifier => '_Pragma ("clang loop vectorize(enable)")',
-        expect_likely => '__builtin_expect((condition), 1)',
-        expect_unlikely => '__builtin_expect((condition), 0)',
-        expect_condition => '__builtin_expect((condition), (expection))'
+        expect_likely => '__builtin_expect(!!(condition), 1)',
+        expect_unlikely => '__builtin_expect(!!(condition), 0)',
+        expect_condition => '__builtin_expect(!!(condition), (expection))'
     },
 
     cl => {
