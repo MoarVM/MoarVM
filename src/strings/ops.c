@@ -2582,12 +2582,12 @@ void MVM_string_cclass_init(MVMThreadContext *tc) {
     UPV_Po = MVM_unicode_cname_to_property_value_code(tc,
         MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Po"));
 }
-
+#include "strings/unicode_prop_macros.h"
 /* Checks if the specified grapheme is in the given character class. */
 static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGrapheme32 g) {
     /* If it's a synthetic, then grab the base codepoint. */
     MVMCodepoint cp;
-    if (MVM_LIKELY(g >= 0))
+    if (0 <= g)
         cp = (MVMCodepoint)g;
     else
         cp = MVM_nfg_get_synthetic_info(tc, g)->codes[0];
@@ -2628,17 +2628,10 @@ static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGra
                 else
                     return 0;
             }
-            return
-                MVM_unicode_codepoint_has_property_value(tc, cp,
-                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lo) /* lots of CJK chars */
-             || MVM_unicode_codepoint_has_property_value(tc, cp,
-                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Ll) /* (ascii handled above) */
-             || MVM_unicode_codepoint_has_property_value(tc, cp,
-                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lu)
-             || MVM_unicode_codepoint_has_property_value(tc, cp,
-                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lt)
-             || MVM_unicode_codepoint_has_property_value(tc, cp,
-                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lm);
+            /* Property L covers Lo, Ll, Lu, Lt, Lm */
+            return !!MVM_unicode_codepoint_get_property_int(tc, cp,
+                MVM_UNICODE_PROPERTY_L);
+            /* TODO: Maybe we want MVM_UNICODE_PROPERTY_ALPHABETIC instead? */
 
         case MVM_CCLASS_NUMERIC:
             if (cp <= '9' && cp >= '0')  /* short circuit common case */
@@ -2651,14 +2644,7 @@ static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGra
                 MVM_UNICODE_PROPERTY_ASCII_HEX_DIGIT, 1);
 
         case MVM_CCLASS_WHITESPACE:
-            if (cp <= '~') {
-                if (cp == ' ' || (cp <= 13 && cp >= 9))
-                    return 1;
-                else
-                    return 0;
-            }
-            return MVM_unicode_codepoint_has_property_value(tc, cp,
-                MVM_UNICODE_PROPERTY_WHITE_SPACE, 1);
+            return MVM_CP_is_White_Space(cp);
 
         case MVM_CCLASS_BLANK:
             if (cp == '\t')
@@ -2675,28 +2661,12 @@ static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGra
         }
 
         case MVM_CCLASS_PUNCTUATION:
-            return
-                MVM_unicode_codepoint_has_property_value(tc, cp,
-                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Pc)
-             || MVM_unicode_codepoint_has_property_value(tc, cp,
-                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Pd)
-             || MVM_unicode_codepoint_has_property_value(tc, cp,
-                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Ps)
-             || MVM_unicode_codepoint_has_property_value(tc, cp,
-                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Pe)
-             || MVM_unicode_codepoint_has_property_value(tc, cp,
-                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Pi)
-             || MVM_unicode_codepoint_has_property_value(tc, cp,
-                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Pf)
-             || MVM_unicode_codepoint_has_property_value(tc, cp,
-                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Po);
+            return !!MVM_unicode_codepoint_get_property_int(tc, cp,
+                MVM_UNICODE_PROPERTY_P);
 
         case MVM_CCLASS_NEWLINE: {
-            /* TODO maybe we should edit ucd2c.pl to give us all Zl and Zp
-             * characters. ATM and maybe forever the only Zp is U+2029
-             * and the only Zl is U+2028 */
             if (cp == '\n' || cp == 0x0b || cp == 0x0c || cp == '\r' ||
-                cp == 0x85 || cp == 0x2028 || cp == 0x2029)
+                cp == 0x85 || MVM_CP_is_gencat_name_Zl(cp) || MVM_CP_is_gencat_name_Zp(cp))
                 return 1;
         }
 
@@ -2732,15 +2702,20 @@ MVMint64 MVM_string_find_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString
     MVM_string_gi_init(tc, &gi, s);
     MVM_string_gi_move_to(tc, &gi, offset);
     switch (cclass) {
+        case MVM_CCLASS_WHITESPACE:
+            for (pos = offset; pos < end; pos++) {
+                MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+                MVMCodepoint cp = 0 <= g ? g : MVM_nfg_get_synthetic_info(tc, g)->codes[0];
+                if (MVM_CP_is_White_Space(cp))
+                    return pos;
+            }
+            break;
         case MVM_CCLASS_NEWLINE:
             for (pos = offset; pos < end; pos++) {
                 MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
-                MVMCodepoint cp = g >= 0 ? g : MVM_nfg_get_synthetic_info(tc, g)->codes[0];
-                /* TODO maybe we should edit ucd2c.pl to give us all Zl and Zp
-                 * characters. ATM and maybe forever the only Zp is U+2029
-                 * and the only Zl is U+2028 */
+                MVMCodepoint cp = 0 <= g ? g : MVM_nfg_get_synthetic_info(tc, g)->codes[0];
                 if (cp == '\n' || cp == 0x0b || cp == 0x0c || cp == '\r' ||
-                    cp == 0x85 || cp == 0x2028 || cp == 0x2029)
+                    cp == 0x85 || MVM_CP_is_gencat_name_Zl(cp) || MVM_CP_is_gencat_name_Zp(cp))
                     return pos;
             }
             break;
@@ -2770,10 +2745,30 @@ MVMint64 MVM_string_find_not_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMSt
 
     MVM_string_gi_init(tc, &gi, s);
     MVM_string_gi_move_to(tc, &gi, offset);
-    for (pos = offset; pos < end; pos++) {
-        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
-        if (grapheme_is_cclass(tc, cclass, g) == 0)
-            return pos;
+    switch (cclass) {
+        case MVM_CCLASS_WHITESPACE:
+            for (pos = offset; pos < end; pos++) {
+                MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+                MVMCodepoint cp = 0 <= g ? g : MVM_nfg_get_synthetic_info(tc, g)->codes[0];
+                if (!MVM_CP_is_White_Space(cp))
+                    return pos;
+            }
+            break;
+        case MVM_CCLASS_NEWLINE:
+            for (pos = offset; pos < end; pos++) {
+                MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+                MVMCodepoint cp = 0 <= g ? g : MVM_nfg_get_synthetic_info(tc, g)->codes[0];
+                if (!(cp == '\n' || cp == 0x0b || cp == 0x0c || cp == '\r' ||
+                    cp == 0x85 || MVM_CP_is_gencat_name_Zl(cp) || MVM_CP_is_gencat_name_Zp(cp)))
+                    return pos;
+            }
+            break;
+        default:
+            for (pos = offset; pos < end; pos++) {
+                MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+                if (!grapheme_is_cclass(tc, cclass, g))
+                    return pos;
+            }
     }
 
     return end;

@@ -162,7 +162,7 @@ sub main {
   skip_most:
     break_property('Word', 'Word_Break');
     tweak_nfg_qc();
-
+    find_quick_prop_data();
     # Allocate all the things
     progress("done.\nsetting next_point for codepoints");
     my $first_point = set_next_points();
@@ -201,7 +201,39 @@ sub main {
     print "\nDONE!!!\n\n";
     return 1;
 }
-
+sub find_quick_prop_data {
+    my @wanted_val_str = (
+        [ 'gencat_name', 'Zl', 'Zp' ],
+    );
+    my @wanted_val_bool = (
+        [ 'White_Space', 1 ]
+    );
+    my %gencat_wanted_h;
+    my @result;
+    for my $code (sort { $a <=> $b } keys %{$POINTS_BY_CODE}) {
+        for my $cat_data (@wanted_val_str) {
+            my $propname = $cat_data->[0];
+            my $i;
+            for ($i = 1; $i < @$cat_data; $i++) {
+                my $pval = $cat_data->[$i];
+                push @{$gencat_wanted_h{$propname . "_" . $pval}}, $code if $POINTS_BY_CODE->{$code}->{$propname} eq $pval;
+            }
+        }
+        for my $cat_data (@wanted_val_bool) {
+            my $propname = $cat_data->[0];
+            push @{$gencat_wanted_h{$propname}}, $code if $POINTS_BY_CODE->{$code}->{$propname};
+        }
+    }
+    say Dumper(%gencat_wanted_h);
+    for my $pname (sort keys %gencat_wanted_h) {
+        my @text;
+        for my $cp (@{$gencat_wanted_h{$pname}}) {
+            push @text, "((cp) == $cp)";
+        }
+        push @result, ("#define MVM_CP_is_$pname(cp) (" . join(' || ', @text) . ')');
+    }
+    write_file("src/strings/unicode_prop_macros.h", (join("\n", @result) . "\n"));
+}
 sub thousands {
     my $in = shift;
     $in = reverse "$in"; # stringify or copy the string
