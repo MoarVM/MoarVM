@@ -49,7 +49,7 @@ static const MVMuint8 utf8d[] = {
   12,36,12,12,12,12,12,12,12,12,12,12,
 };
 
-static MVMint32
+MVM_STATIC_INLINE MVMint32
 decode_utf8_byte(MVMint32 *state, MVMGrapheme32 *codep, MVMuint8 byte) {
   MVMint32 type = utf8d[byte];
 
@@ -194,7 +194,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
     orig_utf8 = utf8;
 
     for (; bytes; ++utf8, --bytes) {
-        switch(decode_utf8_byte(&state, &codepoint, (MVMuint8)*utf8)) {
+        switch(MVM_EXPECT(decode_utf8_byte(&state, &codepoint, (MVMuint8)*utf8), UTF8_ACCEPT)) {
         case UTF8_ACCEPT: { /* got a codepoint */
             MVMGrapheme32 g;
             ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, codepoint, &g);
@@ -382,7 +382,7 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
              * to save on a couple of branches. */
             MVMCodepoint first_significant = ds->norm.first_significant;
             while (lag_codepoint == -1 && pos < cur_bytes->length) {
-                switch(decode_utf8_byte(&state, &codepoint, bytes[pos++])) {
+                switch(MVM_EXPECT(decode_utf8_byte(&state, &codepoint, bytes[pos++]), UTF8_ACCEPT)) {
                 case UTF8_ACCEPT: {
                     if (codepoint == '\r' || codepoint >= first_significant) {
                         can_fast_path = 0;
@@ -403,7 +403,7 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
             }
 
             while (pos < cur_bytes->length) {
-                switch(decode_utf8_byte(&state, &codepoint, bytes[pos++])) {
+                switch(MVM_EXPECT(decode_utf8_byte(&state, &codepoint, bytes[pos++]), UTF8_ACCEPT)) {
                 case UTF8_ACCEPT: {
                     /* If we hit something that needs the normalizer, we put
                      * any lagging codepoint into its buffer and jump to it. */
@@ -465,7 +465,7 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
         }
         else {
             while (pos < cur_bytes->length) {
-                switch(decode_utf8_byte(&state, &codepoint, bytes[pos++])) {
+                switch(MVM_EXPECT(decode_utf8_byte(&state, &codepoint, bytes[pos++]), UTF8_ACCEPT)) {
                 case UTF8_ACCEPT: {
                     MVMGrapheme32 g;
                     MVMint32 first;

@@ -22,8 +22,8 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
 
 #define MVM_HASH_BIND(tc, hash, key, value) \
     do { \
-        if (!MVM_is_null(tc, (MVMObject *)key) && REPR(key)->ID == MVM_REPR_ID_MVMString \
-                && IS_CONCRETE(key)) { \
+        if (MVM_LIKELY(!MVM_is_null(tc, (MVMObject *)key) && REPR(key)->ID == MVM_REPR_ID_MVMString \
+                && IS_CONCRETE(key))) { \
             HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, hash, key, value); \
         } \
         else { \
@@ -33,8 +33,8 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
 
 #define MVM_HASH_GET(tc, hash, key, value) \
     do { \
-        if (!MVM_is_null(tc, (MVMObject *)key) && REPR(key)->ID == MVM_REPR_ID_MVMString \
-                && IS_CONCRETE(key)) { \
+        if (MVM_LIKELY(!MVM_is_null(tc, (MVMObject *)key) && REPR(key)->ID == MVM_REPR_ID_MVMString \
+                && IS_CONCRETE(key))) { \
             HASH_FIND_VM_STR(tc, hash_handle, hash, key, value); \
         } \
         else { \

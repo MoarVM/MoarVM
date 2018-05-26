@@ -458,7 +458,7 @@ MVMString * MVM_repr_at_key_s(MVMThreadContext *tc, MVMObject *obj, MVMString *k
 }
 
 MVMObject * MVM_repr_at_key_o(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
-    if (IS_CONCRETE(obj)) {
+    if (MVM_LIKELY(IS_CONCRETE(obj))) {
         MVMRegister value;
         REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
                                     (MVMObject *)key, &value, MVM_reg_obj);

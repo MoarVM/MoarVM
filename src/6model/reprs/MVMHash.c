@@ -84,7 +84,7 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     MVMHashEntry *entry = NULL;
 
     MVMString *key = get_string_key(tc, key_obj);
-    if (kind != MVM_reg_obj)
+    if (MVM_UNLIKELY(kind != MVM_reg_obj))
         MVM_exception_throw_adhoc(tc,
             "MVMHash representation does not support native type storage");
 
