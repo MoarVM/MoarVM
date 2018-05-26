@@ -673,9 +673,9 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
     MVMint64 qc_in, ccc_in;
     int is_prepend = is_grapheme_prepend(tc, in);
 
-    if (0 < norm->prepend_buffer)
+    if (MVM_UNLIKELY(0 < norm->prepend_buffer))
         norm->prepend_buffer--;
-    if (is_prepend)
+    if (MVM_UNLIKELY(is_prepend))
         norm->prepend_buffer = 2;
 
     /* If it's a control character (outside of the range we checked in the

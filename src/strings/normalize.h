@@ -83,14 +83,13 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadCon
     if (in < 0x20 || (0x7F <= in && in <= 0x9F) || in == 0xAD) {
         /* For utf8-c8 synthetic graphemes. May be able to be removed after
          * changing and further testing of the TODO marked below. */
-        if (in < 0) {
-            if (MVM_nfg_get_synthetic_info(tc, in)->is_utf8_c8)
+        if (MVM_UNLIKELY(in < 0)) {
+            if (MVM_LIKELY(MVM_nfg_get_synthetic_info(tc, in)->is_utf8_c8))
                 return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, n, in, out);
             MVM_exception_throw_adhoc(tc, "Internal error: encountered non-utf8-c8 synthetic during normalization");
         }
-        /* TODO this does not seem to do what the comment above shows. Likely
-         * needs changing */
-        if (!(MVM_NORMALIZE_GRAPHEME(n->form) && in == 0x0D))
+        /* If in isn't \r */
+        if (in != 0x0D || !MVM_NORMALIZE_GRAPHEME(n->form))
             return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, n, in, out);
     }
 
@@ -98,12 +97,12 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadCon
      * interesting properties in the target normalization form AND
      * it doesn't follow a prepend character */
     if (in < n->first_significant && !n->prepend_buffer) {
-        if (MVM_NORMALIZE_COMPOSE(n->form)) {
+        if (MVM_LIKELY(MVM_NORMALIZE_COMPOSE(n->form))) {
             /* For the composition fast path we always have to know that we've
             * seen two codepoints in a row that are below those needing a full
             * check. Then we can spit out the first one. Exception: we are
             * normalizing to graphemes and see \r. */
-            if (!(MVM_NORMALIZE_GRAPHEME(n->form) && in == 0x0D)) {
+            if (MVM_LIKELY(in != 0x0D || !MVM_NORMALIZE_GRAPHEME(n->form))) {
                 if (n->buffer_end - n->buffer_start == 1) {
                     if (n->buffer[n->buffer_start] < n->first_significant) {
                         *out = n->buffer[n->buffer_start];
