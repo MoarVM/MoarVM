@@ -340,6 +340,10 @@ our %COMPILERS = (
         noreturnspecifier => '__declspec(noreturn)',
         noreturnattribute => '',
         formatattribute   => '', # TODO
+        expect_likely => '(condition)',
+        expect_unlikely => '(condition)',
+        expect_condition => '(condition)'
+
     },
 
     cc => {
@@ -362,6 +366,9 @@ our %COMPILERS = (
         noreturnspecifier => '',
         noreturnattribute => '',
         formatattribute   => '',
+        expect_likely => '(condition)',
+        expect_unlikely => '(condition)',
+        expect_condition => '(condition)'
     },
 );
 
