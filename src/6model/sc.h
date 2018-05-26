@@ -19,15 +19,19 @@ void MVM_sc_push_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMST
 MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx);
 MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString *handle);
 MVMSerializationContext * MVM_sc_get_sc_slow(MVMThreadContext *tc, MVMCompUnit *cu, MVMint16 dep);
-MVMObject * MVM_sc_get_sc_object(MVMThreadContext *tc, MVMCompUnit *cu,
-                                 MVMuint16 dep, MVMuint64 idx);
-void MVM_sc_disclaim(MVMThreadContext *tc, MVMSerializationContext *sc);
-
 MVM_STATIC_INLINE MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc,
                                                           MVMCompUnit *cu, MVMint16 dep) {
     MVMSerializationContext *sc = cu->body.scs[dep];
     return sc ? sc : MVM_sc_get_sc_slow(tc, cu, dep);
 }
+MVM_STATIC_INLINE MVMObject * MVM_sc_get_sc_object(MVMThreadContext *tc, MVMCompUnit *cu,
+                                 MVMuint16 dep, MVMuint64 idx) {
+    MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, dep);
+    if (MVM_UNLIKELY(sc == NULL))
+        MVM_exception_throw_adhoc(tc, "SC not yet resolved; lookup failed");
+    return MVM_sc_get_object(tc, sc, idx);
+}
+void MVM_sc_disclaim(MVMThreadContext *tc, MVMSerializationContext *sc);
 
 MVM_STATIC_INLINE MVMuint32 MVM_sc_get_idx_of_sc(MVMCollectable *col) {
     assert(!(col->flags & MVM_CF_FORWARDER_VALID));

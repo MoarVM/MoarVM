@@ -211,14 +211,6 @@ MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc,
     }
 }
 
-MVMObject * MVM_sc_get_sc_object(MVMThreadContext *tc, MVMCompUnit *cu,
-                                 MVMuint16 dep, MVMuint64 idx) {
-    MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, dep);
-    if (sc == NULL)
-        MVM_exception_throw_adhoc(tc, "SC not yet resolved; lookup failed");
-    return MVM_sc_get_object(tc, sc, idx);
-}
-
 /* Given an SC and an index, fetch the object stored there, or return NULL if
  * there is none. Does not cause lazy deserialization. */
 MVMObject * MVM_sc_try_get_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
