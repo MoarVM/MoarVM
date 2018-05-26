@@ -2692,11 +2692,12 @@ static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGra
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Po);
 
         case MVM_CCLASS_NEWLINE: {
+            /* TODO maybe we should edit ucd2c.pl to give us all Zl and Zp
+             * characters. ATM and maybe forever the only Zp is U+2029
+             * and the only Zl is U+2028 */
             if (cp == '\n' || cp == 0x0b || cp == 0x0c || cp == '\r' ||
                 cp == 0x85 || cp == 0x2028 || cp == 0x2029)
                 return 1;
-            return MVM_unicode_codepoint_has_property_value(tc, cp,
-                MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Zl);
         }
 
         default:
@@ -2730,10 +2731,25 @@ MVMint64 MVM_string_find_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString
 
     MVM_string_gi_init(tc, &gi, s);
     MVM_string_gi_move_to(tc, &gi, offset);
-    for (pos = offset; pos < end; pos++) {
-        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
-        if (grapheme_is_cclass(tc, cclass, g) > 0)
-            return pos;
+    switch (cclass) {
+        case MVM_CCLASS_NEWLINE:
+            for (pos = offset; pos < end; pos++) {
+                MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+                MVMCodepoint cp = g >= 0 ? g : MVM_nfg_get_synthetic_info(tc, g)->codes[0];
+                /* TODO maybe we should edit ucd2c.pl to give us all Zl and Zp
+                 * characters. ATM and maybe forever the only Zp is U+2029
+                 * and the only Zl is U+2028 */
+                if (cp == '\n' || cp == 0x0b || cp == 0x0c || cp == '\r' ||
+                    cp == 0x85 || cp == 0x2028 || cp == 0x2029)
+                    return pos;
+            }
+            break;
+        default:
+            for (pos = offset; pos < end; pos++) {
+                MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+                if (grapheme_is_cclass(tc, cclass, g) > 0)
+                    return pos;
+            }
     }
 
     return end;
