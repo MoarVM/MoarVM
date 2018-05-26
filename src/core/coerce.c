@@ -424,13 +424,13 @@ void MVM_box_str(MVMThreadContext *tc, MVMString *value, MVMObject *type,
                  MVMRegister * dst) {
     MVMObject *box;
     MVMROOT(tc, value, {
-            box = REPR(type)->allocate(tc, STABLE(type));
-            if (REPR(box)->initialize)
-                REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-            REPR(box)->box_funcs.set_str(tc, STABLE(box), box,
-                                         OBJECT_BODY(box), value);
-            dst->o = box;
-        });
+        box = REPR(type)->allocate(tc, STABLE(type));
+        if (REPR(box)->initialize)
+            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+        REPR(box)->box_funcs.set_str(tc, STABLE(box), box,
+                                     OBJECT_BODY(box), value);
+        dst->o = box;
+    });
 }
 
 void MVM_box_uint(MVMThreadContext *tc, MVMuint64 value, MVMObject *type,
