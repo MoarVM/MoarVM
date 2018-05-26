@@ -198,7 +198,7 @@ MVMuint8 MVM_sc_is_object_immediately_available(MVMThreadContext *tc, MVMSeriali
 MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     MVMObject **roots = sc->body->root_objects;
     MVMint64    count = sc->body->num_objects;
-    if (idx >= 0 && idx < count)
+    if (MVM_LIKELY(idx >= 0 && idx < count))
         return roots[idx] && !sc_working(sc)
             ? roots[idx]
             : MVM_serialization_demand_object(tc, sc, idx);
@@ -255,7 +255,7 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
 
 /* Given an SC and an index, fetch the STable stored there. */
 MVMSTable * MVM_sc_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
-    if (idx >= 0 && idx < sc->body->num_stables) {
+    if (MVM_LIKELY(idx >= 0 && idx < sc->body->num_stables)) {
         MVMSTable *got = sc->body->root_stables[idx];
         return got && !sc_working(sc) ? got : MVM_serialization_demand_stable(tc, sc, idx);
     }
@@ -279,7 +279,7 @@ MVMSTable * MVM_sc_try_get_stable(MVMThreadContext *tc, MVMSerializationContext 
 
 /* Given an SC, an index, and an STable, store the STable at the index. */
 void MVM_sc_set_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMSTable *st) {
-    if (idx < 0)
+    if (MVM_UNLIKELY(idx < 0))
         MVM_exception_throw_adhoc(tc,
             "Invalid (negative) STable index %"PRId64, idx);
     if (idx < sc->body->num_stables) {

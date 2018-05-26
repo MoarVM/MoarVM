@@ -401,7 +401,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
          * its reference count incremented; just ensure that it is based on the
          * correct static frame (compare on bytecode address to cope with
          * nqp::freshcoderef). */
-        if (outer->static_info->body.orig_bytecode != static_frame->body.outer->body.orig_bytecode) {
+        if (MVM_UNLIKELY(outer->static_info->body.orig_bytecode != static_frame->body.outer->body.orig_bytecode)) {
             char *frame_cuuid = MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid);
             char *frame_name;
             char *outer_cuuid = MVM_string_utf8_encode_C_string(tc, outer->static_info->body.cuuid);
@@ -582,7 +582,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                     redo_state:
                     switch (state_act) {
                     case 0:
-                        if (!frame->code_ref)
+                        if (MVM_UNLIKELY(!frame->code_ref))
                             MVM_exception_throw_adhoc(tc,
                                 "Frame must have code-ref to have state variables");
                         state = ((MVMCode *)frame->code_ref)->body.state_vars;
