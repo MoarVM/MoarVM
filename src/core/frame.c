@@ -1074,7 +1074,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
 
 /* Gets a code object for a frame, lazily deserializing it if needed. */
 MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code) {
-    if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
+    if (MVM_UNLIKELY(REPR(code)->ID != MVM_REPR_ID_MVMCode))
         MVM_exception_throw_adhoc(tc, "getcodeobj needs a code ref");
 
     if (!code->body.code_object) {
@@ -1083,7 +1083,7 @@ MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code) {
             MVMObject *resolved;
             MVMSerializationContext *sc = MVM_sc_get_sc(tc, sf->body.cu,
                 sf->body.code_obj_sc_dep_idx - 1);
-            if (sc == NULL)
+            if (MVM_UNLIKELY(sc == NULL))
                 MVM_exception_throw_adhoc(tc,
                     "SC not yet resolved; lookup failed");
 
@@ -1102,7 +1102,7 @@ MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code) {
 void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
     MVMCode *code_obj = (MVMCode *)code;
     MVMFrame *captured;
-    if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
+    if (MVM_UNLIKELY(REPR(code)->ID != MVM_REPR_ID_MVMCode))
         MVM_exception_throw_adhoc(tc,
             "Can only perform capturelex on object with representation MVMCode");
     MVMROOT(tc, code, {
@@ -1147,7 +1147,7 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
     MVMCode *closure;
     MVMFrame *captured;
 
-    if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
+    if (MVM_UNLIKELY(REPR(code)->ID != MVM_REPR_ID_MVMCode))
         MVM_exception_throw_adhoc(tc,
             "Can only perform takeclosure on object with representation MVMCode");
 
@@ -1249,7 +1249,7 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
             MVMLexicalRegistry *entry;
             MVM_HASH_GET(tc, lexical_names, name, entry)
             if (entry) {
-                if (cur_frame->static_info->body.lexical_types[entry->value] == type) {
+                if (MVM_LIKELY(cur_frame->static_info->body.lexical_types[entry->value] == type)) {
                     MVMRegister *result = &cur_frame->env[entry->value];
                     if (type == MVM_reg_obj && !result->o)
                         MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
@@ -1266,7 +1266,7 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
         }
         cur_frame = cur_frame->outer;
     }
-    if (type != MVM_reg_obj) {
+    if (MVM_UNLIKELY(type != MVM_reg_obj)) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
         MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
@@ -1317,7 +1317,7 @@ MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *
 /* Finds a lexical in the outer frame, throwing if it's not there. */
 MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name) {
     MVMRegister *r = MVM_frame_find_lexical_by_name_rel(tc, name, tc->cur_frame->outer);
-    if (r)
+    if (MVM_LIKELY(r != NULL))
         return r->o;
     else {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -1435,7 +1435,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     MVMuint64 last_time;
 
     MVMFrame *initial_frame = cur_frame;
-    if (!name)
+    if (MVM_UNLIKELY(!name))
         MVM_exception_throw_adhoc(tc, "Contextual name cannot be null");
     if (dlog) {
         c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -1457,7 +1457,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 void *return_label = cur_frame->jit_entry_label;
                 MVMJitInline *inls = cand->jitcode->inlines;
                 MVMint32 i;
-                if (return_label == NULL)
+                if (MVM_UNLIKELY(return_label == NULL))
                     MVM_oops(tc, "Return label is NULL!\n");
                 for (i = 0; i < cand->jitcode->num_inlines; i++) {
                     icost++;
@@ -1592,7 +1592,7 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame 
     MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 1, &found_frame);
     MVMObject *result = NULL, *result_type = NULL;
     if (lex_reg) {
-        switch (type) {
+        switch (MVM_EXPECT(type, MVM_reg_obj)) {
             case MVM_reg_int64:
                 result_type = (*tc->interp_cu)->body.hll_config->int_box_type;
                 if (!result_type)
@@ -1674,13 +1674,12 @@ void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *valu
  * try to vivify anything - gets exactly what is there. */
 MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
     MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
-    if (lexical_names) {
+    if (MVM_LIKELY(lexical_names != NULL)) {
         MVMLexicalRegistry *entry;
         MVM_HASH_GET(tc, lexical_names, name, entry)
         if (entry)
             return &f->env[entry->value];
     }
-
     {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
@@ -1712,7 +1711,7 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
         MVMLexicalRegistry *entry;
         MVM_HASH_GET(tc, lexical_names, name, entry)
         if (entry) {
-            switch (f->static_info->body.lexical_types[entry->value]) {
+            switch (MVM_EXPECT(f->static_info->body.lexical_types[entry->value], MVM_reg_obj)) {
                 case MVM_reg_int64:
                     return MVM_STORAGE_SPEC_BP_INT;
                 case MVM_reg_num64:
@@ -1886,7 +1885,7 @@ MVMObject * MVM_frame_resolve_invokee_spesh(MVMThreadContext *tc, MVMObject *inv
     }
     else {
         MVMInvocationSpec *is = STABLE(invokee)->invocation_spec;
-        if (is && is->code_ref_offset && IS_CONCRETE(invokee))
+        if (MVM_LIKELY(is && is->code_ref_offset && IS_CONCRETE(invokee)))
             return MVM_p6opaque_read_object(tc, invokee, is->code_ref_offset);
     }
     return tc->instance->VMNull;
