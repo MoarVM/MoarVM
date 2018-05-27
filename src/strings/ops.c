@@ -2487,8 +2487,9 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     res->body.storage.blob_32 = buffer;\
     res->body.num_graphs      = sgraphs;\
 \
+    res = nfg_is_safe ? res : re_nfg(tc, res);\
     STRAND_CHECK(tc, res);\
-    return nfg_is_safe ? res : re_nfg(tc, res);\
+    return res;\
 
 /* Takes two strings and AND's their characters. */
 MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b) {
