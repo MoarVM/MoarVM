@@ -307,10 +307,7 @@ MVM_PUBLIC void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32
     MVMDebugServerData *debugserver = tc->instance->debugserver;
     MVMuint8 shall_suspend = 0;
 
-    tc->cur_line_no = line_no;
-    tc->cur_file_idx = file_idx;
-
-    if (debugserver->any_breakpoints_at_all) {
+    if (debugserver->any_breakpoints_at_all && (file_idx != tc->cur_file_idx || line_no != tc->cur_line_no)) {
         MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
         MVMDebugServerBreakpointFileTable *found = &table->files[file_idx];
 
@@ -318,6 +315,9 @@ MVM_PUBLIC void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32
             shall_suspend |= breakpoint_hit(tc, found, line_no);
         }
     }
+
+    tc->cur_line_no = line_no;
+    tc->cur_file_idx = file_idx;
 
     if (tc->step_mode) {
         if (tc->step_mode == MVMDebugSteppingMode_STEP_OVER) {
