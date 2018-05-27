@@ -156,7 +156,6 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Initialize Unicode database and NFG. */
     MVM_unicode_init(instance->main_thread);
-    MVM_string_cclass_init(instance->main_thread);
     MVM_nfg_init(instance->main_thread);
 
     /* Bootstrap 6model. It is assumed the GC will not be called during this. */

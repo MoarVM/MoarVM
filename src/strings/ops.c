@@ -2528,60 +2528,26 @@ MVMString * MVM_string_bitxor(MVMThreadContext *tc, MVMString *a, MVMString *b) 
     return res;
 }
 
-/* The following statics hold on to various unicode property values we will
- * resolve once so we don't have to do it repeatedly. */
-static MVMint64 UPV_Nd = 0;
-static MVMint64 UPV_Lu = 0;
-static MVMint64 UPV_Ll = 0;
-static MVMint64 UPV_Lt = 0;
-static MVMint64 UPV_Lm = 0;
-static MVMint64 UPV_Lo = 0;
-static MVMint64 UPV_Zs = 0;
-static MVMint64 UPV_Zl = 0;
-static MVMint64 UPV_Pc = 0;
-static MVMint64 UPV_Pd = 0;
-static MVMint64 UPV_Ps = 0;
-static MVMint64 UPV_Pe = 0;
-static MVMint64 UPV_Pi = 0;
-static MVMint64 UPV_Pf = 0;
-static MVMint64 UPV_Po = 0;
+/* Shortcuts for some unicode general category pvalues */
+#define UPV_Nd MVM_UNICODE_PVALUE_GC_ND
+#define UPV_Lu MVM_UNICODE_PVALUE_GC_LU
+#define UPV_Ll MVM_UNICODE_PVALUE_GC_LL
+#define UPV_Lt MVM_UNICODE_PVALUE_GC_LT
+#define UPV_Lm MVM_UNICODE_PVALUE_GC_LM
+#define UPV_Lo MVM_UNICODE_PVALUE_GC_LO
+#define UPV_Zs MVM_UNICODE_PVALUE_GC_ZS
+#define UPV_Zl MVM_UNICODE_PVALUE_GC_ZL
+#define UPV_Pc MVM_UNICODE_PVALUE_GC_PC
+#define UPV_Pd MVM_UNICODE_PVALUE_GC_PD
+#define UPV_Ps MVM_UNICODE_PVALUE_GC_PS
+#define UPV_Pe MVM_UNICODE_PVALUE_GC_PE
+#define UPV_Pi MVM_UNICODE_PVALUE_GC_PI
+#define UPV_Pf MVM_UNICODE_PVALUE_GC_PF
+#define UPV_Po MVM_UNICODE_PVALUE_GC_PO
 
 /* concatenating with "" ensures that only literal strings are accepted as argument. */
 #define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
 
-/* Resolves various unicode property values that we'll need. */
-void MVM_string_cclass_init(MVMThreadContext *tc) {
-    UPV_Nd = MVM_unicode_cname_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Nd"));
-    UPV_Lu = MVM_unicode_cname_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Lu"));
-    UPV_Ll = MVM_unicode_cname_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Ll"));
-    UPV_Lt = MVM_unicode_cname_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Lt"));
-    UPV_Lm = MVM_unicode_cname_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Lm"));
-    UPV_Lo = MVM_unicode_cname_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Lo"));
-    UPV_Zs = MVM_unicode_cname_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Zs"));
-    UPV_Zl = MVM_unicode_cname_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Zl"));
-    UPV_Pc = MVM_unicode_cname_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Pc"));
-    UPV_Pd = MVM_unicode_cname_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Pd"));
-    UPV_Ps = MVM_unicode_cname_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Ps"));
-    UPV_Pe = MVM_unicode_cname_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Pe"));
-    UPV_Pi = MVM_unicode_cname_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Pi"));
-    UPV_Pf = MVM_unicode_cname_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Pf"));
-    UPV_Po = MVM_unicode_cname_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Po"));
-}
 #include "strings/unicode_prop_macros.h"
 /* Checks if the specified grapheme is in the given character class. */
 static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGrapheme32 g) {

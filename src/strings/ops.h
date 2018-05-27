@@ -110,7 +110,6 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b);
 MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b);
 MVMString * MVM_string_bitor(MVMThreadContext *tc, MVMString *a, MVMString *b);
 MVMString * MVM_string_bitxor(MVMThreadContext *tc, MVMString *a, MVMString *b);
-void MVM_string_cclass_init(MVMThreadContext *tc);
 MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset);
 MVMint64 MVM_string_find_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset, MVMint64 count);
 MVMint64 MVM_string_find_not_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset, MVMint64 count);
