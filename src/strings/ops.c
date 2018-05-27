@@ -2425,107 +2425,83 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
            blen < alen ?  1 :
                           0 ;
 }
+#define nfg_ok(cp) ((cp) < MVM_NORMALIZE_FIRST_SIG_NFC)
+/* BITOP is the operator that is done to the two strings. GO_FULL_LEN determines
+ * if we do the operation for the longest strong. If GO_FULL_LEN == 0 then
+ * it only goes to the end of the shortest string (we do this for the string AND
+ * op, but the other ones go for the length of the longest string. */
+#define MVM_STRING_BITOP(BITOP, GO_FULL_LEN, OP_DESC) \
+    MVMString      *res    = NULL;\
+    MVMGrapheme32  *buffer = NULL;\
+    MVMStringIndex  alen, blen, sgraphs = 0;\
+    size_t buf_size;\
+    MVMCodepointIter ci_a, ci_b;\
+    int nfg_is_safe = 1;\
+    MVM_string_check_arg(tc, a, (OP_DESC));\
+    MVM_string_check_arg(tc, b, (OP_DESC));\
+\
+    alen = MVM_string_graphs_nocheck(tc, a);\
+    blen = MVM_string_graphs_nocheck(tc, b);\
+    buf_size = blen < alen ? alen : blen;\
+    buffer = MVM_malloc(sizeof(MVMGrapheme32) * buf_size);\
+    MVM_string_ci_init(tc, &ci_a, a, 0, 0);\
+    MVM_string_ci_init(tc, &ci_b, b, 0, 0);\
+\
+    /* First, binary-or up to the length of the shortest string. */\
+    while (MVM_string_ci_has_more(tc, &ci_a) && MVM_string_ci_has_more(tc, &ci_b)) {\
+        const MVMGrapheme32 g_a = MVM_string_ci_get_codepoint(tc, &ci_a);\
+        const MVMGrapheme32 g_b = MVM_string_ci_get_codepoint(tc, &ci_b);\
+        buffer[sgraphs++] = g_a BITOP g_b;\
+        if (nfg_is_safe && (!nfg_ok(g_a) || !nfg_ok(g_b)))\
+            nfg_is_safe = 0;\
+        if (sgraphs == buf_size) {\
+            buf_size += 16;\
+            buffer = MVM_realloc(buffer, buf_size * sizeof(MVMGrapheme32));\
+        }\
+    }\
+    if (GO_FULL_LEN) {\
+        while (MVM_string_ci_has_more(tc, &ci_a)) {\
+            const MVMGrapheme32 g_a = MVM_string_ci_get_codepoint(tc, &ci_a);\
+            buffer[sgraphs++] = g_a;\
+            if (nfg_is_safe && !nfg_ok(g_a))\
+                nfg_is_safe = 0;\
+            if (sgraphs == buf_size) {\
+                buf_size += 16;\
+                buffer = MVM_realloc(buffer, buf_size * sizeof(MVMGrapheme32));\
+            }\
+        }\
+        while (MVM_string_ci_has_more(tc, &ci_b)) {\
+            const MVMGrapheme32 g_b = MVM_string_ci_get_codepoint(tc, &ci_b);\
+            buffer[sgraphs++] = g_b;\
+            if (nfg_is_safe && !nfg_ok(g_b))\
+                nfg_is_safe = 0;\
+            if (sgraphs == buf_size) {\
+                buf_size += 16;\
+                buffer = MVM_realloc(buffer, buf_size * sizeof(MVMGrapheme32));\
+            }\
+        }\
+    }\
+\
+    res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);\
+    res->body.storage_type    = MVM_STRING_GRAPHEME_32;\
+    res->body.storage.blob_32 = buffer;\
+    res->body.num_graphs      = sgraphs;\
+\
+    STRAND_CHECK(tc, res);\
+    return nfg_is_safe ? res : re_nfg(tc, res);\
 
 /* Takes two strings and AND's their characters. */
 MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    MVMString      *res    = NULL;
-    MVMGrapheme32  *buffer = NULL;
-    MVMStringIndex  i, alen, blen, sgraphs;
-
-    MVM_string_check_arg(tc, a, "bitwise and");
-    MVM_string_check_arg(tc, b, "bitwise and");
-
-    alen = MVM_string_graphs_nocheck(tc, a);
-    blen = MVM_string_graphs_nocheck(tc, b);
-    sgraphs = alen < blen ? alen : blen;
-    buffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
-
-    /* Binary-and up to the length of the shortest string. */
-    for (i = 0; i < sgraphs; i++)
-        buffer[i] = (MVM_string_get_grapheme_at_nocheck(tc, a, i)
-                   & MVM_string_get_grapheme_at_nocheck(tc, b, i));
-
-    res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-    res->body.storage_type    = MVM_STRING_GRAPHEME_32;
-    res->body.storage.blob_32 = buffer;
-    res->body.num_graphs      = sgraphs;
-
-    STRAND_CHECK(tc, res);
-    return res;
+    MVM_STRING_BITOP( & , 0, "bitwise and")
 }
 
 /* Takes two strings and OR's their characters. */
 MVMString * MVM_string_bitor(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    MVMString      *res    = NULL;
-    MVMGrapheme32  *buffer = NULL;
-    MVMStringIndex  alen, blen, sgraphs, i, scanlen;
-
-    MVM_string_check_arg(tc, a, "bitwise or");
-    MVM_string_check_arg(tc, b, "bitwise or");
-
-    alen = MVM_string_graphs_nocheck(tc, a);
-    blen = MVM_string_graphs_nocheck(tc, b);
-    sgraphs = (alen > blen ? alen : blen);
-    buffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
-
-    /* First, binary-or up to the length of the shortest string. */
-    scanlen = alen > blen ? blen : alen;
-    for (i = 0; i < scanlen; i++)
-        buffer[i] = (MVM_string_get_grapheme_at_nocheck(tc, a, i)
-                   | MVM_string_get_grapheme_at_nocheck(tc, b, i));
-
-    /* Second pass, fill with characters of the longest string. */
-    if (alen > blen)
-        for (; i < sgraphs; i++)
-            buffer[i] = MVM_string_get_grapheme_at_nocheck(tc, a, i);
-    else
-        for (; i < sgraphs; i++)
-            buffer[i] = MVM_string_get_grapheme_at_nocheck(tc, b, i);
-
-    res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-    res->body.storage_type    = MVM_STRING_GRAPHEME_32;
-    res->body.storage.blob_32 = buffer;
-    res->body.num_graphs      = sgraphs;
-
-    STRAND_CHECK(tc, res);
-    return res;
+    MVM_STRING_BITOP( | , 1, "bitwise or")
 }
-
 /* Takes two strings and XOR's their characters. */
 MVMString * MVM_string_bitxor(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    MVMString      *res    = NULL;
-    MVMGrapheme32  *buffer = NULL;
-    MVMStringIndex  alen, blen, sgraphs, i, scanlen;
-
-    MVM_string_check_arg(tc, a, "bitwise xor");
-    MVM_string_check_arg(tc, b, "bitwise xor");
-
-    alen = MVM_string_graphs_nocheck(tc, a);
-    blen = MVM_string_graphs_nocheck(tc, b);
-    sgraphs = (alen > blen ? alen : blen);
-    buffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
-
-    /* First, binary-xor up to the length of the shorter string. */
-    scanlen = alen > blen ? blen : alen;
-    for (i = 0; i < scanlen; i++)
-        buffer[i] = (MVM_string_get_grapheme_at_nocheck(tc, a, i)
-                   ^ MVM_string_get_grapheme_at_nocheck(tc, b, i));
-
-    /* Second pass, fill with characters of the longest string. */
-    if (alen > blen)
-        for (; i < sgraphs; i++)
-            buffer[i] = MVM_string_get_grapheme_at_nocheck(tc, a, i);
-    else
-        for (; i < sgraphs; i++)
-            buffer[i] = MVM_string_get_grapheme_at_nocheck(tc, b, i);
-
-    res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-    res->body.storage_type    = MVM_STRING_GRAPHEME_32;
-    res->body.storage.blob_32 = buffer;
-    res->body.num_graphs      = sgraphs;
-
-    STRAND_CHECK(tc, res);
-    return res;
+    MVM_STRING_BITOP( ^ , 1, "bitwise xor");
 }
 
 /* Shortcuts for some unicode general category pvalues */
