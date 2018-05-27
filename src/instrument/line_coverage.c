@@ -86,9 +86,9 @@ static void instrument_graph_with_breakpoints(MVMThreadContext *tc, MVMSpeshGrap
                     line_number = ann->data.lineno.line_number;
                     filename_string_index = ann->data.lineno.filename_string_index;
 
-                    breakpoint_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-                    breakpoint_ins->info        = MVM_op_get_op(MVM_OP_breakpoint);
-                    breakpoint_ins->operands    = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+                    /*breakpoint_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));*/
+                    /*breakpoint_ins->info        = MVM_op_get_op(MVM_OP_breakpoint);*/
+                    /*breakpoint_ins->operands    = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));*/
 
                     if (last_filename != filename_string_index) {
                         if (filename_buf)
@@ -98,8 +98,8 @@ static void instrument_graph_with_breakpoints(MVMThreadContext *tc, MVMSpeshGrap
 
                     MVM_debugserver_register_line(tc, filename_buf, strlen(filename_buf), line_number, &file_bp_idx);
 
-                    breakpoint_ins->operands[0].lit_i32 = file_bp_idx;
-                    breakpoint_ins->operands[1].lit_i32 = ann->data.lineno.line_number;
+                    /*breakpoint_ins->operands[0].lit_i32 = file_bp_idx;*/
+                    /*breakpoint_ins->operands[1].lit_i32 = ann->data.lineno.line_number;*/
 
                     /* XXX insert breakpoint op here, too, maybe? */
 
