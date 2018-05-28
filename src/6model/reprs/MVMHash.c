@@ -78,6 +78,9 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
         MVM_exception_throw_adhoc(tc,
             "MVMHash representation does not support native type storage");
 }
+void MVMHash_at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister *result, MVMuint16 kind) {
+    return at_key(tc, st, root, data, key_obj, result, kind);
+}
 
 static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister value, MVMuint16 kind) {
     MVMHashBody   *body = (MVMHashBody *)data;
@@ -101,7 +104,9 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
         MVM_ASSIGN_REF(tc, &(root->header), entry->value, value.o);
     }
 }
-
+void MVMHash_bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister value, MVMuint16 kind) {
+    return bind_key(tc, st, root, data, key_obj, value, kind);
+}
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMHashBody *body = (MVMHashBody *)data;
     return HASH_CNT(hash_handle, body->hash_head);

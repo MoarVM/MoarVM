@@ -94,30 +94,58 @@ MVM_PUBLIC MVMint64 MVM_repr_exists_pos(MVMThreadContext *tc, MVMObject *obj, MV
 
 MVMint64 MVM_repr_at_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
     MVMRegister value;
-    REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
-        idx, &value, MVM_reg_int64);
+    if (REPR(obj)->ID == MVM_REPR_ID_VMArray) {
+        MVM_VMArray_at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            idx, &value, MVM_reg_int64);
+    }
+    else {
+        REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            idx, &value, MVM_reg_int64);
+    }
     return value.i64;
 }
 
 MVMnum64 MVM_repr_at_pos_n(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
     MVMRegister value;
-    REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
-        idx, &value, MVM_reg_num64);
+    if (REPR(obj)->ID == MVM_REPR_ID_VMArray) {
+        MVM_VMArray_at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            idx, &value, MVM_reg_num64);
+    }
+    else {
+        REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            idx, &value, MVM_reg_num64);
+    }
     return value.n64;
 }
 
 MVMString * MVM_repr_at_pos_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
     MVMRegister value;
-    REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
-        idx, &value, MVM_reg_str);
+    if (REPR(obj)->ID == MVM_REPR_ID_VMArray) {
+        MVM_VMArray_at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            idx, &value, MVM_reg_str);
+    }
+    else {
+        REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            idx, &value, MVM_reg_str);
+    }
     return value.s;
 }
 
 MVMObject * MVM_repr_at_pos_o(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
-    if (IS_CONCRETE(obj)) {
+    if (MVM_LIKELY(IS_CONCRETE(obj))) {
         MVMRegister value;
-        REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
-                                        idx, &value, MVM_reg_obj);
+        if (REPR(obj)->ID == MVM_REPR_ID_VMArray) {
+            MVM_VMArray_at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+                idx, &value, MVM_reg_obj);
+        }
+        else if (REPR(obj)->ID == MVM_REPR_ID_P6opaque) {
+            MVM_P6opaque_at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+                idx, &value, MVM_reg_obj);
+        }
+        else {
+            REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+                idx, &value, MVM_reg_obj);
+        }
         return value.o;
     }
     return tc->instance->VMNull;
@@ -438,30 +466,54 @@ MVMObject * MVM_repr_shift_o(MVMThreadContext *tc, MVMObject *obj) {
 
 MVMint64 MVM_repr_at_key_i(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
     MVMRegister value;
-    REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+    if (REPR(obj)->ID == MVM_REPR_ID_MVMHash) {
+        MVMHash_at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            (MVMObject *)key, &value, MVM_reg_int64);
+    }
+    else {
+        REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
                                 (MVMObject *)key, &value, MVM_reg_int64);
+    }
     return value.i64;
 }
 
 MVMnum64 MVM_repr_at_key_n(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
     MVMRegister value;
-    REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+    if (REPR(obj)->ID == MVM_REPR_ID_MVMHash) {
+        MVMHash_at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            (MVMObject *)key, &value, MVM_reg_num64);
+    }
+    else {
+        REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
                                 (MVMObject *)key, &value, MVM_reg_num64);
+    }
     return value.n64;
 }
 
 MVMString * MVM_repr_at_key_s(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
     MVMRegister value;
-    REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+    if (REPR(obj)->ID == MVM_REPR_ID_MVMHash) {
+        MVMHash_at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            (MVMObject *)key, &value, MVM_reg_str);
+    }
+    else {
+        REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
                                 (MVMObject *)key, &value, MVM_reg_str);
+    }
     return value.s;
 }
 
 MVMObject * MVM_repr_at_key_o(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
     if (MVM_LIKELY(IS_CONCRETE(obj))) {
         MVMRegister value;
-        REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        if (REPR(obj)->ID == MVM_REPR_ID_MVMHash) {
+            MVMHash_at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+                (MVMObject *)key, &value, MVM_reg_obj);
+        }
+        else {
+            REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
                                     (MVMObject *)key, &value, MVM_reg_obj);
+        }
         return value.o;
     }
     return tc->instance->VMNull;
@@ -484,15 +536,27 @@ void MVM_repr_bind_key_n(MVMThreadContext *tc, MVMObject *obj, MVMString *key, M
 void MVM_repr_bind_key_s(MVMThreadContext *tc, MVMObject *obj, MVMString *key, MVMString *val) {
     MVMRegister value;
     value.s = val;
-    REPR(obj)->ass_funcs.bind_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
-        (MVMObject *)key, value, MVM_reg_str);
+    if (REPR(obj)->ID == MVM_REPR_ID_MVMHash) {
+        MVMHash_bind_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            (MVMObject *)key, value, MVM_reg_str);
+    }
+    else {
+        REPR(obj)->ass_funcs.bind_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            (MVMObject *)key, value, MVM_reg_str);
+    }
 }
 
 void MVM_repr_bind_key_o(MVMThreadContext *tc, MVMObject *obj, MVMString *key, MVMObject *val) {
     MVMRegister value;
     value.o = val;
-    REPR(obj)->ass_funcs.bind_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
-        (MVMObject *)key, value, MVM_reg_obj);
+    if (REPR(obj)->ID == MVM_REPR_ID_MVMHash) {
+        MVMHash_bind_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            (MVMObject *)key, value, MVM_reg_obj);
+    }
+    else {
+        REPR(obj)->ass_funcs.bind_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            (MVMObject *)key, value, MVM_reg_obj);
+    }
 }
 
 MVMint64 MVM_repr_exists_key(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {

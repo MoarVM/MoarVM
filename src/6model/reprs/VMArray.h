@@ -75,3 +75,4 @@ struct MVMArrayREPRData {
     /* Type object for the element type. */
     MVMObject *elem_type;
 };
+void MVM_VMArray_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind);

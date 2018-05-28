@@ -241,6 +241,9 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type, got '%s'", MVM_reg_get_debug_name(tc, repr_data->slot_type));
     }
 }
+void MVM_VMArray_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
+    return at_pos(tc, st, root, data, index, value, kind);
+}
 
 static MVMuint64 zero_slots(MVMThreadContext *tc, MVMArrayBody *body,
         MVMuint64 elems, MVMuint64 ssize, MVMuint8 slot_type) {

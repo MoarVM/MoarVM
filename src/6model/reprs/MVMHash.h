@@ -55,3 +55,6 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
     HASH_CLEAR(hash_handle, head_node); \
     MVM_free(tmp); \
 } while (0)
+
+void MVMHash_at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister *result, MVMuint16 kind);
+void MVMHash_bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister value, MVMuint16 kind);
