@@ -90,8 +90,9 @@ map to its own collation keys in the Unicode Collation Algorithm. As of Unicode
 The iteration into the ringbuffer stops as soon as a non-matching codepoint, is
 found. Whether the two codepoints are Less/More/Same compared to each other
 is saved in a variable for later in case we end up needing to break a tie by codepoint.
-#Vast majority of the time we only need to use what is in the ring buffer to .
 
+The vast majority of the time we only need to use what is in the ring buffer to decide
+whether one string is greater or less than the other string.
 The elements in the ringbuffer are either passed into our function which finds
 and pushes the collation arrays onto the stack or reordered to be first to last
 and then pushed.
