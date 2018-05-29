@@ -281,6 +281,7 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
     switch (mode) {
         case MVM_EX_THROW_LEX_CALLER:
             skip_first_inlinee = 1;
+            /* fallthrough */
         case MVM_EX_THROW_LEX: {
             MVMint32 skip_all_inlinees = 0;
             while (f != NULL) {
