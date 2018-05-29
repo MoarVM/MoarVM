@@ -253,6 +253,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
     if (array_slot == 0) {
         MVM_free(line_report_store);
     }
+    MVM_free(to_fixup);
 }
 
 /* Adds instrumented version of the unspecialized bytecode. */
