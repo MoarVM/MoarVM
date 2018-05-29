@@ -822,6 +822,8 @@ static MVMint32 write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, M
         MVMCode *code_obj = code_ref && REPR(code_ref)->ID == MVM_REPR_ID_MVMCode ? (MVMCode*)code_ref : NULL;
         char *debugname = code_obj && code_obj->body.code_object ? MVM_6model_get_debug_name(tc, code_obj->body.code_object) : "";
 
+        MVM_free(annot);
+
         cmp_write_map(ctx, 5);
         cmp_write_str(ctx, "file", 4);
         cmp_write_str(ctx, tmp1, tmp1 ? strlen(tmp1) : 0);
@@ -1256,6 +1258,7 @@ static void send_handle_equivalence_classes(MVMThreadContext *dtc, cmp_ctx_t *ct
 
     MVM_free(representant);
     MVM_free(objects);
+    MVM_free(counts);
 }
 
 static MVMint32 create_context_or_code_obj_debug_handle(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
