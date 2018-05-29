@@ -45,6 +45,7 @@ static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_si
             case MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST:
             case MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED:
                 had_suspend_request = current & MVMSUSPENDSTATUS_MASK;
+                /* fallthrough */
             case MVMGCStatus_UNABLE:
                 /* Otherwise, it's blocked; try to set it to work Stolen. */
                 if (MVM_cas(&to_signal->gc_status, MVMGCStatus_UNABLE | had_suspend_request,
