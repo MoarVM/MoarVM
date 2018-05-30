@@ -408,7 +408,7 @@ static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack,
                      last_good_result = -1;
             MVMint64 i, result = query;
             DEBUG_PRINT_SUB_NODE(main_nodes[query]);
-            for (i = 0; result != -1 && MVM_string_ci_has_more(tc, ci) && i < 10;) {
+            for (i = 0; result != -1 && MVM_string_ci_has_more(tc, ci) && i < 9;) {
                 i++;
                 /* Only grab a codepoint if it doesn't already exist in the array */
                 if (cp_num <= i) {
