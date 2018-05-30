@@ -1500,7 +1500,7 @@ MVMint64 MVM_string_index_of_grapheme(MVMThreadContext *tc, MVMString *a, MVMGra
 }
 
 /* Case change functions. */
-static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGrapheme32 g);
+MVMint64 MVM_string_grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGrapheme32 g);
 static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 type, char *error) {
     MVMint64 sgraphs;
     MVM_string_check_arg(tc, s, error);
@@ -1529,7 +1529,7 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
                             /* Start of string, so not final. */
                             result_buf[i++] = 0x03C3;
                         }
-                        else if (!grapheme_is_cclass(tc, MVM_CCLASS_ALPHABETIC, result_buf[i - 1])) {
+                        else if (!MVM_string_grapheme_is_cclass(tc, MVM_CCLASS_ALPHABETIC, result_buf[i - 1])) {
                             /* Previous char is not a letter; not final (as has
                              * to be at end of a word and not only thing in a
                              * word). */
@@ -1545,7 +1545,7 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
                              * peek ahead to see if it's a letter, to decide if
                              * we have final sigma or not. */
                             g = MVM_string_gi_get_grapheme(tc, &gi);
-                            if (grapheme_is_cclass(tc, MVM_CCLASS_ALPHABETIC, g))
+                            if (MVM_string_grapheme_is_cclass(tc, MVM_CCLASS_ALPHABETIC, g))
                                 result_buf[i++] = 0x03C3;
                             else
                                 result_buf[i++] = 0x03C2;
@@ -2527,7 +2527,7 @@ MVMString * MVM_string_bitxor(MVMThreadContext *tc, MVMString *a, MVMString *b) 
 
 #include "strings/unicode_prop_macros.h"
 /* Checks if the specified grapheme is in the given character class. */
-static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGrapheme32 g) {
+MVMint64 MVM_string_grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGrapheme32 g) {
     /* If it's a synthetic, then grab the base codepoint. */
     MVMCodepoint cp;
     if (0 <= g)
@@ -2624,7 +2624,7 @@ MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *
     MVM_string_check_arg(tc, s, "is_cclass");
     if (MVM_UNLIKELY(offset < 0 || MVM_string_graphs_nocheck(tc, s) <= offset))
         return 0;
-    return grapheme_is_cclass(tc, cclass, MVM_string_get_grapheme_at_nocheck(tc, s, offset));
+    return MVM_string_grapheme_is_cclass(tc, cclass, MVM_string_get_grapheme_at_nocheck(tc, s, offset));
 }
 
 /* Searches for the next char that is in the specified character class. */
@@ -2663,7 +2663,7 @@ MVMint64 MVM_string_find_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString
         default:
             for (pos = offset; pos < end; pos++) {
                 MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
-                if (grapheme_is_cclass(tc, cclass, g) > 0)
+                if (MVM_string_grapheme_is_cclass(tc, cclass, g) > 0)
                     return pos;
             }
     }
@@ -2707,7 +2707,7 @@ MVMint64 MVM_string_find_not_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMSt
         default:
             for (pos = offset; pos < end; pos++) {
                 MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
-                if (!grapheme_is_cclass(tc, cclass, g))
+                if (!MVM_string_grapheme_is_cclass(tc, cclass, g))
                     return pos;
             }
     }

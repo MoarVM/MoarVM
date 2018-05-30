@@ -115,6 +115,7 @@ MVMint64 MVM_string_find_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString
 MVMint64 MVM_string_find_not_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset, MVMint64 count);
 MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name);
 MVMString * MVM_string_chr(MVMThreadContext *tc, MVMint64 cp);
+MVMint64 MVM_string_grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGrapheme32 g);
 void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s);
 /* If MVM_DEBUG_NFG is 1, calls to NFG_CHECK will re_nfg the given string
  * and compare num_graphs before and after the normalization.

@@ -355,7 +355,7 @@ static const MVMREPROps NFA_this_repr = {
  * 1-char string for synthetics. */
 static MVMGrapheme32 get_grapheme(MVMThreadContext *tc, MVMObject *obj) {
     /* Handle null and non-concrete case. */
-    if (MVM_is_null(tc, obj) || !IS_CONCRETE(obj)) {
+    if (MVM_UNLIKELY(MVM_is_null(tc, obj) || !IS_CONCRETE(obj))) {
         MVM_exception_throw_adhoc(tc,
             "NFA must be provided with a concrete string or integer for graphemes");
     }
@@ -480,6 +480,7 @@ static MVMint32 in_done(MVMuint32 *done, MVMuint32 numdone, MVMuint32 st) {
             return 1;
     return 0;
 }
+
 static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *target, MVMint64 offset, MVMint64 *total_fates_out) {
     MVMint64  eos     = MVM_string_graphs(tc, target);
     MVMuint32 gen     = 1;
@@ -490,6 +491,10 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     MVMint64  *fates, *longlit;
     MVMint64  i, fate_arr_len, num_states, total_fates, prev_fates, usedlonglit;
     MVMint64  orig_offset = offset;
+    /* We used a cached grapheme iterator since we often request the same
+     * grapheme multiple times, most common after that is requesting the next
+     * grapheme. */
+    MVMGraphemeIter_cached gic;
     int nfadeb = tc->instance->nfa_debug_enabled;
 
     /* Obtain or (re)allocate "done states", "current states" and "next
@@ -514,7 +519,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     }
     fates = tc->nfa_fates;
     total_fates = 0;
-    if (nfadeb) fprintf(stderr,"======================================\nStarting with %d fates in %d states\n", (int)fate_arr_len, (int)num_states) ;
+    if (MVM_UNLIKELY(nfadeb)) fprintf(stderr,"======================================\nStarting with %d fates in %d states\n", (int)fate_arr_len, (int)num_states) ;
 
     /* longlit will be updated on a fate whenever NFA passes through final char of a literal. */
     /* These edges are specially marked to indicate which fate they influence the fate of. */
@@ -526,6 +531,10 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     usedlonglit = 0;
 
     nextst[numnext++] = 1;
+    /* In NFA could be called with a string that has 0 graphemes in it. Guard
+     * against this so we don't init for the empty string. */
+    if (target->body.num_graphs) MVM_string_gi_cached_init(tc, &gic, target, 0);
+
     while (numnext && offset <= eos) {
         /* Swap next and current */
         MVMuint32 *temp = curst;
@@ -538,7 +547,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
         /* Save how many fates we have before this position is considered. */
         prev_fates = total_fates;
 
-        if (nfadeb) {
+        if (MVM_UNLIKELY(nfadeb)) {
             if (offset < eos) {
                 MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
                 fprintf(stderr,"%c with %ds target %lx offset %"PRId64"\n",cp,(int)numcur, (long)target, offset);
@@ -560,8 +569,8 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
 
             edge_info = nfa->states[st - 1];
             edge_info_elems = nfa->num_state_edges[st - 1];
-            if (nfadeb)
-                fprintf(stderr,"\t%d\t%d\t",(int)st, (int)edge_info_elems);
+            if (MVM_UNLIKELY(nfadeb))
+                fprintf(stderr,"\t%"PRIi64"\t%"PRIi64"\t", st, edge_info_elems);
             for (i = 0; i < edge_info_elems; i++) {
                 MVMint64 act = edge_info[i].act;
                 MVMint64 to  = edge_info[i].to;
@@ -579,7 +588,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         MVMint64 arg = edge_info[i].arg.i;
                         MVMint64 j;
                         MVMint64 found_fate = 0;
-                        if (nfadeb)
+                        if (MVM_UNLIKELY(nfadeb))
                             fprintf(stderr, "fate(%016llx) ", (long long unsigned int)arg);
                         for (j = 0; j < total_fates; j++) {
                             if (found_fate)
@@ -593,7 +602,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         total_fates -= found_fate;
                         if (arg < usedlonglit)
                             arg -= longlit[arg] << 24;
-                        if (++total_fates > fate_arr_len) {
+                        if (MVM_UNLIKELY(++total_fates > fate_arr_len)) {
                             /* should never happen if nfa->fates is correct and dedup above works right */
                             fprintf(stderr, "oops adding %016llx to\n", (long long unsigned int)arg);
                             for (j = 0; j < total_fates - 1; j++) {
@@ -617,76 +626,76 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             !in_done(done, numdone, to)) {
                         if (to)
                             curst[numcur++] = to;
-                        else if (nfadeb)  /* XXX should turn into a "can't happen" after rebootstrap */
+                        else if (MVM_UNLIKELY(nfadeb))  /* XXX should turn into a "can't happen" after rebootstrap */
                             fprintf(stderr, "  oops, ignoring epsilon to 0\n");
                         continue;
                     }
                 }
 
-                if (offset >= eos) {
+                if (eos <= offset) {
                     /* Can't match, so drop state. */
                     continue;
                 }
                 else {
                     switch (act) {
                         case MVM_NFA_EDGE_CODEPOINT_LL: {
-                            MVMGrapheme32 arg = edge_info[i].arg.g;
-                            if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) == arg) {
+                            const MVMGrapheme32 arg = edge_info[i].arg.g;
+                            if (MVM_string_gi_cached_get_grapheme(tc, &gic, offset) == arg) {
                                 MVMint64 fate = (edge_info[i].act >> 8) & 0xfffff;
                                 nextst[numnext++] = to;
                                 while (usedlonglit <= fate)
                                     longlit[usedlonglit++] = 0;
                                 longlit[fate] = offset - orig_offset + 1;
-                                if (nfadeb)
+                                if (MVM_UNLIKELY(nfadeb))
                                     fprintf(stderr, "%d->%d ", (int)i, (int)to);
                             }
                             continue;
                         }
                         case MVM_NFA_EDGE_CODEPOINT: {
-                            MVMGrapheme32 arg = edge_info[i].arg.g;
-                            if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) == arg) {
+                            const MVMGrapheme32 arg = edge_info[i].arg.g;
+                            if (MVM_string_gi_cached_get_grapheme(tc, &gic, offset) == arg) {
                                 nextst[numnext++] = to;
-                                if (nfadeb)
+                                if (MVM_UNLIKELY(nfadeb))
                                     fprintf(stderr, "%d->%d ", (int)i, (int)to);
                             }
                             continue;
                         }
                         case MVM_NFA_EDGE_CODEPOINT_NEG: {
-                            MVMGrapheme32 arg = edge_info[i].arg.g;
-                            if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) != arg)
+                            const MVMGrapheme32 arg = edge_info[i].arg.g;
+                            if (MVM_string_gi_cached_get_grapheme(tc, &gic, offset) != arg)
                                 nextst[numnext++] = to;
                             continue;
                         }
                         case MVM_NFA_EDGE_CHARCLASS: {
-                            MVMint64 arg = edge_info[i].arg.i;
-                            if (MVM_string_is_cclass(tc, arg, target, offset))
+                            const MVMint64 arg = edge_info[i].arg.i;
+                            if (MVM_string_grapheme_is_cclass(tc, arg, MVM_string_gi_cached_get_grapheme(tc, &gic, offset)))
                                 nextst[numnext++] = to;
                             continue;
                         }
                         case MVM_NFA_EDGE_CHARCLASS_NEG: {
-                            MVMint64 arg = edge_info[i].arg.i;
-                            if (!MVM_string_is_cclass(tc, arg, target, offset))
+                            const MVMint64 arg = edge_info[i].arg.i;
+                            if (!MVM_string_grapheme_is_cclass(tc, arg, MVM_string_gi_cached_get_grapheme(tc, &gic, offset)))
                                 nextst[numnext++] = to;
                             continue;
                         }
                         case MVM_NFA_EDGE_CHARLIST: {
-                            MVMString *arg    = edge_info[i].arg.s;
-                            MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                            MVMString *arg   = edge_info[i].arg.s;
+                            MVMGrapheme32 cp = MVM_string_gi_cached_get_grapheme(tc, &gic, offset);
                             if (MVM_string_index_of_grapheme(tc, arg, cp) >= 0)
                                 nextst[numnext++] = to;
                             continue;
                         }
                         case MVM_NFA_EDGE_CHARLIST_NEG: {
                             MVMString *arg    = edge_info[i].arg.s;
-                            MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                            const MVMGrapheme32 cp = MVM_string_gi_cached_get_grapheme(tc, &gic, offset);
                             if (MVM_string_index_of_grapheme(tc, arg, cp) < 0)
                                 nextst[numnext++] = to;
                             continue;
                         }
                         case MVM_NFA_EDGE_CODEPOINT_I_LL: {
-                            MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
-                            MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
-                            MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                            const MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                            const MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                            const MVMGrapheme32 ord    = MVM_string_gi_cached_get_grapheme(tc, &gic, offset);
                             if (ord == lc_arg || ord == uc_arg) {
                                 MVMint64 fate = (edge_info[i].act >> 8) & 0xfffff;
                                 nextst[numnext++] = to;
@@ -699,15 +708,15 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         case MVM_NFA_EDGE_CODEPOINT_I: {
                             MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
                             MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
-                            MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                            MVMGrapheme32 ord    = MVM_string_gi_cached_get_grapheme(tc, &gic, offset);
                             if (ord == lc_arg || ord == uc_arg)
                                 nextst[numnext++] = to;
                             continue;
                         }
                         case MVM_NFA_EDGE_CODEPOINT_I_NEG: {
-                            MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
-                            MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
-                            MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                            const MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                            const MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                            const MVMGrapheme32 ord    = MVM_string_gi_cached_get_grapheme(tc, &gic, offset);
                             if (ord != lc_arg && ord != uc_arg)
                                 nextst[numnext++] = to;
                             continue;
@@ -715,21 +724,21 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         case MVM_NFA_EDGE_CHARRANGE: {
                             MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
                             MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
-                            MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                            MVMGrapheme32 ord    = MVM_string_gi_cached_get_grapheme(tc, &gic, offset);
                             if (ord >= lc_arg && ord <= uc_arg)
                                 nextst[numnext++] = to;
                             continue;
                         }
                         case MVM_NFA_EDGE_CHARRANGE_NEG: {
-                            MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
-                            MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
-                            MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                            if (ord < lc_arg || ord > uc_arg)
+                            const MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                            const MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                            const MVMGrapheme32 ord    = MVM_string_gi_cached_get_grapheme(tc, &gic, offset);
+                            if (ord < lc_arg || uc_arg < ord)
                                 nextst[numnext++] = to;
                             continue;
                         }
                         case MVM_NFA_EDGE_SUBRULE:
-                            if (nfadeb)
+                            if (MVM_UNLIKELY(nfadeb))
                                 fprintf(stderr, "IGNORING SUBRULE\n");
                             continue;
                         case MVM_NFA_EDGE_CODEPOINT_M:
@@ -757,7 +766,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             MVMint32 ready;
                             MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
                             MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
-                            MVMGrapheme32 ord    = MVM_string_ord_basechar_at(tc, target, offset);
+                            const MVMGrapheme32 ord = MVM_string_ord_basechar_at(tc, target, offset);
 
                             MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
                             ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, uc_arg, &uc_arg);
@@ -779,32 +788,32 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             continue;
                         }
                         case MVM_NFA_EDGE_CHARRANGE_M: {
-                            MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
-                            MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
-                            MVMGrapheme32 ord    = MVM_string_ord_basechar_at(tc, target, offset);
+                            const MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                            const MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                            const MVMGrapheme32 ord    = MVM_string_ord_basechar_at(tc, target, offset);
                             if (ord >= lc_arg && ord <= uc_arg)
                                 nextst[numnext++] = to;
                             continue;
                         }
                         case MVM_NFA_EDGE_CHARRANGE_M_NEG: {
-                            MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
-                            MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
-                            MVMGrapheme32 ord    = MVM_string_ord_basechar_at(tc, target, offset);
-                            if (ord < lc_arg || ord > uc_arg)
+                            const MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                            const MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                            const MVMGrapheme32 ord    = MVM_string_ord_basechar_at(tc, target, offset);
+                            if (ord < lc_arg || uc_arg < ord)
                                 nextst[numnext++] = to;
                             continue;
                         }
                         case MVM_NFA_EDGE_SYNTH_CP_COUNT: {
                             /* Binary search the edges ahead for the grapheme. */
-                            MVMGrapheme32 search = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                            MVMint64 num_possibilities = edge_info[i].arg.i;
-                            MVMint64 end = i + num_possibilities;
+                            const MVMGrapheme32 search = MVM_string_gi_cached_get_grapheme(tc, &gic, offset);
+                            const MVMint64 num_possibilities = edge_info[i].arg.i;
+                            const MVMint64 end = i + num_possibilities;
                             MVMint64 l = i + 1;
                             MVMint64 r = end;
                             MVMint64 found = -1;
                             while (l <= r) {
-                                MVMint64 m = l + (r - l) / 2;
-                                MVMGrapheme32 test = edge_info[m].arg.g;
+                                const MVMint64 m = l + (r - l) / 2;
+                                const MVMGrapheme32 test = edge_info[m].arg.g;
                                 if (test == search) {
                                     /* We found it, but important we get the first edge
                                      * that matches. */
@@ -829,16 +838,16 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                                     to = edge_info[found].to;
                                     if (edge_info[found].act == MVM_NFA_EDGE_CODEPOINT) {
                                         nextst[numnext++] = to;
-                                        if (nfadeb)
+                                        if (MVM_UNLIKELY(nfadeb))
                                             fprintf(stderr, "%d->%d ", (int)found, (int)to);
                                     }
                                     else {
-                                        MVMint64 fate = (edge_info[found].act >> 8) & 0xfffff;
+                                        const MVMint64 fate = (edge_info[found].act >> 8) & 0xfffff;
                                         nextst[numnext++] = to;
                                         while (usedlonglit <= fate)
                                             longlit[usedlonglit++] = 0;
                                         longlit[fate] = offset - orig_offset + 1;
-                                        if (nfadeb)
+                                        if (MVM_UNLIKELY(nfadeb))
                                             fprintf(stderr, "%d->%d ", (int)found, (int)to);
                                     }
                                     found++;
@@ -850,7 +859,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                     }
                 }
             }
-            if (nfadeb) fprintf(stderr,"\n");
+            if (MVM_UNLIKELY(nfadeb)) fprintf(stderr,"\n");
         }
 
         /* Move to next character and generation. */
@@ -859,9 +868,9 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     }
     /* strip any literal lengths, leaving only fates */
     if (usedlonglit || nfadeb) {
-        if (nfadeb) fprintf(stderr,"Final\n");
+        if (MVM_UNLIKELY(nfadeb)) fprintf(stderr,"Final\n");
         for (i = 0; i < total_fates; i++) {
-            if (nfadeb) fprintf(stderr, "  %08llx\n", (long long unsigned int)fates[i]);
+            if (MVM_UNLIKELY(nfadeb)) fprintf(stderr, "  %08llx\n", (long long unsigned int)fates[i]);
             fates[i] &= 0xffffff;
         }
     }
