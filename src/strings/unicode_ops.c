@@ -60,7 +60,7 @@ struct level_eval_s2 {
     MVMint32 Less, Same, More;
 };
 union level_eval_u2 {
-    MVMint32 a2[4];
+    MVMint32 a2[3];
     struct level_eval_s2 s2;
 };
 struct level_eval_s {
@@ -68,7 +68,7 @@ struct level_eval_s {
 };
 union level_eval_u {
     struct level_eval_s s;
-    union  level_eval_u2 a[3];
+    union  level_eval_u2 a[4];
 };
 typedef union level_eval_u level_eval;
 #define initial_stack_size 100
