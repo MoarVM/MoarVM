@@ -328,12 +328,14 @@ MVMuint32 MVM_string_shiftjis_decodestream(MVMThreadContext *tc, MVMDecodeStream
         MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
         MVMuint8 *bytes = (MVMuint8 *)cur_bytes->bytes;
         while (pos < cur_bytes->length || repl_pos) {
-            MVMGrapheme32 graph = -1;
+            MVMGrapheme32 graph;
+            int set_graph = 0;
             MVMCodepoint codepoint = 0;
             MVMuint8 byte;
             int handler_rtrn = 0;
             if (repl_pos) {
                 graph = MVM_string_get_grapheme_at_nocheck(tc, ds->replacement, repl_pos++);
+                set_graph = 1;
                 if (repl_length <= repl_pos) repl_pos = 0;
             }
             else if (is_prepended) {
@@ -343,8 +345,8 @@ MVMuint32 MVM_string_shiftjis_decodestream(MVMThreadContext *tc, MVMDecodeStream
             else {
                 byte = bytes[pos++];
             }
-            /* graph will be -1 unless we just grabbed a replacement grapheme */
-            if (graph == -1) {
+            /* set_graph will be 0 unless we just grabbed a replacement grapheme */
+            if (!set_graph) {
                 handler_rtrn = decoder_handler(tc, &Shift_JIS_lead, byte, &codepoint);
                 if (handler_rtrn == DECODE_CODEPOINT) {
                     graph = codepoint;
