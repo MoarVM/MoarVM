@@ -320,9 +320,6 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitCompiler *compiler,
     | mov [rbp-0x8],  TC;
     | mov [rbp-0x10], CU;
     | mov [rbp-0x18], WORK;
-    /* store the current frame number for cheap comparisons */
-    | mov TMP6d, dword TC:ARG1->current_frame_nr;
-    | mov FRAME_NR, TMP6d;
     /* setup special frame variables */
     | mov TC,   ARG1;
     | mov CU,   ARG2;
@@ -330,8 +327,10 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitCompiler *compiler,
     | mov WORK, FRAME:TMP6->work;
     /* If in the future we call a function, the return address into the JIT
      * frame will be stored in this position. */
-    | lea rax, [rsp-0x8];
-    | mov aword TC->jit_return_address, rax;
+    if (!jg->no_trampoline) {
+        | lea rax, [rsp-0x8];
+        | mov aword TC->jit_return_address, rax;
+    }
     /* ARG3 contains our 'entry label' */
     | jmp ARG3
 }
@@ -341,7 +340,9 @@ void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
     | ->exit:
     /* clear the return address, so that we know there's no longer a JIT frame
      * on the stack */
-    | mov aword TC->jit_return_address, 0;
+    if (!jg->no_trampoline) {
+        | mov aword TC->jit_return_address, 0;
+    }
     /* restore callee-save registers */
     | mov TC, [rbp-0x8];
     | mov CU, [rbp-0x10];
@@ -1580,10 +1581,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], TMP3;
         | jmp >2;
         |1:
-        /* assign invokish label first */
-        | mov rax, TC->cur_frame;
-        | lea TMP6, [>2];
-        | mov aword FRAME:rax->jit_entry_label, TMP6;
         /* call find_method_spesh */
         | mov ARG1, TC;
         | mov ARG2, WORK[obj];
@@ -1596,9 +1593,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov ARG5, TMP6;
         |.endif
         | callp &MVM_6model_find_method_spesh;
-        | test RV, RV;
-        /* fall out to interpreter */
-        | jnz ->exit;
         |2:
         break;
     }
@@ -2594,10 +2588,6 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
     | get_cur_op TMP2;
     | mov aword FRAME:TMP5->return_address, TMP2;
 
-    /* The re-entry label for the JIT, so that we continue in the next BB */
-    | lea TMP2, [=>(invoke->reentry_label)];
-    | mov aword FRAME:TMP5->jit_entry_label, TMP2;
-
     /* Install invoke args */
     | mov TMP5, FRAME:TMP5->args;
     for (i = 0;  i < invoke->arg_count; i++) {
@@ -2670,8 +2660,6 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
         | mov ARG4, invoke->spesh_cand;
         | callp &MVM_frame_invoke_code;
     }
-    /* Almost done. jump out into the interprete */
-    | jmp ->exit;
 }
 
 void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,

@@ -36,6 +36,32 @@ void * MVM_jit_code_get_current_position(MVMThreadContext *tc, MVMJitCode *code,
     }
 }
 
+void MVM_jit_code_set_current_position(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame, void *position) {
+    assert_within_region(tc, code, position);
+    if (tc->cur_frame == frame && tc->jit_return_address != NULL) {
+        *tc->jit_return_address = position;
+    } else {
+        frame->jit_entry_label = position;
+    }
+}
+
+void MVM_jit_code_trampoline(MVMThreadContext *tc) {
+    if (tc->jit_return_address != NULL) {
+        MVMJitCode *code  = tc->cur_frame->spesh_cand->jitcode;
+        void *reentry_label = *tc->jit_return_address;
+        assert_within_region(tc, code, reentry_label);
+        /* Store our current position */
+        tc->cur_frame->jit_entry_label = *tc->jit_return_address;
+        /* Tell currently-active JIT code that we're leaving this frame */
+        assert_within_region(tc, code, code->exit_label);
+        *tc->jit_return_address = code->exit_label;
+        /* And tell further frame handlers that as far as they are concerned,
+           we're not on the stack anymore */
+        tc->jit_return_address = NULL;
+    }
+}
+
+
 MVMint32 MVM_jit_code_get_active_deopt_idx(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame) {
     MVMint32 i;
     void *current_position = MVM_jit_code_get_current_position(tc, code, frame);

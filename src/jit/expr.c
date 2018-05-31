@@ -927,7 +927,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                 root = MVM_jit_expr_add_store(tc, tree, defined_value->addr, root, MVM_JIT_REG_SZ);
                 defined_value = NULL;
             }
-            root = MVM_jit_expr_wrap_guard(tc, tree, root, wrap_before, wrap_after);
+            /* root = MVM_jit_expr_wrap_guard(tc, tree, root, wrap_before, wrap_after);*/
         }
         if (defined_value != NULL) {
             defined_value->root = tree->roots_num;

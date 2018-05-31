@@ -255,11 +255,12 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
 #endif
     if (tc->instance->profiling)
         MVM_profiler_log_deopt_all(tc);
+
     while (f) {
         clear_dynlex_cache(tc, f);
         if (f->spesh_cand) {
             /* Found one. Is it JITted code? */
-            if (f->spesh_cand->jitcode && f->jit_entry_label) {
+            if (f->spesh_cand->jitcode) {
                 MVMJitCode *jitcode = f->spesh_cand->jitcode;
                 MVMint32 idx = MVM_jit_code_get_active_deopt_idx(tc, jitcode, f);
                 if (idx < jitcode->num_deopts) {
