@@ -298,10 +298,12 @@ int wmain(int argc, wchar_t *wargv[])
     if (dump) MVM_vm_dump_file(instance, input_file);
     else MVM_vm_run_file(instance, input_file);
 
+#ifdef HAVE_TELEMEH
     if (getenv("MVM_TELEMETRY_LOG") && telemeh_inited) {
         MVM_telemetry_interval_stop(0, interval_id, "moarvm teardown");
         MVM_telemetry_finish();
     }
+#endif
 
     if (full_cleanup) {
         MVM_vm_destroy_instance(instance);
