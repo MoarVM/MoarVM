@@ -272,7 +272,7 @@ void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable *c) {
     if (tc->num_gen2roots == tc->alloc_gen2roots) {
         tc->alloc_gen2roots *= 2;
         tc->gen2roots = MVM_realloc(tc->gen2roots,
-            sizeof(MVMCollectable **) * tc->alloc_gen2roots);
+            sizeof(MVMCollectable *) * tc->alloc_gen2roots);
     }
 
     /* Add this one to the list. */
