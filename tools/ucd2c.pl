@@ -1143,6 +1143,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
         if (codepoint_table_index >= MVM_CODEPOINT_NAMES_COUNT)
             continue;
         switch (codepoint_extents[extent_index][1]) {
+            /* Fate Normal */
             case $FATE_NORMAL: {
                 MVMint32 extent_span_index = 0;
                 codepoint_table_index = codepoint_extents[extent_index][2];
@@ -1160,9 +1161,13 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
                 }
                 break;
             }
+            /* Fate NULL */
             case $FATE_NULL:
+                /* codepoint's += ends up being unused since it gets reset at the next loop.
+                 * For now leaving the code as it was. */
                 codepoint += length;
                 break;
+            /* Fate Span */
             case $FATE_SPAN: {
                 const char *name = codepoint_names[codepoint_table_index];
                 if (name) {
