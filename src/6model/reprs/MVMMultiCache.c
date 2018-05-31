@@ -144,17 +144,17 @@ MVM_STATIC_INLINE size_t hash_callsite(MVMThreadContext *tc, MVMCallsite *cs) {
 
 /* Adds an entry to the multi-dispatch cache. */
 MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMObject *capture, MVMObject *result) {
-    MVMMultiCacheBody *cache;
-    MVMCallsite       *cs;
-    MVMArgProcContext *apc;
+    MVMMultiCacheBody *cache = NULL;
+    MVMCallsite       *cs    = NULL;
+    MVMArgProcContext *apc   = NULL;
     MVMuint64          match_flags[2 * MVM_INTERN_ARITY_LIMIT];
     size_t             match_arg_idx[MVM_INTERN_ARITY_LIMIT];
     MVMuint32          flag, i, num_obj_args, have_head, have_tree,
                        have_callsite, matched_args, unmatched_arg,
                        tweak_node, insert_node;
     size_t             new_size;
-    MVMMultiCacheNode *new_head;
-    MVMObject        **new_results;
+    MVMMultiCacheNode *new_head    = NULL;
+    MVMObject        **new_results = NULL;
 
     /* Allocate a cache if needed. */
     if (MVM_is_null(tc, cache_obj) || !IS_CONCRETE(cache_obj) || REPR(cache_obj)->ID != MVM_REPR_ID_MVMMultiCache) {
@@ -379,8 +379,8 @@ MVMObject * MVM_multi_cache_find(MVMThreadContext *tc, MVMObject *cache_obj, MVM
 /* Does a lookup in the multi-dispatch cache using a callsite and args. */
 MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *cache_obj,
     MVMCallsite *cs, MVMRegister *args) {
-    MVMMultiCacheBody *cache;
-    MVMMultiCacheNode *tree;
+    MVMMultiCacheBody *cache = NULL;
+    MVMMultiCacheNode *tree  = NULL;
     MVMint32 cur_node;
 
     /* Bail if callsite not interned. */
@@ -449,8 +449,8 @@ MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *
 MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_obj,
                                        MVMSpeshCallInfo *arg_info,
                                        MVMSpeshStatsType *type_tuple) {
-    MVMMultiCacheBody *cache;
-    MVMMultiCacheNode *tree;
+    MVMMultiCacheBody *cache = NULL;
+    MVMMultiCacheNode *tree  = NULL;
     MVMint32 cur_node;
 
     /* Bail if callsite not interned. */
@@ -490,7 +490,7 @@ MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_ob
                 ? (arg_idx - arg_info->cs->num_pos) / 2
                 : arg_idx;
             MVMuint32 is_rw = type_tuple[tt_offset].rw_cont;
-            MVMSTable *known_type_st;
+            MVMSTable *known_type_st = NULL;
             MVMuint32 is_conc;
             if (type_tuple[tt_offset].decont_type) {
                 known_type_st = type_tuple[tt_offset].decont_type->st;
@@ -516,7 +516,7 @@ MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_ob
         }
         else if (facts) {
             /* Figure out type, concreteness, and rw-ness from facts. */
-            MVMSTable *known_type_st;
+            MVMSTable *known_type_st = NULL;
             MVMuint32  is_conc;
             MVMuint32  is_rw;
 
