@@ -2534,6 +2534,8 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
         getaddrinfo("localhost", portstr, NULL, &res);
 
         listensocket = socket(res->ai_family, SOCK_STREAM, 0);
+        if (listensocket == -1)
+            MVM_panic(1, "Could not create file descriptor for socket: %s", strerror(errno));
 
 #ifndef _WIN32
         {
