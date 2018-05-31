@@ -83,8 +83,14 @@ void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *d
         MVM_free(discard->bytes);
         MVM_free(discard);
     }
-    if (!ds->bytes_head && pos == 0)
-        return;
+    if (!ds->bytes_head) {
+        if (MVM_LIKELY(pos == 0))
+            return;
+        /* Guard against null pointer dereference below. */
+        else
+            MVM_exception_throw_adhoc(tc,
+                "Unknown error encountered in MVM_string_decodestream_discard_to");
+    }
     if (ds->bytes_head->length == pos) {
         /* We ate all of the new head buffer too; also free it. */
         MVMDecodeStreamBytes *discard = ds->bytes_head;
