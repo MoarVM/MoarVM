@@ -21,18 +21,27 @@ void MVM_jit_code_destroy(MVMThreadContext *tc, MVMJitCode *code) {
     return;
 }
 
-void MVM_jit_code_enter(MVMThreadContext *tc, MVMCompUnit *cu, MVMJitCode *code) {
+void MVM_jit_code_enter(MVMThreadContext *tc, MVMJitCode *code, MVMCompUnit *cu) {
     return;
 }
 
-MVMint32 MVM_jit_code_get_active_handlers(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame, MVMint32 *handlers) {
+MVMint32 MVM_jit_code_get_active_handlers(MVMThreadContext *tc, MVMJitCode *code, void *current_position, MVMint32 i) {
     return 0;
 }
 
-MVMint32 MVM_jit_code_get_active_inlines(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame,  MVMint32 *inlines) {
+MVMint32 MVM_jit_code_get_active_inlines(MVMThreadContext *tc, MVMJitCode *code, void *current_position, MVMint32 i) {
     return 0;
 }
 
 MVMint32 MVM_jit_code_get_active_deopt_idx(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame) {
     return 0;
 }
+
+void MVM_jit_code_set_current_position(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame, void *position) {
+}
+
+void * MVM_jit_code_get_current_position(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame) {
+    return NULL;
+}
+
+void MVM_jit_code_trampoline(MVMThreadContext *tc) {}
