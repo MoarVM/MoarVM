@@ -603,6 +603,7 @@ MVMJitCode *create_caller_code(MVMThreadContext *tc, MVMNativeCallBody *body) {
         entry_label->next = jg->first_node;
         jg->first_node = entry_label;
         jg->num_labels = 1;
+        jg->no_trampoline = 1;
 
         entry_label->type = MVM_JIT_NODE_LABEL;
         entry_label->u.label.name = 0;

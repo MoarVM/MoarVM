@@ -51,6 +51,10 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
     MVMFrame           *root_frame  = NULL;
     MVMContinuationTag *tag_record  = NULL;
     MVMFrame            *jump_frame;
+
+
+    MVM_jit_code_trampoline(tc);
+
     MVMROOT2(tc, tag, code, {
         jump_frame = MVM_frame_force_to_heap(tc, tc->cur_frame);
     });
@@ -154,6 +158,8 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
     tc->cur_frame->return_value = res_reg;
     tc->cur_frame->return_type = MVM_RETURN_OBJ;
     tc->cur_frame->return_address = *(tc->interp_cur_op);
+
+    MVM_jit_code_trampoline(tc);
 
     /* Switch to the target frame. */
     tc->cur_frame = cont->body.top;

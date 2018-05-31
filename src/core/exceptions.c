@@ -349,11 +349,11 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         if (lh.jit_handler) {
             void **labels = lh.frame->spesh_cand->jitcode->labels;
             MVMuint8  *pc = lh.frame->spesh_cand->jitcode->bytecode;
-            lh.frame->jit_entry_label = labels[lh.jit_handler->goto_label];
-            MVM_frame_unwind_to(tc, lh.frame, pc, 0, NULL);
+            MVM_frame_unwind_to(tc, lh.frame, pc, 0, NULL, labels[lh.jit_handler->goto_label]);
         } else {
-            MVM_frame_unwind_to(tc, lh.frame, NULL, lh.handler->goto_offset, NULL);
+            MVM_frame_unwind_to(tc, lh.frame, NULL, lh.handler->goto_offset, NULL, NULL);
         }
+
         break;
 
     case MVM_EX_ACTION_INVOKE: {
@@ -405,7 +405,7 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     MVMException *exception;
     MVMuint32     goto_offset;
     MVMuint8     *abs_address;
-
+    void         *jit_return_label;
 
     /* Get active handler; sanity check (though it's possible other cases
      * should be supported). */
@@ -418,13 +418,14 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     exception   = (MVMException *)ah->ex_obj;
     if (ah->jit_handler) {
         void **labels = frame->spesh_cand->jitcode->labels;
-        frame->jit_entry_label = labels[ah->jit_handler->goto_label];
+        jit_return_label = labels[ah->jit_handler->goto_label];
         abs_address = frame->spesh_cand->jitcode->bytecode;
         goto_offset = 0;
     }
     else {
         goto_offset = ah->handler->goto_offset;
         abs_address = NULL;
+        jit_return_label = NULL;
     }
     /* Clean up. */
     tc->active_handlers = ah->next_handler;
@@ -432,10 +433,11 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
 
     /* Do the unwinding as needed. */
     if (exception && exception->body.return_after_unwind) {
-        MVM_frame_unwind_to(tc, frame->caller, NULL, 0, tc->last_handler_result);
+        /* we can't very well return to our the unwod JIT address */
+        MVM_frame_unwind_to(tc, frame->caller, NULL, 0, tc->last_handler_result, NULL);
     }
     else {
-        MVM_frame_unwind_to(tc, frame, abs_address, goto_offset, NULL);
+        MVM_frame_unwind_to(tc, frame, abs_address, goto_offset, NULL, jit_return_label);
     }
 }
 
@@ -735,10 +737,10 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
         ex->body.category = MVM_EX_CAT_CATCH;
     if (resume_result) {
         ex->body.resume_addr = *tc->interp_cur_op;
-        /* Ensure that the jit resume label is stored. The throwish
-         * control guard should ensure that the jit entry label point to
-         * a position just after throwing. */
-        ex->body.jit_resume_label = tc->cur_frame->jit_entry_label;
+        /* Ensure that we store label where the JIT should return, if any */
+        if (tc->jit_return_address != NULL) {
+            ex->body.jit_resume_label = MVM_jit_code_get_current_position(tc, tc->cur_frame->spesh_cand->jitcode, tc->cur_frame);
+        }
     }
     lh = search_for_handler_from(tc, tc->cur_frame, mode, ex->body.category, ex->body.payload);
     if (lh.frame == NULL) {
@@ -807,8 +809,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     MVM_free(ah);
 
     /* Unwind to the thrower of the exception; set PC and jit entry label. */
-    target->jit_entry_label = ex->body.jit_resume_label;
-    MVM_frame_unwind_to(tc, target, ex->body.resume_addr, 0, NULL);
+    MVM_frame_unwind_to(tc, target, ex->body.resume_addr, 0, NULL, ex->body.jit_resume_label);
 }
 
 /* Panics and shuts down the VM. Don't do this unless it's something quite

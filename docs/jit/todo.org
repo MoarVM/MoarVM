@@ -1,7 +1,7 @@
 #+TITLE: JIT Compiler TODO list
 
 * VM integration
-** Stack walker for current position
+** DONE Stack walker for current position
 
  Currently we mark the 'current position' in the JIT entry label at the
  start of every basic block, the start-and-end of frame handlers, and
@@ -112,14 +112,14 @@ return address will be (which is =rsp-0x8=, because that is fully
 under our control. This works (but uncovers an existing bug (somehow)
 in the expr JIT).
 
-*** TODO the windows bug
+*** DONE the windows bug
 
 - This appears to be a broken label issue (backwards halfway into an
   instruction)
 - I need to know where that label is supposed to point too though, and
   how far it is supposed to go
 
-*** TODO Replace 'invokish' and 'throwish' check code with return address updates
+** TODO Replace 'invokish' and 'throwish' check code with return address updates
 
 Currently, we have to check arround every 'invokish' opcode whether or
 not we have in fact invoked (by comparing the current frame sequence
@@ -148,25 +148,82 @@ invoking.
 We can *not* update an invokee's frame that way, because the relevant
 =rbx= register will point to the wrong frame. (Unfortunately!)
 
-This calls for an abstraction: =MVM_jit_code_set_continuation_label=
-that sets the return address or reentry label as needed.
-
 - [x] get exit label.
+
   we unfortunately can't get the exact constant name because it is
   only defined in the 'dasc' file
 - [x] assign a new label
-- [ ] frame.c
+- [x] frame.c
   - frame entry
   - frame exit
-- [ ] deopt.c
+  - unwind
+- [x] deopt.c
+  - frame exit (never the current frame though, always the caller, so
+    no work there)
+- [x] exceptions.c
   - frame exit
-- [ ] exceptions.c
-  - frame exit
-  - within-frame jump
-- [ ] emit.dasc
+  - within-frame jump (GOTO)
+- [x] emit.dasc
+  - control handlers
+  - invocations
+- [x] continuation.c
+  - =MVM_continuation_control= tries to find a frame with a matching tag,
+    then invokes *another* frame with that continuation.
+  - It does not currently store the current JIT position (for the
+    purpose of reentry), so that might explain infinite-looping.
+  - Also, the invoke of code will try to set the jit return address to
+    a label, reading from a frame not associated with the JIT code
+    (potentially not *having* any JIT code, hence crashing).
+    - What this needs is both jit-leave-frame, and
+      jit-store-current-position.
+  - =MVM_continuation_reset= either calls =MVM_continuation_invoke=
+    (on a continuation) or =fSTABLE(code)->invoke= (on any other code
+    object) - if that is interpreter code, it should normally pass
+    through =MVM_frame_invoke=, and so we have that handled.
+  - =MVM_continuation_invoke= also calls =STABLE(code)->invoke=, so
+    same goes there
+- [x] nativecall.c
+  - somehow tell the JIT not to emit code assigning a jit_return_address?
+  - a flag on the graph probably
+- [x] nativecall_dyncall / nativecall_libffi
+  - when handling a callback, these are the only conceivable options
+    of running a recursive interpreter frame; and we store a jmp_buf
+
+Should we set a tc->jit_exit_label to the jitcodes' exit label always?
+would simplify things a bit.
+
+*** TODO wrap in tidy interface and check assigment
+
+We want some form of abstraction, if only for 'set current position',
+so that we can check we're setting a value within bounds.
+
+I'm not sure if there are more such abstractions to be had... But this
+will help me debug for sure.
+
+Let's add:
+- [x] MVM_jit_code_set_current_position()
+- [x] MVM_jit_code_trampoline()
+
+Turns out, if we have an exception and we set a return-after handler...
+
+So what is actually going on here?
+
+- one thing that is clearly wrong is that we throw an exception, then 
 
 
 * Tools
+** Create =make-gdb-script.pl= script
+
+It should be relatively easy to create a script to startup GDB (or
+another debugger) with the correct context. I've been writing a few of
+those by hand now.
+
+** Make =jit-bisect.pl= figure out if something is expr-bisectable
+
+Currently we rely on a flag. But the jit-bisect.pl tool *can* figure
+out which combination of flags break or unbreak a run. So why not for
+the expr JIT as well?
+
 ** Make =jit-dump.pl= work on windows
 
  This should be doable, really, if rather than pipe-and-fork, we simply
@@ -180,8 +237,6 @@ place. (Backticks work, it seems, so we can always try that).
 Currently, we try to resovle the link address directly. What we should
 probably do is compute a table of linked addresses and code addresses,
 and then warn about anything that's not a link address.
-
-
 
 * Expression Tree
 

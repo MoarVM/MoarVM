@@ -703,7 +703,7 @@ static void before_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     }
 
     if (ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
-        jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_THROWISH_PRE);
+/*        jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_THROWISH_PRE); */
     }
 }
 
@@ -715,10 +715,10 @@ static void after_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     /* If we've consumed an (or throwish) op, we should append a guard */
     if (ins->info->jittivity & MVM_JIT_INFO_INVOKISH) {
         MVM_jit_log(tc, "append invokish control guard\n");
-        jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_INVOKISH);
+/*        jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_INVOKISH); */
     }
     else if (ins->info->jittivity & MVM_JIT_INFO_THROWISH) {
-        jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_THROWISH_POST);
+/*        jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_THROWISH_POST);*/
     }
     /* This order of processing is necessary to ensure that a label
      * calculated by one of the control guards as well as the labels
@@ -3198,7 +3198,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_LITERAL, { 0 } }};
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
         jg_append_call_c(tc, jg, &MVM_frame_try_return, 1, args, MVM_JIT_RV_VOID, -1);
-        jg_append_branch(tc, jg, MVM_JIT_BRANCH_EXIT, NULL);
+/*        jg_append_branch(tc, jg, MVM_JIT_BRANCH_EXIT, NULL); */
         break;
     }
     case MVM_OP_return_o:
@@ -3215,7 +3215,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
         /* reuse args for tc arg */
         jg_append_call_c(tc, jg, &MVM_frame_try_return, 1, args, MVM_JIT_RV_VOID, -1);
-        jg_append_branch(tc, jg, MVM_JIT_BRANCH_EXIT, NULL);
+/*        jg_append_branch(tc, jg, MVM_JIT_BRANCH_EXIT, NULL); */
         break;
     }
     case MVM_OP_sp_guard:
@@ -3308,11 +3308,11 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                         MVMint32  data_label = jg_add_data_node(tc, jg, fake_regs, fake_regs_size);
                         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  { MVM_JIT_INTERP_TC } },
                                                  { MVM_JIT_DATA_LABEL,  { data_label } }};
-                        if (ins->info->jittivity & MVM_JIT_INFO_INVOKISH)
-                            jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_THROWISH_PRE);
+/*                        if (ins->info->jittivity & MVM_JIT_INFO_INVOKISH)
+                          jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_THROWISH_PRE); */
                         jg_append_call_c(tc, jg, extops[i].func, 2, args, MVM_JIT_RV_VOID, -1);
-                        if (ins->info->jittivity & MVM_JIT_INFO_INVOKISH)
-                            jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_INVOKISH);
+/*                        if (ins->info->jittivity & MVM_JIT_INFO_INVOKISH)
+                            jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_INVOKISH); */
                         MVM_jit_log(tc, "append extop: <%s>\n", ins->info->name);
                         emitted_extop = 1;
                     }

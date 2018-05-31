@@ -11,7 +11,10 @@ struct MVMJitGraph {
     MVMint32       obj_label_ofs;
 
     /* Sequence number for expr trees */
-    MVMuint32      expr_seq_nr;
+    MVMuint16      expr_seq_nr;
+
+    /* resultant JIT code is supports 'invokish' etc? */
+    MVMuint8       no_trampoline;
 
     /* All labeled things */
     MVM_VECTOR_DECL(void*, obj_labels);

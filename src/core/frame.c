@@ -554,6 +554,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* Initialize argument processing. */
     MVM_args_proc_init(tc, &frame->params, callsite, args);
 
+    MVM_jit_code_trampoline(tc);
+
     /* Update interpreter and thread context, so next execution will use this
      * frame. */
     tc->cur_frame = frame;
@@ -886,9 +888,18 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
 
     /* Switch back to the caller frame if there is one. */
     if (caller && returner != tc->thread_entry_frame) {
+
+       if (tc->jit_return_address != NULL) {
+            /* on a JIT frame, exit to interpreter afterwards */
+            MVMJitCode *jitcode = returner->spesh_cand->jitcode;
+            MVM_jit_code_set_current_position(tc, jitcode, returner, jitcode->exit_label);
+            /* given that we might throw in the special-return, act as if we've
+             * left the current frame (which is true) */
+            tc->jit_return_address = NULL;
+        }
+
         tc->cur_frame = caller;
         tc->current_frame_nr = caller->sequence_nr;
-        tc->jit_return_address = NULL;
 
         *(tc->interp_cur_op) = caller->return_address;
         *(tc->interp_bytecode_start) = MVM_frame_effective_bytecode(caller);
@@ -996,6 +1007,7 @@ typedef struct {
     MVMFrame  *frame;
     MVMuint8  *abs_addr;
     MVMuint32  rel_addr;
+    void      *jit_return_label;
 } MVMUnwindData;
 static void mark_unwind_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
     MVMUnwindData *ud  = (MVMUnwindData *)frame->extra->special_return_data;
@@ -1007,10 +1019,10 @@ static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
     MVMuint8 *abs_addr = ud->abs_addr;
     MVMuint32 rel_addr = ud->rel_addr;
     MVM_free(sr_data);
-    MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL);
+    MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL, ud->jit_return_label);
 }
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
-                         MVMuint32 rel_addr, MVMObject *return_value) {
+                         MVMuint32 rel_addr, MVMObject *return_value, void *jit_return_label) {
     while (tc->cur_frame != frame) {
         MVMFrame *cur_frame = tc->cur_frame;
         if (cur_frame->static_info->body.has_exit_handler &&
@@ -1046,6 +1058,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                 ud->frame = frame;
                 ud->abs_addr = abs_addr;
                 ud->rel_addr = rel_addr;
+                ud->jit_return_label = jit_return_label;
                 if (return_value)
                     MVM_exception_throw_adhoc(tc, "return_value + exit_handler case NYI");
                 MVM_frame_special_return(tc, cur_frame, continue_unwind, NULL, ud,
@@ -1069,6 +1082,11 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
         *tc->interp_cur_op = abs_addr;
     else if (rel_addr)
         *tc->interp_cur_op = *tc->interp_bytecode_start + rel_addr;
+
+    if (jit_return_label) {
+        MVM_jit_code_set_current_position(tc, tc->cur_frame->spesh_cand->jitcode, tc->cur_frame, jit_return_label);
+    }
+
     if (return_value)
         MVM_args_set_result_obj(tc, return_value, 1);
 }
