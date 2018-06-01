@@ -340,8 +340,7 @@ MVMint32 values_cmp_last_ref(LiveRange *values, MVMint32 a, MVMint32 b) {
 }
 
 /* register assignment logic */
-#define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
-#define NEXT_IN_RING(a,x) (((x)+1) == ARRAY_SIZE(a) ? 0 : ((x)+1))
+#define NEXT_IN_RING(a,x) (((x)+1) == MVM_ARRAY_SIZE(a) ? 0 : ((x)+1))
 MVMint8 get_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitStorageClass reg_cls) {
     /* ignore storage class for now */
     MVMint8 reg_num;
@@ -828,7 +827,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     _DEBUG("prepare_call: Got %d args", num_args);
 
     /* initialize topological map, use -1 as 'undefined' inboud value */
-    for (i = 0; i < ARRAY_SIZE(topological_map); i++) {
+    for (i = 0; i < MVM_ARRAY_SIZE(topological_map); i++) {
         topological_map[i].num_out =  0;
         topological_map[i].in_reg  = -1;
     }
@@ -942,7 +941,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
 
     /* at this point, all outbound edges have been created, and none have been
      * processed yet, so we can eqnueue all 'free' transfers */
-    for (i = 0; i < ARRAY_SIZE(topological_map); i++) {
+    for (i = 0; i < MVM_ARRAY_SIZE(topological_map); i++) {
         if (topological_map[i].num_out == 0 &&
             topological_map[i].in_reg >= 0) {
             _DEBUG("Directly transfer %d -> %d", topological_map[i].in_reg, i);
@@ -1067,7 +1066,7 @@ static void process_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVM
     MVMint32 tile_order_nr = alc->values[v].start;
     if (MVM_JIT_REGISTER_HAS_REQUIREMENT(alc->values[v].register_spec)) {
         reg = MVM_JIT_REGISTER_REQUIREMENT(alc->values[v].register_spec);
-        if (MVM_bitmap_get((MVMBitmap*)&NVR_GPR_BITMAP, reg)) {
+        if (MVM_bitmap_get_low(NVR_GPR_BITMAP, reg)) {
             assign_register(tc, alc, list, v, MVM_JIT_STORAGE_NVR, reg);
         } else {
             /* TODO; might require swapping / spilling */

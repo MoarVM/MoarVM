@@ -111,5 +111,4 @@ enum {
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 #endif
 
-
-
+#define MVM_ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
