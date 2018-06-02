@@ -808,6 +808,16 @@
 (template: lastexpayload
   (^getf (tc) MVMThreadContext last_payload))
 
+(template: encoderepconf!
+  (store $4 (call (^func &MVM_string_encode_to_buf_config)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $4 ptr)
+      (carg $3 ptr)
+      (carg $5 int_sz)) int_sz) reg_sz))
+
 (template: slice!
   (let: (
     ($dest (call (^getf (^repr $1) MVMREPROps allocate)
