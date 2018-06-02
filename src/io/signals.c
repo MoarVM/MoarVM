@@ -243,20 +243,20 @@ static void populate_instance_valid_sigs(MVMThreadContext *tc, MVMint8 *sig_vals
 MVMObject * MVM_io_get_signals(MVMThreadContext *tc) {
     MVMInstance  * const instance = tc->instance;
     MVMHLLConfig *       hll      = MVM_hll_current(tc);
-    MVMObject    *       sig_hash;
+    MVMObject    *       sig_arr;
 
     MVMint8 sig_wanted_vals[NUM_SIG_WANTED];
     populate_sig_values(sig_wanted_vals);
 
-    if (instance->sig_hash) {
-        return instance->sig_hash;
+    if (instance->sig_arr) {
+        return instance->sig_arr;
     }
 
-    sig_hash = MVM_repr_alloc_init(tc, hll->slurpy_hash_type);
-    MVMROOT(tc, sig_hash, {
+    sig_arr = MVM_repr_alloc_init(tc, hll->slurpy_array_type);
+    MVMROOT(tc, sig_arr, {
         MVMint8 i;
         for (i = 0; i < NUM_SIG_WANTED; i++) {
-            MVMString *key      = NULL;
+            MVMObject *key      = NULL;
             MVMString *full_key = NULL;
             MVMObject *val      = NULL;
 
@@ -265,18 +265,21 @@ MVMObject * MVM_io_get_signals(MVMThreadContext *tc) {
                     tc, instance->VMString, SIG_WANTED[i], strlen(SIG_WANTED[i])
                 );
 
-                key = MVM_string_substring(tc, full_key, 4, -1);
+                key = MVM_repr_box_str(tc, hll->str_box_type,
+                    MVM_string_substring(tc, full_key, 4, -1)
+                );
                 val = MVM_repr_box_int(tc, hll->int_box_type, sig_wanted_vals[i]);
 
-                MVM_repr_bind_key_o(tc, sig_hash, key, val);
+                MVM_repr_push_o(tc, sig_arr, key);
+                MVM_repr_push_o(tc, sig_arr, val);
             });
         }
 
         populate_instance_valid_sigs(tc, sig_wanted_vals);
-        instance->sig_hash = sig_hash;
+        instance->sig_arr = sig_arr;
     });
 
-    return sig_hash;
+    return sig_arr;
 }
 
 /* Register a new signal handler. */
