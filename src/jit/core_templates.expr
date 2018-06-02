@@ -789,6 +789,12 @@
       (carg (tc) ptr)
       (carg $0 ptr))))
 
+(template: assertparamcheck!
+  (when (zr $0)
+    (callv (^func &MVM_args_bind_failed)
+      (arglist
+        (carg (tc) ptr)))))
+
 (template: const_i64_16 (copy $1))
 (template: const_i64_32 (copy $1))
 
