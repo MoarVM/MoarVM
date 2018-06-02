@@ -84,6 +84,14 @@
       (carg $1 ptr)
       (carg $0 ptr))))
 
+(template: checkarity!
+  (callv (^func &MVM_args_checkarity)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^params) ptr)
+      (carg $0 int)
+      (carg $1 int))))
+
 # since compilation of invocation is special-cased in the regular jit
 # we can't just toss this in here without also handling all of arg_*
 # and invoke_*.
