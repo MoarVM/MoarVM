@@ -92,6 +92,26 @@
       (carg $0 int)
       (carg $1 int))))
 
+(template: param_rp_s
+  (call (^func &MVM_args_get_required_pos_str)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^params) ptr)
+      (carg $1 int)) ptr_sz))
+
+(template: param_rp_o
+  (call (^func &MVM_args_get_required_pos_obj)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^params) ptr)
+      (carg $1 int)) ptr_sz))
+
+(template: param_sn
+  (call (^func &MVM_args_slurpy_named)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^params) ptr)) ptr_sz))
+
 # since compilation of invocation is special-cased in the regular jit
 # we can't just toss this in here without also handling all of arg_*
 # and invoke_*.
