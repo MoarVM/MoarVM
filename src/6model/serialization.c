@@ -1601,8 +1601,11 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
         if (read_at + 8 > read_end)
             fail_deserialize(tc, reader,
                              "Read past end of serialization data buffer");
-
+#ifdef MVM_CAN_UNALIGNED_INT64
+        *((MVMuint64*)&result) = *((MVMuint64*)read_at);
+#else
         memcpy(&result, read_at, 8);
+#endif
 #ifdef MVM_BIGENDIAN
         switch_endian(&result, 8);
 #endif
@@ -1628,7 +1631,28 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
         switch_endian(write_to, need);
     }
 #else
+#   ifdef MVM_CAN_UNALIGNED_INT64
+    /* GCC and Clang both optimize this */
+    switch (MVM_EXPECT(need, 2)) {
+        case 7:
+            ((MVMuint8*)&result)[6] = read_at[6];
+        case 6:
+            ((MVMuint8*)&result)[5] = read_at[5];
+        case 5:
+            ((MVMuint8*)&result)[4] = read_at[4];
+        case 4:
+            ((MVMuint8*)&result)[3] = read_at[3];
+        case 3:
+            ((MVMuint8*)&result)[2] = read_at[2];
+        case 2:
+            ((MVMuint8*)&result)[1] = read_at[1];
+        case 1:
+            ((MVMuint8*)&result)[0] = read_at[0];
+            break;
+    }
+#   else
     memcpy(&result, read_at, need);
+#   endif
 #endif
 
     /* Having pieced the (unsigned) value back together, sign extend it:  */
