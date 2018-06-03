@@ -27,7 +27,7 @@
 /* memmem_two_uint32 uses 64 bit integer reads extensively. Only use it on 64
  * bit processors since it will likely be slower on 32 bit processors. */
 #include "moar.h"
-#if 8 <= MVM_PTR_SIZE
+#if 8 <= MVM_PTR_SIZE && defined(MVM_CAN_UNALIGNED_INT64)
 #define USE_MEMMEM_TWO_UINT32 1
 #endif
 
