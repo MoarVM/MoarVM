@@ -51,7 +51,7 @@ static const MVMuint8 utf8d[] = {
 
 MVM_STATIC_INLINE MVMint32
 decode_utf8_byte(MVMint32 *state, MVMGrapheme32 *codep, MVMuint8 byte) {
-  MVMint32 type = utf8d[byte];
+  const MVMint32 type = utf8d[byte];
 
   *codep = (*state != UTF8_ACCEPT) ?
     (byte & 0x3fu) | (*codep << 6) :
@@ -177,8 +177,6 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
     MVMint32 line_ending = 0;
     MVMint32 state = 0;
     MVMint32 bufsize = bytes;
-    MVMGrapheme32 lowest_graph  =  0x7fffffff;
-    MVMGrapheme32 highest_graph = -0x7fffffff;
     MVMGrapheme32 *buffer = MVM_malloc(sizeof(MVMGrapheme32) * bufsize);
     size_t orig_bytes;
     const char *orig_utf8;
@@ -205,13 +203,8 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
                     ));
                 }
                 buffer[count++] = g;
-                lowest_graph = g < lowest_graph ? g : lowest_graph;
-                highest_graph = g > highest_graph ? g : highest_graph;
                 while (--ready > 0) {
-                    g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
-                    lowest_graph = g < lowest_graph ? g : lowest_graph;
-                    highest_graph = g > highest_graph ? g : highest_graph;
-                    buffer[count++] = g;
+                    buffer[count++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
                 }
             }
             break;
@@ -266,20 +259,15 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
             buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * (count + ready));
         }
         while (ready--) {
-            MVMGrapheme32 g;
-            g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
-            lowest_graph = g < lowest_graph ? g : lowest_graph;
-            highest_graph = g > highest_graph ? g : highest_graph;
-            buffer[count++] = g;
+            buffer[count++] =  MVM_unicode_normalizer_get_grapheme(tc, &norm);
         }
     }
     MVM_unicode_normalizer_cleanup(tc, &norm);
 
-    /* If we're lucky, we can fit our string in 8 bits per grapheme.
-     * That happens when our lowest value is bigger than -129 and our
-     * highest value is lower than 128. */
-    if (-128 <= lowest_graph && highest_graph <= 127) {
+    /* If we're lucky, we can fit our string in 8 bits per grapheme. */
+    if (MVM_string_buf32_can_fit_into_8bit(buffer, count)) {
         MVMGrapheme8 *new_buffer = MVM_malloc(sizeof(MVMGrapheme8) * count);
+        MVM_VECTORIZE_LOOP
         for (ready = 0; ready < count; ready++) {
             new_buffer[ready] = buffer[ready];
         }
