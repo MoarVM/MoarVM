@@ -4838,7 +4838,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(encoderep):
-                GET_REG(cur_op, 8).o = MVM_string_encode_to_buf(tc, GET_REG(cur_op, 2).s,
+                GET_REG(cur_op, 0).o = MVM_string_encode_to_buf(tc, GET_REG(cur_op, 2).s,
                     GET_REG(cur_op, 4).s, GET_REG(cur_op, 8).o, GET_REG(cur_op, 6).s);
                 cur_op += 10;
                 goto NEXT;
@@ -5286,7 +5286,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(encoderepconf):
-                GET_REG(cur_op, 8).o = MVM_string_encode_to_buf_config(tc, GET_REG(cur_op, 2).s,
+                GET_REG(cur_op, 0).o = MVM_string_encode_to_buf_config(tc, GET_REG(cur_op, 2).s,
                     GET_REG(cur_op, 4).s, GET_REG(cur_op, 8).o, GET_REG(cur_op, 6).s, GET_REG(cur_op, 10).i64);
                 cur_op += 12;
                 goto NEXT;

@@ -3269,6 +3269,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         break;
     }
     case MVM_OP_encoderepconf: {
+        MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 str = ins->operands[1].reg.orig;
         MVMint16 encoding = ins->operands[2].reg.orig;
         MVMint16 replacement = ins->operands[3].reg.orig;
@@ -3280,7 +3281,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_REG_VAL, { blob } },
                                  { MVM_JIT_REG_VAL, { replacement } },
                                  { MVM_JIT_REG_VAL, { config } } };
-        jg_append_call_c(tc, jg, op_to_func(tc, op), 6, args, MVM_JIT_RV_PTR, blob);
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 6, args, MVM_JIT_RV_PTR, dst);
         break;
     }
     case MVM_OP_breakpoint: {
