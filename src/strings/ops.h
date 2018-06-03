@@ -59,7 +59,18 @@ MVM_STATIC_INLINE MVMuint32 MVM_string_codes(MVMThreadContext *tc, MVMString *s)
     }
     return codes;
 }
-
+MVM_STATIC_INLINE int MVM_string_buf32_can_fit_into_8bit(MVMGrapheme32 *active_blob, MVMStringIndex blob_len) {
+    MVMStringIndex i;
+    MVMGrapheme32 val = 0;
+    MVM_VECTORIZE_LOOP
+    for (i = 0; i  < blob_len; i++) {
+        /* This could be written val |= ..., but GCC 7 doesn't recognize the
+         * operation as ossociative unless we use a temp variable (clang has no issue). */
+        MVMGrapheme32 val2 = ((active_blob[i] & 0xffffff80) + 0x80) & (0xffffff80-1);
+        val |= val2;
+    }
+    return val ? 0 : 1;
+}
 MVMGrapheme32 MVM_string_get_grapheme_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index);
 MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b);
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 start);

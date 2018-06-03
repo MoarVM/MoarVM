@@ -225,17 +225,8 @@ static int string_can_be_8bit(MVMThreadContext *tc, MVMGraphemeIter *gi_orig, MV
             ? num_graphs - pos
             : strand_len;
         if (MVM_string_gi_blob_type(tc, &gi) == MVM_STRING_GRAPHEME_32) {
-            MVMStringIndex i;
-            MVMGrapheme32 val = 0;
-            MVMGrapheme32 *active_blob = MVM_string_gi_active_blob_32_pos(tc, &gi);
-            MVM_VECTORIZE_LOOP
-            for (i = 0; i  < togo; i++) {
-                /* This could be written val |= ..., but GCC 7 doesn't recognize the
-                 * operation as ossociative unless we use a temp variable (clang has no issue). */
-                MVMGrapheme32 val2 = ((active_blob[i] & 0xffffff80) + 0x80) & (0xffffff80-1);
-                val |= val2;
-            }
-            if (val) return 0;
+            if (!MVM_string_buf32_can_fit_into_8bit(MVM_string_gi_active_blob_32_pos(tc, &gi), togo))
+                return 0;
         }
         pos += togo;
         if (num_graphs == pos || !MVM_string_gi_has_more_strands_rep(tc, &gi)) {
