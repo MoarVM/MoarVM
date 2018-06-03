@@ -735,7 +735,7 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
     li->socket        = MVM_malloc(sizeof(uv_tcp_t));
     li->socket->data  = data;
     if ((r = uv_tcp_init(loop, li->socket)) < 0 ||
-        (r = uv_tcp_bind(li->socket, li->dest, 0)) < 0 ||
+        (r = uv_tcp_bind(li->socket, li->dest, (li->dest->sa_family == AF_INET6) ? UV_TCP_IPV6ONLY : 0)) < 0 ||
         (r = uv_listen((uv_stream_t *)li->socket, li->backlog, on_connection))) {
         /* Error; need to notify. */
         MVMROOT(tc, async_task, {
