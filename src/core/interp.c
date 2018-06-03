@@ -5786,13 +5786,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_jit_enter): {
-                if (tc->cur_frame->spesh_cand->jitcode == NULL) {
+                MVMJitCode *jc = tc->cur_frame->spesh_cand->jitcode;
+                if (MVM_UNLIKELY(jc == NULL)) {
                     MVM_exception_throw_adhoc(tc, "Try to enter NULL jitcode");
                 }
                 /* trampoline back to this opcode */
                 cur_op -= 2;
-                MVM_jit_enter_code(tc, cu, tc->cur_frame->spesh_cand->jitcode);
-                if (!tc->cur_frame) {
+                MVM_jit_enter_code(tc, cu, jc);
+                if (MVM_UNLIKELY(!tc->cur_frame)) {
                     /* somehow unwound our top frame */
                     goto return_label;
                 }
