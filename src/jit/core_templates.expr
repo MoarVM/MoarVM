@@ -818,6 +818,11 @@
       (carg $3 ptr)
       (carg $5 int_sz)) ptr_sz))
 
+(template: getsignals
+  (call (^func &MVM_io_get_signals)
+    (arglist
+      (carg (tc) ptr)) ptr_sz))
+
 (template: slice!
   (let: (
     ($dest (call (^getf (^repr $1) MVMREPROps allocate)
