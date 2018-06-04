@@ -119,7 +119,7 @@ in the expr JIT).
 - I need to know where that label is supposed to point too though, and
   how far it is supposed to go
 
-** TODO Replace 'invokish' and 'throwish' check code with return address updates
+** DONE Replace 'invokish' and 'throwish' check code with return address updates
 
 Currently, we have to check arround every 'invokish' opcode whether or
 not we have in fact invoked (by comparing the current frame sequence
@@ -192,7 +192,7 @@ We can *not* update an invokee's frame that way, because the relevant
 Should we set a tc->jit_exit_label to the jitcodes' exit label always?
 would simplify things a bit.
 
-*** TODO wrap in tidy interface and check assigment
+*** DONE wrap in tidy interface and check assigment
 
 We want some form of abstraction, if only for 'set current position',
 so that we can check we're setting a value within bounds.
@@ -206,9 +206,14 @@ Let's add:
 
 Turns out, if we have an exception and we set a return-after handler...
 
-So what is actually going on here?
+Then we can't bloody well jump to the lower frame. It won't work.
 
-- one thing that is clearly wrong is that we throw an exception, then 
+*** DONE clean up
+
+- [x] graph.h
+- [x] graph.c
+- [x] emit.dasc
+- [x] epxr.c
 
 
 * Tools
