@@ -640,7 +640,7 @@ static void before_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     MVMSpeshBB   *bb = iter->bb;
     MVMSpeshAnn *ann = ins->annotations;
 
-    MVMint32 has_label = 0, has_dynamic_control = 0, label;
+    MVMint32 has_label = 0, label;
     /* Search annotations for stuff that may need a label. */
     while (ann) {
         switch(ann->type) {
@@ -655,7 +655,6 @@ static void before_ins(MVMThreadContext *tc, MVMJitGraph *jg,
             label = MVM_jit_label_before_ins(tc, jg, bb, ins);
             jg->handlers[ann->data.frame_handler_index].start_label = label;
             has_label = 1;
-            has_dynamic_control = 1;
             /* Load the current position into the jit entry label, so that
              * when throwing we'll know which handler to use */
             break;
@@ -673,7 +672,6 @@ static void before_ins(MVMThreadContext *tc, MVMJitGraph *jg,
              * the handler applies and the start of the basic block to
              * which it doesn't. */
             has_label = 1;
-            has_dynamic_control = 1;
             break;
         }
         case MVM_SPESH_ANN_FH_GOTO: {
@@ -697,14 +695,6 @@ static void before_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     if (has_label) {
         jg_append_label(tc, jg, label);
     }
-    if (has_dynamic_control) {
-        MVM_jit_log(tc, "Dynamic control label on ins %s\n", ins->info->name);
-/*        jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_DYNAMIC_LABEL); */
-    }
-
-    if (ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
-/*        jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_THROWISH_PRE); */
-    }
 }
 
 static void after_ins(MVMThreadContext *tc, MVMJitGraph *jg,
@@ -712,14 +702,6 @@ static void after_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     MVMSpeshBB   *bb = iter->bb;
     MVMSpeshAnn *ann = ins->annotations;
 
-    /* If we've consumed an (or throwish) op, we should append a guard */
-    if (ins->info->jittivity & MVM_JIT_INFO_INVOKISH) {
-        MVM_jit_log(tc, "append invokish control guard\n");
-/*        jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_INVOKISH); */
-    }
-    else if (ins->info->jittivity & MVM_JIT_INFO_THROWISH) {
-/*        jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_THROWISH_POST);*/
-    }
     /* This order of processing is necessary to ensure that a label
      * calculated by one of the control guards as well as the labels
      * calculated below point to the exact same instruction. This is a
@@ -3308,11 +3290,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                         MVMint32  data_label = jg_add_data_node(tc, jg, fake_regs, fake_regs_size);
                         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  { MVM_JIT_INTERP_TC } },
                                                  { MVM_JIT_DATA_LABEL,  { data_label } }};
-/*                        if (ins->info->jittivity & MVM_JIT_INFO_INVOKISH)
-                          jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_THROWISH_PRE); */
                         jg_append_call_c(tc, jg, extops[i].func, 2, args, MVM_JIT_RV_VOID, -1);
-/*                        if (ins->info->jittivity & MVM_JIT_INFO_INVOKISH)
-                            jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_INVOKISH); */
                         MVM_jit_log(tc, "append extop: <%s>\n", ins->info->name);
                         emitted_extop = 1;
                     }

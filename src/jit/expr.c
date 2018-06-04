@@ -126,13 +126,6 @@ static MVMint32 MVM_jit_expr_add_cast(MVMThreadContext *tc, MVMJitExprTree *tree
     return num;
 }
 
-static MVMint32 MVM_jit_expr_wrap_guard(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node, MVMint32 before, MVMint32 after) {
-    MVMint32 num = tree->nodes_num;
-    MVMJitExprNode template[] = { MVM_JIT_GUARD, node, before, after };
-    MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
-    return num;
-}
-
 static MVMint32 MVM_jit_expr_add_label(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 label) {
     MVMint32 num = tree->nodes_num;
     MVMJitExprNode template[] = { MVM_JIT_MARK, label };
@@ -710,8 +703,8 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         MVMuint16 opcode = ins->info->opcode;
         MVMSpeshAnn *ann;
         const MVMJitExprTemplate *template;
-        MVMint32 before_label = -1, after_label = -1,
-            wrap_before = 0, wrap_after = 0;
+        MVMint32 before_label = -1, after_label = -1, store_directly = 0;
+
         struct ValueDefinition *defined_value = NULL;
 
         /* check if this is a getlex and if we can handle it */
@@ -725,21 +718,15 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             case MVM_SPESH_ANN_FH_START:
                 /* start of a frame handler (inclusive). We need to mark this
                  * instruction with a label so that we know the handler covers
-                 * this code, and we need to install a dynamic label to tell the
-                 * interpreter that JIT execution has reached this point. */
+                 * this code */
                 before_label = MVM_jit_label_before_ins(tc, jg, iter->bb, ins);
                 jg->handlers[ann->data.frame_handler_index].start_label = before_label;
-                wrap_before = MVM_JIT_CONTROL_DYNAMIC_LABEL;
                 break;
             case MVM_SPESH_ANN_FH_END:
-                /* end of the frame handler (exclusive), funnily enough not the
-                 * end of a basic block. The dynamic label will be installed
-                 * just after the label that marks the end, which means that
-                 * jit_entry_label will compare greater-than the end label,
-                 * which ensures that the end is exclusive. */
+                /* end of the frame handler (exclusive), funnily enough not
+                 * necessarily the end of a basic block. */
                 before_label = MVM_jit_label_before_ins(tc, jg, iter->bb, ins);
                 jg->handlers[ann->data.frame_handler_index].end_label = before_label;
-                wrap_before = MVM_JIT_CONTROL_DYNAMIC_LABEL;
                 break;
             case MVM_SPESH_ANN_FH_GOTO:
                 /* A label to jump to for when a handler catches an
@@ -891,11 +878,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
 
 
 
-        /* NB - MVM_JIT_CONTROL_DYNAMIC_LABEL which is set in wrap_before, may
-         * be overwritten, but that is okay, since for all uses of the DYNAMIC
-         * LABEL, the MVM_JIT_CONTROL_THROWISH_PRE is equivalent because it
-         * installs a jit_entry_point 'within' the labels before and after this
-         * instructions. */
 
         if (ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
             /* NB: we should make this a template-level flag; should be possible
@@ -903,10 +885,8 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
              * perhaps best if that is opt-in so people don't accidentally
              * forget to set it). */
             MVM_jit_log(tc, "EXPR: adding throwish guard to op (%s)\n", ins->info->name);
-            wrap_before = MVM_JIT_CONTROL_THROWISH_PRE;
-            wrap_after = (ins->info->jittivity & MVM_JIT_INFO_THROWISH) ?
-                MVM_JIT_CONTROL_THROWISH_POST : MVM_JIT_CONTROL_INVOKISH;
             active_values_flush(tc, tree, values, sg->num_locals);
+            store_directly = 1;
         }
 
 
@@ -919,19 +899,17 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         /* NB: GUARD only wraps void nodes. Currently, we replace any
          * value-yielding node with it's STORE (and thereby make sure it is
          * flushed directly) */
-        if (wrap_before != 0 || wrap_after != 0) {
-            /* install wrapper */
-            if (defined_value != NULL) {
-                /* If we're wrapping this template and it defines a value, we
-                 * had maybe better flush it directly */
-                root = MVM_jit_expr_add_store(tc, tree, defined_value->addr, root, MVM_JIT_REG_SZ);
-                defined_value = NULL;
-            }
-            /* root = MVM_jit_expr_wrap_guard(tc, tree, root, wrap_before, wrap_after);*/
+        if (store_directly && defined_value != NULL) {
+            /* If we're wrapping this template and it defines a value, we
+             * had maybe better flush it directly */
+            root = MVM_jit_expr_add_store(tc, tree, defined_value->addr, root, MVM_JIT_REG_SZ);
+            defined_value = NULL;
         }
+
         if (defined_value != NULL) {
             defined_value->root = tree->roots_num;
         }
+
         MVM_VECTOR_PUSH(tree->roots, root);
         if (after_label >= 0 && MVM_jit_label_is_for_ins(tc, jg, after_label)) {
             MVM_VECTOR_PUSH(tree->roots, MVM_jit_expr_add_label(tc, tree, after_label));
