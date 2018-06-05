@@ -291,6 +291,33 @@ our %COMPILERS = (
         expect_unlikely => '__builtin_expect(!!(condition), 0)',
         expect_condition => '__builtin_expect((condition), (expection))'
     },
+    # This is a copy of gcc except with -wd858 which supresses a warning that
+    # const on a return type is meaningless (warning doesn't show up on other
+    # compilers)
+    icc => {
+        -toolchain => 'gnu',
+
+        cc => 'icc',
+        ld => undef,
+
+        ccmiscflags  => '-Werror=declaration-after-statement -Werror=pointer-arith -wd858',
+        ccwarnflags  => '',
+        ccoptiflags  => '-O%s -DNDEBUG',
+        ccdebugflags => '-g%s',
+        ccinstflags  => '-pg',
+
+        ldmiscflags  => '',
+        ldoptiflags  => undef,
+        lddebugflags => undef,
+        ldinstflags  => undef,
+
+        noreturnspecifier => '',
+        noreturnattribute => '__attribute__((noreturn))',
+        formatattribute   => '__attribute__((format(X, Y, Z)))',
+        expect_likely => '__builtin_expect(!!(condition), 1)',
+        expect_unlikely => '__builtin_expect(!!(condition), 0)',
+        expect_condition => '__builtin_expect((condition), (expection))'
+    },
 
     clang => {
         -toolchain => 'gnu',
