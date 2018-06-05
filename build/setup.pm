@@ -293,14 +293,15 @@ our %COMPILERS = (
     },
     # This is a copy of gcc except with -wd858 which supresses a warning that
     # const on a return type is meaningless (warning doesn't show up on other
-    # compilers)
+    # compilers). Also we use -fp-model precise -fp-model source to make sure
+    # that denormals are handled properly.
     icc => {
         -toolchain => 'gnu',
 
         cc => 'icc',
         ld => undef,
 
-        ccmiscflags  => '-Werror=declaration-after-statement -Werror=pointer-arith -wd858',
+        ccmiscflags  => '-Werror=declaration-after-statement -Werror=pointer-arith -wd858 -fp-model precise -fp-model source',
         ccwarnflags  => '',
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
