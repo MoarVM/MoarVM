@@ -3180,7 +3180,6 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_LITERAL, { 0 } }};
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
         jg_append_call_c(tc, jg, &MVM_frame_try_return, 1, args, MVM_JIT_RV_VOID, -1);
-/*        jg_append_branch(tc, jg, MVM_JIT_BRANCH_EXIT, NULL); */
         break;
     }
     case MVM_OP_return_o:
@@ -3197,7 +3196,6 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
         /* reuse args for tc arg */
         jg_append_call_c(tc, jg, &MVM_frame_try_return, 1, args, MVM_JIT_RV_VOID, -1);
-/*        jg_append_branch(tc, jg, MVM_JIT_BRANCH_EXIT, NULL); */
         break;
     }
     case MVM_OP_sp_guard:
@@ -3313,13 +3311,6 @@ static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
     MVMint32 i;
     MVMint32 label = MVM_jit_label_before_bb(tc, jg, bb);
     jg_append_label(tc, jg, label);
-    /* We always append a label update at the start of a basic block for now.
-     * This may be more than is actually needed, but it's safe. The problem is
-     * that a jump can move us out of the scope of an exception hander, and so
-     * we need a location update. This came to light in the case that we left an
-     * inline (which is a jump) and came back to a region where a handler should
-     * be in force, and it failed to be. */
-    /* jg_append_control(tc, jg, bb->first_ins, MVM_JIT_CONTROL_DYNAMIC_LABEL); */
 
     /* add a jit breakpoint if required */
     for (i = 0; i < tc->instance->jit_breakpoints_num; i++) {
