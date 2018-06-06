@@ -1018,8 +1018,9 @@ static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
     MVMFrame *frame    = ud->frame;
     MVMuint8 *abs_addr = ud->abs_addr;
     MVMuint32 rel_addr = ud->rel_addr;
+    void *jit_return_label = ud->jit_return_label;
     MVM_free(sr_data);
-    MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL, ud->jit_return_label);
+    MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL, jit_return_label);
 }
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
                          MVMuint32 rel_addr, MVMObject *return_value, void *jit_return_label) {
