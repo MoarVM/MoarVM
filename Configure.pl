@@ -17,7 +17,7 @@ use build::probe;
 sub defined_or($$) {
     defined $_[0] ? $_[0] : $_[1]
 }
-# This allows us to run on broken perls
+# This allows us to run on perls without List::Util
 sub uniq {
     my %s; grep { !$s{$_}++ } @_;
 }
@@ -368,8 +368,7 @@ $config{cc} eq 'clang'
     ? '-Rpass=loop-vectorize'
 : $config{cc} eq 'gcc'
     ? '-fopt-info-vec-optimized'
-  : die if $args{'show-autovect'};
-# TODO - we need to do -fno-omit-frame-pointer anyway if we run the JIT
+    : die if $args{'show-autovect'};
 push @cflags, $config{ccjitflags} if $args{jit};
 
 if (exists $args{'show-autovect-failed'}) {
