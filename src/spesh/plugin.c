@@ -497,6 +497,24 @@ static MVMSpeshOperand *arg_ins_to_reg_list(MVMThreadContext *tc, MVMSpeshGraph 
         return NULL;
     }
 }
+MVMSpeshAnn * steal_prepargs_deopt(MVMThreadContext *tc, MVMSpeshIns *ins) {
+    MVMSpeshIns *cur = ins->prev;
+    while (cur) {
+        if (cur->info->opcode == MVM_OP_prepargs) {
+            MVMSpeshAnn *ann = cur->annotations;
+            while (ann) {
+                if (ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS) {
+                    ann->next = NULL;
+                    return ann;
+                }
+                ann = ann->next;
+            }
+            MVM_oops(tc, "Could not find deopt annotation on prepargs before speshresolve");
+        }
+        cur = cur->prev;
+    }
+    MVM_oops(tc, "Could not find prepargs before speshresolve");
+}
 void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                       MVMSpeshIns *ins, MVMuint32 bytecode_offset,
                                       MVMint32 guard_index) {
@@ -504,13 +522,15 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
     MVMSpeshPluginState *ps = get_plugin_state(tc, g->sf);
     MVMSpeshPluginGuardSet *gs = guard_set_for_position(tc, bytecode_offset, ps);
     if (gs) {
+        /* Steal the deopt annotation from the prepargs, and calculate the
+         * deopt position. */
+        MVMSpeshAnn *stolen_deopt_ann = steal_prepargs_deopt(tc, ins);
+        MVMuint32 deopt_to = g->deopt_addrs[2 * stolen_deopt_ann->data.deopt_idx];
+
         /* Collect registers that go with each argument, and delete the arg
          * and prepargs instructions. */
         MVMuint32 arg_regs_length;
         MVMSpeshOperand *arg_regs = arg_ins_to_reg_list(tc, g, bb, ins, &arg_regs_length);
-        MVMuint32 deopt_to = bytecode_offset - (
-                6 * arg_regs_length +   /* The bytes the args instructions use */
-                4);                     /* The bytes of the prepargs instruction */
 
         /* Find result and add it to a spesh slot. */
         MVMObject *resolvee = gs->guards[guard_index].u.result;
@@ -539,6 +559,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                     guard_ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
                             (MVMCollectable *)guard->u.object);
                     guard_ins->operands[2].lit_ui32 = deopt_to;
+                    guard_ins->annotations = stolen_deopt_ann;
                     MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
                     break;
                 }
@@ -551,6 +572,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                     guard_ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
                             (MVMCollectable *)guard->u.type);
                     guard_ins->operands[2].lit_ui32 = deopt_to;
+                    guard_ins->annotations = stolen_deopt_ann;
                     MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
                     break;
                 }
@@ -561,6 +583,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                     guard_ins->operands[0] = arg_regs[guard->test_idx];
                     MVM_spesh_get_facts(tc, g, arg_regs[guard->test_idx])->usages++;
                     guard_ins->operands[1].lit_ui32 = deopt_to;
+                    guard_ins->annotations = stolen_deopt_ann;
                     MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
                     break;
                 }
@@ -571,6 +594,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                     guard_ins->operands[0] = arg_regs[guard->test_idx];
                     MVM_spesh_get_facts(tc, g, arg_regs[guard->test_idx])->usages++;
                     guard_ins->operands[1].lit_ui32 = deopt_to;
+                    guard_ins->annotations = stolen_deopt_ann;
                     MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
                     break;
                 }
