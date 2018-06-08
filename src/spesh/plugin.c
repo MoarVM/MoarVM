@@ -647,6 +647,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                             guard->kind);
             }
         }
+        MVM_free(arg_regs);
     }
 }
 
