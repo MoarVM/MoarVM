@@ -55,3 +55,5 @@ struct MVMSpeshFacts {
 void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p);
 void MVM_spesh_facts_depend(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVMSpeshFacts *target, MVMSpeshFacts *source);
+void MVM_spesh_facts_object_facts(MVMThreadContext *tc, MVMSpeshGraph *g,
+    MVMSpeshOperand tgt, MVMObject *obj);

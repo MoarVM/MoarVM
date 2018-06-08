@@ -545,6 +545,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
         /* Rewrite resolve instruction into a spesh slot lookup. */
         ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
         ins->operands[1].lit_i16 = resolvee_slot;
+        MVM_spesh_facts_object_facts(tc, g, ins->operands[0], resolvee);
 
         /* Prepend guards. */
         while (++guards_start <= guards_end) {

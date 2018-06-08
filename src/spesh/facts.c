@@ -94,6 +94,10 @@ static void object_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 tgt_o
         g->facts[tgt_orig][tgt_i].flags |= MVM_SPESH_FACT_TYPEOBJ | MVM_SPESH_FACT_DECONTED;
     }
 }
+void MVM_spesh_facts_object_facts(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                  MVMSpeshOperand tgt, MVMObject *obj) {
+    object_facts(tc, g, tgt.reg.orig, tgt.reg.i, obj);
+}
 
 /* Propagates information relating to decontainerization. */
 static void decont_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
