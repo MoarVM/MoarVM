@@ -739,16 +739,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = pow(GET_REG(cur_op, 2).n64, GET_REG(cur_op, 4).n64);
                 cur_op += 6;
                 goto NEXT;
-            OP(ceil_n):{
+            OP(ceil_n):
                 GET_REG(cur_op, 0).n64 = ceil(GET_REG(cur_op, 2).n64);
                 cur_op += 4;
                 goto NEXT;
-            }
-            OP(floor_n): {
+            OP(floor_n):
                 GET_REG(cur_op, 0).n64 = floor(GET_REG(cur_op, 2).n64);
                 cur_op += 4;
                 goto NEXT;
-            }
             OP(sin_n):
                 GET_REG(cur_op, 0).n64 = sin(GET_REG(cur_op, 2).n64);
                 cur_op += 4;
@@ -822,16 +820,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = (MVMint64)GET_REG(cur_op, 2).n64;
                 cur_op += 4;
                 goto NEXT;
-            OP(coerce_is): {
+            OP(coerce_is):
                 GET_REG(cur_op, 0).s = MVM_coerce_i_s(tc, GET_REG(cur_op, 2).i64);
                 cur_op += 4;
                 goto NEXT;
-            }
-            OP(coerce_ns): {
+            OP(coerce_ns):
                 GET_REG(cur_op, 0).s = MVM_coerce_n_s(tc, GET_REG(cur_op, 2).n64);
                 cur_op += 4;
                 goto NEXT;
-            }
             OP(coerce_si):
                 GET_REG(cur_op, 0).i64 = MVM_coerce_s_i(tc, GET_REG(cur_op, 2).s);
                 cur_op += 4;
@@ -1522,13 +1518,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
                 cur_op += 6;
                 goto NEXT;
-            OP(unicmp_s):
-                GET_REG(cur_op, 0).i64 = MVM_unicode_string_compare(tc,
-                    GET_REG(cur_op,  2).s,   GET_REG(cur_op, 4).s,
-                    GET_REG(cur_op,  6).i64, GET_REG(cur_op, 8).i64,
-                    GET_REG(cur_op, 10).i64);
-                cur_op += 12;
-                goto NEXT;
             OP(eqat_s):
                 GET_REG(cur_op, 0).i64 = MVM_string_equal_at(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
@@ -1537,12 +1526,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(eqatic_s):
                 GET_REG(cur_op, 0).i64 = MVM_string_equal_at_ignore_case(tc,
-                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
-                    GET_REG(cur_op, 6).i64);
-                cur_op += 8;
-                goto NEXT;
-            OP(eqaticim_s):
-                GET_REG(cur_op, 0).i64 = MVM_string_equal_at_ignore_case_ignore_mark(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
                     GET_REG(cur_op, 6).i64);
                 cur_op += 8;
@@ -1572,16 +1555,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(index_s):
                 GET_REG(cur_op, 0).i64 = MVM_string_index(tc,
-                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
-                cur_op += 8;
-                goto NEXT;
-            OP(indexic_s):
-                GET_REG(cur_op, 0).i64 = MVM_string_index_ignore_case(tc,
-                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
-                cur_op += 8;
-                goto NEXT;
-            OP(indexicim_s):
-                GET_REG(cur_op, 0).i64 = MVM_string_index_ignore_case_ignore_mark(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
                 cur_op += 8;
                 goto NEXT;
@@ -1630,11 +1603,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(getcpbyname):
                 GET_REG(cur_op, 0).i64 = MVM_unicode_lookup_by_name(tc,
-                    GET_REG(cur_op, 2).s);
-                cur_op += 4;
-                goto NEXT;
-            OP(getstrfromname):
-                GET_REG(cur_op, 0).s = MVM_unicode_string_from_name(tc,
                     GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
@@ -3208,33 +3176,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_load_bytecode(tc, filename);
                 goto NEXT;
             }
-            OP(loadbytecodebuffer): {
-                /* This op will end up returning into the runloop to run
-                 * deserialization and load code, so make sure we're done
-                 * processing this op really. */
-                MVMObject *buffer = GET_REG(cur_op, 0).o;
-                cur_op += 2;
-
-                /* Set up return (really continuation after load) address
-                 * and enter bytecode loading process. */
-                tc->cur_frame->return_address = cur_op;
-                MVM_load_bytecode_buffer(tc, buffer);
-                goto NEXT;
-            }
-            OP(loadbytecodefh): {
-                /* This op will end up returning into the runloop to run
-                 * deserialization and load code, so make sure we're done
-                 * processing this op really. */
-                MVMObject *file = GET_REG(cur_op, 0).o;
-                MVMString *filename = GET_REG(cur_op, 2).s;
-                cur_op += 4;
-
-                /* Set up return (really continuation after load) address
-                 * and enter bytecode loading process. */
-                tc->cur_frame->return_address = cur_op;
-                MVM_load_bytecode_fh(tc, file, filename);
-                goto NEXT;
-            }
             OP(masttofile):
                 MVM_mast_to_file(tc, GET_REG(cur_op, 0).o,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s);
@@ -3656,10 +3597,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(socket):
                 GET_REG(cur_op, 0).o = MVM_io_socket_create(tc, GET_REG(cur_op, 2).i64);
-                cur_op += 4;
-                goto NEXT;
-            OP(getport_sk):
-                GET_REG(cur_op, 0).i64 = MVM_io_getport(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             OP(bind_sk):
@@ -5043,6 +4980,33 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(loadbytecodebuffer): {
+                /* This op will end up returning into the runloop to run
+                 * deserialization and load code, so make sure we're done
+                 * processing this op really. */
+                MVMObject *buffer = GET_REG(cur_op, 0).o;
+                cur_op += 2;
+
+                /* Set up return (really continuation after load) address
+                 * and enter bytecode loading process. */
+                tc->cur_frame->return_address = cur_op;
+                MVM_load_bytecode_buffer(tc, buffer);
+                goto NEXT;
+            }
+            OP(loadbytecodefh): {
+                /* This op will end up returning into the runloop to run
+                 * deserialization and load code, so make sure we're done
+                 * processing this op really. */
+                MVMObject *file = GET_REG(cur_op, 0).o;
+                MVMString *filename = GET_REG(cur_op, 2).s;
+                cur_op += 4;
+
+                /* Set up return (really continuation after load) address
+                 * and enter bytecode loading process. */
+                tc->cur_frame->return_address = cur_op;
+                MVM_load_bytecode_fh(tc, file, filename);
+                goto NEXT;
+            }
             OP(throwpayloadlex): {
                 MVMRegister *rr      = &GET_REG(cur_op, 0);
                 MVMuint32    cat     = (MVMuint32)MVM_BC_get_I64(cur_op, 2);
@@ -5098,12 +5062,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(indexim_s): {
-                GET_REG(cur_op, 0).i64 = MVM_string_index_ignore_mark(tc,
-                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
-                cur_op += 8;
-                goto NEXT;
-            }
             OP(decodertakeallchars): {
                 MVMObject *decoder = GET_REG(cur_op, 2).o;
                 MVM_decoder_ensure_decoder(tc, decoder, "decodertakeallchars");
@@ -5156,6 +5114,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_frame_capture_inner(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
+            OP(unicmp_s):
+                GET_REG(cur_op, 0).i64 = MVM_unicode_string_compare(tc,
+                    GET_REG(cur_op,  2).s,   GET_REG(cur_op, 4).s,
+                    GET_REG(cur_op,  6).i64, GET_REG(cur_op, 8).i64,
+                    GET_REG(cur_op, 10).i64);
+                cur_op += 12;
+                goto NEXT;
             OP(setdispatcherfor): {
                 MVMObject *disp_for = GET_REG(cur_op, 2).o;
                 tc->cur_dispatcher = GET_REG(cur_op, 0).o;
@@ -5165,17 +5130,48 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(getstrfromname):
+                GET_REG(cur_op, 0).s = MVM_unicode_string_from_name(tc,
+                    GET_REG(cur_op, 2).s);
+                cur_op += 4;
+                goto NEXT;
+            OP(indexic_s):
+                GET_REG(cur_op, 0).i64 = MVM_string_index_ignore_case(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            OP(getport_sk):
+                GET_REG(cur_op, 0).i64 = MVM_io_getport(tc, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(cpucores): {
                 GET_REG(cur_op, 0).i32 = MVM_platform_cpu_count();
                 cur_op += 2;
                 goto NEXT;
             }
+            OP(eqaticim_s):
+                GET_REG(cur_op, 0).i64 = MVM_string_equal_at_ignore_case_ignore_mark(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
+                    GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            OP(indexicim_s):
+                GET_REG(cur_op, 0).i64 = MVM_string_index_ignore_case_ignore_mark(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
             OP(decodertakecharseof): {
                 MVMObject *decoder = GET_REG(cur_op, 2).o;
                 MVM_decoder_ensure_decoder(tc, decoder, "decodertakecharseof");
                 GET_REG(cur_op, 0).s = MVM_decoder_take_chars(tc, (MVMDecoder *)decoder,
                     GET_REG(cur_op, 4).i64, 1);
                 cur_op += 6;
+                goto NEXT;
+            }
+            OP(indexim_s): {
+                GET_REG(cur_op, 0).i64 = MVM_string_index_ignore_mark(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
                 goto NEXT;
             }
             OP(cas_o): {
@@ -5233,6 +5229,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(barrierfull):
                 MVM_barrier();
                 goto NEXT;
+            OP(coveragecontrol): {
+                MVMuint32 cc = (MVMuint32)GET_REG(cur_op, 0).i64;
+                if (tc->instance->coverage_control && (cc == 0 || cc == 1))
+                    tc->instance->coverage_control = cc + 1;
+                cur_op += 2;
+                goto NEXT;
+            }
             OP(nativeinvoke_v):
                 tc->cur_frame->return_value = NULL;
                 tc->cur_frame->return_type = MVM_RETURN_VOID;
@@ -5994,13 +5997,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMuint32 line_no  = GET_UI32(cur_op, 4);
                 MVM_debugserver_breakpoint_check(tc, file_idx, line_no);
                 cur_op += 8;
-                goto NEXT;
-            }
-            OP(coveragecontrol): {
-                MVMuint32 cc = (MVMuint32)GET_REG(cur_op, 0).i64;
-                if (tc->instance->coverage_control && (cc == 0 || cc == 1))
-                    tc->instance->coverage_control = cc + 1;
-                cur_op += 2;
                 goto NEXT;
             }
 #if MVM_CGOTO
