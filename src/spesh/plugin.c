@@ -250,9 +250,31 @@ void free_dead_state(MVMThreadContext *tc, MVMSpeshPluginState *ps) {
 /* Data for use with special return mechanism to store the result of a
  * resolution. */
 typedef struct {
+    /* Current speshresolve we're handling. */
     MVMRegister *result;
     MVMuint32 position;
+
+    /* The speshresolve that was in dynamic scope when we started this one,
+     * if any. */
+    MVMSpeshPluginGuard *prev_plugin_guards;
+    MVMObject *prev_plugin_guard_args;
+    MVMuint32 prev_num_plugin_guards;
 } MVMSpeshPluginSpecialReturnData;
+
+/* Callback to mark the special return data. */
+static void mark_plugin_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
+    MVMSpeshPluginSpecialReturnData *srd = (MVMSpeshPluginSpecialReturnData *)
+        frame->extra->special_return_data;
+    MVM_gc_worklist_add(tc, worklist, &(srd->prev_plugin_guard_args));
+}
+
+/* Restore the spesh plugin resolve state that was in dynamic scope when we
+ * started this spesh resolve. */
+static void restore_prev_spesh_plugin_state(MVMThreadContext *tc, MVMSpeshPluginSpecialReturnData *srd) {
+    tc->plugin_guards = srd->prev_plugin_guards;
+    tc->plugin_guard_args = srd->prev_plugin_guard_args;
+    tc->num_plugin_guards = srd->prev_num_plugin_guards;
+}
 
 /* Callback after a resolver to update the guard structure. */
 static void add_resolution_to_guard_set(MVMThreadContext *tc, void *sr_data) {
@@ -283,8 +305,7 @@ static void add_resolution_to_guard_set(MVMThreadContext *tc, void *sr_data) {
     MVM_fixed_size_free(tc, tc->instance->fsa,
             MVM_SPESH_PLUGIN_GUARD_LIMIT * sizeof(MVMSpeshPluginGuard),
             tc->plugin_guards);
-    tc->plugin_guards = NULL;
-    tc->plugin_guard_args = NULL;
+    restore_prev_spesh_plugin_state(tc, srd);
 
     MVM_free(srd);
 }
@@ -292,20 +313,18 @@ static void add_resolution_to_guard_set(MVMThreadContext *tc, void *sr_data) {
 /* When we throw an exception when evaluating a resolver, then clean up any
  * recorded guards so as not to leak memory. */
 static void cleanup_recorded_guards(MVMThreadContext *tc, void *sr_data) {
+    MVMSpeshPluginSpecialReturnData *srd = (MVMSpeshPluginSpecialReturnData *)sr_data;
     MVM_fixed_size_free(tc, tc->instance->fsa,
             MVM_SPESH_PLUGIN_GUARD_LIMIT * sizeof(MVMSpeshPluginGuard),
             tc->plugin_guards);
-    tc->plugin_guards = NULL;
-    tc->plugin_guard_args = NULL;
-    MVM_free(sr_data);
+    restore_prev_spesh_plugin_state(tc, srd);
+    MVM_free(srd);
 }
 
 /* Sets up state in the current thread context for recording guards. */
 static void setup_for_guard_recording(MVMThreadContext *tc, MVMCallsite *callsite) {
     /* Validate the callsite meets restrictions. */
     MVMuint32 i = 0;
-    if (tc->plugin_guards)
-        MVM_exception_throw_adhoc(tc, "Recursive spesh plugin setup not yet implemented");
     if (callsite->num_pos != callsite->flag_count)
         MVM_exception_throw_adhoc(tc, "A spesh plugin must have only positional args");
     if (callsite->has_flattening)
@@ -341,7 +360,13 @@ void MVM_spesh_plugin_resolve(MVMThreadContext *tc, MVMString *name,
             MVM_spesh_log_plugin_resolution(tc, position, guard_offset);
     }
     else {
-        /* No pre-resolved value, so we need to run the plugin. Find it. */
+        /* No pre-resolved value, so we need to run the plugin. Capture state
+         * of any ongoing spesh plugin resolve. */
+        MVMSpeshPluginGuard *prev_plugin_guards = tc->plugin_guards;
+        MVMObject *prev_plugin_guard_args = tc->plugin_guard_args;
+        MVMuint32 prev_num_plugin_guards = tc->num_plugin_guards;
+
+        /* Find the plugin. */
         MVMSpeshPluginSpecialReturnData *srd;
         MVMObject *plugin = NULL;
         MVMHLLConfig *hll = MVM_hll_current(tc);
@@ -358,7 +383,7 @@ void MVM_spesh_plugin_resolve(MVMThreadContext *tc, MVMString *name,
         }
 
         /* Set up the guard state to record into. */
-        MVMROOT(tc, plugin, {
+        MVMROOT2(tc, plugin, prev_plugin_guard_args, {
             setup_for_guard_recording(tc, callsite);
         });
 
@@ -369,8 +394,11 @@ void MVM_spesh_plugin_resolve(MVMThreadContext *tc, MVMString *name,
         srd = MVM_malloc(sizeof(MVMSpeshPluginSpecialReturnData));
         srd->result = result;
         srd->position = position;
+        srd->prev_plugin_guards = prev_plugin_guards;
+        srd->prev_plugin_guard_args = prev_plugin_guard_args;
+        srd->prev_num_plugin_guards = prev_num_plugin_guards;
         MVM_frame_special_return(tc, tc->cur_frame, add_resolution_to_guard_set,
-                cleanup_recorded_guards, srd, NULL);
+                cleanup_recorded_guards, srd, mark_plugin_sr_data);
         STABLE(plugin)->invoke(tc, plugin, callsite, tc->cur_frame->args);
     }
 }
