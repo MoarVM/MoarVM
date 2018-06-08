@@ -2,8 +2,10 @@
 
 #include <signal.h>
 #ifdef _WIN32
+/* Add signals used by libuv but not defined in the Windows signal.h */
 #define SIGHUP      1
 #define SIGKILL     9
+#define SIGBREAK    21
 #define SIGWINCH    28
 #endif
 
