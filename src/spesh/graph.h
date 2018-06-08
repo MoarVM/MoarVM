@@ -259,6 +259,7 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
 MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStaticFrame *sf,
     MVMSpeshCandidate *cand, MVMuint32 cfg_only);
 MVMSpeshBB * MVM_spesh_graph_linear_prev(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *search);
+void MVM_spesh_graph_grow_deopt_table(MVMThreadContext *tc, MVMSpeshGraph *g);
 void MVM_spesh_graph_add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVMSpeshIns *ins_node, MVMuint32 deopt_target, MVMint32 type);
 void MVM_spesh_graph_recompute_dominance(MVMThreadContext *tc, MVMSpeshGraph *g);

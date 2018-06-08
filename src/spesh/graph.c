@@ -33,6 +33,19 @@ static const MVMOpInfo * get_op_info(MVMThreadContext *tc, MVMCompUnit *cu, MVMu
     }
 }
 
+/* Grows the spesh graph's deopt table if it is already full, so that we have
+ * space for 1 more entry. */
+void MVM_spesh_graph_grow_deopt_table(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    if (g->num_deopt_addrs == g->alloc_deopt_addrs) {
+        g->alloc_deopt_addrs += 8;
+        if (g->deopt_addrs)
+            g->deopt_addrs = MVM_realloc(g->deopt_addrs,
+                g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
+        else
+            g->deopt_addrs = MVM_malloc(g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
+    }
+}
+
 /* Records a de-optimization annotation and mapping pair. */
 void MVM_spesh_graph_add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g,
                                           MVMSpeshIns *ins_node, MVMuint32 deopt_target,
@@ -45,14 +58,7 @@ void MVM_spesh_graph_add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g
     ins_node->annotations = ann;
 
     /* Record PC in the deopt entries table. */
-    if (g->num_deopt_addrs == g->alloc_deopt_addrs) {
-        g->alloc_deopt_addrs += 4;
-        if (g->deopt_addrs)
-            g->deopt_addrs = MVM_realloc(g->deopt_addrs,
-                g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
-        else
-            g->deopt_addrs = MVM_malloc(g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
-    }
+    MVM_spesh_graph_grow_deopt_table(tc, g);
     g->deopt_addrs[2 * g->num_deopt_addrs] = deopt_target;
     g->num_deopt_addrs++;
 }

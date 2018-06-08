@@ -515,6 +515,16 @@ MVMSpeshAnn * steal_prepargs_deopt(MVMThreadContext *tc, MVMSpeshIns *ins) {
     }
     MVM_oops(tc, "Could not find prepargs before speshresolve");
 }
+MVMSpeshAnn * clone_deopt_ann(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshAnn *in) {
+    MVMSpeshAnn *cloned = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+    MVMuint32 deopt_idx = g->num_deopt_addrs;
+    cloned->type = in->type;
+    cloned->data.deopt_idx = deopt_idx;
+    MVM_spesh_graph_grow_deopt_table(tc, g);
+    g->deopt_addrs[deopt_idx * 2] = g->deopt_addrs[in->data.deopt_idx * 2];
+    g->num_deopt_addrs++;
+    return cloned;
+}
 void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                       MVMSpeshIns *ins, MVMuint32 bytecode_offset,
                                       MVMint32 guard_index) {
@@ -525,6 +535,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
         /* Steal the deopt annotation from the prepargs, and calculate the
          * deopt position. */
         MVMSpeshAnn *stolen_deopt_ann = steal_prepargs_deopt(tc, ins);
+        MVMuint32 stolen_deopt_ann_used = 0;
         MVMuint32 deopt_to = g->deopt_addrs[2 * stolen_deopt_ann->data.deopt_idx];
 
         /* Collect registers that go with each argument, and delete the arg
@@ -550,6 +561,10 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
         /* Prepend guards. */
         while (++guards_start <= guards_end) {
             MVMSpeshPluginGuard *guard = &(gs->guards[guards_start]);
+            if (stolen_deopt_ann_used)
+                stolen_deopt_ann = clone_deopt_ann(tc, g, stolen_deopt_ann);
+            else
+                stolen_deopt_ann_used = 1;
             switch (guard->kind) {
                 case MVM_SPESH_PLUGIN_GUARD_OBJ: {
                     MVMSpeshIns *guard_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
