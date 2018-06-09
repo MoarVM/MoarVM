@@ -2143,15 +2143,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-            OP(unbox_s): {
-                MVMObject *obj = GET_REG(cur_op, 2).o;
-                if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot unbox a type object (%s) to a str.", MVM_6model_get_debug_name(tc, obj));
-                GET_REG(cur_op, 0).s = REPR(obj)->box_funcs.get_str(tc,
-                    STABLE(obj), obj, OBJECT_BODY(obj));
+            OP(unbox_s):
+                GET_REG(cur_op, 0).s = MVM_unbox_str(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            }
             OP(atpos_i): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
