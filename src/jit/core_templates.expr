@@ -230,12 +230,32 @@
       (carg $1 ptr)
       (carg $2 int)) int_sz))
 
+(template: getuniname
+  (call (^func &MVM_unicode_get_name)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)) ptr_sz))
+
+(template: ordfirst
+  (call (^func &MVM_string_ord_at)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg (const 0 int_sz) int)) int_sz))
+
 (template: concat_s
   (call (^func &MVM_string_concatenate)
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)
       (carg $2 ptr)) ptr_sz))
+
+(template: repeat_s
+  (call (^func &MVM_string_repeat)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 int)) ptr_sz))
 
 (template: uc
   (call (^func &MVM_string_uc)
@@ -297,11 +317,150 @@
       (carg (tc) ptr)
       (carg $1 ptr)) int_sz))
 
+(template: haveat_s
+  (call (^func &MVM_string_have_at)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 int)
+      (carg $3 int)
+      (carg $4 ptr)
+      (carg $5 int)) int_sz))
+
+
 (template: codes_s
   (call (^func &MVM_string_codes)
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)) int_sz))
+
+(template: getcpbyname
+  (call (^func &MVM_unicode_lookup_by_name)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) int_sz))
+
+(template: unipropcode
+  (call (^func &MVM_unicode_name_to_property_code)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) int_sz))
+
+(template: unipvalcode
+  (call (^func &MVM_unicode_name_to_property_value_code)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)
+      (carg $2 ptr)) int_sz))
+
+(template: hasuniprop
+  (call (^func &MVM_string_offset_has_unicode_property_value)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 int)
+      (carg $3 int)
+      (carg $4 int)) int_sz))
+
+(template: getuniprop_int
+  (call (^func &MVM_unicode_codepoint_get_property_int)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)
+      (carg $2 int)) int_sz))
+
+(template: getuniprop_bool
+  (call (^func &MVM_unicode_codepoint_get_property_bool)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)
+      (carg $2 int)) int_sz))
+
+(template: getuniprop_str
+  (call (^func &MVM_unicode_codepoint_get_property_str)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)
+      (carg $2 int)) ptr_sz))
+
+(template: nativecallbuild
+  (call (^func &MVM_nativecall_build)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 ptr)
+      (carg $4 ptr)
+      (carg $5 ptr)
+      (carg $6 ptr)) int_sz))
+
+(template: nativecallinvoke
+  (call (^func &MVM_nativecall_invoke)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 ptr)) ptr_sz))
+
+# XXX check this
+(template: nativecallrefresh
+  (callv (^func &MVM_nativecall_refresh)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr))))
+
+# XXX check this
+(template: threadrun
+  (callv (^func &MVM_thread_run)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr))))
+
+(template: threadid
+  (call (^func &MVM_thread_id)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) int_sz))
+
+(template: threadyield
+  (callv (^func &MVM_thread_yield)
+    (arglist
+      (carg (tc) ptr))))
+
+(template: currentthread
+  (call (^func &MVM_thread_current)
+    (arglist
+      (carg (tc) ptr)) ptr_sz))
+
+(template: lock
+  (callv (^func &MVM_reentrantmutex_lock_checked)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr))))
+
+(template: unlock
+  (callv (^func &MVM_reentrantmutex_unlock_checked)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr))))
+
+(template: timer
+  (call (^func &MVM_io_timer_create)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 int)
+      (carg $4 int)
+      (carg $5 ptr)) ptr_sz))
+
+(template: matchuniprop
+  (call (^func &MVM_unicode_codepoint_has_property_value)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)
+      (carg $2 int)
+      (carg $3 int)) ptr_sz))
 
 (template: substr_s
   (call (^func &MVM_string_substring)
