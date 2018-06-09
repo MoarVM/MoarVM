@@ -841,6 +841,13 @@ void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, const char *buf) {
         body->u.bigint = i;
     }
 }
+MVMObject * MVM_coerce_sI(MVMThreadContext *tc, MVMString *s, MVMObject *type) {
+    char *buf    = MVM_string_ascii_encode(tc, s, NULL, 0);
+    MVMObject *a = MVM_repr_alloc_init(tc, type);
+    MVM_bigint_from_str(tc, a, buf);
+    MVM_free(buf);
+    return a;
+}
 
 MVMObject * MVM_bigint_from_bigint(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a) {
     MVMP6bigintBody *a_body;

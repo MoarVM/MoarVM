@@ -2,7 +2,6 @@
 #include <math.h>
 #include "platform/time.h"
 #include "platform/sys.h"
-#include "strings/unicode_ops.h"
 
 /* Macros for getting things from the bytecode stream. */
 #if MVM_GC_DEBUG == 2
@@ -1655,7 +1654,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(chr):
-                GET_REG(cur_op, 0).s = MVM_string_chr(tc, (MVMCodepoint)GET_REG(cur_op, 2).i64);
+                GET_REG(cur_op, 0).s = MVM_string_chr(tc, GET_REG(cur_op, 2).i64);
                 cur_op += 4;
                 goto NEXT;
             OP(ordfirst): {
@@ -3461,21 +3460,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(coerce_sI): {
-                MVMString *s = GET_REG(cur_op, 2).s;
-                MVMObject *type = GET_REG(cur_op, 4).o;
-                char *buf = MVM_string_ascii_encode(tc, s, NULL, 0);
-                MVMObject *a = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_from_str(tc, a, buf);
-                MVM_free(buf);
-                GET_REG(cur_op, 0).o = a;
+                GET_REG(cur_op, 0).o = MVM_coerce_sI(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o);
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(isbig_I): {
+            OP(isbig_I):
                 GET_REG(cur_op, 0).i64 = MVM_bigint_is_big(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            }
             OP(bool_I):
                 GET_REG(cur_op, 0).i64 = MVM_bigint_bool(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
@@ -5971,6 +5963,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_cross_thread_write_check(tc, obj, blame);
                 goto NEXT;
             }
+            /* The compiler compiles faster if all deprecated are together and at the end
+             * even though the op numbers are technically out of order. */
             OP(DEPRECATED_4):
             OP(DEPRECATED_5):
             OP(DEPRECATED_6):

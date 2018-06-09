@@ -211,8 +211,135 @@
       (carg $2 ptr)
       (carg $3 int)) int_sz))
 
+(template: eqatic_s
+  (call (^func &MVM_string_equal_at_ignore_case)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 int)) int_sz))
+
+(template: eqatim_s
+  (call (^func &MVM_string_equal_at_ignore_mark)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 int)) int_sz))
+
+(template: ordbaseat
+  (call (^func &MVM_string_ord_basechar_at)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 int)) int_sz))
+
 (template: concat_s
   (call (^func &MVM_string_concatenate)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)) ptr_sz))
+
+(template: uc
+  (call (^func &MVM_string_uc)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) ptr_sz))
+
+(template: lc
+  (call (^func &MVM_string_lc)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) ptr_sz))
+
+(template: tc
+  (call (^func &MVM_string_tc)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) ptr_sz))
+
+(template: split
+  (call (^func &MVM_string_split)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)) ptr_sz))
+
+(template: join
+  (call (^func &MVM_string_join)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)) ptr_sz))
+
+(template: getcp_s
+  (call (^func &MVM_string_get_grapheme_at)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 int)) int_sz))
+
+(template: indexcp_s
+  (call (^func &MVM_string_index_of_grapheme)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 int)) int_sz))
+
+(template: index_s
+  (call (^func &MVM_string_index)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 int)) int_sz))
+
+(template: graphs_s
+  (call (^func &MVM_string_graphs)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) int_sz))
+
+(template: codes_s
+  (call (^func &MVM_string_codes)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) int_sz))
+
+(template: substr_s
+  (call (^func &MVM_string_substring)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 int)
+      (carg $3 int)) ptr_sz))
+
+(template: ordat
+  (call (^func &MVM_string_ord_at)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 int)) int_sz))
+
+(template: chr
+  (call (^func &MVM_string_chr)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)) ptr_sz))
+
+(template: getenvhash
+  (call (^func &MVM_proc_getenvhash)
+    (arglist
+      (carg (tc) ptr)) ptr_sz))
+
+(template: backendconfig
+  (call (^func &MVM_backend_config)
+    (arglist
+      (carg (tc) ptr)) ptr_sz))
+
+(template: coerce_sI
+  (call (^func &MVM_coerce_sI)
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)
@@ -826,6 +953,46 @@
   (call (^func &MVM_io_get_signals)
     (arglist
       (carg (tc) ptr)) ptr_sz))
+
+(template: eqaticim_s
+  (call (^func &MVM_string_equal_at_ignore_case_ignore_mark)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 int)) int_sz))
+
+(template: unicmp_s
+  (call (^func &MVM_unicode_string_compare)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 int)
+      (carg $4 int)
+      (carg $4 int)) int_sz))
+
+(template: indexicim_s
+  (call (^func &MVM_string_index_ignore_case_ignore_mark)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 int)) int_sz))
+
+(template: getstrfromname
+  (call (^func &MVM_unicode_string_from_name)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) ptr_sz))
+
+(template: indexic_s
+  (call (^func &MVM_string_index_ignore_case)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 int)) int_sz))
 
 (template: slice!
   (let: (
