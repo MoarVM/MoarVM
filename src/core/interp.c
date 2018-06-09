@@ -5131,11 +5131,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_io_getport(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            OP(cpucores): {
+            OP(cpucores):
                 GET_REG(cur_op, 0).i32 = MVM_platform_cpu_count();
                 cur_op += 2;
                 goto NEXT;
-            }
             OP(eqaticim_s):
                 GET_REG(cur_op, 0).i64 = MVM_string_equal_at_ignore_case_ignore_mark(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
@@ -5155,12 +5154,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(indexim_s): {
+            OP(indexim_s):
                 GET_REG(cur_op, 0).i64 = MVM_string_index_ignore_mark(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
                 cur_op += 8;
                 goto NEXT;
-            }
             OP(cas_o): {
                 MVMRegister *result = &GET_REG(cur_op, 0);
                 MVMObject *target = GET_REG(cur_op, 2).o;
