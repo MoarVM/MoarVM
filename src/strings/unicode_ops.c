@@ -921,7 +921,7 @@ static void generate_property_codes_by_seq_names(MVMThreadContext *tc) {
     }
 }
 
-MVMint32 MVM_unicode_name_to_property_code(MVMThreadContext *tc, MVMString *name) {
+MVMint64 MVM_unicode_name_to_property_code(MVMThreadContext *tc, MVMString *name) {
     MVMuint64 size;
     char *cname = MVM_string_ascii_encode(tc, name, &size, 0);
     MVMUnicodeNameRegistry *result;
@@ -985,7 +985,7 @@ MVMint32 unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64 pro
     HASH_FIND(hash_handle, unicode_property_values_hashes[property_code], out_str, out_str_length - 1, result);
     return result ? result->codepoint : 0;
 }
-MVMint32 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, MVMString *name) {
+MVMint64 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, MVMString *name) {
     if (property_code <= 0 || MVM_NUM_PROPERTY_CODES <= property_code)
         return 0;
     else {
