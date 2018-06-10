@@ -111,7 +111,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 #endif
 
         /* The ops should be in the same order here as in the oplist file, so
-         * the compiler can can optimise the switch properly */
+         * the compiler can can optimise the switch properly. To check if they
+         * are in the same order as the oplist use the
+         * tools/compare-oplist-interp-order.sh helper script. */
         DISPATCH(NEXT_OP) {
             OP(no_op):
                 goto NEXT;
