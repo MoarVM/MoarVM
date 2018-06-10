@@ -1,5 +1,11 @@
 #!/usr/bin/env perl6
-# This script
+# This script parses the expression templates and orders it based on the
+# oplist order. It attaches any text between two template definitions
+# (i.e. comments) with the following op so that comments are preserved.
+# Any text before the first template is pinned to the top of the output
+# file. Before writing over the previous expression template file it makes
+# sure the output is the same number of graphemes as the input (minus
+# newlines).
 my Str:D $file = slurp 'src/jit/core_templates.expr';
 my @spots;
 my @newlines;
