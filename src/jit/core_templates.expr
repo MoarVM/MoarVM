@@ -8,6 +8,10 @@
 # opcode preprocessor inserts loads, and immediate nodes for arguments
 # automatically.
 
+# Add templates where you wish and then once you are done run
+# tools/sort-expr-templates-by-oplist-order.p6 to sort it in the same order as
+# the oplist.
+
 (template: const_i16 (copy $1))
 (template: const_i64 (copy $1))
 (template: const_n64 (copy $1))
@@ -706,11 +710,11 @@
 (template: hllboxtype_i
   (^getf (^hllconfig) MVMHLLConfig int_box_type))
 
-(template: hllboxtype_s
-  (^getf (^hllconfig) MVMHLLConfig str_box_type))
-
 (template: hllboxtype_n
   (^getf (^hllconfig) MVMHLLConfig num_box_type))
+
+(template: hllboxtype_s
+  (^getf (^hllconfig) MVMHLLConfig str_box_type))
 
 (template: hllize!
   (callv (^func &MVM_hll_map)
@@ -922,4 +926,3 @@
       (carg (tc) ptr)
       (carg (^spesh_slot_value $1) ptr)
       (carg $2 int)) ptr_sz))
-
