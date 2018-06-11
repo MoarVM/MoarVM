@@ -652,6 +652,8 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                     break;
                 }
                 case MVM_SPESH_PLUGIN_GUARD_GETATTR: {
+                    MVMSpeshFacts *facts;
+
                     /* This isn't really a guard, but rather a request to insert
                      * a getattr instruction. We also need a target register for
                      * it, and will allocate a temporary one for it. */
@@ -674,6 +676,9 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                     spesh_ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
                         (MVMCollectable *)guard->u.attr.class_handle);
                     MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, spesh_ins);
+                    facts = MVM_spesh_get_facts(tc, g, ch_temp);
+                    facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+                    facts->type = guard->u.attr.class_handle;
 
                     /* Emit spesh slot lookup instruction for the attr name. */
                     spesh_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
@@ -683,6 +688,9 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                     spesh_ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
                         (MVMCollectable *)guard->u.attr.name);
                     MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, spesh_ins);
+                    facts = MVM_spesh_get_facts(tc, g, name_temp);
+                    facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+                    facts->value.s = guard->u.attr.name;
 
                     /* Emit the getattr instruction. */
                     spesh_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
