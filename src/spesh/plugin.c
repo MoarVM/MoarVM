@@ -568,7 +568,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
 
         /* Collect registers that go with each argument, and delete the arg
          * and prepargs instructions. */
-        MVMuint32 arg_regs_length;
+        MVMuint32 initial_arg_regs_length, arg_regs_length, i;
         MVMSpeshOperand *arg_regs = arg_ins_to_reg_list(tc, g, bb, ins, &arg_regs_length);
 
         /* Find result and add it to a spesh slot. */
@@ -587,12 +587,15 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
         MVM_spesh_facts_object_facts(tc, g, ins->operands[0], resolvee);
 
         /* Prepend guards. */
+        initial_arg_regs_length = arg_regs_length;
         while (++guards_start <= guards_end) {
             MVMSpeshPluginGuard *guard = &(gs->guards[guards_start]);
-            if (stolen_deopt_ann_used)
-                stolen_deopt_ann = clone_deopt_ann(tc, g, stolen_deopt_ann);
-            else
-                stolen_deopt_ann_used = 1;
+            if (guard->kind != MVM_SPESH_PLUGIN_GUARD_GETATTR) {
+                if (stolen_deopt_ann_used)
+                    stolen_deopt_ann = clone_deopt_ann(tc, g, stolen_deopt_ann);
+                else
+                    stolen_deopt_ann_used = 1;
+            }
             switch (guard->kind) {
                 case MVM_SPESH_PLUGIN_GUARD_OBJ: {
                     MVMSpeshIns *guard_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
@@ -642,11 +645,72 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                     MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
                     break;
                 }
+                case MVM_SPESH_PLUGIN_GUARD_GETATTR: {
+                    /* This isn't really a guard, but rather a request to insert
+                     * a getattr instruction. We also need a target register for
+                     * it, and will allocate a temporary one for it. */
+                    MVMSpeshOperand target = MVM_spesh_manipulate_get_temp_reg(tc,
+                        g, MVM_reg_obj);
+
+                    /* Further to that, we also need registers holding both the
+                     * class handle and attribute name, which will be used by
+                     * the getattr instructions. */
+                    MVMSpeshOperand ch_temp = MVM_spesh_manipulate_get_temp_reg(tc,
+                        g, MVM_reg_obj);
+                    MVMSpeshOperand name_temp = MVM_spesh_manipulate_get_temp_reg(tc,
+                        g, MVM_reg_str);
+
+                    /* Emit spesh slot lookup instruction for the class handle. */
+                    MVMSpeshIns *spesh_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                    spesh_ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+                    spesh_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+                    spesh_ins->operands[0] = ch_temp;
+                    spesh_ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                        (MVMCollectable *)guard->u.attr.class_handle);
+                    MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, spesh_ins);
+
+                    /* Emit spesh slot lookup instruction for the attr name. */
+                    spesh_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                    spesh_ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+                    spesh_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+                    spesh_ins->operands[0] = name_temp;
+                    spesh_ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                        (MVMCollectable *)guard->u.attr.name);
+                    MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, spesh_ins);
+
+                    /* Emit the getattr instruction. */
+                    spesh_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                    spesh_ins->info = MVM_op_get_op(MVM_OP_getattrs_o);
+                    spesh_ins->operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
+                    spesh_ins->operands[0] = target;
+                    spesh_ins->operands[1] = arg_regs[guard->test_idx];
+                    MVM_spesh_get_facts(tc, g, arg_regs[guard->test_idx])->usages++;
+                    spesh_ins->operands[2] = ch_temp;
+                    MVM_spesh_get_facts(tc, g, ch_temp)->usages++;
+                    spesh_ins->operands[3] = name_temp;
+                    MVM_spesh_get_facts(tc, g, name_temp)->usages++;
+                    MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, spesh_ins);
+
+                    /* Release the temporaries for the class handle and name. */
+                    MVM_spesh_manipulate_release_temp_reg(tc, g, ch_temp);
+                    MVM_spesh_manipulate_release_temp_reg(tc, g, name_temp);
+
+                    /* Add the target into the guard reg set. */
+                    arg_regs = MVM_realloc(arg_regs,
+                        (arg_regs_length + 1) * sizeof(MVMSpeshOperand));
+                    arg_regs[arg_regs_length++] = target;
+
+                    break;
+                }
                 default:
                     MVM_panic(1, "Unknown spesh plugin guard kind %d to insert during specialization",
                             guard->kind);
             }
         }
+
+        /* Free up any temporary registers we created. */
+        for (i = initial_arg_regs_length; i < arg_regs_length; i++)
+            MVM_spesh_manipulate_release_temp_reg(tc, g, arg_regs[i]);
         MVM_free(arg_regs);
     }
 }
