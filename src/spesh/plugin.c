@@ -530,11 +530,17 @@ MVMSpeshAnn * steal_prepargs_deopt(MVMThreadContext *tc, MVMSpeshIns *ins) {
     while (cur) {
         if (cur->info->opcode == MVM_OP_prepargs) {
             MVMSpeshAnn *ann = cur->annotations;
+            MVMSpeshAnn *prev_ann = NULL;
             while (ann) {
                 if (ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS) {
+                    if (prev_ann)
+                        prev_ann->next = ann->next;
+                    else
+                        cur->annotations = ann->next;
                     ann->next = NULL;
                     return ann;
                 }
+                prev_ann = ann;
                 ann = ann->next;
             }
             MVM_oops(tc, "Could not find deopt annotation on prepargs before speshresolve");
