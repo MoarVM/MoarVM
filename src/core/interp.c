@@ -5361,6 +5361,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)));
                 cur_op += 10;
                 goto NEXT;
+            OP(atomicbindattr_o):
+                MVM_repr_atomic_bind_attr_o(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
+                    GET_REG(cur_op, 6).o);
+                cur_op += 8;
+                goto NEXT;
+            OP(casattr_o):
+                GET_REG(cur_op, 0).o = MVM_repr_casattr_o(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
+                    GET_REG(cur_op, 8).o, GET_REG(cur_op, 10).o);
+                cur_op += 12;
+                goto NEXT;
             OP(sp_guard): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
