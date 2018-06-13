@@ -431,7 +431,8 @@ static MVMint64 hint_for(MVMThreadContext *tc, MVMSTable *st, MVMObject *class_k
 /* Gets an architecture atomic sized native integer attribute as an atomic
  * reference. */
 static AO_t * attribute_as_atomic(MVMThreadContext *tc, MVMSTable *st, void *data,
-                                  MVMObject *class_handle, MVMString *name) {
+                                  MVMObject *class_handle, MVMString *name,
+                                  MVMuint16 kind) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMint64 slot;
     data = MVM_p6opaque_real_data(tc, data);
@@ -440,15 +441,24 @@ static AO_t * attribute_as_atomic(MVMThreadContext *tc, MVMSTable *st, void *dat
             "P6opaque: must compose %s before using get_attribute", MVM_6model_get_stable_debug_name(tc, st));
     slot = try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
-        MVMSTable *attr_st = repr_data->flattened_stables[slot];
-        if (attr_st) {
-            const MVMStorageSpec *ss = attr_st->REPR->get_storage_spec(tc, attr_st);
-            if (ss->inlineable && ss->boxed_primitive == MVM_STORAGE_SPEC_BP_INT &&
-                    ss->bits / 8 == sizeof(AO_t))
-                return (AO_t *)((char *)data + repr_data->attribute_offsets[slot]);
+        if (kind == MVM_reg_int64) {
+            MVMSTable *attr_st = repr_data->flattened_stables[slot];
+            if (attr_st) {
+                const MVMStorageSpec *ss = attr_st->REPR->get_storage_spec(tc, attr_st);
+                if (ss->inlineable && ss->boxed_primitive == MVM_STORAGE_SPEC_BP_INT &&
+                        ss->bits / 8 == sizeof(AO_t))
+                    return (AO_t *)((char *)data + repr_data->attribute_offsets[slot]);
+            }
+            MVM_exception_throw_adhoc(tc,
+                "Can only do an atomic integer operation on an atomicint attribute");
         }
-        MVM_exception_throw_adhoc(tc,
-            "Can only do an atomic integer operation on an atomicint attribute");
+        else if (kind == MVM_reg_obj) {
+            return (AO_t *)((char *)data + repr_data->attribute_offsets[slot]);
+        }
+        else {
+            MVM_exception_throw_adhoc(tc,
+                "Can only perform atomic operations on object or atomicint attributes");
+        }
     }
     else {
         no_such_attribute(tc, "get atomic reference to", class_handle, name, st);

@@ -388,11 +388,11 @@ struct MVMREPROps_Attribute {
         MVMint64 hint);
 
     /* Provided the attribute is a native integer of the architecture's atomic
-     * size, returns an AO_t * referencing it. This is only valid until the
-     * next safepoint. If rebless is called on the object, updates may be lost
-     * although memory safety must not be violated. */
+     * size or an object pointer, returns an AO_t * referencing it. This is only
+     * valid until the next safepoint. If rebless is called on the object,
+     * updates may be lost although memory safety must not be violated. */
     AO_t * (*attribute_as_atomic) (MVMThreadContext *tc, MVMSTable *st,
-        void *data, MVMObject *class_handle, MVMString *name);
+        void *data, MVMObject *class_handle, MVMString *name, MVMuint16 kind);
 };
 struct MVMREPROps_Boxing {
     /* Used with boxing. Sets an integer value, for representations that

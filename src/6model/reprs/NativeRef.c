@@ -592,7 +592,7 @@ AO_t * MVM_nativeref_as_atomic_attribute_i(MVMThreadContext *tc, MVMObject *ref_
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
     MVMObject *obj = ref->body.u.attribute.obj;
     return REPR(obj)->attr_funcs.attribute_as_atomic(tc, STABLE(obj), OBJECT_BODY(obj),
-        ref->body.u.attribute.class_handle, ref->body.u.attribute.name);
+        ref->body.u.attribute.class_handle, ref->body.u.attribute.name, MVM_reg_int64);
 }
 AO_t * MVM_nativeref_as_atomic_positional_i(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
