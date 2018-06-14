@@ -1490,9 +1490,9 @@ static MVMnum64 read_double(const char *buffer, size_t offset) {
 }
 
 /* If deserialization should fail, cleans up before throwing an exception. */
-MVM_NO_RETURN static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reader,
-                             const char *messageFormat, ...) MVM_NO_RETURN_ATTRIBUTE MVM_FORMAT(printf, 3, 4);
-MVM_NO_RETURN static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reader,
+MVM_NO_RETURN static void fail_deserialize(MVMThreadContext *tc, char **waste, MVMSerializationReader *reader,
+                             const char *messageFormat, ...) MVM_NO_RETURN_ATTRIBUTE MVM_FORMAT(printf, 4, 5);
+MVM_NO_RETURN static void fail_deserialize(MVMThreadContext *tc, char **waste, MVMSerializationReader *reader,
         const char *messageFormat, ...) {
     va_list args;
     if (reader->data_needs_free && reader->data)
@@ -1501,10 +1501,12 @@ MVM_NO_RETURN static void fail_deserialize(MVMThreadContext *tc, MVMSerializatio
         MVM_free(reader->contexts);
     if (reader->root.sc)
         reader->root.sc->body->sr = NULL;
+    if (reader->root.dependent_scs)
+        MVM_free(reader->root.dependent_scs);
     MVM_free(reader);
     MVM_gc_allocate_gen2_default_clear(tc);
     va_start(args, messageFormat);
-    MVM_exception_throw_adhoc_va(tc, messageFormat, args);
+    MVM_exception_throw_adhoc_free_va(tc, waste, messageFormat, args);
     va_end(args);
 }
 
@@ -1514,7 +1516,7 @@ static MVMString * read_string_from_heap(MVMThreadContext *tc, MVMSerializationR
         if (idx < MVM_repr_elems(tc, reader->root.string_heap))
             return MVM_repr_at_pos_s(tc, reader->root.string_heap, idx);
         else
-            fail_deserialize(tc, reader,
+            fail_deserialize(tc, NULL, reader,
                 "Attempt to read past end of string heap (index %d)", idx);
     }
     else {
@@ -1525,7 +1527,7 @@ static MVMString * read_string_from_heap(MVMThreadContext *tc, MVMSerializationR
         if (idx < cu->body.num_strings)
             return MVM_cu_string(tc, cu, idx);
         else
-            fail_deserialize(tc, reader,
+            fail_deserialize(tc, NULL, reader,
                 "Attempt to read past end of compilation unit string heap (index %d)", idx);
     }
 }
@@ -1539,7 +1541,7 @@ static MVMSerializationContext * locate_sc(MVMThreadContext *tc, MVMSerializatio
     else if (sc_id > 0 && sc_id - 1 < reader->root.num_dependencies)
         sc = reader->root.dependent_scs[sc_id - 1];
     else
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Invalid dependencies table index encountered (index %d)", sc_id);
     return sc;
 }
@@ -1548,7 +1550,7 @@ static MVMSerializationContext * locate_sc(MVMThreadContext *tc, MVMSerializatio
 MVM_STATIC_INLINE void assert_can_read(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 amount) {
     char *read_end = *(reader->cur_read_buffer) + *(reader->cur_read_offset) + amount;
     if (read_end > *(reader->cur_read_end))
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Read past end of serialization data buffer");
 }
 
@@ -1577,7 +1579,7 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
     MVMuint8 need;
 
     if (read_at >= read_end)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
                          "Read past end of serialization data buffer");
 
     first = *read_at++;
@@ -1599,7 +1601,7 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
            table sent as part of the serialization blob, or multiple tables for
            different contexts (int32, int64, nativeint, others?)  */
         if (read_at + 8 > read_end)
-            fail_deserialize(tc, reader,
+            fail_deserialize(tc, NULL, reader,
                              "Read past end of serialization data buffer");
 #ifdef MVM_CAN_UNALIGNED_INT64
         *((MVMuint64*)&result) = *((MVMuint64*)read_at);
@@ -1614,7 +1616,7 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
     }
 
     if (read_at + need > read_end)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
                          "Read past end of serialization data buffer");
 
     /* The bottom nybble of the first byte is the highest byte of the final
@@ -1702,12 +1704,12 @@ char *MVM_serialization_read_cstr(MVMThreadContext *tc, MVMSerializationReader *
         assert_can_read(tc, reader, len);
         strbuf = MVM_malloc(len + 1);
         if (strbuf == 0)
-            fail_deserialize(tc, reader, "Cannot read a c string: malloc failed.");
+            fail_deserialize(tc, NULL, reader, "Cannot read a c string: malloc failed.");
         memcpy(strbuf, read_at, len);
         strbuf[len] = 0;
         *(reader->cur_read_offset) += len;
     } else if (len < 0) {
-        fail_deserialize(tc, reader, "Cannot read a c string with negative length %"PRIi64".", len);
+        fail_deserialize(tc, NULL, reader, "Cannot read a c string with negative length %"PRIi64".", len);
     }
     return strbuf;
 }
@@ -1931,7 +1933,7 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
             return (MVMObject *)MVM_sc_find_by_handle(tc,
                 MVM_serialization_read_str(tc, reader));
         default:
-            fail_deserialize(tc, reader,
+            fail_deserialize(tc, NULL, reader,
                 "Serialization Error: Unimplemented case of read_ref");
     }
 }
@@ -1964,7 +1966,7 @@ static void check_and_dissect_input(MVMThreadContext *tc,
         /* Try to get it from the current compilation unit. */
         data = (char *)(*tc->interp_cu)->body.serialized;
         if (!data)
-            fail_deserialize(tc, reader,
+            fail_deserialize(tc, NULL, reader,
                 "Failed to find deserialization data in compilation unit");
         data_len = (*tc->interp_cu)->body.serialized_size;
     }
@@ -1973,17 +1975,17 @@ static void check_and_dissect_input(MVMThreadContext *tc,
 
     /* Ensure we got the data. */
     if (data == NULL)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Failed to decode base64-encoded serialization data");
     reader->data = data;
 
     /* Ensure that we have enough space to read a version number and check it. */
     if (data_len < 4)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Serialized data too short to read a version number (< 4 bytes)");
     reader->root.version = read_int32(data, 0);
     if (reader->root.version < MIN_VERSION || reader->root.version > CURRENT_VERSION)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Unsupported serialization format version %d (current version is %d)",
             reader->root.version, CURRENT_VERSION);
 
@@ -1993,7 +1995,7 @@ static void check_and_dissect_input(MVMThreadContext *tc,
 
     /* Ensure that the data is at least as long as the header is expected to be. */
     if (data_len < header_size)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Serialized data shorter than header (< %"MVM_PRSz" bytes)", header_size);
     prov_pos += header_size;
 
@@ -2001,107 +2003,107 @@ static void check_and_dissect_input(MVMThreadContext *tc,
     reader->root.dependencies_table = data + read_int32(data, 4);
     reader->root.num_dependencies   = read_int32(data, 8);
     if (reader->root.dependencies_table < prov_pos)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (dependencies table starts before header ends)");
     prov_pos = reader->root.dependencies_table + reader->root.num_dependencies * DEP_TABLE_ENTRY_SIZE;
     if (prov_pos > data_end)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (dependencies table overruns end of data)");
 
     /* Get size and location of STables table. */
     reader->root.stables_table = data + read_int32(data, 12);
     reader->root.num_stables   = read_int32(data, 16);
     if (reader->root.stables_table < prov_pos)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (STables table starts before dependencies table ends)");
     prov_pos = reader->root.stables_table + reader->root.num_stables * STABLES_TABLE_ENTRY_SIZE;
     if (prov_pos > data_end)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (STables table overruns end of data)");
 
     /* Get location of STables data. */
     reader->root.stables_data = data + read_int32(data, 20);
     if (reader->root.stables_data < prov_pos)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (STables data starts before STables table ends)");
     prov_pos = reader->root.stables_data;
     if (prov_pos > data_end)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (STables data starts after end of data)");
 
     /* Get size and location of objects table. */
     reader->root.objects_table = data + read_int32(data, 24);
     reader->root.num_objects   = read_int32(data, 28);
     if (reader->root.objects_table < prov_pos)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (objects table starts before STables data ends)");
     prov_pos = reader->root.objects_table + reader->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE;
     if (prov_pos > data_end)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (objects table overruns end of data)");
 
     /* Get location of objects data. */
     reader->root.objects_data = data + read_int32(data, 32);
     if (reader->root.objects_data < prov_pos)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (objects data starts before objects table ends)");
     prov_pos = reader->root.objects_data;
     if (prov_pos > data_end)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (objects data starts after end of data)");
 
     /* Get size and location of closures table. */
     reader->root.closures_table = data + read_int32(data, 36);
     reader->root.num_closures   = read_int32(data, 40);
     if (reader->root.closures_table < prov_pos)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (Closures table starts before objects data ends)");
     prov_pos = reader->root.closures_table + reader->root.num_closures * CLOSURES_TABLE_ENTRY_SIZE;
     if (prov_pos > data_end)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (Closures table overruns end of data)");
 
     /* Get size and location of contexts table. */
     reader->root.contexts_table = data + read_int32(data, 44);
     reader->root.num_contexts   = read_int32(data, 48);
     if (reader->root.contexts_table < prov_pos)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (contexts table starts before closures table ends)");
     prov_pos = reader->root.contexts_table + reader->root.num_contexts * CONTEXTS_TABLE_ENTRY_SIZE;
     if (prov_pos > data_end)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (contexts table overruns end of data)");
 
     /* Get location of contexts data. */
     reader->root.contexts_data = data + read_int32(data, 52);
     if (reader->root.contexts_data < prov_pos)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (contexts data starts before contexts table ends)");
     prov_pos = reader->root.contexts_data;
     if (prov_pos > data_end)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (contexts data starts after end of data)");
 
     /* Get size and location of repossessions table. */
     reader->root.repos_table = data + read_int32(data, 56);
     reader->root.num_repos   = read_int32(data, 60);
     if (reader->root.repos_table < prov_pos)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (repossessions table starts before contexts data ends)");
     prov_pos = reader->root.repos_table + reader->root.num_repos * REPOS_TABLE_ENTRY_SIZE;
     if (prov_pos > data_end)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (repossessions table overruns end of data)");
 
     /* Get location and number of entries in the interns data section. */
     reader->root.param_interns_data = data + read_int32(data, 64);
     reader->root.num_param_interns  = read_int32(data, 68);
     if (reader->root.param_interns_data < prov_pos)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (parameterization interns data starts before repossessions table ends)");
     prov_pos = reader->root.param_interns_data;
     if (prov_pos > data_end)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "Corruption detected (parameterization interns data overruns end of data)");
 
     /* Set reading limits for data chunks. */
@@ -2124,13 +2126,21 @@ static void resolve_dependencies(MVMThreadContext *tc, MVMSerializationReader *r
         sc = MVM_sc_find_by_handle(tc, handle);
         if (sc == NULL) {
             MVMString *desc = read_string_from_heap(tc, reader, read_int32(table_pos, 4));
+            char *cname = MVM_string_ascii_encode(tc, desc, NULL, 0);
+            char *cdesc = NULL;
+            char *waste[] = { cname, NULL, NULL };
+            if (reader->root.sc->body->description) {
+                cdesc = MVM_string_ascii_encode(tc, reader->root.sc->body->description, NULL, 0);
+                waste[1] = cdesc;
+            }
+            else {
+                cdesc = "<unknown>";
+            }
             if (!desc) desc = handle;
-            fail_deserialize(tc, reader,
+            fail_deserialize(tc, waste, reader,
                 "Missing or wrong version of dependency '%s' (from '%s')",
-                MVM_string_ascii_encode(tc, desc, NULL, 0),
-                reader->root.sc->body->description
-                    ? MVM_string_ascii_encode(tc, reader->root.sc->body->description, NULL, 0)
-                    : "<unkown>");
+                cname,
+                cdesc);
         }
         reader->root.dependent_scs[i] = sc;
         table_pos += 8;
@@ -2177,9 +2187,9 @@ static void stub_stable(MVMThreadContext *tc, MVMSerializationReader *reader, MV
     if (st->REPR->deserialize_stable_size)
         st->REPR->deserialize_stable_size(tc, st, reader);
     else
-        fail_deserialize(tc, reader, "Missing deserialize_stable_size");
+        fail_deserialize(tc, NULL, reader, "Missing deserialize_stable_size");
     if (st->size == 0)
-        fail_deserialize(tc, reader, "STable with size zero after deserialization");
+        fail_deserialize(tc, NULL, reader, "STable with size zero after deserialization");
 
     /* Restore original read positions. */
     reader->stables_data_offset = orig_stables_data_offset;
@@ -2381,7 +2391,7 @@ static MVMuint8 calculate_int_bytes(MVMThreadContext *tc, MVMSerializationReader
     MVMuint8 need;
 
     if (read_at >= read_end)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
                          "Read past end of serialization data buffer");
 
     first = *read_at++;
@@ -2399,7 +2409,7 @@ static MVMuint8 calculate_int_bytes(MVMThreadContext *tc, MVMSerializationReader
     }
 
     if (read_at + need > read_end)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
                          "Read past end of serialization data buffer");
 
     return need + 1;
@@ -2595,7 +2605,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     st->mode_flags = *(*(reader->cur_read_buffer) + *(reader->cur_read_offset));
     *(reader->cur_read_offset) += 1;
     if (st->mode_flags & MVM_PARAMETRIC_TYPE && st->mode_flags & MVM_PARAMETERIZED_TYPE)
-        fail_deserialize(tc, reader,
+        fail_deserialize(tc, NULL, reader,
             "STable mode flags cannot indicate both parametric and parameterized");
 
     /* Boolification spec. */
@@ -2613,9 +2623,12 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     if (flags & STABLE_HAS_CONTAINER_SPEC) {
         MVMString *name = MVM_serialization_read_str(tc, reader);
         const MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc, name);
-        if (!cc)
-            fail_deserialize(tc, reader, "Could not look up the container config for '%s'",
-                MVM_string_ascii_encode(tc, name, NULL, 0));
+        if (!cc) {
+            char *cname = MVM_string_ascii_encode(tc, name, NULL, 0);
+            char *waste[] = { cname, NULL };
+            fail_deserialize(tc, waste, reader, "Could not look up the container config for '%s'",
+                cname);
+        }
         cc->set_container_spec(tc, st);
         st->container_spec->deserialize(tc, st, reader);
     }
@@ -2719,7 +2732,7 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
         if (REPR(obj)->deserialize)
             REPR(obj)->deserialize(tc, STABLE(obj), obj, OBJECT_BODY(obj), reader);
         else
-            fail_deserialize(tc, reader, "Missing deserialize REPR function for %s (%s)",
+            fail_deserialize(tc, NULL, reader, "Missing deserialize REPR function for %s (%s)",
                 REPR(obj)->name, MVM_6model_get_debug_name(tc, obj));
         reader->current_object = NULL;
     }
@@ -3012,7 +3025,7 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
 
         /* Make sure we don't have a reposession conflict. */
         if (MVM_sc_get_stable_sc(tc, orig_st) != orig_sc)
-            fail_deserialize(tc, reader,
+            fail_deserialize(tc, NULL, reader,
                 "STable conflict detected during deserialization.\n"
                 "(Probable attempt to load a mutated module or modules that cannot be loaded together).");
 
@@ -3030,7 +3043,7 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
         worklist_add_index(tc, &(reader->wl_stables), slot);
     }
     else {
-        fail_deserialize(tc, reader, "Unknown repossession type");
+        fail_deserialize(tc, NULL, reader, "Unknown repossession type");
     }
 }
 
