@@ -5373,6 +5373,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 8).o, GET_REG(cur_op, 10).o);
                 cur_op += 12;
                 goto NEXT;
+            OP(atkey_u): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+                    (MVMObject *)GET_REG(cur_op, 4).s, &GET_REG(cur_op, 0), MVM_reg_uint64);
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_guard): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
