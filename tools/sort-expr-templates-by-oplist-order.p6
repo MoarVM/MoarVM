@@ -54,7 +54,7 @@ my %parts;
 my $last = -1;
 my $prefix;
 sub oplistorder {
-     qx{./tools/compare-oplist-interp-order.sh get_oplist_order}.lines
+     qx{./tools/compare-oplist-interp-order.sh --get-oplist-order}.lines
 }
 loop ($i = 0; $i < @spots; $i++) {
     my $prev-start = $last + 1;
