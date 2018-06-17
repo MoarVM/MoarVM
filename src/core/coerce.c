@@ -171,6 +171,30 @@ MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
     }
 }
 
+MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i) {
+    char buffer[64];
+    int len;
+    /* See if we can hit the cache. */
+    int cache = 0 <= i && i < MVM_INT_TO_STR_CACHE_SIZE;
+    if (cache) {
+        MVMString *cached = tc->instance->int_to_str_cache[i];
+        if (cached)
+            return cached;
+    }
+
+    /* Otherwise, need to do the work; cache it if in range. */
+    len = snprintf(buffer, 64, "%"PRIu64"", i);
+    if (0 <= len) {
+        MVMString *result = MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, len);
+        if (cache)
+            tc->instance->int_to_str_cache[i] = result;
+        return result;
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Could not stringify integer");
+    }
+}
+
 MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
     if (n == MVM_num_posinf(tc)) {
         return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Inf");

@@ -5380,6 +5380,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(coerce_us):
+                GET_REG(cur_op, 0).s = MVM_coerce_u_s(tc, GET_REG(cur_op, 2).u64);
+                cur_op += 4;
+                goto NEXT;
             OP(sp_guard): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
