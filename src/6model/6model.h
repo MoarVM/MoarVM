@@ -86,6 +86,13 @@ struct MVMStorageSpec {
 #define MVM_STORAGE_SPEC_BP_INT         1
 #define MVM_STORAGE_SPEC_BP_NUM         2
 #define MVM_STORAGE_SPEC_BP_STR         3
+#define MVM_STORAGE_SPEC_BP_INT8        4
+#define MVM_STORAGE_SPEC_BP_INT16       5
+#define MVM_STORAGE_SPEC_BP_INT32       6
+#define MVM_STORAGE_SPEC_BP_UINT8       7
+#define MVM_STORAGE_SPEC_BP_UINT16      8
+#define MVM_STORAGE_SPEC_BP_UINT32      9
+#define MVM_STORAGE_SPEC_BP_UINT64     10
 
 /* can_box bit field values. */
 #define MVM_STORAGE_SPEC_CAN_BOX_INT    1
@@ -290,10 +297,10 @@ struct MVMSTable {
     /* Information - if any - about how we can turn something of this type
      * into a boolean. */
     MVMBoolificationSpec *boolification_spec;
-    
+
     /* The HLL that this type is owned by, if any. */
     MVMHLLConfig *hll_owner;
-    
+
     /* The role that the type plays in the HLL, if any. */
     MVMint64 hll_role;
 
