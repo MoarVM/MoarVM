@@ -49,11 +49,43 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
                 c_name);
     }
     if (frame->static_info->body.lexical_types[entry->value] != kind) {
-        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-        char *waste[] = { c_name, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste,
-            "Lexical with name '%s' has a different type in this frame",
-                c_name);
+        if (kind == MVM_reg_int64) {
+            switch (frame->static_info->body.lexical_types[entry->value]) {
+                case MVM_reg_int8:
+                    result->i64 = frame->env[entry->value].i8;
+                    return;
+                case MVM_reg_int16:
+                    result->i64 = frame->env[entry->value].i16;
+                    return;
+                case MVM_reg_int32:
+                    result->i64 = frame->env[entry->value].i32;
+                    return;
+            }
+        }
+        else if (kind == MVM_reg_uint64) {
+            switch (frame->static_info->body.lexical_types[entry->value]) {
+                case MVM_reg_uint8:
+                    result->u64 = frame->env[entry->value].u8;
+                    return;
+                case MVM_reg_uint16:
+                    result->u64 = frame->env[entry->value].u16;
+                    return;
+                case MVM_reg_uint32:
+                    result->u64 = frame->env[entry->value].u32;
+                    return;
+                case MVM_reg_uint64:
+                    result->u64 = frame->env[entry->value].u64;
+                    return;
+            }
+
+        }
+        {
+            char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+            char *waste[] = { c_name, NULL };
+            MVM_exception_throw_adhoc_free(tc, waste,
+                "Lexical with name '%s' has a different type in this frame",
+                    c_name);
+        }
     }
     *result = frame->env[entry->value];
     if (kind == MVM_reg_obj && !result->o)
