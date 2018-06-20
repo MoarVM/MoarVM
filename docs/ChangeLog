@@ -37,7 +37,7 @@ Ops:
 + Add new atkey_u op
 + Add atomicbindattr_o and casattr_o ops
 + Add new guard spesh ops
-+ Stub the spesh plugin ops
++ Add spesh plugin ops
 
 Platform:
 + Only use the 64 bit memory access code in memmem32 for cpu's that support
@@ -64,7 +64,7 @@ Strings:
 Tooling/Build:
 + Add a script which sorts the expr templates by oplist order
 + Add script to compare order of oplist and interp.c op order
-?+ I was wrong about MVM_SPESH_LIMIT in jit-bisect.pl
++ Fix off-by-one in jit-bisect.pl
 + Add Intel C Compiler as an option to Configure.pl
 + Fix handling of denormals for Intel C Compiler
 + Add branch predictor hint macros to optimize common/uncommon conditions
