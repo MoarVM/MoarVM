@@ -23,26 +23,10 @@ IO:
 + Define SIGBREAK on WIN32
 
 JIT:
-?+ Steal pow_i impl from interp.c for the jit
++ Implement pow_i instruction
 + Sort the expr jit templates with the new script
-?+ Fix some review things
-?+ Cleanup invokish
-?+ Unbreak stub
-?+ No more invokish
-?+ Fixed number of globals
-+ Add pointer to return address, remove stack walker
-?+ Use iterators rather than array output
-?+ Add assembler build rule
--+ Implement stack walker for windows
-?+ Also extract selecting active lexical handlers
-?+ Remove redundant dynamic label assignments
--+ Activate stack walker for current frame
-?+ Extract finding inline for dynlex to JIT
--+ Improve stack walker to use top-of-stack
-?+ Extract current position search frm exception handler lookup
-?+ Implement find_active_handlers
-?+ Extract JIT interface module
--+ Initial stack walker to find current position in frame
++ Replace 'invokish' guard infrastructure with on-stack position check and
+  update
 + JIT compile getsignals
 + Fix encoderep/encoderepconf returning value into wrong register
 + Expr JIT template for encoderepconf, decont_s, assertparamcheck, param_rp_s,
