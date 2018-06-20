@@ -2519,9 +2519,11 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
     MVMint16 obj       = guard->ins->operands[0].reg.orig;
     MVMint16 spesh_idx = guard->ins->operands[1].lit_i16;
     MVM_jit_log(tc, "emit guard <%s>\n", guard->ins->info->name);
-    /* load object and spesh slot value */
+    /* load object and spesh slot value, except for those that don't need it */
     | mov TMP1, WORK[obj];
-    | get_spesh_slot TMP2, spesh_idx;
+    if (op != MVM_OP_sp_guardjustconc && op != MVM_OP_sp_guardjusttype) {
+        | get_spesh_slot TMP2, spesh_idx;
+    }
     if (op == MVM_OP_sp_guard) {
         /* object in question should just match the type, so it shouldn't
          * be zero, and the STABLE should be equal to the value in the spesh
@@ -2564,6 +2566,27 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
         | jne >1;
         | cmp TMP2, CODE:TMP1->body.sf;
         | jne >1;
+    } else if (op == MVM_OP_sp_guardobj) {
+        /* object should match that from the spesh slot */
+        | cmp TMP2, TMP1;
+        | jne >1;
+    } else if (op == MVM_OP_sp_guardjustconc) {
+        /* object should be a non-null concrete (non-type) object;
+         * exact type doesn't matter */
+        | test TMP1, TMP1;
+        | jz >1;
+        /* shouldn't be type object */
+        | test_type_object TMP1;
+        | jnz >1;
+    } else if (op == MVM_OP_sp_guardjusttype) {
+        /* object in question should be a type object, so it shouldn't
+         * be zero, and should not be concrete */
+        /* check for null */
+        | test TMP1, TMP1;
+        | jz >1;
+        /* should be type object */
+        | test_type_object TMP1;
+        | jz >1;
     }
     /* if we're here, we didn't jump to deopt, so skip it */
     | jmp >2;

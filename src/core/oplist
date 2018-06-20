@@ -880,6 +880,8 @@ sp_guardsfouter  .s r(obj) sslot uint32
 
 # Literal object match guard.
 sp_guardobj      .s r(obj) sslot uint32
+
+# Guards that check concrete or type object, without caring for type.
 sp_guardjustconc .s r(obj) uint32
 sp_guardjusttype .s r(obj) uint32
 

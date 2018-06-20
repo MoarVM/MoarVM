@@ -3211,6 +3211,9 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_guardconc:
     case MVM_OP_sp_guardtype:
     case MVM_OP_sp_guardsf:
+    case MVM_OP_sp_guardobj:
+    case MVM_OP_sp_guardjustconc:
+    case MVM_OP_sp_guardjusttype:
         jg_append_guard(tc, jg, ins);
         break;
     case MVM_OP_sp_resolvecode: {
