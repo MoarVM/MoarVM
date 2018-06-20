@@ -1037,6 +1037,28 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[reg_a], rax;
         break;
     }
+    case MVM_OP_pow_i: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 base = ins->operands[1].reg.orig;
+        MVMint16 exp  = ins->operands[2].reg.orig;
+        | xor rax, rax;
+        | mov rcx, WORK[exp];
+        | cmp rcx, rax;
+        | jl >3;
+        | inc rax;
+        | mov r8, WORK[base];
+        |1:
+        | test rcx, 1;
+        | jz >2;
+        | imul r8;
+        |2:
+        | imul r8, r8;
+        | shr rcx, 1;
+        | jnz <1;
+        |3:
+        | mov WORK[dst], rax;
+        break;
+    }
     case MVM_OP_div_i: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 a   = ins->operands[1].reg.orig;

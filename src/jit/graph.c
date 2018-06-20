@@ -5,23 +5,6 @@
 #include "platform/time.h"
 
 
-MVMint64 pow_i_impl(MVMThreadContext *tc, MVMint64 base, MVMint64 exp) {
-    MVMint64 result = 1;
-    /* "Exponentiation by squaring" */
-    if (exp < 0) {
-        result = 0; /* because 1/base**-exp is between 0 and 1 */
-    }
-    else {
-        while (exp) {
-            if (exp & 1)
-                result *= base;
-            exp >>= 1;
-            base *= base;
-        }
-    }
-    return result;
-}
-
 static void jg_append_node(MVMJitGraph *jg, MVMJitNode *node) {
     if (jg->last_node) {
         jg->last_node->next = node;
@@ -320,7 +303,6 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_pow_I: return MVM_bigint_pow;
     case MVM_OP_rand_I: return MVM_bigint_rand;
     case MVM_OP_pow_n: return pow;
-    case MVM_OP_pow_i: return pow_i_impl;
     case MVM_OP_time_n: return MVM_proc_time_n;
     case MVM_OP_randscale_n: return MVM_proc_randscale_n;
     case MVM_OP_isnanorinf: return MVM_num_isnanorinf;
@@ -1550,6 +1532,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_bnot_i:
     case MVM_OP_blshift_i:
     case MVM_OP_brshift_i:
+    case MVM_OP_pow_i:
     case MVM_OP_add_n:
     case MVM_OP_sub_n:
     case MVM_OP_mul_n:
@@ -2835,17 +2818,6 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_REG_VAL, { type_I } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 5, args,
                          MVM_JIT_RV_PTR, dst);
-        break;
-    }
-    case MVM_OP_pow_i: {
-        MVMint16 base   = ins->operands[1].reg.orig;
-        MVMint16 exp    = ins->operands[2].reg.orig;
-        MVMint16 dst    = ins->operands[0].reg.orig;
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_REG_VAL, { base } },
-                                 { MVM_JIT_REG_VAL, { exp } } };
-        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args,
-                         MVM_JIT_RV_INT, dst);
         break;
     }
     case MVM_OP_div_In: {
