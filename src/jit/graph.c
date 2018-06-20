@@ -369,7 +369,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
 }
 
 static void jg_append_guard(MVMThreadContext *tc, MVMJitGraph *jg,
-                             MVMSpeshIns *ins) {
+                             MVMSpeshIns *ins, MVMuint32 target_operand) {
     MVMSpeshAnn   *ann = ins->annotations;
     MVMJitNode   *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
     MVMint32 deopt_idx;
@@ -387,7 +387,7 @@ static void jg_append_guard(MVMThreadContext *tc, MVMJitGraph *jg,
         MVM_oops(tc, "Can't find deopt idx annotation on spesh ins <%s>",
             ins->info->name);
     }
-    node->u.guard.deopt_target = ins->operands[2].lit_ui32;
+    node->u.guard.deopt_target = ins->operands[target_operand].lit_ui32;
     node->u.guard.deopt_offset = jg->sg->deopt_addrs[2 * deopt_idx + 1];
     jg_append_node(jg, node);
 }
@@ -3212,9 +3212,11 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_guardtype:
     case MVM_OP_sp_guardsf:
     case MVM_OP_sp_guardobj:
+        jg_append_guard(tc, jg, ins, 2);
+        break;
     case MVM_OP_sp_guardjustconc:
     case MVM_OP_sp_guardjusttype:
-        jg_append_guard(tc, jg, ins);
+        jg_append_guard(tc, jg, ins, 1);
         break;
     case MVM_OP_sp_resolvecode: {
         MVMint16 dst     = ins->operands[0].reg.orig;
