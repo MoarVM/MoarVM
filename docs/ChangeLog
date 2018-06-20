@@ -1,6 +1,128 @@
 See https://github.com/MoarVM/MoarVM/wiki/ChangeLog-Draft for the draft changelog
 since the previous release.
 
+New in 2018.06
+
+6model:
++ Allow MVMContext atkey to work on all sizes of native ints
++ Add support for all native int types to getlexref_ni
++ Fix three memory leaks when serialization fails
++ Generalize attribute_as_atomic to obj attrs too
++ Optimize MVM_serialization_read_int so as not to need memcpy calls
++ Speed up at_pos, bind_key and at_key by about 4% by speeding up dispatch
++ Make MVM_sc_get_sc_object MVM_STATIC_INLINE
++ Add some branch prediction hints to frame.c for very unlikely cases
+
+Debug Server:
++ Check that socket() doesn't return -1 in debugserver
++ Free local variables in debugserver
++ Prevent breakpoints from being hit over and over in MVM_debugserver_breakpoint_check
+
+IO:
++ Change getsignals output from hash to array
++ Define SIGBREAK on WIN32
+
+JIT:
+?+ Steal pow_i impl from interp.c for the jit
++ Sort the expr jit templates with the new script
+?+ Fix some review things
+?+ Cleanup invokish
+?+ Unbreak stub
+?+ No more invokish
+?+ Fixed number of globals
++ Add pointer to return address, remove stack walker
+?+ Use iterators rather than array output
+?+ Add assembler build rule
+-+ Implement stack walker for windows
+?+ Also extract selecting active lexical handlers
+?+ Remove redundant dynamic label assignments
+-+ Activate stack walker for current frame
+?+ Extract finding inline for dynlex to JIT
+-+ Improve stack walker to use top-of-stack
+?+ Extract current position search frm exception handler lookup
+?+ Implement find_active_handlers
+?+ Extract JIT interface module
+-+ Initial stack walker to find current position in frame
++ JIT compile getsignals
++ Fix encoderep/encoderepconf returning value into wrong register
++ Expr JIT template for encoderepconf, decont_s, assertparamcheck, param_rp_s,
+  param_rp_o and param_sn, checkarity
+
+Ops:
++ Add coerce_us op for coercing unsigned integers to strings
++ Add new atkey_u op
++ Add atomicbindattr_o and casattr_o ops
++ Add new guard spesh ops
++ Stub the spesh plugin ops
+
+Platform:
++ Only use the 64 bit memory access code in memmem32 for cpu's that support
+  unaligned accesses.
+
+?Spesh:
++ Set type and value facts on getattr guard temps
++ Properly steal deopt annotation
++ Implement code-gen for attr spesh plugin guards
++ Fix a memory leak
++ Allow recursive use of nqp::speshresolve
++ Only use a deopt table index once in the graph
++ Set facts on spesh plugin resolvee
++ Make spesh plugins work correctly with the JIT
++ Implement spesh plugin concrete/type object deopt
++ Clear up plugin state on resolver exception
++ Implement spesh plugin type guard deopt
++ Correct instruction size in deopt target calc
++ Emit exact object match guard for spesh plugins
++ Transform speshresolve into spesh slot lookup
++ Correct inverted condition
++ Analyze spesh plugin guard indices for stability
++ Aggregate spesh plugin resolution statistics
++ Use unsigned ints in binary search
++ Fix a silly thinko in guard marking
++ Write plugin resolution outcomes into spesh log
++ Missing null check on guard marking
++ Implement plugin guards on fetched attributes
++ Concreteness and type guards for spesh plugins
++ Implement spesh plugin guard recording obj case
++ Prepare data structures for plugin guards
++ Implement spesh plugin resolution by position
++ Implement spesh plugin registration/resolution
+
+Strings:
++ Make MVM_string_utf8_decode 8% faster with vectorized 8bit check
++ Guard against null pointer dereference in decodestream_discard
++ Fix potential issue in shiftjis decoder if replacement had synthetic -1
++ Handle synthetics and normalization properly in string bitwise ops
++ Use the Unicode database propcode constants instead of querying property codes on MoarVM initialization
+?+ Speed up MVM_string_find_cclass and cclass
++ Make .lines 2x faster by speeding up MVM_find_cclass for newlines
++ Convert HASH_DEL_IN_BKT, HASH_ADD_TO_BKT, HASH_MAKE_TABLE and HASH_EXPAND_BUCKETS from macros to inlines
++ For non-MVMString hash keys, check hashval before doing a memcmp for some speedup
+
+Tooling/Build:
++ Add a script which sorts the expr templates by oplist order
++ Add script to compare order of oplist and interp.c op order
+?+ I was wrong about MVM_SPESH_LIMIT in jit-bisect.pl
++ Add Intel C Compiler as an option to Configure.pl
++ Fix handling of denormals for Intel C Compiler
++ Add branch predictor hint macros to optimize common/uncommon conditions
++ Fix links on releases page generated with moarvm.org release tool
+
+src/core:
++ Add support for all native int's in lexprimspec
++ Put interp.c in the same order as the oplist
++ Fix a use-after-free in frame.c
++ Optimize sp_jit_enter in interp.c a few percent
+
+src/gc:
++ Fix unportable sizeof in roots.c
+
+Instrumentation:
++ Free local variable in line coverage
+
+src/mast:
++ Implement bytecode assembly for speshresolve
+
 New in 2018.05
 
 Miscellaneous:
