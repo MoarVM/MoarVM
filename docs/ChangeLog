@@ -16,7 +16,8 @@ New in 2018.06
 Debug Server:
 + Check that socket() doesn't return -1 in debugserver
 + Free local variables in debugserver
-+ Prevent breakpoints from being hit over and over in MVM_debugserver_breakpoint_check
++ Prevent breakpoints from being hit over and over in
+  MVM_debugserver_breakpoint_check
 
 IO:
 + Change getsignals output from hash to array
@@ -49,17 +50,31 @@ Spesh:
   and the interpreter then walks the guard table to pick the applicable result.
   Spesh itself can then look at this table and compile the guards in as needed,
   together with JIT-compiling them.
++ Implement bytecode assembly for speshresolve
 
 Strings:
 + Make MVM_string_utf8_decode 8% faster with vectorized 8bit check
 + Guard against null pointer dereference in decodestream_discard
 + Fix potential issue in shiftjis decoder if replacement had synthetic -1
 + Handle synthetics and normalization properly in string bitwise ops
-+ Use the Unicode database propcode constants instead of querying property codes on MoarVM initialization
-?+ Speed up MVM_string_find_cclass and cclass
++ Use the Unicode database propcode constants instead of querying property codes
+  on MoarVM initialization
++ Speed up MVM_string_find_cclass and grapheme_is_cclass for whitespace,
+  punctuation and newline char classes
 + Make .lines 2x faster by speeding up MVM_find_cclass for newlines
-+ Convert HASH_DEL_IN_BKT, HASH_ADD_TO_BKT, HASH_MAKE_TABLE and HASH_EXPAND_BUCKETS from macros to inlines
-+ For non-MVMString hash keys, check hashval before doing a memcmp for some speedup
++ Convert HASH_DEL_IN_BKT, HASH_ADD_TO_BKT, HASH_MAKE_TABLE and
+  HASH_EXPAND_BUCKETS from macros to inlines
++ For non-MVMString hash keys, check hashval before doing a memcmp for some
+  speed up
+
+Instrumentation:
++ Free local variable in line coverage
+
+Miscellaneous:
++ Add support for all native int's in lexprimspec
++ Put interp.c in the same order as the oplist
++ Fix a use-after-free in frame.c
++ Optimize sp_jit_enter in interp.c a few percent
 
 Tooling/Build:
 + Add a script which sorts the expr templates by oplist order
@@ -69,21 +84,6 @@ Tooling/Build:
 + Fix handling of denormals for Intel C Compiler
 + Add branch predictor hint macros to optimize common/uncommon conditions
 + Fix links on releases page generated with moarvm.org release tool
-
-src/core:
-+ Add support for all native int's in lexprimspec
-+ Put interp.c in the same order as the oplist
-+ Fix a use-after-free in frame.c
-+ Optimize sp_jit_enter in interp.c a few percent
-
-src/gc:
-+ Fix unportable sizeof in roots.c
-
-Instrumentation:
-+ Free local variable in line coverage
-
-src/mast:
-+ Implement bytecode assembly for speshresolve
 
 New in 2018.05
 
