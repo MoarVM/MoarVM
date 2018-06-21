@@ -151,18 +151,32 @@ typedef struct UT_hash_handle {
 
 /* calculate the element whose hash handle address is hhe */
 #define ELMT_FROM_HH(tbl,hhp) ((void*)(((char*)(hhp)) - ((tbl)->hho)))
-
 #define HASH_FIND(hh,head,keyptr,keylen,out)                                     \
 do {                                                                             \
   MVMhashv _hf_hashv;                                                            \
   unsigned _hf_bkt;                                                              \
   out=NULL;                                                                      \
   if (head) {                                                                    \
-     HASH_FCN(keyptr,keylen, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt);   \
+     HASH_FCN(keyptr,keylen, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt, (head)->hh.tbl->log2_num_buckets); \
      HASH_FIND_IN_BKT((head)->hh.tbl, hh, (head)->hh.tbl->buckets[ _hf_bkt ],  \
                       keyptr,keylen,out,_hf_hashv);                             \
   }                                                                              \
 } while (0)
+#define DETERMINE_BUCKET_AND(hashv, num_bkts) \
+    ((hashv) & ((num_bkts) - 1))
+/* Fibonacci bucket determination.
+ * Since we grow bucket sizes in multiples of two, we just need a right
+ * bitmask to get it on the correct scale. This has the advantage of using &ing
+ * or % to get the bucket number because it uses the full bit width of the hash.
+ * If the size of the hashv is changed we will need to change max_hashv_div_phi,
+ * to be max_hashv / phi rounded to the nearest *odd* number.
+ * max_hashv / phi = 2654435769 */
+const static uint32_t max_hashv_div_phi = 2654435769;
+#define DETERMINE_BUCKET_FIB(hashv, offset) \
+    (((hashv) * max_hashv_div_phi) >> (32 - offset))
+
+#define WHICH_BUCKET(hashv, num_bkts, offset)\
+    (DETERMINE_BUCKET_FIB((hashv), (offset)))
 
 #define HASH_FIND_VM_STR(tc,hh,head,key,out)                                        \
 do {                                                                                \
@@ -173,10 +187,10 @@ do {                                                                            
      MVMhashv cached_hash = (key)->body.cached_hash_code;                           \
      if (cached_hash) {                                                             \
          _hf_hashv = cached_hash;                                                   \
-         _hf_bkt = ((_hf_hashv) & (((head)->hh.tbl->num_buckets) - 1));             \
+         _hf_bkt = WHICH_BUCKET((_hf_hashv), (head)->hh.tbl->num_buckets, (head)->hh.tbl->log2_num_buckets); \
      }                                                                              \
      else {                                                                         \
-         HASH_FCN_VM_STR(tc, key, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt); \
+         HASH_FCN_VM_STR(tc, key, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt, (head)->hh.tbl->log2_num_buckets); \
      }                                                                              \
      HASH_FIND_IN_BKT_VM_STR(tc, (head)->hh.tbl, hh,                                \
          (head)->hh.tbl->buckets[ _hf_bkt ], key, out, _hf_hashv);                  \
@@ -210,8 +224,8 @@ do {                                                                            
  (head)->hh.tbl->num_items++;                                                    \
  (add)->hh.tbl = (head)->hh.tbl;                                                 \
  HASH_FCN(keyptr,keylen_in, (head)->hh.tbl->num_buckets,                         \
-         (add)->hh.hashv, _ha_bkt);                                              \
- HASH_ADD_TO_BKT(tc, &((head)->hh.tbl->buckets[_ha_bkt]),&(add)->hh);            \
+         (add)->hh.hashv, _ha_bkt, (head)->hh.tbl->log2_num_buckets);            \
+ HASH_ADD_TO_BKT(tc, &((head)->hh.tbl->buckets[_ha_bkt]),&(add)->hh);  \
  HASH_FSCK(hh,head);                                                             \
 } while(0)
 
@@ -222,25 +236,27 @@ do {                                                                            
  (add)->hh.key = (key_in);                                                       \
  if (!(head)) {                                                                  \
     head = (add);                                                                \
-    HASH_MAKE_TABLE(tc, head, &((head)->hh));                                                    \
+    HASH_MAKE_TABLE(tc, head, &((head)->hh));                                    \
  }                                                                               \
  (head)->hh.tbl->num_items++;                                                    \
  (add)->hh.tbl = (head)->hh.tbl;                                                 \
  if (cached_hash) {                                                              \
      (add)->hh.hashv = cached_hash;                                              \
-     _ha_bkt = ((cached_hash) & (((head)->hh.tbl->num_buckets) - 1));            \
+     _ha_bkt = WHICH_BUCKET((cached_hash),                                       \
+                  ((head)->hh.tbl->num_buckets),                                 \
+        (head)->hh.tbl->log2_num_buckets);                                       \
  }                                                                               \
  else {                                                                          \
      HASH_FCN_VM_STR(tc, key_in, (head)->hh.tbl->num_buckets,                    \
-             (add)->hh.hashv, _ha_bkt);                                          \
+             (add)->hh.hashv, _ha_bkt, (head)->hh.tbl->log2_num_buckets);        \
  }                                                                               \
  HASH_ADD_TO_BKT(tc, &((head)->hh.tbl->buckets[_ha_bkt]),&(add)->hh);            \
  HASH_FSCK(hh,head);                                                             \
 } while(0)
 
-#define HASH_TO_BKT( hashv, num_bkts, bkt )                                      \
+#define HASH_TO_BKT( hashv, num_bkts, bkt, offset )                              \
 do {                                                                             \
-  bkt = ((hashv) & ((num_bkts) - 1));                                            \
+  bkt = WHICH_BUCKET((hashv), (num_bkts), (offset));                             \
 } while(0)
 
 /* delete "delptr" from the hash table.
@@ -281,7 +297,7 @@ do {                                                                            
             uthash_fatal("Failed to replace deleted head");                      \
           REPLACED_HEAD: ;                                                       \
         }                                                                        \
-        HASH_TO_BKT( _hd_hh_del->hashv, (head)->hh.tbl->num_buckets, _hd_bkt);   \
+        HASH_TO_BKT( _hd_hh_del->hashv, (head)->hh.tbl->num_buckets, _hd_bkt, (head)->hh.tbl->log2_num_buckets);   \
         HASH_DEL_IN_BKT(&((head)->hh.tbl->buckets[_hd_bkt]), _hd_hh_del);        \
         (head)->hh.tbl->num_items--;                                             \
     }                                                                            \
@@ -347,7 +363,7 @@ do {                                                                            
   c -= a; c -= b; c ^= ( b >> 15 );                                              \
 } while (0)
 
-#define HASH_JEN(key,keylen,num_bkts,hashv,bkt)                                  \
+#define HASH_JEN(key,keylen,num_bkts,hashv,bkt,offset)                           \
 do {                                                                             \
   unsigned _hj_i,_hj_j,_hj_k;                                                    \
   unsigned char *_hj_key=(unsigned char*)(key);                                  \
@@ -388,14 +404,14 @@ do {                                                                            
   if (hashv == 0) {                                                              \
       hashv += keylen;                                                           \
   }                                                                              \
-  bkt = hashv & (num_bkts-1);                                                    \
+  bkt = WHICH_BUCKET(hashv, num_bkts, offset);                                   \
 } while(0)
 
-#define HASH_JEN_VM_STR(tc,key,num_bkts,hashv,bkt)                               \
+#define HASH_JEN_VM_STR(tc,key,num_bkts,hashv,bkt,offset)                        \
 do {                                                                             \
   MVM_string_compute_hash_code(tc, key);                                         \
   hashv = (key)->body.cached_hash_code;                                          \
-  bkt = hashv & (num_bkts-1);                                                    \
+  bkt = WHICH_BUCKET((hashv), (num_bkts), offset);                               \
 } while(0)
 
 /* key comparison function; return 0 if keys equal */
@@ -464,21 +480,23 @@ MVM_STATIC_INLINE void HASH_EXPAND_BUCKETS(MVMThreadContext *tc, UT_hash_table *
     unsigned _he_bkt_i;
     struct UT_hash_handle *_he_thh, *_he_hh_nxt;
     UT_hash_bucket *_he_new_buckets, *_he_newbkt;
+    unsigned new_num_bkts = tbl->num_buckets * 2;
+    unsigned new_log2_num_buckets = tbl->log2_num_buckets + 1;
     _he_new_buckets = (UT_hash_bucket*)uthash_malloc(
-             2 * tbl->num_buckets * sizeof(struct UT_hash_bucket));
+             new_num_bkts * sizeof(struct UT_hash_bucket));
     if (!_he_new_buckets) { uthash_fatal( "out of memory"); }
     memset(_he_new_buckets, 0,
-            2 * tbl->num_buckets * sizeof(struct UT_hash_bucket));
+            new_num_bkts * sizeof(struct UT_hash_bucket));
     tbl->ideal_chain_maxlen =
-       (tbl->num_items >> (tbl->log2_num_buckets+1)) +
-       ((tbl->num_items & ((tbl->num_buckets*2)-1)) ? 1 : 0);
+       (tbl->num_items >> new_log2_num_buckets) +
+       ((tbl->num_items & (new_num_bkts-1)) ? 1 : 0);
     tbl->nonideal_items = 0;
     for(_he_bkt_i = 0; _he_bkt_i < tbl->num_buckets; _he_bkt_i++)
     {
         _he_thh = tbl->buckets[ _he_bkt_i ].hh_head;
         while (_he_thh) {
            _he_hh_nxt = _he_thh->hh_next;
-           HASH_TO_BKT( _he_thh->hashv, tbl->num_buckets*2, _he_bkt);
+           HASH_TO_BKT( _he_thh->hashv, new_num_bkts, _he_bkt, new_log2_num_buckets);
            _he_newbkt = &(_he_new_buckets[ _he_bkt ]);
            if (++(_he_newbkt->count) > tbl->ideal_chain_maxlen) {
              tbl->nonideal_items++;
@@ -494,8 +512,8 @@ MVM_STATIC_INLINE void HASH_EXPAND_BUCKETS(MVMThreadContext *tc, UT_hash_table *
         }
     }
     uthash_free( tbl->buckets, tbl->num_buckets*sizeof(struct UT_hash_bucket) );
-    tbl->num_buckets *= 2;
-    tbl->log2_num_buckets++;
+    tbl->num_buckets = new_num_bkts;
+    tbl->log2_num_buckets = new_log2_num_buckets;
     tbl->buckets = _he_new_buckets;
     tbl->ineff_expands = (tbl->nonideal_items > (tbl->num_items >> 1)) ?
         (tbl->ineff_expands+1) : 0;
@@ -515,7 +533,7 @@ MVM_STATIC_INLINE void HASH_ADD_TO_BKT(MVMThreadContext *tc, UT_hash_bucket *hea
  head->hh_head = addhh;
  if (head->count >= ((head->expand_mult+1) * HASH_BKT_CAPACITY_THRESH)
      && addhh->tbl->noexpand != 1) {
-       HASH_EXPAND_BUCKETS(tc, addhh->tbl);
+        HASH_EXPAND_BUCKETS(tc, addhh->tbl);
  }
 }
 
