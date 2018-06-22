@@ -580,6 +580,25 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         }
         break;
     }
+    case MVM_OP_lexprimspec: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 ctx = ins->operands[1].reg.orig;
+        MVMint16 name = ins->operands[2].reg.orig;
+        | mov TMP1, WORK[ctx];
+        | cmp_repr_id, TMP1, TMP2, MVM_REPR_ID_MVMContext;
+        | jne >1;
+        | test_type_object TMP1;
+        | jz >2;
+        |1:
+        | throw_adhoc "lexprimspec needs a context";
+        |2:
+        | mov ARG2, CONTEXT:TMP1->body.context;
+        | mov ARG3, WORK[name];
+        | mov ARG1, TC;
+        | callp MVM_frame_lexical_primspec;
+        | mov WORK[dst], RV;
+        break;
+    }
     case MVM_OP_getarg_o:
     case MVM_OP_getarg_n:
     case MVM_OP_getarg_s:
@@ -2444,25 +2463,6 @@ void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, M
 
                 | jne =>(name);
             }
-            break;
-        }
-        case MVM_OP_lexprimspec: {
-            MVMint16 dst = ins->operands[0].reg.orig;
-            MVMint16 ctx = ins->operands[1].reg.orig;
-            MVMint16 name = ins->operands[2].reg.orig;
-            | mov TMP1, WORK[ctx];
-            | cmp_repr_id, TMP1, TMP2, MVM_REPR_ID_MVMContext;
-            | jne >1;
-            | test_type_object TMP1;
-            | jz >2;
-            |1:
-            | throw_adhoc "lexprimspec needs a context";
-            |2:
-            | mov ARG2, CONTEXT:TMP1->body.context;
-            | mov ARG3, WORK[name];
-            | mov ARG1, TC;
-            | callp MVM_frame_lexical_primspec;
-            | mov WORK[dst], RV;
             break;
         }
         default:
