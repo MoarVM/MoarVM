@@ -3,8 +3,11 @@
 #ifdef _WIN32
     #include <winsock2.h>
     #include <ws2tcpip.h>
+    #include <io.h>
+
     typedef SOCKET Socket;
     #define sa_family_t unsigned int
+    #define isatty _isatty
 #else
     #include "unistd.h"
     #include <sys/socket.h>
@@ -434,19 +437,32 @@ MVMint64 socket_getport(MVMThreadContext *tc, MVMOSHandle *h) {
     return port;
 }
 
+static MVMint64 socket_is_tty(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
+    return isatty(data->handle);
+}
+
+static MVMint64 socket_handle(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
+    return (MVMint64)data->handle;
+}
+
 static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h);
 
 /* IO ops table, populated with functions. */
-static const MVMIOClosable     closable      = { close_socket };
-static const MVMIOSyncReadable sync_readable = { socket_read_bytes,
-                                                 socket_eof };
-static const MVMIOSyncWritable sync_writable = { socket_write_bytes,
-                                                 socket_flush,
-                                                 socket_truncate };
-static const MVMIOSockety            sockety = { socket_connect,
-                                                 socket_bind,
-                                                 socket_accept,
-                                                 socket_getport };
+static const MVMIOClosable      closable      = { close_socket };
+static const MVMIOSyncReadable  sync_readable = { socket_read_bytes,
+                                                  socket_eof };
+static const MVMIOSyncWritable  sync_writable = { socket_write_bytes,
+                                                  socket_flush,
+                                                  socket_truncate };
+static const MVMIOSockety             sockety = { socket_connect,
+                                                  socket_bind,
+                                                  socket_accept,
+                                                  socket_getport };
+static const MVMIOIntrospection introspection = { socket_is_tty,
+                                                  socket_handle };
+
 static const MVMIOOps op_table = {
     &closable,
     &sync_readable,
@@ -458,7 +474,7 @@ static const MVMIOOps op_table = {
     &sockety,
     NULL,
     NULL,
-    NULL,
+    &introspection,
     NULL,
     NULL,
     gc_free
