@@ -839,6 +839,30 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], RV;
         break;
     }
+    case MVM_OP_ctxouter: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 ctx = ins->operands[1].reg.orig;
+        | mov TMP1, WORK[ctx];
+        | test_type_object TMP1;
+        | jnz >1;
+        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMContext;
+        | je >2;
+        |1:
+        | throw_adhoc "ctxouter needs an MVMContext";
+        |2:
+        | mov TMP2, CONTEXT:TMP1->body.context;
+        | mov ARG2, FRAME:TMP2->outer;
+        | test ARG2, ARG2;
+        | jz >3;
+        | mov ARG1, TC;
+        | callp &MVM_frame_context_wrapper;
+        | jmp >4;
+        |3:
+        | get_vmnull RV;
+        |4:
+        | mov WORK[dst], RV;
+        break;
+    }
     case MVM_OP_ctxlexpad: {
         MVMint16 src = ins->operands[1].reg.orig;
         MVMint16 dst = ins->operands[0].reg.orig;
