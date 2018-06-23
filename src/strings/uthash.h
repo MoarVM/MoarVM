@@ -166,7 +166,7 @@ do {                                                                            
     ((hashv) & ((num_bkts) - 1))
 /* Fibonacci bucket determination.
  * Since we grow bucket sizes in multiples of two, we just need a right
- * bitmask to get it on the correct scale. This has the advantage of using &ing
+ * bitmask to get it on the correct scale. This has an advantage over using &ing
  * or % to get the bucket number because it uses the full bit width of the hash.
  * If the size of the hashv is changed we will need to change max_hashv_div_phi,
  * to be max_hashv / phi rounded to the nearest *odd* number.
