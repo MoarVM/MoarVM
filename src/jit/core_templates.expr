@@ -131,29 +131,18 @@
       (carg (tc) ptr)
       (carg $0 ptr))))
 
-(template: iscont_i
-  (call (^func MVM_6model_container_iscont_i)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)) int_sz))
-
-(template: iscont_n
-  (call (^func MVM_6model_container_iscont_n)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)) int_sz))
-
-(template: iscont_s
-  (call (^func MVM_6model_container_iscont_s)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)) int_sz))
-
 (template: takeclosure
   (call (^func MVM_frame_takeclosure)
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
+
+(template: die!
+  (callv (^func &MVM_exception_die)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $0 ptr))))
 
 (template: null_s (const 0 ptr_sz))
 
@@ -237,33 +226,15 @@
       (carg $2 ptr)
       (carg $3 int)) int_sz))
 
-(template: eqatim_s
-  (call (^func &MVM_string_equal_at_ignore_mark)
+(template: haveat_s
+  (call (^func &MVM_string_have_at)
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)
-      (carg $2 ptr)
-      (carg $3 int)) int_sz))
-
-(template: ordbaseat
-  (call (^func &MVM_string_ord_basechar_at)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $2 int)) int_sz))
-
-(template: getuniname
-  (call (^func &MVM_unicode_get_name)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 int)) ptr_sz))
-
-(template: ordfirst
-  (call (^func &MVM_string_ord_at)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg (const 0 int_sz) int)) int_sz))
+      (carg $2 int)
+      (carg $3 int)
+      (carg $4 ptr)
+      (carg $5 int)) int_sz))
 
 (template: concat_s
   (call (^func &MVM_string_concatenate)
@@ -278,6 +249,49 @@
       (carg (tc) ptr)
       (carg $1 ptr)
       (carg $2 int)) ptr_sz))
+
+(template: substr_s
+  (call (^func &MVM_string_substring)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 int)
+      (carg $3 int)) ptr_sz))
+
+(template: index_s
+  (call (^func &MVM_string_index)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 int)) int_sz))
+
+(template: graphs_s
+  (call (^func &MVM_string_graphs)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) int_sz))
+
+
+(template: codes_s
+  (call (^func &MVM_string_codes)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) int_sz))
+
+(template: getcp_s
+  (call (^func &MVM_string_get_grapheme_at)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 int)) int_sz))
+
+(template: indexcp_s
+  (call (^func &MVM_string_index_of_grapheme)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 int)) int_sz))
 
 (template: uc
   (call (^func &MVM_string_uc)
@@ -311,51 +325,6 @@
       (carg $1 ptr)
       (carg $2 ptr)) ptr_sz))
 
-(template: getcp_s
-  (call (^func &MVM_string_get_grapheme_at)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $2 int)) int_sz))
-
-(template: indexcp_s
-  (call (^func &MVM_string_index_of_grapheme)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $2 int)) int_sz))
-
-(template: index_s
-  (call (^func &MVM_string_index)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $2 ptr)
-      (carg $3 int)) int_sz))
-
-(template: graphs_s
-  (call (^func &MVM_string_graphs)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)) int_sz))
-
-(template: haveat_s
-  (call (^func &MVM_string_have_at)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $2 int)
-      (carg $3 int)
-      (carg $4 ptr)
-      (carg $5 int)) int_sz))
-
-
-(template: codes_s
-  (call (^func &MVM_string_codes)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)) int_sz))
-
 (template: getcpbyname
   (call (^func &MVM_unicode_lookup_by_name)
     (arglist
@@ -384,113 +353,18 @@
       (carg $3 int)
       (carg $4 int)) int_sz))
 
-(template: getuniprop_int
-  (call (^func &MVM_unicode_codepoint_get_property_int)
+(template: chr
+  (call (^func &MVM_string_chr)
     (arglist
       (carg (tc) ptr)
-      (carg $1 int)
-      (carg $2 int)) int_sz))
+      (carg $1 int)) ptr_sz))
 
-(template: getuniprop_bool
-  (call (^func &MVM_unicode_codepoint_get_property_bool)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 int)
-      (carg $2 int)) int_sz))
-
-(template: getuniprop_str
-  (call (^func &MVM_unicode_codepoint_get_property_str)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 int)
-      (carg $2 int)) ptr_sz))
-
-(template: nativecallbuild
-  (call (^func &MVM_nativecall_build)
+(template: ordfirst
+  (call (^func &MVM_string_ord_at)
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)
-      (carg $2 ptr)
-      (carg $3 ptr)
-      (carg $4 ptr)
-      (carg $5 ptr)
-      (carg $6 ptr)) int_sz))
-
-(template: nativecallinvoke
-  (call (^func &MVM_nativecall_invoke)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $2 ptr)
-      (carg $3 ptr)) ptr_sz))
-
-# XXX check this
-(template: nativecallrefresh
-  (callv (^func &MVM_nativecall_refresh)
-    (arglist
-      (carg (tc) ptr)
-      (carg $0 ptr))))
-
-# XXX check this
-(template: threadrun
-  (callv (^func &MVM_thread_run)
-    (arglist
-      (carg (tc) ptr)
-      (carg $0 ptr))))
-
-(template: threadid
-  (call (^func &MVM_thread_id)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)) int_sz))
-
-(template: threadyield
-  (callv (^func &MVM_thread_yield)
-    (arglist
-      (carg (tc) ptr))))
-
-(template: currentthread
-  (call (^func &MVM_thread_current)
-    (arglist
-      (carg (tc) ptr)) ptr_sz))
-
-(template: lock
-  (callv (^func &MVM_reentrantmutex_lock_checked)
-    (arglist
-      (carg (tc) ptr)
-      (carg $0 ptr))))
-
-(template: unlock
-  (callv (^func &MVM_reentrantmutex_unlock_checked)
-    (arglist
-      (carg (tc) ptr)
-      (carg $0 ptr))))
-
-(template: timer
-  (call (^func &MVM_io_timer_create)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $2 ptr)
-      (carg $3 int)
-      (carg $4 int)
-      (carg $5 ptr)) ptr_sz))
-
-(template: matchuniprop
-  (call (^func &MVM_unicode_codepoint_has_property_value)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 int)
-      (carg $2 int)
-      (carg $3 int)) ptr_sz))
-
-(template: substr_s
-  (call (^func &MVM_string_substring)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $2 int)
-      (carg $3 int)) ptr_sz))
+      (carg (const 0 int_sz) int)) int_sz))
 
 (template: ordat
   (call (^func &MVM_string_ord_at)
@@ -498,18 +372,6 @@
       (carg (tc) ptr)
       (carg $1 ptr)
       (carg $2 int)) int_sz))
-
-(template: chr
-  (call (^func &MVM_string_chr)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 int)) ptr_sz))
-
-(template: flip
-  (call (^func &MVM_string_flip)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)) ptr_sz))
 
 (template: rindexfrom
   (call (^func &MVM_string_index_from_end)
@@ -519,29 +381,11 @@
       (carg $2 ptr)
       (carg $3 int)) int_sz))
 
-(template: getenvhash
-  (call (^func &MVM_proc_getenvhash)
-    (arglist
-      (carg (tc) ptr)) ptr_sz))
-
-(template: backendconfig
-  (call (^func &MVM_backend_config)
-    (arglist
-      (carg (tc) ptr)) ptr_sz))
-
-(template: coerce_sI
-  (call (^func &MVM_coerce_sI)
+(template: flip
+  (call (^func &MVM_string_flip)
     (arglist
       (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $2 ptr)) ptr_sz))
-
-(template: die!
-  (callv (^func &MVM_exception_die)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $0 ptr))))
+      (carg $1 ptr)) ptr_sz))
 
 (template: null (^vmnull))
 
@@ -1140,11 +984,28 @@
     (^getf $caller MVMFrame code_ref)
     (const 0 ptr_sz))))
 
+(template: coerce_sI
+  (call (^func &MVM_coerce_sI)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)) ptr_sz))
+
 (template: say
   (callv (^func &MVM_string_say)
     (arglist
       (carg (tc) ptr)
       (carg $0 ptr))))
+
+(template: getenvhash
+  (call (^func &MVM_proc_getenvhash)
+    (arglist
+      (carg (tc) ptr)) ptr_sz))
+
+(template: backendconfig
+  (call (^func &MVM_backend_config)
+    (arglist
+      (carg (tc) ptr)) ptr_sz))
 
 (template: assertparamcheck!
   (when (zr $0)
@@ -1152,8 +1013,132 @@
       (arglist
         (carg (tc) ptr)))))
 
+(template: getuniname
+  (call (^func &MVM_unicode_get_name)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)) ptr_sz))
+
+(template: getuniprop_int
+  (call (^func &MVM_unicode_codepoint_get_property_int)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)
+      (carg $2 int)) int_sz))
+
+(template: getuniprop_bool
+  (call (^func &MVM_unicode_codepoint_get_property_bool)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)
+      (carg $2 int)) int_sz))
+
+(template: getuniprop_str
+  (call (^func &MVM_unicode_codepoint_get_property_str)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)
+      (carg $2 int)) ptr_sz))
+
+(template: matchuniprop
+  (call (^func &MVM_unicode_codepoint_has_property_value)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)
+      (carg $2 int)
+      (carg $3 int)) ptr_sz))
+
+(template: nativecallbuild
+  (call (^func &MVM_nativecall_build)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 ptr)
+      (carg $4 ptr)
+      (carg $5 ptr)
+      (carg $6 ptr)) int_sz))
+
+(template: nativecallinvoke
+  (call (^func &MVM_nativecall_invoke)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 ptr)) ptr_sz))
+
+# XXX check this
+(template: nativecallrefresh
+  (callv (^func &MVM_nativecall_refresh)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr))))
+
+# XXX check this
+(template: threadrun
+  (callv (^func &MVM_thread_run)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr))))
+
+(template: threadid
+  (call (^func &MVM_thread_id)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) int_sz))
+
+(template: threadyield
+  (callv (^func &MVM_thread_yield)
+    (arglist
+      (carg (tc) ptr))))
+
+(template: currentthread
+  (call (^func &MVM_thread_current)
+    (arglist
+      (carg (tc) ptr)) ptr_sz))
+
+(template: lock
+  (callv (^func &MVM_reentrantmutex_lock_checked)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr))))
+
+(template: unlock
+  (callv (^func &MVM_reentrantmutex_unlock_checked)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr))))
+
+(template: timer
+  (call (^func &MVM_io_timer_create)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 int)
+      (carg $4 int)
+      (carg $5 ptr)) ptr_sz))
+
 (template: const_i64_16 (copy $1))
 (template: const_i64_32 (copy $1))
+
+(template: iscont_i
+  (call (^func MVM_6model_container_iscont_i)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) int_sz))
+
+(template: iscont_n
+  (call (^func MVM_6model_container_iscont_n)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) int_sz))
+
+(template: iscont_s
+  (call (^func MVM_6model_container_iscont_s)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) int_sz))
 
 (template: decont_s!
   (callv (^func &MVM_6model_container_decont_s)
@@ -1162,26 +1147,23 @@
       (carg $1 ptr)
       (carg $0 ptr))))
 
-(template: lastexpayload
-  (^getf (tc) MVMThreadContext last_payload))
-
-(template: encoderepconf
-  (call (^func &MVM_string_encode_to_buf_config)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $2 ptr)
-      (carg $4 ptr)
-      (carg $3 ptr)
-      (carg $5 int_sz)) ptr_sz))
-
-(template: eqaticim_s
-  (call (^func &MVM_string_equal_at_ignore_case_ignore_mark)
+(template: eqatim_s
+  (call (^func &MVM_string_equal_at_ignore_mark)
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)
       (carg $2 ptr)
       (carg $3 int)) int_sz))
+
+(template: ordbaseat
+  (call (^func &MVM_string_ord_basechar_at)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 int)) int_sz))
+
+(template: lastexpayload
+  (^getf (tc) MVMThreadContext last_payload))
 
 (template: unicmp_s
   (call (^func &MVM_unicode_string_compare)
@@ -1192,14 +1174,6 @@
       (carg $3 int)
       (carg $4 int)
       (carg $4 int)) int_sz))
-
-(template: indexicim_s
-  (call (^func &MVM_string_index_ignore_case_ignore_mark)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $2 ptr)
-      (carg $3 int)) int_sz))
 
 (template: getstrfromname
   (call (^func &MVM_unicode_string_from_name)
@@ -1214,6 +1188,32 @@
       (carg $1 ptr)
       (carg $2 ptr)
       (carg $3 int)) int_sz))
+
+(template: eqaticim_s
+  (call (^func &MVM_string_equal_at_ignore_case_ignore_mark)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 int)) int_sz))
+
+(template: indexicim_s
+  (call (^func &MVM_string_index_ignore_case_ignore_mark)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 int)) int_sz))
+
+(template: encoderepconf
+  (call (^func &MVM_string_encode_to_buf_config)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $4 ptr)
+      (carg $3 ptr)
+      (carg $5 int_sz)) ptr_sz))
 
 (template: getsignals
   (call (^func &MVM_io_get_signals)
