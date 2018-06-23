@@ -70,6 +70,11 @@ static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet 
                         ? 1
                         : gs->guards[pos].skip_on_fail;
                     break;
+                case MVM_SPESH_PLUGIN_GUARD_NOTOBJ:
+                    pos += test != gs->guards[pos].u.object
+                        ? 1
+                        : gs->guards[pos].skip_on_fail;
+                    break;
                 case MVM_SPESH_PLUGIN_GUARD_TYPE:
                     pos += STABLE(test) == gs->guards[pos].u.type
                         ? 1
@@ -141,6 +146,7 @@ static MVMSpeshPluginGuardSet * append_guard(MVMThreadContext *tc,
             result->guards[insert_pos].skip_on_fail = 1 + tc->num_plugin_guards - i;
             switch (tc->plugin_guards[i].kind) {
                 case MVM_SPESH_PLUGIN_GUARD_OBJ:
+                case MVM_SPESH_PLUGIN_GUARD_NOTOBJ:
                     MVM_ASSIGN_REF(tc, &(barrier->common.header),
                             result->guards[insert_pos].u.object,
                             tc->plugin_guards[i].u.object);
@@ -467,6 +473,16 @@ void MVM_spesh_plugin_addguard_obj(MVMThreadContext *tc, MVMObject *guardee) {
     guard->u.object = guardee;
 }
 
+/* Adds a guard that the guardee must NOT exactly match the provided object
+ * literal. Will throw if we are not currently inside of a spesh plugin. */
+void MVM_spesh_plugin_addguard_notobj(MVMThreadContext *tc, MVMObject *guardee, MVMObject *not) {
+    MVMuint16 idx = get_guard_arg_index(tc, guardee);
+    MVMSpeshPluginGuard *guard = get_guard_to_record_into(tc);
+    guard->kind = MVM_SPESH_PLUGIN_GUARD_NOTOBJ;
+    guard->test_idx = idx;
+    guard->u.object = not;
+}
+
 /* Gets an attribute and adds that object to the set of objects that we may
  * guard against. Will throw if we are not currently inside of a spesh
  * plugin. */
@@ -623,6 +639,19 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                     }
                     break;
                 }
+                case MVM_SPESH_PLUGIN_GUARD_NOTOBJ: {
+                    MVMSpeshIns *guard_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                    guard_ins->info = MVM_op_get_op(MVM_OP_sp_guardnotobj);
+                    guard_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                    guard_ins->operands[0] = arg_regs[guard->test_idx];
+                    MVM_spesh_get_facts(tc, g, arg_regs[guard->test_idx])->usages++;
+                    guard_ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                            (MVMCollectable *)guard->u.object);
+                    guard_ins->operands[2].lit_ui32 = deopt_to;
+                    guard_ins->annotations = stolen_deopt_ann;
+                    MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
+                    break;
+                }
                 case MVM_SPESH_PLUGIN_GUARD_TYPE: {
                     if ((guarded_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) == 0
                             || STABLE(guarded_facts->type) != guard->u.type) {
@@ -763,6 +792,7 @@ void MVM_spesh_plugin_guard_list_mark(MVMThreadContext *tc, MVMSpeshPluginGuard 
                     MVM_gc_worklist_add(tc, worklist, &guards[i].u.result);
                     break;
                 case MVM_SPESH_PLUGIN_GUARD_OBJ:
+                case MVM_SPESH_PLUGIN_GUARD_NOTOBJ:
                     MVM_gc_worklist_add(tc, worklist, &guards[i].u.object);
                     break;
                 case MVM_SPESH_PLUGIN_GUARD_TYPE:

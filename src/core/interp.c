@@ -5384,6 +5384,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).s = MVM_coerce_u_s(tc, GET_REG(cur_op, 2).u64);
                 cur_op += 4;
                 goto NEXT;
+            OP(speshguardnotobj):
+                MVM_spesh_plugin_addguard_notobj(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(sp_guard): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
@@ -5438,6 +5442,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     ->effective_spesh_slots[GET_UI16(cur_op, 2)];
                 cur_op += 8;
                 if (check != want)
+                    MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                goto NEXT;
+            }
+            OP(sp_guardnotobj): {
+                MVMObject *check = GET_REG(cur_op, 0).o;
+                MVMObject *do_not_want = (MVMObject *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                cur_op += 8;
+                if (check == do_not_want)
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
                 goto NEXT;
             }

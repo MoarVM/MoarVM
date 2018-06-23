@@ -859,6 +859,7 @@ atomicbindattr_o    r(obj) r(obj) r(str) r(obj)
 casattr_o           w(obj) r(obj) r(obj) r(str) r(obj) r(obj)
 atkey_u             w(uint64) r(obj) r(str)
 coerce_us           w(str) r(uint64) :pure
+speshguardnotobj    r(obj) r(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
@@ -878,8 +879,9 @@ sp_guardtype     .s r(obj) sslot uint32
 sp_guardsf       .s r(obj) sslot uint32
 sp_guardsfouter  .s r(obj) sslot uint32
 
-# Literal object match guard.
+# Literal object match and non-match guards.
 sp_guardobj      .s r(obj) sslot uint32
+sp_guardnotobj   .s r(obj) sslot uint32
 
 # Guards that check concrete or type object, without caring for type.
 sp_guardjustconc .s r(obj) uint32

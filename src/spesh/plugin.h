@@ -32,10 +32,11 @@ struct MVMSpeshPluginGuardSet {
 /* Types of guard that we have. */
 #define MVM_SPESH_PLUGIN_GUARD_RESULT   0   /* Node indicating a match */
 #define MVM_SPESH_PLUGIN_GUARD_OBJ      1   /* Literal object match */
-#define MVM_SPESH_PLUGIN_GUARD_TYPE     2   /* Exact type match guard */
-#define MVM_SPESH_PLUGIN_GUARD_CONC     3   /* Concrete object guard */
-#define MVM_SPESH_PLUGIN_GUARD_TYPEOBJ  4   /* Type object guard */
-#define MVM_SPESH_PLUGIN_GUARD_GETATTR  5   /* Gets an attribute for testing */
+#define MVM_SPESH_PLUGIN_GUARD_NOTOBJ   2   /* Literal object non-match */
+#define MVM_SPESH_PLUGIN_GUARD_TYPE     3   /* Exact type match guard */
+#define MVM_SPESH_PLUGIN_GUARD_CONC     4   /* Concrete object guard */
+#define MVM_SPESH_PLUGIN_GUARD_TYPEOBJ  5   /* Type object guard */
+#define MVM_SPESH_PLUGIN_GUARD_GETATTR  6   /* Gets an attribute for testing */
 
 /* An individual guard. */
 struct MVMSpeshPluginGuard {
@@ -77,6 +78,7 @@ void MVM_spesh_plugin_addguard_type(MVMThreadContext *tc, MVMObject *guardee, MV
 void MVM_spesh_plugin_addguard_concrete(MVMThreadContext *tc, MVMObject *guardee);
 void MVM_spesh_plugin_addguard_typeobj(MVMThreadContext *tc, MVMObject *guardee);
 void MVM_spesh_plugin_addguard_obj(MVMThreadContext *tc, MVMObject *guardee);
+void MVM_spesh_plugin_addguard_notobj(MVMThreadContext *tc, MVMObject *guardee, MVMObject *not);
 MVMObject * MVM_spesh_plugin_addguard_getattr(MVMThreadContext *tc, MVMObject *guardee,
     MVMObject *class_handle, MVMString *name);
 
