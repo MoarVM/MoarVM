@@ -1738,9 +1738,23 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
                     return MVM_STORAGE_SPEC_BP_STR;
                 case MVM_reg_obj:
                     return MVM_STORAGE_SPEC_BP_NONE;
+                case MVM_reg_int8:
+                    return MVM_STORAGE_SPEC_BP_INT8;
+                case MVM_reg_int16:
+                    return MVM_STORAGE_SPEC_BP_INT16;
+                case MVM_reg_int32:
+                    return MVM_STORAGE_SPEC_BP_INT32;
+                case MVM_reg_uint8:
+                    return MVM_STORAGE_SPEC_BP_UINT8;
+                case MVM_reg_uint16:
+                    return MVM_STORAGE_SPEC_BP_UINT16;
+                case MVM_reg_uint32:
+                    return MVM_STORAGE_SPEC_BP_UINT32;
+                case MVM_reg_uint64:
+                    return MVM_STORAGE_SPEC_BP_UINT64;
                 default:
                 {
-                    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+                    char *c_name  = MVM_string_utf8_encode_C_string(tc, name);
                     char *waste[] = { c_name, NULL };
                     MVM_exception_throw_adhoc_free(tc, waste,
                         "Unhandled lexical type '%s' in lexprimspec for '%s'",

@@ -4,6 +4,7 @@
 #include "platform/sys.h"
 #include "platform/time.h"
 
+
 static void jg_append_node(MVMJitGraph *jg, MVMJitNode *node) {
     if (jg->last_node) {
         jg->last_node->next = node;
@@ -324,6 +325,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_decont_s: return MVM_6model_container_decont_s;
     case MVM_OP_getrusage: return MVM_proc_getrusage;
     case MVM_OP_cpucores: return MVM_platform_cpu_count;
+    case MVM_OP_getsignals: return MVM_io_get_signals;
     case MVM_OP_sleep: return MVM_platform_sleep;
     case MVM_OP_getlexref_i32: case MVM_OP_getlexref_i16: case MVM_OP_getlexref_i8: case MVM_OP_getlexref_i: return MVM_nativeref_lex_i;
     case MVM_OP_getlexref_n32: case MVM_OP_getlexref_n: return MVM_nativeref_lex_n;
@@ -367,7 +369,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
 }
 
 static void jg_append_guard(MVMThreadContext *tc, MVMJitGraph *jg,
-                             MVMSpeshIns *ins) {
+                             MVMSpeshIns *ins, MVMuint32 target_operand) {
     MVMSpeshAnn   *ann = ins->annotations;
     MVMJitNode   *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
     MVMint32 deopt_idx;
@@ -385,7 +387,7 @@ static void jg_append_guard(MVMThreadContext *tc, MVMJitGraph *jg,
         MVM_oops(tc, "Can't find deopt idx annotation on spesh ins <%s>",
             ins->info->name);
     }
-    node->u.guard.deopt_target = ins->operands[2].lit_ui32;
+    node->u.guard.deopt_target = ins->operands[target_operand].lit_ui32;
     node->u.guard.deopt_offset = jg->sg->deopt_addrs[2 * deopt_idx + 1];
     jg_append_node(jg, node);
 }
@@ -1530,6 +1532,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_bnot_i:
     case MVM_OP_blshift_i:
     case MVM_OP_brshift_i:
+    case MVM_OP_pow_i:
     case MVM_OP_add_n:
     case MVM_OP_sub_n:
     case MVM_OP_mul_n:
@@ -3086,6 +3089,12 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, op_to_func(tc, op), 0, NULL, MVM_JIT_RV_INT, dst);
         break;
     }
+    case MVM_OP_getsignals: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMJitCallArg args[] =  { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 1, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
     case MVM_OP_sleep: {
         MVMint16 time = ins->operands[0].reg.orig;
         MVMJitCallArg block_args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } } };
@@ -3202,7 +3211,12 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_guardconc:
     case MVM_OP_sp_guardtype:
     case MVM_OP_sp_guardsf:
-        jg_append_guard(tc, jg, ins);
+    case MVM_OP_sp_guardobj:
+        jg_append_guard(tc, jg, ins, 2);
+        break;
+    case MVM_OP_sp_guardjustconc:
+    case MVM_OP_sp_guardjusttype:
+        jg_append_guard(tc, jg, ins, 1);
         break;
     case MVM_OP_sp_resolvecode: {
         MVMint16 dst     = ins->operands[0].reg.orig;

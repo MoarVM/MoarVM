@@ -749,3 +749,22 @@ MVM_PUBLIC MVMint64    MVM_repr_compare_repr_id(MVMThreadContext *tc, MVMObject 
 MVM_PUBLIC MVMint64    MVM_repr_hint_for(MVMThreadContext *tc, MVMObject *object, MVMString *attrname) {
     return REPR(object)->attr_funcs.hint_for(tc, STABLE(object), object, attrname);
 }
+
+MVM_PUBLIC void MVM_repr_atomic_bind_attr_o(MVMThreadContext *tc, MVMObject *object,
+                                            MVMObject *type, MVMString *name,
+                                            MVMObject *value) {
+    AO_t *target = REPR(object)->attr_funcs.attribute_as_atomic(tc, STABLE(object),
+        OBJECT_BODY(object), type, name, MVM_reg_obj);
+    MVM_store(target, value);
+    MVM_gc_write_barrier(tc, (MVMCollectable *)object, (MVMCollectable *)value);
+}
+
+MVM_PUBLIC MVMObject * MVM_repr_casattr_o(MVMThreadContext *tc, MVMObject *object,
+                                          MVMObject *type, MVMString *name,
+                                          MVMObject *expected, MVMObject *value) {
+    AO_t *target = REPR(object)->attr_funcs.attribute_as_atomic(tc, STABLE(object),
+        OBJECT_BODY(object), type, name, MVM_reg_obj);
+    MVMObject *witness = (MVMObject *)MVM_casptr(target, expected, value);
+    MVM_gc_write_barrier(tc, (MVMCollectable *)object, (MVMCollectable *)value);
+    return witness;
+}

@@ -24,7 +24,7 @@ GCC_DIAG_OFF(return-type)
 MVMint64 MVM_REPR_DEFAULT_IS_ATTRIBUTE_INITIALIZED(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
     die_no_attrs(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
-AO_t * MVM_REPR_DEFAULT_ATTRIBUTE_AS_ATOMIC(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name) {
+AO_t * MVM_REPR_DEFAULT_ATTRIBUTE_AS_ATOMIC(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name, MVMuint16 kind) {
     die_no_attrs(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 GCC_DIAG_ON(return-type)

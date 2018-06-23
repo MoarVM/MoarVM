@@ -122,6 +122,14 @@ MVM_PUBLIC MVMint64    MVM_repr_compare_repr_id(MVMThreadContext *tc, MVMObject 
 
 MVM_PUBLIC MVMint64    MVM_repr_hint_for(MVMThreadContext *tc, MVMObject *object, MVMString *attrname);
 
+MVM_PUBLIC void MVM_repr_atomic_bind_attr_o(MVMThreadContext *tc, MVMObject *object,
+                                            MVMObject *type, MVMString *name,
+                                            MVMObject *value);
+
+MVM_PUBLIC MVMObject * MVM_repr_casattr_o(MVMThreadContext *tc, MVMObject *object,
+                                          MVMObject *type, MVMString *name,
+                                          MVMObject *expected, MVMObject *value);
+
 #define MVM_repr_at_key_int(tc, obj, key) \
     MVM_repr_get_int((tc), MVM_repr_at_key_o((tc), (obj), (key)))
 #define MVM_repr_at_key_num(tc, obj, key) \

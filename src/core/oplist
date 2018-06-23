@@ -855,6 +855,10 @@ speshguardconcrete  r(obj)
 speshguardtypeobj   r(obj)
 speshguardobj       r(obj)
 speshguardgetattr   w(obj) r(obj) r(obj) str
+atomicbindattr_o    r(obj) r(obj) r(str) r(obj)
+casattr_o           w(obj) r(obj) r(obj) r(str) r(obj) r(obj)
+atkey_u             w(uint64) r(obj) r(str)
+coerce_us           w(str) r(uint64) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
@@ -876,6 +880,8 @@ sp_guardsfouter  .s r(obj) sslot uint32
 
 # Literal object match guard.
 sp_guardobj      .s r(obj) sslot uint32
+
+# Guards that check concrete or type object, without caring for type.
 sp_guardjustconc .s r(obj) uint32
 sp_guardjusttype .s r(obj) uint32
 

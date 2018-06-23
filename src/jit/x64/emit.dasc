@@ -580,6 +580,25 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         }
         break;
     }
+    case MVM_OP_lexprimspec: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 ctx = ins->operands[1].reg.orig;
+        MVMint16 name = ins->operands[2].reg.orig;
+        | mov TMP1, WORK[ctx];
+        | cmp_repr_id, TMP1, TMP2, MVM_REPR_ID_MVMContext;
+        | jne >1;
+        | test_type_object TMP1;
+        | jz >2;
+        |1:
+        | throw_adhoc "lexprimspec needs a context";
+        |2:
+        | mov ARG2, CONTEXT:TMP1->body.context;
+        | mov ARG3, WORK[name];
+        | mov ARG1, TC;
+        | callp MVM_frame_lexical_primspec;
+        | mov WORK[dst], RV;
+        break;
+    }
     case MVM_OP_getarg_o:
     case MVM_OP_getarg_n:
     case MVM_OP_getarg_s:
@@ -1035,6 +1054,28 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             break;
         }
         | mov WORK[reg_a], rax;
+        break;
+    }
+    case MVM_OP_pow_i: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 base = ins->operands[1].reg.orig;
+        MVMint16 exp  = ins->operands[2].reg.orig;
+        | xor rax, rax;
+        | mov rcx, WORK[exp];
+        | cmp rcx, rax;
+        | jl >3;
+        | inc rax;
+        | mov r8, WORK[base];
+        |1:
+        | test rcx, 1;
+        | jz >2;
+        | imul r8;
+        |2:
+        | imul r8, r8;
+        | shr rcx, 1;
+        | jnz <1;
+        |3:
+        | mov WORK[dst], rax;
         break;
     }
     case MVM_OP_div_i: {
@@ -2424,25 +2465,6 @@ void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, M
             }
             break;
         }
-        case MVM_OP_lexprimspec: {
-            MVMint16 dst = ins->operands[0].reg.orig;
-            MVMint16 ctx = ins->operands[1].reg.orig;
-            MVMint16 name = ins->operands[2].reg.orig;
-            | mov TMP1, WORK[ctx];
-            | cmp_repr_id, TMP1, TMP2, MVM_REPR_ID_MVMContext;
-            | jne >1;
-            | test_type_object TMP1;
-            | jz >2;
-            |1:
-            | throw_adhoc "lexprimspec needs a context";
-            |2:
-            | mov ARG2, CONTEXT:TMP1->body.context;
-            | mov ARG3, WORK[name];
-            | mov ARG1, TC;
-            | callp MVM_frame_lexical_primspec;
-            | mov WORK[dst], RV;
-            break;
-        }
         default:
             MVM_panic(1, "JIT: Can't handle conditional <%s>", ins->info->name);
         }
@@ -2495,11 +2517,13 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
                         MVMJitGuard *guard) {
     MVMint16 op        = guard->ins->info->opcode;
     MVMint16 obj       = guard->ins->operands[0].reg.orig;
-    MVMint16 spesh_idx = guard->ins->operands[1].lit_i16;
     MVM_jit_log(tc, "emit guard <%s>\n", guard->ins->info->name);
-    /* load object and spesh slot value */
+    /* load object and spesh slot value, except for those that don't need it */
     | mov TMP1, WORK[obj];
-    | get_spesh_slot TMP2, spesh_idx;
+    if (op != MVM_OP_sp_guardjustconc && op != MVM_OP_sp_guardjusttype) {
+        MVMint16 spesh_idx = guard->ins->operands[1].lit_i16;
+        | get_spesh_slot TMP2, spesh_idx;
+    }
     if (op == MVM_OP_sp_guard) {
         /* object in question should just match the type, so it shouldn't
          * be zero, and the STABLE should be equal to the value in the spesh
@@ -2542,6 +2566,27 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
         | jne >1;
         | cmp TMP2, CODE:TMP1->body.sf;
         | jne >1;
+    } else if (op == MVM_OP_sp_guardobj) {
+        /* object should match that from the spesh slot */
+        | cmp TMP2, TMP1;
+        | jne >1;
+    } else if (op == MVM_OP_sp_guardjustconc) {
+        /* object should be a non-null concrete (non-type) object;
+         * exact type doesn't matter */
+        | test TMP1, TMP1;
+        | jz >1;
+        /* shouldn't be type object */
+        | test_type_object TMP1;
+        | jnz >1;
+    } else if (op == MVM_OP_sp_guardjusttype) {
+        /* object in question should be a type object, so it shouldn't
+         * be zero, and should not be concrete */
+        /* check for null */
+        | test TMP1, TMP1;
+        | jz >1;
+        /* should be type object */
+        | test_type_object TMP1;
+        | jz >1;
     }
     /* if we're here, we didn't jump to deopt, so skip it */
     | jmp >2;

@@ -5,6 +5,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
 
 /* Stringification. */
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i);
+MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i);
 MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n);
 void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg);
 
