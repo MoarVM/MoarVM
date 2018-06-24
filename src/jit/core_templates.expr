@@ -965,6 +965,12 @@
         $disp)
       (^vmnull))))
 
+(template: iscont
+  (if
+    (any (^is_vmnull $1) (zr (^getf (^stable $1) MVMSTable container_spec)))
+    (const 0 int_sz)
+    (const 1 int_sz)))
+
 (template: decont!
   (ifv (any
          (zr $1)
