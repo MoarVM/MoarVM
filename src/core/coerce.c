@@ -444,8 +444,16 @@ void MVM_box_num(MVMThreadContext *tc, MVMnum64 value, MVMObject *type,
 
 }
 
+MVMString * MVM_unbox_str(MVMThreadContext *tc, MVMObject *obj) {
+    if (!IS_CONCRETE(obj))
+        MVM_exception_throw_adhoc(tc, "Cannot unbox a type object (%s) to a str.",
+            MVM_6model_get_debug_name(tc, obj));
+    return REPR(obj)->box_funcs.get_str(tc,
+        STABLE(obj), obj, OBJECT_BODY(obj));
+}
+
 void MVM_box_str(MVMThreadContext *tc, MVMString *value, MVMObject *type,
-                 MVMRegister * dst) {
+                 MVMRegister *dst) {
     MVMObject *box;
     MVMROOT(tc, value, {
         box = REPR(type)->allocate(tc, STABLE(type));

@@ -2,7 +2,6 @@
 #include <math.h>
 #include "platform/time.h"
 #include "platform/sys.h"
-#include "strings/unicode_ops.h"
 
 /* Macros for getting things from the bytecode stream. */
 #if MVM_GC_DEBUG == 2
@@ -1655,7 +1654,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(chr):
-                GET_REG(cur_op, 0).s = MVM_string_chr(tc, (MVMCodepoint)GET_REG(cur_op, 2).i64);
+                GET_REG(cur_op, 0).s = MVM_string_chr(tc, GET_REG(cur_op, 2).i64);
                 cur_op += 4;
                 goto NEXT;
             OP(ordfirst): {
@@ -2143,15 +2142,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-            OP(unbox_s): {
-                MVMObject *obj = GET_REG(cur_op, 2).o;
-                if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot unbox a type object (%s) to a str.", MVM_6model_get_debug_name(tc, obj));
-                GET_REG(cur_op, 0).s = REPR(obj)->box_funcs.get_str(tc,
-                    STABLE(obj), obj, OBJECT_BODY(obj));
+            OP(unbox_s):
+                GET_REG(cur_op, 0).s = MVM_unbox_str(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            }
             OP(atpos_i): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
@@ -3461,21 +3455,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(coerce_sI): {
-                MVMString *s = GET_REG(cur_op, 2).s;
-                MVMObject *type = GET_REG(cur_op, 4).o;
-                char *buf = MVM_string_ascii_encode(tc, s, NULL, 0);
-                MVMObject *a = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_from_str(tc, a, buf);
-                MVM_free(buf);
-                GET_REG(cur_op, 0).o = a;
+                GET_REG(cur_op, 0).o = MVM_coerce_sI(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o);
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(isbig_I): {
+            OP(isbig_I):
                 GET_REG(cur_op, 0).i64 = MVM_bigint_is_big(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            }
             OP(bool_I):
                 GET_REG(cur_op, 0).i64 = MVM_bigint_bool(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
@@ -5146,11 +5133,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_io_getport(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            OP(cpucores): {
+            OP(cpucores):
                 GET_REG(cur_op, 0).i32 = MVM_platform_cpu_count();
                 cur_op += 2;
                 goto NEXT;
-            }
             OP(eqaticim_s):
                 GET_REG(cur_op, 0).i64 = MVM_string_equal_at_ignore_case_ignore_mark(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
@@ -5170,12 +5156,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(indexim_s): {
+            OP(indexim_s):
                 GET_REG(cur_op, 0).i64 = MVM_string_index_ignore_mark(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
                 cur_op += 8;
                 goto NEXT;
-            }
             OP(cas_o): {
                 MVMRegister *result = &GET_REG(cur_op, 0);
                 MVMObject *target = GET_REG(cur_op, 2).o;
@@ -5971,6 +5956,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_cross_thread_write_check(tc, obj, blame);
                 goto NEXT;
             }
+            /* The compiler compiles faster if all deprecated are together and at the end
+             * even though the op numbers are technically out of order. */
             OP(DEPRECATED_4):
             OP(DEPRECATED_5):
             OP(DEPRECATED_6):
