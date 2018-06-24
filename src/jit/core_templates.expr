@@ -963,6 +963,12 @@
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
 
+(template: getcodeobj
+  (call (^func &MVM_frame_get_code_object)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) ptr_sz))
+
 (template: takedispatcher
   (let: (($disp     (^getf (tc) MVMThreadContext cur_dispatcher))
          ($disp_for (^getf (tc) MVMThreadContext cur_dispatcher_for))
