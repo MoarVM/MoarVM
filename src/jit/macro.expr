@@ -21,10 +21,13 @@
 (macro: ^spesh_slot_value (,a)
     (load (^spesh_slot_addr ,a) ptr_sz))
 
-(macro: ^vmnull ()
+(macro: ^get_instance_field (,field)
     (^getf
           (^getf (tc) MVMThreadContext instance)
-          MVMInstance VMNull))
+          MVMInstance ,field))
+
+(macro: ^vmnull ()
+    (^get_instance_field VMNull))
 
 (macro: ^stable (,a) (^getf ,a MVMObject st))
 
