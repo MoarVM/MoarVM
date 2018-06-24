@@ -11,10 +11,10 @@ else
     MAX_OPT_LEN="${#OPT_SHOW_DEP}"
 fi
 get_oplist_order () {
-    grep -vE '(^#)|(^\s*$)' src/core/oplist | sed -E 's/^(\S+)\s*.*/\1/'
+    grep -vE '(^#)|(^[[:space:]]*$)' src/core/oplist | sed -E 's/^([^[:space:]]+)[[:space:]]*.*/\1/'
 }
 get_interp_order () {
-    grep -F 'OP(' src/core/interp.c | grep -v '^#' | sed -E 's/^\s*OP\(([^)]+)\).*/\1/'
+    grep -F 'OP(' src/core/interp.c | grep -v '^#' | sed -E 's/^[[:space:]]*OP\(([^)]+)\).*/\1/'
 }
 filter_funct () {
     grep -v DEPRECATED
