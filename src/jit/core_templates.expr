@@ -910,6 +910,15 @@
       (carg (const 0 ptr_sz) ptr)
       (carg (const 1 int_sz) int))))
 
+(template: bootint      (^get_instance_field boot_types.BOOTInt))
+(template: bootnum      (^get_instance_field boot_types.BOOTNum))
+(template: bootstr      (^get_instance_field boot_types.BOOTStr))
+(template: bootarray    (^get_instance_field boot_types.BOOTArray))
+(template: bootintarray (^get_instance_field boot_types.BOOTIntArray))
+(template: bootnumarray (^get_instance_field boot_types.BOOTNumArray))
+(template: bootstrarray (^get_instance_field boot_types.BOOTStrArray))
+(template: boothash     (^get_instance_field boot_types.BOOTHash))
+
 (template: isint
   (if (all
         (nz $1)
