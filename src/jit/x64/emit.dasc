@@ -103,6 +103,7 @@
 |.type CONTAINERSPEC, MVMContainerSpec
 |.type STORAGESPEC, MVMStorageSpec
 |.type HLLCONFIG, MVMHLLConfig;
+|.type SCREF, MVMSerializationContext
 |.type SCREFBODY, MVMSerializationContextBody
 |.type NFGSYNTH, MVMNFGSynthetic
 |.type CODE, MVMCode
@@ -537,6 +538,24 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], TMP5;
         break;
     }
+    case MVM_OP_getlexreldyn: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 ctx  = ins->operands[1].reg.orig;
+        MVMint16 name = ins->operands[2].reg.orig;
+        | mov TMP5, aword WORK[ctx];
+        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMContext;
+        | je >1;
+        | test_type_object TMP5;
+        | jz >1;
+        | throw_adhoc "getlexreldyn needs a context"
+        |1:
+        | mov ARG3, CONTEXT:TMP5->body.context;
+        | mov ARG1, TC
+        | mov ARG2, aword WORK[name];
+        | callp &MVM_frame_getdynlex;
+        | mov WORK[dst], RV;
+        break;
+    }
     case MVM_OP_getlex_no:
     case MVM_OP_sp_getlex_no: {
         MVMint16  dst = ins->operands[0].reg.orig;
@@ -597,7 +616,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov ARG2, CONTEXT:TMP1->body.context;
         | mov ARG3, WORK[name];
         | mov ARG1, TC;
-        | callp MVM_frame_lexical_primspec;
+        | callp &MVM_frame_lexical_primspec;
         | mov WORK[dst], RV;
         break;
     }
@@ -946,11 +965,71 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov ARG1, TC;
         | mov ARG2, aword CAPTURE:TMP5->body.apc;
         | mov ARG3, WORK[pos];
-        | callp MVM_args_get_required_pos_obj;
+        | callp &MVM_args_get_required_pos_obj;
         | mov WORK[dst], RV;
         | jmp >2;
         |1:
         | throw_adhoc "captureposarg needs a MVMCallCapture";
+        |2:
+        break;
+    }
+    case MVM_OP_captureposarg_i: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        MVMint16 pos = ins->operands[2].reg.orig;
+        | mov TMP5, qword WORK[src];
+        | test_type_object TMP5;
+        | jnz >1;
+        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMCallCapture;
+        | jne >1;
+        | mov ARG1, TC;
+        | mov ARG2, aword CAPTURE:TMP5->body.apc;
+        | mov ARG3, qword WORK[pos];
+        | callp &MVM_args_get_required_pos_int;
+        | mov WORK[dst], RV;
+        | jmp >2;
+        |1:
+        | throw_adhoc "captureposarg_i needs a MVMCallCapture";
+        |2:
+        break;
+    }
+    case MVM_OP_captureposarg_n: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        MVMint16 pos = ins->operands[2].reg.orig;
+        | mov TMP5, qword WORK[src];
+        | test_type_object TMP5;
+        | jnz >1;
+        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMCallCapture;
+        | jne >1;
+        | mov ARG1, TC;
+        | mov ARG2, aword CAPTURE:TMP5->body.apc;
+        | mov ARG3, qword WORK[pos];
+        | callp &MVM_args_get_pos_num;
+        | mov WORK[dst], RV;
+        | jmp >2;
+        |1:
+        | throw_adhoc "captureposarg_n needs a MVMCallCapture";
+        |2:
+        break;
+    }
+    case MVM_OP_captureposarg_s: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        MVMint16 pos = ins->operands[2].reg.orig;
+        | mov TMP5, qword WORK[src];
+        | test_type_object TMP5;
+        | jnz >1;
+        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMCallCapture;
+        | jne >1;
+        | mov ARG1, TC;
+        | mov ARG2, aword CAPTURE:TMP5->body.apc;
+        | mov ARG3, aword WORK[pos];
+        | callp MVM_args_get_required_pos_str;
+        | mov WORK[dst], RV;
+        | jmp >2;
+        |1:
+        | throw_adhoc "captureposarg_s needs a MVMCallCapture";
         |2:
         break;
     }
@@ -1516,10 +1595,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov TMP6, aword WORK[type];
         | test TMP6, TMP6;
         | jz >1;
+        | mov ARG1, TC;
         | mov ARG2, OBJECT:TMP6->st;
         | mov FUNCTION, STABLE:ARG2->REPR;
         | mov FUNCTION, REPR:FUNCTION->get_storage_spec;
-        | mov ARG1, TC;
         | call FUNCTION;
         | movzx TMP6, word STORAGESPEC:RV->boxed_primitive;
         |1:
@@ -1545,6 +1624,27 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov aword WORK[dst], TMP6;
         break;
     }
+    case MVM_OP_objprimunsigned: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 type = ins->operands[1].reg.orig;
+        | mov TMP5, aword WORK[type];
+        | test TMP5, TMP5;
+        | jz >1;
+        | mov ARG1, TC;
+        | mov ARG2, OBJECT:TMP5->st;
+        | mov FUNCTION, STABLE:ARG2->REPR;
+        | mov FUNCTION, REPR:FUNCTION->get_storage_spec;
+        | call FUNCTION;
+        | cmp word STORAGESPEC:RV->boxed_primitive, 1;
+        | jne >1;
+        | movzx TMP6, byte STORAGESPEC:RV->is_unsigned;
+        | mov WORK[dst], TMP6;
+        | jmp >2;
+        |1:
+        | mov aword WORK[dst], 0;
+        |2:
+        break;
+    }
     case MVM_OP_isnonnull: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[1].reg.orig;
@@ -1557,6 +1657,48 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | and TMP2b, TMP3b;
         | movzx TMP2, TMP2b;
         | mov WORK[dst], TMP2;
+        break;
+    }
+    case MVM_OP_scgethandle: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 sc  = ins->operands[1].reg.orig;
+        | mov TMP5, aword WORK[sc];
+        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_SCRef;
+        | je >1;
+        | throw_adhoc "Must provide an SCRef operand to scgethandle"
+        |1:
+        | mov ARG1, TC;
+        | mov ARG2, SCREF:TMP5;
+        | callp &MVM_sc_get_handle;
+        | mov WORK[dst], RV;
+        break;
+    }
+    case MVM_OP_scobjcount: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 sc  = ins->operands[1].reg.orig;
+        | mov TMP5, aword WORK[dst];
+        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_SCRef;
+        | je >1;
+        | throw_adhoc "Must provide an SCRef operand to scobjcount"
+        |1:
+        | mov ARG1, TC;
+        | mov ARG2, SCREF:TMP5;
+        | callp &MVM_sc_get_object_count;
+        | mov WORK[dst], RV;
+        break;
+    }
+    case MVM_OP_setobjsc: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 sc  = ins->operands[1].reg.orig;
+        | mov TMP5, WORK[sc];
+        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_SCRef;
+        | je >1;
+        | throw_adhoc "Must provide an SCRef operand to setobjsc"
+        |1:
+        | mov ARG1, TC;
+        | mov ARG2, aword WORK[dst];
+        | mov ARG3, SCREF:TMP5;
+        | callp &MVM_sc_set_obj_sc;
         break;
     }
     case MVM_OP_isnull: {
@@ -1669,6 +1811,23 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |1:
         | mov qword WORK[dst], 0;
         |2:
+        break;
+    }
+    case MVM_OP_isinvokable: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        | mov TMP1, aword WORK[src];
+        | mov TMP1, OBJECT:TMP1->st;
+        | mov TMP2, 1;
+        | mov64 TMP3, ((uintptr_t)(MVM_6model_invoke_default));
+        | cmp TMP3, STABLE:TMP1->invoke;
+        | jne >1;
+        | mov TMP4, STABLE:TMP1->invocation_spec;
+        | test TMP4, TMP4;
+        | jnz >1;
+        | and TMP2, TMP4;
+        |1:
+        | mov aword WORK[dst], TMP2;
         break;
     }
     case MVM_OP_takehandlerresult: {
@@ -1943,6 +2102,20 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         }
         | callp &MVM_string_ord_at;
         | mov qword WORK[dst], RV;
+        break;
+    }
+    case MVM_OP_getcodename: {
+        MVMint16 obj  = ins->operands[0].reg.orig;
+        MVMint16 code = ins->operands[1].reg.orig;
+        | mov TMP1, aword WORK[code];
+        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCode;
+        | je >1;
+        | test_type_object TMP1;
+        | jnz >1;
+        | throw_adhoc "getcodename requires a concrete object";
+        |1:
+        | mov TMP2, CODE:TMP1->body.name;
+        | mov WORK[obj], TMP2;
         break;
     }
     case MVM_OP_setcodeobj: {
