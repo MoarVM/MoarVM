@@ -849,6 +849,9 @@
       (carg $1 ptr)
       (carg (^body $1) ptr)) int_sz))
 
+(template: knowhow     (^get_instance_field KnowHOW))
+(template: knowhowattr (^get_instance_field KnowHOWAttribute))
+
 (template: istrue!
   (callv (^func &MVM_coerce_istrue)
     (arglist
