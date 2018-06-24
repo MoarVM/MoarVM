@@ -179,32 +179,37 @@ static MVMint32 search_frame_handlers_lex(MVMThreadContext *tc, MVMFrame *f,
         MVMJitCode *jitcode = f->spesh_cand->jitcode;
         void *current_position = MVM_jit_code_get_current_position(tc, jitcode, f);
         MVMJitHandler    *jhs = jitcode->handlers;
-        for (i = MVM_jit_code_get_active_handlers(tc, jitcode, current_position, 0);
-             i < jitcode->num_handlers;
-             i = MVM_jit_code_get_active_handlers(tc, jitcode, current_position, i+1)) {
+        MVMint32 active_handler = MVM_jit_code_get_active_handlers(tc, jitcode, current_position, 0);
+        for (i = 0; i < jitcode->num_handlers; i++) {
             MVMFrameHandler *fh = &(fhs[i]);
             if (skip_all_inlinees && fh->inlinee >= 0)
                 continue;
+            /* if we went past the current active handler, search for the next one */
+            if (i > active_handler)
+                 active_handler = MVM_jit_code_get_active_handlers(tc, jitcode, current_position, active_handler + 1);
+
             if (fh->category_mask == MVM_EX_INLINE_BOUNDARY) {
-                if (skipping) {
-                    skipping = 0;
-                    *skip_first_inlinee = 0;
-                }
-                else {
-                    MVMuint16 cr_reg = f->spesh_cand->inlines[fh->inlinee].code_ref_reg;
-                    MVMFrame *inline_outer = ((MVMCode *)f->work[cr_reg].o)->body.outer;
-                    if (inline_outer == f) {
-                        skip_all_inlinees = 1;
+                if (i == active_handler) {
+                    if (skipping) {
+                        skipping = 0;
+                        *skip_first_inlinee = 0;
                     }
                     else {
-                        *next_outer = inline_outer;
-                        return 0;
+                        MVMuint16 cr_reg = f->spesh_cand->inlines[fh->inlinee].code_ref_reg;
+                        MVMFrame *inline_outer = ((MVMCode *)f->work[cr_reg].o)->body.outer;
+                        if (inline_outer == f) {
+                            skip_all_inlinees = 1;
+                        }
+                        else {
+                            *next_outer = inline_outer;
+                            return 0;
+                        }
                     }
                 }
             }
             if (skipping || !handler_can_handle(f, fh, cat, payload))
                 continue;
-            if (!in_handler_stack(tc, fh, f)) {
+            if (i == active_handler && !in_handler_stack(tc, fh, f)) {
                 if (skipping && f->static_info->body.is_thunk)
                     return 0;
                 lh->handler     = fh;
