@@ -1563,6 +1563,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         /* comparison (objects) */
     case MVM_OP_eqaddr:
     case MVM_OP_isconcrete:
+    case MVM_OP_isinvokable:
         /* comparison (big integer) */
     case MVM_OP_eq_I:
     case MVM_OP_ne_I:
@@ -1618,6 +1619,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_getlex_ins:
     case MVM_OP_sp_getlexvia_o:
     case MVM_OP_sp_getlexvia_ins:
+    case MVM_OP_getlexreldyn:
     case MVM_OP_getlex_no:
     case MVM_OP_sp_getlex_no:
     case MVM_OP_bindlex:
@@ -1655,8 +1657,12 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_lexprimspec:
     case MVM_OP_objprimspec:
     case MVM_OP_objprimbits:
+    case MVM_OP_objprimunsigned:
     case MVM_OP_takehandlerresult:
     case MVM_OP_exception:
+    case MVM_OP_scgethandle:
+    case MVM_OP_scobjcount:
+    case MVM_OP_setobjsc:
     case MVM_OP_scwbdisable:
     case MVM_OP_scwbenable:
     case MVM_OP_assign:
@@ -1671,6 +1677,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_getstdin:
     case MVM_OP_ordat:
     case MVM_OP_ordfirst:
+    case MVM_OP_getcodename:
     case MVM_OP_setcodeobj:
         /* Profiling */
     case MVM_OP_prof_enterspesh:
@@ -1679,6 +1686,9 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_captureposelems:
     case MVM_OP_capturehasnameds:
     case MVM_OP_captureposarg:
+    case MVM_OP_captureposarg_i:
+    case MVM_OP_captureposarg_n:
+    case MVM_OP_captureposarg_s:
     case MVM_OP_captureexistsnamed:
     case MVM_OP_capturenamedshash:
         /* Exception handling */
