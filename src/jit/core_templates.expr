@@ -353,6 +353,12 @@
       (carg $3 int)
       (carg $4 int)) int_sz))
 
+(template: chars
+  (call (^func &MVM_string_graphs)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) int_sz))
+
 (template: chr
   (call (^func &MVM_string_chr)
     (arglist
