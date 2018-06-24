@@ -129,7 +129,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_throwcatdyn:
     case MVM_OP_throwcatlex:
     case MVM_OP_throwcatlexotic: return MVM_exception_throwcat;
-    case MVM_OP_throwpayloadlex: return MVM_exception_throwpayload;
+    case MVM_OP_throwpayloadlexcaller: case MVM_OP_throwpayloadlex: return MVM_exception_throwpayload;
     case MVM_OP_bindexpayload: return MVM_bind_exception_payload;
     case MVM_OP_getexpayload: return MVM_get_exception_payload;
     case MVM_OP_resume: return MVM_exception_resume;
@@ -1861,12 +1861,16 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                           4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
+    case MVM_OP_throwpayloadlexcaller:
     case MVM_OP_throwpayloadlex: {
         MVMint16 regi     = ins->operands[0].reg.orig;
         MVMint32 category = (MVMuint32)ins->operands[1].lit_i64;
         MVMint16 payload  = ins->operands[2].reg.orig;
+        MVMuint8 mode = (ins->info->opcode == MVM_OP_throwpayloadlex ?
+                         MVM_EX_THROW_LEX :
+                         MVM_EX_THROW_LEX_CALLER);
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_LITERAL, { MVM_EX_THROW_LEX } },
+                                 { MVM_JIT_LITERAL, { mode } },
                                  { MVM_JIT_LITERAL, { category } },
                                  { MVM_JIT_REG_VAL, { payload } },
                                  { MVM_JIT_REG_ADDR, { regi } }};
