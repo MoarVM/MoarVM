@@ -27,6 +27,9 @@
 (macro: ^vmnull ()
     (^get_instance_field VMNull))
 
+(macro: ^is_vmnull (,obj)
+    (any (zr ,obj) (eq ,obj (^vmnull))))
+
 (macro: ^stable (,a) (^getf ,a MVMObject st))
 
 (macro: ^hllconfig ()

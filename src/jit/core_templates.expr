@@ -390,9 +390,7 @@
 (template: null (^vmnull))
 
 (template: isnull
-  (or
-    (flagval (zr $1))
-    (flagval (eq $1 (^vmnull)))))
+  (if (^is_vmnull $1) (const 1 int_sz) (const 0 int_sz)))
 
 (template: ifnonnull
   (when (all
