@@ -489,6 +489,16 @@
       (carg (tc) ptr)
       (carg $1 ptr)) int_sz))
 
+(template: isfalse_s
+  (if
+    (nz
+      (call (^func &MVM_coerce_istrue_s)
+        (arglist
+          (carg (tc) ptr)
+          (carg $1 ptr)) int_sz))
+    (const 0 int_sz)
+    (const 1 int_sz)))
+
 (template: null (^vmnull))
 
 (template: isnull
