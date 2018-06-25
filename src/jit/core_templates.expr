@@ -406,6 +406,14 @@
       (carg $0 ptr)
       (carg $1 int))))
 
+(template: iscclass
+  (call (^func &MVM_string_is_cclass)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)
+      (carg $2 ptr)
+      (carg $3 int)) int_sz))
+
 (template: null (^vmnull))
 
 (template: isnull
