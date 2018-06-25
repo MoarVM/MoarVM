@@ -414,6 +414,15 @@
       (carg $2 ptr)
       (carg $3 int)) int_sz))
 
+(template: findcclass
+  (call (^func &MVM_string_find_cclass)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)
+      (carg $2 ptr)
+      (carg $3 int)
+      (carg $4 int)) int_sz))
+
 (template: null (^vmnull))
 
 (template: isnull
