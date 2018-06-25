@@ -439,6 +439,14 @@
       (carg $1 ptr)
       (carg $2 ptr)) ptr_sz))
 
+(template: nfarunproto
+  (call (^func &MVM_nfa_run_proto)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 int)) ptr_sz))
+
 (template: null (^vmnull))
 
 (template: isnull
