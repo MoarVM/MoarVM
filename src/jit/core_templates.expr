@@ -447,6 +447,17 @@
       (carg $2 ptr)
       (carg $3 int)) ptr_sz))
 
+(template: nfarunalt!
+  (callv (^func &MVM_nfa_run_alt)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 ptr)
+      (carg $2 int)
+      (carg $3 ptr)
+      (carg $4 ptr)
+      (carg $5 ptr))))
+
 (template: null (^vmnull))
 
 (template: isnull
