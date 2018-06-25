@@ -1041,6 +1041,16 @@
 (template: hllhash
   (^getf (^hllconfig) MVMHLLConfig slurpy_hash_type))
 
+(template: settypehll!
+  (^setf (^stable $0) MVMSTable hll_owner
+    (call (^func &MVM_hll_get_config_for)
+      (arglist
+        (carg (tc) ptr)
+        (carg $1 ptr)) ptr_sz)))
+
+(template: settypehllrole!
+  (^setf (^stable $0) MVMSTable hll_role $1))
+
 (template: hllize!
   (callv (^func &MVM_hll_map)
     (arglist
