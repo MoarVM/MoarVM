@@ -467,6 +467,15 @@
       (carg $3 int)
       (carg $4 int)) ptr_sz))
 
+(template: encode
+  (call (^func &MVM_string_encode_to_buf)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 ptr)
+      (carg (const 0 ptr_sz) ptr)) ptr_sz))
+
 (template: null (^vmnull))
 
 (template: isnull
