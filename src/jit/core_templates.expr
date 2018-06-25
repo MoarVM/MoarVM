@@ -399,6 +399,13 @@
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
 
+(template: setbuffersize_fh!
+  (callv (^func &MVM_io_set_buffer_size)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 int))))
+
 (template: null (^vmnull))
 
 (template: isnull
