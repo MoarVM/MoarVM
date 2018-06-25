@@ -458,6 +458,15 @@
       (carg $4 ptr)
       (carg $5 ptr))))
 
+(template: radix
+  (call (^func &MVM_radix)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)
+      (carg $2 ptr)
+      (carg $3 int)
+      (carg $4 int)) ptr_sz))
+
 (template: null (^vmnull))
 
 (template: isnull
