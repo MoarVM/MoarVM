@@ -1,0 +1,18 @@
+diff --git a/build.gradle b/build.gradle
+index a88e815..90fe7a6 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -138,3 +138,13 @@ eclipse {
+     defaultOutputDir = file('build/eclipse')
+   }
+ }
++
++jar {
++  manifest {
++    attributes "Main-Class": "nl.jworks.markdown_to_asciidoc.Converter"
++  }
++
++  from {
++    configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
++  }
++}
