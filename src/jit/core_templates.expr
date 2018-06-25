@@ -476,6 +476,13 @@
       (carg $3 ptr)
       (carg (const 0 ptr_sz) ptr)) ptr_sz))
 
+(template: decode
+  (call (^func &MVM_string_decode_from_buf)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)) ptr_sz))
+
 (template: null (^vmnull))
 
 (template: isnull
