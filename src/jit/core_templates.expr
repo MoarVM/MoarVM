@@ -1061,6 +1061,17 @@
                 (carg (tc) ptr)) ptr_sz) ptr)
       (carg $0 ptr))))
 
+(template: hllizefor!
+  (callv (^func &MVM_hll_map)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg (call (^func &MVM_hll_get_config_for)
+              (arglist
+                (carg (tc) ptr)
+                (carg $2   ptr)) ptr_sz) ptr)
+      (carg $0 ptr))))
+
 (template: iter
   (call (^func &MVM_iter)
     (arglist
