@@ -432,6 +432,13 @@
       (carg $3 int)
       (carg $4 int)) int_sz))
 
+(template: nfafromstatelist
+  (call (^func &MVM_nfa_from_statelist)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)) ptr_sz))
+
 (template: null (^vmnull))
 
 (template: isnull
