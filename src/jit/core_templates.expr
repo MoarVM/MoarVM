@@ -1073,6 +1073,12 @@
 (template: hllboxtype_s
   (^getf (^hllconfig) MVMHLLConfig str_box_type))
 
+(template: hlllist
+  (^getf (^hllconfig) MVMHLLConfig slurpy_array_type))
+
+(template: hllhash
+  (^getf (^hllconfig) MVMHLLConfig slurpy_hash_type))
+
 (template: hllize!
   (callv (^func &MVM_hll_map)
     (arglist
