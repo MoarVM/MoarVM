@@ -752,6 +752,39 @@
       (carg (^body $0) ptr)
       (carg $1 int))))
 
+(template: atkey_i!
+  (callv (^getf (^repr $0) MVMREPROps ass_funcs.at_key)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $1) ptr)
+      (carg $1 ptr)
+      (carg (^body $1) ptr)
+      (carg $2 ptr)
+      (carg $0 ptr)
+      (carg (const (&QUOTE MVM_reg_int64) int_sz) int))))
+
+(template: atkey_n!
+  (callv (^getf (^repr $0) MVMREPROps ass_funcs.at_key)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $1) ptr)
+      (carg $1 ptr)
+      (carg (^body $1) ptr)
+      (carg $2 ptr)
+      (carg $0 ptr)
+      (carg (const (&QUOTE MVM_reg_num64) int_sz) int))))
+
+(template: atkey_s!
+  (callv (^getf (^repr $0) MVMREPROps ass_funcs.at_key)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $1) ptr)
+      (carg $1 ptr)
+      (carg (^body $1) ptr)
+      (carg $2 ptr)
+      (carg $0 ptr)
+      (carg (const (&QUOTE MVM_reg_str) int_sz) int))))
+
 #  REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
 #       (MVMObject *)GET_REG(cur_op, 4).s, &GET_REG(cur_op, 0), MVM_reg_obj);
 (template: atkey_o!
@@ -1161,6 +1194,16 @@
       (carg (tc) ptr)
       (carg $1 ptr)
       (carg $2 int)) int_sz))
+(template: coerce_iu  (copy $1))
+
+(template: coerce_ui  (copy $1))
+
+(template: decont_u!
+  (callv (^func &MVM_6model_container_decont_u)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $0 ptr))))
 
 (template: lastexpayload
   (^getf (tc) MVMThreadContext last_payload))
@@ -1246,6 +1289,17 @@
           (carg $dest        ptr)
           (carg $2           int)
           (carg $3           int))))))
+
+(template: atkey_u!
+  (callv (^getf (^repr $0) MVMREPROps ass_funcs.at_key)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $1) ptr)
+      (carg $1 ptr)
+      (carg (^body $1) ptr)
+      (carg $2 ptr)
+      (carg $0 ptr)
+      (carg (const (&QUOTE MVM_reg_uint64) int_sz) int))))
 
 (template: sp_resolvecode
   (call (^func &MVM_frame_resolve_invokee_spesh)
