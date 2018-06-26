@@ -57,7 +57,7 @@ Perl 6 backend (though some backends pass tests that it does not).
 Unlike the JVM backend of NQP, the MoarVM repo is not currently planned to be
 integrated into the main NQP source repo http://github.com/perl6/nqp but
 instead can be pulled in by `Configure.pl --gen-moar` configure script in the
-NQP repo, same as it can `--gen-parrot`.
+NQP repo.
 
 ## Feature overview
 
