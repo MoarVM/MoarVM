@@ -923,11 +923,18 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
         int len;
         char *buf;
         MVMString *result;
+        int is_malloced = 0;
         mp_radix_size(i, base, &len);
-        buf = (char *) MVM_malloc(len);
+        if (len < 120) {
+            buf = alloca(len);
+        }
+        else {
+            buf = MVM_malloc(len);
+            is_malloced = 1;
+        }
         mp_toradix_n(i, buf, base, len);
         result = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
-        MVM_free(buf);
+        if (is_malloced) MVM_free(buf);
         return result;
     }
     else {
@@ -938,7 +945,7 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
             /* It's small, but shove it through bigint lib, as it knows how to
              * get other bases right. */
             mp_int i;
-            int len;
+            int len, is_malloced = 0;
             char *buf;
             MVMString *result;
 
@@ -953,10 +960,16 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
             }
 
             mp_radix_size(&i, base, &len);
-            buf = (char *) MVM_malloc(len);
+            if (len < 120) {
+                buf = alloca(len);
+            }
+            else {
+                buf = MVM_malloc(len);
+                is_malloced = 1;
+            }
             mp_toradix_n(&i, buf, base, len);
             result = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
-            MVM_free(buf);
+            if (is_malloced) MVM_free(buf);
             mp_clear(&i);
 
             return result;
