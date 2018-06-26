@@ -969,6 +969,16 @@
 (template: knowhow     (^get_instance_field KnowHOW))
 (template: knowhowattr (^get_instance_field KnowHOWAttribute))
 
+(template: newtype
+  (let: (($repr (call (^func &MVM_repr_get_by_name)
+                  (arglist
+                    (carg (tc) ptr)
+                    (carg $2   ptr)) ptr_sz)))
+    (call (^getf $repr MVMREPROps type_object_for)
+      (arglist
+        (carg (tc) ptr)
+        (carg $1   ptr)) ptr_sz)))
+
 (template: istrue!
   (callv (^func &MVM_coerce_istrue)
     (arglist
