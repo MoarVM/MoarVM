@@ -413,10 +413,23 @@ static void plugin_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         }
     }
 
-    /* Insert the guards and rewrite the instruction if appropriate. */
-    if (agg_guard_index != -1)
+    /* If we picked a guard index, insert the guards and rewrite the resolve
+     * instruction. If not, just rewrite the resolve instruction into the
+     * spesh version of itself including the index. */
+    if (agg_guard_index != -1) {
         MVM_spesh_plugin_rewrite_resolve(tc, g, bb, ins, logged_ann->data.bytecode_offset,
                 agg_guard_index);
+    }
+    else {
+        MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
+        new_operands[0] = ins->operands[0];
+        new_operands[1] = ins->operands[1];
+        new_operands[2].lit_ui32 = logged_ann->data.bytecode_offset;
+        new_operands[3].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                (MVMCollectable *)g->sf);
+        ins->info = MVM_op_get_op(MVM_OP_sp_speshresolve);
+        ins->operands = new_operands;
+    }
 }
 
 /* Visits the blocks in dominator tree order, recursively. */

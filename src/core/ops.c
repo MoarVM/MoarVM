@@ -10796,6 +10796,19 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
+        MVM_OP_sp_speshresolve,
+        "sp_speshresolve",
+        "  ",
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str, MVM_operand_uint32, MVM_operand_spesh_slot }
+    },
+    {
         MVM_OP_sp_paramnamesused,
         "sp_paramnamesused",
         "  ",
@@ -11470,7 +11483,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 883;
+static const unsigned short MVM_op_counts = 884;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

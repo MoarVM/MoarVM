@@ -106,8 +106,8 @@ static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet 
 
 /* Tries to resolve a plugin by looking at the guards for the position. */
 static MVMObject * resolve_using_guards(MVMThreadContext *tc, MVMuint32 cur_position,
-        MVMCallsite *callsite, MVMuint16 *guard_offset) {
-    MVMSpeshPluginState *ps = get_plugin_state(tc, tc->cur_frame->static_info);
+        MVMCallsite *callsite, MVMuint16 *guard_offset, MVMStaticFrame *sf) {
+    MVMSpeshPluginState *ps = get_plugin_state(tc, sf);
     MVMSpeshPluginGuardSet *gs = guard_set_for_position(tc, cur_position, ps);
     return gs ? evaluate_guards(tc, gs, callsite, guard_offset) : NULL;
 }
@@ -258,6 +258,7 @@ void free_dead_state(MVMThreadContext *tc, MVMSpeshPluginState *ps) {
 typedef struct {
     /* Current speshresolve we're handling. */
     MVMRegister *result;
+    MVMStaticFrame *sf;
     MVMuint32 position;
 
     /* The speshresolve that was in dynamic scope when we started this one,
@@ -271,6 +272,7 @@ typedef struct {
 static void mark_plugin_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
     MVMSpeshPluginSpecialReturnData *srd = (MVMSpeshPluginSpecialReturnData *)
         frame->extra->special_return_data;
+    MVM_gc_worklist_add(tc, worklist, &(srd->sf));
     MVM_gc_worklist_add(tc, worklist, &(srd->prev_plugin_guard_args));
 }
 
@@ -285,16 +287,15 @@ static void restore_prev_spesh_plugin_state(MVMThreadContext *tc, MVMSpeshPlugin
 /* Callback after a resolver to update the guard structure. */
 static void add_resolution_to_guard_set(MVMThreadContext *tc, void *sr_data) {
     MVMSpeshPluginSpecialReturnData *srd = (MVMSpeshPluginSpecialReturnData *)sr_data;
-    MVMStaticFrame *cur_sf = tc->cur_frame->static_info;
-    MVMSpeshPluginState *base_state = get_plugin_state(tc, cur_sf);
+    MVMSpeshPluginState *base_state = get_plugin_state(tc, srd->sf);
     MVMSpeshPluginGuardSet *base_guards = guard_set_for_position(tc, srd->position, base_state);
     MVMSpeshPluginGuardSet *new_guards = append_guard(tc, base_guards, srd->result->o,
-            cur_sf->body.spesh);
+            srd->sf->body.spesh);
     if (new_guards != base_guards) {
         MVMSpeshPluginState *new_state = updated_state(tc, base_state, srd->position,
                 base_guards, new_guards);
         MVMuint32 committed = MVM_trycas(
-                &tc->cur_frame->static_info->body.spesh->body.plugin_state,
+                &srd->sf->body.spesh->body.plugin_state,
                 base_state, new_state);
         if (committed) {
             free_dead_guards(tc, base_guards);
@@ -348,7 +349,52 @@ static void setup_for_guard_recording(MVMThreadContext *tc, MVMCallsite *callsit
         MVM_repr_push_o(tc, tc->plugin_guard_args, tc->cur_frame->args[i].o);
 }
 
-/* Resolves a spesh plugin for the current HLL. */
+/* Resolves a spesh plugin for the current HLL from the slow-path interpreter. */
+static void call_resolver(MVMThreadContext *tc, MVMString *name, MVMRegister *result,
+                          MVMuint32 position, MVMStaticFrame *sf, MVMuint8 *next_addr,
+                          MVMCallsite *callsite) {
+    /* No pre-resolved value, so we need to run the plugin. Capture state
+     * of any ongoing spesh plugin resolve. */
+    MVMSpeshPluginGuard *prev_plugin_guards = tc->plugin_guards;
+    MVMObject *prev_plugin_guard_args = tc->plugin_guard_args;
+    MVMuint32 prev_num_plugin_guards = tc->num_plugin_guards;
+
+    /* Find the plugin. */
+    MVMSpeshPluginSpecialReturnData *srd;
+    MVMObject *plugin = NULL;
+    MVMHLLConfig *hll = MVM_hll_current(tc);
+    uv_mutex_lock(&tc->instance->mutex_hllconfigs);
+    if (hll->spesh_plugins)
+        plugin = MVM_repr_at_key_o(tc, hll->spesh_plugins, name);
+    uv_mutex_unlock(&tc->instance->mutex_hllconfigs);
+    if (MVM_is_null(tc, plugin)) {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
+            "No such spesh plugin '%s' for current language",
+            c_name);
+    }
+
+    /* Set up the guard state to record into. */
+    MVMROOT2(tc, plugin, prev_plugin_guard_args, {
+        setup_for_guard_recording(tc, callsite);
+    });
+
+    /* Run it, registering handlers to save or discard guards and result. */
+    tc->cur_frame->return_value = result;
+    tc->cur_frame->return_type = MVM_RETURN_OBJ;
+    tc->cur_frame->return_address = next_addr;
+    srd = MVM_malloc(sizeof(MVMSpeshPluginSpecialReturnData));
+    srd->result = result;
+    srd->position = position;
+    srd->sf = tc->cur_frame->static_info;
+    srd->prev_plugin_guards = prev_plugin_guards;
+    srd->prev_plugin_guard_args = prev_plugin_guard_args;
+    srd->prev_num_plugin_guards = prev_num_plugin_guards;
+    MVM_frame_special_return(tc, tc->cur_frame, add_resolution_to_guard_set,
+            cleanup_recorded_guards, srd, mark_plugin_sr_data);
+    STABLE(plugin)->invoke(tc, plugin, callsite, tc->cur_frame->args);
+}
 void MVM_spesh_plugin_resolve(MVMThreadContext *tc, MVMString *name,
                               MVMRegister *result, MVMuint8 *op_addr,
                               MVMuint8 *next_addr, MVMCallsite *callsite) {
@@ -356,7 +402,8 @@ void MVM_spesh_plugin_resolve(MVMThreadContext *tc, MVMString *name,
     MVMObject *resolved;
     MVMuint16 guard_offset;
     MVMROOT(tc, name, {
-        resolved = resolve_using_guards(tc, position, callsite, &guard_offset);
+        resolved = resolve_using_guards(tc, position, callsite, &guard_offset,
+                tc->cur_frame->static_info);
     });
     if (resolved) {
         /* Resolution through guard tree successful, so no invoke needed. */
@@ -366,46 +413,28 @@ void MVM_spesh_plugin_resolve(MVMThreadContext *tc, MVMString *name,
             MVM_spesh_log_plugin_resolution(tc, position, guard_offset);
     }
     else {
-        /* No pre-resolved value, so we need to run the plugin. Capture state
-         * of any ongoing spesh plugin resolve. */
-        MVMSpeshPluginGuard *prev_plugin_guards = tc->plugin_guards;
-        MVMObject *prev_plugin_guard_args = tc->plugin_guard_args;
-        MVMuint32 prev_num_plugin_guards = tc->num_plugin_guards;
+        call_resolver(tc, name, result, position, tc->cur_frame->static_info,
+                next_addr, callsite);
+    }
+}
 
-        /* Find the plugin. */
-        MVMSpeshPluginSpecialReturnData *srd;
-        MVMObject *plugin = NULL;
-        MVMHLLConfig *hll = MVM_hll_current(tc);
-        uv_mutex_lock(&tc->instance->mutex_hllconfigs);
-        if (hll->spesh_plugins)
-            plugin = MVM_repr_at_key_o(tc, hll->spesh_plugins, name);
-        uv_mutex_unlock(&tc->instance->mutex_hllconfigs);
-        if (MVM_is_null(tc, plugin)) {
-            char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-            char *waste[] = { c_name, NULL };
-            MVM_exception_throw_adhoc_free(tc, waste,
-                "No such spesh plugin '%s' for current language",
-                c_name);
-        }
-
-        /* Set up the guard state to record into. */
-        MVMROOT2(tc, plugin, prev_plugin_guard_args, {
-            setup_for_guard_recording(tc, callsite);
-        });
-
-        /* Run it, registering handlers to save or discard guards and result. */
-        tc->cur_frame->return_value = result;
-        tc->cur_frame->return_type = MVM_RETURN_OBJ;
-        tc->cur_frame->return_address = next_addr;
-        srd = MVM_malloc(sizeof(MVMSpeshPluginSpecialReturnData));
-        srd->result = result;
-        srd->position = position;
-        srd->prev_plugin_guards = prev_plugin_guards;
-        srd->prev_plugin_guard_args = prev_plugin_guard_args;
-        srd->prev_num_plugin_guards = prev_num_plugin_guards;
-        MVM_frame_special_return(tc, tc->cur_frame, add_resolution_to_guard_set,
-                cleanup_recorded_guards, srd, mark_plugin_sr_data);
-        STABLE(plugin)->invoke(tc, plugin, callsite, tc->cur_frame->args);
+/* Resolves a spesh plugin for the current HLL from quickened bytecode. */
+void MVM_spesh_plugin_resolve_spesh(MVMThreadContext *tc, MVMString *name,
+                                    MVMRegister *result, MVMuint32 position,
+                                    MVMStaticFrame *sf, MVMuint8 *next_addr,
+                                    MVMCallsite *callsite) {
+    MVMObject *resolved;
+    MVMuint16 guard_offset;
+    MVMROOT2(tc, name, sf, {
+        resolved = resolve_using_guards(tc, position, callsite, &guard_offset, sf);
+    });
+    if (resolved) {
+        /* Resolution through guard tree successful, so no invoke needed. */
+        result->o = resolved;
+        *tc->interp_cur_op = next_addr;
+    }
+    else {
+        call_resolver(tc, name, result, position, sf, next_addr, callsite);
     }
 }
 

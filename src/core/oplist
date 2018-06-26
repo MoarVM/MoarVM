@@ -916,6 +916,12 @@ sp_fastinvoke_n  .s w(num64) r(obj) int16
 sp_fastinvoke_s  .s w(str) r(obj) int16
 sp_fastinvoke_o  .s w(obj) r(obj) int16
 
+# Spesh plugin resolve instruction's post-spesh from. The bytecode position is
+# included inside of the instruction since it will have moved afterwards, and
+# we also include the static frame so that this instruction can survive being
+# inlined.
+sp_speshresolve     w(obj) str uint32 sslot
+
 # Error generation if a named param is unused (name goes in spesh slot).
 sp_paramnamesused   sslot
 

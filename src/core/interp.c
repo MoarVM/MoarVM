@@ -5318,11 +5318,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 4).o);
                 cur_op += 6;
                 goto NEXT;
-            OP(speshresolve): {
+            OP(speshresolve):
                 MVM_spesh_plugin_resolve(tc, MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)),
                         &GET_REG(cur_op, 0), cur_op - 2, cur_op + 6, cur_callsite);
                 goto NEXT;
-            }
             OP(speshguardtype):
                 MVM_spesh_plugin_addguard_type(tc, GET_REG(cur_op, 0).o,
                     GET_REG(cur_op, 2).o);
@@ -5594,6 +5593,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     code->body.outer, (MVMObject *)code, spesh_cand);
                 goto NEXT;
             }
+            OP(sp_speshresolve):
+                MVM_spesh_plugin_resolve_spesh(tc, MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)),
+                    &GET_REG(cur_op, 0), GET_UI32(cur_op, 6),
+                    (MVMStaticFrame *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 10)],
+                    cur_op + 12, cur_callsite);
+                goto NEXT;
             OP(sp_paramnamesused):
                 MVM_args_throw_named_unused_error(tc, (MVMString *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 0)]);
