@@ -1251,6 +1251,12 @@
       (carg $1 int)
       (carg $2 int)) ptr_sz))
 
+(template: iscompunit
+  (flagval
+    (eq
+      (^getf (^repr $1) MVMREPROps ID)
+      (const (&QUOTE MVM_REPR_ID_MVMCompUnit) (&sizeof MVMuint32)))))
+
 (template: curcode
   (^getf (^frame) MVMFrame code_ref))
 
