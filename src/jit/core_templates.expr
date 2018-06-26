@@ -144,6 +144,20 @@
       (^getf $ah MVMActiveHandler ex_obj)
       (^vmnull))))
 
+(template: bindexpayload!
+  (callv (^func &MVM_bind_exception_payload)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 ptr))))
+
+(template: bindexcategory!
+  (callv (^func &MVM_bind_exception_category)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 int))))
+
 (template: die!
   (callv (^func &MVM_exception_die)
     (arglist
