@@ -1263,6 +1263,24 @@
         (carg $1 ptr)
         (carg $0 ptr)))))
 
+(template: sha1
+  (call (^func &MVM_sha1)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) ptr_sz))
+
+(template: createsc
+  (call (^func &MVM_sc_create)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) ptr_sz))
+
+(template: getobjsc
+  (call (^func &MVM_sc_get_obj_sc)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) ptr_sz))
+
 (template: wval
   (call (^func MVM_sc_get_sc_object)
     (arglist
