@@ -158,6 +158,18 @@
       (carg $0 ptr)
       (carg $1 int))))
 
+(template: getexpayload
+  (call (^func &MVM_get_exception_payload)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) ptr_sz))
+
+(template: getexcategory
+  (call (^func &MVM_get_exception_category)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) int_sz))
+
 (template: die!
   (callv (^func &MVM_exception_die)
     (arglist
