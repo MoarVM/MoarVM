@@ -183,6 +183,18 @@
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
 
+(template: usecapture
+  (call (^func &MVM_args_use_capture)
+    (arglist
+      (carg (tc)     ptr)
+      (carg (^frame) ptr)) ptr_sz))
+
+(template: savecapture
+  (call (^func &MVM_args_save_capture)
+    (arglist
+      (carg (tc)     ptr)
+      (carg (^frame) ptr)) ptr_sz))
+
 (template: null_s (const 0 ptr_sz))
 
 (template: isnull_s (flagval (zr $1)))
