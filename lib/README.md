@@ -1,7 +1,7 @@
 ## MAST Libraries (written in NQP)
 
 MAST stands for Moar Abstract Syntax Tree, and is akin to the other NQP
-backends' VM-specific AST systems (PIRT for Parrot VM and JAST for JVM).
+backends' VM-specific AST systems (JAST for JVM).
 
 Nodes.nqp contains the NQP classes that define the AST nodes, which map closely
 to the various components of MoarVM's bytecode format.

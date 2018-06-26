@@ -2,7 +2,7 @@
 
 #### The MoarVM Opcodes Overview
 
-The MoarVM interpreter uses 16-bit opcodes.  There are currently around 470
+The MoarVM interpreter uses 16-bit opcodes. There are currently around 470
 built-in ops, and it'll probably be around 500 once Rakudo's bootstrapped and
 passing spectest. The interpreter loop currently dispatches by op number,
 either using switch/case or cgoto where available.
@@ -15,8 +15,8 @@ making such things optimal [please excuse the truism].  However, in the case of
 dynamically loaded extensions to the VM that need to dynamically load native
 libraries with a C ABI (nearly all native libraries have a build that exposes
 such a thing), the function pointers must be resolved at runtime after the
-library is loaded.  Perl 6's NativeCall module (using dyncall on parrot) can
-load libraries by name and enumerate/locate entry points and functions by name.
+library is loaded. Perl 6's NativeCall module can load libraries by name and
+enumerate/locate entry points and functions by name.
 
 I propose to use the dyncall functionality to load MoarVM extensions and
 resolve function pointers.  The following is a draft design/spec doc for how
@@ -78,7 +78,7 @@ code in some places. ;)
 
 helper package (part of the MoarVM/NQP runtime) - MoarVM/CustomOps.p6:
 
-```Perl
+```Perl6
 package MoarVM::CustomOps;
 use NativeCall;
 
@@ -110,10 +110,10 @@ is passed to the extop_compile method of the in-flight World object, that
 method in the HLL compiler will pass the function pointer to a special internal
 opcode (nqp::extop_install) that takes the NativeCall library object, the fully
 qualified name of the op as it will appear in the HLL source code (namespace
-::opname), and a string representing the register signature (a la parrot's op
-signatures), so the bytecode validator knows how to validate its register args.
+::opname), and a string representing the register signature, so the bytecode
+validator knows how to validate its register args.
 
-```Perl
+```Perl6
 class World { # NQP snippet
 
 # at *compile-time* of the compilation unit surrounding the INIT block
