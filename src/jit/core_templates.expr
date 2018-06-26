@@ -195,6 +195,21 @@
       (carg (tc)     ptr)
       (carg (^frame) ptr)) ptr_sz))
 
+(template: multicacheadd
+  (call (^func &MVM_multi_cache_add)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)
+      (carg $3   ptr)) ptr_sz))
+
+(template: multicachefind
+  (call (^func &MVM_multi_cache_find)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
 (template: null_s (const 0 ptr_sz))
 
 (template: isnull_s (flagval (zr $1)))
