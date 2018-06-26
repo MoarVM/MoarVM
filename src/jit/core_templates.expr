@@ -1017,6 +1017,15 @@
         (carg (tc) ptr)
         (carg $1   ptr)) ptr_sz)))
 
+(template: composetype
+  (do
+    (callv (^getf (^repr $1) MVMREPROps compose)
+      (arglist
+        (carg (tc)         ptr)
+        (carg (^stable $1) ptr)
+        (carg $2           ptr)))
+    (copy $1)))
+
 (template: istrue!
   (callv (^func &MVM_coerce_istrue)
     (arglist
