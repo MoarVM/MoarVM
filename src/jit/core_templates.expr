@@ -137,6 +137,13 @@
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
 
+(template: exception
+  (let: (($ah (^getf (tc) MVMThreadContext active_handlers)))
+    (if
+      (nz $ah)
+      (^getf $ah MVMActiveHandler ex_obj)
+      (^vmnull))))
+
 (template: die!
   (callv (^func &MVM_exception_die)
     (arglist
