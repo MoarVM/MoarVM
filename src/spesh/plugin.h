@@ -76,6 +76,8 @@ void MVM_spesh_plugin_resolve(MVMThreadContext *tc, MVMString *name, MVMRegister
     MVMuint8 *op_addr, MVMuint8 *next_addr, MVMCallsite *callsite);
 void MVM_spesh_plugin_resolve_spesh(MVMThreadContext *tc, MVMString *name, MVMRegister *result,
     MVMuint32 bytecode_offset, MVMStaticFrame *sf, MVMuint8 *next_addr, MVMCallsite *callsite);
+void MVM_spesh_plugin_resolve_jit(MVMThreadContext *tc, MVMString *name, MVMRegister *result,
+        MVMuint32 position, MVMStaticFrame *sf, MVMCallsite *callsite);
 void MVM_spesh_plugin_addguard_type(MVMThreadContext *tc, MVMObject *guardee, MVMObject *type);
 void MVM_spesh_plugin_addguard_concrete(MVMThreadContext *tc, MVMObject *guardee);
 void MVM_spesh_plugin_addguard_typeobj(MVMThreadContext *tc, MVMObject *guardee);
