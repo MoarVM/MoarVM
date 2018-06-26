@@ -177,6 +177,12 @@
       (carg $1 ptr)
       (carg $0 ptr))))
 
+(template: backtracestrings
+  (call (^func &MVM_exception_backtrace_strings)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) ptr_sz))
+
 (template: null_s (const 0 ptr_sz))
 
 (template: isnull_s (flagval (zr $1)))
