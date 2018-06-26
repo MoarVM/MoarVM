@@ -171,8 +171,7 @@ char * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
                 result = MVM_realloc(result, result_alloc + 1);
             }
             if (0 <= ord && ord <= 127) {
-                result[i] = (MVMuint8)ord;
-                i++;
+                result[i++] = (MVMuint8)ord;
             }
             else if (replacement) {
                 if (repl_length >= result_alloc || i >= result_alloc - repl_length) {
@@ -195,7 +194,7 @@ char * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
             *output_size = i;
     }
 
-    MVM_free(repl_bytes);
+    if (repl_bytes) MVM_free(repl_bytes);
     return (char *)result;
 }
 
