@@ -827,7 +827,7 @@ void MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MV
 
 void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, const char *buf) {
     MVMP6bigintBody *body = get_bigint_body(tc, a);
-    mp_int *i = MVM_malloc(sizeof(mp_int));
+    mp_int *i = alloca(sizeof(mp_int));
     mp_init(i);
     mp_read_radix(i, buf, 10);
     adjust_nursery(tc, body);
@@ -835,17 +835,57 @@ void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, const char *buf) {
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
         body->u.smallint.value = SIGN(i) == MP_NEG ? -DIGIT(i, 0) : DIGIT(i, 0);
         mp_clear(i);
-        MVM_free(i);
     }
     else {
-        body->u.bigint = i;
+        mp_int *i_cpy = MVM_malloc(sizeof(mp_int));
+        memcpy(i_cpy, i, sizeof(mp_int));
+        body->u.bigint = i_cpy;
     }
 }
+#define can_fit_into_8bit(g) ((-128 <= (g) && (g) <= 127))
 MVMObject * MVM_coerce_sI(MVMThreadContext *tc, MVMString *s, MVMObject *type) {
-    char *buf    = MVM_string_ascii_encode(tc, s, NULL, 0);
+    char *buf = NULL;
+    int is_malloced = 0;
+    MVMStringIndex i;
     MVMObject *a = MVM_repr_alloc_init(tc, type);
+    if (s->body.num_graphs < 120) {
+        buf = alloca(s->body.num_graphs + 1);
+    }
+    else {
+        buf = MVM_malloc(s->body.num_graphs + 1);
+        is_malloced = 1;
+    }
+    /* We just ignore synthetics since parsing will fail if a synthetic is
+     * encountered anyway. */
+    switch (s->body.storage_type) {
+        case MVM_STRING_GRAPHEME_ASCII:
+        case MVM_STRING_GRAPHEME_8:
+            memcpy(buf, s->body.storage.blob_8, sizeof(MVMGrapheme8) * s->body.num_graphs);
+            break;
+        case MVM_STRING_GRAPHEME_32:
+            for (i = 0; i < s->body.num_graphs; i++) {
+                buf[i] = can_fit_into_8bit(s->body.storage.blob_32[i])
+                    ? s->body.storage.blob_32[i]
+                    : '?'; /* Add a filler bogus char if it can't fit */
+            }
+            break;
+        case MVM_STRING_STRAND: {
+            MVMGraphemeIter gi;
+            MVM_string_gi_init(tc, &gi, s);
+            for (i = 0; i < s->body.num_graphs; i++) {
+                MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+                buf[i] = can_fit_into_8bit(g) ? g : '?';
+            }
+            break;
+        }
+        default:
+            if (is_malloced) MVM_free(buf);
+            MVM_exception_throw_adhoc(tc, "String corruption found in MVM_coerce_sI");
+    }
+    buf[s->body.num_graphs] = 0;
+
     MVM_bigint_from_str(tc, a, buf);
-    MVM_free(buf);
+    if (is_malloced) MVM_free(buf);
     return a;
 }
 
