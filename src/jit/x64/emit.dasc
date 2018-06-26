@@ -149,6 +149,8 @@ const unsigned char * MVM_jit_actions(void) {
 |.define ARG2, rdx
 |.define ARG3, r8
 |.define ARG4, r9
+|.define ARG5, [rsp+0x20]
+|.define ARG6, [rsp+0x28]
 |.else
 |.define ARG1, rdi
 |.define ARG2, rsi
@@ -1626,11 +1628,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | get_string ARG3, str_idx;
         | mov ARG4, ss_idx;
         | lea TMP6, WORK[dst];
-        |.if WIN32;
-        | mov qword [rsp+0x20], TMP6;
-        |.else;
         | mov ARG5, TMP6;
-        |.endif
         | callp &MVM_6model_find_method_spesh;
         |2:
         break;
@@ -1975,7 +1973,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov ARG4, aword WORK[value];
         |.if WIN32;
         | lea TMP6, WORK[result]
-        | mov qword [rsp+0x20], TMP6
+        | mov ARG5, TMP6
         |.else;
         | lea ARG5, WORK[result]
         |.endif
@@ -2691,9 +2689,16 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
         | get_string ARG2, invoke->code_register_or_name;
         | lea ARG3, WORK[invoke->return_register];
         | mov ARG4, invoke->resolve_offset;
+        |.if WIN32
+        | get_spesh_slot rax, invoke->spesh_cand_or_sf_slot;
+        | mov ARG5, rax;
+        | mov rax, CU->body.callsites;
+        | mov ARG6, CALLSITEPTR:rax[callsite_idx];
+        |.else
         | get_spesh_slot ARG5, invoke->spesh_cand_or_sf_slot;
         | mov ARG6, CU->body.callsites;
         | mov ARG6, CALLSITEPTR:ARG6[callsite_idx];
+        |.endif
         | callp &MVM_spesh_plugin_resolve_jit;
     } else {
         /* first, save callsite and args */
@@ -2704,11 +2709,7 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
         | mov ARG2, WORK[invoke->code_register_or_name]; // code object
         | lea ARG3, [rbp-0x30];                          // &cur_callsite
         | mov ARG4, TMP5;                                // args
-        |.if WIN32;
-        | mov qword [rsp+0x20], 0
-        |.else;
         | mov ARG5, 0;                           // NULL to &was_multi
-        |.endif
         | callp &MVM_frame_find_invokee_multi_ok;
         /* restore callsite, args, RV now holds code object */
         | mov TMP6, [rbp-0x30]; // callsite
