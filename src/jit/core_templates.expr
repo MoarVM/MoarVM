@@ -1188,6 +1188,11 @@
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
 
+(template: setdispatcher!
+  (dov
+    (^setf (tc) MVMThreadContext cur_dispatcher $0)
+    (^setf (tc) MVMThreadContext cur_dispatcher_for (const 0 ptr_sz))))
+
 (template: takedispatcher
   (let: (($disp     (^getf (tc) MVMThreadContext cur_dispatcher))
          ($disp_for (^getf (tc) MVMThreadContext cur_dispatcher_for))
