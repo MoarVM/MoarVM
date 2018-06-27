@@ -457,8 +457,8 @@
 
 (template: setwho
   (do
-    (^store_write_barrier! (^stable $1) (^getf (^stable $1) MVMSTable WHO) $2)
-    $2))
+    (^store_write_barrier! (^stable $1) (^addrf (^stable $1) MVMSTable WHO) $2)
+    $1))
 
 (template: eqaddr (flagval (eq $1 $2)))
 

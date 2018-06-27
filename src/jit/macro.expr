@@ -1,5 +1,7 @@
 # -*-whitespace-*-
 
+(macro: ^addrf (,object ,type ,field)
+    (addr ,object (&offsetof ,type ,field)))
 (macro: ^getf (,object ,type ,field)
    (load (addr ,object (&offsetof ,type ,field)) (&SIZEOF_MEMBER ,type ,field)))
 (macro: ^setf (,object ,type ,field ,value)
