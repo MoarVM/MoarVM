@@ -581,7 +581,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(abs_i): {
-                MVMint64 v = GET_REG(cur_op, 2).i64, mask = v >> 63;
+                MVMint64 v    = GET_REG(cur_op, 2).i64;
+                MVMint64 mask = v >> 63;
                 GET_REG(cur_op, 0).i64 = (v + mask) ^ mask;
                 cur_op += 4;
                 goto NEXT;
