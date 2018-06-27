@@ -455,6 +455,11 @@
   (let: (($who (^getf (^stable $1) MVMSTable WHO)))
   (if (nz $who) $who (^vmnull))))
 
+(template: setwho
+  (do
+    (^store_write_barrier! (^stable $1) (^getf (^stable $1) MVMSTable WHO) $2)
+    $2))
+
 (template: eqaddr (flagval (eq $1 $2)))
 
 (template: box_i!
