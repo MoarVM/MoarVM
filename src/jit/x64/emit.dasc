@@ -541,18 +541,20 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 ctx  = ins->operands[1].reg.orig;
         MVMint16 name = ins->operands[2].reg.orig;
         | mov TMP5, aword WORK[ctx];
-        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMContext;
-        | je >1;
         | test_type_object TMP5;
-        | jz >1;
-        | throw_adhoc "getlexreldyn needs a context"
-        |1:
+        | jnz >1;
+        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMContext;
+        | jne >1;
         | mov TMP6, CONTEXT:TMP5->body.context;
-        | mov ARG1, TC
+        | mov ARG1, TC;
         | mov ARG2, aword WORK[name];
         | mov ARG3, TMP6;
         | callp &MVM_frame_getdynlex;
         | mov WORK[dst], RV;
+        | jmp >2;
+        |1:
+        | throw_adhoc "getlexreldyn needs a context";
+        |2:
         break;
     }
     case MVM_OP_getlex_no:
@@ -878,22 +880,20 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 ctx = ins->operands[1].reg.orig;
         | mov TMP5, aword WORK[ctx];
         | test_type_object TMP5;
-        | jz >1;
+        | jnz >6;
         | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMContext;
-        | je >1;
-        | throw_adhoc "ctxcallerskipthunks needs an MVMContext";
-        |1:
+        | jne >6;
         | mov ARG1, TC;
         | mov ARG2, CONTEXT:TMP5->body.context->caller;
-        |2:
+        |1:
         | test ARG2, ARG2;
-        | jz >4;
+        | jz >3;
         | mov TMP6, FRAME:ARG2->static_info->body.is_thunk;
         | test TMP6, TMP6;
-        | jz >3;
+        | jz >2;
         | mov ARG2, FRAME:ARG2->caller;
-        | jmp >2;
-        |3:
+        | jmp >1;
+        |2:
         | callp &MVM_frame_context_wrapper;
         | mov TMP6, RV;
         | test TMP6, TMP6;
@@ -902,6 +902,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | get_vmnull TMP6;
         |5:
         | mov WORK[dst], TMP6;
+        | jmp >7;
+        |6:
+        | throw_adhoc "ctxcallerskipthunks needs an MVMContext";
+        |7:
         break;
     }
     case MVM_OP_curcode: {
@@ -2120,14 +2124,16 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 obj  = ins->operands[0].reg.orig;
         MVMint16 code = ins->operands[1].reg.orig;
         | mov TMP1, aword WORK[code];
-        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCode;
-        | je >1;
         | test_type_object TMP1;
         | jnz >1;
-        | throw_adhoc "getcodename requires a concrete object";
-        |1:
+        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCode;
+        | jne >1;
         | mov TMP2, CODE:TMP1->body.name;
         | mov WORK[obj], TMP2;
+        | jmp >2;
+        |1:
+        | throw_adhoc "getcodename requires a concrete object";
+        |2:
         break;
     }
     case MVM_OP_setcodeobj: {
