@@ -1030,6 +1030,11 @@
       (carg (tc) ptr)
       (carg $0 ptr))))
 
+(template: rand_i
+  (call (^func &MVM_proc_rand_i)
+    (arglist
+      (carg (tc) ptr)) int_sz))
+
 (template: getenvhash
   (call (^func &MVM_proc_getenvhash)
     (arglist
