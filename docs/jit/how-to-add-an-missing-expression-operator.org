@@ -1,0 +1,120 @@
+#+TITLE: How to add a missing expression operator
+
+Sometimes you may wish to create an expression JIT template using an
+operator that doesn't yet exist. Expression operators are meant to
+represent CPU-level constructs, but the current list is not complete,
+and will likely not be in the near future. So sometimes it is
+necessary to add a new expression operator. This guide will help you
+through the process.
+
+* Add an expression operator defintion
+
+The file =src/jit/expr_ops.h= contains a macro-list of all defined operators.
+Each operator is defined as such:
+
+#+BEGIN_EXAMPLE
+_(ADD, 2, 0, REG, UNSIGNED), \
+#+END_EXAMPLE
+
++ First item is the name, which must be *uppercase*. Choose something
+  that makes sense.
++ Second item is the number of *children* (or operands or
+  arguemnts). So e.g. =ADD= has two input arguments, =NOT= has only
+  one. Operands are other tree nodes.
++ Third item is the number of *parameters* (or options). Parameters
+  are constants to use for the operator. E.g. for the =CONST= operator
+  the value of the constant is a parameter.
++ Fourth item is the 'result value'. I'm reasonably sure this has no
+  use anymore and could be cleaned up.
++ Fifth item is the 'cast behaviour'. The expression compiler
+  automatically inserts size extension operators (=CAST=) so that both
+  arguments are equal in size. There's three options:
+  - =NO_CAST= - don't insert casts
+  - =UNSIGNED= - extend with zeros
+  - =SIGNED= - extend with sign bit (two's complement)
+  Autocasting is a questionable design decision and may be removed in
+  the future.
+
+Mind the comma and the backslash to escape the newline.
+
+* Add tiles to implement the new operator
+
+At the moment we only support x86-64 - if more architectures are ever
+added, this applies to those architectures as well.
+
+A tile maps a subtree of operators to machine code. (The smallest
+subtree is obviously just one node). Mapping the tree to a (hopefully
+optimal) set of tiles is the job of the tiler. We need to add both a tile
+template and tile function to allow be able to compile our new operator.
+
+** Tile Functions
+
+Tile functions are defined in =src/jit/x64/tiles.dasc=.  (This file is
+included by DynASM from =src/jit/x64/emit.dasc=, because that's
+necessary to create a single list of 'actions' for DynASM to operate
+on). A tile function looks like:
+
+#+BEGIN_SRC c
+MVM_JIT_TILE_DECL(add_reg) {
+    MVMint8 reg[2];
+    ensure_two_operand_pre(tc, compiler, tile, reg);
+    | add Rq(reg[0]), Rq(reg[1]);
+    ensure_two_operand_post(tc, compiler, tile, reg);
+}
+#+END_SRC
+
+The =MVM_JIT_TILE_DECL= macro expands to a tile function declaration
+(which is assigned to a tile *object* in the tile *list*, which is
+what we use to represent the compiled code just prior to emitting it
+to the DynASM buffer). There is a second (redundant) pre-declaration
+of the tile function in the =src/jit/x64/tile_decl.h= which you'll
+also need to add.
+
+For x64, common tile functions are:
+
++ direct, e.g. =shl reg, reg=
++ constant: =shl reg, constant=
++ from memory: =shl reg, [memory address]=
+
+But implementing at least the direct function is enough, for the
+moment.
+
+The =ensure_to_operand_pre= and =ensure_two_operand_post= are
+necessary because x86 is a two-operand language that destructively
+updates one operand, like =a <- operator(a, b)=. Whereas the
+expression language is a result-arguments language that doesn't update
+values, like =c <- operator(a,b)=. It is my intention to make a
+higher-level component (the register allocator or a
+post-register-allocator phase) take care of this, but I haven't
+figured out how to yet.
+
+
+** Tile templates
+
+A tile template (or tile pattern) is written much like an expression
+template. Tile templates are architecture specific. They are declared
+(for x64) in =src/jit/x64/tile_pattern.tile=. Tiles map to subtrees
+and look like these:
+
+#+BEGIN_EXAMPLE
+(tile: add_reg       (add reg reg) reg 2)
+(tile: add_const     (add reg (const $val $size)) reg 3)
+(tile: add_load_addr (add reg (load (addr reg $ofs) $sz)) reg 6)
+(tile: add_load_idx  (add reg (load (idx reg reg $scale) $size)) reg 6)
+#+END_EXAMPLE
+
+Each tile pattern reduces a subtree (second item) to a symbol (third
+item). The subtree pattern consists of operators and symbols, and each
+symbol is a placeholder for another tile that may be placed there.
+
+First item (after tile:) is the tile name and must match with the tile
+function declared in =tiles.dasc= The last item is (an estimate) of
+the cost. Don't worry to much about the cost - that too needs a
+rework.
+
+* Write your expression template
+
+That's it! If you've added all these things, you're good to go - your
+new operator can be used in an expression template.
+
+
