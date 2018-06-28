@@ -1,7 +1,7 @@
 #include "moar.h"
 
 const MVMJitExprOpInfo MVM_JIT_EXPR_OP_INFO_TABLE[] = {
-#define OP_INFO(name, nchild, nargs, vtype, cast) { #name, nchild, nargs, MVM_JIT_ ## vtype, MVM_JIT_ ## cast }
+#define OP_INFO(name, nchild, nargs, cast) { #name, nchild, nargs, MVM_JIT_ ## cast }
     MVM_JIT_EXPR_OPS(OP_INFO)
 #undef OP_INFO
 };

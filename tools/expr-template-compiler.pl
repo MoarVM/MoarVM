@@ -54,7 +54,19 @@ sub compile_template {
     };
 }
 
-my %EXPR_OP_TYPES = (
+# Template check tables
+
+# Expected result type
+my %OPERATOR_TYPES = (
+    (map { $_ => 'void' } qw(store discard dov when ifv branch mark callv guard)),
+    (map { $_ => 'flag' } qw(lt le eq ne ge gt nz zr all any)),
+    qw(arglist) x 2,
+    qw(carg) x 2,
+);
+
+
+# Expected type of operands
+my %OPERAND_TYPES = (
     flagval => 'flag',
     all => 'flag',
     any => 'flag',
@@ -63,9 +75,9 @@ my %EXPR_OP_TYPES = (
     when => 'flag,void',
     if => 'flag,reg,reg',
     ifv => 'flag,void,void',
-    call => 'reg,c_args',
-    callv => 'reg,c_args',
-    arglist => 'void',
+    call => 'reg,arglist',
+    callv => 'reg,arglist',
+    arglist => 'carg',
     guard => 'void',
 );
 
@@ -108,7 +120,7 @@ sub validate_template {
         die "Node $txt is too short";
     }
 
-    my @types = split /,/, ($EXPR_OP_TYPES{$node} // 'reg');
+    my @types = split /,/, ($OPERAND_TYPES{$node} // 'reg');
     if (@types < $nchild) {
         if (@types == 1) {
             @types = (@types) x $nchild;
@@ -118,14 +130,16 @@ sub validate_template {
             die "Can't match up types";
         }
     }
+    use Data::Dumper;
 
     for (my $i = 0; $i < $nchild; $i++) {
         my $child = $template->[$offset+$i];
         if (ref($child) eq 'ARRAY' and substr($child->[0], 0, 1) ne '&') {
             unless ((my $op = $child->[0]) eq 'let:') {
-                my $type = lc $EXPR_OPS{$op}{type};
-                die sprintf('Expected %s but got %s in template %s child %d', $types[$i],
-                            $type, sexpr::encode($template), $i)
+
+                my $type = ($OPERATOR_TYPES{$op} // 'reg');
+                die sprintf('Expected %s but got %s in template %s child %d (op %s)', $types[$i],
+                            $type, sexpr::encode($template), $i, $op)
                     unless $types[$i] eq $type;
             }
             validate_template($child);
@@ -231,8 +245,8 @@ sub write_template {
         my @expr = @$tree[2..$#$tree];
 
         # depening on last node result, start with DO or DOV (void)
-        my $type = $EXPR_OPS{$expr[-1][0]}{'type'};
-        my $list = [ $type eq 'VOID' ? 'DOV' : 'DO', @$decl + @expr ];
+        my $type = ($OPERATOR_TYPES{$expr[-1][0]} // 'reg');
+        my $list = [ $type eq 'void' ? 'DOV' : 'DO', @$decl + @expr ];
         # add declarations to template and to DO list
         for my $stmt (@$decl) {
             die "Let statement should hold 2 expressions, holds ".@$stmt unless @$stmt == 2;

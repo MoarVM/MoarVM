@@ -14,8 +14,8 @@ sub parse_expr_ops {
     while (<$fh>) { last if m/#define MVM_JIT_EXPR_OPS/; }
     my @expr_ops;
     while (<$fh>) {
-        next unless (m/\((\w+),\s*(-?\d+),\s*(\d+),\s*(\w+),\s*(\w+)\)/);
-        push @expr_ops, [$1, $2, $3, $4, $5];
+        next unless (m/\((\w+),\s*(-?\d+),\s*(\d+),\s*(\w+)\)/);
+        push @expr_ops, [$1, $2, $3, $4];
     }
     close $fh;
     return @expr_ops;
@@ -23,7 +23,7 @@ sub parse_expr_ops {
 
 sub import {
     my ($class, @args) = @_;
-    my @keys     = qw(name num_childs num_args type cast);
+    my @keys     = qw(name num_childs num_args cast);
     my @expr_ops = parse_expr_ops(@args ? @args : EXPR_OPS_H);
     my %expr_ops = map {
         my ($i, $op) = ($_, $expr_ops[$_]);
