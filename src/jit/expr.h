@@ -1,20 +1,14 @@
-/* Each node that yields a value has a type. This information can
- * probably be used by the code generator, somehow. */
-typedef enum { /* value type */
-     MVM_JIT_VOID,
-     MVM_JIT_REG,
-     MVM_JIT_FLAG,
-     MVM_JIT_INT,
-     MVM_JIT_NUM,
-     MVM_JIT_PTR,
-     MVM_JIT_C_ARGS,
-} MVMJitExprVtype;
-
 #define MVM_JIT_PTR_SZ sizeof(void*)
 #define MVM_JIT_REG_SZ sizeof(MVMRegister)
 #define MVM_JIT_INT_SZ sizeof(MVMint64)
 #define MVM_JIT_NUM_SZ sizeof(MVMnum64)
 
+/* C argument types */
+enum {
+    MVM_JIT_PTR,
+    MVM_JIT_INT,
+    MVM_JIT_NUM
+};
 
 /* Control casting behaviour for mixed-sized operands */
 #define MVM_JIT_NO_CAST  0
@@ -25,7 +19,7 @@ typedef enum { /* value type */
 
 
 enum {
-#define MVM_JIT_OP_ENUM(name, nchild, npar, vtype, cast) MVM_JIT_##name
+#define MVM_JIT_OP_ENUM(name, nchild, npar, cast) MVM_JIT_##name
 MVM_JIT_EXPR_OPS(MVM_JIT_OP_ENUM)
 #undef MVM_JIT_OP_ENUM
 };
@@ -36,7 +30,6 @@ struct MVMJitExprOpInfo {
     const char     *name;
     MVMint32        nchild;
     MVMint32        nargs;
-    MVMJitExprVtype vtype;
     MVMint8         cast;
 };
 
