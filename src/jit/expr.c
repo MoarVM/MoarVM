@@ -331,7 +331,7 @@ static void check_template(MVMThreadContext *tc, const MVMJitExprTemplate *templ
             if (template->code[i] < 0 ||
                 (template->code[i] >= ins->info->num_operands &&
                  !ins_has_single_input_output_operand(ins)))
-                MVM_oops(tc, "JIT: Operand access out of bounds (instruction: %s)", ins->info->name);
+                MVM_oops(tc, "JIT: Operand access (%d) out of bounds (instruction: %s)", template->code[i], ins->info->name);
             break;
         default:
             continue;

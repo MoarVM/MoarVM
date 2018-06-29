@@ -634,7 +634,9 @@ src/jit/x64/emit@obj@: src/jit/x64/emit.c $(DYNASM_HEADERS)
 src/jit/x64/emit.c: src/jit/x64/emit.dasc src/jit/x64/tiles.dasc $(MINILUA) $(DYNASM_SCRIPTS)
 
 # Expression list tables
-src/jit/core_templates.h: src/jit/core_templates.expr src/jit/macro.expr tools/expr-template-compiler.pl src/core/oplist src/jit/expr_ops.h
+src/jit/core_templates.h: src/jit/core_templates.expr src/jit/macro.expr \
+    tools/expr-template-compiler.pl tools/sexpr.pm tools/expr_ops.pm tools/oplist.pm \
+    src/core/oplist src/jit/expr_ops.h
 
 # Architecture-specific tiles
 src/jit/x64/tile_pattern.h: src/jit/x64/tile_pattern.tile tools/tiler-table-generator.pl src/jit/expr_ops.h

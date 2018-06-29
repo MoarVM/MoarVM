@@ -14,6 +14,7 @@ use lib $FindBin::Bin;
 
 use sexpr;
 use expr_ops;
+use oplist;
 
 
 # Input:
@@ -130,7 +131,7 @@ sub validate_template {
             die "Can't match up types";
         }
     }
-    use Data::Dumper;
+
 
     for (my $i = 0; $i < $nchild; $i++) {
         my $child = $template->[$offset+$i];
@@ -313,18 +314,8 @@ sub write_template {
 }
 
 
-    # first read the correct order of opcodes
-my (@opcodes, %names);
-{
-    open( my $oplist, '<', $OPLIST ) or die $!;
-    while (<$oplist>) {
-        next unless (m/^\w+/);
-        my $opcode = substr $_, 0, $+[0];
-        push @opcodes, $opcode;
-        $names{$opcode} = $#opcodes;
-    }
-    close( $oplist ) or die $!;
-}
+# first read the correct order of opcodes
+my %OPNAMES = map { $OPLIST[$_][0] => $_ } keys @OPLIST;
 
 my %SEEN;
 
@@ -347,10 +338,10 @@ sub parse_file {
                 $opcode = substr $opcode, 0, -1;
                 $flags |= 1;
             }
-            die "Opcode '$opcode' unknown" unless defined $names{$opcode};
+            die "Opcode '$opcode' unknown" unless defined $OPNAMES{$opcode};
             die "Opcode '$opcode' redefined" if defined $info{$opcode};
             # Validate template for consistency with expr.h node definitions
-            validate_template($template);
+            validate_template($template, $OPLIST{$opcode});
             my $compiled = compile_template($template);
 
             $info{$opcode} = {
@@ -408,9 +399,10 @@ for (@$templates) {
 }
 print "\n};\n";
 print "static const MVMJitExprTemplate MVM_jit_expr_template_info[] = {\n";
-for (@opcodes) {
-    if (defined($info->{$_})) {
-        my $td = $info->{$_};
+for my $opcode (@OPLIST) {
+    my ($name) = @$opcode;
+    if (defined($info->{$name})) {
+        my $td = $info->{$name};
         printf '    { MVM_jit_expr_templates + %d, "%s", %d, %d, %d },%s',
           $td->{idx}, $td->{info}, $td->{len}, $td->{root}, $td->{flags}, "\n";
     } else {
@@ -424,7 +416,7 @@ print "static const void* MVM_jit_expr_template_constants[] = {\n";
 print "    $_,\n" for @constants;
 print "};\n";
 
-printf <<'FOOTER', scalar @opcodes;
+printf <<'FOOTER', scalar @OPLIST;
 static const MVMJitExprTemplate * MVM_jit_get_template_for_opcode(MVMuint16 opcode) {
     if (opcode >= %d) return NULL;
     if (MVM_jit_expr_template_info[opcode].len < 0) return NULL;
