@@ -1427,6 +1427,11 @@
       (carg $3   ptr)
       (carg $4   ptr)) ptr_sz))
 
+(template: execname
+  (call (^func &MVM_executable_name)
+    (arglist
+      (carg (tc) ptr)) ptr_sz))
+
 (template: const_i64_16 (copy $1))
 (template: const_i64_32 (copy $1))
 
