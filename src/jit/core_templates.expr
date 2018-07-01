@@ -1484,6 +1484,18 @@
       (carg $1 ptr)
       (carg $2 int)) int_sz))
 
+(template: isrwcont
+  (if
+    (^is_vmnull $1)
+    (const 0 int_sz)
+    (let: (($cs (^getf (^stable $1) MVMSTable container_spec)))
+      (if
+        (nz $cs)
+        (call (^getf $cs MVMContainerSpec can_store)
+          (arglist
+            (carg (tc) ptr)
+            (carg $1 ptr)) int_sz)
+        (const 0 int_sz)))))
 (template: lastexpayload
   (^getf (tc) MVMThreadContext last_payload))
 
