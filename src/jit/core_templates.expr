@@ -35,6 +35,34 @@
 
 (template: getlex (copy $1))
 (template: bindlex! (store $0 $1 reg_sz))
+
+(template: getlex_ni
+  (load
+    (call (^func &MVM_frame_find_lexical_by_name)
+      (arglist
+        (carg (tc) ptr)
+        (carg (^cu_string $1) ptr)
+        (carg (const (&QUOTE MVM_reg_int64) int_sz) int)) int_sz)
+    int_sz))
+
+(template: getlex_nn
+  (load
+    (call (^func &MVM_frame_find_lexical_by_name)
+      (arglist
+        (carg (tc) ptr)
+        (carg (^cu_string $1) ptr)
+        (carg (const (&QUOTE MVM_reg_num64) int_sz) int)) int_sz)
+    int_sz))
+
+(template: getlex_ns
+  (load
+    (call (^func &MVM_frame_find_lexical_by_name)
+      (arglist
+        (carg (tc) ptr)
+        (carg (^cu_string $1) ptr)
+        (carg (const (&QUOTE MVM_reg_str) int_sz) int)) int_sz)
+    ptr_sz))
+
 (template: getdynlex
   (call (^func &MVM_frame_getdynlex)
     (arglist
