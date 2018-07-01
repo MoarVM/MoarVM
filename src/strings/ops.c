@@ -2821,64 +2821,30 @@ typedef union {
     MVMint32 graphs[3];
     unsigned char bytes[12];
 } MVMJenHashGraphemeView;
-void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
-    /* The hash algorithm works in bytes. Since we can represent strings in a
-     * number of ways, and we want consistent hashing, then we'll read the
-     * strings using the grapheme iterator in groups of 3, using 32-bit ints
-     * for the graphemes no matter what the string really holds them as. Then
-     * we'll use the bytes view of that in the hashing function. */
-    MVMJenHashGraphemeView hash_block;
-    MVMGraphemeIter gi;
-    MVMStringIndex graphs_remaining, sgraphs;
 
-    /* Initialize hash state. */
-    MVMhashv hashv = tc->instance->hashSecret;
-    MVMuint32 _hj_i, _hj_j;
-    _hj_i = _hj_j = 0x9e3779b9;
-    graphs_remaining = sgraphs = MVM_string_graphs(tc, s);
-
-    /* Work through the string 3 graphemes at a time. */
-    MVM_string_gi_init(tc, &gi, s);
-    while (graphs_remaining >= 3) {
-        hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
-        hash_block.graphs[1] = MVM_string_gi_get_grapheme(tc, &gi);
-        hash_block.graphs[2] = MVM_string_gi_get_grapheme(tc, &gi);
-        _hj_i += (hash_block.bytes[0] + ( (unsigned)hash_block.bytes[1] << 8 )
-            + ( (unsigned)hash_block.bytes[2] << 16 )
-            + ( (unsigned)hash_block.bytes[3] << 24 ) );
-        _hj_j +=    (hash_block.bytes[4] + ( (unsigned)hash_block.bytes[5] << 8 )
-            + ( (unsigned)hash_block.bytes[6] << 16 )
-            + ( (unsigned)hash_block.bytes[7] << 24 ) );
-        hashv += (hash_block.bytes[8] + ( (unsigned)hash_block.bytes[9] << 8 )
-            + ( (unsigned)hash_block.bytes[10] << 16 )
-            + ( (unsigned)hash_block.bytes[11] << 24 ) );
-
-        HASH_JEN_MIX(_hj_i, _hj_j, hashv);
-
-        graphs_remaining -= 3;
-    }
-
+MVM_STATIC_INLINE void MVM_hash_add_three (MVMJenHashGraphemeView *hash_block, MVMuint32 *hj_i, MVMuint32 *hj_j, MVMuint32 *hashv) {
+    *hj_i  += hash_block->graphs[0];
+    *hj_j  += hash_block->graphs[1];
+    *hashv += hash_block->graphs[2];
+    HASH_JEN_MIX(*hj_i, *hj_j, *hashv);
+}
+MVM_STATIC_INLINE void MVM_hash_finish (MVMJenHashGraphemeView *hash_block, MVMuint32 *hj_i, MVMuint32 *hj_j, MVMuint32 *hashv, MVMStringIndex sgraphs, MVMStringIndex graphs_remaining) {
     /* Mix in key length (in bytes, not graphemes). */
-    hashv += sgraphs * sizeof(MVMGrapheme32);
+    *hashv += sgraphs * sizeof(MVMGrapheme32);
 
     /* Now handle trailing graphemes (must be 2, 1, or 0). */
+    /* NOTE: this is weird since it changes the order in different cases. This
+     * is just replicating old functionality. */
     switch (graphs_remaining) {
         case 2:
-            hash_block.graphs[1] = MVM_string_gi_get_grapheme(tc, &gi);
-            _hj_j += ( (unsigned)hash_block.bytes[7] << 24 ) +
-                     ( (unsigned)hash_block.bytes[6] << 16 ) +
-                     ( (unsigned)hash_block.bytes[5] << 8 ) +
-                     hash_block.bytes[4];
+            *hj_j += hash_block->graphs[0];
+            *hj_i += hash_block->graphs[1];
+            break;
         /* Fallthrough */
         case 1:
-            hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
-            _hj_i += ( (unsigned)hash_block.bytes[3] << 24 ) +
-                     ( (unsigned)hash_block.bytes[2] << 16 ) +
-                     ( (unsigned)hash_block.bytes[1] << 8 ) +
-                     hash_block.bytes[0];
+            *hj_i += hash_block->graphs[0];
     }
-    HASH_JEN_MIX(_hj_i, _hj_j, hashv);
-
+    HASH_JEN_MIX(*hj_i, *hj_j, *hashv);
     /* Because we check if MVMString->body.cached_hash_code == 0 to tell if
      * we have not yet computed the hash code, ensure that hashv is never 0
      * by adding the length of the string to hashv iff hashv == 0. Since both
@@ -2886,8 +2852,89 @@ void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
      * overflow. Only problematic case is if the string is of length 0 and
      * hashv is zero, though this is very very unlikely (if possible at all)
      * and it should be very fast to calculate the hash so as to be negligible. */
-    if (hashv == 0) {
-        hashv += sgraphs;
+    if (*hashv == 0) {
+        *hashv += sgraphs;
+    }
+}
+void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
+    /* The hash algorithm works in bytes. Since we can represent strings in a
+     * number of ways, and we want consistent hashing, then we'll read the
+     * strings using the grapheme iterator in groups of 3, using 32-bit ints
+     * for the graphemes no matter what the string really holds them as. Then
+     * we'll use the bytes view of that in the hashing function. */
+
+    MVMStringIndex graphs_remaining, sgraphs;
+
+    /* Initialize hash state. */
+    MVMhashv hashv = tc->instance->hashSecret;
+    MVMuint32 hj_i, hj_j;
+    hj_i = hj_j = 0x9e3779b9;
+    graphs_remaining = sgraphs = MVM_string_graphs(tc, s);
+
+    switch (s->body.storage_type) {
+        case MVM_STRING_GRAPHEME_ASCII:
+        case MVM_STRING_GRAPHEME_8: {
+            int i;
+            MVMJenHashGraphemeView hash_block;
+            for (i = 0; 3 <= sgraphs - i; i += 3) {
+                hash_block.graphs[0] = s->body.storage.blob_8[i];
+                hash_block.graphs[1] = s->body.storage.blob_8[i+1];
+                hash_block.graphs[2] = s->body.storage.blob_8[i+2];
+                MVM_hash_add_three(
+                    &hash_block,
+                    &hj_i, &hj_j, &hashv);
+            }
+            graphs_remaining = sgraphs - i;
+            switch (graphs_remaining) {
+                case 1:
+                    hash_block.graphs[0] = s->body.storage.blob_8[i];
+                    break;
+                case 2:
+                    hash_block.graphs[0] = s->body.storage.blob_8[i];
+                    hash_block.graphs[1] = s->body.storage.blob_8[i+1];
+                    break;
+            }
+            MVM_hash_finish(&hash_block, &hj_i, &hj_j, &hashv, sgraphs, graphs_remaining);
+            break;
+        }
+        case MVM_STRING_GRAPHEME_32: {
+            int i;
+            for (i = 0; 3 <= sgraphs - i; i += 3) {
+                MVM_hash_add_three(
+                    (MVMJenHashGraphemeView*)(s->body.storage.blob_32 + i),
+                    &hj_i, &hj_j, &hashv);
+            }
+            graphs_remaining = sgraphs - i;
+            MVM_hash_finish((MVMJenHashGraphemeView*)(s->body.storage.blob_32 + i), &hj_i, &hj_j, &hashv, sgraphs, graphs_remaining);
+            break;
+        }
+        default: {
+            MVMGraphemeIter gi;
+            MVMJenHashGraphemeView hash_block;
+            /* Work through the string 3 graphemes at a time. */
+            MVM_string_gi_init(tc, &gi, s);
+            while (3 <= graphs_remaining) {
+                hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
+                hash_block.graphs[1] = MVM_string_gi_get_grapheme(tc, &gi);
+                hash_block.graphs[2] = MVM_string_gi_get_grapheme(tc, &gi);
+                MVM_hash_add_three(
+                    &hash_block,
+                    &hj_i, &hj_j, &hashv);
+                graphs_remaining -= 3;
+            }
+            /* Now handle trailing graphemes (must be 2, 1, or 0). */
+            switch (graphs_remaining) {
+                case 1:
+                    hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
+                    break;
+                case 2:
+                    hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
+                    hash_block.graphs[1] = MVM_string_gi_get_grapheme(tc, &gi);
+                    break;
+
+            }
+            MVM_hash_finish(&hash_block, &hj_i, &hj_j, &hashv, sgraphs, graphs_remaining);
+        }
     }
     /* Store computed hash value. */
     s->body.cached_hash_code = hashv;
