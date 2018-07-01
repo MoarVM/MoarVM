@@ -605,7 +605,9 @@
 (template: null (^vmnull))
 
 (template: isnull
-  (if (^is_vmnull $1) (const 1 int_sz) (const 0 int_sz)))
+  (or
+    (flagval (zr $1))
+    (flagval (eq $1 (^vmnull)))))
 
 (template: ifnonnull
   (when (all
@@ -1579,7 +1581,9 @@
 (template: const_i64_32 (copy $1))
 
 (template: isnonnull
-  (if (^is_vmnull $1) (const 0 int_sz) (const 1 int_sz)))
+  (and
+    (flagval (nz $1))
+    (flagval (ne $1 (^vmnull)))))
 
 (template: iscont_i
   (call (^func MVM_6model_container_iscont_i)
