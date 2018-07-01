@@ -1530,8 +1530,8 @@
                 (callv (^func &MVM_spesh_log_static)
                   (arglist
                     (carg (tc) ptr)
-                    (carg (^getf $found MVMRegister o) ptr))))
-          (^getf $found MVMRegister o))
+                    (carg (load $found ptr_sz) ptr))))
+          (load $found ptr_sz))
       (^vmnull))))
 
 (template: getlexperinvtype_o
@@ -1547,8 +1547,8 @@
                 (callv (^func &MVM_spesh_log_type)
                   (arglist
                     (carg (tc) ptr)
-                    (carg (^getf $found MVMRegister o) ptr))))
-          (^getf $found MVMRegister o))
+                    (carg (load $found ptr_sz) ptr))))
+          (load $found ptr_sz))
       (^vmnull))))
 
 (template: execname
