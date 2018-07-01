@@ -44,7 +44,7 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
 
 #define MVM_HASH_KEY(entry) ((MVMString *)(entry)->hash_handle.key)
 
-#define MVM_HASH_DESTROY(hash_handle, hashentry_type, head_node) do { \
+#define MVM_HASH_DESTROY(tc, hash_handle, hashentry_type, head_node) do { \
     hashentry_type *current, *tmp; \
     unsigned bucket_tmp; \
     HASH_ITER(hash_handle, head_node, current, tmp, bucket_tmp) { \
@@ -52,7 +52,7 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
             MVM_free(current); \
     } \
     tmp = head_node; \
-    HASH_CLEAR(hash_handle, head_node); \
+    HASH_CLEAR(tc, hash_handle, head_node); \
     MVM_free(tmp); \
 } while (0)
 

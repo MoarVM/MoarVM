@@ -77,10 +77,13 @@ typedef unsigned char uint8_t;
 #define uthash_fatal(msg) exit(-1)        /* fatal error (out of memory,etc) */
 #endif
 #ifndef uthash_malloc
-#define uthash_malloc(sz) malloc(sz)      /* malloc fcn                      */
+#define uthash_malloc(tc, sz) MVM_fixed_size_alloc(tc, tc->instance->fsa, sz)      /* malloc fcn                      */
+#endif
+#ifndef uthash_malloc_zeroed
+#define uthash_malloc_zeroed(tc, sz) MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sz)      /* malloc fcn                      */
 #endif
 #ifndef uthash_free
-#define uthash_free(ptr,sz) free(ptr)     /* free fcn                        */
+#define uthash_free(tc, ptr, sz) MVM_fixed_size_free(tc, tc->instance->fsa, sz, ptr)     /* free fcn                        */
 #endif
 
 #ifndef uthash_noexpand_fyi
@@ -95,60 +98,10 @@ typedef unsigned char uint8_t;
 #define HASH_INITIAL_NUM_BUCKETS_LOG2 3  /* lg2 of initial number of buckets */
 #define HASH_BKT_CAPACITY_THRESH 10      /* expand when bucket count reaches */
 
-typedef struct UT_hash_bucket {
-   struct UT_hash_handle *hh_head;
-   unsigned count;
-
-   /* expand_mult is normally set to 0. In this situation, the max chain length
-    * threshold is enforced at its default value, HASH_BKT_CAPACITY_THRESH. (If
-    * the bucket's chain exceeds this length, bucket expansion is triggered).
-    * However, setting expand_mult to a non-zero value delays bucket expansion
-    * (that would be triggered by additions to this particular bucket)
-    * until its chain length reaches a *multiple* of HASH_BKT_CAPACITY_THRESH.
-    * (The multiplier is simply expand_mult+1). The whole idea of this
-    * multiplier is to reduce bucket expansions, since they are expensive, in
-    * situations where we know that a particular bucket tends to be overused.
-    * It is better to let its chain length grow to a longer yet-still-bounded
-    * value, than to do an O(n) bucket expansion too often.
-    */
-   unsigned expand_mult;
-} UT_hash_bucket;
-
-typedef struct UT_hash_table {
-   UT_hash_bucket *buckets;
-   unsigned num_buckets, log2_num_buckets;
-   unsigned num_items;
-   ptrdiff_t hho; /* hash handle offset (byte pos of hash handle in element */
-
-   /* in an ideal situation (all buckets used equally), no bucket would have
-    * more than ceil(#items/#buckets) items. that's the ideal chain length. */
-   unsigned ideal_chain_maxlen;
-
-   /* nonideal_items is the number of items in the hash whose chain position
-    * exceeds the ideal chain maxlen. these items pay the penalty for an uneven
-    * hash distribution; reaching them in a chain traversal takes >ideal steps */
-   unsigned nonideal_items;
-
-   /* ineffective expands occur when a bucket doubling was performed, but
-    * afterward, more than half the items in the hash had nonideal chain
-    * positions. If this happens on two consecutive expansions we inhibit any
-    * further expansion, as it's not helping; this happens when the hash
-    * function isn't a good fit for the key domain. When expansion is inhibited
-    * the hash will still work, albeit no longer in constant time. */
-   unsigned ineff_expands, noexpand;
-} UT_hash_table;
-
-typedef struct UT_hash_handle {
-   struct UT_hash_table *tbl;
-   struct UT_hash_handle *hh_prev;   /* previous hh in bucket order    */
-   struct UT_hash_handle *hh_next;   /* next hh in bucket order        */
-   void *key;                        /* ptr to enclosing struct's key (char * for
-                                      * low-level hashes, MVMString * for high level
-                                      * hashes) */
-   unsigned keylen;                  /* enclosing struct's key len     */
-   MVMhashv hashv;                   /* result of hash-fcn(key)        */
-} UT_hash_handle;
-
+#include "strings/uthash_types.h"
+void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes, void *free);
+void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes);
+void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes);
 /* calculate the element whose hash handle address is hhe */
 #define ELMT_FROM_HH(tbl,hhp) ((void*)(((char*)(hhp)) - ((tbl)->hho)))
 #define HASH_FIND(hh,head,keyptr,keylen,out)                                     \
@@ -198,17 +151,12 @@ do {                                                                            
 } while (0)
 MVM_PUBLIC MVM_NO_RETURN void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *messageFormat, ...) MVM_NO_RETURN_ATTRIBUTE MVM_FORMAT(printf, 2, 3);
 MVM_STATIC_INLINE void HASH_MAKE_TABLE(MVMThreadContext *tc, void *head, UT_hash_handle *head_hh) {
-  head_hh->tbl = (UT_hash_table*)uthash_malloc(
+  head_hh->tbl = (UT_hash_table*)uthash_malloc_zeroed(tc,
                   sizeof(UT_hash_table));
-  if (!(head_hh->tbl))  { uthash_fatal( "out of memory"); }
-  memset(head_hh->tbl, 0, sizeof(UT_hash_table));
   head_hh->tbl->num_buckets = HASH_INITIAL_NUM_BUCKETS;
   head_hh->tbl->log2_num_buckets = HASH_INITIAL_NUM_BUCKETS_LOG2;
   head_hh->tbl->hho = (char*)(head_hh) - (char*)(head);
-  head_hh->tbl->buckets = (UT_hash_bucket*)uthash_malloc(
-          HASH_INITIAL_NUM_BUCKETS*sizeof(struct UT_hash_bucket));
-  if (! head_hh->tbl->buckets) { uthash_fatal( "out of memory"); }
-  memset(head_hh->tbl->buckets, 0,
+  head_hh->tbl->buckets = (UT_hash_bucket*)uthash_malloc_zeroed(tc,
           HASH_INITIAL_NUM_BUCKETS*sizeof(struct UT_hash_bucket));
 }
 
@@ -275,9 +223,9 @@ do {                                                                            
     unsigned _hd_bkt;                                                            \
     struct UT_hash_handle *_hd_hh_del;                                           \
     if ( (head)->hh.tbl->num_items == 1 )  {                                     \
-        uthash_free((head)->hh.tbl->buckets,                                     \
+        uthash_free(tc, (head)->hh.tbl->buckets,                                     \
                     (head)->hh.tbl->num_buckets*sizeof(struct UT_hash_bucket) ); \
-        uthash_free((head)->hh.tbl, sizeof(UT_hash_table));                      \
+        uthash_free(tc, (head)->hh.tbl, sizeof(UT_hash_table));                      \
         (head) = NULL;                                                           \
     } else {                                                                     \
         _hd_hh_del = &((delptr)->hh);                                            \
@@ -297,7 +245,7 @@ do {                                                                            
             uthash_fatal("Failed to replace deleted head");                      \
           REPLACED_HEAD: ;                                                       \
         }                                                                        \
-        HASH_TO_BKT( _hd_hh_del->hashv, (head)->hh.tbl->num_buckets, _hd_bkt, (head)->hh.tbl->log2_num_buckets);   \
+        _hd_bkt = WHICH_BUCKET( _hd_hh_del->hashv, (head)->hh.tbl->num_buckets, (head)->hh.tbl->log2_num_buckets);   \
         HASH_DEL_IN_BKT(&((head)->hh.tbl->buckets[_hd_bkt]), _hd_hh_del);        \
         (head)->hh.tbl->num_items--;                                             \
     }                                                                            \
@@ -482,21 +430,20 @@ MVM_STATIC_INLINE void HASH_EXPAND_BUCKETS(MVMThreadContext *tc, UT_hash_table *
     UT_hash_bucket *_he_new_buckets, *_he_newbkt;
     unsigned new_num_bkts = tbl->num_buckets * 2;
     unsigned new_log2_num_buckets = tbl->log2_num_buckets + 1;
-    _he_new_buckets = (UT_hash_bucket*)uthash_malloc(
+    _he_new_buckets = (UT_hash_bucket*)uthash_malloc_zeroed(tc,
              new_num_bkts * sizeof(struct UT_hash_bucket));
-    if (!_he_new_buckets) { uthash_fatal( "out of memory"); }
-    memset(_he_new_buckets, 0,
-            new_num_bkts * sizeof(struct UT_hash_bucket));
     tbl->ideal_chain_maxlen =
        (tbl->num_items >> new_log2_num_buckets) +
        ((tbl->num_items & (new_num_bkts-1)) ? 1 : 0);
     tbl->nonideal_items = 0;
+    /* Iterate the buckets */
     for(_he_bkt_i = 0; _he_bkt_i < tbl->num_buckets; _he_bkt_i++)
     {
         _he_thh = tbl->buckets[ _he_bkt_i ].hh_head;
+        /* Iterate items in the bucket */
         while (_he_thh) {
            _he_hh_nxt = _he_thh->hh_next;
-           HASH_TO_BKT( _he_thh->hashv, new_num_bkts, _he_bkt, new_log2_num_buckets);
+           _he_bkt = WHICH_BUCKET( _he_thh->hashv, new_num_bkts, new_log2_num_buckets);
            _he_newbkt = &(_he_new_buckets[ _he_bkt ]);
            if (++(_he_newbkt->count) > tbl->ideal_chain_maxlen) {
              tbl->nonideal_items++;
@@ -511,7 +458,7 @@ MVM_STATIC_INLINE void HASH_EXPAND_BUCKETS(MVMThreadContext *tc, UT_hash_table *
            _he_thh = _he_hh_nxt;
         }
     }
-    uthash_free( tbl->buckets, tbl->num_buckets*sizeof(struct UT_hash_bucket) );
+    uthash_free(tc, tbl->buckets, tbl->num_buckets*sizeof(struct UT_hash_bucket) );
     tbl->num_buckets = new_num_bkts;
     tbl->log2_num_buckets = new_log2_num_buckets;
     tbl->buckets = _he_new_buckets;
@@ -551,12 +498,12 @@ MVM_STATIC_INLINE void HASH_DEL_IN_BKT(UT_hash_bucket *head, UT_hash_handle *hh_
     }
 }
 
-#define HASH_CLEAR(hh,head)                                                      \
+#define HASH_CLEAR(tc, hh,head)                                                  \
 do {                                                                             \
   if (head) {                                                                    \
-    uthash_free((head)->hh.tbl->buckets,                                         \
+    uthash_free(tc, (head)->hh.tbl->buckets,                                     \
                 (head)->hh.tbl->num_buckets*sizeof(struct UT_hash_bucket));      \
-    uthash_free((head)->hh.tbl, sizeof(UT_hash_table));                          \
+    uthash_free(tc, (head)->hh.tbl, sizeof(UT_hash_table));                      \
     (head)=NULL;                                                                 \
   }                                                                              \
 } while(0)

@@ -86,7 +86,7 @@ typedef double   MVMnum64;
 #define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
 typedef uint32_t MVMhashv;
 
-#include "strings/uthash.h"
+#include "strings/uthash_types.h"
 
 MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 
@@ -98,6 +98,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "core/vector.h"
 #include "core/threadcontext.h"
 #include "core/instance.h"
+#include "strings/uthash.h"
 #include "core/interp.h"
 #include "core/callsite.h"
 #include "core/args.h"

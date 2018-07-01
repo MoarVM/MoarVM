@@ -371,7 +371,7 @@ struct MVMInstance {
     uv_mutex_t mutex_int_const_cache;
 
     /* Multi-dispatch cache addition mutex (additions are relatively
-     * rare, so little motivation to have it more fine-grained). */ 
+     * rare, so little motivation to have it more fine-grained). */
     uv_mutex_t mutex_multi_cache_add;
 
     /* Next type cache ID, to go in STable. */

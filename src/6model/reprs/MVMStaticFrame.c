@@ -167,7 +167,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(body->local_types);
     MVM_free(body->lexical_types);
     MVM_free(body->lexical_names_list);
-    MVM_HASH_DESTROY(hash_handle, MVMLexicalRegistry, body->lexical_names);
+    MVM_HASH_DESTROY(tc, hash_handle, MVMLexicalRegistry, body->lexical_names);
 }
 
 static const MVMStorageSpec storage_spec = {

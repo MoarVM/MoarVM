@@ -63,7 +63,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
             MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), current);
     }
     tmp = h->body.hash_head;
-    HASH_CLEAR(hash_handle, h->body.hash_head);
+    HASH_CLEAR(tc, hash_handle, h->body.hash_head);
     if (tmp)
         MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), tmp);
 }
