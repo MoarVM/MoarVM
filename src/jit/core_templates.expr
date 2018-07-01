@@ -1444,6 +1444,32 @@
       (carg $4 int)
       (carg $5 ptr)) ptr_sz))
 
+(template: cancel!
+  (callv (^func &MVM_io_eventloop_cancel_work)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0   ptr)
+      (carg (const 0 ptr_sz) ptr)
+      (carg (const 0 ptr_sz) ptr))))
+
+(template: signal
+  (call (^func &MVM_io_signal_handle)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)
+      (carg $3   int)
+      (carg $4   ptr)) ptr_sz))
+
+(template: watchfile
+  (call (^func &MVM_io_file_watch)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)
+      (carg $3   ptr)
+      (carg $4   ptr)) ptr_sz))
+
 (template: const_i64_16 (copy $1))
 (template: const_i64_32 (copy $1))
 
