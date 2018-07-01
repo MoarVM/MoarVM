@@ -180,7 +180,7 @@
       (^getf $ah MVMActiveHandler ex_obj)
       (^vmnull))))
 
-# Does not require the destructive ! postfix, since this is a read-only op
+# Does not require the destructive ! postfix, since $0 is a read-only register
 (template: bindexpayload
   (callv (^func &MVM_bind_exception_payload)
     (arglist
