@@ -1476,6 +1476,40 @@
       (carg $3   ptr)
       (carg $4   ptr)) ptr_sz))
 
+(template: getlexstatic_o
+  (let: (($found (call (^func &MVM_frame_find_lexical_by_name)
+                   (arglist
+                     (carg (tc) ptr)
+                     (carg $1   ptr)
+                     (carg (const (&QUOTE MVM_reg_obj) int_sz) int)) ptr_sz)))
+    (if (nz $found)
+      (do (when (nz (call (^func &MVM_spesh_log_is_logging)
+                      (arglist
+                        (carg (tc) ptr)) int_sz))
+                (callv (^func &MVM_spesh_log_static)
+                  (arglist
+                    (carg (tc) ptr)
+                    (carg (^getf $found MVMRegister o) ptr))))
+          (^getf $found MVMRegister o))
+      (^vmnull))))
+
+(template: getlexperinvtype_o
+  (let: (($found (call (^func &MVM_frame_find_lexical_by_name)
+                   (arglist
+                     (carg (tc) ptr)
+                     (carg $1   ptr)
+                     (carg (const (&QUOTE MVM_reg_obj) int_sz) int)) ptr_sz)))
+    (if (nz $found)
+      (do (when (nz (call (^func &MVM_spesh_log_is_logging)
+                      (arglist
+                        (carg (tc) ptr)) int_sz))
+                (callv (^func &MVM_spesh_log_type)
+                  (arglist
+                    (carg (tc) ptr)
+                    (carg (^getf $found MVMRegister o) ptr))))
+          (^getf $found MVMRegister o))
+      (^vmnull))))
+
 (template: execname
   (call (^func &MVM_executable_name)
     (arglist
