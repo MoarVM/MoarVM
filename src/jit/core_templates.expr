@@ -52,7 +52,7 @@
         (carg (tc) ptr)
         (carg (^cu_string $1) ptr)
         (carg (const (&QUOTE MVM_reg_num64) int_sz) int)) int_sz)
-    int_sz))
+    num_sz))
 
 (template: getlex_ns
   (load
@@ -69,16 +69,7 @@
                      (carg (tc) ptr)
                      (carg (^cu_string $1) ptr)
                      (carg (const (&QUOTE MVM_reg_obj) int_sz) int)) ptr_sz)))
-    (if (nz $found)
-      (do (when (nz (call (^func &MVM_spesh_log_is_logging)
-                      (arglist
-                        (carg (tc) ptr)) int_sz))
-                (callv (^func &MVM_spesh_log_type)
-                  (arglist
-                    (carg (tc) ptr)
-                    (carg (load $found ptr_sz) ptr))))
-          (load $found ptr_sz))
-      (^vmnull))))
+    (if (nz $found) (load $found ptr_sz) (^vmnull))))
 
 (template: getdynlex
   (call (^func &MVM_frame_getdynlex)
@@ -189,7 +180,8 @@
       (^getf $ah MVMActiveHandler ex_obj)
       (^vmnull))))
 
-(template: bindexpayload!
+# Does not require the destructive ! postfix, since this is a read-only op
+(template: bindexpayload
   (callv (^func &MVM_bind_exception_payload)
     (arglist
       (carg (tc) ptr)
@@ -1539,7 +1531,7 @@
       (carg $2   ptr)
       (carg $3   ptr)
       (carg $4   int)
-      (carg $5   (&sizeof MVMint32))
+      (carg $5   int)
       (carg $6   ptr)) ptr_sz))
 
 (template: asyncwritebytes
@@ -1568,16 +1560,7 @@
                      (carg (tc) ptr)
                      (carg $1   ptr)
                      (carg (const (&QUOTE MVM_reg_obj) int_sz) int)) ptr_sz)))
-    (if (nz $found)
-      (do (when (nz (call (^func &MVM_spesh_log_is_logging)
-                      (arglist
-                        (carg (tc) ptr)) int_sz))
-                (callv (^func &MVM_spesh_log_static)
-                  (arglist
-                    (carg (tc) ptr)
-                    (carg (load $found ptr_sz) ptr))))
-          (load $found ptr_sz))
-      (^vmnull))))
+    (if (nz $found) (load $found ptr_sz) (^vmnull))))
 
 (template: getlexperinvtype_o
   (let: (($found (call (^func &MVM_frame_find_lexical_by_name)
@@ -1585,16 +1568,7 @@
                      (carg (tc) ptr)
                      (carg $1   ptr)
                      (carg (const (&QUOTE MVM_reg_obj) int_sz) int)) ptr_sz)))
-    (if (nz $found)
-      (do (when (nz (call (^func &MVM_spesh_log_is_logging)
-                      (arglist
-                        (carg (tc) ptr)) int_sz))
-                (callv (^func &MVM_spesh_log_type)
-                  (arglist
-                    (carg (tc) ptr)
-                    (carg (load $found ptr_sz) ptr))))
-          (load $found ptr_sz))
-      (^vmnull))))
+    (if (nz $found) (load $found ptr_sz) (^vmnull))))
 
 (template: execname
   (call (^func &MVM_executable_name)
