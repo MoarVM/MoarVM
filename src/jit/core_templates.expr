@@ -1486,6 +1486,17 @@
       (carg $4   int)
       (carg $5   ptr)) ptr_sz))
 
+(template: asynclisten
+  (call (^func &MVM_io_socket_listen_async)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)
+      (carg $3   ptr)
+      (carg $4   int)
+      (carg $5   (&sizeof MVMint32))
+      (carg $6   ptr)) ptr_sz))
+
 (template: asyncwritebytes
   (call (^func &MVM_io_write_bytes_async)
     (arglist
