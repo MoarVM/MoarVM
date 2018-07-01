@@ -1476,6 +1476,36 @@
       (carg $3   ptr)
       (carg $4   ptr)) ptr_sz))
 
+(template: asyncconnect
+  (call (^func &MVM_io_socket_connect_async)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)
+      (carg $3   ptr)
+      (carg $4   int)
+      (carg $5   ptr)) ptr_sz))
+
+(template: asyncwritebytes
+  (call (^func &MVM_io_write_bytes_async)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)
+      (carg $3   ptr)
+      (carg $4   ptr)
+      (carg $5   ptr)) ptr_sz))
+
+(template: asyncreadbytes
+  (call (^func &MVM_io_read_bytes_async)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)
+      (carg $3   ptr)
+      (carg $4   ptr)
+      (carg $5   ptr)) ptr_sz))
+
 (template: getlexstatic_o
   (let: (($found (call (^func &MVM_frame_find_lexical_by_name)
                    (arglist
