@@ -1,17 +1,5 @@
 # Difficult stuff, that hasn't been tested sufficiently adequately to support
 
-(template: getlex_no
-  (let: (($res
-    (call (^func &MVM_frame_find_lexical_by_name)
-          (arglist (carg (tc) ptr)
-                   (carg (^cu_string $1) ptr)
-                   (carg (const (&QUOTE MVM_reg_obj) int_sz) int))
-           ptr)))
-   (if (nz $res) (load $res ptr_sz) $res)))
-
-
-
-
 (template: return
   (do 3
        (callv (^func &MVM_args_assert_void_return_ok)
