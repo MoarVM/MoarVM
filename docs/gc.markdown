@@ -43,21 +43,24 @@ Once all threads indicate they have stopped execution, the GC run can go ahead.
 ## Nursery Collections
 Processing the worklist involves:
 
-* Taking an item from the list
-* Ensuring it didn't already get copied; if so, ignore it
-* Racing to write a busy value into the forwarding pointer
-* If we lose the race, go to the next object in the list
-* Scanning the object and putting any nursery pointers found and not yet copied into
-  our work list
+* Taking an item from the list (where an item is a pointer to an object reference,
+  that is an `MVMCollectable **`, not just an `MVMCollectable *`)
+* Ensuring it didn't already get copied; if so, just update the pointer to the new
+  address of the object
+* Seeing if it belongs to another thread, and if so putting it into a worklist for
+  whatever thread is processing the allocating thread's GC, and continuing to the next
+  item
 * If it has survived a previous nursery collection, move it into the older generation
-* Otherwise, copy it to tospace (needs to care if the target tospace is not ours - since
-  we expect most objects not to survive, probably OK to do synchronized operations to
-  bump the tospace pointer)
-* Finally, update any pointers we discovered that point to the now-moved objects
+* Otherwise, copy it to tospace
+* Update the pointer to point to the new location of the object
+* Scanning the object and putting any object references that were not yet marked into
+  the worklist
 
 ## Full Collections
-Every N GC runs will be a full collection, and generation 2 will be collected as
-well as generation 1.
+Every so often there will be a full collection, and generation 2 will be collected as
+well as the nursery. This is determined by looking at the amount of memory that has
+been promoted to generation 2 relative to the overall heap size, and possibly other
+factors (this has been tuned over time and will doubtless be tuned more; see the code).
 
 ## Write Barrier
 All writes into an object in the second generation from an object in the nursery
@@ -83,12 +86,16 @@ unoptimized) path for boxing strings:
         return res;
     }
 
-It receives val, which is a string to box. Note that strings are garbage-
+It receives `val`, which is a string to box. Note that strings are garbage-
 collectable objects in MoarVM, and so may move. It then allocates a box of the
-specified type (for example, Perl 6’s Str), and puts the string inside of it.
+specified type (for example, Perl 6’s `Str`), and puts the string inside of it.
 Since MVM_repr_alloc_init allocates an object, it may trigger garbage
-collection. And that in turn may move the object pointed to by val – meaning
-that the val pointer needs updating. The MVMROOT macro is used in order to add
-the memory address of val on the C stack to the set of roots that the GC
+collection. And that in turn may move the object pointed to by `val` – meaning
+that the `val` pointer needs updating. The `MVMROOT` macro is used in order to add
+the memory address of `val` on the C stack to the set of roots that the GC
 considers and updates, thus ensuring that even if the allocation of the box
-triggers garbage collection, this code won’t end up with an old val pointer.
+triggers garbage collection, this code won’t end up with an old `val` pointer.
+
+There is also an `MVMROOT2`, `MVMROOT3`, and `MVMROOT4` macro to root 2, 3, or 4
+things at once, which saves an indentation level (and possibly a little work, but
+C compilers are probably smart enough these days for it not to matter).
