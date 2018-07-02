@@ -64,27 +64,22 @@ static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet 
             MVMObject *test = test_idx < arg_end
                     ? args[test_idx].o
                     : MVM_repr_at_pos_o(tc, collected_objects, test_idx - arg_end);
+            MVMuint32 outcome;
             switch (kind) {
                 case MVM_SPESH_PLUGIN_GUARD_OBJ:
-                    pos += test == gs->guards[pos].u.object
-                        ? 1
-                        : gs->guards[pos].skip_on_fail;
+                    outcome = test == gs->guards[pos].u.object;
                     break;
                 case MVM_SPESH_PLUGIN_GUARD_NOTOBJ:
-                    pos += test != gs->guards[pos].u.object
-                        ? 1
-                        : gs->guards[pos].skip_on_fail;
+                    outcome = test != gs->guards[pos].u.object;
                     break;
                 case MVM_SPESH_PLUGIN_GUARD_TYPE:
-                    pos += STABLE(test) == gs->guards[pos].u.type
-                        ? 1
-                        : gs->guards[pos].skip_on_fail;
+                    outcome = STABLE(test) == gs->guards[pos].u.type;
                     break;
                 case MVM_SPESH_PLUGIN_GUARD_CONC:
-                    pos += IS_CONCRETE(test) ? 1 : gs->guards[pos].skip_on_fail;
+                    outcome = IS_CONCRETE(test);
                     break;
                 case MVM_SPESH_PLUGIN_GUARD_TYPEOBJ:
-                    pos += IS_CONCRETE(test) ? gs->guards[pos].skip_on_fail : 1;
+                    outcome = !IS_CONCRETE(test);
                     break;
                 case MVM_SPESH_PLUGIN_GUARD_GETATTR:
                     if (MVM_is_null(tc, collected_objects))
@@ -94,10 +89,18 @@ static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet 
                                 gs->guards[pos].u.attr.class_handle, gs->guards[pos].u.attr.name, MVM_NO_HINT);
                         MVM_repr_push_o(tc, collected_objects, attr);
                     });
-                    pos++;
+                    outcome = 1;
                     break;
                 default:
                     MVM_panic(1, "Guard kind unrecognized in spesh plugin guard set");
+            }
+            if (outcome) {
+                pos += 1;
+            }
+            else {
+                pos += gs->guards[pos].skip_on_fail;
+                if (!MVM_is_null(tc, collected_objects))
+                    MVM_repr_pos_set_elems(tc, collected_objects, 0);
             }
         }
     }
