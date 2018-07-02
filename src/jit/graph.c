@@ -403,9 +403,11 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
     MVMint32      reentry_label;
     MVMReturnType return_type;
     MVMint16      return_register;
-    MVMint16      code_register;
-    MVMint16      spesh_cand;
+    MVMint16      code_register_or_name;
+    MVMint16      spesh_cand_or_sf_slot;
     MVMint16      is_fast;
+    MVMint16      is_resolve = 0;
+    MVMuint32     resolve_offset = 0;
 
     while ((ins = ins->next)) {
         switch(ins->info->opcode) {
@@ -420,39 +422,39 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
             arg_ins[i++] = ins;
             break;
         case MVM_OP_invoke_v:
-            return_type     = MVM_RETURN_VOID;
-            return_register = -1;
-            code_register   = ins->operands[0].reg.orig;
-            spesh_cand      = -1;
-            is_fast         = 0;
+            return_type           = MVM_RETURN_VOID;
+            return_register       = -1;
+            code_register_or_name = ins->operands[0].reg.orig;
+            spesh_cand_or_sf_slot = -1;
+            is_fast               = 0;
             goto checkargs;
         case MVM_OP_invoke_i:
-            return_type     = MVM_RETURN_INT;
-            return_register = ins->operands[0].reg.orig;
-            code_register   = ins->operands[1].reg.orig;
-            spesh_cand      = -1;
-            is_fast         = 0;
+            return_type           = MVM_RETURN_INT;
+            return_register       = ins->operands[0].reg.orig;
+            code_register_or_name = ins->operands[1].reg.orig;
+            spesh_cand_or_sf_slot = -1;
+            is_fast               = 0;
             goto checkargs;
         case MVM_OP_invoke_n:
-            return_type     = MVM_RETURN_NUM;
-            return_register = ins->operands[0].reg.orig;
-            code_register   = ins->operands[1].reg.orig;
-            spesh_cand      = -1;
-            is_fast         = 0;
+            return_type           = MVM_RETURN_NUM;
+            return_register       = ins->operands[0].reg.orig;
+            code_register_or_name = ins->operands[1].reg.orig;
+            spesh_cand_or_sf_slot = -1;
+            is_fast               = 0;
             goto checkargs;
         case MVM_OP_invoke_s:
-            return_type     = MVM_RETURN_STR;
-            return_register = ins->operands[0].reg.orig;
-            code_register   = ins->operands[1].reg.orig;
-            spesh_cand      = -1;
-            is_fast         = 0;
+            return_type           = MVM_RETURN_STR;
+            return_register       = ins->operands[0].reg.orig;
+            code_register_or_name = ins->operands[1].reg.orig;
+            spesh_cand_or_sf_slot = -1;
+            is_fast               = 0;
             goto checkargs;
         case MVM_OP_invoke_o:
-            return_type     = MVM_RETURN_OBJ;
-            return_register = ins->operands[0].reg.orig;
-            code_register   = ins->operands[1].reg.orig;
-            spesh_cand      = -1;
-            is_fast         = 0;
+            return_type           = MVM_RETURN_OBJ;
+            return_register       = ins->operands[0].reg.orig;
+            code_register_or_name = ins->operands[1].reg.orig;
+            spesh_cand_or_sf_slot = -1;
+            is_fast               = 0;
             goto checkargs;
         case MVM_OP_nativeinvoke_o: {
             MVMint16 dst     = ins->operands[0].reg.orig;
@@ -482,39 +484,48 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
             goto success;
         }
         case MVM_OP_sp_fastinvoke_v:
-            return_type     = MVM_RETURN_VOID;
-            return_register = -1;
-            code_register   = ins->operands[0].reg.orig;
-            spesh_cand      = ins->operands[1].lit_i16;
-            is_fast         = 1;
+            return_type           = MVM_RETURN_VOID;
+            return_register       = -1;
+            code_register_or_name = ins->operands[0].reg.orig;
+            spesh_cand_or_sf_slot = ins->operands[1].lit_i16;
+            is_fast               = 1;
             goto checkargs;
         case MVM_OP_sp_fastinvoke_o:
-            return_type     = MVM_RETURN_OBJ;
-            return_register = ins->operands[0].reg.orig;;
-            code_register   = ins->operands[1].reg.orig;
-            spesh_cand      = ins->operands[2].lit_i16;
-            is_fast         = 1;
+            return_type           = MVM_RETURN_OBJ;
+            return_register       = ins->operands[0].reg.orig;;
+            code_register_or_name = ins->operands[1].reg.orig;
+            spesh_cand_or_sf_slot = ins->operands[2].lit_i16;
+            is_fast               = 1;
             goto checkargs;
         case MVM_OP_sp_fastinvoke_s:
-            return_type     = MVM_RETURN_STR;
-            return_register = ins->operands[0].reg.orig;;
-            code_register   = ins->operands[1].reg.orig;
-            spesh_cand      = ins->operands[2].lit_i16;
-            is_fast         = 1;
+            return_type           = MVM_RETURN_STR;
+            return_register       = ins->operands[0].reg.orig;;
+            code_register_or_name = ins->operands[1].reg.orig;
+            spesh_cand_or_sf_slot = ins->operands[2].lit_i16;
+            is_fast               = 1;
             goto checkargs;
         case MVM_OP_sp_fastinvoke_i:
-            return_type     = MVM_RETURN_INT;
-            return_register = ins->operands[0].reg.orig;;
-            code_register   = ins->operands[1].reg.orig;
-            spesh_cand      = ins->operands[2].lit_i16;
-            is_fast         = 1;
+            return_type           = MVM_RETURN_INT;
+            return_register       = ins->operands[0].reg.orig;;
+            code_register_or_name = ins->operands[1].reg.orig;
+            spesh_cand_or_sf_slot = ins->operands[2].lit_i16;
+            is_fast               = 1;
             goto checkargs;
         case MVM_OP_sp_fastinvoke_n:
-            return_type     = MVM_RETURN_NUM;
-            return_register = ins->operands[0].reg.orig;;
-            code_register   = ins->operands[1].reg.orig;
-            spesh_cand      = ins->operands[2].lit_i16;
-            is_fast         = 1;
+            return_type           = MVM_RETURN_NUM;
+            return_register       = ins->operands[0].reg.orig;;
+            code_register_or_name = ins->operands[1].reg.orig;
+            spesh_cand_or_sf_slot = ins->operands[2].lit_i16;
+            is_fast               = 1;
+            goto checkargs;
+        case MVM_OP_sp_speshresolve:
+            return_type           = MVM_RETURN_OBJ;
+            return_register       = ins->operands[0].reg.orig;;
+            code_register_or_name = ins->operands[1].lit_ui32;
+            resolve_offset        = ins->operands[2].lit_ui32;
+            spesh_cand_or_sf_slot = ins->operands[3].lit_i16;
+            is_fast               = 0;
+            is_resolve            = 1;
             goto checkargs;
         default:
             MVM_jit_log(tc, "Unexpected opcode in invoke sequence: <%s>\n",
@@ -534,16 +545,18 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
     reentry_label = MVM_jit_label_after_ins(tc, jg, iter->bb, ins);
     /* create invoke node */
     node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
-    node->type                     = MVM_JIT_NODE_INVOKE;
-    node->u.invoke.callsite_idx    = callsite_idx;
-    node->u.invoke.arg_count       = cs->arg_count;
-    node->u.invoke.arg_ins         = arg_ins;
-    node->u.invoke.return_type     = return_type;
-    node->u.invoke.return_register = return_register;
-    node->u.invoke.code_register   = code_register;
-    node->u.invoke.spesh_cand      = spesh_cand;
-    node->u.invoke.reentry_label   = reentry_label;
-    node->u.invoke.is_fast         = is_fast;
+    node->type                           = MVM_JIT_NODE_INVOKE;
+    node->u.invoke.callsite_idx          = callsite_idx;
+    node->u.invoke.arg_count             = cs->arg_count;
+    node->u.invoke.arg_ins               = arg_ins;
+    node->u.invoke.return_type           = return_type;
+    node->u.invoke.return_register       = return_register;
+    node->u.invoke.code_register_or_name = code_register_or_name;
+    node->u.invoke.spesh_cand_or_sf_slot = spesh_cand_or_sf_slot;
+    node->u.invoke.resolve_offset        = resolve_offset;
+    node->u.invoke.reentry_label         = reentry_label;
+    node->u.invoke.is_fast               = is_fast;
+    node->u.invoke.is_resolve            = is_resolve;
     jg_append_node(jg, node);
 
     /* append reentry label */

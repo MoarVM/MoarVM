@@ -383,7 +383,8 @@ static void call_resolver(MVMThreadContext *tc, MVMString *name, MVMRegister *re
     /* Run it, registering handlers to save or discard guards and result. */
     tc->cur_frame->return_value = result;
     tc->cur_frame->return_type = MVM_RETURN_OBJ;
-    tc->cur_frame->return_address = next_addr;
+    if (next_addr)
+        tc->cur_frame->return_address = next_addr; /* JIT sets this otherwise */
     srd = MVM_malloc(sizeof(MVMSpeshPluginSpecialReturnData));
     srd->result = result;
     srd->position = position;
@@ -435,6 +436,24 @@ void MVM_spesh_plugin_resolve_spesh(MVMThreadContext *tc, MVMString *name,
     }
     else {
         call_resolver(tc, name, result, position, sf, next_addr, callsite);
+    }
+}
+
+/* Resolves a spesh plugin for the current HLL from the JIT. */
+void MVM_spesh_plugin_resolve_jit(MVMThreadContext *tc, MVMString *name,
+                                  MVMRegister *result, MVMuint32 position,
+                                  MVMStaticFrame *sf, MVMCallsite *callsite) {
+    MVMObject *resolved;
+    MVMuint16 guard_offset;
+    MVMROOT2(tc, name, sf, {
+        resolved = resolve_using_guards(tc, position, callsite, &guard_offset, sf);
+    });
+    if (resolved) {
+        /* Resolution through guard tree successful, so no invoke needed. */
+        result->o = resolved;
+    }
+    else {
+        call_resolver(tc, name, result, position, sf, NULL, callsite);
     }
 }
 

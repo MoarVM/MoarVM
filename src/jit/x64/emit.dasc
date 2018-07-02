@@ -150,6 +150,8 @@ const unsigned char * MVM_jit_actions(void) {
 |.define ARG2, rdx
 |.define ARG3, r8
 |.define ARG4, r9
+|.define ARG5, [rsp+0x20]
+|.define ARG6, [rsp+0x28]
 |.else
 |.define ARG1, rdi
 |.define ARG2, rsi
@@ -1805,11 +1807,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | get_string ARG3, str_idx;
         | mov ARG4, ss_idx;
         | lea TMP6, WORK[dst];
-        |.if WIN32;
-        | mov qword [rsp+0x20], TMP6;
-        |.else;
         | mov ARG5, TMP6;
-        |.endif
         | callp &MVM_6model_find_method_spesh;
         |2:
         break;
@@ -2187,7 +2185,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov ARG4, aword WORK[value];
         |.if WIN32;
         | lea TMP6, WORK[result]
-        | mov qword [rsp+0x20], TMP6
+        | mov ARG5, TMP6
         |.else;
         | lea ARG5, WORK[result]
         |.endif
@@ -2821,31 +2819,37 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
     MVMint16 i;
     MVMuint16 callsite_idx = invoke->callsite_idx;
     MVM_jit_log(tc, "Emit invoke (%d args)\n", invoke->arg_count);
-    /* Store callsite in tmp6, which we use at the end of invoke */
-    | mov TMP6, CU->body.callsites;
-    | mov TMP6, CALLSITEPTR:TMP6[callsite_idx];
 
-    /* Store callsite in the frame. I use TMP5 as it never conflicts
-     * with argument passing (like TMP6, but unlike other TMP regs) */
-    | mov TMP5, TC->cur_frame;
-    | mov FRAME:TMP5->cur_args_callsite, TMP6;
-
-    /* Setup the frame for returning to our current position */
-    if (sizeof(MVMReturnType) == 1) {
-        | mov byte FRAME:TMP5->return_type, invoke->return_type;
-    } else {
-        MVM_panic(1, "JIT: MVMReturnType has unexpected size");
-    }
-    /* The register for our return value */
-    if (invoke->return_type == MVM_RETURN_VOID) {
-        | mov aword FRAME:TMP5->return_value, NULL;
-    } else {
-        | lea TMP2, WORK[invoke->return_register];
-        | mov aword FRAME:TMP5->return_value, TMP2;
-    }
     /* The return address for the interpreter */
     | get_cur_op TMP2;
+    | mov TMP5, TC->cur_frame;
     | mov aword FRAME:TMP5->return_address, TMP2;
+
+    /* Unless it's a resolve op (in which case we delay a lot of this)... */
+    if (!invoke->is_resolve) {
+        /* Store callsite in tmp6, which we use at the end of invoke */
+        | mov TMP6, CU->body.callsites;
+        | mov TMP6, CALLSITEPTR:TMP6[callsite_idx];
+
+        /* Store callsite in the frame. I use TMP5 as it never conflicts
+         * with argument passing (like TMP6, but unlike other TMP regs) */
+        | mov FRAME:TMP5->cur_args_callsite, TMP6;
+
+        /* Setup the frame for returning to our current position */
+        if (sizeof(MVMReturnType) == 1) {
+            | mov byte FRAME:TMP5->return_type, invoke->return_type;
+        } else {
+            MVM_panic(1, "JIT: MVMReturnType has unexpected size");
+        }
+
+        /* The register for our return value */
+        if (invoke->return_type == MVM_RETURN_VOID) {
+            | mov aword FRAME:TMP5->return_value, NULL;
+        } else {
+            | lea TMP2, WORK[invoke->return_register];
+            | mov aword FRAME:TMP5->return_value, TMP2;
+        }
+    }
 
     /* Install invoke args */
     | mov TMP5, FRAME:TMP5->args;
@@ -2883,21 +2887,41 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
         }
     }
 
-    /* if we're not fast, then we should get the code from multi resolution */
-    if (!invoke->is_fast) {
+    if (invoke->is_fast) {
+        /* call MVM_frame_invoke_code */
+        | mov ARG1, TC;
+        | mov ARG2, WORK[invoke->code_register_or_name];
+        | mov ARG3, TMP6; // this is the callsite object
+        | mov ARG4, invoke->spesh_cand_or_sf_slot;
+        | callp &MVM_frame_invoke_code;
+    } else if (invoke->is_resolve) {
+        /* call MVM_spesh_plugin_resolve_jit, which will trampoline out of
+         * the JIT-compiled code if need be */
+        | mov ARG1, TC;
+        | get_string ARG2, invoke->code_register_or_name;
+        | lea ARG3, WORK[invoke->return_register];
+        | mov ARG4, invoke->resolve_offset;
+        |.if WIN32
+        | get_spesh_slot rax, invoke->spesh_cand_or_sf_slot;
+        | mov ARG5, rax;
+        | mov rax, CU->body.callsites;
+        | mov ARG6, CALLSITEPTR:rax[callsite_idx];
+        |.else
+        | get_spesh_slot ARG5, invoke->spesh_cand_or_sf_slot;
+        | mov ARG6, CU->body.callsites;
+        | mov ARG6, CALLSITEPTR:ARG6[callsite_idx];
+        |.endif
+        | callp &MVM_spesh_plugin_resolve_jit;
+    } else {
         /* first, save callsite and args */
         | mov qword [rbp-0x28], TMP5; // args
         | mov qword [rbp-0x30], TMP6; // callsite
         /* setup call MVM_frame_multi_ok(tc, code, &cur_callsite, args); */
         | mov ARG1, TC;
-        | mov ARG2, WORK[invoke->code_register]; // code object
-        | lea ARG3, [rbp-0x30];                  // &cur_callsite
-        | mov ARG4, TMP5;                        // args
-        |.if WIN32;
-        | mov qword [rsp+0x20], 0
-        |.else;
+        | mov ARG2, WORK[invoke->code_register_or_name]; // code object
+        | lea ARG3, [rbp-0x30];                          // &cur_callsite
+        | mov ARG4, TMP5;                                // args
         | mov ARG5, 0;                           // NULL to &was_multi
-        |.endif
         | callp &MVM_frame_find_invokee_multi_ok;
         /* restore callsite, args, RV now holds code object */
         | mov TMP6, [rbp-0x30]; // callsite
@@ -2911,13 +2935,6 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
         | mov FUNCTION, OBJECT:RV->st;
         | mov FUNCTION, STABLE:FUNCTION->invoke;
         | call FUNCTION;
-    } else {
-        /* call MVM_frame_invoke_code */
-        | mov ARG1, TC;
-        | mov ARG2, WORK[invoke->code_register];
-        | mov ARG3, TMP6; // this is the callsite object
-        | mov ARG4, invoke->spesh_cand;
-        | callp &MVM_frame_invoke_code;
     }
 }
 

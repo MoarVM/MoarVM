@@ -181,9 +181,11 @@ struct MVMJitInvoke {
     MVMSpeshIns **arg_ins;
     MVMReturnType return_type;
     MVMint16      return_register;
-    MVMint16      code_register;
-    MVMint16      spesh_cand;
+    MVMuint32     code_register_or_name;
+    MVMint16      spesh_cand_or_sf_slot;
     MVMint8       is_fast;
+    MVMint8       is_resolve;
+    MVMuint32     resolve_offset;           /* Only for spesh resolve */
     MVMint32      reentry_label;
 };
 
