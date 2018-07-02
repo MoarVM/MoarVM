@@ -886,13 +886,14 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMContext;
         | jne >6;
         | mov ARG1, TC;
-        | mov ARG2, CONTEXT:TMP5->body.context->caller;
+        | mov ARG2, CONTEXT:TMP5->body.context;
+        | mov ARG2, FRAME:ARG2->caller;
         |1:
         | test ARG2, ARG2;
         | jz >3;
-        | mov TMP6, FRAME:ARG2->static_info->body.is_thunk;
-        | test TMP6, TMP6;
-        | jz >2;
+        | mov TMP6, FRAME:ARG2->static_info;
+        | cmp byte STATICFRAME:TMP6->body.is_thunk, 0;
+        | je >2;
         | mov ARG2, FRAME:ARG2->caller;
         | jmp >1;
         |2:
