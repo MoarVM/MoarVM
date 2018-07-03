@@ -6,6 +6,30 @@
 /* Writes to stderr about each inline that we perform. */
 #define MVM_LOG_INLINES 0
 
+/* Logging of whether we can or can't inline. */
+static void log_inline(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *target_sf,
+                       MVMSpeshGraph *inline_graph, MVMuint32 bytecode_size,
+                       char *no_inline_reason) {
+#if MVM_LOG_INLINES
+    char *c_name_i = MVM_string_utf8_encode_C_string(tc, target_sf->body.name);
+    char *c_cuid_i = MVM_string_utf8_encode_C_string(tc, target_sf->body.cuuid);
+    char *c_name_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.name);
+    char *c_cuid_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.cuuid);
+    if (inline_graph) {
+        fprintf(stderr, "Can inline %s (%s) with bytecode size %u into %s (%s)\n",
+            c_name_i, c_cuid_i, bytecode_size, c_name_t, c_cuid_t);
+    }
+    else {
+        fprintf(stderr, "Can NOT inline %s (%s) with bytecode size %u into %s (%s): %s\n",
+            c_name_i, c_cuid_i, bytecode_size, c_name_t, c_cuid_t, no_inline_reason);
+    }
+    MVM_free(c_name_i);
+    MVM_free(c_cuid_i);
+    MVM_free(c_name_t);
+    MVM_free(c_cuid_t);
+#endif
+}
+
 /* Obtains facts for an operand, just directly accessing them without
  * inferring any kind of usage. */
 static MVMSpeshFacts * get_facts_direct(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
@@ -1712,27 +1736,9 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVM_spesh_debug_printf(tc, "Inlining graph\n%s\n", dump);
                 MVM_free(dump);
             }
-#if MVM_LOG_INLINES
-            {
-                char *c_name_i = MVM_string_utf8_encode_C_string(tc, target_sf->body.name);
-                char *c_cuid_i = MVM_string_utf8_encode_C_string(tc, target_sf->body.cuuid);
-                char *c_name_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.name);
-                char *c_cuid_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.cuuid);
-                MVMuint32 bytecode_size = target_sf->body.spesh->body.spesh_candidates[spesh_cand]->bytecode_size;
-                if (inline_graph) {
-                    fprintf(stderr, "Can inline %s (%s) with bytecode size %u into %s (%s)\n",
-                        c_name_i, c_cuid_i, bytecode_size, c_name_t, c_cuid_t);
-                }
-                else {
-                    fprintf(stderr, "Can NOT inline %s (%s) with bytecode size %u into %s (%s): %s\n",
-                        c_name_i, c_cuid_i, bytecode_size, c_name_t, c_cuid_t, no_inline_reason);
-                }
-                MVM_free(c_name_i);
-                MVM_free(c_cuid_i);
-                MVM_free(c_name_t);
-                MVM_free(c_cuid_t);
-            }
-#endif
+            log_inline(tc, g, target_sf, inline_graph,
+                target_sf->body.spesh->body.spesh_candidates[spesh_cand]->bytecode_size,
+                no_inline_reason);
             if (inline_graph) {
                 /* Yes, have inline graph, so go ahead and do it. Make sure we
                  * keep the code ref reg alive by giving it a usage count as
@@ -1778,6 +1784,19 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                     }
                 }
             }
+        }
+
+        /* We know what we're calling, but there's no specialization available
+         * to us. If it's small, then we could produce one and inline it. */
+        else if (target_sf->body.bytecode_size < MVM_SPESH_MAX_INLINE_SIZE) {
+            log_inline(tc, g, target_sf, NULL, target_sf->body.bytecode_size,
+                "missed inline opportunity");
+        }
+
+        /* Otherwise, nothing to be done. */
+        else {
+            log_inline(tc, g, target_sf, NULL, target_sf->body.bytecode_size,
+                "no spesh candidate available and bytecode too large to produce an inline");
         }
     }
 
