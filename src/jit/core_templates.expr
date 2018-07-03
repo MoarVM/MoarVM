@@ -1649,6 +1649,27 @@
 (template: lastexpayload
   (^getf (tc) MVMThreadContext last_payload))
 
+(template: fc
+  (call (^func &MVM_string_fc)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) ptr_sz))
+
+(template: encoderep
+  (call (^func &MVM_string_encode_to_buf)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $4 ptr)
+      (carg $3 ptr)) ptr_sz))
+
+(template: istty_fh
+  (call (^func &MVM_io_is_tty)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
+
 (template: unicmp_s
   (call (^func &MVM_unicode_string_compare)
     (arglist
