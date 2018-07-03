@@ -719,11 +719,11 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                         guard_ins->operands[2].lit_ui32 = deopt_to;
                         guard_ins->annotations = stolen_deopt_ann;
                         MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
-                        break;
                     }
                     else {
                         MVM_spesh_get_and_use_facts(tc, g, arg_regs[guard->test_idx]);
                     }
+                    break;
                 }
                 case MVM_SPESH_PLUGIN_GUARD_TYPE: {
                     if ((guarded_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) == 0
