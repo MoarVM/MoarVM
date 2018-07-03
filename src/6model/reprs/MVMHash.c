@@ -79,7 +79,7 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
             "MVMHash representation does not support native type storage");
 }
 void MVMHash_at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister *result, MVMuint16 kind) {
-    return at_key(tc, st, root, data, key_obj, result, kind);
+    at_key(tc, st, root, data, key_obj, result, kind);
 }
 
 static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister value, MVMuint16 kind) {
@@ -105,7 +105,7 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     }
 }
 void MVMHash_bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister value, MVMuint16 kind) {
-    return bind_key(tc, st, root, data, key_obj, value, kind);
+    bind_key(tc, st, root, data, key_obj, value, kind);
 }
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMHashBody *body = (MVMHashBody *)data;

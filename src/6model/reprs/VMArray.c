@@ -242,7 +242,7 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     }
 }
 void MVM_VMArray_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
-    return at_pos(tc, st, root, data, index, value, kind);
+    at_pos(tc, st, root, data, index, value, kind);
 }
 
 static MVMuint64 zero_slots(MVMThreadContext *tc, MVMArrayBody *body,
