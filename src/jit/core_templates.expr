@@ -1686,7 +1686,7 @@
       (carg $2 ptr)
       (carg $3 int)
       (carg $4 int)
-      (carg $4 int)) int_sz))
+      (carg $5 int)) int_sz))
 
 (template: getstrfromname
   (call (^func &MVM_unicode_string_from_name)
