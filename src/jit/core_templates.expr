@@ -593,14 +593,12 @@
       (carg $1 ptr)) int_sz))
 
 (template: isfalse_s
-  (if
-    (nz
+  (flagval
+    (zr
       (call (^func &MVM_coerce_istrue_s)
         (arglist
           (carg (tc) ptr)
-          (carg $1 ptr)) int_sz))
-    (const 0 int_sz)
-    (const 1 int_sz)))
+          (carg $1 ptr)) int_sz))))
 
 (template: null (^vmnull))
 
@@ -1259,11 +1257,12 @@
     (const 1 int_sz)))
 
 (template: iscoderef
-  (let: (($invoke (^getf (^stable $1) MVMSTable invoke)))
-    (if
-      (any (zr $1) (eq $invoke (^func &MVM_6model_invoke_default)))
-      (const 0 int_sz)
-      (const 1 int_sz))))
+  (if
+    (any
+      (zr $1)
+      (eq (^getf (^stable $1) MVMSTable invoke) (^func &MVM_6model_invoke_default)))
+    (const 0 int_sz)
+    (const 1 int_sz)))
 
 (template: getcodeobj
   (call (^func &MVM_frame_get_code_object)
