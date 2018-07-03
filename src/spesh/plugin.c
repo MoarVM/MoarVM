@@ -684,6 +684,10 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                         guard_ins->operands[2].lit_ui32 = deopt_to;
                         guard_ins->annotations = stolen_deopt_ann;
                         MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
+                        if (guard->test_idx >= initial_arg_regs_length) {
+                            guarded_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+                            guarded_facts->value.o = (MVMObject *)guard->u.object;
+                        }
                     }
                     else {
                         MVM_spesh_get_and_use_facts(tc, g, arg_regs[guard->test_idx]);
@@ -734,6 +738,10 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                         guard_ins->operands[2].lit_ui32 = deopt_to;
                         guard_ins->annotations = stolen_deopt_ann;
                         MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
+                        if (guard->test_idx >= initial_arg_regs_length) {
+                            guarded_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+                            guarded_facts->type = guard->u.type->WHAT;
+                        }
                     }
                     else {
                         MVM_spesh_get_and_use_facts(tc, g, arg_regs[guard->test_idx]);
@@ -750,6 +758,8 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                         guard_ins->operands[1].lit_ui32 = deopt_to;
                         guard_ins->annotations = stolen_deopt_ann;
                         MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
+                        if (guard->test_idx >= initial_arg_regs_length)
+                            guarded_facts->flags |= MVM_SPESH_FACT_CONCRETE;
                     }
                     else {
                         MVM_spesh_get_and_use_facts(tc, g, arg_regs[guard->test_idx]);
@@ -766,6 +776,8 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                         guard_ins->operands[1].lit_ui32 = deopt_to;
                         guard_ins->annotations = stolen_deopt_ann;
                         MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
+                        if (guard->test_idx >= initial_arg_regs_length)
+                            guarded_facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
                     }
                     else {
                         MVM_spesh_get_and_use_facts(tc, g, arg_regs[guard->test_idx]);
