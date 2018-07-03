@@ -1754,6 +1754,11 @@
       (carg $3   ptr)
       (carg $4   int)) ptr_sz))
 
+(template: getppid
+  (call (^func &MVM_proc_getppid)
+    (arglist
+      (carg (tc) ptr)) int_sz))
+
 (template: getsignals
   (call (^func &MVM_io_get_signals)
     (arglist
