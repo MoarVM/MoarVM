@@ -47,7 +47,8 @@ int static get_cp(MVMThreadContext *tc, MVMCodepointIter *ci, MVMCodepoint *cp) 
     }
 }
 
-static void parse_error(MVMThreadContext *tc, MVMString *s, const char* reason) {
+MVM_NO_RETURN static void parse_error(MVMThreadContext *tc, MVMString *s, const char* reason) MVM_NO_RETURN_ATTRIBUTE;
+MVM_NO_RETURN static void parse_error(MVMThreadContext *tc, MVMString *s, const char* reason) {
     char* got = MVM_string_utf8_c8_encode_C_string(tc, s);
     char *waste[] = { got, NULL };
     MVM_exception_throw_adhoc_free(tc, waste, "Can't convert '%s' to num: %s", got, reason);
@@ -199,7 +200,7 @@ static int match_word(MVMThreadContext *tc,  MVMCodepointIter *ci, MVMCodepoint 
 
 static double parse_simple_number(MVMThreadContext *tc, MVMCodepointIter *ci, MVMCodepoint *cp, MVMString *s) {
     double sign;
-    // Handle NaN here, to make later parsing simpler
+    /* Handle NaN here, to make later parsing simpler */
 
     if (match_word(tc, ci, cp, "NaN", s)) {
         return MVM_num_nan(tc);
@@ -218,26 +219,22 @@ static double parse_simple_number(MVMThreadContext *tc, MVMCodepointIter *ci, MV
         if (*cp == '<') {
             get_cp(tc, ci, cp);
             body = parse_int_frac_exp(tc, ci, cp, s, radix, 0);
-            if (*cp == '>') {
+            if (*cp == '>') { /* > */
                 get_cp(tc, ci, cp);
                 return sign * body;
             }
-            else {
-                parse_error(tc, s, "malformed ':radix<>' style radix number, expecting '>' after the body");
-            }
+            parse_error(tc, s, "malformed ':radix<>' style radix number, expecting '>' after the body");
         }
-        else if (*cp == 171) { // «
+        else if (*cp == 171) { /* « */
             get_cp(tc, ci, cp);
             body = parse_int_frac_exp(tc, ci, cp, s, radix, 0);
-            if (*cp == 187) { // »
+            if (*cp == 187) { /* » */
                 get_cp(tc, ci, cp);
                 return sign * body;
             }
-            else {
-                parse_error(tc, s, "malformed ':radix«»' style radix number, expecting '>' after the body");
-            }
+            parse_error(tc, s, "malformed ':radix«»' style radix number, expecting '>' after the body");
         }
-        else if (*cp == '[') { // «
+        else if (*cp == '[') {
             double result = 0;
             get_cp(tc, ci, cp);
             while (*cp != ']' && MVM_string_ci_has_more(tc, ci)) {
@@ -247,31 +244,30 @@ static double parse_simple_number(MVMThreadContext *tc, MVMCodepointIter *ci, MV
                     get_cp(tc, ci, cp);
                 }
             }
-            if (*cp == ']') { // »
+            if (*cp == ']') {
                 get_cp(tc, ci, cp);
                 return sign * result;
             }
-            else {
-                parse_error(tc, s, "malformed ':radix[]' style radix number, expecting ']' after the body");
-            }
+            parse_error(tc, s, "malformed ':radix[]' style radix number, expecting ']' after the body");
         }
+        parse_error(tc, s, "malformed ':radix' style number. Expected <, [ or « after ':radix'");
     }
     else if (*cp == '0') {
         int radix = 0;
 
         get_cp(tc, ci, cp);
-        if (*cp == 'b') radix = 2;
-        else if (*cp == 'o') radix = 8;
-        else if (*cp == 'd') radix = 10;
-        else if (*cp == 'x') radix = 16;
-
+        switch (*cp) {
+        case 'b': radix =  2; break;
+        case 'o': radix =  8; break;
+        case 'd': radix = 10; break;
+        case 'x': radix = 16; break;
+        }
         if (radix) {
             get_cp(tc, ci, cp);
             if (*cp == '_') get_cp(tc, ci, cp);
             return sign * parse_int_frac_exp(tc, ci, cp, s, radix, 1);
-        } else {
-            return sign * parse_int_frac_exp(tc, ci, cp, s, 10, 1);
         }
+        return sign * parse_int_frac_exp(tc, ci, cp, s, 10, 1);
     }
     else {
         return sign * parse_int_frac_exp(tc, ci, cp, s, 10, 0);
