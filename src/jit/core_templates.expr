@@ -1702,6 +1702,12 @@
       (carg $2 ptr)
       (carg $3 int)) int_sz))
 
+(template: getport_sk
+  (call (^func &MVM_io_getport)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
+
 (template: eqaticim_s
   (call (^func &MVM_string_equal_at_ignore_case_ignore_mark)
     (arglist
