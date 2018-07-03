@@ -2872,7 +2872,8 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
         | get_spesh_slot rax, invoke->spesh_cand_or_sf_slot;
         | mov ARG5, rax;
         | mov rax, CU->body.callsites;
-        | mov ARG6, CALLSITEPTR:rax[callsite_idx];
+        | mov rax, CALLSITEPTR:rax[callsite_idx];
+        | mov ARG6, rax;
         |.else
         | get_spesh_slot ARG5, invoke->spesh_cand_or_sf_slot;
         | mov ARG6, CU->body.callsites;
