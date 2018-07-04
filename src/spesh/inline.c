@@ -212,6 +212,12 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadConte
         MVMSpeshCallInfo *call_info, char **no_inline_reason) {
     MVMSpeshGraph *ig;
 
+    /* Cannot inline with flattening args. */
+    if (call_info->cs->has_flattening) {
+        *no_inline_reason = "callsite has flattening args";
+        return NULL;
+    }
+
     /* Check the target is suitable for inlining. */
     if (!is_static_frame_inlineable(tc, inliner, target_sf, no_inline_reason))
         return NULL;
