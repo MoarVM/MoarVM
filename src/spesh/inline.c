@@ -82,100 +82,68 @@ static int is_static_frame_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inlin
     return 1;
 }
 
-/* Sees if it will be possible to inline the target code ref, given we could
- * already identify a spesh candidate. Returns NULL if no inlining is possible
- * or a graph ready to be merged if it will be possible. */
-MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
-                                               MVMStaticFrame *target_sf,
-                                               MVMSpeshCandidate *cand,
-                                               MVMSpeshIns *invoke_ins,
-                                               char **no_inline_reason) {
-    MVMSpeshGraph *ig;
-    MVMSpeshBB *bb;
-    MVMint32 same_hll;
-
-    /* Check bytecode size is within the inline limit. */
-    if (cand->bytecode_size > MVM_SPESH_MAX_INLINE_SIZE) {
-        *no_inline_reason = "bytecode is too large to inline";
-        return NULL;
-    }
-
-    /* Check the target is suitable for inlining. */
-    if (!is_static_frame_inlineable(tc, inliner, target_sf, no_inline_reason))
-        return NULL;
-
-    /* If they're from the same HLL, we'll need to watch out for ops that are
-     * HLL sensitive. */
-    same_hll = target_sf->body.cu->body.hll_config == inliner->sf->body.cu->body.hll_config;
-
-    /* Build graph from the already-specialized bytecode. */
-    ig = MVM_spesh_graph_create_from_cand(tc, target_sf, cand, 0);
-
-    /* Traverse graph, looking for anything that might prevent inlining and
-     * also building usage counts up. */
-    bb = ig->entry;
+/* Checks a spesh graph to see if it contains any uninlineable elements. If
+ * it is possbile to inline, returns non-zero. Otherwise, sets no_inline_reason
+ * and returns zero. Optionally builds up usage counts on the graph. */
+static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+                               MVMStaticFrame *target_sf, MVMSpeshIns *invoke_ins,
+                               MVMSpeshGraph *ig, char **no_inline_reason) {
+    MVMSpeshBB *bb = ig->entry;
+    MVMint32 same_hll = target_sf->body.cu->body.hll_config ==
+            inliner->sf->body.cu->body.hll_config;
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
-            /* Track usages. */
             MVMint32 opcode = ins->info->opcode;
             MVMint32 is_phi = opcode == MVM_SSA_PHI;
-            MVMuint8 i;
-            for (i = 0; i < ins->info->num_operands; i++)
-                if ((is_phi && i > 0)
-                    || (!is_phi && (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg))
-                    ig->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i].usages++;
-            if (opcode == MVM_OP_inc_i || opcode == MVM_OP_inc_u ||
-                    opcode == MVM_OP_dec_i || opcode == MVM_OP_dec_u)
-                ig->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i - 1].usages++;
 
             /* Instruction may be marked directly as not being inlinable, in
              * which case we're done. */
             if (!is_phi && ins->info->no_inline) {
                 *no_inline_reason = "target has a :noinline instruction";
-                goto not_inlinable;
+                return 0;
             }
 
             /* If we don't have the same HLL and there's a :useshll op, we
              * cannot inline. */
             if (!same_hll && ins->info->uses_hll) {
                 *no_inline_reason = "target has a :useshll instruction and HLLs are different";
-                goto not_inlinable;
+                return 0;
             }
 
             /* If we have an invoke_o, but a return_[ins] that would require
              * boxing, we can't inline if it's not the same HLL. */
             if (!same_hll && invoke_ins->info->opcode == MVM_OP_invoke_o) {
-                switch (ins->info->opcode) {
+                switch (opcode) {
                     case MVM_OP_return_i:
                     case MVM_OP_return_n:
                     case MVM_OP_return_s:
                         *no_inline_reason = "target needs a return boxing and HLLs are different";
-                        goto not_inlinable;
+                        return 0;
                 }
             }
 
             /* If we have lexical bind, make sure it's within the frame. */
-            if (ins->info->opcode == MVM_OP_bindlex) {
+            if (opcode == MVM_OP_bindlex) {
                 if (ins->operands[0].lex.outers > 0) {
                     *no_inline_reason = "target has bind to outer lexical";
-                    goto not_inlinable;
+                    return 0;
                 }
             }
 
             /* Check we don't have too many args for inlining to work out. */
-            else if (ins->info->opcode == MVM_OP_sp_getarg_o ||
-                    ins->info->opcode == MVM_OP_sp_getarg_i ||
-                    ins->info->opcode == MVM_OP_sp_getarg_n ||
-                    ins->info->opcode == MVM_OP_sp_getarg_s) {
+            else if (opcode == MVM_OP_sp_getarg_o ||
+                    opcode == MVM_OP_sp_getarg_i ||
+                    opcode == MVM_OP_sp_getarg_n ||
+                    opcode == MVM_OP_sp_getarg_s) {
                 if (ins->operands[1].lit_i16 >= MAX_ARGS_FOR_OPT) {
                     *no_inline_reason = "too many arguments to inline";
-                    goto not_inlinable;
+                    return 0;
                 }
             }
 
             /* Ext-ops need special care in inter-comp-unit inlines. */
-            if (ins->info->opcode == (MVMuint16)-1) {
+            if (opcode == (MVMuint16)-1) {
                 MVMCompUnit *target_cu = inliner->sf->body.cu;
                 MVMCompUnit *source_cu = target_sf->body.cu;
                 if (source_cu != target_cu)
@@ -187,14 +155,60 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
         bb = bb->linear_next;
     }
 
-    /* If we found nothing we can't inline, inlining is fine. */
-    return ig;
+    return 1;
+}
 
-    /* If we can't find a way to inline, we end up here. */
-  not_inlinable:
-    MVM_free(ig->spesh_slots);
-    MVM_spesh_graph_destroy(tc, ig);
-    return NULL;
+/* Sees if it will be possible to inline the target code ref, given we could
+ * already identify a spesh candidate. Returns NULL if no inlining is possible
+ * or a graph ready to be merged if it will be possible. */
+MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+                                               MVMStaticFrame *target_sf,
+                                               MVMSpeshCandidate *cand,
+                                               MVMSpeshIns *invoke_ins,
+                                               char **no_inline_reason) {
+    MVMSpeshGraph *ig;
+
+    /* Check bytecode size is within the inline limit. */
+    if (cand->bytecode_size > MVM_SPESH_MAX_INLINE_SIZE) {
+        *no_inline_reason = "bytecode is too large to inline";
+        return NULL;
+    }
+
+    /* Check the target is suitable for inlining. */
+    if (!is_static_frame_inlineable(tc, inliner, target_sf, no_inline_reason))
+        return NULL;
+
+    /* Build graph from the already-specialized bytecode and check if we can
+     * inline the graph. */
+    ig = MVM_spesh_graph_create_from_cand(tc, target_sf, cand, 0);
+    if (is_graph_inlineable(tc, inliner, target_sf, invoke_ins, ig, no_inline_reason)) {
+        /* We can inline it. Bump usage counts and return the graph. */
+        MVMSpeshBB *bb = ig->entry;
+        while (bb) {
+            MVMSpeshIns *ins = bb->first_ins;
+            while (ins) {
+                MVMint32 opcode = ins->info->opcode;
+                MVMint32 is_phi = opcode == MVM_SSA_PHI;
+                MVMuint8 i;
+                for (i = 0; i < ins->info->num_operands; i++)
+                    if ((is_phi && i > 0)
+                        || (!is_phi && (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg))
+                        ig->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i].usages++;
+                if (opcode == MVM_OP_inc_i || opcode == MVM_OP_inc_u ||
+                        opcode == MVM_OP_dec_i || opcode == MVM_OP_dec_u)
+                    ig->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i - 1].usages++;
+                ins = ins->next;
+            }
+            bb = bb->linear_next;
+        }
+        return ig;
+    }
+    else {
+        /* Not possible to inline. Clear it up. */
+        MVM_free(ig->spesh_slots);
+        MVM_spesh_graph_destroy(tc, ig);
+        return NULL;
+    }
 }
 
 /* Finds the deopt index of the return. */
