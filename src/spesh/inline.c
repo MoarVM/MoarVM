@@ -43,6 +43,45 @@ static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUn
     MVM_oops(tc, "Spesh: inline failed to find source CU extop entry");
 }
 
+/* Considers a static frame and decides if it's possible to inline it into the
+ * current inliner. If there are no blockers, non-zero. Otherwise, sets the
+ * reason for not inlining and returns zero. */
+static int is_static_frame_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+                                      MVMStaticFrame *target_sf, char **no_inline_reason) {
+    /* Check inlining is enabled. */
+    if (!tc->instance->spesh_inline_enabled) {
+        *no_inline_reason = "inlining is disabled";
+        return 0;
+    }
+
+    /* Check frame is not marked as not being allowed to be inlined. */
+    if (target_sf->body.no_inline) {
+        *no_inline_reason = "the frame is marked as no-inline";
+        return 0;
+    }
+
+    /* Ensure that this isn't a recursive inlining. */
+    if (target_sf == inliner->sf) {
+        *no_inline_reason = "recursive calls cannot be inlined";
+        return 0;
+    }
+
+    /* Ensure it has no state vars (these need the setup code in frame
+     * invoke). */
+    if (target_sf->body.has_state_vars) {
+        *no_inline_reason = "cannot inline code that declares a state variable";
+        return 0;
+    }
+
+    /* Ensure it's not a thunk (need to skip over those in exception search). */
+    if (target_sf->body.is_thunk) {
+        *no_inline_reason = "cannot inline code marked as a thunk";
+        return 0;
+    }
+
+    return 1;
+}
+
 /* Sees if it will be possible to inline the target code ref, given we could
  * already identify a spesh candidate. Returns NULL if no inlining is possible
  * or a graph ready to be merged if it will be possible. */
@@ -55,42 +94,15 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
     MVMSpeshBB *bb;
     MVMint32 same_hll;
 
-    /* Check inlining is enabled. */
-    if (!tc->instance->spesh_inline_enabled) {
-        *no_inline_reason = "inlining is disabled";
-        return NULL;
-    }
-
-    /* Check frame is not marked as not being allowed to be inlined. */
-    if (target_sf->body.no_inline) {
-        *no_inline_reason = "the frame is marked as no-inline";
-        return NULL;
-    }
-
     /* Check bytecode size is within the inline limit. */
     if (cand->bytecode_size > MVM_SPESH_MAX_INLINE_SIZE) {
         *no_inline_reason = "bytecode is too large to inline";
         return NULL;
     }
 
-    /* Ensure that this isn't a recursive inlining. */
-    if (target_sf == inliner->sf) {
-        *no_inline_reason = "recursive calls cannot be inlined";
+    /* Check the target is suitable for inlining. */
+    if (!is_static_frame_inlineable(tc, inliner, target_sf, no_inline_reason))
         return NULL;
-    }
-
-    /* Ensure it has no state vars (these need the setup code in frame
-     * invoke). */
-    if (target_sf->body.has_state_vars) {
-        *no_inline_reason = "cannot inline code that declares a state variable";
-        return NULL;
-    }
-
-    /* Ensure it's not a thunk (need to skip over those in exception search). */
-    if (target_sf->body.is_thunk) {
-        *no_inline_reason = "cannot inline code marked as a thunk";
-        return NULL;
-    }
 
     /* If they're from the same HLL, we'll need to watch out for ops that are
      * HLL sensitive. */
