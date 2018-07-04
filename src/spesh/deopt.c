@@ -269,8 +269,7 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                     MVMint32 deopt_offset = f->spesh_cand->deopts[2 * deopt_idx + 1];
                     MVMint32 deopt_target = f->spesh_cand->deopts[2 * deopt_idx];
 #if MVM_LOG_DEOPTS
-                    fprintf(stderr, "Found deopt label for JIT (%d) (label %d idx %d)\n", i,
-                            deopts[i].label, deopts[i].idx);
+                    fprintf(stderr, "Found deopt label for JIT (idx %d)\n", deopt_idx);
 #endif
 
                     /* Re-create any frames needed if we're in an inline; if not,
@@ -292,10 +291,6 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
 
                     break;
                 }
-#if MVM_LOG_DEOPTS
-                if (i == num_deopts)
-                    fprintf(stderr, "JIT: can't find deopt all idx\n");
-#endif
             }
 
             else {
