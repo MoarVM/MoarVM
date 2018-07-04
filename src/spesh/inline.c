@@ -182,9 +182,20 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
      * inline the graph. */
     ig = MVM_spesh_graph_create_from_cand(tc, target_sf, cand, 0);
     if (is_graph_inlineable(tc, inliner, target_sf, invoke_ins, ig, no_inline_reason)) {
-        /* We can inline it. Do facts discovery, which also sets usage counts, and
-         * return it. */
+        /* We can inline it. Do facts discovery, which also sets usage counts.
+         * We also need to bump counts for any inline's code_ref_reg to make
+         * sure it stays available for deopt. */
+        MVMuint32 i;
         MVM_spesh_facts_discover(tc, ig, NULL);
+        for (i = 0; i < ig->num_inlines; i++) {
+            /* We can't be very precise about this, because we don't know the
+             * SSA version in effect. So bump usages of all version of the
+             * register as a conservative solution. */
+            MVMuint16 reg = ig->inlines[i].code_ref_reg;
+            MVMuint32 j;
+            for (j = 0; j < ig->fact_counts[reg]; j++)
+                ig->facts[reg][j].usages++;
+        }
         return ig;
     }
     else {
