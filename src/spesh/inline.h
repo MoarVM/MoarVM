@@ -44,6 +44,9 @@ struct MVMSpeshInline {
 MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc,
     MVMSpeshGraph *inliner, MVMStaticFrame *target_sf, MVMSpeshCandidate *cand,
     MVMSpeshIns *invoke_ins, char **no_inline_reason);
+MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadContext *tc,
+    MVMSpeshGraph *inliner, MVMStaticFrame *target_sf, MVMSpeshIns *invoke_ins,
+    MVMSpeshCallInfo *call_info, char **no_inline_reason);
 void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
     MVMSpeshIns *invoke, MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,

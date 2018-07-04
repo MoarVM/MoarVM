@@ -1231,14 +1231,16 @@ static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
     if (ann) {
         /* See if we can find a logged static value. */
         MVMSpeshStats *ss = g->sf->body.spesh->body.spesh_stats;
-        MVMuint32 n = ss->num_static_values;
-        MVMuint32 i;
-        for (i = 0; i < n; i++) {
-            if (ss->static_values[i].bytecode_offset == ann->data.bytecode_offset) {
-                MVMObject *log_obj = ss->static_values[i].value;
-                if (log_obj)
-                    lex_to_constant(tc, g, ins, log_obj);
-                return;
+        if (ss) {
+            MVMuint32 n = ss->num_static_values;
+            MVMuint32 i;
+            for (i = 0; i < n; i++) {
+                if (ss->static_values[i].bytecode_offset == ann->data.bytecode_offset) {
+                    MVMObject *log_obj = ss->static_values[i].value;
+                    if (log_obj)
+                        lex_to_constant(tc, g, ins, log_obj);
+                    return;
+                }
             }
         }
     }
@@ -1251,8 +1253,9 @@ static void optimize_getlex_per_invocant(MVMThreadContext *tc, MVMSpeshGraph *g,
                                          MVMSpeshPlanned *p) {
     MVMSpeshAnn *ann;
 
-    /* Can only do this when we've specialized on the first argument type. */
-    if (!g->specialized_on_invocant)
+    /* Can only do this when we've specialized on the first argument type and
+     * we have a plan. */
+    if (!p || !g->specialized_on_invocant)
         return;
 
     /* Try to find logged offset. */
@@ -1594,7 +1597,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
          * a static value. */
         code = callee_facts->value.o;
     }
-    else {
+    else if (p) {
         /* See if there is a stable static frame at the callsite. If so, add
          * the resolution and guard instruction. Note that we must keep the
          * temporary alive throughout the whole guard and invocation sequence,
@@ -1614,11 +1617,16 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
      * this if the callsite isn't too big for arg_info. */
     num_arg_slots = arg_info->cs->num_pos +
         2 * (arg_info->cs->flag_count - arg_info->cs->num_pos);
-    stable_type_tuple = num_arg_slots <= MAX_ARGS_FOR_OPT
-        ? find_invokee_type_tuple(tc, g, bb, ins, p, arg_info->cs)
-        : NULL;
-    if (stable_type_tuple)
-        check_and_tweak_arg_guards(tc, g, stable_type_tuple, arg_info);
+    if (p) {
+        stable_type_tuple = num_arg_slots <= MAX_ARGS_FOR_OPT
+            ? find_invokee_type_tuple(tc, g, bb, ins, p, arg_info->cs)
+            : NULL;
+        if (stable_type_tuple)
+            check_and_tweak_arg_guards(tc, g, stable_type_tuple, arg_info);
+    }
+    else {
+        stable_type_tuple = NULL;
+    }
 
     /* If we don't have a target static frame from speculation, check on what
      * we're going to be invoking and see if we can further resolve it. */
@@ -1788,8 +1796,20 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         /* We know what we're calling, but there's no specialization available
          * to us. If it's small, then we could produce one and inline it. */
         else if (target_sf->body.bytecode_size < MVM_SPESH_MAX_INLINE_SIZE) {
-            log_inline(tc, g, target_sf, NULL, target_sf->body.bytecode_size,
-                "missed inline opportunity");
+            char *no_inline_reason = NULL;
+            MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph_from_unspecialized(
+                    tc, g, target_sf, ins, arg_info, &no_inline_reason);
+            log_inline(tc, g, target_sf, inline_graph, target_sf->body.bytecode_size,
+                    no_inline_reason);
+            if (inline_graph) {
+                MVMSpeshOperand code_ref_reg = ins->info->opcode == MVM_OP_invoke_v
+                        ? ins->operands[0]
+                        : ins->operands[1];
+                MVM_spesh_get_facts(tc, g, code_ref_reg)->usages++;
+                MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
+                        code_ref_reg);
+                MVM_free(inline_graph->spesh_slots);
+            }
         }
 
         /* Otherwise, nothing to be done. */

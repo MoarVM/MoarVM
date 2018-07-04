@@ -791,3 +791,13 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
     MVM_free(named_ins);
     MVM_free(named_bb);
 }
+
+/* Performs argument instruction specialization with type info provided by a
+ * call_info object. */
+void MVM_spesh_args_from_callinfo(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                  MVMSpeshCallInfo *call_info) {
+    /* Transform call info to a type tuple. */
+    MVMSpeshStatsType *tt = MVM_calloc(call_info->cs->flag_count, sizeof(MVMSpeshStatsType));
+    MVM_spesh_args(tc, g, call_info->cs, tt);
+    MVM_free(tt);
+}

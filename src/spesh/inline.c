@@ -206,6 +206,36 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
     }
 }
 
+/* Tries to get a spesh graph for a particular unspecialized candidate. */
+MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadContext *tc,
+        MVMSpeshGraph *inliner, MVMStaticFrame *target_sf, MVMSpeshIns *invoke_ins,
+        MVMSpeshCallInfo *call_info, char **no_inline_reason) {
+    MVMSpeshGraph *ig;
+
+    /* Check the target is suitable for inlining. */
+    if (!is_static_frame_inlineable(tc, inliner, target_sf, no_inline_reason))
+        return NULL;
+
+    /* Build the spesh graph from bytecode, transform args, do facts discovery
+     * (setting usage counts) and optimize. We do this before checking if it
+     * is inlineable as we can get rid of many :noinline ops (especially in
+     * the args specialization). */
+    ig = MVM_spesh_graph_create(tc, target_sf, 0, 1);
+    MVM_spesh_args_from_callinfo(tc, ig, call_info);
+    MVM_spesh_facts_discover(tc, ig, NULL);
+    MVM_spesh_optimize(tc, ig, NULL);
+
+    /* See if it's inlineable; clean up if not. */
+    if (is_graph_inlineable(tc, inliner, target_sf, invoke_ins, ig, no_inline_reason)) {
+        return ig;
+    }
+    else {
+        MVM_free(ig->spesh_slots);
+        MVM_spesh_graph_destroy(tc, ig);
+        return NULL;
+    }
+}
+
 /* Finds the deopt index of the return. */
 static MVMint32 return_deopt_idx(MVMThreadContext *tc, MVMSpeshIns *invoke_ins) {
     MVMSpeshAnn *ann = invoke_ins->annotations;
@@ -363,6 +393,8 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             MVMSpeshAnn *ann    = ins->annotations;
             while (ann) {
                 switch (ann->type) {
+                case MVM_SPESH_ANN_DEOPT_ONE_INS:
+                case MVM_SPESH_ANN_DEOPT_ALL_INS:
                 case MVM_SPESH_ANN_DEOPT_INLINE:
                     ann->data.deopt_idx += inliner->num_deopt_addrs;
                     break;
