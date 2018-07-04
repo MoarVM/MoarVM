@@ -992,6 +992,19 @@ static void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVM_spesh_manipulate_delete_ins(tc, inliner, invoke_bb, call_info->prepargs_ins);
 }
 
+/* Gets the first instruction from a spesh graph, looking through multiple
+ * basic blocks to find it. */
+static MVMSpeshIns * find_first_instruction(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    MVMSpeshBB *first_bb = g->entry->linear_next;
+    while (first_bb) {
+        MVMSpeshIns *first_ins = first_bb->first_ins;
+        if (first_ins)
+            return first_ins;
+        first_bb = first_bb->linear_next;
+    }
+    MVM_oops(tc, "Unexpectedly empty specialization graph");
+}
+
 /* Annotates first and last instruction in post-processed inlinee with start
  * and end inline annotations. */
 static void annotate_inline_start_end(MVMThreadContext *tc, MVMSpeshGraph *inliner,
@@ -1001,18 +1014,18 @@ static void annotate_inline_start_end(MVMThreadContext *tc, MVMSpeshGraph *inlin
     /* Annotate first instruction as an inline start. */
     MVMSpeshAnn *start_ann     = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshAnn));
     MVMSpeshAnn *end_ann       = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshAnn));
-    MVMSpeshBB *bb             = inlinee->entry->succ[0];
-    start_ann->next            = bb->first_ins->annotations;
+    MVMSpeshIns *first_ins     = find_first_instruction(tc, inlinee);
+    start_ann->next            = first_ins->annotations;
     start_ann->type            = MVM_SPESH_ANN_INLINE_START;
     start_ann->data.inline_idx = idx;
-    bb->first_ins->annotations = start_ann;
+    first_ins->annotations = start_ann;
 
     /* Insert annotation for handler boundary indicator fixup. */
     start_ann = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshAnn));
-    start_ann->next = bb->first_ins->annotations;
+    start_ann->next = first_ins->annotations;
     start_ann->type = MVM_SPESH_ANN_FH_START;
     start_ann->data.frame_handler_index = inline_boundary_handler;
-    bb->first_ins->annotations = start_ann;
+    first_ins->annotations = start_ann;
 
     /* Now look for last instruction and annotate it. */
     end_ann->next             = inlinee_last_bb->last_ins->annotations;
@@ -1042,14 +1055,17 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                       MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
                       MVMSpeshIns *invoke_ins, MVMSpeshGraph *inlinee,
                       MVMStaticFrame *inlinee_sf, MVMSpeshOperand code_ref_reg) {
+    MVMSpeshIns *first_ins;
+
     /* Merge inlinee's graph into the inliner. */
     MVMuint32 inline_boundary_handler;
     MVMSpeshBB *inlinee_last_bb = merge_graph(tc, inliner, inlinee, inlinee_sf,
         invoke_bb, invoke_ins, code_ref_reg, &inline_boundary_handler);
 
     /* If we're profiling, note it's an inline. */
-    if (inlinee->entry->linear_next->first_ins->info->opcode == MVM_OP_prof_enterspesh) {
-        MVMSpeshIns *profenter         = inlinee->entry->linear_next->first_ins;
+    first_ins = find_first_instruction(tc, inlinee);
+    if (first_ins->info->opcode == MVM_OP_prof_enterspesh) {
+        MVMSpeshIns *profenter         = first_ins;
         profenter->info                = MVM_op_get_op(MVM_OP_prof_enterinline);
         profenter->operands            = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshOperand));
         profenter->operands[0].lit_i16 = MVM_spesh_add_spesh_slot(tc, inliner,
