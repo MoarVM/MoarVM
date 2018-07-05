@@ -175,7 +175,7 @@ MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i) {
     char buffer[64];
     int len;
     /* See if we can hit the cache. */
-    int cache = 0 <= i && i < MVM_INT_TO_STR_CACHE_SIZE;
+    int cache = i < MVM_INT_TO_STR_CACHE_SIZE;
     if (cache) {
         MVMString *cached = tc->instance->int_to_str_cache[i];
         if (cached)
