@@ -30,7 +30,7 @@ addons:
   apt:
     sources:
       - sourceline: 'ppa:ubuntu-toolchain-r/test'
-      - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty main'
+      - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-5.0 main'
     packages:
       - clang-5.0
       - llvm-5.0
