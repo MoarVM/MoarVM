@@ -30,13 +30,12 @@ addons:
   apt:
     sources:
       - sourceline: 'ppa:ubuntu-toolchain-r/test'
-      - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-5.0 main'
     packages:
-      - clang-5.0
-      - llvm-5.0
       - expect
       - libffi-dev
       - gdb
+      - llvm
+      - clang
 
 before_script:
   - echo "Begin ‘before_script’ section of .travis.yml"
@@ -46,7 +45,7 @@ before_script:
   # Fun function that finds files in /usr/bin naming as foo-4.2 for example
   # and returns the highest version. Travis CI installs newer versions under
   # their own verison numbers.
-  - find_latest_version () { ls /usr/bin | grep -Ee "^$1(\-[0-9.]+)?$" | sort -r | head -n 1; }
+  - find_latest_version () { versioned=$(ls /usr/bin | grep -Ee "^$1(\-[0-9.]+)?$" | sort -r | head -n 1;); if [ "$versioned" ]; then printf "%s" "$versioned"; elif [ -f "/usr/bin/$1" ]; then printf "%s" "/usr/bin/$1"; fi; }
   # MacOS's readlink doesn't support -f, so use our own solution
   - resolve_folder      () { O="$(pwd -P)"; D="$(dirname $1)"; T="$(basename $1)"; cd -- "$D" && cd -- "$T" && pwd -P; cd -- "$O" > /dev/null; }
   - find_latest_version llvm-profdata
