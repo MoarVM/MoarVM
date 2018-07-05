@@ -31,7 +31,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     unsigned bucket_tmp;
 
     /* NOTE: if we really wanted to, we could avoid rehashing... */
-    HASH_ITER(hash_handle, src_body->hash_head, current, tmp, bucket_tmp) {
+    HASH_ITER(tc, hash_handle, src_body->hash_head, current, tmp, bucket_tmp) {
         MVMHashEntry *new_entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
             sizeof(MVMHashEntry));
         MVMString *key = MVM_HASH_KEY(current);
@@ -47,7 +47,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMHashEntry *current = NULL, *tmp = NULL;
     unsigned bucket_tmp;
 
-    HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {
+    HASH_ITER(tc, hash_handle, body->hash_head, current, tmp, bucket_tmp) {
         MVM_gc_worklist_add(tc, worklist, &current->hash_handle.key);
         MVM_gc_worklist_add(tc, worklist, &current->value);
     }
@@ -58,7 +58,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMHash *h = (MVMHash *)obj;
     MVMHashEntry *current = NULL, *tmp = NULL;
     unsigned bucket_tmp;
-    HASH_ITER(hash_handle, h->body.hash_head, current, tmp, bucket_tmp) {
+    HASH_ITER(tc, hash_handle, h->body.hash_head, current, tmp, bucket_tmp) {
         if (current != h->body.hash_head)
             MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), current);
     }
@@ -189,7 +189,7 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     unsigned bucket_tmp;
     MVMuint64 i = 0;
     MVM_serialization_write_int(tc, writer, elems);
-    HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {
+    HASH_ITER(tc, hash_handle, body->hash_head, current, tmp, bucket_tmp) {
         keys[i++] = MVM_HASH_KEY(current);
     }
     cmp_tc = tc;

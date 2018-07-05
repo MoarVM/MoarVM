@@ -280,7 +280,7 @@ static void cleanup_all(VM, WriterState *ws) {
         MVM_free(ws->bytecode_seg);
     if (ws->annotation_seg)
         MVM_free(ws->annotation_seg);
-    HASH_ITER(hash_handle, ws->callsite_reuse_head, current, tmp, bucket_tmp) {
+    HASH_ITER(tc, hash_handle, ws->callsite_reuse_head, current, tmp, bucket_tmp) {
         MVM_free(current->identifier);
     }
     MVM_HASH_DESTROY(tc, hash_handle, CallsiteReuseEntry, ws->callsite_reuse_head);

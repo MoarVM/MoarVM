@@ -1064,7 +1064,7 @@ void MVM_unicode_release(MVMThreadContext *tc)
                 }
             }
 
-            HASH_ITER(hash_handle, unicode_property_values_hashes[i], entry, tmp, bucket_tmp) {
+            HASH_ITER(tc, hash_handle, unicode_property_values_hashes[i], entry, tmp, bucket_tmp) {
                 HASH_DELETE(hash_handle, unicode_property_values_hashes[i], entry);
                 MVM_free(entry);
             }

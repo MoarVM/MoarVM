@@ -108,7 +108,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
             body->hash_state.curr = body->hash_state.next;
             if (!body->hash_state.curr)
                 MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
-            body->hash_state.next = HASH_ITER_NEXT_ITEM(
+            body->hash_state.next = HASH_ITER_NEXT_ITEM(tc,
                 &(body->hash_state.next->hash_handle),
                 &(body->hash_state.bucket_state));
             value->o = root;

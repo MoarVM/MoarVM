@@ -1,5 +1,6 @@
 #ifndef UTHASH_TYPES
 #define UTHASH_TYPES
+#define MVM_HASH_THROW_ON_ITER_AFTER_ADD_KEY 0
 typedef struct UT_hash_bucket {
    struct UT_hash_handle *hh_head;
    unsigned count;
@@ -41,6 +42,17 @@ typedef struct UT_hash_table {
     * function isn't a good fit for the key domain. When expansion is inhibited
     * the hash will still work, albeit no longer in constant time. */
    unsigned ineff_expands, noexpand;
+#if 8 <= MVM_PTR_SIZE
+   MVMuint64 bucket_rand;
+#  if MVM_HASH_THROW_ON_ITER_AFTER_ADD_KEY
+   MVMuint64 bucket_rand_last;
+#  endif
+#else
+   MVMuint32 bucket_rand;
+#  if MVM_HASH_THROW_ON_ITER_AFTER_ADD_KEY
+   MVMuint32 bucket_rand_last;
+#  endif
+#endif
 } UT_hash_table;
 
 typedef struct UT_hash_handle {

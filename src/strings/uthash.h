@@ -149,6 +149,40 @@ do {                                                                            
          (head)->hh.tbl->buckets[ _hf_bkt ], key, out, _hf_hashv);                  \
   }                                                                                 \
 } while (0)
+
+MVM_STATIC_INLINE MVMuint64 ptr_hash_64_to_64(uintptr_t u) {
+    /* Thomas Wong's hash from
+     * https://web.archive.org/web/20120211151329/http://www.concentric.net/~Ttwang/tech/inthash.htm */
+    u = (~u) + (u << 21);
+    u =  u ^ (u >> 24);
+    u = (u + (u << 3)) + (u << 8);
+    u =  u ^ (u >> 14);
+    u = (u + (u << 2)) + (u << 4);
+    u =  u ^ (u >> 28);
+    u =  u + (u << 31);
+    return (MVMuint64)u;
+}
+MVM_STATIC_INLINE MVMuint32 ptr_hash_32_to_32(uintptr_t u) {
+    /* Bob Jenkins' hash from
+     * http://burtleburtle.net/bob/hash/integer.html */
+    u = (u + 0x7ed55d16) + (u << 12);
+    u = (u ^ 0xc761c23c) ^ (u >> 19);
+    u = (u + 0x165667b1) + (u << 5);
+    u = (u + 0xd3a2646c) ^ (u << 9);
+    u = (u + 0xfd7046c5) + (u << 3);
+    u = (u ^ 0xb55a4f09) ^ (u >> 16);
+    return (MVMuint32)u;
+}
+#if 8 <= MVM_PTR_SIZE
+#define ptr_hash(u) \
+    ptr_hash_64_to_64(u)
+#else
+    ptr_hash_32_to_32(u)
+#endif
+
+#ifndef ROTL
+#define ROTL(x, b) ( ((x) << (b)) | ( (x) >> ((sizeof(x)*8) - (b))) )
+#endif
 MVM_PUBLIC MVM_NO_RETURN void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *messageFormat, ...) MVM_NO_RETURN_ATTRIBUTE MVM_FORMAT(printf, 2, 3);
 MVM_STATIC_INLINE void HASH_MAKE_TABLE(MVMThreadContext *tc, void *head, UT_hash_handle *head_hh) {
   head_hh->tbl = (UT_hash_table*)uthash_malloc_zeroed(tc,
@@ -158,6 +192,9 @@ MVM_STATIC_INLINE void HASH_MAKE_TABLE(MVMThreadContext *tc, void *head, UT_hash
   head_hh->tbl->hho = (char*)(head_hh) - (char*)(head);
   head_hh->tbl->buckets = (UT_hash_bucket*)uthash_malloc_zeroed(tc,
           HASH_INITIAL_NUM_BUCKETS*sizeof(struct UT_hash_bucket));
+  /* Hash the pointer. We use this hash to randomize insertion order and randomize
+   * iteration order. */
+  head_hh->tbl->bucket_rand = ptr_hash((uintptr_t)head_hh);
 }
 
 #define HASH_ADD_KEYPTR(hh,head,keyptr,keylen_in,add)                            \
@@ -173,7 +210,7 @@ do {                                                                            
  (add)->hh.tbl = (head)->hh.tbl;                                                 \
  HASH_FCN(keyptr,keylen_in, (head)->hh.tbl->num_buckets,                         \
          (add)->hh.hashv, _ha_bkt, (head)->hh.tbl->log2_num_buckets);            \
- HASH_ADD_TO_BKT(tc, &((head)->hh.tbl->buckets[_ha_bkt]),&(add)->hh);  \
+ HASH_ADD_TO_BKT(tc, &((head)->hh.tbl->buckets[_ha_bkt]),&(add)->hh, (head)->hh.tbl);  \
  HASH_FSCK(hh,head);                                                             \
 } while(0)
 
@@ -198,7 +235,7 @@ do {                                                                            
      HASH_FCN_VM_STR(tc, key_in, (head)->hh.tbl->num_buckets,                    \
              (add)->hh.hashv, _ha_bkt, (head)->hh.tbl->log2_num_buckets);        \
  }                                                                               \
- HASH_ADD_TO_BKT(tc, &((head)->hh.tbl->buckets[_ha_bkt]),&(add)->hh);            \
+ HASH_ADD_TO_BKT(tc, &((head)->hh.tbl->buckets[_ha_bkt]),&(add)->hh, (head)->hh.tbl);            \
  HASH_FSCK(hh,head);                                                             \
 } while(0)
 
@@ -472,16 +509,27 @@ MVM_STATIC_INLINE void HASH_EXPAND_BUCKETS(MVMThreadContext *tc, UT_hash_table *
 }
 
 /* add an item to a bucket  */
-MVM_STATIC_INLINE void HASH_ADD_TO_BKT(MVMThreadContext *tc, UT_hash_bucket *head, UT_hash_handle *addhh) {
- head->count++;
- addhh->hh_next = head->hh_head;
- addhh->hh_prev = NULL;
- if (head->hh_head) { head->hh_head->hh_prev = addhh; }
- head->hh_head = addhh;
- if (head->count >= ((head->expand_mult+1) * HASH_BKT_CAPACITY_THRESH)
+MVM_STATIC_INLINE void HASH_ADD_TO_BKT(MVMThreadContext *tc, UT_hash_bucket *bucket, UT_hash_handle *addhh, UT_hash_table *table) {
+    bucket->count++;
+    if (bucket->hh_head && table->bucket_rand & 1) {
+        UT_hash_handle *head = bucket->hh_head;
+        addhh->hh_next = head->hh_next;
+        addhh->hh_prev = head;
+        if (head->hh_next) head->hh_next->hh_prev = addhh;
+        head->hh_next = addhh;
+    }
+    else {
+        addhh->hh_next = bucket->hh_head;
+        addhh->hh_prev = NULL;
+        if (bucket->hh_head) { bucket->hh_head->hh_prev = addhh; }
+        bucket->hh_head = addhh;
+    }
+    /* Add one and rotate so our bucket_rand changes somewhat. */
+    table->bucket_rand = ROTL(table->bucket_rand + 1, 1);
+    if (bucket->count >= ((bucket->expand_mult+1) * HASH_BKT_CAPACITY_THRESH)
      && addhh->tbl->noexpand != 1) {
-        HASH_EXPAND_BUCKETS(tc, addhh->tbl);
- }
+         HASH_EXPAND_BUCKETS(tc, addhh->tbl);
+     }
 }
 
 /* remove an item from a given bucket */
@@ -510,39 +558,57 @@ do {                                                                            
 
 /* obtain a count of items in the hash */
 #define HASH_CNT(hh,head) ((head)?((head)->hh.tbl->num_items):0)
-
+#define GET_X_BITS(bucket_rand, log2_num_buckets) \
+    ((bucket_rand) >> ((sizeof(bucket_rand) * 8) - (log2_num_buckets)))
+/* Get a pseudo-random bucket. This works because XORing a random x bit integer
+ * with 0..(2**x)-1 will give you 0..(2**x)-1 in a pseudo random order (not *really*
+ * random but random enough for our purposes. Example with 0..(2**3)-1 and the rand int is 3
+ * 0 ^ 3 = 3; 1 ^ 3 = 2;
+ * 2 ^ 3 = 1; 3 ^ 3 = 0;
+ * 4 ^ 3 = 7; 5 ^ 3 = 6
+ * 6 ^ 3 = 5; 7 ^ 3 = 4 */
+#define GET_PRAND_BKT(raw_bkt_num, hashtable) \
+    (GET_X_BITS(hashtable->bucket_rand, hashtable->log2_num_buckets) ^ (raw_bkt_num))
 MVM_STATIC_INLINE void * HASH_ITER_FIRST_ITEM(
         struct UT_hash_table *ht, unsigned *bucket_tmp) {
     if (!ht)
         return NULL;
+#if MVM_HASH_THROW_ON_ITER_AFTER_ADD_KEY
+    ht->bucket_rand_last = ht->bucket_rand;
+#endif
     while (*bucket_tmp < ht->num_buckets) {
-        struct UT_hash_handle *hh_head = ht->buckets[*bucket_tmp].hh_head;
+        struct UT_hash_handle *hh_head = ht->buckets[GET_PRAND_BKT(*bucket_tmp, ht)].hh_head;
         if (hh_head)
             return ELMT_FROM_HH(ht, hh_head);
         (*bucket_tmp)++;
     }
     return NULL;
 }
-MVM_STATIC_INLINE void * HASH_ITER_NEXT_ITEM(
+MVM_STATIC_INLINE void * HASH_ITER_NEXT_ITEM(MVMThreadContext *tc,
         struct UT_hash_handle *cur_handle, unsigned *bucket_tmp) {
     struct UT_hash_table *ht = cur_handle->tbl;
+#if MVM_HASH_THROW_ON_ITER_AFTER_ADD_KEY
+    /* Warn if the user has been *caught* inserting keys during an iteration. */
+    if (ht->bucket_rand_last != ht->bucket_rand)
+        MVM_exception_throw_adhoc(tc, "Warning: trying to insert into the hash while iterating has undefined functionality\n");
+#endif
     if (cur_handle->hh_next)
         return ELMT_FROM_HH(ht, cur_handle->hh_next);
     (*bucket_tmp)++;
     while (*bucket_tmp < ht->num_buckets) {
-        struct UT_hash_handle *hh_head = ht->buckets[*bucket_tmp].hh_head;
+        struct UT_hash_handle *hh_head = ht->buckets[GET_PRAND_BKT(*bucket_tmp, ht)].hh_head;
         if (hh_head)
             return ELMT_FROM_HH(ht, hh_head);
         (*bucket_tmp)++;
     }
     return NULL;
 }
-#define HASH_ITER(hh,head,el,tmp,bucket_tmp)                                    \
+#define HASH_ITER(tc,hh,head,el,tmp,bucket_tmp)                                    \
 for((bucket_tmp) = 0,                                                           \
     (el) = HASH_ITER_FIRST_ITEM((head) ? (head)->hh.tbl : NULL, &(bucket_tmp)), \
-    (tmp) = ((el) ? HASH_ITER_NEXT_ITEM(&((el)->hh), &(bucket_tmp)) : NULL);    \
+    (tmp) = ((el) ? HASH_ITER_NEXT_ITEM((tc), &((el)->hh), &(bucket_tmp)) : NULL);    \
     (el);                                                                       \
     (el) = (tmp),                                                               \
-    (tmp) = ((tmp) ? HASH_ITER_NEXT_ITEM(&((tmp)->hh), &(bucket_tmp)) : NULL))
+    (tmp) = ((tmp) ? HASH_ITER_NEXT_ITEM((tc), &((tmp)->hh), &(bucket_tmp)) : NULL))
 
 #endif /* UTHASH_H */

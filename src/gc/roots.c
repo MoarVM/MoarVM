@@ -95,7 +95,7 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 
     /* okay, so this makes the weak hash slightly less weak.. for certain
      * keys of it anyway... */
-    HASH_ITER(hash_handle, tc->instance->sc_weakhash, current, tmp, bucket_tmp) {
+    HASH_ITER(tc, hash_handle, tc->instance->sc_weakhash, current, tmp, bucket_tmp) {
         /* mark the string handle pointer iff it hasn't yet been resolved */
         add_collectable(tc, worklist, snapshot, current->hash_handle.key,
             "SC weakhash hash key");
@@ -107,7 +107,7 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
                 "SC weakhash unclaimed SC");
     }
 
-    HASH_ITER(hash_handle, tc->instance->loaded_compunits, current_lcun, tmp_lcun, bucket_tmp) {
+    HASH_ITER(tc, hash_handle, tc->instance->loaded_compunits, current_lcun, tmp_lcun, bucket_tmp) {
         add_collectable(tc, worklist, snapshot, current_lcun->hash_handle.key,
             "Loaded compilation unit hash key");
         add_collectable(tc, worklist, snapshot, current_lcun->filename,
@@ -164,7 +164,7 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     add_collectable(tc, worklist, snapshot, tc->cur_dispatcher_for, "Current dispatcher for");
 
     /* Callback cache. */
-    HASH_ITER(hash_handle, tc->native_callback_cache, current_cbceh, tmp_cbceh, bucket_tmp) {
+    HASH_ITER(tc, hash_handle, tc->native_callback_cache, current_cbceh, tmp_cbceh, bucket_tmp) {
         MVMint32 i;
         MVMNativeCallback *entry = current_cbceh->head;
         add_collectable(tc, worklist, snapshot, current_cbceh->hash_handle.key,

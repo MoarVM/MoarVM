@@ -1374,7 +1374,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         if (dtc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "will write %lu lexicals\n", lexcount);
 
-        HASH_ITER(hash_handle, lexical_names, entry, tmp, bucket_tmp) {
+        HASH_ITER(dtc, hash_handle, lexical_names, entry, tmp, bucket_tmp) {
             MVMuint16 lextype = static_info->body.lexical_types[entry->value];
             MVMRegister *result = &frame->env[entry->value];
             char *c_key_name;
@@ -2134,7 +2134,7 @@ static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ct
         cmp_write_str(ctx, "contents", 8);
         cmp_write_map(ctx, count);
 
-        HASH_ITER(hash_handle, body->hash_head, entry, tmp, bucket_tmp) {
+        HASH_ITER(dtc, hash_handle, body->hash_head, entry, tmp, bucket_tmp) {
             char *key = MVM_string_utf8_encode_C_string(dtc, entry->hash_handle.key);
             MVMObject *value = entry->value;
             char *value_debug_name = value ? MVM_6model_get_debug_name(dtc, value) : "VMNull";
