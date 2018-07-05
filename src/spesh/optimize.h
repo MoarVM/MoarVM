@@ -1,4 +1,5 @@
-/* Maximum args a call can take for us to consider it for optimization. */
+/* Maximum args a call can take for us to consider it for optimization. A
+ * named arg counts as 2 for these purposes. */
 #define MAX_ARGS_FOR_OPT 8
 
 /* Percentage of type tuples that we expect to match at a callsite in order to
