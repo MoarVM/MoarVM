@@ -44,6 +44,10 @@
 #   code) before this instruction, but just locally within the current frame
 # * :deoptallpoint means that we may globally deoptimize (this goes only on an
 #   invoke; the callsite address will be rewritten)
+# * :maycausedeopt menas that the execution of this instruction might lead to a
+#   (local or global) deoptimization; used by the optimizer to make sure it
+#   does not delete instructions whose results are needed the other site of a
+#   deopt
 # * :noinline means it is never safe to inline this op
 # * :invokish means the op may invoke (used by the JIT)
 # * :throwish means the op may throw (used by the JIT)
@@ -81,8 +85,8 @@ if_s                r(str) ins
 unless_s            r(str) ins
 if_s0               r(str) ins
 unless_s0           r(str) ins
-if_o                r(obj) ins :invokish
-unless_o            r(obj) ins :invokish
+if_o                r(obj) ins :invokish :maycausedeopt
+unless_o            r(obj) ins :invokish :maycausedeopt
 jumplist         :j int64 r(int64)
 getlex              w(`1) rl(`1) :pure :deoptonepoint :logged
 bindlex             wl(`1) r(`1)
@@ -174,8 +178,8 @@ coerce_is           w(str) r(int64) :pure
 coerce_ns           w(str) r(num64) :pure
 coerce_si           w(int64) r(str) :pure
 coerce_sn           w(num64) r(str) :pure
-smrt_numify         w(num64) r(obj) :pure :invokish
-smrt_strify         w(str) r(obj) :pure :invokish
+smrt_numify         w(num64) r(obj) :pure :invokish :maycausedeopt
+smrt_strify         w(str) r(obj) :pure :invokish :maycausedeopt
 prepargs         +a callsite :predeoptonepoint
 arg_i            *a int16 r(int64)
 arg_n            *a int16 r(num64)
@@ -184,11 +188,11 @@ arg_o            *a int16 r(obj)
 argconst_i       *a int16 int64
 argconst_n       *a int16 num64
 argconst_s       *a int16 str
-invoke_v         -a r(obj) :deoptallpoint
-invoke_i         -a w(int64) r(obj) :deoptallpoint
-invoke_n         -a w(num64) r(obj) :deoptallpoint
-invoke_s         -a w(str) r(obj) :deoptallpoint
-invoke_o         -a w(obj) r(obj) :deoptallpoint :deoptonepoint :logged
+invoke_v         -a r(obj) :deoptallpoint :maycausedeopt
+invoke_i         -a w(int64) r(obj) :deoptallpoint :maycausedeopt
+invoke_n         -a w(num64) r(obj) :deoptallpoint :maycausedeopt
+invoke_s         -a w(str) r(obj) :deoptallpoint :maycausedeopt
+invoke_o         -a w(obj) r(obj) :deoptallpoint :deoptonepoint :logged :maycausedeopt
 checkarity          int16 int16
 param_rp_i       .p w(int64) int16 :pure :noinline
 param_rp_n       .p w(num64) int16 :pure :noinline
@@ -242,7 +246,7 @@ captureposarg_s     w(str) r(obj) r(int64) :pure
 captureposprimspec  w(int64) r(obj) r(int64) :pure
 captureexistsnamed  w(int64) r(obj) r(str) :pure
 capturehasnameds    w(int64) r(obj) :pure :useshll
-invokewithcapture   w(obj) r(obj) r(obj) :invokish
+invokewithcapture   w(obj) r(obj) r(obj) :invokish :maycausedeopt
 multicacheadd       w(obj) r(obj) r(obj) r(obj)
 multicachefind      w(obj) r(obj) r(obj)
 null_s              w(str) :pure
@@ -300,15 +304,15 @@ isfalse_s           w(int64) r(str) :pure
 null                w(obj) :pure
 isnull              w(int64) r(obj) :pure
 ifnonnull           r(obj) ins
-findmeth            w(obj) r(obj) str :pure :invokish
-findmeth_s          w(obj) r(obj) r(str) :pure :invokish
-can                 w(int64) r(obj) str :pure :invokish
-can_s               w(int64) r(obj) r(str) :pure :invokish
+findmeth            w(obj) r(obj) str :pure :invokish :maycausedeopt
+findmeth_s          w(obj) r(obj) r(str) :pure :invokish :maycausedeopt
+can                 w(int64) r(obj) str :pure :invokish :maycausedeopt
+can_s               w(int64) r(obj) r(str) :pure :invokish :maycausedeopt
 create              w(obj) r(obj) :pure
 clone               w(obj) r(obj) :pure
 isconcrete          w(int64) r(obj) :pure
 rebless             w(obj) r(obj) r(obj) :deoptonepoint
-istype              w(int64) r(obj) r(obj) :pure :invokish
+istype              w(int64) r(obj) r(obj) :pure :invokish :maycausedeopt
 objprimspec         w(int64) r(obj) :pure
 gethow              w(obj) r(obj) :pure
 getwhat             w(obj) r(obj) :pure
@@ -387,8 +391,8 @@ setmethcacheauth    r(obj) r(int64)
 settypecache        r(obj) r(obj)
 settypecheckmode    r(obj) r(int64)
 setboolspec         r(obj) r(int64) r(obj)
-istrue              w(int64) r(obj) :invokish
-isfalse             w(int64) r(obj) :invokish
+istrue              w(int64) r(obj) :invokish :maycausedeopt
+isfalse             w(int64) r(obj) :invokish :maycausedeopt
 bootint             w(obj) :pure
 bootnum             w(obj) :pure
 bootstr             w(obj) :pure
@@ -416,8 +420,8 @@ gethllsym           w(obj) r(str) r(str) :pure
 bindhllsym          r(str) r(str) r(obj)
 settypehll          r(obj) r(str)
 settypehllrole      r(obj) r(int64)
-hllize              w(obj) r(obj) :pure :invokish :useshll
-hllizefor           w(obj) r(obj) r(str) :pure :invokish
+hllize              w(obj) r(obj) :pure :invokish :useshll :maycausedeopt
+hllizefor           w(obj) r(obj) r(str) :pure :invokish :maycausedeopt
 usecompileehllconfig :useshll
 usecompilerhllconfig :useshll
 iter                w(obj) r(obj) :pure :useshll
@@ -438,10 +442,10 @@ getstaticcode       w(obj) r(obj) :pure
 getcodecuid         w(str) r(obj) :pure
 setdispatcher       r(obj)
 takedispatcher      w(obj)
-assign              r(obj) r(obj) :invokish
-assignunchecked     r(obj) r(obj) :invokish
+assign              r(obj) r(obj) :invokish :maycausedeopt
+assignunchecked     r(obj) r(obj) :invokish :maycausedeopt
 iscont              w(int64) r(obj) :pure
-decont              w(obj) r(obj) :pure :invokish :deoptonepoint :logged
+decont              w(obj) r(obj) :pure :invokish :deoptonepoint :logged :maycausedeopt
 setcontspec         r(obj) r(str) r(obj)
 sha1                w(str) r(str) :pure
 createsc            w(obj) r(str)
@@ -463,18 +467,18 @@ scwbenable          w(int64)
 pushcompsc          r(obj)
 popcompsc           w(obj)
 scgetdesc           w(str) r(obj)
-loadbytecode        w(str) r(str) :invokish
+loadbytecode        w(str) r(str) :invokish :maycausedeopt
 masttofile          r(obj) r(obj) r(str)
-masttocu            w(obj) r(obj) r(obj) :invokish
+masttocu            w(obj) r(obj) r(obj) :invokish :maycausedeopt
 iscompunit          w(int64) r(obj) :pure
 compunitmainline    w(obj) r(obj)
 compunitcodes       w(obj) r(obj)
-ctx                 w(obj) :noinline
-ctxouter            w(obj) r(obj)
-ctxcaller           w(obj) r(obj)
-ctxlexpad           w(obj) r(obj)
-curcode             w(obj) :noinline
-callercode          w(obj) :noinline
+ctx                 w(obj) :pure :noinline
+ctxouter            w(obj) r(obj) :pure
+ctxcaller           w(obj) r(obj) :pure
+ctxlexpad           w(obj) r(obj) :pure
+curcode             w(obj) :pure :noinline
+callercode          w(obj) :pure :noinline
 add_I               w(obj) r(obj) r(obj) r(obj) :pure
 sub_I               w(obj) r(obj) r(obj) r(obj) :pure
 mul_I               w(obj) r(obj) r(obj) r(obj) :pure
@@ -549,28 +553,28 @@ say                 r(str)
 DEPRECATED_22       w(str) r(obj)
 tell_fh             w(int64) r(obj)
 stat                w(int64) r(str) r(int64)
-tryfindmeth         w(obj) r(obj) str :pure :invokish
-tryfindmeth_s       w(obj) r(obj) r(str) :pure :invokish
+tryfindmeth         w(obj) r(obj) str :pure :invokish :maycausedeopt
+tryfindmeth_s       w(obj) r(obj) r(str) :pure :invokish :maycausedeopt
 chdir               r(str)
 srand               r(int64)
 rand_i              w(int64)
 rand_n              w(num64)
-time_i              w(int64)
+time_i              w(int64) :pure
 sleep               r(num64)
 newthread           w(obj) r(obj) r(int64)
 threadjoin          r(obj)
-time_n              w(num64)
+time_n              w(num64) :pure
 exit                r(int64)
 DEPRECATED_30       w(int64) r(str) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
-cwd                 w(str)
-clargs              w(obj) :useshll
-getenvhash          w(obj) :useshll
+cwd                 w(str) :pure
+clargs              w(obj) :pure :useshll
+getenvhash          w(obj) :pure :useshll
 loadlib             r(str) r(str)
 freelib             r(str)
 findsym             w(obj) r(str) r(str)
 dropsym             r(obj)
 loadext             r(str) r(str)
-backendconfig       w(obj)
+backendconfig       w(obj) :pure
 getlexouter         w(obj) r(str) :pure :noinline :useshll
 getlexrel           w(obj) r(obj) r(str) :pure :useshll
 getlexreldyn        w(obj) r(obj) r(str) :pure :useshll
@@ -601,27 +605,27 @@ link                r(str) r(str)
 gethostname         w(str)
 exreturnafterunwind r(obj)
 DEPRECATED_13       w(obj) r(obj)
-continuationreset   w(obj) r(obj) r(obj) :invokish
+continuationreset   w(obj) r(obj) r(obj) :invokish :maycausedeopt
 # this op isn't actually invokish, but it requires the cur_op to be set before doing its work
-continuationcontrol w(obj) r(int64) r(obj) r(obj) :invokish
-continuationinvoke  w(obj) r(obj) r(obj) :invokish
+continuationcontrol w(obj) r(int64) r(obj) r(obj) :invokish :maycausedeopt
+continuationinvoke  w(obj) r(obj) r(obj) :invokish :maycausedeopt
 randscale_n         w(num64) r(num64) :pure
 uniisblock          w(int64) r(str) r(int64) r(str) :pure
-assertparamcheck    r(int64) :noinline :invokish
+assertparamcheck    r(int64) :noinline :invokish :maycausedeopt
 hintfor             w(int64) r(obj) r(str)
 paramnamesused      :noinline
-getuniname          w(str) r(int64)
-getuniprop_int      w(int64) r(int64) r(int64)
-getuniprop_bool     w(int64) r(int64) r(int64)
-getuniprop_str      w(str) r(int64) r(int64)
-matchuniprop        w(int64) r(int64) r(int64) r(int64)
+getuniname          w(str) r(int64) :pure
+getuniprop_int      w(int64) r(int64) r(int64) :pure
+getuniprop_bool     w(int64) r(int64) r(int64) :pure
+getuniprop_str      w(str) r(int64) r(int64) :pure
+matchuniprop        w(int64) r(int64) r(int64) r(int64) :pure
 nativecallbuild     w(int64) r(obj) r(str) r(str) r(str) r(obj) r(obj)
 nativecallinvoke    w(obj) r(obj) r(obj) r(obj)
 nativecallrefresh   r(obj)
 threadrun           r(obj)
-threadid            w(int64) r(obj)
+threadid            w(int64) r(obj) :pure
 threadyield
-currentthread       w(obj)
+currentthread       w(obj) :pure
 lock                r(obj)
 unlock              r(obj)
 semacquire          r(obj)
@@ -665,13 +669,13 @@ spawnprocasync      w(obj) r(obj) r(obj) r(str) r(obj) r(obj)
 killprocasync       r(obj) r(int64)
 startprofile        r(obj)
 endprofile          w(obj)
-objectid            w(int64) r(obj)
+objectid            w(int64) r(obj) :pure
 settypefinalize     r(obj) r(int64)
 force_gc
 nativecallglobal    w(obj) r(str) r(str) r(obj) r(obj)
 DEPRECATED_32       w(int64) r(obj)
 setparameterizer    r(obj) r(obj)
-parameterizetype    w(obj) r(obj) r(obj) :invokish
+parameterizetype    w(obj) r(obj) r(obj) :invokish :maycausedeopt
 typeparameterized   w(obj) r(obj)
 typeparameters      w(obj) r(obj)
 typeparameterat     w(obj) r(obj) r(int64)
@@ -680,14 +684,14 @@ lstat               w(int64) r(str) r(int64)
 iscont_i            w(int64) r(obj) :pure
 iscont_n            w(int64) r(obj) :pure
 iscont_s            w(int64) r(obj) :pure
-assign_i            r(obj) r(int64) :invokish
-assign_n            r(obj) r(num64) :invokish
-assign_s            r(obj) r(str) :invokish
-decont_i            w(int64) r(obj) :pure :invokish
-decont_n            w(num64) r(obj) :pure :invokish
-decont_s            w(str) r(obj) :pure :invokish
+assign_i            r(obj) r(int64) :invokish :maycausedeopt
+assign_n            r(obj) r(num64) :invokish :maycausedeopt
+assign_s            r(obj) r(str) :invokish :maycausedeopt
+decont_i            w(int64) r(obj) :pure :invokish :maycausedeopt
+decont_n            w(num64) r(obj) :pure :invokish :maycausedeopt
+decont_s            w(str) r(obj) :pure :invokish :maycausedeopt
 getrusage           r(obj) :pure
-threadlockcount     w(int64) r(obj)
+threadlockcount     w(int64) r(obj) :pure
 DEPRECATED_4        w(obj) r(str) :pure :noinline
 getlexref_i         w(obj) rl(int64) :pure :noinline :useshll
 getlexref_n         w(obj) rl(num64) :pure :noinline :useshll
@@ -772,7 +776,7 @@ coerce_iu           w(uint64) r(int64) :pure
 coerce_ui           w(int64) r(uint64) :pure
 coerce_nu           w(uint64) r(num64) :pure
 coerce_un           w(num64) r(uint64) :pure
-decont_u            w(uint64) r(obj) :pure :invokish
+decont_u            w(uint64) r(obj) :pure :invokish :maycausedeopt
 DEPRECATED_9        w(obj) r(uint64) :pure :noinline
 DEPRECATED_10       w(obj) r(uint32) :pure :noinline
 DEPRECATED_11       w(obj) r(uint16) :pure :noinline
@@ -790,8 +794,8 @@ param_on2_u         w(uint64) str str ins :noinline
 stat_time           w(num64) r(str) r(int64)
 lstat_time          w(num64) r(str) r(int64)
 setdebugtypename    r(obj) r(str)
-loadbytecodebuffer  r(obj) :invokish
-loadbytecodefh      r(obj) r(str) :invokish
+loadbytecodebuffer  r(obj) :invokish :maycausedeopt
+loadbytecodefh      r(obj) r(str) :invokish :maycausedeopt
 throwpayloadlex     w(obj) int64 r(obj) :throwish
 throwpayloadlexcaller w(obj) int64 r(obj) :throwish
 lastexpayload       w(obj)
@@ -818,7 +822,7 @@ eqaticim_s          w(int64) r(str) r(str) r(int64) :pure
 indexicim_s         w(int64) r(str) r(str) r(int64) :pure
 decodertakecharseof w(str) r(obj) r(int64)
 indexim_s           w(int64) r(str) r(str) r(int64) :pure
-cas_o               w(obj) r(obj) r(obj) r(obj) :invokish
+cas_o               w(obj) r(obj) r(obj) r(obj) :invokish :maycausedeopt
 cas_i               w(int64) r(obj) r(int64) r(int64)
 atomicinc_i         w(int64) r(obj)
 atomicdec_i         w(int64) r(obj)
@@ -827,7 +831,7 @@ atomicadd_i         w(int64) r(obj) r(int64)
 # counts as a side-effect that should be retained.
 atomicload_o        w(obj) r(obj)
 atomicload_i        w(int64) r(obj)
-atomicstore_o       r(obj) r(obj) :invokish
+atomicstore_o       r(obj) r(obj) :invokish :maycausedeopt
 atomicstore_i       r(obj) r(int64)
 barrierfull
 coveragecontrol     r(int64)
@@ -868,28 +872,28 @@ speshguardnotobj    r(obj) r(obj)
 #   guard = guard on type only; index is spesh slot with type
 #   guardconc = guard on type + concrete; index is spesh slot with type
 #   guardtype = guard on type + type object; index is spesh slot with type
-sp_guard         .s r(obj) sslot uint32
-sp_guardconc     .s r(obj) sslot uint32
-sp_guardtype     .s r(obj) sslot uint32
+sp_guard         .s r(obj) sslot uint32 :maycausedeopt
+sp_guardconc     .s r(obj) sslot uint32 :maycausedeopt
+sp_guardtype     .s r(obj) sslot uint32 :maycausedeopt
 
 # Code guard operations. Trigger de-optimization if the guard is violated.
 #   guardsf = guard on being an MVMCode with specified static frame inside
 #   guardsfouter = as with guardsf but also ensures its ->outer is equal to
 #   the currently executing frame
-sp_guardsf       .s r(obj) sslot uint32
-sp_guardsfouter  .s r(obj) sslot uint32
+sp_guardsf       .s r(obj) sslot uint32 :maycausedeopt
+sp_guardsfouter  .s r(obj) sslot uint32 :maycausedeopt
 
 # Literal object match and non-match guards.
-sp_guardobj      .s r(obj) sslot uint32
-sp_guardnotobj   .s r(obj) sslot uint32
+sp_guardobj      .s r(obj) sslot uint32 :maycausedeopt
+sp_guardnotobj   .s r(obj) sslot uint32 :maycausedeopt
 
 # Guards that check concrete or type object, without caring for type.
-sp_guardjustconc .s r(obj) uint32
-sp_guardjusttype .s r(obj) uint32
+sp_guardjustconc .s r(obj) uint32 :maycausedeopt
+sp_guardjusttype .s r(obj) uint32 :maycausedeopt
 
 # Specialized form of rebless that will always do a deopt one out of the
 # current code as well as a deopt all.
-sp_rebless       .s w(obj) r(obj) r(obj) uint32 :noinline
+sp_rebless       .s w(obj) r(obj) r(obj) uint32 :noinline :maycausedeopt
 
 # Resolves an invokee into an MVMCode object, or returns VMNull when that is
 # not possible. Doesn't do multiple dispatch cache handling (since that needs
@@ -898,7 +902,7 @@ sp_resolvecode   .s w(obj) r(obj)
 
 # These are variants of the normal interpreted ops that do not log. Used for
 # the case where we can't JIT-compile, but don't want to keep on logging.
-sp_decont        .s w(obj) r(obj) :pure :invokish
+sp_decont        .s w(obj) r(obj) :pure :invokish :maycausedeopt
 sp_getlex_o      .s w(obj) rl(obj) :pure
 sp_getlex_ins    .s w(`1) rl(`1) :pure
 sp_getlex_no     .s w(obj) str :pure :noinline
@@ -909,18 +913,18 @@ sp_getarg_i      .s w(obj) int16 :pure
 sp_getarg_n      .s w(obj) int16 :pure
 sp_getarg_s      .s w(obj) int16 :pure
 
-# Fast invocation.
-sp_fastinvoke_v  .s r(obj) int16
-sp_fastinvoke_i  .s w(int64) r(obj) int16
-sp_fastinvoke_n  .s w(num64) r(obj) int16
-sp_fastinvoke_s  .s w(str) r(obj) int16
-sp_fastinvoke_o  .s w(obj) r(obj) int16
+# Fast invocation (link directly to an existing spesh candidate).
+sp_fastinvoke_v  .s r(obj) int16 :maycausedeopt
+sp_fastinvoke_i  .s w(int64) r(obj) int16 :maycausedeopt
+sp_fastinvoke_n  .s w(num64) r(obj) int16 :maycausedeopt
+sp_fastinvoke_s  .s w(str) r(obj) int16 :maycausedeopt
+sp_fastinvoke_o  .s w(obj) r(obj) int16 :maycausedeopt
 
 # Spesh plugin resolve instruction's post-spesh from. The bytecode position is
 # included inside of the instruction since it will have moved afterwards, and
 # we also include the static frame so that this instruction can survive being
 # inlined.
-sp_speshresolve     w(obj) str uint32 sslot
+sp_speshresolve     w(obj) str uint32 sslot :maycausedeopt
 
 # Error generation if a named param is unused (name goes in spesh slot).
 sp_paramnamesused   sslot
@@ -930,7 +934,7 @@ sp_getspeshslot  .s w(obj) sslot :pure
 
 # Find method, using spesh slot and the one after it as a cache.
 # Isn't marked invokish, since the check is implemented directly
-sp_findmeth      .s w(obj) r(obj) str sslot :pure
+sp_findmeth      .s w(obj) r(obj) str sslot :pure :maycausedeopt
 
 # Create an object with the first int16's number of bytes size and then
 # set its STable to the STable in the spesh slot.
@@ -991,9 +995,9 @@ sp_boolify_iter_hash  .s w(int64) r(obj) :pure
 
 # Unguarded atomic ops (when we know it's a concrete target that certainly
 # has the operation).
-sp_cas_o            w(obj) r(obj) r(obj) r(obj) :invokish
+sp_cas_o            w(obj) r(obj) r(obj) r(obj) :invokish :maycausedeopt
 sp_atomicload_o     w(obj) r(obj)
-sp_atomicstore_o    r(obj) r(obj) :invokish
+sp_atomicstore_o    r(obj) r(obj) :invokish :maycausedeopt
 
 # Profiler recording ops. Naming convention: start with prof_. Must all be
 # marked .s, which is how the validator knows to exclude them. (For that

@@ -44,6 +44,7 @@ struct MVMOpInfo {
     MVMuint16   num_operands;
     MVMuint8    pure;
     MVMuint8    deopt_point;
+    MVMuint8    may_cause_deopt;
     MVMuint8    logged;
     MVMuint8    no_inline;
     MVMuint8    jittivity;
