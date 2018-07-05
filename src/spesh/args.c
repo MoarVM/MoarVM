@@ -796,8 +796,35 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
  * call_info object. */
 void MVM_spesh_args_from_callinfo(MVMThreadContext *tc, MVMSpeshGraph *g,
                                   MVMSpeshCallInfo *call_info) {
-    /* Transform call info to a type tuple. */
-    MVMSpeshStatsType *tt = MVM_calloc(call_info->cs->flag_count, sizeof(MVMSpeshStatsType));
+    /* Transform call info to a type tuple, and use that. */
+    MVMuint16 i;
+    MVMuint16 flags = call_info->cs->flag_count;
+    MVMSpeshStatsType *tt = MVM_calloc(flags, sizeof(MVMSpeshStatsType));
+    MVMuint16 info_pos = 0;
+    for (i = 0; i < flags; i++) {
+        MVMCallsiteEntry flag = call_info->cs->arg_flags[i];
+        if (flag & MVM_CALLSITE_ARG_NAMED)
+            info_pos++; /* Skip over name. */
+        if (info_pos >= MAX_ARGS_FOR_OPT) {
+            MVM_free(tt);
+            return;
+        }
+        if (flag & MVM_CALLSITE_ARG_OBJ) {
+            MVMSpeshFacts *facts = call_info->arg_facts[info_pos];
+            if (facts) {
+                if (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE &&
+                        (facts->flags & (MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_TYPEOBJ))) {
+                    tt[i].type = facts->type;
+                    tt[i].type_concrete = facts->flags & MVM_SPESH_FACT_CONCRETE;
+                }
+                else if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+                    tt[i].type = STABLE(facts->value.o)->WHAT;
+                    tt[i].type_concrete = IS_CONCRETE(facts->value.o);
+                }
+            }
+        }
+        info_pos++;
+    }
     MVM_spesh_args(tc, g, call_info->cs, tt);
     MVM_free(tt);
 }
