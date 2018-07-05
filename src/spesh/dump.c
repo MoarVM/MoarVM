@@ -59,8 +59,34 @@ typedef struct {
     MVMuint32 inlined_size;
 } SpeshGraphSizeStats;
 
+typedef struct {
+    MVMint32 cur_depth;
+    MVMint32 inline_idx[64];
+} InlineIndexStack;
+
+static void push_inline(MVMThreadContext *tc, InlineIndexStack *stack, MVMint32 idx) {
+    if (stack->cur_depth == 63)
+        MVM_oops(tc, "Too many levels of inlining to dump");
+    stack->cur_depth++;
+    stack->inline_idx[stack->cur_depth] = idx;
+}
+
+static void pop_inline(MVMThreadContext *tc, InlineIndexStack *stack) {
+    stack->cur_depth--;
+    if (stack->cur_depth < -1)
+        MVM_oops(tc, "Too many levels of inlining popped");
+}
+
+static MVMCompUnit * get_current_cu(MVMThreadContext *tc, MVMSpeshGraph *g, InlineIndexStack *stack) {
+    if (stack->cur_depth < 0)
+        return g->sf->body.cu;
+    else
+        return g->inlines[stack->inline_idx[stack->cur_depth]].sf->body.cu;
+}
+
 /* Dumps a basic block. */
-static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpeshBB *bb, SpeshGraphSizeStats *stats) {
+static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                    SpeshGraphSizeStats *stats, InlineIndexStack *inline_stack) {
     MVMSpeshIns *cur_ins;
     MVMint64     i;
     MVMint32     size = 0;
@@ -131,10 +157,12 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                 case MVM_SPESH_ANN_INLINE_START:
                     appendf(ds, "      [Annotation: Inline Start (%d)]\n",
                         ann->data.inline_idx);
+                    push_inline(tc, inline_stack, ann->data.inline_idx);
                     break;
                 case MVM_SPESH_ANN_INLINE_END:
                     appendf(ds, "      [Annotation: Inline End (%d)]\n",
                         ann->data.inline_idx);
+                    pop_inline(tc, inline_stack);
                     break;
                 case MVM_SPESH_ANN_DEOPT_INLINE:
                     appendf(ds, "      [Annotation: INS Deopt Inline (idx %d -> pc %d; line %d)]\n",
@@ -146,7 +174,8 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                     break;
                 case MVM_SPESH_ANN_LINENO: {
                     char *cstr = MVM_string_utf8_encode_C_string(tc,
-                        MVM_cu_string(tc, g->sf->body.cu, ann->data.lineno.filename_string_index));
+                        MVM_cu_string(tc, get_current_cu(tc, g, inline_stack),
+                        ann->data.lineno.filename_string_index));
                     appendf(ds, "      [Annotation: Line Number: %s:%d]\n",
                         cstr, ann->data.lineno.line_number);
                     MVM_free(cstr);
@@ -487,10 +516,12 @@ static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMStaticFrame *sf)
 char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *cur_bb;
     SpeshGraphSizeStats stats;
+    InlineIndexStack inline_stack;
     DumpStr ds;
 
     stats.total_size = 0;
     stats.inlined_size = 0;
+    inline_stack.cur_depth = -1;
 
     /* Allocate buffer. */
     ds.alloc  = 8192;
@@ -513,7 +544,7 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Go over all the basic blocks and dump them. */
     cur_bb = g->entry;
     while (cur_bb) {
-        dump_bb(tc, &ds, g, cur_bb, &stats);
+        dump_bb(tc, &ds, g, cur_bb, &stats, &inline_stack);
         cur_bb = cur_bb->linear_next;
     }
 
