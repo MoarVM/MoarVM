@@ -169,7 +169,8 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
     MVMSpeshGraph *ig;
 
     /* Check bytecode size is within the inline limit. */
-    if (cand->bytecode_size > MVM_SPESH_MAX_INLINE_SIZE) {
+    if (cand->bytecode_size > MVM_SPESH_MAX_INLINE_SIZE &&
+            target_sf->body.bytecode_size > MVM_SPESH_MAX_INLINE_SIZE) {
         *no_inline_reason = "bytecode is too large to inline";
         return NULL;
     }
