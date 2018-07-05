@@ -15,8 +15,6 @@ RM_F   = $(PERL) -MExtUtils::Command -e rm_f
 
 MINGW_UNICODE = @mingw_unicode@
 
-VERSION_DISPLAY = @version@
-
 CONFIG    = @config@
 ADDCONFIG =
 
@@ -550,7 +548,7 @@ reconfig: realclean
 clangcheck gcccheck:
 	@$(MAKE) --no-print-directory -f tools/check.mk $@
 
-moar@exe@: .showversion $(MAIN_OBJECTS) @moar@
+moar@exe@: $(MAIN_OBJECTS) @moar@
 	$(MSG) linking $@
 	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MINGW_UNICODE) $(MAIN_OBJECTS) $(MAIN_LIBS)
 
@@ -702,9 +700,6 @@ release:
 	[ -n "$(VERSION)" ] || ( echo "\nTry 'make release VERSION=yyyy.mm'\n\n"; exit 1 )
 	bash -c 'if [[ $$(git status --untracked=no --porcelain) ]]; then echo "Dirty work trees will make broken releases; maybe git stash?"; exit 1; fi'
 	./tools/release.sh $(VERSION)
-
-.showversion:
-	@echo Building MoarVM version $(VERSION_DISPLAY)...
 
 sandwich:
 	@echo What? Make it yourself.
