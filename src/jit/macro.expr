@@ -3,11 +3,11 @@
 (macro: ^addrf (,object ,type ,field)
     (addr ,object (&offsetof ,type ,field)))
 (macro: ^getf (,object ,type ,field)
-   (load (addr ,object (&offsetof ,type ,field)) (&SIZEOF_MEMBER ,type ,field)))
+   (load (^addrf ,object ,type ,field) (&SIZEOF_MEMBER ,type ,field)))
 (macro: ^setf (,object ,type ,field ,value)
-    (store (addr ,object (&offsetof ,type ,field)) ,value (&SIZEOF_MEMBER ,type ,field)))
+    (store (^addrf ,object ,type ,field) ,value (&SIZEOF_MEMBER ,type ,field)))
 
-(macro: ^cu_callsite (,a) (idx  (^getf (cu) MVMCompUnit body.callsites) ,a ptr_sz))
+(macro: ^cu_callsite_addr (,a) (idx  (^getf (cu) MVMCompUnit body.callsites) ,a ptr_sz))
 
 (macro: ^frame () (^getf (tc) MVMThreadContext cur_frame))
 (macro: ^parg (,a) (idx (^getf (^frame) MVMFrame params.args) ,a reg_sz))

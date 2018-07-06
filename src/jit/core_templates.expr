@@ -156,7 +156,7 @@
 # we can't just toss this in here without also handling all of arg_*
 # and invoke_*.
 #(template: prepargs (^setf (^getf (tc) MVMThreadContext cur_frame) MVMFrame cur_args_callsite
-#                    (^cu_callsite $0)))
+#                    (load (^cu_callsite_addr $0) ptr_sz)))
 
 (template: getcode
   (load (idx (^getf (cu) MVMCompUnit body.coderefs) $1 ptr_sz) ptr_sz))
