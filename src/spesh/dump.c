@@ -425,7 +425,7 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
             operand.reg.i = j;
             if (i < 10) append(ds, " ");
             if (j < 10) append(ds, " ");
-            if (flags || g->facts[i][j].dead_writer || g->facts[i][j].writer && g->facts[i][j].writer->info->opcode == MVM_SSA_PHI) {
+            if (flags || g->facts[i][j].dead_writer || (g->facts[i][j].writer && g->facts[i][j].writer->info->opcode == MVM_SSA_PHI)) {
                 appendf(ds, "    r%d(%d): usages=%d%s", i, j,
                     MVM_spesh_usages_count(tc, g, operand),
                     MVM_spesh_usages_is_used_by_handler(tc, g, operand) ? "+handler" : "");

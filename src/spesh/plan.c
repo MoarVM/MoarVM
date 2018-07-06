@@ -83,7 +83,7 @@ void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
 
     /* If there are enough unaccounted for hits by type specializations, then
      * plan a certain specialization. */
-    if (unaccounted_hits && unaccounted_hits >= MVM_spesh_threshold(tc, sf) ||
+    if ((unaccounted_hits && unaccounted_hits >= MVM_spesh_threshold(tc, sf)) ||
             unaccounted_osr_hits >= MVM_SPESH_PLAN_CS_MIN_OSR)
         add_planned(tc, plan, MVM_SPESH_PLANNED_CERTAIN, sf, by_cs, NULL, NULL, 0);
 }

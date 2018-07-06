@@ -1487,10 +1487,10 @@ static void check_and_tweak_arg_guards(MVMThreadContext *tc, MVMSpeshGraph *g,
                 MVMuint32 need_guard = !arg_facts ||
                     !(arg_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) ||
                     arg_facts->type != t_type ||
-                    type_tuple[i].type_concrete
-                        && !(arg_facts->flags & MVM_SPESH_FACT_CONCRETE) ||
-                    !type_tuple[i].type_concrete
-                        && !(arg_facts->flags & MVM_SPESH_FACT_TYPEOBJ);
+                    (type_tuple[i].type_concrete
+                        && !(arg_facts->flags & MVM_SPESH_FACT_CONCRETE)) ||
+                    (!type_tuple[i].type_concrete
+                        && !(arg_facts->flags & MVM_SPESH_FACT_TYPEOBJ));
                 if (need_guard)
                     insert_arg_type_guard(tc, g, &type_tuple[i], arg_info, arg_idx);
             }
