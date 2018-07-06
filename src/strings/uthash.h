@@ -124,7 +124,7 @@ do {                                                                            
  * If the size of the hashv is changed we will need to change max_hashv_div_phi,
  * to be max_hashv / phi rounded to the nearest *odd* number.
  * max_hashv / phi = 2654435769 */
-const static uint32_t max_hashv_div_phi = 2654435769;
+const static uint32_t max_hashv_div_phi = 2654435769LLU;
 #define DETERMINE_BUCKET_FIB(hashv, offset) \
     (((hashv) * max_hashv_div_phi) >> (32 - offset))
 
@@ -177,6 +177,7 @@ MVM_STATIC_INLINE MVMuint32 ptr_hash_32_to_32(uintptr_t u) {
 #define ptr_hash(u) \
     ptr_hash_64_to_64(u)
 #else
+#define ptr_hash(u) \
     ptr_hash_32_to_32(u)
 #endif
 
