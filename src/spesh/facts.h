@@ -31,8 +31,11 @@ struct MVMSpeshFacts {
     /* The log guard the facts depend on, if any. */
     MVMuint32 log_guard;
 
+    /* Does the instruction need to be preserved for the sake of deopt? */
+    MVMuint16 deopt_required;
+
     /* Has the instruction that wrote this value been deleted? */
-    MVMuint32 dead_writer;
+    MVMuint16 dead_writer;
 };
 
 /* Various fact flags. */
@@ -57,3 +60,4 @@ void MVM_spesh_facts_depend(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVMSpeshFacts *target, MVMSpeshFacts *source);
 void MVM_spesh_facts_object_facts(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVMSpeshOperand tgt, MVMObject *obj);
+MVMint32 MVM_spesh_facts_is_used(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand operand);

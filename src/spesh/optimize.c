@@ -2416,8 +2416,7 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 while (ins) {
                     MVMSpeshIns *prev = ins->prev;
                     if (ins->info->opcode == MVM_SSA_PHI) {
-                        MVMSpeshFacts *facts = get_facts_direct(tc, g, ins->operands[0]);
-                        if (facts->usages == 0) {
+                        if (!MVM_spesh_facts_is_used(tc, g, ins->operands[0])) {
                             /* Remove this phi. */
                             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
                             death = 1;
@@ -2426,8 +2425,7 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
                     else if (ins->info->pure) {
                         /* Sanity check to make sure it's a write reg as first operand. */
                         if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
-                            MVMSpeshFacts *facts = get_facts_direct(tc, g, ins->operands[0]);
-                            if (facts->usages == 0) {
+                            if (!MVM_spesh_facts_is_used(tc, g, ins->operands[0])) {
                                 /* Remove this instruction. */
                                 MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
                                 death = 1;
@@ -2512,7 +2510,7 @@ static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
             ins->prev->operands[0].reg.orig == ins->operands[1].reg.orig &&
             ins->prev->operands[0].reg.i == ins->operands[1].reg.i) {
         MVMSpeshFacts *elim_facts = get_facts_direct(tc, g, ins->operands[1]);
-        if (elim_facts->usages == 1 && within_inline(tc, g, bb, ins->operands[0])) {
+        if (elim_facts->usages == 1 && !elim_facts->deopt_required && within_inline(tc, g, bb, ins->operands[0])) {
             ins->prev->operands[0].reg = ins->operands[0].reg;
             get_facts_direct(tc, g, ins->prev->operands[0])->writer = ins->prev;
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);

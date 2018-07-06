@@ -477,7 +477,9 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             if ((is_phi && i > 0)
                 || (!is_phi && (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)) {
                 MVMSpeshFacts *facts = &(g->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i]);
-                facts->usages += facts->deopt_idx == cur_deopt_idx ? 1 : 2;
+                facts->usages++;
+                if (facts->deopt_idx != cur_deopt_idx)
+                    facts->deopt_required = 1;
             }
 
             /* Writes need the current deopt index and the writing instruction
@@ -746,4 +748,11 @@ static void tweak_block_handler_usage(MVMThreadContext *tc, MVMSpeshGraph *g) {
 void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p) {
     add_bb_facts(tc, g, g->entry, p, -1);
     tweak_block_handler_usage(tc, g);
+}
+
+/* Checks if an operand is in use, either by having a non-zero usage count or
+ * being required for deopt. */
+MVMint32 MVM_spesh_facts_is_used(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand operand) {
+   MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, operand);
+   return facts->usages > 0 || facts->deopt_required;
 }

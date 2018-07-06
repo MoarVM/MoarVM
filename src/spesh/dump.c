@@ -400,10 +400,12 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
         for (j = 0; j < num_facts; j++) {
             MVMint32 usages = g->facts[i][j].usages;
             MVMint32 flags  = g->facts[i][j].flags;
+            MVMuint16 deopt_required = g->facts[i][j].deopt_required;
             if (i < 10) append(ds, " ");
             if (j < 10) append(ds, " ");
             if (flags || g->facts[i][j].dead_writer || g->facts[i][j].writer && g->facts[i][j].writer->info->opcode == MVM_SSA_PHI) {
-                appendf(ds, "    r%d(%d): usages=%d, flags=%-5d", i, j, usages, flags);
+                appendf(ds, "    r%d(%d): usages=%d%s, flags=%-5d", i, j, usages,
+                    deopt_required ? "+deopt" : "", flags);
                 if (flags & 1) {
                     append(ds, " KnTyp");
                 }
