@@ -91,13 +91,11 @@ void MVM_load_bytecode_fh(MVMThreadContext *tc, MVMObject *oshandle, MVMString *
     if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle)
         MVM_exception_throw_adhoc(tc, "loadbytecodefh requires an object with REPR MVMOSHandle");
 
-    MVMROOT(tc, filename, {
-        MVMuint64 pos = MVM_io_tell(tc, oshandle);
-        cu = MVM_cu_map_from_file_handle(tc, MVM_io_fileno(tc, oshandle), pos);
-        cu->body.filename = filename;
+    MVMuint64 pos = MVM_io_tell(tc, oshandle);
+    cu = MVM_cu_map_from_file_handle(tc, MVM_io_fileno(tc, oshandle), pos);
+    cu->body.filename = filename;
 
-        run_comp_unit(tc, cu);
-    });
+    run_comp_unit(tc, cu);
 }
 
 /* Callback after running deserialize code to run the load code. */
