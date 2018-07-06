@@ -2139,15 +2139,15 @@ MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint
     case MVM_STRING_IN_SITU_8:
         if (can_fit_into_8bit(search)) {
             MVMStringIndex i;
-            for (i = 0; i < bgraphs; i++)
-                if (b->body.storage.in_situ_8[i] == search)
+            for (i = 0; i < H_graphs; i++)
+                if (Haystack->body.storage.in_situ_8[i] == search)
                     return i;
         }
         break;
     case MVM_STRING_IN_SITU_32: {
         MVMStringIndex i;
-        for (i = 0; i < bgraphs; i++)
-            if (b->body.storage.in_situ_32[i] == search)
+        for (i = 0; i < H_graphs; i++)
+            if (Haystack->body.storage.in_situ_32[i] == search)
                 return i;
         break;
     }
