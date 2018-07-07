@@ -132,6 +132,13 @@
       (carg $0 int)
       (carg $1 int))))
 
+(template: param_rp_i
+  (call (^func &MVM_args_get_required_pos_int)
+    (arglist
+      (carg (tc)      ptr)
+      (carg (^params) ptr)
+      (carg $1        ptr)) int_sz))
+
 (template: param_rp_s
   (call (^func &MVM_args_get_required_pos_str)
     (arglist
