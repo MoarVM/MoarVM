@@ -1460,6 +1460,53 @@
           (carg $1   ptr)
           (carg $2   ptr)) int_sz))))
 
+(template: bor_I
+  (call (^func &MVM_bigint_or)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: bxor_I
+  (call (^func &MVM_bigint_xor)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: band_I
+  (call (^func &MVM_bigint_and)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: bnot_I
+  (call (^func &MVM_bigint_not)
+    (arglist
+      (carg (tc) ptr)
+      (carg $2   ptr)
+      (carg $1   ptr)) ptr_sz))
+
+(template: blshift_I
+  (call (^func &MVM_bigint_shl)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   int)) ptr_sz))
+
+(template: brshift_I
+  (call (^func &MVM_bigint_shr)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   int)) ptr_sz))
+
 (template: pow_I
   (call (^func &MVM_bigint_pow)
     (arglist
