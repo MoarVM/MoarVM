@@ -491,7 +491,7 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 facts->deopt_idx = next_deopt_idx;
                 facts->writer    = ins;
                 if (is_deopt_ins)
-                    facts->usages++;
+                    facts->deopt_required = 1;
             }
         }
 
