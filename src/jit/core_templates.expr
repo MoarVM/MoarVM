@@ -1568,6 +1568,25 @@
       (carg $1 ptr)
       (carg $2 ptr)) ptr_sz))
 
+(template: isbig_I
+  (call (^func &MVM_bigint_is_big)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
+
+(template: bool_I
+  (call (^func &MVM_bigint_bool)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
+
+(template: base_I
+  (call (^func &MVM_bigint_to_str)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   int)) ptr_sz))
+
 (template: say
   (callv (^func &MVM_string_say)
     (arglist
