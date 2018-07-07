@@ -1355,6 +1355,46 @@
     (^getf $caller MVMFrame code_ref)
     (const 0 ptr_sz))))
 
+(template: add_I
+  (call (^func &MVM_bigint_add)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: sub_I
+  (call (^func &MVM_bigint_sub)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: mul_I
+  (call (^func &MVM_bigint_mul)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: div_I
+  (call (^func &MVM_bigint_div)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: mod_I
+  (call (^func &MVM_bigint_mod)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
 (template: coerce_sI
   (call (^func &MVM_coerce_sI)
     (arglist
