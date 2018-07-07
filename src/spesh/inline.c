@@ -195,7 +195,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
             MVMuint16 reg = ig->inlines[i].code_ref_reg;
             MVMuint32 j;
             for (j = 0; j < ig->fact_counts[reg]; j++)
-                ig->facts[reg][j].usages++;
+                MVM_spesh_usages_add_for_deopt(tc, ig, &(ig->facts[reg][j]));
         }
         return ig;
     }
@@ -928,7 +928,7 @@ static void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                      * argument passing instruction. */
                     ins->info = MVM_op_get_op(MVM_OP_set);
                     ins->operands[1] = arg_ins->operands[1];
-                    MVM_spesh_get_facts(tc, inliner, ins->operands[1])->usages++;
+                    MVM_spesh_usages_add_by_reg(tc, inliner, ins->operands[1], ins);
                     MVM_spesh_manipulate_delete_ins(tc, inliner,
                         call_info->prepargs_bb, arg_ins);
                     break;
@@ -936,19 +936,19 @@ static void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     arg_ins->info        = MVM_op_get_op(MVM_OP_const_i64);
                     arg_ins->operands[0] = ins->operands[0];
                     MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
-                    MVM_spesh_get_facts(tc, inliner, arg_ins->operands[0])->usages++;
+                    MVM_spesh_usages_add_by_reg(tc, inliner, ins->operands[0], arg_ins);
                     break;
                 case MVM_OP_argconst_n:
                     arg_ins->info        = MVM_op_get_op(MVM_OP_const_n64);
                     arg_ins->operands[0] = ins->operands[0];
                     MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
-                    MVM_spesh_get_facts(tc, inliner, arg_ins->operands[0])->usages++;
+                    MVM_spesh_usages_add_by_reg(tc, inliner, ins->operands[0], arg_ins);
                     break;
                 case MVM_OP_argconst_s:
                     arg_ins->info        = MVM_op_get_op(MVM_OP_const_s);
                     arg_ins->operands[0] = ins->operands[0];
                     MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
-                    MVM_spesh_get_facts(tc, inliner, arg_ins->operands[0])->usages++;
+                    MVM_spesh_usages_add_by_reg(tc, inliner, ins->operands[0], arg_ins);
                     break;
                 default:
                     MVM_oops(tc,
