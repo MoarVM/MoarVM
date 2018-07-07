@@ -1395,6 +1395,71 @@
       (carg $1   ptr)
       (carg $2   ptr)) ptr_sz))
 
+(template: cmp_I
+  (call (^func &MVM_bigint_cmp)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) int_sz))
+
+(template: eq_I
+  (flagval
+    (zr
+      (call (^func &MVM_bigint_cmp)
+        (arglist
+          (carg (tc) ptr)
+          (carg $1   ptr)
+          (carg $2   ptr)) int_sz))))
+
+(template: ne_I
+  (flagval
+    (nz
+      (call (^func &MVM_bigint_cmp)
+        (arglist
+          (carg (tc) ptr)
+          (carg $1   ptr)
+          (carg $2   ptr)) int_sz))))
+
+(template: lt_I
+  (flagval
+    (eq
+      (const (&QUOTE MP_LT) int_sz)
+      (call (^func &MVM_bigint_cmp)
+        (arglist
+          (carg (tc) ptr)
+          (carg $1   ptr)
+          (carg $2   ptr)) int_sz))))
+
+(template: le_I
+  (flagval
+    (ne
+      (const (&QUOTE MP_GT) int_sz)
+      (call (^func &MVM_bigint_cmp)
+        (arglist
+          (carg (tc) ptr)
+          (carg $1   ptr)
+          (carg $2   ptr)) int_sz))))
+
+(template: gt_I
+  (flagval
+    (eq
+      (const (&QUOTE MP_GT) int_sz)
+      (call (^func &MVM_bigint_cmp)
+        (arglist
+          (carg (tc) ptr)
+          (carg $1   ptr)
+          (carg $2   ptr)) int_sz))))
+
+(template: ge_I
+  (flagval
+    (ne
+      (const (&QUOTE MP_LT) int_sz)
+      (call (^func &MVM_bigint_cmp)
+        (arglist
+          (carg (tc) ptr)
+          (carg $1   ptr)
+          (carg $2   ptr)) int_sz))))
+
 (template: coerce_sI
   (call (^func &MVM_coerce_sI)
     (arglist
