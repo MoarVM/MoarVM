@@ -1485,6 +1485,20 @@
       (carg $1   ptr)
       (carg $2   ptr)) ptr_sz))
 
+(template: isprime_I
+  (call (^func &MVM_bigint_is_prime)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   int)) int_sz))
+
+(template: rand_I
+  (call (^func &MVM_bigint_rand)
+    (arglist
+      (carg (tc) ptr)
+      (carg $2   ptr)
+      (carg $1   ptr)) ptr_sz))
+
 (template: coerce_sI
   (call (^func &MVM_coerce_sI)
     (arglist
