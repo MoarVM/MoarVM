@@ -1,4 +1,4 @@
-/* Facts we might have about a local. */
+/* Facts we might have about a particular SSA version of a register. */
 struct MVMSpeshFacts {
     /* Flags indicating things we know. */
     MVMint32 flags;
@@ -23,6 +23,10 @@ struct MVMSpeshFacts {
     /* The instruction that writes the register (noting we're in SSA form, so
      * this is unique). */
     MVMSpeshIns *writer;
+
+    /* Usages of this version of the register; thanks to SSA form, this taken
+     * together with writer form a define-use chain. */
+    MVMSpeshUsages usage;
 
     /* The deoptimization index in effect at the point of declaration, or -1
      * if none yet. */

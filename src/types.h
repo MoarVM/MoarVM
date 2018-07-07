@@ -198,6 +198,8 @@ typedef struct MVMSpeshPlan MVMSpeshPlan;
 typedef struct MVMSpeshPlanned MVMSpeshPlanned;
 typedef struct MVMSpeshArgGuard MVMSpeshArgGuard;
 typedef struct MVMSpeshArgGuardNode MVMSpeshArgGuardNode;
+typedef struct MVMSpeshUsages MVMSpeshUsages;
+typedef struct MVMSpeshUseChainEntry MVMSpeshUseChainEntry;
 typedef struct MVMSTable MVMSTable;
 typedef struct MVMStaticFrame MVMStaticFrame;
 typedef struct MVMStaticFrameBody MVMStaticFrameBody;
