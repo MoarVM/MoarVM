@@ -1485,6 +1485,21 @@
       (carg $1   ptr)
       (carg $2   ptr)) ptr_sz))
 
+(template: expmod_I!
+  (let: (($res (call (^func &MVM_repr_alloc_init)
+                 (arglist
+                   (carg (tc) ptr)
+                   (carg $4   ptr)) ptr_sz)))
+    (dov
+      (store $0 $res ptr_sz)
+      (callv (^func &MVM_bigint_expmod)
+        (arglist
+          (carg (tc) ptr)
+          (carg $0   ptr)
+          (carg $1   ptr)
+          (carg $2   ptr)
+          (carg $3   ptr))))))
+
 (template: isprime_I
   (call (^func &MVM_bigint_is_prime)
     (arglist
