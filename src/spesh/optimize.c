@@ -2368,6 +2368,9 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
                 optimize_extop(tc, g, bb, ins);
         }
 
+#if MVM_SPESH_CHECK_DU
+        MVM_spesh_usages_check(tc, g);
+#endif
         ins = ins->next;
     }
 }
