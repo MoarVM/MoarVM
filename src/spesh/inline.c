@@ -750,6 +750,7 @@ static void return_to_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *r
     operands[1]               = return_ins->operands[0];
     return_ins->info          = MVM_op_get_op(MVM_OP_set);
     return_ins->operands      = operands;
+    MVM_spesh_get_facts(tc, g, target)->writer = return_ins;
 }
 
 static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *return_bb,
@@ -764,6 +765,7 @@ static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *re
     box_operands[1]               = return_ins->operands[0];
     box_operands[2]               = target;
     MVM_spesh_manipulate_insert_ins(tc, return_bb, return_ins, box_ins);
+    MVM_spesh_get_facts(tc, g, target)->writer = box_ins;
 
     /* Now turn return instruction node into lookup of appropriate box
      * type. */
