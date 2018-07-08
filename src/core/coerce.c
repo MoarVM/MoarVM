@@ -146,7 +146,60 @@ static void flip_return(MVMThreadContext *tc, void *sr_data) {
     MVMRegister *r = (MVMRegister *)sr_data;
     r->i64 = r->i64 ? 0 : 1;
 }
+/* ui64toa and i64toa
+ * Copyright(c) 2014-2016 Milo Yip (miloyip@gmail.com)
+ * https://github.com/miloyip/itoa-benchmark
+ * With minor modifications.
 
+ Copyright (C) 2014 Milo Yip
+
+MIT License:
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE. */
+static char * u64toa_naive_worker(uint64_t value, char* buffer) {
+    char temp[20];
+    char *p = temp;
+    do {
+        *p++ = (char)(value % 10) + '0';
+        value /= 10;
+    } while (value > 0);
+
+    do {
+        *buffer++ = *--p;
+    } while (p != temp);
+
+    *buffer = '\0';
+    return buffer;
+}
+static size_t i64toa_naive(int64_t value, char* buffer) {
+    uint64_t u = value;
+    char *buf = buffer;
+    if (value < 0) {
+        *buf++ = '-';
+        u = ~u + 1;
+    }
+    return u64toa_naive_worker(u, buf) - buffer;
+}
+/* End code */
+static size_t u64toa_naive(uint64_t value, char* buffer) {
+    return u64toa_naive_worker(value, buffer) - buffer;
+}
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
     char buffer[64];
     int len;
@@ -157,11 +210,13 @@ MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
         if (cached)
             return cached;
     }
-
     /* Otherwise, need to do the work; cache it if in range. */
-    len = snprintf(buffer, 64, "%"PRIi64"", i);
+    len = i64toa_naive(i, buffer);
     if (0 <= len) {
-        MVMString *result = MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, len);
+        MVMString *result = NULL;
+        MVMGrapheme8 *blob = MVM_malloc(len);
+        memcpy(blob, buffer, len);
+        result = MVM_string_ascii_from_buf_nocheck(tc, blob, len);
         if (cache)
             tc->instance->int_to_str_cache[i] = result;
         return result;
@@ -181,11 +236,13 @@ MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i) {
         if (cached)
             return cached;
     }
-
     /* Otherwise, need to do the work; cache it if in range. */
-    len = snprintf(buffer, 64, "%"PRIu64"", i);
+    len = u64toa_naive(i, buffer);
     if (0 <= len) {
-        MVMString *result = MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, len);
+        MVMString *result = NULL;
+        MVMGrapheme8 *blob = MVM_malloc(len);
+        memcpy(blob, buffer, len);
+        result = MVM_string_ascii_from_buf_nocheck(tc, blob, len);
         if (cache)
             tc->instance->int_to_str_cache[i] = result;
         return result;
@@ -207,10 +264,14 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
     }
     else {
         char buf[64];
-        int i;
         if (dtoa_grisu3(n, buf, 64) < 0)
             MVM_exception_throw_adhoc(tc, "Could not stringify number");
-        return MVM_string_ascii_decode(tc, tc->instance->VMString, buf, strlen(buf));
+        else {
+            MVMStringIndex len = strlen(buf);
+            MVMGrapheme8 *blob = MVM_malloc(len);
+            memcpy(blob, buf, len);
+            return MVM_string_ascii_from_buf_nocheck(tc, blob, len);
+        }
     }
 }
 

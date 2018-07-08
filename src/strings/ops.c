@@ -1911,6 +1911,13 @@ MVM_STATIC_INLINE MVMString * join_get_str_from_pos(MVMThreadContext *tc, MVMObj
     }
     return (MVMString*)NULL;
 }
+MVMString * MVM_string_ascii_from_buf_nocheck(MVMThreadContext *tc, MVMGrapheme8 *buf, MVMStringIndex len) {
+    MVMString *result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    result->body.num_graphs     = len;
+    result->body.storage_type   = MVM_STRING_GRAPHEME_ASCII;
+    result->body.storage.blob_8 = buf;
+    return result;
+}
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObject *input) {
     MVMString  *result = NULL;
     MVMString **pieces = NULL;
