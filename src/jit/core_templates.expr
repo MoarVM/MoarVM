@@ -2107,7 +2107,7 @@
             (carg $1 ptr)
             (carg (^nullptr) ptr)) ptr_sz)))))
 
-(template: getstrfromname
+(template: strfromname
   (call (^func &MVM_unicode_string_from_name)
     (arglist
       (carg (tc) ptr)

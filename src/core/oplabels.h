@@ -760,7 +760,7 @@ static const void * const LABELS[] = {
     &&OP_captureinnerlex,
     &&OP_unicmp_s,
     &&OP_setdispatcherfor,
-    &&OP_getstrfromname,
+    &&OP_strfromname,
     &&OP_indexic_s,
     &&OP_getport_sk,
     &&OP_cpucores,

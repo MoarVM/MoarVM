@@ -760,7 +760,7 @@
 #define MVM_OP_captureinnerlex 756
 #define MVM_OP_unicmp_s 757
 #define MVM_OP_setdispatcherfor 758
-#define MVM_OP_getstrfromname 759
+#define MVM_OP_strfromname 759
 #define MVM_OP_indexic_s 760
 #define MVM_OP_getport_sk 761
 #define MVM_OP_cpucores 762
