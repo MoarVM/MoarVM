@@ -1545,6 +1545,7 @@ static void tweak_for_target_sf(MVMThreadContext *tc, MVMSpeshGraph *g,
     resolve->operands[1] = ins->operands[inv_code_index];
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, resolve);
+    MVM_spesh_get_facts(tc, g, temp)->writer = resolve;
 
     /* Insert guard instruction before the prepargs. */
     deopt_target = find_deopt_target(tc, g, arg_info->prepargs_ins);
