@@ -1,3 +1,6 @@
+/* Option to enable checking of define/use chains for debugging purposes. */
+#define MVM_SPESH_CHECK_DU 1
+
 /* Usage information, which is held per SSA written register. */
 struct MVMSpeshUsages {
     /* The use chain entries. */
@@ -30,3 +33,6 @@ MVMuint32 MVM_spesh_usages_is_used_by_deopt(MVMThreadContext *tc, MVMSpeshGraph 
 MVMuint32 MVM_spesh_usages_is_used_by_handler(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand check);
 MVMuint32 MVM_spesh_usages_used_once(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand check);
 MVMuint32 MVM_spesh_usages_count(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand check);
+#if MVM_SPESH_CHECK_DU
+void MVM_spesh_usages_check(MVMThreadContext *tc, MVMSpeshGraph *g);
+#endif
