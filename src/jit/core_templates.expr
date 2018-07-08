@@ -1602,6 +1602,12 @@
       (carg $1   ptr)
       (carg $2   int)) ptr_sz))
 
+(template: print
+  (callv (^func &MVM_string_print)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr))))
+
 (template: say
   (callv (^func &MVM_string_say)
     (arglist
