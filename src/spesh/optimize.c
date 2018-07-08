@@ -1701,25 +1701,27 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             MVMSpeshIns *ss_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
             ss_ins->info        = MVM_op_get_op(MVM_OP_sp_getspeshslot);
             ss_ins->operands    = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
-            ss_ins->operands[0] = ins->operands[callee_idx];
+            code_temp           = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+            have_code_temp      = 1;
+            ss_ins->operands[0] = code_temp;
             ss_ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
                 (MVMCollectable *)target);
-            /* Basically, we're inserting between arg* and invoke_*.
+            MVM_spesh_get_facts(tc, g, code_temp)->writer = ss_ins;
+            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[callee_idx], ins);
+            ins->operands[callee_idx] = code_temp;
+            MVM_spesh_usages_add_by_reg(tc, g, ins->operands[callee_idx], ins);
+            /* Naively, we'd be inserting between arg* and invoke_*.
              * Since invoke_* directly uses the code in the register,
              * the register must have held the code during the arg*
              * instructions as well, because none of {prepargs, arg*}
              * can manipulate the register that holds the code.
              *
-             * To make a long story very short, I think it should be
-             * safe to move the sp_getspeshslot to /before/ the
+             * It's safe to move the sp_getspeshslot to /before/ the
              * prepargs instruction. And this is very convenient for
-             * me, as it allows me to treat set of prepargs, arg*,
+             * the JIT, as it allows us to treat set of prepargs, arg*,
              * invoke, as a /single node/, and this greatly simplifies
              * invoke JIT compilation */
-
             MVM_spesh_manipulate_insert_ins(tc, bb, pa_ins->prev, ss_ins);
-            /* XXX TODO: Do this differently so we can eliminate the original
-             * lookup of the enclosing code object also. */
         }
 
         /* Extract the target static frame from the target code object; we
