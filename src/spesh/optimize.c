@@ -1147,13 +1147,13 @@ static void optimize_object_conditional(MVMThreadContext *tc, MVMSpeshGraph *g, 
     new_ins->operands[0] = temp;
     new_ins->operands[1] = target;
     MVM_spesh_manipulate_insert_ins(tc, bb, ins, new_ins);
-    temp_facts->writer = new_ins;
 
     /* Tweak existing instruction to istrue */
     ins->info = MVM_op_get_op(MVM_OP_istrue);
-    ins->operands[1] = condition;
     ins->operands[0] = temp;
+    ins->operands[1] = condition;
     MVM_spesh_usages_add(tc, g, temp_facts, ins);
+    temp_facts->writer = ins;
 
     /* try to optimize the istrue */
     optimize_istrue_isfalse(tc, g, bb, ins);
