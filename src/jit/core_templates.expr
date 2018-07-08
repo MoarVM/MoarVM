@@ -254,7 +254,7 @@
       (carg $1   ptr)
       (carg $2   ptr)) ptr_sz))
 
-(template: null_s (const 0 ptr_sz))
+(template: null_s (^nullptr))
 
 (template: isnull_s (flagval (zr $1)))
 
@@ -584,7 +584,7 @@
       (carg $1 ptr)
       (carg $2 ptr)
       (carg $3 ptr)
-      (carg (const 0 ptr_sz) ptr)) ptr_sz))
+      (carg (^nullptr) ptr)) ptr_sz))
 
 (template: decode
   (call (^func &MVM_string_decode_from_buf)
@@ -1135,8 +1135,8 @@
       (carg (tc) ptr)
       (carg $1 ptr)
       (carg $0 ptr)
-      (carg (const 0 ptr_sz) ptr)
-      (carg (const 0 ptr_sz) ptr)
+      (carg (^nullptr) ptr)
+      (carg (^nullptr) ptr)
       (carg (const 0 int_sz) int))))
 
 (template: isfalse!
@@ -1145,8 +1145,8 @@
       (carg (tc) ptr)
       (carg $1 ptr)
       (carg $0 ptr)
-      (carg (const 0 ptr_sz) ptr)
-      (carg (const 0 ptr_sz) ptr)
+      (carg (^nullptr) ptr)
+      (carg (^nullptr) ptr)
       (carg (const 1 int_sz) int))))
 
 (template: bootint      (^get_instance_field boot_types.BOOTInt))
@@ -1295,7 +1295,7 @@
 (template: setdispatcher!
   (dov
     (^setf (tc) MVMThreadContext cur_dispatcher $0)
-    (^setf (tc) MVMThreadContext cur_dispatcher_for (const 0 ptr_sz))))
+    (^setf (tc) MVMThreadContext cur_dispatcher_for (^nullptr))))
 
 (template: takedispatcher
   (let: (($disp     (^getf (tc) MVMThreadContext cur_dispatcher))
@@ -1307,7 +1307,7 @@
             (zr $disp_for)
             (eq $disp_for $cur_code)))
       (do
-        (store (^getf (tc) MVMThreadContext cur_dispatcher) (const 0 ptr_sz) ptr_sz)
+        (store (^getf (tc) MVMThreadContext cur_dispatcher) (^nullptr) ptr_sz)
         $disp)
       (^vmnull))))
 
@@ -1368,7 +1368,7 @@
   (let: (($caller (^getf (^frame) MVMFrame caller)))
   (if (nz $caller)
     (^getf $caller MVMFrame code_ref)
-    (const 0 ptr_sz))))
+    (^nullptr))))
 
 (template: add_I
   (call (^func &MVM_bigint_add)
@@ -1746,8 +1746,8 @@
     (arglist
       (carg (tc) ptr)
       (carg $0   ptr)
-      (carg (const 0 ptr_sz) ptr)
-      (carg (const 0 ptr_sz) ptr))))
+      (carg (^nullptr) ptr)
+      (carg (^nullptr) ptr))))
 
 (template: signal
   (call (^func &MVM_io_signal_handle)
@@ -1946,7 +1946,7 @@
           (arglist
             (carg (tc) ptr)
             (carg $1 ptr)
-            (carg (const 0 ptr_sz) ptr)) ptr_sz)))))
+            (carg (^nullptr) ptr)) ptr_sz)))))
 
 (template: getstrfromname
   (call (^func &MVM_unicode_string_from_name)
@@ -2001,7 +2001,7 @@
       (carg $1   ptr)
       (carg $2   ptr)
       (carg $3   ptr)
-      (carg (const 0 ptr_sz) ptr)
+      (carg (^nullptr) ptr)
       (carg $4   int)) ptr_sz))
 
 (template: decodeconf
@@ -2010,7 +2010,7 @@
       (carg (tc) ptr)
       (carg $1   ptr)
       (carg $2   ptr)
-      (carg (const 0 ptr_sz) ptr)
+      (carg (^nullptr) ptr)
       (carg $3   int)) ptr_sz))
 
 (template: decoderepconf
