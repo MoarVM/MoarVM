@@ -646,6 +646,14 @@
       (carg (^cu_string $2) ptr)
       (carg $0 ptr))))
 
+(template: can_s!
+  (callv (^func &MVM_6model_can_method)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)
+      (carg $0   ptr))))
+
 (template: create!
   (let: (($obj (call (^getf (^repr $1) MVMREPROps allocate)
                  (arglist
