@@ -756,6 +756,8 @@ static void return_to_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *r
 static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *return_bb,
                    MVMSpeshIns *return_ins, MVMSpeshOperand target,
                    MVMuint16 box_type_op, MVMuint16 box_op) {
+    MVMSpeshOperand type_temp     = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+
     /* Create and insert boxing instruction after current return instruction. */
     MVMSpeshIns      *box_ins     = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     MVMSpeshOperand *box_operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
@@ -763,14 +765,18 @@ static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *re
     box_ins->operands             = box_operands;
     box_operands[0]               = target;
     box_operands[1]               = return_ins->operands[0];
-    box_operands[2]               = target;
+    box_operands[2]               = type_temp;
     MVM_spesh_manipulate_insert_ins(tc, return_bb, return_ins, box_ins);
     MVM_spesh_get_facts(tc, g, target)->writer = box_ins;
 
     /* Now turn return instruction node into lookup of appropriate box
      * type. */
     return_ins->info        = MVM_op_get_op(box_type_op);
-    return_ins->operands[0] = target;
+    return_ins->operands[0] = type_temp;
+
+    MVM_spesh_get_facts(tc, g, type_temp)->writer = return_ins;
+
+    MVM_spesh_manipulate_release_temp_reg(tc, g, type_temp);
 }
 
 static void rewrite_int_return(MVMThreadContext *tc, MVMSpeshGraph *g,
