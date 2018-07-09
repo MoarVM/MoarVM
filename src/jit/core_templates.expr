@@ -1250,12 +1250,6 @@
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
 
-(template: isinvokable
-  (if
-    (eq (^getf (^stable $1) MVMSTable invoke) (^func &MVM_6model_invoke_default))
-    (flagval (nz (^getf (^stable $1) MVMSTable invocation_spec)))
-    (const 1 int_sz)))
-
 (template: iscoderef
   (if
     (any
@@ -1269,6 +1263,12 @@
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
+
+(template: isinvokable
+  (if
+    (eq (^getf (^stable $1) MVMSTable invoke) (^func &MVM_6model_invoke_default))
+    (flagval (nz (^getf (^stable $1) MVMSTable invocation_spec)))
+    (const 1 int_sz)))
 
 (template: setdispatcher!
   (dov
@@ -1347,6 +1347,14 @@
   (if (nz $caller)
     (^getf $caller MVMFrame code_ref)
     (const 0 ptr_sz))))
+
+(template: add_I
+  (call (^func &MVM_bigint_add)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3 ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)) ptr_sz))
 
 (template: coerce_sI
   (call (^func &MVM_coerce_sI)
@@ -1623,16 +1631,6 @@
       (carg (tc) ptr)
       (carg $1 ptr)
       (carg $2 int)) int_sz))
-(template: coerce_iu  (copy $1))
-
-(template: coerce_ui  (copy $1))
-
-(template: decont_u!
-  (callv (^func &MVM_6model_container_decont_u)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $0 ptr))))
 
 (template: isrwcont
   (if
@@ -1646,6 +1644,16 @@
             (carg (tc) ptr)
             (carg $1 ptr)) int_sz)
         (const 0 int_sz)))))
+(template: coerce_iu  (copy $1))
+
+(template: coerce_ui  (copy $1))
+
+(template: decont_u!
+  (callv (^func &MVM_6model_container_decont_u)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $0 ptr))))
 (template: lastexpayload
   (^getf (tc) MVMThreadContext last_payload))
 
