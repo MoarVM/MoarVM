@@ -99,6 +99,21 @@ void MVM_spesh_usages_check(MVMThreadContext *tc, MVMSpeshGraph *g) {
                         || (!is_phi && (cur_ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)) {
                     /* It's a read. */
                     MVMSpeshFacts *facts = &(g->facts[cur_ins->operands[i].reg.orig][cur_ins->operands[i].reg.i]);
+                    MVMSpeshUseChainEntry *use_entry = facts->usage.users;
+                    MVMuint32 found = 0;
+                    while (use_entry) {
+                        if (use_entry->user == cur_ins) {
+                            found = 1;
+                            break;
+                        }
+                        use_entry = use_entry->next;
+                    }
+                    if (!found)
+                        MVM_oops(tc, "Malformed DU chain: reader %s of %d(%d) in BB %d missing\n%s",
+                            is_phi ? "PHI" : cur_ins->info->name,
+                            cur_ins->operands[i].reg.orig, cur_ins->operands[i].reg.i,
+                            cur_bb->idx,
+                            MVM_spesh_dump(tc, g));
                 }
                 else if ((is_phi && i == 0)
                        || (!is_phi && (cur_ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_write_reg)) {
