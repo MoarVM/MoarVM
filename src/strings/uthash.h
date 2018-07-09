@@ -636,13 +636,13 @@ MVM_STATIC_INLINE void * HASH_ITER_FIRST_ITEM(
 #define HASH_ITER_FAST(tc, hh, hash, current, code) do {\
     unsigned bucket_tmp = 0;\
     struct UT_hash_table *ht;\
-    if (hash && (ht = hash->hash_handle.tbl)) {\
+    if (hash && (ht = hash->hh.tbl)) {\
         while (bucket_tmp < ht->num_buckets) {\
             struct UT_hash_handle *current_hh = ht->buckets[bucket_tmp].hh_head;\
             while (current_hh) {\
                 current = ELMT_FROM_HH(ht, current_hh);\
-                code \
                 current_hh = current_hh->hh_next;\
+                code \
             }\
             (bucket_tmp)++;\
         }\
@@ -652,14 +652,14 @@ MVM_STATIC_INLINE void * HASH_ITER_FIRST_ITEM(
 #define HASH_ITER(tc, hh, hash, current, code) do { \
     unsigned bucket_tmp = 0; \
     struct UT_hash_table *ht; \
-    if (hash && (ht = hash->hash_handle.tbl)) { \
+    if (hash && (ht = hash->hh.tbl)) { \
         while (bucket_tmp < ht->num_buckets) { \
             struct UT_hash_handle *current_hh = \
                 ht->buckets[GET_PRAND_BKT(bucket_tmp, ht)].hh_head; \
             while (current_hh) {\
                 current = ELMT_FROM_HH(ht, current_hh); \
-                code \
                 current_hh = current_hh->hh_next; \
+                code \
             } \
             (bucket_tmp)++; \
         } \
