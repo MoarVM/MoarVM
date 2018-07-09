@@ -1103,6 +1103,9 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         inlinee_last_bb, inline_boundary_handler);
 
     /* Finally, turn the invoke instruction into a goto. */
+    MVM_spesh_usages_delete_by_reg(tc, inliner,
+        invoke_ins->operands[invoke_ins->info->opcode == MVM_OP_invoke_v ? 0 : 1],
+        invoke_ins);
     invoke_ins->info = MVM_op_get_op(MVM_OP_goto);
     invoke_ins->operands[0].ins_bb = inlinee->entry->linear_next;
     tweak_succ(tc, inliner, invoke_bb, inlinee->entry->linear_next);

@@ -429,6 +429,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
         if (truthvalue != negated_op) {
             /* This conditional can be turned into an unconditional jump. */
             ins->info = MVM_op_get_op(MVM_OP_goto);
+            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[0], ins);
             ins->operands[0] = ins->operands[1];
 
             /* Since we have an unconditional jump now, we can remove the successor
@@ -1563,6 +1564,7 @@ static void tweak_for_target_sf(MVMThreadContext *tc, MVMSpeshGraph *g,
     guard->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
         (MVMCollectable *)target_sf);
     guard->operands[2].lit_ui32 = deopt_target;
+    MVM_spesh_usages_add_by_reg(tc, g, temp, guard);
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, guard);
 
@@ -1571,10 +1573,8 @@ static void tweak_for_target_sf(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVM_SPESH_ANN_DEOPT_ONE_INS);
 
     /* Make the invoke instruction call the resolved result. */
+    MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[inv_code_index], ins);
     ins->operands[inv_code_index] = temp;
-
-    /* Bump temp usage for the guard and the invoke. */
-    MVM_spesh_usages_add_by_reg(tc, g, temp, guard);
     MVM_spesh_usages_add_by_reg(tc, g, temp, ins);
 }
 
