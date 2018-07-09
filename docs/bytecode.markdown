@@ -107,7 +107,7 @@ This segment contains a bunch of string data. Each string is laid out as:
 
 ## SC Dependencies Table
 This table describes the SCs that the bytecode in this file references
-objects from. The wval opcode specifies an index in this table and and
+objects from. The wval opcode specifies an index in this table and an
 index in the SC itself. When the bytecode file is first loaded, we look
 in the known SCs table and resolve all that we can. Then, the deserialize
 code for the compilation unit is run. Whenever the SC creation opcode is
