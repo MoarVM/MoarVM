@@ -1108,9 +1108,10 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
              * all facts computed on results are now true about temp */
             copy_facts(tc, g, temp, orig);
             /* update usages */
-            MVM_spesh_usages_add(tc, g, temp_facts, ins);
+            MVM_spesh_usages_add(tc, g, temp_facts, new_ins);
             /* the new writer of the result facts = new_ins */
-            result_facts->writer = new_ins;
+            MVM_spesh_get_facts(tc, g, new_ins->operands[0])->writer = new_ins;
+            MVM_spesh_get_facts(tc, g, ins->operands[0])->writer = ins;
             /* finally, if result_facts had a known value, forget it.
              * (optimize_not_i will set it) */
             result_facts->flags &= ~MVM_SPESH_FACT_KNOWN_VALUE;
