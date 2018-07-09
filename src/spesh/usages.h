@@ -18,6 +18,9 @@ struct MVMSpeshUsages {
 struct MVMSpeshUseChainEntry {
     MVMSpeshIns *user;
     MVMSpeshUseChainEntry *next;
+#if MVM_SPESH_CHECK_DU
+    MVMuint8 seen_in_graph;
+#endif
 };
 
 void MVM_spesh_usages_add(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *facts, MVMSpeshIns *by);

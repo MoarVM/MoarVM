@@ -88,7 +88,22 @@ MVMuint32 MVM_spesh_usages_count(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 #if MVM_SPESH_CHECK_DU
 /* Check the DU chains of a graph are well formed. */
 void MVM_spesh_usages_check(MVMThreadContext *tc, MVMSpeshGraph *g) {
-    MVMSpeshBB *cur_bb = g->entry;
+    MVMSpeshBB *cur_bb;
+
+    /* Clear the "did we see this in the graph" flags. */
+    MVMuint32 i, j;
+    for (i = 0; i < g->num_locals; i++) {
+        for (j = 0; j < g->fact_counts[i]; j++) {
+            MVMSpeshUseChainEntry *use_entry = g->facts[i][j].usage.users;
+            while (use_entry) {
+                use_entry->seen_in_graph = 0;
+                use_entry = use_entry->next;
+            }
+        }
+    }
+
+    /* Now walk the instruction graph. */
+    cur_bb = g->entry;
     while (cur_bb) {
         MVMSpeshIns *cur_ins = cur_bb->first_ins;
         while (cur_ins) {
@@ -102,7 +117,8 @@ void MVM_spesh_usages_check(MVMThreadContext *tc, MVMSpeshGraph *g) {
                     MVMSpeshUseChainEntry *use_entry = facts->usage.users;
                     MVMuint32 found = 0;
                     while (use_entry) {
-                        if (use_entry->user == cur_ins) {
+                        if (!use_entry->seen_in_graph && use_entry->user == cur_ins) {
+                            use_entry->seen_in_graph = 1;
                             found = 1;
                             break;
                         }
@@ -130,6 +146,24 @@ void MVM_spesh_usages_check(MVMThreadContext *tc, MVMSpeshGraph *g) {
             cur_ins = cur_ins->next;
         }
         cur_bb = cur_bb->linear_next;
+    }
+
+    /* Check that the "did we see this in the graph" flags are all set, in
+     * order to spot things that not used in the graph, but still have
+     * usage marked. */
+    for (i = 0; i < g->num_locals; i++) {
+        for (j = 0; j < g->fact_counts[i]; j++) {
+            MVMSpeshUseChainEntry *use_entry = g->facts[i][j].usage.users;
+            while (use_entry) {
+                if (!use_entry->seen_in_graph) {
+                    MVMuint8 is_phi = use_entry->user->info->opcode == MVM_SSA_PHI;
+                    MVM_oops(tc, "Malformed DU chain: reading %s of %d(%d) not in graph\n%s",
+                        is_phi ? "PHI" : use_entry->user->info->name, i, j,
+                        MVM_spesh_dump(tc, g));
+                }
+                use_entry = use_entry->next;
+            }
+        }
     }
 }
 #endif
