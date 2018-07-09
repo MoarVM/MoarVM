@@ -93,7 +93,7 @@ void MVM_spesh_usages_check(MVMThreadContext *tc, MVMSpeshGraph *g) {
         MVMSpeshIns *cur_ins = cur_bb->first_ins;
         while (cur_ins) {
             MVMuint8 is_phi = cur_ins->info->opcode == MVM_SSA_PHI;
-            MVMuint8 i;
+            MVMuint32 i;
             for (i = 0; i < cur_ins->info->num_operands; i++) {
                 if ((is_phi && i > 0)
                         || (!is_phi && (cur_ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)) {
