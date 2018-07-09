@@ -61,16 +61,15 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     }
     {
         MVMLexicalRegistry *current, *tmp;
-        unsigned bucket_tmp;
 
         /* NOTE: if we really wanted to, we could avoid rehashing... */
-        HASH_ITER(tc, hash_handle, src_body->lexical_names, current, tmp, bucket_tmp) {
+        HASH_ITER_FAST(tc, hash_handle, src_body->lexical_names, current, {
             MVMLexicalRegistry *new_entry = MVM_malloc(sizeof(MVMLexicalRegistry));
             /* don't need to clone the string */
             MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->key, current->key);
             new_entry->value = current->value;
             MVM_HASH_BIND(tc, dest_body->lexical_names, current->key, new_entry);
-        }
+        });
     }
 
     /* Static environment needs to be copied, and any objects WB'd. */
@@ -113,8 +112,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMStaticFrameBody *body = (MVMStaticFrameBody *)data;
-    MVMLexicalRegistry *current, *tmp;
-    unsigned bucket_tmp;
+    MVMLexicalRegistry *current;
 
     /* mvmobjects */
     MVM_gc_worklist_add(tc, worklist, &body->cu);
@@ -128,10 +126,10 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         return;
 
     /* lexical names hash keys */
-    HASH_ITER(tc, hash_handle, body->lexical_names, current, tmp, bucket_tmp) {
+    HASH_ITER_FAST(tc, hash_handle, body->lexical_names, current, {
         MVM_gc_worklist_add(tc, worklist, &current->hash_handle.key);
         MVM_gc_worklist_add(tc, worklist, &current->key);
-    }
+    });
 
     /* static env */
     if (body->static_env) {
@@ -232,8 +230,7 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
 
 static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data) {
     MVMStaticFrameBody *body = (MVMStaticFrameBody *)data;
-    MVMLexicalRegistry *current, *tmp;
-    unsigned bucket_tmp;
+    MVMLexicalRegistry *current;
 
     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
         (MVMCollectable *)body->cu, "Compilation Unit");
@@ -251,10 +248,10 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
         return;
 
     /* lexical names hash keys */
-    HASH_ITER(tc, hash_handle, body->lexical_names, current, tmp, bucket_tmp) {
+    HASH_ITER_FAST(tc, hash_handle, body->lexical_names, current, {
         MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
             (MVMCollectable *)current->key, "Lexical name");
-    }
+    });
 
     /* static env */
     if (body->static_env) {

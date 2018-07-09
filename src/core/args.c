@@ -21,7 +21,7 @@ void MVM_args_marked_named_used(MVMThreadContext *tc, MVMuint32 idx) {
 static void init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 num) {
     ctx->named_used_size = num;
     if (num > 64)
-        ctx->named_used.byte_array = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, num); 
+        ctx->named_used.byte_array = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, num);
     else
         ctx->named_used.bit_field = 0;
 }
@@ -803,10 +803,9 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
 
             if (arg_info.arg.o && REPR(arg_info.arg.o)->ID == MVM_REPR_ID_MVMHash) {
                 MVMHashBody *body = &((MVMHash *)arg_info.arg.o)->body;
-                MVMHashEntry *current, *tmp;
-                unsigned bucket_tmp;
+                MVMHashEntry *current;
 
-                HASH_ITER(tc, hash_handle, body->hash_head, current, tmp, bucket_tmp) {
+                HASH_ITER_FAST(tc, hash_handle, body->hash_head, current, {
                     MVMString *arg_name = MVM_HASH_KEY(current);
                     if (!seen_name(tc, arg_name, new_args, new_num_pos, new_arg_pos)) {
                         if (new_arg_pos + 1 >= new_args_size) {
@@ -820,7 +819,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
                         (new_args + new_arg_pos++)->o = current->value;
                         new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
                     }
-                }
+                });
             }
             else if (arg_info.arg.o) {
                 MVM_exception_throw_adhoc(tc, "flattening of other hash reprs NYI.");

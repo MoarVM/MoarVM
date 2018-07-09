@@ -1050,8 +1050,6 @@ void MVM_unicode_release(MVMThreadContext *tc)
 
         for (i = 0; i < MVM_NUM_PROPERTY_CODES; i++) {
             MVMUnicodeNameRegistry *entry = NULL;
-            MVMUnicodeNameRegistry *tmp   = NULL;
-            unsigned bucket_tmp;
             int j;
 
             if (!unicode_property_values_hashes[i]) {
@@ -1064,10 +1062,10 @@ void MVM_unicode_release(MVMThreadContext *tc)
                 }
             }
 
-            HASH_ITER(tc, hash_handle, unicode_property_values_hashes[i], entry, tmp, bucket_tmp) {
+            HASH_ITER_FAST(tc, hash_handle, unicode_property_values_hashes[i], entry, {
                 HASH_DELETE(hash_handle, unicode_property_values_hashes[i], entry);
                 MVM_free(entry);
-            }
+            });
             assert(!unicode_property_values_hashes[i]);
         }
 

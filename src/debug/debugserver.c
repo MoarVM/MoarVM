@@ -1357,8 +1357,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
     static_info = frame->static_info;
     lexical_names = static_info->body.lexical_names;
     if (lexical_names) {
-        MVMLexicalRegistry *entry, *tmp;
-        unsigned bucket_tmp;
+        MVMLexicalRegistry *entry;
         MVMuint64 lexcount = HASH_CNT(hash_handle, lexical_names);
         MVMuint64 lexical_index = 0;
 
@@ -1374,7 +1373,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         if (dtc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "will write %lu lexicals\n", lexcount);
 
-        HASH_ITER(dtc, hash_handle, lexical_names, entry, tmp, bucket_tmp) {
+        HASH_ITER(dtc, hash_handle, lexical_names, entry, {
             MVMuint16 lextype = static_info->body.lexical_types[entry->value];
             MVMRegister *result = &frame->env[entry->value];
             char *c_key_name;
@@ -1448,7 +1447,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
             if (dtc->instance->debugserver->debugspam_protocol)
                 fprintf(stderr, "wrote a lexical\n");
             lexical_index++;
-        }
+        });
     } else {
         cmp_write_map(ctx, 3);
         cmp_write_str(ctx, "id", 2);
@@ -1900,7 +1899,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
                 cmp_write_str(ctx, "nothing", 7);
         }
 
-        
+
 
         MVM_free(name);
         MVM_free(cuuid);
@@ -2119,8 +2118,6 @@ static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ct
         MVMuint64 count = HASH_CNT(hash_handle, body->hash_head);
 
         MVMHashEntry *entry = NULL;
-        MVMHashEntry *tmp = NULL;
-        unsigned bucket_tmp;
 
         cmp_write_map(ctx, 4);
         cmp_write_str(ctx, "id", 2);
@@ -2134,7 +2131,7 @@ static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ct
         cmp_write_str(ctx, "contents", 8);
         cmp_write_map(ctx, count);
 
-        HASH_ITER(dtc, hash_handle, body->hash_head, entry, tmp, bucket_tmp) {
+        HASH_ITER(dtc, hash_handle, body->hash_head, entry, {
             char *key = MVM_string_utf8_encode_C_string(dtc, entry->hash_handle.key);
             MVMObject *value = entry->value;
             char *value_debug_name = value ? MVM_6model_get_debug_name(dtc, value) : "VMNull";
@@ -2159,7 +2156,7 @@ static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ct
                 cmp_write_bool(ctx, STABLE(value)->container_spec == NULL ? 0 : 1);
 
             MVM_free(key);
-        }
+        });
     }
 }
 

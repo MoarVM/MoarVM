@@ -124,9 +124,9 @@ do {                                                                            
  * If the size of the hashv is changed we will need to change max_hashv_div_phi,
  * to be max_hashv / phi rounded to the nearest *odd* number.
  * max_hashv / phi = 2654435769 */
-const static uint32_t max_hashv_div_phi = 2654435769LLU;
+const static uint32_t max_hashv_div_phi = MVM_C_CONSTANT_U64(2654435769);
 #define DETERMINE_BUCKET_FIB(hashv, offset) \
-    (((hashv) * max_hashv_div_phi) >> (32 - offset))
+    (((hashv) * max_hashv_div_phi) >> ((sizeof(MVMhashv)*8) - offset))
 
 #define WHICH_BUCKET(hashv, num_bkts, offset)\
     (DETERMINE_BUCKET_FIB((hashv), (offset)))
@@ -195,7 +195,9 @@ MVM_STATIC_INLINE void HASH_MAKE_TABLE(MVMThreadContext *tc, void *head, UT_hash
           HASH_INITIAL_NUM_BUCKETS*sizeof(struct UT_hash_bucket));
   /* Hash the pointer. We use this hash to randomize insertion order and randomize
    * iteration order. */
+#if MVM_HASH_RANDOMIZE
   head_hh->tbl->bucket_rand = ptr_hash((uintptr_t)head_hh);
+#endif
 }
 
 #define HASH_ADD_KEYPTR(hh,head,keyptr,keylen_in,add)                            \
@@ -511,23 +513,23 @@ MVM_STATIC_INLINE void HASH_EXPAND_BUCKETS(MVMThreadContext *tc, UT_hash_table *
 
 /* add an item to a bucket  */
 MVM_STATIC_INLINE void HASH_ADD_TO_BKT(MVMThreadContext *tc, UT_hash_bucket *bucket, UT_hash_handle *addhh, UT_hash_table *table) {
-    bucket->count++;
+#if MVM_HASH_RANDOMIZE
+    table->bucket_rand = bucket->hh_head ? ROTL(table->bucket_rand, 1) : table->bucket_rand + 1;/* Rotate so our bucket_rand changes somewhat. */
     if (bucket->hh_head && table->bucket_rand & 1) {
-        UT_hash_handle *head = bucket->hh_head;
-        addhh->hh_next = head->hh_next;
-        addhh->hh_prev = head;
-        if (head->hh_next) head->hh_next->hh_prev = addhh;
+        UT_hash_handle *head = addhh->hh_prev = bucket->hh_head;
+        UT_hash_handle *next = addhh->hh_next = head->hh_next;
+        if (next) next->hh_prev = addhh;
         head->hh_next = addhh;
     }
     else {
-        addhh->hh_next = bucket->hh_head;
+#endif
         addhh->hh_prev = NULL;
-        if (bucket->hh_head) { bucket->hh_head->hh_prev = addhh; }
+        if ((addhh->hh_next = bucket->hh_head)) { bucket->hh_head->hh_prev = addhh; }
         bucket->hh_head = addhh;
+#if MVM_HASH_RANDOMIZE
     }
-    /* Add one and rotate so our bucket_rand changes somewhat. */
-    table->bucket_rand = ROTL(table->bucket_rand + 1, 1);
-    if (bucket->count >= ((bucket->expand_mult+1) * HASH_BKT_CAPACITY_THRESH)
+#endif
+    if (++(bucket->count) >= ((bucket->expand_mult+1) * HASH_BKT_CAPACITY_THRESH)
      && addhh->tbl->noexpand != 1) {
          HASH_EXPAND_BUCKETS(tc, addhh->tbl);
      }
@@ -556,11 +558,50 @@ do {                                                                            
     (head)=NULL;                                                                 \
   }                                                                              \
 } while(0)
-
+#define GET_X_BITS(number, num_bits) \
+    ((number) >> ((sizeof(number) * 8) - (num_bits)))
 /* obtain a count of items in the hash */
 #define HASH_CNT(hh,head) ((head)?((head)->hh.tbl->num_items):0)
-#define GET_X_BITS(bucket_rand, log2_num_buckets) \
-    ((bucket_rand) >> ((sizeof(bucket_rand) * 8) - (log2_num_buckets)))
+/* This is used since the compiler optimizes it better. */
+MVM_STATIC_INLINE unsigned GET_X_BITS_BKT_RAND(MVM_UT_bucket_rand bucket_rand, unsigned num_bits) {
+    switch (num_bits) {
+        case 1:  return GET_X_BITS(bucket_rand,  1);
+        case 2:  return GET_X_BITS(bucket_rand,  2);
+        case 3:  return GET_X_BITS(bucket_rand,  3);
+        case 4:  return GET_X_BITS(bucket_rand,  4);
+        case 5:  return GET_X_BITS(bucket_rand,  5);
+        case 6:  return GET_X_BITS(bucket_rand,  6);
+        case 7:  return GET_X_BITS(bucket_rand,  7);
+        case 8:  return GET_X_BITS(bucket_rand,  8);
+        case 9:  return GET_X_BITS(bucket_rand,  9);
+        case 10: return GET_X_BITS(bucket_rand, 10);
+        case 11: return GET_X_BITS(bucket_rand, 11);
+        case 12: return GET_X_BITS(bucket_rand, 12);
+        case 13: return GET_X_BITS(bucket_rand, 13);
+        case 14: return GET_X_BITS(bucket_rand, 14);
+        case 15: return GET_X_BITS(bucket_rand, 15);
+        case 16: return GET_X_BITS(bucket_rand, 16);
+        case 17: return GET_X_BITS(bucket_rand, 17);
+        case 18: return GET_X_BITS(bucket_rand, 18);
+        case 19: return GET_X_BITS(bucket_rand, 19);
+        case 20: return GET_X_BITS(bucket_rand, 20);
+        case 21: return GET_X_BITS(bucket_rand, 21);
+        case 22: return GET_X_BITS(bucket_rand, 22);
+        case 23: return GET_X_BITS(bucket_rand, 23);
+        case 24: return GET_X_BITS(bucket_rand, 24);
+        case 25: return GET_X_BITS(bucket_rand, 25);
+        case 26: return GET_X_BITS(bucket_rand, 26);
+        case 27: return GET_X_BITS(bucket_rand, 27);
+        case 28: return GET_X_BITS(bucket_rand, 28);
+        case 29: return GET_X_BITS(bucket_rand, 29);
+        case 30: return GET_X_BITS(bucket_rand, 30);
+        case 31: return GET_X_BITS(bucket_rand, 31);
+        default:
+            return GET_X_BITS(bucket_rand, num_bits);
+    }
+}
+
+
 /* Get a pseudo-random bucket. This works because XORing a random x bit integer
  * with 0..(2**x)-1 will give you 0..(2**x)-1 in a pseudo random order (not *really*
  * random but random enough for our purposes. Example with 0..(2**3)-1 and the rand int is 3
@@ -568,8 +609,12 @@ do {                                                                            
  * 2 ^ 3 = 1; 3 ^ 3 = 0;
  * 4 ^ 3 = 7; 5 ^ 3 = 6
  * 6 ^ 3 = 5; 7 ^ 3 = 4 */
+#if MVM_HASH_RANDOMIZE
 #define GET_PRAND_BKT(raw_bkt_num, hashtable) \
-    (GET_X_BITS(hashtable->bucket_rand, hashtable->log2_num_buckets) ^ (raw_bkt_num))
+    (GET_X_BITS_BKT_RAND(hashtable->bucket_rand, hashtable->log2_num_buckets) ^ (raw_bkt_num))
+#else
+#define GET_PRAND_BKT(raw_bkt_num, hashtable) (raw_bkt_num)
+#endif
 MVM_STATIC_INLINE void * HASH_ITER_FIRST_ITEM(
         struct UT_hash_table *ht, unsigned *bucket_tmp) {
     if (!ht)
@@ -585,6 +630,43 @@ MVM_STATIC_INLINE void * HASH_ITER_FIRST_ITEM(
     }
     return NULL;
 }
+/* This is an optimized version of HASH_ITER which doesn't do any iteration
+ * order randomization. This version is faster and should be used to iterate
+ * through which the iteration order is not exposed to the user. */
+#define HASH_ITER_FAST(tc, hh, hash, current, code) do {\
+    unsigned bucket_tmp = 0;\
+    struct UT_hash_table *ht;\
+    if (hash && (ht = hash->hash_handle.tbl)) {\
+        while (bucket_tmp < ht->num_buckets) {\
+            struct UT_hash_handle *current_hh = ht->buckets[bucket_tmp].hh_head;\
+            while (current_hh) {\
+                current = ELMT_FROM_HH(ht, current_hh);\
+                code \
+                current_hh = current_hh->hh_next;\
+            }\
+            (bucket_tmp)++;\
+        }\
+    }\
+} while (0)
+
+#define HASH_ITER(tc, hh, hash, current, code) do { \
+    unsigned bucket_tmp = 0; \
+    struct UT_hash_table *ht; \
+    if (hash && (ht = hash->hash_handle.tbl)) { \
+        while (bucket_tmp < ht->num_buckets) { \
+            struct UT_hash_handle *current_hh = \
+                ht->buckets[GET_PRAND_BKT(bucket_tmp, ht)].hh_head; \
+            while (current_hh) {\
+                current = ELMT_FROM_HH(ht, current_hh); \
+                code \
+                current_hh = current_hh->hh_next; \
+            } \
+            (bucket_tmp)++; \
+        } \
+    } \
+} while (0)
+
+
 MVM_STATIC_INLINE void * HASH_ITER_NEXT_ITEM(MVMThreadContext *tc,
         struct UT_hash_handle *cur_handle, unsigned *bucket_tmp) {
     struct UT_hash_table *ht = cur_handle->tbl;
@@ -604,12 +686,5 @@ MVM_STATIC_INLINE void * HASH_ITER_NEXT_ITEM(MVMThreadContext *tc,
     }
     return NULL;
 }
-#define HASH_ITER(tc,hh,head,el,tmp,bucket_tmp)                                    \
-for((bucket_tmp) = 0,                                                           \
-    (el) = HASH_ITER_FIRST_ITEM((head) ? (head)->hh.tbl : NULL, &(bucket_tmp)), \
-    (tmp) = ((el) ? HASH_ITER_NEXT_ITEM((tc), &((el)->hh), &(bucket_tmp)) : NULL);    \
-    (el);                                                                       \
-    (el) = (tmp),                                                               \
-    (tmp) = ((tmp) ? HASH_ITER_NEXT_ITEM((tc), &((tmp)->hh), &(bucket_tmp)) : NULL))
 
 #endif /* UTHASH_H */

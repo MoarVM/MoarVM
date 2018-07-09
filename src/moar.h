@@ -46,6 +46,15 @@ typedef uint64_t MVMuint64;
 typedef float    MVMnum32;
 typedef double   MVMnum64;
 
+/* MSVC Wants i64 and ui64 suffixes instead of LL and ULL */
+#if _MSC_VER
+    #define MVM_C_CONSTANT_I64(number) number ## i64
+    #define MVM_C_CONSTANT_U64(number) number ## ui64
+#else
+    #define MVM_C_CONSTANT_I64(number) number ## LL
+    #define MVM_C_CONSTANT_U64(number) number ## ULL
+#endif
+
 /* Alignment. */
 #if HAVE_ALIGNOF
 /* A GCC extension. */
