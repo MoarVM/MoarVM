@@ -2379,9 +2379,6 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         }
         ins = ins->next;
     }
-#if MVM_SPESH_CHECK_DU
-    MVM_spesh_usages_check(tc, g);
-#endif
 }
 /* Visits the blocks in dominator tree order, recursively. */
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -2649,6 +2646,9 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
     /* Perform initial optimization pass, which performs a range of opts
      * including, most notably, inlining. */
     optimize_bb(tc, g, g->entry, p);
+#if MVM_SPESH_CHECK_DU
+    MVM_spesh_usages_check(tc, g);
+#endif
 
     /* Clear up the graph after this initial pass. */
     MVM_spesh_eliminate_dead_bbs(tc, g, 1);
