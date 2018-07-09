@@ -150,8 +150,8 @@ const unsigned char * MVM_jit_actions(void) {
 |.define ARG2, rdx
 |.define ARG3, r8
 |.define ARG4, r9
-|.define ARG5, [rsp+0x20]
-|.define ARG6, [rsp+0x28]
+|.define ARG5, qword [rsp+0x20]
+|.define ARG6, qword [rsp+0x28]
 |.else
 |.define ARG1, rdi
 |.define ARG2, rsi
