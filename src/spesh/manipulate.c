@@ -100,7 +100,7 @@ void MVM_spesh_manipulate_cleanup_ins_deps(MVMThreadContext *tc, MVMSpeshGraph *
         MVMint32 i;
         MVM_spesh_get_facts(tc, g, ins->operands[0])->dead_writer = 1;
         for (i = 1; i < ins->info->num_operands; i++)
-            MVM_spesh_usages_add_by_reg(tc, g, ins->operands[i], ins);
+            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[i], ins);
     }
     else {
         MVMint32 i;
@@ -109,7 +109,7 @@ void MVM_spesh_manipulate_cleanup_ins_deps(MVMThreadContext *tc, MVMSpeshGraph *
             if (rw == MVM_operand_write_reg)
                 MVM_spesh_get_facts(tc, g, ins->operands[i])->dead_writer = 1;
             else if (rw == MVM_operand_read_reg)
-                MVM_spesh_usages_add_by_reg(tc, g, ins->operands[i], ins);
+                MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[i], ins);
         }
     }
 }
