@@ -914,10 +914,14 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
                 ins->info = MVM_op_get_op(MVM_OP_elems);
                 ins->operands[0] = temp;
 
+                MVM_spesh_get_facts(tc, g, temp)->writer = ins;
+
                 new_ins->info = MVM_op_get_op(MVM_OP_coerce_in);
                 new_ins->operands = operands;
                 operands[0] = orig_dst;
                 operands[1] = temp;
+
+                MVM_spesh_get_facts(tc, g, orig_dst)->writer = new_ins;
 
                 MVM_spesh_manipulate_insert_ins(tc, bb, ins, new_ins);
 
