@@ -1097,6 +1097,7 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
             MVMSpeshIns     *new_ins   = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
             MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
             MVMSpeshFacts  *temp_facts = MVM_spesh_get_facts(tc,g,temp);
+            MVMSpeshFacts  *orig_facts = MVM_spesh_get_facts(tc,g,ins->operands[1]);
             new_ins->info = MVM_op_get_op(MVM_OP_not_i);
             new_ins->operands = operands;
             operands[0] = orig;
@@ -1108,9 +1109,11 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
              * all facts computed on results are now true about temp */
             copy_facts(tc, g, temp, orig);
             /* update usages */
-            MVM_spesh_usages_add(tc, g, temp_facts, ins);
+            MVM_spesh_usages_add(tc, g, temp_facts, new_ins);
+            MVM_spesh_usages_add(tc, g, orig_facts, ins);
             /* the new writer of the result facts = new_ins */
-            result_facts->writer = new_ins;
+            MVM_spesh_get_facts(tc, g, new_ins->operands[0])->writer = new_ins;
+            MVM_spesh_get_facts(tc, g, ins->operands[0])->writer = ins;
             /* finally, if result_facts had a known value, forget it.
              * (optimize_not_i will set it) */
             result_facts->flags &= ~MVM_SPESH_FACT_KNOWN_VALUE;
