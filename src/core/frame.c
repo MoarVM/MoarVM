@@ -1115,7 +1115,9 @@ MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code) {
                 resolved);
         }
     }
-    return code->body.code_object;
+    return code->body.code_object
+        ? code->body.code_object
+        : tc->instance->VMNull;
 }
 
 /* Given the specified code object, sets its outer to the current scope. */
