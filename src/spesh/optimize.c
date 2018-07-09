@@ -2377,12 +2377,11 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             if (ins->info->opcode == (MVMuint16)-1)
                 optimize_extop(tc, g, bb, ins);
         }
-
-#if MVM_SPESH_CHECK_DU
-        MVM_spesh_usages_check(tc, g);
-#endif
         ins = ins->next;
     }
+#if MVM_SPESH_CHECK_DU
+    MVM_spesh_usages_check(tc, g);
+#endif
 }
 /* Visits the blocks in dominator tree order, recursively. */
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
