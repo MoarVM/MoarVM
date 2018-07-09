@@ -27,41 +27,37 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMHashBody *src_body  = (MVMHashBody *)src;
     MVMHashBody *dest_body = (MVMHashBody *)dest;
-    MVMHashEntry *current  = NULL, *tmp = NULL;
-    unsigned bucket_tmp;
+    MVMHashEntry *current  = NULL;
 
     /* NOTE: if we really wanted to, we could avoid rehashing... */
-    HASH_ITER(tc, hash_handle, src_body->hash_head, current, tmp, bucket_tmp) {
+    HASH_ITER_FAST(tc, hash_handle, src_body->hash_head, current, {
         MVMHashEntry *new_entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
             sizeof(MVMHashEntry));
         MVMString *key = MVM_HASH_KEY(current);
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, current->value);
         MVM_HASH_BIND(tc, dest_body->hash_head, key, new_entry);
         MVM_gc_write_barrier(tc, &(dest_root->header), &(key->common.header));
-    }
+    });
 }
 
 /* Adds held objects to the GC worklist. */
-static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+static void MVMHash_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMHashBody     *body = (MVMHashBody *)data;
-    MVMHashEntry *current = NULL, *tmp = NULL;
-    unsigned bucket_tmp;
-
-    HASH_ITER(tc, hash_handle, body->hash_head, current, tmp, bucket_tmp) {
+    MVMHashEntry *current = NULL;
+    HASH_ITER_FAST(tc, hash_handle, body->hash_head, current, {
         MVM_gc_worklist_add(tc, worklist, &current->hash_handle.key);
         MVM_gc_worklist_add(tc, worklist, &current->value);
-    }
+    });
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMHash *h = (MVMHash *)obj;
     MVMHashEntry *current = NULL, *tmp = NULL;
-    unsigned bucket_tmp;
-    HASH_ITER(tc, hash_handle, h->body.hash_head, current, tmp, bucket_tmp) {
+    HASH_ITER_FAST(tc, hash_handle, h->body.hash_head, current, {
         if (current != h->body.hash_head)
             MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), current);
-    }
+    });
     tmp = h->body.hash_head;
     HASH_CLEAR(tc, hash_handle, h->body.hash_head);
     if (tmp)
@@ -183,15 +179,14 @@ static int cmp_strings(const void *s1, const void *s2) {
 }
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVMHashBody *body = (MVMHashBody *)data;
-    MVMHashEntry *current = NULL, *tmp = NULL;
+    MVMHashEntry *current = NULL;
     MVMuint64 elems = HASH_CNT(hash_handle, body->hash_head);
     MVMString **keys = MVM_malloc(sizeof(MVMString *) * elems);
-    unsigned bucket_tmp;
     MVMuint64 i = 0;
     MVM_serialization_write_int(tc, writer, elems);
-    HASH_ITER(tc, hash_handle, body->hash_head, current, tmp, bucket_tmp) {
+    HASH_ITER_FAST(tc, hash_handle, body->hash_head, current, {
         keys[i++] = MVM_HASH_KEY(current);
-    }
+    });
     cmp_tc = tc;
     qsort(keys, elems, sizeof(MVMString*), cmp_strings);
     for (i = 0; i < elems; i++) {
@@ -261,7 +256,7 @@ static const MVMREPROps MVMHash_this_repr = {
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */
     deserialize_stable_size,
-    gc_mark,
+    MVMHash_gc_mark,
     gc_free,
     NULL, /* gc_cleanup */
     NULL, /* gc_mark_repr_data */

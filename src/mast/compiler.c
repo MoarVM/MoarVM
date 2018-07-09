@@ -264,8 +264,7 @@ static void cleanup_frame(VM, FrameState *fs) {
 
 /* Cleans up all allocated memory related to this compilation. */
 static void cleanup_all(VM, WriterState *ws) {
-    CallsiteReuseEntry *current, *tmp;
-    unsigned bucket_tmp;
+    CallsiteReuseEntry *current;
     if (ws->cur_frame)
         cleanup_frame(vm, ws->cur_frame);
     if (ws->scdep_seg)
@@ -280,9 +279,9 @@ static void cleanup_all(VM, WriterState *ws) {
         MVM_free(ws->bytecode_seg);
     if (ws->annotation_seg)
         MVM_free(ws->annotation_seg);
-    HASH_ITER(tc, hash_handle, ws->callsite_reuse_head, current, tmp, bucket_tmp) {
+    HASH_ITER_FAST(tc, hash_handle, ws->callsite_reuse_head, current, {
         MVM_free(current->identifier);
-    }
+    });
     MVM_HASH_DESTROY(tc, hash_handle, CallsiteReuseEntry, ws->callsite_reuse_head);
     MVM_free(ws);
 }

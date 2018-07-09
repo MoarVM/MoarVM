@@ -21,27 +21,25 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMHashAttrStoreBody *src_body  = (MVMHashAttrStoreBody *)src;
     MVMHashAttrStoreBody *dest_body = (MVMHashAttrStoreBody *)dest;
-    MVMHashEntry *current, *tmp;
-    unsigned bucket_tmp;
+    MVMHashEntry *current;
 
     /* NOTE: if we really wanted to, we could avoid rehashing... */
-    HASH_ITER(tc, hash_handle, src_body->hash_head, current, tmp, bucket_tmp) {
+    HASH_ITER_FAST(tc, hash_handle, src_body->hash_head, current, {
         MVMHashEntry *new_entry = MVM_malloc(sizeof(MVMHashEntry));
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, current->value);
         MVM_HASH_BIND(tc, dest_body->hash_head, MVM_HASH_KEY(current), new_entry);
-    }
+    });
 }
 
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMHashAttrStoreBody *body = (MVMHashAttrStoreBody *)data;
-    MVMHashEntry *current, *tmp;
-    unsigned bucket_tmp;
+    MVMHashEntry *current;
 
-    HASH_ITER(tc, hash_handle, body->hash_head, current, tmp, bucket_tmp) {
+    HASH_ITER_FAST(tc, hash_handle, body->hash_head, current, {
         MVM_gc_worklist_add(tc, worklist, &current->hash_handle.key);
         MVM_gc_worklist_add(tc, worklist, &current->value);
-    }
+    });
 }
 
 /* Called by the VM in order to free memory associated with this object. */
