@@ -372,6 +372,7 @@ static void rewrite_outer_lookup(MVMThreadContext *tc, MVMSpeshGraph *g,
     new_operands[3] = code_ref_reg;
     ins->info = MVM_op_get_op(op);
     ins->operands = new_operands;
+    MVM_spesh_usages_add_by_reg(tc, g, code_ref_reg, ins);
 }
 
 /* Merges the inlinee's spesh graph into the inliner. */
@@ -768,14 +769,14 @@ static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *re
     box_operands[2]               = type_temp;
     MVM_spesh_manipulate_insert_ins(tc, return_bb, return_ins, box_ins);
     MVM_spesh_get_facts(tc, g, target)->writer = box_ins;
+    MVM_spesh_usages_add_by_reg(tc, g, box_operands[1], box_ins);
+    MVM_spesh_usages_add_by_reg(tc, g, box_operands[2], box_ins);
 
     /* Now turn return instruction node into lookup of appropriate box
      * type. */
     return_ins->info        = MVM_op_get_op(box_type_op);
     return_ins->operands[0] = type_temp;
-
     MVM_spesh_get_facts(tc, g, type_temp)->writer = return_ins;
-
     MVM_spesh_manipulate_release_temp_reg(tc, g, type_temp);
 }
 

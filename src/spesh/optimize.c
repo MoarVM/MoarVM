@@ -1152,12 +1152,12 @@ static void optimize_object_conditional(MVMThreadContext *tc, MVMSpeshGraph *g, 
     new_ins->operands[0] = temp;
     new_ins->operands[1] = target;
     MVM_spesh_manipulate_insert_ins(tc, bb, ins, new_ins);
+    MVM_spesh_usages_add(tc, g, temp_facts, new_ins);
 
     /* Tweak existing instruction to istrue */
     ins->info = MVM_op_get_op(MVM_OP_istrue);
     ins->operands[0] = temp;
     ins->operands[1] = condition;
-    MVM_spesh_usages_add(tc, g, temp_facts, ins);
     temp_facts->writer = ins;
 
     /* try to optimize the istrue */
@@ -1389,6 +1389,7 @@ static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     guard->operands[2].lit_ui32 = deopt_target;
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, guard);
+    MVM_spesh_usages_add_by_reg(tc, g, arg_info->arg_ins[arg_idx]->operands[1], guard);
 
     /* Also give the instruction a deopt annotation. */
     MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
@@ -1551,6 +1552,7 @@ static void tweak_for_target_sf(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, resolve);
     MVM_spesh_get_facts(tc, g, temp)->writer = resolve;
+    MVM_spesh_usages_add_by_reg(tc, g, resolve->operands[1], resolve);
 
     /* Insert guard instruction before the prepargs. */
     deopt_target = find_deopt_target(tc, g, arg_info->prepargs_ins);
