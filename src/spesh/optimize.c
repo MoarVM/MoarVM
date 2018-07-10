@@ -429,7 +429,6 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
         if (truthvalue != negated_op) {
             /* This conditional can be turned into an unconditional jump. */
             ins->info = MVM_op_get_op(MVM_OP_goto);
-            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[0], ins);
             ins->operands[0] = ins->operands[1];
 
             /* Since we have an unconditional jump now, we can remove the successor
