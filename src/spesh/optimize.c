@@ -271,6 +271,8 @@ static void optimize_gethow(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
         how_facts->flags  |= (MVM_SPESH_FACT_KNOWN_VALUE | MVM_SPESH_FACT_KNOWN_TYPE);
         how_facts->value.o = how_obj;
         how_facts->type    = STABLE(how_obj)->WHAT;
+        MVM_spesh_use_facts(tc, g, obj_facts);
+        MVM_spesh_facts_depend(tc, g, how_facts, obj_facts);
     }
 }
 
@@ -685,6 +687,7 @@ static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
         MVM_spesh_usages_delete(tc, g, name_facts, ins);
         ins->info = MVM_op_get_op(MVM_OP_can);
         ins->operands[2].lit_str_idx = name_facts->writer->operands[1].lit_str_idx;
+        MVM_spesh_use_facts(tc, g, name_facts);
     } else {
         method_name = MVM_spesh_get_string(tc, g, ins->operands[2]);
     }
