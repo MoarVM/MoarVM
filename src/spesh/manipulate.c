@@ -96,7 +96,8 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g,
  * called by MVM_spesh_manipulate_delete_ins, but provided separately for when
  * an instruction goes away by virtue of a whole basic block dying. */ 
 void MVM_spesh_manipulate_cleanup_ins_deps(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
-    if (ins->info->opcode == MVM_SSA_PHI) {
+    MVMint16 opcode = ins->info->opcode;
+    if (opcode == MVM_SSA_PHI) {
         MVMint32 i;
         MVM_spesh_get_facts(tc, g, ins->operands[0])->dead_writer = 1;
         for (i = 1; i < ins->info->num_operands; i++)
@@ -104,12 +105,19 @@ void MVM_spesh_manipulate_cleanup_ins_deps(MVMThreadContext *tc, MVMSpeshGraph *
     }
     else {
         MVMint32 i;
+        MVMuint8 is_inc_dec = opcode == MVM_OP_inc_i || opcode == MVM_OP_dec_i ||
+                              opcode == MVM_OP_inc_u || opcode == MVM_OP_dec_u;
         for (i = 0; i < ins->info->num_operands; i++) {
             MVMint32 rw = ins->info->operands[i] & MVM_operand_rw_mask;
             if (rw == MVM_operand_write_reg)
                 MVM_spesh_get_facts(tc, g, ins->operands[i])->dead_writer = 1;
             else if (rw == MVM_operand_read_reg)
                 MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[i], ins);
+            if (is_inc_dec) {
+                MVMSpeshOperand read = ins->operands[i];
+                read.reg.i--;
+                MVM_spesh_usages_delete_by_reg(tc, g, read, ins);
+            }
         }
     }
 }
