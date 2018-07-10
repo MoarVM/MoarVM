@@ -3591,7 +3591,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(bind_sk):
                 MVM_io_bind(tc, GET_REG(cur_op, 0).o,
-                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, (int)GET_REG(cur_op, 6).i64);
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, (MVMint32)GET_REG(cur_op, 6).i64);
                 cur_op += 8;
                 goto NEXT;
             OP(accept_sk):
