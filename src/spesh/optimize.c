@@ -246,6 +246,7 @@ static void optimize_is_reprid(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshI
         ins->operands[1].lit_i16 = 0;
         result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
         result_facts->value.i = 0;
+        MVM_spesh_usages_delete(tc, g, obj_facts, ins);
         MVM_spesh_facts_depend(tc, g, result_facts, obj_facts);
     } else {
         ins->info = MVM_op_get_op(MVM_OP_isnonnull);
