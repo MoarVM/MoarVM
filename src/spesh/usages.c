@@ -107,11 +107,14 @@ void MVM_spesh_usages_check(MVMThreadContext *tc, MVMSpeshGraph *g) {
     while (cur_bb) {
         MVMSpeshIns *cur_ins = cur_bb->first_ins;
         while (cur_ins) {
-            MVMuint8 is_phi = cur_ins->info->opcode == MVM_SSA_PHI;
+            MVMint16 opcode = cur_ins->info->opcode;
+            MVMuint8 is_phi = opcode == MVM_SSA_PHI;
             MVMuint32 i;
             for (i = 0; i < cur_ins->info->num_operands; i++) {
                 if ((is_phi && i > 0)
-                        || (!is_phi && (cur_ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)) {
+                        || (!is_phi && (cur_ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
+                        || opcode == MVM_OP_inc_i || opcode == MVM_OP_dec_i
+                        || opcode == MVM_OP_inc_u || opcode == MVM_OP_dec_u) {
                     /* It's a read. */
                     MVMSpeshFacts *facts = &(g->facts[cur_ins->operands[i].reg.orig][cur_ins->operands[i].reg.i]);
                     MVMSpeshUseChainEntry *use_entry = facts->usage.users;
@@ -131,7 +134,7 @@ void MVM_spesh_usages_check(MVMThreadContext *tc, MVMSpeshGraph *g) {
                             cur_bb->idx,
                             MVM_spesh_dump(tc, g));
                 }
-                else if ((is_phi && i == 0)
+                if ((is_phi && i == 0)
                        || (!is_phi && (cur_ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_write_reg)) {
                     /* It's a write. Check the writer is this instruction. */
                     MVMSpeshFacts *facts = &(g->facts[cur_ins->operands[i].reg.orig][cur_ins->operands[i].reg.i]);
