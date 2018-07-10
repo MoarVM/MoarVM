@@ -40,6 +40,14 @@ void MVM_spesh_usages_add_for_deopt_by_reg(MVMThreadContext *tc, MVMSpeshGraph *
     MVM_spesh_usages_add_for_deopt(tc, g, MVM_spesh_get_facts(tc, g, used));
 }
 
+/* Marks than an SSA value is proved as not being required for deopt purposes. */
+void MVM_spesh_usages_clear_for_deopt(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *facts) {
+    facts->usage.deopt_required = 0;
+}
+void MVM_spesh_usages_clear_for_deopt_by_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand unused) {
+    MVM_spesh_usages_clear_for_deopt(tc, g, MVM_spesh_get_facts(tc, g, unused));
+}
+
 /* Marks that an SSA value is required for exception handling purposes. */
 void MVM_spesh_usages_add_for_handler(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *facts) {
     facts->usage.handler_required = 1;

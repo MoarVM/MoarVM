@@ -2648,6 +2648,39 @@ static void merge_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
     }
 }
 
+/* From the last possible instruction that may be deopt up to the end of the
+ * code, any values written can never be needed for deopt purposes. Thus, we
+ * can remove their deopt required markers, which may allow them to get
+ * deleted. */
+static void lessen_deopt_requires_for_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
+    /* Walk instructions in this basic block from the end. */
+    MVMSpeshIns *ins = bb->last_ins;
+    while (ins) {
+        /* If the instruction may cause deopt, stop searching. */
+        if (ins->info->may_cause_deopt)
+            return;
+
+        /* Otherwise, can mark writer as not deopt required. */
+        if (ins->info->num_operands >= 1)
+            if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg)
+                MVM_spesh_usages_clear_for_deopt_by_reg(tc, g, ins->operands[0]);
+
+        ins = ins->prev;
+    }
+
+    /* If we have exactly one pred, consider it also. (We an likely losen this
+     * up in the future a bit.) */
+    if (bb->num_pred == 1)
+        lessen_deopt_requires_for_bb(tc, g, bb->pred[0]);
+}
+static void lessen_deopt_requires(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    /* Find final basic block, and process from there. */
+    MVMSpeshBB *bb = g->entry;
+    while (bb->linear_next)
+        bb = bb->linear_next;
+    lessen_deopt_requires_for_bb(tc, g, bb);
+}
+
 /* Drives the overall optimization work taking place on a spesh graph. */
 void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p) {
     /* Before starting, we eliminate dead basic blocks that were tossed by
@@ -2661,18 +2694,20 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
     MVM_spesh_usages_check(tc, g);
 #endif
 
-    /* Clear up the graph after this initial pass. */
+    /* Clear up the graph after this initial pass, recomputing the dominance
+     * tree (which in turn updates the preds). */
     MVM_spesh_eliminate_dead_bbs(tc, g, 1);
+    MVM_spesh_graph_recompute_dominance(tc, g);
     eliminate_unused_log_guards(tc, g);
     eliminate_pointless_gotos(tc, g);
+    lessen_deopt_requires(tc, g);
     eliminate_dead_ins(tc, g);
 
     merge_bbs(tc, g);
 
     /* Make a second pass through the graph doing things that are better
-     * done after inlinings have taken place. The dominance tree is first
-     * recomputed, to account for any inlinings. */
-    MVM_spesh_graph_recompute_dominance(tc, g);
+     * done after inlinings have taken place. Note that these things must not
+     * add new fact dependencies. */
     second_pass(tc, g, g->entry);
 #if MVM_SPESH_CHECK_DU
     MVM_spesh_usages_check(tc, g);
