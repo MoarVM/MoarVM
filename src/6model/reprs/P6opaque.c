@@ -1471,7 +1471,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 const MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
                 if (flat_st->REPR->ID == MVM_REPR_ID_P6int && flat_ss->bits == 64) {
                     if (opcode == MVM_OP_getattrs_i)
-                        MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[    2], ins);
+                        MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[3], ins);
                     MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
                     ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_i);
                     ins->operands[2].lit_i16 = repr_data->attribute_offsets[slot];
