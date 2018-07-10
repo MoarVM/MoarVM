@@ -2022,6 +2022,7 @@ static void eliminate_phi_dead_reads(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
     MVMuint32 num_operands = ins->info->num_operands;
     while (operand < ins->info->num_operands) {
         if (get_facts_direct(tc, g, ins->operands[operand])->dead_writer) {
+            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[operand], ins);
             num_operands--;
         }
         else {
