@@ -1965,9 +1965,12 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
         /* If we picked a handler and know where it should goto, we can do the
          * rewrite into a goto. */
         if (picked >= 0 && goto_bbs[picked]) {
-            ins->info               = MVM_op_get_op(MVM_OP_goto);
+            MVMSpeshFacts *resume_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+            resume_facts->writer = NULL;
+            resume_facts->dead_writer = 1;
+            ins->info = MVM_op_get_op(MVM_OP_goto);
             ins->operands[0].ins_bb = goto_bbs[picked];
-            bb->succ[0]             = goto_bbs[picked];
+            bb->succ[0] = goto_bbs[picked];
         }
 
         MVM_free(in_handlers);
