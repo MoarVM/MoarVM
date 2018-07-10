@@ -99,6 +99,7 @@ void MVM_spesh_usages_check(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 use_entry->seen_in_graph = 0;
                 use_entry = use_entry->next;
             }
+            g->facts[i][j].usage.writer_seen_in_graph = 0;
         }
     }
 
@@ -144,6 +145,7 @@ void MVM_spesh_usages_check(MVMThreadContext *tc, MVMSpeshGraph *g) {
                             cur_ins->operands[i].reg.orig, cur_ins->operands[i].reg.i,
                             cur_bb->idx,
                             MVM_spesh_dump(tc, g));
+                    facts->usage.writer_seen_in_graph = 1;
                 }
             }
             cur_ins = cur_ins->next;
@@ -156,7 +158,15 @@ void MVM_spesh_usages_check(MVMThreadContext *tc, MVMSpeshGraph *g) {
      * usage marked. */
     for (i = 0; i < g->num_locals; i++) {
         for (j = 0; j < g->fact_counts[i]; j++) {
-            MVMSpeshUseChainEntry *use_entry = g->facts[i][j].usage.users;
+            MVMSpeshFacts *facts = &(g->facts[i][j]);
+            MVMSpeshUseChainEntry *use_entry = facts->usage.users;
+            if (use_entry && j > 0 && !facts->dead_writer && !facts->usage.writer_seen_in_graph) {
+                MVMSpeshIns *writer = facts->writer;
+                MVMuint8 is_phi = writer && writer->info->opcode == MVM_SSA_PHI;
+                MVM_oops(tc, "Malformed DU chain: writer %s of %d(%d) not in graph\n%s",
+                    is_phi ? "PHI" : (writer ? writer->info->name : "MISSING WRITER"), i, j,
+                    MVM_spesh_dump(tc, g));
+            }
             while (use_entry) {
                 if (!use_entry->seen_in_graph) {
                     MVMuint8 is_phi = use_entry->user->info->opcode == MVM_SSA_PHI;

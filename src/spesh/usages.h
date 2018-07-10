@@ -12,6 +12,11 @@ struct MVMSpeshUsages {
     /* Does the instruction need to be preserved as it is setting an exception
      * handler block register? */
     MVMuint8 handler_required;
+
+#if MVM_SPESH_CHECK_DU
+    /* Is the writer in the graph? */
+    MVMuint8 writer_seen_in_graph;
+#endif
 };
 
 /* Linked list of using instructions. */
