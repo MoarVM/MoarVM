@@ -63,12 +63,7 @@ do {                                                                            
 #endif
 
 /* a number of the hash function use uint32_t which isn't defined on win32 */
-#ifdef _MSC_VER
-typedef unsigned int uint32_t;
-typedef unsigned char uint8_t;
-#else
-#include <inttypes.h>   /* uint32_t */
-#endif
+#include "platform/inttypes.h"
 
 #define UTHASH_VERSION 1.9.9
 
@@ -124,7 +119,7 @@ do {                                                                            
  * If the size of the hashv is changed we will need to change max_hashv_div_phi,
  * to be max_hashv / phi rounded to the nearest *odd* number.
  * max_hashv / phi = 2654435769 */
-const static uint32_t max_hashv_div_phi = MVM_C_CONSTANT_U64(2654435769);
+const static uint32_t max_hashv_div_phi = UINT32_C(2654435769);
 #define DETERMINE_BUCKET_FIB(hashv, offset) \
     (((hashv) * max_hashv_div_phi) >> ((sizeof(MVMhashv)*8) - offset))
 

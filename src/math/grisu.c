@@ -20,11 +20,10 @@
 */
 
 #include "grisu.h"
-#include <stdint.h> // uint64_t etc.
+#include "platform/stdint.h"  // uint64_t etc.
 #include <math.h>   // ceil
 #include <stdio.h>  // snprintf
-#include "moar.h"   // MVM_C_CONSTANT_U64 macros
-#define ULL MVM_C_CONSTANT_U64
+#define ULL UINT64_C
 #define D64_SIGN         ULL(0x8000000000000000)
 #define D64_EXP_MASK     ULL(0x7FF0000000000000)
 #define D64_FRACT_MASK   ULL(0x000FFFFFFFFFFFFF)
