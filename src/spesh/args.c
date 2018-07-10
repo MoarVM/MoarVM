@@ -172,8 +172,6 @@ static void slurp_named_arg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
         box_ins->operands[2] = box_type_temp;
         MVM_spesh_manipulate_insert_ins(tc, bb, hash_ins, box_ins);
         MVM_spesh_get_facts(tc, g, value_temp)->writer = box_ins;
-        MVM_spesh_usages_add_by_reg(tc, g, unboxed_temp, box_ins);
-        MVM_spesh_usages_add_by_reg(tc, g, box_type_temp, box_ins);
 
         /* Prepend the instruction get box type. */
         hlltype_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
