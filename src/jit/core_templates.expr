@@ -1716,6 +1716,22 @@
     (arglist
       (carg (tc) ptr)) ptr_sz))
 
+(template: getlexouter
+  (call (^func &MVM_frame_find_lexical_by_name_outer)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) ptr_sz))
+
+(template: getlexcaller
+  (let: (($res (call (^func &MVM_frame_find_lexical_by_name_rel_caller)
+                 (arglist
+                   (carg (tc) ptr)
+                   (carg $1   ptr)
+                   (carg (^getf (^frame) MVMFrame caller) ptr)) ptr_sz)))
+    (if (nz $res)
+      (load $res ptr_sz)
+      (^vmnull))))
+
 (template: assertparamcheck!
   (when (zr $0)
     (callv (^func &MVM_args_bind_failed)
