@@ -119,6 +119,7 @@ static void optimize_isnull(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
         MVMint32 is_null = REPR(obj_facts->type)->ID == MVM_REPR_ID_MVMNull;
         MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
         MVM_spesh_use_facts(tc, g, obj_facts);
+        MVM_spesh_usages_delete(tc, g, obj_facts, ins);
         ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
         ins->operands[1].lit_i16 = is_null;
         result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
