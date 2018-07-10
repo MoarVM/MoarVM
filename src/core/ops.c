@@ -5087,7 +5087,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         1,
-        0,
+        1,
         0,
         1,
         0,
