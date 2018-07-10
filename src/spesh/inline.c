@@ -774,6 +774,7 @@ static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *re
 
     /* Now turn return instruction node into lookup of appropriate box
      * type. */
+    MVM_spesh_usages_delete_by_reg(tc, g, return_ins->operands[0], return_ins);
     return_ins->info        = MVM_op_get_op(box_type_op);
     return_ins->operands[0] = type_temp;
     MVM_spesh_get_facts(tc, g, type_temp)->writer = return_ins;
