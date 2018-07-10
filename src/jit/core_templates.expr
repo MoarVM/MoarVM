@@ -1669,6 +1669,20 @@
       (carg (tc) ptr)
       (carg $0 ptr))))
 
+(template: tell_fh
+  (call (^func &MVM_io_tell)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
+
+(template: stat
+  (call (^func &MVM_file_stat)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   int)
+      (carg (const 0 int_sz) int)) int_sz))
+
 (template: tryfindmeth!
   (callv (^func &MVM_6model_find_method)
     (arglist
@@ -1909,6 +1923,14 @@
   (and
     (flagval (nz $1))
     (flagval (ne $1 (^vmnull)))))
+
+(template: lstat
+  (call (^func &MVM_file_stat)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   int)
+      (carg (const 1 int_sz) int)) int_sz))
 
 (template: iscont_i
   (call (^func MVM_6model_container_iscont_i)
