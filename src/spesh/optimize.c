@@ -1196,6 +1196,7 @@ static void lex_to_constant(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
 
     /* Transform lookup instruction into spesh slot read. */
     ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+    MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
     ins->operands[1].lit_i16 = ss;
 
     /* Set up facts. */
