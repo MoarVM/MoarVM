@@ -2671,4 +2671,7 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
      * recomputed, to account for any inlinings. */
     MVM_spesh_graph_recompute_dominance(tc, g);
     second_pass(tc, g, g->entry);
+#if MVM_SPESH_CHECK_DU
+    MVM_spesh_usages_check(tc, g);
+#endif
 }
