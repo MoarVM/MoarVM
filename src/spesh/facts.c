@@ -504,10 +504,14 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         case MVM_OP_inc_i:
         case MVM_OP_inc_u:
         case MVM_OP_dec_i:
-        case MVM_OP_dec_u:
+        case MVM_OP_dec_u: {
             /* These all read as well as write a value, so bump usages. */
-            MVM_spesh_usages_add_by_reg(tc, g, ins->operands[0], ins);
+            MVMSpeshOperand reader;
+            reader.reg.orig = ins->operands[0].reg.orig;
+            reader.reg.i = ins->operands[0].reg.i - 1;
+            MVM_spesh_usages_add_by_reg(tc, g, reader, ins);
             break;
+        }
         case MVM_OP_set:
             copy_facts(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
