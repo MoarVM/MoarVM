@@ -689,21 +689,21 @@ decont_s            w(str) r(obj) :pure :invokish
 getrusage           r(obj) :pure
 threadlockcount     w(int64) r(obj)
 DEPRECATED_4        w(obj) r(str) :pure :noinline
-getlexref_i         w(obj) rl(int64) :pure :noinline
-getlexref_n         w(obj) rl(num64) :pure :noinline
-getlexref_s         w(obj) rl(str) :pure :noinline
-getlexref_ni        w(obj) str :pure :noinline
-getlexref_nn        w(obj) str :pure :noinline
-getlexref_ns        w(obj) str :pure :noinline
-atposref_i          w(obj) r(obj) r(int64) :pure
-atposref_n          w(obj) r(obj) r(int64) :pure
-atposref_s          w(obj) r(obj) r(int64) :pure
-getattrref_i        w(obj) r(obj) r(obj) str int16 :pure
-getattrref_n        w(obj) r(obj) r(obj) str int16 :pure
-getattrref_s        w(obj) r(obj) r(obj) str int16 :pure
-getattrsref_i       w(obj) r(obj) r(obj) r(str) :pure
-getattrsref_n       w(obj) r(obj) r(obj) r(str) :pure
-getattrsref_s       w(obj) r(obj) r(obj) r(str) :pure
+getlexref_i         w(obj) rl(int64) :pure :noinline :useshll
+getlexref_n         w(obj) rl(num64) :pure :noinline :useshll
+getlexref_s         w(obj) rl(str) :pure :noinline :useshll
+getlexref_ni        w(obj) str :pure :noinline :useshll
+getlexref_nn        w(obj) str :pure :noinline :useshll
+getlexref_ns        w(obj) str :pure :noinline :useshll
+atposref_i          w(obj) r(obj) r(int64) :pure :useshll
+atposref_n          w(obj) r(obj) r(int64) :pure :useshll
+atposref_s          w(obj) r(obj) r(int64) :pure :useshll
+getattrref_i        w(obj) r(obj) r(obj) str int16 :pure :useshll
+getattrref_n        w(obj) r(obj) r(obj) str int16 :pure :useshll
+getattrref_s        w(obj) r(obj) r(obj) str int16 :pure :useshll
+getattrsref_i       w(obj) r(obj) r(obj) r(str) :pure :useshll
+getattrsref_n       w(obj) r(obj) r(obj) r(str) :pure :useshll
+getattrsref_s       w(obj) r(obj) r(obj) r(str) :pure :useshll
 nativecallsizeof    w(int64) r(obj)
 encodenorm          r(str) r(str) r(int64) r(obj)
 normalizecodes      r(obj) r(int64) r(obj)
@@ -749,9 +749,9 @@ DEPRECATED_25       r(obj) r(obj)
 DEPRECATED_21       w(str) r(obj)
 encoderep           w(obj) r(str) r(str) r(str) r(obj)
 istty_fh            w(int64) r(obj) :pure
-multidimref_i       w(obj) r(obj) r(obj) :pure
-multidimref_n       w(obj) r(obj) r(obj) :pure
-multidimref_s       w(obj) r(obj) r(obj) :pure
+multidimref_i       w(obj) r(obj) r(obj) :pure :useshll
+multidimref_n       w(obj) r(obj) r(obj) :pure :useshll
+multidimref_s       w(obj) r(obj) r(obj) :pure :useshll
 fileno_fh           w(int64) r(obj) :pure
 asyncudp            w(obj) r(obj) r(obj) r(str) r(int64) r(int64) r(obj)
 DEPRECATED_15       w(obj) r(obj) r(obj) r(obj) r(str) r(obj) r(str) r(int64)
@@ -762,10 +762,10 @@ DEPRECATED_5        w(obj) r(int32) :pure :noinline
 DEPRECATED_6        w(obj) r(int16) :pure :noinline
 DEPRECATED_7        w(obj) r(int8) :pure :noinline
 DEPRECATED_8        w(obj) r(num32) :pure :noinline
-getlexref_i32       w(obj) rl(int32) :pure :noinline
-getlexref_i16       w(obj) rl(int16) :pure :noinline
-getlexref_i8        w(obj) rl(int8) :pure :noinline
-getlexref_n32       w(obj) rl(num32) :pure :noinline
+getlexref_i32       w(obj) rl(int32) :pure :noinline :useshll
+getlexref_i16       w(obj) rl(int16) :pure :noinline :useshll
+getlexref_i8        w(obj) rl(int8) :pure :noinline :useshll
+getlexref_n32       w(obj) rl(num32) :pure :noinline :useshll
 box_u               w(obj) r(uint64) r(obj) :pure
 unbox_u             w(uint64) r(obj) :pure
 coerce_iu           w(uint64) r(int64) :pure
@@ -777,10 +777,10 @@ DEPRECATED_9        w(obj) r(uint64) :pure :noinline
 DEPRECATED_10       w(obj) r(uint32) :pure :noinline
 DEPRECATED_11       w(obj) r(uint16) :pure :noinline
 DEPRECATED_12       w(obj) r(uint8) :pure :noinline
-getlexref_u         w(obj) rl(uint64) :pure :noinline
-getlexref_u32       w(obj) rl(uint32) :pure :noinline
-getlexref_u16       w(obj) rl(uint16) :pure :noinline
-getlexref_u8        w(obj) rl(uint8) :pure :noinline
+getlexref_u         w(obj) rl(uint64) :pure :noinline :useshll
+getlexref_u32       w(obj) rl(uint32) :pure :noinline :useshll
+getlexref_u16       w(obj) rl(uint16) :pure :noinline :useshll
+getlexref_u8        w(obj) rl(uint8) :pure :noinline :useshll
 param_rp_u          w(uint64) int16 :pure :noinline
 param_op_u          w(uint64) int16 ins :pure :noinline
 param_rn_u          w(uint64) str :noinline
