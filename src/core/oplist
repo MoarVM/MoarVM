@@ -44,7 +44,7 @@
 #   code) before this instruction, but just locally within the current frame
 # * :deoptallpoint means that we may globally deoptimize (this goes only on an
 #   invoke; the callsite address will be rewritten)
-# * :maycausedeopt menas that the execution of this instruction might lead to a
+# * :maycausedeopt means that the execution of this instruction might lead to a
 #   (local or global) deoptimization; used by the optimizer to make sure it
 #   does not delete instructions whose results are needed the other site of a
 #   deopt
