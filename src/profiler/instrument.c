@@ -150,6 +150,9 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_rand_I:
             case MVM_OP_coerce_nI:
             case MVM_OP_coerce_sI:
+            case MVM_OP_coerce_is:
+            case MVM_OP_coerce_ns:
+            case MVM_OP_smrt_strify:
             case MVM_OP_radix_I: {
                 add_allocation_logging(tc, g, bb, ins);
                 break;
