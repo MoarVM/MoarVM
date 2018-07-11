@@ -4,7 +4,7 @@
 static const MVMREPROps MVMHash_this_repr;
 
 MVM_STATIC_INLINE MVMString * get_string_key(MVMThreadContext *tc, MVMObject *key) {
-    if (!key || REPR(key)->ID != MVM_REPR_ID_MVMString || !IS_CONCRETE(key))
+    if (MVM_UNLIKELY(!key || REPR(key)->ID != MVM_REPR_ID_MVMString || !IS_CONCRETE(key)))
         MVM_exception_throw_adhoc(tc, "MVMHash representation requires MVMString keys");
     return (MVMString *)key;
 }
@@ -68,7 +68,7 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     MVMHashBody   *body = (MVMHashBody *)data;
     MVMHashEntry *entry = NULL;
     MVM_HASH_GET(tc, body->hash_head, get_string_key(tc, key_obj), entry);
-    if (kind == MVM_reg_obj)
+    if (MVM_LIKELY(kind == MVM_reg_obj))
         result->o = entry != NULL ? entry->value : tc->instance->VMNull;
     else
         MVM_exception_throw_adhoc(tc,
