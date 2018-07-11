@@ -81,3 +81,6 @@ src/jit/x64/tile_pattern.h
 # generated code
 tools/lib/MAST/Ops.pm
 
+# utility code
+tools/repr_size_table
+tools/repr_size_table.exe
