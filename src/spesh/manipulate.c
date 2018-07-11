@@ -105,8 +105,7 @@ void MVM_spesh_manipulate_cleanup_ins_deps(MVMThreadContext *tc, MVMSpeshGraph *
     }
     else {
         MVMint32 i;
-        MVMuint8 is_inc_dec = opcode == MVM_OP_inc_i || opcode == MVM_OP_dec_i ||
-                              opcode == MVM_OP_inc_u || opcode == MVM_OP_dec_u;
+        MVMuint8 is_inc_dec = MVM_spesh_is_inc_dec_op(opcode);
         for (i = 0; i < ins->info->num_operands; i++) {
             MVMint32 rw = ins->info->operands[i] & MVM_operand_rw_mask;
             if (rw == MVM_operand_write_reg)

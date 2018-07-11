@@ -118,8 +118,7 @@ void MVM_spesh_usages_check(MVMThreadContext *tc, MVMSpeshGraph *g) {
         while (cur_ins) {
             MVMint16 opcode = cur_ins->info->opcode;
             MVMuint8 is_phi = opcode == MVM_SSA_PHI;
-            MVMuint8 is_inc_dec = opcode == MVM_OP_inc_i || opcode == MVM_OP_dec_i ||
-                                  opcode == MVM_OP_inc_u || opcode == MVM_OP_dec_u;
+            MVMuint8 is_inc_dec = MVM_spesh_is_inc_dec_op(opcode);
             MVMuint32 i;
             for (i = 0; i < cur_ins->info->num_operands; i++) {
                 if ((is_phi && i > 0) || is_inc_dec ||
