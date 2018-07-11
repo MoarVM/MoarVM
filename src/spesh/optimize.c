@@ -2454,76 +2454,80 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
 /* Optimization turns many things into simple set instructions, which we can
  * often further eliminate; others may become unrequired due to eliminated
  * branches, and some may be from sub-optimizal original code. */
-static MVMint32 within_inline(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-                              MVMSpeshOperand target) {
-    if (bb->inlined) {
-        MVMSpeshBB *check_bb = bb;
-        while (check_bb) {
-            MVMSpeshIns *last_ins = check_bb->last_ins;
-            MVMSpeshAnn *ann = last_ins->annotations;
-            MVMint32 max_inline = -1;
-            while (ann) {
-                if (ann->type == MVM_SPESH_ANN_INLINE_END)
-                    if (ann->data.inline_idx > max_inline)
-                        max_inline = ann->data.inline_idx;
-                ann = ann->next;
-            }
-            if (max_inline >= 0) {
-                /* We've found the inline that we're inside of. Check if the
-                 * register is within its range of registers. */
-                MVMuint16 locals_start = g->inlines[max_inline].locals_start;
-                MVMuint16 num_locals = g->inlines[max_inline].num_locals;
-                return target.reg.orig >= locals_start &&
-                    target.reg.orig < locals_start + num_locals;
-            }
-            check_bb = check_bb->linear_next;
-        }
+static MVMuint32 conflict_free(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+        MVMSpeshIns *from, MVMSpeshIns *to, MVMuint16 reg) {
+    /* A conflict over reg exists if either from and to are in different BBs
+     * or if another version of reg is read or written between from and to. */
+    MVMSpeshIns *check = to->prev;
+    while (check) {
+        MVMuint32 i = 0;
+
+        /* If we found the instruction, no conflict. */
+        if (check == from)
+            return 1;
+
+        /* Make sure there's no conflicting register use. */
+        for (i = 0; i < check->info->num_operands; i++)
+            if (check->info->operands[i] & MVM_operand_rw_mask)
+                if (check->operands[i].reg.orig == reg)
+                    return 0;
+
+        check = check->prev;
     }
-    return 1; /* We're not in an inline at all, so automatically yes. */
+
+    /* If we get here, it's in a different BB, so conflict. */
+    return 0;
 }
 static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                               MVMSpeshIns *ins) {
-    /* Sometimes, a set takes place between two versions of the same register.
-     * This can go.
-     * XXX Should rewrite the graph properly. */
-    if (ins->operands[0].reg.orig == ins->operands[1].reg.orig) {
-        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
-    }
-
-    /* Other optimizations depend on having a previous op. */
-    else if (!ins->prev) {
+    /* Don't do this if we're within an inline. */
+    if (bb->inlined)
         return;
+
+    /* If this set is the only user of its second operand, we might be able to
+     * change the writing instruction to just write the target of the set. */
+    if (MVM_spesh_usages_used_once(tc, g, ins->operands[1])) {
+        MVMSpeshFacts *source_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+        MVMSpeshIns *writer = source_facts->writer;
+        if (!MVM_spesh_is_inc_dec_op(writer->info->opcode) && writer->info->opcode != MVM_SSA_PHI) {
+            /* Instruction is OK. Check there is no register use conflict. */
+            if (conflict_free(tc, g, bb, writer, ins, ins->operands[0].reg.orig)) {
+                /* All is well. Update writer and delete set. */
+                MVMSpeshOperand new_target = ins->operands[0];
+                MVMSpeshFacts *new_target_facts = MVM_spesh_get_facts(tc, g, new_target);
+                MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+                writer->operands[0] = new_target;
+                new_target_facts->writer = writer;
+                new_target_facts->dead_writer = 0;
+                return;
+            }
+        }
     }
 
-    /* If we have:
-     *      set rT(j), rO(i)
-     *      set rO(i + 1), rT(j)
-     *  Then the second instruction can go away.
-     *  XXX Should rewrite the graph properly. */
-    else if (ins->prev->info->opcode == MVM_OP_set) {
-        if (ins->operands[0].reg.orig == ins->prev->operands[1].reg.orig &&
-                ins->operands[0].reg.i == ins->prev->operands[1].reg.i + 1 &&
-                ins->operands[1].reg.orig == ins->prev->operands[0].reg.orig &&
-                ins->operands[1].reg.i == ins->prev->operands[0].reg.i)
-            MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
-    }
-
-    /* If a write operation is immediately followed by a set, we can look at
-     * the usages of the intermediate register and make sure it's only ever
-     * read by the set, and not, for example, required by a deopt barrier to
-     * have a copy of the value. In that case, we don't need the temporary
-     * and can assign the result of the instruction directly into the
-     * target register. We must also check, if we're in an inline, that the
-     * final target register is within the inline, since deopt depends on the
-     * target register of an invoke being within a frame. */
-    else if ((ins->prev->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg &&
-            ins->prev->info->opcode != MVM_SSA_PHI &&
-            ins->prev->operands[0].reg.orig == ins->operands[1].reg.orig &&
-            ins->prev->operands[0].reg.i == ins->operands[1].reg.i) {
-        if (MVM_spesh_usages_used_once(tc, g, ins->operands[1]) && within_inline(tc, g, bb, ins->operands[0])) {
-            ins->prev->operands[0].reg = ins->operands[0].reg;
-            get_facts_direct(tc, g, ins->prev->operands[0])->writer = ins->prev;
-            MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+    /* If that didn't work out, it may be that the register we write only has
+     * a single user, and we can propagate the source value to be used at
+     * that usage site. */
+    if (MVM_spesh_usages_used_once(tc, g, ins->operands[0])) {
+        MVMSpeshIns *user = MVM_spesh_get_facts(tc, g, ins->operands[0])->usage.users->user;
+        if (!MVM_spesh_is_inc_dec_op(user->info->opcode) && user->info->opcode != MVM_SSA_PHI) {
+            /* Instruction is OK. Check there is no register use conflict. */
+            if (conflict_free(tc, g, bb, ins, user, ins->operands[1].reg.orig)) {
+                /* It will work. Find reading operand and update it. */
+                MVMuint32 i;
+                for (i = 1; i < user->info->num_operands; i++) {
+                    if ((user->info->operands[i] & MVM_operand_rw_mask)
+                            && user->operands[i].reg.orig == ins->operands[0].reg.orig
+                            && user->operands[i].reg.i == ins->operands[0].reg.i) {
+                        /* Found operand. Update reader to use what the set
+                         * instruction reads, then delete the set. */
+                        MVM_spesh_usages_delete_by_reg(tc, g, user->operands[i], user);
+                        user->operands[i] = ins->operands[1];
+                        MVM_spesh_usages_add_by_reg(tc, g, user->operands[i], user);
+                        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+                        return;
+                    }
+                }
+            }
         }
     }
 }
