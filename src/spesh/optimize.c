@@ -2454,28 +2454,55 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
 /* Optimization turns many things into simple set instructions, which we can
  * often further eliminate; others may become unrequired due to eliminated
  * branches, and some may be from sub-optimizal original code. */
-static MVMuint32 conflict_free(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-        MVMSpeshIns *from, MVMSpeshIns *to, MVMuint16 reg) {
-    /* A conflict over reg exists if either from and to are in different BBs
-     * or if another version of reg is read or written between from and to. */
-    MVMSpeshIns *check = to->prev;
-    while (check) {
-        MVMuint32 i = 0;
-
-        /* If we found the instruction, no conflict. */
-        if (check == from)
-            return 1;
-
-        /* Make sure there's no conflicting register use. */
-        for (i = 0; i < check->info->num_operands; i++)
-            if (check->info->operands[i] & MVM_operand_rw_mask)
-                if (check->operands[i].reg.orig == reg)
-                    return 0;
-
-        check = check->prev;
+static MVMSpeshBB * find_bb_with_instruction_linearly_after(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                                            MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshBB *cur_bb = bb;
+    while (cur_bb) {
+        MVMSpeshIns *cur_ins = cur_bb->first_ins;
+        while (cur_ins) {
+            if (cur_ins == ins)
+                return cur_bb;
+            cur_ins = cur_ins->next;
+        }
+        cur_bb = cur_bb->linear_next;
     }
+    return NULL;
+}
+static MVMuint32 conflict_free(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+        MVMSpeshIns *from, MVMSpeshIns *to, MVMuint16 reg, MVMuint16 allow_inlined,
+        MVMuint16 allow_reads) {
+    /* A conflict over reg exists if either from and to are a non-linear BB
+     * sequence or if another version of reg is written between from and to. */
+    MVMSpeshBB *start_bb = find_bb_with_instruction_linearly_after(tc, g, bb, to);
+    MVMSpeshBB *cur_bb = start_bb;
+    while (cur_bb) {
+        MVMSpeshIns *check;
+        if (!allow_inlined && cur_bb->inlined)
+            return 0;
+        check = cur_bb == start_bb ? to->prev : cur_bb->last_ins;
+        while (check) {
+            MVMuint32 i;
 
-    /* If we get here, it's in a different BB, so conflict. */
+            /* If we found the instruction, no conflict. */
+            if (check == from)
+                return 1;
+
+            /* Make sure there's no conflicting register use. */
+            for (i = 0; i < check->info->num_operands; i++) {
+                MVMuint16 rw_mode = check->info->operands[i] & MVM_operand_rw_mask;
+                if (rw_mode == MVM_operand_write_reg || !allow_reads && rw_mode == MVM_operand_read_reg)
+                    if (check->operands[i].reg.orig == reg)
+                        return 0;
+            }
+
+            check = check->prev;
+        }
+
+        if (cur_bb->num_pred == 1)
+            cur_bb = cur_bb->pred[0];
+        else
+            return 0;
+    }
     return 0;
 }
 static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -2491,7 +2518,7 @@ static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
         MVMSpeshIns *writer = source_facts->writer;
         if (!MVM_spesh_is_inc_dec_op(writer->info->opcode) && writer->info->opcode != MVM_SSA_PHI) {
             /* Instruction is OK. Check there is no register use conflict. */
-            if (conflict_free(tc, g, bb, writer, ins, ins->operands[0].reg.orig)) {
+            if (conflict_free(tc, g, bb, writer, ins, ins->operands[0].reg.orig, 0, 0)) {
                 /* All is well. Update writer and delete set. */
                 MVMSpeshOperand new_target = ins->operands[0];
                 MVMSpeshFacts *new_target_facts = MVM_spesh_get_facts(tc, g, new_target);
@@ -2511,7 +2538,7 @@ static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
         MVMSpeshIns *user = MVM_spesh_get_facts(tc, g, ins->operands[0])->usage.users->user;
         if (!MVM_spesh_is_inc_dec_op(user->info->opcode) && user->info->opcode != MVM_SSA_PHI) {
             /* Instruction is OK. Check there is no register use conflict. */
-            if (conflict_free(tc, g, bb, ins, user, ins->operands[1].reg.orig)) {
+            if (conflict_free(tc, g, bb, ins, user, ins->operands[1].reg.orig, 0, 1)) {
                 /* It will work. Find reading operand and update it. */
                 MVMuint32 i;
                 for (i = 1; i < user->info->num_operands; i++) {
