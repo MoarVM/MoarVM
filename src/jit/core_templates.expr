@@ -1732,6 +1732,27 @@
       (load $res ptr_sz)
       (^vmnull))))
 
+(template: bitand_s
+  (call (^func &MVM_string_bitand)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: bitor_s
+  (call (^func &MVM_string_bitor)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: bitxor_s
+  (call (^func &MVM_string_bitxor)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
 (template: assertparamcheck!
   (when (zr $0)
     (callv (^func &MVM_args_bind_failed)
