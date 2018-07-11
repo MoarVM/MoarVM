@@ -2553,6 +2553,46 @@ static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
     }
 }
 
+/* Find box_* that are used by a matching unbox_*. This can happen in part due
+ * to imperfect code-gen, but also because the box is in an inlinee and the
+ * unbox on the outside, or vice versa. */
+static void try_elimiante_one_box_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                                         MVMSpeshIns *box_ins, MVMSpeshIns *unbox_ins) {
+    if (conflict_free(tc, g, bb, box_ins, unbox_ins, box_ins->operands[1].reg.orig)) {
+        /* Make unbox insturction no longer use the boxed value. */
+        MVM_spesh_usages_delete_by_reg(tc, g, unbox_ins->operands[1], unbox_ins);
+
+        /* Use the unboxed version instead. */
+        unbox_ins->operands[1] = box_ins->operands[1];
+        MVM_spesh_usages_add_by_reg(tc, g, unbox_ins->operands[1], unbox_ins);
+    }
+}
+static void walk_set_looking_for_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                                       MVMSpeshIns *box_ins, MVMuint16 unbox_op, MVMuint16 decont_op,
+                                       MVMSpeshIns *set_ins) {
+    MVMSpeshUseChainEntry *user_entry = MVM_spesh_get_facts(tc, g, set_ins->operands[0])->usage.users;
+    while (user_entry) {
+        MVMSpeshIns *user = user_entry->user;
+        if (user->info->opcode == unbox_op || user->info->opcode == decont_op)
+            try_elimiante_one_box_unbox(tc, g, bb, box_ins, user);
+        else if (user->info->opcode == MVM_OP_set)
+            walk_set_looking_for_unbox(tc, g, bb, box_ins, unbox_op, decont_op, user);
+        user_entry = user_entry->next;
+    }
+}
+static void try_eliminate_box_unbox_pair(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                                         MVMSpeshIns *ins, MVMuint16 unbox_op, MVMuint16 decont_op) {
+    MVMSpeshUseChainEntry *user_entry = MVM_spesh_get_facts(tc, g, ins->operands[0])->usage.users;
+    while (user_entry) {
+        MVMSpeshIns *user = user_entry->user;
+        if (user->info->opcode == unbox_op || user->info->opcode == decont_op)
+            try_elimiante_one_box_unbox(tc, g, bb, ins, user);
+        else if (user->info->opcode == MVM_OP_set)
+            walk_set_looking_for_unbox(tc, g, bb, ins, unbox_op, decont_op, user);
+        user_entry = user_entry->next;
+    }
+}
+
 /* Drives the second, post-inline, optimization pass. */
 static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
     MVMint32 i;
@@ -2563,6 +2603,18 @@ static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         switch (ins->info->opcode) {
             case MVM_OP_set:
                 try_eliminate_set(tc, g, bb, ins);
+                break;
+            case MVM_OP_box_i:
+                try_eliminate_box_unbox_pair(tc, g, bb, ins, MVM_OP_unbox_i, MVM_OP_decont_i);
+                break;
+            case MVM_OP_box_n:
+                try_eliminate_box_unbox_pair(tc, g, bb, ins, MVM_OP_unbox_n, MVM_OP_decont_n);
+                break;
+            case MVM_OP_box_s:
+                try_eliminate_box_unbox_pair(tc, g, bb, ins, MVM_OP_unbox_s, MVM_OP_decont_s);
+                break;
+            case MVM_OP_box_u:
+                try_eliminate_box_unbox_pair(tc, g, bb, ins, MVM_OP_unbox_u, MVM_OP_decont_u);
                 break;
             case MVM_OP_sp_getspeshslot:
                 /* Sometimes we emit two getspeshslots in a row that write into the
