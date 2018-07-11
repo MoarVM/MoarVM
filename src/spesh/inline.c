@@ -375,6 +375,28 @@ static void rewrite_outer_lookup(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_usages_add_by_reg(tc, g, code_ref_reg, ins);
 }
 
+static void rewrite_hlltype(MVMThreadContext *tc, MVMSpeshGraph *inlinee, MVMSpeshIns *ins) {
+    MVMObject *selected_type;
+    MVMHLLConfig *hll = inlinee->sf->body.cu->body.hll_config;
+    MVMSpeshOperand *old_ops = ins->operands;
+    MVMuint16 sslot;
+
+    switch (ins->info->opcode) {
+        case MVM_OP_hllboxtype_i: selected_type = hll->int_box_type; break;
+        case MVM_OP_hllboxtype_n: selected_type = hll->num_box_type; break;
+        case MVM_OP_hllboxtype_s: selected_type = hll->str_box_type; break;
+        case MVM_OP_hlllist:      selected_type = hll->slurpy_array_type; break;
+        case MVM_OP_hllhash:      selected_type = hll->slurpy_hash_type; break;
+        default: MVM_oops(tc, "unhandled instruction %s in rewrite_hlltype", ins->info->name);
+    }
+
+    sslot = MVM_spesh_add_spesh_slot_try_reuse(tc, inlinee, (MVMCollectable *)selected_type);
+    ins->operands = MVM_spesh_alloc(tc, inlinee, 2 * sizeof(MVMSpeshOperand));
+    ins->operands[0] = old_ops[0];
+    ins->operands[1].lit_i16 = sslot;
+    ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+}
+
 /* Merges the inlinee's spesh graph into the inliner. */
 MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
@@ -390,6 +412,9 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* If the inliner and inlinee are from different compilation units, we
      * potentially have to fix up extra things. */
     MVMint32 same_comp_unit = inliner->sf->body.cu == inlinee->sf->body.cu;
+
+    MVMint32 same_hll = same_comp_unit || inliner->sf->body.cu->body.hll_config ==
+            inlinee_sf->body.cu->body.hll_config;
 
     /* Renumber the locals, lexicals, and basic blocks of the inlinee; also
      * re-write any indexes in annotations that need it. */
@@ -443,6 +468,11 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 if (!same_comp_unit) {
                     if (ins->info->opcode == MVM_OP_const_s) {
                         fix_const_str(tc, inliner, inlinee, ins);
+                    }
+                    if (!same_hll &&
+                            (opcode == MVM_OP_hllboxtype_i || opcode == MVM_OP_hllboxtype_n || opcode == MVM_OP_hllboxtype_s
+                             || opcode == MVM_OP_hlllist || opcode == MVM_OP_hllhash)) {
+                        rewrite_hlltype(tc, inlinee, ins);
                     }
                 }
 

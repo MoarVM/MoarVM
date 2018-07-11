@@ -407,11 +407,11 @@ isstr               w(int64) r(obj) :pure
 islist              w(int64) r(obj) :pure
 ishash              w(int64) r(obj) :pure
 sethllconfig        r(str) r(obj)
-hllboxtype_i        w(obj) :pure :useshll
-hllboxtype_n        w(obj) :pure :useshll
-hllboxtype_s        w(obj) :pure :useshll
-hlllist             w(obj) :pure :useshll
-hllhash             w(obj) :pure :useshll
+hllboxtype_i        w(obj) :pure
+hllboxtype_n        w(obj) :pure
+hllboxtype_s        w(obj) :pure
+hlllist             w(obj) :pure
+hllhash             w(obj) :pure
 getcomp             w(obj) r(str) :pure
 bindcomp            w(obj) r(str) r(obj)
 getcurhllsym        w(obj) r(str) :pure :useshll
