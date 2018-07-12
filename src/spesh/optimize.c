@@ -2562,10 +2562,10 @@ static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
 /* Find box_* that are used by a matching unbox_*. This can happen in part due
  * to imperfect code-gen, but also because the box is in an inlinee and the
  * unbox on the outside, or vice versa. */
-static void try_elimiante_one_box_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+static void try_eliminate_one_box_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                          MVMSpeshIns *box_ins, MVMSpeshIns *unbox_ins) {
     if (conflict_free(tc, g, bb, box_ins, unbox_ins, box_ins->operands[1].reg.orig, 1, 1)) {
-        /* Make unbox insturction no longer use the boxed value. */
+        /* Make unbox instruction no longer use the boxed value. */
         MVM_spesh_usages_delete_by_reg(tc, g, unbox_ins->operands[1], unbox_ins);
 
         /* Use the unboxed version instead, rewriting to a set. */
@@ -2581,7 +2581,7 @@ static void walk_set_looking_for_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, M
     while (user_entry) {
         MVMSpeshIns *user = user_entry->user;
         if (user->info->opcode == unbox_op || user->info->opcode == decont_op)
-            try_elimiante_one_box_unbox(tc, g, bb, box_ins, user);
+            try_eliminate_one_box_unbox(tc, g, bb, box_ins, user);
         else if (user->info->opcode == MVM_OP_set)
             walk_set_looking_for_unbox(tc, g, bb, box_ins, unbox_op, decont_op, user);
         user_entry = user_entry->next;
@@ -2593,7 +2593,7 @@ static void try_eliminate_box_unbox_pair(MVMThreadContext *tc, MVMSpeshGraph *g,
     while (user_entry) {
         MVMSpeshIns *user = user_entry->user;
         if (user->info->opcode == unbox_op || user->info->opcode == decont_op)
-            try_elimiante_one_box_unbox(tc, g, bb, ins, user);
+            try_eliminate_one_box_unbox(tc, g, bb, ins, user);
         else if (user->info->opcode == MVM_OP_set)
             walk_set_looking_for_unbox(tc, g, bb, ins, unbox_op, decont_op, user);
         user_entry = user_entry->next;
