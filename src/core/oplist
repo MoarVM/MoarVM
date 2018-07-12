@@ -188,7 +188,7 @@ arg_o            *a int16 r(obj)
 argconst_i       *a int16 int64
 argconst_n       *a int16 num64
 argconst_s       *a int16 str
-invoke_v         -a r(obj) :deoptallpoint :maycausedeopt
+invoke_v         -a r(obj) :deoptallpoint :logged :maycausedeopt
 invoke_i         -a w(int64) r(obj) :deoptallpoint :maycausedeopt
 invoke_n         -a w(num64) r(obj) :deoptallpoint :maycausedeopt
 invoke_s         -a w(str) r(obj) :deoptallpoint :maycausedeopt
