@@ -1,5 +1,5 @@
 /* Option to enable checking of define/use chains for debugging purposes. */
-#define MVM_SPESH_CHECK_DU 1
+#define MVM_SPESH_CHECK_DU 0
 
 /* Usage information, which is held per SSA written register. */
 struct MVMSpeshUsages {
