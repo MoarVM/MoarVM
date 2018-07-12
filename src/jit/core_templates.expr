@@ -1994,6 +1994,18 @@
       (carg $1 ptr)
       (carg $0 ptr))))
 
+(template: getrusage
+  (callv (^func &MVM_proc_getrusage)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0   ptr))))
+
+(template: threadlockcount
+  (call (^func &MVM_thread_lock_count)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
+
 (template: eqatim_s
   (call (^func &MVM_string_equal_at_ignore_mark)
     (arglist
