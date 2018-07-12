@@ -1,10 +1,7 @@
-/* Facts we might have about a local. */
+/* Facts we might have about a particular SSA version of a register. */
 struct MVMSpeshFacts {
     /* Flags indicating things we know. */
     MVMint32 flags;
-
-    /* The number of usages it has. */
-    MVMint32 usages;
 
     /* Known type, if any. */
     MVMObject *type;
@@ -24,15 +21,16 @@ struct MVMSpeshFacts {
      * this is unique). */
     MVMSpeshIns *writer;
 
+    /* Usages of this version of the register; thanks to SSA form, this taken
+     * together with writer form a define-use chain. */
+    MVMSpeshUsages usage;
+
     /* The deoptimization index in effect at the point of declaration, or -1
      * if none yet. */
     MVMint32 deopt_idx;
 
     /* The log guard the facts depend on, if any. */
     MVMuint32 log_guard;
-
-    /* Does the instruction need to be preserved for the sake of deopt? */
-    MVMuint16 deopt_required;
 
     /* Has the instruction that wrote this value been deleted? */
     MVMuint16 dead_writer;
@@ -60,4 +58,3 @@ void MVM_spesh_facts_depend(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVMSpeshFacts *target, MVMSpeshFacts *source);
 void MVM_spesh_facts_object_facts(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVMSpeshOperand tgt, MVMObject *obj);
-MVMint32 MVM_spesh_facts_is_used(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand operand);

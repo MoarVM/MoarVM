@@ -398,14 +398,18 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
     for (i = 0; i < num_locals; i++) {
         num_facts = g->fact_counts[i];
         for (j = 0; j < num_facts; j++) {
-            MVMint32 usages = g->facts[i][j].usages;
-            MVMint32 flags  = g->facts[i][j].flags;
-            MVMuint16 deopt_required = g->facts[i][j].deopt_required;
+            MVMint32 flags = g->facts[i][j].flags;
+            MVMSpeshOperand operand;
+            operand.reg.orig = i;
+            operand.reg.i = j;
             if (i < 10) append(ds, " ");
             if (j < 10) append(ds, " ");
             if (flags || g->facts[i][j].dead_writer || g->facts[i][j].writer && g->facts[i][j].writer->info->opcode == MVM_SSA_PHI) {
-                appendf(ds, "    r%d(%d): usages=%d%s, flags=%-5d", i, j, usages,
-                    deopt_required ? "+deopt" : "", flags);
+                appendf(ds, "    r%d(%d): usages=%d%s%s, flags=%-5d", i, j,
+                    MVM_spesh_usages_count(tc, g, operand),
+                    MVM_spesh_usages_is_used_by_deopt(tc, g, operand) ? "+deopt" : "",
+                    MVM_spesh_usages_is_used_by_handler(tc, g, operand) ? "+handler" : "",
+                    flags);
                 if (flags & 1) {
                     append(ds, " KnTyp");
                 }
@@ -456,7 +460,11 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
                 }
             }
             else
-                appendf(ds, "    r%d(%d): usages=%d, flags=%d", i, j, usages, flags);
+                appendf(ds, "    r%d(%d): usages=%d%s%s, flags=%d", i, j,
+                    MVM_spesh_usages_count(tc, g, operand),
+                    MVM_spesh_usages_is_used_by_deopt(tc, g, operand) ? "+deopt" : "",
+                    MVM_spesh_usages_is_used_by_handler(tc, g, operand) ? "+handler" : "",
+                    flags);
             append(ds, "\n");
         }
         append(ds, "\n");

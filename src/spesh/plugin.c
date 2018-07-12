@@ -678,7 +678,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                         guard_ins->info = MVM_op_get_op(MVM_OP_sp_guardobj);
                         guard_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
                         guard_ins->operands[0] = arg_regs[guard->test_idx];
-                        MVM_spesh_get_facts(tc, g, arg_regs[guard->test_idx])->usages++;
+                        MVM_spesh_usages_add_by_reg(tc, g, arg_regs[guard->test_idx], guard_ins);
                         guard_ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
                                 (MVMCollectable *)guard->u.object);
                         guard_ins->operands[2].lit_ui32 = deopt_to;
@@ -713,7 +713,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                         guard_ins->info = MVM_op_get_op(MVM_OP_sp_guardnotobj);
                         guard_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
                         guard_ins->operands[0] = arg_regs[guard->test_idx];
-                        MVM_spesh_get_facts(tc, g, arg_regs[guard->test_idx])->usages++;
+                        MVM_spesh_usages_add_by_reg(tc, g, arg_regs[guard->test_idx], guard_ins);
                         guard_ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
                                 (MVMCollectable *)guard->u.object);
                         guard_ins->operands[2].lit_ui32 = deopt_to;
@@ -732,7 +732,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                         guard_ins->info = MVM_op_get_op(MVM_OP_sp_guard);
                         guard_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
                         guard_ins->operands[0] = arg_regs[guard->test_idx];
-                        MVM_spesh_get_facts(tc, g, arg_regs[guard->test_idx])->usages++;
+                        MVM_spesh_usages_add_by_reg(tc, g, arg_regs[guard->test_idx], guard_ins);
                         guard_ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
                                 (MVMCollectable *)guard->u.type);
                         guard_ins->operands[2].lit_ui32 = deopt_to;
@@ -754,7 +754,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                         guard_ins->info = MVM_op_get_op(MVM_OP_sp_guardjustconc);
                         guard_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
                         guard_ins->operands[0] = arg_regs[guard->test_idx];
-                        MVM_spesh_get_facts(tc, g, arg_regs[guard->test_idx])->usages++;
+                        MVM_spesh_usages_add_by_reg(tc, g, arg_regs[guard->test_idx], guard_ins);
                         guard_ins->operands[1].lit_ui32 = deopt_to;
                         guard_ins->annotations = stolen_deopt_ann;
                         MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
@@ -772,7 +772,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                         guard_ins->info = MVM_op_get_op(MVM_OP_sp_guardjusttype);
                         guard_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
                         guard_ins->operands[0] = arg_regs[guard->test_idx];
-                        MVM_spesh_get_facts(tc, g, arg_regs[guard->test_idx])->usages++;
+                        MVM_spesh_usages_add_by_reg(tc, g, arg_regs[guard->test_idx], guard_ins);
                         guard_ins->operands[1].lit_ui32 = deopt_to;
                         guard_ins->annotations = stolen_deopt_ann;
                         MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
@@ -812,6 +812,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                     facts = MVM_spesh_get_facts(tc, g, ch_temp);
                     facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
                     facts->type = guard->u.attr.class_handle;
+                    facts->writer = spesh_ins;
 
                     /* Emit spesh slot lookup instruction for the attr name. */
                     spesh_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
@@ -824,6 +825,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                     facts = MVM_spesh_get_facts(tc, g, name_temp);
                     facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
                     facts->value.s = guard->u.attr.name;
+                    facts->writer = spesh_ins;
 
                     /* Emit the getattr instruction. */
                     spesh_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
@@ -831,12 +833,13 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                     spesh_ins->operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
                     spesh_ins->operands[0] = target;
                     spesh_ins->operands[1] = arg_regs[guard->test_idx];
-                    MVM_spesh_get_facts(tc, g, arg_regs[guard->test_idx])->usages++;
+                    MVM_spesh_usages_add_by_reg(tc, g, arg_regs[guard->test_idx], spesh_ins);
                     spesh_ins->operands[2] = ch_temp;
-                    MVM_spesh_get_facts(tc, g, ch_temp)->usages++;
+                    MVM_spesh_usages_add_by_reg(tc, g, ch_temp, spesh_ins);
                     spesh_ins->operands[3] = name_temp;
-                    MVM_spesh_get_facts(tc, g, name_temp)->usages++;
+                    MVM_spesh_usages_add_by_reg(tc, g, name_temp, spesh_ins);
                     MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, spesh_ins);
+                    MVM_spesh_get_facts(tc, g, target)->writer = spesh_ins;
 
                     /* Release the temporaries for the class handle and name. */
                     MVM_spesh_manipulate_release_temp_reg(tc, g, ch_temp);

@@ -12,6 +12,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
     },
     {
         MVM_OP_const_i8,
@@ -19,6 +20,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -37,6 +39,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int16, MVM_operand_int16 }
     },
     {
@@ -45,6 +48,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -63,6 +67,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_int64 }
     },
     {
@@ -71,6 +76,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -89,6 +95,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_num64 }
     },
     {
@@ -97,6 +104,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -115,6 +123,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_type_var, MVM_operand_read_reg | MVM_operand_type_var }
     },
     {
@@ -123,6 +132,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -141,6 +151,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_uint64, MVM_operand_read_reg | MVM_operand_uint16 }
     },
     {
@@ -149,6 +160,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -167,6 +179,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int8 }
     },
     {
@@ -175,6 +188,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -193,6 +207,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int32 }
     },
     {
@@ -201,6 +216,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -219,6 +235,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_uint16, MVM_operand_read_reg | MVM_operand_uint64 }
     },
     {
@@ -227,6 +244,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -245,6 +263,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int8, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -253,6 +272,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -271,6 +291,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int32, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -279,6 +300,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -297,6 +319,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num32, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -304,6 +327,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "goto",
         ".j",
         1,
+        0,
         0,
         0,
         0,
@@ -323,6 +347,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_int64, MVM_operand_ins }
     },
     {
@@ -330,6 +355,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "unless_i",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -349,6 +375,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_num64, MVM_operand_ins }
     },
     {
@@ -356,6 +383,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "unless_n",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -375,6 +403,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_ins }
     },
     {
@@ -382,6 +411,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "unless_s",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -401,6 +431,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_ins }
     },
     {
@@ -408,6 +439,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "unless_s0",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -423,6 +455,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -436,6 +469,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -453,6 +487,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -462,6 +497,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         1,
+        0,
         1,
         0,
         0,
@@ -479,6 +515,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_lex | MVM_operand_type_var, MVM_operand_read_reg | MVM_operand_type_var }
     },
     {
@@ -487,6 +524,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         1,
@@ -502,6 +540,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -513,6 +552,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         1,
@@ -527,6 +567,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         1,
+        0,
         1,
         1,
         0,
@@ -538,6 +579,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindlex_ni",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -554,6 +596,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -564,6 +607,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindlex_ns",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -580,6 +624,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -593,6 +638,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
         1,
@@ -603,6 +649,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindlex_ng",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -619,6 +666,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
         1,
@@ -629,6 +677,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "binddynlex",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -648,6 +697,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
@@ -661,6 +711,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -668,6 +719,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "return_i",
         ".r",
         1,
+        0,
         0,
         0,
         0,
@@ -686,6 +738,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         { MVM_operand_read_reg | MVM_operand_num64 }
     },
@@ -694,6 +747,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "return_s",
         ".r",
         1,
+        0,
         0,
         0,
         0,
@@ -713,12 +767,14 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_return,
         "return",
         ".r",
+        0,
         0,
         0,
         0,
@@ -738,6 +794,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -746,6 +803,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -764,6 +822,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -772,6 +831,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -790,6 +850,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -798,6 +859,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -816,6 +878,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -824,6 +887,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -842,6 +906,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -850,6 +915,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -868,6 +934,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -876,6 +943,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -894,6 +962,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -902,6 +971,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -920,6 +990,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -933,6 +1004,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -940,6 +1012,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "inc_i",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -959,6 +1032,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_uint64 }
     },
     {
@@ -966,6 +1040,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "dec_i",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -985,6 +1060,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_uint64 }
     },
     {
@@ -993,6 +1069,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -1011,6 +1088,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -1019,6 +1097,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -1037,6 +1116,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -1045,6 +1125,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -1063,6 +1144,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -1071,6 +1153,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -1089,6 +1172,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -1097,6 +1181,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -1115,6 +1200,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -1123,6 +1209,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -1141,6 +1228,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -1149,6 +1237,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -1167,6 +1256,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -1175,6 +1265,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -1193,6 +1284,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -1201,6 +1293,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -1219,6 +1312,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -1227,6 +1321,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -1245,6 +1340,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -1253,6 +1349,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -1271,6 +1368,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -1279,6 +1377,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -1297,6 +1396,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -1305,6 +1405,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -1323,6 +1424,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -1331,6 +1433,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -1349,6 +1452,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -1357,6 +1461,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -1375,6 +1480,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -1383,6 +1489,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -1401,6 +1508,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -1409,6 +1517,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -1427,6 +1536,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -1435,6 +1545,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -1453,6 +1564,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -1461,6 +1573,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -1479,6 +1592,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -1487,6 +1601,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -1505,6 +1620,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -1513,6 +1629,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -1531,6 +1648,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -1539,6 +1657,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -1557,6 +1676,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -1565,6 +1685,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -1583,6 +1704,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -1591,6 +1713,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -1609,6 +1732,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -1617,6 +1741,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -1631,6 +1756,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         0,
+        1,
         0,
         0,
         1,
@@ -1644,6 +1770,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         0,
+        1,
         0,
         0,
         1,
@@ -1661,6 +1788,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_callsite }
     },
     {
@@ -1668,6 +1796,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "arg_i",
         "*a",
         2,
+        0,
         0,
         0,
         0,
@@ -1687,6 +1816,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_int16, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -1694,6 +1824,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "arg_s",
         "*a",
         2,
+        0,
         0,
         0,
         0,
@@ -1713,6 +1844,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_int16, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -1720,6 +1852,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "argconst_i",
         "*a",
         2,
+        0,
         0,
         0,
         0,
@@ -1739,6 +1872,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_int16, MVM_operand_num64 }
     },
     {
@@ -1746,6 +1880,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "argconst_s",
         "*a",
         2,
+        0,
         0,
         0,
         0,
@@ -1761,6 +1896,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         2,
+        1,
         0,
         0,
         0,
@@ -1774,6 +1910,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         2,
+        1,
         0,
         0,
         0,
@@ -1787,6 +1924,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         2,
+        1,
         0,
         0,
         0,
@@ -1800,6 +1938,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         2,
+        1,
         0,
         0,
         0,
@@ -1813,6 +1952,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         3,
+        1,
         1,
         0,
         0,
@@ -1830,6 +1970,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_int16, MVM_operand_int16 }
     },
     {
@@ -1838,6 +1979,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         ".p",
         2,
         1,
+        0,
         0,
         0,
         1,
@@ -1853,6 +1995,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -1864,6 +2007,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         ".p",
         2,
         1,
+        0,
         0,
         0,
         1,
@@ -1879,6 +2023,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
         1,
@@ -1890,6 +2035,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         ".p",
         3,
         1,
+        0,
         0,
         0,
         1,
@@ -1905,6 +2051,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -1916,6 +2063,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         ".p",
         3,
         1,
+        0,
         0,
         0,
         1,
@@ -1931,6 +2079,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
         1,
@@ -1941,6 +2090,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "param_rn_i",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -1957,6 +2107,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -1967,6 +2118,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "param_rn_s",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -1983,6 +2135,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         0,
         1,
@@ -1993,6 +2146,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "param_on_i",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -2009,6 +2163,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -2019,6 +2174,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "param_on_s",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -2035,6 +2191,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         0,
         1,
@@ -2048,6 +2205,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
         1,
@@ -2058,6 +2216,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "param_sn",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -2077,6 +2236,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_coderef }
     },
     {
@@ -2085,6 +2245,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         1,
@@ -2100,6 +2261,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -2110,6 +2272,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "takeclosure",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -2129,6 +2292,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -2136,6 +2300,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindexmessage",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -2155,6 +2320,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -2162,6 +2328,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindexcategory",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -2181,6 +2348,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -2189,6 +2357,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -2207,6 +2376,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -2214,6 +2384,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "throwdyn",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -2231,6 +2402,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         2,
         0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
@@ -2240,6 +2412,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "throwlexotic",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -2257,6 +2430,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         2,
         0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int64 }
@@ -2266,6 +2440,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "throwcatlex",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -2283,6 +2458,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         2,
         0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int64 }
@@ -2292,6 +2468,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "die",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -2309,6 +2486,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         2,
         0,
         { MVM_operand_read_reg | MVM_operand_obj }
@@ -2318,6 +2496,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "resume",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -2337,6 +2516,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -2344,6 +2524,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "DEPRECATED_33",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -2363,6 +2544,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -2371,6 +2553,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -2386,6 +2569,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -2396,6 +2580,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "savecapture",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -2415,6 +2600,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -2423,6 +2609,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -2441,6 +2628,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -2449,6 +2637,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -2467,6 +2656,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -2475,6 +2665,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -2493,6 +2684,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -2501,6 +2693,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -2515,6 +2708,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -2526,6 +2720,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "multicacheadd",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -2545,6 +2740,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -2553,6 +2749,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         1,
         1,
+        0,
         0,
         0,
         0,
@@ -2571,6 +2768,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -2579,6 +2777,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -2597,6 +2796,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -2605,6 +2805,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -2623,6 +2824,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -2631,6 +2833,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -2649,6 +2852,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -2657,6 +2861,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -2675,6 +2880,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -2683,6 +2889,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         4,
         1,
+        0,
         0,
         0,
         0,
@@ -2701,6 +2908,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -2709,6 +2917,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -2727,6 +2936,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -2735,6 +2945,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         4,
         1,
+        0,
         0,
         0,
         0,
@@ -2753,6 +2964,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -2761,6 +2973,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -2779,6 +2992,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -2787,6 +3001,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -2805,6 +3020,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -2813,6 +3029,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -2831,6 +3048,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -2839,6 +3057,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -2857,6 +3076,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -2865,6 +3085,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -2883,6 +3104,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -2890,6 +3112,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "indexat",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -2909,6 +3132,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_str, MVM_operand_ins }
     },
     {
@@ -2917,6 +3141,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -2935,6 +3160,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -2943,6 +3169,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         5,
         1,
+        0,
         0,
         0,
         0,
@@ -2961,6 +3188,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_int16, MVM_operand_int16 }
     },
     {
@@ -2969,6 +3197,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -2987,6 +3216,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -2995,6 +3225,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -3013,6 +3244,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -3021,6 +3253,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         4,
         1,
+        0,
         0,
         0,
         0,
@@ -3039,6 +3272,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -3052,6 +3286,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -3059,6 +3294,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "setbuffersize_fh",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -3078,6 +3314,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -3086,6 +3323,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         5,
         1,
+        0,
         0,
         0,
         0,
@@ -3104,6 +3342,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -3111,6 +3350,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "nfafromstatelist",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -3130,6 +3370,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -3143,6 +3384,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -3150,6 +3392,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "radix",
         "  ",
         5,
+        0,
         0,
         0,
         0,
@@ -3169,6 +3412,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -3176,6 +3420,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "decode",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -3195,6 +3440,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -3203,6 +3449,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -3221,6 +3468,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -3229,6 +3477,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -3247,6 +3496,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_ins }
     },
     {
@@ -3256,6 +3506,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         1,
         0,
+        1,
         0,
         0,
         1,
@@ -3269,6 +3520,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         1,
         0,
+        1,
         0,
         0,
         1,
@@ -3282,6 +3534,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         1,
         0,
+        1,
         0,
         0,
         1,
@@ -3295,6 +3548,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         1,
         0,
+        1,
         0,
         0,
         1,
@@ -3307,6 +3561,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -3325,6 +3580,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -3333,6 +3589,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -3351,6 +3608,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -3360,6 +3618,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         1,
         0,
+        1,
         0,
         0,
         1,
@@ -3372,6 +3631,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -3390,6 +3650,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -3398,6 +3659,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -3416,6 +3678,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -3423,6 +3686,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "setwho",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -3442,6 +3706,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -3450,6 +3715,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -3468,6 +3734,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -3475,6 +3742,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindattr_i",
         "  ",
         5,
+        0,
         0,
         0,
         0,
@@ -3494,6 +3762,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_int16 }
     },
     {
@@ -3501,6 +3770,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindattr_s",
         "  ",
         5,
+        0,
         0,
         0,
         0,
@@ -3520,6 +3790,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
@@ -3527,6 +3798,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindattrs_i",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -3546,6 +3818,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -3553,6 +3826,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindattrs_s",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -3572,6 +3846,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -3579,6 +3854,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "getattr_i",
         "  ",
         5,
+        0,
         0,
         0,
         0,
@@ -3598,6 +3874,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str, MVM_operand_int16 }
     },
     {
@@ -3605,6 +3882,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "getattr_s",
         "  ",
         5,
+        0,
         0,
         0,
         0,
@@ -3620,6 +3898,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         5,
         0,
         1,
+        0,
         1,
         0,
         0,
@@ -3631,6 +3910,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "getattrs_i",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -3650,6 +3930,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -3657,6 +3938,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "getattrs_s",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -3672,6 +3954,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         4,
         0,
         1,
+        0,
         1,
         0,
         0,
@@ -3683,6 +3966,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "attrinited",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -3702,6 +3986,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -3710,6 +3995,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -3728,6 +4014,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -3736,6 +4023,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -3754,6 +4042,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -3767,6 +4056,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -3774,6 +4064,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "atpos_i",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -3793,6 +4084,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -3800,6 +4092,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "atpos_s",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -3819,6 +4112,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -3826,6 +4120,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindpos_i",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -3845,6 +4140,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -3852,6 +4148,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindpos_s",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -3871,6 +4168,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -3878,6 +4176,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "push_i",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -3897,6 +4196,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -3904,6 +4204,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "push_s",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -3923,6 +4224,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -3930,6 +4232,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "pop_i",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -3949,6 +4252,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -3956,6 +4260,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "pop_s",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -3975,6 +4280,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -3982,6 +4288,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "shift_i",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -4001,6 +4308,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -4008,6 +4316,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "shift_s",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -4027,6 +4336,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -4034,6 +4344,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "unshift_i",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -4053,6 +4364,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -4060,6 +4372,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "unshift_s",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -4079,6 +4392,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -4086,6 +4400,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "splice",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -4105,6 +4420,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -4118,6 +4434,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -4125,6 +4442,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "atkey_i",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -4144,6 +4462,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -4151,6 +4470,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "atkey_s",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -4170,6 +4490,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -4177,6 +4498,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindkey_i",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -4196,6 +4518,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -4203,6 +4526,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindkey_s",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -4222,6 +4546,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -4235,6 +4560,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -4242,6 +4568,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "deletekey",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -4261,6 +4588,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -4269,6 +4597,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         1,
         1,
+        0,
         0,
         0,
         0,
@@ -4287,6 +4616,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -4294,6 +4624,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "newtype",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -4313,6 +4644,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -4320,6 +4652,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "setmethcache",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -4339,6 +4672,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -4346,6 +4680,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "settypecache",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -4365,6 +4700,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -4372,6 +4708,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "setboolspec",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -4387,6 +4724,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -4400,6 +4738,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -4412,6 +4751,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         1,
         1,
+        0,
         0,
         0,
         0,
@@ -4430,6 +4770,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -4438,6 +4779,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         1,
         1,
+        0,
         0,
         0,
         0,
@@ -4456,6 +4798,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -4464,6 +4807,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         1,
         1,
+        0,
         0,
         0,
         0,
@@ -4482,6 +4826,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -4490,6 +4835,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         1,
         1,
+        0,
         0,
         0,
         0,
@@ -4508,6 +4854,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -4516,6 +4863,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -4534,6 +4882,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -4542,6 +4891,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -4560,6 +4910,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -4568,6 +4919,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -4586,6 +4938,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -4598,7 +4951,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        1,
+        0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -4611,7 +4965,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        1,
+        0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -4624,7 +4979,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        1,
+        0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -4637,7 +4993,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        1,
+        0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -4650,7 +5007,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        1,
+        0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -4659,6 +5017,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -4677,6 +5036,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -4689,6 +5049,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
@@ -4697,6 +5058,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindcurhllsym",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -4716,6 +5078,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -4723,6 +5086,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindhllsym",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -4742,6 +5106,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -4749,6 +5114,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "settypehllrole",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -4764,6 +5130,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         0,
+        1,
         0,
         0,
         1,
@@ -4777,6 +5144,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         1,
         0,
+        1,
         0,
         0,
         1,
@@ -4787,6 +5155,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         MVM_OP_usecompileehllconfig,
         "usecompileehllconfig",
         "  ",
+        0,
         0,
         0,
         0,
@@ -4805,6 +5174,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
     },
     {
@@ -4813,6 +5183,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -4831,6 +5202,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -4839,6 +5211,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -4857,6 +5230,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -4865,6 +5239,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -4883,6 +5258,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -4890,6 +5266,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "setcodeobj",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -4909,6 +5286,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -4916,6 +5294,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "forceouterctx",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -4935,6 +5314,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -4948,6 +5328,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -4955,6 +5336,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "freshcoderef",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -4974,6 +5356,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -4981,6 +5364,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "markcodestub",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -5000,6 +5384,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5013,6 +5398,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5020,6 +5406,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "setdispatcher",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -5039,6 +5426,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -5048,6 +5436,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -5061,6 +5450,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -5078,6 +5468,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5087,7 +5478,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         1,
-        0,
+        1,
+        1,
         0,
         1,
         0,
@@ -5098,6 +5490,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "setcontspec",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -5117,6 +5510,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -5124,6 +5518,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "createsc",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -5143,6 +5538,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5150,6 +5546,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "scsetcode",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -5169,6 +5566,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -5176,6 +5574,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "scgethandle",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -5195,6 +5594,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5202,6 +5602,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "scsetdesc",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -5221,6 +5622,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5228,6 +5630,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "setobjsc",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -5247,6 +5650,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5254,6 +5658,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "serialize",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -5273,6 +5678,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5281,6 +5687,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -5299,6 +5706,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_int64 }
     },
     {
@@ -5306,6 +5714,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "scwbdisable",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -5325,6 +5734,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64 }
     },
     {
@@ -5332,6 +5742,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "pushcompsc",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -5351,6 +5762,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -5358,6 +5770,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "scgetdesc",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -5373,6 +5786,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -5390,6 +5804,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -5399,6 +5814,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -5416,6 +5832,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5423,6 +5840,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "compunitmainline",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -5442,12 +5860,14 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_ctx,
         "ctx",
         "  ",
+        1,
         1,
         0,
         0,
@@ -5462,6 +5882,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "ctxouter",
         "  ",
         2,
+        1,
         0,
         0,
         0,
@@ -5475,6 +5896,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "ctxcaller",
         "  ",
         2,
+        1,
         0,
         0,
         0,
@@ -5488,6 +5910,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "ctxlexpad",
         "  ",
         2,
+        1,
         0,
         0,
         0,
@@ -5501,6 +5924,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "curcode",
         "  ",
         1,
+        1,
         0,
         0,
         0,
@@ -5513,6 +5937,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         MVM_OP_callercode,
         "callercode",
         "  ",
+        1,
         1,
         0,
         0,
@@ -5533,6 +5958,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5541,6 +5967,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         4,
         1,
+        0,
         0,
         0,
         0,
@@ -5559,6 +5986,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5567,6 +5995,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         4,
         1,
+        0,
         0,
         0,
         0,
@@ -5585,6 +6014,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5593,6 +6023,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -5611,6 +6042,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5619,6 +6051,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -5637,6 +6070,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5645,6 +6079,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -5663,6 +6098,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5671,6 +6107,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -5689,6 +6126,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5697,6 +6135,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -5715,6 +6154,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5723,6 +6163,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         4,
         1,
+        0,
         0,
         0,
         0,
@@ -5741,6 +6182,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5749,6 +6191,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -5767,6 +6210,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5775,6 +6219,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         4,
         1,
+        0,
         0,
         0,
         0,
@@ -5793,6 +6238,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5801,6 +6247,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         4,
         1,
+        0,
         0,
         0,
         0,
@@ -5819,6 +6266,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5827,6 +6275,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         5,
         1,
+        0,
         0,
         0,
         0,
@@ -5845,6 +6294,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -5853,6 +6303,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -5871,6 +6322,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5879,6 +6331,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -5897,6 +6350,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5905,6 +6359,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -5923,6 +6378,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5931,6 +6387,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -5949,6 +6406,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -5957,6 +6415,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         6,
         1,
+        0,
         0,
         0,
         0,
@@ -5975,6 +6434,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -5982,6 +6442,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "copy_f",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -6001,6 +6462,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -6008,6 +6470,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "rename_f",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -6027,6 +6490,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -6034,6 +6498,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "chmod_f",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -6053,6 +6518,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -6060,6 +6526,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "mkdir",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -6079,6 +6546,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -6086,6 +6554,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "open_dir",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -6105,6 +6574,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -6112,6 +6582,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "close_dir",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -6131,6 +6602,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -6138,6 +6610,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "close_fh",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -6157,6 +6630,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -6164,6 +6638,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "DEPRECATED_27",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -6183,6 +6658,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -6190,6 +6666,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "DEPRECATED_18",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -6209,6 +6686,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -6216,6 +6694,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "lock_fh",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -6235,6 +6714,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -6242,6 +6722,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "sync_fh",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -6261,6 +6742,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -6268,6 +6750,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "eof_fh",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -6287,6 +6770,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -6295,6 +6779,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         1,
         1,
+        0,
         0,
         0,
         0,
@@ -6313,6 +6798,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -6320,6 +6806,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "connect_sk",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -6339,6 +6826,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -6346,6 +6834,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bind_sk",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -6365,6 +6854,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -6372,6 +6862,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "accept_sk",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -6391,6 +6882,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -6398,6 +6890,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "encodefromcodes",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -6417,6 +6910,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -6424,6 +6918,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "print",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -6443,6 +6938,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -6450,6 +6946,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "DEPRECATED_22",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -6469,6 +6966,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -6476,6 +6974,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "stat",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -6491,6 +6990,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         1,
         0,
+        1,
         0,
         0,
         1,
@@ -6504,6 +7004,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         1,
         0,
+        1,
         0,
         0,
         1,
@@ -6515,6 +7016,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "chdir",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -6534,6 +7036,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -6541,6 +7044,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "rand_i",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -6560,12 +7064,14 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64 }
     },
     {
         MVM_OP_time_i,
         "time_i",
         "  ",
+        1,
         1,
         0,
         0,
@@ -6586,6 +7092,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -6593,6 +7100,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "newthread",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -6612,12 +7120,14 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_time_n,
         "time_n",
         "  ",
+        1,
         1,
         0,
         0,
@@ -6638,6 +7148,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -6651,12 +7162,14 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_cwd,
         "cwd",
         "  ",
+        1,
         1,
         0,
         0,
@@ -6671,6 +7184,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "clargs",
         "  ",
         1,
+        1,
         0,
         0,
         0,
@@ -6683,6 +7197,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         MVM_OP_getenvhash,
         "getenvhash",
         "  ",
+        1,
         1,
         0,
         0,
@@ -6703,6 +7218,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -6710,6 +7226,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "freelib",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -6729,6 +7246,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -6736,6 +7254,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "dropsym",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -6755,12 +7274,14 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
         MVM_OP_backendconfig,
         "backendconfig",
         "  ",
+        1,
         1,
         0,
         0,
@@ -6778,6 +7299,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
         1,
@@ -6789,6 +7311,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -6806,6 +7329,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
@@ -6819,6 +7343,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
@@ -6828,6 +7353,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         1,
@@ -6846,6 +7372,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -6854,6 +7381,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -6872,6 +7400,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -6880,6 +7409,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -6898,6 +7428,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64 }
     },
     {
@@ -6906,6 +7437,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         1,
         1,
+        0,
         0,
         0,
         0,
@@ -6924,6 +7456,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64 }
     },
     {
@@ -6937,6 +7470,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64 }
     },
     {
@@ -6944,6 +7478,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "DEPRECATED_29",
         "  ",
         8,
+        0,
         0,
         0,
         0,
@@ -6963,6 +7498,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -6970,6 +7506,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "filewritable",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -6989,6 +7526,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -6996,6 +7534,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "DEPRECATED_19",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -7014,6 +7553,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
@@ -7022,6 +7562,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "read_fhb",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -7041,6 +7582,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7048,6 +7590,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "replace",
         "  ",
         5,
+        0,
         0,
         0,
         0,
@@ -7067,6 +7610,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -7074,6 +7618,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "permit",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -7093,6 +7638,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7100,6 +7646,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "symlink",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -7119,6 +7666,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -7126,6 +7674,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "gethostname",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -7145,6 +7694,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7152,6 +7702,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "DEPRECATED_13",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -7167,6 +7718,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -7180,6 +7732,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         4,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -7193,6 +7746,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -7205,6 +7759,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -7223,6 +7778,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -7232,6 +7788,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        1,
         0,
         1,
         1,
@@ -7249,12 +7806,14 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
         MVM_OP_paramnamesused,
         "paramnamesused",
         "  ",
+        0,
         0,
         0,
         0,
@@ -7268,6 +7827,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "getuniname",
         "  ",
         2,
+        1,
         0,
         0,
         0,
@@ -7281,6 +7841,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "getuniprop_int",
         "  ",
         3,
+        1,
         0,
         0,
         0,
@@ -7294,6 +7855,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "getuniprop_bool",
         "  ",
         3,
+        1,
         0,
         0,
         0,
@@ -7307,6 +7869,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "getuniprop_str",
         "  ",
         3,
+        1,
         0,
         0,
         0,
@@ -7320,6 +7883,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "matchuniprop",
         "  ",
         4,
+        1,
         0,
         0,
         0,
@@ -7339,6 +7903,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7346,6 +7911,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "nativecallinvoke",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -7365,6 +7931,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7378,6 +7945,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7385,6 +7953,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "threadid",
         "  ",
         2,
+        1,
         0,
         0,
         0,
@@ -7404,11 +7973,13 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
     },
     {
         MVM_OP_currentthread,
         "currentthread",
         "  ",
+        1,
         1,
         0,
         0,
@@ -7429,6 +8000,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7436,6 +8008,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "unlock",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -7455,6 +8028,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7462,6 +8036,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "semtryacquire",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -7481,6 +8056,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7488,6 +8064,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "getlockcondvar",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -7507,6 +8084,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7514,6 +8092,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "condsignalone",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -7533,6 +8112,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7540,6 +8120,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "queuepoll",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -7559,6 +8140,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -7566,6 +8148,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "ctxouterskipthunks",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -7579,6 +8162,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "ctxcallerskipthunks",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -7598,6 +8182,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7605,6 +8190,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "cancel",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -7624,6 +8210,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7631,6 +8218,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "watchfile",
         "  ",
         5,
+        0,
         0,
         0,
         0,
@@ -7650,6 +8238,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7657,6 +8246,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "asynclisten",
         "  ",
         7,
+        0,
         0,
         0,
         0,
@@ -7676,6 +8266,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7683,6 +8274,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "asyncwritebytes",
         "  ",
         6,
+        0,
         0,
         0,
         0,
@@ -7702,6 +8294,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7709,6 +8302,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "asyncreadbytes",
         "  ",
         6,
+        0,
         0,
         0,
         0,
@@ -7724,6 +8318,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         0,
+        0,
         1,
         1,
         0,
@@ -7737,6 +8332,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         0,
+        0,
         1,
         1,
         0,
@@ -7748,6 +8344,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "execname",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -7767,6 +8364,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_int16 }
     },
     {
@@ -7775,6 +8373,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -7793,6 +8392,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7800,6 +8400,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "param_rn2_i",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -7816,6 +8417,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -7826,6 +8428,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "param_rn2_s",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -7842,6 +8445,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         0,
         1,
@@ -7852,6 +8456,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "param_on2_i",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -7868,6 +8473,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -7881,6 +8487,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -7891,6 +8498,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "param_on2_o",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -7910,12 +8518,14 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
     },
     {
         MVM_OP_nativecallcast,
         "nativecallcast",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -7935,6 +8545,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7942,6 +8553,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "killprocasync",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -7961,6 +8573,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -7974,6 +8587,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -7981,6 +8595,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "objectid",
         "  ",
         2,
+        1,
         0,
         0,
         0,
@@ -8000,12 +8615,14 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_force_gc,
         "force_gc",
         "  ",
+        0,
         0,
         0,
         0,
@@ -8025,6 +8642,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8032,6 +8650,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "DEPRECATED_32",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -8051,6 +8670,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8060,6 +8680,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -8071,6 +8692,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "typeparameterized",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -8090,6 +8712,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8097,6 +8720,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "typeparameterat",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -8116,6 +8740,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -8123,6 +8748,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "lstat",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -8142,6 +8768,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8150,6 +8777,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -8168,6 +8796,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8177,6 +8806,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -8190,6 +8820,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -8203,6 +8834,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -8216,6 +8848,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         0,
+        1,
         0,
         0,
         1,
@@ -8229,6 +8862,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         0,
+        1,
         0,
         0,
         1,
@@ -8242,6 +8876,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         0,
+        1,
         0,
         0,
         1,
@@ -8259,6 +8894,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8266,6 +8902,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "threadlockcount",
         "  ",
         2,
+        1,
         0,
         0,
         0,
@@ -8282,6 +8919,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -8295,9 +8933,10 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
-        0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_lex | MVM_operand_int64 }
     },
     {
@@ -8308,9 +8947,10 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
-        0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_lex | MVM_operand_num64 }
     },
     {
@@ -8321,9 +8961,10 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
-        0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_lex | MVM_operand_str }
     },
     {
@@ -8334,9 +8975,10 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
-        0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str }
     },
     {
@@ -8347,9 +8989,10 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
-        0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str }
     },
     {
@@ -8360,9 +9003,10 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
-        0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str }
     },
     {
@@ -8376,6 +9020,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -8389,6 +9034,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -8402,6 +9048,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -8415,6 +9062,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str, MVM_operand_int16 }
     },
     {
@@ -8428,6 +9076,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str, MVM_operand_int16 }
     },
     {
@@ -8441,6 +9090,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str, MVM_operand_int16 }
     },
     {
@@ -8454,6 +9104,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -8467,6 +9118,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -8480,6 +9132,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -8487,6 +9140,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "nativecallsizeof",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -8506,6 +9160,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8513,6 +9168,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "normalizecodes",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -8532,6 +9188,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8539,6 +9196,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "strtocodes",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -8558,6 +9216,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8566,6 +9225,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         4,
         1,
+        0,
         0,
         0,
         0,
@@ -8584,6 +9244,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -8591,6 +9252,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "neverrepossess",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -8610,6 +9272,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8617,6 +9280,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "DEPRECATED_31",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -8636,6 +9300,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -8644,6 +9309,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         4,
         1,
+        0,
         0,
         0,
         0,
@@ -8662,6 +9328,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -8670,6 +9337,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         4,
         1,
+        0,
         0,
         0,
         0,
@@ -8688,6 +9356,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -8696,6 +9365,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         5,
         1,
+        0,
         0,
         0,
         0,
@@ -8714,6 +9384,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -8722,6 +9393,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         5,
         1,
+        0,
         0,
         0,
         0,
@@ -8740,6 +9412,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8748,6 +9421,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -8766,6 +9440,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8779,6 +9454,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8786,6 +9462,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindpos2d_i",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -8805,6 +9482,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -8812,6 +9490,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindpos2d_s",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -8831,6 +9510,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8838,6 +9518,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindpos3d_i",
         "  ",
         5,
+        0,
         0,
         0,
         0,
@@ -8857,6 +9538,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -8864,6 +9546,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindpos3d_s",
         "  ",
         5,
+        0,
         0,
         0,
         0,
@@ -8883,6 +9566,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8890,6 +9574,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindposnd_i",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -8909,6 +9594,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -8916,6 +9602,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "bindposnd_s",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -8935,6 +9622,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8942,6 +9630,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "dimensions",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -8961,6 +9650,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8974,6 +9664,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -8981,6 +9672,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "ctxcode",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -9000,6 +9692,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -9013,6 +9706,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -9020,6 +9714,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "DEPRECATED_25",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -9039,6 +9734,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -9046,6 +9742,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "encoderep",
         "  ",
         5,
+        0,
         0,
         0,
         0,
@@ -9065,6 +9762,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -9078,6 +9776,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -9091,6 +9790,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -9104,6 +9804,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -9117,6 +9818,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -9124,6 +9826,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "asyncudp",
         "  ",
         7,
+        0,
         0,
         0,
         0,
@@ -9143,6 +9846,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -9150,6 +9854,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "asyncwritebytesto",
         "  ",
         8,
+        0,
         0,
         0,
         0,
@@ -9169,6 +9874,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -9176,6 +9882,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "objprimunsigned",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -9192,6 +9899,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -9203,6 +9911,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         1,
@@ -9218,6 +9927,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -9229,6 +9939,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         1,
@@ -9244,9 +9955,10 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
-        0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_lex | MVM_operand_int32 }
     },
     {
@@ -9257,9 +9969,10 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
-        0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_lex | MVM_operand_int16 }
     },
     {
@@ -9270,9 +9983,10 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
-        0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_lex | MVM_operand_int8 }
     },
     {
@@ -9283,9 +9997,10 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
-        0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_lex | MVM_operand_num32 }
     },
     {
@@ -9294,6 +10009,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -9312,6 +10028,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_uint64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -9320,6 +10037,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -9338,6 +10056,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_uint64 }
     },
     {
@@ -9346,6 +10065,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -9364,6 +10084,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_uint64 }
     },
     {
@@ -9373,6 +10094,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         0,
+        1,
         0,
         0,
         1,
@@ -9385,6 +10107,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         1,
@@ -9400,6 +10123,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -9411,6 +10135,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         1,
@@ -9426,6 +10151,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -9439,9 +10165,10 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
-        0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_lex | MVM_operand_uint64 }
     },
     {
@@ -9452,9 +10179,10 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
-        0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_lex | MVM_operand_uint32 }
     },
     {
@@ -9465,9 +10193,10 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
-        0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_lex | MVM_operand_uint16 }
     },
     {
@@ -9478,9 +10207,10 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
-        0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_lex | MVM_operand_uint8 }
     },
     {
@@ -9489,6 +10219,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         1,
@@ -9504,6 +10235,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -9514,6 +10246,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "param_rn_u",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -9530,6 +10263,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -9543,6 +10277,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         1,
         0,
         0,
@@ -9553,6 +10288,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "param_on2_u",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -9572,6 +10308,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -9579,6 +10316,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "lstat_time",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -9598,6 +10336,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -9607,6 +10346,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -9620,6 +10360,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -9635,6 +10376,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         2,
         0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
@@ -9644,6 +10386,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "throwpayloadlexcaller",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -9663,6 +10406,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
@@ -9670,6 +10414,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "cancelnotify",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -9689,6 +10434,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -9696,6 +10442,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "decodersetlineseps",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -9715,6 +10462,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -9722,6 +10470,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "decodertakechars",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -9741,6 +10490,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -9748,6 +10498,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "decodertakeavailablechars",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -9767,6 +10518,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -9780,6 +10532,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -9787,6 +10540,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "decodertakebytes",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -9806,6 +10560,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -9819,6 +10574,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -9826,6 +10582,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "captureinnerlex",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -9845,6 +10602,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -9852,6 +10610,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "setdispatcherfor",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -9871,6 +10630,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -9884,6 +10644,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -9891,6 +10652,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "getport_sk",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -9910,6 +10672,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64 }
     },
     {
@@ -9918,6 +10681,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         4,
         1,
+        0,
         0,
         0,
         0,
@@ -9936,6 +10700,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -9943,6 +10708,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "decodertakecharseof",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -9962,6 +10728,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -9971,6 +10738,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         4,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -9982,6 +10750,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "cas_i",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -10001,6 +10770,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -10008,6 +10778,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "atomicdec_i",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -10027,6 +10798,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -10034,6 +10806,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "atomicload_o",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -10053,6 +10826,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -10062,6 +10836,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -10073,6 +10848,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "atomicstore_i",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -10092,12 +10868,14 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
     },
     {
         MVM_OP_coveragecontrol,
         "coveragecontrol",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -10117,6 +10895,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -10124,6 +10903,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "nativeinvoke_i",
         "-a",
         3,
+        0,
         0,
         0,
         0,
@@ -10143,6 +10923,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -10150,6 +10931,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "nativeinvoke_s",
         "-a",
         3,
+        0,
         0,
         0,
         0,
@@ -10169,6 +10951,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -10176,6 +10959,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "getarg_i",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -10195,6 +10979,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_int16 }
     },
     {
@@ -10202,6 +10987,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "getarg_s",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -10221,6 +11007,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int16 }
     },
     {
@@ -10234,6 +11021,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -10241,6 +11029,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "encoderepconf",
         "  ",
         6,
+        0,
         0,
         0,
         0,
@@ -10260,6 +11049,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -10267,6 +11057,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "decodeconf",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -10286,6 +11077,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -10299,6 +11091,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64 }
     },
     {
@@ -10306,6 +11099,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "getsignals",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -10325,6 +11119,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -10332,6 +11127,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "speshreg",
         "  ",
         3,
+        0,
         0,
         0,
         0,
@@ -10347,6 +11143,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         1,
+        0,
         1,
         1,
         0,
@@ -10358,6 +11155,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "speshguardtype",
         "  ",
         2,
+        0,
         0,
         0,
         0,
@@ -10377,6 +11175,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -10384,6 +11183,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "speshguardtypeobj",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -10403,6 +11203,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -10410,6 +11211,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "speshguardgetattr",
         "  ",
         4,
+        0,
         0,
         0,
         0,
@@ -10429,6 +11231,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -10436,6 +11239,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "casattr_o",
         "  ",
         6,
+        0,
         0,
         0,
         0,
@@ -10455,6 +11259,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_uint64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -10463,6 +11268,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -10481,6 +11287,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -10490,6 +11297,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         0,
         0,
+        1,
         0,
         0,
         0,
@@ -10503,6 +11311,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         0,
         0,
+        1,
         0,
         0,
         0,
@@ -10516,6 +11325,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         0,
         0,
+        1,
         0,
         0,
         0,
@@ -10529,6 +11339,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         0,
         0,
+        1,
         0,
         0,
         0,
@@ -10542,6 +11353,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         0,
         0,
+        1,
         0,
         0,
         0,
@@ -10555,6 +11367,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         0,
         0,
+        1,
         0,
         0,
         0,
@@ -10568,6 +11381,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         0,
         0,
+        1,
         0,
         0,
         0,
@@ -10581,6 +11395,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         0,
+        1,
         0,
         0,
         0,
@@ -10594,6 +11409,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         0,
+        1,
         0,
         0,
         0,
@@ -10607,6 +11423,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         4,
         0,
         0,
+        1,
         0,
         1,
         0,
@@ -10624,6 +11441,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -10633,6 +11451,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         0,
+        1,
         0,
         0,
         1,
@@ -10645,6 +11464,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         ".s",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -10663,6 +11483,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_type_var, MVM_operand_read_lex | MVM_operand_type_var }
     },
     {
@@ -10671,6 +11492,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         ".s",
         2,
         1,
+        0,
         0,
         0,
         1,
@@ -10689,6 +11511,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
@@ -10697,6 +11520,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         ".s",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -10715,6 +11539,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
@@ -10723,6 +11548,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         ".s",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -10737,6 +11563,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         0,
+        1,
         0,
         0,
         0,
@@ -10750,6 +11577,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         0,
         0,
+        1,
         0,
         0,
         0,
@@ -10763,6 +11591,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         0,
         0,
+        1,
         0,
         0,
         0,
@@ -10776,6 +11605,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         0,
         0,
+        1,
         0,
         0,
         0,
@@ -10789,6 +11619,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         3,
         0,
         0,
+        1,
         0,
         0,
         0,
@@ -10802,6 +11633,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         4,
         0,
         0,
+        1,
         0,
         0,
         0,
@@ -10813,6 +11645,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "sp_paramnamesused",
         "  ",
         1,
+        0,
         0,
         0,
         0,
@@ -10832,6 +11665,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_spesh_slot }
     },
     {
@@ -10841,6 +11675,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         4,
         1,
         0,
+        1,
         0,
         0,
         0,
@@ -10853,6 +11688,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         ".s",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -10871,6 +11707,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
@@ -10879,6 +11716,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         ".s",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -10897,6 +11735,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
@@ -10905,6 +11744,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         ".s",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -10923,6 +11763,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
@@ -10931,6 +11772,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         ".s",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -10949,6 +11791,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
@@ -10956,6 +11799,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "sp_bind_o",
         ".s",
         3,
+        0,
         0,
         0,
         0,
@@ -10975,6 +11819,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -10982,6 +11827,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "sp_bind_i32",
         ".s",
         3,
+        0,
         0,
         0,
         0,
@@ -11001,6 +11847,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -11008,6 +11855,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "sp_bind_i8",
         ".s",
         3,
+        0,
         0,
         0,
         0,
@@ -11027,6 +11875,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
@@ -11034,6 +11883,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "sp_bind_s",
         ".s",
         3,
+        0,
         0,
         0,
         0,
@@ -11053,6 +11903,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
@@ -11060,6 +11911,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "sp_p6ogetvt_o",
         ".s",
         4,
+        0,
         0,
         0,
         0,
@@ -11079,6 +11931,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_spesh_slot }
     },
     {
@@ -11087,6 +11940,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         ".s",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -11105,6 +11959,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
@@ -11118,6 +11973,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
@@ -11125,6 +11981,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "sp_p6obind_o",
         ".s",
         3,
+        0,
         0,
         0,
         0,
@@ -11144,6 +12001,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
@@ -11151,6 +12009,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "sp_p6obind_n",
         ".s",
         3,
+        0,
         0,
         0,
         0,
@@ -11170,6 +12029,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -11178,6 +12038,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         ".s",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -11196,6 +12057,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
@@ -11203,6 +12065,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "sp_deref_bind_i64",
         ".s",
         3,
+        0,
         0,
         0,
         0,
@@ -11222,6 +12085,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_int16 }
     },
     {
@@ -11230,6 +12094,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         ".s",
         4,
         1,
+        0,
         0,
         0,
         0,
@@ -11248,6 +12113,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_type_var, MVM_operand_int16, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -11256,6 +12122,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         ".s",
         3,
         1,
+        0,
         0,
         0,
         0,
@@ -11274,6 +12141,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_spesh_slot, MVM_operand_int64 }
     },
     {
@@ -11281,6 +12149,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "sp_jit_enter",
         ".s",
         1,
+        0,
         0,
         0,
         0,
@@ -11300,6 +12169,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -11308,6 +12178,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         ".s",
         2,
         1,
+        0,
         0,
         0,
         0,
@@ -11326,6 +12197,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -11335,6 +12207,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         4,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -11352,6 +12225,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -11361,6 +12235,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         2,
         0,
         0,
+        1,
         0,
         0,
         1,
@@ -11371,6 +12246,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         MVM_OP_prof_enter,
         "prof_enter",
         ".s",
+        0,
         0,
         0,
         0,
@@ -11390,12 +12266,14 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
     },
     {
         MVM_OP_prof_enterinline,
         "prof_enterinline",
         ".s",
         1,
+        0,
         0,
         0,
         0,
@@ -11415,12 +12293,14 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_prof_exit,
         "prof_exit",
         "  ",
+        0,
         0,
         0,
         0,
@@ -11440,6 +12320,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
@@ -11447,6 +12328,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "ctw_check",
         ".s",
         2,
+        0,
         0,
         0,
         0,
@@ -11466,6 +12348,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        0,
         { MVM_operand_str, MVM_operand_int32, MVM_operand_int32, MVM_operand_int64 }
     },
     {
@@ -11473,6 +12356,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "breakpoint",
         ".s",
         2,
+        0,
         0,
         0,
         0,

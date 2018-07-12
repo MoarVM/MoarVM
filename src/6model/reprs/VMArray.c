@@ -1320,7 +1320,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             ins->operands[0]         = target;
             ins->operands[1].lit_i16 = sizeof(MVMArray);
             ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
-            MVM_spesh_get_facts(tc, g, type)->usages--;
+            MVM_spesh_usages_delete_by_reg(tc, g, type, ins);
         }
         break;
     }

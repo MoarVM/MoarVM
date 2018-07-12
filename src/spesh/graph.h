@@ -267,3 +267,8 @@ void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist 
 void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g);
 MVM_PUBLIC void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes);
 MVMOpInfo *get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint32 nrargs);
+
+MVM_STATIC_INLINE MVMuint32 MVM_spesh_is_inc_dec_op(MVMuint16 opcode) {
+    return opcode == MVM_OP_inc_i || opcode == MVM_OP_dec_i ||
+           opcode == MVM_OP_inc_u || opcode == MVM_OP_dec_u;
+}

@@ -89,9 +89,7 @@ void MVM_spesh_eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint
     MVMint8  *seen = MVM_calloc(1, g->num_bbs);
     mark_bb_seen(tc, g->entry, seen);
 
-    /* Second pass: remove dead BBs from the graph. Do not get
-     * rid of any that are from inlines or that contain handler related
-     * annotations. */
+    /* Second pass: remove dead BBs from the graph. */
     cur_bb = g->entry;
     while (cur_bb && cur_bb->linear_next) {
         MVMSpeshBB *death_cand = cur_bb->linear_next;

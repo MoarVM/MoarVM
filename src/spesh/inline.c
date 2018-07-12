@@ -195,7 +195,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
             MVMuint16 reg = ig->inlines[i].code_ref_reg;
             MVMuint32 j;
             for (j = 0; j < ig->fact_counts[reg]; j++)
-                ig->facts[reg][j].usages++;
+                MVM_spesh_usages_add_for_deopt(tc, ig, &(ig->facts[reg][j]));
         }
         return ig;
     }
@@ -372,6 +372,29 @@ static void rewrite_outer_lookup(MVMThreadContext *tc, MVMSpeshGraph *g,
     new_operands[3] = code_ref_reg;
     ins->info = MVM_op_get_op(op);
     ins->operands = new_operands;
+    MVM_spesh_usages_add_by_reg(tc, g, code_ref_reg, ins);
+}
+
+static void rewrite_hlltype(MVMThreadContext *tc, MVMSpeshGraph *inlinee, MVMSpeshIns *ins) {
+    MVMObject *selected_type;
+    MVMHLLConfig *hll = inlinee->sf->body.cu->body.hll_config;
+    MVMSpeshOperand *old_ops = ins->operands;
+    MVMuint16 sslot;
+
+    switch (ins->info->opcode) {
+        case MVM_OP_hllboxtype_i: selected_type = hll->int_box_type; break;
+        case MVM_OP_hllboxtype_n: selected_type = hll->num_box_type; break;
+        case MVM_OP_hllboxtype_s: selected_type = hll->str_box_type; break;
+        case MVM_OP_hlllist:      selected_type = hll->slurpy_array_type; break;
+        case MVM_OP_hllhash:      selected_type = hll->slurpy_hash_type; break;
+        default: MVM_oops(tc, "unhandled instruction %s in rewrite_hlltype", ins->info->name);
+    }
+
+    sslot = MVM_spesh_add_spesh_slot_try_reuse(tc, inlinee, (MVMCollectable *)selected_type);
+    ins->operands = MVM_spesh_alloc(tc, inlinee, 2 * sizeof(MVMSpeshOperand));
+    ins->operands[0] = old_ops[0];
+    ins->operands[1].lit_i16 = sslot;
+    ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
 }
 
 /* Merges the inlinee's spesh graph into the inliner. */
@@ -389,6 +412,9 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* If the inliner and inlinee are from different compilation units, we
      * potentially have to fix up extra things. */
     MVMint32 same_comp_unit = inliner->sf->body.cu == inlinee->sf->body.cu;
+
+    MVMint32 same_hll = same_comp_unit || inliner->sf->body.cu->body.hll_config ==
+            inlinee_sf->body.cu->body.hll_config;
 
     /* Renumber the locals, lexicals, and basic blocks of the inlinee; also
      * re-write any indexes in annotations that need it. */
@@ -442,6 +468,11 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 if (!same_comp_unit) {
                     if (ins->info->opcode == MVM_OP_const_s) {
                         fix_const_str(tc, inliner, inlinee, ins);
+                    }
+                    if (!same_hll &&
+                            (opcode == MVM_OP_hllboxtype_i || opcode == MVM_OP_hllboxtype_n || opcode == MVM_OP_hllboxtype_s
+                             || opcode == MVM_OP_hlllist || opcode == MVM_OP_hllhash)) {
+                        rewrite_hlltype(tc, inlinee, ins);
                     }
                 }
 
@@ -750,11 +781,14 @@ static void return_to_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *r
     operands[1]               = return_ins->operands[0];
     return_ins->info          = MVM_op_get_op(MVM_OP_set);
     return_ins->operands      = operands;
+    MVM_spesh_get_facts(tc, g, target)->writer = return_ins;
 }
 
 static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *return_bb,
                    MVMSpeshIns *return_ins, MVMSpeshOperand target,
                    MVMuint16 box_type_op, MVMuint16 box_op) {
+    MVMSpeshOperand type_temp     = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+
     /* Create and insert boxing instruction after current return instruction. */
     MVMSpeshIns      *box_ins     = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     MVMSpeshOperand *box_operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
@@ -762,13 +796,19 @@ static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *re
     box_ins->operands             = box_operands;
     box_operands[0]               = target;
     box_operands[1]               = return_ins->operands[0];
-    box_operands[2]               = target;
+    box_operands[2]               = type_temp;
     MVM_spesh_manipulate_insert_ins(tc, return_bb, return_ins, box_ins);
+    MVM_spesh_get_facts(tc, g, target)->writer = box_ins;
+    MVM_spesh_usages_add_by_reg(tc, g, box_operands[1], box_ins);
+    MVM_spesh_usages_add_by_reg(tc, g, box_operands[2], box_ins);
 
     /* Now turn return instruction node into lookup of appropriate box
      * type. */
+    MVM_spesh_usages_delete_by_reg(tc, g, return_ins->operands[0], return_ins);
     return_ins->info        = MVM_op_get_op(box_type_op);
-    return_ins->operands[0] = target;
+    return_ins->operands[0] = type_temp;
+    MVM_spesh_get_facts(tc, g, type_temp)->writer = return_ins;
+    MVM_spesh_manipulate_release_temp_reg(tc, g, type_temp);
 }
 
 static void rewrite_int_return(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -928,7 +968,7 @@ static void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                      * argument passing instruction. */
                     ins->info = MVM_op_get_op(MVM_OP_set);
                     ins->operands[1] = arg_ins->operands[1];
-                    MVM_spesh_get_facts(tc, inliner, ins->operands[1])->usages++;
+                    MVM_spesh_usages_add_by_reg(tc, inliner, ins->operands[1], ins);
                     MVM_spesh_manipulate_delete_ins(tc, inliner,
                         call_info->prepargs_bb, arg_ins);
                     break;
@@ -936,19 +976,19 @@ static void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     arg_ins->info        = MVM_op_get_op(MVM_OP_const_i64);
                     arg_ins->operands[0] = ins->operands[0];
                     MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
-                    MVM_spesh_get_facts(tc, inliner, arg_ins->operands[0])->usages++;
+                    MVM_spesh_usages_add_by_reg(tc, inliner, ins->operands[0], arg_ins);
                     break;
                 case MVM_OP_argconst_n:
                     arg_ins->info        = MVM_op_get_op(MVM_OP_const_n64);
                     arg_ins->operands[0] = ins->operands[0];
                     MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
-                    MVM_spesh_get_facts(tc, inliner, arg_ins->operands[0])->usages++;
+                    MVM_spesh_usages_add_by_reg(tc, inliner, ins->operands[0], arg_ins);
                     break;
                 case MVM_OP_argconst_s:
                     arg_ins->info        = MVM_op_get_op(MVM_OP_const_s);
                     arg_ins->operands[0] = ins->operands[0];
                     MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
-                    MVM_spesh_get_facts(tc, inliner, arg_ins->operands[0])->usages++;
+                    MVM_spesh_usages_add_by_reg(tc, inliner, ins->operands[0], arg_ins);
                     break;
                 default:
                     MVM_oops(tc,
@@ -1094,6 +1134,9 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         inlinee_last_bb, inline_boundary_handler);
 
     /* Finally, turn the invoke instruction into a goto. */
+    MVM_spesh_usages_delete_by_reg(tc, inliner,
+        invoke_ins->operands[invoke_ins->info->opcode == MVM_OP_invoke_v ? 0 : 1],
+        invoke_ins);
     invoke_ins->info = MVM_op_get_op(MVM_OP_goto);
     invoke_ins->operands[0].ins_bb = inlinee->entry->linear_next;
     tweak_succ(tc, inliner, invoke_bb, inlinee->entry->linear_next);

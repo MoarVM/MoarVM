@@ -192,6 +192,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/candidate@obj@ \
           src/spesh/manipulate@obj@ \
           src/spesh/args@obj@ \
+          src/spesh/usages@obj@ \
           src/spesh/facts@obj@ \
           src/spesh/optimize@obj@ \
           src/spesh/dead_bb_elimination@obj@ \
@@ -354,6 +355,7 @@ HEADERS = src/moar.h \
           src/spesh/candidate.h \
           src/spesh/manipulate.h \
           src/spesh/args.h \
+          src/spesh/usages.h \
           src/spesh/facts.h \
           src/spesh/optimize.h \
           src/spesh/dead_bb_elimination.h \

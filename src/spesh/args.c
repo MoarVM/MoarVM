@@ -133,10 +133,9 @@ static void slurp_named_arg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     else {
         MVMSpeshIns *box_ins, *hlltype_ins, *fetch_ins;
 
-        /* We need to box it. Get a temporary register to box into. To
-         * only use one extra register, we will re-use the temp value
-         * one to load the box type into, and only add a temporary for. */
-        MVMSpeshOperand unboxed_temp;
+        /* We need to box it. Get a temporary register to box into, and one
+         * for the HLL type. */
+        MVMSpeshOperand unboxed_temp, box_type_temp;
         MVMuint16 box_op;
         MVMuint16 hlltype_op;
         MVMuint16 fetch_op;
@@ -164,20 +163,23 @@ static void slurp_named_arg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
         }
 
         /* Emit instruction to box value. */
+        box_type_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
         box_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
         box_ins->info = MVM_op_get_op(box_op);
         box_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
         box_ins->operands[0] = value_temp;
         box_ins->operands[1] = unboxed_temp;
-        box_ins->operands[2] = value_temp;
+        box_ins->operands[2] = box_type_temp;
         MVM_spesh_manipulate_insert_ins(tc, bb, hash_ins, box_ins);
+        MVM_spesh_get_facts(tc, g, value_temp)->writer = box_ins;
 
         /* Prepend the instruction get box type. */
         hlltype_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
         hlltype_ins->info = MVM_op_get_op(hlltype_op);
         hlltype_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand));
-        hlltype_ins->operands[0] = value_temp;
+        hlltype_ins->operands[0] = box_type_temp;
         MVM_spesh_manipulate_insert_ins(tc, bb, hash_ins, hlltype_ins);
+        MVM_spesh_get_facts(tc, g, box_type_temp)->writer = hlltype_ins;
 
         /* Prepend fetch instruction. */
         fetch_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
@@ -186,9 +188,11 @@ static void slurp_named_arg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
         fetch_ins->operands[0] = unboxed_temp;
         fetch_ins->operands[1].lit_ui16 = arg_idx;
         MVM_spesh_manipulate_insert_ins(tc, bb, hash_ins, fetch_ins);
+        MVM_spesh_get_facts(tc, g, unboxed_temp)->writer = fetch_ins;
 
         /* Can release the temporary register now. */
         MVM_spesh_manipulate_release_temp_reg(tc, g, unboxed_temp);
+        MVM_spesh_manipulate_release_temp_reg(tc, g, box_type_temp);
     }
 
     /* Insert key fetching instruciton; we just store the string in a spesh
