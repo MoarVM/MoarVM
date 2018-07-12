@@ -901,6 +901,7 @@ static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                         invoke_bb->succ[0]);
                     tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
+                    MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
                 }
                 else {
                     MVM_oops(tc,
