@@ -232,82 +232,92 @@ sub fill_macro {
 my %CONSTANTS;
 
 sub write_template {
-    my ($tree, $templ, $desc, $env) = @_;
+    my ($tree, $tmpl, $desc, $env) = @_;
     die "Can't deal with an empty tree" unless @$tree; # we need at least some nodes
-    my $top = $tree->[0]; # get the first item, used for dispatch
-    die "First parameter must be a bareword or macro" unless $top =~ m/^&?[a-z]\w*:?$/i;
+    my ($node, @edges) = @$tree;
+    die "First parameter must be a bareword or macro" unless $node =~ m/^&?[a-z]\w*:?$/i;
 
-    my (@items, @desc); # accumulate state
-    if ($top eq 'let:') {
+
+    if ($node eq 'let:') {
         # rewrite (let: (($name ($code))) ($code..)+)
         # into (do(v)?: $ndec + $ncode $decl+ $code+)
         my $env  = { %$env }; # copy env and shadow it
-        my $decl = $tree->[1];
-        my @expr = @$tree[2..$#$tree];
+        my ($decl, @expr) = @edges;
 
         # depening on last node result, start with DO or DOV (void)
         my $type = ($OPERATOR_TYPES{$expr[-1][0]} // 'reg');
         my $list = [ $type eq 'void' ? 'DOV' : 'DO', @$decl + @expr ];
         # add declarations to template and to DO list
         for my $stmt (@$decl) {
+            my ($name, $expr) = @$stmt;
             die "Let statement should hold 2 expressions, holds ".@$stmt unless @$stmt == 2;
-            die "Variable name {$stmt->[0]} is invalid" unless $stmt->[0] =~ m/\$[a-z]\w*/i;
-            die "Let statement expects an expression" unless ref($stmt->[1]) eq 'ARRAY';
-            die "Redeclaration of '$stmt->[0]'" if defined($env->{$stmt->[0]});
-            my ($child, $mode) = write_template($stmt->[1], $templ, $desc, $env);
+            die "Variable name $name is invalid" unless $name =~ m/\$[a-z]\w*/i;
+            die "Let statement expects an expression" unless ref($expr) eq 'ARRAY';
+            die "Redeclaration of '$name'" if exists($env->{$name});
+            my ($child, $mode) = write_template($expr, $tmpl, $desc, $env);
             die "Let can only be used with simple expresions" unless $mode eq 'l';
-            $env->{$stmt->[0]} = $child;
+            $env->{$name} = $child;
             # ensure the DO is compiled as I expect.
-            push @$list, ['DISCARD', $stmt->[0]];
+            push @$list, ['DISCARD', $name];
         }
         push @$list, @expr;
-        return write_template($list, $templ, $desc, $env);
-    } elsif (substr($top, 0, 1) eq '&') {
-        # Add macro or sizeof/offsetof expression. these are not
-        # processed in at runtime! Must evaluate to constant
-        # expression.
-        return (sprintf('%s(%s)', substr($top, 1),
-                        join(', ', @$tree[1..$#$tree])), '.');
-    } elsif ($top =~ m/const_ptr|const_large/) {
+        return write_template($list, $tmpl, $desc, $env);
+    } elsif (substr($node, 0, 1) eq '&') {
+        # C-macro expressions are opaque to the template compiler but
+        # should reduce to a constant expression when the generated
+        # header is compiled. Used for sizeof/offsetof expressions
+        # mostly. Returns a 'dot' mode to be treated as a constant
+        return (sprintf('%s(%s)', substr($node, 1),
+                        join(', ', @edges)), '.');
+    } elsif ($node =~ m/const_ptr|const_large/) {
         # intern this constant
-        my $const_nr = $CONSTANTS{$tree->[1]} = exists $CONSTANTS{$tree->[1]} ?
-            $CONSTANTS{$tree->[1]} : scalar keys %CONSTANTS;
-        my $root  = @$templ;
-        push @$templ, $PREFIX . uc($top), $const_nr,
-            $top eq 'const_large' ? $tree->[2] : ();
-        push @$desc, '.', 'c';
+        my ($value, $size) = @edges;
+        my $const_nr = $CONSTANTS{$value} = exists $CONSTANTS{$value} ?
+            $CONSTANTS{$value} : scalar keys %CONSTANTS;
+        my $root  = @$tmpl;
+        push @$tmpl, $PREFIX . uc($node), $const_nr;
+        push @$desc, 'o', 'c';
+        if ($node eq 'const_large') {
+            # const_large needs a size
+            push @$tmpl, $size;
+            push @$desc, '.';
+        }
         return ($root, 'l');
     }
 
     # deal with a simple expression
-    for my $item (@$tree) {
+    my (@tmpl, @desc); # for this node
+    push @tmpl, $PREFIX . uc($node);
+    push @desc, 'n'; # node
+
+    for my $item (@edges) {
         if (ref($item) eq 'ARRAY') {
             # subexpression: get offset and template mode for this root
-            my ($child, $mode) = write_template($item, $templ, $desc, $env);
-            push @items, $child;
+            my ($child, $mode) = write_template($item, $tmpl, $desc, $env);
+            push @tmpl, $child;
             push @desc, $mode;
         } elsif ($item =~ m/^\$\d+$/) {
             # numeric variable (an operand parameter)
-            push @items, substr($item, 1)+0; # pass the operand nummer
-            push @desc, 'f'; # at run time, fill this from operands
+            push @tmpl, substr($item, 1)+0; # pass the operand nummer
+            push @desc, 'i'; # run-time *input* operand
         } elsif ($item =~ m/^\$\w+$/) {
             # named variable (declared in let)
             die "Undefined variable '$item' used" unless exists $env->{$item};
-            push @items, $env->{$item};
+            push @tmpl, $env->{$item};
             push @desc, 'l'; # also needs to be linked in properly
         } elsif ($item =~ m/^\d+$/) {
             # integer numerics are passed literally
-            push @items, $item;
+            push @tmpl, $item;
             push @desc, '.';
         } else {
             # barewords are passed as uppercased prefixed strings
-            push @items, $PREFIX . uc($item);
+            push @tmpl, $PREFIX . uc($item);
             push @desc, '.';
         }
     }
-    my $root = @$templ; # current position is where we'll be writing the root template.
+    my $root = @$tmpl; # current position is where we'll be writing the root template.
     # add to output array
-    push @$templ, @items;
+    push @$tmpl, @tmpl;
     push @$desc, @desc;
     # a simple expression should be linked in at runtime
     return ($root, 'l');

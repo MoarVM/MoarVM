@@ -316,6 +316,7 @@ void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree, MVMS
  * before I apply it.  I need this because I make a lot of mistakes in
  * writing templates, and debugging is hard. */
 static void check_template(MVMThreadContext *tc, const MVMJitExprTemplate *template, MVMSpeshIns *ins) {
+#if MVM_JIT_DEBUG
     MVMint32 i;
     for (i = 0; i < template->len; i++) {
         switch(template->info[i]) {
@@ -326,7 +327,7 @@ static void check_template(MVMThreadContext *tc, const MVMJitExprTemplate *templ
             if (template->code[i] >= i || template->code[i] < 0)
                 MVM_oops(tc, "JIT: Template link out of bounds (instruction: %s)", ins->info->name);
             break;
-        case 'f':
+        case 'i':
             if (template->code[i] < 0 ||
                 (template->code[i] >= ins->info->num_operands &&
                  !ins_has_single_input_output_operand(ins)))
@@ -339,6 +340,7 @@ static void check_template(MVMThreadContext *tc, const MVMJitExprTemplate *templ
     if (template->info[i])
         MVM_oops(tc, "JIT: Template info longer than template length (instruction: %s)",
                  ins->info->name);
+#endif
 }
 
 /* Add template to nodes, filling in operands and linking tree nodes. Return template root */
@@ -354,15 +356,18 @@ static MVMint32 apply_template(MVMThreadContext *tc, MVMJitExprTree *tree, MVMin
             /* link template-relative to nodes-relative */
             tree->nodes[num+i] = code[i] + num;
             break;
-        case 'f':
-            /* add operand node into the nodes */
+        case 'i':
+            /* insert input operand node */
             tree->nodes[num+i] = operands[code[i]];
             break;
         case 'c':
             tree->nodes[num+i] = MVM_jit_expr_add_const_ptr(tc, tree, MVM_jit_expr_template_constants[code[i]]);
             break;
+        case 'n':
+            /* fallthrough */
+        case '.':
         default:
-            /* copy from template to nodes (./n) */
+            /* copy constant from template */
             tree->nodes[num+i] = code[i];
             break;
         }
