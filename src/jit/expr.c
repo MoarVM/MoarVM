@@ -21,7 +21,6 @@ const MVMJitExprOpInfo MVM_JIT_EXPR_OP_INFO_TABLE[] = {
 /* macros used in the expression list templates, defined here so they
    don't overwrite other definitions */
 #define QUOTE(x) (x)
-#define MSG(...) CONST_PTR(#__VA_ARGS__)
 #define SIZEOF_MEMBER(type, member) sizeof(((type*)0)->member)
 
 #include "jit/core_templates.h"
@@ -407,8 +406,12 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     /* propagate node sizes */
     switch (tree->nodes[node]) {
     case MVM_JIT_CONST:
+    case MVM_JIT_CONST_LARGE:
         /* node size is given */
         node_info->size        = args[1];
+        break;
+    case MVM_JIT_CONST_PTR:
+        node_info->size       = MVM_JIT_PTR_SZ;
         break;
     case MVM_JIT_COPY:
         node_info->size = tree->info[tree->nodes[first_child]].size;
