@@ -124,6 +124,7 @@ void MVM_spesh_manipulate_cleanup_ins_deps(MVMThreadContext *tc, MVMSpeshGraph *
 /* Inserts an instruction after the specified instruciton, or at the start of
  * the basic block if the instruction is NULL. */
 void MVM_spesh_manipulate_insert_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshIns *previous, MVMSpeshIns *to_insert) {
+    /* Do the insertion. */
     MVMSpeshIns *next;
     if (previous) {
         next = previous->next;
@@ -139,6 +140,26 @@ void MVM_spesh_manipulate_insert_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSp
         bb->last_ins = to_insert;
     }
     to_insert->prev = previous;
+
+    /* If the instruction after the inserted one has an OSR deopt annotation,
+     * we move it onto the instruction we just inserted. */
+    if (next && next->annotations) {
+        MVMSpeshAnn *ann = next->annotations;
+        MVMSpeshAnn *prev_ann = NULL;
+        while (ann) {
+            if (ann->type == MVM_SPESH_ANN_DEOPT_OSR) {
+                if (prev_ann)
+                    prev_ann->next = ann->next;
+                else
+                    next->annotations = ann->next;
+                ann->next = to_insert->annotations;
+                to_insert->annotations = ann;
+                break;
+            }
+            prev_ann = ann;
+            ann = ann->next;
+        }
+    }
 }
 
 /* Inserts a goto. */
