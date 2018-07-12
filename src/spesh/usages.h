@@ -3,8 +3,11 @@
 
 /* Usage information, which is held per SSA written register. */
 struct MVMSpeshUsages {
-    /* The use chain entries. */
+    /* The normal use chain entries. */
     MVMSpeshUseChainEntry *users;
+
+    /* The deopt use chain entries. */
+    MVMSpeshDeoptUseEntry *deopt_users;
 
     /* Does the instruction need to be preserved for the sake of deopt? */
     MVMuint8 deopt_required;
@@ -12,6 +15,9 @@ struct MVMSpeshUsages {
     /* Does the instruction need to be preserved as it is setting an exception
      * handler block register? */
     MVMuint8 handler_required;
+
+    /* Has the writer been processed while doing deopt use analysis? */
+    MVMuint8 deopt_write_processed;
 
 #if MVM_SPESH_CHECK_DU
     /* Is the writer in the graph? */
@@ -21,11 +27,25 @@ struct MVMSpeshUsages {
 
 /* Linked list of using instructions. */
 struct MVMSpeshUseChainEntry {
+    /* The reading instruction. */
     MVMSpeshIns *user;
+
+    /* The next entry in the chain. */
     MVMSpeshUseChainEntry *next;
+
+    /* Has this read been processed while doing deopt use analysis? */
+    MVMuint8 deopt_read_processed;
+
 #if MVM_SPESH_CHECK_DU
+    /* Used in debugging. */
     MVMuint8 seen_in_graph;
 #endif
+};
+
+/* A use for the purposes of deoptimization. */
+struct MVMSpeshDeoptUseEntry {
+    MVMint32 deopt_idx;
+    MVMSpeshDeoptUseEntry *next;
 };
 
 void MVM_spesh_usages_add(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *facts, MVMSpeshIns *by);
@@ -38,6 +58,7 @@ void MVM_spesh_usages_clear_for_deopt(MVMThreadContext *tc, MVMSpeshGraph *g, MV
 void MVM_spesh_usages_clear_for_deopt_by_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand unused);
 void MVM_spesh_usages_add_for_handler(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *facts);
 void MVM_spesh_usages_add_for_handler_by_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand used);
+void MVM_spesh_usages_create_deopt_usage(MVMThreadContext *tc, MVMSpeshGraph *g);
 MVMuint32 MVM_spesh_usages_is_used(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand check);
 MVMuint32 MVM_spesh_usages_is_used_by_deopt(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand check);
 MVMuint32 MVM_spesh_usages_is_used_by_handler(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand check);

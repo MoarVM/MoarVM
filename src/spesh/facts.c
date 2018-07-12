@@ -756,4 +756,5 @@ static void tweak_block_handler_usage(MVMThreadContext *tc, MVMSpeshGraph *g) {
 void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p) {
     add_bb_facts(tc, g, g->entry, p, -1);
     tweak_block_handler_usage(tc, g);
+    MVM_spesh_usages_create_deopt_usage(tc, g);
 }
