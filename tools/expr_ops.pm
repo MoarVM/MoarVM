@@ -14,8 +14,8 @@ sub parse_expr_ops {
     while (<$fh>) { last if m/#define MVM_JIT_EXPR_OPS/; }
     my @expr_ops;
     while (<$fh>) {
-        next unless (m/\((\w+),\s*(-?\d+),\s*(\d+),\s*(\w+)\)/);
-        push @expr_ops, [$1, $2, $3, $4];
+        next unless (m/\((\w+),\s*(-?\d+),\s*(\d+)\)/);
+        push @expr_ops, [$1, $2, $3];
     }
     close $fh;
     return @expr_ops;

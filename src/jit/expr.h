@@ -11,15 +11,15 @@ enum {
 };
 
 /* Control casting behaviour for mixed-sized operands */
-#define MVM_JIT_NO_CAST  0
-#define MVM_JIT_UNSIGNED 1
-#define MVM_JIT_SIGNED   2
+#define MVM_JIT_CAST_NONE  0
+#define MVM_JIT_CAST_UNSIGNED 1
+#define MVM_JIT_CAST_SIGNED   2
 
 #include "expr_ops.h"
 
 
 enum {
-#define MVM_JIT_OP_ENUM(name, nchild, npar, cast) MVM_JIT_##name
+#define MVM_JIT_OP_ENUM(name, nchild, narg) MVM_JIT_##name
 MVM_JIT_EXPR_OPS(MVM_JIT_OP_ENUM)
 #undef MVM_JIT_OP_ENUM
 };
@@ -30,7 +30,6 @@ struct MVMJitExprOpInfo {
     const char     *name;
     MVMint32        nchild;
     MVMint32        nargs;
-    MVMint8         cast;
 };
 
 /* Tree node information for easy access and use during compilation (a

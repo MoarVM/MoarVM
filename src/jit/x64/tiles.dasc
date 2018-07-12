@@ -189,7 +189,7 @@ MVM_JIT_TILE_DECL(store_idx) {
 MVM_JIT_TILE_DECL(cast) {
     MVMint32 to_size   = tile->args[0];
     MVMint32 from_size = tile->args[1];
-    MVMint32 is_signed = tile->args[2];
+    MVMint32 cast_mode = tile->args[2];
 
     MVMint8  to_reg    = tile->values[0];
     MVMint8  from_reg  = tile->values[1];
@@ -205,7 +205,7 @@ MVM_JIT_TILE_DECL(cast) {
      * 4 + 8<<3 == 68
      */
     MVMint32 size_conv = (from_size) | (to_size << 3);
-    if (is_signed == MVM_JIT_SIGNED) {
+    if (cast_mode == MVM_JIT_CAST_SIGNED) {
         switch (size_conv) {
         case 17:
             | movsx Rw(to_reg), Rb(from_reg);

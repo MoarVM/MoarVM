@@ -1,7 +1,7 @@
 #include "moar.h"
 
 const MVMJitExprOpInfo MVM_JIT_EXPR_OP_INFO_TABLE[] = {
-#define OP_INFO(name, nchild, nargs, cast) { #name, nchild, nargs, MVM_JIT_ ## cast }
+#define OP_INFO(name, nchild, nargs) { #name, nchild, nargs }
     MVM_JIT_EXPR_OPS(OP_INFO)
 #undef OP_INFO
 };
@@ -406,6 +406,7 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVMint32        nchild = op_info->nchild < 0 ? tree->nodes[first_child++] : op_info->nchild;
     MVMJitExprNode   *args = tree->nodes + first_child + nchild;
     MVMJitExprNodeInfo *node_info = tree->info + node;
+    MVMint32 cast_mode = MVM_JIT_CAST_NONE;
     MVMint32 i;
 
     /* propagate node sizes */
@@ -427,8 +428,6 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     case MVM_JIT_CAST:
         node_info->size = args[0];
         break;
-    case MVM_JIT_ADDR:
-    case MVM_JIT_IDX:
     case MVM_JIT_LABEL:
     case MVM_JIT_TC:
     case MVM_JIT_CU:
@@ -437,29 +436,43 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         /* addresses result in pointers */
         node_info->size = MVM_JIT_PTR_SZ;
         break;
-        /* binary operations */
+    case MVM_JIT_ADDR:
+    case MVM_JIT_IDX:
+        node_info->size = MVM_JIT_PTR_SZ;
+        cast_mode = MVM_JIT_CAST_UNSIGNED;
+        break;
+        /* signed binary operations */
     case MVM_JIT_ADD:
     case MVM_JIT_SUB:
-    case MVM_JIT_AND:
-    case MVM_JIT_OR:
-    case MVM_JIT_XOR:
-    case MVM_JIT_NOT:
-        /* comparisons */
-    case MVM_JIT_NE:
     case MVM_JIT_LT:
     case MVM_JIT_LE:
-    case MVM_JIT_EQ:
     case MVM_JIT_GE:
     case MVM_JIT_GT:
+    case MVM_JIT_EQ:
+    case MVM_JIT_NE:
         {
             /* arithmetic nodes use their largest operand */
             MVMint32 left  = tree->nodes[first_child];
             MVMint32 right = tree->nodes[first_child+1];
             node_info->size = MAX(tree->info[left].size,
                                   tree->info[right].size);
+            cast_mode = MVM_JIT_CAST_SIGNED;
             break;
         }
-    case MVM_JIT_FLAGVAL:
+       /* unsigned binary operations */
+    case MVM_JIT_AND:
+    case MVM_JIT_OR:
+    case MVM_JIT_XOR:
+    case MVM_JIT_NOT:
+        {
+            MVMint32 left  = tree->nodes[first_child];
+            MVMint32 right = tree->nodes[first_child+1];
+            node_info->size = MAX(tree->info[left].size,
+                                  tree->info[right].size);
+            cast_mode = MVM_JIT_CAST_UNSIGNED;
+            break;
+        }
+   case MVM_JIT_FLAGVAL:
         /* XXX THIS IS A HACK
          *
          * The true size of 'flagval' is a single byte.  But that would mean it
@@ -497,7 +510,7 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     }
 
     /* Insert casts as necessary */
-    if (op_info->cast != MVM_JIT_NO_CAST) {
+    if (cast_mode != MVM_JIT_CAST_NONE) {
         for (i = 0; i < nchild; i++) {
             MVMint32 child = tree->nodes[first_child+i];
             if (tree->nodes[child] == MVM_JIT_CONST) {
@@ -505,7 +518,14 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 tree->info[child].size = tree->info[node].size;
             } else if (tree->info[child].size < node_info->size) {
                 /* Widening casts need to be handled explicitly, shrinking casts do not */
-                MVMint32 cast = MVM_jit_expr_add_cast(tc, tree, child, node_info->size, tree->info[child].size, op_info->cast);
+                MVMint32 cast = MVM_jit_expr_add_cast(tc, tree, child, node_info->size, tree->info[child].size, cast_mode);
+#if MVM_JIT_DEBUG
+                fprintf(stderr, "Inserting %s cast from %d to %d for operator %s (child %s)\n",
+                        (cast_mode == MVM_JIT_CAST_UNSIGNED ? "unsigned" : "signed"),
+                        tree->info[child].size, node_info->size,
+                        op_info->name, MVM_jit_expr_op_info(tc, tree->nodes[child])->name
+                    );
+#endif
                 /* Because the cast may have grown the backing nodes array, the info array needs to grow as well */
                 MVM_VECTOR_ENSURE_SIZE(tree->info, cast);
                 /* And because analyze_node is called in postorder,
