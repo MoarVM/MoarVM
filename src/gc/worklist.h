@@ -57,6 +57,10 @@ struct MVMGCWorklist {
                 worklist->list[worklist->items++] = item_to_add; \
         } \
     } while (0)
+#define MVM_gc_worklist_add_include_gen2_nocheck(tc, worklist, item) \
+    MVM_gc_worklist_add(tc, worklist, item)
+#define MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, item) \
+    MVM_gc_worklist_add(tc, worklist, item)
 #else
 #define MVM_gc_worklist_add(tc, worklist, item) \
     do { \
@@ -68,6 +72,24 @@ struct MVMGCWorklist {
                 worklist->list[worklist->items++] = item_to_add; \
         } \
     } while (0)
+/* Assumes worklist->include_gen2 is True. Also assumes there is enough space
+ * in worklist->items.
+ * Make sure to call MVM_gc_worklist_presize_for() and that worklist->include_gen2
+ * is True before calling this macro. */
+#define MVM_gc_worklist_add_include_gen2_nocheck(tc, worklist, item) \
+do { \
+    worklist->list[worklist->items++] = (MVMCollectable**)item; \
+} while (0)
+/* Assumes worklist->include_gen2 is False. Also assumes there is enough space
+ * in worklist->items.
+ * Make sure to call MVM_gc_worklist_presize_for() and that worklist->include_gen2
+ * is False before calling this macro. */
+#define MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, item) \
+do { \
+    if (!( (*(MVMCollectable**)item)->flags & MVM_CF_SECOND_GEN)) { \
+        worklist->list[worklist->items++] = (MVMCollectable**)item; \
+    } \
+} while (0)
 #endif
 
 #define MVM_gc_worklist_get(tc, worklist) \

@@ -44,10 +44,19 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void MVMHash_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMHashBody     *body = (MVMHashBody *)data;
     MVMHashEntry *current = NULL;
-    HASH_ITER_FAST(tc, hash_handle, body->hash_head, current, {
-        MVM_gc_worklist_add(tc, worklist, &current->hash_handle.key);
-        MVM_gc_worklist_add(tc, worklist, &current->value);
-    });
+    MVM_gc_worklist_presize_for(tc, worklist, 2 * HASH_CNT(hash_handle, body->hash_head));
+    if (worklist->include_gen2) {
+        HASH_ITER_FAST(tc, hash_handle, body->hash_head, current, {
+            MVM_gc_worklist_add_include_gen2_nocheck(tc, worklist, &current->hash_handle.key);
+            MVM_gc_worklist_add_include_gen2_nocheck(tc, worklist, &current->value);
+        });
+    }
+    else {
+        HASH_ITER_FAST(tc, hash_handle, body->hash_head, current, {
+            MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, &current->hash_handle.key);
+            MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, &current->value);
+        });
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
