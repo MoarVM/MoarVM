@@ -148,6 +148,15 @@ static void process_deopt(MVMThreadContext *tc, DeoptAnalysisState *state, MVMSp
         }
         write = write->next;
     }
+
+    /* If this instruction has a write operand then it's in the deopt set too. */
+    if (ins->info->num_operands >= 1 && (ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
+        MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+        MVMSpeshDeoptUseEntry *deopt_entry = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshDeoptUseEntry));
+        deopt_entry->deopt_idx = deopt_idx;
+        deopt_entry->next = facts->usage.deopt_users;
+        facts->usage.deopt_users = deopt_entry;
+    }
 }
 static void process_bb_for_deopt_usage(MVMThreadContext *tc, DeoptAnalysisState *state,
                                        MVMSpeshGraph *g, MVMSpeshBB *bb) {
