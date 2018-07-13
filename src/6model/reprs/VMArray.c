@@ -72,18 +72,28 @@ static void VMArray_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVM
         case MVM_ARRAY_OBJ: {
             MVMObject **slots = body->slots.o;
             slots += start;
-            while (i < elems) {
-                MVM_gc_worklist_add(tc, worklist, &slots[i]);
-                i++;
+            MVM_gc_worklist_presize_for(tc, worklist, elems);
+            if (worklist->include_gen2) {
+                for (; i < elems; i++)
+                    MVM_gc_worklist_add_include_gen2_nocheck(tc, worklist, &slots[i]);
+            }
+            else {
+                for (; i < elems; i++)
+                    MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, &slots[i]);
             }
             break;
         }
         case MVM_ARRAY_STR: {
             MVMString **slots = body->slots.s;
             slots += start;
-            while (i < elems) {
-                MVM_gc_worklist_add(tc, worklist, &slots[i]);
-                i++;
+            MVM_gc_worklist_presize_for(tc, worklist, elems);
+            if (worklist->include_gen2) {
+                for (; i < elems; i++)
+                    MVM_gc_worklist_add_include_gen2_nocheck(tc, worklist, &slots[i]);
+            }
+            else {
+                for (; i < elems; i++)
+                    MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, &slots[i]);
             }
             break;
         }
