@@ -51,7 +51,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 }
 
 /* Called by the VM to mark any GCable items. */
-static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+static void SCRef_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMSerializationContextBody *sc = ((MVMSerializationContextBody **)data)[0];
     MVMuint64 i;
 
@@ -61,26 +61,46 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_gc_worklist_add(tc, worklist, &sc->rep_indexes);
     MVM_gc_worklist_add(tc, worklist, &sc->rep_scs);
     MVM_gc_worklist_add(tc, worklist, &sc->owned_objects);
-
-    for (i = 0; i < sc->num_objects; i++)
-        MVM_gc_worklist_add(tc, worklist, &sc->root_objects[i]);
-    for (i = 0; i < sc->num_stables; i++)
-        MVM_gc_worklist_add(tc, worklist, &sc->root_stables[i]);
+    /* Add it using more optimized code when we have to add a large number of things in
+     * a loop. */
+    MVM_gc_worklist_presize_for(tc, worklist, sc->num_objects + sc->num_stables);
+    if (worklist->include_gen2) {
+        for (i = 0; i < sc->num_objects; i++)
+            MVM_gc_worklist_add_include_gen2_nocheck(tc, worklist, &sc->root_objects[i]);
+        for (i = 0; i < sc->num_stables; i++)
+            MVM_gc_worklist_add_include_gen2_nocheck(tc, worklist, &sc->root_stables[i]);
+    }
+    else {
+        for (i = 0; i < sc->num_objects; i++)
+            MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, &sc->root_objects[i]);
+        for (i = 0; i < sc->num_stables; i++)
+            MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, &sc->root_stables[i]);
+    }
 
     MVM_gc_worklist_add(tc, worklist, &sc->sc);
     MVM_gc_worklist_add(tc, worklist, &sc->mutex);
 
     /* Mark serialization reader, if we have one. */
     if (sc->sr) {
+        MVM_gc_worklist_presize_for(tc, worklist,  sc->sr->root.num_dependencies + sc->sr->root.num_contexts);
+        if (worklist->include_gen2) {
+            for (i = 0; i < sc->sr->root.num_dependencies; i++)
+                MVM_gc_worklist_add_include_gen2_nocheck(tc, worklist, &(sc->sr->root.dependent_scs[i]));
+            for (i = 0; i < sc->sr->root.num_contexts; i++)
+                MVM_gc_worklist_add_include_gen2_nocheck(tc, worklist, &(sc->sr->contexts[i]));
+        }
+        else {
+            for (i = 0; i < sc->sr->root.num_dependencies; i++)
+                MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, &(sc->sr->root.dependent_scs[i]));
+            for (i = 0; i < sc->sr->root.num_contexts; i++)
+                MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, &(sc->sr->contexts[i]));
+        }
         MVM_gc_worklist_add(tc, worklist, &(sc->sr->root.sc));
-        for (i = 0; i < sc->sr->root.num_dependencies; i++)
-            MVM_gc_worklist_add(tc, worklist, &(sc->sr->root.dependent_scs[i]));
         MVM_gc_worklist_add(tc, worklist, &(sc->sr->root.string_heap));
         MVM_gc_worklist_add(tc, worklist, &(sc->sr->root.string_comp_unit));
         MVM_gc_worklist_add(tc, worklist, &(sc->sr->codes_list));
         MVM_gc_worklist_add(tc, worklist, &(sc->sr->current_object));
-        for (i = 0; i < sc->sr->root.num_contexts; i++)
-            MVM_gc_worklist_add(tc, worklist, &(sc->sr->contexts[i]));
+
     }
 }
 
@@ -219,7 +239,7 @@ static const MVMREPROps SCRef_this_repr = {
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */
     NULL, /* deserialize_stable_size */
-    gc_mark,
+    SCRef_gc_mark,
     gc_free,
     NULL, /* gc_cleanup */
     NULL, /* gc_mark_repr_data */
