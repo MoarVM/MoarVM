@@ -252,6 +252,7 @@ struct MVMSpeshAnn {
 #define MVM_SPESH_ANN_DEOPT_OSR     9
 #define MVM_SPESH_ANN_LINENO        10
 #define MVM_SPESH_ANN_LOGGED        11
+#define MVM_SPESH_ANN_DEOPT_SYNTH   12
 
 /* Functions to create/destroy the spesh graph. */
 MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,

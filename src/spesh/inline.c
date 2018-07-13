@@ -195,7 +195,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
             MVMuint16 reg = ig->inlines[i].code_ref_reg;
             MVMuint32 j;
             for (j = 0; j < ig->fact_counts[reg]; j++)
-                MVM_spesh_usages_add_for_deopt(tc, ig, &(ig->facts[reg][j]));
+                MVM_spesh_usages_add_unconditional_deopt_usage(tc, ig, &(ig->facts[reg][j]));
         }
         return ig;
     }

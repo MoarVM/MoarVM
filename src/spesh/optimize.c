@@ -1312,12 +1312,15 @@ MVMuint32 find_invoke_offset(MVMThreadContext *tc, MVMSpeshIns *ins) {
 
 /* Given an instruction, finds the deopt target on it. Panics if there is not
  * one there. */
-MVMuint32 find_deopt_target(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
-    MVMuint32 deopt_target;
+void find_deopt_target_and_index(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+                                 MVMint32 *deopt_target_out, MVMint32 *deopt_index_out) {
     MVMSpeshAnn *deopt_ann = ins->annotations;
     while (deopt_ann) {
-        if (deopt_ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS)
-            return g->deopt_addrs[2 * deopt_ann->data.deopt_idx];
+        if (deopt_ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS) {
+            *deopt_target_out = g->deopt_addrs[2 * deopt_ann->data.deopt_idx];
+            *deopt_index_out = deopt_ann->data.deopt_idx;
+            return;
+        }
         deopt_ann = deopt_ann->next;
     }
     MVM_panic(1, "Spesh: unexpectedly missing deopt annotation on prepargs");
@@ -1378,12 +1381,24 @@ static MVMSpeshStatsType * find_invokee_type_tuple(MVMThreadContext *tc, MVMSpes
         : NULL;
 }
 
+/* Adds an annotation relating a synthetic (added during optimization) deopt
+ * point back to the original one whose usages will have been recorded in the
+ * facts. */
+static void add_synthetic_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                           MVMSpeshIns *ins, MVMuint32 deopt_index) {
+    MVMSpeshAnn *ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+    ann->type = MVM_SPESH_ANN_DEOPT_SYNTH;
+    ann->data.deopt_idx = deopt_index;
+    ann->next = ins->annotations;
+    ins->annotations = ann;
+}
+
 /* Inserts an argument type guard as suggested by a logged type tuple. */
 static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
                                   MVMSpeshStatsType *type_info,
                                   MVMSpeshCallInfo *arg_info, MVMuint32 arg_idx) {
     /* Insert guard before prepargs (this means they stack up in order). */
-    MVMuint32 deopt_target = find_deopt_target(tc, g, arg_info->prepargs_ins);
+    MVMuint32 deopt_target, deopt_index;
     MVMSpeshIns *guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     guard->info = MVM_op_get_op(type_info->type_concrete
         ? MVM_OP_sp_guardconc
@@ -1392,14 +1407,17 @@ static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     guard->operands[0] = arg_info->arg_ins[arg_idx]->operands[1];
     guard->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
         (MVMCollectable *)type_info->type->st);
+    find_deopt_target_and_index(tc, g, arg_info->prepargs_ins, &deopt_target, &deopt_index);
     guard->operands[2].lit_ui32 = deopt_target;
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, guard);
     MVM_spesh_usages_add_by_reg(tc, g, arg_info->arg_ins[arg_idx]->operands[1], guard);
 
-    /* Also give the instruction a deopt annotation. */
+    /* Also give the instruction a deopt annotation, and related it to the
+     * one on the prepargs. */
     MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
         MVM_SPESH_ANN_DEOPT_ONE_INS);
+    add_synthetic_deopt_annotation(tc, g, guard, deopt_index);
 }
 
 /* Inserts an argument decont type guard as suggested by a logged type tuple. */
@@ -1407,7 +1425,7 @@ static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
                                          MVMSpeshStatsType *type_info,
                                          MVMSpeshCallInfo *arg_info, MVMuint32 arg_idx) {
     MVMSpeshIns *decont, *guard;
-    MVMuint32 deopt_target;
+    MVMuint32 deopt_target, deopt_index;
 
     /* We need a temporary register to decont into. */
     MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
@@ -1425,7 +1443,7 @@ static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     optimize_decont(tc, g, arg_info->prepargs_bb, decont);
 
     /* Guard the decontainerized value. */
-    deopt_target = find_deopt_target(tc, g, arg_info->prepargs_ins);
+    find_deopt_target_and_index(tc, g, arg_info->prepargs_ins, &deopt_target, &deopt_index);
     guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     guard->info = MVM_op_get_op(type_info->decont_type_concrete
         ? MVM_OP_sp_guardconc
@@ -1439,9 +1457,11 @@ static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
         arg_info->prepargs_ins->prev, guard);
     MVM_spesh_usages_add_by_reg(tc, g, temp, guard);
 
-    /* Also give the instruction a deopt annotation. */
+    /* Also give the instruction a deopt annotation and reference prepargs
+     * deopt index. */
     MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
         MVM_SPESH_ANN_DEOPT_ONE_INS);
+    add_synthetic_deopt_annotation(tc, g, guard, deopt_index);
 
     /* Release the temp register. */
     MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
@@ -1545,7 +1565,7 @@ static void tweak_for_target_sf(MVMThreadContext *tc, MVMSpeshGraph *g,
                                 MVMStaticFrame *target_sf, MVMSpeshIns *ins,
                                 MVMSpeshCallInfo *arg_info, MVMSpeshOperand temp) {
     MVMSpeshIns *guard, *resolve;
-    MVMuint32 deopt_target;
+    MVMuint32 deopt_target, deopt_index;
 
     /* Work out which operand of the invoke instruction has the invokee. */
     MVMuint32 inv_code_index = ins->info->opcode == MVM_OP_invoke_v ? 0 : 1;
@@ -1563,7 +1583,7 @@ static void tweak_for_target_sf(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_usages_add_by_reg(tc, g, resolve->operands[1], resolve);
 
     /* Insert guard instruction before the prepargs. */
-    deopt_target = find_deopt_target(tc, g, arg_info->prepargs_ins);
+    find_deopt_target_and_index(tc, g, arg_info->prepargs_ins, &deopt_target, &deopt_index);
     guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     guard->info = MVM_op_get_op(MVM_OP_sp_guardsf);
     guard->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
@@ -1575,9 +1595,11 @@ static void tweak_for_target_sf(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, guard);
 
-    /* Also give the guard instruction a deopt annotation. */
+    /* Also give the guard instruction a deopt annotation and reference the
+     * prepargs annotation. */
     MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
         MVM_SPESH_ANN_DEOPT_ONE_INS);
+    add_synthetic_deopt_annotation(tc, g, guard, deopt_index);
 
     /* Make the invoke instruction call the resolved result. */
     MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[inv_code_index], ins);
@@ -1763,7 +1785,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVMSpeshOperand code_ref_reg = ins->info->opcode == MVM_OP_invoke_v
                         ? ins->operands[0]
                         : ins->operands[1];
-                MVM_spesh_usages_add_for_deopt_by_reg(tc, g, code_ref_reg);
+                MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
                         code_ref_reg);
                 MVM_free(inline_graph->spesh_slots);
@@ -1814,7 +1836,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVMSpeshOperand code_ref_reg = ins->info->opcode == MVM_OP_invoke_v
                         ? ins->operands[0]
                         : ins->operands[1];
-                MVM_spesh_usages_add_for_deopt_by_reg(tc, g, code_ref_reg);
+                MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
                         code_ref_reg);
                 MVM_free(inline_graph->spesh_slots);
@@ -1832,6 +1854,96 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
      * release the code temporary (no need to keep it). */
     if (have_code_temp)
         MVM_spesh_manipulate_release_temp_reg(tc, g, code_temp);
+}
+
+/* Considers a spesh plugin's logged data. If it gives a consistent result,
+ * then replaces this instruction with a spesh slot that resolves to the
+ * result, and prepends guards as specified by the plugin. */
+static void optimize_plugin(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                            MVMSpeshIns *ins, MVMSpeshPlanned *p) {
+    MVMint32 agg_guard_index;
+
+    /* Locate logged annotation. */
+    MVMSpeshAnn *ann = ins->annotations;
+    MVMSpeshAnn *logged_ann = NULL;
+    while (ann) {
+        switch (ann->type) {
+            case MVM_SPESH_ANN_LOGGED:
+                logged_ann = ann;
+                break;
+        }
+        ann = ann->next;
+    }
+
+    /* Search for a stable guard index. (Later, we can stack up a set of
+     * conditions or some such if there's no stable or really popular one. */
+    agg_guard_index = -1;
+    if (logged_ann) {
+        MVMuint32 agg_guard_index_count = 0;
+        MVMuint32 i;
+        for (i = 0; i < p->num_type_stats; i++) {
+            MVMSpeshStatsByType *ts = p->type_stats[i];
+            MVMuint32 j;
+            for (j = 0; j < ts->num_by_offset; j++) {
+                if (ts->by_offset[j].bytecode_offset == logged_ann->data.bytecode_offset) {
+                    /* Go over the guard indexes. */
+                    MVMuint32 num_plugin_guards = ts->by_offset[j].num_plugin_guards;
+                    MVMuint32 k;
+                    for (k = 0; k < num_plugin_guards; k++) {
+                        /* If it's inconsistent with the aggregated guard index,
+                         * then first check if the index we're now seeing is either
+                         * massively more popular or massively less popular. If
+                         * massively less, disregard this one. If massively more,
+                         * disregard the previous one. */
+                        MVMuint32 cur_guard_index = ts->by_offset[j].plugin_guards[k].guard_index;
+                        MVMuint32 count = ts->by_offset[j].plugin_guards[k].count;
+                        if (agg_guard_index >= 0) {
+                            if (agg_guard_index != cur_guard_index) {
+                                if (count > 100 * agg_guard_index_count) {
+                                    /* This one is hugely more popular. */
+                                    agg_guard_index = cur_guard_index;
+                                    agg_guard_index_count = 0;
+                                }
+                                else if (agg_guard_index_count > 100 * count) {
+                                    /* This one is hugely less popular. */
+                                    continue;
+                                }
+                                else {
+                                    /* Unstable guard indexes. */
+                                    return;
+                                }
+                            }
+                        }
+                        else {
+                            agg_guard_index = cur_guard_index;
+                        }
+                        agg_guard_index_count += count;
+                    }
+
+                    /* No need to consider searching after this offset. */
+                    break;
+                }
+            }
+        }
+    }
+
+    /* If we picked a guard index, insert the guards and rewrite the resolve
+     * instruction. If not, just rewrite the resolve instruction into the
+     * spesh version of itself including the index. */
+    if (agg_guard_index != -1) {
+        MVM_spesh_plugin_rewrite_resolve(tc, g, bb, ins, logged_ann->data.bytecode_offset,
+                agg_guard_index);
+    }
+    else {
+        MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
+        new_operands[0] = ins->operands[0];
+        new_operands[1] = ins->operands[1];
+        new_operands[2].lit_ui32 = logged_ann->data.bytecode_offset;
+        new_operands[3].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                (MVMCollectable *)g->sf);
+        ins->info = MVM_op_get_op(MVM_OP_sp_speshresolve);
+        ins->operands = new_operands;
+    }
 }
 
 static void optimize_coverage_log(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
@@ -1985,11 +2097,12 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
 
 /* Updates rebless with rebless_sp, which will deopt from the current code. */
 static void tweak_rebless(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
-    MVMuint32 deopt_target = find_deopt_target(tc, g, ins);
+    MVMuint32 deopt_target, deopt_index;
     MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
     new_operands[0] = ins->operands[0];
     new_operands[1] = ins->operands[1];
     new_operands[2] = ins->operands[2];
+    find_deopt_target_and_index(tc, g, ins, &deopt_target, &deopt_index);
     new_operands[3].lit_ui32 = deopt_target;
     ins->info = MVM_op_get_op(MVM_OP_sp_rebless);
     ins->operands = new_operands;
@@ -2204,6 +2317,10 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_invoke_s:
         case MVM_OP_invoke_o:
             optimize_call(tc, g, bb, ins, p, 1, &arg_info);
+            break;
+        case MVM_OP_speshresolve:
+            if (p)
+                optimize_plugin(tc, g, bb, ins, p);
             break;
         case MVM_OP_islist:
         case MVM_OP_ishash:
@@ -2732,39 +2849,6 @@ static void merge_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
     }
 }
 
-/* From the last possible instruction that may be deopt up to the end of the
- * code, any values written can never be needed for deopt purposes. Thus, we
- * can remove their deopt required markers, which may allow them to get
- * deleted. */
-static void lessen_deopt_requires_for_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
-    /* Walk instructions in this basic block from the end. */
-    MVMSpeshIns *ins = bb->last_ins;
-    while (ins) {
-        /* If the instruction may cause deopt, stop searching. */
-        if (ins->info->may_cause_deopt)
-            return;
-
-        /* Otherwise, can mark writer as not deopt required. */
-        if (ins->info->num_operands >= 1)
-            if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg)
-                MVM_spesh_usages_clear_for_deopt_by_reg(tc, g, ins->operands[0]);
-
-        ins = ins->prev;
-    }
-
-    /* If we have exactly one pred, consider it also. (We an likely losen this
-     * up in the future a bit.) */
-    if (bb->num_pred == 1)
-        lessen_deopt_requires_for_bb(tc, g, bb->pred[0]);
-}
-static void lessen_deopt_requires(MVMThreadContext *tc, MVMSpeshGraph *g) {
-    /* Find final basic block, and process from there. */
-    MVMSpeshBB *bb = g->entry;
-    while (bb->linear_next)
-        bb = bb->linear_next;
-    lessen_deopt_requires_for_bb(tc, g, bb);
-}
-
 /* Drives the overall optimization work taking place on a spesh graph. */
 void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p) {
     /* Before starting, we eliminate dead basic blocks that were tossed by
@@ -2784,7 +2868,7 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
     MVM_spesh_graph_recompute_dominance(tc, g);
     eliminate_unused_log_guards(tc, g);
     eliminate_pointless_gotos(tc, g);
-    lessen_deopt_requires(tc, g);
+    MVM_spesh_usages_remove_unused_deopt(tc, g);
     eliminate_dead_ins(tc, g);
 
     merge_bbs(tc, g);

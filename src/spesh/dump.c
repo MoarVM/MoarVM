@@ -185,6 +185,10 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                     appendf(ds, "      [Annotation: Logged (bytecode offset %d)]\n",
                         ann->data.bytecode_offset);
                     break;
+                case MVM_SPESH_ANN_DEOPT_SYNTH:
+                    appendf(ds, "      [Annotation: INS Deopt Synth (idx %d)]\n",
+                        ann->data.deopt_idx);
+                    break;
                 default:
                     appendf(ds, "      [Annotation: %d (unknown)]\n", ann->type);
             }
@@ -391,6 +395,23 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
     append(ds, "\n\n");
 }
 
+/* Dump deopt usages. */
+static void dump_deopt_usages(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpeshOperand operand) {
+    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, operand);
+    MVMSpeshDeoptUseEntry *entry = facts->usage.deopt_users;
+    if (entry) {
+        MVMuint32 first = 1;
+        append(ds, ", deopt=");
+        while (entry) {
+            if (first)
+                first = 0;
+            else
+                append(ds, ",");
+            appendf(ds, "%d", entry->deopt_idx);
+            entry = entry->next;
+        }
+    }
+}
 /* Dumps the facts table. */
 static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
     MVMuint16 i, j, num_locals, num_facts;
@@ -405,11 +426,11 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
             if (i < 10) append(ds, " ");
             if (j < 10) append(ds, " ");
             if (flags || g->facts[i][j].dead_writer || g->facts[i][j].writer && g->facts[i][j].writer->info->opcode == MVM_SSA_PHI) {
-                appendf(ds, "    r%d(%d): usages=%d%s%s, flags=%-5d", i, j,
+                appendf(ds, "    r%d(%d): usages=%d%s", i, j,
                     MVM_spesh_usages_count(tc, g, operand),
-                    MVM_spesh_usages_is_used_by_deopt(tc, g, operand) ? "+deopt" : "",
-                    MVM_spesh_usages_is_used_by_handler(tc, g, operand) ? "+handler" : "",
-                    flags);
+                    MVM_spesh_usages_is_used_by_handler(tc, g, operand) ? "+handler" : "");
+                dump_deopt_usages(tc, ds, g, operand);
+                appendf(ds, ", flags=%-5d", flags);
                 if (flags & 1) {
                     append(ds, " KnTyp");
                 }
@@ -459,12 +480,13 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
                     appendf(ds, " (merged from %d regs)", g->facts[i][j].writer->info->num_operands - 1);
                 }
             }
-            else
-                appendf(ds, "    r%d(%d): usages=%d%s%s, flags=%d", i, j,
+            else {
+                appendf(ds, "    r%d(%d): usages=%d%s", i, j,
                     MVM_spesh_usages_count(tc, g, operand),
-                    MVM_spesh_usages_is_used_by_deopt(tc, g, operand) ? "+deopt" : "",
-                    MVM_spesh_usages_is_used_by_handler(tc, g, operand) ? "+handler" : "",
-                    flags);
+                    MVM_spesh_usages_is_used_by_handler(tc, g, operand) ? "+handler" : "");
+                dump_deopt_usages(tc, ds, g, operand);
+                appendf(ds, ", flags=%-5d", flags);
+            }
             append(ds, "\n");
         }
         append(ds, "\n");
