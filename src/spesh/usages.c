@@ -287,8 +287,6 @@ void MVM_spesh_usages_remove_unused_deopt(MVMThreadContext *tc, MVMSpeshGraph *g
                         case MVM_SPESH_ANN_DEOPT_SYNTH:
                             if (ins->info->may_cause_deopt)
                                 deopt_used[ann->data.deopt_idx] = 1;
-/*                            else
-                                printf("Instruction %s cannot cause deopt\n", ins->info->name);*/
                             break;
                     }
                     ann = ann->next;
