@@ -66,6 +66,9 @@ typedef struct {
     /* Basic blocks that we have processed. */
     MVMuint32 *bbs_seen;
 
+    /* Basic blocks that have had all the preds processed. */
+    MVMuint32 *bbs_preds_seen;
+
     /* Reads whose processing is pending on a pred being seen. */
     PendingRead *pending_reads;
 } DeoptAnalysisState;
@@ -160,7 +163,7 @@ static void process_deopt(MVMThreadContext *tc, DeoptAnalysisState *state, MVMSp
 }
 static void process_bb_for_deopt_usage(MVMThreadContext *tc, DeoptAnalysisState *state,
                                        MVMSpeshGraph *g, MVMSpeshBB *bb) {
-    MVMuint32 i;
+    MVMuint32 i, have_newly_processed_preds;
     
     /* Walk the BB's instructions. */
     MVMSpeshIns *ins = bb->first_ins;
@@ -210,25 +213,38 @@ static void process_bb_for_deopt_usage(MVMThreadContext *tc, DeoptAnalysisState 
         ins = ins->next;
     }
 
-    /* Mark this BB as seen, then process any pending reads - those seen prior
-     * to their write - that we may now be able to process. */
+    /* Mark this BB as seen, and then go through its successors and see if we
+     * can mark any new preds as seen. */
     state->bbs_seen[bb->idx] = 1;
-    if (state->pending_reads) {
-        PendingRead *pr = state->pending_reads;
-        PendingRead *prev_pr = NULL;
-        while (pr) {
-            /* See if we saw all of the preds of the reading basic block. */
+    have_newly_processed_preds = 0;
+    for (i = 0; i < bb->num_succ; i++) {
+        MVMSpeshBB *succ_bb = bb->succ[i];
+        if (!state->bbs_preds_seen[succ_bb->idx]) {
             MVMuint32 all_preds_seen = 1;
-            for (i = 0; i < pr->reading_bb->num_pred; i++) {
-                if (!state->bbs_seen[pr->reading_bb->pred[i]->idx]) {
+            MVMuint32 j;
+            for (j = 0; j < succ_bb->num_pred; j++) {
+                if (!state->bbs_seen[succ_bb->pred[j]->idx]) {
                     all_preds_seen = 0;
                     break;
                 }
             }
-
-            /* If so, we can mark the read as having taken place, and then
-             * remove this entry from the pending read list. */
             if (all_preds_seen) {
+                state->bbs_preds_seen[succ_bb->idx] = 1;
+                have_newly_processed_preds = 1;
+            }
+        }
+    }
+
+    /* Process any pending reads - those seen prior to their write - that we may
+     * now be able to process. */
+    if (have_newly_processed_preds && state->pending_reads) {
+        PendingRead *pr = state->pending_reads;
+        PendingRead *prev_pr = NULL;
+        while (pr) {
+            /* See if we saw all of the preds of the reading basic block.
+             * If so, we can mark the read as having taken place, and then
+             * remove this entry from the pending read list. */
+            if (state->bbs_preds_seen[pr->reading_bb->idx]) {
                 mark_read_done(tc, pr->reader, MVM_spesh_get_facts(tc, g, pr->operand));
                 if (prev_pr)
                     prev_pr->next = pr->next;
@@ -251,6 +267,7 @@ void MVM_spesh_usages_create_deopt_usage(MVMThreadContext *tc, MVMSpeshGraph *g)
     DeoptAnalysisState state;
     memset(&state, 0, sizeof(DeoptAnalysisState));
     state.bbs_seen = MVM_spesh_alloc(tc, g, sizeof(MVMuint32) * g->num_bbs);
+    state.bbs_preds_seen = MVM_spesh_alloc(tc, g, sizeof(MVMuint32) * g->num_bbs);
     process_bb_for_deopt_usage(tc, &state, g, g->entry);
 }
 
