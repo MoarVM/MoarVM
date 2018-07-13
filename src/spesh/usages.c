@@ -32,22 +32,6 @@ void MVM_spesh_usages_delete_by_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
     MVM_spesh_usages_delete(tc, g, MVM_spesh_get_facts(tc, g, used), by);
 }
 
-/* Marks that an SSA value is required for deopt purposes. */
-void MVM_spesh_usages_add_for_deopt(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *facts) {
-    facts->usage.deopt_required = 1;
-}
-void MVM_spesh_usages_add_for_deopt_by_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand used) {
-    MVM_spesh_usages_add_for_deopt(tc, g, MVM_spesh_get_facts(tc, g, used));
-}
-
-/* Marks than an SSA value is proved as not being required for deopt purposes. */
-void MVM_spesh_usages_clear_for_deopt(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *facts) {
-    facts->usage.deopt_required = 0;
-}
-void MVM_spesh_usages_clear_for_deopt_by_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand unused) {
-    MVM_spesh_usages_clear_for_deopt(tc, g, MVM_spesh_get_facts(tc, g, unused));
-}
-
 /* Marks that an SSA value is required for exception handling purposes. */
 void MVM_spesh_usages_add_for_handler(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *facts) {
     facts->usage.handler_required = 1;
@@ -261,17 +245,31 @@ void MVM_spesh_usages_create_deopt_usage(MVMThreadContext *tc, MVMSpeshGraph *g)
     process_bb_for_deopt_usage(tc, &state, g, g->entry);
 }
 
+/* Adds an unconditional deopt usage (that is, not dependent on any particular
+ * deopt point). */
+void MVM_spesh_usages_add_unconditional_deopt_usage(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                                    MVMSpeshFacts *facts) {
+    MVMSpeshDeoptUseEntry *deopt_entry = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshDeoptUseEntry));
+    deopt_entry->deopt_idx = -1;
+    deopt_entry->next = facts->usage.deopt_users;
+    facts->usage.deopt_users = deopt_entry;
+}
+void MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                                           MVMSpeshOperand operand) {
+    MVM_spesh_usages_add_unconditional_deopt_usage(tc, g, MVM_spesh_get_facts(tc, g, operand));
+}
+
 /* Checks if the value is used, either by another instruction in the graph or
  * by being needed for deopt. */
 MVMuint32 MVM_spesh_usages_is_used(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand check) {
     MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, check);
-    return facts->usage.deopt_required || facts->usage.handler_required || facts->usage.users;
+    return facts->usage.deopt_users || facts->usage.handler_required || facts->usage.users;
 }
 
 /* Checks if the value is used due to being required for deopt. */
 MVMuint32 MVM_spesh_usages_is_used_by_deopt(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand check) {
     MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, check);
-    return facts->usage.deopt_required;
+    return facts->usage.deopt_users != NULL;
 }
 
 /* Checks if the value is used due to being required for exception handling. */
@@ -283,7 +281,7 @@ MVMuint32 MVM_spesh_usages_is_used_by_handler(MVMThreadContext *tc, MVMSpeshGrap
 /* Checks if there is precisely one known non-deopt user of the value. */
 MVMuint32 MVM_spesh_usages_used_once(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand check) {
     MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, check);
-    return !facts->usage.deopt_required && !facts->usage.handler_required &&
+    return !facts->usage.deopt_users && !facts->usage.handler_required &&
         facts->usage.users && !facts->usage.users->next;
 }
 

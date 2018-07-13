@@ -434,28 +434,23 @@ static void plugin_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
 
 /* Visits the blocks in dominator tree order, recursively. */
 static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-                         MVMSpeshPlanned *p, MVMint32 cur_deopt_idx) {
+                         MVMSpeshPlanned *p) {
     MVMint32 i, is_phi;
 
     /* Look for instructions that provide or propagate facts. */
     MVMSpeshIns *ins = bb->first_ins;
     while (ins) {
-        /* See if there's deopt and logged annotations. Sync cur_deopt_idx
-         * and, for logged+deopt-one, add logged facts and guards. */
+        /* See if there's deopt and logged annotations, and if so add logged
+         * facts and guards. */
         MVMSpeshAnn *ann = ins->annotations;
         MVMSpeshAnn *ann_deopt_one = NULL;
         MVMSpeshAnn *ann_logged = NULL;
         MVMint32 is_deopt_ins = 0;
-        MVMuint32 next_deopt_idx = cur_deopt_idx;
         while (ann) {
             switch (ann->type) {
                 case MVM_SPESH_ANN_DEOPT_ONE_INS:
                     ann_deopt_one = ann;
-                    next_deopt_idx = ann->data.deopt_idx;
                     is_deopt_ins = 1;
-                    break;
-                case MVM_SPESH_ANN_DEOPT_ALL_INS:
-                    next_deopt_idx = ann->data.deopt_idx;
                     break;
                 case MVM_SPESH_ANN_LOGGED:
                     ann_logged = ann;
@@ -472,32 +467,20 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         /* Look through operands for reads and writes. */
         is_phi = ins->info->opcode == MVM_SSA_PHI;
         for (i = 0; i < ins->info->num_operands; i++) {
-            /* Reads need usage tracking; if the read is after a deopt point
-             * relative to the write then give it an extra usage bump. */
+            /* Reads need usage tracking. */
             if ((is_phi && i > 0)
                 || (!is_phi && (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)) {
                 MVMSpeshFacts *facts = &(g->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i]);
                 MVM_spesh_usages_add(tc, g, facts, ins);
-                if (facts->deopt_idx != cur_deopt_idx)
-                    MVM_spesh_usages_add_for_deopt(tc, g, facts);
             }
 
-            /* Writes need the current deopt index and the writing instruction
-             * to be specified. A write that's on a deopt instruction bumps
-             * the usage too. */
+            /* Writes need the writing instruction to be specified. */
             if ((is_phi && i == 0)
                 || (!is_phi && (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_write_reg)) {
                 MVMSpeshFacts *facts = &(g->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i]);
-                facts->deopt_idx = next_deopt_idx;
                 facts->writer    = ins;
-                if (is_deopt_ins)
-                    MVM_spesh_usages_add_for_deopt(tc, g, facts);
             }
         }
-
-        /* Now that we processed the reads of this instruction under the
-         * prior deopt index, update the current one to the next one. */
-        cur_deopt_idx = next_deopt_idx;
 
         /* Look for ops that are fact-interesting. */
         switch (ins->info->opcode) {
@@ -734,7 +717,7 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
 
     /* Visit children. */
     for (i = 0; i < bb->num_children; i++)
-        add_bb_facts(tc, g, bb->children[i], p, cur_deopt_idx);
+        add_bb_facts(tc, g, bb->children[i], p);
 }
 
 /* Exception handlers that use a block to store the handler must not have the
@@ -754,7 +737,7 @@ static void tweak_block_handler_usage(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
 /* Kicks off fact discovery from the top of the (dominator) tree. */
 void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p) {
-    add_bb_facts(tc, g, g->entry, p, -1);
+    add_bb_facts(tc, g, g->entry, p);
     tweak_block_handler_usage(tc, g);
     MVM_spesh_usages_create_deopt_usage(tc, g);
 }
