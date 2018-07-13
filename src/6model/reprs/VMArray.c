@@ -62,7 +62,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 }
 
 /* Adds held objects to the GC worklist. */
-static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+static void VMArray_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMuint64         elems     = body->elems;
@@ -1404,7 +1404,7 @@ static const MVMREPROps VMArray_this_repr = {
     serialize_repr_data,
     deserialize_repr_data,
     deserialize_stable_size,
-    gc_mark,
+    VMArray_gc_mark,
     gc_free,
     NULL, /* gc_cleanup */
     gc_mark_repr_data,
