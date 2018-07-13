@@ -68,30 +68,52 @@ struct ActiveWrite {
     MVMSpeshFacts *writer;
     ActiveWrite *next;
 };
+typedef struct PendingRead PendingRead;
+struct PendingRead {
+    MVMSpeshBB *reading_bb;
+    MVMSpeshIns *reader;
+    MVMSpeshOperand operand;
+    PendingRead *next;
+};
 typedef struct {
+    /* Writes that have had all their reads encountered yet. */
     ActiveWrite *active_writes;
+
+    /* Basic blocks that we have processed. */
+    MVMuint32 *bbs_seen;
+
+    /* Reads whose processing is pending on a pred being seen. */
+    PendingRead *pending_reads;
 } DeoptAnalysisState;
+static void mark_read_done(MVMThreadContext *tc, MVMSpeshIns *ins, MVMSpeshFacts *facts) {
+    MVMSpeshUseChainEntry *use_entry = facts->usage.users;
+    MVMuint32 found = 0;
+    while (use_entry) {
+        if (!use_entry->deopt_read_processed && use_entry->user == ins) {
+            use_entry->deopt_read_processed = 1;
+            found = 1;
+            break;
+        }
+        use_entry = use_entry->next;
+    }
+    if (!found)
+        MVM_oops(tc, "Spesh deopt analysis: read by %s missing", ins->info->name);
+}
 static void process_read(MVMThreadContext *tc, DeoptAnalysisState *state, MVMSpeshGraph *g,
                          MVMSpeshBB *bb, MVMSpeshIns *ins, MVMSpeshOperand operand) {
     MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, operand);
     if (facts->usage.deopt_write_processed) {
         /* Writer already processed. Just mark the read as consumed. */
-        MVMSpeshUseChainEntry *use_entry = facts->usage.users;
-        MVMuint32 found = 0;
-        while (use_entry) {
-            if (!use_entry->deopt_read_processed && use_entry->user == ins) {
-                use_entry->deopt_read_processed = 1;
-                found = 1;
-                break;
-            }
-            use_entry = use_entry->next;
-        }
-        if (!found)
-            MVM_oops(tc, "Spesh deopt analysis: read by %s missing", ins->info->name);
+        mark_read_done(tc, ins, facts);
     }
     else {
         /* Add as a pending read. */
-        // XXX TODO
+        PendingRead *pr = MVM_spesh_alloc(tc, g, sizeof(PendingRead));
+        pr->reading_bb = bb;
+        pr->reader = ins;
+        pr->operand = operand;
+        pr->next = state->pending_reads;
+        state->pending_reads = pr;
     }
 }
 static void process_write(MVMThreadContext *tc, DeoptAnalysisState *state, MVMSpeshGraph *g,
@@ -131,6 +153,7 @@ static void process_deopt(MVMThreadContext *tc, DeoptAnalysisState *state, MVMSp
             deopt_entry->deopt_idx = deopt_idx;
             deopt_entry->next = write->writer->usage.deopt_users;
             write->writer->usage.deopt_users = deopt_entry;
+            prev_write = write;
         }
         else {
             /* Was fully read; drop from the list. */
@@ -194,6 +217,39 @@ static void process_bb_for_deopt_usage(MVMThreadContext *tc, DeoptAnalysisState 
         ins = ins->next;
     }
 
+    /* Mark this BB as seen, then process any pending reads - those seen prior
+     * to their write - that we may now be able to process. */
+    state->bbs_seen[bb->idx] = 1;
+    if (state->pending_reads) {
+        PendingRead *pr = state->pending_reads;
+        PendingRead *prev_pr = NULL;
+        while (pr) {
+            /* See if we saw all of the preds of the reading basic block. */
+            MVMuint32 all_preds_seen = 1;
+            for (i = 0; i < pr->reading_bb->num_pred; i++) {
+                if (!state->bbs_seen[pr->reading_bb->pred[i]->idx]) {
+                    all_preds_seen = 0;
+                    break;
+                }
+            }
+
+            /* If so, we can mark the read as having taken place, and then
+             * remove this entry from the pending read list. */
+            if (all_preds_seen) {
+                mark_read_done(tc, pr->reader, MVM_spesh_get_facts(tc, g, pr->operand));
+                if (prev_pr)
+                    prev_pr->next = pr->next;
+                else
+                    state->pending_reads = pr->next;
+            }
+            else {
+                prev_pr = pr;
+            }
+
+            pr = pr->next;
+        }
+    }
+
     /* Walk the children of this BB. */
     for (i = 0; i < bb->num_children; i++)
         process_bb_for_deopt_usage(tc, state, g, bb->children[i]);
@@ -201,6 +257,7 @@ static void process_bb_for_deopt_usage(MVMThreadContext *tc, DeoptAnalysisState 
 void MVM_spesh_usages_create_deopt_usage(MVMThreadContext *tc, MVMSpeshGraph *g) {
     DeoptAnalysisState state;
     memset(&state, 0, sizeof(DeoptAnalysisState));
+    state.bbs_seen = MVM_spesh_alloc(tc, g, sizeof(MVMuint32) * g->num_bbs);
     process_bb_for_deopt_usage(tc, &state, g, g->entry);
 }
 
