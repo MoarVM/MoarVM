@@ -185,6 +185,10 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                     appendf(ds, "      [Annotation: Logged (bytecode offset %d)]\n",
                         ann->data.bytecode_offset);
                     break;
+                case MVM_SPESH_ANN_DEOPT_SYNTH:
+                    appendf(ds, "      [Annotation: INS Deopt Synth (idx %d)]\n",
+                        ann->data.deopt_idx);
+                    break;
                 default:
                     appendf(ds, "      [Annotation: %d (unknown)]\n", ann->type);
             }

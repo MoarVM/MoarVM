@@ -268,6 +268,59 @@ void MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(MVMThreadContext *tc,
     MVM_spesh_usages_add_unconditional_deopt_usage(tc, g, MVM_spesh_get_facts(tc, g, operand));
 }
 
+/* Remove usages of deopt points that won't casue deopt. */
+void MVM_spesh_usages_remove_unused_deopt(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    MVMuint32 i, j;
+
+    /* First, walk graph to find which deopt points are actually used. */
+    MVMuint8 *deopt_used = MVM_spesh_alloc(tc, g, g->num_deopt_addrs);
+    MVMSpeshBB *bb = g->entry;
+    while (bb) {
+        if (!bb->inlined) {
+            MVMSpeshIns *ins = bb->first_ins;
+            while (ins) {
+                MVMSpeshAnn *ann = ins->annotations;
+                while (ann) {
+                    switch (ann->type) {
+                        case MVM_SPESH_ANN_DEOPT_ONE_INS:
+                        case MVM_SPESH_ANN_DEOPT_ALL_INS:
+                        case MVM_SPESH_ANN_DEOPT_SYNTH:
+                            if (ins->info->may_cause_deopt)
+                                deopt_used[ann->data.deopt_idx] = 1;
+/*                            else
+                                printf("Instruction %s cannot cause deopt\n", ins->info->name);*/
+                            break;
+                    }
+                    ann = ann->next;
+                }
+                ins = ins->next;
+            }
+        }
+        bb = bb->linear_next;
+    }
+    
+    /* Now delete deopt usages that are of unused deopt indices. */
+    for (i = 0; i < g->sf->body.num_locals; i++) {
+        for (j = 0; j < g->fact_counts[i]; j++) {
+            MVMSpeshFacts *facts = &(g->facts[i][j]);
+            MVMSpeshDeoptUseEntry *du_entry = facts->usage.deopt_users;
+            MVMSpeshDeoptUseEntry *prev_du_entry = NULL;
+            while (du_entry) {
+                if (du_entry->deopt_idx >= 0 && !deopt_used[du_entry->deopt_idx]) {
+                    if (prev_du_entry)
+                        prev_du_entry->next = du_entry->next;
+                    else
+                        facts->usage.deopt_users = du_entry->next;
+                }
+                else {
+                    prev_du_entry = du_entry;
+                }
+                du_entry = du_entry->next;
+            }
+        }
+    }
+}
+
 /* Checks if the value is used, either by another instruction in the graph or
  * by being needed for deopt. */
 MVMuint32 MVM_spesh_usages_is_used(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand check) {
