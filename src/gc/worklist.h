@@ -86,7 +86,7 @@ do { \
  * is False before calling this macro. */
 #define MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, item) \
 do { \
-    if (!( (*(MVMCollectable**)item)->flags & MVM_CF_SECOND_GEN)) { \
+    if (*item && !( (*(MVMCollectable**)item)->flags & MVM_CF_SECOND_GEN)) { \
         worklist->list[worklist->items++] = (MVMCollectable**)item; \
     } \
 } while (0)
