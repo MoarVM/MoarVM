@@ -5,7 +5,7 @@ OPT_OP_ORDER='--get-oplist-order'
 OPT_SHOW_DEP='--show-deprecated'
 TEMP_FOLDER='/tmp'
 PAGER="${PAGER:-less}"
-if [ ${#OPT_OP_ORDER} > ${#OPT_SHOW_DEP} ]; then
+if [ "${#OPT_OP_ORDER}" -gt "${#OPT_SHOW_DEP}" ]; then
     MAX_OPT_LEN="${#OPT_OP_ORDER}"
 else
     MAX_OPT_LEN="${#OPT_SHOW_DEP}"
@@ -35,16 +35,16 @@ show_help () {
 }
 filter=filter_funct
 for i in $@; do
-    if [ "$i" == "$OPT_OP_ORDER" ]; then ENABLE_OPLIST=1;
-    elif [ "$i" == "$OPT_SHOW_DEP" ]; then filter=cat
-    elif [ "$i" == '-h' ] || [ "$1" == '--help' ]; then
+    if [ "$i" = "$OPT_OP_ORDER" ]; then ENABLE_OPLIST=1;
+    elif [ "$i" = "$OPT_SHOW_DEP" ]; then filter=cat
+    elif [ "$i" = '-h' ] || [ "$1" = '--help' ]; then
         show_help 0
     else
         printf "Error: %s is not a recognized command\n\n" "$i"
         show_help 1
     fi
 done
-if [ "$1" == "$OPT_OP_ORDER" ]; then
+if [ "$1" = "$OPT_OP_ORDER" ]; then
     get_oplist_order | $filter
     exit 0
 fi
