@@ -127,10 +127,9 @@ static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj) {
     MVMHashBody *body = (MVMHashBody *)data;
     MVMString *key = get_string_key(tc, key_obj);
-    MVMHashEntry *old_entry = NULL;
-    MVM_HASH_GET(tc, body->hash_head, key, old_entry);
+    MVMHashEntry *old_entry = NULL, *prev_entry = NULL;
+    HASH_FIND_VM_STR_AND_DELETE(tc, hash_handle, body->hash_head, key, old_entry, prev_entry);
     if (old_entry) {
-        HASH_DELETE(hash_handle, body->hash_head, old_entry);
         MVM_fixed_size_free(tc, tc->instance->fsa,
             sizeof(MVMHashEntry), old_entry);
     }

@@ -1061,11 +1061,7 @@ void MVM_unicode_release(MVMThreadContext *tc)
                     unicode_property_values_hashes[j] = NULL;
                 }
             }
-
-            HASH_ITER_FAST(tc, hash_handle, unicode_property_values_hashes[i], entry, {
-                HASH_DELETE(hash_handle, unicode_property_values_hashes[i], entry);
-                MVM_free(entry);
-            });
+            MVM_HASH_DESTROY(tc, hash_handle, MVMUnicodeNameRegistry, unicode_property_values_hashes[i]);
             assert(!unicode_property_values_hashes[i]);
         }
 

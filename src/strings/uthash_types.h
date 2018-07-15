@@ -61,8 +61,7 @@ typedef struct UT_hash_table {
 } UT_hash_table;
 
 typedef struct UT_hash_handle {
-   struct UT_hash_table *tbl;
-   struct UT_hash_handle *hh_prev;   /* previous hh in bucket order    */
+   struct UT_hash_table  *tbl;
    struct UT_hash_handle *hh_next;   /* next hh in bucket order        */
    void *key;                        /* ptr to enclosing struct's key (char * for
                                       * low-level hashes, MVMString * for high level
