@@ -176,14 +176,14 @@ static void saw(MVMThreadContext *tc, MVMHeapSnapshotState *ss, void *addr, MVMu
     MVMHeapSnapshotSeen *seen = MVM_calloc(1, sizeof(MVMHeapSnapshotSeen));
     seen->address = addr;
     seen->idx = idx;
-    HASH_ADD_KEYPTR(hash_handle, ss->seen, (char *)&(seen->address), sizeof(void *), seen);
+    HASH_ADD_KEYPTR(hash_handle, ss->seen, &(seen->address), sizeof(void *), seen);
 }
 
 /* Checks for an entry in the seen hash. If we find an entry, write the index
  * into the index pointer passed. */
 static MVMuint32 seen(MVMThreadContext *tc, MVMHeapSnapshotState *ss, void *addr, MVMuint64 *idx) {
     MVMHeapSnapshotSeen *entry;
-    HASH_FIND(hash_handle, ss->seen, (char *)&(addr), sizeof(void *), entry);
+    HASH_FIND(hash_handle, ss->seen, &addr, sizeof(void *), entry);
     if (entry) {
         *idx = entry->idx;
         return 1;

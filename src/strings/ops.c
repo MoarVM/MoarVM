@@ -2825,124 +2825,72 @@ MVMString * MVM_string_chr(MVMThreadContext *tc, MVMint64 cp) {
  * cache field of the string. Hashing code is derived from the Jenkins hash
  * implementation in uthash.h. */
 typedef union {
-    MVMint32 graphs[3];
-    unsigned char bytes[12];
+    MVMuint32 graphs[2];
+    MVMuint64 u64;
 } MVMJenHashGraphemeView;
 
-MVM_STATIC_INLINE void MVM_hash_add_three (MVMJenHashGraphemeView *hash_block, MVMuint32 *hj_i, MVMuint32 *hj_j, MVMuint32 *hashv) {
-    *hj_i  += hash_block->graphs[0];
-    *hj_j  += hash_block->graphs[1];
-    *hashv += hash_block->graphs[2];
-    HASH_JEN_MIX(*hj_i, *hj_j, *hashv);
-}
-MVM_STATIC_INLINE void MVM_hash_finish (MVMJenHashGraphemeView *hash_block, MVMuint32 *hj_i, MVMuint32 *hj_j, MVMuint32 *hashv, MVMStringIndex sgraphs, MVMStringIndex graphs_remaining) {
-    /* Mix in key length (in bytes, not graphemes). */
-    *hashv += sgraphs * sizeof(MVMGrapheme32);
-
-    /* Now handle trailing graphemes (must be 2, 1, or 0). */
-    /* NOTE: this is weird since it changes the order in different cases. This
-     * is just replicating old functionality. */
-    switch (graphs_remaining) {
-        case 2:
-            *hj_j += hash_block->graphs[0];
-            *hj_i += hash_block->graphs[1];
-            break;
-        /* Fallthrough */
-        case 1:
-            *hj_i += hash_block->graphs[0];
-    }
-    HASH_JEN_MIX(*hj_i, *hj_j, *hashv);
-    /* Because we check if MVMString->body.cached_hash_code == 0 to tell if
-     * we have not yet computed the hash code, ensure that hashv is never 0
-     * by adding the length of the string to hashv iff hashv == 0. Since both
-     * the hashv and MVMStringIndex are both uint32, there should never be any
-     * overflow. Only problematic case is if the string is of length 0 and
-     * hashv is zero, though this is very very unlikely (if possible at all)
-     * and it should be very fast to calculate the hash so as to be negligible. */
-    if (*hashv == 0) {
-        *hashv += sgraphs;
-    }
-}
+/* To force little endian representation on big endian machines, set
+ * MVM_HASH_FORCE_LITTLE_ENDIAN in strings/siphash/csiphash.h
+ * If this isn't set, MVM_MAYBE_TO_LITTLE_ENDIAN_32 does nothing (the default).
+ * This would mainly be useful for debugging or if there were some other reason
+ * someone cared that hashes were identical on different endian platforms */
 void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
-    /* The hash algorithm works in bytes. Since we can represent strings in a
-     * number of ways, and we want consistent hashing, then we'll read the
-     * strings using the grapheme iterator in groups of 3, using 32-bit ints
-     * for the graphemes no matter what the string really holds them as. Then
-     * we'll use the bytes view of that in the hashing function. */
-
-    MVMStringIndex graphs_remaining, sgraphs;
-
-    /* Initialize hash state. */
-    MVMhashv hashv = tc->instance->hashSecret;
-    MVMuint32 hj_i, hj_j;
-    hj_i = hj_j = 0x9e3779b9;
-    graphs_remaining = sgraphs = MVM_string_graphs(tc, s);
-
+#if defined(MVM_HASH_FORCE_LITTLE_ENDIAN)
+    const MVMuint64 key[2] = {
+        MVM_MAYBE_TO_LITTLE_ENDIAN_64(tc->instance->hashSecrets[0]),
+        MVM_MAYBE_TO_LITTLE_ENDIAN_64(tc->instance->hashSecrets[1])
+    };
+#else
+    const MVMuint64 *key = tc->instance->hashSecrets;
+#endif
+    MVMuint64 hash = 0;
+    MVMStringIndex s_len = MVM_string_graphs_nocheck(tc, s);
     switch (s->body.storage_type) {
-        case MVM_STRING_GRAPHEME_ASCII:
-        case MVM_STRING_GRAPHEME_8: {
-            int i;
-            MVMJenHashGraphemeView hash_block;
-            for (i = 0; 3 <= sgraphs - i; i += 3) {
-                hash_block.graphs[0] = s->body.storage.blob_8[i];
-                hash_block.graphs[1] = s->body.storage.blob_8[i+1];
-                hash_block.graphs[2] = s->body.storage.blob_8[i+2];
-                MVM_hash_add_three(
-                    &hash_block,
-                    &hj_i, &hj_j, &hashv);
+        case MVM_STRING_GRAPHEME_8:
+        case MVM_STRING_GRAPHEME_ASCII: {
+            size_t i;
+            MVMJenHashGraphemeView gv;
+            siphash sh;
+            siphashinit(&sh, s_len * sizeof(MVMGrapheme32), key);
+            for (i = 0; i + 1 < s_len;) {
+                gv.graphs[0] = MVM_MAYBE_TO_LITTLE_ENDIAN_32(s->body.storage.blob_8[i++]);
+                gv.graphs[1] = MVM_MAYBE_TO_LITTLE_ENDIAN_32(s->body.storage.blob_8[i++]);
+                siphashadd64bits(&sh, gv.u64);
             }
-            graphs_remaining = sgraphs - i;
-            switch (graphs_remaining) {
-                case 1:
-                    hash_block.graphs[0] = s->body.storage.blob_8[i];
-                    break;
-                case 2:
-                    hash_block.graphs[0] = s->body.storage.blob_8[i];
-                    hash_block.graphs[1] = s->body.storage.blob_8[i+1];
-                    break;
-            }
-            MVM_hash_finish(&hash_block, &hj_i, &hj_j, &hashv, sgraphs, graphs_remaining);
+            /* If there is a final 32 bit grapheme pass it through, otherwise
+             * pass through 0. */
+            hash = siphashfinish_32bits(&sh,
+                i < s_len
+                    ? MVM_MAYBE_TO_LITTLE_ENDIAN_32(s->body.storage.blob_8[i]) : 0);
             break;
         }
+#if !defined(MVM_HASH_FORCE_LITTLE_ENDIAN)
         case MVM_STRING_GRAPHEME_32: {
-            int i;
-            for (i = 0; 3 <= sgraphs - i; i += 3) {
-                MVM_hash_add_three(
-                    (MVMJenHashGraphemeView*)(s->body.storage.blob_32 + i),
-                    &hj_i, &hj_j, &hashv);
-            }
-            graphs_remaining = sgraphs - i;
-            MVM_hash_finish((MVMJenHashGraphemeView*)(s->body.storage.blob_32 + i), &hj_i, &hj_j, &hashv, sgraphs, graphs_remaining);
+            hash = siphash24(
+                (MVMuint8*)s->body.storage.blob_32,
+                s_len * sizeof(MVMGrapheme32),
+                key);
             break;
         }
+#endif
         default: {
+            siphash sh;
             MVMGraphemeIter gi;
-            MVMJenHashGraphemeView hash_block;
-            /* Work through the string 3 graphemes at a time. */
+            MVMJenHashGraphemeView gv;
+            size_t i;
+            siphashinit(&sh, s_len * sizeof(MVMGrapheme32), key);
             MVM_string_gi_init(tc, &gi, s);
-            while (3 <= graphs_remaining) {
-                hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
-                hash_block.graphs[1] = MVM_string_gi_get_grapheme(tc, &gi);
-                hash_block.graphs[2] = MVM_string_gi_get_grapheme(tc, &gi);
-                MVM_hash_add_three(
-                    &hash_block,
-                    &hj_i, &hj_j, &hashv);
-                graphs_remaining -= 3;
+            for (i = 0; i + 1 < s_len; i += 2) {
+                gv.graphs[0] = MVM_MAYBE_TO_LITTLE_ENDIAN_32(MVM_string_gi_get_grapheme(tc, &gi));
+                gv.graphs[1] = MVM_MAYBE_TO_LITTLE_ENDIAN_32(MVM_string_gi_get_grapheme(tc, &gi));
+                siphashadd64bits(&sh, gv.u64);
             }
-            /* Now handle trailing graphemes (must be 2, 1, or 0). */
-            switch (graphs_remaining) {
-                case 1:
-                    hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
-                    break;
-                case 2:
-                    hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
-                    hash_block.graphs[1] = MVM_string_gi_get_grapheme(tc, &gi);
-                    break;
-
-            }
-            MVM_hash_finish(&hash_block, &hj_i, &hj_j, &hashv, sgraphs, graphs_remaining);
+            hash = siphashfinish_32bits(&sh,
+                i < s_len
+                    ? MVM_MAYBE_TO_LITTLE_ENDIAN_32(MVM_string_gi_get_grapheme(tc, &gi))
+                    : 0);
+            break;
         }
     }
-    /* Store computed hash value. */
-    s->body.cached_hash_code = hashv;
+    s->body.cached_hash_code = hash;
 }

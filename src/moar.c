@@ -85,7 +85,6 @@ MVMInstance * MVM_vm_create_instance(void) {
     char *jit_log, *jit_expr_disable, *jit_disable, *jit_bytecode_dir, *jit_last_frame, *jit_last_bb;
     char *dynvar_log;
     int init_stat;
-    MVMuint32 hashSecret;
     MVMuint64 now = MVM_platform_now();
 
     /* Set up instance data structure. */
@@ -93,9 +92,11 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Create the main thread's ThreadContext and stash it. */
     instance->main_thread = MVM_tc_create(NULL, instance);
-    MVM_getrandom(instance->main_thread, &hashSecret, sizeof(MVMuint32));
-    instance->hashSecret ^= now;
-    instance->hashSecret ^= MVM_proc_getpid(instance->main_thread) * now;
+    /* Get the 128-bit hashSecret */
+    MVM_getrandom(instance->main_thread, instance->hashSecrets, sizeof(MVMuint64) * 2);
+    /* Just in case MVM_getrandom didn't work, XOR it with some poorly randomized data */
+    instance->hashSecrets[1] ^= now;
+    instance->hashSecrets[1] ^= MVM_proc_getpid(instance->main_thread) * now;
     instance->main_thread->thread_id = 1;
 
     /* Next thread to be created gets ID 2 (the main thread got ID 1). */

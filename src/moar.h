@@ -84,7 +84,7 @@ typedef double   MVMnum64;
 
 /* stuff for uthash */
 #define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
-typedef uint32_t MVMhashv;
+typedef MVMuint64 MVMHashv;
 
 #include "strings/uthash_types.h"
 
