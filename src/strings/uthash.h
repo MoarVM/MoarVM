@@ -99,6 +99,22 @@ void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t
 void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes);
 /* calculate the element whose hash handle address is hhe */
 #define ELMT_FROM_HH(tbl,hhp) ((void*)(((char*)(hhp)) - ((tbl)->hho)))
+
+#define HASH_FIND_VM_STR_AND_DELETE(tc,hh,head,key,out,prev)                     \
+do {                                                                             \
+    HASH_FIND_VM_STR_prev(tc,hh,head,key,out,prev);                             \
+    if (out) {                                                                      \
+        HASH_DELETE(hh,head,out,prev);                                         \
+    }                                                                            \
+} while (0)
+
+#define HASH_FIND_AND_DELETE(hh,head,keyptr,keylen,out,prev)                     \
+do {                                                                             \
+    HASH_FIND_prev(hh,head,keyptr,keylen,out,prev);                             \
+    if (out) {                                                                      \
+        HASH_DELETE(hh,head,out,prev);                                         \
+    }                                                                            \
+} while (0)
 #define HASH_FIND(hh,head,keyptr,keylen,out)                                     \
 do {                                                                             \
   MVMhashv _hf_hashv;                                                            \
@@ -108,6 +124,18 @@ do {                                                                            
      HASH_FCN(keyptr,keylen, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt, (head)->hh.tbl->log2_num_buckets); \
      HASH_FIND_IN_BKT((head)->hh.tbl, hh, (head)->hh.tbl->buckets[ _hf_bkt ],  \
                       keyptr,keylen,out,_hf_hashv);                             \
+  }                                                                              \
+} while (0)
+#define HASH_FIND_prev(hh,head,keyptr,keylen,out,prev)                          \
+do {                                                                             \
+  MVMhashv _hf_hashv;                                                            \
+  unsigned _hf_bkt;                                                              \
+  out=NULL;                                                                      \
+  prev=NULL; \
+  if (head) {                                                                    \
+     HASH_FCN(keyptr,keylen, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt, (head)->hh.tbl->log2_num_buckets); \
+     HASH_FIND_IN_BKT_prev((head)->hh.tbl, hh, (head)->hh.tbl->buckets[ _hf_bkt ],  \
+                      keyptr,keylen,out,_hf_hashv, prev);                             \
   }                                                                              \
 } while (0)
 #define DETERMINE_BUCKET_AND(hashv, num_bkts) \
@@ -142,6 +170,26 @@ do {                                                                            
      }                                                                              \
      HASH_FIND_IN_BKT_VM_STR(tc, (head)->hh.tbl, hh,                                \
          (head)->hh.tbl->buckets[ _hf_bkt ], key, out, _hf_hashv);                  \
+  }                                                                                 \
+} while (0)
+
+#define HASH_FIND_VM_STR_prev(tc,hh,head,key,out, prev)                             \
+do {                                                                                \
+  MVMhashv _hf_hashv;                                                               \
+  unsigned _hf_bkt;                                                                 \
+  out=NULL;                                                                         \
+  prev=NULL;                                                                        \
+  if (head) {                                                                       \
+     MVMhashv cached_hash = (key)->body.cached_hash_code;                           \
+     if (cached_hash) {                                                             \
+         _hf_hashv = cached_hash;                                                   \
+         _hf_bkt = WHICH_BUCKET((_hf_hashv), (head)->hh.tbl->num_buckets, (head)->hh.tbl->log2_num_buckets); \
+     }                                                                              \
+     else {                                                                         \
+         HASH_FCN_VM_STR(tc, key, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt, (head)->hh.tbl->log2_num_buckets); \
+     }                                                                              \
+     HASH_FIND_IN_BKT_VM_STR_prev(tc, (head)->hh.tbl, hh,                                \
+         (head)->hh.tbl->buckets[ _hf_bkt ], key, out, _hf_hashv, prev);                  \
   }                                                                                 \
 } while (0)
 
@@ -202,7 +250,7 @@ do {                                                                            
  (add)->hh.keylen = (unsigned)(keylen_in);                                       \
  if (!(head)) {                                                                  \
     head = (add);                                                                \
-    HASH_MAKE_TABLE(tc, head, &((head)->hh));                                                    \
+    HASH_MAKE_TABLE(tc, head, &((head)->hh));                                    \
  }                                                                               \
  (head)->hh.tbl->num_items++;                                                    \
  (add)->hh.tbl = (head)->hh.tbl;                                                 \
@@ -253,10 +301,11 @@ do {                                                                            
  * copy the deletee pointer, then the latter references are via that
  * scratch pointer rather than through the repointed (users) symbol.
  */
-#define HASH_DELETE(hh,head,delptr)                                              \
+
+#define HASH_DELETE(hh,head,delptr,prevptr)                                              \
 do {                                                                             \
     unsigned _hd_bkt;                                                            \
-    struct UT_hash_handle *_hd_hh_del;                                           \
+    struct UT_hash_handle *_hd_hh_del, *_hd_hh_prevptr;                                           \
     if ( (head)->hh.tbl->num_items == 1 )  {                                     \
         uthash_free(tc, (head)->hh.tbl->buckets,                                     \
                     (head)->hh.tbl->num_buckets*sizeof(struct UT_hash_bucket) ); \
@@ -264,6 +313,7 @@ do {                                                                            
         (head) = NULL;                                                           \
     } else {                                                                     \
         _hd_hh_del = &((delptr)->hh);                                            \
+        _hd_hh_prevptr = prevptr ? &((prevptr)->hh) : NULL;\
         if ((delptr) == (head)) {                                                \
             unsigned cur = 0;                                                    \
             while (cur < (head)->hh.tbl->num_buckets) {                          \
@@ -281,7 +331,7 @@ do {                                                                            
           REPLACED_HEAD: ;                                                       \
         }                                                                        \
         _hd_bkt = WHICH_BUCKET( _hd_hh_del->hashv, (head)->hh.tbl->num_buckets, (head)->hh.tbl->log2_num_buckets);   \
-        HASH_DEL_IN_BKT(&((head)->hh.tbl->buckets[_hd_bkt]), _hd_hh_del);        \
+        HASH_DEL_IN_BKT(&((head)->hh.tbl->buckets[_hd_bkt]), _hd_hh_del, _hd_hh_prevptr);        \
         (head)->hh.tbl->num_items--;                                             \
     }                                                                            \
     HASH_FSCK(hh,head);                                                          \
@@ -305,10 +355,6 @@ do {                                                                            
             _thh = (head)->hh.tbl->buckets[_bkt_i].hh_head;                      \
             _prev = NULL;                                                        \
             while (_thh) {                                                       \
-               if (_prev != (char*)(_thh->hh_prev)) {                            \
-                   HASH_OOPS("invalid hh_prev %p, actual %p\n",                  \
-                    _thh->hh_prev, _prev );                                      \
-               }                                                                 \
                _bkt_count++;                                                     \
                _prev = (char*)(_thh);                                            \
                _thh = _thh->hh_next;                                             \
@@ -406,12 +452,36 @@ do {                                                                            
  if (head.hh_head) DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,head.hh_head));          \
  else out=NULL;                                                                  \
  while (out) {                                                                   \
-    if ((out)->hh.hashv == hashval && (out)->hh.keylen == keylen_in) {                                           \
+    if ((out)->hh.hashv == hashval && (out)->hh.keylen == keylen_in) {            \
         if ((HASH_KEYCMP((out)->hh.key,keyptr,keylen_in)) == 0) break;             \
     }                                                                            \
     if ((out)->hh.hh_next) DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,(out)->hh.hh_next)); \
     else out = NULL;                                                             \
  }                                                                               \
+} while(0)
+
+
+/* iterate over items in a known bucket to find desired item */
+#define HASH_FIND_IN_BKT_prev(tbl,hh,head,keyptr,keylen_in,out, hashval, prev) \
+do {\
+ if (head.hh_head) DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,head.hh_head));\
+ else {\
+     out=NULL;\
+     prev=NULL;\
+ }\
+ while (out) {\
+    if ((out)->hh.hashv == hashval && (out)->hh.keylen == keylen_in) {\
+        if ((HASH_KEYCMP((out)->hh.key,keyptr,keylen_in)) == 0) break;\
+    }\
+    if ((out)->hh.hh_next) {\
+        prev = out;\
+        DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,(out)->hh.hh_next));\
+    }\
+    else {\
+        out = NULL;\
+        prev = NULL;\
+    }\
+ }\
 } while(0)
 
 /* iterate over items in a known bucket to find desired item */
@@ -426,6 +496,28 @@ do {                                                                            
         DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,(out)->hh.hh_next));                \
     else                                                                         \
         out = NULL;                                                              \
+ }                                                                               \
+} while(0)
+
+/* iterate over items in a known bucket to find desired item */
+#define HASH_FIND_IN_BKT_VM_STR_prev(tc,tbl,hh,head,key_in,out,hashval, prev)    \
+do {                                                                             \
+ if (head.hh_head) DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,head.hh_head));          \
+ else {                                                                          \
+     out=NULL;                                                                   \
+     prev=NULL;                                                                  \
+ }\
+ while (out) {                                                                   \
+    if (hashval == (out)->hh.hashv && MVM_string_equal(tc, (key_in), (MVMString *)((out)->hh.key)))  \
+        break;                                                                   \
+    if ((out)->hh.hh_next)  {                                                    \
+        prev = out;                                                              \
+        DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,(out)->hh.hh_next));                \
+    }                                                                            \
+    else {                                                                       \
+        out = NULL;                                                              \
+        prev = NULL;                                                             \
+    }                                                                            \
  }                                                                               \
 } while(0)
 
@@ -485,10 +577,7 @@ MVM_STATIC_INLINE void HASH_EXPAND_BUCKETS(MVMThreadContext *tc, UT_hash_table *
              _he_newbkt->expand_mult = _he_newbkt->count /
                                         tbl->ideal_chain_maxlen;
            }
-           _he_thh->hh_prev = NULL;
            _he_thh->hh_next = _he_newbkt->hh_head;
-           if (_he_newbkt->hh_head) _he_newbkt->hh_head->hh_prev =
-                _he_thh;
            _he_newbkt->hh_head = _he_thh;
            _he_thh = _he_hh_nxt;
         }
@@ -511,15 +600,13 @@ MVM_STATIC_INLINE void HASH_ADD_TO_BKT(MVMThreadContext *tc, UT_hash_bucket *buc
 #if MVM_HASH_RANDOMIZE
     table->bucket_rand = bucket->hh_head ? ROTL(table->bucket_rand, 1) : table->bucket_rand + 1;/* Rotate so our bucket_rand changes somewhat. */
     if (bucket->hh_head && table->bucket_rand & 1) {
-        UT_hash_handle *head = addhh->hh_prev = bucket->hh_head;
+        UT_hash_handle *head = bucket->hh_head;
         UT_hash_handle *next = addhh->hh_next = head->hh_next;
-        if (next) next->hh_prev = addhh;
         head->hh_next = addhh;
     }
     else {
 #endif
-        addhh->hh_prev = NULL;
-        if ((addhh->hh_next = bucket->hh_head)) { bucket->hh_head->hh_prev = addhh; }
+        addhh->hh_next = bucket->hh_head;
         bucket->hh_head = addhh;
 #if MVM_HASH_RANDOMIZE
     }
@@ -530,19 +617,18 @@ MVM_STATIC_INLINE void HASH_ADD_TO_BKT(MVMThreadContext *tc, UT_hash_bucket *buc
      }
 }
 
+
 /* remove an item from a given bucket */
-MVM_STATIC_INLINE void HASH_DEL_IN_BKT(UT_hash_bucket *head, UT_hash_handle *hh_del) {
+MVM_STATIC_INLINE void HASH_DEL_IN_BKT(UT_hash_bucket *head, UT_hash_handle *hh_del, UT_hash_handle *hh_prev) {
     head->count--;
     if (head->hh_head == hh_del) {
       head->hh_head = hh_del->hh_next;
     }
-    if (hh_del->hh_prev) {
-        hh_del->hh_prev->hh_next = hh_del->hh_next;
-    }
-    if (hh_del->hh_next) {
-        hh_del->hh_next->hh_prev = hh_del->hh_prev;
+    if (hh_prev) {
+        hh_prev->hh_next = hh_del->hh_next;
     }
 }
+
 
 #define HASH_CLEAR(tc, hh,head)                                                  \
 do {                                                                             \
