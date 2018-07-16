@@ -141,6 +141,12 @@ static void wval_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 tgt_ori
             object_facts(tc, g, tgt_orig, tgt_i, MVM_sc_try_get_object(tc, sc, idx));
     }
 }
+static void wvalfrom_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 tgt_orig,
+                           MVMuint16 tgt_i, MVMuint16 sslot, MVMint64 idx) {
+    MVMSerializationContext *sc = (MVMSerializationContext *)g->spesh_slots[sslot];
+    MVMObject *target = MVM_sc_get_object(tc, sc, idx);
+    object_facts(tc, g, tgt_orig, tgt_i, MVM_sc_try_get_object(tc, sc, idx));
+}
 
 /* Let's figure out what exact type of iter we'll get from an iter op */
 static void iter_facts(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -203,6 +209,14 @@ static void literal_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
         default:
             return;
     }
+    tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+}
+static void getstringfrom_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMCompUnit *dep = (MVMCompUnit *)g->spesh_slots[ins->operands[1].lit_i16];
+    MVMuint32 idx = ins->operands[2].lit_ui32;
+    MVMString *str = MVM_cu_string(tc, dep, idx);
+    MVMSpeshFacts *tgt_facts = &g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i];
+    tgt_facts->value.s = str;
     tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
 }
 
@@ -424,6 +438,11 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[1].reg.orig, ins->operands[1].reg.i);
             break;
+        case MVM_OP_sp_fastcreate:
+            create_facts_with_type(tc, g,
+                ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                ((MVMSTable *)g->spesh_slots[ins->operands[2].lit_i16])->WHAT);
+            break;
         case MVM_OP_clone:
             copy_facts(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
@@ -534,6 +553,16 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[1].lit_i16, ins->operands[2].lit_i64);
             break;
+        case MVM_OP_sp_getwvalfrom:
+            wvalfrom_facts(tc, g,
+                ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                ins->operands[1].lit_i16, ins->operands[2].lit_i64);
+            break;
+        case MVM_OP_sp_getspeshslot:
+            object_facts(tc, g,
+                ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                (MVMObject *)g->spesh_slots[ins->operands[1].lit_i16]);
+            break;
         case MVM_OP_iter:
             iter_facts(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
@@ -610,6 +639,9 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         case MVM_OP_const_i64_16:
         case MVM_OP_const_s:
             literal_facts(tc, g, ins);
+            break;
+        case MVM_OP_sp_getstringfrom:
+            getstringfrom_facts(tc, g, ins);
             break;
         case MVM_OP_encode:
             create_facts(tc, g,
