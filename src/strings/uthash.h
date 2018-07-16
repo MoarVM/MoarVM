@@ -193,7 +193,7 @@ do {                                                                            
   }                                                                                 \
 } while (0)
 
-MVM_STATIC_INLINE MVMuint64 ptr_hash_64_to_64(uintptr_t u) {
+MVM_STATIC_INLINE MVMuint64 ptr_hash_64_to_64(MVMuint64 u) {
     /* Thomas Wong's hash from
      * https://web.archive.org/web/20120211151329/http://www.concentric.net/~Ttwang/tech/inthash.htm */
     u = (~u) + (u << 21);
@@ -205,7 +205,7 @@ MVM_STATIC_INLINE MVMuint64 ptr_hash_64_to_64(uintptr_t u) {
     u =  u + (u << 31);
     return (MVMuint64)u;
 }
-MVM_STATIC_INLINE MVMuint32 ptr_hash_32_to_32(uintptr_t u) {
+MVM_STATIC_INLINE MVMuint32 ptr_hash_32_to_32(MVMuint32 u) {
     /* Bob Jenkins' hash from
      * http://burtleburtle.net/bob/hash/integer.html */
     u = (u + 0x7ed55d16) + (u << 12);
