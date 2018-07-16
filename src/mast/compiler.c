@@ -1564,8 +1564,8 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     MAST_CompUnit  *cu;
     WriterState    *ws;
     char           *bytecode;
-    unsigned short  i, num_depscs, num_frames;
-    unsigned int    bytecode_size;
+    unsigned short  num_depscs, num_frames;
+    unsigned int    bytecode_size, i;
 
     /* Ensure we have a compilation unit. */
     if (!ISTYPE(vm, node, types->CompUnit))
