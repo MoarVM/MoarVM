@@ -1382,34 +1382,26 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
 /* Looks up the address of the lexical with the specified name, starting with
  * the specified frame. It checks all outer frames of the caller frame chain.  */
 MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame) {
-    while (cur_caller_frame != NULL) {
-        MVMFrame *cur_frame = cur_caller_frame;
-        while (cur_frame != NULL) {
-            MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
-            if (lexical_names) {
-                /* Indexes were formerly stored off-by-one to avoid semi-predicate issue. */
-                MVMLexicalRegistry *entry;
-                MVM_HASH_GET(tc, lexical_names, name, entry)
-                if (entry) {
-                    if (cur_frame->static_info->body.lexical_types[entry->value] == MVM_reg_obj) {
-                        MVMRegister *result = &cur_frame->env[entry->value];
-                        if (!result->o)
-                            MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
-                        return result;
-                    }
-                    else {
-                        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-                        char *waste[] = { c_name, NULL };
-                        MVM_exception_throw_adhoc_free(tc, waste,
-                            "Lexical with name '%s' has wrong type",
-                                c_name);
-                    }
-                }
+    MVMSpeshFrameWalker fw;
+    MVM_spesh_frame_walker_init(tc, &fw, cur_caller_frame, 1);
+    while (MVM_spesh_frame_walker_next(tc, &fw)) {
+        MVMRegister *found;
+        MVMuint16 found_kind;
+        if (MVM_spesh_frame_walker_get_lex(tc, &fw, name, &found, &found_kind)) {
+            MVM_spesh_frame_walker_cleanup(tc, &fw);
+            if (found_kind == MVM_reg_obj) {
+                return found;
             }
-            cur_frame = cur_frame->outer;
+            else {
+                char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+                char *waste[] = { c_name, NULL };
+                MVM_exception_throw_adhoc_free(tc, waste,
+                    "Lexical with name '%s' has wrong type",
+                        c_name);
+            }
         }
-        cur_caller_frame = cur_caller_frame->caller;
     }
+    MVM_spesh_frame_walker_cleanup(tc, &fw);
     return NULL;
 }
 
