@@ -33,7 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string.h>   /* memcmp,strlen */
 #include <stddef.h>   /* ptrdiff_t */
 #include <stdlib.h>   /* exit() */
-
+#include "strings/siphash/csiphash.h"
 /* These macros use decltype or the earlier __typeof GNU extension.
    As decltype is only available in newer compilers (VS2010 or gcc 4.3+
    when compiling c++ source) this code uses whatever method is needed
@@ -117,7 +117,7 @@ do {                                                                            
 } while (0)
 #define HASH_FIND(hh,head,keyptr,keylen,out)                                     \
 do {                                                                             \
-  MVMhashv _hf_hashv;                                                            \
+  MVMHashv _hf_hashv;                                                            \
   unsigned _hf_bkt;                                                              \
   out=NULL;                                                                      \
   if (head) {                                                                    \
@@ -128,7 +128,7 @@ do {                                                                            
 } while (0)
 #define HASH_FIND_prev(hh,head,keyptr,keylen,out,prev)                          \
 do {                                                                             \
-  MVMhashv _hf_hashv;                                                            \
+  MVMHashv _hf_hashv;                                                            \
   unsigned _hf_bkt;                                                              \
   out=NULL;                                                                      \
   prev=NULL; \
@@ -146,21 +146,21 @@ do {                                                                            
  * or % to get the bucket number because it uses the full bit width of the hash.
  * If the size of the hashv is changed we will need to change max_hashv_div_phi,
  * to be max_hashv / phi rounded to the nearest *odd* number.
- * max_hashv / phi = 2654435769 */
-const static uint32_t max_hashv_div_phi = UINT32_C(2654435769);
+ * max_hashv / phi = 11400714819323198485 */
+#define max_hashv_div_phi UINT64_C(11400714819323198485)
 #define DETERMINE_BUCKET_FIB(hashv, offset) \
-    (((hashv) * max_hashv_div_phi) >> ((sizeof(MVMhashv)*8) - offset))
+    (((hashv) * max_hashv_div_phi) >> ((sizeof(MVMHashv)*8) - offset))
 
 #define WHICH_BUCKET(hashv, num_bkts, offset)\
     (DETERMINE_BUCKET_FIB((hashv), (offset)))
 
 #define HASH_FIND_VM_STR(tc,hh,head,key,out)                                        \
 do {                                                                                \
-  MVMhashv _hf_hashv;                                                               \
+  MVMHashv _hf_hashv;                                                               \
   unsigned _hf_bkt;                                                                 \
   out=NULL;                                                                         \
   if (head) {                                                                       \
-     MVMhashv cached_hash = (key)->body.cached_hash_code;                           \
+     MVMHashv cached_hash = (key)->body.cached_hash_code;                           \
      if (cached_hash) {                                                             \
          _hf_hashv = cached_hash;                                                   \
          _hf_bkt = WHICH_BUCKET((_hf_hashv), (head)->hh.tbl->num_buckets, (head)->hh.tbl->log2_num_buckets); \
@@ -175,12 +175,12 @@ do {                                                                            
 
 #define HASH_FIND_VM_STR_prev(tc,hh,head,key,out, prev)                             \
 do {                                                                                \
-  MVMhashv _hf_hashv;                                                               \
+  MVMHashv _hf_hashv;                                                               \
   unsigned _hf_bkt;                                                                 \
   out=NULL;                                                                         \
   prev=NULL;                                                                        \
   if (head) {                                                                       \
-     MVMhashv cached_hash = (key)->body.cached_hash_code;                           \
+     MVMHashv cached_hash = (key)->body.cached_hash_code;                           \
      if (cached_hash) {                                                             \
          _hf_hashv = cached_hash;                                                   \
          _hf_bkt = WHICH_BUCKET((_hf_hashv), (head)->hh.tbl->num_buckets, (head)->hh.tbl->log2_num_buckets); \
@@ -193,7 +193,7 @@ do {                                                                            
   }                                                                                 \
 } while (0)
 
-MVM_STATIC_INLINE MVMuint64 ptr_hash_64_to_64(uintptr_t u) {
+MVM_STATIC_INLINE MVMuint64 ptr_hash_64_to_64(MVMuint64 u) {
     /* Thomas Wong's hash from
      * https://web.archive.org/web/20120211151329/http://www.concentric.net/~Ttwang/tech/inthash.htm */
     u = (~u) + (u << 21);
@@ -205,7 +205,7 @@ MVM_STATIC_INLINE MVMuint64 ptr_hash_64_to_64(uintptr_t u) {
     u =  u + (u << 31);
     return (MVMuint64)u;
 }
-MVM_STATIC_INLINE MVMuint32 ptr_hash_32_to_32(uintptr_t u) {
+MVM_STATIC_INLINE MVMuint32 ptr_hash_32_to_32(MVMuint32 u) {
     /* Bob Jenkins' hash from
      * http://burtleburtle.net/bob/hash/integer.html */
     u = (u + 0x7ed55d16) + (u << 12);
@@ -263,7 +263,7 @@ do {                                                                            
 #define HASH_ADD_KEYPTR_VM_STR(tc,hh,head,key_in,add)                            \
 do {                                                                             \
  unsigned _ha_bkt;                                                               \
- MVMhashv cached_hash = (key_in)->body.cached_hash_code;                         \
+ MVMHashv cached_hash = (key_in)->body.cached_hash_code;                         \
  (add)->hh.key = (key_in);                                                       \
  if (!(head)) {                                                                  \
     head = (add);                                                                \
@@ -375,9 +375,9 @@ do {                                                                            
 #define HASH_FSCK(hh,head)
 #endif
 
-/* Use Jenkin's hash as the hash function. */
-#define HASH_FCN HASH_JEN
-#define HASH_FCN_VM_STR HASH_JEN_VM_STR
+/* Use Siphash as the hash function. */
+#define HASH_FCN HASH_SIP
+#define HASH_FCN_VM_STR HASH_SIP_VM_STR
 
 #define HASH_JEN_MIX(a,b,c)                                                      \
 do {                                                                             \
@@ -391,12 +391,16 @@ do {                                                                            
   b -= c; b -= a; b ^= ( a << 10 );                                              \
   c -= a; c -= b; c ^= ( b >> 15 );                                              \
 } while (0)
-
+#define HASH_SIP(key, keylen, num_bkts,hashv, bkt, offset) \
+do { \
+    hashv = siphash24((MVMuint8*)key, keylen, tc->instance->hashSecrets); \
+    bkt = WHICH_BUCKET(hashv, num_bkts, offset); \
+} while (0)
 #define HASH_JEN(key,keylen,num_bkts,hashv,bkt,offset)                           \
 do {                                                                             \
   unsigned _hj_i,_hj_j,_hj_k;                                                    \
   unsigned char *_hj_key=(unsigned char*)(key);                                  \
-  hashv = tc->instance->hashSecret;                                              \
+  hashv = tc->instance->hashSecrets[1];                                          \
   _hj_i = _hj_j = 0x9e3779b9;                                                    \
   _hj_k = (unsigned)(keylen);                                                    \
   while (_hj_k >= 12) {                                                          \
@@ -436,7 +440,7 @@ do {                                                                            
   bkt = WHICH_BUCKET(hashv, num_bkts, offset);                                   \
 } while(0)
 
-#define HASH_JEN_VM_STR(tc,key,num_bkts,hashv,bkt,offset)                        \
+#define HASH_SIP_VM_STR(tc,key,num_bkts,hashv,bkt,offset)                        \
 do {                                                                             \
   MVM_string_compute_hash_code(tc, key);                                         \
   hashv = (key)->body.cached_hash_code;                                          \

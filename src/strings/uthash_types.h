@@ -67,6 +67,6 @@ typedef struct UT_hash_handle {
                                       * low-level hashes, MVMString * for high level
                                       * hashes) */
    unsigned keylen;                  /* enclosing struct's key len     */
-   MVMhashv hashv;                   /* result of hash-fcn(key)        */
+   MVMHashv hashv;                   /* result of hash-fcn(key)        */
 } UT_hash_handle;
 #endif

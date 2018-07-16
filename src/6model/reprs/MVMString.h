@@ -47,7 +47,7 @@ struct MVMStringBody {
     MVMuint16 storage_type;
     MVMuint16 num_strands;
     MVMuint32 num_graphs;
-    MVMhashv  cached_hash_code;
+    MVMHashv  cached_hash_code;
 };
 
 /* A strand of a string. */
