@@ -3,6 +3,12 @@ struct MVMSpeshFrameWalker {
     /* The current real MVMFrame that we are considering. */
     MVMFrame *cur_caller_frame;
 
+    /* If we're currently looking through applicable inlines, the deopt offset
+     * to look for them based on, together with the current inline we are
+     * looking at. */
+    MVMint32 deopt_offset;
+    MVMint32 inline_idx;
+
     /* If we're doing a walk of outer frames too, the current outer frame that
      * we are considering starting from the caller frame. */
     MVMFrame *cur_outer_frame;
