@@ -107,14 +107,13 @@ static void SCRef_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGC
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMSerializationContext *sc = (MVMSerializationContext *)obj;
-    MVMSerializationContextBody  *entry, *prev;
 
     if (sc->body == NULL)
         return;
 
     /* Remove from weakref lookup hash (which doesn't count as a root). */
     uv_mutex_lock(&tc->instance->mutex_sc_registry);
-    HASH_FIND_AND_DELETE(hash_handle, tc->instance->sc_weakhash, sc->body, sizeof(*(sc->body)), entry, prev);
+    HASH_DELETE_PTR(tc, hash_handle, tc->instance->sc_weakhash, sc->body, MVMSerializationContextBody);
     tc->instance->all_scs[sc->body->sc_idx] = NULL;
     uv_mutex_unlock(&tc->instance->mutex_sc_registry);
 

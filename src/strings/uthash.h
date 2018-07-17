@@ -302,14 +302,19 @@ do {                                                                            
  * scratch pointer rather than through the repointed (users) symbol.
  */
 
-#define HASH_DELETE(hh,head,delptr,prevptr)                                              \
+/* Use HASH_DELETE normally. If you get compilation errors due to the macro defining
+ * the same goto label multiple times, use HASH_DELETE_MACRO which lets you
+ * specify a prefix for the goto label which will prevent the conflict. */
+#define HASH_DELETE(hh,head,delptr,prevptr) \
+    HASH_DELETE_MACRO(hh,head,delptr,prevptr, MVM_HASH)
+#define HASH_DELETE_MACRO(hh,head,delptr,prevptr,label)                          \
 do {                                                                             \
     unsigned _hd_bkt;                                                            \
-    struct UT_hash_handle *_hd_hh_del, *_hd_hh_prevptr;                                           \
+    struct UT_hash_handle *_hd_hh_del, *_hd_hh_prevptr;                          \
     if ( (head)->hh.tbl->num_items == 1 )  {                                     \
-        uthash_free(tc, (head)->hh.tbl->buckets,                                     \
+        uthash_free(tc, (head)->hh.tbl->buckets,                                 \
                     (head)->hh.tbl->num_buckets*sizeof(struct UT_hash_bucket) ); \
-        uthash_free(tc, (head)->hh.tbl, sizeof(UT_hash_table));                      \
+        uthash_free(tc, (head)->hh.tbl, sizeof(UT_hash_table));                  \
         (head) = NULL;                                                           \
     } else {                                                                     \
         _hd_hh_del = &((delptr)->hh);                                            \
@@ -321,20 +326,57 @@ do {                                                                            
                 while (cand) {                                                   \
                     if (cand && cand != &((delptr)->hh)) {                       \
                         DECLTYPE_ASSIGN((head), ELMT_FROM_HH((head)->hh.tbl,cand)); \
-                        goto REPLACED_HEAD;                                      \
+                        goto label ## REPLACED_HEAD;                             \
                     }                                                            \
                     cand = cand->hh_next;                                        \
                 }                                                                \
                 cur++;                                                           \
             }                                                                    \
             uthash_fatal("Failed to replace deleted head");                      \
-          REPLACED_HEAD: ;                                                       \
+          label ## REPLACED_HEAD: ;                                                       \
         }                                                                        \
         _hd_bkt = WHICH_BUCKET( _hd_hh_del->hashv, (head)->hh.tbl->num_buckets, (head)->hh.tbl->log2_num_buckets);   \
         HASH_DEL_IN_BKT(&((head)->hh.tbl->buckets[_hd_bkt]), _hd_hh_del, _hd_hh_prevptr);        \
         (head)->hh.tbl->num_items--;                                             \
     }                                                                            \
     HASH_FSCK(hh,head);                                                          \
+} while (0)
+#if HASH_DELETE_PTR_DEBUG_SET
+#define HASH_DELETE_PTR_DEBUG(...) fprintf(stderr,__VA_ARGS__)
+#else
+#define HASH_DELETE_PTR_DEBUG(...)
+#endif
+/* This delete's a pointer by address from the hash. This works around a bug in
+ * SCRef.c in gc_free() where the pointer is not in the bucket we would expect
+ * based on its hash value + number of buckets. See issue #906 */
+#define HASH_DELETE_PTR(tc, hh, hash, delptr, hashentry_type) do {\
+    unsigned bucket_tmp = 0;\
+    hashentry_type *prev = NULL;\
+    hashentry_type *current = NULL;\
+    HASH_DELETE_PTR_DEBUG("Expecting it in bucket %lu (Total buckets %u)\n",\
+        WHICH_BUCKET(hash->hh.hashv,\
+            hash->hh.tbl->num_buckets,\
+            hash->hh.tbl->log2_num_buckets),\
+        hash->hh.tbl->num_buckets);\
+    struct UT_hash_table *ht;\
+    if (hash && (ht = hash->hh.tbl)) {\
+        while (bucket_tmp < ht->num_buckets) {\
+            struct UT_hash_handle *current_hh = ht->buckets[bucket_tmp].hh_head;\
+            prev = NULL;\
+            while (current_hh) {\
+                current = ELMT_FROM_HH(ht, current_hh);\
+                current_hh = current_hh->hh_next;\
+                if (delptr == current) {\
+                    HASH_DELETE_PTR_DEBUG("Actually found in bucket %u\n", bucket_tmp);\
+                    HASH_DELETE(hh, (hash), (current), (prev));\
+                    goto HASH_PTR_DEL_END_GOAL;\
+                }\
+                prev = current;\
+            }\
+            (bucket_tmp)++;\
+        }\
+    }\
+    HASH_PTR_DEL_END_GOAL: ;\
 } while (0)
 
 /* HASH_FSCK checks hash integrity on every add/delete when HASH_DEBUG is defined.
