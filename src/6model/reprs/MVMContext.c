@@ -316,3 +316,16 @@ MVMFrame * MVM_context_get_frame(MVMThreadContext *tc, MVMContext *ctx) {
     MVM_spesh_frame_walker_cleanup(tc, &fw);
     return result;
 }
+
+/* Resolves the context and gets a hash of its lexicals. */
+MVMObject * MVM_context_lexicals_as_hash(MVMThreadContext *tc, MVMContext *ctx) {
+    MVMSpeshFrameWalker fw;
+    MVMObject *result;
+    MVM_spesh_frame_walker_init(tc, &fw, ctx->body.context, 0);
+    if (apply_traversals(tc, &fw, ctx->body.traversals, ctx->body.num_traversals))
+        result = MVM_spesh_frame_walker_get_lexicals_hash(tc, &fw);
+    else
+        result = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
+    MVM_spesh_frame_walker_cleanup(tc, &fw);
+    return result;
+}
