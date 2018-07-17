@@ -341,47 +341,35 @@ do {                                                                            
     }                                                                            \
     HASH_FSCK(hh,head);                                                          \
 } while (0)
-#if HASH_DELETE_PTR_DEBUG_SET
-#define HASH_DELETE_PTR_DEBUG(...) fprintf(stderr,__VA_ARGS__)
-#else
-#define HASH_DELETE_PTR_DEBUG(...)
-#endif
-/* This delete's a pointer by address from the hash. This works around a bug in
- * SCRef.c in gc_free() where the pointer is not in the bucket we would expect
- * based on its hash value + number of buckets. See issue #906 */
+
+/* This delete's a pointer by address from the hash. */
 #define HASH_DELETE_PTR(tc, hh, hash, delptr, hashentry_type) do {\
-    unsigned bucket_tmp = 0;\
-    hashentry_type *prev = NULL;\
-    hashentry_type *current = NULL;\
     struct UT_hash_table *ht;\
-    HASH_DELETE_PTR_DEBUG("Expecting it in bucket %lu (Total buckets %u)\n",\
-        WHICH_BUCKET(hash->hh.hashv,\
-            hash->hh.tbl->num_buckets,\
-            hash->hh.tbl->log2_num_buckets),\
-        hash->hh.tbl->num_buckets);\
     if (hash && (ht = hash->hh.tbl)) {\
-        while (bucket_tmp < ht->num_buckets) {\
-            struct UT_hash_handle *current_hh = ht->buckets[bucket_tmp].hh_head;\
-            prev = NULL;\
-            while (current_hh) {\
-                current = ELMT_FROM_HH(ht, current_hh);\
+        unsigned bucket_tmp = WHICH_BUCKET((delptr)->hh.hashv,\
+            (delptr)->hh.tbl->num_buckets,\
+            (delptr)->hh.tbl->log2_num_buckets);\
+        struct UT_hash_handle *current_hh = ht->buckets[bucket_tmp].hh_head;\
+        hashentry_type *prev = NULL, *current = NULL;\
+        while (current_hh) {\
+            current = ELMT_FROM_HH(ht, current_hh);\
+            if ((delptr) == current) {\
+                HASH_DELETE(hh, (hash), (current), (prev));\
+                current_hh = NULL;\
+            }\
+            else {\
                 current_hh = current_hh->hh_next;\
-                if (delptr == current) {\
-                    HASH_DELETE_PTR_DEBUG("Actually found in bucket %u\n", bucket_tmp);\
-                    HASH_DELETE(hh, (hash), (current), (prev));\
-                    goto HASH_PTR_DEL_END_GOAL;\
-                }\
                 prev = current;\
             }\
-            (bucket_tmp)++;\
         }\
     }\
-    HASH_PTR_DEL_END_GOAL: ;\
+    HASH_FSCK(hh, hash);\
 } while (0)
 
 /* HASH_FSCK checks hash integrity on every add/delete when HASH_DEBUG is defined.
  * This is for uthash developer only; it compiles away if HASH_DEBUG isn't defined.
  */
+
 #ifdef HASH_DEBUG
 #define HASH_OOPS(...) do { fprintf(stderr,__VA_ARGS__); exit(-1); } while (0)
 #define HASH_FSCK(hh,head)                                                       \
