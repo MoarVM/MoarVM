@@ -385,7 +385,10 @@ do {                                                                            
             _thh = (head)->hh.tbl->buckets[_bkt_i].hh_head;                      \
             _prev = NULL;                                                        \
             while (_thh) {                                                       \
+                unsigned expected_bkt = WHICH_BUCKET(_thh->hashv, (head)->hh.tbl->num_buckets, (head)->hh.tbl->log2_num_buckets); \
                _bkt_count++;                                                     \
+               if (expected_bkt != _bkt_i)\
+                   HASH_OOPS("Hash item is in the wrong bucket. Should be in %u but is actually in %u\n", expected_bkt, _bkt_i);\
                _prev = (char*)(_thh);                                            \
                _thh = _thh->hh_next;                                             \
             }                                                                    \
