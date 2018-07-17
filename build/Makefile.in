@@ -209,6 +209,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/plan@obj@ \
           src/spesh/arg_guard@obj@ \
           src/spesh/plugin@obj@ \
+          src/spesh/frame_walker@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/parse_num@obj@ \
@@ -371,6 +372,7 @@ HEADERS = src/moar.h \
           src/spesh/plan.h \
           src/spesh/arg_guard.h \
           src/spesh/plugin.h \
+          src/spesh/frame_walker.h \
           src/strings/unicode_gen.h \
           src/strings/normalize.h \
           src/strings/decode_stream.h \
