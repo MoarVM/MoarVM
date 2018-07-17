@@ -239,3 +239,62 @@ MVMObject * MVM_context_from_frame(MVMThreadContext *tc, MVMFrame *f) {
     });
     return ctx;
 }
+
+/* Checks if we can perform a traversal and reach an existing frame. */
+static MVMint32 traversal_exists(MVMThreadContext *tc, MVMFrame *base, MVMuint8 *traversals,
+                                 MVMuint32 num_traversals) {
+    MVMSpeshFrameWalker fw;
+    MVMuint32 i;
+    MVMuint32 could_move = 1;
+    MVM_spesh_frame_walker_init(tc, &fw, base, 0);
+    for (i = 0; i < num_traversals; i++) {
+        switch (traversals[i]) {
+            case MVM_CTX_TRAV_OUTER:
+                could_move = MVM_spesh_frame_walker_move_outer(tc, &fw);
+                break;
+            case MVM_CTX_TRAV_CALLER:
+                could_move = MVM_spesh_frame_walker_move_caller(tc, &fw);
+                break;
+            case MVM_CTX_TRAV_OUTER_SKIP_THUNKS:
+                could_move = MVM_spesh_frame_walker_move_outer_skip_thunks(tc, &fw);
+                break;
+            case MVM_CTX_TRAV_CALLER_SKIP_THUNKS:
+                could_move = MVM_spesh_frame_walker_move_caller_skip_thunks(tc, &fw);
+                break;
+            default:
+                MVM_exception_throw_adhoc(tc, "Unrecognized context traversal operation");
+        }
+        if (!could_move)
+            break;
+    }
+    MVM_spesh_frame_walker_cleanup(tc, &fw);
+    return could_move;
+}
+
+/* Try to get a context with the specified traversal applied. Ensures that the
+ * traversal would lead to a result, and returns a NULL context if not. */
+MVMObject * MVM_context_apply_traversal(MVMThreadContext *tc, MVMContext *ctx, MVMuint8 traversal) {
+    /* Create new traversals array with the latest one at the end. */
+    MVMuint32 new_num_traversals = ctx->body.num_traversals + 1;
+    MVMuint8 *new_traversals = MVM_malloc(new_num_traversals);
+    if (ctx->body.num_traversals)
+        memcpy(new_traversals, ctx->body.traversals, ctx->body.num_traversals + 1);
+    new_traversals[new_num_traversals - 1] = traversal;
+
+    /* Verify that we can do this traversal. */
+    if (traversal_exists(tc, ctx->body.context, new_traversals, new_num_traversals)) {
+        /* Yes, make a new context object and return it. */
+        MVMContext *result;
+        MVMROOT(tc, ctx, {
+            result = (MVMContext *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
+        });
+        MVM_ASSIGN_REF(tc, &(result->common.header), result->body.context, ctx->body.context);
+        result->body.traversals = new_traversals;
+        result->body.num_traversals = new_num_traversals;
+        return (MVMObject *)result;
+    }
+    else {
+        MVM_free(new_traversals);
+        return tc->instance->VMNull;
+    }
+}

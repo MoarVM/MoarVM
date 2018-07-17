@@ -59,6 +59,32 @@ static void go_to_first_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
     fw->inline_idx = NO_INLINE;
 }
 
+/* Moves one caller frame deeper, accounting for inlines. */
+MVMuint32 move_one_caller(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
+    MVMFrame *caller;
+
+     /* Is there an inline to try and visit? If there is one, then
+     * we will be placed on it. If there is not one, we will be placed
+     * on the base frame containing inlines. Either way, we must have
+     * something to go to. */
+    if (fw->inline_idx != NO_INLINE) {
+        go_to_next_inline(tc, fw);
+        return 1;
+    }
+
+    /* Otherwise, really need to go out one frame, and then maybe go
+     * to its first inline. */
+    caller = fw->cur_caller_frame->caller;
+    if (caller) {
+        fw->cur_caller_frame = caller;
+        go_to_first_inline(tc, fw);
+        return 1;
+    }
+
+    /* If we get here, there's nowhere further to go. */
+    return 0;
+}
+
 /* Moves to the next frame to visit. Returns non-zero if there was a next
  * frame to move to, and zero if there is not (and as such the iteration is
  * over). */
@@ -69,8 +95,6 @@ MVMuint32 MVM_spesh_frame_walker_next(MVMThreadContext *tc, MVMSpeshFrameWalker 
         return fw->cur_caller_frame ? 1 : 0;
     }
     else {
-        MVMFrame *caller;
-
         /* If we are currently walking an outer chain, proceed along it,
          * and return the next frame along unless we reached the end. */
         if (fw->cur_outer_frame) {
@@ -105,27 +129,8 @@ MVMuint32 MVM_spesh_frame_walker_next(MVMThreadContext *tc, MVMSpeshFrameWalker 
             }
         }
 
-        /* If we get here, we're looking for the next caller, if there is
-         * one. Is there an inline to try and visit? If there is one, then
-         * we will be placed on it. If there is not one, we will be placed
-         * on the base frame containing inlines. Either way, we must have
-         * something to go to. */
-        if (fw->inline_idx != NO_INLINE) {
-            go_to_next_inline(tc, fw);
-            return 1;
-        }
-
-        /* Otherwise, really need to go out one frame, and then maybe go
-         * to its first inline. */
-        caller = fw->cur_caller_frame->caller;
-        if (caller) {
-            fw->cur_caller_frame = caller;
-            go_to_first_inline(tc, fw);
-            return 1;
-        }
-
-        /* If we get here, there's nowhere further to go. */
-        return 0;
+        /* If we get here, we're looking for the next caller. */
+        return move_one_caller(tc, fw);
     }
 }
 
@@ -171,6 +176,53 @@ MVMuint32 MVM_spesh_frame_walker_get_lex(MVMThreadContext *tc, MVMSpeshFrameWalk
                 MVM_frame_vivify_lexical(tc, cur_frame, index);
             return 1;
         }
+    }
+    return 0;
+}
+
+/* Walk one outer frame. Valid before we start iterating. */
+MVMuint32 MVM_spesh_frame_walker_move_outer(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
+    MVMFrame *outer;
+    if (fw->inline_idx == NO_INLINE) {
+        outer = fw->cur_caller_frame->outer;
+    }
+    else {
+        MVMSpeshInline *i = &(fw->cur_caller_frame->spesh_cand->inlines[fw->inline_idx]);
+        MVMCode *code = (MVMCode *)fw->cur_caller_frame->work[i->code_ref_reg].o;
+        outer = code ? code->body.outer : NULL;
+    }
+    fw->cur_caller_frame = outer;
+    fw->cur_outer_frame = NULL;
+    fw->inline_idx = fw->visiting_outers = 0;
+    fw->started = 1;
+    return outer != NULL;
+}
+
+/* Walk one caller frame. Valid before we start iterating. */
+MVMuint32 MVM_spesh_frame_walker_move_caller(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
+    fw->started = 1;
+    return move_one_caller(tc, fw);
+}
+
+/* Walk one non-thunk outer frame. Valid before we start iterating. */
+MVMuint32 MVM_spesh_frame_walker_move_outer_skip_thunks(MVMThreadContext *tc,
+                                                        MVMSpeshFrameWalker *fw) {
+    while (MVM_spesh_frame_walker_move_outer(tc, fw)) {
+        if (!fw->cur_caller_frame->static_info->body.is_thunk)
+            return 1;
+    }
+    return 0;
+}
+
+/* Walk one non-thunk caller frame. Valid before we start iterating. */
+MVMuint32 MVM_spesh_frame_walker_move_caller_skip_thunks(MVMThreadContext *tc,
+                                                         MVMSpeshFrameWalker *fw) {
+    while (MVM_spesh_frame_walker_move_outer(tc, fw)) {
+        MVMStaticFrame *sf = fw->inline_idx == NO_INLINE
+            ? fw->cur_caller_frame->static_info
+            : fw->cur_caller_frame->spesh_cand->inlines[fw->inline_idx].sf;
+        if (!sf->body.is_thunk)
+            return 1;
     }
     return 0;
 }
