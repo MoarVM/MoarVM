@@ -353,12 +353,12 @@ do {                                                                            
     unsigned bucket_tmp = 0;\
     hashentry_type *prev = NULL;\
     hashentry_type *current = NULL;\
+    struct UT_hash_table *ht;\
     HASH_DELETE_PTR_DEBUG("Expecting it in bucket %lu (Total buckets %u)\n",\
         WHICH_BUCKET(hash->hh.hashv,\
             hash->hh.tbl->num_buckets,\
             hash->hh.tbl->log2_num_buckets),\
         hash->hh.tbl->num_buckets);\
-    struct UT_hash_table *ht;\
     if (hash && (ht = hash->hh.tbl)) {\
         while (bucket_tmp < ht->num_buckets) {\
             struct UT_hash_handle *current_hh = ht->buckets[bucket_tmp].hh_head;\
