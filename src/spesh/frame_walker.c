@@ -4,6 +4,9 @@
  * optionally visiting its static chain at each point, and getting correct
  * results even if inlining has taken place.*/
 
+/* Sentinel value to indicate there's no inline to explore. */
+#define NO_INLINE -2
+
 /* Initializes the frame walker. The `MVMSpeshFrameWalker` object MUST be on
  * the system stack, and the cleanup function MUST be called after using it,
  * except in the case of an exception. This is because, since frames are GC
@@ -17,12 +20,10 @@ void MVM_spesh_frame_walker_init(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, 
     fw->visit_outers = visit_outers;
     fw->started = 0;
     fw->visiting_outers = 0;
+    fw->inline_idx = NO_INLINE;
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(fw->cur_caller_frame));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(fw->cur_outer_frame));
 }
-
-/* Sentinel value to indicate there's no inline to explore. */
-#define NO_INLINE -2
 
 /* Go to the next inline, if any. */
 static void go_to_next_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
