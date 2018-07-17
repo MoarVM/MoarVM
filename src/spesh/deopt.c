@@ -241,6 +241,43 @@ void MVM_spesh_deopt_one_direct(MVMThreadContext *tc, MVMuint32 deopt_offset,
     MVM_CHECK_CALLER_CHAIN(tc, tc->cur_frame);
 }
 
+/* Takes a frame that is *not* the one currently running on the call stack
+ * but is in specialized code. Finds the currently active deopt index at
+ * the point of its latest call. Returns -1 if none can be resolved. */
+MVMint32 MVM_spesh_deopt_find_inactive_frame_deopt_idx(MVMThreadContext *tc, MVMFrame *f) {
+    /* Is it JITted code? */
+    if (f->spesh_cand->jitcode) {
+        MVMJitCode *jitcode = f->spesh_cand->jitcode;
+        MVMint32 idx = MVM_jit_code_get_active_deopt_idx(tc, jitcode, f);
+        if (idx < jitcode->num_deopts) {
+            MVMint32 deopt_idx = jitcode->deopts[idx].idx;
+#if MVM_LOG_DEOPTS
+            fprintf(stderr, "Found deopt label for JIT (idx %d)\n", deopt_idx);
+#endif
+            return deopt_idx;
+        }
+    }
+    else {
+        /* Not JITted; see if we can find the return address in the deopt table. */
+        MVMint32 ret_offset = f->return_address - f->spesh_cand->bytecode;
+        MVMint32 n = f->spesh_cand->num_deopts * 2;
+        MVMint32 i;
+        for (i = 0; i < n; i += 2) {
+            if (f->spesh_cand->deopts[i + 1] == ret_offset) {
+                MVMint32 deopt_idx = i / 2;
+#if MVM_LOG_DEOPTS
+                fprintf(stderr, "Found deopt index for interpeter (idx %d)\n", deopt_idx);
+#endif
+                return deopt_idx;
+            }
+        }
+    }
+#if MVM_LOG_DEOPTS
+    fprintf(stderr, "Can't find deopt all idx\n");
+#endif
+    return -1;
+}
+
 /* De-optimizes all specialized frames on the call stack. Used when a change
  * is made the could invalidate all kinds of assumptions all over the place
  * (such as a mix-in). */
@@ -259,69 +296,33 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
     while (f) {
         clear_dynlex_cache(tc, f);
         if (f->spesh_cand) {
-            /* Found one. Is it JITted code? */
-            if (f->spesh_cand->jitcode) {
-                MVMJitCode *jitcode = f->spesh_cand->jitcode;
-                MVMint32 idx = MVM_jit_code_get_active_deopt_idx(tc, jitcode, f);
-                if (idx < jitcode->num_deopts) {
-                    /* Resolve offset and target. */
-                    MVMint32 deopt_idx    = jitcode->deopts[idx].idx;
-                    MVMint32 deopt_offset = f->spesh_cand->deopts[2 * deopt_idx + 1];
-                    MVMint32 deopt_target = f->spesh_cand->deopts[2 * deopt_idx];
-#if MVM_LOG_DEOPTS
-                    fprintf(stderr, "Found deopt label for JIT (idx %d)\n", deopt_idx);
-#endif
+            MVMint32 deopt_idx = MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, f);
+            if (deopt_idx >= 0) {
+                /* Re-create any frames needed if we're in an inline; if not,
+                 * just update return address. */
+                MVMint32 deopt_offset = f->spesh_cand->deopts[2 * deopt_idx + 1];
+                MVMint32 deopt_target = f->spesh_cand->deopts[2 * deopt_idx];
+                if (f->spesh_cand->inlines) {
+                    MVMROOT2(tc, f, l, {
+                        uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, l);
+                    });
+                }
+                else {
+                    f->return_address = f->static_info->body.bytecode + deopt_target;
+                }
 
-                    /* Re-create any frames needed if we're in an inline; if not,
-                     * just update return address. */
-                    if (f->spesh_cand->inlines) {
-                        MVMROOT2(tc, f, l, {
-                            uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, l);
-                        });
-                    }
-                    else {
-                        f->return_address = f->static_info->body.bytecode + deopt_target;
-                    }
-
-                    /* No spesh cand/slots needed now. */
-                    deopt_named_args_used(tc, f);
-                    f->effective_spesh_slots = NULL;
-                    f->spesh_cand            = NULL;
-                    f->jit_entry_label       = NULL;
-
+                /* No spesh cand/slots needed now. */
+                deopt_named_args_used(tc, f);
+                f->effective_spesh_slots = NULL;
+                if (f->spesh_cand->jitcode) {
+                    f->spesh_cand = NULL;
+                    f->jit_entry_label = NULL;
+                    /* XXX This break is wrong and hides a bug. */
                     break;
                 }
-            }
-
-            else {
-                /* Not JITted; see if we can find the return address in the deopt table. */
-                MVMint32 ret_offset = f->return_address - f->spesh_cand->bytecode;
-                MVMint32 n = f->spesh_cand->num_deopts * 2;
-                MVMint32 i;
-                for (i = 0; i < n; i += 2) {
-                    if (f->spesh_cand->deopts[i + 1] == ret_offset) {
-                        /* Re-create any frames needed if we're in an inline; if not,
-                        * just update return address. */
-                        if (f->spesh_cand->inlines) {
-                            MVMROOT2(tc, f, l, {
-                                uninline(tc, f, f->spesh_cand, ret_offset, f->spesh_cand->deopts[i], l);
-                            });
-                        }
-                        else {
-                            f->return_address = f->static_info->body.bytecode + f->spesh_cand->deopts[i];
-                        }
-
-                        /* No spesh cand/slots needed now. */
-                        f->effective_spesh_slots = NULL;
-                        f->spesh_cand            = NULL;
-
-                        break;
-                    }
+                else {
+                    f->spesh_cand = NULL;
                 }
-#if MVM_LOG_DEOPTS
-                if (i == n)
-                    fprintf(stderr, "Interpreter: can't find deopt all idx\n");
-#endif
             }
         }
         l = f;
