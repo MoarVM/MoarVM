@@ -228,6 +228,16 @@ MVMuint32 MVM_spesh_frame_walker_move_caller_skip_thunks(MVMThreadContext *tc,
     return 0;
 }
 
+/* If the frame walker is currently pointing to an exact frame, returns it.
+ * If it's instead pointing at an inline, returns NULL. */
+MVMFrame * MVM_spesh_frame_walker_get_frame(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
+    if (fw->visiting_outers)
+        return fw->cur_outer_frame;
+    if (fw->inline_idx == NO_INLINE)
+        return fw->cur_caller_frame;
+    return NULL;
+}
+
 /* Cleans up the spesh frame walker after use. */
 void MVM_spesh_frame_walker_cleanup(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
     MVM_gc_root_temp_pop_n(tc, 2);

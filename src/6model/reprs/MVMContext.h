@@ -32,6 +32,7 @@ const MVMREPROps * MVMContext_initialize(MVMThreadContext *tc);
 /* Functions for working with an MVMContext. */
 MVMObject * MVM_context_from_frame(MVMThreadContext *tc, MVMFrame *f);
 MVMObject * MVM_context_apply_traversal(MVMThreadContext *tc, MVMContext *ctx, MVMuint8 traversal);
+MVMFrame * MVM_context_get_frame(MVMThreadContext *tc, MVMContext *ctx);
 
 /* Compatibility shim for Rakudo ext ops. */
 #define MVM_frame_context_wrapper MVM_context_from_frame

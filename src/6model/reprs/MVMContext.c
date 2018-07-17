@@ -304,3 +304,15 @@ MVMObject * MVM_context_apply_traversal(MVMThreadContext *tc, MVMContext *ctx, M
         return tc->instance->VMNull;
     }
 }
+
+/* Resolves the context to an exact frame. Returns NULL if it resolves to an
+ * inline or doesn't resolve. */
+MVMFrame * MVM_context_get_frame(MVMThreadContext *tc, MVMContext *ctx) {
+    MVMSpeshFrameWalker fw;
+    MVMFrame *result = NULL;
+    MVM_spesh_frame_walker_init(tc, &fw, ctx->body.context, 0);
+    if (apply_traversals(tc, &fw, ctx->body.traversals, ctx->body.num_traversals))
+        result = MVM_spesh_frame_walker_get_frame(tc, &fw);
+    MVM_spesh_frame_walker_cleanup(tc, &fw);
+    return result;
+}
