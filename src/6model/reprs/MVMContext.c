@@ -28,56 +28,81 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_gc_worklist_add(tc, worklist, &body->context);
 }
 
+static MVMint32 apply_traversals(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MVMuint8 *traversals,
+                                 MVMuint32 num_traversals) {
+    MVMuint32 i;
+    MVMuint32 could_move = 1;
+    for (i = 0; i < num_traversals; i++) {
+        switch (traversals[i]) {
+            case MVM_CTX_TRAV_OUTER:
+                could_move = MVM_spesh_frame_walker_move_outer(tc, fw);
+                break;
+            case MVM_CTX_TRAV_CALLER:
+                could_move = MVM_spesh_frame_walker_move_caller(tc, fw);
+                break;
+            case MVM_CTX_TRAV_OUTER_SKIP_THUNKS:
+                could_move = MVM_spesh_frame_walker_move_outer_skip_thunks(tc, fw);
+                break;
+            case MVM_CTX_TRAV_CALLER_SKIP_THUNKS:
+                could_move = MVM_spesh_frame_walker_move_caller_skip_thunks(tc, fw);
+                break;
+            default:
+                MVM_exception_throw_adhoc(tc, "Unrecognized context traversal operation");
+        }
+        if (!could_move)
+            break;
+    }
+    return could_move;
+}
+
+static MVMuint32 setup_frame_walker(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MVMContextBody *data) {
+    MVM_spesh_frame_walker_init(tc, fw, data->context, 0);
+    return apply_traversals(tc, fw, data->traversals, data->num_traversals);
+}
+
 static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister *result, MVMuint16 kind) {
     MVMString      *name  = (MVMString *)key;
     MVMContextBody *body  = (MVMContextBody *)data;
-    MVMFrame       *frame = body->context;
-    MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry;
-    if (!lexical_names) {
+
+    MVMSpeshFrameWalker fw;
+    MVMRegister *found;
+    MVMuint16 found_kind;
+    if (!setup_frame_walker(tc, &fw, body) || !MVM_spesh_frame_walker_get_lex(tc, &fw,
+            name, &found, &found_kind, 1)) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
         MVM_exception_throw_adhoc_free(tc, waste,
             "Lexical with name '%s' does not exist in this frame",
-                c_name);
+            c_name);
     }
-    MVM_HASH_GET(tc, lexical_names, name, entry);
-    if (!entry) {
-        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-        char *waste[] = { c_name, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste,
-            "Lexical with name '%s' does not exist in this frame",
-                c_name);
-    }
-    if (frame->static_info->body.lexical_types[entry->value] != kind) {
+    MVM_spesh_frame_walker_cleanup(tc, &fw);
+
+    if (found_kind != kind) {
         if (kind == MVM_reg_int64) {
-            switch (frame->static_info->body.lexical_types[entry->value]) {
+            switch (found_kind) {
                 case MVM_reg_int8:
-                    result->i64 = frame->env[entry->value].i8;
+                    result->i64 = found->i8;
                     return;
                 case MVM_reg_int16:
-                    result->i64 = frame->env[entry->value].i16;
+                    result->i64 = found->i16;
                     return;
                 case MVM_reg_int32:
-                    result->i64 = frame->env[entry->value].i32;
+                    result->i64 = found->i32;
                     return;
             }
         }
         else if (kind == MVM_reg_uint64) {
-            switch (frame->static_info->body.lexical_types[entry->value]) {
+            switch (found_kind) {
                 case MVM_reg_uint8:
-                    result->u64 = frame->env[entry->value].u8;
+                    result->u64 = found->u8;
                     return;
                 case MVM_reg_uint16:
-                    result->u64 = frame->env[entry->value].u16;
+                    result->u64 = found->u16;
                     return;
                 case MVM_reg_uint32:
-                    result->u64 = frame->env[entry->value].u32;
-                    return;
-                case MVM_reg_uint64:
-                    result->u64 = frame->env[entry->value].u64;
+                    result->u64 = found->u32;
                     return;
             }
-
         }
         {
             char *c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -87,9 +112,7 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
                     c_name);
         }
     }
-    *result = frame->env[entry->value];
-    if (kind == MVM_reg_obj && !result->o)
-        result->o = MVM_frame_vivify_lexical(tc, frame, entry->value);
+    *result = *found;
 }
 
 static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister value, MVMuint16 kind) {
@@ -143,12 +166,15 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
     MVMContextBody *body = (MVMContextBody *)data;
     MVMFrame *frame = body->context;
-    MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry;
-    MVMString *name = (MVMString *)key;
-    if (!lexical_names)
-        return 0;
-    MVM_HASH_GET(tc, lexical_names, name, entry);
-    return entry ? 1 : 0;
+
+    MVMSpeshFrameWalker fw;
+    MVMRegister *found;
+    MVMuint16 found_kind;
+    MVMuint64 result = setup_frame_walker(tc, &fw, body) && MVM_spesh_frame_walker_get_lex(tc, &fw,
+            (MVMString *)key, &found, &found_kind, 0);
+    MVM_spesh_frame_walker_cleanup(tc, &fw);
+
+    return result;
 }
 
 static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
@@ -244,29 +270,9 @@ MVMObject * MVM_context_from_frame(MVMThreadContext *tc, MVMFrame *f) {
 static MVMint32 traversal_exists(MVMThreadContext *tc, MVMFrame *base, MVMuint8 *traversals,
                                  MVMuint32 num_traversals) {
     MVMSpeshFrameWalker fw;
-    MVMuint32 i;
-    MVMuint32 could_move = 1;
+    MVMuint32 could_move;
     MVM_spesh_frame_walker_init(tc, &fw, base, 0);
-    for (i = 0; i < num_traversals; i++) {
-        switch (traversals[i]) {
-            case MVM_CTX_TRAV_OUTER:
-                could_move = MVM_spesh_frame_walker_move_outer(tc, &fw);
-                break;
-            case MVM_CTX_TRAV_CALLER:
-                could_move = MVM_spesh_frame_walker_move_caller(tc, &fw);
-                break;
-            case MVM_CTX_TRAV_OUTER_SKIP_THUNKS:
-                could_move = MVM_spesh_frame_walker_move_outer_skip_thunks(tc, &fw);
-                break;
-            case MVM_CTX_TRAV_CALLER_SKIP_THUNKS:
-                could_move = MVM_spesh_frame_walker_move_caller_skip_thunks(tc, &fw);
-                break;
-            default:
-                MVM_exception_throw_adhoc(tc, "Unrecognized context traversal operation");
-        }
-        if (!could_move)
-            break;
-    }
+    could_move = apply_traversals(tc, &fw, traversals, num_traversals);
     MVM_spesh_frame_walker_cleanup(tc, &fw);
     return could_move;
 }

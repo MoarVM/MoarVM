@@ -141,7 +141,7 @@ MVMuint32 MVM_spesh_frame_walker_next(MVMThreadContext *tc, MVMSpeshFrameWalker 
  * trigger vivification of the lexical if needed. */
 MVMuint32 MVM_spesh_frame_walker_get_lex(MVMThreadContext *tc, MVMSpeshFrameWalker *fw,
                                          MVMString *name, MVMRegister **found_out,
-                                         MVMuint16 *found_kind_out) {
+                                         MVMuint16 *found_kind_out, MVMuint32 vivify) {
     MVMFrame *cur_frame;
     MVMStaticFrame *sf;
     MVMuint32 base_index;
@@ -173,7 +173,7 @@ MVMuint32 MVM_spesh_frame_walker_get_lex(MVMThreadContext *tc, MVMSpeshFrameWalk
             MVMuint16 kind = sf->body.lexical_types[entry->value];
             *found_out = result;
             *found_kind_out = kind;
-            if (kind == MVM_reg_obj && !result->o)
+            if (vivify && kind == MVM_reg_obj && !result->o)
                 MVM_frame_vivify_lexical(tc, cur_frame, index);
             return 1;
         }

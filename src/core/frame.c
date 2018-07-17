@@ -1387,7 +1387,7 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MV
     while (MVM_spesh_frame_walker_next(tc, &fw)) {
         MVMRegister *found;
         MVMuint16 found_kind;
-        if (MVM_spesh_frame_walker_get_lex(tc, &fw, name, &found, &found_kind)) {
+        if (MVM_spesh_frame_walker_get_lex(tc, &fw, name, &found, &found_kind, 1)) {
             MVM_spesh_frame_walker_cleanup(tc, &fw);
             if (found_kind == MVM_reg_obj) {
                 return found;
