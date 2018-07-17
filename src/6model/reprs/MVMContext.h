@@ -28,3 +28,6 @@ struct MVMContext {
 
 /* Function for REPR setup. */
 const MVMREPROps * MVMContext_initialize(MVMThreadContext *tc);
+
+/* Functions for working with an MVMContext. */
+MVMObject * MVM_context_from_frame(MVMThreadContext *tc, MVMFrame *f);

@@ -1297,7 +1297,7 @@ static MVMint32 create_context_or_code_obj_debug_handle(MVMThreadContext *dtc, c
             if (MVM_FRAME_IS_ON_CALLSTACK(dtc, cur_frame)) {
                 cur_frame = MVM_frame_debugserver_move_to_heap(dtc, to_do->body.tc, cur_frame);
             }
-            allocate_and_send_handle(dtc, ctx, argument, MVM_frame_context_wrapper(dtc, cur_frame));
+            allocate_and_send_handle(dtc, ctx, argument, MVM_context_from_frame(dtc, cur_frame));
         });
     } else if (argument->type == MT_CodeObjectHandle) {
         allocate_and_send_handle(dtc, ctx, argument, cur_frame->code_ref);
@@ -1325,10 +1325,10 @@ static MVMint32 create_caller_or_outer_context_debug_handle(MVMThreadContext *dt
     }
     if (argument->type == MT_OuterContextRequest) {
         if ((frame = ((MVMContext *)this_ctx)->body.context->outer))
-            this_ctx = MVM_frame_context_wrapper(dtc, frame);
+            this_ctx = MVM_context_from_frame(dtc, frame);
     } else if (argument->type == MT_CallerContextRequest) {
         if ((frame = ((MVMContext *)this_ctx)->body.context->caller))
-            this_ctx = MVM_frame_context_wrapper(dtc, frame);
+            this_ctx = MVM_context_from_frame(dtc, frame);
     }
 
     allocate_and_send_handle(dtc, ctx, argument, this_ctx);

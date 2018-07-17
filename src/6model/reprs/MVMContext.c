@@ -228,3 +228,14 @@ static const MVMREPROps MVMContext_this_repr = {
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
 };
+
+/* Creates a MVMContent wrapper object around an MVMFrame. */
+MVMObject * MVM_context_from_frame(MVMThreadContext *tc, MVMFrame *f) {
+    MVMObject *ctx;
+    f = MVM_frame_force_to_heap(tc, f);
+    MVMROOT(tc, f, {
+        ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
+        MVM_ASSIGN_REF(tc, &(ctx->header), ((MVMContext *)ctx)->body.context, f);
+    });
+    return ctx;
+}

@@ -856,7 +856,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 dst = ins->operands[0].reg.orig;
         | mov ARG1, TC;
         | mov ARG2, TC->cur_frame;
-        | callp &MVM_frame_context_wrapper;
+        | callp &MVM_context_from_frame;
         | mov WORK[dst], RV;
         break;
     }
@@ -898,11 +898,11 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | je >2;
         | mov ARG2, FRAME:ARG2->caller;
         | jmp >1;
-        /* if (frame) ctx = MVM_frame_context_wrapper(tc, frame) */
+        /* if (frame) ctx = MVM_context_from_frame(tc, frame) */
         /* check is folded into loop */
         |2:
         | mov ARG1, TC;
-        | callp &MVM_frame_context_wrapper;
+        | callp &MVM_context_from_frame;
         /* dst = ctx ? ctx : tc->instance->VMNull */
         | test RV, RV;
         | jnz >4;

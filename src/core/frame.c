@@ -1917,17 +1917,6 @@ MVMObject * MVM_frame_resolve_invokee_spesh(MVMThreadContext *tc, MVMObject *inv
     return tc->instance->VMNull;
 }
 
-/* Creates a MVMContent wrapper object around an MVMFrame. */
-MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
-    MVMObject *ctx;
-    f = MVM_frame_force_to_heap(tc, f);
-    MVMROOT(tc, f, {
-        ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
-        MVM_ASSIGN_REF(tc, &(ctx->header), ((MVMContext *)ctx)->body.context, f);
-    });
-    return ctx;
-}
-
 /* Gets, allocating if needed, the frame extra data structure for the given
  * frame. This is used to hold data that only a handful of frames need. */
 MVMFrameExtra * MVM_frame_extra(MVMThreadContext *tc, MVMFrame *f) {

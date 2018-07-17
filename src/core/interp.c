@@ -3232,7 +3232,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(ctx): {
-                GET_REG(cur_op, 0).o = MVM_frame_context_wrapper(tc, tc->cur_frame);
+                GET_REG(cur_op, 0).o = MVM_context_from_frame(tc, tc->cur_frame);
                 cur_op += 2;
                 goto NEXT;
             }
@@ -3243,7 +3243,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext");
                 }
                 if ((frame = ((MVMContext *)this_ctx)->body.context->outer))
-                    GET_REG(cur_op, 0).o = MVM_frame_context_wrapper(tc, frame);
+                    GET_REG(cur_op, 0).o = MVM_context_from_frame(tc, frame);
                 else
                     GET_REG(cur_op, 0).o = tc->instance->VMNull;
                 cur_op += 4;
@@ -3256,7 +3256,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc, "ctxcaller needs an MVMContext");
                 }
                 if ((frame = ((MVMContext *)this_ctx)->body.context->caller))
-                    ctx = MVM_frame_context_wrapper(tc, frame);
+                    ctx = MVM_context_from_frame(tc, frame);
                 GET_REG(cur_op, 0).o = ctx ? ctx : tc->instance->VMNull;
                 cur_op += 4;
                 goto NEXT;
@@ -4111,7 +4111,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 while (frame && frame->static_info->body.is_thunk)
                     frame = frame->caller;
                 if (frame)
-                    GET_REG(cur_op, 0).o = MVM_frame_context_wrapper(tc, frame);
+                    GET_REG(cur_op, 0).o = MVM_context_from_frame(tc, frame);
                 else
                     GET_REG(cur_op, 0).o = tc->instance->VMNull;
                 cur_op += 4;
@@ -4127,7 +4127,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 while (frame && frame->static_info->body.is_thunk)
                     frame = frame->caller;
                 if (frame)
-                    ctx = MVM_frame_context_wrapper(tc, frame);
+                    ctx = MVM_context_from_frame(tc, frame);
                 GET_REG(cur_op, 0).o = ctx ? ctx : tc->instance->VMNull;
                 cur_op += 4;
                 goto NEXT;
