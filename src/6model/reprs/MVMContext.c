@@ -339,3 +339,14 @@ MVMint64 MVM_context_lexical_primspec(MVMThreadContext *tc, MVMContext *ctx, MVM
     }
     return primspec;
 }
+
+/* Finds the code object associated with the frame represented by this context. */
+MVMObject * MVM_context_get_code(MVMThreadContext *tc, MVMContext *ctx) {
+    MVMSpeshFrameWalker fw;
+    MVMObject *result = NULL;
+    MVM_spesh_frame_walker_init(tc, &fw, ctx->body.context, 0);
+    if (apply_traversals(tc, &fw, ctx->body.traversals, ctx->body.num_traversals))
+        result = MVM_spesh_frame_walker_get_code(tc, &fw);
+    MVM_spesh_frame_walker_cleanup(tc, &fw);
+    return result ? result : tc->instance->VMNull;
+}

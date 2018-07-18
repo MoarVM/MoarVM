@@ -362,6 +362,17 @@ MVMint64 MVM_spesh_frame_walker_get_lexical_primspec(MVMThreadContext *tc,
     return -1;
 }
 
+/* Gets the code ref at the frame walker's current location. */
+MVMObject * MVM_spesh_frame_walker_get_code(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
+    if (fw->visiting_outers)
+        return fw->cur_outer_frame->code_ref;
+    if (fw->inline_idx == NO_INLINE)
+        return fw->cur_caller_frame->code_ref;
+    return fw->cur_caller_frame->work[
+        fw->cur_caller_frame->spesh_cand->inlines[fw->inline_idx].code_ref_reg
+    ].o;
+}
+
 /* Cleans up the spesh frame walker after use. */
 void MVM_spesh_frame_walker_cleanup(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
     MVM_gc_root_temp_pop_n(tc, 2);

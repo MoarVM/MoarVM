@@ -39,3 +39,4 @@ MVMFrame * MVM_spesh_frame_walker_get_frame(MVMThreadContext *tc, MVMSpeshFrameW
 MVMObject * MVM_spesh_frame_walker_get_lexicals_hash(MVMThreadContext *tc, MVMSpeshFrameWalker *fw);
 MVMint64 MVM_spesh_frame_walker_get_lexical_primspec(MVMThreadContext *tc,
         MVMSpeshFrameWalker *fw, MVMString *name);
+MVMObject * MVM_spesh_frame_walker_get_code(MVMThreadContext *tc, MVMSpeshFrameWalker *fw);

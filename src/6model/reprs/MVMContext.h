@@ -35,6 +35,7 @@ MVMObject * MVM_context_apply_traversal(MVMThreadContext *tc, MVMContext *ctx, M
 MVMFrame * MVM_context_get_frame(MVMThreadContext *tc, MVMContext *ctx);
 MVMObject * MVM_context_lexicals_as_hash(MVMThreadContext *tc, MVMContext *ctx);
 MVMint64 MVM_context_lexical_primspec(MVMThreadContext *tc, MVMContext *ctx, MVMString *name);
+MVMObject * MVM_context_get_code(MVMThreadContext *tc, MVMContext *ctx);
 
 /* Compatibility shim for Rakudo ext ops. */
 #define MVM_frame_context_wrapper MVM_context_from_frame

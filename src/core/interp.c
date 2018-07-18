@@ -4738,8 +4738,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(ctxcode): {
                 MVMObject *this_ctx = GET_REG(cur_op, 2).o;
                 if (IS_CONCRETE(this_ctx) && REPR(this_ctx)->ID == MVM_REPR_ID_MVMContext) {
-                    MVMObject *code_obj = ((MVMContext *)this_ctx)->body.context->code_ref;
-                    GET_REG(cur_op, 0).o = code_obj ? code_obj : tc->instance->VMNull;
+                    GET_REG(cur_op, 0).o = MVM_context_get_code(tc, (MVMContext *)this_ctx);
                     cur_op += 4;
                 }
                 else {
