@@ -8,7 +8,7 @@
  * the system stack, and the cleanup function MUST be called after using it,
  * except in the case of an exception. This is because, since frames are GC
  * managed objects, it has to register the pointers to them with the GC, and
- * unreigster them after the walk. Must call MVM_spesh_frame_walker_next after
+ * unregister them after the walk. Must call MVM_spesh_frame_walker_next after
  * this to be in a valid state to interrogate the first frame. */
 void MVM_spesh_frame_walker_init(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MVMFrame *start,
                                  MVMuint8 visit_outers) {

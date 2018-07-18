@@ -808,7 +808,7 @@ void MVM_spesh_args_from_callinfo(MVMThreadContext *tc, MVMSpeshGraph *g,
     for (i = 0; i < flags; i++) {
         MVMCallsiteEntry flag = call_info->cs->arg_flags[i];
         if (flag & MVM_CALLSITE_ARG_NAMED)
-            info_pos++; /* Skip over name. */
+            info_pos++; /* Skip over named. */
         if (info_pos >= MAX_ARGS_FOR_OPT) {
             MVM_free(tt);
             return;
