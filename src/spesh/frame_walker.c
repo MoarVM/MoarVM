@@ -135,6 +135,19 @@ MVMuint32 MVM_spesh_frame_walker_next(MVMThreadContext *tc, MVMSpeshFrameWalker 
     }
 }
 
+/* Returns non-zero if we're currently visiting an inline, zero otherwise. */
+MVMuint32 MVM_spesh_frame_walker_is_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
+    return fw->inline_idx != NO_INLINE;
+}
+
+/* Gets the current frame we're walking. If we're in an inline, then it's the
+ * frame holding the inline. */
+MVMFrame * MVM_spesh_frame_walker_current_frame(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
+    return MVM_UNLIKELY(fw->visiting_outers)
+        ? fw->cur_outer_frame
+        : fw->cur_caller_frame;
+}
+
 static void find_lex_info(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MVMFrame **cur_frame_out,
                           MVMStaticFrame **sf_out, MVMuint32 *base_index_out) {
     if (fw->visiting_outers) {

@@ -1438,156 +1438,87 @@ static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to,
     }
 #endif
 }
-MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify, MVMFrame **found_frame) {
+MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *initial_frame, MVMint32 vivify, MVMFrame **found_frame) {
     FILE *dlog = tc->instance->dynvar_log_fh;
     MVMuint32 fcost = 0;  /* frames traversed */
     MVMuint32 icost = 0;  /* inlines traversed */
     MVMuint32 ecost = 0;  /* frames traversed with empty cache */
     MVMuint32 xcost = 0;  /* frames traversed with wrong name */
+    MVMFrame *last_real_frame = initial_frame;
     char *c_name;
     MVMuint64 start_time;
     MVMuint64 last_time;
+    MVMSpeshFrameWalker fw;
 
-    MVMFrame *initial_frame = cur_frame;
     if (MVM_UNLIKELY(!name))
         MVM_exception_throw_adhoc(tc, "Contextual name cannot be null");
-    if (dlog) {
+    if (MVM_UNLIKELY(dlog)) {
         c_name = MVM_string_utf8_encode_C_string(tc, name);
         start_time = uv_hrtime();
         last_time = tc->instance->dynvar_log_lasttime;
     }
 
-    while (cur_frame != NULL) {
-        MVMLexicalRegistry *lexical_names;
-        MVMSpeshCandidate  *cand = cur_frame->spesh_cand;
-        MVMFrameExtra *e;
-        /* See if we are inside an inline. Note that this isn't actually
-         * correct for a leaf frame, but those aren't inlined and don't
-         * use getdynlex for their own lexicals since the compiler already
-         * knows where to find them */
-        if (cand && cand->num_inlines) {
-            if (cand->jitcode) {
-                MVMJitCode *jitcode = cand->jitcode;
-                void * current_position = MVM_jit_code_get_current_position(tc, jitcode, cur_frame);
-                MVMint32 i;
+    /* Traverse with the frame walker. */
+    MVM_spesh_frame_walker_init(tc, &fw, initial_frame, 0);
+    while (MVM_spesh_frame_walker_next(tc, &fw)) {
+        MVMRegister *result;
 
-                for (i = MVM_jit_code_get_active_inlines(tc, jitcode, current_position, 0);
-                     i < jitcode->num_inlines;
-                     i = MVM_jit_code_get_active_inlines(tc, jitcode, current_position, i+1)) {
-                    MVMStaticFrame *isf = cand->inlines[i].sf;
-                    icost++;
-                    if ((lexical_names = isf->body.lexical_names)) {
-                        MVMLexicalRegistry *entry;
-                        MVM_HASH_GET(tc, lexical_names, name, entry);
-                        if (entry) {
-                            MVMuint16    lexidx = cand->inlines[i].lexicals_start + entry->value;
-                            MVMRegister *result = &cur_frame->env[lexidx];
-                            *type = cand->lexical_types[lexidx];
-                            if (vivify && *type == MVM_reg_obj && !result->o) {
-                                MVMROOT3(tc, cur_frame, initial_frame, name, {
-                                    MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
-                                });
-                            }
-                            if (fcost+icost > 1)
-                                try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
-                            if (dlog) {
-                                fprintf(dlog, "I %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
-                                fflush(dlog);
-                                MVM_free(c_name);
-                                tc->instance->dynvar_log_lasttime = uv_hrtime();
-                            }
-                            *found_frame = cur_frame;
-                            return result;
-                        }
+        /* If we're not currently visiting an inline, then see if we've a
+         * cache entry on this frame. Also track costs. */
+        if (!MVM_spesh_frame_walker_is_inline(tc, &fw)) {
+            MVMFrameExtra *e;
+            last_real_frame = MVM_spesh_frame_walker_current_frame(tc, &fw);
+            e = last_real_frame->extra;
+            if (e && e->dynlex_cache_name) {
+                if (MVM_string_equal(tc, name, e->dynlex_cache_name)) {
+                    /* Matching cache entry; if it's far from us, try to cache
+                     * it closer to us. */
+                    MVMRegister *result = e->dynlex_cache_reg;
+                    *type = e->dynlex_cache_type;
+                    if (fcost+icost > 5)
+                        try_cache_dynlex(tc, initial_frame, last_real_frame, name, result, *type, fcost, icost);
+                    if (dlog) {
+                        fprintf(dlog, "C %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
+                        fflush(dlog);
+                        MVM_free(c_name);
+                        tc->instance->dynvar_log_lasttime = uv_hrtime();
                     }
+                    *found_frame = last_real_frame;
+                    MVM_spesh_frame_walker_cleanup(tc, &fw);
+                    return result;
                 }
-            } else {
-                MVMint32 ret_offset = cur_frame->return_address -
-                    MVM_frame_effective_bytecode(cur_frame);
-                MVMint32 i;
-                for (i = 0; i < cand->num_inlines; i++) {
-                    icost++;
-                    if (ret_offset >= cand->inlines[i].start && ret_offset <= cand->inlines[i].end) {
-                        MVMStaticFrame *isf = cand->inlines[i].sf;
-                        if ((lexical_names = isf->body.lexical_names)) {
-                            MVMLexicalRegistry *entry;
-                            MVM_HASH_GET(tc, lexical_names, name, entry);
-                            if (entry) {
-                                MVMuint16    lexidx = cand->inlines[i].lexicals_start + entry->value;
-                                MVMRegister *result = &cur_frame->env[lexidx];
-                                *type = cand->lexical_types[lexidx];
-                                if (vivify && *type == MVM_reg_obj && !result->o) {
-                                    MVMROOT3(tc, cur_frame, initial_frame, name, {
-                                        MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
-                                    });
-                                }
-                                if (fcost+icost > 1)
-                                  try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
-                                if (dlog) {
-                                    fprintf(dlog, "I %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
-                                    fflush(dlog);
-                                    MVM_free(c_name);
-                                    tc->instance->dynvar_log_lasttime = uv_hrtime();
-                                }
-                                *found_frame = cur_frame;
-                                return result;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        /* See if we've got it cached at this level. */
-        e = cur_frame->extra;
-        if (e && e->dynlex_cache_name) {
-            if (MVM_string_equal(tc, name, e->dynlex_cache_name)) {
-                MVMRegister *result = e->dynlex_cache_reg;
-                *type = e->dynlex_cache_type;
-                if (fcost+icost > 5)
-                    try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
-                if (dlog) {
-                    fprintf(dlog, "C %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
-                    fflush(dlog);
-                    MVM_free(c_name);
-                    tc->instance->dynvar_log_lasttime = uv_hrtime();
-                }
-                *found_frame = cur_frame;
-                return result;
+                else
+                    xcost++;
             }
             else
-                xcost++;
+                ecost++;
+            fcost++;
         }
         else
-            ecost++;
+            icost++;
 
-        /* Now look in the frame itself. */
-        if ((lexical_names = cur_frame->static_info->body.lexical_names)) {
-            MVMLexicalRegistry *entry;
-            MVM_HASH_GET(tc, lexical_names, name, entry)
-            if (entry) {
-                MVMRegister *result = &cur_frame->env[entry->value];
-                *type = cur_frame->static_info->body.lexical_types[entry->value];
-                if (vivify && *type == MVM_reg_obj && !result->o) {
-                    MVMROOT3(tc, cur_frame, initial_frame, name, {
-                        MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
-                    });
-                }
-                if (dlog) {
-                    fprintf(dlog, "F %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
-                    fflush(dlog);
-                    MVM_free(c_name);
-                    tc->instance->dynvar_log_lasttime = uv_hrtime();
-                }
-                if (fcost+icost > 1)
-                    try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
-                *found_frame = cur_frame;
-                return result;
+        /* See if we have the lexical at this location. */
+        if (MVM_spesh_frame_walker_get_lex(tc, &fw, name, &result, type, 1)) {
+            /* Yes, found it. If we walked some way, try to cache it. */
+            if (fcost+icost > 1)
+                try_cache_dynlex(tc, initial_frame, last_real_frame, name,
+                    result, *type, fcost, icost);
+            if (dlog) {
+                fprintf(dlog, "%s %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n",
+                        MVM_spesh_frame_walker_is_inline(tc, &fw) ? "I" : "F",
+                        c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
+                fflush(dlog);
+                MVM_free(c_name);
+                tc->instance->dynvar_log_lasttime = uv_hrtime();
             }
+            *found_frame = MVM_spesh_frame_walker_current_frame(tc, &fw);
+            MVM_spesh_frame_walker_cleanup(tc, &fw);
+            return result;
         }
-        fcost++;
-        cur_frame = cur_frame->caller;
     }
+
+    /* Not found. */
+    MVM_spesh_frame_walker_cleanup(tc, &fw);
     if (dlog) {
         fprintf(dlog, "N %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
         fflush(dlog);
