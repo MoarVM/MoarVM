@@ -37,3 +37,5 @@ MVMuint32 MVM_spesh_frame_walker_move_caller_skip_thunks(MVMThreadContext *tc,
         MVMSpeshFrameWalker *fw);
 MVMFrame * MVM_spesh_frame_walker_get_frame(MVMThreadContext *tc, MVMSpeshFrameWalker *fw);
 MVMObject * MVM_spesh_frame_walker_get_lexicals_hash(MVMThreadContext *tc, MVMSpeshFrameWalker *fw);
+MVMint64 MVM_spesh_frame_walker_get_lexical_primspec(MVMThreadContext *tc,
+        MVMSpeshFrameWalker *fw, MVMString *name);

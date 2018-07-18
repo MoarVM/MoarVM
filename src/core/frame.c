@@ -1716,47 +1716,47 @@ MVMRegister * MVM_frame_try_get_lexical(MVMThreadContext *tc, MVMFrame *f, MVMSt
     return NULL;
 }
 
+/* Translates a register kind into a primitive storage spec constant. */
+MVMuint16 MVM_frame_translate_to_primspec(MVMThreadContext *tc, MVMuint16 kind) {
+    switch (MVM_EXPECT(kind, MVM_reg_obj)) {
+        case MVM_reg_int64:
+            return MVM_STORAGE_SPEC_BP_INT;
+        case MVM_reg_num64:
+            return MVM_STORAGE_SPEC_BP_NUM;
+        case MVM_reg_str:
+            return MVM_STORAGE_SPEC_BP_STR;
+        case MVM_reg_obj:
+            return MVM_STORAGE_SPEC_BP_NONE;
+        case MVM_reg_int8:
+            return MVM_STORAGE_SPEC_BP_INT8;
+        case MVM_reg_int16:
+            return MVM_STORAGE_SPEC_BP_INT16;
+        case MVM_reg_int32:
+            return MVM_STORAGE_SPEC_BP_INT32;
+        case MVM_reg_uint8:
+            return MVM_STORAGE_SPEC_BP_UINT8;
+        case MVM_reg_uint16:
+            return MVM_STORAGE_SPEC_BP_UINT16;
+        case MVM_reg_uint32:
+            return MVM_STORAGE_SPEC_BP_UINT32;
+        case MVM_reg_uint64:
+            return MVM_STORAGE_SPEC_BP_UINT64;
+        default:
+            MVM_exception_throw_adhoc(tc,
+                "Unhandled lexical type '%s' in lexprimspec",
+                MVM_reg_get_debug_name(tc, kind));
+    }
+}
+
 /* Returns the primitive type specification for a lexical. */
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
     MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
     if (lexical_names) {
         MVMLexicalRegistry *entry;
         MVM_HASH_GET(tc, lexical_names, name, entry)
-        if (entry) {
-            switch (MVM_EXPECT(f->static_info->body.lexical_types[entry->value], MVM_reg_obj)) {
-                case MVM_reg_int64:
-                    return MVM_STORAGE_SPEC_BP_INT;
-                case MVM_reg_num64:
-                    return MVM_STORAGE_SPEC_BP_NUM;
-                case MVM_reg_str:
-                    return MVM_STORAGE_SPEC_BP_STR;
-                case MVM_reg_obj:
-                    return MVM_STORAGE_SPEC_BP_NONE;
-                case MVM_reg_int8:
-                    return MVM_STORAGE_SPEC_BP_INT8;
-                case MVM_reg_int16:
-                    return MVM_STORAGE_SPEC_BP_INT16;
-                case MVM_reg_int32:
-                    return MVM_STORAGE_SPEC_BP_INT32;
-                case MVM_reg_uint8:
-                    return MVM_STORAGE_SPEC_BP_UINT8;
-                case MVM_reg_uint16:
-                    return MVM_STORAGE_SPEC_BP_UINT16;
-                case MVM_reg_uint32:
-                    return MVM_STORAGE_SPEC_BP_UINT32;
-                case MVM_reg_uint64:
-                    return MVM_STORAGE_SPEC_BP_UINT64;
-                default:
-                {
-                    char *c_name  = MVM_string_utf8_encode_C_string(tc, name);
-                    char *waste[] = { c_name, NULL };
-                    MVM_exception_throw_adhoc_free(tc, waste,
-                        "Unhandled lexical type '%s' in lexprimspec for '%s'",
-                        MVM_reg_get_debug_name(tc, f->static_info->body.lexical_types[entry->value]),
-                        c_name);
-                }
-            }
-        }
+        if (entry)
+            return MVM_frame_translate_to_primspec(tc,
+                    f->static_info->body.lexical_types[entry->value]);
     }
     {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);

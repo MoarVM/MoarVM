@@ -248,7 +248,6 @@ MVMObject * MVM_spesh_frame_walker_get_lexicals_hash(MVMThreadContext *tc, MVMSp
     MVMFrame *frame;
     MVMStaticFrame *sf;
     MVMuint32 base_index;
-    MVMLexicalRegistry *lexical_names;
     MVMHLLConfig *hll = MVM_hll_current(tc);
     MVMObject *ctx_hash =  MVM_repr_alloc_init(tc, hll->slurpy_hash_type);
     find_lex_info(tc, fw, &frame, &sf, &base_index);
@@ -342,6 +341,25 @@ MVMObject * MVM_spesh_frame_walker_get_lexicals_hash(MVMThreadContext *tc, MVMSp
         });
     });
     return ctx_hash;
+}
+
+/* Get the kind of lexical with the given name at the frame walker's current
+ * location. Returns -1 if there is no such lexical. */
+MVMint64 MVM_spesh_frame_walker_get_lexical_primspec(MVMThreadContext *tc,
+                                                     MVMSpeshFrameWalker *fw, MVMString *name) {
+    MVMFrame *cur_frame;
+    MVMStaticFrame *sf;
+    MVMuint32 base_index;
+    MVMLexicalRegistry *lexical_names;
+    find_lex_info(tc, fw, &cur_frame, &sf, &base_index);
+    lexical_names = sf->body.lexical_names;
+    if (lexical_names) {
+        MVMLexicalRegistry *entry;
+        MVM_HASH_GET(tc, lexical_names, name, entry)
+        if (entry)
+            return MVM_frame_translate_to_primspec(tc, sf->body.lexical_types[entry->value]);
+    }
+    return -1;
 }
 
 /* Cleans up the spesh frame walker after use. */

@@ -450,8 +450,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMString *name = GET_REG(cur_op, 4).s;
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
                     MVM_exception_throw_adhoc(tc, "lexprimspec needs a context");
-                GET_REG(cur_op, 0).i64 = MVM_frame_lexical_primspec(tc,
-                    ((MVMContext *)ctx)->body.context, name);
+                GET_REG(cur_op, 0).i64 = MVM_context_lexical_primspec(tc,
+                    (MVMContext *)ctx, name);
                 cur_op += 6;
                 goto NEXT;
             }

@@ -329,3 +329,20 @@ MVMObject * MVM_context_lexicals_as_hash(MVMThreadContext *tc, MVMContext *ctx) 
     MVM_spesh_frame_walker_cleanup(tc, &fw);
     return result;
 }
+
+/* Find the primitive lexical type of a lexical in the context. */
+MVMint64 MVM_context_lexical_primspec(MVMThreadContext *tc, MVMContext *ctx, MVMString *name) {
+    MVMSpeshFrameWalker fw;
+    MVMint64 primspec = -1;
+    MVM_spesh_frame_walker_init(tc, &fw, ctx->body.context, 0);
+    if (apply_traversals(tc, &fw, ctx->body.traversals, ctx->body.num_traversals))
+        primspec = MVM_spesh_frame_walker_get_lexical_primspec(tc, &fw, name);
+    MVM_spesh_frame_walker_cleanup(tc, &fw);
+    if (primspec < 0) {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Frame has no lexical with name '%s'",
+            c_name);
+    }
+    return primspec;
+}
