@@ -3235,27 +3235,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(ctxouter): {
-                MVMObject *this_ctx = GET_REG(cur_op, 2).o;
-                MVMFrame *frame;
-                if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+                MVMObject *ctx = GET_REG(cur_op, 2).o;
+                if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
                     MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext");
-                }
-                if ((frame = ((MVMContext *)this_ctx)->body.context->outer))
-                    GET_REG(cur_op, 0).o = MVM_context_from_frame(tc, frame);
-                else
-                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
+                GET_REG(cur_op, 0).o = MVM_context_apply_traversal(tc, (MVMContext *)ctx,
+                        MVM_CTX_TRAV_OUTER);
                 cur_op += 4;
                 goto NEXT;
             }
             OP(ctxcaller): {
-                MVMObject *this_ctx = GET_REG(cur_op, 2).o, *ctx = NULL;
-                MVMFrame *frame;
-                if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+                MVMObject *ctx = GET_REG(cur_op, 2).o;
+                if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
                     MVM_exception_throw_adhoc(tc, "ctxcaller needs an MVMContext");
-                }
-                if ((frame = ((MVMContext *)this_ctx)->body.context->caller))
-                    ctx = MVM_context_from_frame(tc, frame);
-                GET_REG(cur_op, 0).o = ctx ? ctx : tc->instance->VMNull;
+                GET_REG(cur_op, 0).o = MVM_context_apply_traversal(tc, (MVMContext *)ctx,
+                        MVM_CTX_TRAV_CALLER);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -4096,33 +4089,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(ctxouterskipthunks): {
-                MVMObject *this_ctx = GET_REG(cur_op, 2).o;
-                MVMFrame *frame;
-                if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+                MVMObject *ctx = GET_REG(cur_op, 2).o;
+                if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
                     MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext");
-                }
-                frame = ((MVMContext *)this_ctx)->body.context->outer;
-                while (frame && frame->static_info->body.is_thunk)
-                    frame = frame->caller;
-                if (frame)
-                    GET_REG(cur_op, 0).o = MVM_context_from_frame(tc, frame);
-                else
-                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
+                GET_REG(cur_op, 0).o = MVM_context_apply_traversal(tc, (MVMContext *)ctx,
+                        MVM_CTX_TRAV_OUTER_SKIP_THUNKS);
                 cur_op += 4;
                 goto NEXT;
             }
             OP(ctxcallerskipthunks): {
-                MVMObject *this_ctx = GET_REG(cur_op, 2).o, *ctx = NULL;
-                MVMFrame *frame;
-                if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+                MVMObject *ctx = GET_REG(cur_op, 2).o;
+                if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
                     MVM_exception_throw_adhoc(tc, "ctxcallerskipthunks needs an MVMContext");
-                }
-                frame = ((MVMContext *)this_ctx)->body.context->caller;
-                while (frame && frame->static_info->body.is_thunk)
-                    frame = frame->caller;
-                if (frame)
-                    ctx = MVM_context_from_frame(tc, frame);
-                GET_REG(cur_op, 0).o = ctx ? ctx : tc->instance->VMNull;
+                GET_REG(cur_op, 0).o = MVM_context_apply_traversal(tc, (MVMContext *)ctx,
+                        MVM_CTX_TRAV_CALLER_SKIP_THUNKS);
                 cur_op += 4;
                 goto NEXT;
             }
