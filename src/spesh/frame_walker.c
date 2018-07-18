@@ -251,7 +251,7 @@ MVMuint32 MVM_spesh_frame_walker_move_outer_skip_thunks(MVMThreadContext *tc,
 /* Walk one non-thunk caller frame. Valid before we start iterating. */
 MVMuint32 MVM_spesh_frame_walker_move_caller_skip_thunks(MVMThreadContext *tc,
                                                          MVMSpeshFrameWalker *fw) {
-    while (MVM_spesh_frame_walker_move_outer(tc, fw)) {
+    while (MVM_spesh_frame_walker_move_caller(tc, fw)) {
         MVMStaticFrame *sf = fw->inline_idx == NO_INLINE
             ? fw->cur_caller_frame->static_info
             : fw->cur_caller_frame->spesh_cand->inlines[fw->inline_idx].sf;
