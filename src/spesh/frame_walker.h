@@ -23,6 +23,10 @@ struct MVMSpeshFrameWalker {
     /* Did we start iterating yet? */
     MVMuint8 started;
 
+    /* Did we just do a manual traversal, and so are on the frame we want to
+     * start off with? */
+    MVMuint8 traversed;
+
     /* Are we currently visiting the outer chain? */
     MVMuint8 visiting_outers;
 };

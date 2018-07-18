@@ -16,7 +16,7 @@
 static void init_common(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MVMFrame *start) {
     fw->cur_caller_frame = start;
     fw->cur_outer_frame = NULL;
-    fw->started = 0;
+    fw->started = fw->traversed = 0;
     fw->visiting_outers = 0;
     fw->inline_idx = NO_INLINE;
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(fw->cur_caller_frame));
@@ -129,6 +129,12 @@ MVMuint32 MVM_spesh_frame_walker_next(MVMThreadContext *tc, MVMSpeshFrameWalker 
         fw->started = 1;
         go_to_first_inline(tc, fw);
         return fw->cur_caller_frame ? 1 : 0;
+    }
+    else if (fw->traversed) {
+        /* Our last step was manually moving to the correct frame, so nothing
+         * do be done. This was only set if the traversal reached a frame. */
+        fw->traversed = 0;
+        return 1;
     }
     else {
         /* If we are currently walking an outer chain, proceed along it,
@@ -251,13 +257,25 @@ MVMuint32 MVM_spesh_frame_walker_move_outer(MVMThreadContext *tc, MVMSpeshFrameW
     fw->inline_idx = NO_INLINE;
     fw->visiting_outers = 0;
     fw->started = 1;
-    return outer != NULL;
+    if (outer != NULL) {
+        fw->traversed = 1;
+        return 1;
+    }
+    else {
+        return 0;
+    }
 }
 
 /* Walk one caller frame. Valid before we start iterating. */
 MVMuint32 MVM_spesh_frame_walker_move_caller(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
     fw->started = 1;
-    return move_one_caller(tc, fw);
+    if (move_one_caller(tc, fw)) {
+        fw->traversed = 1;
+        return 1;
+    }
+    else {
+        return 0;
+    }
 }
 
 /* Walk one non-thunk outer frame. Valid before we start iterating. */
