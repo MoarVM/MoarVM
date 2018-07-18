@@ -16,6 +16,10 @@ struct MVMSpeshFrameWalker {
     /* Should we walk the outer chain hanging off each dynamic frame? */
     MVMuint8 visit_outers;
 
+    /* Should we visit the callers beyond the start frame (maybe after some
+     * traversals before we start to iterate)? */
+    MVMuint8 visit_callers;
+
     /* Did we start iterating yet? */
     MVMuint8 started;
 
@@ -25,6 +29,8 @@ struct MVMSpeshFrameWalker {
 
 void MVM_spesh_frame_walker_init(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MVMFrame *start,
         MVMuint8 visit_outers);
+void MVM_spesh_frame_walker_init_for_outers(MVMThreadContext *tc, MVMSpeshFrameWalker *fw,
+    MVMFrame *start);
 MVMuint32 MVM_spesh_frame_walker_next(MVMThreadContext *tc, MVMSpeshFrameWalker *fw);
 MVMuint32 MVM_spesh_frame_walker_get_lex(MVMThreadContext *tc, MVMSpeshFrameWalker *fw,
         MVMString *name, MVMRegister **found_out, MVMuint16 *found_kind_out, MVMuint32 vivify);

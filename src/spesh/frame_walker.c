@@ -13,16 +13,29 @@
  * managed objects, it has to register the pointers to them with the GC, and
  * unreigster them after the walk. Must call MVM_spesh_frame_walker_next after
  * this to be in a valid state to interrogate the first frame. */
-void MVM_spesh_frame_walker_init(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MVMFrame *start,
-                                 MVMuint8 visit_outers) {
+static void init_common(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MVMFrame *start) {
     fw->cur_caller_frame = start;
     fw->cur_outer_frame = NULL;
-    fw->visit_outers = visit_outers;
     fw->started = 0;
     fw->visiting_outers = 0;
     fw->inline_idx = NO_INLINE;
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(fw->cur_caller_frame));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(fw->cur_outer_frame));
+}
+void MVM_spesh_frame_walker_init(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MVMFrame *start,
+                                 MVMuint8 visit_outers) {
+    init_common(tc, fw, start);
+    fw->visit_outers = visit_outers;
+    fw->visit_callers = 1;
+}
+
+/* Initializes the frame walker for the case that we only want to iterate
+ * the outer chain. */
+void MVM_spesh_frame_walker_init_for_outers(MVMThreadContext *tc, MVMSpeshFrameWalker *fw,
+                                            MVMFrame *start) {
+    init_common(tc, fw, start);
+    fw->visit_outers = 1;
+    fw->visit_callers = 0;
 }
 
 /* Go to the next inline, if any. */
@@ -130,8 +143,9 @@ MVMuint32 MVM_spesh_frame_walker_next(MVMThreadContext *tc, MVMSpeshFrameWalker 
             }
         }
 
-        /* If we get here, we're looking for the next caller. */
-        return move_one_caller(tc, fw);
+        /* If we get here, we're looking for the next caller, provided we're
+         * walking those. */
+        return fw->visit_callers ? move_one_caller(tc, fw) : 0;
     }
 }
 

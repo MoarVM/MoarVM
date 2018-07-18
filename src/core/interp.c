@@ -3736,12 +3736,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(getlexrel): {
                 MVMObject *ctx  = GET_REG(cur_op, 2).o;
-                MVMRegister *r;
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
                     MVM_exception_throw_adhoc(tc, "getlexrel needs a context");
-                r = MVM_frame_find_lexical_by_name_rel(tc,
-                    GET_REG(cur_op, 4).s, ((MVMContext *)ctx)->body.context);
-                GET_REG(cur_op, 0).o = r ? r->o : tc->instance->VMNull;
+                GET_REG(cur_op, 0).o = MVM_context_lexical_lookup(tc, (MVMContext *)ctx,
+                        GET_REG(cur_op, 4).s);
                 cur_op += 6;
                 goto NEXT;
             }

@@ -355,6 +355,19 @@ MVMObject * MVM_context_get_code(MVMThreadContext *tc, MVMContext *ctx) {
     return result ? result : tc->instance->VMNull;
 }
 
+/* Does a lexical lookup relative to the context's current location.
+ * Evaluates to a VMNull if it's not found. */
+MVMObject * MVM_context_lexical_lookup(MVMThreadContext *tc, MVMContext *ctx, MVMString *name) {
+    MVMSpeshFrameWalker fw;
+    MVM_spesh_frame_walker_init_for_outers(tc, &fw, ctx->body.context);
+    if (apply_traversals(tc, &fw, ctx->body.traversals, ctx->body.num_traversals)) {
+        MVMRegister *result = MVM_frame_lexical_lookup_using_frame_walker(tc, &fw, name);
+        return result ? result->o : tc->instance->VMNull;
+    }
+    MVM_spesh_frame_walker_cleanup(tc, &fw);
+    return tc->instance->VMNull;
+}
+
 /* Does a dynamic lexical lookup relative to the context's current location.
  * Evaluates to a VMNull if it's not found. */
 MVMObject * MVM_context_dynamic_lookup(MVMThreadContext *tc, MVMContext *ctx, MVMString *name) {
@@ -372,7 +385,7 @@ MVMObject * MVM_context_caller_lookup(MVMThreadContext *tc, MVMContext *ctx, MVM
     MVMSpeshFrameWalker fw;
     MVM_spesh_frame_walker_init(tc, &fw, ctx->body.context, 1);
     if (apply_traversals(tc, &fw, ctx->body.traversals, ctx->body.num_traversals)) {
-        MVMRegister *result = MVM_frame_find_caller_lexical_by_name_using_frame_walker(tc, &fw, name);
+        MVMRegister *result = MVM_frame_lexical_lookup_using_frame_walker(tc, &fw, name);
         return result ? result->o : tc->instance->VMNull;
     }
     MVM_spesh_frame_walker_cleanup(tc, &fw);

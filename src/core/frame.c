@@ -1379,9 +1379,9 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
     return NULL;
 }
 
-/* Looks up the address of the lexical with the specified name, starting with
- * the specified frame. It checks all outer frames of the caller frame chain.  */
-MVMRegister * MVM_frame_find_caller_lexical_by_name_using_frame_walker(MVMThreadContext *tc,
+/* Performs some kind of lexical lookup using the frame walker. The exact walk
+ * that is done depends on the frame walker setup. */
+MVMRegister * MVM_frame_lexical_lookup_using_frame_walker(MVMThreadContext *tc,
         MVMSpeshFrameWalker *fw, MVMString *name) {
     while (MVM_spesh_frame_walker_next(tc, fw)) {
         MVMRegister *found;
@@ -1403,10 +1403,13 @@ MVMRegister * MVM_frame_find_caller_lexical_by_name_using_frame_walker(MVMThread
     MVM_spesh_frame_walker_cleanup(tc, fw);
     return NULL;
 }
+
+/* Looks up the address of the lexical with the specified name, starting with
+ * the specified frame. It checks all outer frames of the caller frame chain.  */
 MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame) {
     MVMSpeshFrameWalker fw;
     MVM_spesh_frame_walker_init(tc, &fw, cur_caller_frame, 1);
-    return MVM_frame_find_caller_lexical_by_name_using_frame_walker(tc, &fw, name);
+    return MVM_frame_lexical_lookup_using_frame_walker(tc, &fw, name);
 }
 
 /* Looks up the address of the lexical with the specified name and the
