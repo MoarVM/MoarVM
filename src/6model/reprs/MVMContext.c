@@ -19,7 +19,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVM_panic(MVM_exitcode_NYI, "MVMContext copy_to NYI");
+    MVM_exception_throw_adhoc(tc, "Cannot clone an MVMContext");
 }
 
 /* Adds held objects to the GC worklist. */
