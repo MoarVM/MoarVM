@@ -1438,7 +1438,9 @@ static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to,
     }
 #endif
 }
-MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *initial_frame, MVMint32 vivify, MVMFrame **found_frame) {
+MVMRegister * MVM_frame_find_dynamic_using_frame_walker(MVMThreadContext *tc,
+        MVMSpeshFrameWalker *fw, MVMString *name, MVMuint16 *type, MVMFrame *initial_frame,
+        MVMint32 vivify, MVMFrame **found_frame) {
     FILE *dlog = tc->instance->dynvar_log_fh;
     MVMuint32 fcost = 0;  /* frames traversed */
     MVMuint32 icost = 0;  /* inlines traversed */
@@ -1448,7 +1450,6 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     char *c_name;
     MVMuint64 start_time;
     MVMuint64 last_time;
-    MVMSpeshFrameWalker fw;
 
     if (MVM_UNLIKELY(!name))
         MVM_exception_throw_adhoc(tc, "Contextual name cannot be null");
@@ -1459,15 +1460,14 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     }
 
     /* Traverse with the frame walker. */
-    MVM_spesh_frame_walker_init(tc, &fw, initial_frame, 0);
-    while (MVM_spesh_frame_walker_next(tc, &fw)) {
+    while (MVM_spesh_frame_walker_next(tc, fw)) {
         MVMRegister *result;
 
         /* If we're not currently visiting an inline, then see if we've a
          * cache entry on this frame. Also track costs. */
-        if (!MVM_spesh_frame_walker_is_inline(tc, &fw)) {
+        if (!MVM_spesh_frame_walker_is_inline(tc, fw)) {
             MVMFrameExtra *e;
-            last_real_frame = MVM_spesh_frame_walker_current_frame(tc, &fw);
+            last_real_frame = MVM_spesh_frame_walker_current_frame(tc, fw);
             e = last_real_frame->extra;
             if (e && e->dynlex_cache_name) {
                 if (MVM_string_equal(tc, name, e->dynlex_cache_name)) {
@@ -1484,7 +1484,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                         tc->instance->dynvar_log_lasttime = uv_hrtime();
                     }
                     *found_frame = last_real_frame;
-                    MVM_spesh_frame_walker_cleanup(tc, &fw);
+                    MVM_spesh_frame_walker_cleanup(tc, fw);
                     return result;
                 }
                 else
@@ -1498,27 +1498,27 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
             icost++;
 
         /* See if we have the lexical at this location. */
-        if (MVM_spesh_frame_walker_get_lex(tc, &fw, name, &result, type, 1)) {
+        if (MVM_spesh_frame_walker_get_lex(tc, fw, name, &result, type, vivify)) {
             /* Yes, found it. If we walked some way, try to cache it. */
             if (fcost+icost > 1)
                 try_cache_dynlex(tc, initial_frame, last_real_frame, name,
                     result, *type, fcost, icost);
             if (dlog) {
                 fprintf(dlog, "%s %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n",
-                        MVM_spesh_frame_walker_is_inline(tc, &fw) ? "I" : "F",
+                        MVM_spesh_frame_walker_is_inline(tc, fw) ? "I" : "F",
                         c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
                 fflush(dlog);
                 MVM_free(c_name);
                 tc->instance->dynvar_log_lasttime = uv_hrtime();
             }
-            *found_frame = MVM_spesh_frame_walker_current_frame(tc, &fw);
-            MVM_spesh_frame_walker_cleanup(tc, &fw);
+            *found_frame = MVM_spesh_frame_walker_current_frame(tc, fw);
+            MVM_spesh_frame_walker_cleanup(tc, fw);
             return result;
         }
     }
 
     /* Not found. */
-    MVM_spesh_frame_walker_cleanup(tc, &fw);
+    MVM_spesh_frame_walker_cleanup(tc, fw);
     if (dlog) {
         fprintf(dlog, "N %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
         fflush(dlog);
@@ -1528,11 +1528,20 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     *found_frame = NULL;
     return NULL;
 }
+MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name,
+        MVMuint16 *type, MVMFrame *initial_frame, MVMint32 vivify, MVMFrame **found_frame) {
+    MVMSpeshFrameWalker fw;
+    MVM_spesh_frame_walker_init(tc, &fw, initial_frame, 0);
+    return MVM_frame_find_dynamic_using_frame_walker(tc, &fw, name, type, initial_frame,
+            vivify, found_frame);
+}
 
-MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
+MVMObject * MVM_frame_getdynlex_with_frame_walker(MVMThreadContext *tc, MVMSpeshFrameWalker *fw,
+                                                  MVMString *name) {
     MVMuint16 type;
     MVMFrame *found_frame;
-    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 1, &found_frame);
+    MVMRegister *lex_reg = MVM_frame_find_dynamic_using_frame_walker(tc, fw, name, &type,
+            MVM_spesh_frame_walker_current_frame(tc, fw), 1, &found_frame);
     MVMObject *result = NULL, *result_type = NULL;
     if (lex_reg) {
         switch (MVM_EXPECT(type, MVM_reg_obj)) {
@@ -1580,6 +1589,11 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame 
         }
     }
     return result ? result : tc->instance->VMNull;
+}
+MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
+    MVMSpeshFrameWalker fw;
+    MVM_spesh_frame_walker_init(tc, &fw, cur_frame, 0);
+    return MVM_frame_getdynlex_with_frame_walker(tc, &fw, name);
 }
 
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame) {

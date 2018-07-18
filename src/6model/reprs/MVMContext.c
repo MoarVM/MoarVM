@@ -354,3 +354,14 @@ MVMObject * MVM_context_get_code(MVMThreadContext *tc, MVMContext *ctx) {
     MVM_spesh_frame_walker_cleanup(tc, &fw);
     return result ? result : tc->instance->VMNull;
 }
+
+/* Does a dynamic lexical lookup relative to the context's current location.
+ * Evaluates to a VMNull if it's not found. */
+MVMObject * MVM_context_dynamic_lookup(MVMThreadContext *tc, MVMContext *ctx, MVMString *name) {
+    MVMSpeshFrameWalker fw;
+    MVM_spesh_frame_walker_init(tc, &fw, ctx->body.context, 0);
+    if (apply_traversals(tc, &fw, ctx->body.traversals, ctx->body.num_traversals))
+        return MVM_frame_getdynlex_with_frame_walker(tc, &fw, name);
+    MVM_spesh_frame_walker_cleanup(tc, &fw);
+    return tc->instance->VMNull;
+}
