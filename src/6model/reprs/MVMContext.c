@@ -28,6 +28,11 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_gc_worklist_add(tc, worklist, &body->context);
 }
 
+/* Called by the VM in order to free memory associated with this object. */
+static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
+    MVM_free(((MVMContext *)obj)->body.traversals);
+}
+
 static MVMint32 apply_traversals(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MVMuint8 *traversals,
                                  MVMuint32 num_traversals) {
     MVMuint32 i;
@@ -281,7 +286,7 @@ MVMObject * MVM_context_apply_traversal(MVMThreadContext *tc, MVMContext *ctx, M
     MVMuint32 new_num_traversals = ctx->body.num_traversals + 1;
     MVMuint8 *new_traversals = MVM_malloc(new_num_traversals);
     if (ctx->body.num_traversals)
-        memcpy(new_traversals, ctx->body.traversals, ctx->body.num_traversals + 1);
+        memcpy(new_traversals, ctx->body.traversals, ctx->body.num_traversals);
     new_traversals[new_num_traversals - 1] = traversal;
 
     /* Verify that we can do this traversal. */
