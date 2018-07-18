@@ -199,7 +199,8 @@ MVMuint32 MVM_spesh_frame_walker_move_outer(MVMThreadContext *tc, MVMSpeshFrameW
     }
     fw->cur_caller_frame = outer;
     fw->cur_outer_frame = NULL;
-    fw->inline_idx = fw->visiting_outers = 0;
+    fw->inline_idx = NO_INLINE;
+    fw->visiting_outers = 0;
     fw->started = 1;
     return outer != NULL;
 }
