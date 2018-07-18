@@ -365,3 +365,16 @@ MVMObject * MVM_context_dynamic_lookup(MVMThreadContext *tc, MVMContext *ctx, MV
     MVM_spesh_frame_walker_cleanup(tc, &fw);
     return tc->instance->VMNull;
 }
+
+/* Does a caller lexical lookup relative to the context's current location.
+ * Evaluates to a VMNull if it's not found. */
+MVMObject * MVM_context_caller_lookup(MVMThreadContext *tc, MVMContext *ctx, MVMString *name) {
+    MVMSpeshFrameWalker fw;
+    MVM_spesh_frame_walker_init(tc, &fw, ctx->body.context, 1);
+    if (apply_traversals(tc, &fw, ctx->body.traversals, ctx->body.num_traversals)) {
+        MVMRegister *result = MVM_frame_find_caller_lexical_by_name_using_frame_walker(tc, &fw, name);
+        return result ? result->o : tc->instance->VMNull;
+    }
+    MVM_spesh_frame_walker_cleanup(tc, &fw);
+    return tc->instance->VMNull;
+}

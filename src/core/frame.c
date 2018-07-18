@@ -1381,14 +1381,13 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
 
 /* Looks up the address of the lexical with the specified name, starting with
  * the specified frame. It checks all outer frames of the caller frame chain.  */
-MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame) {
-    MVMSpeshFrameWalker fw;
-    MVM_spesh_frame_walker_init(tc, &fw, cur_caller_frame, 1);
-    while (MVM_spesh_frame_walker_next(tc, &fw)) {
+MVMRegister * MVM_frame_find_caller_lexical_by_name_using_frame_walker(MVMThreadContext *tc,
+        MVMSpeshFrameWalker *fw, MVMString *name) {
+    while (MVM_spesh_frame_walker_next(tc, fw)) {
         MVMRegister *found;
         MVMuint16 found_kind;
-        if (MVM_spesh_frame_walker_get_lex(tc, &fw, name, &found, &found_kind, 1)) {
-            MVM_spesh_frame_walker_cleanup(tc, &fw);
+        if (MVM_spesh_frame_walker_get_lex(tc, fw, name, &found, &found_kind, 1)) {
+            MVM_spesh_frame_walker_cleanup(tc, fw);
             if (found_kind == MVM_reg_obj) {
                 return found;
             }
@@ -1401,8 +1400,13 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MV
             }
         }
     }
-    MVM_spesh_frame_walker_cleanup(tc, &fw);
+    MVM_spesh_frame_walker_cleanup(tc, fw);
     return NULL;
+}
+MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame) {
+    MVMSpeshFrameWalker fw;
+    MVM_spesh_frame_walker_init(tc, &fw, cur_caller_frame, 1);
+    return MVM_frame_find_caller_lexical_by_name_using_frame_walker(tc, &fw, name);
 }
 
 /* Looks up the address of the lexical with the specified name and the
