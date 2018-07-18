@@ -374,6 +374,18 @@ MVMObject * MVM_spesh_frame_walker_get_code(MVMThreadContext *tc, MVMSpeshFrameW
     ].o;
 }
 
+/* Gets a count of the number of lexicals in the frame walker's current
+ * location. */
+MVMuint64 MVM_spesh_frame_walker_get_lexical_count(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
+    MVMFrame *cur_frame;
+    MVMStaticFrame *sf;
+    MVMuint32 base_index;
+    MVMLexicalRegistry *lexical_names;
+    find_lex_info(tc, fw, &cur_frame, &sf, &base_index);
+    lexical_names = sf->body.lexical_names;
+    return lexical_names ? (MVMuint64)HASH_CNT(hash_handle, lexical_names) : 0;
+}
+
 /* Cleans up the spesh frame walker after use. */
 void MVM_spesh_frame_walker_cleanup(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
     MVM_gc_root_temp_pop_n(tc, 2);

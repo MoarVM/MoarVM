@@ -151,9 +151,13 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMContextBody *body  = (MVMContextBody *)data;
-    MVMFrame       *frame = body->context;
-    MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names;
-    return (MVMuint64) HASH_CNT(hash_handle, lexical_names);
+
+    MVMSpeshFrameWalker fw;
+    MVMuint64 result = setup_frame_walker(tc, &fw, body)
+        ? MVM_spesh_frame_walker_get_lexical_count(tc, &fw)
+        : 0;
+    MVM_spesh_frame_walker_cleanup(tc, &fw);
+    return result;
 }
 
 static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
