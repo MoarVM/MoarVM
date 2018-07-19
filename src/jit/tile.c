@@ -757,7 +757,8 @@ MVMJitTile * MVM_jit_tile_make_from_template(MVMThreadContext *tc, MVMJitCompile
     }
     default:
     {
-        MVMint32 i, j, k, num_nodes, value_bitmap;
+        MVMint32 i, j, k, num_nodes;
+        MVMuint8 value_bitmap;
         MVMJitExprNode buffer[8];
         num_nodes        = MVM_jit_expr_tree_get_nodes(tc, tree, node, template->path, buffer);
         value_bitmap     = template->value_bitmap;

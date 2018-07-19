@@ -575,12 +575,12 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
                 }
             }
         }
-        if (MVM_JIT_TILE_YIELDS_VALUE(tile) && tree->info[node].opr_type != 0) {
+        if (MVM_JIT_TILE_YIELDS_VALUE(tile) && tree->info[node].type != 0) {
             LiveRange *range = alc->values + value_set_find(alc->sets, node)->idx;
-            _ASSERT(range->reg_type == 0 || (range->reg_type << 3) == tree->info[node].opr_type,
+            _ASSERT(range->reg_type == 0 || (range->reg_type) == tree->info[node].type,
                     "Register types do not match between value and node");
             /* shift to match MVM_reg_types. should arguably be a macro maybe */
-            range->reg_type = tree->info[node].opr_type >> 3;
+            range->reg_type = tree->info[node].type;
             _DEBUG( "Assigned type: %d to live range %d\n", range->reg_type, range - alc->values);
         }
     }
