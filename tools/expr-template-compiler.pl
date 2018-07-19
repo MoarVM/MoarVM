@@ -398,7 +398,7 @@ print <<"HEADER";
  * Defines tables for expression templates. */
 HEADER
 my $i = 0;
-print "static const MVMJitExprNode MVM_jit_expr_templates[] = {\n    ";
+print "static const MVMint32 MVM_jit_expr_templates[] = {\n    ";
 for (@$templates) {
     $i += length($_) + 2;
     if ($i > 75) {

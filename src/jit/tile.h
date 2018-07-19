@@ -6,7 +6,7 @@ struct MVMJitTileTemplate {
     MVMint32  right_sym;
 
     MVMint32  num_refs;
-    MVMint32  value_bitmap;
+    MVMuint32 value_bitmap;
     MVMuint32 register_spec;
 };
 

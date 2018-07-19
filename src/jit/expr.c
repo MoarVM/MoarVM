@@ -345,7 +345,7 @@ static void check_template(MVMThreadContext *tc, const MVMJitExprTemplate *templ
 
 /* Add template to nodes, filling in operands and linking tree nodes. Return template root */
 static MVMint32 apply_template(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 len, char *info,
-                               MVMJitExprNode *code, MVMint32 *operands) {
+                               MVMint32 *code, MVMint32 *operands) {
     MVMint32 i, num;
     num = tree->nodes_num;
     MVM_VECTOR_ENSURE_SPACE(tree->nodes, len);
@@ -379,13 +379,13 @@ static MVMint32 apply_template(MVMThreadContext *tc, MVMJitExprTree *tree, MVMin
 MVMint32 MVM_jit_expr_apply_template(MVMThreadContext *tc, MVMJitExprTree *tree,
                                      const MVMJitExprTemplate *template, MVMint32 *operands) {
     return apply_template(tc, tree, template->len, (char*)template->info,
-                          (MVMJitExprNode*)template->code, operands) + template->root;
+                          (MVMint32*)template->code, operands) + template->root;
 }
 
 /* this will fail with more than 16 nodes, which is just as fine */
 MVMint32 MVM_jit_expr_apply_template_adhoc(MVMThreadContext *tc, MVMJitExprTree *tree,
                                            char *info, ...) {
-    MVMJitExprNode code[16];
+    MVMint32 code[16];
     MVMint32 i;
     va_list args;
     va_start(args, info);
@@ -738,8 +738,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
 
         /* root is highest node by construction, so we don't have to check the size of info later */
         MVM_VECTOR_ENSURE_SIZE(tree->info, root);
-        tree->info[root].spesh_ins = ins;
-
 
         /* mark operand types */
         for (i = 0; i < ins->info->num_operands; i++) {
@@ -761,7 +759,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             switch(opr_kind & MVM_operand_rw_mask) {
             case MVM_operand_read_reg:
             case MVM_operand_read_lex:
-                tree->info[operands[i]].opr_type = opr_type;
+                tree->info[operands[i]].type = opr_type >> 3;
                 break;
             case MVM_operand_write_reg:
                 /* for write_reg and write_lex, operands[i] is the *address*,
@@ -773,7 +771,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                 } else {
                     /* record this value, should be only one for the root */
                     BAIL(i != 0, "Write reg operand %d\n", i);
-                    tree->info[root].opr_type  = opr_type;
+                    tree->info[root].type  = opr_type >> 3;
                     defined_value = values + opr.reg.orig;
                     defined_value->addr = operands[i];
                     defined_value->node = root;
@@ -786,7 +784,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                  * insert a store */
                 if (!(template->flags & MVM_JIT_EXPR_TEMPLATE_DESTRUCTIVE)) {
                     BAIL(i != 0, "Write lex operand %d\n", i);
-                    tree->info[root].opr_type = opr_type;
+                    tree->info[root].type = opr_type >> 3;
                     /* insert the store to lexicals directly, do not record as value */
                     root = MVM_jit_expr_add_store(tc, tree, operands[i], root, MVM_JIT_REG_SZ);
                 }

@@ -35,10 +35,8 @@ struct MVMJitExprOpInfo {
 /* Tree node information for easy access and use during compilation (a
    symbol table entry of sorts) */
 struct MVMJitExprNodeInfo {
-    /* VM instruction represented by this node */
-    MVMSpeshIns    *spesh_ins;
     /* VM 'register' type represented by this node */
-    MVMint8          opr_type;
+    MVMint8          type;
     /* Size of computed value */
     MVMint8         size;
 };
@@ -59,7 +57,7 @@ struct MVMJitExprTree {
 };
 
 struct MVMJitExprTemplate {
-    const MVMJitExprNode *code;
+    const MVMint32 *code;
     const char *info;
     MVMint32 len;
     MVMint32 root;
