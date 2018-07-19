@@ -147,6 +147,15 @@ struct MVMFrameExtra {
     MVMString   *dynlex_cache_name;
     MVMRegister *dynlex_cache_reg;
     MVMuint16    dynlex_cache_type;
+
+    /* If we use the ctx op and we have inlining, we no longer have an
+     * immutable chain of callers to walk. When our caller had inlines, we
+     * record here in the callee the deopt index or JIT position. Then, when
+     * we traverse, we can precisely recreate the stack trace. This works,
+     * since we forbid inlining of the ctx op, so there's always a clear
+     * starter frame. */
+    MVMint32 caller_deopt_idx;
+    void *caller_jit_position;
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for
@@ -220,17 +229,24 @@ MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MV
 MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMRegister *value);
 MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name);
 MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame);
+MVMRegister * MVM_frame_lexical_lookup_using_frame_walker(MVMThreadContext *tc,
+        MVMSpeshFrameWalker *fw, MVMString *name);
 MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame);
+MVMRegister * MVM_frame_find_dynamic_using_frame_walker(MVMThreadContext *tc,
+        MVMSpeshFrameWalker *fw, MVMString *name, MVMuint16 *type, MVMFrame *initial_frame,
+        MVMint32 vivify, MVMFrame **found_frame);
 MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify, MVMFrame **found_frame);
+MVMObject * MVM_frame_getdynlex_with_frame_walker(MVMThreadContext *tc, MVMSpeshFrameWalker *fw,
+        MVMString *name);
 MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame);
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame);
 MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
 MVM_PUBLIC MVMRegister * MVM_frame_try_get_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name, MVMuint16 type);
+MVMuint16 MVM_frame_translate_to_primspec(MVMThreadContext *tc, MVMuint16 kind);
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
 MVM_PUBLIC MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs);
 MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs, MVMRegister *args, MVMuint16 *was_multi);
 MVMObject * MVM_frame_resolve_invokee_spesh(MVMThreadContext *tc, MVMObject *invokee);
-MVM_PUBLIC MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f);
 MVMFrameExtra * MVM_frame_extra(MVMThreadContext *tc, MVMFrame *f);
 MVM_PUBLIC void MVM_frame_special_return(MVMThreadContext *tc, MVMFrame *f,
     MVMSpecialReturn special_return, MVMSpecialReturn special_unwind,

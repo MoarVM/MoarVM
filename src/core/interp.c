@@ -450,8 +450,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMString *name = GET_REG(cur_op, 4).s;
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
                     MVM_exception_throw_adhoc(tc, "lexprimspec needs a context");
-                GET_REG(cur_op, 0).i64 = MVM_frame_lexical_primspec(tc,
-                    ((MVMContext *)ctx)->body.context, name);
+                GET_REG(cur_op, 0).i64 = MVM_context_lexical_primspec(tc,
+                    (MVMContext *)ctx, name);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -2802,16 +2802,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMFrame *orig;
                 MVMFrame *context;
                 MVMStaticFrame *sf;
-                if (REPR(obj)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(obj)) {
+                if (REPR(obj)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(obj))
                     MVM_exception_throw_adhoc(tc, "forceouterctx needs a code ref");
-                }
-                if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx)) {
+                if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
                     MVM_exception_throw_adhoc(tc, "forceouterctx needs a context");
-                }
+                context = MVM_context_get_frame(tc, (MVMContext *)ctx);
 
                 orig = ((MVMCode *)obj)->body.outer;
                 sf = ((MVMCode *)obj)->body.sf;
-                context = ((MVMContext *)ctx)->body.context;
 
                 MVM_ASSIGN_REF(tc, &(((MVMObject *)sf)->header), sf->body.outer, context->static_info);
                 if (orig != context)
@@ -3232,32 +3230,25 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(ctx): {
-                GET_REG(cur_op, 0).o = MVM_frame_context_wrapper(tc, tc->cur_frame);
+                GET_REG(cur_op, 0).o = MVM_context_from_frame(tc, tc->cur_frame);
                 cur_op += 2;
                 goto NEXT;
             }
             OP(ctxouter): {
-                MVMObject *this_ctx = GET_REG(cur_op, 2).o;
-                MVMFrame *frame;
-                if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+                MVMObject *ctx = GET_REG(cur_op, 2).o;
+                if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
                     MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext");
-                }
-                if ((frame = ((MVMContext *)this_ctx)->body.context->outer))
-                    GET_REG(cur_op, 0).o = MVM_frame_context_wrapper(tc, frame);
-                else
-                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
+                GET_REG(cur_op, 0).o = MVM_context_apply_traversal(tc, (MVMContext *)ctx,
+                        MVM_CTX_TRAV_OUTER);
                 cur_op += 4;
                 goto NEXT;
             }
             OP(ctxcaller): {
-                MVMObject *this_ctx = GET_REG(cur_op, 2).o, *ctx = NULL;
-                MVMFrame *frame;
-                if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+                MVMObject *ctx = GET_REG(cur_op, 2).o;
+                if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
                     MVM_exception_throw_adhoc(tc, "ctxcaller needs an MVMContext");
-                }
-                if ((frame = ((MVMContext *)this_ctx)->body.context->caller))
-                    ctx = MVM_frame_context_wrapper(tc, frame);
-                GET_REG(cur_op, 0).o = ctx ? ctx : tc->instance->VMNull;
+                GET_REG(cur_op, 0).o = MVM_context_apply_traversal(tc, (MVMContext *)ctx,
+                        MVM_CTX_TRAV_CALLER);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -3738,12 +3729,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(getlexrel): {
                 MVMObject *ctx  = GET_REG(cur_op, 2).o;
-                MVMRegister *r;
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
                     MVM_exception_throw_adhoc(tc, "getlexrel needs a context");
-                r = MVM_frame_find_lexical_by_name_rel(tc,
-                    GET_REG(cur_op, 4).s, ((MVMContext *)ctx)->body.context);
-                GET_REG(cur_op, 0).o = r ? r->o : tc->instance->VMNull;
+                GET_REG(cur_op, 0).o = MVM_context_lexical_lookup(tc, (MVMContext *)ctx,
+                        GET_REG(cur_op, 4).s);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -3751,19 +3740,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *ctx  = GET_REG(cur_op, 2).o;
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
                     MVM_exception_throw_adhoc(tc, "getlexreldyn needs a context");
-                GET_REG(cur_op, 0).o = MVM_frame_getdynlex(tc, GET_REG(cur_op, 4).s,
-                        ((MVMContext *)ctx)->body.context);
+                GET_REG(cur_op, 0).o = MVM_context_dynamic_lookup(tc, (MVMContext *)ctx,
+                        GET_REG(cur_op, 4).s);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(getlexrelcaller): {
                 MVMObject   *ctx  = GET_REG(cur_op, 2).o;
-                MVMRegister *res;
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
                     MVM_exception_throw_adhoc(tc, "getlexrelcaller needs a context");
-                res = MVM_frame_find_lexical_by_name_rel_caller(tc, GET_REG(cur_op, 4).s,
-                    ((MVMContext *)ctx)->body.context);
-                GET_REG(cur_op, 0).o = res ? res->o : tc->instance->VMNull;
+                GET_REG(cur_op, 0).o = MVM_context_caller_lookup(tc, (MVMContext *)ctx,
+                        GET_REG(cur_op, 4).s);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -4102,33 +4089,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(ctxouterskipthunks): {
-                MVMObject *this_ctx = GET_REG(cur_op, 2).o;
-                MVMFrame *frame;
-                if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+                MVMObject *ctx = GET_REG(cur_op, 2).o;
+                if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
                     MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext");
-                }
-                frame = ((MVMContext *)this_ctx)->body.context->outer;
-                while (frame && frame->static_info->body.is_thunk)
-                    frame = frame->caller;
-                if (frame)
-                    GET_REG(cur_op, 0).o = MVM_frame_context_wrapper(tc, frame);
-                else
-                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
+                GET_REG(cur_op, 0).o = MVM_context_apply_traversal(tc, (MVMContext *)ctx,
+                        MVM_CTX_TRAV_OUTER_SKIP_THUNKS);
                 cur_op += 4;
                 goto NEXT;
             }
             OP(ctxcallerskipthunks): {
-                MVMObject *this_ctx = GET_REG(cur_op, 2).o, *ctx = NULL;
-                MVMFrame *frame;
-                if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+                MVMObject *ctx = GET_REG(cur_op, 2).o;
+                if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
                     MVM_exception_throw_adhoc(tc, "ctxcallerskipthunks needs an MVMContext");
-                }
-                frame = ((MVMContext *)this_ctx)->body.context->caller;
-                while (frame && frame->static_info->body.is_thunk)
-                    frame = frame->caller;
-                if (frame)
-                    ctx = MVM_frame_context_wrapper(tc, frame);
-                GET_REG(cur_op, 0).o = ctx ? ctx : tc->instance->VMNull;
+                GET_REG(cur_op, 0).o = MVM_context_apply_traversal(tc, (MVMContext *)ctx,
+                        MVM_CTX_TRAV_CALLER_SKIP_THUNKS);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -4740,8 +4714,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(ctxcode): {
                 MVMObject *this_ctx = GET_REG(cur_op, 2).o;
                 if (IS_CONCRETE(this_ctx) && REPR(this_ctx)->ID == MVM_REPR_ID_MVMContext) {
-                    MVMObject *code_obj = ((MVMContext *)this_ctx)->body.context->code_ref;
-                    GET_REG(cur_op, 0).o = code_obj ? code_obj : tc->instance->VMNull;
+                    GET_REG(cur_op, 0).o = MVM_context_get_code(tc, (MVMContext *)this_ctx);
                     cur_op += 4;
                 }
                 else {

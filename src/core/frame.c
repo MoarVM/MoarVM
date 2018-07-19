@@ -856,8 +856,12 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         MVMFrameExtra *e = returner->extra;
         if (e->continuation_tags)
             MVM_continuation_free_tags(tc, returner);
-        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
-        returner->extra = NULL;
+        /* Preserve the extras if the frame has been used in a ctx operation
+         * and marked with caller info. */
+        if (!(e->caller_deopt_idx || e->caller_jit_position)) {
+            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
+            returner->extra = NULL;
+        }
     }
 
     /* Clean up frame working space. */
@@ -1379,16 +1383,15 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
     return NULL;
 }
 
-/* Looks up the address of the lexical with the specified name, starting with
- * the specified frame. It checks all outer frames of the caller frame chain.  */
-MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame) {
-    MVMSpeshFrameWalker fw;
-    MVM_spesh_frame_walker_init(tc, &fw, cur_caller_frame, 1);
-    while (MVM_spesh_frame_walker_next(tc, &fw)) {
+/* Performs some kind of lexical lookup using the frame walker. The exact walk
+ * that is done depends on the frame walker setup. */
+MVMRegister * MVM_frame_lexical_lookup_using_frame_walker(MVMThreadContext *tc,
+        MVMSpeshFrameWalker *fw, MVMString *name) {
+    while (MVM_spesh_frame_walker_next(tc, fw)) {
         MVMRegister *found;
         MVMuint16 found_kind;
-        if (MVM_spesh_frame_walker_get_lex(tc, &fw, name, &found, &found_kind)) {
-            MVM_spesh_frame_walker_cleanup(tc, &fw);
+        if (MVM_spesh_frame_walker_get_lex(tc, fw, name, &found, &found_kind, 1)) {
+            MVM_spesh_frame_walker_cleanup(tc, fw);
             if (found_kind == MVM_reg_obj) {
                 return found;
             }
@@ -1401,8 +1404,16 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MV
             }
         }
     }
-    MVM_spesh_frame_walker_cleanup(tc, &fw);
+    MVM_spesh_frame_walker_cleanup(tc, fw);
     return NULL;
+}
+
+/* Looks up the address of the lexical with the specified name, starting with
+ * the specified frame. It checks all outer frames of the caller frame chain.  */
+MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame) {
+    MVMSpeshFrameWalker fw;
+    MVM_spesh_frame_walker_init(tc, &fw, cur_caller_frame, 1);
+    return MVM_frame_lexical_lookup_using_frame_walker(tc, &fw, name);
 }
 
 /* Looks up the address of the lexical with the specified name and the
@@ -1438,156 +1449,87 @@ static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to,
     }
 #endif
 }
-MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify, MVMFrame **found_frame) {
+MVMRegister * MVM_frame_find_dynamic_using_frame_walker(MVMThreadContext *tc,
+        MVMSpeshFrameWalker *fw, MVMString *name, MVMuint16 *type, MVMFrame *initial_frame,
+        MVMint32 vivify, MVMFrame **found_frame) {
     FILE *dlog = tc->instance->dynvar_log_fh;
     MVMuint32 fcost = 0;  /* frames traversed */
     MVMuint32 icost = 0;  /* inlines traversed */
     MVMuint32 ecost = 0;  /* frames traversed with empty cache */
     MVMuint32 xcost = 0;  /* frames traversed with wrong name */
+    MVMFrame *last_real_frame = initial_frame;
     char *c_name;
     MVMuint64 start_time;
     MVMuint64 last_time;
 
-    MVMFrame *initial_frame = cur_frame;
     if (MVM_UNLIKELY(!name))
         MVM_exception_throw_adhoc(tc, "Contextual name cannot be null");
-    if (dlog) {
+    if (MVM_UNLIKELY(dlog)) {
         c_name = MVM_string_utf8_encode_C_string(tc, name);
         start_time = uv_hrtime();
         last_time = tc->instance->dynvar_log_lasttime;
     }
 
-    while (cur_frame != NULL) {
-        MVMLexicalRegistry *lexical_names;
-        MVMSpeshCandidate  *cand = cur_frame->spesh_cand;
-        MVMFrameExtra *e;
-        /* See if we are inside an inline. Note that this isn't actually
-         * correct for a leaf frame, but those aren't inlined and don't
-         * use getdynlex for their own lexicals since the compiler already
-         * knows where to find them */
-        if (cand && cand->num_inlines) {
-            if (cand->jitcode) {
-                MVMJitCode *jitcode = cand->jitcode;
-                void * current_position = MVM_jit_code_get_current_position(tc, jitcode, cur_frame);
-                MVMint32 i;
+    /* Traverse with the frame walker. */
+    while (MVM_spesh_frame_walker_next(tc, fw)) {
+        MVMRegister *result;
 
-                for (i = MVM_jit_code_get_active_inlines(tc, jitcode, current_position, 0);
-                     i < jitcode->num_inlines;
-                     i = MVM_jit_code_get_active_inlines(tc, jitcode, current_position, i+1)) {
-                    MVMStaticFrame *isf = cand->inlines[i].sf;
-                    icost++;
-                    if ((lexical_names = isf->body.lexical_names)) {
-                        MVMLexicalRegistry *entry;
-                        MVM_HASH_GET(tc, lexical_names, name, entry);
-                        if (entry) {
-                            MVMuint16    lexidx = cand->inlines[i].lexicals_start + entry->value;
-                            MVMRegister *result = &cur_frame->env[lexidx];
-                            *type = cand->lexical_types[lexidx];
-                            if (vivify && *type == MVM_reg_obj && !result->o) {
-                                MVMROOT3(tc, cur_frame, initial_frame, name, {
-                                    MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
-                                });
-                            }
-                            if (fcost+icost > 1)
-                                try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
-                            if (dlog) {
-                                fprintf(dlog, "I %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
-                                fflush(dlog);
-                                MVM_free(c_name);
-                                tc->instance->dynvar_log_lasttime = uv_hrtime();
-                            }
-                            *found_frame = cur_frame;
-                            return result;
-                        }
+        /* If we're not currently visiting an inline, then see if we've a
+         * cache entry on this frame. Also track costs. */
+        if (!MVM_spesh_frame_walker_is_inline(tc, fw)) {
+            MVMFrameExtra *e;
+            last_real_frame = MVM_spesh_frame_walker_current_frame(tc, fw);
+            e = last_real_frame->extra;
+            if (e && e->dynlex_cache_name) {
+                if (MVM_string_equal(tc, name, e->dynlex_cache_name)) {
+                    /* Matching cache entry; if it's far from us, try to cache
+                     * it closer to us. */
+                    MVMRegister *result = e->dynlex_cache_reg;
+                    *type = e->dynlex_cache_type;
+                    if (fcost+icost > 5)
+                        try_cache_dynlex(tc, initial_frame, last_real_frame, name, result, *type, fcost, icost);
+                    if (dlog) {
+                        fprintf(dlog, "C %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
+                        fflush(dlog);
+                        MVM_free(c_name);
+                        tc->instance->dynvar_log_lasttime = uv_hrtime();
                     }
+                    *found_frame = last_real_frame;
+                    MVM_spesh_frame_walker_cleanup(tc, fw);
+                    return result;
                 }
-            } else {
-                MVMint32 ret_offset = cur_frame->return_address -
-                    MVM_frame_effective_bytecode(cur_frame);
-                MVMint32 i;
-                for (i = 0; i < cand->num_inlines; i++) {
-                    icost++;
-                    if (ret_offset >= cand->inlines[i].start && ret_offset <= cand->inlines[i].end) {
-                        MVMStaticFrame *isf = cand->inlines[i].sf;
-                        if ((lexical_names = isf->body.lexical_names)) {
-                            MVMLexicalRegistry *entry;
-                            MVM_HASH_GET(tc, lexical_names, name, entry);
-                            if (entry) {
-                                MVMuint16    lexidx = cand->inlines[i].lexicals_start + entry->value;
-                                MVMRegister *result = &cur_frame->env[lexidx];
-                                *type = cand->lexical_types[lexidx];
-                                if (vivify && *type == MVM_reg_obj && !result->o) {
-                                    MVMROOT3(tc, cur_frame, initial_frame, name, {
-                                        MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
-                                    });
-                                }
-                                if (fcost+icost > 1)
-                                  try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
-                                if (dlog) {
-                                    fprintf(dlog, "I %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
-                                    fflush(dlog);
-                                    MVM_free(c_name);
-                                    tc->instance->dynvar_log_lasttime = uv_hrtime();
-                                }
-                                *found_frame = cur_frame;
-                                return result;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        /* See if we've got it cached at this level. */
-        e = cur_frame->extra;
-        if (e && e->dynlex_cache_name) {
-            if (MVM_string_equal(tc, name, e->dynlex_cache_name)) {
-                MVMRegister *result = e->dynlex_cache_reg;
-                *type = e->dynlex_cache_type;
-                if (fcost+icost > 5)
-                    try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
-                if (dlog) {
-                    fprintf(dlog, "C %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
-                    fflush(dlog);
-                    MVM_free(c_name);
-                    tc->instance->dynvar_log_lasttime = uv_hrtime();
-                }
-                *found_frame = cur_frame;
-                return result;
+                else
+                    xcost++;
             }
             else
-                xcost++;
+                ecost++;
+            fcost++;
         }
         else
-            ecost++;
+            icost++;
 
-        /* Now look in the frame itself. */
-        if ((lexical_names = cur_frame->static_info->body.lexical_names)) {
-            MVMLexicalRegistry *entry;
-            MVM_HASH_GET(tc, lexical_names, name, entry)
-            if (entry) {
-                MVMRegister *result = &cur_frame->env[entry->value];
-                *type = cur_frame->static_info->body.lexical_types[entry->value];
-                if (vivify && *type == MVM_reg_obj && !result->o) {
-                    MVMROOT3(tc, cur_frame, initial_frame, name, {
-                        MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
-                    });
-                }
-                if (dlog) {
-                    fprintf(dlog, "F %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
-                    fflush(dlog);
-                    MVM_free(c_name);
-                    tc->instance->dynvar_log_lasttime = uv_hrtime();
-                }
-                if (fcost+icost > 1)
-                    try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
-                *found_frame = cur_frame;
-                return result;
+        /* See if we have the lexical at this location. */
+        if (MVM_spesh_frame_walker_get_lex(tc, fw, name, &result, type, vivify)) {
+            /* Yes, found it. If we walked some way, try to cache it. */
+            if (fcost+icost > 1)
+                try_cache_dynlex(tc, initial_frame, last_real_frame, name,
+                    result, *type, fcost, icost);
+            if (dlog) {
+                fprintf(dlog, "%s %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n",
+                        MVM_spesh_frame_walker_is_inline(tc, fw) ? "I" : "F",
+                        c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
+                fflush(dlog);
+                MVM_free(c_name);
+                tc->instance->dynvar_log_lasttime = uv_hrtime();
             }
+            *found_frame = MVM_spesh_frame_walker_current_frame(tc, fw);
+            MVM_spesh_frame_walker_cleanup(tc, fw);
+            return result;
         }
-        fcost++;
-        cur_frame = cur_frame->caller;
     }
+
+    /* Not found. */
+    MVM_spesh_frame_walker_cleanup(tc, fw);
     if (dlog) {
         fprintf(dlog, "N %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
         fflush(dlog);
@@ -1597,11 +1539,20 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     *found_frame = NULL;
     return NULL;
 }
+MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name,
+        MVMuint16 *type, MVMFrame *initial_frame, MVMint32 vivify, MVMFrame **found_frame) {
+    MVMSpeshFrameWalker fw;
+    MVM_spesh_frame_walker_init(tc, &fw, initial_frame, 0);
+    return MVM_frame_find_dynamic_using_frame_walker(tc, &fw, name, type, initial_frame,
+            vivify, found_frame);
+}
 
-MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
+MVMObject * MVM_frame_getdynlex_with_frame_walker(MVMThreadContext *tc, MVMSpeshFrameWalker *fw,
+                                                  MVMString *name) {
     MVMuint16 type;
     MVMFrame *found_frame;
-    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 1, &found_frame);
+    MVMRegister *lex_reg = MVM_frame_find_dynamic_using_frame_walker(tc, fw, name, &type,
+            MVM_spesh_frame_walker_current_frame(tc, fw), 1, &found_frame);
     MVMObject *result = NULL, *result_type = NULL;
     if (lex_reg) {
         switch (MVM_EXPECT(type, MVM_reg_obj)) {
@@ -1649,6 +1600,11 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame 
         }
     }
     return result ? result : tc->instance->VMNull;
+}
+MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
+    MVMSpeshFrameWalker fw;
+    MVM_spesh_frame_walker_init(tc, &fw, cur_frame, 0);
+    return MVM_frame_getdynlex_with_frame_walker(tc, &fw, name);
 }
 
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame) {
@@ -1716,47 +1672,47 @@ MVMRegister * MVM_frame_try_get_lexical(MVMThreadContext *tc, MVMFrame *f, MVMSt
     return NULL;
 }
 
+/* Translates a register kind into a primitive storage spec constant. */
+MVMuint16 MVM_frame_translate_to_primspec(MVMThreadContext *tc, MVMuint16 kind) {
+    switch (MVM_EXPECT(kind, MVM_reg_obj)) {
+        case MVM_reg_int64:
+            return MVM_STORAGE_SPEC_BP_INT;
+        case MVM_reg_num64:
+            return MVM_STORAGE_SPEC_BP_NUM;
+        case MVM_reg_str:
+            return MVM_STORAGE_SPEC_BP_STR;
+        case MVM_reg_obj:
+            return MVM_STORAGE_SPEC_BP_NONE;
+        case MVM_reg_int8:
+            return MVM_STORAGE_SPEC_BP_INT8;
+        case MVM_reg_int16:
+            return MVM_STORAGE_SPEC_BP_INT16;
+        case MVM_reg_int32:
+            return MVM_STORAGE_SPEC_BP_INT32;
+        case MVM_reg_uint8:
+            return MVM_STORAGE_SPEC_BP_UINT8;
+        case MVM_reg_uint16:
+            return MVM_STORAGE_SPEC_BP_UINT16;
+        case MVM_reg_uint32:
+            return MVM_STORAGE_SPEC_BP_UINT32;
+        case MVM_reg_uint64:
+            return MVM_STORAGE_SPEC_BP_UINT64;
+        default:
+            MVM_exception_throw_adhoc(tc,
+                "Unhandled lexical type '%s' in lexprimspec",
+                MVM_reg_get_debug_name(tc, kind));
+    }
+}
+
 /* Returns the primitive type specification for a lexical. */
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
     MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
     if (lexical_names) {
         MVMLexicalRegistry *entry;
         MVM_HASH_GET(tc, lexical_names, name, entry)
-        if (entry) {
-            switch (MVM_EXPECT(f->static_info->body.lexical_types[entry->value], MVM_reg_obj)) {
-                case MVM_reg_int64:
-                    return MVM_STORAGE_SPEC_BP_INT;
-                case MVM_reg_num64:
-                    return MVM_STORAGE_SPEC_BP_NUM;
-                case MVM_reg_str:
-                    return MVM_STORAGE_SPEC_BP_STR;
-                case MVM_reg_obj:
-                    return MVM_STORAGE_SPEC_BP_NONE;
-                case MVM_reg_int8:
-                    return MVM_STORAGE_SPEC_BP_INT8;
-                case MVM_reg_int16:
-                    return MVM_STORAGE_SPEC_BP_INT16;
-                case MVM_reg_int32:
-                    return MVM_STORAGE_SPEC_BP_INT32;
-                case MVM_reg_uint8:
-                    return MVM_STORAGE_SPEC_BP_UINT8;
-                case MVM_reg_uint16:
-                    return MVM_STORAGE_SPEC_BP_UINT16;
-                case MVM_reg_uint32:
-                    return MVM_STORAGE_SPEC_BP_UINT32;
-                case MVM_reg_uint64:
-                    return MVM_STORAGE_SPEC_BP_UINT64;
-                default:
-                {
-                    char *c_name  = MVM_string_utf8_encode_C_string(tc, name);
-                    char *waste[] = { c_name, NULL };
-                    MVM_exception_throw_adhoc_free(tc, waste,
-                        "Unhandled lexical type '%s' in lexprimspec for '%s'",
-                        MVM_reg_get_debug_name(tc, f->static_info->body.lexical_types[entry->value]),
-                        c_name);
-                }
-            }
-        }
+        if (entry)
+            return MVM_frame_translate_to_primspec(tc,
+                    f->static_info->body.lexical_types[entry->value]);
     }
     {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -1915,17 +1871,6 @@ MVMObject * MVM_frame_resolve_invokee_spesh(MVMThreadContext *tc, MVMObject *inv
             return MVM_p6opaque_read_object(tc, invokee, is->code_ref_offset);
     }
     return tc->instance->VMNull;
-}
-
-/* Creates a MVMContent wrapper object around an MVMFrame. */
-MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
-    MVMObject *ctx;
-    f = MVM_frame_force_to_heap(tc, f);
-    MVMROOT(tc, f, {
-        ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
-        MVM_ASSIGN_REF(tc, &(ctx->header), ((MVMContext *)ctx)->body.context, f);
-    });
-    return ctx;
 }
 
 /* Gets, allocating if needed, the frame extra data structure for the given
