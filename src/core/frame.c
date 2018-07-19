@@ -977,6 +977,10 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
                     case MVM_RETURN_STR:
                         result = MVM_repr_box_str(tc, hll->str_box_type, caller->return_value->s);
                         break;
+                    case MVM_RETURN_VOID:
+                        if (cur_frame->extra && cur_frame->extra->exit_handler_result)
+                            result = cur_frame->extra->exit_handler_result;
+                        break;
                     default:
                         result = tc->instance->VMNull;
                 }

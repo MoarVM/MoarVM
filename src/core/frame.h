@@ -156,6 +156,12 @@ struct MVMFrameExtra {
      * starter frame. */
     MVMint32 caller_deopt_idx;
     void *caller_jit_position;
+
+    /* Often when we have an exit handler we're returning a value, so can find
+     * the returned value in the callee's return result register. However, if
+     * we have a void caller, then we stash it here so we can pass it to the
+     * exit handler. */
+    MVMObject *exit_handler_result;
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for

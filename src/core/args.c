@@ -445,11 +445,17 @@ static MVMObject * decont_result(MVMThreadContext *tc, MVMObject *result) {
         return result;
     }
 }
+void save_for_exit_handler(MVMThreadContext *tc, MVMObject *result) {
+    MVMFrameExtra *e = MVM_frame_extra(tc, tc->cur_frame);
+    e->exit_handler_result = result;
+}
 void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 frameless) {
     MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
     if (target) {
         switch (target->return_type) {
             case MVM_RETURN_VOID:
+                if (tc->cur_frame->static_info->body.has_exit_handler)
+                    save_for_exit_handler(tc, result);
                 break;
             case MVM_RETURN_OBJ:
                 target->return_value->o = result;
@@ -474,6 +480,9 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
     if (target) {
         switch (target->return_type) {
             case MVM_RETURN_VOID:
+                if (tc->cur_frame->static_info->body.has_exit_handler)
+                    save_for_exit_handler(tc,
+                        MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type, result));
                 break;
             case MVM_RETURN_INT:
                 target->return_value->i64 = result;
@@ -494,6 +503,9 @@ void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 fra
     if (target) {
         switch (target->return_type) {
             case MVM_RETURN_VOID:
+                if (tc->cur_frame->static_info->body.has_exit_handler)
+                    save_for_exit_handler(tc,
+                        MVM_repr_box_int(tc, MVM_hll_current(tc)->num_box_type, result));
                 break;
             case MVM_RETURN_NUM:
                 target->return_value->n64 = result;
@@ -514,6 +526,9 @@ void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 f
     if (target) {
         switch (target->return_type) {
             case MVM_RETURN_VOID:
+                if (tc->cur_frame->static_info->body.has_exit_handler)
+                    save_for_exit_handler(tc,
+                        MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, result));
                 break;
             case MVM_RETURN_STR:
                 target->return_value->s = result;
