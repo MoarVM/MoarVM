@@ -49,16 +49,6 @@
         (arglist 2 (carg (tc) ptr)
                     (carg (const ,msg ptr_sz) ptr))))
        
-
-
-(template: ctxcode
-    (do
-        (when (any (^is_type_obj $1)
-                   (ne (^getf (^repr $1) MVMREPROps ID)
-                       (const (&QUOTE MVM_REPR_ID_MVMContext) (&SIZEOF_MEMBER MVMREPROps ID))))
-              (^throw_adhoc (&MSG ctxcode needs an MVMContext)))
-        (^getf (^getf $1 MVMContext body.context) MVMFrame code_ref)))
-
 # These properly yield a flag, not a register value.
 # I maybe want to add a flag-to-register op
 
