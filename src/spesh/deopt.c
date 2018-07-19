@@ -40,7 +40,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                 uf = MVM_frame_create_for_deopt(tc, usf, ucode);
             });
 #if MVM_LOG_DEOPTS
-            fprintf(stderr, "Recreated frame '%s' (cuid '%s')\n",
+            fprintf(stderr, "    Recreated frame '%s' (cuid '%s')\n",
                 MVM_string_utf8_encode_C_string(tc, usf->body.name),
                 MVM_string_utf8_encode_C_string(tc, usf->body.cuuid));
 #endif
@@ -175,7 +175,7 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
         f->effective_spesh_slots = NULL;
         f->spesh_cand            = NULL;
 #if MVM_LOG_DEOPTS
-        fprintf(stderr, "Completed deopt_one in '%s' (cuid '%s') with uninlining\n",
+        fprintf(stderr, "Completed deopt_one in '%s' (cuid '%s') with potential uninlining\n",
           MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
           MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
 #endif
@@ -210,7 +210,7 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_target) {
     if (f->spesh_cand) {
         MVMuint32 deopt_offset = *(tc->interp_cur_op) - f->spesh_cand->bytecode;
 #if MVM_LOG_DEOPTS
-    fprintf(stderr, "Will deopt %u -> %u\n", deopt_offset, deopt_target);
+    fprintf(stderr, "    Will deopt %u -> %u\n", deopt_offset, deopt_target);
 #endif
         deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
     }
@@ -252,7 +252,7 @@ MVMint32 MVM_spesh_deopt_find_inactive_frame_deopt_idx(MVMThreadContext *tc, MVM
         if (idx < jitcode->num_deopts) {
             MVMint32 deopt_idx = jitcode->deopts[idx].idx;
 #if MVM_LOG_DEOPTS
-            fprintf(stderr, "Found deopt label for JIT (idx %d)\n", deopt_idx);
+            fprintf(stderr, "    Found deopt label for JIT (idx %d)\n", deopt_idx);
 #endif
             return deopt_idx;
         }
@@ -266,14 +266,14 @@ MVMint32 MVM_spesh_deopt_find_inactive_frame_deopt_idx(MVMThreadContext *tc, MVM
             if (f->spesh_cand->deopts[i + 1] == ret_offset) {
                 MVMint32 deopt_idx = i / 2;
 #if MVM_LOG_DEOPTS
-                fprintf(stderr, "Found deopt index for interpeter (idx %d)\n", deopt_idx);
+                fprintf(stderr, "    Found deopt index for interpeter (idx %d)\n", deopt_idx);
 #endif
                 return deopt_idx;
             }
         }
     }
 #if MVM_LOG_DEOPTS
-    fprintf(stderr, "Can't find deopt all idx\n");
+    fprintf(stderr, "    Can't find deopt all idx\n");
 #endif
     return -1;
 }
@@ -306,9 +306,19 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                     MVMROOT2(tc, f, l, {
                         uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, l);
                     });
+#if MVM_LOG_DEOPTS
+                    fprintf(stderr, "    Deopted frame '%s' (cuid '%s') with potential uninlining\n",
+                        MVM_string_utf8_encode_C_string(tc, f->static_info->body.name),
+                        MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid));
+#endif
                 }
                 else {
                     f->return_address = f->static_info->body.bytecode + deopt_target;
+#if MVM_LOG_DEOPTS
+                    fprintf(stderr, "    Deopted frame '%s' (cuid '%s')\n",
+                        MVM_string_utf8_encode_C_string(tc, f->static_info->body.name),
+                        MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid));
+#endif
                 }
 
                 /* No spesh cand/slots needed now. */
@@ -330,4 +340,7 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
     }
 
     MVM_CHECK_CALLER_CHAIN(tc, tc->cur_frame);
+#if MVM_LOG_DEOPTS
+    fprintf(stderr, "Deopt all completed\n");
+#endif
 }
