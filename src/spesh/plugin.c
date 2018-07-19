@@ -82,8 +82,12 @@ static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet 
                     outcome = !IS_CONCRETE(test);
                     break;
                 case MVM_SPESH_PLUGIN_GUARD_GETATTR:
-                    if (MVM_is_null(tc, collected_objects))
-                        collected_objects = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+                    if (MVM_is_null(tc, collected_objects)) {
+                        MVMROOT(tc, test, {
+                            collected_objects = MVM_repr_alloc_init(tc,
+                                tc->instance->boot_types.BOOTArray);
+                        });
+                    }
                     MVMROOT(tc, collected_objects, {
                         MVMObject *attr = MVM_repr_get_attr_o(tc, test,
                                 gs->guards[pos].u.attr.class_handle, gs->guards[pos].u.attr.name, MVM_NO_HINT);
