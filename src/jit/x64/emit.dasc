@@ -882,37 +882,19 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov TMP5, aword WORK[ctx];
         /* check concrete instance of type or throw */
         | test_type_object TMP5;
-        | jnz >9;
+        | jnz >1;
         | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMContext;
-        | jne >9;
-        /* frame  = ((MVMContext*)this_ctx)->body.context->caller */
-        | mov ARG2, CONTEXT:TMP5->body.context;
-        | mov ARG2, FRAME:ARG2->caller;
-        /* while(frame && frame->static_info->body.is_thunk) */
-        |1:
-        | test ARG2, ARG2;
-        /* if frame == NULL, ctx must be as well, so jump past the test */
-        | jz >3;
-        | mov TMP6, FRAME:ARG2->static_info;
-        | cmp byte STATICFRAME:TMP6->body.is_thunk, 0;
-        | je >2;
-        | mov ARG2, FRAME:ARG2->caller;
-        | jmp >1;
-        /* if (frame) ctx = MVM_context_from_frame(tc, frame) */
-        /* check is folded into loop */
-        |2:
-        | mov ARG1, TC;
-        | callp &MVM_context_from_frame;
-        /* dst = ctx ? ctx : tc->instance->VMNull */
-        | test RV, RV;
-        | jnz >4;
-        |3:
-        | get_vmnull RV;
-        | jmp >4;
-        |9:
-        | throw_adhoc "ctxcallerskipthunks needs an MVMContext";
-        |4:
+        | jne >1;
+        /* Call function to create context. */
+        | mov ARG1, TC
+        | mov ARG2, TMP5
+        | mov ARG3, MVM_CTX_TRAV_CALLER_SKIP_THUNKS
+        | callp &MVM_context_apply_traversal;
         | mov WORK[dst], RV;
+        | jmp >2;
+        |1:
+        | throw_adhoc "ctxcallerskipthunks needs an MVMContext";
+        |2:
         break;
     }
     case MVM_OP_curcode: {
