@@ -32,6 +32,7 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g,
             case MVM_SPESH_ANN_FH_START:
             case MVM_SPESH_ANN_FH_GOTO:
             case MVM_SPESH_ANN_INLINE_START:
+            case MVM_SPESH_ANN_INLINE_END:
             case MVM_SPESH_ANN_DEOPT_OSR:
                 /* These move to the next instruction. */
                 if (!next) {
@@ -46,7 +47,6 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g,
                     next->annotations = ann;
                 }
                 break;
-            case MVM_SPESH_ANN_INLINE_END:
             case MVM_SPESH_ANN_FH_END:
                 /* This moves to the previous instruction. */
                 if (!prev) {
