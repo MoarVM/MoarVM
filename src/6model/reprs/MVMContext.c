@@ -73,7 +73,7 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     MVMRegister *found;
     MVMuint16 found_kind;
     if (!setup_frame_walker(tc, &fw, body) || !MVM_spesh_frame_walker_get_lex(tc, &fw,
-            name, &found, &found_kind, 1)) {
+            name, &found, &found_kind, 1, NULL)) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
         MVM_exception_throw_adhoc_free(tc, waste,
@@ -128,8 +128,9 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     MVMSpeshFrameWalker fw;
     MVMRegister *found;
     MVMuint16 got_kind;
+    MVMFrame *found_frame;
     if (!setup_frame_walker(tc, &fw, body) || !MVM_spesh_frame_walker_get_lex(tc, &fw,
-            name, &found, &got_kind, 1)) {
+            name, &found, &got_kind, 1, &found_frame)) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
         MVM_exception_throw_adhoc_free(tc, waste,
@@ -147,7 +148,7 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     }
 
     if (got_kind == MVM_reg_obj || got_kind == MVM_reg_str) {
-        MVM_ASSIGN_REF(tc, &(frame->header), found->o, value.o);
+        MVM_ASSIGN_REF(tc, &(found_frame->header), found->o, value.o);
     }
     else {
         *found = value;
@@ -173,7 +174,7 @@ static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     MVMRegister *found;
     MVMuint16 found_kind;
     MVMuint64 result = setup_frame_walker(tc, &fw, body) && MVM_spesh_frame_walker_get_lex(tc, &fw,
-            (MVMString *)key, &found, &found_kind, 0);
+            (MVMString *)key, &found, &found_kind, 0, NULL);
     MVM_spesh_frame_walker_cleanup(tc, &fw);
 
     return result;

@@ -1394,7 +1394,7 @@ MVMRegister * MVM_frame_lexical_lookup_using_frame_walker(MVMThreadContext *tc,
     while (MVM_spesh_frame_walker_next(tc, fw)) {
         MVMRegister *found;
         MVMuint16 found_kind;
-        if (MVM_spesh_frame_walker_get_lex(tc, fw, name, &found, &found_kind, 1)) {
+        if (MVM_spesh_frame_walker_get_lex(tc, fw, name, &found, &found_kind, 1, NULL)) {
             MVM_spesh_frame_walker_cleanup(tc, fw);
             if (found_kind == MVM_reg_obj) {
                 return found;
@@ -1516,7 +1516,7 @@ MVMRegister * MVM_frame_find_dynamic_using_frame_walker(MVMThreadContext *tc,
             icost++;
 
         /* See if we have the lexical at this location. */
-        if (MVM_spesh_frame_walker_get_lex(tc, fw, name, &result, type, vivify)) {
+        if (MVM_spesh_frame_walker_get_lex(tc, fw, name, &result, type, vivify, found_frame)) {
             /* Yes, found it. If we walked some way, try to cache it. */
             if (fcost+icost > 1)
                 try_cache_dynlex(tc, initial_frame, last_real_frame, name,
