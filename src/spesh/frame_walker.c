@@ -46,8 +46,7 @@ static void go_to_next_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
     if (fw->inline_idx == NO_INLINE)
         return;
     if (jitcode) {
-        void *current_position = MVM_jit_code_get_current_position(tc, jitcode, f);
-        MVMint32 idx = MVM_jit_code_get_active_inlines(tc, jitcode, current_position, fw->inline_idx + 1);
+        MVMint32 idx = MVM_jit_code_get_active_inlines(tc, jitcode, fw->jit_position, fw->inline_idx + 1);
         if (idx < jitcode->num_inlines) {
             fw->inline_idx = idx;
             return;
@@ -70,20 +69,25 @@ static void go_to_next_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
 
 /* See if the current frame is specialized, and if so if we are in an inline.
  * If so, go to the innermost inline. */
-static void go_to_first_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
+static void go_to_first_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MVMFrame *prev) {
     MVMFrame *f = fw->cur_caller_frame;
     if (f->spesh_cand && f->spesh_cand->inlines) {
         MVMJitCode *jitcode = f->spesh_cand->jitcode;
         if (jitcode) {
-            void *current_position = MVM_jit_code_get_current_position(tc, jitcode, f);
+            void *current_position = prev && prev->extra && prev->extra->caller_jit_position
+                ? prev->extra->caller_jit_position
+                : MVM_jit_code_get_current_position(tc, jitcode, f);
             MVMint32 idx = MVM_jit_code_get_active_inlines(tc, jitcode, current_position, 0);
             if (idx < jitcode->num_inlines) {
+                fw->jit_position = current_position;
                 fw->inline_idx = idx;
                 return;
             }
         }
         else {
-            MVMint32 deopt_idx = MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, f);
+            MVMint32 deopt_idx = prev && prev->extra && prev->extra->caller_deopt_idx > 0
+                ? prev->extra->caller_deopt_idx - 1
+                : MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, f);
             if (deopt_idx >= 0) {
                 fw->deopt_offset = f->spesh_cand->deopts[2 * deopt_idx + 1];
                 fw->inline_idx = -1;
@@ -112,8 +116,9 @@ MVMuint32 move_one_caller(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
      * to its first inline. */
     caller = fw->cur_caller_frame->caller;
     if (caller) {
+        MVMFrame *prev = fw->cur_caller_frame;
         fw->cur_caller_frame = caller;
-        go_to_first_inline(tc, fw);
+        go_to_first_inline(tc, fw, prev);
         return 1;
     }
 
@@ -127,7 +132,7 @@ MVMuint32 move_one_caller(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
 MVMuint32 MVM_spesh_frame_walker_next(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
     if (!fw->started) {
         fw->started = 1;
-        go_to_first_inline(tc, fw);
+        go_to_first_inline(tc, fw, NULL);
         return fw->cur_caller_frame ? 1 : 0;
     }
     else if (fw->traversed) {

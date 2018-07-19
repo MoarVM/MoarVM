@@ -147,6 +147,15 @@ struct MVMFrameExtra {
     MVMString   *dynlex_cache_name;
     MVMRegister *dynlex_cache_reg;
     MVMuint16    dynlex_cache_type;
+
+    /* If we use the ctx op and we have inlining, we no longer have an
+     * immutable chain of callers to walk. When our caller had inlines, we
+     * record here in the callee the deopt index or JIT position. Then, when
+     * we traverse, we can precisely recreate the stack trace. This works,
+     * since we forbid inlining of the ctx op, so there's always a clear
+     * starter frame. */
+    MVMint32 caller_deopt_idx;
+    void *caller_jit_position;
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for

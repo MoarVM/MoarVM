@@ -257,10 +257,36 @@ static const MVMREPROps MVMContext_this_repr = {
     NULL, /* describe_refs */
 };
 
+/* Walks through the frames and, upon encountering one whose caller has
+ * inlines, records the deopt index or JIT location, so we will be able
+ * to properly reconstruct the call tree. Stops once it finds a place we
+ * already calculated this information. */
+static void snapshot_frame_callees(MVMThreadContext *tc, MVMFrame *f) {
+    while (f && f->caller) {
+        MVMSpeshCandidate *cand = f->caller->spesh_cand;
+        if (cand && cand->num_inlines) {
+            MVMFrameExtra *extra = MVM_frame_extra(tc, f);
+            if (cand->jitcode) {
+                if (extra->caller_jit_position)
+                    return;
+                extra->caller_jit_position = MVM_jit_code_get_current_position(tc, cand->jitcode, f->caller);
+            }
+            else {
+                if (extra->caller_deopt_idx)
+                    return;
+                /* Store with + 1 to avoid semi-predicate problem. */
+                extra->caller_deopt_idx = MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, f->caller) + 1;
+            }
+        }
+        f = f->caller;
+    }
+}
+
 /* Creates a MVMContent wrapper object around an MVMFrame. */
 MVMObject * MVM_context_from_frame(MVMThreadContext *tc, MVMFrame *f) {
     MVMObject *ctx;
     f = MVM_frame_force_to_heap(tc, f);
+    snapshot_frame_callees(tc, f);
     MVMROOT(tc, f, {
         ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
         MVM_ASSIGN_REF(tc, &(ctx->header), ((MVMContext *)ctx)->body.context, f);

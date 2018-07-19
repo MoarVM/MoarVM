@@ -3,9 +3,10 @@ struct MVMSpeshFrameWalker {
     /* The current real MVMFrame that we are considering. */
     MVMFrame *cur_caller_frame;
 
-    /* If we're currently looking through applicable inlines, the deopt offset
-     * to look for them based on, together with the current inline we are
-     * looking at. */
+    /* If we're currently looking through applicable inlines, the JIT position
+     * or deopt offset to look for them based on, together with the current inline
+     * we are looking at. */
+    void *jit_position;
     MVMint32 deopt_offset;
     MVMint32 inline_idx;
 
