@@ -1475,6 +1475,8 @@ MVMRegister * MVM_frame_find_dynamic_using_frame_walker(MVMThreadContext *tc,
     }
 
     /* Traverse with the frame walker. */
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&initial_frame);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&last_real_frame);
     while (MVM_spesh_frame_walker_next(tc, fw)) {
         MVMRegister *result;
 
@@ -1499,6 +1501,7 @@ MVMRegister * MVM_frame_find_dynamic_using_frame_walker(MVMThreadContext *tc,
                         tc->instance->dynvar_log_lasttime = uv_hrtime();
                     }
                     *found_frame = last_real_frame;
+                    MVM_gc_root_temp_pop_n(tc, 2);
                     MVM_spesh_frame_walker_cleanup(tc, fw);
                     return result;
                 }
@@ -1526,13 +1529,14 @@ MVMRegister * MVM_frame_find_dynamic_using_frame_walker(MVMThreadContext *tc,
                 MVM_free(c_name);
                 tc->instance->dynvar_log_lasttime = uv_hrtime();
             }
-            *found_frame = MVM_spesh_frame_walker_current_frame(tc, fw);
+            MVM_gc_root_temp_pop_n(tc, 2);
             MVM_spesh_frame_walker_cleanup(tc, fw);
             return result;
         }
     }
 
     /* Not found. */
+    MVM_gc_root_temp_pop_n(tc, 2);
     MVM_spesh_frame_walker_cleanup(tc, fw);
     if (dlog) {
         fprintf(dlog, "N %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
