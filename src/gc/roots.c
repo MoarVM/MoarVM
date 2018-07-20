@@ -67,7 +67,6 @@ void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
 void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
     MVMSerializationContextBody *current;
     MVMLoadedCompUnitName       *current_lcun;
-    unsigned                     bucket_tmp;
     MVMString                  **int_to_str_cache;
     MVMuint32                    i;
 

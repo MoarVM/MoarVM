@@ -113,7 +113,7 @@ void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa,
 } while (0)
 #define HASH_FIND(hh,head,keyptr,keylen,out) do {\
     MVMHashv _hf_hashv;\
-    unsigned _hf_bkt;\
+    MVMHashBktNum _hf_bkt;\
     out=NULL;\
     if (head) {\
         HASH_FCN(keyptr,keylen, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt,\
@@ -124,7 +124,7 @@ void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa,
 } while (0)
 #define HASH_FIND_prev(hh,head,keyptr,keylen,out,prev) do {\
     MVMHashv _hf_hashv;\
-    unsigned _hf_bkt;\
+    MVMHashBktNum _hf_bkt;\
     out=NULL;\
     prev=NULL;\
     if (head) {\
@@ -153,7 +153,7 @@ void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa,
 #define HASH_FIND_VM_STR(tc,hh,head,key,out)\
 do {\
     MVMHashv _hf_hashv;\
-    unsigned _hf_bkt;\
+    MVMHashBktNum _hf_bkt;\
     out=NULL;\
     if (head) {\
         MVMHashv cached_hash = (key)->body.cached_hash_code;\
@@ -172,7 +172,7 @@ do {\
 #define HASH_FIND_VM_STR_prev(tc,hh,head,key,out, prev)\
 do {\
     MVMHashv _hf_hashv;\
-    unsigned _hf_bkt;\
+    MVMHashBktNum _hf_bkt;\
     out=NULL;\
     prev=NULL;\
     if (head) {\
@@ -239,9 +239,9 @@ MVM_STATIC_INLINE void HASH_MAKE_TABLE(MVMThreadContext *tc, void *head, UT_hash
 }
 
 #define HASH_ADD_KEYPTR(hh,head,keyptr,keylen_in,add) do {\
-    unsigned _ha_bkt;\
+    MVMHashBktNum _ha_bkt;\
     (add)->hh.key = (char*)(keyptr);\
-    (add)->hh.keylen = (unsigned)(keylen_in);\
+    (add)->hh.keylen = (MVMHashKeyLen)(keylen_in);\
     if (!(head)) {\
         head = (add);\
         HASH_MAKE_TABLE(tc, head, &((head)->hh));\
@@ -256,7 +256,7 @@ MVM_STATIC_INLINE void HASH_MAKE_TABLE(MVMThreadContext *tc, void *head, UT_hash
 
 #define HASH_ADD_KEYPTR_VM_STR(tc,hh,head,key_in,add)\
 do {\
-    unsigned _ha_bkt;\
+    MVMHashBktNum _ha_bkt;\
     MVMHashv cached_hash = (key_in)->body.cached_hash_code;\
     (add)->hh.key = (key_in);\
     if (!(head)) {\
@@ -301,7 +301,7 @@ do {\
 #define HASH_DELETE(hh,head,delptr,prevptr)\
     HASH_DELETE_MACRO(hh,head,delptr,prevptr, MVM_HASH)
 #define HASH_DELETE_MACRO(hh,head,delptr,prevptr,label) do {\
-    unsigned _hd_bkt;\
+    MVMHashBktNum _hd_bkt;\
     struct UT_hash_handle *_hd_hh_del, *_hd_hh_prevptr;\
     if ( (head)->hh.tbl->num_items == 1 )  {\
         uthash_free(tc, (head)->hh.tbl->buckets,\
@@ -313,7 +313,7 @@ do {\
         _hd_hh_del = &((delptr)->hh);\
         _hd_hh_prevptr = prevptr ? &((prevptr)->hh) : NULL;\
         if ((delptr) == (head)) {\
-            unsigned cur = 0;\
+            MVMHashBktNum cur = 0;\
             while (cur < (head)->hh.tbl->num_buckets) {\
                 UT_hash_handle *cand = (head)->hh.tbl->buckets[cur].hh_head;\
                 while (cand) {\
@@ -341,7 +341,7 @@ do {\
 #define HASH_DELETE_PTR(tc, hh, hash, delptr, hashentry_type) do {\
     struct UT_hash_table *ht;\
     if (hash && (ht = hash->hh.tbl)) {\
-        unsigned bucket_tmp = WHICH_BUCKET((delptr)->hh.hashv,\
+        MVMHashBktNum bucket_tmp = WHICH_BUCKET((delptr)->hh.hashv,\
             (delptr)->hh.tbl->num_buckets,\
             (delptr)->hh.tbl->log2_num_buckets);\
         struct UT_hash_handle *current_hh = ht->buckets[bucket_tmp].hh_head;\
@@ -368,8 +368,8 @@ do {\
 #ifdef HASH_DEBUG
 #define HASH_OOPS(...) do { fprintf(stderr,__VA_ARGS__); exit(-1); } while (0)
 #define HASH_FSCK(hh,head) do {\
-    unsigned _bkt_i;\
-    unsigned _count, _bkt_count;\
+    MVMuint64 _bkt_i;\
+    MVMuint64 _count, _bkt_count;\
     char *_prev;\
     struct UT_hash_handle *_thh;\
     if (head) {\
@@ -379,10 +379,10 @@ do {\
             _thh = (head)->hh.tbl->buckets[_bkt_i].hh_head;\
             _prev = NULL;\
             while (_thh) {\
-                unsigned expected_bkt = WHICH_BUCKET(_thh->hashv, (head)->hh.tbl->num_buckets, (head)->hh.tbl->log2_num_buckets);\
+                MVMuint64 expected_bkt = WHICH_BUCKET(_thh->hashv, (head)->hh.tbl->num_buckets, (head)->hh.tbl->log2_num_buckets);\
                 _bkt_count++;\
                 if (expected_bkt != _bkt_i)\
-                    HASH_OOPS("Hash item is in the wrong bucket. Should be in %u but is actually in %u\n", expected_bkt, _bkt_i);\
+                    HASH_OOPS("Hash item is in the wrong bucket. Should be in %"PRIu64" but is actually in %"PRIu64"\n", expected_bkt, _bkt_i);\
                 _prev = (char*)(_thh);\
                 _thh = _thh->hh_next;\
             }\
@@ -423,37 +423,37 @@ do {\
     bkt = WHICH_BUCKET(hashv, num_bkts, offset);\
 } while (0)
 #define HASH_JEN(key,keylen,num_bkts,hashv,bkt,offset) do {\
-    unsigned _hj_i,_hj_j,_hj_k;\
-    unsigned char *_hj_key=(unsigned char*)(key);\
+    MVMuint32 _hj_i,_hj_j,_hj_k;\
+    MVMuint8 *_hj_key=(MVMuint8 *)(key);\
     hashv = tc->instance->hashSecrets[1];\
     _hj_i = _hj_j = 0x9e3779b9;\
-    _hj_k = (unsigned)(keylen);\
+    _hj_k = (MVMuint32)(keylen);\
     while (_hj_k >= 12) {\
-        _hj_i += (_hj_key[0] + ( (unsigned)_hj_key[1] << 8 )\
-              + ( (unsigned)_hj_key[2] << 16 )\
-              + ( (unsigned)_hj_key[3] << 24 ) );\
-        _hj_j += (_hj_key[4] + ( (unsigned)_hj_key[5] << 8 )\
-              + ( (unsigned)_hj_key[6] << 16 )\
-              + ( (unsigned)_hj_key[7] << 24 ) );\
-        hashv += (_hj_key[8] + ( (unsigned)_hj_key[9] << 8 )\
-              + ( (unsigned)_hj_key[10] << 16 )\
-              + ( (unsigned)_hj_key[11] << 24 ) );\\
+        _hj_i += (_hj_key[0] + ( (MVMuint32)_hj_key[1] << 8 )\
+              + ( (MVMuint32)_hj_key[2] << 16 )\
+              + ( (MVMuint32)_hj_key[3] << 24 ) );\
+        _hj_j += (_hj_key[4] + ( (MVMuint32)_hj_key[5] << 8 )\
+              + ( (MVMuint32)_hj_key[6] << 16 )\
+              + ( (MVMuint32)_hj_key[7] << 24 ) );\
+        hashv += (_hj_key[8] + ( (MVMuint32)_hj_key[9] << 8 )\
+              + ( (MVMuint32)_hj_key[10] << 16 )\
+              + ( (MVMuint32)_hj_key[11] << 24 ) );\\
         HASH_JEN_MIX(_hj_i, _hj_j, hashv);\
         _hj_key += 12;\
         _hj_k -= 12;\
     }\
     hashv += keylen;\
     switch ( _hj_k ) {\
-        case 11: hashv += ( (unsigned)_hj_key[10] << 24 );\
-        case 10: hashv += ( (unsigned)_hj_key[9]  << 16 );\
-        case 9:  hashv += ( (unsigned)_hj_key[8]  <<  8 );\
-        case 8:  _hj_j += ( (unsigned)_hj_key[7]  << 24 );\
-        case 7:  _hj_j += ( (unsigned)_hj_key[6]  << 16 );\
-        case 6:  _hj_j += ( (unsigned)_hj_key[5]  <<  8 );\
+        case 11: hashv += ( (MVMuint32)_hj_key[10] << 24 );\
+        case 10: hashv += ( (MVMuint32)_hj_key[9]  << 16 );\
+        case 9:  hashv += ( (MVMuint32)_hj_key[8]  <<  8 );\
+        case 8:  _hj_j += ( (MVMuint32)_hj_key[7]  << 24 );\
+        case 7:  _hj_j += ( (MVMuint32)_hj_key[6]  << 16 );\
+        case 6:  _hj_j += ( (MVMuint32)_hj_key[5]  <<  8 );\
         case 5:  _hj_j += _hj_key[4];\
-        case 4:  _hj_i += ( (unsigned)_hj_key[3]  << 24 );\
-        case 3:  _hj_i += ( (unsigned)_hj_key[2]  << 16 );\
-        case 2:  _hj_i += ( (unsigned)_hj_key[1]  <<  8 );\
+        case 4:  _hj_i += ( (MVMuint32)_hj_key[3]  << 24 );\
+        case 3:  _hj_i += ( (MVMuint32)_hj_key[2]  << 16 );\
+        case 2:  _hj_i += ( (MVMuint32)_hj_key[1]  <<  8 );\
         case 1:  _hj_i += _hj_key[0];\
     }\
     HASH_JEN_MIX(_hj_i, _hj_j, hashv);\
@@ -577,12 +577,12 @@ do {\
  *
  */
 MVM_STATIC_INLINE void HASH_EXPAND_BUCKETS(MVMThreadContext *tc, UT_hash_table *tbl) {
-    unsigned he_bkt;
-    unsigned he_bkt_i;
+    MVMHashBktNum he_bkt;
+    MVMHashBktNum he_bkt_i;
     struct UT_hash_handle *he_thh, *_he_hh_nxt;
     UT_hash_bucket *he_new_buckets, *_he_newbkt;
-    unsigned new_num_bkts = tbl->num_buckets * 2;
-    unsigned new_log2_num_buckets = tbl->log2_num_buckets + 1;
+    MVMHashBktNum new_num_bkts = tbl->num_buckets * 2;
+    MVMHashUInt new_log2_num_buckets = tbl->log2_num_buckets + 1;
     he_new_buckets =
         uthash_malloc_zeroed(tc, new_num_bkts * sizeof(struct UT_hash_bucket));
     tbl->ideal_chain_maxlen =
@@ -669,7 +669,7 @@ MVM_STATIC_INLINE void HASH_DEL_IN_BKT(UT_hash_bucket *head, UT_hash_handle *hh_
 /* obtain a count of items in the hash */
 #define HASH_CNT(hh,head) ((head)?((head)->hh.tbl->num_items):0)
 /* This is used since the compiler optimizes it better. */
-MVM_STATIC_INLINE unsigned GET_X_BITS_BKT_RAND(MVM_UT_bucket_rand bucket_rand, unsigned num_bits) {
+MVM_STATIC_INLINE MVMHashBktNum GET_X_BITS_BKT_RAND(MVM_UT_bucket_rand bucket_rand, MVMHashUInt num_bits) {
     switch (num_bits) {
         case 1:  return GET_X_BITS(bucket_rand,  1);
         case 2:  return GET_X_BITS(bucket_rand,  2);
@@ -722,7 +722,7 @@ MVM_STATIC_INLINE unsigned GET_X_BITS_BKT_RAND(MVM_UT_bucket_rand bucket_rand, u
 #define GET_PRAND_BKT(raw_bkt_num, hashtable) (raw_bkt_num)
 #endif
 MVM_STATIC_INLINE void * HASH_ITER_FIRST_ITEM(
-        struct UT_hash_table *ht, unsigned *bucket_tmp) {
+        struct UT_hash_table *ht, MVMHashBktNum *bucket_tmp) {
     if (!ht)
         return NULL;
 #if MVM_HASH_THROW_ON_ITER_AFTER_ADD_KEY
@@ -740,7 +740,7 @@ MVM_STATIC_INLINE void * HASH_ITER_FIRST_ITEM(
  * order randomization. This version is faster and should be used to iterate
  * through which the iteration order is not exposed to the user. */
 #define HASH_ITER_FAST(tc, hh, hash, current, code) do {\
-    unsigned bucket_tmp = 0;\
+    MVMHashBktNum bucket_tmp = 0;\
     struct UT_hash_table *ht;\
     if (hash && (ht = hash->hh.tbl)) {\
         while (bucket_tmp < ht->num_buckets) {\
@@ -756,7 +756,7 @@ MVM_STATIC_INLINE void * HASH_ITER_FIRST_ITEM(
 } while (0)
 
 #define HASH_ITER(tc, hh, hash, current, code) do {\
-    unsigned bucket_tmp = 0;\
+    MVMHashBktNum bucket_tmp = 0;\
     struct UT_hash_table *ht;\
     if (hash && (ht = hash->hh.tbl)) {\
         while (bucket_tmp < ht->num_buckets) {\
@@ -774,7 +774,7 @@ MVM_STATIC_INLINE void * HASH_ITER_FIRST_ITEM(
 
 
 MVM_STATIC_INLINE void * HASH_ITER_NEXT_ITEM(MVMThreadContext *tc,
-        struct UT_hash_handle *cur_handle, unsigned *bucket_tmp) {
+        struct UT_hash_handle *cur_handle, MVMHashBktNum *bucket_tmp) {
     struct UT_hash_table *ht = cur_handle->tbl;
 #if MVM_HASH_THROW_ON_ITER_AFTER_ADD_KEY
     /* Warn if the user has been *caught* inserting keys during an iteration. */
