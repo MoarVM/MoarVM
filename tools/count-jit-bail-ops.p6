@@ -1,4 +1,4 @@
-#!/usr/bin/env perl6-m
+#!/usr/bin/env perl6
 use v6;
 my %counts;
 my $logfile = @*ARGS ?? shift @*ARGS !! %*ENV<MVM_JIT_LOG>;

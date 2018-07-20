@@ -1,3 +1,5 @@
+#!/usr/bin/env perl6
+
 my $interp_c_file = $*PROGRAM-NAME.IO.parent.parent.child('src').child('core').child('interp.c');
 
 my $cur_op = 'before_dispatch';
