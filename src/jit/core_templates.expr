@@ -132,6 +132,13 @@
       (carg $0 int)
       (carg $1 int))))
 
+(template: param_rp_i
+  (call (^func &MVM_args_get_required_pos_int)
+    (arglist
+      (carg (tc)      ptr)
+      (carg (^params) ptr)
+      (carg $1        ptr)) int_sz))
+
 (template: param_rp_s
   (call (^func &MVM_args_get_required_pos_str)
     (arglist
@@ -247,7 +254,7 @@
       (carg $1   ptr)
       (carg $2   ptr)) ptr_sz))
 
-(template: null_s (const 0 ptr_sz))
+(template: null_s (^nullptr))
 
 (template: isnull_s (flagval (zr $1)))
 
@@ -577,7 +584,7 @@
       (carg $1 ptr)
       (carg $2 ptr)
       (carg $3 ptr)
-      (carg (const 0 ptr_sz) ptr)) ptr_sz))
+      (carg (^nullptr) ptr)) ptr_sz))
 
 (template: decode
   (call (^func &MVM_string_decode_from_buf)
@@ -613,6 +620,24 @@
           (ne $0 (^vmnull)))
     (branch $1)))
 
+(template: findmeth!
+  (callv (^func &MVM_6model_find_method)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg (^cu_string $2) ptr)
+      (carg $0   ptr)
+      (carg (const 1 int_sz) int))))
+
+(template: findmeth_s!
+  (callv (^func &MVM_6model_find_method)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)
+      (carg $0   ptr)
+      (carg (const 1 int_sz) int))))
+
 (template: can!
   (callv (^func &MVM_6model_can_method)
     (arglist
@@ -620,6 +645,14 @@
       (carg $1 ptr)
       (carg (^cu_string $2) ptr)
       (carg $0 ptr))))
+
+(template: can_s!
+  (callv (^func &MVM_6model_can_method)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)
+      (carg $0   ptr))))
 
 (template: create!
   (let: (($obj (call (^getf (^repr $1) MVMREPROps allocate)
@@ -1128,8 +1161,8 @@
       (carg (tc) ptr)
       (carg $1 ptr)
       (carg $0 ptr)
-      (carg (const 0 ptr_sz) ptr)
-      (carg (const 0 ptr_sz) ptr)
+      (carg (^nullptr) ptr)
+      (carg (^nullptr) ptr)
       (carg (const 0 int_sz) int))))
 
 (template: isfalse!
@@ -1138,8 +1171,8 @@
       (carg (tc) ptr)
       (carg $1 ptr)
       (carg $0 ptr)
-      (carg (const 0 ptr_sz) ptr)
-      (carg (const 0 ptr_sz) ptr)
+      (carg (^nullptr) ptr)
+      (carg (^nullptr) ptr)
       (carg (const 1 int_sz) int))))
 
 (template: bootint      (^get_instance_field boot_types.BOOTInt))
@@ -1200,6 +1233,21 @@
 
 (template: hllhash
   (^getf (^hllconfig) MVMHLLConfig slurpy_hash_type))
+
+(template: getcurhllsym
+  (let: (($hllname (^getf (cu) MVMCompUnit body.hll_name)))
+    (call (^func &MVM_hll_sym_get)
+      (arglist
+        (carg (tc)     ptr)
+        (carg $hllname ptr)
+        (carg $1       ptr)) ptr_sz)))
+
+(template: gethllsym
+  (call (^func &MVM_hll_sym_get)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
 
 (template: settypehll!
   (^setf (^stable $0) MVMSTable hll_owner
@@ -1273,7 +1321,7 @@
 (template: setdispatcher!
   (dov
     (^setf (tc) MVMThreadContext cur_dispatcher $0)
-    (^setf (tc) MVMThreadContext cur_dispatcher_for (const 0 ptr_sz))))
+    (^setf (tc) MVMThreadContext cur_dispatcher_for (^nullptr))))
 
 (template: takedispatcher
   (let: (($disp     (^getf (tc) MVMThreadContext cur_dispatcher))
@@ -1285,7 +1333,7 @@
             (zr $disp_for)
             (eq $disp_for $cur_code)))
       (do
-        (store (^getf (tc) MVMThreadContext cur_dispatcher) (const 0 ptr_sz) ptr_sz)
+        (store (^getf (tc) MVMThreadContext cur_dispatcher) (^nullptr) ptr_sz)
         $disp)
       (^vmnull))))
 
@@ -1346,15 +1394,213 @@
   (let: (($caller (^getf (^frame) MVMFrame caller)))
   (if (nz $caller)
     (^getf $caller MVMFrame code_ref)
-    (const 0 ptr_sz))))
+    (^nullptr))))
 
 (template: add_I
   (call (^func &MVM_bigint_add)
     (arglist
       (carg (tc) ptr)
-      (carg $3 ptr)
-      (carg $1 ptr)
-      (carg $2 ptr)) ptr_sz))
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: sub_I
+  (call (^func &MVM_bigint_sub)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: mul_I
+  (call (^func &MVM_bigint_mul)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: div_I
+  (call (^func &MVM_bigint_div)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: mod_I
+  (call (^func &MVM_bigint_mod)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: cmp_I
+  (call (^func &MVM_bigint_cmp)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) int_sz))
+
+(template: eq_I
+  (flagval
+    (zr
+      (call (^func &MVM_bigint_cmp)
+        (arglist
+          (carg (tc) ptr)
+          (carg $1   ptr)
+          (carg $2   ptr)) int_sz))))
+
+(template: ne_I
+  (flagval
+    (nz
+      (call (^func &MVM_bigint_cmp)
+        (arglist
+          (carg (tc) ptr)
+          (carg $1   ptr)
+          (carg $2   ptr)) int_sz))))
+
+(template: lt_I
+  (flagval
+    (eq
+      (const (&QUOTE MP_LT) int_sz)
+      (call (^func &MVM_bigint_cmp)
+        (arglist
+          (carg (tc) ptr)
+          (carg $1   ptr)
+          (carg $2   ptr)) int_sz))))
+
+(template: le_I
+  (flagval
+    (ne
+      (const (&QUOTE MP_GT) int_sz)
+      (call (^func &MVM_bigint_cmp)
+        (arglist
+          (carg (tc) ptr)
+          (carg $1   ptr)
+          (carg $2   ptr)) int_sz))))
+
+(template: gt_I
+  (flagval
+    (eq
+      (const (&QUOTE MP_GT) int_sz)
+      (call (^func &MVM_bigint_cmp)
+        (arglist
+          (carg (tc) ptr)
+          (carg $1   ptr)
+          (carg $2   ptr)) int_sz))))
+
+(template: ge_I
+  (flagval
+    (ne
+      (const (&QUOTE MP_LT) int_sz)
+      (call (^func &MVM_bigint_cmp)
+        (arglist
+          (carg (tc) ptr)
+          (carg $1   ptr)
+          (carg $2   ptr)) int_sz))))
+
+(template: bor_I
+  (call (^func &MVM_bigint_or)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: bxor_I
+  (call (^func &MVM_bigint_xor)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: band_I
+  (call (^func &MVM_bigint_and)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: bnot_I
+  (call (^func &MVM_bigint_not)
+    (arglist
+      (carg (tc) ptr)
+      (carg $2   ptr)
+      (carg $1   ptr)) ptr_sz))
+
+(template: blshift_I
+  (call (^func &MVM_bigint_shl)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   int)) ptr_sz))
+
+(template: brshift_I
+  (call (^func &MVM_bigint_shr)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   int)) ptr_sz))
+
+(template: pow_I
+  (call (^func &MVM_bigint_pow)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)
+      (carg $3   ptr)
+      (carg $4   ptr)) ptr_sz))
+
+(template: gcd_I
+  (call (^func &MVM_bigint_gcd)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: lcm_I
+  (call (^func &MVM_bigint_lcm)
+    (arglist
+      (carg (tc) ptr)
+      (carg $3   ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: expmod_I!
+  (let: (($res (call (^func &MVM_repr_alloc_init)
+                 (arglist
+                   (carg (tc) ptr)
+                   (carg $4   ptr)) ptr_sz)))
+    (dov
+      (store $0 $res ptr_sz)
+      (callv (^func &MVM_bigint_expmod)
+        (arglist
+          (carg (tc) ptr)
+          (carg $0   ptr)
+          (carg $1   ptr)
+          (carg $2   ptr)
+          (carg $3   ptr))))))
+
+(template: isprime_I
+  (call (^func &MVM_bigint_is_prime)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   int)) int_sz))
+
+(template: rand_I
+  (call (^func &MVM_bigint_rand)
+    (arglist
+      (carg (tc) ptr)
+      (carg $2   ptr)
+      (carg $1   ptr)) ptr_sz))
 
 (template: coerce_sI
   (call (^func &MVM_coerce_sI)
@@ -1363,11 +1609,97 @@
       (carg $1 ptr)
       (carg $2 ptr)) ptr_sz))
 
+(template: isbig_I
+  (call (^func &MVM_bigint_is_big)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
+
+(template: bool_I
+  (call (^func &MVM_bigint_bool)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
+
+(template: base_I
+  (call (^func &MVM_bigint_to_str)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   int)) ptr_sz))
+
+(template: connect_sk
+  (callv (^func &MVM_io_connect)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)
+      (carg $3   int))))
+
+(template: socket
+  (call (^func &MVM_io_socket_create)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   int)) ptr_sz))
+
+(template: bind_sk
+  (callv (^func &MVM_io_bind)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0   ptr)
+      (carg $1   ptr)
+      (carg $2   int)
+      (carg $3   int))))
+
+(template: accept_sk
+  (call (^func &MVM_io_accept)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) ptr_sz))
+
+(template: print
+  (callv (^func &MVM_string_print)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr))))
+
 (template: say
   (callv (^func &MVM_string_say)
     (arglist
       (carg (tc) ptr)
       (carg $0 ptr))))
+
+(template: tell_fh
+  (call (^func &MVM_io_tell)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
+
+(template: stat
+  (call (^func &MVM_file_stat)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   int)
+      (carg (const 0 int_sz) int)) int_sz))
+
+(template: tryfindmeth!
+  (callv (^func &MVM_6model_find_method)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg (^cu_string $2) ptr)
+      (carg $0   ptr)
+      (carg (const 0 int_sz) int))))
+
+(template: tryfindmeth_s!
+  (callv (^func &MVM_6model_find_method)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)
+      (carg $0   ptr)
+      (carg (const 0 int_sz) int))))
 
 (template: rand_i
   (call (^func &MVM_proc_rand_i)
@@ -1383,6 +1715,43 @@
   (call (^func &MVM_backend_config)
     (arglist
       (carg (tc) ptr)) ptr_sz))
+
+(template: getlexouter
+  (call (^func &MVM_frame_find_lexical_by_name_outer)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) ptr_sz))
+
+(template: getlexcaller
+  (let: (($res (call (^func &MVM_frame_find_lexical_by_name_rel_caller)
+                 (arglist
+                   (carg (tc) ptr)
+                   (carg $1   ptr)
+                   (carg (^getf (^frame) MVMFrame caller) ptr)) ptr_sz)))
+    (if (nz $res)
+      (load $res ptr_sz)
+      (^vmnull))))
+
+(template: bitand_s
+  (call (^func &MVM_string_bitand)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: bitor_s
+  (call (^func &MVM_string_bitor)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
+
+(template: bitxor_s
+  (call (^func &MVM_string_bitxor)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) ptr_sz))
 
 (template: assertparamcheck!
   (when (zr $0)
@@ -1501,8 +1870,8 @@
     (arglist
       (carg (tc) ptr)
       (carg $0   ptr)
-      (carg (const 0 ptr_sz) ptr)
-      (carg (const 0 ptr_sz) ptr))))
+      (carg (^nullptr) ptr)
+      (carg (^nullptr) ptr))))
 
 (template: signal
   (call (^func &MVM_io_signal_handle)
@@ -1592,6 +1961,14 @@
     (flagval (nz $1))
     (flagval (ne $1 (^vmnull)))))
 
+(template: lstat
+  (call (^func &MVM_file_stat)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   int)
+      (carg (const 1 int_sz) int)) int_sz))
+
 (template: iscont_i
   (call (^func MVM_6model_container_iscont_i)
     (arglist
@@ -1616,6 +1993,18 @@
       (carg (tc) ptr)
       (carg $1 ptr)
       (carg $0 ptr))))
+
+(template: getrusage
+  (callv (^func &MVM_proc_getrusage)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0   ptr))))
+
+(template: threadlockcount
+  (call (^func &MVM_thread_lock_count)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
 
 (template: eqatim_s
   (call (^func &MVM_string_equal_at_ignore_mark)
@@ -1657,6 +2046,27 @@
 (template: lastexpayload
   (^getf (tc) MVMThreadContext last_payload))
 
+(template: fc
+  (call (^func &MVM_string_fc)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) ptr_sz))
+
+(template: encoderep
+  (call (^func &MVM_string_encode_to_buf)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $4 ptr)
+      (carg $3 ptr)) ptr_sz))
+
+(template: istty_fh
+  (call (^func &MVM_io_is_tty)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
+
 (template: unicmp_s
   (call (^func &MVM_unicode_string_compare)
     (arglist
@@ -1665,7 +2075,22 @@
       (carg $2 ptr)
       (carg $3 int)
       (carg $4 int)
-      (carg $4 int)) int_sz))
+      (carg $5 int)) int_sz))
+
+(template: setdispatcherfor!
+  (dov
+    (^setf (tc) MVMThreadContext cur_dispatcher $0)
+    (^setf (tc) MVMThreadContext cur_dispatcher_for
+      (if
+        (eq
+          (^getf (^repr $1) MVMREPROps ID)
+          (const (&QUOTE MVM_REPR_ID_MVMCode) (&sizeof MVMuint32)))
+        $1
+        (call (^func &MVM_frame_find_invokee)
+          (arglist
+            (carg (tc) ptr)
+            (carg $1 ptr)
+            (carg (^nullptr) ptr)) ptr_sz)))))
 
 (template: getstrfromname
   (call (^func &MVM_unicode_string_from_name)
@@ -1680,6 +2105,12 @@
       (carg $1 ptr)
       (carg $2 ptr)
       (carg $3 int)) int_sz))
+
+(template: getport_sk
+  (call (^func &MVM_io_getport)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
 
 (template: eqaticim_s
   (call (^func &MVM_string_equal_at_ignore_case_ignore_mark)
@@ -1706,6 +2137,39 @@
       (carg $4 ptr)
       (carg $3 ptr)
       (carg $5 int_sz)) ptr_sz))
+
+(template: encodeconf
+  (call (^func &MVM_string_encode_to_buf_config)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)
+      (carg $3   ptr)
+      (carg (^nullptr) ptr)
+      (carg $4   int)) ptr_sz))
+
+(template: decodeconf
+  (call (^func &MVM_string_decode_from_buf_config)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)
+      (carg (^nullptr) ptr)
+      (carg $3   int)) ptr_sz))
+
+(template: decoderepconf
+  (call (^func &MVM_string_decode_from_buf_config)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)
+      (carg $3   ptr)
+      (carg $4   int)) ptr_sz))
+
+(template: getppid
+  (call (^func &MVM_proc_getppid)
+    (arglist
+      (carg (tc) ptr)) int_sz))
 
 (template: getsignals
   (call (^func &MVM_io_get_signals)

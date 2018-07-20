@@ -86,3 +86,5 @@
           MVMContainerSpec ,func))
 
 (macro: ^body (,a) (addr ,a (&offsetof MVMObjectStooge data)))
+
+(macro: ^nullptr () (const 0 ptr_sz))
