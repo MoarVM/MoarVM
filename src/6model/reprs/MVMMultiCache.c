@@ -255,7 +255,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
         /* If we found a candidate, something inconsistent, as we
          * checked for non-entry above. */
         if (cur_node != 0)
-            MVM_panic(1, "Corrupt multi dispatch cache: cur_node == 0, re-check == %p",
+            MVM_panic(1, "Corrupt multi dispatch cache: cur_node != 0, re-check == %p",
                 MVM_multi_cache_find(tc, cache_obj, capture));
     }
 
