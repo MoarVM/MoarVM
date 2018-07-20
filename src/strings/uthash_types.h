@@ -10,7 +10,6 @@ typedef MVMuint32 MVMHashUInt;
 typedef MVMHashUInt MVMHashBktNum;
 typedef MVMHashUInt MVMHashKeyLen;
 typedef MVMHashUInt MVMHashNumItems;
-#define MAX_UTHASH_VAL UINT16_MAX
 typedef struct UT_hash_bucket {
    struct UT_hash_handle *hh_head;
    MVMHashNumItems count;
