@@ -1,3 +1,5 @@
+#!/usr/bin/env perl6
+
 sub colorblock($num, $ver) {
     "\e[48;5;{ 0x10 + (($num + 1) * 31416) % 216 }m  "
     ~ "\e[38;5;{ 0xE8 + 24 - ($num + $ver * 5) % 24 }m\c[ BLACK LEFT-POINTING TRIANGLE ]"

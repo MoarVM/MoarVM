@@ -1,3 +1,5 @@
+#!/usr/bin/env perl6
+
 sub MAIN($spesh-log) {
     with slurp($spesh-log) {
         my $stats = [+] .match(/:r 'statistics updated in ' <( \d+ )> 'us'/, :g);

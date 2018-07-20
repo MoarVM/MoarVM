@@ -1,3 +1,5 @@
+#!/usr/bin/env perl6
+
 use lib $?FILE.IO.parent.child("lib");
 
 use MAST::Ops;
