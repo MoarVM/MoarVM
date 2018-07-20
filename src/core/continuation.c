@@ -122,9 +122,15 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
      * reset. */
     MVM_frame_clear_special_return(tc, tc->cur_frame);
 
-    /* If we're not protecting the follow-up call, remove the tag record. */
-    if (!protect)
+    /* If we're protecting the follow-up call, save the tag. Otherwise, clear
+     * it. */
+    if (protect) {
+        MVM_ASSIGN_REF(tc, &(cont->header), ((MVMContinuation *)cont)->body.protected_tag,
+            tag_record->tag);
+    }
+    else {
         clear_tag(tc, tag_record);
+    }
 
     /* Invoke specified code, passing the continuation. We return to
      * interpreter to run this, which then returns control to the
@@ -153,6 +159,16 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
         MVM_frame_force_to_heap(tc, tc->cur_frame);
     });
     MVM_ASSIGN_REF(tc, &(cont->body.root->header), cont->body.root->caller, tc->cur_frame);
+
+    /* If we protected the tag, reinstate it. */
+    if (cont->body.protected_tag) {
+        MVMFrameExtra *e = MVM_frame_extra(tc, tc->cur_frame);
+        MVMContinuationTag *tag_record = MVM_malloc(sizeof(MVMContinuationTag));
+        tag_record->tag = cont->body.protected_tag;
+        tag_record->active_handlers = tc->active_handlers;
+        tag_record->next = e->continuation_tags;
+        e->continuation_tags = tag_record;
+    }
 
     /* Set up current frame to receive result. */
     tc->cur_frame->return_value = res_reg;

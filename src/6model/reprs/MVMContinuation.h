@@ -21,6 +21,10 @@ struct MVMContinuationBody {
      * re-invocation on two threads at once). */
     AO_t invoked;
 
+    /* If the continuationcontrol operation said to protect the tag, then we
+     * keep it here so we can reinstate it. */
+    MVMObject *protected_tag;
+
     /* If we're profiling, then data needed to cope with the continuation
      * being invoked again. */
     MVMProfileContinuationData *prof_cont;
