@@ -1436,6 +1436,20 @@
       (carg $1   ptr)
       (carg $2   ptr)) ptr_sz))
 
+(template: neg_I
+  (call (^func &MVM_bigint_neg)
+    (arglist
+      (carg (tc) ptr)
+      (carg $2   ptr)
+      (carg $1   ptr)) int_sz))
+
+(template: abs_I
+  (call (^func &MVM_bigint_abs)
+    (arglist
+      (carg (tc) ptr)
+      (carg $2   ptr)
+      (carg $1   ptr)) int_sz))
+
 (template: cmp_I
   (call (^func &MVM_bigint_cmp)
     (arglist
