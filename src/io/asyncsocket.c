@@ -764,11 +764,10 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
 
     {
         MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-        MVMAsyncTask *t   = ;
         struct sockaddr_storage sockaddr;
         int name_len = sizeof(struct sockaddr_storage);
 
-        MVM_repr_push_o(tc, arr, t->body.schedulee);
+        MVM_repr_push_o(tc, arr, ((MVMAsyncTask *)async_task)->body.schedulee);
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTIO);
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
