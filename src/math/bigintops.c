@@ -214,7 +214,7 @@ static void store_int64_result(MVMP6bigintBody *body, MVMint64 result) {
     }
 }
 
-/* Stores an bigint in a bigint result body, either as a 32-bit smallint if it
+/* Stores a bigint in a bigint result body, either as a 32-bit smallint if it
  * is in range, or a big integer if not. Clears and frees the passed bigint if
  * it is not being used. */
 static void store_bigint_result(MVMP6bigintBody *body, mp_int *i) {
@@ -234,7 +234,7 @@ static void store_bigint_result(MVMP6bigintBody *body, mp_int *i) {
  * handling.  For now we have these fixups.
  *
  * The following inverts the bits of a negative bigint, adds 1 to that, and
- * appends sign-bit extension DIGITs to it to give us a 2s compliment
+ * appends sign-bit extension DIGITs to it to give us a 2s complement
  * representation in memory.  Do not call it on positive bigints.
  */
 static void grow_and_negate(const mp_int *a, int size, mp_int *b) {
