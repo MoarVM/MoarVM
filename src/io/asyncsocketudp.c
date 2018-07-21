@@ -72,6 +72,15 @@ static void push_name_and_port(MVMThreadContext *tc, struct sockaddr_storage *na
     MVM_repr_push_o(tc, arr, port_o);
 }
 
+static void push_handle_fd(MVMThreadContext *tc, MVMObject *arr, uv_handle_t *handle) {
+    uv_os_fd_t fd;
+    uv_fileno(handle, &fd);
+    MVMROOT(tc, arr, {
+        MVMObject *fd_o = (MVMObject *)MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, fd);
+        MVM_repr_push_o(tc, arr, fd_o);
+    });
+}
+
 /* Read handler. */
 static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const struct sockaddr *addr, unsigned flags) {
     ReadInfo         *ri  = (ReadInfo *)handle->data;
@@ -489,15 +498,18 @@ static void setup_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         MVMAsyncTask *t   = (MVMAsyncTask *)async_task;
         MVM_repr_push_o(tc, arr, t->body.schedulee);
         MVMROOT2(tc, arr, t, {
-            MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
+            MVMOSHandle             *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
             MVMIOAsyncUDPSocketData *data   = MVM_calloc(1, sizeof(MVMIOAsyncUDPSocketData));
-            data->handle                 = udp_handle;
-            result->body.ops             = &op_table;
-            result->body.data            = data;
+            data->handle                    = udp_handle;
+            result->body.ops                = &op_table;
+            result->body.data               = data;
             MVM_repr_push_o(tc, arr, (MVMObject *)result);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+
+            push_handle_fd(tc, arr, (uv_handle_t *)udp_handle);
+
+            MVM_repr_push_o(tc, t->body.queue, arr);
         });
-        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
-        MVM_repr_push_o(tc, t->body.queue, arr);
     }
     else {
         /* Something failed; need to notify. */
@@ -513,6 +525,7 @@ static void setup_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                     tc->instance->boot_types.BOOTStr, msg_str);
                 MVM_repr_push_o(tc, arr, msg_box);
             });
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             MVM_repr_push_o(tc, t->body.queue, arr);
             uv_close((uv_handle_t *)udp_handle, free_on_close_cb);
         });
