@@ -740,8 +740,7 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
         /* Error; need to notify. */
         MVMROOT(tc, async_task, {
             MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-            MVMAsyncTask *t   = (MVMAsyncTask *)async_task;
-            MVM_repr_push_o(tc, arr, t->body.schedulee);
+            MVM_repr_push_o(tc, arr, ((MVMAsyncTask *)async_task)->body.schedulee);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTIO);
             MVMROOT(tc, arr, {
                 MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
@@ -755,12 +754,31 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
                 MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
                 MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             });
-            MVM_repr_push_o(tc, t->body.queue, arr);
+            MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
         });
         uv_close((uv_handle_t *)li->socket, free_on_close_cb);
         li->socket = NULL;
         MVM_io_eventloop_remove_active_work(tc, &(li->work_idx));
         return;
+    }
+
+    {
+        MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+        MVMAsyncTask *t   = ;
+        struct sockaddr_storage sockaddr;
+        int name_len = sizeof(struct sockaddr_storage);
+
+        MVM_repr_push_o(tc, arr, t->body.schedulee);
+        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTIO);
+        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
+
+        MVMROOT2(tc, arr, async_task, {
+            uv_tcp_getsockname(li->socket, (struct sockaddr *)&sockaddr, &name_len);
+            push_name_and_port(tc, &sockaddr, arr);
+        });
+        MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
     }
 }
 
