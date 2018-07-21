@@ -1441,14 +1441,14 @@
     (arglist
       (carg (tc) ptr)
       (carg $2   ptr)
-      (carg $1   ptr)) int_sz))
+      (carg $1   ptr)) ptr_sz))
 
 (template: abs_I
   (call (^func &MVM_bigint_abs)
     (arglist
       (carg (tc) ptr)
       (carg $2   ptr)
-      (carg $1   ptr)) int_sz))
+      (carg $1   ptr)) ptr_sz))
 
 (template: cmp_I
   (call (^func &MVM_bigint_cmp)
