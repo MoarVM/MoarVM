@@ -123,12 +123,15 @@ MVM_STATIC_INLINE uint64_t siphashfinish_last_part (siphash *sh, uint64_t t) {
 }
 MVM_STATIC_INLINE uint64_t siphashfinish_32bits (siphash *sh, const uint32_t src) {
     uint64_t t  = 0;
-#ifdef MVM_CAN_UNALIGNED_INT64
-    uint32_t *pt = (uint32_t*)&t;
-    *((uint32_t*)pt) = src;
-#else
-    memcpy(&t, &src, sizeof(uint32_t));
-#endif
+    uint8_t *t8 = (uint8_t*)&t;
+    uint8_t *s8 = (uint8_t*)&src;
+    /* This should hopefully optimize to a single operation
+     * with modern compilers. We don't copy 32-bits at once due to a bug
+     * in CentOS 6, possibly in glibc 2.12.1 see issue 910 */
+    t8[0] = s8[0];
+    t8[1] = s8[1];
+    t8[2] = s8[2];
+    t8[3] = s8[3];
     return siphashfinish_last_part(sh, t);
 }
 MVM_STATIC_INLINE uint64_t siphashfinish (siphash *sh, const uint8_t *src, size_t src_sz) {
@@ -144,9 +147,8 @@ MVM_STATIC_INLINE uint64_t siphashfinish (siphash *sh, const uint8_t *src, size_
         /* Falls through */
         case 5: pt[4] = m[4];
         /* Falls through */
-        case 4:
-            *((uint32_t*)&pt[0]) = *((uint32_t*)&m[0]);
-            break;
+        case 4: pt[3] = m[3];
+        /* Falls through */
         case 3: pt[2] = m[2];
         /* Falls through */
         case 2: pt[1] = m[1];
