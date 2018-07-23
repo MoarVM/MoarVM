@@ -60,7 +60,7 @@ MVMJitTile* MVM_jit_tile_make(MVMThreadContext *tc, MVMJitCompiler *compiler,
 static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                       MVMJitExprTree *tree, MVMint32 node) {
     struct TreeTiler *tiler      = traverser->data;
-    MVMJitExprNode op            = tree->nodes[node];
+    MVMint32 op            = tree->nodes[node];
     const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, op);
     MVMint32 first_child = node+1;
     MVMint32 nchild      = info->nchild < 0 ? tree->nodes[first_child++] : info->nchild;
@@ -146,7 +146,7 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 
 static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
                             MVMJitTreeTraverser *traverser,
-                            MVMJitExprNode node, MVMint32 rule_nr) {
+                            MVMint32 node, MVMint32 rule_nr) {
     const MVMJitTileTemplate *template = &MVM_jit_tile_templates[rule_nr];
     struct TreeTiler *tiler = traverser->data;
 
@@ -177,7 +177,7 @@ static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
 
         /* Copy the information node as well */
         MVM_VECTOR_ENSURE_SIZE(tree->info, num);
-        memcpy(tree->info + num, tree->info + node, sizeof(MVMJitExprNodeInfo));
+        memcpy(tree->info + num, tree->info + node, sizeof(MVMJitExprInfo));
 
         /* Also ensure the visits and tiles array are of correct size */
         MVM_VECTOR_ENSURE_SIZE(tiler->states, num);
@@ -331,7 +331,7 @@ static void assign_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                          MVMJitExprTree *tree, MVMint32 node) {
 
-    MVMJitExprNode op    = tree->nodes[node];
+    MVMint32 op    = tree->nodes[node];
     MVMint32 first_child = node+1;
     const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, op);
     MVMint32 nchild      = (info->nchild < 0 ? tree->nodes[first_child++] : info->nchild);
@@ -759,7 +759,7 @@ MVMJitTile * MVM_jit_tile_make_from_template(MVMThreadContext *tc, MVMJitCompile
     {
         MVMint32 i, j, k, num_nodes;
         MVMuint8 value_bitmap;
-        MVMJitExprNode buffer[8];
+        MVMint32 buffer[8];
         num_nodes        = MVM_jit_expr_tree_get_nodes(tc, tree, node, template->path, buffer);
         value_bitmap     = template->value_bitmap;
         tile->num_refs   = template->num_refs;

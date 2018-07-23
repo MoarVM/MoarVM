@@ -51,7 +51,7 @@ void MVM_jit_log_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
 
 static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                       MVMJitExprTree *tree, MVMint32 node) {
-    MVMJitExprNodeInfo *info   = &tree->info[node];
+    MVMJitExprNodeInfot *info   = &tree->info[node];
     const MVMJitExprOpInfo *op = MVM_jit_expr_op_info(tc, tree->nodes[node]);
     MVMint32 *depth            = traverser->data;
     MVMint32 i, j;

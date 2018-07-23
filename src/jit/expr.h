@@ -24,8 +24,6 @@ MVM_JIT_EXPR_OPS(MVM_JIT_OP_ENUM)
 #undef MVM_JIT_OP_ENUM
 };
 
-typedef MVMint64 MVMJitExprNode;
-
 struct MVMJitExprOpInfo {
     const char     *name;
     MVMint32        nchild;
@@ -34,7 +32,7 @@ struct MVMJitExprOpInfo {
 
 /* Tree node information for easy access and use during compilation (a
    symbol table entry of sorts) */
-struct MVMJitExprNodeInfo {
+struct MVMJitExprInfo {
     /* VM 'register' type represented by this node */
     MVMint8          type;
     /* Size of computed value */
@@ -43,9 +41,9 @@ struct MVMJitExprNodeInfo {
 
 struct MVMJitExprTree {
     MVMJitGraph *graph;
-    MVM_VECTOR_DECL(MVMJitExprNode, nodes);
+    MVM_VECTOR_DECL(MVMint32, nodes);
     MVM_VECTOR_DECL(MVMint32, roots);
-    MVM_VECTOR_DECL(MVMJitExprNodeInfo, info);
+    MVM_VECTOR_DECL(MVMJitExprInfo, info);
     MVM_VECTOR_DECL(union {
         MVMint64 i;
         MVMnum64 n;
@@ -98,7 +96,7 @@ MVMint32 MVM_jit_expr_apply_template_adhoc(MVMThreadContext *tc, MVMJitExprTree 
 void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree, MVMJitTreeTraverser *traverser);
 void MVM_jit_expr_tree_destroy(MVMThreadContext *tc, MVMJitExprTree *tree);
 MVMint32 MVM_jit_expr_tree_get_nodes(MVMThreadContext *tc, MVMJitExprTree *tree,
-                                     MVMint32 node, const char *path, MVMJitExprNode *buffer);
+                                     MVMint32 node, const char *path, MVMint32 *buffer);
 
 extern const MVMJitExprOpInfo MVM_JIT_EXPR_OP_INFO_TABLE[];
 MVM_STATIC_INLINE const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext *tc, MVMint32 op) {
