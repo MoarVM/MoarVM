@@ -402,31 +402,34 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                          MVMJitExprTree *tree, MVMint32 node) {
 
     const MVMJitExprOpInfo   *op_info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
-    MVMint32   first_child = node + 1;
-    MVMint32        nchild = op_info->nchild < 0 ? tree->nodes[first_child++] : op_info->nchild;
-    MVMint32   *args = tree->nodes + first_child + nchild;
-    MVMJitExprInfo *node_info = tree->info + node;
-    MVMint32 cast_mode = MVM_JIT_CAST_NONE;
+
+    MVMint32   first_child = MVM_JIT_EXPR_FIRST_CHILD(tree, node);
+    MVMint32        nchild = MVM_JIT_EXPR_NCHILD(tree, node);
+    MVMint32        *links = MVM_JIT_EXPR_LINKS(tree, node);
+    MVMint32         *args = MVM_JIT_EXPR_ARGS(tree, node);
+    MVMint32     cast_mode = MVM_JIT_CAST_NONE;
+    MVMint32 node_size = 0;
     MVMint32 i;
+
 
     /* propagate node sizes */
     switch (tree->nodes[node]) {
     case MVM_JIT_CONST:
     case MVM_JIT_CONST_LARGE:
         /* node size is given */
-        node_info->size        = args[1];
+        node_size        = args[1];
         break;
     case MVM_JIT_CONST_PTR:
-        node_info->size       = MVM_JIT_PTR_SZ;
+        node_size       = MVM_JIT_PTR_SZ;
         break;
     case MVM_JIT_COPY:
-        node_info->size = tree->info[tree->nodes[first_child]].size;
+        node_size = MVM_JIT_EXPR_INFO(tree, links[0])->size;
         break;
     case MVM_JIT_LOAD:
-        node_info->size = args[0];
+        node_size = args[0];
         break;
     case MVM_JIT_CAST:
-        node_info->size = args[0];
+        node_size = args[0];
         break;
     case MVM_JIT_LABEL:
     case MVM_JIT_TC:
@@ -434,11 +437,11 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     case MVM_JIT_LOCAL:
     case MVM_JIT_STACK:
         /* addresses result in pointers */
-        node_info->size = MVM_JIT_PTR_SZ;
+        node_size = MVM_JIT_PTR_SZ;
         break;
     case MVM_JIT_ADDR:
     case MVM_JIT_IDX:
-        node_info->size = MVM_JIT_PTR_SZ;
+        node_size = MVM_JIT_PTR_SZ;
         cast_mode = MVM_JIT_CAST_UNSIGNED;
         break;
         /* signed binary operations */
@@ -452,10 +455,8 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     case MVM_JIT_NE:
         {
             /* arithmetic nodes use their largest operand */
-            MVMint32 left  = tree->nodes[first_child];
-            MVMint32 right = tree->nodes[first_child+1];
-            node_info->size = MAX(tree->info[left].size,
-                                  tree->info[right].size);
+            node_size = MAX(MVM_JIT_EXPR_INFO(tree, links[0])->size,
+                            MVM_JIT_EXPR_INFO(tree, links[1])->size);
             cast_mode = MVM_JIT_CAST_SIGNED;
             break;
         }
@@ -465,10 +466,8 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     case MVM_JIT_XOR:
     case MVM_JIT_NOT:
         {
-            MVMint32 left  = tree->nodes[first_child];
-            MVMint32 right = tree->nodes[first_child+1];
-            node_info->size = MAX(tree->info[left].size,
-                                  tree->info[right].size);
+            node_size = MAX(MVM_JIT_EXPR_INFO(tree, links[0])->size,
+                            MVM_JIT_EXPR_INFO(tree, links[1])->size);
             cast_mode = MVM_JIT_CAST_UNSIGNED;
             break;
         }
@@ -478,62 +477,57 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
          * The true size of 'flagval' is a single byte.  But that would mean it
          * had to be upcast to be used as a 64-bit word, and that subtly
          * doesn't work if the value is STORE-d to memory. */
-        node_info->size = 4;
+        node_size = 4;
         break;
     case MVM_JIT_DO:
         /* node size of last child */
         {
-            MVMint32 last_child = tree->nodes[first_child + nchild - 1];
-            node_info->size = tree->info[last_child].size;
+            node_size = MVM_JIT_EXPR_INFO(tree, links[nchild-1])->size;
             break;
         }
     case MVM_JIT_IF:
         {
-            MVMint32 left  = tree->nodes[first_child+1];
-            MVMint32 right = tree->nodes[first_child+2];
-            node_info->size = MAX(tree->info[left].size,
-                                         tree->info[right].size);
+            node_size = MAX(MVM_JIT_EXPR_INFO(tree, links[1])->size,
+                            MVM_JIT_EXPR_INFO(tree, links[2])->size);
             break;
         }
     case MVM_JIT_CALL:
-        node_info->size = args[0];
+        node_size = args[0];
         break;
     case MVM_JIT_NZ:
     case MVM_JIT_ZR:
-        node_info->size = tree->info[tree->nodes[first_child]].size;
+        node_size = MVM_JIT_EXPR_INFO(tree, links[0])->size;
         break;
     default:
         /* all other things, branches, labels, when, arglist, carg,
          * comparisons, etc, have no value size */
-        node_info->size = 0;
+        node_size = 0;
         break;
     }
+    MVM_JIT_EXPR_INFO(tree, node)->size = node_size;
 
     /* Insert casts as necessary */
     if (cast_mode != MVM_JIT_CAST_NONE) {
         for (i = 0; i < nchild; i++) {
             MVMint32 child = tree->nodes[first_child+i];
+            MVMuint8 child_size = MVM_JIT_EXPR_INFO(tree, child)->size;
             if (tree->nodes[child] == MVM_JIT_CONST) {
                 /* CONST nodes can always take over their target size, so they never need to be cast */
-                tree->info[child].size = tree->info[node].size;
-            } else if (tree->info[child].size < node_info->size) {
+                MVM_JIT_EXPR_INFO(tree, child)->size = node_size;
+            } else if (child_size < node_size) {
                 /* Widening casts need to be handled explicitly, shrinking casts do not */
-                MVMint32 cast = MVM_jit_expr_add_cast(tc, tree, child, node_info->size, tree->info[child].size, cast_mode);
+                MVMint32 cast = MVM_jit_expr_add_cast(tc, tree, child, node_size, child_size, cast_mode);
 #if MVM_JIT_DEBUG
                 fprintf(stderr, "Inserting %s cast from %d to %d for operator %s (child %s)\n",
                         (cast_mode == MVM_JIT_CAST_UNSIGNED ? "unsigned" : "signed"),
-                        tree->info[child].size, node_info->size,
-                        op_info->name, MVM_jit_expr_op_info(tc, tree->nodes[child])->name
+                        child_size, node_size,
+                        MVM_jit_expr_op_info(tc, tree->nodes[node])->name,
+                        MVM_jit_expr_op_info(tc, tree->nodes[child])->name
                     );
 #endif
                 /* Because the cast may have grown the backing nodes array, the info array needs to grow as well */
                 MVM_VECTOR_ENSURE_SIZE(tree->info, cast);
-                /* And because analyze_node is called in postorder,
-                   the newly added cast node would be neglected by the
-                   traverser. So we traverse it explicitly.. */
-                MVM_VECTOR_ENSURE_SIZE(traverser->visits, cast);
-                traverser->visits[cast] = 1;
-                analyze_node(tc, traverser, tree, cast);
+                MVM_JIT_EXPR_INFO(tree, cast)->size = node_size;
                 /* Finally we replace the child with its cast */
                 tree->nodes[first_child+i] = cast;
             }
@@ -759,7 +753,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             switch(opr_kind & MVM_operand_rw_mask) {
             case MVM_operand_read_reg:
             case MVM_operand_read_lex:
-                tree->info[operands[i]].type = opr_type >> 3;
+                MVM_JIT_EXPR_INFO(tree, operands[i])->type = opr_type >> 3;
                 break;
             case MVM_operand_write_reg:
                 /* for write_reg and write_lex, operands[i] is the *address*,
@@ -771,7 +765,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                 } else {
                     /* record this value, should be only one for the root */
                     BAIL(i != 0, "Write reg operand %d\n", i);
-                    tree->info[root].type  = opr_type >> 3;
+                    MVM_JIT_EXPR_INFO(tree, root)->type = opr_type >> 3;
                     defined_value = values + opr.reg.orig;
                     defined_value->addr = operands[i];
                     defined_value->node = root;
@@ -784,7 +778,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                  * insert a store */
                 if (!(template->flags & MVM_JIT_EXPR_TEMPLATE_DESTRUCTIVE)) {
                     BAIL(i != 0, "Write lex operand %d\n", i);
-                    tree->info[root].type = opr_type >> 3;
+                    MVM_JIT_EXPR_INFO(tree, root)->type = opr_type >> 3;
                     /* insert the store to lexicals directly, do not record as value */
                     root = MVM_jit_expr_add_store(tc, tree, operands[i], root, MVM_JIT_REG_SZ);
                 }
@@ -863,10 +857,10 @@ void MVM_jit_expr_tree_destroy(MVMThreadContext *tc, MVMJitExprTree *tree) {
 
 static void walk_tree(MVMThreadContext *tc, MVMJitExprTree *tree,
                  MVMJitTreeTraverser *traverser, MVMint32 node) {
-    const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
-    MVMint32 nchild = info->nchild;
-    MVMint32 first_child = node + 1;
+    MVMint32 first_child = MVM_JIT_EXPR_FIRST_CHILD(tree, node);
+    MVMint32 nchild      = MVM_JIT_EXPR_NCHILD(tree, node);
     MVMint32 i;
+    assert(node < tree->nodes_num);
     if (traverser->policy == MVM_JIT_TRAVERSER_ONCE &&
         traverser->visits[node] >= 1)
         return;
@@ -875,12 +869,6 @@ static void walk_tree(MVMThreadContext *tc, MVMJitExprTree *tree,
     /* visiting on the way down - NB want to add visitation information */
     if (traverser->preorder)
         traverser->preorder(tc, traverser, tree, node);
-    if (nchild < 0) {
-        /* Variadic case: take first child as constant signifying the
-         * number of children. Increment because the 'real' children now
-         * start node later */
-        nchild = tree->nodes[first_child++];
-    }
     for (i = 0; i < nchild; i++) {
         /* Enter child node */
         walk_tree(tc, tree, traverser, tree->nodes[first_child+i]);
@@ -906,7 +894,6 @@ void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree,
 }
 
 
-#define FIRST_CHILD(t,x) (MVM_jit_expr_op_info(tc, (t)->nodes[x])->nchild < 0 ? x + 2 : x + 1)
 /* Walk tree to get nodes along a path */
 MVMint32 MVM_jit_expr_tree_get_nodes(MVMThreadContext *tc, MVMJitExprTree *tree,
                                      MVMint32 node, const char *path,
@@ -915,8 +902,8 @@ MVMint32 MVM_jit_expr_tree_get_nodes(MVMThreadContext *tc, MVMJitExprTree *tree,
     while (*path) {
         MVMint32 cur_node = node;
         do {
-            MVMint32 first_child = FIRST_CHILD(tree, cur_node) - 1;
-            MVMint32 child_nr    = *path++ - '0';
+            MVMint32 first_child = MVM_JIT_EXPR_FIRST_CHILD(tree, cur_node);
+            MVMint32 child_nr    = *path++ - '1'; /* child offset is 1 in expr-template-compiler.pl */
             cur_node = tree->nodes[first_child+child_nr];
         } while (*path != '.');
         /* regs nodes go to values, others to args */
@@ -925,4 +912,3 @@ MVMint32 MVM_jit_expr_tree_get_nodes(MVMThreadContext *tc, MVMJitExprTree *tree,
     }
     return ptr - buffer;
 }
-#undef FIRST_CHILD

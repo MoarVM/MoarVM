@@ -25,9 +25,9 @@ MVM_JIT_EXPR_OPS(MVM_JIT_OP_ENUM)
 };
 
 struct MVMJitExprOpInfo {
-    const char     *name;
-    MVMint32        nchild;
-    MVMint32        nargs;
+    const char *name;
+    MVMint8   nchild;
+    MVMuint8   nargs;
 };
 
 /* Tree node information for easy access and use during compilation (a
@@ -85,7 +85,6 @@ struct MVMJitTreeTraverser {
 
 
 
-
 /* properties of expression ops */
 MVMint32 MVM_jit_expr_op_negate_flag(MVMThreadContext *tc, MVMint32 op);
 MVMint32 MVM_jit_expr_op_is_binary_noncommutative(MVMThreadContext *tc, MVMint32 op);
@@ -106,4 +105,33 @@ MVM_STATIC_INLINE const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext
     }
 #endif
     return &MVM_JIT_EXPR_OP_INFO_TABLE[op];
+}
+
+
+
+MVM_STATIC_INLINE MVMuint8 MVM_JIT_EXPR_NCHILD(MVMJitExprTree *tree, MVMint32 node) {
+    MVMint8 nchild = MVM_JIT_EXPR_OP_INFO_TABLE[tree->nodes[node]].nchild;
+    if (nchild < 0)
+        nchild = tree->nodes[node+1];
+    return nchild;
+}
+
+MVM_STATIC_INLINE MVMint32 MVM_JIT_EXPR_FIRST_CHILD(MVMJitExprTree *tree, MVMint32 node) {
+    MVMint32 first_child = node+1;
+    if (MVM_JIT_EXPR_OP_INFO_TABLE[tree->nodes[node]].nchild < 0)
+        first_child++;
+    return first_child;
+}
+
+MVM_STATIC_INLINE MVMint32 * MVM_JIT_EXPR_LINKS(MVMJitExprTree *tree, MVMint32 node) {
+    return tree->nodes + MVM_JIT_EXPR_FIRST_CHILD(tree, node);
+}
+
+
+MVM_STATIC_INLINE MVMint32 * MVM_JIT_EXPR_ARGS(MVMJitExprTree *tree, MVMint32 node) {
+    return MVM_JIT_EXPR_LINKS(tree, node) + MVM_JIT_EXPR_NCHILD(tree, node);
+}
+
+MVM_STATIC_INLINE MVMJitExprInfo * MVM_JIT_EXPR_INFO(MVMJitExprTree *tree, MVMint32 node) {
+    return tree->info + node;
 }

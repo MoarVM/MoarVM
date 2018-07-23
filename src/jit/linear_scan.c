@@ -421,6 +421,7 @@ MVM_STATIC_INLINE void open_hole(RegisterAllocator *alc, MVMint32 ref, MVMint32 
 static void find_holes(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
     MVMint32 i, j, k;
 
+    MVMJitExprTree *tree = list->tree;
     MVMint32 bitmap_size = (alc->values_num >> 5) + 1;
 
  /* convenience macros */
@@ -460,10 +461,10 @@ static void find_holes(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileL
             MVMJitTile *tile = list->items[i];
             if (tile->op == MVM_JIT_ARGLIST) {
                 /* list of uses, all very real */
-                MVMint32 nchild = list->tree->nodes[tile->node + 1];
+                MVMint32 nchild = MVM_JIT_EXPR_NCHILD(tree, tile->node);
+                MVMint32 *args  = MVM_JIT_EXPR_LINKS(tree, tile->node);
                 for (k = 0; k < nchild; k++) {
-                    MVMint32 carg = list->tree->nodes[tile->node + 2 + k];
-                    MVMint32 ref  = value_set_find(alc->sets, list->tree->nodes[carg + 1])->idx;
+                    MVMint32 ref  = value_set_find(alc->sets, tree->nodes[MVM_JIT_EXPR_FIRST_CHILD(tree, args[k])])->idx;
                     if (!MVM_bitmap_get(live_in, ref)) {
                         MVM_bitmap_set(live_in, ref);
                         close_hole(alc, ref, i);
@@ -501,9 +502,9 @@ static void find_holes(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileL
 
 
 static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
-    MVMJitExprTree *tree = list->tree;
     MVMint32 i, j, n;
     MVMint32 num_phi = 0; /* pessimistic but correct upper bound of number of holes */
+    MVMJitExprTree *tree = list->tree;
 
     alc->sets = MVM_calloc(tree->nodes_num, sizeof(UnionFind));
     /* up to 4 refs per tile (1 out, 3 in) plus the number of refs per arglist */
@@ -519,30 +520,29 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
         /* Each of the following counts as either an alias or as a PHI (in case
          * of IF), and thus these are not actual definitions */
         if (tile->op == MVM_JIT_COPY) {
-            MVMint32 ref        = tree->nodes[tile->node + 1];
+            MVMint32 ref        = MVM_JIT_EXPR_LINKS(tree, node)[0];
             _DEBUG("Unify COPY node (%d -> %d)", tile->node, ref);
             alc->sets[node].key = ref; /* point directly to actual definition */
         } else if (tile->op == MVM_JIT_DO) {
-            MVMint32 nchild     = tree->nodes[tile->node + 1];
-            MVMint32 ref        = tree->nodes[tile->node + 1 + nchild];
+            MVMint32 last_child = MVM_JIT_EXPR_FIRST_CHILD(tree, node) + MVM_JIT_EXPR_NCHILD(tree, node) - 1;
+            MVMint32 ref        = tree->nodes[last_child];
             _DEBUG("Unify COPY DO (%d -> %d)", tile->node, ref);
             alc->sets[node].key = ref;
         } else if (tile->op == MVM_JIT_IF) {
-            MVMint32 left_cond   = tree->nodes[tile->node + 2];
-            MVMint32 right_cond  = tree->nodes[tile->node + 3];
+            MVMint32 *links     = MVM_JIT_EXPR_LINKS(tree, node);
             /* NB; this may cause a conflict in register requirements, in which
              * case we should resolve it by creating a new live range or inserting
              * a copy */
-            alc->sets[node].key  = value_set_union(alc->sets, alc->values, left_cond, right_cond);
-            _DEBUG("Merging nodes %d and %d to %d (result key = %d)", left_cond, right_cond, node, alc->sets[node].key);
+            alc->sets[node].key  = value_set_union(alc->sets, alc->values, links[1], links[2]);
+            _DEBUG("Merging nodes %d and %d to %d (result key = %d)", links[1], links[2], node, alc->sets[node].key);
             num_phi++;
         } else if (tile->op == MVM_JIT_ARGLIST) {
-            MVMint32 num_args = tree->nodes[tile->node + 1];
-            MVMint32 *refs = tree->nodes + tile->node + 2;
+            MVMint32 num_args = MVM_JIT_EXPR_NCHILD(tree, node);
+            MVMint32 *refs = MVM_JIT_EXPR_LINKS(tree, node);
             _DEBUG("Adding %d references to ARGLIST node", num_args);
             for (j = 0; j < num_args; j++) {
                 MVMint32 carg  = refs[j];
-                MVMint32 value = list->tree->nodes[carg+1];
+                MVMint32 value = tree->nodes[MVM_JIT_EXPR_FIRST_CHILD(tree, carg)];
                 MVMint32 idx   = value_set_find(alc->sets, value)->idx;
                 _DEBUG("  Reference %d", idx);
                 live_range_add_ref(alc, alc->values + idx, i, j + 1);
@@ -575,12 +575,12 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
                 }
             }
         }
-        if (MVM_JIT_TILE_YIELDS_VALUE(tile) && tree->info[node].type != 0) {
+        if (MVM_JIT_TILE_YIELDS_VALUE(tile) && MVM_JIT_EXPR_INFO(tree, node)->type != 0) {
             LiveRange *range = alc->values + value_set_find(alc->sets, node)->idx;
-            _ASSERT(range->reg_type == 0 || (range->reg_type) == tree->info[node].type,
+            _ASSERT(range->reg_type == 0 || (range->reg_type) == MVM_JIT_EXPR_INFO(tree, node)->type,
                     "Register types do not match between value and node");
             /* shift to match MVM_reg_types. should arguably be a macro maybe */
-            range->reg_type = tree->info[node].type;
+            range->reg_type = MVM_JIT_EXPR_INFO(tree, node)->type;
             _DEBUG( "Assigned type: %d to live range %d\n", range->reg_type, range - alc->values);
         }
     }
@@ -787,7 +787,8 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     MVMJitTile *arglist_tile = list->items[arglist_idx],
                   *call_tile = list->items[call_idx];
     MVMJitExprTree *tree = list->tree;
-    MVMint32 num_args = tree->nodes[arglist_tile->node + 1];
+    MVMint32 num_args = MVM_JIT_EXPR_NCHILD(tree, arglist_tile->node);
+    MVMint32 *args    = MVM_JIT_EXPR_LINKS(tree, arglist_tile->node);
     MVMint32           arg_values[16];
     MVMJitStorageRef storage_refs[16];
 
@@ -819,9 +820,8 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
 
     /* get value refs for arglist */
     for (i = 0; i < num_args; i++) {
-        MVMint32 carg  = tree->nodes[arglist_tile->node + 2 + i];
         /* may refer to spilled live range */
-        arg_values[i] = value_set_find(alc->sets, tree->nodes[carg + 1])->idx;
+        arg_values[i] = value_set_find(alc->sets, tree->nodes[MVM_JIT_EXPR_FIRST_CHILD(tree, args[i])])->idx;
     }
 
     _DEBUG("prepare_call: Got %d args", num_args);

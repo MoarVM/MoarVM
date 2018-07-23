@@ -61,9 +61,9 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                       MVMJitExprTree *tree, MVMint32 node) {
     struct TreeTiler *tiler      = traverser->data;
     MVMint32 op            = tree->nodes[node];
-    const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, op);
-    MVMint32 first_child = node+1;
-    MVMint32 nchild      = info->nchild < 0 ? tree->nodes[first_child++] : info->nchild;
+    MVMint32 first_child = MVM_JIT_EXPR_FIRST_CHILD(tree, node);
+    MVMint32 nchild      = MVM_JIT_EXPR_NCHILD(tree, node);
+    MVMint32 *links      = MVM_JIT_EXPR_LINKS(tree, node);
     MVMint32 *state_info = NULL;
 
     switch (op) {
@@ -74,10 +74,10 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             /* Unary variadic nodes are exactly the same... */
             MVMint32 i;
             for (i = 0; i < nchild; i++) {
-                MVMint32 child = tree->nodes[first_child+i];
+                MVMint32 child = links[i];
                 state_info = MVM_jit_tile_state_lookup(tc, op, tiler->states[child].state, -1);
                 _ASSERT(state_info != NULL, "OOPS, %s can't be tiled with a %s child at position %d",
-                        info->name, tree->info[child].op_info->name, i);
+                        info->name,  MVM_jit_expr_op_info(tc, tree->nodes[child])->name, i);
             }
             tiler->states[node].state    = state_info[3];
             tiler->states[node].rule     = state_info[4];
@@ -86,9 +86,8 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     case MVM_JIT_DO:
     case MVM_JIT_DOV:
         {
-            MVMint32 last_child = first_child+nchild-1;
-            MVMint32 left_state = tiler->states[tree->nodes[first_child]].state;
-            MVMint32 right_state = tiler->states[tree->nodes[last_child]].state;
+            MVMint32 left_state = tiler->states[links[0]].state;
+            MVMint32 right_state = tiler->states[links[nchild-1]].state;
             state_info = MVM_jit_tile_state_lookup(tc, op, left_state, right_state);
             _ASSERT(state_info != NULL, "Can't tile this DO node %d", node);
             tiler->states[node].state = state_info[3];
@@ -98,9 +97,7 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     case MVM_JIT_IF:
     case MVM_JIT_IFV:
         {
-            MVMint32 cond = tree->nodes[node+1],
-                left = tree->nodes[node+2],
-                right = tree->nodes[node+3];
+            MVMint32 cond = links[0], left = links[1], right = links[2];
             MVMint32 *left_state  = MVM_jit_tile_state_lookup(tc, op, tiler->states[cond].state,
                                                               tiler->states[left].state);
             MVMint32 *right_state = MVM_jit_tile_state_lookup(tc, op, tiler->states[cond].state,
@@ -116,14 +113,11 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             if (nchild == 0) {
                 state_info = MVM_jit_tile_state_lookup(tc, op, -1, -1);
             } else if (nchild == 1) {
-                MVMint32 left = tree->nodes[first_child];
-                MVMint32 lstate = tiler->states[left].state;
+                MVMint32 lstate = tiler->states[links[0]].state;
                 state_info = MVM_jit_tile_state_lookup(tc, op, lstate, -1);
             } else if (nchild == 2) {
-                MVMint32 left  = tree->nodes[first_child];
-                MVMint32 lstate = tiler->states[left].state;
-                MVMint32 right = tree->nodes[first_child+1];
-                MVMint32 rstate = tiler->states[right].state;
+                MVMint32 lstate = tiler->states[links[0]].state;
+                MVMint32 rstate = tiler->states[links[1]].state;
                 state_info = MVM_jit_tile_state_lookup(tc, op, lstate, rstate);
             }
             _ASSERT(state_info != NULL, "Tiler table could not find next state for %s\n", info->name);
@@ -259,11 +253,12 @@ static void assign_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
        from parents to children, at least when those children are ANY
        and ALL. */
     struct TreeTiler *tiler = traverser->data;
+    MVMint32 *links = MVM_JIT_EXPR_LINKS(tree, node);
     switch (tree->nodes[node]) {
     case MVM_JIT_WHEN:
         {
             /* WHEN just requires one label in the default case */
-            MVMint32 test = tree->nodes[node+1];
+            MVMint32 test = links[0];
             tiler->states[node].label = tiler->next_label++;
             if (tree->nodes[test] == MVM_JIT_ANY) {
                 /* ANY requires a pre-left-block label */
@@ -277,7 +272,7 @@ static void assign_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     case MVM_JIT_IF:
     case MVM_JIT_IFV:
         {
-            MVMint32 test = tree->nodes[node+1];
+            MVMint32 test = links[0];
             /* take two labels, one for the left block and one for the right block */
             tiler->states[node].label = tiler->next_label;
             tiler->next_label += 2;
@@ -292,10 +287,10 @@ static void assign_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         break;
     case MVM_JIT_ALL:
         {
-            MVMint32 nchild = tree->nodes[node+1];
+            MVMint32 nchild = MVM_JIT_EXPR_NCHILD(tree, node);
             MVMint32 i;
             for (i = 0; i < nchild; i++) {
-                MVMint32 test = tree->nodes[node+2+i];
+                MVMint32 test = links[i];
                 if (tree->nodes[test] == MVM_JIT_ALL) {
                     /* use same label for child as parent */
                     tiler->states[test].label = tiler->states[node].label;
@@ -308,10 +303,10 @@ static void assign_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         break;
     case MVM_JIT_ANY:
         {
-            MVMint32 nchild = tree->nodes[node+1];
+            MVMint32 nchild = MVM_JIT_EXPR_NCHILD(tree, node);
             MVMint32 i;
             for (i = 0; i < nchild; i++) {
-                MVMint32 test = tree->nodes[node+2+i];
+                MVMint32 test = links[i];
                 if (tree->nodes[test] == MVM_JIT_ANY) {
                     tiler->states[test].label = tiler->states[node].label;
                 } else if (tree->nodes[test] == MVM_JIT_ALL) {
@@ -330,11 +325,8 @@ static void assign_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 /* Preorder propagation of rules downward */
 static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                          MVMJitExprTree *tree, MVMint32 node) {
-
-    MVMint32 op    = tree->nodes[node];
-    MVMint32 first_child = node+1;
-    const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, op);
-    MVMint32 nchild      = (info->nchild < 0 ? tree->nodes[first_child++] : info->nchild);
+    MVMint32 first_child = MVM_JIT_EXPR_FIRST_CHILD(tree, node);
+    MVMint32 nchild      = MVM_JIT_EXPR_NCHILD(tree, node);
     struct TreeTiler *tiler = traverser->data;
 
     const MVMJitTileTemplate *tile = tiler->states[node].template;
@@ -350,7 +342,7 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         tree->nodes[first_child+(NUM)] = assigned; \
     } while(0)
 
-    switch (op) {
+    switch (tree->nodes[node]) {
     case MVM_JIT_ALL:
     case MVM_JIT_ANY:
     case MVM_JIT_ARGLIST:
@@ -381,14 +373,11 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         break;
     case MVM_JIT_GUARD:
         {
-            /* tree->nodes[node+2] = the first guard of the before/after pair */
-            if (tree->nodes[node+2] != 0) {
+            /* tree->nodes[first_child+1] = the first guard of the before/after pair */
+            MVMint32 pre_guard = tree->nodes[first_child+1];
+            if (pre_guard != 0) {
                 MVMJitTile *tile = MVM_jit_tile_make(tc, tiler->compiler,
-                                                     MVM_jit_compile_guard, 1, 0,
-                                                     tree->nodes[node+2]);
-                /* XXX - request a spare register (necessary for DYMAMIC LABEL
-                 * etc). This should be generalized */
-                tile->register_spec = MVM_JIT_REGISTER_ANY;
+                                                     MVM_jit_compile_guard, 1, 0, pre_guard);
                 tile->debug_name    = "(guard :pre)";
                 MVM_VECTOR_PUSH(tiler->list->items, tile);
             }
@@ -446,10 +435,11 @@ static void patch_shortcircuit_blocks(MVMThreadContext *tc, struct TreeTiler *ti
      * with a child has two successors, namely the following block (block + 1)
      * or the shortcircuited block (alt). */
     MVMJitTileList *list = tiler->list;
-    MVMint32 i, nchild = tree->nodes[node+1];
+    MVMint32 i, nchild = MVM_JIT_EXPR_NCHILD(tree, node),
+        first_child = MVM_JIT_EXPR_FIRST_CHILD(tree, node);
     for (i = 0; i < nchild; i++) {
-        MVMint32 child = tree->nodes[node + 2 + i];
-        MVMint32 block = tiler->states[node + 2 + i].block;
+        MVMint32 child = tree->nodes[first_child+i];
+        MVMint32 block = tiler->states[first_child + i].block;
         if (tree->nodes[child] == tree->nodes[node]) {
             /* in the case of nested shortcircuit operators, if they are equal
              * they shortcircuit identically, and so all children need to be
@@ -474,10 +464,11 @@ static void patch_shortcircuit_blocks(MVMThreadContext *tc, struct TreeTiler *ti
 static void patch_basic_blocks(MVMThreadContext *tc, struct TreeTiler *tiler, MVMJitExprTree *tree, MVMint32 node) {
     /* Postorder assign the successors to blocks associated with nodes */
     MVMJitTileList *list = tiler->list;
-    MVMint32 test = tree->nodes[node+1];
+    MVMint32 first_child = MVM_JIT_EXPR_FIRST_CHILD(tree, node);
+    MVMint32 test = tree->nodes[first_child];
     if (tree->nodes[node] == MVM_JIT_WHEN) {
-        MVMint32 pre  = tiler->states[node + 1].block;
-        MVMint32 post = tiler->states[node + 2].block;
+        MVMint32 pre  = tiler->states[first_child].block;
+        MVMint32 post = tiler->states[first_child+1].block;
         if (tree->nodes[test] == MVM_JIT_ALL) {
             patch_shortcircuit_blocks(tc, tiler, tree, test, post + 1);
         } else if (tree->nodes[test] == MVM_JIT_ANY) {
@@ -491,9 +482,9 @@ static void patch_basic_blocks(MVMThreadContext *tc, struct TreeTiler *tiler, MV
         list->blocks[post].num_succ = 1;
         list->blocks[post].succ[0] = post + 1;
     } else if (tree->nodes[node] == MVM_JIT_IF || tree->nodes[node] == MVM_JIT_IFV) {
-        MVMint32 pre  = tiler->states[node + 1].block;
-        MVMint32 cond = tiler->states[node + 2].block;
-        MVMint32 post = tiler->states[node + 3].block;
+        MVMint32 pre  = tiler->states[first_child].block;
+        MVMint32 cond = tiler->states[first_child+1].block;
+        MVMint32 post = tiler->states[first_child+2].block;
         if (tree->nodes[test] == MVM_JIT_ALL) {
             patch_shortcircuit_blocks(tc, tiler, tree, test, cond + 1);
         } else if (tree->nodes[test] == MVM_JIT_ANY) {
@@ -514,23 +505,25 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                          MVMJitExprTree *tree, MVMint32 node, MVMint32 i) {
     struct TreeTiler *tiler = traverser->data;
     MVMJitTileList *list    = tiler->list;
+    MVMint32 first_child    = MVM_JIT_EXPR_FIRST_CHILD(tree, node);
     switch (tree->nodes[node]) {
     case MVM_JIT_WHEN:
     {
         MVMint32 when_label = tiler->states[node].label;
         if (i == 0) {
-            MVMint32 test  = tree->nodes[node+1];
+            MVMint32 test  = tree->nodes[first_child];
             MVMint32 flag  = tree->nodes[test];
             /* First child is the test */
             if (flag == MVM_JIT_ALL) {
                 /* Do nothing, shortcircuit of ALL has skipped the conditional
                    block if necessary */
-                MVMint32 last_child = test + tree->nodes[test+1] + 1;
-                tiler->states[node+1].block = tiler->states[last_child].block;
+                MVMint32 last_child = MVM_JIT_EXPR_FIRST_CHILD(tree, test) + MVM_JIT_EXPR_NCHILD(tree, test) - 1;
+                tiler->states[first_child].block = tiler->states[last_child].block;
             } else if (flag == MVM_JIT_ANY) {
                 /* If ANY hasn't short-circuited into the conditional block,
                  * it has failed, so insert an unconditional jump past it */
                 MVMint32 any_label = tiler->states[test].label;
+                MVMint32 last_child = MVM_JIT_EXPR_FIRST_CHILD(tree, test) + MVM_JIT_EXPR_NCHILD(tree, test) - 1;
                 MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_branch,
                                                        1, 0, when_label);
                 MVMJitTile *label  = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_label,
@@ -539,7 +532,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 label->debug_name  = "(label :success)";
                 MVM_VECTOR_PUSH(list->items, branch);
                 /* extends last block of ANY to include the unconditional branch */
-                extend_last_block(tc, tiler, node + 2 + i);
+                extend_last_block(tc, tiler, first_child);
                 MVM_VECTOR_PUSH(list->items, label);
             } else {
                 /* Other tests require a conditional branch, but no label */
@@ -547,28 +540,28 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                                                        2, 0, MVM_jit_expr_op_negate_flag(tc, flag), when_label);
                 branch->debug_name = "(branch :fail)";
                 MVM_VECTOR_PUSH(list->items, branch);
-                start_basic_block(tc, tiler, node + 1);
+                start_basic_block(tc, tiler, first_child);
             }
         } else {
             /* after child of WHEN, insert the label */
             MVMJitTile *label = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_label,
                                                   1, 0, when_label);
             label->debug_name = "(label :fail)";
-            start_basic_block(tc, tiler, node + 2);
+            start_basic_block(tc, tiler, first_child + 1);
             MVM_VECTOR_PUSH(list->items, label);
         }
         break;
     }
     case MVM_JIT_ALL:
     {
-        MVMint32 test = tree->nodes[node+2+i];
+        MVMint32 test = tree->nodes[first_child+i];
         MVMint32 flag = tree->nodes[test];
         MVMint32 all_label = tiler->states[node].label;
 
         if (flag == MVM_JIT_ALL) {
             /* Nested ALL short-circuits identically */
-            MVMint32 last_child = test + 1 + tree->nodes[test + 1];
-            tiler->states[node + 2 + i].block = tiler->states[last_child].block;
+            MVMint32 last_child = MVM_JIT_EXPR_FIRST_CHILD(tree, test) + MVM_JIT_EXPR_NCHILD(tree, test) - 1;
+            tiler->states[first_child + i].block = tiler->states[last_child].block;
         } else if (flag == MVM_JIT_ANY) {
             /* If ANY reached it's end, that means it's false. So short-circuit out */
             MVMint32 any_label = tiler->states[test].label;
@@ -578,7 +571,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             label->debug_name  = "(label :success) # ANY";
             MVM_VECTOR_PUSH(list->items, branch);
             /* extends last block of ANY to include the unconditional branch */
-            extend_last_block(tc, tiler, node + 2 + i);
+            extend_last_block(tc, tiler, first_child + i);
             /* And if ANY short-circuits we should continue the evaluation of ALL */
             MVM_VECTOR_PUSH(list->items, label);
         } else {
@@ -588,13 +581,13 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                                                    MVM_jit_expr_op_negate_flag(tc, flag), all_label);
             branch->debug_name = "(conditional-branch :fail)";
             MVM_VECTOR_PUSH(list->items, branch);
-            start_basic_block(tc, tiler, node + 2 + i);
+            start_basic_block(tc, tiler, first_child + i);
         }
         break;
     }
     case MVM_JIT_ANY:
     {
-        MVMint32 test  = tree->nodes[node+2+i];
+        MVMint32 test  = tree->nodes[first_child+i];
         MVMint32 flag  = tree->nodes[test];
         MVMint32 any_label = tiler->states[node].label;
         if (flag == MVM_JIT_ALL) {
@@ -608,15 +601,15 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             branch->debug_name = "(branch :success) # ALL";
             label->debug_name  = "(label  :fail) # ANY";
             MVM_VECTOR_PUSH(list->items, branch);
-            extend_last_block(tc, tiler, node + 2 + i);
+            extend_last_block(tc, tiler, first_child + i);
             /* If not succesful, testing should continue (thus ALL must branch
              * into our ANY) */
             MVM_VECTOR_PUSH(list->items, label);
         } else if (flag == MVM_JIT_ANY) {
             /* Nothing to do here, since nested ANY already short-circuits to
                our label */
-            MVMint32 last_child = test + 1 + tree->nodes[test + 1];
-            tiler->states[node + 2 + i].block = tiler->states[last_child].block;
+            MVMint32 last_child = MVM_JIT_EXPR_FIRST_CHILD(tree, test) + MVM_JIT_EXPR_NCHILD(tree, test) - 1;
+            tiler->states[first_child + i].block = tiler->states[last_child].block;
         } else {
             /* Normal evaluation (ANY = short-circuit if condition) */
             MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler,
@@ -624,7 +617,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                                                    2, 0, flag, any_label);
             branch->debug_name  = "(branch :success)";
             MVM_VECTOR_PUSH(list->items, branch);
-            start_basic_block(tc, tiler, node + 2 + i);
+            start_basic_block(tc, tiler, first_child + i);
         }
         break;
     }
@@ -635,13 +628,13 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         MVMint32 right_label = left_label + 1;
         if (i == 0) {
             /* after flag child */
-            MVMint32 test = tree->nodes[node+1];
+            MVMint32 test = tree->nodes[first_child];
             MVMint32 flag = tree->nodes[test];
             if (flag == MVM_JIT_ALL) {
                 /* If we reach this code then ALL was true, hence we should
                  * enter the left block, and do nothing */
-                MVMint32 last_child = test + 1 + tree->nodes[test + 1];
-                tiler->states[node + 1].block = tiler->states[last_child].block;
+                MVMint32 last_child = MVM_JIT_EXPR_FIRST_CHILD(tree, test) + MVM_JIT_EXPR_NCHILD(tree, test) - 1;
+                tiler->states[first_child].block = tiler->states[last_child].block;
             } else if (flag == MVM_JIT_ANY) {
                 /* We need the branch to the right block and the label for ANY
                  * to jump to enter the left block */
@@ -653,7 +646,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 branch->debug_name = "(branch: fail)";
                 label->debug_name = "(label :success)";
                 MVM_VECTOR_PUSH(list->items, branch);
-                extend_last_block(tc, tiler, node + 1);
+                extend_last_block(tc, tiler, first_child);
                 MVM_VECTOR_PUSH(list->items, label);
             } else {
                 MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler,
@@ -661,7 +654,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                                                        MVM_jit_expr_op_negate_flag(tc, flag), left_label);
                 branch->debug_name = "(conditional-branch: fail)";
                 MVM_VECTOR_PUSH(list->items, branch);
-                start_basic_block(tc, tiler, node + 1);
+                start_basic_block(tc, tiler, first_child);
             }
         } else if (i == 1) {
             /* between left and right conditional block */
@@ -672,14 +665,14 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             branch->debug_name = "(branch :after)";
             label->debug_name  = "(label :fail)";
             MVM_VECTOR_PUSH(list->items, branch);
-            start_basic_block(tc, tiler, node + 2);
+            start_basic_block(tc, tiler, first_child + 1);
             MVM_VECTOR_PUSH(list->items, label);
         } else {
             /* after 'right' conditional block */
             MVMJitTile *label = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_label,
                                                    1, 0, right_label);
             label->debug_name = "(branch :after)";
-            start_basic_block(tc, tiler, node + 3);
+            start_basic_block(tc, tiler, first_child + 2);
             MVM_VECTOR_PUSH(list->items, label);
         }
     }
@@ -705,8 +698,7 @@ static void build_tilelist(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     /* count tne number of refs for ARGLIST */
     if (tile->op == MVM_JIT_ARGLIST) {
         tiler->list->num_arglist_refs += tile->num_refs;
-    } else if (tile->op == MVM_JIT_WHEN || tile->op == MVM_JIT_IF ||
-               tile->op == MVM_JIT_IFV) {
+    } else if (tile->op == MVM_JIT_WHEN || tile->op == MVM_JIT_IF || tile->op == MVM_JIT_IFV) {
         /* NB: ALL and ANY also generate basic blocks, but their successors can
          * only be resolved after the conditional construct */
         patch_basic_blocks(tc, tiler, tree, node);
@@ -724,19 +716,21 @@ MVMJitTile * MVM_jit_tile_make_from_template(MVMThreadContext *tc, MVMJitCompile
                                              const MVMJitTileTemplate *template,
                                              MVMJitExprTree *tree, MVMint32 node) {
     MVMJitTile *tile;
+    MVMint32 *links = MVM_JIT_EXPR_LINKS(tree, node);
+    MVMJitExprInfo *info = MVM_JIT_EXPR_INFO(tree, node);
     tile = MVM_spesh_alloc(tc, compiler->graph->sg, sizeof(MVMJitTile));
     tile->emit          = template->emit;
     tile->register_spec = template->register_spec;
     tile->node          = node;
     tile->op            = tree->nodes[node];
-    tile->size          = tree->info[node].size;
+    tile->size          = info->size;
 
     /* Assign tile arguments and compute the refering nodes */
     switch (tile->op) {
     case MVM_JIT_IF:
     {
-        tile->refs[0] = tree->nodes[node+2];
-        tile->refs[1] = tree->nodes[node+3];
+        tile->refs[0] = links[1];
+        tile->refs[1] = links[2];
         tile->num_refs = 2;
         break;
     }
@@ -745,13 +739,12 @@ MVMJitTile * MVM_jit_tile_make_from_template(MVMThreadContext *tc, MVMJitCompile
         /* because arglist needs special-casing and because it will use more
          * than 8 (never mind 4) values, it won't fit into refs, so we're not
          * reading them here */
-        tile->num_refs = tree->nodes[node+1];
+        tile->num_refs = info->num_links;
         break;
     }
     case MVM_JIT_DO:
     {
-        MVMint32 nchild  = tree->nodes[node+1];
-        tile->refs[0]    = tree->nodes[node+1+nchild];
+        tile->refs[0]    = links[info->num_links-1];
         tile->num_refs = 1;
         break;
     }
@@ -763,16 +756,13 @@ MVMJitTile * MVM_jit_tile_make_from_template(MVMThreadContext *tc, MVMJitCompile
         num_nodes        = MVM_jit_expr_tree_get_nodes(tc, tree, node, template->path, buffer);
         value_bitmap     = template->value_bitmap;
         tile->num_refs   = template->num_refs;
-        j = 0;
-        k = 0;
         /* splice out args from node refs */
-        for (i = 0; i < num_nodes; i++) {
-            if (value_bitmap & 1) {
+        for (i = 0, j = 0, k = 0; i < num_nodes; i++) {
+            if (value_bitmap & (1 << i)) {
                 tile->refs[j++] = buffer[i];
             } else {
                 tile->args[k++] = buffer[i];
             }
-            value_bitmap >>= 1;
         }
         break;
     }
