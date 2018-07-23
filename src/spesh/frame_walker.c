@@ -146,15 +146,13 @@ MVMuint32 MVM_spesh_frame_walker_next(MVMThreadContext *tc, MVMSpeshFrameWalker 
          * and return the next frame along unless we reached the end. */
         if (fw->cur_outer_frame) {
             MVMFrame *outer = fw->cur_outer_frame->outer;
-            if (outer) {
-                fw->cur_outer_frame = outer;
+            fw->cur_outer_frame = outer;
+            if (outer)
                 return 1;
-            }
-            else {
+            else
                 /* End of the outer chain. Clear the currently visiting outer
                  * chain flag. */
                 fw->visiting_outers = 0;
-            }
         }
 
         /* Otherwise, we're currently visiting a caller, and it's time to try
