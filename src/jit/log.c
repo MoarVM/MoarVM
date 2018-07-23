@@ -51,7 +51,7 @@ void MVM_jit_log_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
 
 static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                       MVMJitExprTree *tree, MVMint32 node) {
-    MVMJitExprNodeInfot *info   = &tree->info[node];
+    MVMJitExprInfo *info   = MVM_JIT_EXPR_INFO(tree, node);
     const MVMJitExprOpInfo *op = MVM_jit_expr_op_info(tc, tree->nodes[node]);
     MVMint32 *depth            = traverser->data;
     MVMint32 i, j;
@@ -87,9 +87,9 @@ static void write_graphviz_node(MVMThreadContext *tc, MVMJitTreeTraverser *trave
                                 MVMJitExprTree *tree, MVMint32 node) {
     FILE *graph_file            = traverser->data;
     const MVMJitExprOpInfo *op_info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
-    MVMint32 first_child        = node + 1;
-    MVMint32 nchild             = op_info->nchild < 0 ? tree->nodes[first_child++] : op_info->nchild;
-    MVMint32 first_arg          = first_child + nchild;
+    MVMint32 *links             = MVM_JIT_EXPR_LINKS(tree, node);
+    MVMint32 nchild             = MVM_JIT_EXPR_NCHILD(tree, node);
+    MVMint32 *args              = MVM_JIT_EXPR_ARGS(tree, node);
     MVMint32 i;
     /* maximum length of op name is 'invokish' at 8 characters, let's allocate
      * 16; maximum number of parameters is 4, and 64 bits; printing them in
@@ -100,13 +100,13 @@ static void write_graphviz_node(MVMThreadContext *tc, MVMJitTreeTraverser *trave
     char *ptr = node_label + sprintf(node_label, "%s%s", op_info->name,
                                      op_info->nargs ? "(" : "");
     for (i = 0; i < op_info->nargs; i++) {
-        ptr += sprintf(ptr, "%#" PRIx64 "%s", tree->nodes[first_arg+i],
+        ptr += sprintf(ptr, "%#" PRId32 "%s", args[i],
                        (i + 1 < op_info->nargs) ? ", "  : ")");
     }
 
     fprintf(graph_file, "  n_%04d [label=\"%s\"];\n", node, node_label);
     for (i = 0; i < nchild; i++) {
-        fprintf(graph_file, "    n_%04d -> n_%04d;\n", node, (MVMint32)tree->nodes[first_child+i]);
+        fprintf(graph_file, "    n_%04d -> n_%04d;\n", node, links[i]);
     }
 }
 

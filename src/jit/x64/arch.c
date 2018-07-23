@@ -30,11 +30,11 @@ static const MVMint8 arg_fpr[] = {
 void MVM_jit_arch_storage_for_arglist(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                       MVMJitExprTree *tree, MVMint32 arglist_node,
                                       MVMJitStorageRef *storage) {
-    MVMint32 narg = tree->nodes[arglist_node + 1];
+    MVMint32 narg = MVM_JIT_EXPR_NCHILD(tree, arglist_node);
+    MVMint32 *args = MVM_JIT_EXPR_LINKS(tree, arglist_node);
     MVMint32 i, ngpr = 0, nfpr = 0, nstack = 0;
     for (i = 0; i < narg; i++) {
-        MVMint32 carg_node = tree->nodes[arglist_node + 2 + i];
-        MVMint32 carg_type = tree->nodes[carg_node + 2];
+        MVMint32 carg_type = MVM_JIT_EXPR_ARGS(tree, args[i])[0];
         /* posix stores numeric args in floating point registers, everything
          * else in general purpose registers, until it doesn't fit anymore, in
          * which case it stores them on the stack */
