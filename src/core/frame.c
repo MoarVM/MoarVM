@@ -1652,7 +1652,7 @@ void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *valu
 }
 
 /* Returns the index in the env array for the lexical in the specified frame. */
-MVMint64 MVM_frame_lexical_idx(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
+MVM_PUBLIC MVMint64 MVM_frame_lexical_idx(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
     MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
     if (MVM_LIKELY(lexical_names != NULL)) {
         MVMLexicalRegistry *entry;
