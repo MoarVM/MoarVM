@@ -2319,8 +2319,19 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             optimize_call(tc, g, bb, ins, p, 1, &arg_info);
             break;
         case MVM_OP_speshresolve:
-            if (p)
+            if (p) {
+                /* Rewriting spesh plugins will insert a bunch of instructions
+                 * in front of the generated code, which would be skipped by
+                 * our loop, so we remember the previous instruction and see
+                 * to it that we run across the new instructions, too. */
+                MVMSpeshIns *prev = ins->prev;
                 optimize_plugin(tc, g, bb, ins, p);
+                if (ins->info->opcode != MVM_OP_speshresolve
+                        && ins->info->opcode != MVM_OP_sp_speshresolve) {
+                    if (prev->prev)
+                        ins = prev->prev;
+                }
+            }
             break;
         case MVM_OP_islist:
         case MVM_OP_ishash:
