@@ -262,7 +262,7 @@ typedef struct MVMJitTreeTraverser MVMJitTreeTraverser;
 typedef struct MVMJitCompiler MVMJitCompiler;
 typedef struct MVMJitExprTemplate MVMJitExprTemplate;
 typedef struct MVMJitExprOpInfo MVMJitExprOpInfo;
-typedef struct MVMJitExprNodeInfo MVMJitExprNodeInfo;
+typedef struct MVMJitExprInfo MVMJitExprInfo;
 typedef struct MVMJitTileTemplate MVMJitTileTemplate;
 typedef struct MVMJitTile MVMJitTile;
 typedef struct MVMJitTileList MVMJitTileList;

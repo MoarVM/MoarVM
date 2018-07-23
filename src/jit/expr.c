@@ -160,7 +160,7 @@ static MVMint32 MVM_jit_expr_add_const_ptr(MVMThreadContext *tc, MVMJitExprTree 
 static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tree,
                                        MVMSpeshOperand opr, MVMuint8 info) {
 
-    MVMJitExprNode template[] = { MVM_JIT_CONST, 0, 0 };
+    MVMint32 template[] = { MVM_JIT_CONST, 0, 0 };
     MVMint32 num        = tree->nodes_num;
     MVMint32 size       = 3;
     switch(info & MVM_operand_type_mask) {
@@ -404,8 +404,8 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     const MVMJitExprOpInfo   *op_info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
     MVMint32   first_child = node + 1;
     MVMint32        nchild = op_info->nchild < 0 ? tree->nodes[first_child++] : op_info->nchild;
-    MVMJitExprNode   *args = tree->nodes + first_child + nchild;
-    MVMJitExprNodeInfo *node_info = tree->info + node;
+    MVMint32   *args = tree->nodes + first_child + nchild;
+    MVMJitExprInfo *node_info = tree->info + node;
     MVMint32 cast_mode = MVM_JIT_CAST_NONE;
     MVMint32 i;
 
@@ -910,10 +910,10 @@ void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree,
 /* Walk tree to get nodes along a path */
 MVMint32 MVM_jit_expr_tree_get_nodes(MVMThreadContext *tc, MVMJitExprTree *tree,
                                      MVMint32 node, const char *path,
-                                     MVMJitExprNode *buffer) {
-    MVMJitExprNode *ptr = buffer;
+                                     MVMint32 *buffer) {
+    MVMint32 *ptr = buffer;
     while (*path) {
-        MVMJitExprNode cur_node = node;
+        MVMint32 cur_node = node;
         do {
             MVMint32 first_child = FIRST_CHILD(tree, cur_node) - 1;
             MVMint32 child_nr    = *path++ - '0';

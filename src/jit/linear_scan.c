@@ -538,7 +538,7 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
             num_phi++;
         } else if (tile->op == MVM_JIT_ARGLIST) {
             MVMint32 num_args = tree->nodes[tile->node + 1];
-            MVMJitExprNode *refs = tree->nodes + tile->node + 2;
+            MVMint32 *refs = tree->nodes + tile->node + 2;
             _DEBUG("Adding %d references to ARGLIST node", num_args);
             for (j = 0; j < num_args; j++) {
                 MVMint32 carg  = refs[j];
