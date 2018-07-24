@@ -246,7 +246,7 @@ static const MVMREPROps MVMContext_this_repr = {
     NULL, /* deserialize_repr_data */
     NULL, /* deserialize_stable_size */
     gc_mark,
-    NULL, /* gc_free */
+    gc_free,
     NULL, /* gc_cleanup */
     NULL, /* gc_mark_repr_data */
     NULL, /* gc_free_repr_data */
