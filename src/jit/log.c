@@ -53,6 +53,7 @@ static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                       MVMJitExprTree *tree, MVMint32 node) {
     MVMJitExprInfo *info   = MVM_JIT_EXPR_INFO(tree, node);
     const MVMJitExprOpInfo *op = MVM_jit_expr_op_info(tc, tree->nodes[node]);
+    MVMint32 *links = MVM_JIT_EXPR_LINKS(tree, node);
     MVMint32 *depth            = traverser->data;
     MVMint32 i, j;
     char indent[64];
@@ -64,10 +65,10 @@ static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     memset(indent, ' ', i);
     indent[i] = 0;
     j = 0;
-    for (i = 0; i < op->nargs; i++) {
-        MVMint64 arg = tree->nodes[node+op->nchild+i+1];
-        j += snprintf(nargs + j, sizeof(nargs)-j-3, "%"PRId64, arg);
-        if (i+1 < op->nargs && j < sizeof(nargs)-3) {
+    for (i = 0; i < info->num_args; i++) {
+        MVMint32 arg = links[i];
+        j += snprintf(nargs + j, sizeof(nargs)-j-3, "%"PRId32, arg);
+        if (i+1 < info->num_args && j < sizeof(nargs)-3) {
             j += sprintf(nargs + j, ", ");
         }
     }
@@ -88,8 +89,8 @@ static void write_graphviz_node(MVMThreadContext *tc, MVMJitTreeTraverser *trave
     FILE *graph_file            = traverser->data;
     const MVMJitExprOpInfo *op_info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
     MVMint32 *links             = MVM_JIT_EXPR_LINKS(tree, node);
-    MVMint32 nchild             = MVM_JIT_EXPR_NCHILD(tree, node);
     MVMint32 *args              = MVM_JIT_EXPR_ARGS(tree, node);
+    MVMJitExprInfo *info        = MVM_JIT_EXPR_INFO(tree, node);
     MVMint32 i;
     /* maximum length of op name is 'invokish' at 8 characters, let's allocate
      * 16; maximum number of parameters is 4, and 64 bits; printing them in
@@ -98,14 +99,14 @@ static void write_graphviz_node(MVMThreadContext *tc, MVMJitTreeTraverser *trave
      * the terminus, gives us 16 + 4*12 + 3 = 67; 80 should be plenty */
     char node_label[80];
     char *ptr = node_label + sprintf(node_label, "%s%s", op_info->name,
-                                     op_info->nargs ? "(" : "");
-    for (i = 0; i < op_info->nargs; i++) {
+                                     info->num_args ? "(" : "");
+    for (i = 0; i < info->num_args; i++) {
         ptr += sprintf(ptr, "%#" PRId32 "%s", args[i],
-                       (i + 1 < op_info->nargs) ? ", "  : ")");
+                       (i + 1 < info->num_args) ? ", "  : ")");
     }
 
     fprintf(graph_file, "  n_%04d [label=\"%s\"];\n", node, node_label);
-    for (i = 0; i < nchild; i++) {
+    for (i = 0; i < info->num_links; i++) {
         fprintf(graph_file, "    n_%04d -> n_%04d;\n", node, links[i]);
     }
 }

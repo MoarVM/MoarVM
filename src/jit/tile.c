@@ -155,10 +155,10 @@ static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
         return node;
     } else {
         /* resolve conflict by copying this node */
-        const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
-        MVMint32 space = (info->nchild < 0 ?
-                          2 + tree->nodes[node+1] + info->nargs :
-                          1 + info->nchild + info->nargs);
+        const MVMJitExprOpInfo *op_info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
+        MVMJitExprInfo *info = MVM_JIT_EXPR_INFO(tree, node);
+        MVMint32 space = info->num_links + info->num_args +
+            (op_info->nchild < 0 ? 2 : 1);
         MVMint32 num   = tree->nodes_num;
 
         /* NB - we should have an append_during_traversal function
