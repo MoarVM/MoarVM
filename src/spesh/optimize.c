@@ -2322,14 +2322,16 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             if (p) {
                 /* Rewriting spesh plugins will insert a bunch of instructions
                  * in front of the generated code, which would be skipped by
-                 * our loop, so we remember the previous instruction and see
-                 * to it that we run across the new instructions, too. */
-                MVMSpeshIns *prev = ins->prev;
+                 * our loop, so we skip to before the prepargs that belongs to
+                 * it so that we run across the new instructions, too. */
+                MVMSpeshIns *prepargs = ins->prev;
+                do {
+                    prepargs = prepargs->prev;
+                } while (prepargs && prepargs->info->opcode != MVM_OP_prepargs);
                 optimize_plugin(tc, g, bb, ins, p);
-                if (ins->info->opcode != MVM_OP_speshresolve
-                        && ins->info->opcode != MVM_OP_sp_speshresolve) {
-                    if (prev && prev->prev)
-                        ins = prev->prev;
+                if (prepargs && prepargs->prev && prepargs->prev->next && prepargs->prev->next->info->opcode != MVM_OP_prepargs) {
+                    if (prepargs && prepargs->prev)
+                        ins = prepargs->prev;
                 }
             }
             break;
