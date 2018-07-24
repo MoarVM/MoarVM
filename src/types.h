@@ -201,6 +201,8 @@ typedef struct MVMSpeshUsages MVMSpeshUsages;
 typedef struct MVMSpeshUseChainEntry MVMSpeshUseChainEntry;
 typedef struct MVMSpeshDeoptUseEntry MVMSpeshDeoptUseEntry;
 typedef struct MVMSpeshFrameWalker MVMSpeshFrameWalker;
+typedef struct MVMSpeshPEAInfo MVMSpeshPEAInfo;
+typedef struct MVMSpeshPEAAllocation MVMSpeshPEAAllocation;
 typedef struct MVMSTable MVMSTable;
 typedef struct MVMStaticFrame MVMStaticFrame;
 typedef struct MVMStaticFrameBody MVMStaticFrameBody;

@@ -149,6 +149,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "spesh/manipulate.h"
 #include "spesh/args.h"
 #include "spesh/usages.h"
+#include "spesh/pea.h"
 #include "spesh/facts.h"
 #include "spesh/optimize.h"
 #include "spesh/dead_bb_elimination.h"

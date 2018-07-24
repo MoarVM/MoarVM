@@ -3335,6 +3335,10 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
      * to clean up after it. */
     post_inline_pass(tc, g, g->entry);
     MVM_spesh_eliminate_dead_ins(tc, g);
+
+    /* Perform partial escape analysis. */
+    MVM_spesh_pea(tc, g);
+
 #if MVM_SPESH_CHECK_DU
     MVM_spesh_usages_check(tc, g);
 #endif

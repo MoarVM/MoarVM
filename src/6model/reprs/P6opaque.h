@@ -124,4 +124,5 @@ MVM_STATIC_INLINE MVMint64 MVM_p6opaque_read_int64(MVMThreadContext *tc,
 size_t MVM_p6opaque_attr_offset(MVMThreadContext *tc, MVMObject *type,
     MVMObject *class_handle, MVMString *name);
 MVMuint16 MVM_p6opaque_get_bigint_offset(MVMThreadContext *tc, MVMSTable *st);
+MVMuint32 MVM_p6opaque_offset_to_attr_idx(MVMThreadContext *tc, MVMObject *type, size_t offset);
 void MVM_P6opaque_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind);

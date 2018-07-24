@@ -31,6 +31,10 @@ struct MVMSpeshFacts {
 
     /* Has the instruction that wrote this value been deleted? */
     MVMuint16 dead_writer;
+
+    /* Information associated with this value for the use of partial escape
+     * analysis. */
+    MVMSpeshPEAInfo pea;
 };
 
 /* Various fact flags. */
