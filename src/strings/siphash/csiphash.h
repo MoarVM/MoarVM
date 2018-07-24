@@ -1,6 +1,7 @@
 #include <stddef.h>
 /* <MIT License>
  Copyright (c) 2013  Marek Majkowski <marek@popcount.org>
+ Copyright (c) 2018  Samantha McVey <samantham@posteo.net>
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -24,12 +25,12 @@
  Original location:
         https://github.com/majek/csiphash/
 
- Solution inspired by code from:
+ Original solution inspired by code from:
         Samuel Neves (supercop/crypto_auth/siphash24/little)
         djb (supercop/crypto_auth/siphash24/little2)
         Jean-Philippe Aumasson (https://131002.net/siphash/siphash24.c)
 
- Modifications for MoarVM by Samantha McVey
+ Extensive modifications for MoarVM by Samantha McVey
 */
 /* Define this for our test.c test */
 #ifndef MVM_STATIC_INLINE
@@ -43,6 +44,10 @@ struct siphash {
     uint64_t  b;
 };
 typedef struct siphash siphash;
+/* These ifdef's are intended to mostly matter if we are running test.c to test
+ * SipHash independent of MoarVM. Eventually we probably want to replace this,
+ * but for now, it results in no effect unless MVM_HASH_FORCE_LITTLE_ENDIAN
+ * is defined. */
 #if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && \
     __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #  define MVM_TO_LITTLE_ENDIAN_64(x) ((uint64_t)(x))
@@ -58,29 +63,29 @@ typedef struct siphash siphash;
 #  define MVM_TO_LITTLE_ENDIAN_32(x) OSSwapLittleToHostInt32(x)
 #else
     /* See: http://sourceforge.net/p/predef/wiki/Endianness/ */
-    #  if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
-    #    include <sys/endian.h>
-    #  else
-    #    include <endian.h>
-    #  endif
-    #  if defined(__BYTE_ORDER) && defined(__LITTLE_ENDIAN) && \
+#      if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#        include <sys/endian.h>
+#      else
+#        include <endian.h>
+#      endif
+#      if defined(__BYTE_ORDER) && defined(__LITTLE_ENDIAN) && \
         __BYTE_ORDER == __LITTLE_ENDIAN
-    #    define MVM_TO_LITTLE_ENDIAN_64(x) ((uint64_t)(x))
-    #    define MVM_TO_LITTLE_ENDIAN_32(x) ((uint32_t)(x))
-    #  else
-    #    define MVM_TO_LITTLE_ENDIAN_64(x) le64toh(x)
-    #    define MVM_TO_LITTLE_ENDIAN_32(x) le32toh(x)
-    #  endif
+#        define MVM_TO_LITTLE_ENDIAN_64(x) ((uint64_t)(x))
+#        define MVM_TO_LITTLE_ENDIAN_32(x) ((uint32_t)(x))
+#      else
+#        define MVM_TO_LITTLE_ENDIAN_64(x) le64toh(x)
+#        define MVM_TO_LITTLE_ENDIAN_32(x) le32toh(x)
+#      endif
 #endif
 #if defined(MVM_HASH_FORCE_LITTLE_ENDIAN)
-    #define MVM_MAYBE_TO_LITTLE_ENDIAN_64(x) MVM_TO_LITTLE_ENDIAN_64(x)
-    #define MVM_MAYBE_TO_LITTLE_ENDIAN_32(x) MVM_TO_LITTLE_ENDIAN_32(x)
+#    define MVM_MAYBE_TO_LITTLE_ENDIAN_64(x) MVM_TO_LITTLE_ENDIAN_64(x)
+#    define MVM_MAYBE_TO_LITTLE_ENDIAN_32(x) MVM_TO_LITTLE_ENDIAN_32(x)
 #else
-    #define MVM_MAYBE_TO_LITTLE_ENDIAN_64(x) ((uint64_t)(x))
-    #define MVM_MAYBE_TO_LITTLE_ENDIAN_32(x) ((uint32_t)(x))
+#    define MVM_MAYBE_TO_LITTLE_ENDIAN_64(x) ((uint64_t)(x))
+#    define MVM_MAYBE_TO_LITTLE_ENDIAN_32(x) ((uint32_t)(x))
 #endif
-#ifndef MVM_CAN_UNALIGNED_INT64
-    #include <string.h>
+#if !defined(MVM_CAN_UNALIGNED_INT64)
+#   include <string.h>
 #endif
 #define ROTATE(x, b) (uint64_t)( ((x) << (b)) | ( (x) >> (64 - (b))) )
 
@@ -161,7 +166,7 @@ MVM_STATIC_INLINE uint64_t siphashfinish (siphash *sh, const uint8_t *src, size_
 }
 MVM_STATIC_INLINE uint64_t siphash24(const uint8_t *src, size_t src_sz, const uint64_t key[2]) {
     siphash sh;
-#ifdef MVM_CAN_UNALIGNED_INT64
+#if defined(MVM_CAN_UNALIGNED_INT64)
     const uint64_t *in = (uint64_t*)src;
     siphashinit(&sh, src_sz, key);
     while (src_sz >= 8) {
