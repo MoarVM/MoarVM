@@ -121,41 +121,43 @@ MVM_STATIC_INLINE uint64_t siphashfinish_last_part (siphash *sh, uint64_t t) {
     DOUBLE_ROUND(sh->v0,sh->v1,sh->v2,sh->v3);
     return (sh->v0 ^ sh->v1) ^ (sh->v2 ^ sh->v3);
 }
+/* This union helps us avoid doing weird things with pointers that can cause old
+ * compilers like GCC 4 to generate bad code. In addition it is nicely more C
+ * standards compliant to keep type punning to a minimum. */
+union SipHash64_union {
+    uint64_t u64;
+    uint32_t u32;
+    uint8_t  u8[8];
+};
 MVM_STATIC_INLINE uint64_t siphashfinish_32bits (siphash *sh, const uint32_t src) {
-    uint64_t t  = 0;
-    uint8_t *t8 = (uint8_t*)&t;
-    uint8_t *s8 = (uint8_t*)&src;
-    /* This should hopefully optimize to a single operation
-     * with modern compilers. We don't copy 32-bits at once due to a bug
-     * in CentOS 6, possibly in glibc 2.12.1 see issue 910 */
-    t8[0] = s8[0];
-    t8[1] = s8[1];
-    t8[2] = s8[2];
-    t8[3] = s8[3];
-    return siphashfinish_last_part(sh, t);
+    union SipHash64_union t = { 0 };
+    t.u32 = src;
+    return siphashfinish_last_part(sh, t.u64);
 }
 MVM_STATIC_INLINE uint64_t siphashfinish (siphash *sh, const uint8_t *src, size_t src_sz) {
-    const uint64_t *in = (uint64_t*)src;
-    uint64_t t  = 0;
-    uint8_t *pt = (uint8_t *)&t;
-    uint8_t *m  = (uint8_t *)in;
+    union SipHash64_union t = { 0 };
     switch (src_sz) {
         /* Falls through */
-        case 7: pt[6] = m[6];
+        case 7: t.u8[6] = src[6];
         /* Falls through */
-        case 6: pt[5] = m[5];
+        case 6: t.u8[5] = src[5];
         /* Falls through */
-        case 5: pt[4] = m[4];
+        case 5: t.u8[4] = src[4];
+#if defined(MVM_CAN_UNALIGNED_INT32)
+            t.u32 = *((uint32_t*)src);
+            break;
+#else
         /* Falls through */
-        case 4: pt[3] = m[3];
+#endif
+        case 4: t.u8[3] = src[3];
         /* Falls through */
-        case 3: pt[2] = m[2];
+        case 3: t.u8[2] = src[2];
         /* Falls through */
-        case 2: pt[1] = m[1];
+        case 2: t.u8[1] = src[1];
         /* Falls through */
-        case 1: pt[0] = m[0];
+        case 1: t.u8[0] = src[0];
     }
-    return siphashfinish_last_part(sh, t);
+    return siphashfinish_last_part(sh, t.u64);
 }
 MVM_STATIC_INLINE uint64_t siphash24(const uint8_t *src, size_t src_sz, const uint64_t key[2]) {
     siphash sh;
