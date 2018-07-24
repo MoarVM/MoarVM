@@ -2328,7 +2328,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
                 optimize_plugin(tc, g, bb, ins, p);
                 if (ins->info->opcode != MVM_OP_speshresolve
                         && ins->info->opcode != MVM_OP_sp_speshresolve) {
-                    if (prev->prev)
+                    if (prev && prev->prev)
                         ins = prev->prev;
                 }
             }
