@@ -349,6 +349,7 @@ static MVMint32 apply_template(MVMThreadContext *tc, MVMJitExprTree *tree, MVMin
     MVMint32 i, num;
     num = tree->nodes_num;
     MVM_VECTOR_ENSURE_SPACE(tree->nodes, len);
+    MVM_VECTOR_ENSURE_SIZE(tree->info, num + len);
     /* Loop over string until the end */
     for (i = 0; info[i]; i++) {
         switch (info[i]) {
@@ -364,7 +365,16 @@ static MVMint32 apply_template(MVMThreadContext *tc, MVMJitExprTree *tree, MVMin
             tree->nodes[num+i] = MVM_jit_expr_add_const_ptr(tc, tree, MVM_jit_expr_template_constants[code[i]]);
             break;
         case 'n':
-            /* fallthrough */
+            assert(i+1 < len);
+        {
+            const MVMJitExprOpInfo *op_info = MVM_jit_expr_op_info(tc, code[i]);
+            MVMint8 num_links = op_info->nchild < 0 ? code[i+1] : op_info->nchild;
+
+            tree->nodes[num+i] = code[i];
+            MVM_JIT_EXPR_INFO(tree, num+i)->num_links = num_links;
+            MVM_JIT_EXPR_INFO(tree, num+i)->num_args  = op_info->nargs;
+            break;
+        }
         case '.':
         default:
             /* copy constant from template */

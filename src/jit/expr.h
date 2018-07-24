@@ -30,14 +30,21 @@ struct MVMJitExprOpInfo {
     MVMuint8   nargs;
 };
 
+/* samcv++ for this trick */
+#define MVM_STATIC_ASSERT(x) typedef char __ASSERT[(x)?1:-1];
+
 /* Tree node information for easy access and use during compilation (a
    symbol table entry of sorts) */
 struct MVMJitExprInfo {
+    MVMint8 num_links;
+    MVMint8 num_args;
     /* VM 'register' type represented by this node */
-    MVMint8          type;
+    MVMint8 type;
     /* Size of computed value */
-    MVMint8         size;
+    MVMint8 size;
 };
+
+MVM_STATIC_ASSERT(sizeof(MVMJitExprInfo) <= sizeof(MVMint32));
 
 struct MVMJitExprTree {
     MVMJitGraph *graph;
@@ -108,12 +115,13 @@ MVM_STATIC_INLINE const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext
 }
 
 
+MVM_STATIC_INLINE MVMJitExprInfo * MVM_JIT_EXPR_INFO(MVMJitExprTree *tree, MVMint32 node) {
+    return tree->info + node;
+}
+
 
 MVM_STATIC_INLINE MVMuint8 MVM_JIT_EXPR_NCHILD(MVMJitExprTree *tree, MVMint32 node) {
-    MVMint8 nchild = MVM_JIT_EXPR_OP_INFO_TABLE[tree->nodes[node]].nchild;
-    if (nchild < 0)
-        nchild = tree->nodes[node+1];
-    return nchild;
+    return MVM_JIT_EXPR_INFO(tree, node)->num_links;
 }
 
 MVM_STATIC_INLINE MVMint32 MVM_JIT_EXPR_FIRST_CHILD(MVMJitExprTree *tree, MVMint32 node) {
@@ -132,6 +140,3 @@ MVM_STATIC_INLINE MVMint32 * MVM_JIT_EXPR_ARGS(MVMJitExprTree *tree, MVMint32 no
     return MVM_JIT_EXPR_LINKS(tree, node) + MVM_JIT_EXPR_NCHILD(tree, node);
 }
 
-MVM_STATIC_INLINE MVMJitExprInfo * MVM_JIT_EXPR_INFO(MVMJitExprTree *tree, MVMint32 node) {
-    return tree->info + node;
-}
