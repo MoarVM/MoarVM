@@ -2330,8 +2330,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
                 } while (prepargs && prepargs->info->opcode != MVM_OP_prepargs);
                 optimize_plugin(tc, g, bb, ins, p);
                 if (prepargs && prepargs->prev && prepargs->prev->next && prepargs->prev->next->info->opcode != MVM_OP_prepargs) {
-                    if (prepargs && prepargs->prev)
-                        ins = prepargs->prev;
+                    ins = prepargs->prev;
                 }
             }
             break;
