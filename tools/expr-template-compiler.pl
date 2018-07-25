@@ -6,7 +6,7 @@ use warnings FATAL => 'all';
 
 use Getopt::Long;
 use File::Spec;
-use Scalar::Util qw(looks_like_number);
+use Scalar::Util qw(looks_like_number refaddr);
 
 # use my libs
 use FindBin;
@@ -93,15 +93,21 @@ my %OP_SIZE_ARG = (
 
 
 sub validate_template {
-    my $template = shift;
+    my ($template, $context) = @_;
+
+    # Because we destructively modify (some) nodes, make sure we never
+    # visit the same node twice. NB - autovivifies $context if not
+    # passed
+    return if $context->{refaddr($template)}++;
+
     my $node = $template->[0];
     if ($node eq 'let:') {
         my $defs = $template->[1];
         my @expr = @$template[2..$#$template];
         for my $def (@$defs) {
-            validate_template($def->[1]);
+            validate_template($def->[1], $context);
         }
-        validate_template($_) for grep ref($_) eq 'ARRAY', @expr;
+        validate_template($_, $context) for grep ref($_) eq 'ARRAY', @expr;
         return;
     }
 
@@ -143,7 +149,7 @@ sub validate_template {
                             $type, sexpr::encode($template), $i, $op)
                     unless $types[$i] eq $type;
             }
-            validate_template($child);
+            validate_template($child, $context);
         } elsif (substr($child, 0, 1) eq '$') {
             # OK!
             die sprintf('Expected type %s but got %s', $types[$i], $child)
@@ -233,6 +239,13 @@ my %CONSTANTS;
 
 sub write_template {
     my ($tree, $tmpl, $desc, $env) = @_;
+
+    # Macro application can potentially introduce multiple references
+    # to a node. Instead of duplicating the template, we reuse the
+    # calculated offset. Because we're using reference identity as key
+    # this never conflict with named variable references.
+    return $env->{refaddr($tree)}, 'l' if exists $env->{refaddr($tree)};
+
     die "Can't deal with an empty tree" unless @$tree; # we need at least some nodes
     my ($node, @edges) = @$tree;
     die "First parameter must be a bareword or macro" unless $node =~ m/^&?[a-z]\w*:?$/i;
@@ -282,6 +295,7 @@ sub write_template {
             push @$tmpl, $size;
             push @$desc, '.';
         }
+        $env->{refaddr($tree)} = $root;
         return ($root, 'l');
     }
 
@@ -319,6 +333,8 @@ sub write_template {
     # add to output array
     push @$tmpl, @tmpl;
     push @$desc, @desc;
+
+    $env->{refaddr($tree)} = $root;
     # a simple expression should be linked in at runtime
     return ($root, 'l');
 }
@@ -351,7 +367,7 @@ sub parse_file {
             die "Opcode '$opcode' unknown" unless defined $OPNAMES{$opcode};
             die "Opcode '$opcode' redefined" if defined $info{$opcode};
             # Validate template for consistency with expr.h node definitions
-            validate_template($template, $OPLIST{$opcode});
+            validate_template($template);
             my $compiled = compile_template($template);
 
             $info{$opcode} = {
