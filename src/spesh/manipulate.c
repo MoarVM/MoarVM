@@ -353,6 +353,9 @@ static MVMSpeshOperand make_temp_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
 
     return result;
 }
+
+/* Gets a temporary register, adding it to the set of registers of the
+ * frame. */
 MVMSpeshOperand MVM_spesh_manipulate_get_temp_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 kind) {
     return make_temp_reg(tc, g, kind, 1);
 }
