@@ -708,8 +708,8 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         struct ValueDefinition *defined_value = NULL;
 
         /* check if this is a getlex and if we can handle it */
-        BAIL(opcode == MVM_OP_getlex && getlex_needs_autoviv(tc, jg, ins), "Can't compile object getlex");
-        BAIL(opcode == MVM_OP_bindlex && bindlex_needs_write_barrier(tc, jg, ins), "Can't compile write-barrier bindlex");
+        BAIL(opcode == MVM_OP_getlex && getlex_needs_autoviv(tc, jg, ins), "Can't compile object getlex\n");
+        BAIL(opcode == MVM_OP_bindlex && bindlex_needs_write_barrier(tc, jg, ins), "Can't compile write-barrier bindlex\n");
 
         /* Check annotations that may require handling or wrapping the expression */
         for (ann = ins->annotations; ann != NULL; ann = ann->next) {
@@ -806,7 +806,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
              * we do need to process the annotation to setup the frame handler
              * correctly.
              */
-            BAIL(after_label >= 0, "A PHI node should not have an after label");
+            BAIL(after_label >= 0, "A PHI node should not have an after label\n");
             continue;
         }
 
@@ -854,7 +854,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                     memset(values + opr.reg.orig, -1, sizeof(struct ValueDefinition));
                 } else {
                     /* record this value, should be only one for the root */
-                    BAIL(i != 0, "Write reg operand %d", i);
+                    BAIL(i != 0, "Write reg operand %d\n", i);
                     tree->info[root].opr_type  = opr_type;
                     defined_value = values + opr.reg.orig;
                     defined_value->addr = operands[i];
@@ -867,7 +867,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                 /* does not define a value we can look up, but we may need to
                  * insert a store */
                 if (!(template->flags & MVM_JIT_EXPR_TEMPLATE_DESTRUCTIVE)) {
-                    BAIL(i != 0, "Write lex operand %d", i);
+                    BAIL(i != 0, "Write lex operand %d\n", i);
                     tree->info[root].opr_type = opr_type;
                     /* insert the store to lexicals directly, do not record as value */
                     root = MVM_jit_expr_add_store(tc, tree, operands[i], root, MVM_JIT_REG_SZ);
