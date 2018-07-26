@@ -61,9 +61,9 @@ int testmvm (void) {
 	size_t s_len = 9;
 	uint64_t t0, t1, t2, t3;
 	int32_t Grapheme32[9] = { 171, -72, 69, 76, 76, 79, 9829, 9826, 187  };
-	int32_t Grapheme32_LE[9] = { 171, -72, 69, 76, 76, 79, 9829, 9826, 187  };
+	int32_t Grapheme32_LE[9];
 	for (i = 0; i < 9; i++) {
-		Grapheme32[i] = MVM_TO_LITTLE_ENDIAN_32(Grapheme32[i]);
+		Grapheme32_LE[i] = MVM_TO_LITTLE_ENDIAN_32(Grapheme32[i]);
 	}
 	t0 = gettime_ns();
 	for (rep_count = 0; rep_count < REPEATS; rep_count++) {
