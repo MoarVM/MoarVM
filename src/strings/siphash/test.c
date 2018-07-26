@@ -30,6 +30,21 @@ uint64_t vectors[64] = {
 	0xb78dbfaf3a8d83bdLLU, 0xea1ad565322a1a0bLLU, 0x60e61c23a3795013LLU, 0x6606d7e446282b93LLU,
 	0x6ca4ecb15c5f91e1LLU, 0x9f626da15c9625f3LLU, 0xe51b38608ef25f57LLU, 0x958a324ceb064572LLU,
 };
+uint32_t stored = 0;
+#define cassert(condition, number) do {\
+	/* If it's true, do nothing. */\
+	if (condition) {\
+	}\
+	/* If we've seen this failure before, do nothing. */\
+	else if (stored & (1 << number)) {\
+	}\
+	else {\
+		printf("Failed assertion at line %i\n", __LINE__);\
+		stored |= (1 << number);\
+	}\
+} while (0)
+#define passed(number) (!((stored) & (1 << (number))))
+#define pass_fail_str(number) (passed(number)?"Passed":"FAILED")
 #define MVMGrapheme32 int32_t
 #define MVMint32 int32_t
 #define MVMuint64 uint64_t
@@ -70,10 +85,10 @@ int testmvm (void) {
 		else {
 			hash = siphashfinish(&sh, NULL, 0);
 		}
-		assert(hash == 4563223716124497198LLU);
+		cassert(hash == 4563223716124497198LLU, 2);
 	}
 	t1 = gettime_ns();
-	printf("%i siphashadd64bits + siphashfinish tests finished in %.3fms\n", REPEATS, (t1-t0)/1000000.);
+	printf("%s %i siphashadd64bits + siphashfinish tests finished in %.3fms\n", pass_fail_str(2), REPEATS, (t1-t0)/1000000.);
 	for (rep_count = 0; rep_count < REPEATS; rep_count++) {
 		/* Using siphashfinish_32bits */
 		siphash sh;
@@ -86,16 +101,16 @@ int testmvm (void) {
 			siphashadd64bits(&sh, gv.u64);
 		}
 		hash = siphashfinish_32bits(&sh, i < s_len ? MVM_TO_LITTLE_ENDIAN_32(Grapheme32[i]) : 0);
-		assert(hash == 4563223716124497198LLU);
+		cassert(hash == 4563223716124497198LLU, 3);
 	}
 	t2 = gettime_ns();
-	printf("%i siphashadd64bits + siphashfinish_32bits tests finished in %.3fms\n", REPEATS, (t2-t1)/1000000.);
+	printf("%s %i siphashadd64bits + siphashfinish_32bits tests finished in %.3fms\n", pass_fail_str(3), REPEATS, (t2-t1)/1000000.);
 	for (rep_count = 0; rep_count < REPEATS; rep_count++) {
 		/* Using siphash24 */
-		assert(siphash24((uint8_t*)Grapheme32_LE, 9 * sizeof(int32_t), (uint64_t*)key) == 4563223716124497198LLU);
+		cassert(siphash24((uint8_t*)Grapheme32_LE, 9 * sizeof(int32_t), (uint64_t*)key) == 4563223716124497198LLU, 4);
 	}
 	t3 = gettime_ns();
-	printf("%i siphash23 tests finished in %.3fms\n", REPEATS, (t3-t2)/1000000.);
+	printf("%s %i siphash24 tests finished in %.3fms\n", pass_fail_str(4), REPEATS, (t3-t2)/1000000.);
 	return 0;
 }
 int main() {
@@ -108,15 +123,16 @@ int main() {
 	t0 = gettime_ns();
 	for (j=0; j<REPEATS; j++){
 		for (i=0; i<64; i++) {
-			assert(siphash24(plaintext, i, (uint64_t*)key) == vectors[i]);
+			cassert(siphash24(plaintext, i, (uint64_t*)key) == vectors[i], 1);
 		}
 	}
 	t1 = gettime_ns();
-	printf("%i standard tests passed in %.3fms, %.0fns per test\n", REPEATS*64, (t1-t0)/1000000., (t1-t0)/(REPEATS*64.));
+	printf("%s %i standard tests passed in %.3fms, %.0fns per test\n", pass_fail_str(1), REPEATS*64, (t1-t0)/1000000., (t1-t0)/(REPEATS*64.));
 	t2 = gettime_ns();
 	testmvm();
 	t3 = gettime_ns();
 
-	printf("%i MVM tests passed in %.3fms, %.0fns per test\n", REPEATS*3, (t3-t2)/1000000., (t3-t2)/(REPEATS*3.));
-	return 0;
+	printf("%i Total MVM tests run in %.3fms, %.0fns per test\n", REPEATS*3, (t3-t2)/1000000., (t3-t2)/(REPEATS*3.));
+	printf("\n%s\n", stored?"FAILED at least some of the tests":"PASSED all tests");
+	return stored;
 }
