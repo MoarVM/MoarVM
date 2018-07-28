@@ -168,11 +168,16 @@ MVM_STATIC_INLINE uint64_t siphash24(const uint8_t *src, size_t src_sz, const ui
     siphash sh;
 #if defined(MVM_CAN_UNALIGNED_INT64)
     const uint64_t *in = (uint64_t*)src;
+    /* Find largest src_sz evenly divisible by 8 bytes. */
+    const ptrdiff_t src_sz_nearest_8bits = (src_sz >> 3) << 3;
+    const uint64_t *goal  = src + src_sz_nearest_8bits;
     siphashinit(&sh, src_sz, key);
-    while (src_sz >= 8) {
+    src_sz -= src_sz_nearest_8bits;
+    while (in < goal) {
         siphashadd64bits(&sh, *in);
-        in += 1; src_sz -= 8;
+        in++;
     }
+
 #else
     const uint8_t *in = src;
     siphashinit(&sh, src_sz, key);
