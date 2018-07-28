@@ -170,7 +170,7 @@ MVM_STATIC_INLINE uint64_t siphash24(const uint8_t *src, size_t src_sz, const ui
     const uint64_t *in = (uint64_t*)src;
     /* Find largest src_sz evenly divisible by 8 bytes. */
     const ptrdiff_t src_sz_nearest_8bits = (src_sz >> 3) << 3;
-    const uint64_t *goal  = src + src_sz_nearest_8bits;
+    const uint64_t *goal  = (uint64_t*)(src + src_sz_nearest_8bits);
     siphashinit(&sh, src_sz, key);
     src_sz -= src_sz_nearest_8bits;
     while (in < goal) {
