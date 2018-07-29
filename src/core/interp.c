@@ -335,7 +335,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     outers--;
                 }
                 if (kind == MVM_reg_obj || kind == MVM_reg_str) {
-#if MVM_GC_DEGUG
+#if MVM_GC_DEBUG
                     MVM_ASSERT_NOT_FROMSPACE(tc, GET_REG(cur_op, 4).o);
 #endif
                     MVM_ASSIGN_REF(tc, &(f->header), GET_LEX(cur_op, 0, f).o,
