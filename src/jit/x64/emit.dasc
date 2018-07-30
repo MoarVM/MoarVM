@@ -993,26 +993,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |2:
         break;
     }
-    case MVM_OP_captureposarg_n: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 src = ins->operands[1].reg.orig;
-        MVMint16 pos = ins->operands[2].reg.orig;
-        | mov TMP5, qword WORK[src];
-        | test_type_object TMP5;
-        | jnz >1;
-        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMCallCapture;
-        | jne >1;
-        | mov ARG1, TC;
-        | mov ARG2, aword CAPTURE:TMP5->body.apc;
-        | mov ARG3, qword WORK[pos];
-        | callp &MVM_args_get_pos_num;
-        | mov WORK[dst], RV;
-        | jmp >2;
-        |1:
-        | throw_adhoc "captureposarg_n needs a MVMCallCapture";
-        |2:
-        break;
-    }
     case MVM_OP_captureposarg_s: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
