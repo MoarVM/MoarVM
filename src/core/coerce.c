@@ -380,6 +380,53 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
     }
 }
 
+void MVM_coerce_smart_intify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg) {
+    MVMObject *intmeth;
+
+    /* Handle null case. */
+    if (MVM_is_null(tc, obj)) {
+        res_reg->i64 = 0.0;
+    }
+
+    /* Check if there is an Int method. */
+    MVMROOT(tc, obj, {
+        intmeth = MVM_6model_find_method_cache_only(tc, obj,
+            tc->instance->str_consts.Int);
+    });
+
+    if (!MVM_is_null(tc, intmeth)) {
+        /* We need to do the invocation; just set it up with our result reg as
+         * the one for the call. */
+        MVMObject *code = MVM_frame_find_invokee(tc, intmeth, NULL);
+        MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+
+        MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_INT, inv_arg_callsite);
+        tc->cur_frame->args[0].o = obj;
+        STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
+        return;
+    }
+
+    /* Otherwise, guess something appropriate. */
+    if (!IS_CONCRETE(obj)) {
+        res_reg->i64 = 0;
+    }
+    else {
+        const MVMStorageSpec *ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
+        if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
+            res_reg->i64 = REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
+            res_reg->i64 = (MVMint64)REPR(obj)->box_funcs.get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
+            res_reg->i64 = MVM_coerce_s_i(tc, REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
+        else if (REPR(obj)->ID == MVM_REPR_ID_VMArray)
+            res_reg->i64 = REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+        else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
+            res_reg->i64 = REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+        else
+            MVM_exception_throw_adhoc(tc, "cannot intify this");
+    }
+}
+
 MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
     /* Handle null and non-concrete case. */
     if (MVM_is_null(tc, obj) || !IS_CONCRETE(obj)) {
