@@ -15,7 +15,6 @@ RM_F   = $(PERL) -MExtUtils::Command -e rm_f
 
 MINGW_UNICODE = @mingw_unicode@
 
-
 CONFIG    = @config@
 ADDCONFIG =
 
@@ -711,7 +710,6 @@ release:
 	[ -n "$(VERSION)" ] || ( echo "\nTry 'make release VERSION=yyyy.mm'\n\n"; exit 1 )
 	bash -c 'if [[ $$(git status --untracked=no --porcelain) ]]; then echo "Dirty work trees will make broken releases; maybe git stash?"; exit 1; fi'
 	./tools/release.sh $(VERSION)
-
 
 sandwich:
 	@echo What? Make it yourself.

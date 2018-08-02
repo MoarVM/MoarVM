@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 
+use 5.10.0;
 use strict;
 use warnings;
 
@@ -56,7 +57,35 @@ GetOptions(\%args, qw(
 
 pod2usage(1) if $args{help};
 
-print "Welcome to MoarVM!\n\n";
+print "Welcome to MoarVM!\n";
+
+my $VERSION = '0.0-0';
+# get version
+if (open(my $fh, '<', 'VERSION')) {
+    $VERSION = <$fh>;
+    close($fh);
+}
+# .git is a file and not a directory in submodule
+if (-e '.git' && open(my $GIT, '-|', "git describe")) {
+    $VERSION = <$GIT>;
+    close($GIT);
+}
+chomp $VERSION;
+$config{version} = $VERSION;
+if ($VERSION =~ m{ ^      (?<major>\d+)
+                   (?: \. (?<minor>\d+))
+                   (?: \. (?<patch>\d+))?
+                   (?: \- (?<commitnum>\d+))?
+                   (?: \-g(?<commithash>\w+))? $ }x
+) {
+    $config{versionmajor}      = exists $+{major}      ? $+{major}      : 0;
+    $config{versionminor}      = exists $+{minor}      ? $+{minor}      : 0;
+    $config{versionpatch}      = exists $+{patch}      ? $+{patch}      : 0;
+    $config{versioncommitnum}  = exists $+{commitnum}  ? $+{commitnum}  : 0;
+    $config{versioncommithash} = exists $+{commithash} ? $+{commithash} : 0;
+}
+print "Configuring version $VERSION\n\n";
+
 
 $config{prefix} = File::Spec->rel2abs(defined_or $args{prefix}, 'install');
 # don't install to cwd, as this would clash with lib/MAST/*.nqp
@@ -126,23 +155,6 @@ for (keys %defaults) {
     next if /^-/;
     $config{$_} = $defaults{$_} unless defined $config{$_};
 }
-
-my $VERSION = '0.0-0';
-# get version
-if (open(my $fh, '<', 'VERSION')) {
-    $VERSION = <$fh>;
-    close($fh);
-}
-# .git is a file and not a directory in submodule
-if (-e '.git' && open(my $GIT, '-|', "git describe")) {
-    $VERSION = <$GIT>;
-    close($GIT);
-}
-chomp $VERSION;
-$config{version}      = $VERSION;
-$config{versionmajor} = $VERSION =~ /^(\d+)/ ? $1 : 0;
-$config{versionminor} = $VERSION =~ /^\d+\.(\d+)/ ? $1 : 0;
-$config{versionpatch} = $VERSION =~ /^\d+\.\d+\-(\d+)/ ? $1 : 0;
 
 # misc defaults
 $config{exe}                      = '' unless defined $config{exe};
