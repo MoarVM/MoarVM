@@ -553,7 +553,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
             si->last_read = nread;
 
             /* Update permit count, stop reading if we run out. */
-            if (permit > 0) {
+            if (*permit > 0) {
                 (*permit)--;
                 if (*permit == 0) {
                     uv_read_stop(handle);
