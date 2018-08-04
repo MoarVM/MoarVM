@@ -18,7 +18,7 @@ enum {
 #include "expr_ops.h"
 
 
-enum {
+enum MVMJitExprOperator {
 #define MVM_JIT_OP_ENUM(name, nchild, narg) MVM_JIT_##name
 MVM_JIT_EXPR_OPS(MVM_JIT_OP_ENUM)
 #undef MVM_JIT_OP_ENUM
@@ -50,7 +50,6 @@ struct MVMJitExprTree {
     MVMJitGraph *graph;
     MVM_VECTOR_DECL(MVMint32, nodes);
     MVM_VECTOR_DECL(MVMint32, roots);
-    MVM_VECTOR_DECL(MVMJitExprInfo, info);
     MVM_VECTOR_DECL(union {
         MVMint64 i;
         MVMnum64 n;
@@ -116,7 +115,7 @@ MVM_STATIC_INLINE const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext
 
 
 MVM_STATIC_INLINE MVMJitExprInfo * MVM_JIT_EXPR_INFO(MVMJitExprTree *tree, MVMint32 node) {
-    return tree->info + node;
+    return (MVMJitExprInfo*)(tree->nodes + node + 1);
 }
 
 
@@ -125,10 +124,7 @@ MVM_STATIC_INLINE MVMuint8 MVM_JIT_EXPR_NCHILD(MVMJitExprTree *tree, MVMint32 no
 }
 
 MVM_STATIC_INLINE MVMint32 MVM_JIT_EXPR_FIRST_CHILD(MVMJitExprTree *tree, MVMint32 node) {
-    MVMint32 first_child = node+1;
-    if (MVM_JIT_EXPR_OP_INFO_TABLE[tree->nodes[node]].nchild < 0)
-        first_child++;
-    return first_child;
+    return node + 2;
 }
 
 MVM_STATIC_INLINE MVMint32 * MVM_JIT_EXPR_LINKS(MVMJitExprTree *tree, MVMint32 node) {

@@ -464,7 +464,7 @@ static void find_holes(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileL
                 MVMint32 nchild = MVM_JIT_EXPR_NCHILD(tree, tile->node);
                 MVMint32 *args  = MVM_JIT_EXPR_LINKS(tree, tile->node);
                 for (k = 0; k < nchild; k++) {
-                    MVMint32 ref  = value_set_find(alc->sets, tree->nodes[MVM_JIT_EXPR_FIRST_CHILD(tree, args[k])])->idx;
+                    MVMint32 ref  = value_set_find(alc->sets, MVM_JIT_EXPR_LINKS(tree, args[k])[0])->idx;
                     if (!MVM_bitmap_get(live_in, ref)) {
                         MVM_bitmap_set(live_in, ref);
                         close_hole(alc, ref, i);
@@ -541,8 +541,7 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
             MVMint32 *refs = MVM_JIT_EXPR_LINKS(tree, node);
             _DEBUG("Adding %d references to ARGLIST node", num_args);
             for (j = 0; j < num_args; j++) {
-                MVMint32 carg  = refs[j];
-                MVMint32 value = tree->nodes[MVM_JIT_EXPR_FIRST_CHILD(tree, carg)];
+                MVMint32 value = MVM_JIT_EXPR_LINKS(tree, refs[j])[0];
                 MVMint32 idx   = value_set_find(alc->sets, value)->idx;
                 _DEBUG("  Reference %d", idx);
                 live_range_add_ref(alc, alc->values + idx, i, j + 1);
@@ -821,7 +820,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     /* get value refs for arglist */
     for (i = 0; i < num_args; i++) {
         /* may refer to spilled live range */
-        arg_values[i] = value_set_find(alc->sets, tree->nodes[MVM_JIT_EXPR_FIRST_CHILD(tree, args[i])])->idx;
+        arg_values[i] = value_set_find(alc->sets, MVM_JIT_EXPR_LINKS(tree, args[i])[0])->idx;
     }
 
     _DEBUG("prepare_call: Got %d args", num_args);
