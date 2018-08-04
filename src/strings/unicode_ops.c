@@ -398,7 +398,7 @@ static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack,
         /* If there are no sub_node_elems that means we don't need to look at
          * the next codepoint, we are already at the correct node
          * If there's no more codepoints in the iterator we also are done here */
-        if (main_nodes[query].sub_node_elems < 1 || cp_num < 2 && !MVM_string_ci_has_more(tc, ci)) {
+        if (main_nodes[query].sub_node_elems < 1 || (cp_num < 2 && !MVM_string_ci_has_more(tc, ci))) {
             collation_add_keys_from_node(tc, NULL, stack, ci, name, cps[0],  &main_nodes[query]);
             num_cps_processed++;
         }
