@@ -1,7 +1,5 @@
 #!/usr/bin/env perl
 use strict;
-use warnings;
-# use very strict
 use warnings FATAL => 'all';
 
 use Getopt::Long;
@@ -15,6 +13,7 @@ use lib $FindBin::Bin;
 use sexpr;
 use expr_ops;
 use oplist;
+
 
 
 # Input:
@@ -91,6 +90,7 @@ my %OP_SIZE_ARG = (
     cast => 2,
 );
 
+my %VARIADIC_OPERATORS = map { $_ => 1 } grep $EXPR_OPS{$_}{num_childs} < 0, keys %EXPR_OPS;
 
 sub validate_template {
     my ($template, $context) = @_;
@@ -116,15 +116,10 @@ sub validate_template {
     # NB - this inserts the template length parameter into the list,
     # which is necessary for the template builder (runtime)
     my ($nchild, $narg) = @{$EXPR_OPS{$node}}{qw(num_childs num_args)};;
-    my $offset = 1;
-    if ($nchild < 0) {
-        $nchild = @$template - 1;
-        splice @$template, 1, 0, $nchild;
-        $offset = 2;
-    }
-    unless (($offset+$nchild+$narg) == @$template) {
+
+    unless ($nchild < 0 or (my $expected = 1+$nchild+$narg) == @$template) {
         my $txt = sexpr::encode($template);
-        die "Node $txt is too short";
+        die "Node $txt should be $expected long";
     }
 
     my @types = split /,/, ($OPERAND_TYPES{$node} // 'reg');
@@ -140,7 +135,7 @@ sub validate_template {
 
 
     for (my $i = 0; $i < $nchild; $i++) {
-        my $child = $template->[$offset+$i];
+        my $child = $template->[1+$i];
         if (ref($child) eq 'ARRAY' and substr($child->[0], 0, 1) ne '&') {
             unless ((my $op = $child->[0]) eq 'let:') {
 
@@ -160,7 +155,7 @@ sub validate_template {
         }
     }
     for (my  $i = 0; $i < $narg; $i++) {
-        my $child = $template->[$offset+$nchild+$i];
+        my $child = $template->[1+$nchild+$i];
         if (ref($child) eq 'ARRAY' and substr($child->[0], 0, 1) eq '&') {
             # OK
         } elsif (substr($child, 0, 1) ne '$') {
@@ -259,7 +254,7 @@ sub write_template {
 
         # depening on last node result, start with DO or DOV (void)
         my $type = ($OPERATOR_TYPES{$expr[-1][0]} // 'reg');
-        my $list = [ $type eq 'void' ? 'DOV' : 'DO', @$decl + @expr ];
+        my $list = [ $type eq 'void' ? 'dov' : 'do' ];
         # add declarations to template and to DO list
         for my $stmt (@$decl) {
             my ($name, $expr) = @$stmt;
@@ -271,7 +266,7 @@ sub write_template {
             die "Let can only be used with simple expresions" unless $mode eq 'l';
             $env->{$name} = $child;
             # ensure the DO is compiled as I expect.
-            push @$list, ['DISCARD', $name];
+            push @$list, ['discard', $name];
         }
         push @$list, @expr;
         return write_template($list, $tmpl, $desc, $env);
@@ -288,8 +283,8 @@ sub write_template {
         my $const_nr = $CONSTANTS{$value} = exists $CONSTANTS{$value} ?
             $CONSTANTS{$value} : scalar keys %CONSTANTS;
         my $root  = @$tmpl;
-        push @$tmpl, $PREFIX . uc($node), $const_nr;
-        push @$desc, 'o', 'c';
+        push @$tmpl, $PREFIX . uc($node), 0, $const_nr;
+        push @$desc, qw(n s c);
         if ($node eq 'const_large') {
             # const_large needs a size
             push @$tmpl, $size;
@@ -301,8 +296,10 @@ sub write_template {
 
     # deal with a simple expression
     my (@tmpl, @desc); # for this node
-    push @tmpl, $PREFIX . uc($node);
-    push @desc, 'n'; # node
+    my $nchild = $VARIADIC_OPERATORS{$node} ? @edges : $EXPR_OPS{$node}{num_childs};
+    push @tmpl, $PREFIX . uc($node), $nchild;
+    push @desc, qw(n s); # n = node, s = size
+
 
     for my $item (@edges) {
         if (ref($item) eq 'ARRAY') {

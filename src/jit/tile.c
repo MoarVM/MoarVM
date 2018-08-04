@@ -157,8 +157,7 @@ static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
         /* resolve conflict by copying this node */
         const MVMJitExprOpInfo *op_info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
         MVMJitExprInfo *info = MVM_JIT_EXPR_INFO(tree, node);
-        MVMint32 space = info->num_links + info->num_args +
-            (op_info->nchild < 0 ? 2 : 1);
+        MVMint32 space = info->num_links + info->num_args + 2;
         MVMint32 num   = tree->nodes_num;
 
         /* NB - we should have an append_during_traversal function
@@ -168,10 +167,6 @@ static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
          * space is available before the copy */
         MVM_VECTOR_ENSURE_SPACE(tree->nodes, space);
         MVM_VECTOR_APPEND(tree->nodes, tree->nodes + node, space);
-
-        /* Copy the information node as well */
-        MVM_VECTOR_ENSURE_SIZE(tree->info, num);
-        memcpy(tree->info + num, tree->info + node, sizeof(MVMJitExprInfo));
 
         /* Also ensure the visits and tiles array are of correct size */
         MVM_VECTOR_ENSURE_SIZE(tiler->states, num);

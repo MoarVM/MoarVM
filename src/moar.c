@@ -273,7 +273,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* what could possibly go wrong in integer formats? */
     instance->jit_expr_last_frame = jit_last_frame != NULL ? atoi(jit_last_frame) : -1;
     instance->jit_expr_last_bb    =    jit_last_bb != NULL ? atoi(jit_last_bb) : -1;
-    instance->jit_seq_nr = 0;
+    instance->jit_seq_nr = 1;
 
     /* add JIT debugging breakpoints */
     {
