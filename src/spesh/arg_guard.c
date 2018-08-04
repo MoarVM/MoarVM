@@ -531,12 +531,15 @@ void MVM_spesh_arg_guard_gc_mark(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
     if (ag) {
         MVMuint32 i;
         for (i = 0; i < ag->used_nodes; i++) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wswitch"
             switch (ag->nodes[i].op) {
                 case MVM_SPESH_GUARD_OP_STABLE_CONC:
                 case MVM_SPESH_GUARD_OP_STABLE_TYPE:
                     MVM_gc_worklist_add(tc, worklist, &(ag->nodes[i].st));
                     break;
             }
+#pragma clang diagnostic pop
         }
     }
 }
@@ -546,6 +549,8 @@ void MVM_spesh_arg_guard_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState 
     if (ag) {
         MVMuint32 i;
         for (i = 0; i < ag->used_nodes; i++) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wswitch"
             switch (ag->nodes[i].op) {
                 case MVM_SPESH_GUARD_OP_STABLE_CONC:
                 case MVM_SPESH_GUARD_OP_STABLE_TYPE:
@@ -553,6 +558,7 @@ void MVM_spesh_arg_guard_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState 
                         (MVMCollectable*)(ag->nodes[i].st), i);
                     break;
             }
+#pragma clang diagnostic pop
         }
     }
 }
