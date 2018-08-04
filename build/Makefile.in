@@ -489,7 +489,7 @@ DYNASM  = $(MINILUA) 3rdparty/dynasm/dynasm.lua
 DYNASM_SCRIPTS = 3rdparty/dynasm/dynasm.lua 3rdparty/dynasm/dasm_x86.lua
 DYNASM_HEADERS = 3rdparty/dynasm/dasm_proto.h 3rdparty/dynasm/dasm_x86.h
 
-.SUFFIXES: .c @obj@ .i @asm@ .dasc .expr .tile
+.SUFFIXES: .c @obj@ .i @asm@ .dasc .expr .tile .h
 
 all: moar@exe@ pkgconfig/moar.pc
 
