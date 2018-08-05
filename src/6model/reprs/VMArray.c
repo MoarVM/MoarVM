@@ -259,52 +259,40 @@ static MVMuint64 zero_slots(MVMThreadContext *tc, MVMArrayBody *body,
         MVMuint64 elems, MVMuint64 ssize, MVMuint8 slot_type) {
     switch (slot_type) {
         case MVM_ARRAY_OBJ:
-            while (elems < ssize)
-                body->slots.o[elems++] = NULL;
+            memset(&(body->slots.o[elems]), 0, (ssize - elems) * sizeof(MVMObject *));
             break;
         case MVM_ARRAY_STR:
-            while (elems < ssize)
-                body->slots.s[elems++] = NULL;
+            memset(&(body->slots.s[elems]), 0, (ssize - elems) * sizeof(MVMString *));
             break;
         case MVM_ARRAY_I64:
-            while (elems < ssize)
-                body->slots.i64[elems++] = 0;
+            memset(&(body->slots.i64[elems]), 0, (ssize - elems) * sizeof(MVMint64));
             break;
         case MVM_ARRAY_I32:
-            while (elems < ssize)
-                body->slots.i32[elems++] = 0;
+            memset(&(body->slots.i32[elems]), 0, (ssize - elems) * sizeof(MVMint32));
             break;
         case MVM_ARRAY_I16:
-            while (elems < ssize)
-                body->slots.i16[elems++] = 0;
+            memset(&(body->slots.i16[elems]), 0, (ssize - elems) * sizeof(MVMint16));
             break;
         case MVM_ARRAY_I8:
-            while (elems < ssize)
-                body->slots.i8[elems++] = 0;
+            memset(&(body->slots.i8[elems]), 0, (ssize - elems) * sizeof(MVMint8));
             break;
         case MVM_ARRAY_N64:
-            while (elems < ssize)
-                body->slots.n64[elems++] = 0.0;
+            memset(&(body->slots.n64[elems]), 0, (ssize - elems) * sizeof(MVMnum64));
             break;
         case MVM_ARRAY_N32:
-            while (elems < ssize)
-                body->slots.n32[elems++] = 0.0;
+            memset(&(body->slots.n32[elems]), 0, (ssize - elems) * sizeof(MVMnum32));
             break;
         case MVM_ARRAY_U64:
-            while (elems < ssize)
-                body->slots.u64[elems++] = 0;
+            memset(&(body->slots.u64[elems]), 0, (ssize - elems) * sizeof(MVMuint64));
             break;
         case MVM_ARRAY_U32:
-            while (elems < ssize)
-                body->slots.u32[elems++] = 0;
+            memset(&(body->slots.u32[elems]), 0, (ssize - elems) * sizeof(MVMuint32));
             break;
         case MVM_ARRAY_U16:
-            while (elems < ssize)
-                body->slots.u16[elems++] = 0;
+            memset(&(body->slots.u16[elems]), 0, (ssize - elems) * sizeof(MVMuint16));
             break;
         case MVM_ARRAY_U8:
-            while (elems < ssize)
-                body->slots.u8[elems++] = 0;
+            memset(&(body->slots.u8[elems]), 0, (ssize - elems) * sizeof(MVMuint8));
             break;
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
