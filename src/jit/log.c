@@ -52,7 +52,7 @@ void MVM_jit_log_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
 static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                       MVMJitExprTree *tree, MVMint32 node) {
     MVMJitExprInfo *info   = MVM_JIT_EXPR_INFO(tree, node);
-    const MVMJitExprOpInfo *op = MVM_jit_expr_op_info(tc, tree->nodes[node]);
+    const char *op_name = MVM_jit_expr_operator_name(tc, tree->nodes[node]);
     MVMint32 *links = MVM_JIT_EXPR_LINKS(tree, node);
     MVMint32 *depth            = traverser->data;
     MVMint32 i, j;
@@ -73,7 +73,7 @@ static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         }
     }
     nargs[j] = 0;
-    MVM_jit_log(tc, "%04d%s%s (%s; sz=%d)\n", node, indent, op->name,
+    MVM_jit_log(tc, "%04d%s%s (%s; sz=%d)\n", node, indent, op_name,
                 nargs, info->size);
 }
 
@@ -87,10 +87,10 @@ static void ascend_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 static void write_graphviz_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                                 MVMJitExprTree *tree, MVMint32 node) {
     FILE *graph_file            = traverser->data;
-    const MVMJitExprOpInfo *op_info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
-    MVMint32 *links             = MVM_JIT_EXPR_LINKS(tree, node);
-    MVMint32 *args              = MVM_JIT_EXPR_ARGS(tree, node);
-    MVMJitExprInfo *info        = MVM_JIT_EXPR_INFO(tree, node);
+    const char *op_name    = MVM_jit_expr_operator_name(tc, tree->nodes[node]);
+    MVMint32 *links        = MVM_JIT_EXPR_LINKS(tree, node);
+    MVMint32 *args         = MVM_JIT_EXPR_ARGS(tree, node);
+    MVMJitExprInfo *info   = MVM_JIT_EXPR_INFO(tree, node);
     MVMint32 i;
     /* maximum length of op name is 'invokish' at 8 characters, let's allocate
      * 16; maximum number of parameters is 4, and 64 bits; printing them in
@@ -98,7 +98,7 @@ static void write_graphviz_node(MVMThreadContext *tc, MVMJitTreeTraverser *trave
      * the ', '; minus 2 for the last one, plus 2 for the ampersands, plus 0 for
      * the terminus, gives us 16 + 4*12 + 3 = 67; 80 should be plenty */
     char node_label[80];
-    char *ptr = node_label + sprintf(node_label, "%s%s", op_info->name,
+    char *ptr = node_label + sprintf(node_label, "%s%s", op_name,
                                      info->num_args ? "(" : "");
     for (i = 0; i < info->num_args; i++) {
         ptr += sprintf(ptr, "%#" PRId32 "%s", args[i],

@@ -1,10 +1,29 @@
 #include "moar.h"
 
-const MVMJitExprOpInfo MVM_JIT_EXPR_OP_INFO_TABLE[] = {
+
+struct OpInfo {
+    const char *name;
+    MVMint8   nchild;
+    MVMuint8   nargs;
+};
+
+
+const struct OpInfo OP_INFO_TABLE[] = {
 #define OP_INFO(name, nchild, nargs) { #name, nchild, nargs }
     MVM_JIT_EXPR_OPS(OP_INFO)
 #undef OP_INFO
 };
+
+
+static const struct OpInfo * get_op_info(enum MVMJitExprOperator operator) {
+    assert(operator >= 0 && operator < MVM_JIT_MAX_NODES);
+    return OP_INFO_TABLE + operator;
+}
+
+const char * MVM_jit_expr_operator_name(MVMThreadContext *tc, enum MVMJitExprOperator operator) {
+    return get_op_info(operator)->name;
+}
+
 
 /* Mathematical min and max macro's */
 #ifndef MAX
@@ -14,8 +33,6 @@ const MVMJitExprOpInfo MVM_JIT_EXPR_OP_INFO_TABLE[] = {
 #ifndef MIN
 #define MIN(a,b) ((a) < (b) ? (a) : (b));
 #endif
-
-
 
 
 /* macros used in the expression list templates, defined here so they
@@ -368,10 +385,10 @@ static MVMint32 apply_template(MVMThreadContext *tc, MVMJitExprTree *tree, MVMin
             root = j;
             break;
         case 's':
-            /* skip (size argument) */
+            /* Install operator info and read size argument for variadic nodes */
             assert(i > 0 && info[i-1] == 'n');
         {
-            const MVMJitExprOpInfo *op_info = MVM_jit_expr_op_info(tc, code[i-1]);
+            const struct OpInfo *op_info = get_op_info(code[i-1]);
             MVMJitExprInfo *expr_info = MVM_JIT_EXPR_INFO(tree, j-1);
             expr_info->num_links = op_info->nchild < 0 ? code[i] : op_info->nchild;
             expr_info->num_args  = op_info->nargs;
@@ -413,7 +430,7 @@ MVMint32 MVM_jit_expr_apply_template_adhoc(MVMThreadContext *tc, MVMJitExprTree 
 static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                          MVMJitExprTree *tree, MVMint32 node) {
 
-    const MVMJitExprOpInfo   *op_info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
+    const struct OpInfo *op_info = get_op_info(tree->nodes[node]);
 
     MVMint32   first_child = MVM_JIT_EXPR_FIRST_CHILD(tree, node);
     MVMint32        nchild = MVM_JIT_EXPR_NCHILD(tree, node);
@@ -533,8 +550,8 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 fprintf(stderr, "Inserting %s cast from %d to %d for operator %s (child %s)\n",
                         (cast_mode == MVM_JIT_CAST_UNSIGNED ? "unsigned" : "signed"),
                         child_size, node_size,
-                        MVM_jit_expr_op_info(tc, tree->nodes[node])->name,
-                        MVM_jit_expr_op_info(tc, tree->nodes[child])->name
+                        MVM_jit_expr_operator_name(tc, tree->nodes[node]),
+                        MVM_jit_expr_operator_name(tc, tree->nodes[child])
                     );
 #endif
                 /* Because the cast may have grown the backing nodes array, the info array needs to grow as well */
