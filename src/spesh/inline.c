@@ -104,6 +104,7 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 return 0;
             }
 
+            # XXX TODO: See if the workaround below is still required
             if (opcode == MVM_OP_throwpayloadlexcaller && tc->instance->profiling) {
                 *no_inline_reason = "target has throwpayloadlexcaller, which currently causes problems when profiling is on";
                 return 0;
