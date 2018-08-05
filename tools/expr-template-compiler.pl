@@ -338,7 +338,7 @@ sub write_template {
 
 
 # first read the correct order of opcodes
-my %OPNAMES = map { $OPLIST[$_][0] => $_ } keys @OPLIST;
+my %OPNAMES = map { $OPLIST[$_][0] => $_ } 0..$#OPLIST;
 
 my %SEEN;
 

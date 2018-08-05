@@ -101,7 +101,7 @@ static void write_graphviz_node(MVMThreadContext *tc, MVMJitTreeTraverser *trave
     char *ptr = node_label + sprintf(node_label, "%s%s", op_name,
                                      info->num_args ? "(" : "");
     for (i = 0; i < info->num_args; i++) {
-        ptr += sprintf(ptr, "%#" PRId32 "%s", args[i],
+        ptr += sprintf(ptr, "%" PRId32 "%s", args[i],
                        (i + 1 < info->num_args) ? ", "  : ")");
     }
 
