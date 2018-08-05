@@ -2033,18 +2033,6 @@
             (carg (tc) ptr)
             (carg $1 ptr)) int_sz)
         (const 0 int_sz)))))
-(template: coerce_iu  (copy $1))
-
-(template: coerce_ui  (copy $1))
-
-(template: decont_u!
-  (callv (^func &MVM_6model_container_decont_u)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $0 ptr))))
-(template: lastexpayload
-  (^getf (tc) MVMThreadContext last_payload))
 
 (template: fc
   (call (^func &MVM_string_fc)
@@ -2066,6 +2054,19 @@
     (arglist
       (carg (tc) ptr)
       (carg $1   ptr)) int_sz))
+
+(template: coerce_iu  (copy $1))
+
+(template: coerce_ui  (copy $1))
+
+(template: decont_u!
+  (callv (^func &MVM_6model_container_decont_u)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $0 ptr))))
+(template: lastexpayload
+  (^getf (tc) MVMThreadContext last_payload))
 
 (template: unicmp_s
   (call (^func &MVM_unicode_string_compare)
