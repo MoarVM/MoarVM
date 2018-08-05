@@ -127,10 +127,18 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* This is called to do any cleanup of resources when an object gets
  * embedded inside another one. Never called on a top-level object. */
 static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
-    MVMCArrayBody *body = (MVMCArrayBody *)data;
+    MVMCArrayBody     *body      = (MVMCArrayBody *)data;
+    MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
+    MVMint32 i;
 
-    if (body->managed) 
+    if (body->managed) {
+        if (repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_STRING) {
+            for (i = 0; i < body->elems; i++) {
+                MVM_free( ((void **)body->storage)[i] );
+            }
+        }
         MVM_free(body->storage);
+    }
     if (body->child_objs)
         MVM_free(body->child_objs);
 }
