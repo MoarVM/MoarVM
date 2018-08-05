@@ -323,8 +323,13 @@ static void two_complement_shl(mp_int *result, mp_int *value, MVMint64 count) {
 }
 
 #define MVM_BIGINT_UNARY_OP(opname, SMALLINT_OP) \
-void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *source) { \
-    MVMP6bigintBody *bb = get_bigint_body(tc, result); \
+MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MVMObject *source) { \
+    MVMP6bigintBody *bb; \
+    MVMObject *result; \
+    MVMROOT(tc, source, { \
+        result = MVM_repr_alloc_init(tc, result_type);\
+    }); \
+    bb = get_bigint_body(tc, result); \
     if (!IS_CONCRETE(source)) { \
         store_int64_result(bb, 0); \
     } \
@@ -345,6 +350,7 @@ void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *sou
             store_int64_result(bb, sb); \
         } \
     } \
+    return result; \
 }
 
 #define MVM_BIGINT_BINARY_OP(opname) \

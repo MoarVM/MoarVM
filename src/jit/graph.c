@@ -276,6 +276,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_sub_I: return MVM_bigint_sub;
     case MVM_OP_mul_I: return MVM_bigint_mul;
     case MVM_OP_div_I: return MVM_bigint_div;
+    case MVM_OP_neg_I: return MVM_bigint_neg;
+    case MVM_OP_abs_I: return MVM_bigint_abs;
     case MVM_OP_bor_I: return MVM_bigint_or;
     case MVM_OP_band_I: return MVM_bigint_and;
     case MVM_OP_bxor_I: return MVM_bigint_xor;
@@ -2825,6 +2827,18 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_REG_VAL, { src_a } },
                                  { MVM_JIT_REG_VAL, { src_b } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args,
+                          MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_neg_I:
+    case MVM_OP_abs_I: {
+        MVMint16 src  = ins->operands[1].reg.orig;
+        MVMint16 type = ins->operands[2].reg.orig;
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { type } },
+                                 { MVM_JIT_REG_VAL, { src } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args,
                           MVM_JIT_RV_PTR, dst);
         break;
     }
