@@ -1313,7 +1313,7 @@ MVMuint32 find_invoke_offset(MVMThreadContext *tc, MVMSpeshIns *ins) {
 /* Given an instruction, finds the deopt target on it. Panics if there is not
  * one there. */
 void find_deopt_target_and_index(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
-                                 MVMint32 *deopt_target_out, MVMint32 *deopt_index_out) {
+                                 MVMuint32 *deopt_target_out, MVMuint32 *deopt_index_out) {
     MVMSpeshAnn *deopt_ann = ins->annotations;
     while (deopt_ann) {
         if (deopt_ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS) {
