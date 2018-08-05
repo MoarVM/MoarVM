@@ -104,6 +104,11 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 return 0;
             }
 
+            if (opcode == MVM_OP_throwpayloadlexcaller && tc->instance->profiling) {
+                *no_inline_reason = "target has throwpayloadlexcaller, which currently causes problems when profiling is on";
+                return 0;
+            }
+
             /* If we don't have the same HLL and there's a :useshll op, we
              * cannot inline. */
             if (!same_hll && ins->info->uses_hll) {
