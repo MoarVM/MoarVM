@@ -77,7 +77,7 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 MVMint32 child = links[i];
                 state_info = MVM_jit_tile_state_lookup(tc, op, tiler->states[child].state, -1);
                 _ASSERT(state_info != NULL, "OOPS, %s can't be tiled with a %s child at position %d",
-                        info->name,  MVM_jit_expr_op_info(tc, tree->nodes[child])->name, i);
+                        info->name,  MVM_jit_expr_operator_name(tc, tree->nodes[child]), i);
             }
             tiler->states[node].state    = state_info[3];
             tiler->states[node].rule     = state_info[4];
@@ -155,7 +155,6 @@ static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
         return node;
     } else {
         /* resolve conflict by copying this node */
-        const MVMJitExprOpInfo *op_info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
         MVMJitExprInfo *info = MVM_JIT_EXPR_INFO(tree, node);
         MVMint32 space = info->num_links + info->num_args + 2;
         MVMint32 num   = tree->nodes_num;
@@ -381,7 +380,7 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     default:
         {
             _ASSERT(nchild <= 2, "Can't tile %d children of %s", nchild,
-                    MVM_jit_expr_op_info(tc, tree->nodes[node])->name);
+                    MVM_jit_expr_operator_name(tc, tree->nodes[node]));
             if (nchild > 0) {
                 DO_ASSIGN_CHILD(0, left_sym);
             }

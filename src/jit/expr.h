@@ -24,12 +24,6 @@ MVM_JIT_EXPR_OPS(MVM_JIT_OP_ENUM)
 #undef MVM_JIT_OP_ENUM
 };
 
-struct MVMJitExprOpInfo {
-    const char *name;
-    MVMint8   nchild;
-    MVMuint8   nargs;
-};
-
 /* samcv++ for this trick */
 #define MVM_STATIC_ASSERT(x) typedef char __ASSERT[(x)?1:-1];
 
@@ -102,16 +96,7 @@ void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree, MVMJ
 void MVM_jit_expr_tree_destroy(MVMThreadContext *tc, MVMJitExprTree *tree);
 MVMint32 MVM_jit_expr_tree_get_nodes(MVMThreadContext *tc, MVMJitExprTree *tree,
                                      MVMint32 node, const char *path, MVMint32 *buffer);
-
-extern const MVMJitExprOpInfo MVM_JIT_EXPR_OP_INFO_TABLE[];
-MVM_STATIC_INLINE const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext *tc, MVMint32 op) {
-#ifdef MVM_JIT_DEBUG
-    if (op < 0 || op >= MVM_JIT_MAX_NODES) {
-        MVM_oops(tc, "JIT: Expr op index out of bounds: %d", op);
-    }
-#endif
-    return &MVM_JIT_EXPR_OP_INFO_TABLE[op];
-}
+const char * MVM_jit_expr_operator_name(MVMThreadContext *tc, enum MVMJitExprOperator operator);
 
 
 MVM_STATIC_INLINE MVMJitExprInfo * MVM_JIT_EXPR_INFO(MVMJitExprTree *tree, MVMint32 node) {
