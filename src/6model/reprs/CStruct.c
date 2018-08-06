@@ -224,15 +224,21 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                         repr_data->attribute_locations[i]  |= MVM_CSTRUCT_ATTR_INLINED;
 
                         if (num_dimensions > 0) {
-                            MVMint64 dim_one =  MVM_repr_at_pos_i(tc, dimensions, 0);
+                            MVMint64 dim_one     =  MVM_repr_at_pos_i(tc, dimensions, 0);
+                            MVMObject *elem_type = carray_repr_data->elem_type;
 
                             // How do we distinguish between these members:
                             // a) struct  foo [32] alias;
                             // b) struct *foo [32] alias;
                             if (carray_repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CSTRUCT) {
-                                MVMCStructREPRData *cstruct_repr_data = (MVMCStructREPRData *)STABLE(carray_repr_data->elem_type)->REPR_data;
+                                MVMCStructREPRData *cstruct_repr_data = (MVMCStructREPRData *)STABLE(elem_type)->REPR_data;
                                 bits                                  = cstruct_repr_data->struct_size * 8 * dim_one;
                                 align                                 = cstruct_repr_data->struct_align;
+                            }
+                            else if (carray_repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_NUMERIC) {
+                                const MVMStorageSpec *spec = REPR(elem_type)->get_storage_spec(tc, STABLE(elem_type));
+                                bits  = bits * dim_one;
+                                align = spec->align;
                             }
                             else {
                                 bits  = bits * dim_one;
@@ -452,7 +458,11 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                     if (cobj) {
                         MVMObject **child_objs = body->child_objs;
                         if (type == MVM_CSTRUCT_ATTR_CARRAY) {
-                            obj = MVM_nativecall_make_carray(tc, typeobj, cobj);
+                            if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
+                                obj = MVM_nativecall_make_carray(tc, typeobj,
+                                    (char *)body->cstruct + repr_data->struct_offsets[slot]);
+                            else
+                                obj = MVM_nativecall_make_carray(tc, typeobj, cobj);
                         }
                         else if(type == MVM_CSTRUCT_ATTR_CSTRUCT) {
                             if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
@@ -566,7 +576,11 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                         if (REPR(value)->ID != MVM_REPR_ID_MVMCArray)
                             MVM_exception_throw_adhoc(tc,
                                 "Can only store CArray attribute in CArray slot in CStruct");
-                        cobj = ((MVMCArray *)value)->body.storage;
+                        if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
+                            cobj = ((MVMCArray *)value)->body.storage
+                                 = (char *)body->cstruct + repr_data->struct_offsets[slot];
+                        else
+                            cobj = ((MVMCArray *)value)->body.storage;
                     }
                     else if (type == MVM_CSTRUCT_ATTR_CSTRUCT) {
                         if (REPR(value)->ID != MVM_REPR_ID_MVMCStruct)
