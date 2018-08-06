@@ -5089,7 +5089,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-            OP(getstrfromname):
+            OP(strfromname):
                 GET_REG(cur_op, 0).s = MVM_unicode_string_from_name(tc,
                     GET_REG(cur_op, 2).s);
                 cur_op += 4;

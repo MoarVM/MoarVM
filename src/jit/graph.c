@@ -365,6 +365,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_breakpoint: return MVM_debugserver_breakpoint_check;
     case MVM_OP_sp_getstringfrom: return MVM_cu_string;
     case MVM_OP_encoderepconf: return MVM_string_encode_to_buf_config;
+    case MVM_OP_strfromname: return MVM_unicode_string_from_name;
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
     }
@@ -3323,6 +3324,13 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_LITERAL, file_idx },
                                  { MVM_JIT_LITERAL, line_no } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_strfromname: {
+        MVMint16 name = ins->operands[0].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { name } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, -1);
         break;
     }
     default: {

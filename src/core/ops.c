@@ -10620,8 +10620,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_getstrfromname,
-        "getstrfromname",
+        MVM_OP_strfromname,
+        "strfromname",
         "  ",
         2,
         1,
