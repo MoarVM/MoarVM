@@ -591,8 +591,6 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     uv_mutex_destroy(&instance->nfg->update_mutex);
     MVM_nfg_destroy(instance->main_thread);
 
-    /* Clean up fixed size allocator */
-    MVM_fixed_size_destroy(instance->fsa);
 
     /* Clean up integer constant and string cache. */
     uv_mutex_destroy(&instance->mutex_int_const_cache);
@@ -605,6 +603,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Destroy main thread contexts and thread list mutex. */
     MVM_tc_destroy(instance->main_thread);
     uv_mutex_destroy(&instance->mutex_threads);
+
+    /* Clean up fixed size allocator */
+    MVM_fixed_size_destroy(instance->fsa);
 
     /* Clear up VM instance memory. */
     MVM_free(instance);
