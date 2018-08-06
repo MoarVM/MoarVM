@@ -130,7 +130,10 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                     }
                 });
             }
-            else {
+            else if (MVM_is_null(tc, log_obj)) {
+                /* This is a stop signal, so quit processing */
+                break;
+            } else {
                 MVM_panic(1, "Unexpected object sent to specialization worker");
             }
 
@@ -153,6 +156,15 @@ void MVM_spesh_worker_setup(MVMThreadContext *tc) {
         tc->instance->spesh_queue = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTQueue);
         worker_entry_point = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTCCode);
         ((MVMCFunction *)worker_entry_point)->body.func = worker;
-        MVM_thread_run(tc, MVM_thread_new(tc, worker_entry_point, 1));
+        tc->instance->spesh_thread = MVM_thread_new(tc, worker_entry_point, 1);
+        MVM_thread_run(tc, tc->instance->spesh_thread);
     }
+}
+
+
+void MVM_spesh_worker_teardown(MVMThreadContext *tc) {
+    /* Send stop sentinel */
+    MVM_repr_push_o(tc, tc->instance->spesh_queue, tc->instance->VMNull);
+    /* join thread */
+    MVM_thread_join(tc, tc->instance->spesh_thread);
 }
