@@ -326,7 +326,7 @@ MVMObject * MVM_spesh_frame_walker_get_lexicals_hash(MVMThreadContext *tc, MVMSp
     MVMStaticFrame *sf;
     MVMuint32 base_index;
     MVMHLLConfig *hll = MVM_hll_current(tc);
-    MVMObject *ctx_hash =  ctx_hash = MVM_repr_alloc_init(tc, hll->slurpy_hash_type);
+    MVMObject *ctx_hash = MVM_repr_alloc_init(tc, hll->slurpy_hash_type);
     find_lex_info(tc, fw, &frame, &sf, &base_index);
     MVMROOT3(tc, ctx_hash, frame, sf, {
         MVMuint32 i;
