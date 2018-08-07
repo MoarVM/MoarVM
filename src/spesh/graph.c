@@ -1357,18 +1357,23 @@ void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* If there is a candidate that we either generated or that this graph was
      * generated from, it has ownership of the malloc'd memory. If not, then we
      * need to clean up */
-    if (!g->cand) {
-        /* Free handlers array, if different from the static frame. */
-        if (g->handlers && g->handlers != g->sf->body.handlers)
-            MVM_free(g->handlers);
-        if (g->deopt_addrs)
-            MVM_free(g->deopt_addrs);
-        if (g->inlines)
-            MVM_free(g->inlines);
-    }
-    /* When we generate a graph from a candidate, we copy the spesh slots */
-    if (g->spesh_slots)
+    if (g->spesh_slots && (!g->cand || g->cand->spesh_slots != g->spesh_slots))
         MVM_free(g->spesh_slots);
+    if (g->deopt_addrs && (!g->cand || g->cand->deopts != g->deopt_addrs))
+        MVM_free(g->deopt_addrs);
+    if (g->inlines && (!g->cand || g->cand->inlines != g->inlines))
+        MVM_free(g->inlines);
+    if (g->local_types &&  (!g->cand || g->cand->local_types != g->local_types))
+        MVM_free(g->local_types);
+    if (g->lexical_types &&  (!g->cand || g->cand->lexical_types != g->lexical_types))
+        MVM_free(g->lexical_types);
+
+    /* Handlers can come directly from static frame, from spesh candidate, and
+     * from malloc/realloc. We only free it in the last case */
+    if (g->handlers && g->handlers != g->sf->body.handlers &&
+        (!g->cand || g->cand->handlers != g->handlers))
+        MVM_free(g->handlers);
+
     /* Free the graph itself. */
     MVM_free(g);
 }
