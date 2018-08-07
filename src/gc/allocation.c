@@ -14,11 +14,11 @@ void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
      * also; check if we've been signalled to collect. */
     /* Don't use a MVM_load(&tc->gc_status) here for performance, it's okay
      * if the interrupt is delayed a bit. */
-    if (tc->gc_status)
+    if (MVM_UNLIKELY(tc->gc_status))
         MVM_gc_enter_from_interrupt(tc);
 
     /* Guard against 0-byte allocation. */
-    if (size > 0) {
+    if (MVM_LIKELY(size > 0)) {
         /* Do a GC run if this allocation won't fit in what we have
          * left in the nursery. Note this is a loop to handle a
          * pathological case: all the objects in the nursery are very
@@ -26,7 +26,7 @@ void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
          * actually gets freed up. The next run will promote them to the
          * second generation. Note that this circumstance is exceptionally
          * unlikely in any non-contrived situation. */
-        while ((char *)tc->nursery_alloc + size >= (char *)tc->nursery_alloc_limit) {
+        while (MVM_UNLIKELY((char *)tc->nursery_alloc + size >= (char *)tc->nursery_alloc_limit)) {
             if (size > MVM_NURSERY_SIZE)
                 MVM_panic(MVM_exitcode_gcalloc, "Attempt to allocate more than the maximum nursery size");
             MVM_gc_enter_from_allocator(tc);
