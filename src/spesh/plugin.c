@@ -95,6 +95,24 @@ static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet 
                     });
                     outcome = 1;
                     break;
+                case MVM_SPESH_PLUGIN_GUARD_GETSTATICCODE:
+                    if (MVM_is_null(tc, collected_objects)) {
+                        MVMROOT(tc, test, {
+                            collected_objects = MVM_repr_alloc_init(tc,
+                                tc->instance->boot_types.BOOTArray);
+                        });
+                    }
+                    MVMROOT(tc, collected_objects, {
+                        MVMObject *result;
+                        if (REPR(test)->ID != MVM_REPR_ID_MVMCode) {
+                            outcome = 0;
+                            break;
+                        }
+                        result = (MVMObject *)((MVMCode *)test)->body.sf->body.static_code;
+                        MVM_repr_push_o(tc, collected_objects, result);
+                    });
+                    outcome = 1;
+                    break;
                 default:
                     MVM_panic(1, "Guard kind unrecognized in spesh plugin guard set");
             }
@@ -163,6 +181,7 @@ static MVMSpeshPluginGuardSet * append_guard(MVMThreadContext *tc,
                             result->guards[insert_pos].u.type,
                             tc->plugin_guards[i].u.type);
                     break;
+                case MVM_SPESH_PLUGIN_GUARD_GETSTATICCODE:
                 case MVM_SPESH_PLUGIN_GUARD_CONC:
                 case MVM_SPESH_PLUGIN_GUARD_TYPEOBJ:
                     /* These carry no extra argument. */
@@ -555,6 +574,26 @@ MVMObject * MVM_spesh_plugin_addguard_getattr(MVMThreadContext *tc, MVMObject *g
     return attr;
 }
 
+/* Gets a code object's static frame and adds that object to the set of objects
+ * that we may guard against. Will throw if we are not currently inside
+ * of a spesh plugin or if the object is not a Code Ref. */
+MVMObject * MVM_spesh_plugin_addguard_getstaticcode(MVMThreadContext *tc, MVMObject *cr) {
+    MVMObject *result;
+    MVMuint16 idx;
+    MVMSpeshPluginGuard *guard;
+
+    if (REPR(cr)->ID != MVM_REPR_ID_MVMCode)
+        MVM_exception_throw_adhoc(tc, "guardgetstaticcode requires a static coderef");
+    result = (MVMObject *)((MVMCode *)cr)->body.sf->body.static_code;
+
+    idx = get_guard_arg_index(tc, cr);
+    guard = get_guard_to_record_into(tc);
+    guard->kind = MVM_SPESH_PLUGIN_GUARD_GETSTATICCODE;
+    guard->test_idx = idx;
+    MVM_repr_push_o(tc, tc->plugin_guard_args, result);
+    return result;
+}
+
 /* Rewrites a spesh plugin resolve to instead resolve to a spesh slot with the
  * result of the resolution, inserting guards as needed. */
 static MVMSpeshOperand *arg_ins_to_reg_list(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -889,6 +928,32 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                         (arg_regs_length + 1) * sizeof(MVMSpeshOperand));
                     arg_regs[arg_regs_length++] = target;
                     MVM_VECTOR_PUSH(temps, target);
+
+                    break;
+                }
+                case MVM_SPESH_PLUGIN_GUARD_GETSTATICCODE: {
+                    MVMSpeshFacts *facts;
+
+                    /* This isn't really a guard, but rather a request to insert
+                     * a getstaticcode instruction. We also need a target register for
+                     * it, and will allocate a temporary one for it. */
+                    MVMSpeshOperand target = MVM_spesh_manipulate_get_temp_reg(tc,
+                        g, MVM_reg_obj);
+
+                    /* Emit the getattr instruction. */
+                    MVMSpeshIns *spesh_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                    spesh_ins->info = MVM_op_get_op(MVM_OP_getstaticcode);
+                    spesh_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+                    spesh_ins->operands[0] = target;
+                    spesh_ins->operands[1] = arg_regs[guard->test_idx];
+                    MVM_spesh_usages_add_by_reg(tc, g, arg_regs[guard->test_idx], spesh_ins);
+                    MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, spesh_ins);
+                    MVM_spesh_get_facts(tc, g, target)->writer = spesh_ins;
+
+                    /* Add the target into the guard reg set. */
+                    arg_regs = MVM_realloc(arg_regs,
+                        (arg_regs_length + 1) * sizeof(MVMSpeshOperand));
+                    arg_regs[arg_regs_length++] = target;
 
                     break;
                 }
