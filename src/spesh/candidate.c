@@ -19,6 +19,17 @@ static void calculate_work_env_sizes(MVMThreadContext *tc, MVMStaticFrame *sf,
     c->env_size = c->num_lexicals * sizeof(MVMRegister);
 }
 
+/* Called at points where we can GC safely during specialization. */
+static void spesh_gc_point(MVMThreadContext *tc) {
+#if MVM_GC_DEBUG
+    tc->in_spesh = 0;
+#endif
+    GC_SYNC_POINT(tc);
+#if MVM_GC_DEBUG
+    tc->in_spesh = 1;
+#endif
+}
+
 /* Produces and installs a specialized version of the code, according to the
  * specified plan. */
 void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
@@ -55,12 +66,23 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
         fflush(tc->instance->spesh_log_fh);
     }
 
+    /* Attach the graph so we will be able to mark it during optimization,
+     * allowing us to stick GC sync points at various places and so not let
+     * the optimization work block GC for too long. */
+    tc->spesh_active_graph = sg;
+    spesh_gc_point(tc);
+
     /* Perform the optimization and, if we're logging, dump out the result. */
     if (p->cs_stats->cs)
         MVM_spesh_args(tc, sg, p->cs_stats->cs, p->type_tuple);
+    spesh_gc_point(tc);
     MVM_spesh_facts_discover(tc, sg, p);
+    spesh_gc_point(tc);
     MVM_spesh_optimize(tc, sg, p);
+    spesh_gc_point(tc);
 
+    /* Clear active graph; beyond this point, no more GC syncs. */
+    tc->spesh_active_graph = NULL;
 
     if (MVM_spesh_debug_enabled(tc)) {
         char *after = MVM_spesh_dump(tc, sg);

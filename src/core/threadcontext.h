@@ -229,6 +229,11 @@ struct MVMThreadContext {
     /* The spesh stack simulation, perserved between processing logs. */
     MVMSpeshSimStack *spesh_sim_stack;
 
+    /* The current spesh graph that we are optimizing, retained here so we
+     * can GC mark it and so be able to GC at certain points during the
+     * optimization process, giving less GC latency. */
+    MVMSpeshGraph *spesh_active_graph;
+
     /* We try to do better at OSR by creating a fresh log when we enter a new
      * compilation unit. However, for things that EVAL or do a ton of BEGIN,
      * this does more harm than good. Use this to throttle it back. */

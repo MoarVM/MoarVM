@@ -1340,6 +1340,14 @@ void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist 
             }
         }
     }
+
+    /* Mark spesh slots. */
+    for (i = 0; i < g->num_spesh_slots; i++)
+        MVM_gc_worklist_add(tc, worklist, &(g->spesh_slots[i]));
+
+    /* Mark inlines. */
+    for (i = 0; i < g->num_inlines; i++)
+        MVM_gc_worklist_add(tc, worklist, &(g->inlines[i].sf));
 }
 
 /* Destroys a spesh graph, deallocating all its associated memory. */

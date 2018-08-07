@@ -189,9 +189,10 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     add_collectable(tc, worklist, snapshot, tc->spesh_log, "Specialization log");
     if (worklist)
         MVM_spesh_sim_stack_gc_mark(tc, tc->spesh_sim_stack, worklist);
-    else {
+    else
         MVM_spesh_sim_stack_gc_describe(tc, snapshot, tc->spesh_sim_stack);
-    }
+    if (tc->spesh_active_graph)
+        MVM_spesh_graph_mark(tc, tc->spesh_active_graph, worklist);
     MVM_spesh_plugin_guard_list_mark(tc, tc->plugin_guards, tc->num_plugin_guards, worklist);
     add_collectable(tc, worklist, snapshot, tc->plugin_guard_args,
         "Plugin guard args");
