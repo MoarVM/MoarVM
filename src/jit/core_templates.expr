@@ -2255,7 +2255,7 @@
 (template: sp_getspeshslot (^spesh_slot_value $1))
 
 (template: sp_fastcreate!
-  (let: (($block (call (^func &MVM_gc_allocate_zeroed)
+  (let: (($block (call (^func &MVM_gc_allocate_nursery)
                    (arglist
                      (carg (tc) ptr)
                      (carg $1 int)) ptr_sz)))
