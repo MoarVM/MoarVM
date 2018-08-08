@@ -326,7 +326,7 @@ ever having to do checks.
 The set of ops is listed in src/core/oplist.
 
 ## Annotation segment
-This consists of a number of 10-byte records, composed of:
+This consists of a number of records, composed of:
 
 * 32-bit unsigned integer offset into the bytecode segment
 * 32-bit unsigned integer strings heap index (filename)
