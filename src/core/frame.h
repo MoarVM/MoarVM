@@ -258,3 +258,4 @@ MVM_PUBLIC void MVM_frame_special_return(MVMThreadContext *tc, MVMFrame *f,
     MVMSpecialReturn special_return, MVMSpecialReturn special_unwind,
     void *special_return_data, MVMSpecialReturnDataMark mark_special_return_data);
 MVM_PUBLIC void MVM_frame_clear_special_return(MVMThreadContext *tc, MVMFrame *f);
+MVMObject * MVM_frame_caller_code(MVMThreadContext *tc);

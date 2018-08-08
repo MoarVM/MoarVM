@@ -1912,3 +1912,22 @@ void MVM_frame_clear_special_return(MVMThreadContext *tc, MVMFrame *f) {
         f->extra->mark_special_return_data = NULL;
     }
 }
+
+/* Gets the code object of the caller, provided there is one. Works even in
+ * the face that the caller was an inline (however, the current frame that is
+ * using the op must not be itself inlined). */
+MVMObject * MVM_frame_caller_code(MVMThreadContext *tc) {
+    MVMObject *result;
+    MVMFrame *f = tc->cur_frame;
+    if (f->caller) {
+        MVMSpeshFrameWalker fw;
+        MVM_spesh_frame_walker_init(tc, &fw, f, 0);
+        MVM_spesh_frame_walker_move_caller(tc, &fw);
+        result = MVM_spesh_frame_walker_get_code(tc, &fw);
+        MVM_spesh_frame_walker_cleanup(tc, &fw);
+    }
+    else {
+        result = tc->instance->VMNull;
+    }
+    return result;
+}

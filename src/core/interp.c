@@ -3265,13 +3265,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = tc->cur_frame->code_ref;
                 cur_op += 2;
                 goto NEXT;
-            OP(callercode): {
-                GET_REG(cur_op, 0).o = tc->cur_frame->caller
-                    ? tc->cur_frame->caller->code_ref
-                    : tc->instance->VMNull;
+            OP(callercode):
+                GET_REG(cur_op, 0).o = MVM_frame_caller_code(tc);
                 cur_op += 2;
                 goto NEXT;
-            }
             OP(add_I):
                 GET_REG(cur_op, 0).o = MVM_bigint_add(tc, GET_REG(cur_op, 6).o,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);

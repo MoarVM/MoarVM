@@ -1391,10 +1391,9 @@
   (^getf (^frame) MVMFrame code_ref))
 
 (template: callercode
-  (let: (($caller (^getf (^frame) MVMFrame caller)))
-  (if (nz $caller)
-    (^getf $caller MVMFrame code_ref)
-    (^nullptr))))
+  (call (^func &MVM_frame_caller_code)
+    (arglist
+      (carg (tc) ptr)) ptr_sz))
 
 (template: add_I
   (call (^func &MVM_bigint_add)
