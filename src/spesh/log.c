@@ -194,7 +194,8 @@ void MVM_spesh_log_invoke_target(MVMThreadContext *tc, MVMObject *invoke_target,
 /* Log the type returned to a frame after an invocation. */
 void MVM_spesh_log_return_type(MVMThreadContext *tc, MVMObject *value) {
     MVMSpeshLog *sl = tc->spesh_log;
-    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
+    MVMFrame *caller = tc->cur_frame->caller;
+    MVMint32 cid = caller->spesh_correlation_id;
     MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
     entry->kind = MVM_SPESH_LOG_RETURN;
     entry->id = cid;
@@ -206,7 +207,8 @@ void MVM_spesh_log_return_type(MVMThreadContext *tc, MVMObject *value) {
         entry->type.type = NULL;
         entry->type.flags = 0;
     }
-    entry->type.bytecode_offset = 0; /* Not relevant for this case. */
+    entry->type.bytecode_offset = (caller->return_address - caller->static_info->body.bytecode)
+        - (caller->return_type == MVM_RETURN_VOID ? 4 : 6);
     commit_entry(tc, sl);
 }
 

@@ -456,7 +456,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(return_i):
-                if (MVM_spesh_log_is_logging(tc))
+                if (MVM_spesh_log_is_caller_logging(tc))
                     MVM_spesh_log_return_type(tc, NULL);
                 MVM_args_set_result_int(tc, GET_REG(cur_op, 0).i64,
                     MVM_RETURN_CALLER_FRAME);
@@ -464,7 +464,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     goto return_label;
                 goto NEXT;
             OP(return_n):
-                if (MVM_spesh_log_is_logging(tc))
+                if (MVM_spesh_log_is_caller_logging(tc))
                     MVM_spesh_log_return_type(tc, NULL);
                 MVM_args_set_result_num(tc, GET_REG(cur_op, 0).n64,
                     MVM_RETURN_CALLER_FRAME);
@@ -472,7 +472,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     goto return_label;
                 goto NEXT;
             OP(return_s):
-                if (MVM_spesh_log_is_logging(tc))
+                if (MVM_spesh_log_is_caller_logging(tc))
                     MVM_spesh_log_return_type(tc, NULL);
                 MVM_args_set_result_str(tc, GET_REG(cur_op, 0).s,
                     MVM_RETURN_CALLER_FRAME);
@@ -481,7 +481,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(return_o): {
                 MVMObject *value = GET_REG(cur_op, 0).o;
-                if (MVM_spesh_log_is_logging(tc)) {
+                if (MVM_spesh_log_is_caller_logging(tc)) {
                     MVMROOT(tc, value, {
                         MVM_spesh_log_return_type(tc, value);
                     });
@@ -492,7 +492,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(return):
-                if (MVM_spesh_log_is_logging(tc))
+                if (MVM_spesh_log_is_caller_logging(tc))
                     MVM_spesh_log_return_type(tc, NULL);
                 MVM_args_assert_void_return_ok(tc, MVM_RETURN_CALLER_FRAME);
                 if (MVM_frame_try_return(tc) == 0)

@@ -592,13 +592,14 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                 break;
             }
             case MVM_SPESH_LOG_TYPE:
+            case MVM_SPESH_LOG_RETURN:
             case MVM_SPESH_LOG_INVOKE:
             case MVM_SPESH_LOG_PLUGIN_RESOLUTION: {
                 /* We only incorporate these into the model later, and only
                  * then if we need to. For now, just keep references to
                  * them. */
                 MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id, sf_updated);
-                if (simf) {
+                if (simf && (e->kind != MVM_SPESH_LOG_RETURN || e->type.type)) {
                     if (simf->offset_logs_used == simf->offset_logs_limit) {
                         simf->offset_logs_limit += 32;
                         simf->offset_logs = MVM_realloc(simf->offset_logs,
@@ -622,26 +623,6 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                 MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id, sf_updated);
                 if (simf)
                     add_static_value(tc, simf, e->value.bytecode_offset, e->value.value);
-                break;
-            }
-            case MVM_SPESH_LOG_RETURN: {
-                MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id, sf_updated);
-                if (simf) {
-                    MVMStaticFrame *called_sf = simf->sf;
-                    sim_stack_pop(tc, sims, sf_updated);
-                    if (e->type.type && sims->used) {
-                        MVMSpeshSimStackFrame *caller = &(sims->frames[sims->used - 1]);
-                        if (called_sf == caller->last_invoke_sf) {
-                            if (caller->offset_logs_used == caller->offset_logs_limit) {
-                                caller->offset_logs_limit += 32;
-                                caller->offset_logs = MVM_realloc(caller->offset_logs,
-                                    caller->offset_logs_limit * sizeof(MVMSpeshLogEntry *));
-                            }
-                            e->type.bytecode_offset = caller->last_invoke_offset;
-                            caller->offset_logs[caller->offset_logs_used++] = e;
-                        }
-                    }
-                }
                 break;
             }
         }
