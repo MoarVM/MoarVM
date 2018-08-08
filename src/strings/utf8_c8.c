@@ -468,7 +468,7 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
     while (cur_bytes && !reached_stopper) {
         /* Set up decode state for this buffer. */
         MVMint32 bytes = cur_bytes->length;
-        state.result = MVM_malloc(bytes * sizeof(MVMGrapheme32));
+        state.result = MVM_malloc((bytes + 1) * sizeof(MVMGrapheme32));
         state.orig_codes = MVM_realloc(state.orig_codes,
             sizeof(MVMCodepoint) * (state.orig_codes_pos + bytes));
         state.result_pos = 0;
