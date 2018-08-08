@@ -924,7 +924,7 @@ sp_fastinvoke_o  .s w(obj) r(obj) int16 :maycausedeopt
 # included inside of the instruction since it will have moved afterwards, and
 # we also include the static frame so that this instruction can survive being
 # inlined.
-sp_speshresolve     w(obj) str uint32 sslot :maycausedeopt
+sp_speshresolve     w(obj) str uint32 sslot :maycausedeopt :useshll
 
 # Error generation if a named param is unused (name goes in spesh slot).
 sp_paramnamesused   sslot
