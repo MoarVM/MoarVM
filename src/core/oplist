@@ -52,6 +52,9 @@
 # * :invokish means the op may invoke (used by the JIT)
 # * :throwish means the op may throw (used by the JIT)
 # * :useshll means that the op uses per-HLL config
+# * :specializable means that the op is possible to optimize through type
+#   specialization (a frame that has no such ops will only ever get a certain
+#   specialization)
 
 no_op
 const_i8            w(int8) int8 :pure
@@ -85,8 +88,8 @@ if_s                r(str) ins
 unless_s            r(str) ins
 if_s0               r(str) ins
 unless_s0           r(str) ins
-if_o                r(obj) ins :invokish :maycausedeopt
-unless_o            r(obj) ins :invokish :maycausedeopt
+if_o                r(obj) ins :invokish :maycausedeopt :specializable
+unless_o            r(obj) ins :invokish :maycausedeopt :specializable
 jumplist         :j int64 r(int64)
 getlex              w(`1) rl(`1) :pure :deoptonepoint :logged
 bindlex             wl(`1) r(`1)
@@ -178,8 +181,8 @@ coerce_is           w(str) r(int64) :pure
 coerce_ns           w(str) r(num64) :pure
 coerce_si           w(int64) r(str) :pure
 coerce_sn           w(num64) r(str) :pure
-smrt_numify         w(num64) r(obj) :pure :invokish :maycausedeopt
-smrt_strify         w(str) r(obj) :pure :invokish :maycausedeopt
+smrt_numify         w(num64) r(obj) :pure :invokish :maycausedeopt :specializable
+smrt_strify         w(str) r(obj) :pure :invokish :maycausedeopt :specializable
 prepargs         +a callsite :predeoptonepoint
 arg_i            *a int16 r(int64)
 arg_n            *a int16 r(num64)
@@ -188,11 +191,11 @@ arg_o            *a int16 r(obj)
 argconst_i       *a int16 int64
 argconst_n       *a int16 num64
 argconst_s       *a int16 str
-invoke_v         -a r(obj) :deoptallpoint :logged :maycausedeopt
-invoke_i         -a w(int64) r(obj) :deoptallpoint :maycausedeopt
-invoke_n         -a w(num64) r(obj) :deoptallpoint :maycausedeopt
-invoke_s         -a w(str) r(obj) :deoptallpoint :maycausedeopt
-invoke_o         -a w(obj) r(obj) :deoptallpoint :deoptonepoint :logged :maycausedeopt
+invoke_v         -a r(obj) :deoptallpoint :logged :maycausedeopt :specializable
+invoke_i         -a w(int64) r(obj) :deoptallpoint :maycausedeopt :specializable
+invoke_n         -a w(num64) r(obj) :deoptallpoint :maycausedeopt :specializable
+invoke_s         -a w(str) r(obj) :deoptallpoint :maycausedeopt :specializable
+invoke_o         -a w(obj) r(obj) :deoptallpoint :deoptonepoint :logged :maycausedeopt :specializable
 checkarity          int16 int16
 param_rp_i       .p w(int64) int16 :pure :noinline
 param_rp_n       .p w(num64) int16 :pure :noinline
@@ -302,86 +305,86 @@ decode              w(str) r(obj) r(str)
 istrue_s            w(int64) r(str) :pure
 isfalse_s           w(int64) r(str) :pure
 null                w(obj) :pure
-isnull              w(int64) r(obj) :pure
-ifnonnull           r(obj) ins
-findmeth            w(obj) r(obj) str :pure :invokish :maycausedeopt
-findmeth_s          w(obj) r(obj) r(str) :pure :invokish :maycausedeopt
-can                 w(int64) r(obj) str :pure :invokish :maycausedeopt
-can_s               w(int64) r(obj) r(str) :pure :invokish :maycausedeopt
-create              w(obj) r(obj) :pure
-clone               w(obj) r(obj) :pure
-isconcrete          w(int64) r(obj) :pure
+isnull              w(int64) r(obj) :pure :specializable
+ifnonnull           r(obj) ins :specializable
+findmeth            w(obj) r(obj) str :pure :invokish :maycausedeopt :specializable
+findmeth_s          w(obj) r(obj) r(str) :pure :invokish :maycausedeopt :specializable
+can                 w(int64) r(obj) str :pure :invokish :maycausedeopt :specializable
+can_s               w(int64) r(obj) r(str) :pure :invokish :maycausedeopt :specializable
+create              w(obj) r(obj) :pure :specializable
+clone               w(obj) r(obj) :pure :specializable
+isconcrete          w(int64) r(obj) :pure :specializable
 rebless             w(obj) r(obj) r(obj) :deoptonepoint
-istype              w(int64) r(obj) r(obj) :pure :invokish :maycausedeopt
-objprimspec         w(int64) r(obj) :pure
+istype              w(int64) r(obj) r(obj) :pure :invokish :maycausedeopt :specializable
+objprimspec         w(int64) r(obj) :pure :specializable
 gethow              w(obj) r(obj) :pure
 getwhat             w(obj) r(obj) :pure
 getwho              w(obj) r(obj) :pure
 setwho              w(obj) r(obj) r(obj)
-reprname            w(str) r(obj) :pure
+reprname            w(str) r(obj) :pure :specializable
 getwhere            w(int64) r(obj) :pure
 eqaddr              w(int64) r(obj) r(obj) :pure
-bindattr_i          r(obj) r(obj) str r(int64) int16
-bindattr_n          r(obj) r(obj) str r(num64) int16
-bindattr_s          r(obj) r(obj) str r(str) int16
-bindattr_o          r(obj) r(obj) str r(obj) int16
-bindattrs_i         r(obj) r(obj) r(str) r(int64)
-bindattrs_n         r(obj) r(obj) r(str) r(num64)
-bindattrs_s         r(obj) r(obj) r(str) r(str)
-bindattrs_o         r(obj) r(obj) r(str) r(obj)
-getattr_i           w(int64) r(obj) r(obj) str int16
-getattr_n           w(num64) r(obj) r(obj) str int16
-getattr_s           w(str) r(obj) r(obj) str int16
-getattr_o           w(obj) r(obj) r(obj) str int16 :deoptonepoint :logged
-getattrs_i          w(int64) r(obj) r(obj) r(str)
-getattrs_n          w(num64) r(obj) r(obj) r(str)
-getattrs_s          w(str) r(obj) r(obj) r(str)
-getattrs_o          w(obj) r(obj) r(obj) r(str) :deoptonepoint :logged
-attrinited          w(int64) r(obj) r(obj) r(str)
-box_i               w(obj) r(int64) r(obj) :pure
-box_n               w(obj) r(num64) r(obj) :pure
-box_s               w(obj) r(str) r(obj) :pure
-unbox_i             w(int64) r(obj) :pure
-unbox_n             w(num64) r(obj) :pure
-unbox_s             w(str) r(obj) :pure
-atpos_i             w(int64) r(obj) r(int64)
-atpos_n             w(num64) r(obj) r(int64)
-atpos_s             w(str) r(obj) r(int64)
-atpos_o             w(obj) r(obj) r(int64)
-bindpos_i           r(obj) r(int64) r(int64)
-bindpos_n           r(obj) r(int64) r(num64)
-bindpos_s           r(obj) r(int64) r(str)
-bindpos_o           r(obj) r(int64) r(obj)
-push_i              r(obj) r(int64)
-push_n              r(obj) r(num64)
-push_s              r(obj) r(str)
-push_o              r(obj) r(obj)
-pop_i               w(int64) r(obj)
-pop_n               w(num64) r(obj)
-pop_s               w(str) r(obj)
-pop_o               w(obj) r(obj)
-shift_i             w(int64) r(obj)
-shift_n             w(num64) r(obj)
-shift_s             w(str) r(obj)
-shift_o             w(obj) r(obj)
-unshift_i           r(obj) r(int64)
-unshift_n           r(obj) r(num64)
-unshift_s           r(obj) r(str)
-unshift_o           r(obj) r(obj)
-splice              r(obj) r(obj) r(int64) r(int64)
-setelemspos         r(obj) r(int64)
-existspos           w(int64) r(obj) r(int64) :pure
-atkey_i             w(int64) r(obj) r(str)
-atkey_n             w(num64) r(obj) r(str)
-atkey_s             w(str) r(obj) r(str)
-atkey_o             w(obj) r(obj) r(str)
-bindkey_i           r(obj) r(str) r(int64)
-bindkey_n           r(obj) r(str) r(num64)
-bindkey_s           r(obj) r(str) r(str)
-bindkey_o           r(obj) r(str) r(obj)
-existskey           w(int64) r(obj) r(str) :pure
-deletekey           r(obj) r(str)
-elems               w(int64) r(obj) :pure
+bindattr_i          r(obj) r(obj) str r(int64) int16 :specializable
+bindattr_n          r(obj) r(obj) str r(num64) int16 :specializable
+bindattr_s          r(obj) r(obj) str r(str) int16 :specializable
+bindattr_o          r(obj) r(obj) str r(obj) int16 :specializable
+bindattrs_i         r(obj) r(obj) r(str) r(int64) :specializable
+bindattrs_n         r(obj) r(obj) r(str) r(num64) :specializable
+bindattrs_s         r(obj) r(obj) r(str) r(str) :specializable
+bindattrs_o         r(obj) r(obj) r(str) r(obj) :specializable
+getattr_i           w(int64) r(obj) r(obj) str int16 :specializable
+getattr_n           w(num64) r(obj) r(obj) str int16 :specializable
+getattr_s           w(str) r(obj) r(obj) str int16 :specializable
+getattr_o           w(obj) r(obj) r(obj) str int16 :deoptonepoint :logged :specializable
+getattrs_i          w(int64) r(obj) r(obj) r(str) :specializable
+getattrs_n          w(num64) r(obj) r(obj) r(str) :specializable
+getattrs_s          w(str) r(obj) r(obj) r(str) :specializable
+getattrs_o          w(obj) r(obj) r(obj) r(str) :deoptonepoint :logged :specializable
+attrinited          w(int64) r(obj) r(obj) r(str) :specializable
+box_i               w(obj) r(int64) r(obj) :pure :specializable
+box_n               w(obj) r(num64) r(obj) :pure :specializable
+box_s               w(obj) r(str) r(obj) :pure :specializable
+unbox_i             w(int64) r(obj) :pure :specializable
+unbox_n             w(num64) r(obj) :pure :specializable
+unbox_s             w(str) r(obj) :pure :specializable
+atpos_i             w(int64) r(obj) r(int64) :specializable
+atpos_n             w(num64) r(obj) r(int64) :specializable
+atpos_s             w(str) r(obj) r(int64) :specializable
+atpos_o             w(obj) r(obj) r(int64) :specializable
+bindpos_i           r(obj) r(int64) r(int64) :specializable
+bindpos_n           r(obj) r(int64) r(num64) :specializable
+bindpos_s           r(obj) r(int64) r(str) :specializable
+bindpos_o           r(obj) r(int64) r(obj) :specializable
+push_i              r(obj) r(int64) :specializable
+push_n              r(obj) r(num64) :specializable
+push_s              r(obj) r(str) :specializable
+push_o              r(obj) r(obj) :specializable
+pop_i               w(int64) r(obj) :specializable
+pop_n               w(num64) r(obj) :specializable
+pop_s               w(str) r(obj) :specializable
+pop_o               w(obj) r(obj) :specializable
+shift_i             w(int64) r(obj) :specializable
+shift_n             w(num64) r(obj) :specializable
+shift_s             w(str) r(obj) :specializable
+shift_o             w(obj) r(obj) :specializable
+unshift_i           r(obj) r(int64) :specializable
+unshift_n           r(obj) r(num64) :specializable
+unshift_s           r(obj) r(str) :specializable
+unshift_o           r(obj) r(obj) :specializable
+splice              r(obj) r(obj) r(int64) r(int64) :specializable
+setelemspos         r(obj) r(int64) :specializable
+existspos           w(int64) r(obj) r(int64) :pure :specializable
+atkey_i             w(int64) r(obj) r(str) :specializable
+atkey_n             w(num64) r(obj) r(str) :specializable
+atkey_s             w(str) r(obj) r(str) :specializable
+atkey_o             w(obj) r(obj) r(str) :specializable
+bindkey_i           r(obj) r(str) r(int64) :specializable
+bindkey_n           r(obj) r(str) r(num64) :specializable
+bindkey_s           r(obj) r(str) r(str) :specializable
+bindkey_o           r(obj) r(str) r(obj) :specializable
+existskey           w(int64) r(obj) r(str) :pure :specializable
+deletekey           r(obj) r(str) :specializable
+elems               w(int64) r(obj) :pure :specializable
 knowhow             w(obj) :pure
 knowhowattr         w(obj) :pure
 newtype             w(obj) r(obj) r(str)
@@ -391,8 +394,8 @@ setmethcacheauth    r(obj) r(int64)
 settypecache        r(obj) r(obj)
 settypecheckmode    r(obj) r(int64)
 setboolspec         r(obj) r(int64) r(obj)
-istrue              w(int64) r(obj) :invokish :maycausedeopt
-isfalse             w(int64) r(obj) :invokish :maycausedeopt
+istrue              w(int64) r(obj) :invokish :maycausedeopt :specializable
+isfalse             w(int64) r(obj) :invokish :maycausedeopt :specializable
 bootint             w(obj) :pure
 bootnum             w(obj) :pure
 bootstr             w(obj) :pure
@@ -401,11 +404,11 @@ bootintarray        w(obj) :pure
 bootnumarray        w(obj) :pure
 bootstrarray        w(obj) :pure
 boothash            w(obj) :pure
-isint               w(int64) r(obj) :pure
-isnum               w(int64) r(obj) :pure
-isstr               w(int64) r(obj) :pure
-islist              w(int64) r(obj) :pure
-ishash              w(int64) r(obj) :pure
+isint               w(int64) r(obj) :pure :specializable
+isnum               w(int64) r(obj) :pure :specializable
+isstr               w(int64) r(obj) :pure :specializable
+islist              w(int64) r(obj) :pure :specializable
+ishash              w(int64) r(obj) :pure :specializable
 sethllconfig        r(str) r(obj)
 hllboxtype_i        w(obj) :pure
 hllboxtype_n        w(obj) :pure
@@ -420,13 +423,13 @@ gethllsym           w(obj) r(str) r(str) :pure
 bindhllsym          r(str) r(str) r(obj)
 settypehll          r(obj) r(str)
 settypehllrole      r(obj) r(int64)
-hllize              w(obj) r(obj) :pure :invokish :useshll :maycausedeopt
-hllizefor           w(obj) r(obj) r(str) :pure :invokish :maycausedeopt
+hllize              w(obj) r(obj) :pure :invokish :useshll :maycausedeopt :specializable
+hllizefor           w(obj) r(obj) r(str) :pure :invokish :maycausedeopt :specializable
 usecompileehllconfig :useshll
 usecompilerhllconfig :useshll
-iter                w(obj) r(obj) :pure :useshll
-iterkey_s           w(str) r(obj) :pure
-iterval             w(obj) r(obj) :pure
+iter                w(obj) r(obj) :pure :useshll :specializable
+iterkey_s           w(str) r(obj) :pure :specializable
+iterval             w(obj) r(obj) :pure :specializable
 getcodename         w(str) r(obj) :pure
 iscoderef           w(int64) r(obj) :pure
 getcodeobj          w(obj) r(obj) :pure
@@ -434,7 +437,7 @@ setcodeobj          r(obj) r(obj)
 setcodename         r(obj) r(str)
 forceouterctx       r(obj) r(obj)
 setinvokespec       r(obj) r(obj) r(str) r(obj)
-isinvokable         w(int64) r(obj) :pure
+isinvokable         w(int64) r(obj) :pure :specializable
 freshcoderef        w(obj) r(obj)
 markcodestatic      r(obj)
 markcodestub        r(obj)
@@ -444,8 +447,8 @@ setdispatcher       r(obj)
 takedispatcher      w(obj)
 assign              r(obj) r(obj) :invokish :maycausedeopt
 assignunchecked     r(obj) r(obj) :invokish :maycausedeopt
-iscont              w(int64) r(obj) :pure
-decont              w(obj) r(obj) :pure :invokish :deoptonepoint :logged :maycausedeopt
+iscont              w(int64) r(obj) :pure :specializable
+decont              w(obj) r(obj) :pure :invokish :deoptonepoint :logged :maycausedeopt :specializable
 setcontspec         r(obj) r(str) r(obj)
 sha1                w(str) r(str) :pure
 createsc            w(obj) r(str)
@@ -553,8 +556,8 @@ say                 r(str)
 DEPRECATED_22       w(str) r(obj)
 tell_fh             w(int64) r(obj)
 stat                w(int64) r(str) r(int64)
-tryfindmeth         w(obj) r(obj) str :pure :invokish :maycausedeopt
-tryfindmeth_s       w(obj) r(obj) r(str) :pure :invokish :maycausedeopt
+tryfindmeth         w(obj) r(obj) str :pure :invokish :maycausedeopt :specializable
+tryfindmeth_s       w(obj) r(obj) r(str) :pure :invokish :maycausedeopt :specializable
 chdir               r(str)
 srand               r(int64)
 rand_i              w(int64)
@@ -649,12 +652,12 @@ DEPRECATED_14       w(obj) r(obj) r(obj) r(obj) r(str) r(obj)
 asyncwritebytes     w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
 DEPRECATED_16       w(obj) r(obj) r(obj) r(obj) r(obj)
 asyncreadbytes      w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
-getlexstatic_o      w(obj) r(str) :pure :noinline :logged
-getlexperinvtype_o  w(obj) r(str) :pure :noinline :logged
+getlexstatic_o      w(obj) r(str) :pure :noinline :logged :specializable
+getlexperinvtype_o  w(obj) r(str) :pure :noinline :logged :specializable
 execname            w(str)
 const_i64_16        w(int64) int16 :pure
 const_i64_32        w(int64) int32 :pure
-isnonnull           w(int64) r(obj) :pure
+isnonnull           w(int64) r(obj) :pure :specializable
 param_rn2_i         w(int64) str str :noinline
 param_rn2_n         w(num64) str str :noinline
 param_rn2_s         w(str) str str :noinline
@@ -681,15 +684,15 @@ typeparameters      w(obj) r(obj)
 typeparameterat     w(obj) r(obj) r(int64)
 readlink            w(str) r(str)
 lstat               w(int64) r(str) r(int64)
-iscont_i            w(int64) r(obj) :pure
-iscont_n            w(int64) r(obj) :pure
-iscont_s            w(int64) r(obj) :pure
-assign_i            r(obj) r(int64) :invokish :maycausedeopt
-assign_n            r(obj) r(num64) :invokish :maycausedeopt
-assign_s            r(obj) r(str) :invokish :maycausedeopt
-decont_i            w(int64) r(obj) :pure :invokish :maycausedeopt
-decont_n            w(num64) r(obj) :pure :invokish :maycausedeopt
-decont_s            w(str) r(obj) :pure :invokish :maycausedeopt
+iscont_i            w(int64) r(obj) :pure :specializable
+iscont_n            w(int64) r(obj) :pure :specializable
+iscont_s            w(int64) r(obj) :pure :specializable
+assign_i            r(obj) r(int64) :invokish :maycausedeopt :specializable
+assign_n            r(obj) r(num64) :invokish :maycausedeopt :specializable
+assign_s            r(obj) r(str) :invokish :maycausedeopt :specializable
+decont_i            w(int64) r(obj) :pure :invokish :maycausedeopt :specializable
+decont_n            w(num64) r(obj) :pure :invokish :maycausedeopt :specializable
+decont_s            w(str) r(obj) :pure :invokish :maycausedeopt :specializable
 getrusage           r(obj) :pure
 threadlockcount     w(int64) r(obj) :pure
 DEPRECATED_4        w(obj) r(str) :pure :noinline
@@ -719,35 +722,35 @@ ordbaseat           w(int64) r(str) r(int64) :pure
 neverrepossess      r(obj)
 scdisclaim          r(obj)
 DEPRECATED_31       w(obj)
-atpos2d_i           w(int64) r(obj) r(int64) r(int64) :pure
-atpos2d_n           w(num64) r(obj) r(int64) r(int64) :pure
-atpos2d_s           w(str) r(obj) r(int64) r(int64) :pure
-atpos2d_o           w(obj) r(obj) r(int64) r(int64) :pure
-atpos3d_i           w(int64) r(obj) r(int64) r(int64) r(int64) :pure
-atpos3d_n           w(num64) r(obj) r(int64) r(int64) r(int64) :pure
-atpos3d_s           w(str) r(obj) r(int64) r(int64) r(int64) :pure
-atpos3d_o           w(obj) r(obj) r(int64) r(int64) r(int64) :pure
-atposnd_i           w(int64) r(obj) r(obj) :pure
-atposnd_n           w(num64) r(obj) r(obj) :pure
-atposnd_s           w(str) r(obj) r(obj) :pure
-atposnd_o           w(obj) r(obj) r(obj) :pure
-bindpos2d_i         r(obj) r(int64) r(int64) r(int64)
-bindpos2d_n         r(obj) r(int64) r(int64) r(num64)
-bindpos2d_s         r(obj) r(int64) r(int64) r(str)
-bindpos2d_o         r(obj) r(int64) r(int64) r(obj)
-bindpos3d_i         r(obj) r(int64) r(int64) r(int64) r(int64)
-bindpos3d_n         r(obj) r(int64) r(int64) r(int64) r(num64)
-bindpos3d_s         r(obj) r(int64) r(int64) r(int64) r(str)
-bindpos3d_o         r(obj) r(int64) r(int64) r(int64) r(obj)
-bindposnd_i         r(obj) r(obj) r(int64)
-bindposnd_n         r(obj) r(obj) r(num64)
-bindposnd_s         r(obj) r(obj) r(str)
-bindposnd_o         r(obj) r(obj) r(obj)
-dimensions          w(obj) r(obj)
-setdimensions       r(obj) r(obj)
-numdimensions       w(int64) r(obj) :pure
+atpos2d_i           w(int64) r(obj) r(int64) r(int64) :pure :specializable
+atpos2d_n           w(num64) r(obj) r(int64) r(int64) :pure :specializable
+atpos2d_s           w(str) r(obj) r(int64) r(int64) :pure :specializable
+atpos2d_o           w(obj) r(obj) r(int64) r(int64) :pure :specializable
+atpos3d_i           w(int64) r(obj) r(int64) r(int64) r(int64) :pure :specializable
+atpos3d_n           w(num64) r(obj) r(int64) r(int64) r(int64) :pure :specializable
+atpos3d_s           w(str) r(obj) r(int64) r(int64) r(int64) :pure :specializable
+atpos3d_o           w(obj) r(obj) r(int64) r(int64) r(int64) :pure :specializable
+atposnd_i           w(int64) r(obj) r(obj) :pure :specializable
+atposnd_n           w(num64) r(obj) r(obj) :pure :specializable
+atposnd_s           w(str) r(obj) r(obj) :pure :specializable
+atposnd_o           w(obj) r(obj) r(obj) :pure :specializable
+bindpos2d_i         r(obj) r(int64) r(int64) r(int64) :specializable
+bindpos2d_n         r(obj) r(int64) r(int64) r(num64) :specializable
+bindpos2d_s         r(obj) r(int64) r(int64) r(str) :specializable
+bindpos2d_o         r(obj) r(int64) r(int64) r(obj) :specializable
+bindpos3d_i         r(obj) r(int64) r(int64) r(int64) r(int64) :specializable
+bindpos3d_n         r(obj) r(int64) r(int64) r(int64) r(num64) :specializable
+bindpos3d_s         r(obj) r(int64) r(int64) r(int64) r(str) :specializable
+bindpos3d_o         r(obj) r(int64) r(int64) r(int64) r(obj) :specializable
+bindposnd_i         r(obj) r(obj) r(int64) :specializable
+bindposnd_n         r(obj) r(obj) r(num64) :specializable
+bindposnd_s         r(obj) r(obj) r(str) :specializable
+bindposnd_o         r(obj) r(obj) r(obj) :specializable
+dimensions          w(obj) r(obj) :specializable
+setdimensions       r(obj) r(obj) :specializable
+numdimensions       w(int64) r(obj) :pure :specializable
 ctxcode             w(obj) r(obj)
-isrwcont            w(int64) r(obj) :pure
+isrwcont            w(int64) r(obj) :pure :specializable
 fc                  w(str) r(str) :pure
 DEPRECATED_25       r(obj) r(obj)
 DEPRECATED_21       w(str) r(obj)
@@ -760,8 +763,8 @@ fileno_fh           w(int64) r(obj) :pure
 asyncudp            w(obj) r(obj) r(obj) r(str) r(int64) r(int64) r(obj)
 DEPRECATED_15       w(obj) r(obj) r(obj) r(obj) r(str) r(obj) r(str) r(int64)
 asyncwritebytesto   w(obj) r(obj) r(obj) r(obj) r(obj) r(obj) r(str) r(int64)
-objprimbits         w(int64) r(obj)
-objprimunsigned     w(int64) r(obj)
+objprimbits         w(int64) r(obj) :specializable
+objprimunsigned     w(int64) r(obj) :specializable
 DEPRECATED_5        w(obj) r(int32) :pure :noinline
 DEPRECATED_6        w(obj) r(int16) :pure :noinline
 DEPRECATED_7        w(obj) r(int8) :pure :noinline
@@ -770,13 +773,13 @@ getlexref_i32       w(obj) rl(int32) :pure :noinline :useshll
 getlexref_i16       w(obj) rl(int16) :pure :noinline :useshll
 getlexref_i8        w(obj) rl(int8) :pure :noinline :useshll
 getlexref_n32       w(obj) rl(num32) :pure :noinline :useshll
-box_u               w(obj) r(uint64) r(obj) :pure
-unbox_u             w(uint64) r(obj) :pure
+box_u               w(obj) r(uint64) r(obj) :pure :specializable
+unbox_u             w(uint64) r(obj) :pure :specializable
 coerce_iu           w(uint64) r(int64) :pure
 coerce_ui           w(int64) r(uint64) :pure
 coerce_nu           w(uint64) r(num64) :pure
 coerce_un           w(num64) r(uint64) :pure
-decont_u            w(uint64) r(obj) :pure :invokish :maycausedeopt
+decont_u            w(uint64) r(obj) :pure :invokish :maycausedeopt :specializable
 DEPRECATED_9        w(obj) r(uint64) :pure :noinline
 DEPRECATED_10       w(obj) r(uint32) :pure :noinline
 DEPRECATED_11       w(obj) r(uint16) :pure :noinline
@@ -822,24 +825,24 @@ eqaticim_s          w(int64) r(str) r(str) r(int64) :pure
 indexicim_s         w(int64) r(str) r(str) r(int64) :pure
 decodertakecharseof w(str) r(obj) r(int64)
 indexim_s           w(int64) r(str) r(str) r(int64) :pure
-cas_o               w(obj) r(obj) r(obj) r(obj) :invokish :maycausedeopt
-cas_i               w(int64) r(obj) r(int64) r(int64)
-atomicinc_i         w(int64) r(obj)
-atomicdec_i         w(int64) r(obj)
-atomicadd_i         w(int64) r(obj) r(int64)
+cas_o               w(obj) r(obj) r(obj) r(obj) :invokish :maycausedeopt :specializable
+cas_i               w(int64) r(obj) r(int64) r(int64) :specializable
+atomicinc_i         w(int64) r(obj) :specializable
+atomicdec_i         w(int64) r(obj) :specializable
+atomicadd_i         w(int64) r(obj) r(int64) :specializable
 # Following two are *not* :pure (even though just loads); their memory barrier
 # counts as a side-effect that should be retained.
-atomicload_o        w(obj) r(obj)
-atomicload_i        w(int64) r(obj)
-atomicstore_o       r(obj) r(obj) :invokish :maycausedeopt
-atomicstore_i       r(obj) r(int64)
+atomicload_o        w(obj) r(obj) :specializable
+atomicload_i        w(int64) r(obj) :specializable
+atomicstore_o       r(obj) r(obj) :invokish :maycausedeopt :specializable
+atomicstore_i       r(obj) r(int64) :specializable
 barrierfull
 coveragecontrol     r(int64)
-nativeinvoke_v       -a r(obj) r(obj)
-nativeinvoke_i       -a w(int64) r(obj) r(obj)
-nativeinvoke_n       -a w(num64) r(obj) r(obj)
-nativeinvoke_s       -a w(str) r(obj) r(obj)
-nativeinvoke_o       -a w(obj) r(obj) r(obj)
+nativeinvoke_v       -a r(obj) r(obj) :specializable
+nativeinvoke_i       -a w(int64) r(obj) r(obj) :specializable
+nativeinvoke_n       -a w(num64) r(obj) r(obj) :specializable
+nativeinvoke_s       -a w(str) r(obj) r(obj) :specializable
+nativeinvoke_o       -a w(obj) r(obj) r(obj) :specializable
 getarg_i            w(int64) r(int16)
 getarg_n            w(num64) r(int16)
 getarg_s            w(str) r(int16)
@@ -853,15 +856,15 @@ getppid             w(int64)
 getsignals          w(obj) :useshll
 slice               w(obj) r(obj) r(int64) r(int64)
 speshreg            r(str) r(str) r(obj)
-speshresolve     -a w(obj) str :deoptonepoint :logged :noinline
+speshresolve     -a w(obj) str :deoptonepoint :logged :noinline :specializable
 speshguardtype      r(obj) r(obj)
 speshguardconcrete  r(obj)
 speshguardtypeobj   r(obj)
 speshguardobj       r(obj)
 speshguardgetattr   w(obj) r(obj) r(obj) str
-atomicbindattr_o    r(obj) r(obj) r(str) r(obj)
-casattr_o           w(obj) r(obj) r(obj) r(str) r(obj) r(obj)
-atkey_u             w(uint64) r(obj) r(str)
+atomicbindattr_o    r(obj) r(obj) r(str) r(obj) :specializable
+casattr_o           w(obj) r(obj) r(obj) r(str) r(obj) r(obj) :specializable
+atkey_u             w(uint64) r(obj) r(str) :specializable
 coerce_us           w(str) r(uint64) :pure
 speshguardnotobj    r(obj) r(obj)
 
