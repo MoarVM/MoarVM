@@ -687,8 +687,20 @@ static void tweak_block_handler_usage(MVMThreadContext *tc, MVMSpeshGraph *g) {
 }
 
 /* Kicks off fact discovery from the top of the (dominator) tree. */
-void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p) {
+void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p,
+        MVMuint32 is_specialized) {
+    /* The facts pass sets up usage normal usage information. */
     add_bb_facts(tc, g, g->entry, p);
     tweak_block_handler_usage(tc, g);
-    MVM_spesh_usages_create_deopt_usage(tc, g);
+
+    /* We do an initial dead instruction pass before then computing the deopt
+     * usages. This dead instrution elimination pass acts also as a PHI prune,
+     * since we have numerous dead PHI instructions that can cause bogus
+     * deopt retentions, as well as increase the amount of work that the
+     * deopt usage algorithm has to do. Note that we don't do this for an
+     * already specialized inlinee, since information was already discarded. */
+    if (!is_specialized) {
+        MVM_spesh_eliminate_dead_ins(tc, g);
+        MVM_spesh_usages_create_deopt_usage(tc, g);
+    }
 }

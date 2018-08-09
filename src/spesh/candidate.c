@@ -76,7 +76,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     if (p->cs_stats->cs)
         MVM_spesh_args(tc, sg, p->cs_stats->cs, p->type_tuple);
     spesh_gc_point(tc);
-    MVM_spesh_facts_discover(tc, sg, p);
+    MVM_spesh_facts_discover(tc, sg, p, 0);
     spesh_gc_point(tc);
     MVM_spesh_optimize(tc, sg, p);
     spesh_gc_point(tc);

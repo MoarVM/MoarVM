@@ -152,6 +152,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "spesh/facts.h"
 #include "spesh/optimize.h"
 #include "spesh/dead_bb_elimination.h"
+#include "spesh/dead_ins_elimination.h"
 #include "spesh/deopt.h"
 #include "spesh/log.h"
 #include "spesh/threshold.h"

@@ -196,6 +196,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/facts@obj@ \
           src/spesh/optimize@obj@ \
           src/spesh/dead_bb_elimination@obj@ \
+          src/spesh/dead_ins_elimination@obj@ \
           src/spesh/deopt@obj@ \
           src/spesh/log@obj@ \
           src/spesh/threshold@obj@ \
@@ -359,7 +360,7 @@ HEADERS = src/moar.h \
           src/spesh/usages.h \
           src/spesh/facts.h \
           src/spesh/optimize.h \
-          src/spesh/dead_bb_elimination.h \
+          src/spesh/dead_ins_elimination.h \
           src/spesh/deopt.h \
           src/spesh/log.h \
           src/spesh/threshold.h \

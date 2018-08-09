@@ -193,7 +193,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
          * We also need to bump counts for any inline's code_ref_reg to make
          * sure it stays available for deopt. */
         MVMuint32 i;
-        MVM_spesh_facts_discover(tc, ig, NULL);
+        MVM_spesh_facts_discover(tc, ig, NULL, 1);
         for (i = 0; i < ig->num_inlines; i++) {
             /* We can't be very precise about this, because we don't know the
              * SSA version in effect. So bump usages of all version of the
@@ -235,7 +235,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadConte
      * the args specialization). */
     ig = MVM_spesh_graph_create(tc, target_sf, 0, 1);
     MVM_spesh_args_from_callinfo(tc, ig, call_info);
-    MVM_spesh_facts_discover(tc, ig, NULL);
+    MVM_spesh_facts_discover(tc, ig, NULL, 0);
     MVM_spesh_optimize(tc, ig, NULL);
 
     /* See if it's inlineable; clean up if not. */

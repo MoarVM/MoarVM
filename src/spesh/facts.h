@@ -49,7 +49,8 @@ struct MVMSpeshFacts {
 #define MVM_SPESH_FACT_MERGED_WITH_LOG_GUARD 4096 /* These facts were merged at a PHI node, but at least one of the incoming facts had a "from log guard" flag set, so we'll have to look for that fact and increment its uses if we use this here fact. */
 #define MVM_SPESH_FACT_RW_CONT               8192 /* Known to be an rw container */
 
-void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p);
+void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p,
+    MVMuint32 is_specialized);
 void MVM_spesh_facts_depend(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVMSpeshFacts *target, MVMSpeshFacts *source);
 void MVM_spesh_facts_object_facts(MVMThreadContext *tc, MVMSpeshGraph *g,
