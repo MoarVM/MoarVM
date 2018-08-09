@@ -212,6 +212,13 @@ void MVM_spesh_log_return_type(MVMThreadContext *tc, MVMObject *value) {
     commit_entry(tc, sl);
 }
 
+/* Inserted by the JIT on return_o so that it can do the appropriate thing.
+ * There may be ways to optimize this. */
+void MVM_spesh_log_return_type_from_jit(MVMThreadContext *tc, MVMObject *value) {
+    if (MVM_spesh_log_is_caller_logging(tc))
+        MVM_spesh_log_return_type(tc, value);
+}
+
 /* Log the result of a spesh plugin resolution. */
 void MVM_spesh_log_plugin_resolution(MVMThreadContext *tc, MVMuint32 bytecode_offset,
                                      MVMuint16 guard_index) {
