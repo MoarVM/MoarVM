@@ -82,6 +82,9 @@ struct MVMStaticFrameBody {
     /* Is the frame marked as not being allowed to inline? */
     MVMuint8 no_inline;
 
+    /* Does the frame contain specializable instructions? */
+    MVMuint8 specializable;
+
     /* The compilation unit unique ID of this frame. */
     MVMString *cuuid;
 

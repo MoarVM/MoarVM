@@ -55,29 +55,32 @@ MVMSpeshStatsType * copy_type_tuple(MVMThreadContext *tc, MVMCallsite *cs,
  * plans specializations to produce for it. */
 void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
                  MVMSpeshStatsByCallsite *by_cs) {
-    /* See if any types tuples are hot enough. */
-    MVMuint32 i;
+    /* See if any types tuples are hot enough, provided this is a frame that
+     * we can type-specialize. */
     MVMuint32 unaccounted_hits = by_cs->hits;
     MVMuint32 unaccounted_osr_hits = by_cs->osr_hits;
-    for (i = 0; i < by_cs->num_by_type; i++) {
-        MVMSpeshStatsByType *by_type = &(by_cs->by_type[i]);
-        MVMuint32 hit_percent = by_cs->hits
-           ? (100 * by_type->hits) / by_cs->hits
-           : 0;
-        MVMuint32 osr_hit_percent = by_cs->osr_hits
-            ? (100 * by_type->osr_hits) / by_cs->osr_hits
-            : 0;
-        if (by_cs->cs && (hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT ||
-                osr_hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT_OSR)) {
-            MVMSpeshStatsByType **evidence = MVM_malloc(sizeof(MVMSpeshStatsByType *));
-            evidence[0] = by_type;
-            add_planned(tc, plan, MVM_SPESH_PLANNED_OBSERVED_TYPES, sf, by_cs,
-                copy_type_tuple(tc, by_cs->cs, by_type->arg_types), evidence, 1);
-            unaccounted_hits -= by_type->hits;
-            unaccounted_osr_hits -= by_type->osr_hits;
-        }
-        else {
-            /* TODO derived specialization planning */
+    if (sf->body.specializable) {
+        MVMuint32 i;
+        for (i = 0; i < by_cs->num_by_type; i++) {
+            MVMSpeshStatsByType *by_type = &(by_cs->by_type[i]);
+            MVMuint32 hit_percent = by_cs->hits
+               ? (100 * by_type->hits) / by_cs->hits
+               : 0;
+            MVMuint32 osr_hit_percent = by_cs->osr_hits
+                ? (100 * by_type->osr_hits) / by_cs->osr_hits
+                : 0;
+            if (by_cs->cs && (hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT ||
+                    osr_hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT_OSR)) {
+                MVMSpeshStatsByType **evidence = MVM_malloc(sizeof(MVMSpeshStatsByType *));
+                evidence[0] = by_type;
+                add_planned(tc, plan, MVM_SPESH_PLANNED_OBSERVED_TYPES, sf, by_cs,
+                    copy_type_tuple(tc, by_cs->cs, by_type->arg_types), evidence, 1);
+                unaccounted_hits -= by_type->hits;
+                unaccounted_osr_hits -= by_type->osr_hits;
+            }
+            else {
+                /* TODO derived specialization planning */
+            }
         }
     }
 

@@ -798,6 +798,8 @@ char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
                     p->cs_stats->osr_hits);
             else
                 append(&ds, "It was planned for unknown reasons.\n");
+            if (!p->sf->body.specializable)
+                append(&ds, "The body contains no specializable instructions.\n");
             break;
         case MVM_SPESH_PLANNED_OBSERVED_TYPES: {
             MVMCallsite *cs = p->cs_stats->cs;
