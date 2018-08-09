@@ -3,31 +3,28 @@
 /* This is where the main optimization work on a spesh graph takes place,
  * using facts discovered during analysis. */
 
-/* Writes to stderr about each inline that we perform. */
-#define MVM_LOG_INLINES 0
-
 /* Logging of whether we can or can't inline. */
 static void log_inline(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *target_sf,
                        MVMSpeshGraph *inline_graph, MVMuint32 bytecode_size,
                        char *no_inline_reason) {
-#if MVM_LOG_INLINES
-    char *c_name_i = MVM_string_utf8_encode_C_string(tc, target_sf->body.name);
-    char *c_cuid_i = MVM_string_utf8_encode_C_string(tc, target_sf->body.cuuid);
-    char *c_name_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.name);
-    char *c_cuid_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.cuuid);
-    if (inline_graph) {
-        fprintf(stderr, "Can inline %s (%s) with bytecode size %u into %s (%s)\n",
-            c_name_i, c_cuid_i, bytecode_size, c_name_t, c_cuid_t);
+    if (tc->instance->spesh_inline_log) {
+        char *c_name_i = MVM_string_utf8_encode_C_string(tc, target_sf->body.name);
+        char *c_cuid_i = MVM_string_utf8_encode_C_string(tc, target_sf->body.cuuid);
+        char *c_name_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.name);
+        char *c_cuid_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.cuuid);
+        if (inline_graph) {
+            fprintf(stderr, "Can inline %s (%s) with bytecode size %u into %s (%s)\n",
+                c_name_i, c_cuid_i, bytecode_size, c_name_t, c_cuid_t);
+        }
+        else {
+            fprintf(stderr, "Can NOT inline %s (%s) with bytecode size %u into %s (%s): %s\n",
+                c_name_i, c_cuid_i, bytecode_size, c_name_t, c_cuid_t, no_inline_reason);
+        }
+        MVM_free(c_name_i);
+        MVM_free(c_cuid_i);
+        MVM_free(c_name_t);
+        MVM_free(c_cuid_t);
     }
-    else {
-        fprintf(stderr, "Can NOT inline %s (%s) with bytecode size %u into %s (%s): %s\n",
-            c_name_i, c_cuid_i, bytecode_size, c_name_t, c_cuid_t, no_inline_reason);
-    }
-    MVM_free(c_name_i);
-    MVM_free(c_cuid_i);
-    MVM_free(c_name_t);
-    MVM_free(c_cuid_t);
-#endif
     if (inline_graph && MVM_spesh_debug_enabled(tc)) {
         char *dump = MVM_spesh_dump(tc, inline_graph);
         MVM_spesh_debug_printf(tc, "Inlining graph\n%s\n", dump);

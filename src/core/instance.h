@@ -251,6 +251,7 @@ struct MVMInstance {
     /* Flag for if spesh (and certain spesh features) are enabled. */
     MVMint8 spesh_enabled;
     MVMint8 spesh_inline_enabled;
+    MVMint8 spesh_inline_log;
     MVMint8 spesh_osr_enabled;
     MVMint8 spesh_nodelay;
     MVMint8 spesh_blocking;

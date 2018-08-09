@@ -81,7 +81,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
 
     char *spesh_log, *spesh_nodelay, *spesh_disable, *spesh_inline_disable,
-         *spesh_osr_disable, *spesh_limit, *spesh_blocking;
+         *spesh_osr_disable, *spesh_limit, *spesh_blocking, *spesh_inline_log;
     char *jit_log, *jit_expr_disable, *jit_disable, *jit_bytecode_dir, *jit_last_frame, *jit_last_bb;
     char *dynvar_log;
     int init_stat;
@@ -244,6 +244,11 @@ MVMInstance * MVM_vm_create_instance(void) {
     spesh_blocking = getenv("MVM_SPESH_BLOCKING");
     if (spesh_blocking && spesh_blocking[0])
         instance->spesh_blocking = 1;
+
+    /* Should we dump details of inlining? */
+    spesh_inline_log = getenv("MVM_SPESH_INLINE_LOG");
+    if (spesh_inline_log && spesh_inline_log[0])
+        instance->spesh_inline_log = 1;
 
     /* JIT environment/logging setup. */
     jit_disable = getenv("MVM_JIT_DISABLE");
