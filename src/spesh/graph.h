@@ -64,6 +64,11 @@ struct MVMSpeshGraph {
      * don't typically don't update the array in specialized code. */
     MVMuint64 deopt_named_used_bit_field;
 
+    /* Deopt points that are considered to be always in use, even if they
+     * are not on a deopting instruction. */
+    MVMuint32 *always_retained_deopt_idxs;
+    MVMuint32 num_always_retained_deopt_idxs;
+
     /* Table of information about inlines, laid out in order of nesting
      * depth. Thus, going through the table in order and finding when we
      * are within the bounds will show up each call frame that needs to

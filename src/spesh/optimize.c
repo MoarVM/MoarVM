@@ -1605,6 +1605,11 @@ static void tweak_for_target_sf(MVMThreadContext *tc, MVMSpeshGraph *g,
 }
 
 /* Drives optimization of a call. */
+static MVMuint32 get_prepargs_deopt_idx(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshCallInfo *info) {
+    MVMuint32 deopt_target, deopt_index;
+    find_deopt_target_and_index(tc, g, info->prepargs_ins, &deopt_target, &deopt_index);
+    return deopt_index;
+}
 static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                           MVMSpeshIns *ins, MVMSpeshPlanned *p, MVMint32 callee_idx,
                           MVMSpeshCallInfo *arg_info) {
@@ -1612,6 +1617,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
     MVMObject *target = NULL;
     MVMuint32 num_arg_slots;
     MVMSpeshOperand code_temp;
+    MVMuint32 prepargs_deopt_idx = get_prepargs_deopt_idx(tc, g, arg_info);
 
     /* Check we know what we're going to be invoking. */
     MVMSpeshFacts *callee_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[callee_idx]);
@@ -1784,7 +1790,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                         : ins->operands[1];
                 MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
-                        code_ref_reg);
+                        code_ref_reg, prepargs_deopt_idx);
                 MVM_free(inline_graph->spesh_slots);
             }
             else {
@@ -1835,7 +1841,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                         : ins->operands[1];
                 MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
-                        code_ref_reg);
+                        code_ref_reg, prepargs_deopt_idx);
                 MVM_free(inline_graph->spesh_slots);
             }
         }

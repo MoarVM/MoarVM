@@ -414,6 +414,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVMint32        i, orig_inlines, total_inlines, orig_deopt_addrs;
     MVMuint32       total_handlers = inliner->num_handlers + inlinee->num_handlers + 1;
     MVMSpeshBB     *inlinee_first_bb = NULL, *inlinee_last_bb = NULL;
+    MVMuint8        may_cause_deopt = 0;
 
     /* If the inliner and inlinee are from different compilation units, we
      * potentially have to fix up extra things. */
@@ -445,6 +446,9 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 }
                 ann = ann->next;
             }
+
+            if (ins->info->may_cause_deopt)
+                may_cause_deopt = 1;
 
             if (opcode == MVM_SSA_PHI) {
                 for (i = 0; i < ins->info->num_operands; i++)
@@ -646,6 +650,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     inliner->inlines[total_inlines - 1].unreachable = 0;
     inliner->inlines[total_inlines - 1].deopt_named_used_bit_field =
         inlinee->deopt_named_used_bit_field;
+    inliner->inlines[total_inlines - 1].may_cause_deopt = may_cause_deopt;
     inliner->num_inlines = total_inlines;
 
     /* Create/update per-specialization local and lexical type maps. */
@@ -1109,7 +1114,8 @@ static void annotate_inline_start_end(MVMThreadContext *tc, MVMSpeshGraph *inlin
 void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                       MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
                       MVMSpeshIns *invoke_ins, MVMSpeshGraph *inlinee,
-                      MVMStaticFrame *inlinee_sf, MVMSpeshOperand code_ref_reg) {
+                      MVMStaticFrame *inlinee_sf, MVMSpeshOperand code_ref_reg,
+                      MVMuint32 proxy_deopt_idx) {
     MVMSpeshIns *first_ins;
 
     /* Merge inlinee's graph into the inliner. */
@@ -1147,4 +1153,11 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     invoke_ins->info = MVM_op_get_op(MVM_OP_goto);
     invoke_ins->operands[0].ins_bb = inlinee->entry->linear_next;
     tweak_succ(tc, inliner, invoke_bb, inlinee->entry->linear_next);
+
+    /* If this inline may cause deopt, then we take the deopt index at the
+     * calling point and use it as a proxy for the deopts that may happen in
+     * the inline. Otherwise, we might incorrectly fail to preserve values
+     * for the sake of deopt. */
+    if (inliner->inlines[inliner->num_inlines - 1].may_cause_deopt)
+        MVM_spesh_usages_retain_deopt_index(tc, inliner, proxy_deopt_idx);
 }

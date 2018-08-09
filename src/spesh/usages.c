@@ -285,6 +285,18 @@ void MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(MVMThreadContext *tc,
     MVM_spesh_usages_add_unconditional_deopt_usage(tc, g, MVM_spesh_get_facts(tc, g, operand));
 }
 
+/* Records that a certain deopt point must always be considered in use, even
+ * if we don't see the annotation on a deopt instruction. This may be because
+ * it serves as a "proxy" for all of the deopts that may take place inside of
+ * an inlinee. */
+void MVM_spesh_usages_retain_deopt_index(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint32 idx) {
+    /* Just allocate it at the number of deopt addrs now; it'll only be
+     * used for those in the immediate graph anyway. */
+    if (!g->always_retained_deopt_idxs)
+        g->always_retained_deopt_idxs = MVM_spesh_alloc(tc, g, g->num_deopt_addrs * sizeof(MVMuint32));
+    g->always_retained_deopt_idxs[g->num_always_retained_deopt_idxs++] = idx;
+}
+
 /* Remove usages of deopt points that won't casue deopt. */
 void MVM_spesh_usages_remove_unused_deopt(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMuint32 i, j;
@@ -313,6 +325,10 @@ void MVM_spesh_usages_remove_unused_deopt(MVMThreadContext *tc, MVMSpeshGraph *g
         }
         bb = bb->linear_next;
     }
+
+    /* Include those we must always retain. */
+    for (i = 0; i < g->num_always_retained_deopt_idxs; i++)
+        deopt_used[g->always_retained_deopt_idxs[i]] = 1;
     
     /* Now delete deopt usages that are of unused deopt indices. */
     for (i = 0; i < g->sf->body.num_locals; i++) {
