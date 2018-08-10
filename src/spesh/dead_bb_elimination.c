@@ -6,6 +6,25 @@ static void mark_handler_unreachable(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
     g->unreachable_handlers[index] = 1;
 }
 
+static MVMSpeshBB * linear_next_with_ins(MVMSpeshBB *cur_bb) {
+    while (cur_bb) {
+        if (cur_bb->first_ins)
+            return cur_bb;
+        cur_bb = cur_bb->linear_next;
+    }
+    return NULL;
+}
+
+static MVMSpeshBB * linear_prev_with_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *cur_bb) {
+    cur_bb = MVM_spesh_graph_linear_prev(tc, g, cur_bb);
+    while (cur_bb) {
+        if (cur_bb->first_ins)
+            return cur_bb;
+        cur_bb = MVM_spesh_graph_linear_prev(tc, g, cur_bb);
+    }
+    return NULL;
+}
+
 static void cleanup_dead_bb_instructions(MVMThreadContext *tc, MVMSpeshGraph *g,
                                          MVMSpeshBB *dead_bb, MVMint32 cleanup_facts) {
     MVMSpeshIns *ins = dead_bb->first_ins;
@@ -22,13 +41,14 @@ static void cleanup_dead_bb_instructions(MVMThreadContext *tc, MVMSpeshGraph *g,
                      * unreachable. */
                     g->inlines[ann->data.inline_idx].unreachable = 1;
                     break;
-                case MVM_SPESH_ANN_FH_START:
+                case MVM_SPESH_ANN_FH_START: {
                     /* Move the start to the next basic block if possible. If
                      * not, just mark the handler deleted; its end must be in
                      * this block also. */
+                    MVMSpeshBB *move_to_bb = linear_next_with_ins(dead_bb->linear_next);
                     frame_handlers_started[ann->data.frame_handler_index] = 1;
-                    if (dead_bb->linear_next) {
-                        MVMSpeshIns *move_to_ins = dead_bb->linear_next->first_ins;
+                    if (move_to_bb) {
+                        MVMSpeshIns *move_to_ins = move_to_bb->first_ins;
                         ann->next = move_to_ins->annotations;
                         move_to_ins->annotations = ann;
                     }
@@ -36,6 +56,7 @@ static void cleanup_dead_bb_instructions(MVMThreadContext *tc, MVMSpeshGraph *g,
                         mark_handler_unreachable(tc, g, ann->data.frame_handler_index);
                     }
                     break;
+                }
                 case MVM_SPESH_ANN_FH_END: {
                     /* If we already saw the start, then we'll just mark it as
                      * deleted. */
@@ -46,10 +67,12 @@ static void cleanup_dead_bb_instructions(MVMThreadContext *tc, MVMSpeshGraph *g,
                     /* Otherwise, move it to the end of the previous basic
                      * block (which should always exist). */
                     else {
-                        MVMSpeshBB *linear_prev = MVM_spesh_graph_linear_prev(tc, g, dead_bb);
-                        MVMSpeshIns *move_to_ins = linear_prev->last_ins;
-                        ann->next = move_to_ins->annotations;
-                        move_to_ins->annotations = ann;
+                        MVMSpeshBB *move_to_bb = linear_prev_with_ins(tc, g, dead_bb);
+                        if (move_to_bb) {
+                            MVMSpeshIns *move_to_ins = move_to_bb->last_ins;
+                            ann->next = move_to_ins->annotations;
+                            move_to_ins->annotations = ann;
+                        }
                     }   
                     break;
                 }
