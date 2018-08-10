@@ -377,6 +377,7 @@ MVMSpeshOperand MVM_spesh_manipulate_split_version(MVMThreadContext *tc, MVMSpes
                                                    MVMSpeshIns *at) {
     MVMSpeshOperand new_version = MVM_spesh_manipulate_new_version(tc, g, split.reg.orig);
     MVM_VECTOR_DECL(MVMSpeshBB *, bbq);
+    MVM_VECTOR_INIT(bbq, 1);
     MVM_VECTOR_PUSH(bbq, bb);
     while (MVM_VECTOR_ELEMS(bbq)) {
         MVMuint32 i;
