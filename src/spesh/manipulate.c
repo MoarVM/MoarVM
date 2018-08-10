@@ -399,6 +399,7 @@ MVMSpeshOperand MVM_spesh_manipulate_split_version(MVMThreadContext *tc, MVMSpes
         for (i = 0; i < cur_bb->num_children; i++)
             MVM_VECTOR_PUSH(bbq, cur_bb->children[i]);
     }
+    MVM_spesh_copy_facts(tc, g, new_version, split);
     return new_version;
 }
 

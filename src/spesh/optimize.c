@@ -75,10 +75,15 @@ static void copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand t
     MVMSpeshFacts *tfacts = get_facts_direct(tc, g, to);
     MVMSpeshFacts *ffacts = get_facts_direct(tc, g, from);
     tfacts->flags         = ffacts->flags;
+    tfacts->flags        &= ~MVM_SPESH_FACT_MERGED_WITH_LOG_GUARD;
     tfacts->type          = ffacts->type;
     tfacts->decont_type   = ffacts->decont_type;
     tfacts->value         = ffacts->value;
     tfacts->log_guard     = ffacts->log_guard;
+}
+void MVM_spesh_copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand to,
+                          MVMSpeshOperand from) {
+    copy_facts(tc, g, to, from);
 }
 
 /* Adds a value into a spesh slot and returns its index.
