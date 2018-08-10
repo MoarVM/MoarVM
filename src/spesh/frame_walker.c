@@ -329,11 +329,11 @@ MVMObject * MVM_spesh_frame_walker_get_lexicals_hash(MVMThreadContext *tc, MVMSp
     MVMObject *ctx_hash = MVM_repr_alloc_init(tc, hll->slurpy_hash_type);
     find_lex_info(tc, fw, &frame, &sf, &base_index);
     MVMROOT3(tc, ctx_hash, frame, sf, {
+        MVMLexicalRegistry **lexreg = sf->body.lexical_names_list;
         MVMuint32 i;
         for (i = 0; i < sf->body.num_lexicals; i++) {
-            MVMLexicalRegistry **lexreg = sf->body.lexical_names_list;
+            MVMuint16 type = sf->body.lexical_types[i];
             MVMuint32 idx = base_index + lexreg[i]->value;
-            MVMuint16 type = sf->body.lexical_types[idx];
             switch (type) {
                 case MVM_reg_obj: {
                     MVMObject *obj = frame->env[idx].o;
