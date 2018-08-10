@@ -1942,7 +1942,7 @@ static void optimize_plugin(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     /* If we picked a guard index, insert the guards and rewrite the resolve
      * instruction. If not, just rewrite the resolve instruction into the
      * spesh version of itself including the index. */
-    if (0 && agg_guard_index != -1) {
+    if (agg_guard_index != -1) {
         MVM_spesh_plugin_rewrite_resolve(tc, g, bb, ins, logged_ann->data.bytecode_offset,
                 agg_guard_index);
     }
