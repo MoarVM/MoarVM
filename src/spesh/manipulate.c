@@ -281,7 +281,7 @@ MVMSpeshOperand MVM_spesh_manipulate_get_temp_reg(MVMThreadContext *tc, MVMSpesh
 
             /* Produce and return result. */
             result.reg.orig = orig;
-            result.reg.i    = g->temps[i].i;
+            result.reg.i = g->temps[i].used_i = g->temps[i].i;
             return result;
         }
     }
@@ -299,6 +299,7 @@ MVMSpeshOperand MVM_spesh_manipulate_get_temp_reg(MVMThreadContext *tc, MVMSpesh
     /* Allocate temporary and set up result. */
     g->temps[g->num_temps].orig   = result.reg.orig = g->num_locals;
     g->temps[g->num_temps].i      = result.reg.i    = 0;
+    g->temps[g->num_temps].used_i = 0;
     g->temps[g->num_temps].kind   = kind;
     g->temps[g->num_temps].in_use = 1;
     g->num_temps++;
@@ -332,7 +333,7 @@ MVMSpeshOperand MVM_spesh_manipulate_get_temp_reg(MVMThreadContext *tc, MVMSpesh
 void MVM_spesh_manipulate_release_temp_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand temp) {
     MVMuint16 i;
     for (i = 0; i < g->num_temps; i++) {
-        if (g->temps[i].orig == temp.reg.orig && g->temps[i].i == temp.reg.i) {
+        if (g->temps[i].orig == temp.reg.orig && g->temps[i].used_i == temp.reg.i) {
             if (g->temps[i].in_use)
                 g->temps[i].in_use = 0;
             else

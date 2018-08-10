@@ -118,6 +118,9 @@ struct MVMSpeshTemporary {
     MVMuint16 orig;
     MVMuint16 i;
 
+    /* The SSA index currently loaned out. */
+    MVMuint16 used_i;
+
     /* What kind of register is it? */
     MVMuint16 kind;
 
