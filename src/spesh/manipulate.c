@@ -367,6 +367,39 @@ MVMSpeshOperand MVM_spesh_manipulate_new_version(MVMThreadContext *tc, MVMSpeshG
     return result;
 }
 
+/* Performs an SSA version split at the specified instruction, such that the
+ * reads of the SSA value after (and including) the specified instruction
+ * will use a new version. Returns the new version, which will at that point
+ * lack a writer; a writer should be inserted for it. */
+MVMSpeshOperand MVM_spesh_manipulate_split_version(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                                   MVMSpeshOperand split, MVMSpeshBB *bb,
+                                                   MVMSpeshIns *at) {
+    MVMSpeshOperand new_version = MVM_spesh_manipulate_new_version(tc, g, split.reg.orig);
+    MVM_VECTOR_DECL(MVMSpeshBB *, bbq);
+    MVM_VECTOR_PUSH(bbq, bb);
+    while (MVM_VECTOR_ELEMS(bbq)) {
+        MVMuint32 i;
+        MVMSpeshBB *cur_bb = MVM_VECTOR_POP(bbq);
+        MVMSpeshIns *ins = cur_bb == bb && at ? at : cur_bb->first_ins;
+        while (ins) {
+            for (i = 0; i < ins->info->num_operands; i++) {
+                if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg) {
+                    if (ins->operands[i].reg.orig == split.reg.orig &&
+                            ins->operands[i].reg.i == split.reg.i) {
+                        ins->operands[i] = new_version;
+                        MVM_spesh_usages_delete_by_reg(tc, g, split, ins);
+                        MVM_spesh_usages_add_by_reg(tc, g, new_version, ins);
+                    }
+                }
+            }
+            ins = ins->next;
+        }
+        for (i = 0; i < cur_bb->num_children; i++)
+            MVM_VECTOR_PUSH(bbq, cur_bb->children[i]);
+    }
+    return new_version;
+}
+
 MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshBB *new_bb = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB));
     MVMSpeshBB *linear_next = bb->linear_next;
