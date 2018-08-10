@@ -1649,7 +1649,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
      * this if the callsite isn't too big for arg_info. */
     num_arg_slots = arg_info->cs->num_pos +
         2 * (arg_info->cs->flag_count - arg_info->cs->num_pos);
-    if (p) {
+    if (0 && p) {
         stable_type_tuple = num_arg_slots <= MAX_ARGS_FOR_OPT
             ? find_invokee_type_tuple(tc, g, bb, ins, p, arg_info->cs)
             : NULL;
@@ -1933,7 +1933,7 @@ static void optimize_plugin(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     /* If we picked a guard index, insert the guards and rewrite the resolve
      * instruction. If not, just rewrite the resolve instruction into the
      * spesh version of itself including the index. */
-    if (agg_guard_index != -1) {
+    if (0 && agg_guard_index != -1) {
         MVM_spesh_plugin_rewrite_resolve(tc, g, bb, ins, logged_ann->data.bytecode_offset,
                 agg_guard_index);
     }
@@ -2749,8 +2749,7 @@ static void eliminate_unused_log_guards(MVMThreadContext *tc, MVMSpeshGraph *g) 
     MVMint32 i;
     for (i = 0; i < g->num_log_guards; i++)
         if (!g->log_guards[i].used)
-            MVM_spesh_manipulate_delete_ins(tc, g, g->log_guards[i].bb,
-                g->log_guards[i].ins);
+            g->log_guards[i].ins->info = MVM_op_get_op(MVM_OP_set);
 }
 
 /* Sometimes - almost always due to other optmimizations having done their

@@ -875,9 +875,9 @@ speshguardnotobj    r(obj) r(obj)
 #   guard = guard on type only; index is spesh slot with type
 #   guardconc = guard on type + concrete; index is spesh slot with type
 #   guardtype = guard on type + type object; index is spesh slot with type
-sp_guard         .s r(obj) sslot uint32 :maycausedeopt
-sp_guardconc     .s r(obj) sslot uint32 :maycausedeopt
-sp_guardtype     .s r(obj) sslot uint32 :maycausedeopt
+sp_guard         .s w(obj) r(obj) sslot uint32 :maycausedeopt
+sp_guardconc     .s w(obj) r(obj) sslot uint32 :maycausedeopt
+sp_guardtype     .s w(obj) r(obj) sslot uint32 :maycausedeopt
 
 # Code guard operations. Trigger de-optimization if the guard is violated.
 #   guardsf = guard on being an MVMCode with specified static frame inside
@@ -887,12 +887,12 @@ sp_guardsf       .s r(obj) sslot uint32 :maycausedeopt
 sp_guardsfouter  .s r(obj) sslot uint32 :maycausedeopt
 
 # Literal object match and non-match guards.
-sp_guardobj      .s r(obj) sslot uint32 :maycausedeopt
-sp_guardnotobj   .s r(obj) sslot uint32 :maycausedeopt
+sp_guardobj      .s w(obj) r(obj) sslot uint32 :maycausedeopt
+sp_guardnotobj   .s w(obj) r(obj) sslot uint32 :maycausedeopt
 
 # Guards that check concrete or type object, without caring for type.
-sp_guardjustconc .s r(obj) uint32 :maycausedeopt
-sp_guardjusttype .s r(obj) uint32 :maycausedeopt
+sp_guardjustconc .s w(obj) r(obj) uint32 :maycausedeopt
+sp_guardjusttype .s w(obj) r(obj) uint32 :maycausedeopt
 
 # Specialized form of rebless that will always do a deopt one out of the
 # current code as well as a deopt all.

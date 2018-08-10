@@ -12101,7 +12101,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         MVM_OP_sp_guard,
         "sp_guard",
         ".s",
-        3,
+        4,
         0,
         0,
         1,
@@ -12110,13 +12110,13 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot, MVM_operand_uint32 }
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot, MVM_operand_uint32 }
     },
     {
         MVM_OP_sp_guardconc,
         "sp_guardconc",
         ".s",
-        3,
+        4,
         0,
         0,
         1,
@@ -12125,13 +12125,13 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot, MVM_operand_uint32 }
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot, MVM_operand_uint32 }
     },
     {
         MVM_OP_sp_guardtype,
         "sp_guardtype",
         ".s",
-        3,
+        4,
         0,
         0,
         1,
@@ -12140,7 +12140,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot, MVM_operand_uint32 }
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot, MVM_operand_uint32 }
     },
     {
         MVM_OP_sp_guardsf,
@@ -12176,7 +12176,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         MVM_OP_sp_guardobj,
         "sp_guardobj",
         ".s",
-        3,
+        4,
         0,
         0,
         1,
@@ -12185,12 +12185,27 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot, MVM_operand_uint32 }
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot, MVM_operand_uint32 }
     },
     {
         MVM_OP_sp_guardnotobj,
         "sp_guardnotobj",
         ".s",
+        4,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot, MVM_operand_uint32 }
+    },
+    {
+        MVM_OP_sp_guardjustconc,
+        "sp_guardjustconc",
+        ".s",
         3,
         0,
         0,
@@ -12200,28 +12215,13 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot, MVM_operand_uint32 }
-    },
-    {
-        MVM_OP_sp_guardjustconc,
-        "sp_guardjustconc",
-        ".s",
-        2,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint32 }
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint32 }
     },
     {
         MVM_OP_sp_guardjusttype,
         "sp_guardjusttype",
         ".s",
-        2,
+        3,
         0,
         0,
         1,
@@ -12230,7 +12230,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint32 }
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint32 }
     },
     {
         MVM_OP_sp_rebless,

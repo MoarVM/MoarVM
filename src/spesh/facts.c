@@ -304,8 +304,17 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         MVMSpeshAnn *ann;
         MVMuint16 guard_op;
 
+        /* Generate a new version. We'll use this version for the original,
+         * unguarded, value, which we know is the instruction right before
+         * the guard, so that makes things rather simple. Thus the facts we
+         * will set go on the original register */
+        MVMSpeshOperand guard_reg = ins->operands[0];
+        MVMSpeshOperand preguard_reg = MVM_spesh_manipulate_new_version(tc, g,
+                ins->operands[0].reg.orig);
+        MVMSpeshFacts *facts = &g->facts[guard_reg.reg.orig][guard_reg.reg.i];
+        ins->operands[0] = preguard_reg;
+
         /* Add facts and choose guard op. */
-        MVMSpeshFacts *facts = &g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i];
         facts->type = agg_type;
         facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
         if (agg_concrete && !agg_type_object) {
@@ -327,11 +336,12 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         /* Insert guard instruction. */
         guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
         guard->info = MVM_op_get_op(guard_op);
-        guard->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-        guard->operands[0] = ins->operands[0];
-        guard->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+        guard->operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
+        guard->operands[0] = guard_reg;
+        guard->operands[1] = preguard_reg;
+        guard->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
             (MVMCollectable *)agg_type->st);
-        guard->operands[2].lit_ui32 = g->deopt_addrs[2 * deopt_one_ann->data.deopt_idx];
+        guard->operands[3].lit_ui32 = g->deopt_addrs[2 * deopt_one_ann->data.deopt_idx];
         if (ins->next)
             MVM_spesh_manipulate_insert_ins(tc, bb, ins, guard);
         else

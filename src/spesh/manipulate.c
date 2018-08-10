@@ -254,6 +254,14 @@ void MVM_spesh_manipulate_remove_handler_successors(MVMThreadContext *tc, MVMSpe
  * Will only actually extend the frame if needed; if an existing temporary
  * was requested and then released, then it will just use a new version of
  * that. */
+static void grow_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 orig) {
+    MVMSpeshFacts *new_fact_row = MVM_spesh_alloc(tc, g,
+        (g->fact_counts[orig] + 1) * sizeof(MVMSpeshFacts));
+    memcpy(new_fact_row, g->facts[orig],
+        g->fact_counts[orig] * sizeof(MVMSpeshFacts));
+    g->facts[orig] = new_fact_row;
+    g->fact_counts[orig]++;
+}
 MVMSpeshOperand MVM_spesh_manipulate_get_temp_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 kind) {
     MVMSpeshOperand   result;
     MVMSpeshFacts   **new_facts;
@@ -265,12 +273,7 @@ MVMSpeshOperand MVM_spesh_manipulate_get_temp_reg(MVMThreadContext *tc, MVMSpesh
         if (g->temps[i].kind == kind && !g->temps[i].in_use) {
             /* Add new facts slot. */
             MVMuint16 orig = g->temps[i].orig;
-            MVMSpeshFacts *new_fact_row = MVM_spesh_alloc(tc, g,
-                (g->fact_counts[orig] + 1) * sizeof(MVMSpeshFacts));
-            memcpy(new_fact_row, g->facts[orig],
-                g->fact_counts[orig] * sizeof(MVMSpeshFacts));
-            g->facts[orig] = new_fact_row;
-            g->fact_counts[orig]++;
+            grow_facts(tc, g, orig);
 
             /* Mark it in use and add extra version. */
             g->temps[i].in_use++;
@@ -340,6 +343,29 @@ void MVM_spesh_manipulate_release_temp_reg(MVMThreadContext *tc, MVMSpeshGraph *
     MVM_oops(tc, "Spesh: releasing non-existing temp");
 }
 
+/* Gets a new SSA version of a register, allocating facts for it. Returns an
+ * MVMSpeshOperand representing the new version along with the local it's a
+ * version of. */
+MVMSpeshOperand MVM_spesh_manipulate_new_version(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 orig) {
+    MVMuint32 i;
+
+    /* Grow the facts table to hold the new version, bumping the versions
+     * count along the way. */
+    MVMSpeshOperand result;
+    result.reg.orig = orig;
+    result.reg.i = g->fact_counts[orig];
+    grow_facts(tc, g, orig);
+
+    /* Check if it's a temp, and bump the temp count if so. */
+    for (i = 0; i < g->num_temps; i++) {
+        if (g->temps[i].orig == orig) {
+            g->temps[i].i++;
+            break;
+        }
+    }
+
+    return result;
+}
 
 MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshBB *new_bb = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB));

@@ -5340,28 +5340,31 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(sp_guard): {
-                MVMObject *check = GET_REG(cur_op, 0).o;
+                MVMObject *check = GET_REG(cur_op, 2).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
-                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
-                cur_op += 8;
+                    ->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                GET_REG(cur_op, 0).o = check;
+                cur_op += 10;
                 if (!check || STABLE(check) != want)
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
                 goto NEXT;
             }
             OP(sp_guardconc): {
-                MVMObject *check = GET_REG(cur_op, 0).o;
+                MVMObject *check = GET_REG(cur_op, 2).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
-                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
-                cur_op += 8;
+                    ->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                GET_REG(cur_op, 0).o = check;
+                cur_op += 10;
                 if (!check || !IS_CONCRETE(check) || STABLE(check) != want)
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
                 goto NEXT;
             }
             OP(sp_guardtype): {
-                MVMObject *check = GET_REG(cur_op, 0).o;
+                MVMObject *check = GET_REG(cur_op, 2).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
-                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
-                cur_op += 8;
+                    ->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                GET_REG(cur_op, 0).o = check;
+                cur_op += 10;
                 if (!check || IS_CONCRETE(check) || STABLE(check) != want)
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
                 goto NEXT;
@@ -5388,33 +5391,37 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_guardobj): {
-                MVMObject *check = GET_REG(cur_op, 0).o;
+                MVMObject *check = GET_REG(cur_op, 2).o;
                 MVMObject *want = (MVMObject *)tc->cur_frame
-                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
-                cur_op += 8;
+                    ->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                GET_REG(cur_op, 0).o = check;
+                cur_op += 10;
                 if (check != want)
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
                 goto NEXT;
             }
             OP(sp_guardnotobj): {
-                MVMObject *check = GET_REG(cur_op, 0).o;
+                MVMObject *check = GET_REG(cur_op, 2).o;
                 MVMObject *do_not_want = (MVMObject *)tc->cur_frame
-                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
-                cur_op += 8;
+                    ->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                GET_REG(cur_op, 0).o = check;
+                cur_op += 10;
                 if (check == do_not_want)
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
                 goto NEXT;
             }
             OP(sp_guardjustconc): {
-                MVMObject *check = GET_REG(cur_op, 0).o;
-                cur_op += 6;
+                MVMObject *check = GET_REG(cur_op, 2).o;
+                GET_REG(cur_op, 0).o = check;
+                cur_op += 8;
                 if (!IS_CONCRETE(check))
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
                 goto NEXT;
             }
             OP(sp_guardjusttype): {
-                MVMObject *check = GET_REG(cur_op, 0).o;
-                cur_op += 6;
+                MVMObject *check = GET_REG(cur_op, 2).o;
+                GET_REG(cur_op, 0).o = check;
+                cur_op += 8;
                 if (IS_CONCRETE(check))
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
                 goto NEXT;
