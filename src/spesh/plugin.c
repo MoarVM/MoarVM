@@ -637,6 +637,8 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
     MVMSpeshPluginState *ps = get_plugin_state(tc, g->sf);
     MVMSpeshPluginGuardSet *gs = guard_set_for_position(tc, bytecode_offset, ps);
     if (gs) {
+        MVM_VECTOR_DECL(MVMSpeshOperand, temps);
+
         /* Steal the deopt annotation from the prepargs, and calculate the
          * deopt position. */
         MVMSpeshAnn *stolen_deopt_ann = steal_prepargs_deopt(tc, ins);
@@ -665,6 +667,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
 
         /* Prepend guards. */
         initial_arg_regs_length = arg_regs_length;
+        MVM_VECTOR_INIT(temps, 0);
         while (++guards_start <= guards_end) {
             MVMSpeshPluginGuard *guard = &(gs->guards[guards_start]);
             MVMSpeshFacts *preguarded_facts = MVM_spesh_get_facts(tc, g, arg_regs[guard->test_idx]);
@@ -696,6 +699,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                         MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
                         guarded_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
                         guarded_facts->value.o = (MVMObject *)guard->u.object;
+                        arg_regs[guard->test_idx] = guard_reg;
                     }
                     else {
                         MVM_spesh_get_and_use_facts(tc, g, arg_regs[guard->test_idx]);
@@ -760,6 +764,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                         MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
                         guarded_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
                         guarded_facts->type = guard->u.type->WHAT;
+                        arg_regs[guard->test_idx] = guard_reg;
                     }
                     else {
                         MVM_spesh_get_and_use_facts(tc, g, arg_regs[guard->test_idx]);
@@ -783,6 +788,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                         guard_ins->annotations = stolen_deopt_ann;
                         MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
                         guarded_facts->flags |= MVM_SPESH_FACT_CONCRETE;
+                        arg_regs[guard->test_idx] = guard_reg;
                     }
                     else {
                         MVM_spesh_get_and_use_facts(tc, g, arg_regs[guard->test_idx]);
@@ -806,6 +812,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                         guard_ins->annotations = stolen_deopt_ann;
                         MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard_ins);
                         guarded_facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
+                        arg_regs[guard->test_idx] = guard_reg;
                     }
                     else {
                         MVM_spesh_get_and_use_facts(tc, g, arg_regs[guard->test_idx]);
@@ -873,10 +880,12 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                     MVM_spesh_manipulate_release_temp_reg(tc, g, ch_temp);
                     MVM_spesh_manipulate_release_temp_reg(tc, g, name_temp);
 
-                    /* Add the target into the guard reg set. */
+                    /* Add the target into the guard reg set and stash it in our
+                     * list of temp registers to release. */
                     arg_regs = MVM_realloc(arg_regs,
                         (arg_regs_length + 1) * sizeof(MVMSpeshOperand));
                     arg_regs[arg_regs_length++] = target;
+                    MVM_VECTOR_PUSH(temps, target);
 
                     break;
                 }
@@ -887,8 +896,8 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
         }
 
         /* Free up any temporary registers we created. */
-        for (i = initial_arg_regs_length; i < arg_regs_length; i++)
-            MVM_spesh_manipulate_release_temp_reg(tc, g, arg_regs[i]);
+        for (i = 0; i < MVM_VECTOR_ELEMS(temps); i++)
+            MVM_spesh_manipulate_release_temp_reg(tc, g, temps[i]);
         MVM_free(arg_regs);
     }
 }
