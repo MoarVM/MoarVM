@@ -600,9 +600,28 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
             else if (value->flags & MVM_CF_TYPE_OBJECT)
                 appendf(&ds, "    %d = Type Object (%s)\n", i,
                     MVM_6model_get_debug_name(tc, (MVMObject *)value));
-            else
-                appendf(&ds, "    %d = Instance (%s)\n", i,
-                    MVM_6model_get_debug_name(tc, (MVMObject *)value));
+            else {
+                MVMObject *obj = (MVMObject *)value;
+                MVMuint32 repr_id = REPR(obj)->ID;
+                appendf(&ds, "    %d = Instance (%s)", i,
+                    MVM_6model_get_debug_name(tc, obj));
+                if (repr_id == MVM_REPR_ID_MVMStaticFrame || repr_id == MVM_REPR_ID_MVMCode) {
+                    MVMStaticFrameBody *body;
+                    char *name_str;
+                    char *cuuid_str;
+                    if (repr_id == MVM_REPR_ID_MVMCode) {
+                        MVMCodeBody *code_body = (MVMCodeBody *)OBJECT_BODY(obj);
+                        obj = (MVMObject *)code_body->sf;
+                    }
+                    body = (MVMStaticFrameBody *)OBJECT_BODY(obj);
+                    name_str  = MVM_string_utf8_encode_C_string(tc, body->name);
+                    cuuid_str = MVM_string_utf8_encode_C_string(tc, body->cuuid);
+                    appendf(&ds, " - '%s' (%s)", name_str, cuuid_str);
+                    MVM_free(name_str);
+                    MVM_free(cuuid_str);
+                }
+                appendf(&ds, "\n");
+            }
         }
     }
 
