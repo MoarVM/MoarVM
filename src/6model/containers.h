@@ -105,3 +105,6 @@ void MVM_6model_container_atomic_store_i(MVMThreadContext *tc, MVMObject *cont, 
 MVMint64 MVM_6model_container_atomic_inc(MVMThreadContext *tc, MVMObject *cont);
 MVMint64 MVM_6model_container_atomic_dec(MVMThreadContext *tc, MVMObject *cont);
 MVMint64 MVM_6model_container_atomic_add(MVMThreadContext *tc, MVMObject *cont, MVMint64 value);
+
+void *MVM_container_devirtualize_fetch_for_jit(MVMThreadContext *tc, MVMSTable *st, MVMuint16 type);
+void *MVM_container_devirtualize_store_for_jit(MVMThreadContext *tc, MVMSTable *st, MVMuint16 type);

@@ -789,6 +789,9 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
         case MVM_OP_deletekey:
         case MVM_OP_setelemspos:
         case MVM_OP_splice:
+        case MVM_OP_assign_i:
+        case MVM_OP_assign_n:
+        case MVM_OP_assign_s:
             type_operand = ins->operands[0];
             break;
         case MVM_OP_atpos_i:
@@ -821,6 +824,9 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
         case MVM_OP_attrinited:
         case MVM_OP_hintfor:
         case MVM_OP_slice:
+        case MVM_OP_decont_i:
+        case MVM_OP_decont_n:
+        case MVM_OP_decont_s:
             type_operand = ins->operands[1];
             break;
         case MVM_OP_box_i:
@@ -1221,6 +1227,85 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                 MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop\n", ins->info->name);
                 return 1;
             }
+            case MVM_OP_decont_i:
+            case MVM_OP_decont_n:
+            case MVM_OP_decont_s: {
+                MVMSTable *st = ((MVMObject *)type_facts->type)->st;
+                MVMint16 dst = ins->operands[0].reg.orig;
+                MVMint16 obj = ins->operands[1].reg.orig;
+
+                MVMuint16 reg_type = op == MVM_OP_decont_i ? MVM_reg_int64
+                                   : op == MVM_OP_decont_n ? MVM_reg_num64
+                                   :                         MVM_reg_str;
+
+                MVMuint16 ret_type = op == MVM_OP_decont_i ? MVM_JIT_RV_INT
+                                   : op == MVM_OP_decont_n ? MVM_JIT_RV_NUM
+                                   :                         MVM_JIT_RV_PTR;
+
+                void *function = NULL;
+
+                if (st->container_spec == NULL)
+                    goto skipdevirt;
+
+                function = MVM_container_devirtualize_fetch_for_jit(tc, st, reg_type);
+
+                if (!function) {
+                    MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                             { MVM_JIT_REG_VAL, { obj } },
+                                             { MVM_JIT_REG_ADDR, { dst } } };
+
+                    function = reg_type == MVM_reg_int64 ? st->container_spec->fetch_i
+                             : reg_type == MVM_reg_num64 ? st->container_spec->fetch_n
+                             :                             st->container_spec->fetch_s;
+
+                    jg_append_call_c(tc, jg, function, 3, args, MVM_JIT_RV_VOID, -1);
+                    MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop (simple)\n", ins->info->name);
+                }
+                else {
+                    MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                             { MVM_JIT_REG_VAL, { obj } } };
+
+                    jg_append_call_c(tc, jg, function, 2, args, ret_type, dst);
+                    MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop (advanced)\n", ins->info->name);
+
+                }
+                return 1;
+            }
+            case MVM_OP_assign_i:
+            case MVM_OP_assign_n:
+            case MVM_OP_assign_s: {
+                MVMSTable *st = ((MVMObject *)type_facts->type)->st;
+                MVMint16 dst = ins->operands[0].reg.orig;
+                MVMint16 val = ins->operands[1].reg.orig;
+
+                MVMuint16 reg_type = op == MVM_OP_assign_i ? MVM_reg_int64
+                                   : op == MVM_OP_assign_n ? MVM_reg_num64
+                                   :                         MVM_reg_str;
+
+                void *function = NULL;
+
+                MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                         { MVM_JIT_REG_VAL, { dst } },
+                                         { reg_type == MVM_reg_num64 ? MVM_JIT_REG_VAL_F : MVM_JIT_REG_VAL, { val } } };
+
+                if (st->container_spec == NULL)
+                    goto skipdevirt;
+
+                function = MVM_container_devirtualize_store_for_jit(tc, st, reg_type);
+
+                if (!function) {
+                    MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop (simple)\n", ins->info->name);
+                    function = reg_type == MVM_reg_int64 ? st->container_spec->store_i
+                             : reg_type == MVM_reg_num64 ? st->container_spec->store_n
+                             :                             (void *)st->container_spec->store_s;
+                }
+                else {
+                    MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop (advanced)\n", ins->info->name);
+                }
+
+                jg_append_call_c(tc, jg, function, 3, args, MVM_JIT_RV_VOID, -1);
+                return 1;
+            }
             default:
                 MVM_jit_log(tc, "devirt: please implement emitting repr op %s\n", ins->info->name);
         }
@@ -1517,6 +1602,28 @@ skipdevirt:
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
                                  { MVM_JIT_REG_VAL, invocant } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_decont_i:
+    case MVM_OP_decont_n:
+    case MVM_OP_decont_s: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } },
+                                 { MVM_JIT_REG_ADDR, { dst } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_assign_i:
+    case MVM_OP_assign_n:
+    case MVM_OP_assign_s: {
+        MVMint16 target = ins->operands[0].reg.orig;
+        MVMint16 value  = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { target } },
+                                 { op == MVM_OP_assign_n ? MVM_JIT_REG_VAL_F : MVM_JIT_REG_VAL, { value } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     default:
@@ -2222,6 +2329,12 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_bindattrs_o:
     case MVM_OP_hintfor:
     case MVM_OP_elems:
+    case MVM_OP_decont_i:
+    case MVM_OP_decont_n:
+    case MVM_OP_decont_s:
+    case MVM_OP_assign_i:
+    case MVM_OP_assign_n:
+    case MVM_OP_assign_s:
         if (!consume_reprop(tc, jg, iter, ins)) {
             MVM_jit_log(tc, "BAIL: op <%s> (devirt attempted)\n", ins->info->name);
             return 0;
@@ -3083,28 +3196,6 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { obj } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, dst);
-        break;
-    }
-    case MVM_OP_assign_i:
-    case MVM_OP_assign_n:
-    case MVM_OP_assign_s: {
-        MVMint16 target = ins->operands[0].reg.orig;
-        MVMint16 value  = ins->operands[1].reg.orig;
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_REG_VAL, { target } },
-                                 { MVM_JIT_REG_VAL, { value } } };
-        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
-        break;
-    }
-    case MVM_OP_decont_i:
-    case MVM_OP_decont_n:
-    case MVM_OP_decont_s: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 obj = ins->operands[1].reg.orig;
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_REG_VAL, { obj } },
-                                 { MVM_JIT_REG_ADDR, { dst } } };
-        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_getrusage: {

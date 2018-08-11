@@ -384,6 +384,78 @@ static void native_ref_configure_container_spec(MVMThreadContext *tc, MVMSTable 
     /* Nothing to do. */
 }
 
+void *MVM_container_devirtualize_fetch_for_jit(MVMThreadContext *tc, MVMSTable *st, MVMuint16 type) {
+    if (type != MVM_reg_int64)
+        return NULL;
+    if (st->container_spec == &native_ref_spec) {
+        MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)st->REPR_data;
+        switch (repr_data->ref_kind) {
+            case MVM_NATIVEREF_LEX:
+                switch (type) {
+                    case MVM_reg_int64: return MVM_nativeref_read_lex_i;
+                    case MVM_reg_num64: return MVM_nativeref_read_lex_n;
+                    case MVM_reg_str:   return MVM_nativeref_read_lex_s;
+                }
+            case MVM_NATIVEREF_ATTRIBUTE:
+                switch (type) {
+                    case MVM_reg_int64: return MVM_nativeref_read_attribute_i;
+                    case MVM_reg_num64: return MVM_nativeref_read_attribute_n;
+                    case MVM_reg_str:   return MVM_nativeref_read_attribute_s;
+                }
+            case MVM_NATIVEREF_POSITIONAL:
+                switch (type) {
+                    case MVM_reg_int64: return MVM_nativeref_read_positional_i;
+                    case MVM_reg_num64: return MVM_nativeref_read_positional_n;
+                    case MVM_reg_str:   return MVM_nativeref_read_positional_s;
+                }
+            case MVM_NATIVEREF_MULTIDIM:
+                switch (type) {
+                    case MVM_reg_int64: return MVM_nativeref_read_multidim_i;
+                    case MVM_reg_num64: return MVM_nativeref_read_multidim_n;
+                    case MVM_reg_str:   return MVM_nativeref_read_multidim_s;
+                }
+            default:
+                return NULL;
+        }
+    }
+}
+
+void *MVM_container_devirtualize_store_for_jit(MVMThreadContext *tc, MVMSTable *st, MVMuint16 type) {
+    if (type != MVM_reg_int64)
+        return NULL;
+    if (st->container_spec == &native_ref_spec) {
+        MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)st->REPR_data;
+        switch (repr_data->ref_kind) {
+            case MVM_NATIVEREF_LEX:
+                switch (type) {
+                    case MVM_reg_int64: return MVM_nativeref_write_lex_i;
+                    case MVM_reg_num64: return MVM_nativeref_write_lex_n;
+                    case MVM_reg_str:   return MVM_nativeref_write_lex_s;
+                }
+            case MVM_NATIVEREF_ATTRIBUTE:
+                switch (type) {
+                    case MVM_reg_int64: return MVM_nativeref_write_attribute_i;
+                    case MVM_reg_num64: return MVM_nativeref_write_attribute_n;
+                    case MVM_reg_str:   return MVM_nativeref_write_attribute_s;
+                }
+            case MVM_NATIVEREF_POSITIONAL:
+                switch (type) {
+                    case MVM_reg_int64: return MVM_nativeref_write_positional_i;
+                    case MVM_reg_num64: return MVM_nativeref_write_positional_n;
+                    case MVM_reg_str:   return MVM_nativeref_write_positional_s;
+                }
+            case MVM_NATIVEREF_MULTIDIM:
+                switch (type) {
+                    case MVM_reg_int64: return MVM_nativeref_write_multidim_i;
+                    case MVM_reg_num64: return MVM_nativeref_write_multidim_n;
+                    case MVM_reg_str:   return MVM_nativeref_write_multidim_s;
+                }
+            default:
+                return NULL;
+        }
+    }
+}
+
 static const MVMContainerConfigurer NativeRefContainerConfigurer = {
     native_ref_set_container_spec,
     native_ref_configure_container_spec
