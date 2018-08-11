@@ -681,6 +681,60 @@ static void optimize_assertparamcheck(MVMThreadContext *tc, MVMSpeshGraph *g, MV
     }
 }
 
+static void optimize_guard(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                      MVMSpeshIns *ins) {
+    MVMuint16 opcode = ins->info->opcode;
+
+    MVMuint8 can_drop_type_guard = 0;
+    MVMuint8 can_drop_concrete_guard = 0;
+    MVMuint8 can_drop_typeobj_guard = 0;
+    MVMuint8 turn_into_set = 0;
+
+    /* The sslot is always the second-to-last parameter, except for
+     * justconc and justtype, which don't have a spesh slot. */
+    MVMuint16 sslot = ins->operands[ins->info->num_operands - 2].lit_i16;
+
+    MVMSpeshFacts *facts    = &g->facts[ins->operands[1].reg.orig][ins->operands[1].reg.i];
+
+    if (opcode == MVM_OP_sp_guardobj) {
+        if ((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && facts->value.o == (MVMObject *)g->spesh_slots[sslot]) {
+            turn_into_set = 1;
+        }
+    }
+    else {
+        if (opcode == MVM_OP_sp_guard
+                || opcode == MVM_OP_sp_guardconc
+                || opcode == MVM_OP_sp_guardtype) {
+            if ((facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) && facts->type == ((MVMSTable *)g->spesh_slots[sslot])->WHAT) {
+                can_drop_type_guard = 1;
+            }
+        }
+        if (opcode == MVM_OP_sp_guardconc || opcode == MVM_OP_sp_guardjustconc) {
+            if (facts->flags & MVM_SPESH_FACT_CONCRETE) {
+                can_drop_concrete_guard = 1;
+            }
+        }
+        if (opcode == MVM_OP_sp_guardtype || opcode == MVM_OP_sp_guardjusttype) {
+            if (facts->flags & MVM_SPESH_FACT_TYPEOBJ) {
+                can_drop_typeobj_guard = 1;
+            }
+        }
+        if (can_drop_type_guard && (can_drop_concrete_guard || can_drop_typeobj_guard)) {
+            turn_into_set = 1;
+        }
+        else if (opcode == MVM_OP_sp_guard && can_drop_type_guard) {
+            turn_into_set = 1;
+        }
+        else if (opcode == MVM_OP_sp_guardjustconc && can_drop_concrete_guard
+                || opcode == MVM_OP_sp_guardjusttype && can_drop_typeobj_guard) {
+            turn_into_set = 1;
+        }
+    }
+    if (turn_into_set) {
+        ins->info = MVM_op_get_op(MVM_OP_set);
+    }
+}
+
 static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     /* This used to cause problems, Spesh: failed to fix up handlers (-1, 110, 110) */
     MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
@@ -2544,6 +2598,14 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             break;
         case MVM_OP_atomicstore_o:
             optimize_container_atomic(tc, g, ins, 0);
+            break;
+        case MVM_OP_sp_guard:
+        case MVM_OP_sp_guardconc:
+        case MVM_OP_sp_guardtype:
+        case MVM_OP_sp_guardobj:
+        case MVM_OP_sp_guardjustconc:
+        case MVM_OP_sp_guardjusttype:
+            optimize_guard(tc, g, bb, ins);
             break;
         case MVM_OP_prof_enter:
             /* Profiling entered from spesh should indicate so. */
