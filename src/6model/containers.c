@@ -418,6 +418,7 @@ void *MVM_container_devirtualize_fetch_for_jit(MVMThreadContext *tc, MVMSTable *
                 return NULL;
         }
     }
+    return NULL;
 }
 
 void *MVM_container_devirtualize_store_for_jit(MVMThreadContext *tc, MVMSTable *st, MVMuint16 type) {
@@ -454,6 +455,7 @@ void *MVM_container_devirtualize_store_for_jit(MVMThreadContext *tc, MVMSTable *
                 return NULL;
         }
     }
+    return NULL;
 }
 
 static const MVMContainerConfigurer NativeRefContainerConfigurer = {
