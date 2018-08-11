@@ -235,6 +235,44 @@ static void discover_extop(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *
     }
 }
 
+static void sp_guard_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                      MVMSpeshIns *ins) {
+    MVMuint16 opcode = ins->info->opcode;
+
+    /* The sslot is always the second-to-last parameter, except for
+     * justconc and justtype, which don't have a spesh slot. */
+    MVMuint16 sslot = ins->operands[ins->info->num_operands - 2].lit_i16;
+
+    MVMSpeshFacts *srcfacts = &g->facts[ins->operands[1].reg.orig][ins->operands[1].reg.i];
+    MVMSpeshFacts *facts    = &g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i];
+
+    /* We do not copy facts here, because it caused some trouble.
+     * Oftentimes, there were more flags set in the target register's
+     * facts before this, and got cleared by this copy operation.
+     * Also, it caused even the empty perl6 program to fail with a
+     * long stack trace about not finding an exception handler. */
+    /*copy_facts(tc, g,*/
+        /*ins->operands[0].reg.orig, ins->operands[0].reg.i,*/
+        /*ins->operands[1].reg.orig, ins->operands[1].reg.i);*/
+
+    if (opcode == MVM_OP_sp_guard
+            || opcode == MVM_OP_sp_guardconc
+            || opcode == MVM_OP_sp_guardtype) {
+        facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+        facts->type   = ((MVMSTable *)g->spesh_slots[sslot])->WHAT;
+    }
+    if (opcode == MVM_OP_sp_guardconc || opcode == MVM_OP_sp_guardjustconc) {
+        facts->flags |= MVM_SPESH_FACT_CONCRETE;
+    }
+    if (opcode == MVM_OP_sp_guardtype || opcode == MVM_OP_sp_guardjusttype) {
+        facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
+    }
+    if (opcode == MVM_OP_sp_guardobj) {
+        facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+        facts->value.o = g->spesh_slots[sslot];
+    }
+}
+
 /* Considers logged types and, if they are stable, adds facts and a guard. */
 static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                       MVMSpeshIns *ins, MVMSpeshPlanned *p,
@@ -669,6 +707,14 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             g->facts[result.reg.orig][result.reg.i].flags |= MVM_SPESH_FACT_DECONTED;
             break;
         }
+        case MVM_OP_sp_guard:
+        case MVM_OP_sp_guardconc:
+        case MVM_OP_sp_guardtype:
+        case MVM_OP_sp_guardobj:
+        case MVM_OP_sp_guardjustconc:
+        case MVM_OP_sp_guardjusttype:
+            sp_guard_facts(tc, g, bb, ins);
+            break;
         default:
             if (ins->info->opcode == (MVMuint16)-1)
                 discover_extop(tc, g, ins);
