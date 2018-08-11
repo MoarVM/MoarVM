@@ -5608,7 +5608,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj       = MVM_gc_allocate_nursery(tc, size);
 #if MVM_GC_DEBUG
                 if (tc->allocate_in_gen2)
-                    MVM_panic(tc, "Illegal use of sp_fastcreate when gen2 allocation flag set");
+                    MVM_panic(1, "Illegal use of sp_fastcreate when gen2 allocation flag set");
 #endif
                 obj->st              = (MVMSTable *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
                 obj->header.size     = size;
