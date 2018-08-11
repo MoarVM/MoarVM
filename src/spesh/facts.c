@@ -269,7 +269,7 @@ static void sp_guard_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
     }
     if (opcode == MVM_OP_sp_guardobj) {
         facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
-        facts->value.o = g->spesh_slots[sslot];
+        facts->value.o = (MVMObject *)g->spesh_slots[sslot];
     }
 }
 
