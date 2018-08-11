@@ -183,6 +183,31 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     return code;
 }
 
+MVMJitCode* MVM_jit_code_copy(MVMThreadContext *tc, MVMJitCode * const code) {
+    MVMJitCode * const dest = MVM_malloc(sizeof(MVMJitCode));
+    memcpy(dest, code, sizeof(MVMJitCode));
+
+    dest->func_ptr = MVM_malloc(code->size);
+    memcpy(dest->func_ptr, code->func_ptr, code->size);
+
+    dest->labels = MVM_malloc(code->num_labels * sizeof(void**));
+    memcpy(dest->labels, code->labels, code->num_labels * sizeof(void**));
+
+    dest->deopts = MVM_malloc(code->num_deopts * sizeof(MVMJitDeopt*));
+    memcpy(dest->deopts, code->deopts, code->num_deopts * sizeof(MVMJitDeopt*));
+
+    dest->handlers = MVM_malloc(code->num_handlers * sizeof(MVMJitDeopt*));
+    memcpy(dest->handlers, code->handlers, code->num_handlers * sizeof(MVMJitHandler*));
+
+    dest->inlines = MVM_malloc(code->num_inlines * sizeof(MVMJitDeopt*));
+    memcpy(dest->inlines, code->inlines, code->num_inlines * sizeof(MVMJitInline*));
+
+    dest->local_types = MVM_malloc(code->num_locals * sizeof(MVMJitDeopt*));
+    memcpy(dest->local_types, code->local_types, code->num_locals * sizeof(MVMuint16*));
+
+    return dest;
+}
+
 void MVM_jit_code_destroy(MVMThreadContext *tc, MVMJitCode *code) {
     MVM_platform_free_pages(code->func_ptr, code->size);
     MVM_free(code->labels);

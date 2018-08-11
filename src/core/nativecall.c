@@ -446,7 +446,6 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
     MVMJitNode *unblock_gc_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
     MVMJitNode *call_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
     MVMJitNode *box_rv_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
-    MVMJitCode *jitcode = NULL;
     MVMJitCallArg block_gc_args[] = { { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } } };
 
     jg->sg = sg;

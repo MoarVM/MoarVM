@@ -38,7 +38,11 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         memcpy(dest_body->arg_types, src_body->arg_types, src_body->num_args * sizeof(MVMint16));
     }
     dest_body->ret_type = src_body->ret_type;
-    dest_body->jitcode = src_body->jitcode;
+    if (src_body->jitcode) {
+        dest_body->jitcode = MVM_jit_code_copy(tc, src_body->jitcode);
+    }
+    else
+        dest_body->jitcode = NULL;
 }
 
 
