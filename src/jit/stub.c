@@ -13,6 +13,10 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     return NULL;
 }
 
+MVMJitCode* MVM_jit_code_copy(MVMThreadContext *tc, MVMJitCode * const code) {
+    return NULL;
+}
+
 void MVM_jit_graph_destroy(MVMThreadContext *tc, MVMJitGraph *graph) {
     return;
 }
