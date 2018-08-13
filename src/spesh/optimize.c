@@ -2125,6 +2125,17 @@ static void tweak_rebless(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
     ins->operands = new_operands;
 }
 
+/* A wval instruction does a few checks on its way; it's faster to pop the
+ * value into a spesh splot. */
+static void optimize_wval(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMObject *value = MVM_spesh_get_facts(tc, g, ins->operands[0])->value.o;
+    if (value) {
+        ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                (MVMCollectable *)value);
+        ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+    }
+}
+
 /* Replaces atomic ops with a version that needs no checking of the target's
  * container spec and concreteness, when we have the facts to hand. */
 static void optimize_container_atomic(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -2506,6 +2517,10 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_iscont_n:
         case MVM_OP_iscont_s:
             optimize_container_check(tc, g, bb, ins);
+            break;
+        case MVM_OP_wval:
+        case MVM_OP_wval_wide:
+            optimize_wval(tc, g, ins);
             break;
         case MVM_OP_osrpoint:
             /* We don't need to poll for OSR in hot loops. (This also moves
