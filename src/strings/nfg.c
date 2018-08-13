@@ -407,7 +407,7 @@ MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString 
         return 1;
 
     /* Get first and last graphemes of the strings. */
-    last_a = MVM_string_get_grapheme_at_nocheck(tc, a, a->body.num_graphs - 1);
+    last_a  = MVM_string_get_grapheme_at_nocheck(tc, a, a->body.num_graphs - 1);
     first_b = MVM_string_get_grapheme_at_nocheck(tc, b, 0);
     /* Put the case where we are adding a lf or crlf line ending */
     if (first_b == '\n')
@@ -438,6 +438,13 @@ MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString 
         MVMNormalizer norm;
         int rtrn;
         MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
+        /* Since we are only looking at two codepoints, we don't know what came
+         * before. Because of special rules with Regional Indicators, pretend
+         * the previous codepoint was a regional indicator. This will return the
+         * special value of 2 from MVM_unicode_normalize_should_break and trigger
+         * re_nfg if last_a and first_b are both regional indicators and we will
+         * never break NFG regardless of what the codepoint before last_a is. */
+        norm.regional_indicator = 1;
         rtrn = MVM_unicode_normalize_should_break(tc, last_a, first_b, &norm);
         MVM_unicode_normalizer_cleanup(tc, &norm);
         /* If both CCC are non-zero then it may need to be reordered. For now return 0.

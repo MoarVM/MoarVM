@@ -3,6 +3,8 @@
 #define UNI_CP_FEMALE_SIGN           0x2640
 #define UNI_CP_ZERO_WIDTH_JOINER     0x200D
 #define UNI_CP_ZERO_WIDTH_NON_JOINER 0x200C
+#define UNI_CP_REGIONAL_INDICATOR_A 0x1F1E6
+#define UNI_CP_REGIONAL_INDICATOR_Z 0x1F1FF
 
 /* Maps outside-world normalization form codes to our internal set, validating
  * that we got something valid. */
@@ -525,7 +527,13 @@ static MVMint32 is_grapheme_prepend(MVMThreadContext *tc, MVMCodepoint cp) {
  * the start of the string this has no more significance than returning 1) */
 MVMint32 MVM_unicode_normalize_should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b, MVMNormalizer *norm) {
     int GCB_a, GCB_b;
-
+    /* Only do more checks if needed to reset norm->regional_indicator */
+    if (norm->regional_indicator) {
+        /* If `a` is *not* a Regional Indicator, set norm->regional_indicator to 0
+         * so we only break every two RI's that are continuous. */
+        if (!(UNI_CP_REGIONAL_INDICATOR_A <= a && a <= UNI_CP_REGIONAL_INDICATOR_Z))
+            norm->regional_indicator = 0;
+    }
     /* Don't break between \r and \n, but otherwise break around \r. */
     if (a == 0x0D && b == 0x0A)
         return 0;
@@ -543,17 +551,18 @@ MVMint32 MVM_unicode_normalize_should_break(MVMThreadContext *tc, MVMCodepoint a
     GCB_b = MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
     switch (GCB_a) {
         case MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR:
-            if (2 <= norm->regional_indicator) {
+            /* If the previous run made a sequence */
+            if (norm->regional_indicator) {
                 norm->regional_indicator = 0;
                 if (GCB_b == MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR)
-                /* Return 2 here so is_concat_stable can know to run re_nfg */
+                /* If we have formed a sequence, break. Return 2 to differentiate
+                 * RI break's from other breaks. */
                     return 2;
             }
+            /* Don't break in a RI sequence. Set norm->regional_indicator = 1
+             * so we make sure to break for the next RI we see. */
             if (GCB_b == MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR) {
-                if (!norm->regional_indicator)
-                    norm->regional_indicator = 2;
-                else
-                    norm->regional_indicator++;
+                norm->regional_indicator = 1;
                 return 0;
             }
             break;

@@ -1874,6 +1874,14 @@ void copy_to_32bit (MVMThreadContext *tc, MVMString *source,
             break;
     }
 }
+/* For join, we don't do anything fancy such as renormalizing only two codepoints to be
+ * combined in a concatenation: here we only care about two states, whether we need to
+ * run re_nfg afterward or not. Essentially we treat `2` (force renormalization) the
+ * same as 0 (codepoints should not break between them). */
+MVM_STATIC_INLINE int nfg_is_join_stable(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+    int temp = MVM_nfg_is_concat_stable(tc, a, b);
+    return temp == 2 ? 0 : temp;
+}
 /* Used in MVM_string_join to check stability of adding the next piece */
 MVM_STATIC_INLINE void join_check_stability(MVMThreadContext *tc, MVMString *piece,
     MVMString *separator, MVMString **pieces, MVMint32 *concats_stable, MVMint64 num_pieces, MVMint64 sgraphs, MVMint64 piece_index) {
@@ -1882,18 +1890,18 @@ MVM_STATIC_INLINE void join_check_stability(MVMThreadContext *tc, MVMString *pie
          * have to be extra careful about concat stability */
         if (!MVM_string_graphs_nocheck(tc, piece)
                 && piece_index + 1 < num_pieces
-                && !MVM_nfg_is_concat_stable(tc, pieces[piece_index - 1], pieces[piece_index + 1])) {
+                && !nfg_is_join_stable(tc, pieces[piece_index - 1], pieces[piece_index + 1])) {
             *concats_stable = 0;
         }
         /* Separator has no graphemes, so NFG stability check
          * should consider pieces. */
-        else if (!MVM_nfg_is_concat_stable(tc, pieces[piece_index - 1], piece))
+        else if (!nfg_is_join_stable(tc, pieces[piece_index - 1], piece))
             *concats_stable = 0;
     }
     /* If we have a separator, check concat stability */
     else {
-        if (!MVM_nfg_is_concat_stable(tc, pieces[piece_index - 1], separator) /* Before */
-         || !MVM_nfg_is_concat_stable(tc, separator, piece)) { /* And after separator */
+        if (!nfg_is_join_stable(tc, pieces[piece_index - 1], separator) /* Before */
+         || !nfg_is_join_stable(tc, separator, piece)) { /* And after separator */
             *concats_stable = 0;
         }
     }
