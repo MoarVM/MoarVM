@@ -265,8 +265,11 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             }
 
             /* Did we see it in the nursery before, or should we move it to
-             * gen2 anyway since it a persistent ID was requested? */
-            if (item->flags & (MVM_CF_NURSERY_SEEN | MVM_CF_HAS_OBJECT_ID)) {
+             * gen2 anyway since either:
+             *   * A persistent ID was requested?
+             *   * It is referenced by a gen2 aggregate
+             */
+            if (item->flags & (MVM_CF_NURSERY_SEEN | MVM_CF_HAS_OBJECT_ID | MVM_CF_REF_FROM_GEN2)) {
                 /* Yes; we should move it to the second generation. Allocate
                  * space in the second generation. */
                 to_gen2 = 1;

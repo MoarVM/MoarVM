@@ -64,9 +64,10 @@
   (when (all (nz (and (^getf ,root MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN)))
              (nz ,obj)
              (zr (and (^getf ,obj MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN))))
-    (callv (^func &MVM_gc_write_barrier_hit)
+    (callv (^func &MVM_gc_write_barrier_hit_by)
      (arglist (carg (tc) ptr)
-              (carg ,root ptr)))))
+              (carg ,root ptr)
+              (carg ,obj ptr)))))
 
 (macro: ^store_write_barrier! (,root ,addr ,obj)
   (dov

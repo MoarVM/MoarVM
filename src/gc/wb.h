@@ -1,12 +1,14 @@
 /* Functions for if the write barriers are hit. */
 MVM_PUBLIC void MVM_gc_write_barrier_hit(MVMThreadContext *tc, MVMCollectable *update_root);
+MVM_PUBLIC void MVM_gc_write_barrier_hit_by(MVMThreadContext *tc, MVMCollectable *update_root,
+        MVMCollectable *referenced);
 
 /* Ensures that if a generation 2 object comes to hold a reference to a
  * nursery object, then the generation 2 object becomes an inter-generational
  * root. */
-MVM_STATIC_INLINE void MVM_gc_write_barrier(MVMThreadContext *tc, MVMCollectable *update_root, const MVMCollectable *referenced) {
+MVM_STATIC_INLINE void MVM_gc_write_barrier(MVMThreadContext *tc, MVMCollectable *update_root, MVMCollectable *referenced) {
     if (((update_root->flags & MVM_CF_SECOND_GEN) && referenced && !(referenced->flags & MVM_CF_SECOND_GEN)))
-        MVM_gc_write_barrier_hit(tc, update_root);
+        MVM_gc_write_barrier_hit_by(tc, update_root, referenced);
 }
 
 /* Does an assignment, but makes sure the write barrier MVM_WB is applied
