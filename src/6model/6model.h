@@ -36,6 +36,9 @@
  * parametric type. */
 #define MVM_PARAMETERIZED_TYPE              32
 
+/* STable mode flag for a type that is not subject to repossession. */
+#define MVM_NEVER_REPOSSESS_TYPE            64
+
 /* HLL type roles. */
 #define MVM_HLL_ROLE_NONE                   0
 #define MVM_HLL_ROLE_INT                    1

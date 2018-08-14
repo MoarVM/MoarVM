@@ -471,6 +471,11 @@ MVMuint64 MVM_6model_next_type_cache_id(MVMThreadContext *tc) {
     return (MVMuint64)MVM_add(&tc->instance->cur_type_cache_id, MVM_TYPE_CACHE_ID_INCR) + MVM_TYPE_CACHE_ID_INCR;
 }
 
+/* For type objects, marks the type as never repossessable. For concrete object
+ * instances, marks the individual ojbect as never repossessable. */
 void MVM_6model_never_repossess(MVMThreadContext *tc, MVMObject *obj) {
-    obj->header.flags |= MVM_CF_NEVER_REPOSSESS;
+    if (IS_CONCRETE(obj))
+        obj->header.flags |= MVM_CF_NEVER_REPOSSESS;
+    else
+        obj->st->mode_flags |= MVM_NEVER_REPOSSESS_TYPE;
 }
