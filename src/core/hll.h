@@ -57,6 +57,10 @@ struct MVMHLLConfig {
     MVMObject *num_multidim_ref;
     MVMObject *str_multidim_ref;
 
+    /* Booleans. */
+    MVMObject *true_value;
+    MVMObject *false_value;
+
     /* Array of types to pass to compiler.c */
     MVMObject *mast_types;
 
