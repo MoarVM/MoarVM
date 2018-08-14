@@ -453,7 +453,7 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
         MVM_sc_set_obj_sc(tc, obj, comp_sc);
         MVM_sc_set_idx_in_sc(&(obj->header), new_slot);
 
-#ifdef LOG_REPOSSESSIONS
+#if LOG_REPOSSESSIONS
         fprintf(stderr, "Repossession of object %s\n", obj->st->debug_name);
         MVM_dump_backtrace(tc);
 #endif
@@ -486,7 +486,7 @@ void MVM_sc_wb_hit_st(MVMThreadContext *tc, MVMSTable *st) {
         MVM_sc_set_stable_sc(tc, st, comp_sc);
         MVM_sc_set_idx_in_sc(&(st->header), new_slot);
 
-#ifdef LOG_REPOSSESSIONS
+#if LOG_REPOSSESSIONS
         fprintf(stderr, "Repossession of STable %s\n", st->debug_name);
         MVM_dump_backtrace(tc);
 #endif
