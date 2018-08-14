@@ -175,6 +175,9 @@ struct MVMSpeshBB {
     /* Is this block an inlining of another one? */
     MVMint8 inlined;
 
+    /* Is this block an inline of one that may cause deopt? */
+    MVMint8 inlined_may_cause_deopt;
+
     /* Is this basic block part of a jump list? */
     MVMint8 jumplist;
 

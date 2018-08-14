@@ -2601,7 +2601,7 @@ static MVMuint32 conflict_free(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
     MVMSpeshBB *cur_bb = start_bb;
     while (cur_bb) {
         MVMSpeshIns *check;
-        if (!allow_inlined && cur_bb->inlined)
+        if (!allow_inlined && cur_bb->inlined_may_cause_deopt)
             return 0;
         check = cur_bb == start_bb ? to->prev : cur_bb->last_ins;
         while (check) {
@@ -2631,8 +2631,8 @@ static MVMuint32 conflict_free(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
 }
 static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                               MVMSpeshIns *ins) {
-    /* Don't do this if we're within an inline. */
-    if (bb->inlined)
+    /* Don't do this if we're within an inline that may cause deopt. */
+    if (bb->inlined_may_cause_deopt)
         return;
 
     /* If this set is the only user of its second operand, we might be able to
