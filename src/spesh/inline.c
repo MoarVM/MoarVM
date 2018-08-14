@@ -751,7 +751,8 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 }
 
 /* Tweak the successor of a BB, also updating the target BBs pred. */
-static void tweak_succ(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshBB *new_succ) {
+static void tweak_succ(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                       MVMSpeshBB *prev_pred, MVMSpeshBB *new_succ, MVMuint32 missing_ok) {
     if (bb->num_succ == 0) {
         /* It had no successors, so we'll add one. */
         bb->succ = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
@@ -773,12 +774,12 @@ static void tweak_succ(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, M
         MVMint32 found = 0;
         MVMint32 i;
         for (i = 0; i < new_succ->num_pred; i++)
-            if (new_succ->pred[i]->idx + 1 == new_succ->idx) {
+            if (new_succ->pred[i] == prev_pred) {
                 new_succ->pred[i] = bb;
                 found = 1;
                 break;
             }
-        if (!found)
+        if (!found && !missing_ok)
             MVM_oops(tc,
                 "Spesh inline: could not find appropriate pred to update\n");
     }
@@ -902,6 +903,7 @@ static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                      MVMSpeshIns *invoke_ins, MVMSpeshBB *inlinee_last_bb) {
     /* Locate return instructions. */
     MVMSpeshBB *bb = inlinee->entry;
+    MVMuint32 saw_return = 0;
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
@@ -911,37 +913,41 @@ static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 if (invoke_ins->info->opcode == MVM_OP_invoke_v) {
                     MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                         invoke_bb->succ[0]);
-                    tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
+                    tweak_succ(tc, inliner, bb, invoke_bb, invoke_bb->succ[0], saw_return);
                     MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
                 }
                 else {
                     MVM_oops(tc,
                         "Spesh inline: return_v/invoke_[!v] mismatch");
                 }
+                saw_return = 1;
                 break;
             case MVM_OP_return_i:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, invoke_bb, invoke_bb->succ[0], saw_return);
                 rewrite_int_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
+                saw_return = 1;
                 break;
             case MVM_OP_return_n:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, invoke_bb, invoke_bb->succ[0], saw_return);
                 rewrite_num_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
+                saw_return = 1;
                 break;
             case MVM_OP_return_s:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, invoke_bb, invoke_bb->succ[0], saw_return);
                 rewrite_str_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_o:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, invoke_bb, invoke_bb->succ[0], saw_return);
                 rewrite_obj_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
+                saw_return = 1;
                 break;
             }
             ins = ins->next;
@@ -1152,7 +1158,7 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         invoke_ins);
     invoke_ins->info = MVM_op_get_op(MVM_OP_goto);
     invoke_ins->operands[0].ins_bb = inlinee->entry->linear_next;
-    tweak_succ(tc, inliner, invoke_bb, inlinee->entry->linear_next);
+    tweak_succ(tc, inliner, invoke_bb, inlinee->entry, inlinee->entry->linear_next, 0);
 
     /* If this inline may cause deopt, then we take the deopt index at the
      * calling point and use it as a proxy for the deopts that may happen in
