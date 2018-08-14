@@ -2732,7 +2732,7 @@ static MVMString *encoding_shiftjis_name     = NULL;
 static MVMString *encoding_utf8_c8_name      = NULL;
 MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
     MVM_string_check_arg(tc, name, "find encoding");
-    if (!encoding_name_init) {
+    if (MVM_UNLIKELY(!encoding_name_init)) {
         MVM_gc_allocate_gen2_default_set(tc);
         encoding_utf8_name        = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "utf8");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_utf8_name, "Encoding name");
