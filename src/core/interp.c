@@ -5329,6 +5329,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_spesh_plugin_addguard_notobj(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
+            OP(hllbool):
+                GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).i64
+                    ? cu->body.hll_config->true_value
+                    : cu->body.hll_config->false_value;
+                cur_op += 4;
+                goto NEXT;
+            OP(hllboolfor): {
+                MVMString   *hll     = GET_REG(cur_op, 4).s;
+                MVMHLLConfig *config = MVM_hll_get_config_for(tc, hll);
+                GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).i64
+                    ? config->true_value
+                    : config->false_value;
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_guard): {
                 MVMObject *check = GET_REG(cur_op, 2).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
