@@ -987,6 +987,46 @@
       (carg $0 ptr)
       (carg (const (&QUOTE MVM_reg_obj) int_sz) int))))
 
+(template: unshift_i!
+  (callv (^getf (^repr $0) MVMREPROps pos_funcs.unshift)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $0) ptr)
+      (carg $0 ptr)
+      (carg (^body $0) ptr)
+      (carg $1 ptr)
+      (carg (const (&QUOTE MVM_reg_int64) int_sz) int))))
+
+(template: unshift_n!
+  (callv (^getf (^repr $0) MVMREPROps pos_funcs.unshift)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $0) ptr)
+      (carg $0 ptr)
+      (carg (^body $0) ptr)
+      (carg $1 ptr)
+      (carg (const (&QUOTE MVM_reg_num64) int_sz) int))))
+
+(template: unshift_s!
+  (callv (^getf (^repr $0) MVMREPROps pos_funcs.unshift)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $0) ptr)
+      (carg $0 ptr)
+      (carg (^body $0) ptr)
+      (carg $1 ptr)
+      (carg (const (&QUOTE MVM_reg_str) int_sz) int))))
+
+(template: unshift_o!
+  (callv (^getf (^repr $0) MVMREPROps pos_funcs.unshift)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $0) ptr)
+      (carg $0 ptr)
+      (carg (^body $0) ptr)
+      (carg $1 ptr)
+      (carg (const (&QUOTE MVM_reg_obj) int_sz) int))))
+
 (template: splice!
   (callv (^getf (^repr $0) MVMREPROps pos_funcs.splice)
     (arglist
