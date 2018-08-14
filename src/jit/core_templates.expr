@@ -1047,6 +1047,13 @@
       (carg (^body $0) ptr)
       (carg $1 int))))
 
+(template: existspos
+  (call (^func &MVM_repr_exists_pos)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   int)) int_sz))
+
 (template: atkey_i!
   (callv (^getf (^repr $0) MVMREPROps ass_funcs.at_key)
     (arglist
