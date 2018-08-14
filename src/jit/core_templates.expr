@@ -1823,11 +1823,24 @@
       (carg $1   ptr)
       (carg $2   ptr)) ptr_sz))
 
+(template: getpid
+  (call (^func &MVM_proc_getpid)
+    (arglist
+      (carg (tc) ptr)) int_sz))
+
 (template: assertparamcheck!
   (when (zr $0)
     (callv (^func &MVM_args_bind_failed)
       (arglist
         (carg (tc) ptr)))))
+
+(template: hintfor
+  (call (^getf (^repr $1) MVMREPROps attr_funcs.hint_for)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $1) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)) int_sz))
 
 (template: getuniname
   (call (^func &MVM_unicode_get_name)
