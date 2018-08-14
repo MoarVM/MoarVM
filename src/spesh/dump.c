@@ -117,6 +117,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
     while (cur_ins) {
         MVMSpeshAnn *ann = cur_ins->annotations;
         MVMuint32 line_number;
+        MVMuint32 pop_inlines = 0;
 
         while (ann) {
             /* These four annotations carry a deopt index that we can find a
@@ -162,7 +163,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                 case MVM_SPESH_ANN_INLINE_END:
                     appendf(ds, "      [Annotation: Inline End (%d)]\n",
                         ann->data.inline_idx);
-                    pop_inline(tc, inline_stack);
+                    pop_inlines++;
                     break;
                 case MVM_SPESH_ANN_DEOPT_INLINE:
                     appendf(ds, "      [Annotation: INS Deopt Inline (idx %d -> pc %d; line %d)]\n",
@@ -194,6 +195,8 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
             }
             ann = ann->next;
         }
+        while (pop_inlines--)
+            pop_inline(tc, inline_stack);
 
         appendf(ds, "      %-15s ", cur_ins->info->name);
         if (cur_ins->info->opcode == MVM_SSA_PHI) {
