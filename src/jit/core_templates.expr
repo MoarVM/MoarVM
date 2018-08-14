@@ -1438,6 +1438,12 @@
       (^getf (^repr $1) MVMREPROps ID)
       (const (&QUOTE MVM_REPR_ID_MVMCompUnit) (&sizeof MVMuint32)))))
 
+(template: ctx
+  (call (^func &MVM_context_from_frame)
+    (arglist
+      (carg (tc)     ptr)
+      (carg (^frame) ptr)) ptr_sz))
+
 (template: curcode
   (^getf (^frame) MVMFrame code_ref))
 
