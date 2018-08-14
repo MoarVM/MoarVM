@@ -1842,6 +1842,15 @@
       (carg $1 ptr)
       (carg $2 ptr)) int_sz))
 
+(template: paramnamesused
+  (let: (($ctx   (^addrf (^frame) MVMFrame params))
+         ($csite (^getf  $ctx MVMArgProcContext callsite)))
+    (when (ne (^getf $csite MVMCallsite num_pos) (^getf $csite MVMCallsite arg_count))
+      (callv (^func &MVM_args_assert_nameds_used)
+        (arglist
+          (carg (tc) ptr)
+          (carg $ctx ptr))))))
+
 (template: getuniname
   (call (^func &MVM_unicode_get_name)
     (arglist
