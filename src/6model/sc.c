@@ -1,5 +1,7 @@
 #include "moar.h"
 
+#define LOG_REPOSSESSIONS 0
+
 /* Creates a new serialization context with the specified handle. If any
  * compilation units are waiting for an SC with this handle, removes it from
  * their to-resolve list after installing itself in the appropriate slot. */
@@ -450,6 +452,11 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
         /* Update SC of the object, claiming it, and update index too. */
         MVM_sc_set_obj_sc(tc, obj, comp_sc);
         MVM_sc_set_idx_in_sc(&(obj->header), new_slot);
+
+#ifdef LOG_REPOSSESSIONS
+        fprintf(stderr, "Repossession of object %s\n", obj->st->debug_name);
+        MVM_dump_backtrace(tc);
+#endif
     }
 }
 
@@ -478,5 +485,10 @@ void MVM_sc_wb_hit_st(MVMThreadContext *tc, MVMSTable *st) {
         /* Update SC of the STable, claiming it. */
         MVM_sc_set_stable_sc(tc, st, comp_sc);
         MVM_sc_set_idx_in_sc(&(st->header), new_slot);
+
+#ifdef LOG_REPOSSESSIONS
+        fprintf(stderr, "Repossession of STable %s\n", st->debug_name);
+        MVM_dump_backtrace(tc);
+#endif
     }
 }
