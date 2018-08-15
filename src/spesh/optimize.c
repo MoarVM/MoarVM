@@ -1129,6 +1129,31 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
     }
 }
 
+/* Optimizes a hllbool instruction away if the value is known */
+static void optimize_hllbool(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        MVMSpeshFacts *obj_facts  = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+        MVMHLLConfig  *hll_config = g->sf->body.cu->body.hll_config;
+        MVMObject     *hll_bool   = obj_facts->value.i ? hll_config->true_value : hll_config->false_value;
+        MVMSpeshFacts *how_facts;
+
+        /* Transform gethow lookup to spesh slot lookup */
+        MVMint16 spesh_slot = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable*)hll_bool);
+
+        MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+        ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+        ins->operands[1].lit_i16 = spesh_slot;
+        /* Store facts about the value in the write operand */
+        how_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+        how_facts->flags  |= (MVM_SPESH_FACT_KNOWN_VALUE | MVM_SPESH_FACT_KNOWN_TYPE);
+        how_facts->value.o = hll_bool;
+        how_facts->type    = STABLE(hll_bool)->WHAT;
+        MVM_spesh_use_facts(tc, g, obj_facts);
+        MVM_spesh_facts_depend(tc, g, how_facts, obj_facts);
+    }
+}
+
 /* Optimize an object conditional (if_o, unless_o) to simpler operations.
  *
  * We always perform the split of the if_o to istrue + if_i, because a branch
@@ -2310,6 +2335,9 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_istrue:
         case MVM_OP_isfalse:
             optimize_istrue_isfalse(tc, g, bb, ins);
+            break;
+        case MVM_OP_hllbool:
+            optimize_hllbool(tc, g, ins);
             break;
         case MVM_OP_if_i:
         case MVM_OP_unless_i:
