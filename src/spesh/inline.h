@@ -39,9 +39,6 @@ struct MVMSpeshInline {
     /* Bit field of named args used to put in place during deopt, since we
      * typically don't update the array in specialized code. */
     MVMuint64 deopt_named_used_bit_field;
-
-    /* Inlinee's spesh graph, so we can free it up after code-gen. */
-    MVMSpeshGraph *g;
 };
 
 MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc,

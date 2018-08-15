@@ -43,3 +43,15 @@ void MVM_region_destroy(MVMThreadContext *tc, MVMRegionAlloc *alloc) {
     }
     alloc->block = NULL;
 }
+
+/* Link source region into target region, so they can be cleaned up as one */
+void MVM_region_merge(MVMThreadContext *tc, MVMRegionAlloc *target, MVMRegionAlloc *source) {
+    MVMRegionBlock *block = source->block;
+    while (block != NULL) {
+        MVMRegionBlock *prev = block->prev;
+        block->prev = target->block->prev;
+        target->block->prev = block;
+        block = prev;
+    }
+    source->block = NULL;
+}

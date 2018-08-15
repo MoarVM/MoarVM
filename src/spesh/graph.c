@@ -1354,10 +1354,21 @@ void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist 
 void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Free all of the allocated node memory. */
     MVM_region_destroy(tc, &g->region_alloc);
-    /* Free handlers array, if different from the static frame. */
-    if (!g->cand && g->handlers && g->handlers != g->sf->body.handlers)
-        MVM_free(g->handlers);
-
+    /* If there is a candidate that we either generated or that this graph was
+     * generated from, it has ownership of the malloc'd memory. If not, then we
+     * need to clean up */
+    if (!g->cand) {
+        /* Free handlers array, if different from the static frame. */
+        if (g->handlers && g->handlers != g->sf->body.handlers)
+            MVM_free(g->handlers);
+        if (g->deopt_addrs)
+            MVM_free(g->deopt_addrs);
+        if (g->inlines)
+            MVM_free(g->inlines);
+    }
+    /* When we generate a graph from a candidate, we copy the spesh slots */
+    if (g->spesh_slots)
+        MVM_free(g->spesh_slots);
     /* Free the graph itself. */
     MVM_free(g);
 }
