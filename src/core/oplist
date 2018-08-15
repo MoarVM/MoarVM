@@ -856,7 +856,7 @@ getppid             w(int64)
 getsignals          w(obj) :useshll
 slice               w(obj) r(obj) r(int64) r(int64)
 speshreg            r(str) r(str) r(obj)
-speshresolve     -a w(obj) str :deoptonepoint :logged :noinline :specializable
+speshresolve     -a w(obj) str :deoptonepoint :logged :noinline :specializable :invokish
 speshguardtype      r(obj) r(obj)
 speshguardconcrete  r(obj)
 speshguardtypeobj   r(obj)
@@ -927,7 +927,7 @@ sp_fastinvoke_o  .s w(obj) r(obj) int16 :maycausedeopt
 # included inside of the instruction since it will have moved afterwards, and
 # we also include the static frame so that this instruction can survive being
 # inlined.
-sp_speshresolve     w(obj) str uint32 sslot :maycausedeopt :useshll
+sp_speshresolve     w(obj) str uint32 sslot :maycausedeopt :useshll :invokish
 
 # Error generation if a named param is unused (name goes in spesh slot).
 sp_paramnamesused   sslot
