@@ -707,6 +707,7 @@ static void insert_object_null_instructions(MVMThreadContext *tc, MVMSpeshGraph 
             null_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand));
             null_ins->operands[0].reg.orig = i;
             MVM_spesh_manipulate_insert_ins(tc, insert_bb, insert_after, null_ins);
+            insert_after = null_ins;
         }
     }
 }
