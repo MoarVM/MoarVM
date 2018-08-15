@@ -2683,13 +2683,6 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
     MVM_jit_log(tc, "emit guard <%s>\n", guard->ins->info->name);
     /* load object and spesh slot value, except for those that don't need it */
     | mov TMP1, WORK[obj];
-    /* most of the time a guard destination is the same real register, but if
-     * not then emit a store. */
-    if (op != MVM_OP_sp_guardsf) {
-        MVMint16 dest = guard->ins->operands[0].reg.orig;
-        if (dest != obj)
-            | mov WORK[dest], TMP1
-    }
     if (op != MVM_OP_sp_guardjustconc && op != MVM_OP_sp_guardjusttype) {
         MVMint16 spesh_idx = guard->ins->operands[op == MVM_OP_sp_guardsf ? 1 : 2].lit_i16;
         | get_spesh_slot TMP2, spesh_idx;
@@ -2762,7 +2755,14 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
         | test_type_object TMP1;
         | jz >1;
     }
-    /* if we're here, we didn't jump to deopt, so skip it */
+    /* If we're here, we didn't jump to deopt. Most of the time a guard
+     * destination is the same real register, but if not then emit a store
+     * here before jumping over the deopt code. */
+    if (op != MVM_OP_sp_guardsf) {
+        MVMint16 dest = guard->ins->operands[0].reg.orig;
+        if (dest != obj)
+            | mov WORK[dest], TMP1
+    }
     | jmp >2;
     |1:
     /* emit deopt */
