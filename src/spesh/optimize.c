@@ -70,16 +70,24 @@ MVMString * MVM_spesh_get_string(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 }
 
 /* Copy facts between two register operands. */
-static void copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand to,
-                       MVMSpeshOperand from) {
-    MVMSpeshFacts *tfacts = get_facts_direct(tc, g, to);
-    MVMSpeshFacts *ffacts = get_facts_direct(tc, g, from);
+static void copy_facts_resolved(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *tfacts,
+                                MVMSpeshFacts *ffacts) {
     tfacts->flags         = ffacts->flags;
     tfacts->flags        &= ~MVM_SPESH_FACT_MERGED_WITH_LOG_GUARD;
     tfacts->type          = ffacts->type;
     tfacts->decont_type   = ffacts->decont_type;
     tfacts->value         = ffacts->value;
     tfacts->log_guard     = ffacts->log_guard;
+}
+static void copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand to,
+                       MVMSpeshOperand from) {
+    MVMSpeshFacts *tfacts = get_facts_direct(tc, g, to);
+    MVMSpeshFacts *ffacts = get_facts_direct(tc, g, from);
+    copy_facts_resolved(tc, g, tfacts, ffacts);
+}
+void MVM_spesh_copy_facts_resolved(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *to,
+                                   MVMSpeshFacts *from) {
+    copy_facts_resolved(tc, g, to, from);
 }
 void MVM_spesh_copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand to,
                           MVMSpeshOperand from) {
