@@ -54,6 +54,7 @@ void MVM_spesh_usages_delete(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFac
 void MVM_spesh_usages_delete_by_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand used, MVMSpeshIns *by);
 void MVM_spesh_usages_add_for_handler(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *facts);
 void MVM_spesh_usages_add_for_handler_by_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand used);
+void MVM_spesh_usages_create_usage(MVMThreadContext *tc, MVMSpeshGraph *g);
 void MVM_spesh_usages_create_deopt_usage(MVMThreadContext *tc, MVMSpeshGraph *g);
 void MVM_spesh_usages_add_unconditional_deopt_usage(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *facts);
 void MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(MVMThreadContext *tc, MVMSpeshGraph *g,
