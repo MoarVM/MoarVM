@@ -376,12 +376,14 @@ MVMSpeshOperand MVM_spesh_manipulate_split_version(MVMThreadContext *tc, MVMSpes
                                                    MVMSpeshOperand split, MVMSpeshBB *bb,
                                                    MVMSpeshIns *at) {
     MVMSpeshOperand new_version = MVM_spesh_manipulate_new_version(tc, g, split.reg.orig);
-    MVM_VECTOR_DECL(MVMSpeshBB *, bbq);
-    MVM_VECTOR_INIT(bbq, 1);
-    MVM_VECTOR_PUSH(bbq, bb);
-    while (MVM_VECTOR_ELEMS(bbq)) {
+    /* More than we need by definition */
+    MVMSpeshBB **bbq = alloca(sizeof(MVMSpeshBB*) * g->num_bbs);
+    MVMint32 top = 0;
+    /* Push initial basic block */
+    bbq[top++] = bb;
+    while (top != 0) {
         MVMuint32 i;
-        MVMSpeshBB *cur_bb = MVM_VECTOR_POP(bbq);
+        MVMSpeshBB *cur_bb = bbq[--top];
         MVMSpeshIns *ins = cur_bb == bb && at ? at : cur_bb->first_ins;
         while (ins) {
             for (i = 0; i < ins->info->num_operands; i++) {
@@ -397,7 +399,7 @@ MVMSpeshOperand MVM_spesh_manipulate_split_version(MVMThreadContext *tc, MVMSpes
             ins = ins->next;
         }
         for (i = 0; i < cur_bb->num_children; i++)
-            MVM_VECTOR_PUSH(bbq, cur_bb->children[i]);
+            bbq[top++] = cur_bb->children[i];
     }
     MVM_spesh_copy_facts(tc, g, new_version, split);
     return new_version;
