@@ -2935,8 +2935,10 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
 
     /* Make a post-inline pass through the graph doing things that are better
      * done after inlinings have taken place. Note that these things must not
-     * add new fact dependencies. */
+     * add new fact dependencies. Do a final dead instruction elimination pass
+     * to clean up after it. */
     post_inline_pass(tc, g, g->entry);
+    MVM_spesh_eliminate_dead_ins(tc, g);
 #if MVM_SPESH_CHECK_DU
     MVM_spesh_usages_check(tc, g);
 #endif
