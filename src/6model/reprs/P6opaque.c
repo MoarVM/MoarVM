@@ -1610,6 +1610,54 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         }
         break;
     }
+    case MVM_OP_box_n: {
+        if (repr_data->num_attributes == 1 && repr_data->unbox_num_slot >= 0 &&
+                !(st->mode_flags & MVM_FINALIZE_TYPE)) {
+            MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_num_slot];
+            if (embedded_st->REPR->ID == MVM_REPR_ID_P6num) {
+                /* Prepend a fastcreate instruction. */
+                MVMSpeshIns *fastcreate = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                fastcreate->info = MVM_op_get_op(MVM_OP_sp_fastcreate);
+                fastcreate->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                fastcreate->operands[0] = ins->operands[0];
+                MVM_spesh_get_facts(tc, g, fastcreate->operands[0])->writer = fastcreate;
+                fastcreate->operands[1].lit_i16 = st->size;
+                fastcreate->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+                MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, fastcreate);
+
+                /* Change instruction to a bind. */
+                MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
+                ins->info = MVM_op_get_op(MVM_OP_sp_p6obind_n);
+                ins->operands[2] = ins->operands[1];
+                ins->operands[1].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_num_slot];
+                MVM_spesh_usages_add_by_reg(tc, g, ins->operands[0], ins);
+            }
+        }
+    }
+    case MVM_OP_box_s: {
+        if (repr_data->num_attributes == 1 && repr_data->unbox_str_slot >= 0 &&
+                !(st->mode_flags & MVM_FINALIZE_TYPE)) {
+            MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_str_slot];
+            if (embedded_st->REPR->ID == MVM_REPR_ID_P6str) {
+                /* Prepend a fastcreate instruction. */
+                MVMSpeshIns *fastcreate = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                fastcreate->info = MVM_op_get_op(MVM_OP_sp_fastcreate);
+                fastcreate->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                fastcreate->operands[0] = ins->operands[0];
+                MVM_spesh_get_facts(tc, g, fastcreate->operands[0])->writer = fastcreate;
+                fastcreate->operands[1].lit_i16 = st->size;
+                fastcreate->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+                MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, fastcreate);
+
+                /* Change instruction to a bind. */
+                MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
+                ins->info = MVM_op_get_op(MVM_OP_sp_p6obind_s);
+                ins->operands[2] = ins->operands[1];
+                ins->operands[1].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_str_slot];
+                MVM_spesh_usages_add_by_reg(tc, g, ins->operands[0], ins);
+            }
+        }
+    }
     }
 }
 
