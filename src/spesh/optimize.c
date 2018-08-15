@@ -2797,7 +2797,7 @@ static void post_inline_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB 
     MVM_VECTOR_INIT(pips.seen_box_ins, 0);
     post_inline_visit_bb(tc, g, g->entry, &pips);
 
-    /* Walk through any processed box insturctions. */
+    /* Walk through any processed box instructions. */
     for (i = 0; i < MVM_VECTOR_ELEMS(pips.seen_box_ins); i++) {
         SeenBox *sb = pips.seen_box_ins[i];
         if (MVM_spesh_usages_is_used(tc, g, sb->ins->operands[0])) {
