@@ -2457,6 +2457,16 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_create:
             optimize_repr_op(tc, g, bb, ins, 1);
             break;
+        case MVM_OP_box_i:
+        case MVM_OP_box_n:
+        case MVM_OP_box_s: {
+            /* We'll lower these in a later pass, but we should preemptively
+             * use the facts on the box type. */
+            MVMSpeshFacts *type_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
+            if (type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE)
+                MVM_spesh_use_facts(tc, g, type_facts);
+            break;
+        }
         case MVM_OP_ne_s:
         case MVM_OP_eq_s:
             optimize_string_equality(tc, g, bb, ins);
@@ -2801,12 +2811,10 @@ static void post_inline_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB 
     for (i = 0; i < MVM_VECTOR_ELEMS(pips.seen_box_ins); i++) {
         SeenBox *sb = pips.seen_box_ins[i];
         if (MVM_spesh_usages_is_used(tc, g, sb->ins->operands[0])) {
-            /* TODO Work on lowering box ops. Note that we may well have to go
-             * and mark some facts used in the previous pass to do this safely.
-             * However, we'd rather not actually lower them at that point as
-             * we want to keep them as box/unbox so we can more easily try to
-             * get rid of box/unbox pairs after inlining in this pass. Thus
-             * why we'll deal with it here. */
+            /* Try to lower the box instruction. */
+            MVMSpeshFacts *type_facts = MVM_spesh_get_facts(tc, g, sb->ins->operands[2]);
+            if ((type_facts-> flags & MVM_SPESH_FACT_KNOWN_TYPE) && REPR(type_facts->type)->spesh)
+                REPR(type_facts->type)->spesh(tc, STABLE(type_facts->type), g, sb->bb, sb->ins);
         }
         else {
             /* Box instruction became unused; delete. */
