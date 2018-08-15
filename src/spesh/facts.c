@@ -349,8 +349,10 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         MVMSpeshOperand guard_reg = ins->operands[0];
         MVMSpeshOperand preguard_reg = MVM_spesh_manipulate_new_version(tc, g,
                 ins->operands[0].reg.orig);
+        MVMSpeshFacts *pre_facts = &g->facts[preguard_reg.reg.orig][preguard_reg.reg.i];
         MVMSpeshFacts *facts = &g->facts[guard_reg.reg.orig][guard_reg.reg.i];
         ins->operands[0] = preguard_reg;
+        pre_facts->writer = ins;
 
         /* Add facts and choose guard op. */
         facts->type = agg_type;
@@ -384,6 +386,8 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             MVM_spesh_manipulate_insert_ins(tc, bb, ins, guard);
         else
             MVM_spesh_manipulate_insert_ins(tc, bb->linear_next, NULL, guard);
+        facts->writer = guard;
+        MVM_spesh_usages_add_by_reg(tc, g, preguard_reg, guard);
 
         /* Move deopt annotation to the guard instruction. */
         ann = ins->annotations;
@@ -401,6 +405,10 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         }
         deopt_one_ann->next = NULL;
         guard->annotations = deopt_one_ann;
+
+        /* Move deopt usages to the preguard register. */
+        pre_facts->usage.deopt_users = facts->usage.deopt_users;
+        facts->usage.deopt_users = NULL;
 
         /* Add entry in log guards table, and mark facts as depending on it. */
         if (g->num_log_guards % 16 == 0) {
@@ -445,37 +453,8 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         if (p && ann_deopt_one && ann_logged && ins->info->opcode != MVM_OP_speshresolve)
             log_facts(tc, g, bb, ins, p, ann_deopt_one, ann_logged);
 
-        /* Look through operands for reads and writes. */
-        is_phi = ins->info->opcode == MVM_SSA_PHI;
-        for (i = 0; i < ins->info->num_operands; i++) {
-            /* Reads need usage tracking. */
-            if ((is_phi && i > 0)
-                || (!is_phi && (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)) {
-                MVMSpeshFacts *facts = &(g->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i]);
-                MVM_spesh_usages_add(tc, g, facts, ins);
-            }
-
-            /* Writes need the writing instruction to be specified. */
-            if ((is_phi && i == 0)
-                || (!is_phi && (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_write_reg)) {
-                MVMSpeshFacts *facts = &(g->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i]);
-                facts->writer    = ins;
-            }
-        }
-
         /* Look for ops that are fact-interesting. */
         switch (ins->info->opcode) {
-        case MVM_OP_inc_i:
-        case MVM_OP_inc_u:
-        case MVM_OP_dec_i:
-        case MVM_OP_dec_u: {
-            /* These all read as well as write a value, so bump usages. */
-            MVMSpeshOperand reader;
-            reader.reg.orig = ins->operands[0].reg.orig;
-            reader.reg.i = ins->operands[0].reg.i - 1;
-            MVM_spesh_usages_add_by_reg(tc, g, reader, ins);
-            break;
-        }
         case MVM_OP_set:
             copy_facts(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
@@ -745,8 +724,8 @@ static void tweak_block_handler_usage(MVMThreadContext *tc, MVMSpeshGraph *g) {
 /* Kicks off fact discovery from the top of the (dominator) tree. */
 void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p,
         MVMuint32 is_specialized) {
-    /* The facts pass sets up usage normal usage information. */
-    add_bb_facts(tc, g, g->entry, p);
+    /* Set up normal usage information. */
+    MVM_spesh_usages_create_usage(tc, g);
     tweak_block_handler_usage(tc, g);
 
     /* We do an initial dead instruction pass before then computing the deopt
@@ -759,4 +738,7 @@ void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPl
         MVM_spesh_eliminate_dead_ins(tc, g);
         MVM_spesh_usages_create_deopt_usage(tc, g);
     }
+
+    /* Finally, collect facts. */
+    add_bb_facts(tc, g, g->entry, p);
 }
