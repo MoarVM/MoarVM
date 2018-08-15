@@ -916,6 +916,8 @@ static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* Locate return instructions. */
     MVMSpeshBB *bb = inlinee->entry;
     MVMuint32 saw_return = 0;
+    MVMSpeshFacts *prop_facts_from = NULL;
+    MVMSpeshFacts *prop_facts_to = NULL;
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
@@ -955,6 +957,13 @@ static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 rewrite_str_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_o:
+                if (!saw_return && invoke_ins->info->opcode == MVM_OP_invoke_o) {
+                    prop_facts_from = MVM_spesh_get_facts(tc, inliner, ins->operands[0]);
+                    prop_facts_to = MVM_spesh_get_facts(tc, inliner, invoke_ins->operands[0]);
+                }
+                else {
+                    prop_facts_from = prop_facts_to = NULL;
+                }
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
                 tweak_succ(tc, inliner, bb, invoke_bb, invoke_bb->succ[0], saw_return);
@@ -967,6 +976,8 @@ static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         if (bb == inlinee_last_bb) break;
         bb = bb->linear_next;
     }
+    if (prop_facts_from && prop_facts_to)
+        MVM_spesh_copy_facts_resolved(tc, inliner, prop_facts_to, prop_facts_from);
 }
 
 /* Re-writes argument passing and parameter taking instructions to simple
