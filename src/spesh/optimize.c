@@ -803,77 +803,6 @@ static void optimize_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     }
 }
 
-static void optimize_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
-    /* try to remove boxing-unboxing sequences */
-    MVMSpeshFacts *box_facts;
-    switch (ins->info->opcode) {
-    case MVM_OP_unbox_i:
-        break;
-    default:
-        return;
-    }
-
-    /* As far as I can determine, in rakudo buiding or spectests, this runs
-     * never. So I'm not confident actually enabling it. */
-    return;
-
-    box_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
-    if (box_facts->flags & MVM_SPESH_FACT_KNOWN_BOX_SRC && box_facts->writer) {
-        /* We may have to go through several layers of set instructions to find
-         * the proper writer. */
-        MVMSpeshIns *cur = box_facts->writer;
-        while (cur && cur->info->opcode == MVM_OP_set) {
-            cur = MVM_spesh_get_facts(tc, g, cur->operands[1])->writer;
-        }
-
-        if (cur) {
-            MVMSpeshIns *safety_cur;
-            MVMuint8 orig_operand_type = cur->info->operands[1] & MVM_operand_type_mask;
-
-            /* Now we have to be extra careful. Any operation that writes to
-             * our "unboxed flag" register (in any register version) will be
-             * trouble. Also, we'd have to take more care with PHI nodes,
-             * which we'll just consider immediate failure for now. */
-
-            safety_cur = ins;
-            while (safety_cur) {
-                if (safety_cur == cur) {
-                    /* If we've made it to here without finding anything
-                     * dangerous, we can consider this optimization
-                     * a winner. */
-                    break;
-                }
-                if (safety_cur->info->opcode == MVM_SSA_PHI) {
-                    /* Oh dear god in heaven! A PHI! */
-                    safety_cur = NULL;
-                    break;
-                }
-                if (((safety_cur->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg)
-                    && (safety_cur->operands[0].reg.orig == cur->operands[1].reg.orig)) {
-                    /* Someone's clobbering our register between the boxing and
-                     * our attempt to unbox it. We shall give up.
-                     * Maybe in the future we can be clever/sneaky and use
-                     * some other register for bridging the gap? */
-                    safety_cur = NULL;
-                    break;
-                }
-                safety_cur = safety_cur->prev;
-            }
-
-            if (safety_cur) {
-                /* this reduces to a set */
-                ins->info = MVM_op_get_op(MVM_OP_set);
-                ins->operands[1] = cur->operands[0];
-                MVM_spesh_usages_delete(tc, g, box_facts, ins);
-                MVM_spesh_usages_add_by_reg(tc, g, cur->operands[1], ins);
-                copy_facts(tc, g, ins->operands[0], ins->operands[1]);
-                return;
-            }
-        }
-    }
-    optimize_repr_op(tc, g, bb, ins, 1);
-}
-
 /* If we know the type of a significant operand, we might try to specialize by
  * representation. */
 static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -1127,8 +1056,6 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
                 return;
                 /* We can just unbox the int and pretend it's a bool. */
             ins->info = MVM_op_get_op(MVM_OP_unbox_i);
-            /* And then we might be able to optimize this even further. */
-            optimize_unbox(tc, g, bb, ins);
             break;
         case MVM_BOOL_MODE_BIGINT:
             if (!guaranteed_concrete)
@@ -2530,16 +2457,6 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_create:
             optimize_repr_op(tc, g, bb, ins, 1);
             break;
-        case MVM_OP_box_i:
-        case MVM_OP_box_n:
-        case MVM_OP_box_s:
-            optimize_repr_op(tc, g, bb, ins, 2);
-            break;
-        case MVM_OP_unbox_i:
-        case MVM_OP_unbox_n:
-        case MVM_OP_unbox_s:
-            optimize_unbox(tc, g, bb, ins);
-            break;
         case MVM_OP_ne_s:
         case MVM_OP_eq_s:
             optimize_string_equality(tc, g, bb, ins);
@@ -2644,6 +2561,26 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         optimize_bb(tc, g, bb->children[i], p);
     }
 }
+
+/* The post-inline optimization pass tries to do various simplifications that
+ * are at their most valuable when we can see between inline boundaries. For
+ * example, a control exception throwing thing may have been inlined into the
+ * loop block, so we may rewrite it into a goto. We also look for box/unbox
+ * pairings and see if we can eliminate those. Many redundant `set` instructions
+ * produced in the first pass can now be productively eliminated too.
+ *
+ * Box instructions may be linked to their use sites by an eliminatable `set`
+ * chain, so we keep track of them and check if they are used by the end of
+ * the pass. If they are unused, we can delete them. If they are used, then
+ * we can try to lower them.
+ */
+typedef struct {
+    MVMSpeshBB *bb;
+    MVMSpeshIns *ins;
+} SeenBox;
+typedef struct {
+    MVM_VECTOR_DECL(SeenBox *, seen_box_ins);
+} PostInlinePassState;
 
 /* Optimization turns many things into simple set instructions, which we can
  * often further eliminate; others may become unrequired due to eliminated
@@ -2782,7 +2719,8 @@ static void walk_set_looking_for_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, M
     }
 }
 static void try_eliminate_box_unbox_pair(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-                                         MVMSpeshIns *ins, MVMuint16 unbox_op, MVMuint16 decont_op) {
+                                         MVMSpeshIns *ins, MVMuint16 unbox_op, MVMuint16 decont_op,
+                                         PostInlinePassState *pips) {
     MVMSpeshUseChainEntry *user_entry = MVM_spesh_get_facts(tc, g, ins->operands[0])->usage.users;
     while (user_entry) {
         MVMSpeshIns *user = user_entry->user;
@@ -2792,10 +2730,20 @@ static void try_eliminate_box_unbox_pair(MVMThreadContext *tc, MVMSpeshGraph *g,
             walk_set_looking_for_unbox(tc, g, bb, ins, unbox_op, decont_op, user);
         user_entry = user_entry->next;
     }
+    if (MVM_spesh_usages_is_used(tc, g, ins->operands[0])) {
+        SeenBox *sb = MVM_malloc(sizeof(SeenBox));
+        sb->bb = bb;
+        sb->ins = ins;
+        MVM_VECTOR_PUSH(pips->seen_box_ins, sb);
+    }
+    else {
+        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+    }
 }
 
-/* Drives the second, post-inline, optimization pass. */
-static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
+
+static void post_inline_visit_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                                 PostInlinePassState *pips) {
     MVMint32 i;
 
     MVMSpeshIns *ins = bb->first_ins;
@@ -2806,16 +2754,16 @@ static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
                 try_eliminate_set(tc, g, bb, ins);
                 break;
             case MVM_OP_box_i:
-                try_eliminate_box_unbox_pair(tc, g, bb, ins, MVM_OP_unbox_i, MVM_OP_decont_i);
+                try_eliminate_box_unbox_pair(tc, g, bb, ins, MVM_OP_unbox_i, MVM_OP_decont_i, pips);
                 break;
             case MVM_OP_box_n:
-                try_eliminate_box_unbox_pair(tc, g, bb, ins, MVM_OP_unbox_n, MVM_OP_decont_n);
+                try_eliminate_box_unbox_pair(tc, g, bb, ins, MVM_OP_unbox_n, MVM_OP_decont_n, pips);
                 break;
             case MVM_OP_box_s:
-                try_eliminate_box_unbox_pair(tc, g, bb, ins, MVM_OP_unbox_s, MVM_OP_decont_s);
+                try_eliminate_box_unbox_pair(tc, g, bb, ins, MVM_OP_unbox_s, MVM_OP_decont_s, pips);
                 break;
             case MVM_OP_box_u:
-                try_eliminate_box_unbox_pair(tc, g, bb, ins, MVM_OP_unbox_u, MVM_OP_decont_u);
+                try_eliminate_box_unbox_pair(tc, g, bb, ins, MVM_OP_unbox_u, MVM_OP_decont_u, pips);
                 break;
             case MVM_OP_sp_getspeshslot:
                 /* Sometimes we emit two getspeshslots in a row that write into the
@@ -2839,7 +2787,35 @@ static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
 
     /* Visit children. */
     for (i = 0; i < bb->num_children; i++)
-        second_pass(tc, g, bb->children[i]);
+        post_inline_visit_bb(tc, g, bb->children[i], pips);
+}
+static void post_inline_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
+    MVMuint32 i;
+
+    /* Walk the basic blocks for the second pass. */
+    PostInlinePassState pips;
+    MVM_VECTOR_INIT(pips.seen_box_ins, 0);
+    post_inline_visit_bb(tc, g, g->entry, &pips);
+
+    /* Walk through any processed box insturctions. */
+    for (i = 0; i < MVM_VECTOR_ELEMS(pips.seen_box_ins); i++) {
+        SeenBox *sb = pips.seen_box_ins[i];
+        if (MVM_spesh_usages_is_used(tc, g, sb->ins->operands[0])) {
+            /* TODO Work on lowering box ops. Note that we may well have to go
+             * and mark some facts used in the previous pass to do this safely.
+             * However, we'd rather not actually lower them at that point as
+             * we want to keep them as box/unbox so we can more easily try to
+             * get rid of box/unbox pairs after inlining in this pass. Thus
+             * why we'll deal with it here. */
+        }
+        else {
+            /* Box instruction became unused; delete. */
+            MVM_spesh_manipulate_delete_ins(tc, g, sb->bb, sb->ins);
+        }
+        MVM_free(sb);
+    }
+
+    MVM_VECTOR_DESTROY(pips.seen_box_ins);
 }
 
 /* Goes through the various log-based guard instructions and removes any that
@@ -2949,10 +2925,10 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
 
     merge_bbs(tc, g);
 
-    /* Make a second pass through the graph doing things that are better
+    /* Make a post-inline pass through the graph doing things that are better
      * done after inlinings have taken place. Note that these things must not
      * add new fact dependencies. */
-    second_pass(tc, g, g->entry);
+    post_inline_pass(tc, g, g->entry);
 #if MVM_SPESH_CHECK_DU
     MVM_spesh_usages_check(tc, g);
 #endif
