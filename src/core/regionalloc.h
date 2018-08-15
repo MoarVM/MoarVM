@@ -24,3 +24,4 @@ struct MVMRegionAlloc {
 
 void * MVM_region_alloc(MVMThreadContext *tc, MVMRegionAlloc *alloc, size_t s);
 void MVM_region_destroy(MVMThreadContext *tc, MVMRegionAlloc *alloc);
+void MVM_region_merge(MVMThreadContext *tc,  MVMRegionAlloc *target, MVMRegionAlloc *source);
