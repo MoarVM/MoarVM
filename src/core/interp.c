@@ -5364,33 +5364,39 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_guard): {
+                MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 4)];
-                GET_REG(cur_op, 0).o = check;
                 cur_op += 10;
                 if (!check || STABLE(check) != want)
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                else
+                    target->o = check;
                 goto NEXT;
             }
             OP(sp_guardconc): {
+                MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 4)];
-                GET_REG(cur_op, 0).o = check;
                 cur_op += 10;
                 if (!check || !IS_CONCRETE(check) || STABLE(check) != want)
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                else
+                    target->o = check;
                 goto NEXT;
             }
             OP(sp_guardtype): {
+                MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 4)];
-                GET_REG(cur_op, 0).o = check;
                 cur_op += 10;
                 if (!check || IS_CONCRETE(check) || STABLE(check) != want)
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                else
+                    target->o = check;
                 goto NEXT;
             }
             OP(sp_guardsf): {
@@ -5415,39 +5421,47 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_guardobj): {
+                MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
                 MVMObject *want = (MVMObject *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 4)];
-                GET_REG(cur_op, 0).o = check;
                 cur_op += 10;
                 if (check != want)
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                else
+                    target->o = check;
                 goto NEXT;
             }
             OP(sp_guardnotobj): {
+                MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
                 MVMObject *do_not_want = (MVMObject *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 4)];
-                GET_REG(cur_op, 0).o = check;
                 cur_op += 10;
                 if (check == do_not_want)
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                else
+                    target->o = check;
                 goto NEXT;
             }
             OP(sp_guardjustconc): {
+                MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
-                GET_REG(cur_op, 0).o = check;
                 cur_op += 8;
                 if (!IS_CONCRETE(check))
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                else
+                    target->o = check;
                 goto NEXT;
             }
             OP(sp_guardjusttype): {
+                MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
-                GET_REG(cur_op, 0).o = check;
                 cur_op += 8;
                 if (IS_CONCRETE(check))
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                else
+                    target->o = check;
                 goto NEXT;
             }
             OP(sp_rebless):
