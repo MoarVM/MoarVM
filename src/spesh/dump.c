@@ -174,12 +174,20 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         ann->data.deopt_idx, g->deopt_addrs[2 * ann->data.deopt_idx], line_number);
                     break;
                 case MVM_SPESH_ANN_LINENO: {
-                    char *cstr = MVM_string_utf8_encode_C_string(tc,
-                        MVM_cu_string(tc, get_current_cu(tc, g, inline_stack),
-                        ann->data.lineno.filename_string_index));
-                    appendf(ds, "      [Annotation: Line Number: %s:%d]\n",
-                        cstr, ann->data.lineno.line_number);
-                    MVM_free(cstr);
+                    char *cstr;
+                    MVMCompUnit *cu = get_current_cu(tc, g, inline_stack);
+                    if (cu->body.num_strings < ann->data.lineno.filename_string_index) {
+                        appendf(ds, "      [Annotation: Line Number: <out of bounds>:%d]\n",
+                        ann->data.lineno.line_number);
+                    }
+                    else {
+                        cstr = MVM_string_utf8_encode_C_string(tc,
+                            MVM_cu_string(tc, get_current_cu(tc, g, inline_stack),
+                            ann->data.lineno.filename_string_index));
+                        appendf(ds, "      [Annotation: Line Number: %s:%d]\n",
+                            cstr, ann->data.lineno.line_number);
+                        MVM_free(cstr);
+                    }
                     break;
                 }
                 case MVM_SPESH_ANN_LOGGED:
