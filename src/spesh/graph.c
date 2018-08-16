@@ -71,6 +71,9 @@ MVM_PUBLIC void MVM_spesh_graph_add_comment(MVMThreadContext *tc, MVMSpeshGraph 
     va_list ap;
     MVMSpeshAnn *ann;
 
+    if (!MVM_spesh_debug_enabled(tc))
+        return;
+
     va_start(ap, fmt);
 
     size = vsnprintf(NULL, 0, fmt, ap);
