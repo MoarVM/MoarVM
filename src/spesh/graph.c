@@ -63,6 +63,32 @@ void MVM_spesh_graph_add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g
     g->num_deopt_addrs++;
 }
 
+MVM_FORMAT(printf, 4, 5)
+MVM_PUBLIC void MVM_spesh_graph_add_comment(MVMThreadContext *tc, MVMSpeshGraph *g,
+    MVMSpeshIns *ins, const char *fmt, ...) {
+    size_t size;
+    char *comment;
+    va_list ap;
+    MVMSpeshAnn *ann;
+
+    va_start(ap, fmt);
+
+    size = vsnprintf(NULL, 0, fmt, ap);
+    comment = MVM_spesh_alloc(tc, g, ++size);
+
+    va_end(ap);
+
+    ann               = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+    ann->type         = MVM_SPESH_ANN_COMMENT;
+    ann->data.comment = comment;
+    ann->next         = ins->annotations;
+    ins->annotations  = ann;
+
+    va_start(ap, fmt);
+    vsnprintf(comment, size, fmt, ap);
+    va_end(ap);
+}
+
 /* Records the current bytecode position as a logged annotation. Used for
  * resolving logged values. */
 static void add_logged_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins_node,
