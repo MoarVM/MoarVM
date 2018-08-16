@@ -5824,6 +5824,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 else {
                     MVM_p6bigint_store_as_mp_int(body, value);
                 }
+                GET_REG(cur_op, 0).o = obj;
                 cur_op += 10;
                 goto NEXT;
             }
@@ -5873,6 +5874,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     else {
                         MVM_p6bigint_store_as_mp_int(body, value);
                     }
+                    GET_REG(cur_op, 0).o = obj;
                 }
                 cur_op += 12;
                 goto NEXT;
