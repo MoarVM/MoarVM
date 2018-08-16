@@ -2210,7 +2210,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             MVMuint16 val_offset = offset + 4;
             | cmp TMP3, qword 2147483647LL
             | jg >3
-            | cmp TMP3, qword -12147483647LL
+            | cmp TMP3, qword -2147483648LL
             | jl >3
             | mov dword [RV+offset], 0xFFFFFFFFLL
             | mov dword [RV+val_offset], TMP3d
