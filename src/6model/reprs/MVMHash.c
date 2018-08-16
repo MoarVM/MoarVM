@@ -218,12 +218,17 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         if (!(st->mode_flags & MVM_FINALIZE_TYPE)) {
             MVMSpeshOperand target   = ins->operands[0];
             MVMSpeshOperand type     = ins->operands[1];
+            MVMSpeshFacts *tgt_facts = MVM_spesh_get_and_use_facts(tc, g, target);
+
             ins->info                = MVM_op_get_op(MVM_OP_sp_fastcreate);
             ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
             ins->operands[0]         = target;
             ins->operands[1].lit_i16 = sizeof(MVMHash);
             ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
             MVM_spesh_usages_delete_by_reg(tc, g, type, ins);
+
+            tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
+            tgt_facts->type = st->WHAT;
         }
         break;
     }
