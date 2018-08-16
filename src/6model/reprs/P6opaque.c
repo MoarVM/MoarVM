@@ -1615,7 +1615,33 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         }
         break;
     }
-    case MVM_OP_box_n: {
+    case MVM_OP_box_i:
+        if (repr_data->num_attributes == 1 && repr_data->unbox_int_slot >= 0 &&
+                !(st->mode_flags & MVM_FINALIZE_TYPE)) {
+            MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_int_slot];
+            if (embedded_st->REPR->ID == MVM_REPR_ID_P6bigint) {
+                /* Turn into a sp_fastbox_bi[_ic] instruction. */
+                MVMint32 int_cache_type_idx = MVM_intcache_type_index(tc, st->WHAT);
+                MVMSpeshFacts *tgt_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                MVMSpeshOperand *orig_operands = ins->operands;
+                ins->info = MVM_op_get_op(int_cache_type_idx < 0
+                        ? MVM_OP_sp_fastbox_bi
+                        : MVM_OP_sp_fastbox_bi_ic);
+                ins->operands = MVM_spesh_alloc(tc, g, 6 * sizeof(MVMSpeshOperand));
+                ins->operands[0] = orig_operands[0];
+                ins->operands[1].lit_i16 = st->size;
+                ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+                ins->operands[3].lit_i16 = sizeof(MVMObject) +
+                    repr_data->attribute_offsets[repr_data->unbox_int_slot];
+                ins->operands[4] = orig_operands[1];
+                ins->operands[5].lit_i16 = (MVMint16)int_cache_type_idx;
+                MVM_spesh_usages_delete_by_reg(tc, g, orig_operands[2], ins);
+                tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
+                tgt_facts->type = st->WHAT;
+            }
+        }
+        break;
+    case MVM_OP_box_n:
         if (repr_data->num_attributes == 1 && repr_data->unbox_num_slot >= 0 &&
                 !(st->mode_flags & MVM_FINALIZE_TYPE)) {
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_num_slot];
@@ -1642,8 +1668,8 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 MVM_spesh_usages_add_by_reg(tc, g, ins->operands[0], ins);
             }
         }
-    }
-    case MVM_OP_box_s: {
+        break;
+    case MVM_OP_box_s:
         if (repr_data->num_attributes == 1 && repr_data->unbox_str_slot >= 0 &&
                 !(st->mode_flags & MVM_FINALIZE_TYPE)) {
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_str_slot];
@@ -1670,7 +1696,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 MVM_spesh_usages_add_by_reg(tc, g, ins->operands[0], ins);
             }
         }
-    }
+        break;
     }
 }
 

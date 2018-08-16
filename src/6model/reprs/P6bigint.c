@@ -82,13 +82,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     }
 }
 
-static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
-    MVMP6bigintBody *body = (MVMP6bigintBody *)data;
-    if (MVM_IS_32BIT_INT(value)) {
-        body->u.smallint.flag = MVM_BIGINT_32_FLAG;
-        body->u.smallint.value = (MVMint32)value;
-    }
-    else {
+void MVM_p6bigint_store_as_mp_int(MVMP6bigintBody *body, MVMint64 value) {
         mp_int *i = MVM_malloc(sizeof(mp_int));
         mp_init(i);
         if (value >= 0) {
@@ -99,6 +93,16 @@ static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
             mp_neg(i, i);
         }
         body->u.bigint = i;
+}
+
+static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
+    MVMP6bigintBody *body = (MVMP6bigintBody *)data;
+    if (MVM_IS_32BIT_INT(value)) {
+        body->u.smallint.flag = MVM_BIGINT_32_FLAG;
+        body->u.smallint.value = (MVMint32)value;
+    }
+    else {
+        MVM_p6bigint_store_as_mp_int(body, value);
     }
 }
 static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {

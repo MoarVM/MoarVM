@@ -5806,8 +5806,24 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_fastbox_bi): {
-                //w(obj) int16 sslot int16 r(int64) :pure
-                MVM_panic(1, "sp_fastbox_bi NYI");
+                MVMint64 value = GET_REG(cur_op, 8).i64;
+                MVMuint16 size = GET_UI16(cur_op, 2);
+                MVMObject *obj = MVM_gc_allocate_nursery(tc, size);
+                MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)obj + GET_UI16(cur_op, 6));
+#if MVM_GC_DEBUG
+                if (tc->allocate_in_gen2)
+                    MVM_panic(1, "Illegal use of sp_fastbox_i when gen2 allocation flag set");
+#endif
+                obj->st              = (MVMSTable *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                obj->header.size     = size;
+                obj->header.owner    = tc->thread_id;
+                if (MVM_IS_32BIT_INT(value)) {
+                    body->u.smallint.value = (MVMint32)value;
+                    body->u.smallint.flag = MVM_BIGINT_32_FLAG;
+                }
+                else {
+                    MVM_p6bigint_store_as_mp_int(body, value);
+                }
                 cur_op += 10;
                 goto NEXT;
             }
@@ -5834,9 +5850,31 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_fastbox_bi_ic): {
-                //w(obj) int16 sslot int16 r(int64) :pure
-                MVM_panic(1, "sp_fastbox_bi_ic NYI");
-                cur_op += 10;
+                MVMint64 value = GET_REG(cur_op, 8).i64;
+                if (value >= -1 && value < 15) {
+                    MVMint16 slot = GET_UI16(cur_op, 10);
+                    GET_REG(cur_op, 0).o = tc->instance->int_const_cache->cache[slot][value + 1];
+                }
+                else {
+                    MVMuint16 size = GET_UI16(cur_op, 2);
+                    MVMObject *obj = MVM_gc_allocate_nursery(tc, size);
+                    MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)obj + GET_UI16(cur_op, 6));
+#if MVM_GC_DEBUG
+                    if (tc->allocate_in_gen2)
+                        MVM_panic(1, "Illegal use of sp_fastbox_i when gen2 allocation flag set");
+#endif
+                    obj->st              = (MVMSTable *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                    obj->header.size     = size;
+                    obj->header.owner    = tc->thread_id;
+                    if (MVM_IS_32BIT_INT(value)) {
+                        body->u.smallint.value = (MVMint32)value;
+                        body->u.smallint.flag = MVM_BIGINT_32_FLAG;
+                    }
+                    else {
+                        MVM_p6bigint_store_as_mp_int(body, value);
+                    }
+                }
+                cur_op += 12;
                 goto NEXT;
             }
             OP(sp_deref_get_i64): {
