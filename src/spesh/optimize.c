@@ -2450,10 +2450,6 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_getattrs_n:
         case MVM_OP_getattrs_s:
         case MVM_OP_getattrs_o:
-        case MVM_OP_decont_i:
-        case MVM_OP_decont_n:
-        case MVM_OP_decont_s:
-        case MVM_OP_decont_u:
         case MVM_OP_create:
             optimize_repr_op(tc, g, bb, ins, 1);
             break;
@@ -2463,6 +2459,21 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             /* We'll lower these in a later pass, but we should preemptively
              * use the facts on the box type. */
             MVMSpeshFacts *type_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
+            if (type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE)
+                MVM_spesh_use_facts(tc, g, type_facts);
+            break;
+        }
+        case MVM_OP_unbox_i:
+        case MVM_OP_unbox_n:
+        case MVM_OP_unbox_s:
+        case MVM_OP_unbox_u:
+        case MVM_OP_decont_i:
+        case MVM_OP_decont_n:
+        case MVM_OP_decont_s:
+        case MVM_OP_decont_u: {
+            /* We'll lower these in a later pass, but we should preemptively
+             * use the facts on the box type. */
+            MVMSpeshFacts *type_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
             if (type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE)
                 MVM_spesh_use_facts(tc, g, type_facts);
             break;
@@ -2775,6 +2786,23 @@ static void post_inline_visit_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
             case MVM_OP_box_u:
                 try_eliminate_box_unbox_pair(tc, g, bb, ins, MVM_OP_unbox_u, MVM_OP_decont_u, pips);
                 break;
+            case MVM_OP_unbox_i:
+            case MVM_OP_unbox_n:
+            case MVM_OP_unbox_s:
+            case MVM_OP_unbox_u:
+            case MVM_OP_decont_i:
+            case MVM_OP_decont_n:
+            case MVM_OP_decont_s:
+            case MVM_OP_decont_u: {
+                /* Unoptimized unbox or possible decont that would be an unbox.
+                 * We might be able to lower them. (The dominance tree structure
+                 * means that box/unbox pairs we could otherwise lower will have
+                 * already been lowered.) */
+                MVMSpeshFacts *type_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+                if ((type_facts-> flags & MVM_SPESH_FACT_KNOWN_TYPE) && REPR(type_facts->type)->spesh)
+                    REPR(type_facts->type)->spesh(tc, STABLE(type_facts->type), g, bb, ins);
+                break;
+            }
             case MVM_OP_sp_getspeshslot:
                 /* Sometimes we emit two getspeshslots in a row that write into the
                  * exact same register. That's clearly wasteful and we can save a
