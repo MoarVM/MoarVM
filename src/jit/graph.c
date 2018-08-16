@@ -1823,6 +1823,9 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_cas_o:
     case MVM_OP_sp_atomicload_o:
     case MVM_OP_sp_atomicstore_o:
+        /* Specialized boxings */
+    case MVM_OP_sp_fastbox_i:
+    case MVM_OP_sp_fastbox_i_ic:
         jg_append_primitive(tc, jg, ins);
         break;
         /* Unspecialized parameter access */

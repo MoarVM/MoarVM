@@ -204,25 +204,23 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
     switch (ins->info->opcode) {
         case MVM_OP_box_i: {
             if (repr_data->bits == 64 && !(st->mode_flags & MVM_FINALIZE_TYPE)) {
-                /* Prepend a fastcreate instruction. */
-                MVMSpeshIns *fastcreate = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                /* Turn into a sp_fastbox_i[_ic] instruction. */
+                MVMint32 int_cache_type_idx = MVM_intcache_type_index(tc, st->WHAT);
                 MVMSpeshFacts *tgt_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
-                fastcreate->info = MVM_op_get_op(MVM_OP_sp_fastcreate);
-                fastcreate->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-                fastcreate->operands[0] = ins->operands[0];
-                tgt_facts->writer = fastcreate;
-                fastcreate->operands[1].lit_i16 = st->size;
-                fastcreate->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
-                MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, fastcreate);
+                MVMSpeshOperand *orig_operands = ins->operands;
+                ins->info = MVM_op_get_op(int_cache_type_idx < 0
+                        ? MVM_OP_sp_fastbox_i
+                        : MVM_OP_sp_fastbox_i_ic);
+                ins->operands = MVM_spesh_alloc(tc, g, 6 * sizeof(MVMSpeshOperand));
+                ins->operands[0] = orig_operands[0];
+                ins->operands[1].lit_i16 = st->size;
+                ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+                ins->operands[3].lit_i16 = offsetof(MVMP6int, body.value);
+                ins->operands[4] = orig_operands[1];
+                ins->operands[5].lit_i16 = (MVMint16)int_cache_type_idx;
+                MVM_spesh_usages_delete_by_reg(tc, g, orig_operands[2], ins);
                 tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
                 tgt_facts->type = st->WHAT;
-
-                /* Change instruction to a bind. */
-                MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
-                ins->info = MVM_op_get_op(MVM_OP_sp_bind_i64);
-                ins->operands[2] = ins->operands[1];
-                ins->operands[1].lit_i16 = offsetof(MVMP6int, body.value);
-                MVM_spesh_usages_add_by_reg(tc, g, ins->operands[0], ins);
             }
             break;
         }

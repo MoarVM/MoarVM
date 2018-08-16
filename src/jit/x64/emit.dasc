@@ -369,6 +369,22 @@ static MVMint64 fits_in_32_bit(MVMint64 number) {
     return (number >= INT32_MIN) && (number <= INT32_MAX);
 }
 
+static void emit_fastcreate(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                            MVMSpeshIns *ins) {
+    MVMint16 dst       = ins->operands[0].reg.orig;
+    MVMuint16 size     = ins->operands[1].lit_i16;
+    MVMint16 spesh_idx = ins->operands[2].lit_i16;
+    | mov ARG1, TC;
+    | mov ARG2, size;
+    | callp &MVM_gc_allocate_nursery;
+    | get_spesh_slot TMP1, spesh_idx;
+    | mov aword OBJECT:RV->st, TMP1;  // st is 64 bit (pointer)
+    | mov word OBJECT:RV->header.size, size; // object size is 16 bit
+    | mov TMP1d, dword TC->thread_id;  // thread id is 32 bit
+    | mov dword OBJECT:RV->header.owner, TMP1d; // does this even work?
+    | mov aword WORK[dst], RV; // store in local register
+}
+
 /* compile per instruction, can't really do any better yet */
 void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                             MVMJitPrimitive * prim) {
@@ -1684,21 +1700,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], TMP2;
         break;
     }
-    case MVM_OP_sp_fastcreate: {
-        MVMint16 dst       = ins->operands[0].reg.orig;
-        MVMuint16 size     = ins->operands[1].lit_i16;
-        MVMint16 spesh_idx = ins->operands[2].lit_i16;
-        | mov ARG1, TC;
-        | mov ARG2, size;
-        | callp &MVM_gc_allocate_nursery;
-        | get_spesh_slot TMP1, spesh_idx;
-        | mov aword OBJECT:RV->st, TMP1;  // st is 64 bit (pointer)
-        | mov word OBJECT:RV->header.size, size; // object size is 16 bit
-        | mov TMP1d, dword TC->thread_id;  // thread id is 32 bit
-        | mov dword OBJECT:RV->header.owner, TMP1d; // does this even work?
-        | mov aword WORK[dst], RV; // store in local register
+    case MVM_OP_sp_fastcreate:
+        emit_fastcreate(tc, compiler, jg, ins);
         break;
-    }
     case MVM_OP_decont:
     case MVM_OP_sp_decont: {
         MVMint16 dst = ins->operands[0].reg.orig;
@@ -2170,6 +2174,34 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov FUNCTION, STABLE:FUNCTION->container_spec;
         | mov FUNCTION, CONTAINERSPEC:FUNCTION->atomic_store;
         | call FUNCTION;
+        break;
+    }
+    case MVM_OP_sp_fastbox_i:
+    case MVM_OP_sp_fastbox_i_ic: {
+        MVMint32 use_cache = op == MVM_OP_sp_fastbox_i_ic;
+        MVMint16 offset = ins->operands[3].lit_i16;
+        MVMint16 val = ins->operands[4].reg.orig;
+        if (use_cache) {
+            MVMObject **cache = tc->instance->int_const_cache->cache[ins->operands[5].lit_i16];
+            MVMint16 dst = ins->operands[0].reg.orig;
+            | mov TMP1, WORK[val]
+            | cmp TMP1, 14
+            | jg >1
+            | cmp TMP1, -1
+            | jl >1
+            | inc TMP1
+            | mov TMP2, qword cache
+            | mov TMP2, [TMP2 + TMP1 * 8]
+            | mov WORK[dst], TMP2
+            | jmp >2
+            |1:
+        }
+        emit_fastcreate(tc, compiler, jg, ins);
+        | mov TMP1, WORK[val];
+        | mov qword [RV+offset], TMP1;
+        if (use_cache) {
+            |2:
+        }
         break;
     }
     default:

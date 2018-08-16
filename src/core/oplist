@@ -973,6 +973,17 @@ sp_p6obind_i     .s r(obj) int16 r(int64)
 sp_p6obind_n     .s r(obj) int16 r(num64)
 sp_p6obind_s     .s r(obj) int16 r(str)
 
+# Lowered int and bigint box ops. These combine a fastcreate and a writing of
+# the value as appropriate. The first two read operands have the same meaning
+# as in sp_fastcreate, the third is the offset in the object to box to, and
+# the final operand is the integer to box. The _ic variants include an extra
+# argument which is the type index in the integer cache; they do a lookup in
+# the integer cache before performing a box operation.
+sp_fastbox_i     .s w(obj) int16 sslot int16 r(int64) :pure
+sp_fastbox_bi    .s w(obj) int16 sslot int16 r(int64) :pure
+sp_fastbox_i_ic  .s w(obj) int16 sslot int16 r(int64) int16 :pure
+sp_fastbox_bi_ic .s w(obj) int16 sslot int16 r(int64) int16 :pure
+
 # Follow a pointer at an offset to an object and get/store a value there.
 sp_deref_get_i64      .s w(int64) r(obj) int16 :pure
 sp_deref_get_n        .s w(num64) r(obj) int16 :pure
