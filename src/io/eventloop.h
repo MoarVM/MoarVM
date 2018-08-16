@@ -28,3 +28,4 @@ void MVM_io_eventloop_send_cancellation_notification(MVMThreadContext *tc, MVMAs
 int MVM_io_eventloop_add_active_work(MVMThreadContext *tc, MVMObject *async_task);
 MVMAsyncTask * MVM_io_eventloop_get_active_work(MVMThreadContext *tc, int work_idx);
 void MVM_io_eventloop_remove_active_work(MVMThreadContext *tc, int *work_idx_to_clear);
+void MVM_io_eventloop_stop(MVMThreadContext *tc);

@@ -500,8 +500,10 @@ static void cleanup_callsite_interns(MVMInstance *instance) {
  * should clear up all resources and free all memory; in practice, it falls
  * short of this goal at the moment. */
 void MVM_vm_destroy_instance(MVMInstance *instance) {
-    /* Stop spesh worker */
+    /* Stop system threads */
     MVM_spesh_worker_teardown(instance->main_thread);
+    MVM_io_eventloop_stop(instance->main_thread);
+
     /* Join any foreground threads and flush standard handles. */
     MVM_thread_join_foreground(instance->main_thread);
     MVM_io_flush_standard_handles(instance->main_thread);

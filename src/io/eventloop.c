@@ -92,9 +92,8 @@ static void enter_loop(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister 
     /* Signal that the event loop is ready for processing. */
     uv_sem_post(&(tc->instance->sem_event_loop_started));
 
-    /* Enter event loop; should never leave it. */
+    /* Enter event loop */
     uv_run(tc->loop, UV_RUN_DEFAULT);
-    MVM_panic(1, "Supposedly unending event loop thread ended");
 }
 
 /* Sees if we have an event loop processing thread set up already, and
@@ -262,4 +261,35 @@ void MVM_io_eventloop_remove_active_work(MVMThreadContext *tc, int *work_idx_to_
     else {
         MVM_panic(1, "cannot remove invalid eventloop work item index %d", work_idx);
     }
+}
+
+
+/* Stop active event loop if present */
+void MVM_io_eventloop_stop(MVMThreadContext *tc) {
+    MVMInstance *instance = tc->instance;
+    MVMThreadContext *event_loop_thread = instance->event_loop_thread;
+    if (!event_loop_thread)
+        return;
+
+    MVM_gc_mark_thread_blocked(tc);
+    uv_mutex_lock(&instance->mutex_event_loop_start);
+    MVM_gc_mark_thread_unblocked(tc);
+
+    event_loop_thread = instance->event_loop_thread;
+    if (event_loop_thread) {
+        /* Stop the loop */
+        uv_loop_t *loop = event_loop_thread->loop;
+        uv_stop(loop);
+
+        MVM_gc_mark_thread_blocked(tc);
+        MVM_thread_join(tc, (MVMObject*)event_loop_thread->thread_obj);
+        MVM_gc_mark_thread_unblocked(tc);
+
+        /* release allocated resources, this may be */
+        uv_close((uv_handle_t*)instance->event_loop_wakeup, NULL);
+        MVM_free(instance->event_loop_wakeup);
+        instance->event_loop_wakeup = NULL;
+    }
+    instance->event_loop_thread = NULL;
+    uv_mutex_unlock(&instance->mutex_event_loop_start);
 }
