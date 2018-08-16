@@ -12938,6 +12938,66 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_str }
     },
     {
+        MVM_OP_sp_fastbox_i,
+        "sp_fastbox_i",
+        ".s",
+        5,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_spesh_slot, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_sp_fastbox_bi,
+        "sp_fastbox_bi",
+        ".s",
+        5,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_spesh_slot, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_sp_fastbox_i_ic,
+        "sp_fastbox_i_ic",
+        ".s",
+        6,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_spesh_slot, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_sp_fastbox_bi_ic,
+        "sp_fastbox_bi_ic",
+        ".s",
+        6,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_spesh_slot, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_int16 }
+    },
+    {
         MVM_OP_sp_deref_get_i64,
         "sp_deref_get_i64",
         ".s",
@@ -13296,7 +13356,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 887;
+static const unsigned short MVM_op_counts = 891;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
