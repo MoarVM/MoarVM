@@ -5812,7 +5812,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)obj + GET_UI16(cur_op, 6));
 #if MVM_GC_DEBUG
                 if (tc->allocate_in_gen2)
-                    MVM_panic(1, "Illegal use of sp_fastbox_i when gen2 allocation flag set");
+                    MVM_panic(1, "Illegal use of sp_fastbox_bi when gen2 allocation flag set");
 #endif
                 obj->st              = (MVMSTable *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
                 obj->header.size     = size;
@@ -5839,7 +5839,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVMObject *obj = MVM_gc_allocate_nursery(tc, size);
 #if MVM_GC_DEBUG
                     if (tc->allocate_in_gen2)
-                        MVM_panic(1, "Illegal use of sp_fastbox_i when gen2 allocation flag set");
+                        MVM_panic(1, "Illegal use of sp_fastbox_i_ic when gen2 allocation flag set");
 #endif
                     obj->st              = (MVMSTable *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
                     obj->header.size     = size;
@@ -5862,7 +5862,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)obj + GET_UI16(cur_op, 6));
 #if MVM_GC_DEBUG
                     if (tc->allocate_in_gen2)
-                        MVM_panic(1, "Illegal use of sp_fastbox_i when gen2 allocation flag set");
+                        MVM_panic(1, "Illegal use of sp_fastbox_bi_ic when gen2 allocation flag set");
 #endif
                     obj->st              = (MVMSTable *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
                     obj->header.size     = size;
