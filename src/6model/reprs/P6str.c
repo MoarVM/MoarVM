@@ -69,6 +69,35 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     MVM_serialization_write_str(tc, writer, ((MVMP6strBody *)data)->value);
 }
 
+static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    switch (ins->info->opcode) {
+        case MVM_OP_box_s: {
+            if (!(st->mode_flags & MVM_FINALIZE_TYPE)) {
+                /* Prepend a fastcreate instruction. */
+                MVMSpeshIns *fastcreate = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                MVMSpeshFacts *tgt_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                fastcreate->info = MVM_op_get_op(MVM_OP_sp_fastcreate);
+                fastcreate->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                fastcreate->operands[0] = ins->operands[0];
+                tgt_facts->writer = fastcreate;
+                fastcreate->operands[1].lit_i16 = st->size;
+                fastcreate->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+                MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, fastcreate);
+                tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
+                tgt_facts->type = st->WHAT;
+
+                /* Change instruction to a bind. */
+                MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
+                ins->info = MVM_op_get_op(MVM_OP_sp_bind_s);
+                ins->operands[2] = ins->operands[1];
+                ins->operands[1].lit_i16 = offsetof(MVMP6str, body.value);
+                MVM_spesh_usages_add_by_reg(tc, g, ins->operands[0], ins);
+            }
+            break;
+        }
+    }
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMP6str_initialize(MVMThreadContext *tc) {
     return &P6str_this_repr;
@@ -107,7 +136,7 @@ static const MVMREPROps P6str_this_repr = {
     NULL, /* gc_mark_repr_data */
     NULL, /* gc_free_repr_data */
     compose,
-    NULL, /* spesh */
+    spesh,
     "P6str", /* name */
     MVM_REPR_ID_P6str,
     NULL, /* unmanaged_size */
