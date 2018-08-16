@@ -198,6 +198,9 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                     appendf(ds, "      [Annotation: INS Deopt Synth (idx %d)]\n",
                         ann->data.deopt_idx);
                     break;
+                case MVM_SPESH_ANN_COMMENT:
+                    appendf(ds, "        /* %s */\n", ann->data.comment);
+                    break;
                 default:
                     appendf(ds, "      [Annotation: %d (unknown)]\n", ann->type);
             }
