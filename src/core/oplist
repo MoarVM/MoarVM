@@ -968,6 +968,7 @@ sp_p6ogetvc_o    .s w(obj) r(obj) int16 sslot
 sp_p6oget_i      .s w(int64) r(obj) int16 :pure
 sp_p6oget_n      .s w(num64) r(obj) int16 :pure
 sp_p6oget_s      .s w(str) r(obj) int16 :pure
+sp_p6oget_bi     .s w(int64) r(obj) int16 :pure
 sp_p6obind_o     .s r(obj) int16 r(obj)
 sp_p6obind_i     .s r(obj) int16 r(int64)
 sp_p6obind_n     .s r(obj) int16 r(num64)

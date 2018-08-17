@@ -107,6 +107,7 @@
 |.type SCREFBODY, MVMSerializationContextBody
 |.type NFGSYNTH, MVMNFGSynthetic
 |.type CODE, MVMCode
+|.type BIGINTBODY, MVMP6bigintBody
 |.type U8, MVMuint8
 |.type U16, MVMuint16
 |.type U32, MVMuint32
@@ -663,6 +664,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_sp_p6oget_i:
     case MVM_OP_sp_p6oget_n:
     case MVM_OP_sp_p6oget_s:
+    case MVM_OP_sp_p6oget_bi:
     case MVM_OP_sp_p6oget_o:
     case MVM_OP_sp_p6ogetvc_o:
     case MVM_OP_sp_p6ogetvt_o: {
@@ -734,6 +736,19 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             | mov qword [TMP2], TMP3;
             /* done */
             |4:
+        } else if (op == MVM_OP_sp_p6oget_bi) {
+            /* Big integer case */
+            | mov TMP4d, BIGINTBODY:TMP2->u.smallint.flag;
+            | cmp TMP4d, dword MVM_BIGINT_32_FLAG;
+            | jne >5;
+            | movsxd TMP3, dword BIGINTBODY:TMP2->u.smallint.value;
+            | jmp >6;
+            | 5:
+            | mov ARG1, TC;
+            | mov ARG2, TMP2;
+            | callp &MVM_p6bigint_get_int64;
+            | mov TMP3, RV;
+            | 6:
         } else {
             /* the regular case */
             | mov TMP3, [TMP2];

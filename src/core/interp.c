@@ -5760,6 +5760,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_p6oget_bi): {
+                MVMObject *o     = GET_REG(cur_op, 2).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                MVMP6bigintBody *bi = (MVMP6bigintBody *)(data + GET_UI16(cur_op, 4));
+                GET_REG(cur_op, 0).i64 = MVM_BIGINT_IS_BIG(bi)
+                    ? MVM_p6bigint_get_int64(tc, bi)
+                    : bi->u.smallint.value;
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_p6obind_o): {
                 MVMObject *o     = GET_REG(cur_op, 0).o;
                 MVMObject *value = GET_REG(cur_op, 4).o;
