@@ -1662,9 +1662,10 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
 
                 /* Change instruction to a bind. */
                 MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
-                ins->info = MVM_op_get_op(MVM_OP_sp_p6obind_n);
+                ins->info = MVM_op_get_op(MVM_OP_sp_bind_n);
                 ins->operands[2] = ins->operands[1];
-                ins->operands[1].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_num_slot];
+                ins->operands[1].lit_i16 = sizeof(MVMObject) +
+                    repr_data->attribute_offsets[repr_data->unbox_num_slot];
                 MVM_spesh_usages_add_by_reg(tc, g, ins->operands[0], ins);
             }
         }
@@ -1690,9 +1691,10 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
 
                 /* Change instruction to a bind. */
                 MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
-                ins->info = MVM_op_get_op(MVM_OP_sp_p6obind_s);
+                ins->info = MVM_op_get_op(MVM_OP_sp_bind_s);
                 ins->operands[2] = ins->operands[1];
-                ins->operands[1].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_str_slot];
+                ins->operands[1].lit_i16 = sizeof(MVMObject) +
+                    repr_data->attribute_offsets[repr_data->unbox_str_slot];
                 MVM_spesh_usages_add_by_reg(tc, g, ins->operands[0], ins);
             }
         }
