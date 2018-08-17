@@ -1803,6 +1803,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_ordfirst:
     case MVM_OP_getcodename:
     case MVM_OP_setcodeobj:
+    case MVM_OP_hllbool:
         /* Profiling */
     case MVM_OP_prof_enterspesh:
     case MVM_OP_prof_enterinline:
