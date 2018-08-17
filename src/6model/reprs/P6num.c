@@ -173,6 +173,19 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             }
             break;
         }
+        case MVM_OP_unbox_n:
+        case MVM_OP_decont_n: {
+            if (repr_data->bits == 64 || !repr_data->bits) {
+                /* Lower into a direct memory read. */
+                MVMSpeshOperand *orig_operands = ins->operands;
+                ins->info = MVM_op_get_op(MVM_OP_sp_get_n);
+                ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                ins->operands[0] = orig_operands[0];
+                ins->operands[1] = orig_operands[1];
+                ins->operands[2].lit_i16 = offsetof(MVMP6num, body.value);
+            }
+            break;
+        }
     }
 }
 
