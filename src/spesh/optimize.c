@@ -1778,12 +1778,11 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         if (spesh_cand >= 0) {
             /* Yes. Will we be able to inline? */
             char *no_inline_reason = NULL;
+            MVMuint32 effective_size;
             MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
                 target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
-                ins, &no_inline_reason);
-            log_inline(tc, g, target_sf, inline_graph,
-                target_sf->body.spesh->body.spesh_candidates[spesh_cand]->bytecode_size,
-                no_inline_reason);
+                ins, &no_inline_reason, &effective_size);
+            log_inline(tc, g, target_sf, inline_graph, effective_size, no_inline_reason);
             if (inline_graph) {
                 /* Yes, have inline graph, so go ahead and do it. Make sure we
                  * keep the code ref reg alive by giving it a usage count as
@@ -1793,7 +1792,8 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                         : ins->operands[1];
                 MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
-                        code_ref_reg, prepargs_deopt_idx);
+                        code_ref_reg, prepargs_deopt_idx,
+                        (MVMuint16)target_sf->body.spesh->body.spesh_candidates[spesh_cand]->bytecode_size);
                 MVM_free(inline_graph->spesh_slots);
             }
             else {
@@ -1844,7 +1844,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                         : ins->operands[1];
                 MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
-                        code_ref_reg, prepargs_deopt_idx);
+                        code_ref_reg, prepargs_deopt_idx, 0); /* Don't know an accurate size */
                 MVM_free(inline_graph->spesh_slots);
             }
         }

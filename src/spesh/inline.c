@@ -164,6 +164,18 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     return 1;
 }
 
+/* Gets the effective size for inlining considerations of a specialization,
+ * which is its code size minus the code size of its inlines. */
+MVMint32 get_effective_size(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
+    MVMint32 result = cand->bytecode_size;
+    MVMuint32 i;
+    for (i = 0; i < cand->num_inlines; i++)
+        result -= cand->inlines[i].bytecode_size;
+    if (result < 0)
+        result = 0;
+    return (MVMuint32)result;
+}
+
 /* Sees if it will be possible to inline the target code ref, given we could
  * already identify a spesh candidate. Returns NULL if no inlining is possible
  * or a graph ready to be merged if it will be possible. */
@@ -171,12 +183,13 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
                                                MVMStaticFrame *target_sf,
                                                MVMSpeshCandidate *cand,
                                                MVMSpeshIns *invoke_ins,
-                                               char **no_inline_reason) {
+                                               char **no_inline_reason,
+                                               MVMuint32 *effective_size) {
     MVMSpeshGraph *ig;
 
     /* Check bytecode size is within the inline limit. */
-    if (cand->bytecode_size > MVM_SPESH_MAX_INLINE_SIZE &&
-            target_sf->body.bytecode_size > MVM_SPESH_MAX_INLINE_SIZE) {
+    *effective_size = get_effective_size(tc, cand);
+    if (*effective_size > MVM_SPESH_MAX_INLINE_SIZE) {
         *no_inline_reason = "bytecode is too large to inline";
         return NULL;
     }
@@ -408,7 +421,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
                  MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins,
                  MVMSpeshOperand code_ref_reg,
-                 MVMuint32 *inline_boundary_handler) {
+                 MVMuint32 *inline_boundary_handler, MVMuint16 bytecode_size) {
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
     MVMint32        i, orig_inlines, total_inlines, orig_deopt_addrs;
@@ -628,6 +641,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         inliner->inlines[i].locals_start += inliner->num_locals;
         inliner->inlines[i].lexicals_start += inliner->num_lexicals;
         inliner->inlines[i].return_deopt_idx += orig_deopt_addrs;
+        inliner->inlines[i].bytecode_size = 0;
     }
     inliner->inlines[total_inlines - 1].sf             = inlinee_sf;
     inliner->inlines[total_inlines - 1].code_ref_reg   = code_ref_reg.reg.orig;
@@ -663,6 +677,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     inliner->inlines[total_inlines - 1].deopt_named_used_bit_field =
         inlinee->deopt_named_used_bit_field;
     inliner->inlines[total_inlines - 1].may_cause_deopt = may_cause_deopt;
+    inliner->inlines[total_inlines - 1].bytecode_size   = bytecode_size;
     inliner->num_inlines = total_inlines;
 
     /* Create/update per-specialization local and lexical type maps. */
@@ -1144,13 +1159,13 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                       MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
                       MVMSpeshIns *invoke_ins, MVMSpeshGraph *inlinee,
                       MVMStaticFrame *inlinee_sf, MVMSpeshOperand code_ref_reg,
-                      MVMuint32 proxy_deopt_idx) {
+                      MVMuint32 proxy_deopt_idx, MVMuint16 bytecode_size) {
     MVMSpeshIns *first_ins;
 
     /* Merge inlinee's graph into the inliner. */
     MVMuint32 inline_boundary_handler;
     MVMSpeshBB *inlinee_last_bb = merge_graph(tc, inliner, inlinee, inlinee_sf,
-        invoke_bb, invoke_ins, code_ref_reg, &inline_boundary_handler);
+        invoke_bb, invoke_ins, code_ref_reg, &inline_boundary_handler, bytecode_size);
 
     /* If we're profiling, note it's an inline. */
     first_ins = find_first_instruction(tc, inlinee);
