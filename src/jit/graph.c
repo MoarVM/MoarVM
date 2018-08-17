@@ -2177,6 +2177,20 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, MVM_hll_map, 4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
+    case MVM_OP_hllboolfor: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 src  = ins->operands[1].reg.orig;
+        MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[2]);
+        if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+            MVMHLLConfig *hll_config = MVM_hll_get_config_for(tc, facts->value.s);
+            ins->operands[2].lit_i64 = (MVMint64)hll_config;
+            jg_append_primitive(tc, jg, ins);
+        } else {
+            MVM_jit_log(tc, "BAIL: op <%s>", ins->info->name);
+            return 0;
+        }
+        break;
+    }
     case MVM_OP_clone: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[1].reg.orig;

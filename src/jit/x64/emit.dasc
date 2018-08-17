@@ -2172,6 +2172,23 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | call FUNCTION;
         break;
     }
+    case MVM_OP_hllboolfor: {
+        MVMint16 target = ins->operands[0].reg.orig;
+        MVMint16 value = ins->operands[1].reg.orig;
+        MVMHLLConfig *hll_config = (MVMHLLConfig*)ins->operands[2].lit_i64;
+        MVMObject  *true_value = hll_config->true_value;
+        MVMObject *false_value = hll_config->false_value;
+        | mov TMP1, WORK[value];
+        | test TMP1, TMP1;
+        | jnz >1;
+        | mov TMP1, aword false_value;
+        | jmp >2;
+        |1:
+        | mov TMP1, aword true_value;
+        |2:
+        | mov WORK[target], TMP1;
+        break;
+    }
     default:
         MVM_panic(1, "Can't JIT opcode <%s>", ins->info->name);
     }
