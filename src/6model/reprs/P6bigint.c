@@ -34,6 +34,10 @@ static MVMint64 mp_get_int64(MVMThreadContext *tc, mp_int * a) {
     return MP_NEG == SIGN(a) ? -res : res;
 }
 
+MVMint64 MVM_p6bigint_get_int64(MVMThreadContext *tc, MVMP6bigintBody *body) {
+    return mp_get_int64(tc, body->u.bigint);
+}
+
 /* Get a native uint64 from an mp_int. */
 static MVMuint64 mp_get_uint64(MVMThreadContext *tc, mp_int * a) {
     const int bits = mp_count_bits(a);

@@ -1697,6 +1697,20 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             }
         }
         break;
+    case MVM_OP_unbox_i:
+    case MVM_OP_decont_i:
+        if (repr_data->unbox_int_slot >= 0) {
+            MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_int_slot];
+            if (embedded_st->REPR->ID == MVM_REPR_ID_P6bigint) {
+                MVMSpeshOperand *orig_operands = ins->operands;
+                ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_bi);
+                ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                ins->operands[0] = orig_operands[0];
+                ins->operands[1] = orig_operands[1];
+                ins->operands[2].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_int_slot];
+            }
+        }
+        break;
     case MVM_OP_unbox_n:
     case MVM_OP_decont_n:
         if (repr_data->unbox_num_slot >= 0) {
