@@ -2192,7 +2192,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             | cmp TMP1, -1
             | jl >1
             | inc TMP1
-            | mov TMP2, qword cache
+            | mov64 TMP2, (MVMuint64)cache
             | mov TMP2, [TMP2 + TMP1 * 8]
             | mov WORK[dst], TMP2
             | jmp >2
