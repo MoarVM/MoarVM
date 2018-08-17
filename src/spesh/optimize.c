@@ -1123,11 +1123,12 @@ static void optimize_hllbool(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns
     MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
         MVMSpeshFacts *obj_facts  = MVM_spesh_get_facts(tc, g, ins->operands[1]);
-        MVMHLLConfig  *hll_config = g->sf->body.cu->body.hll_config;
+        MVMHLLConfig  *hll_config = ins->info->opcode == MVM_OP_hllbool
+            ? g->sf->body.cu->body.hll_config
+            : MVM_hll_get_config_for(tc, MVM_spesh_get_facts(tc, g, ins->operands[2])->value.s);
         MVMObject     *hll_bool   = obj_facts->value.i ? hll_config->true_value : hll_config->false_value;
         MVMSpeshFacts *how_facts;
 
-        /* Transform gethow lookup to spesh slot lookup */
         MVMint16 spesh_slot = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable*)hll_bool);
 
         MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
@@ -2305,6 +2306,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             optimize_istrue_isfalse(tc, g, bb, ins);
             break;
         case MVM_OP_hllbool:
+        case MVM_OP_hllboolfor:
             optimize_hllbool(tc, g, ins);
             break;
         case MVM_OP_if_i:
