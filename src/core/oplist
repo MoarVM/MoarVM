@@ -958,6 +958,7 @@ sp_bind_i16      .s r(obj) int16 r(int64)
 sp_bind_i8       .s r(obj) int16 r(int64)
 sp_bind_n        .s r(obj) int16 r(num64)
 sp_bind_s        .s r(obj) int16 r(str)
+sp_bind_s_nowb   .s r(obj) int16 r(str)
 
 # Same as above, but for p6opaques, handling the NULL sentinel and the
 # real_data thing for mixins. The vt variant vivifies a NULL with a

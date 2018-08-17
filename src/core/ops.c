@@ -12743,6 +12743,21 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_str }
     },
     {
+        MVM_OP_sp_bind_s_nowb,
+        "sp_bind_s_nowb",
+        ".s",
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
         MVM_OP_sp_p6oget_o,
         "sp_p6oget_o",
         ".s",
@@ -13326,7 +13341,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 889;
+static const unsigned short MVM_op_counts = 890;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

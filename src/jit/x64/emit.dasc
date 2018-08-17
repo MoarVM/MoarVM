@@ -760,6 +760,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_sp_bind_i64:
     case MVM_OP_sp_bind_n:
     case MVM_OP_sp_bind_s:
+    case MVM_OP_sp_bind_s_nowb:
     case MVM_OP_sp_bind_o: {
         MVMint16 obj    = ins->operands[0].reg.orig;
         MVMint16 offset = ins->operands[1].lit_i16;

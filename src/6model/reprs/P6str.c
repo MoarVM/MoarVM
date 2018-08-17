@@ -88,7 +88,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
 
                 /* Change instruction to a bind. */
                 MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
-                ins->info = MVM_op_get_op(MVM_OP_sp_bind_s);
+                ins->info = MVM_op_get_op(MVM_OP_sp_bind_s_nowb);
                 ins->operands[2] = ins->operands[1];
                 ins->operands[1].lit_i16 = offsetof(MVMP6str, body.value);
                 MVM_spesh_usages_add_by_reg(tc, g, ins->operands[0], ins);
