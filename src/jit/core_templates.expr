@@ -2232,6 +2232,12 @@
       (carg $0 ptr)
       (carg (const (&QUOTE MVM_reg_uint64) int_sz) int))))
 
+(template: hllbool
+  (let: (($hllconfig (^getf (cu) MVMCompUnit body.hll_config)))
+  (if (nz $1)
+    (^getf $hllconfig MVMHLLConfig true_value)
+    (^getf $hllconfig MVMHLLConfig false_value))))
+
 (template: sp_resolvecode
   (call (^func &MVM_frame_resolve_invokee_spesh)
     (arglist
