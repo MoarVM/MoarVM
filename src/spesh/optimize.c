@@ -507,15 +507,16 @@ static void optimize_objprimspec(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 }
 
 /* Optimizes a hllize instruction away if the type is known and already in the
- * right HLL, by turning it into a set. */
+ * right HLL, by turning it into a set. We can also do that if we know the type
+ * is not VMNull and it has no HLL role, so the mapping would be a no-op. */
 static void optimize_hllize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && obj_facts->type) {
-        if (STABLE(obj_facts->type)->hll_owner == g->sf->body.cu->body.hll_config) {
+        MVMObject *type = obj_facts->type;
+        if (STABLE(type)->hll_owner == g->sf->body.cu->body.hll_config ||
+                (type != tc->instance->VMNull && !STABLE(type)->hll_role)) {
             ins->info = MVM_op_get_op(MVM_OP_set);
-
             MVM_spesh_use_facts(tc, g, obj_facts);
-
             copy_facts(tc, g, ins->operands[0], ins->operands[1]);
         }
     }
