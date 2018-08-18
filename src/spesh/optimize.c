@@ -2147,6 +2147,10 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
             MVMSpeshFacts *resume_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
             resume_facts->writer = NULL;
             resume_facts->dead_writer = 1;
+
+            MVM_spesh_graph_add_comment(tc, g, ins, "%s of category %ld for handler %d",
+                    ins->info->name, ins->operands[1].lit_i64, picked);
+
             ins->info = MVM_op_get_op(MVM_OP_goto);
             ins->operands[0].ins_bb = goto_bbs[picked];
             bb->succ[0] = goto_bbs[picked];
