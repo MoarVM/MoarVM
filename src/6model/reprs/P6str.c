@@ -86,6 +86,10 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
                 tgt_facts->type = st->WHAT;
 
+                MVM_spesh_graph_add_comment(tc, g, fastcreate, "%s into a %s",
+                        ins->info->name,
+                        MVM_6model_get_stable_debug_name(tc, st));
+
                 /* Change instruction to a bind. */
                 MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
                 ins->info = MVM_op_get_op(MVM_OP_sp_bind_s_nowb);
@@ -99,6 +103,11 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         case MVM_OP_decont_s: {
             /* Lower into a direct memory read. */
             MVMSpeshOperand *orig_operands = ins->operands;
+
+            MVM_spesh_graph_add_comment(tc, g, ins, "%s from a %s",
+                    ins->info->name,
+                    MVM_6model_get_stable_debug_name(tc, st));
+
             ins->info = MVM_op_get_op(MVM_OP_sp_get_s);
             ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
             ins->operands[0] = orig_operands[0];

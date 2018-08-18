@@ -208,6 +208,10 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 MVMint32 int_cache_type_idx = MVM_intcache_type_index(tc, st->WHAT);
                 MVMSpeshFacts *tgt_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
                 MVMSpeshOperand *orig_operands = ins->operands;
+
+                MVM_spesh_graph_add_comment(tc, g, ins, "box_i into a %s",
+                        MVM_6model_get_stable_debug_name(tc, st));
+
                 ins->info = MVM_op_get_op(int_cache_type_idx < 0
                         ? MVM_OP_sp_fastbox_i
                         : MVM_OP_sp_fastbox_i_ic);
@@ -234,6 +238,11 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             if (op > 0) {
                 /* Lower into a direct memory read. */
                 MVMSpeshOperand *orig_operands = ins->operands;
+
+                MVM_spesh_graph_add_comment(tc, g, ins, "%s from a %s",
+                        ins->info->name,
+                        MVM_6model_get_stable_debug_name(tc, st));
+
                 ins->info = MVM_op_get_op(op);
                 ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
                 ins->operands[0] = orig_operands[0];

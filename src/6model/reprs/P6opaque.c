@@ -1390,6 +1390,26 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 }
 
 /* Bytecode specialization for this REPR. */
+static void add_slot_name_comment(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+                                  MVMString *name, MVMSpeshFacts *type_handle_facts, MVMSTable *st) {
+    if (MVM_spesh_debug_enabled(tc)) {
+        char *name_cstr = MVM_string_utf8_encode_C_string(tc, name);
+        if (type_handle_facts->type != st->WHAT) {
+            MVM_spesh_graph_add_comment(tc, g, ins, "%s of '%s' in %s of a %s",
+                    ins->info->name,
+                    name_cstr,
+                    MVM_6model_get_debug_name(tc, type_handle_facts->type),
+                    MVM_6model_get_stable_debug_name(tc, st));
+        }
+        else {
+            MVM_spesh_graph_add_comment(tc, g, ins, "%s of '%s' in %s",
+                    ins->info->name,
+                    name_cstr,
+                    MVM_6model_get_debug_name(tc, type_handle_facts->type));
+        }
+        MVM_free(name_cstr);
+    }
+}
 static MVMString * spesh_attr_name(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o, MVMint32 indirect) {
     if (indirect) {
         MVMSpeshFacts *name_facts = MVM_spesh_get_and_use_facts(tc, g, o);
@@ -1422,6 +1442,10 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
             MVM_spesh_usages_delete_by_reg(tc, g, type, ins);
 
+            MVM_spesh_graph_add_comment(tc, g, ins, "%s of a %s",
+                    ins->info->name,
+                    MVM_6model_get_stable_debug_name(tc, st));
+
             tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
             tgt_facts->type = st->WHAT;
         }
@@ -1436,6 +1460,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             && obj_facts->flags & MVM_SPESH_FACT_CONCRETE) {
             MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type, name);
             if (slot >= 0 && !repr_data->flattened_stables[slot]) {
+                add_slot_name_comment(tc, g, ins, name, ch_facts, st);
                 if (repr_data->auto_viv_values && repr_data->auto_viv_values[slot]) {
                     MVMObject *av_value = repr_data->auto_viv_values[slot];
                     if (IS_CONCRETE(av_value)) {
@@ -1474,6 +1499,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             if (slot >= 0 && repr_data->flattened_stables[slot]) {
                 MVMSTable      *flat_st = repr_data->flattened_stables[slot];
                 const MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
+                add_slot_name_comment(tc, g, ins, name, ch_facts, st);
                 if (flat_st->REPR->ID == MVM_REPR_ID_P6int && flat_ss->bits == 64) {
                     if (opcode == MVM_OP_getattrs_i)
                         MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[3], ins);
@@ -1497,6 +1523,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 MVMSTable      *flat_st = repr_data->flattened_stables[slot];
                 const MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
                 if (flat_st->REPR->ID == MVM_REPR_ID_P6num && flat_ss->bits == 64) {
+                    add_slot_name_comment(tc, g, ins, name, ch_facts, st);
                     if (opcode == MVM_OP_getattrs_n)
                         MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[3], ins);
                     MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
@@ -1518,6 +1545,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             if (slot >= 0 && repr_data->flattened_stables[slot]) {
                 MVMSTable      *flat_st = repr_data->flattened_stables[slot];
                 if (flat_st->REPR->ID == MVM_REPR_ID_P6str) {
+                    add_slot_name_comment(tc, g, ins, name, ch_facts, st);
                     if (opcode == MVM_OP_getattrs_s)
                         MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[3], ins);
                     MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
@@ -1537,6 +1565,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             && obj_facts->flags & MVM_SPESH_FACT_CONCRETE) {
             MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type, name);
             if (slot >= 0 && !repr_data->flattened_stables[slot]) {
+                add_slot_name_comment(tc, g, ins, name, ch_facts, st);
                 if (opcode == MVM_OP_bindattrs_o)
                     MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
                 MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
@@ -1559,6 +1588,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 MVMSTable      *flat_st = repr_data->flattened_stables[slot];
                 const MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
                 if (flat_st->REPR->ID == MVM_REPR_ID_P6int && flat_ss->bits == 64) {
+                    add_slot_name_comment(tc, g, ins, name, ch_facts, st);
                     if (opcode == MVM_OP_bindattrs_i)
                         MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
                     MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
@@ -1582,6 +1612,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 MVMSTable      *flat_st = repr_data->flattened_stables[slot];
                 const MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
                 if (flat_st->REPR->ID == MVM_REPR_ID_P6num && flat_ss->bits == 64) {
+                    add_slot_name_comment(tc, g, ins, name, ch_facts, st);
                     if (opcode == MVM_OP_bindattrs_n)
                         MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
                     MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
@@ -1604,6 +1635,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             if (slot >= 0 && repr_data->flattened_stables[slot]) {
                 MVMSTable      *flat_st = repr_data->flattened_stables[slot];
                 if (flat_st->REPR->ID == MVM_REPR_ID_P6str) {
+                    add_slot_name_comment(tc, g, ins, name, ch_facts, st);
                     if (opcode == MVM_OP_bindattrs_s)
                         MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
                     MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
@@ -1638,6 +1670,9 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 MVM_spesh_usages_delete_by_reg(tc, g, orig_operands[2], ins);
                 tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
                 tgt_facts->type = st->WHAT;
+
+                MVM_spesh_graph_add_comment(tc, g, ins, "box_i into a %s",
+                        MVM_6model_get_stable_debug_name(tc, st));
             }
         }
         break;
@@ -1656,6 +1691,9 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 fastcreate->operands[1].lit_i16 = st->size;
                 fastcreate->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
                 MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, fastcreate);
+
+                MVM_spesh_graph_add_comment(tc, g, fastcreate, "box_n into a %s",
+                        MVM_6model_get_stable_debug_name(tc, st));
 
                 tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
                 tgt_facts->type = st->WHAT;
@@ -1685,6 +1723,9 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 fastcreate->operands[1].lit_i16 = st->size;
                 fastcreate->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
                 MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, fastcreate);
+
+                MVM_spesh_graph_add_comment(tc, g, fastcreate, "box_s into a %s",
+                        MVM_6model_get_stable_debug_name(tc, st));
 
                 tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
                 tgt_facts->type = st->WHAT;
