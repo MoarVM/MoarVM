@@ -118,6 +118,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
         MVMSpeshAnn *ann = cur_ins->annotations;
         MVMuint32 line_number;
         MVMuint32 pop_inlines = 0;
+        MVMuint32 num_comments = 0;
 
         while (ann) {
             /* These four annotations carry a deopt index that we can find a
@@ -199,7 +200,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         ann->data.deopt_idx);
                     break;
                 case MVM_SPESH_ANN_COMMENT:
-                    appendf(ds, "        /* %s */\n", ann->data.comment);
+                    num_comments++;
                     break;
                 default:
                     appendf(ds, "      [Annotation: %d (unknown)]\n", ann->type);
@@ -208,6 +209,16 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
         }
         while (pop_inlines--)
             pop_inline(tc, inline_stack);
+
+        if (num_comments > 1) {
+            ann = cur_ins->annotations;
+            while (ann) {
+                if (ann->type == MVM_SPESH_ANN_COMMENT) {
+                    appendf(ds, "      /* %s */\n", ann->data.comment);
+                }
+                ann = ann->next;
+            }
+        }
 
         appendf(ds, "      %-15s ", cur_ins->info->name);
         if (cur_ins->info->opcode == MVM_SSA_PHI) {
@@ -383,6 +394,16 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                     }
                 } else {
                     appendf(ds, " (not deserialized)");
+                }
+            }
+            if (num_comments == 1) {
+                ann = cur_ins->annotations;
+                while (ann) {
+                    if (ann->type == MVM_SPESH_ANN_COMMENT) {
+                        appendf(ds, "  # %s", ann->data.comment);
+                        break;
+                    }
+                    ann = ann->next;
                 }
             }
         }
