@@ -7,8 +7,11 @@ MVMObject * MVM_bigint_not(MVMThreadContext *tc, MVMObject *result_type, MVMObje
 /* void MVM_bigint_sqrt(MVMObject *b, MVMObject *a); */
 
 MVMObject * MVM_bigint_add(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b);
+void MVM_bigint_fallback_add(MVMThreadContext *tc, MVMP6bigintBody *ba, MVMP6bigintBody *bb, MVMP6bigintBody *bc);
 MVMObject * MVM_bigint_sub(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b);
+void MVM_bigint_fallback_sub(MVMThreadContext *tc, MVMP6bigintBody *ba, MVMP6bigintBody *bb, MVMP6bigintBody *bc);
 MVMObject * MVM_bigint_mul(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b);
+void MVM_bigint_fallback_mul(MVMThreadContext *tc, MVMP6bigintBody *ba, MVMP6bigintBody *bb, MVMP6bigintBody *bc);
 MVMObject * MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b);
 MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b);
 MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,

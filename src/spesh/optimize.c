@@ -2180,6 +2180,60 @@ static void optimize_container_atomic(MVMThreadContext *tc, MVMSpeshGraph *g,
     }
 }
 
+/* Lower bigint binary ops to a fastcreate plus a specialized big integer operation. */
+static void optimize_bigint_binary_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    /* Check that input types and result type are consistent. */
+    MVMObject *common_type = NULL;
+    MVMSpeshFacts *facts[3];
+    MVMuint32 i;
+    for (i = 1; i < 4; i++) {
+        facts[i - 1] = MVM_spesh_get_facts(tc, g, ins->operands[i]);
+        if (facts[i - 1]->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+            if (common_type == NULL) {
+                common_type = facts[i - 1]->type;
+            }
+            else if (facts[i - 1]->type != common_type) {
+                common_type = NULL;
+                break;
+            }
+        }
+        else {
+            common_type = NULL;
+            break;
+        }
+    }
+    if (common_type && REPR(common_type)->ID == MVM_REPR_ID_P6opaque) {
+        MVMuint16 offset = MVM_p6opaque_get_bigint_offset(tc, common_type->st);
+        if (offset) {
+            /* Prepend a fastcreate. */
+            MVMSpeshIns *fastcreate = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+            fastcreate->info = MVM_op_get_op(MVM_OP_sp_fastcreate);
+            fastcreate->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            fastcreate->operands[0] = ins->operands[0];
+            fastcreate->operands[1].lit_i16 = common_type->st->size;
+            fastcreate->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                    (MVMCollectable *)common_type->st);
+            MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, fastcreate);
+            MVM_spesh_get_facts(tc, g, fastcreate->operands[0])->writer = fastcreate;
+
+            /* Lower the instruction to the appropriate spesh operation. */
+            switch (ins->info->opcode) {
+                case MVM_OP_add_I: ins->info = MVM_op_get_op(MVM_OP_sp_add_I); break;
+                case MVM_OP_sub_I: ins->info = MVM_op_get_op(MVM_OP_sp_sub_I); break;
+                case MVM_OP_mul_I: ins->info = MVM_op_get_op(MVM_OP_sp_mul_I); break;
+                default: return;
+            }
+            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[3], ins);
+            MVM_spesh_usages_add_by_reg(tc, g, ins->operands[0], ins);
+            ins->operands[3].lit_i16 = offset;
+
+            /* Mark all facts as used. */
+            for (i = 0; i < 3; i++)
+                MVM_spesh_use_facts(tc, g, facts[i]);
+        }
+    }
+}
+
 static void eliminate_phi_dead_reads(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMuint32 operand = 1;
     MVMuint32 insert_pos = 1;
@@ -2587,6 +2641,11 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_wval:
         case MVM_OP_wval_wide:
             optimize_wval(tc, g, ins);
+            break;
+        case MVM_OP_add_I:
+        case MVM_OP_sub_I:
+        case MVM_OP_mul_I:
+            optimize_bigint_binary_op(tc, g, bb, ins);
             break;
         case MVM_OP_osrpoint:
             /* We don't need to poll for OSR in hot loops. (This also moves

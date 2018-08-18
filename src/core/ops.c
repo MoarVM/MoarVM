@@ -13210,7 +13210,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_sp_cas_o,
         "sp_cas_o",
-        "  ",
+        ".s",
         4,
         0,
         0,
@@ -13225,7 +13225,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_sp_atomicload_o,
         "sp_atomicload_o",
-        "  ",
+        ".s",
         2,
         0,
         0,
@@ -13240,7 +13240,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_sp_atomicstore_o,
         "sp_atomicstore_o",
-        "  ",
+        ".s",
         2,
         0,
         0,
@@ -13251,6 +13251,51 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_sp_add_I,
+        "sp_add_I",
+        ".s",
+        4,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_sp_sub_I,
+        "sp_sub_I",
+        ".s",
+        4,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_sp_mul_I,
+        "sp_mul_I",
+        ".s",
+        4,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
         MVM_OP_prof_enter,
@@ -13386,7 +13431,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 893;
+static const unsigned short MVM_op_counts = 896;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

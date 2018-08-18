@@ -2277,6 +2277,67 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         }
         break;
     }
+    case MVM_OP_sp_add_I:
+    case MVM_OP_sp_sub_I:
+    case MVM_OP_sp_mul_I: {
+        MVMint16 a = ins->operands[1].reg.orig;
+        MVMint16 b = ins->operands[2].reg.orig;
+        MVMint16 c = ins->operands[0].reg.orig;
+        MVMint16 offset = ins->operands[3].lit_i16;
+        MVMint16 val_offset = offset + 4;
+        /* See if they're both smallint. */
+        | mov TMP1, WORK[a];
+        | mov TMP2, WORK[b];
+        | mov TMP4d, dword [TMP1 + offset];
+        | cmp TMP4d, 0xFFFFFFFFLL;
+        | jne >1;
+        | mov TMP4d, dword [TMP2 + offset];
+        | cmp TMP4d, 0xFFFFFFFFLL;
+        | jne >1;
+
+        /* Both smallint, so try to do the addition. If it doesn't overflow,
+         * store it. Otherwise, fall back to slow path. */
+        | mov TMP4d, dword [TMP1 + val_offset]
+        switch (op) {
+            case MVM_OP_sp_add_I:
+                | add TMP4d, dword [TMP2 + val_offset]
+                break;
+            case MVM_OP_sp_sub_I:
+                | sub TMP4d, dword [TMP2 + val_offset]
+                break;
+            case MVM_OP_sp_mul_I:
+                | imul TMP4d, dword [TMP2 + val_offset]
+                break;
+        }
+        | jo >1
+        | mov TMP3, WORK[c];
+        | mov dword [TMP3 + offset], 0xFFFFFFFFLL
+        | mov dword [TMP3 + val_offset], TMP4d
+        | jmp >2
+
+        /* The slow path does a function call. */
+        |1:
+        | mov ARG1, TC;
+        | mov ARG2, WORK[a];
+        | add ARG2, offset
+        | mov ARG3, WORK[b];
+        | add ARG3, offset
+        | mov ARG4, WORK[c];
+        | add ARG4, offset
+        switch (op) {
+            case MVM_OP_sp_add_I:
+                | callp &MVM_bigint_fallback_add;
+                break;
+            case MVM_OP_sp_sub_I:
+                | callp &MVM_bigint_fallback_sub;
+                break;
+            case MVM_OP_sp_mul_I:
+                | callp &MVM_bigint_fallback_mul;
+                break;
+        }
+        |2:
+        break;
+    }
     default:
         MVM_panic(1, "Can't JIT opcode <%s>", ins->info->name);
     }

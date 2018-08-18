@@ -1833,6 +1833,10 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_fastbox_i_ic:
     case MVM_OP_sp_fastbox_bi:
     case MVM_OP_sp_fastbox_bi_ic:
+        /* Specialized boxings */
+    case MVM_OP_sp_add_I:
+    case MVM_OP_sp_sub_I:
+    case MVM_OP_sp_mul_I:
         jg_append_primitive(tc, jg, ins);
         break;
         /* Unspecialized parameter access */

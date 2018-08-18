@@ -377,6 +377,19 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
 }
 
 #define MVM_BIGINT_BINARY_OP_SIMPLE(opname, SMALLINT_OP) \
+void MVM_bigint_fallback_##opname(MVMThreadContext *tc, MVMP6bigintBody *ba, MVMP6bigintBody *bb, \
+                                  MVMP6bigintBody *bc) { \
+    mp_int *tmp[2] = { NULL, NULL }; \
+    mp_int *ia, *ib, *ic; \
+    ia = force_bigint(ba, tmp); \
+    ib = force_bigint(bb, tmp); \
+    ic = MVM_malloc(sizeof(mp_int)); \
+    mp_init(ic); \
+    mp_##opname(ia, ib, ic); \
+    store_bigint_result(bc, ic); \
+    clear_temp_bigints(tmp, 2); \
+    adjust_nursery(tc, bc); \
+} \
 MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b) { \
     MVMP6bigintBody *ba, *bb, *bc; \
     MVMObject *result; \

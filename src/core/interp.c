@@ -6051,6 +6051,57 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 target->st->container_spec->atomic_store(tc, target, value);
                 goto NEXT;
             }
+            OP(sp_add_I): {
+                MVMuint16 offset = GET_UI16(cur_op, 6);
+                MVMP6bigintBody *bc = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 0).o + offset);
+                MVMP6bigintBody *ba = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 2).o + offset);
+                MVMP6bigintBody *bb = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 4).o + offset);
+                if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
+                    MVMuint64 result = (MVMint64)ba->u.smallint.value + (MVMint64)bb->u.smallint.value;
+                    if (MVM_IS_32BIT_INT(result)) {
+                        bc->u.smallint.value = (MVMint32)result;
+                        bc->u.smallint.flag = MVM_BIGINT_32_FLAG;
+                    }
+                }
+                if (bc->u.smallint.flag != MVM_BIGINT_32_FLAG)
+                    MVM_bigint_fallback_add(tc, ba, bb, bc);
+                cur_op += 8;
+                goto NEXT;
+            }
+            OP(sp_sub_I): {
+                MVMuint16 offset = GET_UI16(cur_op, 6);
+                MVMP6bigintBody *bc = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 0).o + offset);
+                MVMP6bigintBody *ba = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 2).o + offset);
+                MVMP6bigintBody *bb = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 4).o + offset);
+                if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
+                    MVMuint64 result = (MVMint64)ba->u.smallint.value - (MVMint64)bb->u.smallint.value;
+                    if (MVM_IS_32BIT_INT(result)) {
+                        bc->u.smallint.value = (MVMint32)result;
+                        bc->u.smallint.flag = MVM_BIGINT_32_FLAG;
+                    }
+                }
+                if (bc->u.smallint.flag != MVM_BIGINT_32_FLAG)
+                    MVM_bigint_fallback_sub(tc, ba, bb, bc);
+                cur_op += 8;
+                goto NEXT;
+            }
+            OP(sp_mul_I): {
+                MVMuint16 offset = GET_UI16(cur_op, 6);
+                MVMP6bigintBody *bc = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 0).o + offset);
+                MVMP6bigintBody *ba = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 2).o + offset);
+                MVMP6bigintBody *bb = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 4).o + offset);
+                if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
+                    MVMuint64 result = (MVMint64)ba->u.smallint.value * (MVMint64)bb->u.smallint.value;
+                    if (MVM_IS_32BIT_INT(result)) {
+                        bc->u.smallint.value = (MVMint32)result;
+                        bc->u.smallint.flag = MVM_BIGINT_32_FLAG;
+                    }
+                }
+                if (bc->u.smallint.flag != MVM_BIGINT_32_FLAG)
+                    MVM_bigint_fallback_mul(tc, ba, bb, bc);
+                cur_op += 8;
+                goto NEXT;
+            }
             OP(prof_enter):
                 MVM_profile_log_enter(tc, tc->cur_frame->static_info,
                     MVM_PROFILE_ENTER_NORMAL);
