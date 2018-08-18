@@ -178,6 +178,13 @@ static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
             meth_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
             meth_facts->value.o = meth;
 
+            if (MVM_spesh_debug_enabled(tc)) {
+                char *name_cstr = MVM_string_utf8_encode_C_string(tc, name);
+                MVM_spesh_graph_add_comment(tc, g, ins, "method lookup of '%s' on a %s",
+                        name_cstr, MVM_6model_get_debug_name(tc, obj_facts->type));
+                MVM_free(name_cstr);
+            }
+
             /* Update the instruction to grab the spesh slot. */
             ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
             ins->operands[1].lit_i16 = ss;
