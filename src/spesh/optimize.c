@@ -1824,10 +1824,26 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVMSpeshOperand code_ref_reg = ins->info->opcode == MVM_OP_invoke_v
                         ? ins->operands[0]
                         : ins->operands[1];
+
                 MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
                         code_ref_reg, prepargs_deopt_idx,
                         (MVMuint16)target_sf->body.spesh->body.spesh_candidates[spesh_cand]->bytecode_size);
+
+                if (MVM_spesh_debug_enabled(tc)) {
+                    char *cuuid_cstr = MVM_string_utf8_encode_C_string(tc, target_sf->body.cuuid);
+                    char *name_cstr  = MVM_string_utf8_encode_C_string(tc, target_sf->body.name);
+                    MVMSpeshBB *pointer = bb->succ[0];
+                    while (!pointer->first_ins && pointer->num_succ > 0) {
+                        pointer = pointer->succ[0];
+                    }
+                    if (pointer->first_ins)
+                        MVM_spesh_graph_add_comment(tc, g, pointer->first_ins, "inline of '%s' (%s) candidate %ld",
+                            name_cstr, cuuid_cstr,
+                            spesh_cand);
+                    MVM_free(cuuid_cstr);
+                    MVM_free(name_cstr);
+                }
             }
             else {
                 /* Can't inline, so just identify candidate. */
@@ -1859,6 +1875,16 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                     default:
                         MVM_oops(tc, "Spesh: unhandled invoke instruction");
                     }
+                }
+                if (MVM_spesh_debug_enabled(tc)) {
+                    char *cuuid_cstr = MVM_string_utf8_encode_C_string(tc, target_sf->body.cuuid);
+                    char *name_cstr  = MVM_string_utf8_encode_C_string(tc, target_sf->body.name);
+                    MVM_spesh_graph_add_comment(tc, g, ins, "could not inline '%s' (%s) candidate %ld: %s",
+                        name_cstr, cuuid_cstr,
+                        spesh_cand,
+                        no_inline_reason);
+                    MVM_free(cuuid_cstr);
+                    MVM_free(name_cstr);
                 }
             }
         }
