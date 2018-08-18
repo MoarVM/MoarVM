@@ -863,10 +863,13 @@ static void aslice(MVMThreadContext *tc, MVMSTable *st, MVMObject *src, void *da
     MVMint64 total_elems = REPR(src)->elems(tc, st, src, s_body);
     MVMint64 elems;
 
+    if (total_elems <= 0) MVM_exception_throw_adhoc(tc, "MVMArray: Cannot slice an empty list");
+
     start = start < 0 ? total_elems + start : start;
     end   = end   < 0 ? total_elems + end   : end;
     if ( end < start || start < 0 || end < 0 || total_elems <= start || total_elems <= end ) {
-        MVM_exception_throw_adhoc(tc, "MVMArray: Slice index out of bounds");
+        MVM_exception_throw_adhoc(tc, "MVMArray: Slice index out of bounds\n"
+            "\tStart: %ld\n" "\tEnd: %ld", start, end);
     }
 
     elems = end - start + 1;
