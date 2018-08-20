@@ -2226,7 +2226,7 @@ static void optimize_container_atomic(MVMThreadContext *tc, MVMSpeshGraph *g,
     }
 }
 
-/* Lower bigint binary ops to a fastcreate plus a specialized big integer operation. */
+/* Lower bigint binary ops to specialized forms where possible. */
 static void optimize_bigint_binary_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     /* Check that input types and result type are consistent. */
     MVMObject *common_type = NULL;
@@ -2250,28 +2250,26 @@ static void optimize_bigint_binary_op(MVMThreadContext *tc, MVMSpeshGraph *g, MV
     }
     if (common_type && REPR(common_type)->ID == MVM_REPR_ID_P6opaque) {
         MVMuint16 offset = MVM_p6opaque_get_bigint_offset(tc, common_type->st);
-        if (offset) {
-            /* Prepend a fastcreate. */
-            MVMSpeshIns *fastcreate = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-            fastcreate->info = MVM_op_get_op(MVM_OP_sp_fastcreate);
-            fastcreate->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-            fastcreate->operands[0] = ins->operands[0];
-            fastcreate->operands[1].lit_i16 = common_type->st->size;
-            fastcreate->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
-                    (MVMCollectable *)common_type->st);
-            MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, fastcreate);
-            MVM_spesh_get_facts(tc, g, fastcreate->operands[0])->writer = fastcreate;
-
-            /* Lower the instruction to the appropriate spesh operation. */
+        MVMint16 cache_type_index = MVM_intcache_type_index(tc, common_type->st->WHAT);
+        if (offset && cache_type_index >= 0) {
+            /* Lower the op. */
+            MVMSpeshOperand *orig_operands = ins->operands;
             switch (ins->info->opcode) {
                 case MVM_OP_add_I: ins->info = MVM_op_get_op(MVM_OP_sp_add_I); break;
                 case MVM_OP_sub_I: ins->info = MVM_op_get_op(MVM_OP_sp_sub_I); break;
                 case MVM_OP_mul_I: ins->info = MVM_op_get_op(MVM_OP_sp_mul_I); break;
                 default: return;
             }
-            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[3], ins);
-            MVM_spesh_usages_add_by_reg(tc, g, ins->operands[0], ins);
-            ins->operands[3].lit_i16 = offset;
+            ins->operands = MVM_spesh_alloc(tc, g, 7 * sizeof(MVMSpeshOperand));
+            ins->operands[0] = orig_operands[0];
+            ins->operands[1].lit_i16 = common_type->st->size;
+            ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                    (MVMCollectable *)common_type->st);
+            ins->operands[3] = orig_operands[1];
+            ins->operands[4] = orig_operands[2];
+            ins->operands[5].lit_i16 = offset;
+            ins->operands[6].lit_i16 = cache_type_index;
+            MVM_spesh_usages_delete_by_reg(tc, g, orig_operands[3], ins);
 
             /* Mark all facts as used. */
             for (i = 0; i < 3; i++)
