@@ -112,6 +112,7 @@
 |.type U16, MVMuint16
 |.type U32, MVMuint32
 |.type U64, MVMuint64
+|.type MPINT, mp_int
 
 
 /* Static allocation of relevant types to registers. I pick
@@ -2337,6 +2338,34 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
                 | callp &MVM_bigint_fallback_mul;
                 break;
         }
+        |2:
+        break;
+    }
+    case MVM_OP_sp_bool_I: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 a = ins->operands[1].reg.orig;
+        MVMint16 offset = ins->operands[2].lit_i16;
+        MVMint16 val_offset = offset + 4;
+        /* Is this a smallint? */
+        | mov TMP1, WORK[a];
+        | mov TMP4d, dword [TMP1 + offset];
+        | cmp TMP4d, MVM_BIGINT_32_FLAG;
+        | jne >1;
+        /* Smallbigint. Test the 32bit value for nonzero. */
+        | mov TMP4d, dword [TMP1 + val_offset]
+        | test TMP4d, TMP4d;
+        | setnz TMP3b;
+        | movzx TMP3, TMP3b;
+        | mov WORK[dst], TMP3;
+        | jmp >2
+        |1:
+        /* Bigint; check a->used for nonzero. */
+        | mov TMP4, [TMP1 + offset]
+        | mov TMP3d, dword MPINT:TMP4->used;
+        | test TMP3d, TMP3d;
+        | setnz TMP3b;
+        | movzx TMP3, TMP3b;
+        | mov WORK[dst], TMP3;
         |2:
         break;
     }

@@ -6076,6 +6076,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             }
+            OP(sp_bool_I): {
+                MVMuint16 offset = GET_UI16(cur_op, 4);
+                MVMP6bigintBody *b = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 2).o + offset);
+                MVMuint64 result = 0;
+                if (b->u.smallint.flag == MVM_BIGINT_32_FLAG) {
+                    result = (MVMint64)b->u.smallint.value != 0;
+                }
+                else if (b->u.smallint.flag != MVM_BIGINT_32_FLAG) {
+                    result = !mp_iszero(b->u.bigint);
+                }
+                GET_REG(cur_op, 0).i64 = result;
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(prof_enter):
                 MVM_profile_log_enter(tc, tc->cur_frame->static_info,
                     MVM_PROFILE_ENTER_NORMAL);

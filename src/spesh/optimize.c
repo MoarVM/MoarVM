@@ -1,5 +1,7 @@
 #include "moar.h"
 
+static void optimize_bigint_bool_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins);
+
 /* This is where the main optimization work on a spesh graph takes place,
  * using facts discovered during analysis. */
 
@@ -1124,6 +1126,10 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
         }
 
         MVM_spesh_use_facts(tc, g, input_facts);
+
+        if (ins->info->opcode == MVM_OP_bool_I)
+            optimize_bigint_bool_op(tc, g, bb, ins);
+
         return;
     }
 }
@@ -2274,6 +2280,35 @@ static void optimize_bigint_binary_op(MVMThreadContext *tc, MVMSpeshGraph *g, MV
     }
 }
 
+/* the bool_I op is implemented as two extremely cheap checks, as long as you
+ * don't count getting the bigint body out of the containing object. That's
+ * why it's very beneficial to give it the "calculate offset into object
+ * body statically and access directly via an sp_ op" treatment. */
+static void optimize_bigint_bool_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMObject *type = NULL;
+    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+
+    if (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+        type = facts->type;
+    }
+
+    if (type && REPR(type)->ID == MVM_REPR_ID_P6opaque) {
+        MVMuint16 offset = MVM_p6opaque_get_bigint_offset(tc, type->st);
+        if (offset) {
+            MVMSpeshOperand input = ins->operands[1];
+            MVMSpeshOperand output = ins->operands[0];
+
+            ins->info = MVM_op_get_op(MVM_OP_sp_bool_I);
+            ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            ins->operands[0] = output;
+            ins->operands[1] = input;
+            ins->operands[2].lit_i16 = offset;
+
+            MVM_spesh_use_facts(tc, g, facts);
+        }
+    }
+}
+
 static void eliminate_phi_dead_reads(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMuint32 operand = 1;
     MVMuint32 insert_pos = 1;
@@ -2686,6 +2721,9 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_sub_I:
         case MVM_OP_mul_I:
             optimize_bigint_binary_op(tc, g, bb, ins);
+            break;
+        case MVM_OP_bool_I:
+            optimize_bigint_bool_op(tc, g, bb, ins);
             break;
         case MVM_OP_osrpoint:
             /* We don't need to poll for OSR in hot loops. (This also moves

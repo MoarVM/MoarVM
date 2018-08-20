@@ -888,15 +888,16 @@
 #define MVM_OP_sp_add_I 884
 #define MVM_OP_sp_sub_I 885
 #define MVM_OP_sp_mul_I 886
-#define MVM_OP_prof_enter 887
-#define MVM_OP_prof_enterspesh 888
-#define MVM_OP_prof_enterinline 889
-#define MVM_OP_prof_enternative 890
-#define MVM_OP_prof_exit 891
-#define MVM_OP_prof_allocated 892
-#define MVM_OP_ctw_check 893
-#define MVM_OP_coverage_log 894
-#define MVM_OP_breakpoint 895
+#define MVM_OP_sp_bool_I 887
+#define MVM_OP_prof_enter 888
+#define MVM_OP_prof_enterspesh 889
+#define MVM_OP_prof_enterinline 890
+#define MVM_OP_prof_enternative 891
+#define MVM_OP_prof_exit 892
+#define MVM_OP_prof_allocated 893
+#define MVM_OP_ctw_check 894
+#define MVM_OP_coverage_log 895
+#define MVM_OP_breakpoint 896
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

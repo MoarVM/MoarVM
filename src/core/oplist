@@ -1028,6 +1028,8 @@ sp_add_I         .s r(obj) r(obj) r(obj) int16 :pure
 sp_sub_I         .s r(obj) r(obj) r(obj) int16 :pure
 sp_mul_I         .s r(obj) r(obj) r(obj) int16 :pure
 
+sp_bool_I        .s w(int64) r(obj) int16 :pure
+
 # Profiler recording ops. Naming convention: start with prof_. Must all be
 # marked .s, which is how the validator knows to exclude them. (For that
 # purpose, we treat them as a kind of spesh op).
