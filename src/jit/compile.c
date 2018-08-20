@@ -179,36 +179,20 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
 
     /* add sequence number */
     code->seq_nr       = tc->instance->jit_seq_nr++;
+    /* by definition */
+    code->ref_cnt      = 1;
 
     return code;
 }
 
 MVMJitCode* MVM_jit_code_copy(MVMThreadContext *tc, MVMJitCode * const code) {
-    MVMJitCode * const dest = MVM_malloc(sizeof(MVMJitCode));
-    memcpy(dest, code, sizeof(MVMJitCode));
-
-    dest->func_ptr = MVM_malloc(code->size);
-    memcpy(dest->func_ptr, code->func_ptr, code->size);
-
-    dest->labels = MVM_malloc(code->num_labels * sizeof(void**));
-    memcpy(dest->labels, code->labels, code->num_labels * sizeof(void**));
-
-    dest->deopts = MVM_malloc(code->num_deopts * sizeof(MVMJitDeopt*));
-    memcpy(dest->deopts, code->deopts, code->num_deopts * sizeof(MVMJitDeopt*));
-
-    dest->handlers = MVM_malloc(code->num_handlers * sizeof(MVMJitDeopt*));
-    memcpy(dest->handlers, code->handlers, code->num_handlers * sizeof(MVMJitHandler*));
-
-    dest->inlines = MVM_malloc(code->num_inlines * sizeof(MVMJitDeopt*));
-    memcpy(dest->inlines, code->inlines, code->num_inlines * sizeof(MVMJitInline*));
-
-    dest->local_types = MVM_malloc(code->num_locals * sizeof(MVMJitDeopt*));
-    memcpy(dest->local_types, code->local_types, code->num_locals * sizeof(MVMuint16*));
-
-    return dest;
+    AO_fetch_and_add1(&code->ref_cnt);
+    return code;
 }
 
 void MVM_jit_code_destroy(MVMThreadContext *tc, MVMJitCode *code) {
+    if (AO_fetch_and_sub1(&code->ref_cnt) > 0)
+        return;
     MVM_platform_free_pages(code->func_ptr, code->size);
     MVM_free(code->labels);
     MVM_free(code->deopts);
