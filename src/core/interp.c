@@ -55,6 +55,24 @@ MVM_STATIC_INLINE MVMuint16 check_lex(MVMThreadContext *tc, MVMFrame *f, MVMuint
 
 static int tracing_enabled = 0;
 
+/* Various spesh ops incorporate a fastcreate, so they can decide to not do
+ * the allocation and serve a result from a cache instead. This factors the
+ * fastcreate logic out. */
+static MVMObject * fastcreate(MVMThreadContext *tc, MVMuint8 *cur_op) {
+    /* Assume we're in normal code, so doing a nursery allocation.
+     * Also, that there is no initialize. */
+    MVMuint16 size       = GET_UI16(cur_op, 2);
+    MVMObject *obj       = MVM_gc_allocate_nursery(tc, size);
+#if MVM_GC_DEBUG
+    if (tc->allocate_in_gen2)
+        MVM_panic(1, "Illegal use of a nursery-allocating spesh op when gen2 allocation flag set");
+#endif
+    obj->st              = (MVMSTable *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
+    obj->header.size     = size;
+    obj->header.owner    = tc->thread_id;
+    return obj;
+}
+
 /* This is the interpreter run loop. We have one of these per thread. */
 void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data) {
 #if MVM_CGOTO
@@ -5639,22 +5657,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
                 goto NEXT;
             }
-            OP(sp_fastcreate): {
-                /* Assume we're in normal code, so doing a nursery allocation.
-                 * Also, that there is no initialize. */
-                MVMuint16 size       = GET_UI16(cur_op, 2);
-                MVMObject *obj       = MVM_gc_allocate_nursery(tc, size);
-#if MVM_GC_DEBUG
-                if (tc->allocate_in_gen2)
-                    MVM_panic(1, "Illegal use of sp_fastcreate when gen2 allocation flag set");
-#endif
-                obj->st              = (MVMSTable *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
-                obj->header.size     = size;
-                obj->header.owner    = tc->thread_id;
-                GET_REG(cur_op, 0).o = obj;
+            OP(sp_fastcreate):
+                GET_REG(cur_op, 0).o = fastcreate(tc, cur_op);
                 cur_op += 6;
                 goto NEXT;
-            }
             OP(sp_get_o): {
                 MVMObject *val = ((MVMObject *)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
                 GET_REG(cur_op, 0).o = val ? val : tc->instance->VMNull;
@@ -5832,32 +5838,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_fastbox_i): {
-                MVMuint16 size = GET_UI16(cur_op, 2);
-                MVMObject *obj = MVM_gc_allocate_nursery(tc, size);
-#if MVM_GC_DEBUG
-                if (tc->allocate_in_gen2)
-                    MVM_panic(1, "Illegal use of sp_fastbox_i when gen2 allocation flag set");
-#endif
-                obj->st              = (MVMSTable *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
-                obj->header.size     = size;
-                obj->header.owner    = tc->thread_id;
+                MVMObject *obj = fastcreate(tc, cur_op);
                 *((MVMint64 *)((char *)obj + GET_UI16(cur_op, 6))) = GET_REG(cur_op, 8).i64;
                 GET_REG(cur_op, 0).o = obj;
                 cur_op += 10;
                 goto NEXT;
             }
             OP(sp_fastbox_bi): {
-                MVMint64 value = GET_REG(cur_op, 8).i64;
-                MVMuint16 size = GET_UI16(cur_op, 2);
-                MVMObject *obj = MVM_gc_allocate_nursery(tc, size);
+                MVMObject *obj = fastcreate(tc, cur_op);
                 MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)obj + GET_UI16(cur_op, 6));
-#if MVM_GC_DEBUG
-                if (tc->allocate_in_gen2)
-                    MVM_panic(1, "Illegal use of sp_fastbox_bi when gen2 allocation flag set");
-#endif
-                obj->st              = (MVMSTable *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
-                obj->header.size     = size;
-                obj->header.owner    = tc->thread_id;
+                MVMint64 value = GET_REG(cur_op, 8).i64;
                 if (MVM_IS_32BIT_INT(value)) {
                     body->u.smallint.value = (MVMint32)value;
                     body->u.smallint.flag = MVM_BIGINT_32_FLAG;
@@ -5876,15 +5866,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 0).o = tc->instance->int_const_cache->cache[slot][value + 1];
                 }
                 else {
-                    MVMuint16 size = GET_UI16(cur_op, 2);
-                    MVMObject *obj = MVM_gc_allocate_nursery(tc, size);
-#if MVM_GC_DEBUG
-                    if (tc->allocate_in_gen2)
-                        MVM_panic(1, "Illegal use of sp_fastbox_i_ic when gen2 allocation flag set");
-#endif
-                    obj->st              = (MVMSTable *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
-                    obj->header.size     = size;
-                    obj->header.owner    = tc->thread_id;
+                    MVMObject *obj = fastcreate(tc, cur_op);
                     *((MVMint64 *)((char *)obj + GET_UI16(cur_op, 6))) = value;
                     GET_REG(cur_op, 0).o = obj;
                 }
@@ -5898,16 +5880,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 0).o = tc->instance->int_const_cache->cache[slot][value + 1];
                 }
                 else {
-                    MVMuint16 size = GET_UI16(cur_op, 2);
-                    MVMObject *obj = MVM_gc_allocate_nursery(tc, size);
+                    MVMObject *obj = fastcreate(tc, cur_op);
                     MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)obj + GET_UI16(cur_op, 6));
-#if MVM_GC_DEBUG
-                    if (tc->allocate_in_gen2)
-                        MVM_panic(1, "Illegal use of sp_fastbox_bi_ic when gen2 allocation flag set");
-#endif
-                    obj->st              = (MVMSTable *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
-                    obj->header.size     = size;
-                    obj->header.owner    = tc->thread_id;
                     if (MVM_IS_32BIT_INT(value)) {
                         body->u.smallint.value = (MVMint32)value;
                         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
