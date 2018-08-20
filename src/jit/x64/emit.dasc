@@ -64,7 +64,7 @@
  * + hit_wb (root)
 
  * You should have the label parameter point somewhere after hit_wb, and save
- * and restore your temporaries around the hib_wb.
+ * and restore your temporaries around the hit_wb.
  **/
 
 
