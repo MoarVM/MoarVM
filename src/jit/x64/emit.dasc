@@ -2326,7 +2326,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[c], TMP2
         | jmp >3
         |2:
+        | mov dword [rbp-0x30], TMP4d;
         emit_fastcreate(tc, compiler, jg, ins);
+        | mov TMP4d, dword [rbp-0x30];
         | mov dword [RV + offset], MVM_BIGINT_32_FLAG
         | mov dword [RV + val_offset], TMP4d
         | mov WORK[c], RV
