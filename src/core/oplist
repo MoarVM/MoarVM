@@ -868,6 +868,8 @@ atkey_u             w(uint64) r(obj) r(str) :specializable
 coerce_us           w(str) r(uint64) :pure
 speshguardnotobj    r(obj) r(obj)
 
+decodelocaltime    w(obj) r(int64)
+
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
 
