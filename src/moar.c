@@ -115,6 +115,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     init_cond(instance->cond_gc_intrays_clearing, "GC intrays clearing");
     init_cond(instance->cond_blocked_can_continue, "GC thread unblock");
 
+    /* Safe point free list. */
+    init_mutex(instance->mutex_free_at_safepoint, "safepoint free list");
+
     /* Create fixed size allocator. */
     instance->fsa = MVM_fixed_size_create(instance->main_thread);
 
@@ -519,6 +522,10 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     uv_cond_destroy(&instance->cond_gc_intrays_clearing);
     uv_cond_destroy(&instance->cond_blocked_can_continue);
     uv_mutex_destroy(&instance->mutex_gc_orchestrate);
+
+    /* Clean up safepoint free vector. */
+    MVM_VECTOR_DESTROY(instance->free_at_safepoint);
+    uv_mutex_destroy(&instance->mutex_free_at_safepoint);
 
     /* Clean up Hash of HLLConfig. */
     uv_mutex_destroy(&instance->mutex_hllconfigs);

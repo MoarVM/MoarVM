@@ -704,3 +704,4 @@ MVM_STATIC_INLINE char *MVM_6model_get_debug_name(MVMThreadContext *tc, MVMObjec
 MVM_STATIC_INLINE char *MVM_6model_get_stable_debug_name(MVMThreadContext *tc, MVMSTable *stable) {
     return stable->debug_name ? stable->debug_name : "";
 }
+void MVM_6model_set_debug_name(MVMThreadContext *tc, MVMObject *type, MVMString *name);

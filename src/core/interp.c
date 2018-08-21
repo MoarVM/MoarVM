@@ -4922,20 +4922,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = MVM_file_time(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 1);
                 cur_op += 6;
                 goto NEXT;
-            OP(setdebugtypename): {
-                MVMObject *obj = GET_REG(cur_op, 0).o;
-                if (MVM_string_graphs(tc, GET_REG(cur_op, 2).s)) {
-                    char *debugname = MVM_string_utf8_encode_C_string(tc, GET_REG(cur_op, 2).s);
-                    if (STABLE(obj)->debug_name) {
-                        MVM_free(STABLE(obj)->debug_name);
-                    }
-                    STABLE(obj)->debug_name = debugname;
-                } else {
-                    STABLE(obj)->debug_name = NULL;
-                }
+            OP(setdebugtypename):
+                MVM_6model_set_debug_name(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
-            }
             OP(loadbytecodebuffer): {
                 /* This op will end up returning into the runloop to run
                  * deserialization and load code, so make sure we're done

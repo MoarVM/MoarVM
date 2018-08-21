@@ -205,6 +205,11 @@ struct MVMInstance {
     /* Fixed size allocator. */
     MVMFixedSizeAlloc *fsa;
 
+    /* Vector of memory to free at the next safepoint, and a mutex to guard
+     * access to it. */
+    MVM_VECTOR_DECL(void *, free_at_safepoint);
+    uv_mutex_t mutex_free_at_safepoint;
+
     /************************************************************************
      * Object system
      ************************************************************************/
