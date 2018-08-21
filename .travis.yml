@@ -62,7 +62,6 @@ before_script:
   - MVM_debug="--debug"; MVM_optimize="--optimize"
   - if [ "$COVERAGE" ] || [ "$MOCK_COVERAGE" ]; then MVM_debug="--debug=3"; MVM_optimize="--optimize=0"; fi
   - if [ "$TRAVIS_OS_NAME" == "linux" ] ; then sudo apt-get update -qq || sudo apt-get update -qq ; fi
-  - git fetch --unshallow
   - git clone --depth 1 git://github.com/perl6/nqp
 
 script:
