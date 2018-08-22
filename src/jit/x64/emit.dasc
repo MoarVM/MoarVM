@@ -374,7 +374,6 @@ static MVMint64 fits_in_32_bit(MVMint64 number) {
 
 static void emit_fastcreate(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                             MVMSpeshIns *ins) {
-    MVMint16 dst       = ins->operands[0].reg.orig;
     MVMuint16 size     = ins->operands[1].lit_i16;
     MVMint16 spesh_idx = ins->operands[2].lit_i16;
     | mov ARG1, TC;
@@ -385,7 +384,6 @@ static void emit_fastcreate(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     | mov word OBJECT:RV->header.size, size; // object size is 16 bit
     | mov TMP1d, dword TC->thread_id;  // thread id is 32 bit
     | mov dword OBJECT:RV->header.owner, TMP1d; // does this even work?
-    | mov aword WORK[dst], RV; // store in local register
 }
 
 /* compile per instruction, can't really do any better yet */
@@ -1718,9 +1716,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], TMP2;
         break;
     }
-    case MVM_OP_sp_fastcreate:
+    case MVM_OP_sp_fastcreate: {
+        MVMint16 dst = ins->operands[0].reg.orig;
         emit_fastcreate(tc, compiler, jg, ins);
+        | mov aword WORK[dst], RV;
         break;
+    }
     case MVM_OP_decont:
     case MVM_OP_sp_decont: {
         MVMint16 dst = ins->operands[0].reg.orig;
@@ -2232,7 +2233,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_sp_fastbox_i_ic:
     case MVM_OP_sp_fastbox_bi:
     case MVM_OP_sp_fastbox_bi_ic: {
-        MVMint32 use_cache = op == MVM_OP_sp_fastbox_i_ic;
+        MVMint32 use_cache = op == MVM_OP_sp_fastbox_i_ic || op == MVM_OP_sp_fastbox_bi_ic;
+        MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 offset = ins->operands[3].lit_i16;
         MVMint16 val = ins->operands[4].reg.orig;
         if (use_cache) {
@@ -2251,6 +2253,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             |1:
         }
         emit_fastcreate(tc, compiler, jg, ins);
+        | mov aword WORK[dst], RV;
         | mov TMP3, WORK[val];
         if (op == MVM_OP_sp_fastbox_i || op == MVM_OP_sp_fastbox_i_ic) {
             /* Normal integer */
@@ -2328,21 +2331,24 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |2:
         | mov dword [rbp-0x30], TMP4d;
         emit_fastcreate(tc, compiler, jg, ins);
+        | mov aword WORK[c], RV;
         | mov TMP4d, dword [rbp-0x30];
         | mov dword [RV + offset], MVM_BIGINT_32_FLAG
         | mov dword [RV + val_offset], TMP4d
         | mov WORK[c], RV
         | jmp >3
 
-        /* The slow path does a function call. */
+        /* The slow path does a function call. Make sure to read the args
+         * before storing the result value, in case they're aimed at the
+         * same register. */
         |1:
         emit_fastcreate(tc, compiler, jg, ins);
-        | mov WORK[c], RV
         | mov ARG1, TC;
         | mov ARG2, WORK[a];
         | add ARG2, offset
         | mov ARG3, WORK[b];
         | add ARG3, offset
+        | mov aword WORK[c], RV;
         | mov ARG4, RV;
         | add ARG4, offset
         switch (op) {
