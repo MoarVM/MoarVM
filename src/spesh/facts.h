@@ -25,8 +25,9 @@ struct MVMSpeshFacts {
      * together with writer form a define-use chain. */
     MVMSpeshUsages usage;
 
-    /* The log guard the facts depend on, if any. */
-    MVMuint32 log_guard;
+    /* The log guard(s) the facts depend on, if any. */
+    MVMuint32 *log_guards;
+    MVMuint32 num_log_guards;
 
     /* Has the instruction that wrote this value been deleted? */
     MVMuint16 dead_writer;
@@ -41,13 +42,11 @@ struct MVMSpeshFacts {
 #define MVM_SPESH_FACT_KNOWN_DECONT_TYPE    32  /* Has a known type after decont. */
 #define MVM_SPESH_FACT_DECONT_CONCRETE      64  /* Is concrete after decont. */
 #define MVM_SPESH_FACT_DECONT_TYPEOBJ       128 /* Is a type object after decont. */
-#define MVM_SPESH_FACT_FROM_LOG_GUARD       256 /* Depends on a guard being met. */
 #define MVM_SPESH_FACT_HASH_ITER            512 /* Is an iter over hashes. */
 #define MVM_SPESH_FACT_ARRAY_ITER           1024 /* Is an iter over arrays
                                                     (mutually exclusive with HASH_ITER, but neither of them is necessarily set) */
 #define MVM_SPESH_FACT_KNOWN_BOX_SRC        2048 /* We know what register this value was boxed from */
-#define MVM_SPESH_FACT_MERGED_WITH_LOG_GUARD 4096 /* These facts were merged at a PHI node, but at least one of the incoming facts had a "from log guard" flag set, so we'll have to look for that fact and increment its uses if we use this here fact. */
-#define MVM_SPESH_FACT_RW_CONT               8192 /* Known to be an rw container */
+#define MVM_SPESH_FACT_RW_CONT              8192 /* Known to be an rw container */
 
 void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p,
     MVMuint32 is_specialized);

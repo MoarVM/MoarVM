@@ -13,17 +13,16 @@ static void copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 to_orig
     tfacts->type          = ffacts->type;
     tfacts->decont_type   = ffacts->decont_type;
     tfacts->value         = ffacts->value;
-    tfacts->log_guard     = ffacts->log_guard;
+    tfacts->log_guards    = ffacts->log_guards;
+    tfacts->num_log_guards = ffacts->num_log_guards;
 }
 
 /* Called when one set of facts depend on another, allowing any log guard
  * that is to thank to be marked used as needed later on. */
 void MVM_spesh_facts_depend(MVMThreadContext *tc, MVMSpeshGraph *g,
                             MVMSpeshFacts *target, MVMSpeshFacts *source) {
-    if (source->flags & MVM_SPESH_FACT_FROM_LOG_GUARD) {
-        target->flags     |= MVM_SPESH_FACT_FROM_LOG_GUARD;
-        target->log_guard  = source->log_guard;
-    }
+    target->log_guards = source->log_guards;
+    target->num_log_guards = source->num_log_guards;
 }
 
 /* Handles object-creating instructions. */
@@ -429,8 +428,9 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         }
         g->log_guards[g->num_log_guards].ins = guard;
         g->log_guards[g->num_log_guards].bb = ins->next ? bb : bb->linear_next;
-        facts->flags |= MVM_SPESH_FACT_FROM_LOG_GUARD;
-        facts->log_guard = g->num_log_guards;
+        facts->log_guards = MVM_spesh_alloc(tc, g, sizeof(MVMint32));
+        facts->log_guards[0] = g->num_log_guards;
+        facts->num_log_guards++;
         g->num_log_guards++;
     }
 }
