@@ -824,11 +824,12 @@ MVMObject *MVM_bigint_not(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
     return result;
 }
 
-void MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b, MVMObject *c) {
+MVMObject *MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b, MVMObject *c) {
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
     MVMP6bigintBody *bb = get_bigint_body(tc, b);
     MVMP6bigintBody *bc = get_bigint_body(tc, c);
-    MVMP6bigintBody *bd = get_bigint_body(tc, result);
+    MVMP6bigintBody *bd;
+    MVMObject       *result;
 
     mp_int *tmp[3] = { NULL, NULL, NULL };
 
@@ -838,10 +839,18 @@ void MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MV
     mp_int *id = MVM_malloc(sizeof(mp_int));
     mp_init(id);
 
+    MVMROOT3(tc, a, b, c, {
+        result = MVM_repr_alloc_init(tc, result_type);
+    });
+
+    bd = get_bigint_body(tc, result);
+
     mp_exptmod(ia, ib, ic, id);
     store_bigint_result(bd, id);
     clear_temp_bigints(tmp, 3);
     adjust_nursery(tc, bd);
+
+    return result;
 }
 
 void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, const char *buf) {
