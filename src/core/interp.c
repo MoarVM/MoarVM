@@ -2824,7 +2824,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc, "forceouterctx needs a code ref");
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
                     MVM_exception_throw_adhoc(tc, "forceouterctx needs a context");
-                context = MVM_context_get_frame(tc, (MVMContext *)ctx);
+                context = MVM_context_get_frame_or_outer(tc, (MVMContext *)ctx);
+                if (!context)
+                    MVM_exception_throw_adhoc(tc, "Failed to resolve context for forceouterctx");
 
                 orig = ((MVMCode *)obj)->body.outer;
                 sf = ((MVMCode *)obj)->body.sf;

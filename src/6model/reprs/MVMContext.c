@@ -346,6 +346,23 @@ MVMFrame * MVM_context_get_frame(MVMThreadContext *tc, MVMContext *ctx) {
     return result;
 }
 
+/* Resolves the context to an exact frame; if the frame in question is an
+ * inline, takes the inline's outer. Returns NULL if neither resolves. */
+MVMFrame * MVM_context_get_frame_or_outer(MVMThreadContext *tc, MVMContext *ctx) {
+    MVMSpeshFrameWalker fw;
+    MVMFrame *result = NULL;
+    MVM_spesh_frame_walker_init(tc, &fw, ctx->body.context, 0);
+    if (apply_traversals(tc, &fw, ctx->body.traversals, ctx->body.num_traversals)) {
+        result = MVM_spesh_frame_walker_get_frame(tc, &fw);
+        if (!result) {
+            MVM_spesh_frame_walker_move_outer(tc, &fw);
+            result = MVM_spesh_frame_walker_get_frame(tc, &fw);
+        }
+    }
+    MVM_spesh_frame_walker_cleanup(tc, &fw);
+    return result;
+}
+
 /* Resolves the context and gets a hash of its lexicals. */
 MVMObject * MVM_context_lexicals_as_hash(MVMThreadContext *tc, MVMContext *ctx) {
     MVMSpeshFrameWalker fw;
