@@ -67,11 +67,10 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
     while (ins) {
         MVMint32 i;
 
-        /* Process any annotations. */
-        MVMSpeshAnn *ann              = ins->annotations;
-        MVMSpeshAnn *deopt_one_ann    = NULL;
-        MVMSpeshAnn *deopt_all_ann    = NULL;
-        MVMSpeshAnn *deopt_inline_ann = NULL;
+        /* Process any pre-annotations, and note if there were any deopt ones;
+         * if so, these should be processed later. */
+        MVMSpeshAnn *ann = ins->annotations;
+        MVMuint32 has_deopts = 0;
         while (ann) {
             switch (ann->type) {
             case MVM_SPESH_ANN_FH_START:
@@ -87,19 +86,15 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                     ws->bytecode_pos;
                 break;
             case MVM_SPESH_ANN_DEOPT_ONE_INS:
-                deopt_one_ann = ann;
-                break;
             case MVM_SPESH_ANN_DEOPT_ALL_INS:
-                deopt_all_ann = ann;
+            case MVM_SPESH_ANN_DEOPT_INLINE:
+                has_deopts = 1;
                 break;
             case MVM_SPESH_ANN_INLINE_START:
                 g->inlines[ann->data.inline_idx].start = ws->bytecode_pos;
                 break;
             case MVM_SPESH_ANN_INLINE_END:
                 g->inlines[ann->data.inline_idx].end = ws->bytecode_pos;
-                break;
-            case MVM_SPESH_ANN_DEOPT_INLINE:
-                deopt_inline_ann = ann;
                 break;
             case MVM_SPESH_ANN_DEOPT_OSR:
                 g->deopt_addrs[2 * ann->data.deopt_idx + 1] = ws->bytecode_pos;
@@ -219,13 +214,20 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
             }
         }
 
-        /* If there was a deopt point annotation, update table. */
-        if (deopt_one_ann)
-            g->deopt_addrs[2 * deopt_one_ann->data.deopt_idx + 1] = ws->bytecode_pos;
-        if (deopt_all_ann)
-            g->deopt_addrs[2 * deopt_all_ann->data.deopt_idx + 1] = ws->bytecode_pos;
-        if (deopt_inline_ann)
-            g->deopt_addrs[2 * deopt_inline_ann->data.deopt_idx + 1] = ws->bytecode_pos;
+        /* If there were deopt point annotations, update table. */
+        if (has_deopts) {
+            ann = ins->annotations;
+            while (ann) {
+                switch (ann->type) {
+                case MVM_SPESH_ANN_DEOPT_ONE_INS:
+                case MVM_SPESH_ANN_DEOPT_ALL_INS:
+                case MVM_SPESH_ANN_DEOPT_INLINE:
+                    g->deopt_addrs[2 * ann->data.deopt_idx + 1] = ws->bytecode_pos;;
+                    break;
+                }
+                ann = ann->next;
+            }
+        }
 
         ins = ins->next;
     }
