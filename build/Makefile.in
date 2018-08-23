@@ -426,6 +426,7 @@ UV_UNIX = 3rdparty/libuv/src/fs-poll@obj@ \
           3rdparty/libuv/src/inet@obj@ \
           3rdparty/libuv/src/uv-common@obj@ \
           3rdparty/libuv/src/version@obj@ \
+          3rdparty/libuv/src/timer@obj@ \
           3rdparty/libuv/src/unix/async@obj@ \
           3rdparty/libuv/src/unix/core@obj@ \
           3rdparty/libuv/src/unix/dl@obj@ \
@@ -441,7 +442,6 @@ UV_UNIX = 3rdparty/libuv/src/fs-poll@obj@ \
           3rdparty/libuv/src/unix/tcp@obj@ \
           3rdparty/libuv/src/unix/thread@obj@ \
           3rdparty/libuv/src/threadpool@obj@ \
-          3rdparty/libuv/src/unix/timer@obj@ \
           3rdparty/libuv/src/unix/tty@obj@ \
           3rdparty/libuv/src/unix/udp@obj@
 
