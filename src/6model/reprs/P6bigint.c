@@ -87,16 +87,16 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 }
 
 void MVM_p6bigint_store_as_mp_int(MVMP6bigintBody *body, MVMint64 value) {
-        mp_int *i = MVM_malloc(sizeof(mp_int));
-        mp_init(i);
-        if (value >= 0) {
-            MVM_bigint_mp_set_uint64(i, (MVMuint64)value);
-        }
-        else {
-            MVM_bigint_mp_set_uint64(i, (MVMuint64)-value);
-            mp_neg(i, i);
-        }
-        body->u.bigint = i;
+    mp_int *i = MVM_malloc(sizeof(mp_int));
+    mp_init(i);
+    if (value >= 0) {
+        MVM_bigint_mp_set_uint64(i, (MVMuint64)value);
+    }
+    else {
+        MVM_bigint_mp_set_uint64(i, (MVMuint64)-value);
+        mp_neg(i, i);
+    }
+    body->u.bigint = i;
 }
 
 static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
