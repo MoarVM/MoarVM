@@ -566,10 +566,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | jz >1;
         | throw_adhoc "getlexreldyn needs a context"
         |1:
-        | mov ARG3, CONTEXT:TMP5->body.context;
+        | mov ARG2, TMP5
         | mov ARG1, TC
-        | mov ARG2, aword WORK[name];
-        | callp &MVM_frame_getdynlex;
+        | mov ARG3, aword WORK[name];
+        | callp &MVM_context_dynamic_lookup;
         | mov WORK[dst], RV;
         break;
     }
