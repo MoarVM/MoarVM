@@ -575,6 +575,9 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
              * mark it as an active handler. Unmark those where we see the
              * end of the handler. */
             if (cur_bb->first_ins->annotations) {
+                /* Process them in two passes in case we have two on the
+                 * same instruction and disordered. */
+                MVMuint32 has_end = 0;
                 MVMSpeshAnn *ann = cur_bb->first_ins->annotations;
                 while (ann) {
                     switch (ann->type) {
@@ -585,13 +588,24 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                             }
                             break;
                         case MVM_SPESH_ANN_FH_END:
-                            if (!is_catch_handler(tc, g, ann->data.frame_handler_index)) {
-                                active_handlers[ann->data.frame_handler_index] = 0;
-                                num_active_handlers--;
-                            }
+                            has_end = 1;
                             break;
                     }
                     ann = ann->next;
+                }
+                if (has_end) {
+                    ann = cur_bb->first_ins->annotations;
+                    while (ann) {
+                        switch (ann->type) {
+                            case MVM_SPESH_ANN_FH_END:
+                                if (!is_catch_handler(tc, g, ann->data.frame_handler_index)) {
+                                    active_handlers[ann->data.frame_handler_index] = 0;
+                                    num_active_handlers--;
+                                }
+                                break;
+                        }
+                        ann = ann->next;
+                    }
                 }
             }
 
