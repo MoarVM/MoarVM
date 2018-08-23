@@ -3310,26 +3310,26 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             OP(div_I): {
-                MVMObject *   const type = GET_REG(cur_op, 6).o;
-                GET_REG(cur_op, 0).o = MVM_bigint_div(tc, type, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                GET_REG(cur_op, 0).o = MVM_bigint_div(tc, GET_REG(cur_op, 6).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
             }
             OP(mod_I): {
-                MVMObject *   const type = GET_REG(cur_op, 6).o;
-                GET_REG(cur_op, 0).o = MVM_bigint_mod(tc, type, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                GET_REG(cur_op, 0).o = MVM_bigint_mod(tc, GET_REG(cur_op, 6).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
             }
             OP(neg_I): {
-                MVMObject *   const type = GET_REG(cur_op, 4).o;
-                GET_REG(cur_op, 0).o = MVM_bigint_neg(tc, type, GET_REG(cur_op, 2).o);
+                GET_REG(cur_op, 0).o = MVM_bigint_neg(tc, GET_REG(cur_op, 4).o,
+                    GET_REG(cur_op, 2).o);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(abs_I): {
-                MVMObject *   const type = GET_REG(cur_op, 4).o;
-                GET_REG(cur_op, 0).o = MVM_bigint_abs(tc, type, GET_REG(cur_op, 2).o);
+                GET_REG(cur_op, 0).o = MVM_bigint_abs(tc, GET_REG(cur_op, 4).o,
+                    GET_REG(cur_op, 2).o);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -3376,38 +3376,38 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(bor_I): {
-                MVMObject *   const type = GET_REG(cur_op, 6).o;
-                GET_REG(cur_op, 0).o = MVM_bigint_or(tc, type, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                GET_REG(cur_op, 0).o = MVM_bigint_or(tc, GET_REG(cur_op, 6).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
             }
             OP(bxor_I): {
-                MVMObject *   const type = GET_REG(cur_op, 6).o;
-                GET_REG(cur_op, 0).o = MVM_bigint_xor(tc, type, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                GET_REG(cur_op, 0).o = MVM_bigint_xor(tc, GET_REG(cur_op, 6).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
             }
             OP(band_I): {
-                MVMObject *   const type = GET_REG(cur_op, 6).o;
-                GET_REG(cur_op, 0).o = MVM_bigint_and(tc, type, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                GET_REG(cur_op, 0).o = MVM_bigint_and(tc, GET_REG(cur_op, 6).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
             }
             OP(bnot_I): {
-                MVMObject *   const type = GET_REG(cur_op, 4).o;
-                GET_REG(cur_op, 0).o = MVM_bigint_not(tc, type, GET_REG(cur_op, 2).o);
+                GET_REG(cur_op, 0).o = MVM_bigint_not(tc, GET_REG(cur_op, 4).o,
+                    GET_REG(cur_op, 2).o);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(blshift_I): {
-                MVMObject *   const type = GET_REG(cur_op, 6).o;
-                GET_REG(cur_op, 0).o = MVM_bigint_shl(tc, type, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
+                GET_REG(cur_op, 0).o = MVM_bigint_shl(tc, GET_REG(cur_op, 6).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
                 cur_op += 8;
                 goto NEXT;
             }
             OP(brshift_I): {
-                MVMObject *   const type = GET_REG(cur_op, 6).o;
-                GET_REG(cur_op, 0).o = MVM_bigint_shr(tc, type, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
+                GET_REG(cur_op, 0).o = MVM_bigint_shr(tc, GET_REG(cur_op, 6).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
                 cur_op += 8;
                 goto NEXT;
             }
@@ -3417,7 +3417,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 10;
                 goto NEXT;
             OP(gcd_I): {
-                GET_REG(cur_op, 0).o = MVM_bigint_gcd(tc, GET_REG(cur_op, 6).o, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                GET_REG(cur_op, 0).o = MVM_bigint_gcd(tc, GET_REG(cur_op, 6).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
             }
@@ -3440,8 +3441,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(rand_I): {
-                MVMObject * const type = GET_REG(cur_op, 4).o;
-                GET_REG(cur_op, 0).o = MVM_bigint_rand(tc, type, GET_REG(cur_op, 2).o);
+                GET_REG(cur_op, 0).o = MVM_bigint_rand(tc, GET_REG(cur_op, 4).o,
+                    GET_REG(cur_op, 2).o);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -3457,8 +3458,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(coerce_nI): {
-                MVMObject *   const type = GET_REG(cur_op, 4).o;
-                GET_REG(cur_op, 0).o = MVM_bigint_from_num(tc, type, GET_REG(cur_op, 2).n64);
+                GET_REG(cur_op, 0).o = MVM_bigint_from_num(tc, GET_REG(cur_op, 4).o,
+                    GET_REG(cur_op, 2).n64);
                 cur_op += 6;
                 goto NEXT;
             }
