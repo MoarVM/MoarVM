@@ -408,8 +408,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     /* Annotate instructions that are handler-significant. */
     for (i = 0; i < g->num_handlers; i++) {
         /* Start or got may be -1 if the code the handler covered became
-         * dead. If so, mark the handler as removed. */
-        if (g->handlers[i].start_offset == -1 || g->handlers[i].goto_offset == -1) {
+         * dead. If so, mark the handler as removed. Ditto if end is
+         * before start (would never match). */
+        if (g->handlers[i].start_offset == -1 || g->handlers[i].goto_offset == -1 ||
+                g->handlers[i].start_offset > g->handlers[i].end_offset) {
             if (!g->unreachable_handlers)
                 g->unreachable_handlers = MVM_spesh_alloc(tc, g, g->num_handlers);
             g->unreachable_handlers[i] = 1;
