@@ -3427,10 +3427,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             OP(expmod_I): {
-                MVMObject *   const type = GET_REG(cur_op, 8).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_expmod(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o);
-                GET_REG(cur_op, 0).o = result;
+                GET_REG(cur_op, 0).o = MVM_bigint_expmod(tc, GET_REG(cur_op, 8).o, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o);
                 cur_op += 10;
                 goto NEXT;
             }
