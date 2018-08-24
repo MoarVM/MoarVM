@@ -110,6 +110,9 @@ struct MVMSpeshGraph {
 
     /* Did we specialize on the invocant type? */
     MVMuint8 specialized_on_invocant;
+
+    /* Do we set a dispatcher? */
+    MVMuint8 sets_dispatcher;
 };
 
 /* A temporary register, added to support transformations. */

@@ -488,6 +488,14 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     rewrite_outer_lookup(tc, inliner, ins, inliner->num_locals,
                         MVM_OP_sp_getlexvia_ins, code_ref_reg);
             }
+            else if (opcode == MVM_OP_takedispatcher) {
+                /* If the inlining code doesn't set a dispatcher, takedispatcher
+                 * in the inlinee can be assumed to always return null. */
+                if (!inliner->sets_dispatcher && !inlinee->sets_dispatcher) {
+                    ins->info = MVM_op_get_op(MVM_OP_null);
+                    ins->operands[0].reg.orig += inliner->num_locals;
+                }
+            }
             else {
                 if (!same_comp_unit) {
                     if (ins->info->opcode == MVM_OP_const_s) {

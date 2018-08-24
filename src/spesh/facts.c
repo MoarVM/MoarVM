@@ -704,6 +704,10 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             g->facts[result.reg.orig][result.reg.i].flags |= MVM_SPESH_FACT_DECONTED;
             break;
         }
+        case MVM_OP_setdispatcher:
+        case MVM_OP_setdispatcherfor:
+            g->sets_dispatcher = 1;
+            break;
         case MVM_OP_sp_guard:
         case MVM_OP_sp_guardconc:
         case MVM_OP_sp_guardtype:
