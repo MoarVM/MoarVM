@@ -474,6 +474,13 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[1].reg.orig, ins->operands[1].reg.i);
             break;
         case MVM_OP_sp_fastcreate:
+        case MVM_OP_sp_fastbox_i:
+        case MVM_OP_sp_fastbox_bi:
+        case MVM_OP_sp_fastbox_i_ic:
+        case MVM_OP_sp_fastbox_bi_ic:
+        case MVM_OP_sp_add_I:
+        case MVM_OP_sp_sub_I:
+        case MVM_OP_sp_mul_I:
             create_facts_with_type(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ((MVMSTable *)g->spesh_slots[ins->operands[2].lit_i16])->WHAT);
