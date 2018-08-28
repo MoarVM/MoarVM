@@ -3,6 +3,8 @@
 #
 use Git::Log;
 use JSON::Fast;
+my $merged-into = "MergedInto";
+my $merged-to   = "MergedTo";
 class ChangelogClassifier {
     has @.keywords;
     has Str $.title;
@@ -82,7 +84,11 @@ multi sub format-output ($thing, ViewOptions:D $viewopts) {
 }
 multi sub format-output ($thing, :$author = False, :$print-modified-files = False, :$print-commit = False, :$print-category = False, :$print-subject-origin = False) {
     my @text;
-    @text.push: "[$thing<ID>.substr(0, 8)]" if $print-commit;
+    if $print-commit {
+        my @all = $thing<ID>;
+        @all.append: $thing{$merged-into} if $thing{$merged-into};
+        @text.push: '[' ~ @all».substr(0, 8).join(',') ~ ']';
+    }
     @text.push: '{' ~ ($thing<CustomCategory> // $thing<AutoCategory> // "???") ~ '}' if $print-category;
     if $print-subject-origin {
         if $thing<CustomSubject> {
@@ -136,7 +142,7 @@ sub do-item ($item, $viewopts, @loggy, %categories, Bool:D :$deep = False) {
     my $not-done = True;
     while ($not-done) {
         say format-output($item, $viewopts);
-        my $response = prompt "MODIFY (e)dit/(d)rop/(c)ategory/d(o)ne/(T)itlecase; PRINT (b)ody/d(i)ff/num-(l)eft/(C)omplete/(U)uncomplete; GOTO (n)ext/(G)oto commit ID; (Q)uit and save or (s)ave: ";
+        my $response = prompt "MODIFY (e)dit/(d)rop/(c)ategory/d(o)ne/(T)itlecase/(m)erge into other commit; PRINT (b)ody/d(i)ff/num-(l)eft/(C)omplete/(U)uncomplete/(D)ump; GOTO (n)ext/(G)oto commit ID; (Q)uit and save or (s)ave: ";
         given $response {
             when 'v' {
                 say "Toggle view options. (m)odified files, (c)ommit, (C)ategory, subject (o)rigin, (a)uthor, (q)uit this menu and go back";
@@ -167,7 +173,7 @@ sub do-item ($item, $viewopts, @loggy, %categories, Bool:D :$deep = False) {
                 }
             }
             when 'l' {
-                say "There are " ~ @loggy.grep({ !$_<dropped> && !$_<done> }).elems ~ " log items left to deal with";
+                say "There are " ~ @loggy.grep({ !$_<dropped> && !$_<done>}).elems ~ " log items left to deal with";
             }
             when 'c' {
                 my @keys = %categories.keys.sort;
@@ -189,6 +195,33 @@ sub do-item ($item, $viewopts, @loggy, %categories, Bool:D :$deep = False) {
 
 
             }
+            when 'D' {
+                say "Dumping this commit:\n";
+                say $item.perl;
+                say "";
+            }
+            sub get-subject ($item) {
+                $item<CustomSubject> // $item<AutoSubject> // $item<Subject>;
+            }
+            # TODO: goto the commit we are merging into so we can edit the subject
+            when 'm' {
+                my $merge-into = prompt "Merge into which commit?: ";
+                my $need = @loggy.first({.<ID>.starts-with($merge-into.trim)});
+                if !$need {
+                    say "\nERROR: Can't find commit $need\n";
+                }
+                elsif $item{$merged-to} && $item{$merged-to}.first(*.starts-with($merge-into.trim)) {
+                    say "\nERROR: This has already been merged into that one\n";
+                }
+                else {
+                    $item{$merged-to}.push: $need<ID>;
+                    $item<done> = True;
+                    $need{$merged-into}.push: $item<ID>;
+                    $need<done> = False;
+                    $need<CustomSubject> = get-subject($need) ~ ', ' ~ get-subject($item);
+                }
+            }
+
             when 'd' {
                 $item<dropped> = "User";
                 $not-done = False;
@@ -224,8 +257,9 @@ sub do-item ($item, $viewopts, @loggy, %categories, Bool:D :$deep = False) {
             when 'C'|'U' {
                 say "";
                 my $proc = run 'less', :in;
-                for @loggy -> $item {
+                for @loggy.reverse -> $item {
                     next if $item<dropped>;
+                    next if $item{$merged-to};
                     if $response eq 'U' {
                         next if $item<done>;
                     }
@@ -303,10 +337,6 @@ sub MAIN (Bool:D :$print-modified-files = False, Bool:D :$print-commit = False) 
         my $has-pushed = False;
         next if !$change<changes>;
         my $main-dir = get-main-dir($change);
-        #if $change<ID>.starts-with("9861e801") {
-        #    say "maindir: «$main-dir»";
-        #    exit;
-        #}
         for @keywords -> $keyword {
             my $val = $keyword.has-keyword($change<Subject>);
             if !$has-pushed && $val {
@@ -355,15 +385,16 @@ sub MAIN (Bool:D :$print-modified-files = False, Bool:D :$print-commit = False) 
     }
     # Remove the expr jit op additions so we can combine them into one entry
     my @new-expr-jit-ops;
-    for %categories<JIT>.list <-> $item {
-        my $result = is-expr-jit($item<Subject>);
-        if $result {
-            @new-expr-jit-ops.append: $result.list;
-            $item<dropped> = 'auto';
-        }
-    }
+    #for %categories<JIT>.list <-> $item {
+    #    my $result = is-expr-jit($item<Subject>);
+    #    if $result {
+    #        @new-expr-jit-ops.append: $result.list;
+    #        $item<dropped> = 'auto';
+    #        $item<dropped>:delete;
+    #    }
+    #}
     my $viewopts = ViewOptions.new;
-    for @loggy -> $item {
+    for @loggy.reverse -> $item {
         next if $item<dropped>;
         next if $item<done>;
         do-item($item, $viewopts, @loggy, %categories);
