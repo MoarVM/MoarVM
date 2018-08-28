@@ -2,6 +2,7 @@
 # This script is meant to automate part of the creation of the ChangeLog.
 #
 use Git::Log;
+use JSON::Fast;
 class ChangelogClassifier {
     has @.keywords;
     has Str $.title;
@@ -19,6 +20,14 @@ class ChangelogClassifier {
         }
         return False;
     }
+}
+class ViewOptions {
+    has Bool:D $.modified-files is rw = True;
+    has Bool:D $.commit is rw         = True;
+    has Bool:D $.category is rw       = True;
+    has Bool:D $.subject-origin is rw = True;
+    has Bool:D $.subject is rw        = True;
+    has Bool:D $.author is rw         = False;
 }
 # @keywords is used to help the categorizer. Keyword is checked first, then
 # the directory (which can be either a string or an array of strings) is checked.
@@ -68,13 +77,81 @@ sub is-expr-jit (Str:D $text) {
     }
     @result;
 }
-sub format-output ($thing, :$print-modified-files = False, :$print-commit = False, :$print-category = False) {
-    ("[$thing<ID>.substr(0, 8)] " if $print-commit) ~
-    ('{' ~ ($thing<CustomCategory> // $thing<AutoCategory> // "???") ~ '} ' if $print-category) ~
-    ($thing<CustomSubject> // $thing<AutoSubject> // $thing<Subject>) ~
-    (" | $thing.<changes>».<filename>.join(", ")" if $thing<changes> && $print-modified-files);
+multi sub format-output ($thing, ViewOptions:D $viewopts) {
+    format-output($thing, :author($viewopts.author), :print-modified-files($viewopts.modified-files), :print-commit($viewopts.commit), :print-category($viewopts.category), :print-subject-origin($viewopts.subject-origin));
+}
+multi sub format-output ($thing, :$author = False, :$print-modified-files = False, :$print-commit = False, :$print-category = False, :$print-subject-origin = False) {
+    my @text;
+    @text.push: "[$thing<ID>.substr(0, 8)]" if $print-commit;
+    @text.push: '{' ~ ($thing<CustomCategory> // $thing<AutoCategory> // "???") ~ '}' if $print-category;
+    if $print-subject-origin {
+        if $thing<CustomSubject> {
+            @text.push: '(Custom)';
+        }
+        elsif $thing<AutoSubject> {
+            @text.push: '(Auto)';
+        }
+        else {
+            @text.push: '(Commit)';
+        }
+    }
+    @text.push: ($thing<CustomSubject> // $thing<AutoSubject> // $thing<Subject>);
+    if $thing<changes> && $print-modified-files {
+        @text.push: '|';
+        @text.push: $thing.<changes>».<filename>.join(", ");
+    }
+    if $author {
+        @text.push: '|';
+        @text.push: $thing<AuthorName>;
+    }
+    @text.join(' ');
 }
 my $dat-file = "updatechangelog.dat";
+sub get-folder-name (Str:D $str) {
+    my @split = $str.split('/');
+    my $result = ((@split - 1 < 2) ?? @split[0] !! @split[0..1]).join('/');
+    $result = $str if $result eq 'src';
+    #say "in: $str out: $result";
+    return $result;
+}
+use Test;
+is get-folder-name("src/strings/foo.c"), "src/strings";
+is get-folder-name("tools/update-changelog.p6"), "tools";
+is get-folder-name("src/moar.c"), "src/moar.c";
+done-testing;
+my $remove-weight = 0.5;
+my $addition-weight = 1;
+my $has-rlwrap;
+sub get-main-dir ($thing) {
+    my %folders;
+    for $thing<changes>.list -> $change {
+        my $folder = get-folder-name($change<filename>);
+        %folders{$folder} += $addition-weight * $change<added> + $remove-weight * $change<removed>;
+    }
+    #say "\%folders.perl: «" ~ %folders.perl ~ "»";
+    %folders.sort(-*.value).first.key;
+}
+sub prompt-it (Str:D $pretext = '') {
+    if !defined $has-rlwrap {
+        my $cmd = run 'which', 'rlwrap', :out, :err;
+        if $cmd.exitcode == 0 {
+            $has-rlwrap = True;
+        }
+        else {
+            $has-rlwrap = False;
+        }
+    }
+    if $has-rlwrap {
+        my $cmd = run 'rlwrap', '-P', $pretext, '-o', 'cat', :out, :err;
+        if $cmd.exitcode == 0 {
+            return $cmd.out.slurp.chomp;
+        }
+        else {
+            note "rlwrap failed with exitcode $cmd.exitcode(), STDERR: $cmd.stderr.slurp()";
+            return Nil;
+        }
+    }
+}
 sub MAIN (Bool:D :$print-modified-files = False, Bool:D :$print-commit = False) {
     my @loggy = git-log "{last-tag()}..master", :get-changes;
     my %categories;
@@ -95,19 +172,25 @@ sub MAIN (Bool:D :$print-modified-files = False, Bool:D :$print-commit = False) 
     for @loggy -> $change {
         my $has-pushed = False;
         next if !$change<changes>;
-        my $main-dir = $change<changes>.sort(-*.<added>).first<filename>;
+        my $main-dir = get-main-dir($change);
+        #if $change<ID>.starts-with("9861e801") {
+        #    say "maindir: «$main-dir»";
+        #    exit;
+        #}
         for @keywords -> $keyword {
             my $val = $keyword.has-keyword($change<Subject>);
             if !$has-pushed && $val {
                 $change<AutoSubject> = $val;
+                $change<AutoCategory> = $keyword.title;
                 #$change<Subject> = $val;
                 %categories{$keyword.title}.push: $change;
                 $has-pushed = True;
             }
         }
         for @keywords -> $keyword {
-            if !$has-pushed && $keyword.directory && $main-dir.starts-with($keyword.directory) {
+            if !$has-pushed && $keyword.directory && $main-dir eq $keyword.directory {
                 %categories{$keyword.title}.push: $change;
+                $change<AutoCategory> = $keyword.title;
                 $has-pushed = True;
             }
         }
@@ -149,17 +232,40 @@ sub MAIN (Bool:D :$print-modified-files = False, Bool:D :$print-commit = False) 
             $item<dropped> = 'auto';
         }
     }
+    my $viewopts = ViewOptions.new;
     for @loggy -> $item {
         next if $item<dropped>;
         next if $item<done>;
         my $not-done = True;
         while ($not-done) {
-            say format-output($item, :print-modified-files, :print-commit, :print-category);
-            my $response = prompt "(e)dit/(d)rop/(c)ategory/(n)ext/d(o)ne or print (b)ody/d(i)ff/num-(l)eft or (Q)uit and save or (s)ave: ";
+            say format-output($item, $viewopts);
+            my $response = prompt "(e)dit/(d)rop/(c)ategory/(n)ext/d(o)ne/(T)itlecase or print (b)ody/d(i)ff/num-(l)eft or (Q)uit and save or (s)ave: ";
             given $response {
+                when 'v' {
+                    say "Toggle view options. (m)odified files, (c)ommit, (C)ategory, subject (o)rigin, (a)uthor, (q)uit this menu and go back";
+                    my $result = prompt;
+                    given $result.trim {
+                        when 'm' {
+                            $viewopts.modified-files = !$viewopts.modified-files;
+                        }
+                        when 'c' {
+                            $viewopts.commit = !$viewopts.commit;
+                        }
+                        when 'C' {
+                            $viewopts.category = !$viewopts.category;
+                        }
+                        when 'o' {
+                            $viewopts.origin = !$viewopts.origin;
+                        }
+                        when 'a' {
+                            $viewopts.author = !$viewopts.author;
+                        }
+                    }
+                }
                 when 'e' {
-                    my $result = prompt "Enter a new line q to cancel: ";
-                    if $result.trim.lc ne 'q' {
+                    say "Enter a new line q to cancel: ";
+                    my $result = prompt-it $item<CustomSubject> // $item<AutoSubject> // $item<Subject>;
+                    if $result.trim.lc ne 'q' && $result.trim ne '' {
                         $item<CustomSubject> = $result;
                     }
                 }
@@ -204,8 +310,7 @@ sub MAIN (Bool:D :$print-modified-files = False, Bool:D :$print-commit = False) 
                     $not-done = False;
                 }
                 # save
-                when / <[sS]> | Q / {
-                    use JSON::Fast;
+                when / <[s]> | Q / {
                     my %hash;
                     for @loggy -> $ite {
                         %hash{$ite<ID>} = $ite;
@@ -216,6 +321,21 @@ sub MAIN (Bool:D :$print-modified-files = False, Bool:D :$print-commit = False) 
                     }
 
                 }
+                when 'T' {
+                    $item<CustomSubject> = ($item<CustomSubject> // $item<AutoSubject> // $item<Subject>).tc;
+                }
+                when 'S' {
+                    say "";
+                    my $proc = run 'less', :in;
+                    for @loggy -> $item {
+                        next if $item<dropped>;
+                        next unless $item<done>;
+                        $proc.in.say(format-output($item, $viewopts));
+                    }
+                    $proc.in.close;
+                    say "";
+                }
+
 
             }
         }
