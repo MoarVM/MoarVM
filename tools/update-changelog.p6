@@ -131,6 +131,136 @@ sub get-main-dir ($thing) {
     #say "\%folders.perl: «" ~ %folders.perl ~ "»";
     %folders.sort(-*.value).first.key;
 }
+# TODO remove %categories
+sub do-item ($item, $viewopts, @loggy, %categories, Bool:D :$deep = False) {
+    my $not-done = True;
+    while ($not-done) {
+        say format-output($item, $viewopts);
+        my $response = prompt "MODIFY (e)dit/(d)rop/(c)ategory/d(o)ne/(T)itlecase; PRINT (b)ody/d(i)ff/num-(l)eft/(C)omplete/(U)uncomplete; GOTO (n)ext/(G)oto commit ID; (Q)uit and save or (s)ave: ";
+        given $response {
+            when 'v' {
+                say "Toggle view options. (m)odified files, (c)ommit, (C)ategory, subject (o)rigin, (a)uthor, (q)uit this menu and go back";
+                my $result = prompt;
+                given $result.trim {
+                    when 'm' {
+                        $viewopts.modified-files = !$viewopts.modified-files;
+                    }
+                    when 'c' {
+                        $viewopts.commit = !$viewopts.commit;
+                    }
+                    when 'C' {
+                        $viewopts.category = !$viewopts.category;
+                    }
+                    when 'o' {
+                        $viewopts.origin = !$viewopts.origin;
+                    }
+                    when 'a' {
+                        $viewopts.author = !$viewopts.author;
+                    }
+                }
+            }
+            when 'e' {
+                say "Enter a new line q to cancel: ";
+                my $result = prompt-it $item<CustomSubject> // $item<AutoSubject> // $item<Subject>;
+                if $result.trim.lc ne 'q' && $result.trim ne '' {
+                    $item<CustomSubject> = $result;
+                }
+            }
+            when 'l' {
+                say "There are " ~ @loggy.grep({ !$_<dropped> && !$_<done> }).elems ~ " log items left to deal with";
+            }
+            when 'c' {
+                my @keys = %categories.keys.sort;
+                say "\n" ~ @keys.map({ state $foo = 0; "({$foo++}) $_"}).join(' ');
+                my $result = prompt "Enter a category number OR type text to set a new category or (b) to go back: \n";
+                if $result.trim eq 'b' {
+
+                }
+                elsif $result ~~ /^\d+$/ && $result < @keys.elems {
+                    $item<CustomCategory> = @keys[$result];
+                }
+                # TODO handle custom setting
+                elsif $result.trim.chars <= 2 {
+                    say "Refusing to set a category less than 2 characters. Assuming you made a mistake.";
+                }
+                else {
+                    say "Didn't know what '$result' is."
+                }
+
+
+            }
+            when 'd' {
+                $item<dropped> = "User";
+                $not-done = False;
+            }
+            when 'i' {
+                run 'git', 'log', '-p', $item<ID>;
+            }
+            when 'b' {
+                say "\n" ~ $item<Body>;
+            }
+            when 'n' {
+                $not-done = False;
+            }
+            when 'o' {
+                $item<done> = True;
+                $not-done = False;
+            }
+            # save
+            when 's' | 'Q' {
+                my %hash;
+                for @loggy -> $ite {
+                    %hash{$ite<ID>} = $ite;
+                }
+                spurt "updatechangelog.dat", to-json(%hash);
+                if $response ~~ /Q/ {
+                    exit;
+                }
+
+            }
+            when 'T' {
+                $item<CustomSubject> = ($item<CustomSubject> // $item<AutoSubject> // $item<Subject>).tc;
+            }
+            when 'C'|'U' {
+                say "";
+                my $proc = run 'less', :in;
+                for @loggy -> $item {
+                    next if $item<dropped>;
+                    if $response eq 'U' {
+                        next if $item<done>;
+                    }
+                    else {
+                        next if !$item<done>;
+                    }
+                    $proc.in.say(format-output($item, $viewopts));
+                }
+                $proc.in.close;
+                say "";
+            }
+            when 'G' {
+                my $wanted-commit = prompt "Enter the desired commit ID: ";
+                my $need = @loggy.first({.<ID>.starts-with($wanted-commit.trim)});
+                if $need {
+                    if !$deep {
+                        while ($need) {
+                            $need = do-item $need, $viewopts, @loggy, %categories, :deep;
+                        }
+                    }
+                    # We are already one deep so return it to continue
+                    else {
+                        return $need;
+                    }
+                }
+                else {
+                    say "Can't find commit $wanted-commit";
+                }
+            }
+
+
+        }
+    }
+    Nil;
+}
 sub prompt-it (Str:D $pretext = '') {
     if !defined $has-rlwrap {
         my $cmd = run 'which', 'rlwrap', :out, :err;
@@ -236,111 +366,7 @@ sub MAIN (Bool:D :$print-modified-files = False, Bool:D :$print-commit = False) 
     for @loggy -> $item {
         next if $item<dropped>;
         next if $item<done>;
-        my $not-done = True;
-        while ($not-done) {
-            say format-output($item, $viewopts);
-            my $response = prompt "(e)dit/(d)rop/(c)ategory/(n)ext/d(o)ne/(T)itlecase or print (b)ody/d(i)ff/num-(l)eft or (Q)uit and save or (s)ave: ";
-            given $response {
-                when 'v' {
-                    say "Toggle view options. (m)odified files, (c)ommit, (C)ategory, subject (o)rigin, (a)uthor, (q)uit this menu and go back";
-                    my $result = prompt;
-                    given $result.trim {
-                        when 'm' {
-                            $viewopts.modified-files = !$viewopts.modified-files;
-                        }
-                        when 'c' {
-                            $viewopts.commit = !$viewopts.commit;
-                        }
-                        when 'C' {
-                            $viewopts.category = !$viewopts.category;
-                        }
-                        when 'o' {
-                            $viewopts.origin = !$viewopts.origin;
-                        }
-                        when 'a' {
-                            $viewopts.author = !$viewopts.author;
-                        }
-                    }
-                }
-                when 'e' {
-                    say "Enter a new line q to cancel: ";
-                    my $result = prompt-it $item<CustomSubject> // $item<AutoSubject> // $item<Subject>;
-                    if $result.trim.lc ne 'q' && $result.trim ne '' {
-                        $item<CustomSubject> = $result;
-                    }
-                }
-                when 'l' {
-                    say "There are " ~ @loggy.grep({ !$_<dropped> && !$_<done> }).elems ~ " log items left to deal with";
-                }
-                when 'c' {
-                    my @keys = %categories.keys.sort;
-                    say "\n" ~ @keys.map({ state $foo = 0; "({$foo++}) $_"}).join(' ');
-                    my $result = prompt "Enter a category number OR type text to set a new category or (b) to go back: \n";
-                    if $result.trim eq 'b' {
-
-                    }
-                    elsif $result ~~ /^\d+$/ && $result < @keys.elems {
-                        $item<CustomCategory> = @keys[$result];
-                    }
-                    # TODO handle custom setting
-                    elsif $result.trim.chars <= 2 {
-                        say "Refusing to set a category less than 2 characters. Assuming you made a mistake.";
-                    }
-                    else {
-                        say "Didn't know what '$result' is."
-                    }
-
-
-                }
-                when 'd' {
-                    $item<dropped> = "User";
-                    $not-done = False;
-                }
-                when 'i' {
-                    run 'git', 'log', '-p', $item<ID>;
-                }
-                when 'b' {
-                    say "\n" ~ $item<Body>;
-                }
-                when 'n' {
-                    $not-done = False;
-                }
-                when 'o' {
-                    $item<done> = True;
-                    $not-done = False;
-                }
-                # save
-                when / <[s]> | Q / {
-                    my %hash;
-                    for @loggy -> $ite {
-                        %hash{$ite<ID>} = $ite;
-                    }
-                    spurt "updatechangelog.dat", to-json(%hash);
-                    if $response ~~ /Q/ {
-                        exit;
-                    }
-
-                }
-                when 'T' {
-                    $item<CustomSubject> = ($item<CustomSubject> // $item<AutoSubject> // $item<Subject>).tc;
-                }
-                when 'S' {
-                    say "";
-                    my $proc = run 'less', :in;
-                    for @loggy -> $item {
-                        next if $item<dropped>;
-                        next unless $item<done>;
-                        $proc.in.say(format-output($item, $viewopts));
-                    }
-                    $proc.in.close;
-                    say "";
-                }
-
-
-            }
-        }
-
-
+        do-item($item, $viewopts, @loggy, %categories);
     }
     my $has-outputted-expr-jit-ops = False;
     for %categories.keys.sort -> $key {
