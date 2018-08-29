@@ -112,6 +112,12 @@ multi sub format-output ($thing, :$author = False, :$print-modified-files = Fals
     }
     @text.join(' ');
 }
+sub get-subject ($item) {
+    $item<CustomSubject> // $item<AutoSubject> // $item<Subject>;
+}
+sub get-category ($item) {
+    $item<CustomCategory> // $item<AutoCategory> // "???";
+}
 my $dat-file = "updatechangelog.dat";
 sub get-folder-name (Str:D $str) {
     my @split = $str.split('/');
@@ -142,7 +148,7 @@ sub do-item ($item, $viewopts, @loggy, %categories, Bool:D :$deep = False) {
     my $not-done = True;
     while ($not-done) {
         say format-output($item, $viewopts);
-        my $response = prompt "MODIFY (e)dit/(d)rop/(c)ategory/d(o)ne/(T)itlecase/(m)erge into other commit; PRINT (b)ody/d(i)ff/num-(l)eft/(C)omplete/(U)uncomplete/(D)ump; GOTO (n)ext/(G)oto commit ID; (Q)uit and save or (s)ave: ";
+        my $response = prompt "MODIFY (e)dit/(d)rop/(c)ategory/d(o)ne/(T)itlecase/[(m)erge into other commit]/[change (v)iew opts]; PRINT (b)ody/d(i)ff/num-(l)eft/(D)ump/(C)omplete/(U)uncomplete; GOTO (n)ext/(G)oto commit ID; (Q)uit and save or (s)ave: ";
         given $response {
             when 'v' {
                 say "Toggle view options. (m)odified files, (c)ommit, (C)ategory, subject (o)rigin, (a)uthor, (q)uit this menu and go back";
@@ -158,7 +164,7 @@ sub do-item ($item, $viewopts, @loggy, %categories, Bool:D :$deep = False) {
                         $viewopts.category = !$viewopts.category;
                     }
                     when 'o' {
-                        $viewopts.origin = !$viewopts.origin;
+                        $viewopts.subject-origin = !$viewopts.subject-origin;
                     }
                     when 'a' {
                         $viewopts.author = !$viewopts.author;
@@ -180,17 +186,22 @@ sub do-item ($item, $viewopts, @loggy, %categories, Bool:D :$deep = False) {
                 say "\n" ~ @keys.map({ state $foo = 0; "({$foo++}) $_"}).join(' ');
                 my $result = prompt "Enter a category number OR type text to set a new category or (b) to go back: \n";
                 if $result.trim eq 'b' {
-
+                    say "\nGoing back\n";
                 }
                 elsif $result ~~ /^\d+$/ && $result < @keys.elems {
                     $item<CustomCategory> = @keys[$result];
+                    say "\nSet to $item<CustomCategory>\n";
                 }
                 # TODO handle custom setting
                 elsif $result.trim.chars <= 2 {
-                    say "Refusing to set a category less than 2 characters. Assuming you made a mistake.";
+                    say "\nRefusing to set a category less than 2 characters. Assuming you made a mistake.\n";
                 }
                 else {
-                    say "Didn't know what '$result' is."
+                    say "\nDidn't know what '$result' is.\n";
+                    my $res = prompt "Add custom category called '$result'? y/n: ";
+                    if $res.trim.lc eq 'y' {
+                        $item<CustomCategory> = $result.trim;
+                    }
                 }
 
 
@@ -199,9 +210,6 @@ sub do-item ($item, $viewopts, @loggy, %categories, Bool:D :$deep = False) {
                 say "Dumping this commit:\n";
                 say $item.perl;
                 say "";
-            }
-            sub get-subject ($item) {
-                $item<CustomSubject> // $item<AutoSubject> // $item<Subject>;
             }
             # TODO: goto the commit we are merging into so we can edit the subject
             when 'm' {
@@ -254,19 +262,32 @@ sub do-item ($item, $viewopts, @loggy, %categories, Bool:D :$deep = False) {
             when 'T' {
                 $item<CustomSubject> = ($item<CustomSubject> // $item<AutoSubject> // $item<Subject>).tc;
             }
-            when 'C'|'U' {
+            when 'C'|'U'|'Cs'|'Us'|'UsS'|'CsS' {
                 say "";
-                my $proc = run 'less', :in;
+                my $proc = $response.contains('S') ?? run 'tee', 'out.txt', :in !! run 'less', :in;
+                my %categories;
                 for @loggy.reverse -> $item {
                     next if $item<dropped>;
                     next if $item{$merged-to};
-                    if $response eq 'U' {
+                    if $response.starts-with('U') {
                         next if $item<done>;
                     }
                     else {
                         next if !$item<done>;
                     }
-                    $proc.in.say(format-output($item, $viewopts));
+                    if $response.contains('s') {
+                        %categories{get-category($item)}.push: $item;
+                    }
+                    else {
+                        $proc.in.say(format-output($item, $viewopts));
+                    }
+                }
+                if $response.contains('s') {
+                    for %categories.keys.sort -> $key {
+                        for %categories{$key}.list -> $item {
+                            $proc.in.say(format-output($item, $viewopts));
+                        }
+                    }
                 }
                 $proc.in.close;
                 say "";
