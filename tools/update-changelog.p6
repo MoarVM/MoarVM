@@ -338,7 +338,7 @@ sub prompt-it (Str:D $pretext = '') {
     }
 }
 sub MAIN (Bool:D :$print-modified-files = False, Bool:D :$print-commit = False) {
-    my @loggy = git-log "{last-tag()}..master", :get-changes;
+    my @loggy = git-log '--topo-order', "{last-tag()}..master", :get-changes;
     my %categories;
     if $dat-file.IO.f {
         my $answer = 'y';
