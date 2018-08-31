@@ -19,9 +19,9 @@
 
 (template: set (copy $1))
 
-(template: trunc_i8!  (store $0 $1 1))
-(template: trunc_i16! (store $0 $1 2))
-(template: trunc_i32! (store $0 $1 4))
+(template: trunc_i8!  (store \$0 $1 1))
+(template: trunc_i16! (store \$0 $1 2))
+(template: trunc_i32! (store \$0 $1 4))
 
 (template: goto (branch $0))
 
@@ -34,7 +34,7 @@
     (branch $1)))
 
 (template: getlex (copy $1))
-(template: bindlex! (store $0 $1 reg_sz))
+(template: bindlex! (store \$0 $1 reg_sz))
 
 (template: getlex_ni
   (load
@@ -119,16 +119,16 @@
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)
-      (carg $0 ptr))))
+      (carg \$0 ptr))))
 
 (template: smrt_strify!
   (callv (^func &MVM_coerce_smart_stringify)
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)
-      (carg $0 ptr))))
+      (carg \$0 ptr))))
 
-(template: checkarity!
+(template: checkarity
   (callv (^func &MVM_args_checkarity)
     (arglist
       (carg (tc) ptr)
@@ -199,7 +199,7 @@
       (carg $0 ptr)
       (carg $1 ptr))))
 
-(template: bindexcategory!
+(template: bindexcategory
   (callv (^func &MVM_bind_exception_category)
     (arglist
       (carg (tc) ptr)
@@ -223,7 +223,7 @@
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)
-      (carg $0 ptr))))
+      (carg \$0 ptr))))
 
 (template: backtracestrings
   (call (^func &MVM_exception_backtrace_strings)
@@ -513,7 +513,7 @@
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
 
-(template: setbuffersize_fh!
+(template: setbuffersize_fh
   (callv (^func &MVM_io_set_buffer_size)
     (arglist
       (carg (tc) ptr)
@@ -561,7 +561,7 @@
       (carg $2 ptr)
       (carg $3 int)) ptr_sz))
 
-(template: nfarunalt!
+(template: nfarunalt
   (callv (^func &MVM_nfa_run_alt)
     (arglist
       (carg (tc) ptr)
@@ -630,7 +630,7 @@
       (carg (tc) ptr)
       (carg $1   ptr)
       (carg (^cu_string $2) ptr)
-      (carg $0   ptr)
+      (carg \$0  ptr)
       (carg (const 1 int_sz) int))))
 
 (template: findmeth_s!
@@ -639,7 +639,7 @@
       (carg (tc) ptr)
       (carg $1   ptr)
       (carg $2   ptr)
-      (carg $0   ptr)
+      (carg \$0  ptr)
       (carg (const 1 int_sz) int))))
 
 (template: can!
@@ -648,7 +648,7 @@
       (carg (tc) ptr)
       (carg $1 ptr)
       (carg (^cu_string $2) ptr)
-      (carg $0 ptr))))
+      (carg \$0 ptr))))
 
 (template: can_s!
   (callv (^func &MVM_6model_can_method)
@@ -656,7 +656,7 @@
       (carg (tc) ptr)
       (carg $1   ptr)
       (carg $2   ptr)
-      (carg $0   ptr))))
+      (carg \$0  ptr))))
 
 (template: create!
   (let: (($obj (call (^getf (^repr $1) MVMREPROps allocate)
@@ -672,7 +672,7 @@
             (carg (^stable $obj) ptr)
             (carg $obj ptr)
             (carg (^body $obj) ptr))))
-      (store $0 $obj ptr_sz))))
+      (store \$0 $obj ptr_sz))))
 
 (template: isconcrete
   (if (all
@@ -687,7 +687,7 @@
       (carg (tc) ptr)
       (carg $1 ptr)
       (carg $2 ptr)
-      (carg $0 ptr))))
+      (carg \$0 ptr))))
 
 (template: gethow
   (let: (($how (^getf (^stable $1) MVMSTable HOW)))
@@ -718,7 +718,7 @@
       (carg (tc) ptr)
       (carg $1 int)
       (carg $2 ptr)
-      (carg $0 ptr))))
+      (carg \$0 ptr))))
 
 (template: box_s!
   (callv (^func &MVM_box_str)
@@ -726,7 +726,7 @@
       (carg (tc) ptr)
       (carg $1 ptr)
       (carg $2 ptr)
-      (carg $0 ptr))))
+      (carg \$0 ptr))))
 
 (template: unbox_s
   (call (^func &MVM_unbox_str)
@@ -742,7 +742,7 @@
       (carg $1 ptr)
       (carg (^body $1) ptr)
       (carg $2 int)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_int64) int_sz) int))))
 
 (template: atpos_n!
@@ -753,7 +753,7 @@
       (carg $1 ptr)
       (carg (^body $1) ptr)
       (carg $2 int)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_num64) int_sz) int))))
 
 (template: atpos_s!
@@ -764,7 +764,7 @@
       (carg $1 ptr)
       (carg (^body $1) ptr)
       (carg $2 int)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_str) int_sz) int))))
 
 #  REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
@@ -772,7 +772,7 @@
 #       &GET_REG(cur_op, 0), MVM_reg_obj);
 (template: atpos_o!
   (ifv (^is_type_obj $1)
-    (store $0 (^vmnull) ptr_sz)
+    (store \$0 (^vmnull) ptr_sz)
     (callv (^getf (^repr $1) MVMREPROps pos_funcs.at_pos)
       (arglist
         (carg (tc) ptr)
@@ -780,10 +780,10 @@
         (carg $1 ptr)
         (carg (^body $1) ptr)
         (carg $2 int)
-        (carg $0 ptr)
+        (carg \$0 ptr)
         (carg (const (&QUOTE MVM_reg_obj) int_sz) int)))))
 
-(template: bindpos_i!
+(template: bindpos_i
   (dov
     (callv (^getf (^repr $0) MVMREPROps pos_funcs.bind_pos)
       (arglist
@@ -799,13 +799,13 @@
         (carg (tc) ptr)
         (carg $0 ptr)))))
 
-(template: bindpos_n!
+(template: bindpos_n
   (dov
     (callv (^getf (^repr $0) MVMREPROps pos_funcs.bind_pos)
       (arglist
         (carg (tc) ptr)
         (carg (^stable $0) ptr)
-        (carg $0 ptr)
+        (carg \$0 ptr)
         (carg (^body $0) ptr)
         (carg $1 ptr)
         (carg $2 ptr)
@@ -815,7 +815,7 @@
         (carg (tc) ptr)
         (carg $0 ptr)))))
 
-(template: bindpos_s!
+(template: bindpos_s
   (dov
     (callv (^getf (^repr $0) MVMREPROps pos_funcs.bind_pos)
       (arglist
@@ -831,7 +831,7 @@
         (carg (tc) ptr)
         (carg $0 ptr)))))
 
-(template: bindpos_o!
+(template: bindpos_o
   (dov
     (callv (^getf (^repr $0) MVMREPROps pos_funcs.bind_pos)
       (arglist
@@ -847,7 +847,7 @@
         (carg (tc) ptr)
         (carg $0 ptr)))))
 
-(template: push_i!
+(template: push_i
   (dov
     (callv (^getf (^repr $0) MVMREPROps pos_funcs.push)
       (arglist
@@ -862,7 +862,7 @@
         (carg (tc) ptr)
         (carg $0 ptr)))))
 
-(template: push_n!
+(template: push_n
   (dov
     (callv (^getf (^repr $0) MVMREPROps pos_funcs.push)
       (arglist
@@ -877,7 +877,7 @@
         (carg (tc) ptr)
         (carg $0 ptr)))))
 
-(template: push_s!
+(template: push_s
   (dov
     (callv (^getf (^repr $0) MVMREPROps pos_funcs.push)
       (arglist
@@ -892,7 +892,7 @@
         (carg (tc) ptr)
         (carg $0 ptr)))))
 
-(template: push_o!
+(template: push_o
   (dov
     (callv (^getf (^repr $0) MVMREPROps pos_funcs.push)
       (arglist
@@ -914,7 +914,7 @@
       (carg (^stable $1) ptr)
       (carg $1 ptr)
       (carg (^body $1) ptr)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_int64) int_sz) int))))
 
 (template: pop_n!
@@ -924,7 +924,7 @@
       (carg (^stable $1) ptr)
       (carg $1 ptr)
       (carg (^body $1) ptr)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_num64) int_sz) int))))
 
 (template: pop_s!
@@ -934,7 +934,7 @@
       (carg (^stable $1) ptr)
       (carg $1 ptr)
       (carg (^body $1) ptr)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_str) int_sz) int))))
 
 (template: pop_o!
@@ -944,7 +944,7 @@
       (carg (^stable $1) ptr)
       (carg $1 ptr)
       (carg (^body $1) ptr)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_obj) int_sz) int))))
 
 (template: shift_i!
@@ -954,7 +954,7 @@
       (carg (^stable $1) ptr)
       (carg $1 ptr)
       (carg (^body $1) ptr)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_int64) int_sz) int))))
 
 (template: shift_n!
@@ -964,7 +964,7 @@
       (carg (^stable $1) ptr)
       (carg $1 ptr)
       (carg (^body $1) ptr)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_num64) int_sz) int))))
 
 (template: shift_s!
@@ -974,7 +974,7 @@
       (carg (^stable $1) ptr)
       (carg $1 ptr)
       (carg (^body $1) ptr)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_str) int_sz) int))))
 
 (template: shift_o!
@@ -984,21 +984,21 @@
       (carg (^stable $1) ptr)
       (carg $1 ptr)
       (carg (^body $1) ptr)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_obj) int_sz) int))))
 
-(template: splice!
+(template: splice
   (callv (^getf (^repr $0) MVMREPROps pos_funcs.splice)
     (arglist
       (carg (tc) ptr)
       (carg (^stable $0) ptr)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (^body $0) ptr)
       (carg $1 ptr)
       (carg $2 int)
       (carg $3 int))))
 
-(template: setelemspos!
+(template: setelemspos
   (callv (^getf (^repr $0) MVMREPROps pos_funcs.set_elems)
     (arglist
       (carg (tc) ptr)
@@ -1008,43 +1008,44 @@
       (carg $1 int))))
 
 (template: atkey_i!
-  (callv (^getf (^repr $0) MVMREPROps ass_funcs.at_key)
+  (callv (^getf (^repr $1) MVMREPROps ass_funcs.at_key)
     (arglist
       (carg (tc) ptr)
       (carg (^stable $1) ptr)
       (carg $1 ptr)
       (carg (^body $1) ptr)
       (carg $2 ptr)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_int64) int_sz) int))))
 
+
 (template: atkey_n!
-  (callv (^getf (^repr $0) MVMREPROps ass_funcs.at_key)
+  (callv (^getf (^repr $1) MVMREPROps ass_funcs.at_key)
     (arglist
       (carg (tc) ptr)
       (carg (^stable $1) ptr)
       (carg $1 ptr)
       (carg (^body $1) ptr)
       (carg $2 ptr)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_num64) int_sz) int))))
 
 (template: atkey_s!
-  (callv (^getf (^repr $0) MVMREPROps ass_funcs.at_key)
+  (callv (^getf (^repr $1) MVMREPROps ass_funcs.at_key)
     (arglist
       (carg (tc) ptr)
       (carg (^stable $1) ptr)
       (carg $1 ptr)
       (carg (^body $1) ptr)
       (carg $2 ptr)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_str) int_sz) int))))
 
 #  REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
 #       (MVMObject *)GET_REG(cur_op, 4).s, &GET_REG(cur_op, 0), MVM_reg_obj);
 (template: atkey_o!
   (ifv (^is_type_obj $1)
-    (store $0 (^vmnull) ptr_sz)
+    (store \$0 (^vmnull) ptr_sz)
     (callv (^getf (^repr $1) MVMREPROps ass_funcs.at_key)
       (arglist
         (carg (tc) ptr)
@@ -1052,10 +1053,10 @@
         (carg $1 ptr)
         (carg (^body $1) ptr)
         (carg $2 ptr)
-        (carg $0 ptr)
+        (carg \$0 ptr)
         (carg (const (&QUOTE MVM_reg_obj) int_sz) int)))))
 
-(template: bindkey_i!
+(template: bindkey_i
   (dov
     (callv (^getf (^repr $0) MVMREPROps ass_funcs.bind_key)
       (arglist
@@ -1071,7 +1072,7 @@
         (carg (tc) ptr)
         (carg $0 ptr)))))
 
-(template: bindkey_n!
+(template: bindkey_n
   (dov
     (callv (^getf (^repr $0) MVMREPROps ass_funcs.bind_key)
       (arglist
@@ -1087,7 +1088,7 @@
         (carg (tc) ptr)
         (carg $0 ptr)))))
 
-(template: bindkey_s!
+(template: bindkey_s
   (dov
     (callv (^getf (^repr $0) MVMREPROps ass_funcs.bind_key)
       (arglist
@@ -1103,7 +1104,7 @@
         (carg (tc) ptr)
         (carg $0 ptr)))))
 
-(template: bindkey_o!
+(template: bindkey_o
   (dov
     (callv (^getf (^repr $0) MVMREPROps ass_funcs.bind_key)
       (arglist
@@ -1164,7 +1165,7 @@
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (^nullptr) ptr)
       (carg (^nullptr) ptr)
       (carg (const 0 int_sz) int))))
@@ -1174,7 +1175,7 @@
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (^nullptr) ptr)
       (carg (^nullptr) ptr)
       (carg (const 1 int_sz) int))))
@@ -1253,14 +1254,14 @@
       (carg $1   ptr)
       (carg $2   ptr)) ptr_sz))
 
-(template: settypehll!
+(template: settypehll
   (^setf (^stable $0) MVMSTable hll_owner
     (call (^func &MVM_hll_get_config_for)
       (arglist
         (carg (tc) ptr)
         (carg $1 ptr)) ptr_sz)))
 
-(template: settypehllrole!
+(template: settypehllrole
   (^setf (^stable $0) MVMSTable hll_role $1))
 
 (template: hllize!
@@ -1271,7 +1272,7 @@
       (carg (call (^func &MVM_hll_current)
               (arglist
                 (carg (tc) ptr)) ptr_sz) ptr)
-      (carg $0 ptr))))
+      (carg \$0 ptr))))
 
 (template: hllizefor!
   (callv (^func &MVM_hll_map)
@@ -1282,7 +1283,7 @@
               (arglist
                 (carg (tc) ptr)
                 (carg $2   ptr)) ptr_sz) ptr)
-      (carg $0 ptr))))
+      (carg \$0 ptr))))
 
 (template: iter
   (call (^func &MVM_iter)
@@ -1322,7 +1323,7 @@
     (flagval (nz (^getf (^stable $1) MVMSTable invocation_spec)))
     (const 1 int_sz)))
 
-(template: setdispatcher!
+(template: setdispatcher
   (dov
     (^setf (tc) MVMThreadContext cur_dispatcher $0)
     (^setf (tc) MVMThreadContext cur_dispatcher_for (^nullptr))))
@@ -1352,12 +1353,12 @@
          (zr $1)
          (^is_type_obj $1)
          (zr (^getf (^stable $1) MVMSTable container_spec)))
-    (store $0 $1 ptr_sz)
+    (store \$0 $1 ptr_sz)
     (callv (^stable_cont_func $1 fetch)
       (arglist
         (carg (tc) ptr)
         (carg $1 ptr)
-        (carg $0 ptr)))))
+        (carg \$0 ptr)))))
 
 (template: sha1
   (call (^func &MVM_sha1)
@@ -1596,11 +1597,11 @@
                    (carg (tc) ptr)
                    (carg $4   ptr)) ptr_sz)))
     (dov
-      (store $0 $res ptr_sz)
+      (store \$0 $res ptr_sz)
       (callv (^func &MVM_bigint_expmod)
         (arglist
           (carg (tc) ptr)
-          (carg $0   ptr)
+          (carg $res ptr)
           (carg $1   ptr)
           (carg $2   ptr)
           (carg $3   ptr))))))
@@ -1649,9 +1650,9 @@
   (callv (^func &MVM_io_connect)
     (arglist
       (carg (tc) ptr)
+      (carg $0   ptr)
       (carg $1   ptr)
-      (carg $2   ptr)
-      (carg $3   int))))
+      (carg $2   int))))
 
 (template: socket
   (call (^func &MVM_io_socket_create)
@@ -1706,7 +1707,7 @@
       (carg (tc) ptr)
       (carg $1   ptr)
       (carg (^cu_string $2) ptr)
-      (carg $0   ptr)
+      (carg \$0  ptr)
       (carg (const 0 int_sz) int))))
 
 (template: tryfindmeth_s!
@@ -1715,7 +1716,7 @@
       (carg (tc) ptr)
       (carg $1   ptr)
       (carg $2   ptr)
-      (carg $0   ptr)
+      (carg \$0  ptr)
       (carg (const 0 int_sz) int))))
 
 (template: rand_i
@@ -1770,7 +1771,7 @@
       (carg $1   ptr)
       (carg $2   ptr)) ptr_sz))
 
-(template: assertparamcheck!
+(template: assertparamcheck
   (when (zr $0)
     (callv (^func &MVM_args_bind_failed)
       (arglist
@@ -1882,7 +1883,7 @@
       (carg $4 int)
       (carg $5 ptr)) ptr_sz))
 
-(template: cancel!
+(template: cancel
   (callv (^func &MVM_io_eventloop_cancel_work)
     (arglist
       (carg (tc) ptr)
@@ -2009,7 +2010,7 @@
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)
-      (carg $0 ptr))))
+      (carg \$0 ptr))))
 
 (template: getrusage
   (callv (^func &MVM_proc_getrusage)
@@ -2081,7 +2082,8 @@
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)
-      (carg $0 ptr))))
+      (carg \$0 ptr))))
+
 (template: lastexpayload
   (^getf (tc) MVMThreadContext last_payload))
 
@@ -2095,7 +2097,7 @@
       (carg $4 int)
       (carg $5 int)) int_sz))
 
-(template: setdispatcherfor!
+(template: setdispatcherfor
   (dov
     (^setf (tc) MVMThreadContext cur_dispatcher $0)
     (^setf (tc) MVMThreadContext cur_dispatcher_for
@@ -2203,7 +2205,7 @@
       ptr_sz))
     ($initialize (^getf (^repr $1) MVMREPROps initialize)))
     (dov
-      (store $0 $dest ptr_sz)
+      (store \$0 $dest ptr_sz)
       (when (nz $initialize)
         (callv $initialize
           (arglist
@@ -2222,14 +2224,14 @@
           (carg $3           int))))))
 
 (template: atkey_u!
-  (callv (^getf (^repr $0) MVMREPROps ass_funcs.at_key)
+  (callv (^getf (^repr $1) MVMREPROps ass_funcs.at_key)
     (arglist
       (carg (tc) ptr)
       (carg (^stable $1) ptr)
       (carg $1 ptr)
       (carg (^body $1) ptr)
       (carg $2 ptr)
-      (carg $0 ptr)
+      (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_uint64) int_sz) int))))
 
 (template: sp_resolvecode
@@ -2247,8 +2249,8 @@
       (arglist
         (carg (tc) ptr)
         (carg $1 ptr)
-        (carg $0 ptr)))
-    (store $0 $1 ptr_sz)))
+        (carg \$0 ptr)))
+    (store \$0 $1 ptr_sz)))
 
 (template: sp_getarg_o (load (^parg $1) ptr_sz))
 (template: sp_getarg_i (load (^parg $1) int_sz))
@@ -2265,7 +2267,7 @@
     (^setf $block MVMObject st (^spesh_slot_value $2))
     (^setf $block MVMObject header.size $1)
     (^setf $block MVMObject header.owner (^getf (tc) MVMThreadContext thread_id))
-    (store $0 $block ptr_sz)))
+    (store \$0 $block ptr_sz)))
 
 (template: sp_p6oget_o
   (let: (($val (load (add (^p6obody $1) $2) ptr_sz)))
