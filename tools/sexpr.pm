@@ -1,7 +1,18 @@
 package sexpr;
 use strict;
 use warnings;
+use Carp qw(croak);
+use Exporter qw(import);
+our @EXPORT = qw(sexpr_decode);
 
+{
+    # good thing perl is single threaded ;-)
+    my $PARSER = __PACKAGE__->parser;
+    sub sexpr_decode {
+        open local $PARSER->{input}, '<', \$_[0];
+        $PARSER->parse;
+    }
+}
 # declare keyword syntax regex
 my $tokenize = qr/
     \A
