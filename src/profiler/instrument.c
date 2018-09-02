@@ -363,6 +363,7 @@ static MVMObject * insert_if_not_exists(MVMThreadContext *tc, ProfDumpStrs *pds,
 
     result = new_hash(tc);
     MVM_repr_bind_key_o(tc, result, pds->id, box_i(tc, key));
+    MVM_repr_push_o(tc, storage, result);
     return result;
 }
 
@@ -513,7 +514,8 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
 /* Dumps data from a single thread. */
 static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
                                     MVMThreadContext *othertc,
-                                    const MVMProfileThreadData *ptd) {
+                                    const MVMProfileThreadData *ptd,
+                                    MVMObject *types_data) {
     MVMObject *thread_hash = new_hash(tc);
     MVMObject *thread_gcs  = new_array(tc);
     MVMuint64 absolute_start_time;
@@ -523,6 +525,7 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
 
     tcpds.tc = tc;
     tcpds.pds = pds;
+    tcpds.types_array = types_data;
 
     /* Use the main thread's start time for absolute timings */
     absolute_start_time = tc->instance->main_thread->prof_data->start_time;
@@ -626,7 +629,7 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
 
         MVM_repr_push_o(tc, tc->prof_data->collected_data, types_array);
 
-        MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, tc, tc->prof_data));
+        MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, tc, tc->prof_data, types_array));
         while (tc->prof_data->current_call)
             MVM_profile_log_exit(tc);
 
@@ -646,7 +649,7 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
                 othertc->prof_data->end_time = uv_hrtime();
 
                 MVM_gc_allocate_gen2_default_set(othertc);
-                MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, othertc, othertc->prof_data));
+                MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, othertc, othertc->prof_data, types_array));
                 MVM_gc_allocate_gen2_default_clear(othertc);
             }
             thread = thread->body.next;
