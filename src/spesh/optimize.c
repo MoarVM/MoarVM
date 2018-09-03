@@ -2257,6 +2257,23 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
         /*fprintf(stderr, "a PHI node of %d operands had no intersecting flags\n", ins->info->num_operands);*/
     }
 }
+/* getarg_* are used to read (possibly modified) values back from the args
+ * buffer. This is done only for native calls (after a nativeinvoke). However
+ * the JIT does not emit any code for the corresponding arg_* ops for a
+ * nativeinvoke. Instead the values are read directly from the WORK registers
+ * and the arg_* ops are only used to mark those registers. This means that
+ * there's nothing in the args buffer to read from. So instead, turn the
+ * getarg_* ops into plain set ops and take the value from the original WORK
+ * register. Set elimination will be able to optimize this further. */
+static void optimize_getarg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins, MVMSpeshCallInfo *arg_info) {
+    MVMSpeshFacts *src_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    if (src_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        ins->info = MVM_op_get_op(MVM_OP_set);
+        ins->operands[1] = arg_info->arg_ins[src_facts->value.i]->operands[1];
+        MVM_spesh_usages_add_by_reg(tc, g, ins->operands[1], ins);
+        MVM_spesh_usages_delete(tc, g, src_facts, ins);
+    }
+}
 static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                         MVMSpeshPlanned *p) {
     MVMSpeshCallInfo arg_info;
@@ -2332,6 +2349,9 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_invoke_s:
         case MVM_OP_invoke_o:
             optimize_call(tc, g, bb, ins, p, 1, &arg_info);
+            break;
+        case MVM_OP_getarg_i:
+            optimize_getarg(tc, g, bb, ins, &arg_info);
             break;
         case MVM_OP_speshresolve:
             if (p) {
