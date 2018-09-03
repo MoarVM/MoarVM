@@ -2879,7 +2879,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 bytes   = ins->operands[1].reg.orig;
         MVMJitCallArg argc[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { decoder } },
-                                 { MVM_JIT_LITERAL_PTR, { (MVMint64)"decoderaddbytes" } } };
+                                 { MVM_JIT_LITERAL_PTR, { (uintptr_t)"decoderaddbytes" } } };
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { decoder } },
                                  { MVM_JIT_REG_VAL, { bytes } } };
@@ -2894,7 +2894,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 inc     = ins->operands[3].reg.orig;
         MVMJitCallArg argc[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { decoder } },
-                                 { MVM_JIT_LITERAL_PTR, { (MVMint64)"decodertakebytes" } } };
+                                 { MVM_JIT_LITERAL_PTR, { (uintptr_t)"decodertakebytes" } } };
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { decoder } },
                                  { MVM_JIT_REG_VAL, { chomp } },
@@ -2910,7 +2910,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 inc     = ins->operands[3].reg.orig;
         MVMJitCallArg argc[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { decoder } },
-                                 { MVM_JIT_LITERAL_PTR, { (MVMint64)"decodertakeline" } } };
+                                 { MVM_JIT_LITERAL_PTR, { (uintptr_t)"decodertakeline" } } };
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { decoder } },
                                  { MVM_JIT_REG_VAL, { chomp } },
@@ -2924,7 +2924,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 decoder = ins->operands[1].reg.orig;
         MVMJitCallArg argc[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { decoder } },
-                                 { MVM_JIT_LITERAL_PTR, { (MVMint64)"decodertakeline" } } };
+                                 { MVM_JIT_LITERAL_PTR, { (uintptr_t)"decodertakeline" } } };
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { decoder } } };
         jg_append_call_c(tc, jg, &MVM_decoder_ensure_decoder, 3, argc, MVM_JIT_RV_VOID, -1);
