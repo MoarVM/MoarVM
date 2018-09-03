@@ -281,17 +281,26 @@ sub compile_declarations {
     # into (do(v)?: $ndec + $ncode $decl+ $code+)
     my $type = check_type($compiler, $rest[$#rest]);
     my @list = ($type eq 'void' ? 'dov' : 'do');
+
+    # Localize scope to subexpressions only
+    local $compiler->{env} = +{ %{$compiler->{env}} };
+    local $compiler->{types} = +{ %{$compiler->{types}} };
+
     for my $declaration (@$declarations) {
         die "Need name and expression" unless @$declaration == 2;
         my ($name, $expr) = @$declaration;
         die "Variable name $name is invalid" unless $name =~ m/\$[a-z]\w*/i;
+        # Not safe because of macros
+        die "Illegal redeclaration of $name" if exists $compiler->{env}{$name};
 
         my $type = check_type($compiler, $expr);
         die "Let declaration needs a register value got $type" unless $type eq 'reg';
 
         (undef, my $node) = compile_expression($compiler, $expr);
+        # permit 'forward' declarations within same let scope
         $compiler->{types}{$name} = $type;
         $compiler->{env}{$name} = $node;
+
         push @list, ['discard', $name];
     }
     push @list, @rest;
