@@ -30,7 +30,7 @@ my %OPTIONS = (
     oplist => File::Spec->catfile($FindBin::Bin, File::Spec->updir, qw(src core oplist)),
     include => 1,
 );
-GetOptions(\%OPTIONS, qw(prefix=s list=s input=s output=s include!));
+GetOptions(\%OPTIONS, qw(prefix=s list=s input=s output=s include! test));
 
 my ($PREFIX, $OPLIST) = @OPTIONS{'prefix', 'oplist'};
 if ($OPTIONS{output}) {
@@ -188,7 +188,7 @@ sub apply_macros {
                         $operator, $#$expr, 0+@{$params})
                 unless $#$expr == @{$params};
             my %bind; @bind{@$params} = @$expr[1..$#$expr];
-            my $instance = fill_macro($structure, \%bind);
+            my $instance = expand_macro($structure, \%bind, {});
             @$expr = @$instance;
         } else {
             die "Tried to instantiate undefined macro $operator";
@@ -197,12 +197,16 @@ sub apply_macros {
     return $expr;
 }
 
-sub fill_macro {
-    my ($macro, $bind) = @_;
+# Makes a copy of the macro with bindings replaced
+sub expand_macro {
+    my ($macro, $bind, $sub) = @_;
     my @result;
     for my $element (@$macro) {
         if (is_arrayref($element)) {
-            push @result, fill_macro($element, $bind);
+            # Reuse substituted instance to maintain link identity
+            my $instance = $sub->{refaddr($element)} ||=
+                expand_macro($element, $bind, $sub);
+            push @result, $instance;
         } elsif ($element =~ m/^,/) {
             if (defined $bind->{$element}) {
                 push @result, $bind->{$element};
@@ -381,7 +385,40 @@ sub emit {
 }
 
 
+sub test {
+    # single let:
+    my $expr = sexpr_decode('(let: (($foo (copy $1))) (load $foo 8))');
+    link_declarations($expr);
+    die "Linking invalid" unless $expr->[1][1] == $expr->[2][1];
 
+    # nested let: with left-to-right declarations
+    $expr = sexpr_decode('(let: (($foo (const 1 1)) ($bar (add $foo $foo))) ' .
+                             '(let: (($foo (sub $bar (const 1 1)))) (copy $foo)))');
+    link_declarations($expr);
+
+    # forward declaration
+    die "Linking invalid" unless $expr->[1][1] == $expr->[2][1][1] and
+        $expr->[1][1] == $expr->[2][1][2];
+    # inner declaration
+    die "Linking invalid" unless $expr->[2][1] == $expr->[3][1][1][1] # do -> discard -> sub -> $bar
+        and $expr->[3][1][1] == $expr->[3][2][1]; # do -> discard -> sub == do -> copy -> $foo
+
+    $expr = sexpr_decode('(let: (($obj (load $1))) (^foo $obj))');
+    my $macro = sexpr_decode('((,foo) (let: (($obj (addr ,foo 8))) (add ,foo $obj)))');
+    link_declarations($macro);
+    link_declarations($expr);
+    apply_macros($expr, { '^foo' => $macro });
+
+    # outer (let:)
+    die "Linking invalid" unless $expr->[1][1] == $expr->[2][2][1];
+    # macro (let:)
+    die "Linking invalid" unless $expr->[2][1][1] == $expr->[2][2][2];
+
+    printf STDERR "Linking and macro application OK\n";
+    exit;
+}
+
+test if $OPTIONS{test};
 my %SEEN;
 
 sub parse_file {
