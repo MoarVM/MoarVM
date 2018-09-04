@@ -111,8 +111,6 @@ my %CONSTANTS;
 sub compile_template {
     my ($expr, $opcode) = @_;
     my $compiler = +{
-        types => {},
-        env   => {},
         expr  => {},
         tmpl  => [],
         desc  => [],
@@ -132,74 +130,105 @@ sub is_arrayref {
     defined(reftype($_[0])) && reftype($_[0]) eq 'ARRAY';
 }
 
+# Eager linking of declarations is what keeps them hygienic in the face of macros
+# If we eliminate names as soon as we can, they'll have no opportunity to clash.
+sub link_declarations {
+    my ($expr, %env) = @_;
+    my ($operator, @operands) = @$expr;
+    if ($operator eq 'let:') {
+        my ($declarations, @expressions) = @operands;
+        my @definitions;
+        for my $declaration (@$declarations) {
+            my ($name, $definition) = @$declaration;
+            my $type = check_type($definition);
+            die "declaration $name must be reg but got $type"
+                unless $type eq 'reg';
+            link_declarations($definition, %env);
+            $env{$name} = $definition;
+            push @definitions, ['discard', $definition];
+        }
+        for my $expr (@expressions) {
+            link_declarations($expr, %env);
+        }
+        my $type = check_type($expressions[$#expressions]);
+        # replace statement with DO/DOV
+        @$expr = ($type eq 'reg' ? 'do' : 'dov', @definitions, @expressions);
+    } else {
+        for my $i (1..$#$expr) {
+            my $operand = $expr->[$i];
+            if (is_arrayref($operand) and @$operand) {
+                link_declarations($operand, %env);
+            } elsif ($operand =~ m/\$(\w+)/) {
+                next if looks_like_number($1);
+                die "Invalid name $operand" unless exists $env{$operand};
+                $expr->[$i] = $env{$operand};
+            }
+        }
+    }
+    return $expr;
+}
+
 sub apply_macros {
     my ($expr, $macros) = @_;
-    return unless is_arrayref($expr);
+    # empty lists can occur for instance with macros without arguments
+    return unless is_arrayref($expr) and @$expr;
 
-    my @result;
-    for my $element (@$expr) {
+    my ($operator, @operands) = @$expr;
+    for my $element (@operands) {
         if (is_arrayref($element)) {
-            push @result, apply_macros($element, $macros);
-        } else {
-            push @result, $element;
+            apply_macros($element, $macros);
         }
     }
 
-    # empty lists can occur for instance with macros without arguments
-    if (@result and $result[0] =~ m/^\^/) {
+    if ($operator =~ m/^\^/) {
         # looks like a macro
-        my $name = shift @result;
-        if (my $macro = $macros->{$name}) {
-            my ($params, $structure) = @$macro[0,1];
-            die sprintf("Macro %s needs %d params, got %d", $name, 0+@result, 0+@{$params})
-                unless @result == @{$params};
-            my %bind; @bind{@$params} = @result;
-            return fill_macro($structure, \%bind);
+        if (my $macro = $macros->{$operator}) {
+            my ($params, $structure) = @$macro;
+            die sprintf("Macro %s needs %d params, got %d",
+                        $operator, $#$expr, 0+@{$params})
+                unless $#$expr == @{$params};
+            my %bind; @bind{@$params} = @$expr[1..$#$expr];
+            my $instance = fill_macro($structure, \%bind);
+            @$expr = @$instance;
         } else {
-            die "Tried to instantiate undefined macro $name";
+            die "Tried to instantiate undefined macro $operator";
+        }
+    }
+    return $expr;
+}
+
+sub fill_macro {
+    my ($macro, $bind) = @_;
+    my @result;
+    for my $element (@$macro) {
+        if (is_arrayref($element)) {
+            push @result, fill_macro($element, $bind);
+        } elsif ($element =~ m/^,/) {
+            if (defined $bind->{$element}) {
+                push @result, $bind->{$element};
+            } else {
+                die "Unmatched macro substitution: $element";
+            }
+        } else {
+            push @result, $element;
         }
     }
     return \@result;
 }
 
-sub fill_macro {
-    my ($macro, $bind) = @_;
-    my $result = [];
-    for my $element (@$macro) {
-        if (is_arrayref($element)) {
-            push @$result, fill_macro($element, $bind);
-        } elsif ($element =~ m/^,/) {
-            if (defined $bind->{$element}) {
-                push @$result, $bind->{$element};
-            } else {
-                die "Unmatched macro substitution: $element";
-            }
-        } else {
-            push @$result, $element;
-        }
-    }
-    return $result;
-}
-
 sub check_type {
-    my ($compiler, $expr) = @_;
+    my ($expr) = @_;
     if (is_arrayref($expr)) {
-        my ($operator) = @$expr;
+        my ($operator, @operands) = @$expr;
+        return check_type($operands[$#operands]) if $operator eq 'let:';
         die "Expected operator but got macro" if $operator =~ m/^&/;
-        return check_type($compiler, $expr->[$#$expr]) if $operator eq 'let:';
         return $OPERATOR_TYPES{$operator} || 'reg';
     } elsif ($expr =~ m/^\\?\$(\w+)$/) {
-        my $name = $1;
-        if (looks_like_number($name)) {
-            # TODO - we can do much better, but it is not easy,
-            # because there are a number of opcodes like 'bindlex'
-            # which introduce wildcards, and a number of operators
-            # (like COPY and STORE) which are generic.
-            return 'reg';
-        } else {
-            die "$name is not declared" unless exists $compiler->{types}{$expr};
-            return $compiler->{types}{$expr};
-        }
+        # TODO - we can do much better, but it is not easy,
+        # because there are a number of opcodes like 'bindlex'
+        # which introduce wildcards, and a number of operators
+        # (like COPY and STORE) which are generic.
+        return 'reg';
     } else {
         die "Expected operator or type, got " . sexpr::encode($expr);
     }
@@ -214,9 +243,6 @@ sub compile_expression {
         if exists $compiler->{expr}{refaddr($expr)};
 
     my ($operator, @operands) = @$expr;
-
-    return compile_declarations($compiler, @operands)
-        if $operator eq 'let:';
 
     die "Expected expression but got macro" if $operator =~ m/^&/;
     die "Unknown operator $operator" unless my $info = $EXPR_OPS{$operator};
@@ -252,7 +278,7 @@ sub compile_expression {
 
     my $i = 0;
     for (; $i < $num_operands; $i++) {
-        my $type = check_type($compiler, $operands[$i]);
+        my $type = check_type($operands[$i]);
         die "Mismatched type, got $type expected $types[$i]" .
             "for $operator ($compiler->{opcode} $operands[$i])"
             unless $type eq $types[$i];
@@ -273,38 +299,6 @@ sub compile_expression {
     my $node = emit($compiler, @code);
     $compiler->{expr}{refaddr($expr)} = $node;
     return 'l' => $node;
-}
-
-sub compile_declarations {
-    my ($compiler, $declarations, @rest) = @_;
-    # rewrite (let: (($name ($code))) ($code..)+)
-    # into (do(v)?: $ndec + $ncode $decl+ $code+)
-    my $type = check_type($compiler, $rest[$#rest]);
-    my @list = ($type eq 'void' ? 'dov' : 'do');
-
-    # Localize scope to subexpressions only
-    local $compiler->{env} = +{ %{$compiler->{env}} };
-    local $compiler->{types} = +{ %{$compiler->{types}} };
-
-    for my $declaration (@$declarations) {
-        die "Need name and expression" unless @$declaration == 2;
-        my ($name, $expr) = @$declaration;
-        die "Variable name $name is invalid" unless $name =~ m/\$[a-z]\w*/i;
-        # Not safe because of macros
-        die "Illegal redeclaration of $name" if exists $compiler->{env}{$name};
-
-        my $type = check_type($compiler, $expr);
-        die "Let declaration needs a register value got $type" unless $type eq 'reg';
-
-        (undef, my $node) = compile_expression($compiler, $expr);
-        # permit 'forward' declarations within same let scope
-        $compiler->{types}{$name} = $type;
-        $compiler->{env}{$name} = $node;
-
-        push @list, ['discard', $name];
-    }
-    push @list, @rest;
-    return compile_expression($compiler, \@list);
 }
 
 sub compile_constant {
@@ -394,12 +388,16 @@ sub parse_file {
     my ($fh, $macros) = @_;
     my (@templates, %info);
     my $parser = sexpr->parser($fh);
-    while (my $raw = $parser->parse) {
-        my $tree    = apply_macros($raw, $macros);
+    while (my $tree = $parser->parse) {
         my $keyword = shift @$tree;
         if ($keyword eq 'macro:') {
-            my $name = shift @$tree;
-            $macros->{$name} = $tree;
+            my ($name, $binding, $macro) = @$tree;
+            die "Redeclaration of macro $name" if exists $macros->{$name};
+
+            $macro = link_declarations($macro);
+            $macro = apply_macros($macro, $macros);
+
+            $macros->{$name} = [ $binding, $macro ];
         } elsif ($keyword eq 'template:') {
             my $opcode   = shift @$tree;
             my $template = shift @$tree;
@@ -409,8 +407,11 @@ sub parse_file {
                     unless grep $_ eq 'w', @{$MOAR_OPERAND_DIRECTION{$opcode}};
                 $flags |= 1;
             }
-            die "Opcode '$opcode' unknown" unless defined $OPNAMES{$opcode};
-            die "Opcode '$opcode' redefined" if defined $info{$opcode};
+            die "Opcode '$opcode' unknown" unless exists $OPNAMES{$opcode};
+            die "Opcode '$opcode' redefined" if exists $info{$opcode};
+
+            $template = link_declarations($template);
+            $template = apply_macros($template, $macros);
 
             my $compiled = compile_template($template, $opcode);
 
