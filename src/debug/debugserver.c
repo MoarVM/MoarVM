@@ -788,7 +788,7 @@ static MVMint32 write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, M
     }
 
     if (tc->instance->debugserver->debugspam_protocol)
-        fprintf(stderr, "dumping a stack trace of %lu frames\n", stack_size);
+        fprintf(stderr, "dumping a stack trace of %llu frames\n", stack_size);
 
     cmp_write_array(ctx, stack_size);
 
@@ -979,7 +979,7 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
     MVMuint32 index = 0;
 
     if (tc->instance->debugserver->debugspam_protocol)
-        fprintf(stderr, "asked to set a breakpoint for file %s line %u to send id %lu\n", argument->file, argument->line, argument->id);
+        fprintf(stderr, "asked to set a breakpoint for file %s line %u to send id %llu\n", argument->file, argument->line, argument->id);
 
     MVM_debugserver_register_line(tc, argument->file, strlen(argument->file), argument->line, &index);
 
@@ -1014,7 +1014,7 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
     debugserver->any_breakpoints_at_all++;
 
     if (tc->instance->debugserver->debugspam_protocol)
-        fprintf(stderr, "breakpoint settings: index %u bpid %lu lineno %u suspend %u backtrace %u\n", found->breakpoints_used - 1, argument->id, argument->line, argument->suspend, argument->stacktrace);
+        fprintf(stderr, "breakpoint settings: index %u bpid %llu lineno %u suspend %u backtrace %u\n", found->breakpoints_used - 1, argument->id, argument->line, argument->suspend, argument->stacktrace);
 
     found->lines_active[argument->line] = 1;
 
@@ -1074,7 +1074,7 @@ void MVM_debugserver_clear_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, requ
         fprintf(stderr, "dumping all breakpoints\n");
         for (bpidx = 0; bpidx < found->breakpoints_used; bpidx++) {
             MVMDebugServerBreakpointInfo *bp_info = &found->breakpoints[bpidx];
-            fprintf(stderr, "breakpoint index %u has id %lu, is at line %u\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
+            fprintf(stderr, "breakpoint index %u has id %llu, is at line %u\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
         }
     }
 
@@ -1083,11 +1083,11 @@ void MVM_debugserver_clear_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, requ
     for (bpidx = 0; bpidx < found->breakpoints_used; bpidx++) {
         MVMDebugServerBreakpointInfo *bp_info = &found->breakpoints[bpidx];
         if (tc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "breakpoint index %u has id %lu, is at line %u\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
+            fprintf(stderr, "breakpoint index %u has id %llu, is at line %u\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
 
         if (bp_info->line_no == argument->line) {
             if (tc->instance->debugserver->debugspam_protocol)
-                fprintf(stderr, "breakpoint with id %ld cleared\n", bp_info->breakpoint_id);
+                fprintf(stderr, "breakpoint with id %llu cleared\n", bp_info->breakpoint_id);
             found->breakpoints[bpidx] = found->breakpoints[--found->breakpoints_used];
             num_cleared++;
             bpidx--;
@@ -1371,7 +1371,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         cmp_write_map(ctx, lexcount);
 
         if (dtc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "will write %lu lexicals\n", lexcount);
+            fprintf(stderr, "will write %llu lexicals\n", lexcount);
 
         HASH_ITER(dtc, hash_handle, lexical_names, entry, {
             MVMuint16 lextype = static_info->body.lexical_types[entry->value];
@@ -1382,7 +1382,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
                 c_key_name = MVM_string_utf8_encode_C_string(dtc, entry->key);
             else {
                 c_key_name = MVM_malloc(12 + 16);
-                sprintf(c_key_name, "<lexical %lu>", lexical_index);
+                sprintf(c_key_name, "<lexical %llu>", lexical_index);
             }
 
             cmp_write_str(ctx, c_key_name, strlen(c_key_name));
@@ -2526,7 +2526,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
         struct addrinfo *res;
         int error;
 
-        snprintf(portstr, 16, "%lu", port);
+        snprintf(portstr, 16, "%llu", port);
 
         getaddrinfo("localhost", portstr, NULL, &res);
 
@@ -2603,7 +2603,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
             }
 
             if (vm->debugserver->debugspam_protocol)
-                fprintf(stderr, "debugserver received packet %lu, command %u\n", argument.id, argument.type);
+                fprintf(stderr, "debugserver received packet %llu, command %u\n", argument.id, argument.type);
 
             switch (argument.type) {
                 case MT_IsExecutionSuspendedRequest:
