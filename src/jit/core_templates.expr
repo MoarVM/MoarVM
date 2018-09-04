@@ -987,6 +987,47 @@
       (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_obj) int_sz) int))))
 
+(template: unshift_i
+  (callv (^getf (^repr $0) MVMREPROps pos_funcs.unshift)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $0) ptr)
+      (carg $0 ptr)
+      (carg (^body $0) ptr)
+      (carg $1 ptr)
+      (carg (const (&QUOTE MVM_reg_int64) int_sz) int))))
+
+(template: unshift_n
+  (callv (^getf (^repr $0) MVMREPROps pos_funcs.unshift)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $0) ptr)
+      (carg $0 ptr)
+      (carg (^body $0) ptr)
+      (carg $1 ptr)
+      (carg (const (&QUOTE MVM_reg_num64) int_sz) int))))
+
+(template: unshift_s
+  (callv (^getf (^repr $0) MVMREPROps pos_funcs.unshift)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $0) ptr)
+      (carg $0 ptr)
+      (carg (^body $0) ptr)
+      (carg $1 ptr)
+      (carg (const (&QUOTE MVM_reg_str) int_sz) int))))
+
+(template: unshift_o
+  (callv (^getf (^repr $0) MVMREPROps pos_funcs.unshift)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $0) ptr)
+      (carg $0 ptr)
+      (carg (^body $0) ptr)
+      (carg $1 ptr)
+      (carg (const (&QUOTE MVM_reg_obj) int_sz) int))))
+
+
 (template: splice
   (callv (^getf (^repr $0) MVMREPROps pos_funcs.splice)
     (arglist
@@ -1006,6 +1047,13 @@
       (carg $0 ptr)
       (carg (^body $0) ptr)
       (carg $1 int))))
+
+(template: existspos
+  (call (^func &MVM_repr_exists_pos)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   int)) int_sz))
 
 (template: atkey_i!
   (callv (^getf (^repr $1) MVMREPROps ass_funcs.at_key)
@@ -1392,6 +1440,12 @@
       (^getf (^repr $1) MVMREPROps ID)
       (const (&QUOTE MVM_REPR_ID_MVMCompUnit) (&sizeof MVMuint32)))))
 
+(template: ctx
+  (call (^func &MVM_context_from_frame)
+    (arglist
+      (carg (tc)     ptr)
+      (carg (^frame) ptr)) ptr_sz))
+
 (template: curcode
   (^getf (^frame) MVMFrame code_ref))
 
@@ -1771,11 +1825,33 @@
       (carg $1   ptr)
       (carg $2   ptr)) ptr_sz))
 
+(template: getpid
+  (call (^func &MVM_proc_getpid)
+    (arglist
+      (carg (tc) ptr)) int_sz))
+
 (template: assertparamcheck
   (when (zr $0)
     (callv (^func &MVM_args_bind_failed)
       (arglist
         (carg (tc) ptr)))))
+
+(template: hintfor
+  (call (^getf (^repr $1) MVMREPROps attr_funcs.hint_for)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $1) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)) int_sz))
+
+(template: paramnamesused
+  (let: (($ctx   (^addrf (^frame) MVMFrame params))
+         ($csite (^getf  $ctx MVMArgProcContext callsite)))
+    (when (ne (^getf $csite MVMCallsite num_pos) (^getf $csite MVMCallsite arg_count))
+      (callv (^func &MVM_args_assert_nameds_used)
+        (arglist
+          (carg (tc) ptr)
+          (carg $ctx ptr))))))
 
 (template: getuniname
   (call (^func &MVM_unicode_get_name)
