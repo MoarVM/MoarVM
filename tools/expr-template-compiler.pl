@@ -283,7 +283,7 @@ sub compile_expression {
     my $i = 0;
     for (; $i < $num_operands; $i++) {
         my $type = check_type($operands[$i]);
-        die "Mismatched type, got $type expected $types[$i]" .
+        die "Mismatched type, got $type expected $types[$i] " .
             "for $operator ($compiler->{opcode} $operands[$i])"
             unless $type eq $types[$i];
         push @code, compile_operand($compiler, $operands[$i]);
