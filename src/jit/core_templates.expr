@@ -689,6 +689,14 @@
       (carg $2 ptr)
       (carg \$0 ptr))))
 
+(template: objprimspec
+  (if
+    (nz $1)
+    (cast
+      (^getf (^storage_spec $1) MVMStorageSpec boxed_primitive)
+      int_sz (&sizeof MVMuint16) (&QUOTE MVM_JIT_CAST_UNSIGNED))
+    (const 0 int_sz)))
+
 (template: gethow
   (let: (($how (^getf (^stable $1) MVMSTable HOW)))
   (if (nz $how)
