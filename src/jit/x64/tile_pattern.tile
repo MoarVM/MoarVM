@@ -55,7 +55,7 @@
 
 
 (tile: cast           (cast reg $to_size $from_size $signed) reg 2)
-(tile: cast_load_addr (cast (load (addr reg $ofs) $src_sz) $dst_size $signed) reg 5)
+(tile: cast_load_addr (cast (load (addr reg $ofs) $src_sz) $to_size $from_size $signed) reg 5)
 
 #
 # ARITHMETIC

@@ -263,8 +263,68 @@ MVM_JIT_TILE_DECL(cast) {
 }
 
 
+/* Logic is the same as cast above except loading from memory instead of reg */
+/* See comments in cast above for more detail */
 MVM_JIT_TILE_DECL(cast_load_addr) {
-    DIE("NYI");
+    MVMint32 ofs       = tile->args[0];
+    MVMint32 load_size = tile->args[1];
+    MVMint32 to_size   = tile->args[2];
+    MVMint32 from_size = tile->args[3];
+    MVMint32 cast_mode = tile->args[4];
+
+    MVMint8  to_reg    = tile->values[0];
+    MVMint8  base      = tile->values[1];
+
+    MVMint32 size_conv = (from_size) | (to_size << 3);
+    if (cast_mode == MVM_JIT_CAST_SIGNED) {
+        switch (size_conv) {
+        case 17:
+            | movsx Rw(to_reg), byte [Rq(base)+ofs];
+            break;
+        case 33:
+            | movsx Rd(to_reg), byte [Rq(base)+ofs];
+            break;
+        case 34:
+            | movsx Rd(to_reg), word [Rq(base)+ofs];
+            break;
+        case 65:
+            | movsx Rq(to_reg), byte [Rq(base)+ofs];
+            break;
+        case 66:
+            | movsx Rq(to_reg), word [Rq(base)+ofs];
+            break;
+        case 68:
+            | mov eax, dword [Rq(base)+ofs];
+            | cdqe;
+            | mov Rq(to_reg), rax;
+            break;
+        default:
+            DIE("Unsupported signed cast %d -> %d\n", from_size, to_size);
+        }
+    } else {
+        switch (size_conv) {
+        case 17:
+            | movzx Rw(to_reg), byte [Rq(base)+ofs];
+            break;
+        case 33:
+            | movzx Rd(to_reg), byte [Rq(base)+ofs];
+            break;
+        case 34:
+            | movzx Rd(to_reg), word [Rq(base)+ofs];
+            break;
+        case 65:
+            | movzx Rq(to_reg), byte [Rq(base)+ofs];
+            break;
+        case 66:
+            | movzx Rq(to_reg), word [Rq(base)+ofs];
+            break;
+        case 68:
+            | mov Rd(to_reg),  dword [Rq(base)+ofs];
+            break;
+        default:
+            DIE("Unsupported unsigned cast %d -> %d\n", from_size, to_size);
+        }
+    }
 }
 
 /* binary operations have special requirements because x86 is two-operand form, e.g:
