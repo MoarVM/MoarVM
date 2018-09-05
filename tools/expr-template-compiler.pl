@@ -254,7 +254,7 @@ sub compile_expression {
     my $num_operands = $VARIADIC{$operator} ? @operands : $info->{num_operands};
     my $num_params = $info->{num_params};
 
-    die "Expected $num_operands operands and $num_params params, got " . 0+@operands
+    die "Expected $num_operands operands and $num_params params for $operator, got " . scalar @operands
         if $num_operands + $num_params != @operands;
 
     # large constants are treated specially
