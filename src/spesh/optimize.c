@@ -2265,13 +2265,30 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
  * there's nothing in the args buffer to read from. So instead, turn the
  * getarg_* ops into plain set ops and take the value from the original WORK
  * register. Set elimination will be able to optimize this further. */
-static void optimize_getarg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins, MVMSpeshCallInfo *arg_info) {
+static void optimize_getarg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshFacts *src_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     if (src_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-        ins->info = MVM_op_get_op(MVM_OP_set);
-        ins->operands[1] = arg_info->arg_ins[src_facts->value.i]->operands[1];
-        MVM_spesh_usages_add_by_reg(tc, g, ins->operands[1], ins);
-        MVM_spesh_usages_delete(tc, g, src_facts, ins);
+        MVMSpeshBB *cur_bb = bb;
+        MVMSpeshIns *cur_ins = ins->prev;
+        while (cur_bb) {
+            while (cur_ins) {
+                if (
+                    cur_ins->info->opcode == MVM_OP_arg_i
+                    && cur_ins->operands[0].lit_i16 == src_facts->value.i
+                ) {
+                    ins->info = MVM_op_get_op(MVM_OP_set);
+                    ins->operands[1] = cur_ins->operands[1];
+                    MVM_spesh_usages_add_by_reg(tc, g, ins->operands[1], ins);
+                    MVM_spesh_usages_delete(tc, g, src_facts, ins);
+                    return;
+                }
+                cur_ins = cur_ins->prev;
+            }
+            /* FIXME to be correct, we'd need to search all predecessors, not just the first
+             * but this will do for the currently known use case for getarg_i */
+            cur_bb = cur_bb->pred[0];
+            cur_ins = cur_bb->last_ins;
+        }
     }
 }
 static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -2351,7 +2368,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             optimize_call(tc, g, bb, ins, p, 1, &arg_info);
             break;
         case MVM_OP_getarg_i:
-            optimize_getarg(tc, g, bb, ins, &arg_info);
+            optimize_getarg(tc, g, bb, ins);
             break;
         case MVM_OP_speshresolve:
             if (p) {
