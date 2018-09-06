@@ -694,7 +694,7 @@
     (nz $1)
     (cast
       (^getf (^storage_spec $1) MVMStorageSpec boxed_primitive)
-      int_sz (&sizeof MVMuint16) (&QUOTE MVM_JIT_CAST_UNSIGNED))
+      int_sz (&sizeof MVMuint16) cast_unsigned)
     (const 0 int_sz)))
 
 (template: gethow

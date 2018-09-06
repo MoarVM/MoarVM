@@ -17,7 +17,7 @@ struct MVMJitTile {
 
     MVMint32  num_refs;
     MVMint32   refs[4];
-    MVMint32   args[4];
+    MVMint32   args[6];
     MVMint8  values[4];
 
     MVMuint32 register_spec;
