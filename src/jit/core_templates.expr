@@ -2155,6 +2155,26 @@
       (carg (tc) ptr)
       (carg $1   ptr)) int_sz))
 
+(template: objprimbits
+  (if
+    (nz $1)
+    (let: (($ss (^storage_spec $1)))
+      (if
+        (nz (^getf $ss MVMStorageSpec boxed_primitive))
+        (ucast (^getf $ss MVMStorageSpec bits) int_sz (&sizeof MVMuint16))
+        (const 0 int_sz)))
+    (const 0 int_sz)))
+
+(template: objprimunsigned
+  (if
+    (nz $1)
+    (let: (($ss (^storage_spec $1)))
+      (if
+        (eq (^getf $ss MVMStorageSpec boxed_primitive) (const 1 int_sz))
+        (ucast (^getf $ss MVMStorageSpec is_unsigned) int_sz (&sizeof MVMuint16))
+        (const 0 int_sz)))
+    (const 0 int_sz)))
+
 (template: coerce_iu  (copy $1))
 
 (template: coerce_ui  (copy $1))
