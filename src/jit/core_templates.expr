@@ -718,6 +718,11 @@
     (^store_write_barrier! (^stable $1) (^addrf (^stable $1) MVMSTable WHO) $2)
     $1))
 
+(template: reprname
+  (^getf
+    (load (idx (^get_instance_field repr_list) (^repr_id $1) ptr_sz) ptr_sz)
+    MVMReprRegistry name))
+
 (template: eqaddr (flagval (eq $1 $2)))
 
 (template: box_i!
