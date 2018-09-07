@@ -89,3 +89,13 @@
 (macro: ^body (,a) (addr ,a (&offsetof MVMObjectStooge data)))
 
 (macro: ^nullptr () (const 0 ptr_sz))
+
+(macro: ^decoder_ensure_decoder (,tc ,decoder ,op)
+    (when (any
+           (ne (^getf (^repr ,decoder) MVMREPROps ID) (const (&QUOTE MVM_REPR_ID_Decoder) (&sizeof MVMuint32)))
+           (zr (flagval (^is_conc_obj ,decoder))))
+         (callv (^func &MVM_exception_throw_adhoc)
+           (arglist
+             (carg ,tc ptr)
+             (carg (const_ptr "Operation '%s' can only work on an object with the Decoder representation") ptr)
+             (carg ,op ptr)))))

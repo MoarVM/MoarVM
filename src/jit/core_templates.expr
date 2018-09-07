@@ -2163,6 +2163,43 @@
 (template: lastexpayload
   (^getf (tc) MVMThreadContext last_payload))
 
+(template: decoderaddbytes
+  (dov
+    (^decoder_ensure_decoder (tc) $0 (const_ptr "decoderaddbytes"))
+    (callv (^func &MVM_decoder_add_bytes)
+      (arglist
+        (carg (tc) ptr)
+        (carg $0 ptr)
+        (carg $1 ptr)))))
+
+(template: decodertakeline
+  (do
+    (^decoder_ensure_decoder (tc) $1 (const_ptr "decodertakeline"))
+    (call (^func &MVM_decoder_take_line)
+      (arglist
+        (carg (tc) ptr)
+        (carg $1 ptr)
+        (carg $2 int)
+        (carg $3 int)) ptr_sz)))
+
+(template: decodertakebytes
+  (do
+    (^decoder_ensure_decoder (tc) $1 (const_ptr "decodertakebytes"))
+    (call (^func &MVM_decoder_take_bytes)
+      (arglist
+        (carg (tc) ptr)
+        (carg $1 ptr)
+        (carg $2 ptr)
+        (carg $3 int)) ptr_sz)))
+
+(template: decoderempty
+  (do
+    (^decoder_ensure_decoder (tc) $1 (const_ptr "decoderempty"))
+    (call (^func &MVM_decoder_empty)
+      (arglist
+        (carg (tc) ptr)
+        (carg $1 ptr)) int_sz)))
+
 (template: unicmp_s
   (call (^func &MVM_unicode_string_compare)
     (arglist
