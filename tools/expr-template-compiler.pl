@@ -234,7 +234,7 @@ sub check_type {
         # (like COPY and STORE) which are generic.
         return 'reg';
     } else {
-        die "Expected operator or type, got " . sexpr::encode($expr);
+        die "Expected operator or type, got " . sexpr_encode($expr);
     }
 }
 
@@ -284,7 +284,8 @@ sub compile_expression {
     for (; $i < $num_operands; $i++) {
         my $type = check_type($operands[$i]);
         die "Mismatched type, got $type expected $types[$i] " .
-            "for $operator ($compiler->{opcode} $operands[$i])"
+	  "for $operator @{[sexpr_encode($operands[$i])]}) " .
+	  " [$compiler->{opcode}]"
             unless $type eq $types[$i];
         push @code, compile_operand($compiler, $operands[$i]);
     }
@@ -307,6 +308,7 @@ sub compile_expression {
 
 sub compile_constant {
     my ($compiler, $value, $size) = @_;
+    (undef, $value) = compile_macro($compiler, $value) if is_arrayref($value);
     my $constants = $compiler->{constants};
     my $const_nr = ($constants->{$value} = exists $constants->{$value} ?
                         $constants->{$value} : scalar keys %$constants);

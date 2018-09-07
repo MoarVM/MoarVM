@@ -1240,35 +1240,35 @@
 (template: isint
   (if (all
         (nz $1)
-        (eq (^getf (^repr $1) MVMREPROps ID) (const (&QUOTE MVM_REPR_ID_P6int) (&sizeof MVMuint32))))
+        (^is_repr_id $1 MVM_REPR_ID_P6int))
     (const 1 int_sz)
     (const 0 int_sz)))
 
 (template: isnum
   (if (all
         (nz $1)
-        (eq (^getf (^repr $1) MVMREPROps ID) (const (&QUOTE MVM_REPR_ID_P6num) (&sizeof MVMuint32))))
+        (^is_repr_id $1 MVM_REPR_ID_P6num))
     (const 1 int_sz)
     (const 0 int_sz)))
 
 (template: isstr
   (if (all
         (nz $1)
-        (eq (^getf (^repr $1) MVMREPROps ID) (const (&QUOTE MVM_REPR_ID_P6str) (&sizeof MVMuint32))))
+        (^is_repr_id $1 MVM_REPR_ID_P6str))
     (const 1 int_sz)
     (const 0 int_sz)))
 
 (template: islist
   (if (all
         (nz $1)
-        (eq (^getf (^repr $1) MVMREPROps ID) (const (&QUOTE MVM_REPR_ID_VMArray) (&sizeof MVMuint32))))
+        (^is_repr_id $1 MVM_REPR_ID_VMArray))
     (const 1 int_sz)
     (const 0 int_sz)))
 
 (template: ishash
   (if (all
         (nz $1)
-        (eq (^getf (^repr $1) MVMREPROps ID) (const (&QUOTE MVM_REPR_ID_MVMHash) (&sizeof MVMuint32))))
+        (^is_repr_id $1 MVM_REPR_ID_MVMHash))
     (const 1 int_sz)
     (const 0 int_sz)))
 
@@ -1436,9 +1436,7 @@
 
 (template: iscompunit
   (flagval
-    (eq
-      (^getf (^repr $1) MVMREPROps ID)
-      (const (&QUOTE MVM_REPR_ID_MVMCompUnit) (&sizeof MVMuint32)))))
+    (^is_repr_id $1 MVM_REPR_ID_MVMCompUnit)))
 
 (template: ctx
   (call (^func &MVM_context_from_frame)
@@ -2165,7 +2163,7 @@
 
 (template: decoderaddbytes
   (dov
-    (^decoder_ensure_decoder (tc) $0 (const_ptr "decoderaddbytes"))
+    (^decoder_ensure_decoder $0 "decoderaddbytes")
     (callv (^func &MVM_decoder_add_bytes)
       (arglist
         (carg (tc) ptr)
@@ -2174,7 +2172,7 @@
 
 (template: decodertakeline
   (do
-    (^decoder_ensure_decoder (tc) $1 (const_ptr "decodertakeline"))
+    (^decoder_ensure_decoder $1 "decodertakeline")
     (call (^func &MVM_decoder_take_line)
       (arglist
         (carg (tc) ptr)
@@ -2184,7 +2182,7 @@
 
 (template: decodertakebytes
   (do
-    (^decoder_ensure_decoder (tc) $1 (const_ptr "decodertakebytes"))
+    (^decoder_ensure_decoder $1 "decodertakebytes")
     (call (^func &MVM_decoder_take_bytes)
       (arglist
         (carg (tc) ptr)
@@ -2194,7 +2192,7 @@
 
 (template: decoderempty
   (do
-    (^decoder_ensure_decoder (tc) $1 (const_ptr "decoderempty"))
+    (^decoder_ensure_decoder $1 "decoderempty")
     (call (^func &MVM_decoder_empty)
       (arglist
         (carg (tc) ptr)
@@ -2215,9 +2213,7 @@
     (^setf (tc) MVMThreadContext cur_dispatcher $0)
     (^setf (tc) MVMThreadContext cur_dispatcher_for
       (if
-        (eq
-          (^getf (^repr $1) MVMREPROps ID)
-          (const (&QUOTE MVM_REPR_ID_MVMCode) (&sizeof MVMuint32)))
+        (^is_repr_id $1 MVM_REPR_ID_MVMCode)
         $1
         (call (^func &MVM_frame_find_invokee)
           (arglist

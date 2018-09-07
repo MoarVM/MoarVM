@@ -37,6 +37,7 @@ const char * MVM_jit_expr_operator_name(MVMThreadContext *tc, enum MVMJitExprOpe
 
 /* macros used in the expression list templates, defined here so they
    don't overwrite other definitions */
+#define CAT3(a,b,c) a b c
 #define QUOTE(x) (x)
 #define SIZEOF_MEMBER(type, member) sizeof(((type*)0)->member)
 

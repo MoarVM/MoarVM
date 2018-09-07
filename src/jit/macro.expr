@@ -75,6 +75,9 @@
 
 
 (macro: ^repr (,obj) (^getf (^stable ,obj) MVMSTable REPR))
+(macro: ^repr_id (,obj) (^getf (^repr ,obj) MVMREPROps ID))
+(macro: ^is_repr_id (,obj ,id) (eq (^repr_id ,obj) (const (&QUOTE ,id) (&SIZEOF_MEMBER MVMREPROps ID))))
+(macro: ^not_repr_id (,obj ,id) (ne (^repr_id ,obj) (const (&QUOTE ,id) (&SIZEOF_MEMBER MVMREPROps ID))))
 
 (macro: ^is_type_obj (,a)
     (nz (and (^getf ,a MVMObject header.flags) (^objflag MVM_CF_TYPE_OBJECT))))
@@ -90,12 +93,14 @@
 
 (macro: ^nullptr () (const 0 ptr_sz))
 
-(macro: ^decoder_ensure_decoder (,tc ,decoder ,op)
+(macro: ^throw_adhoc (,msg)
+  (callv (^func MVM_exception_throw_adhoc)
+    (arglist
+      (carg (tc) ptr)
+      (carg (const_ptr ,msg) ptr))))
+
+(macro: ^decoder_ensure_decoder (,decoder ,op)
     (when (any
-           (ne (^getf (^repr ,decoder) MVMREPROps ID) (const (&QUOTE MVM_REPR_ID_Decoder) (&sizeof MVMuint32)))
+           (^not_repr_id ,decoder MVM_REPR_ID_Decoder)
            (zr (flagval (^is_conc_obj ,decoder))))
-         (callv (^func &MVM_exception_throw_adhoc)
-           (arglist
-             (carg ,tc ptr)
-             (carg (const_ptr "Operation '%s' can only work on an object with the Decoder representation") ptr)
-             (carg ,op ptr)))))
+	(^throw_adhoc (&CAT3 "Operation '" ,op "'can only work on an object with the Decoder representation"))))
