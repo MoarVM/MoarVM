@@ -39,7 +39,8 @@
     /* force compilation but discard result */ \
     _(DISCARD, 1, 0),       \
     /* type conversion */ \
-    _(CAST, 1, 3),   \
+    _(SCAST, 1, 2),   \
+    _(UCAST, 1, 2),   \
     /* integer arithmetic */ \
     _(ADD, 2, 0), \
     _(SUB, 2, 0), \

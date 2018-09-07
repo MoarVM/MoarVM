@@ -692,9 +692,9 @@
 (template: objprimspec
   (if
     (nz $1)
-    (cast
+    (ucast
       (^getf (^storage_spec $1) MVMStorageSpec boxed_primitive)
-      int_sz (&sizeof MVMuint16) cast_unsigned)
+      int_sz (&sizeof MVMuint16))
     (const 0 int_sz)))
 
 (template: gethow

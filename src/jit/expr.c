@@ -116,8 +116,8 @@ static MVMint32 MVM_jit_expr_add_store(MVMThreadContext *tc, MVMJitExprTree *tre
 }
 
 static MVMint32 MVM_jit_expr_add_cast(MVMThreadContext *tc, MVMJitExprTree *tree,
-                                      MVMint32 node, MVMint32 to_size, MVMint32 from_size, MVMint32 is_signed) {
-    return MVM_jit_expr_apply_template_adhoc(tc, tree, "ns....", MVM_JIT_CAST, 1, node, to_size, from_size, is_signed);
+                                      MVMint32 cast_mode, MVMint32 node, MVMint32 to_size, MVMint32 from_size) {
+    return MVM_jit_expr_apply_template_adhoc(tc, tree, "ns....", cast_mode, 1, node, to_size, from_size);
 }
 
 static MVMint32 MVM_jit_expr_add_label(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 label) {
@@ -437,7 +437,7 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVMint32        nchild = MVM_JIT_EXPR_NCHILD(tree, node);
     MVMint32        *links = MVM_JIT_EXPR_LINKS(tree, node);
     MVMint32         *args = MVM_JIT_EXPR_ARGS(tree, node);
-    MVMint32     cast_mode = MVM_JIT_CAST_NONE;
+    MVMint32     cast_mode = MVM_JIT_NOOP;
     MVMint32 node_size = 0;
     MVMint32 i;
 
@@ -458,7 +458,8 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     case MVM_JIT_LOAD:
         node_size = args[0];
         break;
-    case MVM_JIT_CAST:
+    case MVM_JIT_SCAST:
+    case MVM_JIT_UCAST:
         node_size = args[0];
         break;
     case MVM_JIT_LABEL:
@@ -472,7 +473,7 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     case MVM_JIT_ADDR:
     case MVM_JIT_IDX:
         node_size = MVM_JIT_PTR_SZ;
-        cast_mode = MVM_JIT_CAST_UNSIGNED;
+        cast_mode = MVM_JIT_UCAST;
         break;
         /* signed binary operations */
     case MVM_JIT_ADD:
@@ -487,7 +488,7 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             /* arithmetic nodes use their largest operand */
             node_size = MAX(MVM_JIT_EXPR_INFO(tree, links[0])->size,
                             MVM_JIT_EXPR_INFO(tree, links[1])->size);
-            cast_mode = MVM_JIT_CAST_SIGNED;
+            cast_mode = MVM_JIT_SCAST;
             break;
         }
        /* unsigned binary operations */
@@ -498,7 +499,7 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         {
             node_size = MAX(MVM_JIT_EXPR_INFO(tree, links[0])->size,
                             MVM_JIT_EXPR_INFO(tree, links[1])->size);
-            cast_mode = MVM_JIT_CAST_UNSIGNED;
+            cast_mode = MVM_JIT_UCAST;
             break;
         }
    case MVM_JIT_FLAGVAL:
@@ -537,7 +538,7 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVM_JIT_EXPR_INFO(tree, node)->size = node_size;
 
     /* Insert casts as necessary */
-    if (cast_mode != MVM_JIT_CAST_NONE) {
+    if (cast_mode != MVM_JIT_NOOP) {
         for (i = 0; i < nchild; i++) {
             MVMint32 child = tree->nodes[first_child+i];
             MVMuint8 child_size = MVM_JIT_EXPR_INFO(tree, child)->size;
@@ -546,7 +547,7 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 MVM_JIT_EXPR_INFO(tree, child)->size = node_size;
             } else if (child_size < node_size) {
                 /* Widening casts need to be handled explicitly, shrinking casts do not */
-                MVMint32 cast = MVM_jit_expr_add_cast(tc, tree, child, node_size, child_size, cast_mode);
+                MVMint32 cast = MVM_jit_expr_add_cast(tc, tree, cast_mode, child, node_size, child_size);
 #if MVM_JIT_DEBUG
                 fprintf(stderr, "Inserting %s cast from %d to %d for operator %s (child %s)\n",
                         (cast_mode == MVM_JIT_CAST_UNSIGNED ? "unsigned" : "signed"),

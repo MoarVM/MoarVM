@@ -1,3 +1,4 @@
+/* TODO autogenerate this */
 MVM_JIT_TILE_DECL(addr);
 MVM_JIT_TILE_DECL(idx);
 MVM_JIT_TILE_DECL(const_reg);
@@ -8,8 +9,11 @@ MVM_JIT_TILE_DECL(load_reg);
 MVM_JIT_TILE_DECL(load_addr);
 MVM_JIT_TILE_DECL(load_idx);
 
-MVM_JIT_TILE_DECL(cast);
-MVM_JIT_TILE_DECL(cast_load_addr);
+MVM_JIT_TILE_DECL(cast_signed);
+MVM_JIT_TILE_DECL(cast_unsigned);
+MVM_JIT_TILE_DECL(cast_signed_load_addr);
+MVM_JIT_TILE_DECL(cast_unsigned_load_addr);
+
 
 MVM_JIT_TILE_DECL(store);
 MVM_JIT_TILE_DECL(store_addr);
