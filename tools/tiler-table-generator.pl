@@ -1,9 +1,25 @@
 #!/usr/bin/env perl
-package rule;
+package tiler;
 use strict;
 use warnings;
+use Getopt::Long;
+use FindBin;
+use lib $FindBin::Bin;
 
-my $pseudosym = 0;
+use sexpr;
+use expr_ops;
+
+
+# Get unique items in tree
+sub uniq {
+    my %h; grep !$h{$_}++, @_;
+}
+
+# shorthand for numeric sorts
+sub sortn {
+    sort { $a <=> $b } @_;
+}
+
 sub register_spec {
     my ($symbol) = @_;
     if ($symbol =~ m/^reg/) {
@@ -21,7 +37,7 @@ sub symbol_name {
     return $copy;
 }
 
-sub add {
+sub add_rule {
     my ($name, $tree, $sym, $cost) = @_;
     my $ctx = {
         # lookup path for values
@@ -41,20 +57,24 @@ sub add {
     $head->{path} = join('', @{$ctx->{path}});
     $head->{spec} = $ctx->{spec};
     $head->{refs} = $ctx->{refs};
-    $head->{text} = sexpr::encode($tree);
+    $head->{text} = sexpr_encode($tree);
     return @rules;
 }
 
 
-sub new {
+sub new_rule {
     # Build a new, fully decomposed rule
-    my ($class, $pat, $sym, $cost) = @_;
+    my ($pat, $sym, $cost) = @_;
     return {
         pat  => $pat,
         sym  => $sym,
         cost => $cost
     };
 }
+
+
+# To generate unique symbols
+my $pseudosym = 0;
 
 sub decompose {
     my ($ctx, $tree, $sym, $cost, @trace) = @_;
@@ -84,16 +104,19 @@ sub decompose {
                 $ctx->{refs}  += (1 << $ctx->{num});
                 $ctx->{num}++;
                 push @{$ctx->{spec}}, register_spec($item);
-            }                   # else head
+            } # else head
             push @$list, symbol_name($item);
         }
     }
-    push @rules, rule->new($list, symbol_name($sym), $cost);
+    push @rules, new_rule($list, symbol_name($sym), $cost);
     return @rules;
 }
 
-sub combine {
+sub combine_rules {
     my @rules = @_;
+    # Use a readable hash key separator
+    local $; = ",";
+
     # %sets represents the symbols which can occur in combination (symsets)
     # %trie is the table that holds all combinations of rules and symsets
     my (%sets, %trie);
@@ -142,7 +165,7 @@ sub combine {
         # key to identify them and replace the old %sets table
         my %new_sets;
         for my $gen (values %trie) {
-            my @set = sort(main::uniq(values %$gen));
+            my @set = sort(uniq(values %$gen));
             my $key = join(':', @set);
             $new_sets{$key} = [@set];
         }
@@ -167,7 +190,7 @@ sub combine {
     # the rulesets from the %trie as well.
     my (%seen, @rulesets);
     for my $symset (values %trie) {
-        my @rule_nrs = main::sortn(keys %$symset);
+        my @rule_nrs = sortn(keys %$symset);
         my $key = join $;, @rule_nrs;
         push @rulesets, [@rule_nrs] unless $seen{$key}++;
     }
@@ -176,23 +199,9 @@ sub combine {
 
 sub set_key {
     my @rule_nrs = @_;
-    return join ":", main::sortn(@rule_nrs);
+    return join ":", sortn(@rule_nrs);
 }
 
-# end package rule
-package main;
-use strict;
-use warnings;
-
-use Getopt::Long;
-
-use FindBin;
-use lib $FindBin::Bin;
-use sexpr;
-use expr_ops;
-
-# Use a readable hash key separator
-local $; = ",";
 
 # This script takes the tiler grammar file (x64.tiles)
 # and produces tiler tables.
@@ -201,21 +210,6 @@ my $VARNAME = "MVM_jit_tile_";
 my $EXPR_HEADER_FILE = 'src/jit/expr.h';
 my $DEBUG   = 0;
 my ($INFILE, $OUTFILE, $TESTING);
-
-# shorthand for numeric sorts
-sub sortn {
-    sort { $a <=> $b } @_;
-}
-
-# Get unique items in tree
-sub uniq {
-    my %h;
-    $h{$_}++ for @_;
-    return keys %h;
-}
-
-
-package main;
 
 sub generate_table {
     # Compute possible combination tables and minimum cost tables from
@@ -231,7 +225,7 @@ sub generate_table {
         for my $rule_nr (@$ruleset) {
             $candidates{$rules->[$rule_nr]{sym}}{$ruleset_nr} = 1;
         }
-        my $key = rule::set_key(@$ruleset);
+        my $key = set_key(@$ruleset);
         $trans{$key} = $ruleset_nr;
     }
 
@@ -259,7 +253,7 @@ sub generate_table {
     my %table;
     while (my ($idx, $match) = each %flat) {
         my ($head, $rs1, $rs2) = split $;, $idx;
-        my $key = rule::set_key(keys %$match);
+        my $key = set_key(keys %$match);
         die "Cannot find key $key" unless defined $trans{$key};
         $table{$head}{$rs1}{$rs2} = $trans{$key};
     }
@@ -343,7 +337,6 @@ sub compute_costs {
 # list contains 'shallow' nodes, maps rulenr -> rule
 # indirectly create rulenr -> terminal
 
-
 GetOptions(
     'debug' => \$DEBUG,
     'testing' => \$TESTING,
@@ -374,21 +367,21 @@ while (my $tree = $parser->parse) {
     my $keyword = shift @$tree;
     if ($keyword eq 'tile:') {
         # (tile: name pattern symbol cost)
-        push @rules, rule::add(@$tree);
+        push @rules, add_rule(@$tree);
     } elsif ($keyword eq 'define:') {
         # (define: pattern symbol)
-        push @rules, rule::add(undef, @$tree, 0);
+        push @rules, add_rule(undef, @$tree, 0);
     }
 }
 close $input;
 
 
-my @rulesets = rule::combine(@rules);
+my @rulesets = combine_rules(@rules);
 if ($DEBUG) {
     print "Rules:\n";
     for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
         print "$rule_nr => ";
-        print sexpr::encode($rules[$rule_nr]{pat}), ": ", $rules[$rule_nr]{sym} , "\n";
+        print sexpr_encode($rules[$rule_nr]{pat}), ": ", $rules[$rule_nr]{sym} , "\n";
     }
 
     print "Rulesets:\n";
