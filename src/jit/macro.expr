@@ -91,6 +91,12 @@
 
 (macro: ^body (,a) (addr ,a (&offsetof MVMObjectStooge data)))
 
+(macro: ^storage_spec (,a)
+  (call (^getf (^repr ,a) MVMREPROps get_storage_spec)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable ,a) ptr)) ptr_sz))
+
 (macro: ^nullptr () (const 0 ptr_sz))
 
 (macro: ^throw_adhoc (,msg)

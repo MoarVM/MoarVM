@@ -4,10 +4,7 @@
    consistent across multiple definitions.
 
    The first argument is the name, the second the number of children, the third
-   the number of parameters - together they define the size of the node. The
-   fourth argument defines the result type. This is strictly redundant for code
-   generation, although it is used by the template compiler. The fifth argument
-   determines how to generate a cast for mixed-sized oeprands.
+   the number of parameters - together they define the size of the node.
 
    NB: This file is parsed by tools/expr_ops.pm *AND* included by
    src/jit/expr.h, so keep it in order!
