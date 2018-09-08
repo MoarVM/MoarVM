@@ -110,6 +110,14 @@
       (carg $1 ptr)
       (carg (^caller) ptr)) ptr_sz))
 
+(template: binddynlex
+  (callv (^func &MVM_frame_binddynlex)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0   ptr)
+      (carg $1   ptr)
+      (carg (^caller) ptr))))
+
 (template: return_o
   (dov
     (callv (^func &MVM_spesh_log_return_type_from_jit)
