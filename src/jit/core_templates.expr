@@ -2322,6 +2322,11 @@
       (carg $2 ptr)
       (carg $3 int)) int_sz))
 
+(template: getarg_i (load (^arg $1) int_sz))
+(template: getarg_n (load (^arg $1) num_sz))
+(template: getarg_s (load (^arg $1) ptr_sz))
+(template: getarg_o (load (^arg $1) ptr_sz))
+
 (template: encoderepconf
   (call (^func &MVM_string_encode_to_buf_config)
     (arglist
@@ -2434,7 +2439,7 @@
 
 (template: sp_getarg_o (load (^parg $1) ptr_sz))
 (template: sp_getarg_i (load (^parg $1) int_sz))
-(template: sp_getarg_n (load (^parg $1) int_sz))
+(template: sp_getarg_n (load (^parg $1) num_sz))
 (template: sp_getarg_s (load (^parg $1) ptr_sz))
 
 (template: sp_getspeshslot (^spesh_slot_value $1))
