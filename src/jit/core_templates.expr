@@ -197,6 +197,13 @@
       (carg (^params) ptr)
       (carg $1 int)) ptr_sz))
 
+(template: param_sp
+  (call (^func &MVM_args_slurpy_positional)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^params) ptr)
+      (carg $1 int)) ptr_sz))
+
 (template: param_sn
   (call (^func &MVM_args_slurpy_named)
     (arglist
@@ -499,6 +506,15 @@
       (carg $2 ptr)) int_sz))
 
 (template: hasuniprop
+  (call (^func &MVM_string_offset_has_unicode_property_value)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 int)
+      (carg $3 int)
+      (carg $4 int)) int_sz))
+
+(template: hasunipropc
   (call (^func &MVM_string_offset_has_unicode_property_value)
     (arglist
       (carg (tc) ptr)
