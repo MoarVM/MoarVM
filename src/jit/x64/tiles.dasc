@@ -240,36 +240,44 @@ MVM_JIT_TILE_DECL(cast_unsigned) {
     MVMint8  to_reg    = tile->values[0];
     MVMint8  from_reg  = tile->values[1];
 
-    /* possible combinations: 1 -> 2, 4, 8; 2 -> 4, 8; 4 -> 8
-     * Hence we can combine from_size | (to_size << 3) to get
-     * the following options:
-     * 1 + 2<<3 == 17
-     * 1 + 4<<3 == 33
-     * 1 + 8<<3 == 65
-     * 2 + 4<<3 == 34
-     * 2 + 8<<3 == 66
-     * 4 + 8<<3 == 68
-     *
-     * TODO - make this support cast-down as well, for truncate
+    /* Same combination set as above, but we also support casting down:
+     * 8 -> 1 = 8  (1<<3 = 8, 8 | 8 = 8)
+     * 4 -> 1 = 12
+     * 2 -> 1 = 10
+     * 8 -> 2 = 24
+     * 4 -> 2 = 20
+     * 8 -> 4 = 40
      */
     MVMint32 size_conv = (from_size) | (to_size << 3);
     switch (size_conv) {
-    case 17:
-        | movzx Rw(to_reg), Rb(from_reg);
-        break;
-    case 33:
+    case 8:  /* 8 -> 1 */
+    case 10: /* 2 -> 1 */
+    case 12: /* 4 -> 1 */
         | movzx Rd(to_reg), Rb(from_reg);
         break;
-    case 34:
+    case 17: /* 1 -> 2 */
+        | movzx Rw(to_reg), Rb(from_reg);
+        break;
+    case 20: /* 4 -> 2 */
+    case 24: /* 8 -> 2 */
+        | movzx Rd(to_reg), Rw(to_reg);
+        break;
+    case 33: /* 1 -> 4 */
+        | movzx Rd(to_reg), Rb(from_reg);
+        break;
+    case 34: /* 2 -> 4 */
         | movzx Rd(to_reg), Rw(from_reg);
         break;
-    case 65:
+    case 40: /* 8 -> 4 */
+        | mov Rd(to_reg), Rd(from_reg);
+        break;
+    case 65: /* 1 -> 8 */
         | movzx Rq(to_reg), Rb(from_reg);
         break;
-    case 66:
+    case 66: /* 2 -> 8 */
         | movzx Rq(to_reg), Rw(from_reg);
         break;
-    case 68:
+    case 68: /* 4 -> 8 */
         /* In contrast to signed cast, nothing special is necessary to cast
          * unsigned doublewords to quadwords, because using the lower 4 bytes
          * automatically clears the upper 4 */
