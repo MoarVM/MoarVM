@@ -2232,7 +2232,7 @@
     (let: (($ss (^storage_spec $1)))
       (if
         (eq (^getf $ss MVMStorageSpec boxed_primitive) (const 1 int_sz))
-        (ucast (^getf $ss MVMStorageSpec is_unsigned) int_sz (&sizeof MVMuint16))
+        (ucast (^getf $ss MVMStorageSpec is_unsigned) int_sz (&sizeof MVMuint8))
         (const 0 int_sz)))
     (const 0 int_sz)))
 
