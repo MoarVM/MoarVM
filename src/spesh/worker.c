@@ -164,7 +164,7 @@ void MVM_spesh_worker_setup(MVMThreadContext *tc) {
 
 void MVM_spesh_worker_teardown(MVMThreadContext *tc) {
     /* Send stop sentinel */
-    MVM_repr_push_o(tc, tc->instance->spesh_queue, tc->instance->VMNull);
+    MVM_repr_unshift_o(tc, tc->instance->spesh_queue, tc->instance->VMNull);
     /* join thread */
     MVM_thread_join(tc, tc->instance->spesh_thread);
 }

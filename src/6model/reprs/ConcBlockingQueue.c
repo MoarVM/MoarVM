@@ -172,6 +172,54 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
     MVM_telemetry_interval_stop(tc, interval_id, "ConcBlockingQueue.push");
 }
 
+/* Push to front of the queue - this should be an exceptional case, it has less
+ * concurrency than the pair of push/shift */
+static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
+    MVMConcBlockingQueueBody *cbq = *(MVMConcBlockingQueueBody **)data;
+    MVMConcBlockingQueueNode *add;
+    MVMObject *to_add = value.o;
+    unsigned int interval_id;
+    AO_t orig_elems;
+
+    if (kind != MVM_reg_obj)
+        MVM_exception_throw_adhoc(tc,
+            "Can only push objects to a concurrent blocking queue");
+    if (value.o == NULL)
+        MVM_exception_throw_adhoc(tc,
+            "Cannot store a null value in a concurrent blocking queue");
+
+    interval_id = MVM_telemetry_interval_start(tc, "ConcBlockingQueue.unshift");
+
+    add = MVM_calloc(1, sizeof(MVMConcBlockingQueueNode));
+    MVM_ASSIGN_REF(tc, &(root->header), add->value, to_add);
+
+    /* We'll need to hold both the head and the tail lock, in case head == tail
+     * and push would update tail->next - without the tail lock, this could
+     * race. Ensure that we lock in the same order */
+    MVMROOT2(tc, root, to_add, {
+        MVM_gc_mark_thread_blocked(tc);
+        uv_mutex_lock(&cbq->tail_lock);
+        uv_mutex_lock(&cbq->head_lock);
+        MVM_gc_mark_thread_unblocked(tc);
+    });
+
+    add->next = cbq->head->next;
+    cbq->head->next = add;
+
+    if (MVM_incr(&cbq->elems) == 0) {
+        /* add to tail as well - we still have that lock, so we can't race */
+        cbq->tail = add;
+        /* signal sleeping threads */
+        uv_cond_signal(&cbq->head_cond);
+    }
+
+    uv_mutex_unlock(&cbq->head_lock);
+    uv_mutex_unlock(&cbq->tail_lock);
+
+    MVM_telemetry_interval_stop(tc, interval_id, "ConcBlockingQueue.unshift");
+}
+
+
 static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
     MVMConcBlockingQueueBody *body = *(MVMConcBlockingQueueBody**)data;
     MVMConcBlockingQueueNode *taken;
@@ -231,7 +279,7 @@ static const MVMREPROps ConcBlockingQueue_this_repr = {
         MVM_REPR_DEFAULT_SET_ELEMS,
         push,
         MVM_REPR_DEFAULT_POP,
-        MVM_REPR_DEFAULT_UNSHIFT,
+        unshift,
         shift,
         MVM_REPR_DEFAULT_SLICE,
         MVM_REPR_DEFAULT_SPLICE,
