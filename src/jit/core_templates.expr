@@ -128,7 +128,7 @@
       (arglist
         (carg (tc) ptr)
         (carg $0 ptr)
-        (carg (const 0 int_sz) int)))
+        (carg (^zero) int)))
     (callv (^func &MVM_frame_try_return)
       (arglist
         (carg (tc) ptr)))
@@ -144,8 +144,8 @@
 
 (template: add_i (add $1 $2))
 (template: sub_i (sub $1 $2))
-(template: inc_i (add $1 (const 1 int_sz)))
-(template: dec_i (sub $1 (const 1 int_sz)))
+(template: inc_i (add $1 (^one)))
+(template: dec_i (sub $1 (^one)))
 
 (template: band_i (and $1 $2))
 (template: bor_i  (or  $1 $2))
@@ -332,7 +332,7 @@
           (carg (tc) ptr)
           (carg $1 ptr)
           (carg $2 ptr)) int_sz)
-      (const 0 int_sz))))
+      (^zero))))
 
 (template: ge_s
   (flagval
@@ -342,7 +342,7 @@
           (carg (tc) ptr)
           (carg $1 ptr)
           (carg $2 ptr)) int_sz)
-      (const 0 int_sz))))
+      (^zero))))
 
 (template: lt_s
   (flagval
@@ -352,7 +352,7 @@
           (carg (tc) ptr)
           (carg $1 ptr)
           (carg $2 ptr)) int_sz)
-      (const 0 int_sz))))
+      (^zero))))
 
 (template: le_s
   (flagval
@@ -362,7 +362,7 @@
           (carg (tc) ptr)
           (carg $1 ptr)
           (carg $2 ptr)) int_sz)
-      (const 0 int_sz))))
+      (^zero))))
 
 (template: cmp_s
   (call (^func &MVM_string_compare)
@@ -540,7 +540,7 @@
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)
-      (carg (const 0 int_sz) int)) int_sz))
+      (carg (^zero) int)) int_sz))
 
 (template: ordat
   (call (^func &MVM_string_ord_at)
@@ -687,7 +687,7 @@
       (carg $1   ptr)
       (carg (^cu_string $2) ptr)
       (carg \$0  ptr)
-      (carg (const 1 int_sz) int))))
+      (carg (^one) int))))
 
 (template: findmeth_s!
   (callv (^func &MVM_6model_find_method)
@@ -696,7 +696,7 @@
       (carg $1   ptr)
       (carg $2   ptr)
       (carg \$0  ptr)
-      (carg (const 1 int_sz) int))))
+      (carg (^one) int))))
 
 (template: can!
   (callv (^func &MVM_6model_can_method)
@@ -734,8 +734,8 @@
   (if (all
         (nz $1)
         (^is_conc_obj $1))
-    (const 1 int_sz)
-    (const 0 int_sz)))
+    (^one)
+    (^zero)))
 
 (template: istype!
   (callv (^func &MVM_6model_istype)
@@ -751,7 +751,7 @@
     (ucast
       (^getf (^storage_spec $1) MVMStorageSpec boxed_primitive)
       int_sz (&SIZEOF_MEMBER MVMStorageSpec boxed_primitive))
-    (const 0 int_sz)))
+    (^zero)))
 
 (template: gethow
   (let: (($how (^getf (^stable $1) MVMSTable HOW)))
@@ -1285,7 +1285,7 @@
       (carg \$0 ptr)
       (carg (^nullptr) ptr)
       (carg (^nullptr) ptr)
-      (carg (const 0 int_sz) int))))
+      (carg (^zero) int))))
 
 (template: isfalse!
   (callv (^func &MVM_coerce_istrue)
@@ -1295,7 +1295,7 @@
       (carg \$0 ptr)
       (carg (^nullptr) ptr)
       (carg (^nullptr) ptr)
-      (carg (const 1 int_sz) int))))
+      (carg (^one) int))))
 
 (template: bootint      (^get_instance_field boot_types.BOOTInt))
 (template: bootnum      (^get_instance_field boot_types.BOOTNum))
@@ -1310,36 +1310,36 @@
   (if (all
         (nz $1)
         (^is_repr_id $1 MVM_REPR_ID_P6int))
-    (const 1 int_sz)
-    (const 0 int_sz)))
+    (^one)
+    (^zero)))
 
 (template: isnum
   (if (all
         (nz $1)
         (^is_repr_id $1 MVM_REPR_ID_P6num))
-    (const 1 int_sz)
-    (const 0 int_sz)))
+    (^one)
+    (^zero)))
 
 (template: isstr
   (if (all
         (nz $1)
         (^is_repr_id $1 MVM_REPR_ID_P6str))
-    (const 1 int_sz)
-    (const 0 int_sz)))
+    (^one)
+    (^zero)))
 
 (template: islist
   (if (all
         (nz $1)
         (^is_repr_id $1 MVM_REPR_ID_VMArray))
-    (const 1 int_sz)
-    (const 0 int_sz)))
+    (^one)
+    (^zero)))
 
 (template: ishash
   (if (all
         (nz $1)
         (^is_repr_id $1 MVM_REPR_ID_MVMHash))
-    (const 1 int_sz)
-    (const 0 int_sz)))
+    (^one)
+    (^zero)))
 
 (template: hllboxtype_i
   (^getf (^hllconfig) MVMHLLConfig int_box_type))
@@ -1425,8 +1425,8 @@
     (any
       (zr $1)
       (eq (^getf (^stable $1) MVMSTable invoke) (^func &MVM_6model_invoke_default)))
-    (const 0 int_sz)
-    (const 1 int_sz)))
+    (^zero)
+    (^one)))
 
 (template: getcodeobj
   (call (^func &MVM_frame_get_code_object)
@@ -1438,7 +1438,7 @@
   (if
     (eq (^getf (^stable $1) MVMSTable invoke) (^func &MVM_6model_invoke_default))
     (flagval (nz (^getf (^stable $1) MVMSTable invocation_spec)))
-    (const 1 int_sz)))
+    (^one)))
 
 (template: setdispatcher
   (dov
@@ -1462,8 +1462,8 @@
 (template: iscont
   (if
     (any (^is_vmnull $1) (zr (^getf (^stable $1) MVMSTable container_spec)))
-    (const 0 int_sz)
-    (const 1 int_sz)))
+    (^zero)
+    (^one)))
 
 (template: decont!
   (ifv (any
@@ -1820,7 +1820,7 @@
       (carg (tc) ptr)
       (carg $1   ptr)
       (carg $2   int)
-      (carg (const 0 int_sz) int)) int_sz))
+      (carg (^zero) int)) int_sz))
 
 (template: tryfindmeth!
   (callv (^func &MVM_6model_find_method)
@@ -1829,7 +1829,7 @@
       (carg $1   ptr)
       (carg (^cu_string $2) ptr)
       (carg \$0  ptr)
-      (carg (const 0 int_sz) int))))
+      (carg (^zero) int))))
 
 (template: tryfindmeth_s!
   (callv (^func &MVM_6model_find_method)
@@ -1838,7 +1838,7 @@
       (carg $1   ptr)
       (carg $2   ptr)
       (carg \$0  ptr)
-      (carg (const 0 int_sz) int))))
+      (carg (^zero) int))))
 
 (template: rand_i
   (call (^func &MVM_proc_rand_i)
@@ -2128,7 +2128,7 @@
       (carg (tc) ptr)
       (carg $1   ptr)
       (carg $2   int)
-      (carg (const 1 int_sz) int)) int_sz))
+      (carg (^one) int)) int_sz))
 
 (template: iscont_i
   (call (^func MVM_6model_container_iscont_i)
@@ -2185,7 +2185,7 @@
 (template: isrwcont
   (if
     (^is_vmnull $1)
-    (const 0 int_sz)
+    (^zero)
     (let: (($cs (^getf (^stable $1) MVMSTable container_spec)))
       (if
         (nz $cs)
@@ -2193,7 +2193,7 @@
           (arglist
             (carg (tc) ptr)
             (carg $1 ptr)) int_sz)
-        (const 0 int_sz)))))
+        (^zero)))))
 
 (template: fc
   (call (^func &MVM_string_fc)
@@ -2225,20 +2225,20 @@
         (ucast
           (^getf $ss MVMStorageSpec bits)
           int_sz (&SIZEOF_MEMBER MVMStorageSpec boxed_primitive))
-        (const 0 int_sz)))
-    (const 0 int_sz)))
+        (^zero)))
+    (^zero)))
 
 (template: objprimunsigned
   (if
     (nz $1)
     (let: (($ss (^storage_spec $1)))
       (if
-        (eq (^getf $ss MVMStorageSpec boxed_primitive) (const 1 int_sz))
+        (eq (^getf $ss MVMStorageSpec boxed_primitive) (^one))
         (ucast
           (^getf $ss MVMStorageSpec is_unsigned)
           int_sz (&SIZEOF_MEMBER MVMStorageSpec is_unsigned))
-        (const 0 int_sz)))
-    (const 0 int_sz)))
+        (^zero)))
+    (^zero)))
 
 (template: coerce_iu  (copy $1))
 
