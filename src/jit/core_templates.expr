@@ -750,7 +750,7 @@
     (nz $1)
     (ucast
       (^getf (^storage_spec $1) MVMStorageSpec boxed_primitive)
-      int_sz (&sizeof MVMuint16))
+      int_sz (&SIZEOF_MEMBER MVMStorageSpec boxed_primitive))
     (const 0 int_sz)))
 
 (template: gethow
@@ -2222,7 +2222,9 @@
     (let: (($ss (^storage_spec $1)))
       (if
         (nz (^getf $ss MVMStorageSpec boxed_primitive))
-        (ucast (^getf $ss MVMStorageSpec bits) int_sz (&sizeof MVMuint16))
+        (ucast
+          (^getf $ss MVMStorageSpec bits)
+          int_sz (&SIZEOF_MEMBER MVMStorageSpec boxed_primitive))
         (const 0 int_sz)))
     (const 0 int_sz)))
 
@@ -2232,7 +2234,9 @@
     (let: (($ss (^storage_spec $1)))
       (if
         (eq (^getf $ss MVMStorageSpec boxed_primitive) (const 1 int_sz))
-        (ucast (^getf $ss MVMStorageSpec is_unsigned) int_sz (&sizeof MVMuint8))
+        (ucast
+          (^getf $ss MVMStorageSpec is_unsigned)
+          int_sz (&SIZEOF_MEMBER MVMStorageSpec is_unsigned))
         (const 0 int_sz)))
     (const 0 int_sz)))
 
@@ -2494,7 +2498,7 @@
         (copy $type)))))
 
 (template: sp_p6oget_i (load (add (^p6obody $1) $2) int_sz))
-(template: sp_p6oget_n (load (add (^p6obody $1) $2) (&sizeof MVMnum64)))
+(template: sp_p6oget_n (load (add (^p6obody $1) $2) num_sz))
 (template: sp_p6oget_s (load (add (^p6obody $1) $2) ptr_sz))
 
 (template: sp_p6obind_o
