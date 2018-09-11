@@ -45,7 +45,7 @@ void MVM_platform_nanosleep(MVMuint64 nanos)
 
 void MVM_platform_decodelocaltime(MVMint64 time, MVMint64 decoded[]) {
     const time_t t = (time_t)time;
-    struct tm *tm = localtime(&t, &tm);
+    struct tm *tm = localtime_s(&t, &tm);
 
     decoded[0] = tm->tm_sec;
     decoded[1] = tm->tm_min;
