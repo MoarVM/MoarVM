@@ -1308,7 +1308,7 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
 
 /* Binds the specified value to the given lexical, finding it along the static
  * chain. */
-MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMRegister *value) {
+MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMRegister value) {
     MVMFrame *cur_frame = tc->cur_frame;
     while (cur_frame != NULL) {
         MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
@@ -1319,10 +1319,10 @@ MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *
                 if (cur_frame->static_info->body.lexical_types[entry->value] == type) {
                     if (type == MVM_reg_obj || type == MVM_reg_str) {
                         MVM_ASSIGN_REF(tc, &(cur_frame->header),
-                            cur_frame->env[entry->value].o, value->o);
+                            cur_frame->env[entry->value].o, value.o);
                     }
                     else {
-                        cur_frame->env[entry->value] = *value;
+                        cur_frame->env[entry->value] = value;
                     }
                     return;
                 }

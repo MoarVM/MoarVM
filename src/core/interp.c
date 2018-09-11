@@ -379,25 +379,25 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindlex_ni):
                 MVM_frame_bind_lexical_by_name(tc,
                     MVM_cu_string(tc, cu, GET_UI32(cur_op, 0)),
-                    MVM_reg_int64, &(GET_REG(cur_op, 4)));
+                    MVM_reg_int64, GET_REG(cur_op, 4));
                 cur_op += 6;
                 goto NEXT;
             OP(bindlex_nn):
                 MVM_frame_bind_lexical_by_name(tc,
                     MVM_cu_string(tc, cu, GET_UI32(cur_op, 0)),
-                    MVM_reg_num64, &(GET_REG(cur_op, 4)));
+                    MVM_reg_num64, GET_REG(cur_op, 4));
                 cur_op += 6;
                 goto NEXT;
             OP(bindlex_ns):
                 MVM_frame_bind_lexical_by_name(tc,
                     MVM_cu_string(tc, cu, GET_UI32(cur_op, 0)),
-                    MVM_reg_str, &(GET_REG(cur_op, 4)));
+                    MVM_reg_str, GET_REG(cur_op, 4));
                 cur_op += 6;
                 goto NEXT;
             OP(bindlex_no):
                 MVM_frame_bind_lexical_by_name(tc,
                     MVM_cu_string(tc, cu, GET_UI32(cur_op, 0)),
-                    MVM_reg_obj, &(GET_REG(cur_op, 4)));
+                    MVM_reg_obj, GET_REG(cur_op, 4));
                 cur_op += 6;
                 goto NEXT;
             OP(getlex_ng):
