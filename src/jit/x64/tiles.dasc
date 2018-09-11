@@ -284,7 +284,7 @@ MVM_JIT_TILE_DECL(cast_unsigned) {
         | mov Rd(to_reg), Rd(from_reg);
         break;
     default:
-        DIE("Unsupported unsigned cast %d -> %d\n", from_size, to_size);
+        DIE("Unsupported unsigned cast %d -> %d (%d)\n", from_size, to_size, size_conv);
     }
 
 }
@@ -324,7 +324,7 @@ MVM_JIT_TILE_DECL(cast_signed_load_addr) {
         | mov Rq(to_reg), rax;
         break;
     default:
-        DIE("Unsupported signed cast %d -> %d\n", from_size, to_size);
+        DIE("Unsupported signed cast with load %d -> %d\n", from_size, to_size);
     }
 }
 
@@ -341,26 +341,37 @@ MVM_JIT_TILE_DECL(cast_unsigned_load_addr) {
 
     MVMint32 size_conv = (from_size) | (to_size << 3);
     switch (size_conv) {
-    case 17:
+    case 8:  /* 8 -> 1 */
+    case 10: /* 2 -> 1 */
+    case 12: /* 4 -> 1 */
+        | movzx Rd(to_reg), byte [Rq(base)+ofs];
+    case 17: /* 1 -> 2 */
         | movzx Rw(to_reg), byte [Rq(base)+ofs];
         break;
-    case 33:
-        | movzx Rd(to_reg), byte [Rq(base)+ofs];
-        break;
-    case 34:
+    case 20: /* 4 -> 2 */
+    case 24: /* 8 -> 2 */
         | movzx Rd(to_reg), word [Rq(base)+ofs];
         break;
-    case 65:
+    case 33: /* 1 -> 4 */
+        | movzx Rd(to_reg), byte [Rq(base)+ofs];
+        break;
+    case 34: /* 2 -> 4 */
+        | movzx Rd(to_reg), word [Rq(base)+ofs];
+        break;
+    case 40: /* 8 -> 4 */
+        | mov Rd(to_reg), dword [Rq(base)+ofs];
+        break;
+    case 65: /* 1 -> 8 */
         | movzx Rq(to_reg), byte [Rq(base)+ofs];
         break;
-    case 66:
+    case 66: /* 2 -> 8 */
         | movzx Rq(to_reg), word [Rq(base)+ofs];
         break;
-    case 68:
+    case 68: /* 4 -> 8 */
         | mov Rd(to_reg),  dword [Rq(base)+ofs];
         break;
     default:
-        DIE("Unsupported unsigned cast %d -> %d\n", from_size, to_size);
+        DIE("Unsupported unsigned cast with load %d -> %d (size_conv=%d)\n", from_size, to_size, size_conv);
     }
 }
 
