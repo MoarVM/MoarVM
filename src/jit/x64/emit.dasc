@@ -624,7 +624,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_getarg_n:
     case MVM_OP_getarg_s:
     case MVM_OP_getarg_i: {
-        MVMint32 reg = ins->operands[0].reg.orig;
+        MVMuint16 reg = ins->operands[0].reg.orig;
         MVMuint16 idx = ins->operands[1].reg.orig;
         | mov TMP1, TC->cur_frame;
         | mov TMP1, FRAME:TMP1->args;
@@ -2170,6 +2170,40 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov FUNCTION, STABLE:FUNCTION->container_spec;
         | mov FUNCTION, CONTAINERSPEC:FUNCTION->atomic_store;
         | call FUNCTION;
+        break;
+    }
+    case MVM_OP_hllbool: {
+        MVMint16 target = ins->operands[0].reg.orig;
+        MVMint16 value = ins->operands[1].reg.orig;
+        MVMHLLConfig *hll_config = (MVMHLLConfig*)jg->sg->sf->body.cu->body.hll_config;
+        uintptr_t  true_value = (uintptr_t)hll_config->true_value;
+        uintptr_t false_value = (uintptr_t)hll_config->false_value;
+        | mov TMP1, WORK[value];
+        | test TMP1, TMP1;
+        | jnz >1;
+        | mov64 TMP1, false_value;
+        | jmp >2;
+        |1:
+        | mov64 TMP1, true_value;
+        |2:
+        | mov WORK[target], TMP1;
+        break;
+    }
+    case MVM_OP_hllboolfor: {
+        MVMint16 target = ins->operands[0].reg.orig;
+        MVMint16 value = ins->operands[1].reg.orig;
+        MVMHLLConfig *hll_config = (MVMHLLConfig*)ins->operands[2].lit_i64;
+        uintptr_t  true_value = (uintptr_t)hll_config->true_value;
+        uintptr_t false_value = (uintptr_t)hll_config->false_value;
+        | mov TMP1, WORK[value];
+        | test TMP1, TMP1;
+        | jnz >1;
+        | mov64 TMP1, false_value;
+        | jmp >2;
+        |1:
+        | mov64 TMP1, true_value;
+        |2:
+        | mov WORK[target], TMP1;
         break;
     }
     default:

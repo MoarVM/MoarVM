@@ -46,9 +46,12 @@ be made, they should be numbered as 2041.01.1, 2041.01.2, etc.
 9. Run `git verify-tag 2017.10` to make sure the signature is valid and the tag
    was actually signed.
 
-10. From here on this assumes you have the https://github.com/MoarVM/moarvm.org/ repository in the same folder as the main MoarVM repo
+10. Run `git push origin 2017.10` assuming the upstream remote is `origin` to push
+    the tag. Also ensure you `git push origin` to push to the master branch as well.
 
-11. Make sure you have the Text::Markdown Perl 5 module and run:
+11. From here on this assumes you have the https://github.com/MoarVM/moarvm.org/ repository in the same folder as the main MoarVM repo
+
+12. Make sure you have the Text::Markdown Perl 5 module and run:
 
         ./tools/moarvm.org_releases.pl > ../moarvm.org/releases.html
 
@@ -56,32 +59,35 @@ be made, they should be numbered as 2041.01.1, 2041.01.2, etc.
    the most recent release appears first and all releases going back to 2014.01
    appear.
 
-12. Manually edit moarvm.org/index.html to have the DL link and mention the most
+13. Manually edit moarvm.org/index.html to have the DL link and mention the most
     recent release.
     Changes need to be made on lines:
   - 36: Large text
   - 38: Description text
   - 41: Download link
 
-13. Create a gpg signature
+14. Create a gpg signature
 
          gpg --detach-sign --armor MoarVM-2018.04.tar.gz
 
    Verify the signature:
          gpg --verify MoarVM-2018.04.tar.gz.asc
 
-14. Copy the tar.gz and the signature:
+15. Copy the tar.gz and the signature:
 
          cp MoarVM-2018.04.tar.gz MoarVM-2018.04.tar.gz.asc ../moarvm.org/releases
 
-15. Commit release to moarvm.org repo and check moarvm.org after 5-10 minutes and
+16. Commit release to moarvm.org repo and check moarvm.org after 5-10 minutes and
     make sure download works.
+         cd ../moarvm.org
+         git add MoarVM-2018.04.tar.gz MoarVM-2018.tar.gz.asc
+         git commit -m "Commit release 2018.08"
 
-16. Update MoarVM article on Wikipedia with the latest release https://en.wikipedia.org/wiki/MoarVM
+17. Update MoarVM article on Wikipedia with the latest release https://en.wikipedia.org/wiki/MoarVM
 
-17. Optionally, update the ports/macports/Portfile to reflect this latest
+18. Optionally, update the ports/macports/Portfile to reflect this latest
    version, and open a ticket at https://trac.macports.org/newticket to get
    the macport updated. (For now, just make Coke do it.)
 
-18. Do something fun to celebrate. Like watching nyan cat, or having a beer. Or
+19. Do something fun to celebrate. Like watching nyan cat, or having a beer. Or
    why not both?

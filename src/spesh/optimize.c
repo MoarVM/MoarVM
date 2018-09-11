@@ -1129,6 +1129,32 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
     }
 }
 
+/* Optimizes a hllbool instruction away if the value is known */
+static void optimize_hllbool(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        MVMSpeshFacts *obj_facts  = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+        MVMHLLConfig  *hll_config = ins->info->opcode == MVM_OP_hllbool
+            ? g->sf->body.cu->body.hll_config
+            : MVM_hll_get_config_for(tc, MVM_spesh_get_facts(tc, g, ins->operands[2])->value.s);
+        MVMObject     *hll_bool   = obj_facts->value.i ? hll_config->true_value : hll_config->false_value;
+        MVMSpeshFacts *how_facts;
+
+        MVMint16 spesh_slot = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable*)hll_bool);
+
+        MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+        ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+        ins->operands[1].lit_i16 = spesh_slot;
+        /* Store facts about the value in the write operand */
+        how_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+        how_facts->flags  |= (MVM_SPESH_FACT_KNOWN_VALUE | MVM_SPESH_FACT_KNOWN_TYPE);
+        how_facts->value.o = hll_bool;
+        how_facts->type    = STABLE(hll_bool)->WHAT;
+        MVM_spesh_use_facts(tc, g, obj_facts);
+        MVM_spesh_facts_depend(tc, g, how_facts, obj_facts);
+    }
+}
+
 /* Optimize an object conditional (if_o, unless_o) to simpler operations.
  *
  * We always perform the split of the if_o to istrue + if_i, because a branch
@@ -1805,7 +1831,6 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
                         code_ref_reg, prepargs_deopt_idx);
-                MVM_free(inline_graph->spesh_slots);
             }
             else {
                 /* Can't inline, so just identify candidate. */
@@ -1856,7 +1881,6 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
                         code_ref_reg, prepargs_deopt_idx);
-                MVM_free(inline_graph->spesh_slots);
             }
         }
 
@@ -2259,6 +2283,40 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
         /*fprintf(stderr, "a PHI node of %d operands had no intersecting flags\n", ins->info->num_operands);*/
     }
 }
+/* getarg_* are used to read (possibly modified) values back from the args
+ * buffer. This is done only for native calls (after a nativeinvoke). However
+ * the JIT does not emit any code for the corresponding arg_* ops for a
+ * nativeinvoke. Instead the values are read directly from the WORK registers
+ * and the arg_* ops are only used to mark those registers. This means that
+ * there's nothing in the args buffer to read from. So instead, turn the
+ * getarg_* ops into plain set ops and take the value from the original WORK
+ * register. Set elimination will be able to optimize this further. */
+static void optimize_getarg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshFacts *src_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    if (src_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        MVMSpeshBB *cur_bb = bb;
+        MVMSpeshIns *cur_ins = ins->prev;
+        while (cur_bb) {
+            while (cur_ins) {
+                if (
+                    cur_ins->info->opcode == MVM_OP_arg_i
+                    && cur_ins->operands[0].lit_i16 == src_facts->value.i
+                ) {
+                    ins->info = MVM_op_get_op(MVM_OP_set);
+                    ins->operands[1] = cur_ins->operands[1];
+                    MVM_spesh_usages_add_by_reg(tc, g, ins->operands[1], ins);
+                    MVM_spesh_usages_delete(tc, g, src_facts, ins);
+                    return;
+                }
+                cur_ins = cur_ins->prev;
+            }
+            /* FIXME to be correct, we'd need to search all predecessors, not just the first
+             * but this will do for the currently known use case for getarg_i */
+            cur_bb = cur_bb->pred[0];
+            cur_ins = cur_bb->last_ins;
+        }
+    }
+}
 static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                         MVMSpeshPlanned *p) {
     MVMSpeshCallInfo arg_info;
@@ -2278,6 +2336,10 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_istrue:
         case MVM_OP_isfalse:
             optimize_istrue_isfalse(tc, g, bb, ins);
+            break;
+        case MVM_OP_hllbool:
+        case MVM_OP_hllboolfor:
+            optimize_hllbool(tc, g, ins);
             break;
         case MVM_OP_if_i:
         case MVM_OP_unless_i:
@@ -2334,6 +2396,9 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_invoke_s:
         case MVM_OP_invoke_o:
             optimize_call(tc, g, bb, ins, p, 1, &arg_info);
+            break;
+        case MVM_OP_getarg_i:
+            optimize_getarg(tc, g, bb, ins);
             break;
         case MVM_OP_speshresolve:
             if (p) {

@@ -117,6 +117,8 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
             check_config_key(tc, config_hash, "bind_error", bind_error, config);
             check_config_key(tc, config_hash, "method_not_found_error", method_not_found_error, config);
             check_config_key(tc, config_hash, "lexical_handler_not_found_error", lexical_handler_not_found_error, config);
+            check_config_key(tc, config_hash, "true_value", true_value, config);
+            check_config_key(tc, config_hash, "false_value", false_value, config);
             check_config_key_reftype(tc, config_hash, "int_lex_ref", int_lex_ref,
                 config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_LEX);
             check_config_key_reftype(tc, config_hash, "num_lex_ref", num_lex_ref,

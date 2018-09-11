@@ -867,6 +867,8 @@ casattr_o           w(obj) r(obj) r(obj) r(str) r(obj) r(obj) :specializable
 atkey_u             w(uint64) r(obj) r(str) :specializable
 coerce_us           w(str) r(uint64) :pure
 speshguardnotobj    r(obj) r(obj)
+hllbool             w(obj) r(int64) :pure :useshll
+hllboolfor          w(obj) r(int64) r(str) :pure :useshll
 
 decodelocaltime    w(obj) r(int64)
 

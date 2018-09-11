@@ -10,5 +10,5 @@ VERSION=$1
     done
 } > MANIFEST
 [ -d MoarVM-$VERSION ] || ln -s . MoarVM-$VERSION
-perl -pe "s{^}{MoarVM-$VERSION/}" MANIFEST | tar zc -T - -f MoarVM-$VERSION.tar.gz
+perl -pe "s{^}{MoarVM-$VERSION/}" MANIFEST | tar zc --owner=0 --group=0 --numeric-owner -T - -f MoarVM-$VERSION.tar.gz
 rm MoarVM-$VERSION

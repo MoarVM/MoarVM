@@ -13,7 +13,7 @@ The file =src/jit/expr_ops.h= contains a macro-list of all defined operators.
 Each operator is defined as such:
 
 #+BEGIN_EXAMPLE
-_(ADD, 2, 0, REG, UNSIGNED), \
+_(ADD, 2, 0), \
 #+END_EXAMPLE
 
 + First item is the name, which must be *uppercase*. Choose something
@@ -24,18 +24,51 @@ _(ADD, 2, 0, REG, UNSIGNED), \
 + Third item is the number of *parameters* (or options). Parameters
   are constants to use for the operator. E.g. for the =CONST= operator
   the value of the constant is a parameter.
-+ Fourth item is the 'result value'. I'm reasonably sure this has no
-  use anymore and could be cleaned up.
-+ Fifth item is the 'cast behaviour'. The expression compiler
-  automatically inserts size extension operators (=CAST=) so that both
-  arguments are equal in size. There's three options:
+
+Mind the comma and the backslash to escape the newline.
+
+* Add to operator type tables
+
+The template precompiler uses type tables to check the consistency of
+templates while compiling. You may need to edit these tables when
+adding a new operator.
+
+- =%OPERATOR_TYPES= contains the result type of the operator. E.g. an
+  operator like =store= does not yield any value, and its
+  =%OPERAND_TYPE= is =void=.
+- =%OPERAND_TYPES= maps operators to their expected operand types as
+  comma-separated values. If the number of types does not match up
+  with the number of operands, the first type is repeated to match,
+  and the last type is treated as an exception. E.g. =do= maps to
+  =void,reg= - meaning that it accepts any number of =void= operands
+  and a final =reg= operand.
+- =%OP_SIZE_ARG= records the argument offset (if any) that represents
+  the 'size' applicable to the operator, allowing the template
+  compiler to check if that argument makes any sense. (As defined by -
+  a parameter that ends with =_sz=, or a macro expression).
+
+The default type is =reg= (an integer or pointer value that can be
+stored in a *register*) and it is not necessary to specify this
+explicitly.
+
+* Add to autocasting in the analyzer
+
+Templates are generally written without concern for the exact sizes
+and offsets at runtime. (Those depend on the C compiler).  As a
+result, an operator may get differently-sized operands. The expression
+JIT resolves such size conflicts by insertings size casts
+automatically. Operand casting can be in three forms, and you'll need
+to decide which it is:
+
   - =NO_CAST= - don't insert casts
   - =UNSIGNED= - extend with zeros
   - =SIGNED= - extend with sign bit (two's complement)
-  Autocasting is a questionable design decision and may be removed in
-  the future.
 
-Mind the comma and the backslash to escape the newline.
+Typically, =SIGNED= is only suitable for arithmetic operators,
+=UNSIGNED= is more suitable for binary operators like =AND= and =OR=,
+and anything else should probably use =NO_CAST=. There's a long switch
+statement in =expr.c= (=analyze_node=) that sets this up, and thats
+where you add your edits.
 
 * Add tiles to implement the new operator
 

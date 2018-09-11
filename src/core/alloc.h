@@ -46,3 +46,12 @@ MVM_STATIC_INLINE void MVM_free(void *p) {
     (addr) = NULL; \
 } while (0)
 
+MVM_STATIC_INLINE void MVM_free_at_safepoint(MVMThreadContext *tc, void *ptr) {
+    MVM_VECTOR_PUSH(tc->instance->free_at_safepoint, ptr);
+}
+
+MVM_STATIC_INLINE void MVM_alloc_safepoint(MVMThreadContext *tc) {
+    /* No need to acquire mutex since we're in the GC when calling this. */
+    while (MVM_VECTOR_ELEMS(tc->instance->free_at_safepoint))
+        MVM_free(MVM_VECTOR_POP(tc->instance->free_at_safepoint));
+}

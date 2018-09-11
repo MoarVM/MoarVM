@@ -1,6 +1,164 @@
 See https://github.com/MoarVM/MoarVM/wiki/ChangeLog-Draft for the draft changelog
 since the previous release.
 
+New in 2018.08
+
+6model:
++ [d4d8ff41] Mark functions used in Perl 6 extops MVM_PUBLIC
++ [4199a956] Enable gc_free of MVMContext
++ [e1df3411] Speedup VMArray zero_slots by using memset instead of a loop
++ [46c08a0e] Fix memory leak in CArray given P6 Str's
++ [ac3d3c76] Fix alignment/mem issue of inlined CArrays
++ [919e78ab] Fix race in setting the type debug name
+
+Core:
++ [a24033eb] Make coerce_is/us 2x faster by not using snprintf and using
+  dedicated integer to string code
+
+Docs:
++ [73d646c6,210d27ff] Remove outdated mentions of Parrot
++ [411f73fd] [Docs] Add JIT documentation describing how to add a tile
++ [9647c1c4] ExprJIT: Document the conditional dependency check
+
+Documentation:
++ [8a7da04a] Update garbage collection documentation
+
+GC:
++ [e766345d] Speed up hash garbage collection by optimizing its gc_mark(); add
+  new macros
++ [8ac13c29] Optimize VMArray_gc_mark to be a bit faster
++ [7bf4c429] Optimize SCRef_gc_mark by using faster MVM_gc_worklist_add calls
++ [3e91dc62] Fix MVM_GC_DEBUG worklist check for NULL STable
++ [2f36e266] Add branch hint macros to nursery allocation
++ [62a99bcf] Fix segfaults caused by sharing of jitcode in nativeCall repr
+
+General:
++ [4fa8c855,940c02be,df6271af,b2c8d3ff,2194358c,50262e3c,3da1e5fb] Refactor
+  context traversal to better support inlining
+
+IO:
++ [febffaa2] Expose file descriptors of IO::Socket::INET instances
++ [2e946881] Expose listening host and port in asyncsocket_listen
+
+JIT:
++ [2249d688] Move lexprimspec to proper emitter
+  getrusage, threadlockcount
++ [9b2008a0] Add exprjit macro to retrieve fields from instance
++ [bc9627ba] Add exprjit macro to determine if vmnull
++ [70624742,33c5840c] Re-add getlexstatic_o and getlex_no exprjit templates with
+  minor changes
++ [c3ef58e1] Change ^getf to load in getlexstatic_o template so it only uses a
+  single load instruction
++ [0b7f26ce,1ab3b189] JIT-compile sp_speshresolve, JIT neg_I and abs_I
++ [1fe14d3c,bd8361e2] Define ARG5 and ARG6 on Windows since it only has 4
+  arguments to functions in general purpose registers
++ [ef41080c] Use '^addrf' macro for setf, getf
++ [8b522291] Remove 'unsafe' templates already in core_templates, these templates
+  have working exprjit versions
++ [e242dc8f] Fix unicmp_s expr jit args
++ [7bcef24f] Move label assignment to tiler
++ [922befb2] Move exprjit oplist parser into a module
++ [9b44d481] JIT strfromname in the legacy JIT
++ [30781708] Fix JIT compiled getarg_* reading the wrong register
++ [d19c6608] Unbreak build on architectures where we don't support JIT compilation
++ [14bdaea4] Use reference counting for maintaining multiple code copies
++ [various] Add expr templates for eqatic_s, eqatim_s, ordbaseat, uc, lc, tc,
+  split, join, getcp_s, indexcp_s, index_s, graphs_s, codes_s, substr_s, ordat,
+  chr, getenvhash, backendconfig coerce_si, equaticim_s, unicmp_s, indexicim_s,
+  getstrfromname, indexic_s, isinvokable, getlexreldyn, objprimunsigned,
+  scgethandle, scobjcount, setobjsc, getcodename, captureposarg_i,
+  captureposarg_n, captureposarg_s, knowhow, unbox_s, getuniname, ordfirst,
+  repeat_s, haveat_s, getcpbyname, unipropcode, unipvalcode, hasuniprop,
+  getuniprop_{int,bool,str}, nativecallbuild, nativecallinvoke, nativecallrefresh,
+  threadrun, threadid, threadyield, currentthread, lock, unlock, timer,
+  matchuniprop, iscont_i, iscont_n, iscont_s, flip, rindexfrom, atpos_n,
+  atpos_s, atkey_i/n/s/u coerce_iu/ui decont_u, rand_i, setwho, boot*, iscont,
+  chars, escape, getcodeobj, iscoderef, setbuffersize_fh, iscclass, findcclass,
+  findnotcclass, nfafromstatelist, nfarunproto, nfarunalt, radix, encode, decode,
+  istrue_s, isfalse_s, hlllist, hllhash, settypehll*, hllizefor, exception, newtype
+  composetype, bindex*, getex*, backtracestrings, *capture, multicache*
+  setdispatcher, sha1, *sc, iscompunit, isnonnull, cancel, signal, watchfile,
+  execname, isinvokable, isrwcont, async*, asynclisten, getlex_n{i,n,s},
+  ctxcallerskipthunks, add_I, fc, encoderep, istty_fh, getport_sk, encode*conf,
+  decode*conf, getppid, setdispatcherfor, param_rp_i, {add,sub,mul,div,mod}_I,
+  {cmp,eq,ne,lt,le,gt,ge}_I, {pow,gcd,lcm}_I, isprime_I, rand_I, expmod_I,
+  bor_I, bxor_I, band_I, bnot_I, blshift_I, brshift_I, {isbig,bool,base}_I,
+  get*hllsym, print, nullptr, *findmeth*, can_s, connect_sk, socket, bind_sk,
+  accept_sk, tell_fh, stat, lstat, getlex{outer,caller}, bit{and,or,xor}_s,
+
+Math:
++ [353940a8,e9b1b73b] Get rid of many unneeded of mallocs in coerce_sI and
+  MVM_bigint_to_str()
+
+Ops:
++ [f1256790,02bddce8] Add a negated object literal spesh plugin guard and JIT the
+  object non-match guard
++ [1ed8c64c] Add sp_speshresolve op
++ [ec4c63e0] Mark speshresolve as :noinline
++ [9d4681af] Rename getstrfromname to strfromname
+
+Other:
++ [e783f567] Unbreak update-changelog.p6 and use new Git::Log module
+
+Profiler:
++ [69e2a388] Add a few missing allocating ops to profiler
+
+Spesh:
++ [a75090c6] Lessen the number of spesh threshold levels
++ [b3ce4f6d] Eliminate object non-match guard in many cases
++ [20d44791] Fix guard evaluator attribute handling
++ [9745f921] Add facts to attributes in spesh plugin guards
++ [af455397] Refactor inline logging and detect missed inlines
++ [fa471f1d] Have fact discovery determine usage counts
++ [f59335ea] Attempt inlining so-far unspecialized callees
++ [24d3b5bf,155f1dfb] Fix dump of inlined spesh line/file annotations, update
+  deopt logging
++ [5ef61a76] When inlining unspecialized, set arg type facts
++ [4373eecd] Store deopt usage separate from normal usage
++ [caef82f1] Correctly update OSR deopt index upon inlining
++ [26a91852] Mark deopt use of the write of a deopt instruction
++ [3df2ff91] Switch usage handling to new use chain model
++ [f8c4648f] Allow hllboxtype_* across hll in inlines by not using :useshll for
+  the ops
++ [3727d18b] Implement box/unbox elimination
++ [13718793] Delete void return instruction when inlining
++ [6e7b215e] Update all of the guard insertion to use the new SSA versioned guards
++ [1a22aaa4] Copy facts when splitting SSA versions
++ [1347a94d] Output name and cuuid in spesh slots for code object in Spesh dump
++ [37b7c7b7] Discover facts about a bunch of sp_guard ops
++ [0daf99bc] Fix inlining of things with multiple `return`'s
++ [da9123a7] Only mark stolen_deopt_ann_used if it is, to prevent a potential crash
+
+Strings:
++ [3ea8f68d] Use Fibonacci hashing to determine which bucket's to put hash value's into
++ [9f005086] Used fixed size allocator for hashes. Nice speedup for table expansion
++ [6646038f] Factor out our hashing function and speed up hashing for flat strings
++ [0eb25300] Make parse_simple_number impossible to reach end without returning
++ [3ef2acf0] Hash: randomize insertion order and bucket iteration order
++ [0e110820] Make a faster HASH_ITER macro and make other hash optimizations
++ [e94d3dfd] Remove previous hash handle pointers in hash implementation
++ [d9a3270a] Implement SipHash, use as our hashing function w/ 64bit hashvals
++ [39a2e71b] Optimize uthash ptr delete code
++ [c5686559] Check if bucket is correct in HASH_FSCK
++ [e3e1d0d0] Use sized types for uthash (instead of using unsigned everywhere)
++ [448e75bd] Get the number of bytes to be processed from the current buffer and
+  not from the header in MVM_string_utf8_c8_decodestream()
++ [4ec15fc5] Increase the result buffer size for MVM_string_utf8_c8_decodestream()
++ [829b8ee7] Fix a regression with grapheme segmentation when multiple regional
+  indicators are in the same string
+
+Tooling/Build:
++ [abf7d0c2] Use clang with OpenBSD since their ancient gcc creates a moar which
+  can't generate NQP anymore.
++ [821cfd52] Fix tools/compare-oplist-interp-order.sh on *BSD
++ [888e1cf0] Add script to generate html documentation from docs
++ [33363d32] Make tools/ scripts executable and add shebangs
++ [ecff5b47] Fix NetBSD build failure by adding a missing .h suffix in
+  build/Makefile.in
++ [3bf120a1] Fix Configure.pl version detection in some instances
++ [9601ac45] Don't store owner or group in our release's tar archive
++ [5bfad12b] Make update-changelog.p6 interactive
+
 New in 2018.06
 
 6model:

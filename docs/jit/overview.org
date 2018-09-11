@@ -147,7 +147,7 @@ as of today (<2017-09-25 Mon>).
 | =NZ=      | =(nz reg)=                       | =flag=   | Operand is nonzero                                     |
 | =ZR=      | =(zr reg)=                       | =flag=   | Operand equals zero                                    |
 |-----------+----------------------------------+----------+--------------------------------------------------------|
-| =CAST=    | =(cast reg $from $to $sign)=     | =reg=    | Convert a value from smaller to larger representation  |
+| =CAST=    | =(cast reg $to $from $sign)=     | =reg=    | Convert a value from smaller to larger representation  |
 | =FLAGVAL= | =(flagval flag)=                 | =reg=    | Binary value of comparison operator                    |
 | =DISCARD= | =(discard reg)=                  | =void=   | Discard value of child operator                        |
 |-----------+----------------------------------+----------+--------------------------------------------------------|

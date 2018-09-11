@@ -10,6 +10,7 @@
 (macro: ^cu_callsite_addr (,a) (idx  (^getf (cu) MVMCompUnit body.callsites) ,a ptr_sz))
 
 (macro: ^frame () (^getf (tc) MVMThreadContext cur_frame))
+(macro: ^arg  (,a) (idx (^getf (^frame) MVMFrame args)        ,a reg_sz))
 (macro: ^parg (,a) (idx (^getf (^frame) MVMFrame params.args) ,a reg_sz))
 
 (macro: ^params () (addr (^frame) (&offsetof MVMFrame params)))
@@ -75,6 +76,9 @@
 
 
 (macro: ^repr (,obj) (^getf (^stable ,obj) MVMSTable REPR))
+(macro: ^repr_id (,obj) (^getf (^repr ,obj) MVMREPROps ID))
+(macro: ^is_repr_id (,obj ,id) (eq (^repr_id ,obj) (const (&QUOTE ,id) (&SIZEOF_MEMBER MVMREPROps ID))))
+(macro: ^not_repr_id (,obj ,id) (ne (^repr_id ,obj) (const (&QUOTE ,id) (&SIZEOF_MEMBER MVMREPROps ID))))
 
 (macro: ^is_type_obj (,a)
     (nz (and (^getf ,a MVMObject header.flags) (^objflag MVM_CF_TYPE_OBJECT))))
@@ -88,4 +92,22 @@
 
 (macro: ^body (,a) (addr ,a (&offsetof MVMObjectStooge data)))
 
+(macro: ^storage_spec (,a)
+  (call (^getf (^repr ,a) MVMREPROps get_storage_spec)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable ,a) ptr)) ptr_sz))
+
 (macro: ^nullptr () (const 0 ptr_sz))
+
+(macro: ^throw_adhoc (,msg)
+  (callv (^func MVM_exception_throw_adhoc)
+    (arglist
+      (carg (tc) ptr)
+      (carg (const_ptr ,msg) ptr))))
+
+(macro: ^decoder_ensure_decoder (,decoder ,op)
+    (when (any
+           (^not_repr_id ,decoder MVM_REPR_ID_Decoder)
+           (zr (flagval (^is_conc_obj ,decoder))))
+	(^throw_adhoc (&CAT3 "Operation '" ,op "'can only work on an object with the Decoder representation"))))

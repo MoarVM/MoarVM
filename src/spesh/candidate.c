@@ -137,15 +137,8 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     candidate->num_spesh_slots = sg->num_spesh_slots;
     candidate->spesh_slots     = sg->spesh_slots;
 
-    /* Clean up after specialization work. */
-    if (candidate->num_inlines) {
-        MVMint32 i;
-        for (i = 0; i < candidate->num_inlines; i++)
-            if (candidate->inlines[i].g) {
-                MVM_spesh_graph_destroy(tc, candidate->inlines[i].g);
-                candidate->inlines[i].g = NULL;
-            }
-    }
+    /* Claim ownership of allocated memory assigned to the candidate */
+    sg->cand = candidate;
     MVM_spesh_graph_destroy(tc, sg);
 
     /* Create a new candidate list and copy any existing ones. Free memory
@@ -203,4 +196,5 @@ void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candid
     MVM_free(candidate->lexical_types);
     if (candidate->jitcode)
         MVM_jit_code_destroy(tc, candidate->jitcode);
+    MVM_free(candidate);
 }

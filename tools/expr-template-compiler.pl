@@ -1,10 +1,11 @@
 #!/usr/bin/env perl
+package template_compiler;
 use strict;
 use warnings FATAL => 'all';
 
 use Getopt::Long;
 use File::Spec;
-use Scalar::Util qw(looks_like_number refaddr);
+use Scalar::Util qw(looks_like_number refaddr reftype);
 
 # use my libs
 use FindBin;
@@ -29,29 +30,24 @@ my %OPTIONS = (
     oplist => File::Spec->catfile($FindBin::Bin, File::Spec->updir, qw(src core oplist)),
     include => 1,
 );
-GetOptions(\%OPTIONS, qw(prefix=s list=s input=s output=s include!));
+GetOptions(\%OPTIONS, qw(prefix=s list=s input=s output=s include! test));
 
 my ($PREFIX, $OPLIST) = @OPTIONS{'prefix', 'oplist'};
 if ($OPTIONS{output}) {
     close( STDOUT ) or die $!;
     open( STDOUT, '>', $OPTIONS{output} ) or die $!;
 }
+
 if ($OPTIONS{input} //= shift @ARGV) {
     close( STDIN );
     open( STDIN, '<', $OPTIONS{input} ) or die $!;
 }
 
-# Wrapper for the recursive write_template
-sub compile_template {
-    my $tree = shift;
-    my ($templ, $desc, $env) = ([], [], {});
-    my ($root, $mode) = write_template($tree, $templ, $desc, $env);
-    die "Invalid template!" unless $mode eq 'l'; # top should be a simple expression
-    return {
-        root => $root,
-        template => $templ,
-        desc => join('', @$desc)
-    };
+END {
+    close STDOUT;
+    if ($? && $OPTIONS{output}) {
+        unlink $OPTIONS{output};
+    }
 }
 
 # Template check tables
@@ -82,7 +78,7 @@ my %OPERAND_TYPES = (
 );
 
 # which list item is the size
-my %OP_SIZE_ARG = (
+my %OP_SIZE_PARAM = (
     load => 2,
     store => 3,
     call => 3,
@@ -90,282 +86,377 @@ my %OP_SIZE_ARG = (
     cast => 2,
 );
 
-my %VARIADIC_OPERATORS = map { $_ => 1 } grep $EXPR_OPS{$_}{num_childs} < 0, keys %EXPR_OPS;
+my %VARIADIC = map { $_ => 1 } grep $EXPR_OPS{$_}{num_operands} < 0, keys %EXPR_OPS;
 
-sub validate_template {
-    my ($template, $context) = @_;
+# first read the correct order of opcodes
+my %OPNAMES = map { $OPLIST[$_][0] => $_ } 0..$#OPLIST;
 
-    # Because we destructively modify (some) nodes, make sure we never
-    # visit the same node twice. NB - autovivifies $context if not
-    # passed
-    return if $context->{refaddr($template)}++;
+# cache operand direction
+sub opcode_operand_direction {
+    $_[0] =~ m/^([rw])l?\(/ ? $1 : '';
+}
 
-    my $node = $template->[0];
-    if ($node eq 'let:') {
-        my $defs = $template->[1];
-        my @expr = @$template[2..$#$template];
-        for my $def (@$defs) {
-            validate_template($def->[1], $context);
+# Pre compute exptected operand type and direction
+my %MOAR_OPERAND_DIRECTION;
+for my $opcode (@OPLIST) {
+    my ($opname, undef, $operands) = @$opcode;
+    $MOAR_OPERAND_DIRECTION{$opname} = [
+        map opcode_operand_direction($_), @$operands
+    ];
+}
+
+# Need a global constant table
+my %CONSTANTS;
+
+sub compile_template {
+    my ($expr, $opcode) = @_;
+    my $compiler = +{
+        expr  => {},
+        tmpl  => [],
+        desc  => [],
+        opcode => $opcode,
+        constants => \%CONSTANTS,
+    };
+    my ($mode, $root) = compile_expression($compiler, $expr);
+    die "Invalid template!" unless $mode eq 'l'; # top should be a simple expression
+    return {
+        root => $root,
+        template => $compiler->{tmpl},
+        desc => join('', @{$compiler->{desc}}),
+    };
+}
+
+sub is_arrayref {
+    defined(reftype($_[0])) && reftype($_[0]) eq 'ARRAY';
+}
+
+# Eager linking of declarations is what keeps them hygienic in the face of macros
+# If we eliminate names as soon as we can, they'll have no opportunity to clash.
+sub link_declarations {
+    my ($expr, %env) = @_;
+    my ($operator, @operands) = @$expr;
+    if ($operator eq 'let:') {
+        my ($declarations, @expressions) = @operands;
+        my @definitions;
+        for my $declaration (@$declarations) {
+            my ($name, $definition) = @$declaration;
+            my $type = check_type($definition);
+            die "declaration $name must be reg but got $type"
+                unless $type eq 'reg';
+            link_declarations($definition, %env);
+            $env{$name} = $definition;
+            push @definitions, ['discard', $definition];
         }
-        validate_template($_, $context) for grep ref($_) eq 'ARRAY', @expr;
-        return;
-    }
-
-    die "Unknown node type $node" unless exists $EXPR_OPS{$node};
-
-    # NB - this inserts the template length parameter into the list,
-    # which is necessary for the template builder (runtime)
-    my ($nchild, $narg) = @{$EXPR_OPS{$node}}{qw(num_childs num_args)};;
-
-    unless ($nchild < 0 or (my $expected = 1+$nchild+$narg) == @$template) {
-        my $txt = sexpr::encode($template);
-        die "Node $txt should be $expected long";
-    }
-
-    my @types = split /,/, ($OPERAND_TYPES{$node} // 'reg');
-    if (@types < $nchild) {
-        if (@types == 1) {
-            @types = (@types) x $nchild;
-        } elsif (@types == 2) {
-            @types = (($types[0]) x ($nchild-1), $types[1]);
-        } else {
-            die "Can't match up types";
+        for my $expr (@expressions) {
+            link_declarations($expr, %env);
         }
-    }
-
-
-    for (my $i = 0; $i < $nchild; $i++) {
-        my $child = $template->[1+$i];
-        if (ref($child) eq 'ARRAY' and substr($child->[0], 0, 1) ne '&') {
-            unless ((my $op = $child->[0]) eq 'let:') {
-
-                my $type = ($OPERATOR_TYPES{$op} // 'reg');
-                die sprintf('Expected %s but got %s in template %s child %d (op %s)', $types[$i],
-                            $type, sexpr::encode($template), $i, $op)
-                    unless $types[$i] eq $type;
+        my $type = check_type($expressions[$#expressions]);
+        # replace statement with DO/DOV
+        @$expr = ($type eq 'reg' ? 'do' : 'dov', @definitions, @expressions);
+    } else {
+        for my $i (1..$#$expr) {
+            my $operand = $expr->[$i];
+            if (is_arrayref($operand) and @$operand) {
+                link_declarations($operand, %env);
+            } elsif ($operand =~ m/\$(\w+)/) {
+                next if looks_like_number($1);
+                die "Invalid name $operand" unless exists $env{$operand};
+                $expr->[$i] = $env{$operand};
             }
-            validate_template($child, $context);
-        } elsif (substr($child, 0, 1) eq '$') {
-            # OK!
-            die sprintf('Expected type %s but got %s', $types[$i], $child)
-                unless $types[$i] eq 'reg';
-        } else {
-            my $txt = sexpr::encode($template);
-            die "Child $i of $txt is not a expression";
         }
     }
-    for (my  $i = 0; $i < $narg; $i++) {
-        my $child = $template->[1+$nchild+$i];
-        if (ref($child) eq 'ARRAY' and substr($child->[0], 0, 1) eq '&') {
-            # OK
-        } elsif (substr($child, 0, 1) ne '$') {
-            # Also OK
-        } else {
-            my $txt = sexpr::encode($template);
-            die "Child $i of $txt is not an argument";
-        }
-    }
-
-    if (exists $OP_SIZE_ARG{$node}) {
-        # does this look like a size argument?
-        my $size_arg = $template->[$OP_SIZE_ARG{$node}];
-        if (ref($size_arg)) {
-            warn sprintf("size argument '%s' for node '%s' is not a macro",
-                         sexpr::encode($size_arg), $node)
-                if $size_arg->[0] !~ m/\A&\w+/
-        } elsif (!looks_like_number($size_arg) && $size_arg !~ m/_sz\z/) {
-            warn sprintf("size argument '%s' for node '%s' may not be a size",
-                         $size_arg, $node);
-        }
-    }
-
+    return $expr;
 }
 
 sub apply_macros {
-    my ($tree, $macros) = @_;
-    return unless ref($tree) eq 'ARRAY';
+    my ($expr, $macros) = @_;
+    # empty lists can occur for instance with macros without arguments
+    return unless is_arrayref($expr) and @$expr;
 
-    my @result;
-    for my $node (@$tree) {
-        if (ref($node) eq 'ARRAY') {
-            push @result, apply_macros($node, $macros);
-        } else {
-            push @result, $node;
+    my ($operator, @operands) = @$expr;
+    for my $element (@operands) {
+        if (is_arrayref($element)) {
+            apply_macros($element, $macros);
         }
     }
-    # empty lists can occur for instance with macros without arguments
-    if (@result and $result[0] =~ m/^\^/) {
+
+    if ($operator =~ m/^\^/) {
         # looks like a macro
-        my $name = shift @result;
-        if (my $macro = $macros->{$name}) {
-            my ($params, $structure) = @$macro[0,1];
-            die sprintf("Macro %s needs %d params, got %d", $name, 0+@result, 0+@{$params})
-                unless @result == @{$params};
-            my %bind; @bind{@$params} = @result;
-            return fill_macro($structure, \%bind);
+        if (my $macro = $macros->{$operator}) {
+            my ($params, $structure) = @$macro;
+            die sprintf("Macro %s needs %d params, got %d",
+                        $operator, $#$expr, 0+@{$params})
+                unless $#$expr == @{$params};
+            my %bind; @bind{@$params} = @$expr[1..$#$expr];
+            my $instance = expand_macro($structure, \%bind, {});
+            @$expr = @$instance;
         } else {
-            die "Tried to instantiate undefined macro $name";
+            die "Tried to instantiate undefined macro $operator";
+        }
+    }
+    return $expr;
+}
+
+# Makes a copy of the macro with bindings replaced
+sub expand_macro {
+    my ($macro, $bind, $sub) = @_;
+    my @result;
+    for my $element (@$macro) {
+        if (is_arrayref($element)) {
+            # Reuse substituted instance to maintain link identity
+            my $instance = $sub->{refaddr($element)} ||=
+                expand_macro($element, $bind, $sub);
+            push @result, $instance;
+        } elsif ($element =~ m/^,/) {
+            if (defined $bind->{$element}) {
+                push @result, $bind->{$element};
+            } else {
+                die "Unmatched macro substitution: $element";
+            }
+        } else {
+            push @result, $element;
         }
     }
     return \@result;
 }
 
-sub fill_macro {
-    my ($macro, $bind) = @_;
-    my $result = [];
-    for (my $i = 0; $i < @$macro; $i++) {
-        if (ref($macro->[$i]) eq 'ARRAY') {
-            push @$result, fill_macro($macro->[$i], $bind);
-        } elsif (substr($macro->[$i], 0, 1) eq ',') {
-            if (defined $bind->{$macro->[$i]}) {
-                push @$result, $bind->{$macro->[$i]};
-            } else {
-                die "Unmatched macro substitution: $macro->[$i]";
-            }
-        } else {
-            push @$result, $macro->[$i];
-        }
+sub check_type {
+    my ($expr) = @_;
+    if (is_arrayref($expr)) {
+        my ($operator, @operands) = @$expr;
+        return check_type($operands[$#operands]) if $operator eq 'let:';
+        die "Expected operator but got macro" if $operator =~ m/^&/;
+        return $OPERATOR_TYPES{$operator} || 'reg';
+    } elsif ($expr =~ m/^\\?\$(\w+)$/) {
+        # TODO - we can do much better, but it is not easy,
+        # because there are a number of opcodes like 'bindlex'
+        # which introduce wildcards, and a number of operators
+        # (like COPY and STORE) which are generic.
+        return 'reg';
+    } else {
+        die "Expected operator or type, got " . sexpr_encode($expr);
     }
-    return $result;
-}
-
-# lets add a global instead of replacing the entire thing with a class
-my %CONSTANTS;
-
-sub write_template {
-    my ($tree, $tmpl, $desc, $env) = @_;
-
-    # Macro application can potentially introduce multiple references
-    # to a node. Instead of duplicating the template, we reuse the
-    # calculated offset. Because we're using reference identity as key
-    # this never conflict with named variable references.
-    return $env->{refaddr($tree)}, 'l' if exists $env->{refaddr($tree)};
-
-    die "Can't deal with an empty tree" unless @$tree; # we need at least some nodes
-    my ($node, @edges) = @$tree;
-    die "First parameter must be a bareword or macro" unless $node =~ m/^&?[a-z]\w*:?$/i;
-
-
-    if ($node eq 'let:') {
-        # rewrite (let: (($name ($code))) ($code..)+)
-        # into (do(v)?: $ndec + $ncode $decl+ $code+)
-        my $env  = { %$env }; # copy env and shadow it
-        my ($decl, @expr) = @edges;
-
-        # depening on last node result, start with DO or DOV (void)
-        my $type = ($OPERATOR_TYPES{$expr[-1][0]} // 'reg');
-        my $list = [ $type eq 'void' ? 'dov' : 'do' ];
-        # add declarations to template and to DO list
-        for my $stmt (@$decl) {
-            my ($name, $expr) = @$stmt;
-            die "Let statement should hold 2 expressions, holds ".@$stmt unless @$stmt == 2;
-            die "Variable name $name is invalid" unless $name =~ m/\$[a-z]\w*/i;
-            die "Let statement expects an expression" unless ref($expr) eq 'ARRAY';
-            die "Redeclaration of '$name'" if exists($env->{$name});
-            my ($child, $mode) = write_template($expr, $tmpl, $desc, $env);
-            die "Let can only be used with simple expresions" unless $mode eq 'l';
-            $env->{$name} = $child;
-            # ensure the DO is compiled as I expect.
-            push @$list, ['discard', $name];
-        }
-        push @$list, @expr;
-        return write_template($list, $tmpl, $desc, $env);
-    } elsif (substr($node, 0, 1) eq '&') {
-        # C-macro expressions are opaque to the template compiler but
-        # should reduce to a constant expression when the generated
-        # header is compiled. Used for sizeof/offsetof expressions
-        # mostly. Returns a 'dot' mode to be treated as a constant
-        return (sprintf('%s(%s)', substr($node, 1),
-                        join(', ', @edges)), '.');
-    } elsif ($node =~ m/const_ptr|const_large/) {
-        # intern this constant
-        my ($value, $size) = @edges;
-        my $const_nr = $CONSTANTS{$value} = exists $CONSTANTS{$value} ?
-            $CONSTANTS{$value} : scalar keys %CONSTANTS;
-        my $root  = @$tmpl;
-        push @$tmpl, $PREFIX . uc($node), 0, $const_nr;
-        push @$desc, qw(n s c);
-        if ($node eq 'const_large') {
-            # const_large needs a size
-            push @$tmpl, $size;
-            push @$desc, '.';
-        }
-        $env->{refaddr($tree)} = $root;
-        return ($root, 'l');
-    }
-
-    # deal with a simple expression
-    my (@tmpl, @desc); # for this node
-    my $nchild = $VARIADIC_OPERATORS{$node} ? @edges : $EXPR_OPS{$node}{num_childs};
-    push @tmpl, $PREFIX . uc($node), $nchild;
-    push @desc, qw(n s); # n = node, s = size
-
-
-    for my $item (@edges) {
-        if (ref($item) eq 'ARRAY') {
-            # subexpression: get offset and template mode for this root
-            my ($child, $mode) = write_template($item, $tmpl, $desc, $env);
-            push @tmpl, $child;
-            push @desc, $mode;
-        } elsif ($item =~ m/^\$\d+$/) {
-            # numeric variable (an operand parameter)
-            push @tmpl, substr($item, 1)+0; # pass the operand nummer
-            push @desc, 'i'; # run-time *input* operand
-        } elsif ($item =~ m/^\$\w+$/) {
-            # named variable (declared in let)
-            die "Undefined variable '$item' used" unless exists $env->{$item};
-            push @tmpl, $env->{$item};
-            push @desc, 'l'; # also needs to be linked in properly
-        } elsif ($item =~ m/^\d+$/) {
-            # integer numerics are passed literally
-            push @tmpl, $item;
-            push @desc, '.';
-        } else {
-            # barewords are passed as uppercased prefixed strings
-            push @tmpl, $PREFIX . uc($item);
-            push @desc, '.';
-        }
-    }
-    my $root = @$tmpl; # current position is where we'll be writing the root template.
-    # add to output array
-    push @$tmpl, @tmpl;
-    push @$desc, @desc;
-
-    $env->{refaddr($tree)} = $root;
-    # a simple expression should be linked in at runtime
-    return ($root, 'l');
 }
 
 
-# first read the correct order of opcodes
-my %OPNAMES = map { $OPLIST[$_][0] => $_ } 0..$#OPLIST;
 
+sub compile_expression {
+    my ($compiler, $expr) = @_;
+
+    return 'l' => $compiler->{expr}{refaddr($expr)}
+        if exists $compiler->{expr}{refaddr($expr)};
+
+    my ($operator, @operands) = @$expr;
+
+    die "Expected expression but got macro" if $operator =~ m/^&/;
+    die "Unknown operator $operator" unless my $info = $EXPR_OPS{$operator};
+
+    my $num_operands = $VARIADIC{$operator} ? @operands : $info->{num_operands};
+    my $num_params = $info->{num_params};
+
+    die "Expected $num_operands operands and $num_params params for $operator, got " . scalar @operands
+        if $num_operands + $num_params != @operands;
+
+    # large constants are treated specially
+    if ($operator =~ m/^const_(ptr|large)$/) {
+        my ($value, $size) = @operands;
+        return 'l' => emit($compiler,
+                           compile_operator($compiler, $operator, 0),
+                           compile_constant($compiler, $value),
+                           defined $size ? ('.' => $size) : ());
+    }
+
+    # match up types
+    my @types = split /,/, ($OPERAND_TYPES{$operator} // 'reg');
+    if (@types < $num_operands) {
+        if (@types == 1) {
+            @types = (@types) x $num_operands;
+        } elsif (@types == 2) {
+            @types = (($types[0]) x ($num_operands-1), $types[1]);
+        } else {
+            die "Can't match up types";
+        }
+    }
+
+    my @code = compile_operator($compiler, $operator, $num_operands);
+
+    my $i = 0;
+    for (; $i < $num_operands; $i++) {
+        my $type = check_type($operands[$i]);
+        die "Mismatched type, got $type expected $types[$i] " .
+	  "for $operator @{[sexpr_encode($operands[$i])]}) " .
+	  " [$compiler->{opcode}]"
+            unless $type eq $types[$i];
+        push @code, compile_operand($compiler, $operands[$i]);
+    }
+
+    # check size parameter if any
+    if (my $param = $OP_SIZE_PARAM{$operator}) {
+        my $size = $operands[$param - 1];
+        die "Expected size parameter" unless
+            # macro, number or bareword-ending-with-size
+            ((is_arrayref($size) && $size->[0] =~ m/^&/) ||
+             looks_like_number($size) || $size =~ m/_sz$/);
+    }
+    for (; $i < $num_operands + $num_params; $i++) {
+        push @code, compile_parameter($compiler, $operands[$i]);
+    }
+    my $node = emit($compiler, @code);
+    $compiler->{expr}{refaddr($expr)} = $node;
+    return 'l' => $node;
+}
+
+sub compile_constant {
+    my ($compiler, $value, $size) = @_;
+    (undef, $value) = compile_macro($compiler, $value) if is_arrayref($value);
+    my $constants = $compiler->{constants};
+    my $const_nr = ($constants->{$value} = exists $constants->{$value} ?
+                        $constants->{$value} : scalar keys %$constants);
+    return 'c' => $const_nr;
+}
+
+sub compile_operand {
+    my ($compiler, $expr) = @_;
+    if (is_arrayref($expr)) {
+        compile_expression($compiler, $expr);
+    } else {
+        compile_reference($compiler, $expr);
+    }
+}
+
+sub compile_reference {
+    my ($compiler, $expr) = @_;
+    die "Expected reference got $expr" unless
+        my ($ref, $name) = $expr =~ m/^(\\?)\$(\w+)/;
+    if (looks_like_number($name)) {
+        my $opcode = $compiler->{opcode};
+        # special case for dec_i/inc_i
+        return 'i' => $name if $opcode =~ m/^(dec|inc)_i$/ and $name <= 1;
+        my $direction = $MOAR_OPERAND_DIRECTION{$opcode};
+        die "Invalid operand reference $expr for $opcode"
+            unless $name >= 0 && $name < @$direction;
+        if ($direction->[$name] eq 'w') {
+            die "Require reference for write operand \$$name ($opcode)"
+                unless $ref;
+        } else {
+            die "Operand \$$name of $opcode is not a reference" if $ref;
+        }
+        return 'i' => $name;
+    } else {
+        die "Undefined named reference $expr"
+            unless defined (my $ref = $compiler->{env}{$expr});
+        return 'l' => $ref;
+    }
+}
+
+sub compile_parameter {
+    my ($compiler, $expr) = @_;
+    if (is_arrayref($expr)) {
+        return compile_macro($compiler, $expr);
+    } elsif (looks_like_number($expr)) {
+        return '.' => $expr;
+    } else {
+        return compile_bareword($compiler, $expr);
+    }
+}
+
+sub compile_macro {
+    my ($compiler, $expr) = @_;
+    my ($name, @parameters) = @$expr;
+    die "Expected a macro expression, got $name"
+        unless my ($macro) = $name =~ m/^&(\w+)/;
+    return '.' => sprintf('%s(%s)', $macro, join(', ', @parameters));
+}
+
+sub compile_operator {
+    my ($compiler, $expr, $num_operands) = @_;
+    die "$expr is not a valid operator" unless exists $EXPR_OPS{$expr};
+    die "Invalid size $num_operands" unless looks_like_number($num_operands);
+    return ('n' => $PREFIX . uc($expr), 's' => $num_operands);
+}
+
+sub compile_bareword {
+    my ($compiler, $expr) = @_;
+    return '.' => $PREFIX . uc($expr);
+}
+
+sub emit {
+    my ($compiler, @code) = @_;
+    my $node = @{$compiler->{tmpl}};
+    while (@code) {
+        push @{$compiler->{desc}}, shift @code;
+        push @{$compiler->{tmpl}}, shift @code;
+    }
+    return $node;
+}
+
+
+sub test {
+    # single let:
+    my $expr = sexpr_decode('(let: (($foo (copy $1))) (load $foo 8))');
+    link_declarations($expr);
+    die "Linking invalid" unless $expr->[1][1] == $expr->[2][1];
+
+    # nested let: with left-to-right declarations
+    $expr = sexpr_decode('(let: (($foo (const 1 1)) ($bar (add $foo $foo))) ' .
+                             '(let: (($foo (sub $bar (const 1 1)))) (copy $foo)))');
+    link_declarations($expr);
+
+    # forward declaration
+    die "Linking invalid" unless $expr->[1][1] == $expr->[2][1][1] and
+        $expr->[1][1] == $expr->[2][1][2];
+    # inner declaration
+    die "Linking invalid" unless $expr->[2][1] == $expr->[3][1][1][1] # do -> discard -> sub -> $bar
+        and $expr->[3][1][1] == $expr->[3][2][1]; # do -> discard -> sub == do -> copy -> $foo
+
+    $expr = sexpr_decode('(let: (($obj (load $1))) (^foo $obj))');
+    my $macro = sexpr_decode('((,foo) (let: (($obj (addr ,foo 8))) (add ,foo $obj)))');
+    link_declarations($macro);
+    link_declarations($expr);
+    apply_macros($expr, { '^foo' => $macro });
+
+    # outer (let:)
+    die "Linking invalid" unless $expr->[1][1] == $expr->[2][2][1];
+    # macro (let:)
+    die "Linking invalid" unless $expr->[2][1][1] == $expr->[2][2][2];
+
+    printf STDERR "Linking and macro application OK\n";
+    exit;
+}
+
+test if $OPTIONS{test};
 my %SEEN;
 
 sub parse_file {
     my ($fh, $macros) = @_;
     my (@templates, %info);
     my $parser = sexpr->parser($fh);
-    while (my $raw = $parser->parse) {
-        my $tree    = apply_macros($raw, $macros);
+    while (my $tree = $parser->parse) {
         my $keyword = shift @$tree;
         if ($keyword eq 'macro:') {
-            my $name = shift @$tree;
-            $macros->{$name} = $tree;
+            my ($name, $binding, $macro) = @$tree;
+            die "Redeclaration of macro $name" if exists $macros->{$name};
+
+            $macro = link_declarations($macro);
+            $macro = apply_macros($macro, $macros);
+
+            $macros->{$name} = [ $binding, $macro ];
         } elsif ($keyword eq 'template:') {
             my $opcode   = shift @$tree;
             my $template = shift @$tree;
             my $flags    = 0;
-            if (substr($opcode, -1) eq '!') {
-                # destructive template
-                $opcode = substr $opcode, 0, -1;
+            if ($opcode =~ s/!$//) {
+                die "No write operand for destructive template $opcode"
+                    unless grep $_ eq 'w', @{$MOAR_OPERAND_DIRECTION{$opcode}};
                 $flags |= 1;
             }
-            die "Opcode '$opcode' unknown" unless defined $OPNAMES{$opcode};
-            die "Opcode '$opcode' redefined" if defined $info{$opcode};
-            # Validate template for consistency with expr.h node definitions
-            validate_template($template);
-            my $compiled = compile_template($template);
+            die "Opcode '$opcode' unknown" unless exists $OPNAMES{$opcode};
+            die "Opcode '$opcode' redefined" if exists $info{$opcode};
+
+            $template = link_declarations($template);
+            $template = apply_macros($template, $macros);
+
+            my $compiled = compile_template($template, $opcode);
 
             $info{$opcode} = {
                 idx => scalar @templates,

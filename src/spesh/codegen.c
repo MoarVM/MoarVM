@@ -316,9 +316,8 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
         }
         else {
             if (g->inlines[i].start == -1 || g->inlines[i].end == -1)
-                MVM_oops(tc, "Spesh: failed to fix up inline %d %p (%s) %d %d",
+                MVM_oops(tc, "Spesh: failed to fix up inline %d (%s) %d %d",
                     i,
-                    g->inlines[i].g,
                     MVM_string_utf8_maybe_encode_C_string(tc, g->inlines[i].sf->body.name),
                     g->inlines[i].start,
                     g->inlines[i].end

@@ -1,10 +1,10 @@
 package expr_ops;
 use strict;
 use warnings;
-use File::Spec;
+use File::Spec::Functions qw(catdir  updir catpath splitpath);
 use constant EXPR_OPS_H => do {
-    my ($path, $directory, $filename) = File::Spec->splitpath(__FILE__);
-    File::Spec->catpath($path, File::Spec->catdir($directory, File::Spec->updir(), 'src','jit'), 'expr_ops.h');
+    my ($path, $directory, $filename) = splitpath(__FILE__);
+    catpath($path, catdir($directory, updir(), 'src','jit'), 'expr_ops.h');
 };
 
 sub parse_expr_ops {
@@ -23,7 +23,7 @@ sub parse_expr_ops {
 
 sub import {
     my ($class, @args) = @_;
-    my @keys     = qw(name num_childs num_args cast);
+    my @keys     = qw(name num_operands num_params cast);
     my @expr_ops = parse_expr_ops(@args ? @args : EXPR_OPS_H);
     my %expr_ops = map {
         my ($i, $op) = ($_, $expr_ops[$_]);

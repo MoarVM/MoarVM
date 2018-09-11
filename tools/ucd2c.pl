@@ -272,9 +272,27 @@ sub stack_lines {
 }
 
 sub join_sections {
+    # %prefs is a list of sections that need to come before others
+    # The values are sections that need to come before the key.
+    # So: C => [ 'A', 'B' ] would result in A, B, C;
+    my %prefs = (
+        MVM_unicode_get_property_int => ['block_lookup']
+    );
+    my %done;
     my ($sections) = @_;
     my $content = "";
-    $content .= "\n".$sections->{$_} for (sort keys %{$sections});
+    for my $sec (sort keys %{$sections}) {
+        if ($prefs{$sec}) {
+            for my $sec_before (@{$prefs{$sec}}) {
+                next if $done{$sec_before};
+                $content .= "\n".$sections->{$sec_before};
+                $done{$sec_before} = 1;
+            }
+        }
+        next if $done{$sec};
+        $content .= "\n".$sections->{$sec};
+        $done{$sec} = 1;
+    }
     return $content;
 }
 
@@ -916,9 +934,18 @@ static const char *bogus = "<BOGUS>"; /* only for table too short; return null s
 static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
     MVMint32 result_val = 0; /* we'll never have negatives, but so */
-    MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
+    MVMuint32 codepoint_row;
     MVMuint16 bitfield_row = 0;
 
+    if (switch_val == MVM_UNICODE_PROPERTY_BLOCK) {
+        MVMint32 ord = codepoint;
+        struct UnicodeBlock *block = bsearch(&ord, unicode_blocks, sizeof(unicode_blocks) / sizeof(struct UnicodeBlock), sizeof(struct UnicodeBlock), block_compare);
+        int num = ((char*)block - (char*)unicode_blocks) / sizeof(struct UnicodeBlock);
+        if (block) {
+            return block ? Block_enums[num+1] : Block_enums[0];
+        }
+    }
+    codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
     if (codepoint_row == -1) { /* non-existent codepoint; XXX should throw? */
         if (0x10FFFF < codepoint)
             return "";

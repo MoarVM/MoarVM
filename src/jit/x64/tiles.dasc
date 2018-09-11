@@ -186,10 +186,9 @@ MVM_JIT_TILE_DECL(store_idx) {
 }
 
 
-MVM_JIT_TILE_DECL(cast) {
+MVM_JIT_TILE_DECL(cast_signed) {
     MVMint32 to_size   = tile->args[0];
     MVMint32 from_size = tile->args[1];
-    MVMint32 cast_mode = tile->args[2];
 
     MVMint8  to_reg    = tile->values[0];
     MVMint8  from_reg  = tile->values[1];
@@ -205,67 +204,177 @@ MVM_JIT_TILE_DECL(cast) {
      * 4 + 8<<3 == 68
      */
     MVMint32 size_conv = (from_size) | (to_size << 3);
-    if (cast_mode == MVM_JIT_CAST_SIGNED) {
-        switch (size_conv) {
-        case 17:
-            | movsx Rw(to_reg), Rb(from_reg);
-            break;
-        case 33:
-            | movsx Rd(to_reg), Rb(from_reg);
-            break;
-        case 34:
-            | movsx Rd(to_reg), Rw(from_reg);
-            break;
-        case 65:
-            | movsx Rq(to_reg), Rb(from_reg);
-            break;
-        case 66:
-            | movsx Rq(to_reg), Rw(from_reg);
-            break;
-        case 68:
-            /* movsx is apparantly not defined for double-to-quadword conversions,
-             * which forces us to use the rax register like it's 1978. It might be easier
-             * to bithack the sign-extension manually, but I'm not sure how.. */
-            | mov eax, Rd(from_reg);
-            | cdqe;
-            | mov Rq(to_reg), rax;
-            break;
-        default:
-            DIE("Unsupported signed cast %d -> %d\n", from_size, to_size);
-        }
-    } else {
-        switch (size_conv) {
-        case 17:
-            | movzx Rw(to_reg), Rb(from_reg);
-            break;
-        case 33:
-            | movzx Rd(to_reg), Rb(from_reg);
-            break;
-        case 34:
-            | movzx Rd(to_reg), Rw(from_reg);
-            break;
-        case 65:
-            | movzx Rq(to_reg), Rb(from_reg);
-            break;
-        case 66:
-            | movzx Rq(to_reg), Rw(from_reg);
-            break;
-        case 68:
-            /* In contrast, nothing special is necessary to cast unsigned
-             * doublewords to quadwords, because using the lower 4 bytes
-             * automatically clears the upper 4 */
-            | mov Rd(to_reg), Rd(from_reg);
-            break;
-        default:
-            DIE("Unsupported unsigned cast %d -> %d\n", from_size, to_size);
-        }
+    switch (size_conv) {
+    case 17:
+        | movsx Rw(to_reg), Rb(from_reg);
+        break;
+    case 33:
+        | movsx Rd(to_reg), Rb(from_reg);
+        break;
+    case 34:
+        | movsx Rd(to_reg), Rw(from_reg);
+        break;
+    case 65:
+        | movsx Rq(to_reg), Rb(from_reg);
+        break;
+    case 66:
+        | movsx Rq(to_reg), Rw(from_reg);
+        break;
+    case 68:
+        /* movsx is apparantly not defined for double-to-quadword conversions,
+         * which forces us to use the rax register like it's 1978. It might be easier
+         * to bithack the sign-extension manually, but I'm not sure how.. */
+        | mov eax, Rd(from_reg);
+        | cdqe;
+        | mov Rq(to_reg), rax;
+        break;
+    default:
+        DIE("Unsupported signed cast %d -> %d\n", from_size, to_size);
     }
 }
 
+MVM_JIT_TILE_DECL(cast_unsigned) {
+    MVMint32 to_size   = tile->args[0];
+    MVMint32 from_size = tile->args[1];
 
-MVM_JIT_TILE_DECL(cast_load_addr) {
-    DIE("NYI");
+    MVMint8  to_reg    = tile->values[0];
+    MVMint8  from_reg  = tile->values[1];
+
+    /* Same combination set as above, but we also support casting down:
+     * 8 -> 1 = 8  (1<<3 = 8, 8 | 8 = 8)
+     * 4 -> 1 = 12
+     * 2 -> 1 = 10
+     * 8 -> 2 = 24
+     * 4 -> 2 = 20
+     * 8 -> 4 = 40
+     */
+    MVMint32 size_conv = (from_size) | (to_size << 3);
+    switch (size_conv) {
+    case 8:  /* 8 -> 1 */
+    case 10: /* 2 -> 1 */
+    case 12: /* 4 -> 1 */
+        | movzx Rd(to_reg), Rb(from_reg);
+        break;
+    case 17: /* 1 -> 2 */
+        | movzx Rw(to_reg), Rb(from_reg);
+        break;
+    case 20: /* 4 -> 2 */
+    case 24: /* 8 -> 2 */
+        | movzx Rd(to_reg), Rw(to_reg);
+        break;
+    case 33: /* 1 -> 4 */
+        | movzx Rd(to_reg), Rb(from_reg);
+        break;
+    case 34: /* 2 -> 4 */
+        | movzx Rd(to_reg), Rw(from_reg);
+        break;
+    case 40: /* 8 -> 4 */
+        | mov Rd(to_reg), Rd(from_reg);
+        break;
+    case 65: /* 1 -> 8 */
+        | movzx Rq(to_reg), Rb(from_reg);
+        break;
+    case 66: /* 2 -> 8 */
+        | movzx Rq(to_reg), Rw(from_reg);
+        break;
+    case 68: /* 4 -> 8 */
+        /* In contrast to signed cast, nothing special is necessary to cast
+         * unsigned doublewords to quadwords, because using the lower 4 bytes
+         * automatically clears the upper 4 */
+        | mov Rd(to_reg), Rd(from_reg);
+        break;
+    default:
+        DIE("Unsupported unsigned cast %d -> %d (%d)\n", from_size, to_size, size_conv);
+    }
+
 }
+
+
+/* Logic is the same as cast above except loading from memory instead of reg */
+/* See comments in cast above for more detail */
+MVM_JIT_TILE_DECL(cast_signed_load_addr) {
+    MVMint32 ofs       = tile->args[0];
+    MVMint32 load_size = tile->args[1];
+    MVMint32 to_size   = tile->args[2];
+    MVMint32 from_size = tile->args[3];
+
+    MVMint8  to_reg    = tile->values[0];
+    MVMint8  base      = tile->values[1];
+
+    MVMint32 size_conv = (from_size) | (to_size << 3);
+    switch (size_conv) {
+    case 17:
+        | movsx Rw(to_reg), byte [Rq(base)+ofs];
+        break;
+    case 33:
+        | movsx Rd(to_reg), byte [Rq(base)+ofs];
+        break;
+    case 34:
+        | movsx Rd(to_reg), word [Rq(base)+ofs];
+        break;
+    case 65:
+        | movsx Rq(to_reg), byte [Rq(base)+ofs];
+        break;
+    case 66:
+        | movsx Rq(to_reg), word [Rq(base)+ofs];
+        break;
+    case 68:
+        | mov eax, dword [Rq(base)+ofs];
+        | cdqe;
+        | mov Rq(to_reg), rax;
+        break;
+    default:
+        DIE("Unsupported signed cast with load %d -> %d\n", from_size, to_size);
+    }
+}
+
+/* Logic is the same as cast above except loading from memory instead of reg */
+/* See comments in cast above for more detail */
+MVM_JIT_TILE_DECL(cast_unsigned_load_addr) {
+    MVMint32 ofs       = tile->args[0];
+    MVMint32 load_size = tile->args[1];
+    MVMint32 to_size   = tile->args[2];
+    MVMint32 from_size = tile->args[3];
+
+    MVMint8  to_reg    = tile->values[0];
+    MVMint8  base      = tile->values[1];
+
+    MVMint32 size_conv = (from_size) | (to_size << 3);
+    switch (size_conv) {
+    case 8:  /* 8 -> 1 */
+    case 10: /* 2 -> 1 */
+    case 12: /* 4 -> 1 */
+        | movzx Rd(to_reg), byte [Rq(base)+ofs];
+    case 17: /* 1 -> 2 */
+        | movzx Rw(to_reg), byte [Rq(base)+ofs];
+        break;
+    case 20: /* 4 -> 2 */
+    case 24: /* 8 -> 2 */
+        | movzx Rd(to_reg), word [Rq(base)+ofs];
+        break;
+    case 33: /* 1 -> 4 */
+        | movzx Rd(to_reg), byte [Rq(base)+ofs];
+        break;
+    case 34: /* 2 -> 4 */
+        | movzx Rd(to_reg), word [Rq(base)+ofs];
+        break;
+    case 40: /* 8 -> 4 */
+        | mov Rd(to_reg), dword [Rq(base)+ofs];
+        break;
+    case 65: /* 1 -> 8 */
+        | movzx Rq(to_reg), byte [Rq(base)+ofs];
+        break;
+    case 66: /* 2 -> 8 */
+        | movzx Rq(to_reg), word [Rq(base)+ofs];
+        break;
+    case 68: /* 4 -> 8 */
+        | mov Rd(to_reg),  dword [Rq(base)+ofs];
+        break;
+    default:
+        DIE("Unsupported unsigned cast with load %d -> %d (size_conv=%d)\n", from_size, to_size, size_conv);
+    }
+}
+
 
 /* binary operations have special requirements because x86 is two-operand form, e.g:
  * r0 = r0 <op> r1

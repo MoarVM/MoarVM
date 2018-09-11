@@ -10,13 +10,7 @@ enum {
     MVM_JIT_NUM
 };
 
-/* Control casting behaviour for mixed-sized operands */
-#define MVM_JIT_CAST_NONE  0
-#define MVM_JIT_CAST_UNSIGNED 1
-#define MVM_JIT_CAST_SIGNED   2
-
 #include "expr_ops.h"
-
 
 enum MVMJitExprOperator {
 #define MVM_JIT_OP_ENUM(name, nchild, narg) MVM_JIT_##name

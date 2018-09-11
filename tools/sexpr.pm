@@ -1,6 +1,35 @@
 package sexpr;
 use strict;
 use warnings;
+use Carp qw(croak);
+use Exporter qw(import);
+our @EXPORT = qw(sexpr_decode sexpr_encode);
+
+{
+    # good thing perl is single threaded ;-)
+    my $PARSER = __PACKAGE__->parser;
+    sub sexpr_decode {
+        open local $PARSER->{input}, '<', \$_[0];
+        $PARSER->parse;
+    }
+}
+
+sub sexpr_encode {
+    my $list = shift;
+    my $out = '(';
+    for my $item (@$list) {
+        if (ref($item) eq 'ARRAY') {
+            $out .= sexpr_encode($item);
+        } else {
+            $out .= "$item";
+        }
+        $out .= " ";
+    }
+    $out = substr $out, 0, -1 if (substr $out, -1 eq ' ');
+    $out .=  ')';
+    return $out;
+}
+
 
 # declare keyword syntax regex
 my $tokenize = qr/
@@ -100,20 +129,5 @@ sub parse {
 }
 
 
-sub encode {
-    my $list = shift;
-    my $out = '(';
-    for my $item (@$list) {
-        if (ref($item) eq 'ARRAY') {
-            $out .= encode($item);
-        } else {
-            $out .= "$item";
-        }
-        $out .= " ";
-    }
-    $out = substr $out, 0, -1 if (substr $out, -1 eq ' ');
-    $out .=  ')';
-    return $out;
-}
 
 1;

@@ -207,7 +207,6 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
     }
     else {
         /* Not possible to inline. Clear it up. */
-        MVM_free(ig->spesh_slots);
         MVM_spesh_graph_destroy(tc, ig);
         return NULL;
     }
@@ -243,7 +242,9 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadConte
         return ig;
     }
     else {
-        MVM_free(ig->spesh_slots);
+        /* TODO - we spent all this work creating an optimized version.  Maybe
+           we can make use of it by compiling a custom target despite not being
+           inlineable? */
         MVM_spesh_graph_destroy(tc, ig);
         return NULL;
     }
@@ -619,7 +620,6 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     }
     inliner->inlines[total_inlines - 1].sf             = inlinee_sf;
     inliner->inlines[total_inlines - 1].code_ref_reg   = code_ref_reg.reg.orig;
-    inliner->inlines[total_inlines - 1].g              = inlinee;
     inliner->inlines[total_inlines - 1].locals_start   = inliner->num_locals;
     inliner->inlines[total_inlines - 1].lexicals_start = inliner->num_lexicals;
     inliner->inlines[total_inlines - 1].num_locals     = inlinee->num_locals;
@@ -1166,4 +1166,9 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
      * for the sake of deopt. */
     if (inliner->inlines[inliner->num_inlines - 1].may_cause_deopt)
         MVM_spesh_usages_retain_deopt_index(tc, inliner, proxy_deopt_idx);
+
+    /* Claim ownership of inlinee memory */
+    MVM_region_merge(tc, &inliner->region_alloc, &inlinee->region_alloc);
+    /* Destroy the inlinee graph */
+    MVM_spesh_graph_destroy(tc, inlinee);
 }

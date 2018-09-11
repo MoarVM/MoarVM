@@ -219,6 +219,14 @@ static void getstringfrom_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
     tgt_facts->value.s = str;
     tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
 }
+static void trunc_i16_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMSpeshFacts *src_facts = &g->facts[ins->operands[1].reg.orig][ins->operands[1].reg.i];
+    if (src_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        MVMSpeshFacts *tgt_facts = &g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i];
+        tgt_facts->value.i = (MVMint16)src_facts->value.i;
+        tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+    }
+}
 
 /* Discover facts from extops. */
 static void discover_extop(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
@@ -520,6 +528,9 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             create_facts(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[2].reg.orig, ins->operands[2].reg.i);
+            break;
+        case MVM_OP_trunc_i16:
+            trunc_i16_facts(tc, g, ins);
             break;
         case MVM_OP_bootint:
             object_facts(tc, g,
