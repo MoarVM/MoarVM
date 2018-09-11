@@ -71,12 +71,52 @@
                      (carg (const (&QUOTE MVM_reg_obj) int_sz) int)) ptr_sz)))
     (if (nz $found) (load $found ptr_sz) (^vmnull))))
 
+(template: bindlex_ni
+  (callv (^func &MVM_frame_bind_lexical_by_name)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^cu_string $0) ptr)
+      (carg (const (&QUOTE MVM_reg_int64) int_sz) int)
+      (carg \$1 ptr))))
+
+(template: bindlex_nn
+  (callv (^func &MVM_frame_bind_lexical_by_name)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^cu_string $0) ptr)
+      (carg (const (&QUOTE MVM_reg_num64) int_sz) int)
+      (carg \$1 ptr))))
+
+(template: bindlex_ns
+  (callv (^func &MVM_frame_bind_lexical_by_name)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^cu_string $0) ptr)
+      (carg (const (&QUOTE MVM_reg_str) int_sz) int)
+      (carg \$1 ptr))))
+
+(template: bindlex_no
+  (callv (^func &MVM_frame_bind_lexical_by_name)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^cu_string $0) ptr)
+      (carg (const (&QUOTE MVM_reg_obj) int_sz) int)
+      (carg \$1 ptr))))
+
 (template: getdynlex
   (call (^func &MVM_frame_getdynlex)
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)
       (carg (^caller) ptr)) ptr_sz))
+
+(template: binddynlex
+  (callv (^func &MVM_frame_binddynlex)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0   ptr)
+      (carg $1   ptr)
+      (carg (^caller) ptr))))
 
 (template: return_o
   (dov
@@ -152,6 +192,13 @@
 
 (template: param_rp_o
   (call (^func &MVM_args_get_required_pos_obj)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^params) ptr)
+      (carg $1 int)) ptr_sz))
+
+(template: param_sp
+  (call (^func &MVM_args_slurpy_positional)
     (arglist
       (carg (tc) ptr)
       (carg (^params) ptr)
@@ -467,6 +514,15 @@
       (carg $3 int)
       (carg $4 int)) int_sz))
 
+(template: hasunipropc
+  (call (^func &MVM_string_offset_has_unicode_property_value)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 int)
+      (carg $3 int)
+      (carg $4 int)) int_sz))
+
 (template: chars
   (call (^func &MVM_string_graphs)
     (arglist
@@ -717,6 +773,11 @@
   (do
     (^store_write_barrier! (^stable $1) (^addrf (^stable $1) MVMSTable WHO) $2)
     $1))
+
+(template: reprname
+  (^getf
+    (load (idx (^get_instance_field repr_list) (^repr_id $1) ptr_sz) ptr_sz)
+    MVMReprRegistry name))
 
 (template: eqaddr (flagval (eq $1 $2)))
 
@@ -2155,6 +2216,26 @@
       (carg (tc) ptr)
       (carg $1   ptr)) int_sz))
 
+(template: objprimbits
+  (if
+    (nz $1)
+    (let: (($ss (^storage_spec $1)))
+      (if
+        (nz (^getf $ss MVMStorageSpec boxed_primitive))
+        (ucast (^getf $ss MVMStorageSpec bits) int_sz (&sizeof MVMuint16))
+        (const 0 int_sz)))
+    (const 0 int_sz)))
+
+(template: objprimunsigned
+  (if
+    (nz $1)
+    (let: (($ss (^storage_spec $1)))
+      (if
+        (eq (^getf $ss MVMStorageSpec boxed_primitive) (const 1 int_sz))
+        (ucast (^getf $ss MVMStorageSpec is_unsigned) int_sz (&sizeof MVMuint8))
+        (const 0 int_sz)))
+    (const 0 int_sz)))
+
 (template: coerce_iu  (copy $1))
 
 (template: coerce_ui  (copy $1))
@@ -2264,6 +2345,11 @@
       (carg $1 ptr)
       (carg $2 ptr)
       (carg $3 int)) int_sz))
+
+(template: getarg_i (load (^arg $1) int_sz))
+(template: getarg_n (load (^arg $1) num_sz))
+(template: getarg_s (load (^arg $1) ptr_sz))
+(template: getarg_o (load (^arg $1) ptr_sz))
 
 (template: encoderepconf
   (call (^func &MVM_string_encode_to_buf_config)
@@ -2377,7 +2463,7 @@
 
 (template: sp_getarg_o (load (^parg $1) ptr_sz))
 (template: sp_getarg_i (load (^parg $1) int_sz))
-(template: sp_getarg_n (load (^parg $1) int_sz))
+(template: sp_getarg_n (load (^parg $1) num_sz))
 (template: sp_getarg_s (load (^parg $1) ptr_sz))
 
 (template: sp_getspeshslot (^spesh_slot_value $1))
