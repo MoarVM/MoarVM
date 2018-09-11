@@ -77,7 +77,7 @@
       (carg (tc) ptr)
       (carg (^cu_string $0) ptr)
       (carg (const (&QUOTE MVM_reg_int64) int_sz) int)
-      (carg \$1 ptr))))
+      (carg $1 ptr))))
 
 (template: bindlex_nn
   (callv (^func &MVM_frame_bind_lexical_by_name)
@@ -85,7 +85,7 @@
       (carg (tc) ptr)
       (carg (^cu_string $0) ptr)
       (carg (const (&QUOTE MVM_reg_num64) int_sz) int)
-      (carg \$1 ptr))))
+      (carg $1 ptr))))
 
 (template: bindlex_ns
   (callv (^func &MVM_frame_bind_lexical_by_name)
@@ -93,7 +93,7 @@
       (carg (tc) ptr)
       (carg (^cu_string $0) ptr)
       (carg (const (&QUOTE MVM_reg_str) int_sz) int)
-      (carg \$1 ptr))))
+      (carg $1 ptr))))
 
 (template: bindlex_no
   (callv (^func &MVM_frame_bind_lexical_by_name)
@@ -101,7 +101,7 @@
       (carg (tc) ptr)
       (carg (^cu_string $0) ptr)
       (carg (const (&QUOTE MVM_reg_obj) int_sz) int)
-      (carg \$1 ptr))))
+      (carg $1 ptr))))
 
 (template: getdynlex
   (call (^func &MVM_frame_getdynlex)
@@ -874,7 +874,7 @@
       (arglist
         (carg (tc) ptr)
         (carg (^stable $0) ptr)
-        (carg \$0 ptr)
+        (carg $0 ptr)
         (carg (^body $0) ptr)
         (carg $1 ptr)
         (carg $2 ptr)
@@ -1102,7 +1102,7 @@
     (arglist
       (carg (tc) ptr)
       (carg (^stable $0) ptr)
-      (carg \$0 ptr)
+      (carg $0 ptr)
       (carg (^body $0) ptr)
       (carg $1 ptr)
       (carg $2 int)

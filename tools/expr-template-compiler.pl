@@ -335,8 +335,12 @@ sub compile_reference {
         my $direction = $MOAR_OPERAND_DIRECTION{$opcode};
         die "Invalid operand reference $expr for $opcode"
             unless $name >= 0 && $name < @$direction;
-        die "Expected reference for write operand ($opcode)"
-            if $direction->[$name] eq 'w' && !$ref;
+        if ($direction->[$name] eq 'w') {
+            die "Require reference for write operand \$$name ($opcode)"
+                unless $ref;
+        } else {
+            die "Operand \$$name of $opcode is not a reference" if $ref;
+        }
         return 'i' => $name;
     } else {
         die "Undefined named reference $expr"
