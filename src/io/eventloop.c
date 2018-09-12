@@ -281,9 +281,7 @@ void MVM_io_eventloop_stop(MVMThreadContext *tc) {
         uv_loop_t *loop = event_loop_thread->loop;
         uv_stop(loop);
 
-        MVM_gc_mark_thread_blocked(tc);
         MVM_thread_join(tc, (MVMObject*)event_loop_thread->thread_obj);
-        MVM_gc_mark_thread_unblocked(tc);
 
         /* release allocated resources, this may be */
         uv_close((uv_handle_t*)instance->event_loop_wakeup, NULL);
