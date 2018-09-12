@@ -2,6 +2,7 @@
 #include "platform/time.h"
 
 #include <windows.h>
+#include <time.h>
 
 /* see http://support.microsoft.com/kb/167296 */
 #define OFFSET 116444736000000000
@@ -40,4 +41,20 @@ void MVM_platform_nanosleep(MVMuint64 nanos)
 
         millis = (DWORD)((end - now) / E6);
     }
+}
+
+void MVM_platform_decodelocaltime(MVMint64 time, MVMint64 decoded[]) {
+    const time_t t = (time_t)time;
+    struct tm tm;
+    localtime_s(&tm, &t);
+
+    decoded[0] = tm->tm_sec;
+    decoded[1] = tm->tm_min;
+    decoded[2] = tm->tm_hour;
+    decoded[3] = tm->tm_mday;
+    decoded[4] = tm->tm_mon + 1;
+    decoded[5] = tm->tm_year + 1900;
+    decoded[6] = tm->tm_wday;
+    decoded[7] = tm->tm_yday;
+    decoded[8] = tm->tm_isdst;
 }

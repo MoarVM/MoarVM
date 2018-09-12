@@ -5325,6 +5325,25 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).s = MVM_coerce_u_s(tc, GET_REG(cur_op, 2).u64);
                 cur_op += 4;
                 goto NEXT;
+            OP(decodelocaltime): {
+                int i;
+                MVMint64 decoded[9];
+                MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
+
+                GET_REG(cur_op, 0).o = result;
+
+                MVM_platform_decodelocaltime(GET_REG(cur_op, 2).i64, decoded);
+
+                MVMROOT(tc, result, {
+                    REPR(result)->pos_funcs.set_elems(tc, STABLE(result), result, OBJECT_BODY(result), 9);
+                    for (i = 0; i < 9; i++) {
+                        MVM_repr_bind_pos_i(tc, result, i, decoded[i]);
+                    }
+                });
+
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(speshguardnotobj):
                 MVM_spesh_plugin_addguard_notobj(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o);
                 cur_op += 4;
