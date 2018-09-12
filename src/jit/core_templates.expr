@@ -42,7 +42,7 @@
       (arglist
         (carg (tc) ptr)
         (carg (^cu_string $1) ptr)
-        (carg (const (&QUOTE MVM_reg_int64) int_sz) int)) int_sz)
+        (carg (^reg_int) int)) int_sz)
     int_sz))
 
 (template: getlex_nn
@@ -51,7 +51,7 @@
       (arglist
         (carg (tc) ptr)
         (carg (^cu_string $1) ptr)
-        (carg (const (&QUOTE MVM_reg_num64) int_sz) int)) int_sz)
+        (carg (^reg_num) int)) int_sz)
     num_sz))
 
 (template: getlex_ns
@@ -60,7 +60,7 @@
       (arglist
         (carg (tc) ptr)
         (carg (^cu_string $1) ptr)
-        (carg (const (&QUOTE MVM_reg_str) int_sz) int)) int_sz)
+        (carg (^reg_str) int)) int_sz)
     ptr_sz))
 
 (template: getlex_no
@@ -68,7 +68,7 @@
                    (arglist
                      (carg (tc) ptr)
                      (carg (^cu_string $1) ptr)
-                     (carg (const (&QUOTE MVM_reg_obj) int_sz) int)) ptr_sz)))
+                     (carg (^reg_obj) int)) ptr_sz)))
     (if (nz $found) (load $found ptr_sz) (^vmnull))))
 
 (template: bindlex_ni
@@ -76,7 +76,7 @@
     (arglist
       (carg (tc) ptr)
       (carg (^cu_string $0) ptr)
-      (carg (const (&QUOTE MVM_reg_int64) int_sz) int)
+      (carg (^reg_int) int)
       (carg $1 ptr))))
 
 (template: bindlex_nn
@@ -84,7 +84,7 @@
     (arglist
       (carg (tc) ptr)
       (carg (^cu_string $0) ptr)
-      (carg (const (&QUOTE MVM_reg_num64) int_sz) int)
+      (carg (^reg_num) int)
       (carg $1 ptr))))
 
 (template: bindlex_ns
@@ -92,7 +92,7 @@
     (arglist
       (carg (tc) ptr)
       (carg (^cu_string $0) ptr)
-      (carg (const (&QUOTE MVM_reg_str) int_sz) int)
+      (carg (^reg_str) int)
       (carg $1 ptr))))
 
 (template: bindlex_no
@@ -100,7 +100,7 @@
     (arglist
       (carg (tc) ptr)
       (carg (^cu_string $0) ptr)
-      (carg (const (&QUOTE MVM_reg_obj) int_sz) int)
+      (carg (^reg_obj) int)
       (carg $1 ptr))))
 
 (template: getdynlex
@@ -812,7 +812,7 @@
       (carg (^body $1) ptr)
       (carg $2 int)
       (carg \$0 ptr)
-      (carg (const (&QUOTE MVM_reg_int64) int_sz) int))))
+      (carg (^reg_int) int))))
 
 (template: atpos_n!
   (callv (^getf (^repr $1) MVMREPROps pos_funcs.at_pos)
@@ -823,7 +823,7 @@
       (carg (^body $1) ptr)
       (carg $2 int)
       (carg \$0 ptr)
-      (carg (const (&QUOTE MVM_reg_num64) int_sz) int))))
+      (carg (^reg_num) int))))
 
 (template: atpos_s!
   (callv (^getf (^repr $1) MVMREPROps pos_funcs.at_pos)
@@ -834,7 +834,7 @@
       (carg (^body $1) ptr)
       (carg $2 int)
       (carg \$0 ptr)
-      (carg (const (&QUOTE MVM_reg_str) int_sz) int))))
+      (carg (^reg_str) int))))
 
 #  REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
 #       OBJECT_BODY(obj), GET_REG(cur_op, 4).i64,
@@ -850,7 +850,7 @@
         (carg (^body $1) ptr)
         (carg $2 int)
         (carg \$0 ptr)
-        (carg (const (&QUOTE MVM_reg_obj) int_sz) int)))))
+        (carg (^reg_obj) int)))))
 
 (template: bindpos_i
   (dov
@@ -862,7 +862,7 @@
         (carg (^body $0) ptr)
         (carg $1 ptr)
         (carg $2 ptr)
-        (carg (const (&QUOTE MVM_reg_int64) int_sz) int)))
+        (carg (^reg_int) int)))
     (callv (^func &MVM_SC_WB_OBJ)
       (arglist
         (carg (tc) ptr)
@@ -878,7 +878,7 @@
         (carg (^body $0) ptr)
         (carg $1 ptr)
         (carg $2 ptr)
-        (carg (const (&QUOTE MVM_reg_num64) int_sz) int)))
+        (carg (^reg_num) int)))
     (callv (^func &MVM_SC_WB_OBJ)
       (arglist
         (carg (tc) ptr)
@@ -894,7 +894,7 @@
         (carg (^body $0) ptr)
         (carg $1 ptr)
         (carg $2 ptr)
-        (carg (const (&QUOTE MVM_reg_str) int_sz) int)))
+        (carg (^reg_str) int)))
     (callv (^func &MVM_SC_WB_OBJ)
       (arglist
         (carg (tc) ptr)
@@ -910,7 +910,7 @@
         (carg (^body $0) ptr)
         (carg $1 ptr)
         (carg $2 ptr)
-        (carg (const (&QUOTE MVM_reg_obj) int_sz) int)))
+        (carg (^reg_obj) int)))
     (callv (^func &MVM_SC_WB_OBJ)
       (arglist
         (carg (tc) ptr)
@@ -925,7 +925,7 @@
         (carg $0 ptr)
         (carg (^body $0) ptr)
         (carg $1 ptr)
-        (carg (const (&QUOTE MVM_reg_int64) int_sz) int)))
+        (carg (^reg_int) int)))
     (callv (^func &MVM_SC_WB_OBJ)
       (arglist
         (carg (tc) ptr)
@@ -940,7 +940,7 @@
         (carg $0 ptr)
         (carg (^body $0) ptr)
         (carg $1 ptr)
-        (carg (const (&QUOTE MVM_reg_num64) int_sz) int)))
+        (carg (^reg_num) int)))
     (callv (^func &MVM_SC_WB_OBJ)
       (arglist
         (carg (tc) ptr)
@@ -955,7 +955,7 @@
         (carg $0 ptr)
         (carg (^body $0) ptr)
         (carg $1 ptr)
-        (carg (const (&QUOTE MVM_reg_str) int_sz) int)))
+        (carg (^reg_str) int)))
     (callv (^func &MVM_SC_WB_OBJ)
       (arglist
         (carg (tc) ptr)
@@ -970,7 +970,7 @@
         (carg $0 ptr)
         (carg (^body $0) ptr)
         (carg $1 ptr)
-        (carg (const (&QUOTE MVM_reg_obj) int_sz) int)))
+        (carg (^reg_obj) int)))
     (callv (^func &MVM_SC_WB_OBJ)
       (arglist
         (carg (tc) ptr)
@@ -984,7 +984,7 @@
       (carg $1 ptr)
       (carg (^body $1) ptr)
       (carg \$0 ptr)
-      (carg (const (&QUOTE MVM_reg_int64) int_sz) int))))
+      (carg (^reg_int) int))))
 
 (template: pop_n!
   (callv (^getf (^repr $1) MVMREPROps pos_funcs.pop)
@@ -994,7 +994,7 @@
       (carg $1 ptr)
       (carg (^body $1) ptr)
       (carg \$0 ptr)
-      (carg (const (&QUOTE MVM_reg_num64) int_sz) int))))
+      (carg (^reg_num) int))))
 
 (template: pop_s!
   (callv (^getf (^repr $1) MVMREPROps pos_funcs.pop)
@@ -1004,7 +1004,7 @@
       (carg $1 ptr)
       (carg (^body $1) ptr)
       (carg \$0 ptr)
-      (carg (const (&QUOTE MVM_reg_str) int_sz) int))))
+      (carg (^reg_str) int))))
 
 (template: pop_o!
   (callv (^getf (^repr $1) MVMREPROps pos_funcs.pop)
@@ -1014,7 +1014,7 @@
       (carg $1 ptr)
       (carg (^body $1) ptr)
       (carg \$0 ptr)
-      (carg (const (&QUOTE MVM_reg_obj) int_sz) int))))
+      (carg (^reg_obj) int))))
 
 (template: shift_i!
   (callv (^getf (^repr $1) MVMREPROps pos_funcs.shift)
@@ -1024,7 +1024,7 @@
       (carg $1 ptr)
       (carg (^body $1) ptr)
       (carg \$0 ptr)
-      (carg (const (&QUOTE MVM_reg_int64) int_sz) int))))
+      (carg (^reg_int) int))))
 
 (template: shift_n!
   (callv (^getf (^repr $1) MVMREPROps pos_funcs.shift)
@@ -1034,7 +1034,7 @@
       (carg $1 ptr)
       (carg (^body $1) ptr)
       (carg \$0 ptr)
-      (carg (const (&QUOTE MVM_reg_num64) int_sz) int))))
+      (carg (^reg_num) int))))
 
 (template: shift_s!
   (callv (^getf (^repr $1) MVMREPROps pos_funcs.shift)
@@ -1044,7 +1044,7 @@
       (carg $1 ptr)
       (carg (^body $1) ptr)
       (carg \$0 ptr)
-      (carg (const (&QUOTE MVM_reg_str) int_sz) int))))
+      (carg (^reg_str) int))))
 
 (template: shift_o!
   (callv (^getf (^repr $1) MVMREPROps pos_funcs.shift)
@@ -1054,7 +1054,7 @@
       (carg $1 ptr)
       (carg (^body $1) ptr)
       (carg \$0 ptr)
-      (carg (const (&QUOTE MVM_reg_obj) int_sz) int))))
+      (carg (^reg_obj) int))))
 
 (template: unshift_i
   (callv (^getf (^repr $0) MVMREPROps pos_funcs.unshift)
@@ -1064,7 +1064,7 @@
       (carg $0 ptr)
       (carg (^body $0) ptr)
       (carg $1 ptr)
-      (carg (const (&QUOTE MVM_reg_int64) int_sz) int))))
+      (carg (^reg_int) int))))
 
 (template: unshift_n
   (callv (^getf (^repr $0) MVMREPROps pos_funcs.unshift)
@@ -1074,7 +1074,7 @@
       (carg $0 ptr)
       (carg (^body $0) ptr)
       (carg $1 ptr)
-      (carg (const (&QUOTE MVM_reg_num64) int_sz) int))))
+      (carg (^reg_num) int))))
 
 (template: unshift_s
   (callv (^getf (^repr $0) MVMREPROps pos_funcs.unshift)
@@ -1084,7 +1084,7 @@
       (carg $0 ptr)
       (carg (^body $0) ptr)
       (carg $1 ptr)
-      (carg (const (&QUOTE MVM_reg_str) int_sz) int))))
+      (carg (^reg_str) int))))
 
 (template: unshift_o
   (callv (^getf (^repr $0) MVMREPROps pos_funcs.unshift)
@@ -1094,7 +1094,7 @@
       (carg $0 ptr)
       (carg (^body $0) ptr)
       (carg $1 ptr)
-      (carg (const (&QUOTE MVM_reg_obj) int_sz) int))))
+      (carg (^reg_obj) int))))
 
 
 (template: splice
@@ -1133,7 +1133,7 @@
       (carg (^body $1) ptr)
       (carg $2 ptr)
       (carg \$0 ptr)
-      (carg (const (&QUOTE MVM_reg_int64) int_sz) int))))
+      (carg (^reg_int) int))))
 
 
 (template: atkey_n!
@@ -1145,7 +1145,7 @@
       (carg (^body $1) ptr)
       (carg $2 ptr)
       (carg \$0 ptr)
-      (carg (const (&QUOTE MVM_reg_num64) int_sz) int))))
+      (carg (^reg_num) int))))
 
 (template: atkey_s!
   (callv (^getf (^repr $1) MVMREPROps ass_funcs.at_key)
@@ -1156,7 +1156,7 @@
       (carg (^body $1) ptr)
       (carg $2 ptr)
       (carg \$0 ptr)
-      (carg (const (&QUOTE MVM_reg_str) int_sz) int))))
+      (carg (^reg_str) int))))
 
 #  REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
 #       (MVMObject *)GET_REG(cur_op, 4).s, &GET_REG(cur_op, 0), MVM_reg_obj);
@@ -1171,7 +1171,7 @@
         (carg (^body $1) ptr)
         (carg $2 ptr)
         (carg \$0 ptr)
-        (carg (const (&QUOTE MVM_reg_obj) int_sz) int)))))
+        (carg (^reg_obj) int)))))
 
 (template: bindkey_i
   (dov
@@ -1183,7 +1183,7 @@
         (carg (^body $0) ptr)
         (carg $1 ptr)
         (carg $2 ptr)
-        (carg (const (&QUOTE MVM_reg_int64) int_sz) int)))
+        (carg (^reg_int) int)))
     (callv (^func &MVM_SC_WB_OBJ)
       (arglist
         (carg (tc) ptr)
@@ -1199,7 +1199,7 @@
         (carg (^body $0) ptr)
         (carg $1 ptr)
         (carg $2 ptr)
-        (carg (const (&QUOTE MVM_reg_num64) int_sz) int)))
+        (carg (^reg_num) int)))
     (callv (^func &MVM_SC_WB_OBJ)
       (arglist
         (carg (tc) ptr)
@@ -1215,7 +1215,7 @@
         (carg (^body $0) ptr)
         (carg $1 ptr)
         (carg $2 ptr)
-        (carg (const (&QUOTE MVM_reg_str) int_sz) int)))
+        (carg (^reg_str) int)))
     (callv (^func &MVM_SC_WB_OBJ)
       (arglist
         (carg (tc) ptr)
@@ -1231,7 +1231,7 @@
         (carg (^body $0) ptr)
         (carg $1 ptr)
         (carg $2 ptr)
-        (carg (const (&QUOTE MVM_reg_obj) int_sz) int)))
+        (carg (^reg_obj) int)))
     (callv (^func &MVM_SC_WB_OBJ)
       (arglist
         (carg (tc) ptr)
@@ -2098,7 +2098,7 @@
                    (arglist
                      (carg (tc) ptr)
                      (carg $1   ptr)
-                     (carg (const (&QUOTE MVM_reg_obj) int_sz) int)) ptr_sz)))
+                     (carg (^reg_obj) int)) ptr_sz)))
     (if (nz $found) (load $found ptr_sz) (^vmnull))))
 
 (template: getlexperinvtype_o
@@ -2106,7 +2106,7 @@
                    (arglist
                      (carg (tc) ptr)
                      (carg $1   ptr)
-                     (carg (const (&QUOTE MVM_reg_obj) int_sz) int)) ptr_sz)))
+                     (carg (^reg_obj) int)) ptr_sz)))
     (if (nz $found) (load $found ptr_sz) (^vmnull))))
 
 (template: execname
