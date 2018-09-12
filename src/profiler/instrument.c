@@ -339,19 +339,51 @@ typedef struct {
     MVMString *spesh_time;
     MVMString *thread;
     MVMString *native_lib;
+    MVMString *managed_size;
+    MVMString *has_unmanaged_data;
+    MVMString *repr;
 } ProfDumpStrs;
 
 typedef struct {
     MVMThreadContext *tc;
     ProfDumpStrs *pds;
+    MVMObject *types_array;
 } ProfTcPdsStruct;
 
-static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds, const MVMProfileCallNode *pcn);
+static MVMObject * insert_if_not_exists(MVMThreadContext *tc, ProfDumpStrs *pds, MVMObject *storage, MVMint64 key) {
+    MVMint64 index;
+    MVMObject *result;
+    MVMObject *type_info_hash;
+
+    for (index = 0; index < MVM_repr_elems(tc, storage); index++) {
+        MVMObject *array_at = MVM_repr_at_pos_o(tc, storage, index);
+        MVMObject *key_of   = MVM_repr_at_pos_o(tc, array_at, 0);
+
+        if (MVM_repr_get_int(tc, key_of) == key) {
+            return NULL;
+        }
+    }
+
+    result = new_array(tc);
+    type_info_hash = new_hash(tc);
+
+    MVM_repr_bind_pos_o(tc, result, 0, box_i(tc, key));
+    MVM_repr_bind_pos_o(tc, result, 1, type_info_hash);
+    MVM_repr_push_o(tc, storage, result);
+    return result;
+}
+
+static void bind_extra_info(MVMThreadContext *tc, MVMObject *storage, MVMString *key, MVMObject *value) {
+    MVMObject *hash = MVM_repr_at_pos_o(tc, storage, 1);
+    MVM_repr_bind_key_o(tc, hash, key, value);
+}
+
+static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds, const MVMProfileCallNode *pcn, MVMObject *types_array);
 static MVMObject * dump_call_graph_node_loop(ProfTcPdsStruct *tcpds, const MVMProfileCallNode *pcn) {
     MVMuint32 i;
     MVMObject *node_hash;
 
-    node_hash = dump_call_graph_node(tcpds->tc, tcpds->pds, pcn);
+    node_hash = dump_call_graph_node(tcpds->tc, tcpds->pds, pcn, tcpds->types_array);
 
     /* Visit successors in the call graph, dumping them and working out the
      * exclusive time. */
@@ -377,7 +409,7 @@ static MVMObject * dump_call_graph_node_loop(ProfTcPdsStruct *tcpds, const MVMPr
 
 /* Dumps a call graph node. */
 static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
-                                        const MVMProfileCallNode *pcn) {
+                                        const MVMProfileCallNode *pcn, MVMObject *types_array) {
     MVMObject *node_hash  = new_hash(tc);
     MVMuint32  i;
 
@@ -465,9 +497,17 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
             MVMProfileAllocationCount *alloc = &pcn->alloc[i];
 
             MVMObject *type       = pcn->alloc[i].type;
+            MVMObject *type_info  = insert_if_not_exists(tc, pds, types_array, (MVMint64)type);
+
+            if (type_info) {
+                bind_extra_info(tc, type_info, pds->managed_size, box_i(tc, STABLE(type)->size));
+                if (REPR(type)->unmanaged_size)
+                    bind_extra_info(tc, type_info, pds->has_unmanaged_data, box_i(tc, 1));
+                bind_extra_info(tc, type_info, pds->type, type);
+                bind_extra_info(tc, type_info, pds->repr, box_s(tc, str(tc, REPR(type)->name)));
+            }
 
             MVM_repr_bind_key_o(tc, alloc_info, pds->id, box_i(tc, (MVMint64)type));
-            MVM_repr_bind_key_o(tc, alloc_info, pds->type, type);
             if (alloc->allocations_spesh)
                 MVM_repr_bind_key_o(tc, alloc_info, pds->spesh,
                     box_i(tc, alloc->allocations_spesh));
@@ -488,7 +528,8 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
 /* Dumps data from a single thread. */
 static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
                                     MVMThreadContext *othertc,
-                                    const MVMProfileThreadData *ptd) {
+                                    const MVMProfileThreadData *ptd,
+                                    MVMObject *types_data) {
     MVMObject *thread_hash = new_hash(tc);
     MVMObject *thread_gcs  = new_array(tc);
     MVMuint64 absolute_start_time;
@@ -498,6 +539,7 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
 
     tcpds.tc = tc;
     tcpds.pds = pds;
+    tcpds.types_array = types_data;
 
     /* Use the main thread's start time for absolute timings */
     absolute_start_time = tc->instance->main_thread->prof_data->start_time;
@@ -551,6 +593,10 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
     if (tc->prof_data && tc->prof_data->collected_data) {
         ProfDumpStrs pds;
         MVMThread *thread;
+        MVMObject *types_array;
+
+        /* Record end time. */
+        tc->prof_data->end_time = uv_hrtime();
 
         /* We'll allocate the data in gen2, but as we want to keep it, but to be
          * sure we don't trigger a GC run. */
@@ -591,11 +637,16 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
         pds.spesh_time      = str(tc, "spesh_time");
         pds.thread          = str(tc, "thread");
         pds.native_lib      = str(tc, "native library");
+        pds.managed_size    = str(tc, "managed_size");
 
-        /* Record end time. */
-        tc->prof_data->end_time = uv_hrtime();
+        pds.has_unmanaged_data = str(tc, "has_unmanaged_data");
+        pds.repr               = str(tc, "repr");
 
-        MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, tc, tc->prof_data));
+        types_array = new_array(tc);
+
+        MVM_repr_push_o(tc, tc->prof_data->collected_data, types_array);
+
+        MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, tc, tc->prof_data, types_array));
         while (tc->prof_data->current_call)
             MVM_profile_log_exit(tc);
 
@@ -615,7 +666,7 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
                 othertc->prof_data->end_time = uv_hrtime();
 
                 MVM_gc_allocate_gen2_default_set(othertc);
-                MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, othertc, othertc->prof_data));
+                MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, othertc, othertc->prof_data, types_array));
                 MVM_gc_allocate_gen2_default_clear(othertc);
             }
             thread = thread->body.next;
