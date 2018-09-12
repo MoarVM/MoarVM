@@ -352,20 +352,29 @@ typedef struct {
 static MVMObject * insert_if_not_exists(MVMThreadContext *tc, ProfDumpStrs *pds, MVMObject *storage, MVMint64 key) {
     MVMint64 index;
     MVMObject *result;
+    MVMObject *type_info_hash;
 
     for (index = 0; index < MVM_repr_elems(tc, storage); index++) {
-        MVMObject *hash_at = MVM_repr_at_pos_o(tc, storage, index);
-        MVMObject *key_of  = MVM_repr_at_key_o(tc, hash_at, pds->id);
+        MVMObject *array_at = MVM_repr_at_pos_o(tc, storage, index);
+        MVMObject *key_of   = MVM_repr_at_pos_o(tc, array_at, 0);
 
         if (MVM_repr_get_int(tc, key_of) == key) {
             return NULL;
         }
     }
 
-    result = new_hash(tc);
-    MVM_repr_bind_key_o(tc, result, pds->id, box_i(tc, key));
+    result = new_array(tc);
+    type_info_hash = new_hash(tc);
+
+    MVM_repr_bind_pos_o(tc, result, 0, box_i(tc, key));
+    MVM_repr_bind_pos_o(tc, result, 1, type_info_hash);
     MVM_repr_push_o(tc, storage, result);
     return result;
+}
+
+static void bind_extra_info(MVMThreadContext *tc, MVMObject *storage, MVMString *key, MVMObject *value) {
+    MVMObject *hash = MVM_repr_at_pos_o(tc, storage, 1);
+    MVM_repr_bind_key_o(tc, hash, key, value);
 }
 
 static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds, const MVMProfileCallNode *pcn, MVMObject *types_array);
@@ -490,10 +499,10 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
             MVMObject *type_info  = insert_if_not_exists(tc, pds, types_array, (MVMint64)type);
 
             if (type_info) {
-                MVM_repr_bind_key_o(tc, type_info, pds->managed_size, box_i(tc, STABLE(type)->size));
+                bind_extra_info(tc, type_info, pds->managed_size, box_i(tc, STABLE(type)->size));
                 if (REPR(type)->unmanaged_size)
-                    MVM_repr_bind_key_o(tc, type_info, pds->has_unmanaged_data, box_i(tc, 1));
-                MVM_repr_bind_key_o(tc, type_info, pds->type, type);
+                    bind_extra_info(tc, type_info, pds->has_unmanaged_data, box_i(tc, 1));
+                bind_extra_info(tc, type_info, pds->type, type);
             }
 
             MVM_repr_bind_key_o(tc, alloc_info, pds->id, box_i(tc, (MVMint64)type));
