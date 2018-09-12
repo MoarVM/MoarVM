@@ -341,6 +341,7 @@ typedef struct {
     MVMString *native_lib;
     MVMString *managed_size;
     MVMString *has_unmanaged_data;
+    MVMString *repr;
 } ProfDumpStrs;
 
 typedef struct {
@@ -503,6 +504,7 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
                 if (REPR(type)->unmanaged_size)
                     bind_extra_info(tc, type_info, pds->has_unmanaged_data, box_i(tc, 1));
                 bind_extra_info(tc, type_info, pds->type, type);
+                bind_extra_info(tc, type_info, pds->repr, box_s(tc, str(tc, REPR(type)->name)));
             }
 
             MVM_repr_bind_key_o(tc, alloc_info, pds->id, box_i(tc, (MVMint64)type));
@@ -638,6 +640,7 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
         pds.managed_size    = str(tc, "managed_size");
 
         pds.has_unmanaged_data = str(tc, "has_unmanaged_data");
+        pds.repr               = str(tc, "repr");
 
         types_array = new_array(tc);
 
