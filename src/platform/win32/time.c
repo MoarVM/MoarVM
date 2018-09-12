@@ -43,10 +43,12 @@ void MVM_platform_nanosleep(MVMuint64 nanos)
     }
 }
 
-void MVM_platform_decodelocaltime(MVMint64 time, MVMint64 decoded[]) {
+void MVM_platform_decodelocaltime(MVMThreadContext *tc, MVMint64 time, MVMint64 decoded[]) {
     const time_t t = (time_t)time;
     struct tm tm;
-    localtime_s(&tm, &t);
+    errno_t error = localtime_s(&tm, &t);
+    if (error != 0)
+        MVM_exception_throw_adhoc(tc, "Could not decode localtime: %s", strerror(error));
 
     decoded[0] = tm.tm_sec;
     decoded[1] = tm.tm_min;

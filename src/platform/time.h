@@ -9,4 +9,4 @@ MVMuint64 MVM_platform_now(void);
 void MVM_platform_sleep(MVMnum64 second);
 void MVM_platform_nanosleep(MVMuint64 nanos);
 
-void MVM_platform_decodelocaltime(MVMint64 time, MVMint64 decoded[]);
+void MVM_platform_decodelocaltime(MVMThreadContext *tc, MVMint64 time, MVMint64 decoded[]);

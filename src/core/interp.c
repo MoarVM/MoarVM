@@ -5332,7 +5332,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
                 GET_REG(cur_op, 0).o = result;
 
-                MVM_platform_decodelocaltime(GET_REG(cur_op, 2).i64, decoded);
+                MVM_platform_decodelocaltime(tc, GET_REG(cur_op, 2).i64, decoded);
 
                 MVMROOT(tc, result, {
                     REPR(result)->pos_funcs.set_elems(tc, STABLE(result), result, OBJECT_BODY(result), 9);
