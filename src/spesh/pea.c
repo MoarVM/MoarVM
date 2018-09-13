@@ -43,6 +43,31 @@ typedef struct {
     BBState *bb_states;
 } GraphState;
 
+/* Turns a flattened-in STable into a register type to allocate, if possible.
+ * Should it not be possible, returns a negative value. If passed NULL (which
+ * indicates a reference type), then returns MVM_reg_obj. */
+MVMint32 flattened_type_to_register_kind(MVMThreadContext *tc, MVMSTable *st) {
+    if (st) {
+        const MVMStorageSpec *ss = st->REPR->get_storage_spec(tc, st);
+        switch (ss->boxed_primitive) {
+            case MVM_STORAGE_SPEC_BP_INT:
+                if (ss->bits == 64 && !ss->is_unsigned)
+                    return MVM_reg_int64;
+                break;
+            case MVM_STORAGE_SPEC_BP_NUM:
+                if (ss->bits == 64)
+                    return MVM_reg_num64;
+                break;
+            case MVM_STORAGE_SPEC_BP_STR:
+                return MVM_reg_str;
+        }
+        return -1;
+    }
+    else {
+        return MVM_reg_obj;
+    }
+}
+
 /* Apply a transformation to the graph. */
 static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs,
         MVMSpeshBB *bb, Transformation *t) {
@@ -54,10 +79,8 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             MVMuint32 i;
             for (i = 0; i < repr_data->num_attributes; i++) {
                 MVMuint32 idx = alloc->hypothetical_attr_reg_idxs[i];
-                if (repr_data->flattened_stables[i])
-                    MVM_oops(tc, "Non-object attribute SR is NYI");
                 gs->attr_regs[idx] = MVM_spesh_manipulate_get_unique_reg(tc, g,
-                        MVM_reg_obj);
+                    flattened_type_to_register_kind(tc, repr_data->flattened_stables[i]));
             }
             MVM_spesh_manipulate_delete_ins(tc, g, bb, t->fastcreate.ins);
             break;
@@ -75,8 +98,6 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
         case TRANSFORM_BINDATTR_TO_SET: {
             MVMSpeshIns *ins = t->attr.ins;
             MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[0], ins);
-            if (ins->info->opcode != MVM_OP_sp_p6obind_o)
-                MVM_oops(tc, "Can't rewrite non-sp_p6obind_o");
             ins->info = MVM_op_get_op(MVM_OP_set);
             ins->operands[0].reg.orig = gs->attr_regs[t->attr.hypothetical_reg_idx];
             /* This new_version handling assumes linear code with no flow
@@ -108,12 +129,12 @@ static MVMSpeshPEAAllocation * try_track_allocation(MVMThreadContext *tc, MVMSpe
         alloc->hypothetical_attr_reg_idxs = MVM_spesh_alloc(tc, g,
                 repr_data->num_attributes * sizeof(MVMuint16));
         for (i = 0; i < repr_data->num_attributes; i++) {
-            /* For now we only handle object attributes. */
-            if (repr_data->flattened_stables[i])
+            /* Make sure it's an attribute type we know how to handle. */
+            if (flattened_type_to_register_kind(tc, repr_data->flattened_stables[i]) < 0)
                 return NULL;
 
-            /* Otherwise, pick an index that will later come to refer to an
-             * allocated register if we apply transforms. */
+            /* Pick an index that will later come to refer to an allocated
+             * register if we apply transforms. */
             alloc->hypothetical_attr_reg_idxs[i] = gs->latest_hypothetical_reg_idx++;
         }
         return alloc;
@@ -160,8 +181,11 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     }
                     break;
                 }
+                case MVM_OP_sp_p6obind_i:
+                case MVM_OP_sp_p6obind_n:
+                case MVM_OP_sp_p6obind_s:
                 case MVM_OP_sp_p6obind_o: {
-                    /* We should also inspect the argument that we read in order to
+                    /* TODO: For _o we should also inspect the argument that we read in order to
                      * bind into here. In case we are tracking it also. */
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[0]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
@@ -176,6 +200,9 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     }
                     break;
                 }
+                case MVM_OP_sp_p6oget_i:
+                case MVM_OP_sp_p6oget_n:
+                case MVM_OP_sp_p6oget_s:
                 case MVM_OP_sp_p6ogetvt_o: {
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[1]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
