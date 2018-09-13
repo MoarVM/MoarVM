@@ -15,5 +15,5 @@ void MVM_gc_allocate_gen2_default_clear(MVMThreadContext *tc);
 MVM_STATIC_INLINE void * MVM_gc_allocate(MVMThreadContext *tc, size_t size) {
     return tc->allocate_in_gen2
         ? MVM_gc_gen2_allocate_zeroed(tc->gen2, size)
-        : MVM_gc_allocate_nursery(tc, MVM_ALIGN_SIZE(size));
+        : MVM_gc_allocate_nursery(tc, size);
 }
