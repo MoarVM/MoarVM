@@ -280,6 +280,7 @@ void MVM_io_eventloop_stop(MVMThreadContext *tc) {
         /* Stop the loop */
         uv_loop_t *loop = event_loop_thread->loop;
         uv_stop(loop);
+        uv_async_send(instance->event_loop_wakeup);
 
         MVM_thread_join(tc, (MVMObject*)event_loop_thread->thread_obj);
 
