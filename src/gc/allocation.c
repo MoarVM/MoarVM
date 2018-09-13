@@ -9,6 +9,9 @@
  * trigger a GC run if there is not enough. */
 void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
     void *allocated;
+    /* objects in the nursery must be aligned, so we pad at the end. The
+     * assumption that they are aligned is also encoded in the collector */
+    size = MVM_ALIGN_SIZE(size);
 
     /* Before an allocation is a GC safe-point and thus a good GC sync point
      * also; check if we've been signalled to collect. */
