@@ -141,12 +141,18 @@ void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *bu
     /* Ensure the target is in the correct form. */
     if (!IS_CONCRETE(buffer) || REPR(buffer)->ID != MVM_REPR_ID_VMArray)
         MVM_exception_throw_adhoc(tc, "write_fhb requires a native array to read from");
-    if (((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != MVM_ARRAY_U8
-        && ((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != MVM_ARRAY_I8)
-        MVM_exception_throw_adhoc(tc, "write_fhb requires a native array of uint8 or int8");
-
-    output = (char *)(((MVMArray *)buffer)->body.slots.i8 + ((MVMArray *)buffer)->body.start);
-    output_size = ((MVMArray *)buffer)->body.elems;
+    if (((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type == MVM_ARRAY_U8
+        || ((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type == MVM_ARRAY_I8) {
+        output_size = ((MVMArray *)buffer)->body.elems;
+        output = (char *)(((MVMArray *)buffer)->body.slots.i8 + ((MVMArray *)buffer)->body.start);
+    }
+    else if (((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type == MVM_ARRAY_U16
+        || ((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type == MVM_ARRAY_I16) {
+        output_size = ((MVMArray *)buffer)->body.elems * sizeof(MVMuint16);
+        output = (char *)(((MVMArray *)buffer)->body.slots.i16 + ((MVMArray *)buffer)->body.start);
+    }
+    else
+        MVM_exception_throw_adhoc(tc, "write_fhb requires a native array of uint8, int8, uint16 or int16");
 
     if (handle->body.ops->sync_writable) {
         MVMROOT(tc, handle, {
