@@ -111,3 +111,11 @@
            (^not_repr_id ,decoder MVM_REPR_ID_Decoder)
            (zr (flagval (^is_conc_obj ,decoder))))
 	(^throw_adhoc (&CAT3 "Operation '" ,op "'can only work on an object with the Decoder representation"))))
+
+(macro: ^zero () (const 0 int_sz))
+(macro: ^one  () (const 1 int_sz))
+
+(macro: ^reg_int () (const (&QUOTE MVM_reg_int64) int_sz))
+(macro: ^reg_num () (const (&QUOTE MVM_reg_num64) int_sz))
+(macro: ^reg_str () (const (&QUOTE MVM_reg_str)   int_sz))
+(macro: ^reg_obj () (const (&QUOTE MVM_reg_obj)   int_sz))
