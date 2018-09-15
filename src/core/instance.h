@@ -332,7 +332,8 @@ struct MVMInstance {
      * and an array of active tasks, for the purpose of keeping them GC
      * marked. */
     MVMThreadContext *event_loop_thread;
-    uv_mutex_t        mutex_event_loop_start;
+    uv_loop_t        *event_loop;
+    uv_mutex_t        mutex_event_loop;
     uv_sem_t          sem_event_loop_started;
     MVMObject        *event_loop_todo_queue;
     MVMObject        *event_loop_permit_queue;

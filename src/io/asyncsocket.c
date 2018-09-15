@@ -676,7 +676,7 @@ static void on_connection(uv_stream_t *server, int status) {
 
     uv_tcp_t         *client = MVM_malloc(sizeof(uv_tcp_t));
     int               r;
-    uv_tcp_init(tc->loop, client);
+    uv_tcp_init(server->loop, client);
 
     MVM_repr_push_o(tc, arr, t->body.schedulee);
     if ((r = uv_accept(server, (uv_stream_t *)client)) == 0) {

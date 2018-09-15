@@ -168,7 +168,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->main_thread->last_payload = instance->VMNull;
 
     /* Initialize event loop thread starting mutex. */
-    init_mutex(instance->mutex_event_loop_start, "event loop thread start");
+    init_mutex(instance->mutex_event_loop, "event loop thread start");
 
     /* Create main thread object, and also make it the start of the all threads
      * linked list. Set up the mutex to protect it. */
@@ -609,8 +609,8 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_free(instance->int_const_cache);
     MVM_free(instance->int_to_str_cache);
 
-    /* Clean up event loop starting mutex. */
-    uv_mutex_destroy(&instance->mutex_event_loop_start);
+    /* Clean up event loop mutex. */
+    uv_mutex_destroy(&instance->mutex_event_loop);
 
     /* Destroy main thread contexts and thread list mutex. */
     MVM_tc_destroy(instance->main_thread);
