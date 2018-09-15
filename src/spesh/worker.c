@@ -150,21 +150,38 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
     });
 }
 
-void MVM_spesh_worker_setup(MVMThreadContext *tc) {
+/* Not thread safe per instance, but normally only used when instance is still
+ * single-threaded */
+void MVM_spesh_worker_start(MVMThreadContext *tc) {
+    MVMObject *worker_entry_point;
     if (tc->instance->spesh_enabled) {
-        MVMObject *worker_entry_point;
-        tc->instance->spesh_queue = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTQueue);
+
+        /* There must not be a running thread now */
+        assert(tc->instance->spesh_thread == NULL);
+
+        /* If we restart the worker, do not reinitialize the queue */
+        if (!tc->instance->spesh_queue)
+            tc->instance->spesh_queue = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTQueue);
         worker_entry_point = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTCCode);
         ((MVMCFunction *)worker_entry_point)->body.func = worker;
+
         tc->instance->spesh_thread = MVM_thread_new(tc, worker_entry_point, 1);
         MVM_thread_run(tc, tc->instance->spesh_thread);
     }
 }
 
-
-void MVM_spesh_worker_teardown(MVMThreadContext *tc) {
+void MVM_spesh_worker_stop(MVMThreadContext *tc) {
     /* Send stop sentinel */
-    MVM_repr_unshift_o(tc, tc->instance->spesh_queue, tc->instance->VMNull);
-    /* join thread */
-    MVM_thread_join(tc, tc->instance->spesh_thread);
+    if (tc->instance->spesh_enabled) {
+        MVM_repr_unshift_o(tc, tc->instance->spesh_queue, tc->instance->VMNull);
+    }
+}
+
+void MVM_spesh_worker_join(MVMThreadContext *tc) {
+    /* Join thread */
+    if (tc->instance->spesh_enabled) {
+        assert(tc->instance->spesh_thread != NULL);
+        MVM_thread_join(tc, tc->instance->spesh_thread);
+        tc->instance->spesh_thread = NULL;
+    }
 }

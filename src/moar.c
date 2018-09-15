@@ -362,7 +362,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     setup_std_handles(instance->main_thread);
 
     /* Set up the specialization worker thread and a log for the main thread. */
-    MVM_spesh_worker_setup(instance->main_thread);
+    MVM_spesh_worker_start(instance->main_thread);
     MVM_spesh_log_initialize_thread(instance->main_thread, 1);
 
     /* Back to nursery allocation, now we're set up. */
@@ -501,7 +501,8 @@ static void cleanup_callsite_interns(MVMInstance *instance) {
  * short of this goal at the moment. */
 void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Stop system threads */
-    MVM_spesh_worker_teardown(instance->main_thread);
+    MVM_spesh_worker_stop(instance->main_thread);
+    MVM_spesh_worker_join(instance->main_thread);
     MVM_io_eventloop_stop(instance->main_thread);
 
     /* Join any foreground threads and flush standard handles. */
