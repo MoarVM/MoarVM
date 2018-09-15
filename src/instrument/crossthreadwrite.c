@@ -149,9 +149,11 @@ static MVMint64 filtered_out(MVMThreadContext *tc, MVMObject *written) {
         return 1;
 
     /* Write on object from event loop thread is usually shift of invokable. */
-    if (tc->instance->event_loop_thread)
-        if (written->header.owner == tc->instance->event_loop_thread->thread_id)
+    if (tc->instance->event_loop_thread) {
+        MVMThread *thread = (MVMThread*)tc->instance->event_loop_thread;
+        if (thread != NULL && written->header.owner == thread->body.tc->thread_id)
             return 1;
+    }
 
     /* Filter out writes to Sub and Method, since these are almost always just
      * multi-dispatch caches. */
