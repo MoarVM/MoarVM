@@ -7,6 +7,16 @@
 (macro: ^setf (,object ,type ,field ,value)
     (store (^addrf ,object ,type ,field) ,value (&SIZEOF_MEMBER ,type ,field)))
 
+(macro: ^getf_scast (,object ,type ,field ,cast_to_sz)
+  (scast
+    (^getf ,object ,type ,field)
+    ,cast_to_sz (&SIZEOF_MEMBER ,type ,field)))
+
+(macro: ^getf_ucast (,object ,type ,field ,cast_to_sz)
+  (ucast
+    (^getf ,object ,type ,field)
+    ,cast_to_sz (&SIZEOF_MEMBER ,type ,field)))
+
 (macro: ^cu_callsite_addr (,a) (idx  (^getf (cu) MVMCompUnit body.callsites) ,a ptr_sz))
 
 (macro: ^frame () (^getf (tc) MVMThreadContext cur_frame))
