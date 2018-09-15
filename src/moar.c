@@ -500,14 +500,15 @@ static void cleanup_callsite_interns(MVMInstance *instance) {
  * should clear up all resources and free all memory; in practice, it falls
  * short of this goal at the moment. */
 void MVM_vm_destroy_instance(MVMInstance *instance) {
-    /* Stop system threads */
-    MVM_spesh_worker_stop(instance->main_thread);
-    MVM_spesh_worker_join(instance->main_thread);
-    MVM_io_eventloop_stop(instance->main_thread);
 
     /* Join any foreground threads and flush standard handles. */
     MVM_thread_join_foreground(instance->main_thread);
     MVM_io_flush_standard_handles(instance->main_thread);
+
+    /* Stop system threads */
+    MVM_spesh_worker_stop(instance->main_thread);
+    MVM_spesh_worker_join(instance->main_thread);
+    MVM_io_eventloop_destroy(instance->main_thread);
 
     /* Run the GC global destruction phase. After this,
      * no 6model object pointers should be accessed. */

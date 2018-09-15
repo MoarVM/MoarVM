@@ -104,7 +104,6 @@ void MVM_io_event_loop_start(MVMThreadContext *tc) {
     MVMInstance *instance = tc->instance;
     MVMObject *loop_runner;
     unsigned int interval_id;
-    int r;
 
     if (instance->event_loop_thread)
         return;
@@ -157,6 +156,29 @@ void MVM_io_event_loop_start(MVMThreadContext *tc) {
     uv_mutex_unlock(&instance->mutex_event_loop);
 }
 
+/* Restart of the event loop */
+void MVM_io_eventloop_restart(MVMThreadContext *tc) {
+    MVMInstance *instance = tc->instance;
+    MVMObject *loop_runner;
+
+    /* We *must* have a pre-existing io loop state */
+    assert(instance->event_loop != NULL);
+    assert(instance->event_loop_wakeup != NULL);
+    assert(instance->event_loop_todo_queue != NULL);
+    assert(instance->event_loop_permit_queue != NULL);
+    assert(instance->event_loop_cancel_queue != NULL);
+    assert(instance->event_loop_active != NULL);
+
+    uv_mutex_lock(&instance->mutex_event_loop);
+
+    loop_runner = MVM_repr_alloc_init(tc, instance->boot_types.BOOTCCode);
+    ((MVMCFunction *)loop_runner)->body.func = enter_loop;
+
+    instance->event_loop_thread = MVM_thread_new(tc, loop_runner, 1);
+    MVM_thread_run(tc, instance->event_loop_thread);
+
+    uv_mutex_unlock(&instance->mutex_event_loop);
+}
 
 
 /* Adds a work item into the event loop work queue. */
@@ -265,33 +287,52 @@ void MVM_io_eventloop_remove_active_work(MVMThreadContext *tc, int *work_idx_to_
 }
 
 
-/* Stop active event loop if present */
+
+/* Send the stop signal - no synchronization required */
 void MVM_io_eventloop_stop(MVMThreadContext *tc) {
     MVMInstance *instance = tc->instance;
-    MVMThread *event_loop_thread = (MVMThread*)instance->event_loop_thread;
-    if (!event_loop_thread)
+    if (!instance->event_loop_thread)
         return;
+    /* Stop the loop */
+    uv_stop(instance->event_loop);
+    uv_async_send(instance->event_loop_wakeup);
+}
+
+/* Wait for exit (again, no synchronizaiton required) */
+void MVM_io_eventloop_join(MVMThreadContext *tc) {
+    MVMInstance *instance = tc->instance;
+    if (!instance->event_loop_thread)
+        return;
+    MVM_thread_join(tc, instance->event_loop_thread);
+}
+
+/* Clean up used resources. Synchronization required - other threads might modify them as well */
+void MVM_io_eventloop_destroy(MVMThreadContext *tc) {
+    MVMInstance *instance = tc->instance;
+    if (!instance->event_loop_thread)
+        return;
+
+    MVM_io_eventloop_stop(tc);
+    MVM_io_eventloop_join(tc);
 
     MVM_gc_mark_thread_blocked(tc);
     uv_mutex_lock(&instance->mutex_event_loop);
     MVM_gc_mark_thread_unblocked(tc);
 
-    if (instance->event_loop_thread) {
-        /* Stop the loop */
-        uv_stop(instance->event_loop);
-        uv_async_send(instance->event_loop_wakeup);
+    if (!instance->event_loop_thread)
+        goto unlock;
 
-        MVM_thread_join(tc, instance->event_loop_thread);
+    uv_close((uv_handle_t*)instance->event_loop_wakeup, NULL);
+    MVM_free(instance->event_loop_wakeup);
+    instance->event_loop_wakeup = NULL;
 
-        /* release allocated resources */
-        uv_close((uv_handle_t*)instance->event_loop_wakeup, NULL);
-        MVM_free(instance->event_loop_wakeup);
-        instance->event_loop_wakeup = NULL;
-        /* Not sure we cppan do this */
-        uv_loop_close(instance->event_loop);
-        MVM_free(instance->event_loop);
-        instance->event_loop = NULL;
-    }
+    /* Not sure we can always do this */
+    uv_loop_close(instance->event_loop);
+    MVM_free(instance->event_loop);
+    instance->event_loop = NULL;
+
     instance->event_loop_thread = NULL;
+
+ unlock:
     uv_mutex_unlock(&instance->mutex_event_loop);
 }
