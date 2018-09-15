@@ -4,7 +4,103 @@
 #define BOM_UTF16BE "\xfe\xff"
 
 /* mostly from YAML-LibYAML */
+/* Decodes using a decodestream. Decodes as far as it can with the input
+ * buffers, or until a stopper is reached. */
+MVMuint32 MVM_string_utf16_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
+                                    const MVMint32 *stopper_chars,
+                                    MVMDecodeStreamSeparators *seps) {
+    MVMint32 count = 0, total = 0;
+    MVMint32 bufsize;
+    MVMGrapheme32 *buffer;
+    MVMDecodeStreamBytes *cur_bytes;
+    MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
+    MVMint32 last_accept_pos, last_was_cr;
+    MVMuint32 reached_stopper;
+    /* set the default byte order */
+#ifdef MVM_BIGENDIAN
+    int low = 1;
+    int high = 0;
+#else
+    int low = 0;
+    int high = 1;
+#endif
+    /* If there's no buffers, we're done. */
+    if (!ds->bytes_head)
+        return 0;
+    last_accept_pos = ds->bytes_head_pos;
 
+    /* If we're asked for zero chars, also done. */
+    if (stopper_chars && *stopper_chars == 0)
+        return 1;
+
+    bufsize = ds->result_size_guess;
+    buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
+
+    /* Decode each of the buffers. */
+    cur_bytes = ds->bytes_head;
+    last_was_cr = 0;
+    reached_stopper = 0;
+    while (cur_bytes) {
+        /* Process this buffer. */
+        MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
+        unsigned char *bytes = (unsigned char *)cur_bytes->bytes;
+
+        for (; pos+1 < cur_bytes->length; pos += 2) {
+            MVMuint32 value = (bytes[pos+high] << 8) + bytes[pos+low];
+            MVMuint32 value2;
+            MVMGrapheme32 g;
+
+            if ((value & 0xFC00) == 0xDC00) {
+                MVM_free(buffer);
+                MVM_exception_throw_adhoc(tc, "Malformed UTF-16; unexpected low surrogate");
+            }
+
+            if ((value & 0xFC00) == 0xD800) { /* high surrogate */
+                pos += 2;
+                if (pos + 1 >= cur_bytes->length) {
+                    MVM_free(buffer);
+                    MVM_exception_throw_adhoc(tc, "Malformed UTF-16; incomplete surrogate pair");
+                }
+                value2 = (bytes[pos+high] << 8) + bytes[pos+low];
+                if ((value2 & 0xFC00) != 0xDC00) {
+                    MVM_free(buffer);
+                    MVM_exception_throw_adhoc(tc, "Malformed UTF-16; incomplete surrogate pair");
+                }
+                value = 0x10000 + ((value & 0x3FF) << 10) + (value2 & 0x3FF);
+            }
+            if (count == bufsize) {
+                /* We filled the buffer. Attach this one to the buffers
+                 * linked list, and continue with a new one. */
+                MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
+                buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
+                count = 0;
+            }
+            buffer[count++] = value;
+            last_accept_bytes = cur_bytes;
+            last_accept_pos = pos;
+            total++;
+            if (MVM_string_decode_stream_maybe_sep(tc, seps, value) ||
+                    stopper_chars && *stopper_chars == total) {
+                reached_stopper = 1;
+                goto done;
+            }
+        }
+        cur_bytes = cur_bytes->next;
+    }
+  done:
+
+    /* Attach what we successfully parsed as a result buffer, and trim away
+     * what we chewed through. */
+    if (count) {
+        MVM_string_decodestream_add_chars(tc, ds, buffer, count);
+    }
+    else {
+        MVM_free(buffer);
+    }
+    MVM_string_decodestream_discard_to(tc, ds, last_accept_bytes, last_accept_pos+1);
+
+    return reached_stopper;
+}
 /* Decodes the specified number of bytes of utf16 into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR. */
 MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
