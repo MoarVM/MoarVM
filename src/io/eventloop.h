@@ -30,7 +30,6 @@ MVMAsyncTask * MVM_io_eventloop_get_active_work(MVMThreadContext *tc, int work_i
 void MVM_io_eventloop_remove_active_work(MVMThreadContext *tc, int *work_idx_to_clear);
 
 void MVM_io_eventloop_start(MVMThreadContext *tc);
-void MVM_io_eventloop_restart(MVMThreadContext *tc);
 void MVM_io_eventloop_stop(MVMThreadContext *tc);
 void MVM_io_eventloop_join(MVMThreadContext *tc);
 void MVM_io_eventloop_destroy(MVMThreadContext *tc);

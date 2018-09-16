@@ -5388,6 +5388,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(fork): {
+                 GET_REG(cur_op, 0).i64 = MVM_proc_fork(tc);
+                 cur_op += 2;
+                 goto NEXT;
+            }
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;

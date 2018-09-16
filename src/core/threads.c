@@ -247,10 +247,11 @@ MVMint64 MVM_thread_lock_count(MVMThreadContext *tc, MVMObject *thread_obj) {
     }
 }
 
-void MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head) {
+MVMint32 MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head) {
     /* Assumed to be the only thread accessing the list.
      * must set next on every item. */
     MVMThread *new_list = NULL, *this = *head, *next;
+    MVMint32 alive = 0;
     *head = NULL;
     while (this) {
         next = this->body.next;
@@ -258,6 +259,7 @@ void MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head) {
             case MVM_thread_stage_starting:
             case MVM_thread_stage_waiting:
             case MVM_thread_stage_started:
+                alive++;
             case MVM_thread_stage_exited:
             case MVM_thread_stage_clearing_nursery:
                 /* push it to the new starting list */
@@ -274,6 +276,7 @@ void MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head) {
         this = next;
     }
     *head = new_list;
+    return alive;
 }
 
 /* Goes through all non-app-lifetime threads and joins them. */
