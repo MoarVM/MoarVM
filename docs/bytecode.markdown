@@ -99,9 +99,10 @@ This segment contains a bunch of string data. Each string is laid out as:
 
     +---------------------------------------------------------+
     | String length in bytes                                  |
-    |    32-bit unsigned integer                              |
+    |    32-bit unsigned integer left shifted by 1            |
+    |    LSB is flag where 1 means UTF-8 and 0 means latin-1  |
     +---------------------------------------------------------+
-    | String data encoded as UTF-8                            |
+    | String data encoded as UTF-8/latin-1                    |
     |    Bunch of bytes, padded at end to 32 bit boundary     |
     +---------------------------------------------------------+
 
@@ -215,8 +216,12 @@ local it is. These are stored as 16-bit unsigned integers.
     num64       6
     str         7
     obj         8
+    uint8      17
+    uint16     18
+    uint32     19
+    uint64     20
 
-Lexicals are similar, apart from each entry is preceded by a 32-bit unsigned
+Lexicals are similar, apart from each entry is followed by a 32-bit unsigned
 index into the string heap, which gives the name of the lexical.
 
 [Conjectural: a future MoarVM may instead do these in terms of REPRs.]
