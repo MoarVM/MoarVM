@@ -139,7 +139,7 @@ static MVMuint32 run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVM
         reached_stopper = MVM_string_utf8_c8_decodestream(tc, ds, stopper_chars, sep_spec, eof);
         break;
     case MVM_encoding_type_utf16:
-        reached_stopper = MVM_string_utf16_decodestream(tc, ds, stopper_chars, sep_spec, eof);
+        reached_stopper = MVM_string_utf16_decodestream(tc, ds, stopper_chars, sep_spec);
         break;
     default:
         MVM_exception_throw_adhoc(tc, "Streaming decode NYI for encoding %d",
