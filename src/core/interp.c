@@ -4951,6 +4951,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_load_bytecode_buffer(tc, buffer);
                 goto NEXT;
             }
+            OP(buffertocu): {
+                /* This op will end up returning into the runloop to run
+                 * deserialization and load code, so make sure we're done
+                 * processing this op really. */
+                MVMRegister *result_reg = &GET_REG(cur_op, 0);
+                MVMObject *buffer = GET_REG(cur_op, 2).o;
+                cur_op += 4;
+
+                /* Set up return (really continuation after load) address
+                 * and enter bytecode loading process. */
+                tc->cur_frame->return_address = cur_op;
+                MVM_load_bytecode_buffer_to_cu(tc, buffer, result_reg);
+                goto NEXT;
+            }
             OP(loadbytecodefh): {
                 /* This op will end up returning into the runloop to run
                  * deserialization and load code, so make sure we're done

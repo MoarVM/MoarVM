@@ -476,7 +476,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         bytecode_size = read_int32(pos, 4);
         if (bytecode_pos >= rs->bytecode_size) {
             cleanup_all(tc, rs);
-            MVM_exception_throw_adhoc(tc, "Frame has invalid bytecode start point");
+            MVM_exception_throw_adhoc(tc, "Frame has invalid bytecode start point %d (size %d)", bytecode_pos, rs->bytecode_size);
         }
         if (bytecode_pos + bytecode_size > rs->bytecode_size) {
             cleanup_all(tc, rs);
@@ -786,7 +786,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
                 nameds_non_flattening++;
             }
             else if (nameds_slots) {
-                MVM_exception_throw_adhoc(tc, "All positional args must appear before named args");
+                MVM_exception_throw_adhoc(tc, "All positional args must appear before named args, violated by arg %d in callsite %d", j, i);
             }
             else {
                 positionals++;

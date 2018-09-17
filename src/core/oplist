@@ -869,9 +869,9 @@ coerce_us           w(str) r(uint64) :pure
 speshguardnotobj    r(obj) r(obj)
 hllbool             w(obj) r(int64) :pure :useshll
 hllboolfor          w(obj) r(int64) r(str) :pure :useshll
-
-decodelocaltime    w(obj) r(int64)
-fork               w(int64)
+decodelocaltime     w(obj) r(int64)
+fork                w(int64)
+buffertocu          w(obj) r(obj) :invokish :maycausedeopt
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
