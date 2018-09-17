@@ -2758,8 +2758,8 @@ char * MVM_string_encoding_cname(MVMThreadContext *tc, MVMint64 encoding) {
 }
 
 MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
-    MVM_string_check_arg(tc, name, "find encoding");
     int i;
+    MVM_string_check_arg(tc, name, "find encoding");
     if (MVM_UNLIKELY(!encoding_name_init)) {
         MVM_gc_allocate_gen2_default_set(tc);
         for (i = 0; i < MVM_encoding_type_MAX; i++) {
