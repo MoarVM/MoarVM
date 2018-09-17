@@ -5363,6 +5363,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(speshguardgetstaticcode):
+                GET_REG(cur_op, 0).o = MVM_spesh_plugin_addguard_getstaticcode(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(sp_guard): {
                 MVMObject *check = GET_REG(cur_op, 2).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame

@@ -871,6 +871,7 @@ hllbool             w(obj) r(int64) :pure :useshll
 hllboolfor          w(obj) r(int64) r(str) :pure :useshll
 
 decodelocaltime    w(obj) r(int64)
+speshguardgetstaticcode w(obj) r(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

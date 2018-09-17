@@ -37,6 +37,7 @@ struct MVMSpeshPluginGuardSet {
 #define MVM_SPESH_PLUGIN_GUARD_CONC     4   /* Concrete object guard */
 #define MVM_SPESH_PLUGIN_GUARD_TYPEOBJ  5   /* Type object guard */
 #define MVM_SPESH_PLUGIN_GUARD_GETATTR  6   /* Gets an attribute for testing */
+#define MVM_SPESH_PLUGIN_GUARD_GETSTATICCODE  7   /* Gets a static frame for testing */
 
 /* An individual guard. */
 struct MVMSpeshPluginGuard {
@@ -85,6 +86,7 @@ void MVM_spesh_plugin_addguard_obj(MVMThreadContext *tc, MVMObject *guardee);
 void MVM_spesh_plugin_addguard_notobj(MVMThreadContext *tc, MVMObject *guardee, MVMObject *not);
 MVMObject * MVM_spesh_plugin_addguard_getattr(MVMThreadContext *tc, MVMObject *guardee,
     MVMObject *class_handle, MVMString *name);
+MVMObject * MVM_spesh_plugin_addguard_getstaticcode(MVMThreadContext *tc, MVMObject *guardee);
 
 /* Rewriting of spesh resolve instructions in the spesh graph. */
 void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
