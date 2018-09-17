@@ -2,13 +2,39 @@
 
 #define BOM_UTF16LE "\xff\xfe"
 #define BOM_UTF16BE "\xfe\xff"
-
-/* mostly from YAML-LibYAML */
-/* Decodes using a decodestream. Decodes as far as it can with the input
- * buffers, or until a stopper is reached. */
+#define UTF16_DECODE_BIG_ENDIAN 1
+#define UTF16_DECODE_LITTLE_ENDIAN 2
+#define UTF16_DECODE_AUTO_ENDIAN 4
+MVM_STATIC_INLINE int is_little_endian (MVMuint8 *buf8) {
+    return memcmp(buf8, BOM_UTF16LE, 2) == 0;
+}
+MVM_STATIC_INLINE int is_big_endian (MVMuint8 *buf8) {
+    return memcmp(buf8, BOM_UTF16BE, 2) == 0;
+}
+MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStream *ds,
+                                    const MVMint32 *stopper_chars,
+                                    MVMDecodeStreamSeparators *seps, int endianess);
 MVMuint32 MVM_string_utf16_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                                     const MVMint32 *stopper_chars,
                                     MVMDecodeStreamSeparators *seps) {
+    return MVM_string_utf16_decodestream_main(tc, ds, stopper_chars, seps, UTF16_DECODE_AUTO_ENDIAN);
+}
+MVMuint32 MVM_string_utf16le_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
+                                    const MVMint32 *stopper_chars,
+                                    MVMDecodeStreamSeparators *seps) {
+    return MVM_string_utf16_decodestream_main(tc, ds, stopper_chars, seps, UTF16_DECODE_LITTLE_ENDIAN);
+}
+MVMuint32 MVM_string_utf16be_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
+                                    const MVMint32 *stopper_chars,
+                                    MVMDecodeStreamSeparators *seps) {
+    return MVM_string_utf16_decodestream_main(tc, ds, stopper_chars, seps, UTF16_DECODE_BIG_ENDIAN);
+}
+/* mostly from YAML-LibYAML */
+/* Decodes using a decodestream. Decodes as far as it can with the input
+ * buffers, or until a stopper is reached. */
+MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStream *ds,
+                                    const MVMint32 *stopper_chars,
+                                    MVMDecodeStreamSeparators *seps, int endianess) {
     MVMint32 count = 0, total = 0;
     MVMint32 bufsize;
     MVMGrapheme32 *buffer;
@@ -43,9 +69,22 @@ MVMuint32 MVM_string_utf16_decodestream(MVMThreadContext *tc, MVMDecodeStream *d
     while (cur_bytes) {
         /* Process this buffer. */
         MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
-        unsigned char *bytes = (unsigned char *)cur_bytes->bytes;
-
-        for (; pos+1 < cur_bytes->length; pos += 2) {
+        MVMuint8 *bytes = (unsigned char *)cur_bytes->bytes;
+        if (ds->abs_byte_pos == 0 && pos + 1 < cur_bytes->length) {
+            if (is_little_endian(bytes + pos)) {
+                low = 0;
+                high = 1;
+                last_accept_pos = pos;
+                pos += 2;
+            }
+            else if (is_big_endian(bytes + pos)) {
+                low = 1;
+                high = 0;
+                last_accept_pos = pos;
+                pos += 2;
+            }
+        }
+        for (; pos + 1 < cur_bytes->length; pos += 2) {
             MVMuint32 value = (bytes[pos+high] << 8) + bytes[pos+low];
             MVMuint32 value2;
             MVMGrapheme32 g;
@@ -101,9 +140,6 @@ MVMuint32 MVM_string_utf16_decodestream(MVMThreadContext *tc, MVMDecodeStream *d
 
     return reached_stopper;
 }
-#define UTF16_DECODE_BIG_ENDIAN 1
-#define UTF16_DECODE_LITTLE_ENDIAN 2
-#define UTF16_DECODE_AUTO_ENDIAN 4
 static MVMString * MVM_string_utf16_decode_main(MVMThreadContext *tc,
         const MVMObject *result_type, char *utf16_chars, size_t bytes, int endianess);
 MVMString * MVM_string_utf16be_decode(MVMThreadContext *tc,
@@ -122,13 +158,13 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
     int mode = UTF16_DECODE_LITTLE_ENDIAN;
 #endif
     /* set the byte order if there's a BOM */
-    if (bytes >= 2) {
-        if (!memcmp(utf16_chars, BOM_UTF16LE, 2)) {
+    if (2 <= bytes) {
+        if (is_little_endian(utf16_chars)) {
             mode = UTF16_DECODE_LITTLE_ENDIAN;
             utf16_chars += 2;
             bytes -= 2;
         }
-        else if (!memcmp(utf16_chars, BOM_UTF16BE, 2)) {
+        else if (is_big_endian(utf16_chars)) {
             mode = UTF16_DECODE_BIG_ENDIAN;
             utf16_chars += 2;
             bytes -= 2;
