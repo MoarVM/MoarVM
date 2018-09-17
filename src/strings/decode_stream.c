@@ -142,8 +142,11 @@ static MVMuint32 run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVM
         reached_stopper = MVM_string_utf16_decodestream(tc, ds, stopper_chars, sep_spec);
         break;
     default:
-        MVM_exception_throw_adhoc(tc, "Streaming decode NYI for encoding %d",
-            (int)ds->encoding);
+        if (ds->encoding < MVM_encoding_type_MIN || MVM_encoding_type_MAX < ds->encoding)
+            MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRIi32, ds->encoding);
+        else
+            MVM_exception_throw_adhoc(tc, "Streaming decode not yet implemented for %s encoding",
+                MVM_string_encoding_cname(tc, ds->encoding));
     }
     if (ds->chars_tail == prev_chars_tail)
         return RUN_DECODE_NOTHING_DECODED;

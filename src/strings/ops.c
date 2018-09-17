@@ -1638,7 +1638,7 @@ MVMString * MVM_string_tc(MVMThreadContext *tc, MVMString *s) {
 MVMString * MVM_string_fc(MVMThreadContext *tc, MVMString *s) {
     return do_case_change(tc, s, MVM_unicode_case_change_type_fold, "fc");
 }
-
+char * MVM_string_encoding_cname(MVMThreadContext *tc, MVMint64 code);
 /* "Strict"ly (if possible) decodes a C buffer to an MVMString, dependent on the
  * encoding type flag. Unlike MVM_string_decode, it will not pass through
  * codepoints which have no official mapping. `config` can be set to 1 to indicate
@@ -1669,8 +1669,15 @@ MVMString * MVM_string_decode_config(MVMThreadContext *tc,
             return MVM_string_shiftjis_decode(tc, type_object, Cbuf, byte_length, replacement, config);
         case MVM_encoding_type_utf8_c8:
             return MVM_string_utf8_c8_decode(tc, type_object, Cbuf, byte_length);
+        case MVM_encoding_type_utf16le:
+            return MVM_string_utf16le_decode(tc, type_object, Cbuf, byte_length);
+        case MVM_encoding_type_utf16be:
+            return MVM_string_utf16be_decode(tc, type_object, Cbuf, byte_length);
         default:
-            MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRId64, encoding_flag);
+            if (encoding_flag < MVM_encoding_type_MIN || MVM_encoding_type_MAX < encoding_flag)
+                MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRId64, encoding_flag);
+            else
+                MVM_exception_throw_adhoc(tc, "unable to handle %s encoding in MVM_string_decode_config", MVM_string_encoding_cname(tc, encoding_flag));
     }
 }
 /* Strictly decodes a C buffer to an MVMString, dependent on the encoding type flag.
@@ -1703,7 +1710,10 @@ char * MVM_string_encode_config(MVMThreadContext *tc, MVMString *s, MVMint64 sta
         case MVM_encoding_type_utf8_c8:
             return MVM_string_utf8_c8_encode_substr(tc, s, output_size, start, length, replacement);
         default:
-            MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRId64, encoding_flag);
+            if (encoding_flag < MVM_encoding_type_MIN || MVM_encoding_type_MAX < encoding_flag)
+                MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRId64, encoding_flag);
+            else
+                MVM_exception_throw_adhoc(tc, "unable to handle %s encoding in MVM_string_encode_config", MVM_string_encoding_cname(tc, encoding_flag));
     }
 }
 char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start,
@@ -2722,63 +2732,52 @@ MVMint64 MVM_string_find_not_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMSt
 }
 
 static MVMint16   encoding_name_init         = 0;
-static MVMString *encoding_utf8_name         = NULL;
-static MVMString *encoding_ascii_name        = NULL;
-static MVMString *encoding_latin1_name       = NULL;
-static MVMString *encoding_utf16_name        = NULL;
-static MVMString *encoding_windows1252_name  = NULL;
-static MVMString *encoding_windows1251_name  = NULL;
-static MVMString *encoding_shiftjis_name     = NULL;
-static MVMString *encoding_utf8_c8_name      = NULL;
+
+struct encoding_name_struct {
+    MVMString *encoding_name;
+    char *encoding_cname;
+    MVMint64 code;
+};
+static struct encoding_name_struct encoding_names[MVM_encoding_type_MAX] = {
+    { NULL, "utf8", MVM_encoding_type_utf8  },               /* 1 */
+    { NULL, "ascii", MVM_encoding_type_ascii },              /* 2 */
+    { NULL, "iso-8859-1", MVM_encoding_type_latin1 },        /* 3 */
+    { NULL, "utf16", MVM_encoding_type_utf16 },              /* 4 */
+    { NULL, "windows-1252", MVM_encoding_type_windows1252 }, /* 5 */
+    { NULL, "utf8-c8", MVM_encoding_type_utf8_c8 },          /* 6 */
+    { NULL, "windows-1251", MVM_encoding_type_windows1251 }, /* 7 */
+    { NULL, "windows-932", MVM_encoding_type_shiftjis },     /* 8 */
+    { NULL, "utf16le", MVM_encoding_type_utf16le },          /* 9 */
+    { NULL, "utf16be", MVM_encoding_type_utf16be }           /* 10 */
+};
+
+char * MVM_string_encoding_cname(MVMThreadContext *tc, MVMint64 encoding) {
+    if (encoding < MVM_encoding_type_MIN || MVM_encoding_type_MAX < encoding)
+        return "Unknown";
+    return encoding_names[encoding-1].encoding_cname;
+}
+
 MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
     MVM_string_check_arg(tc, name, "find encoding");
+    int i;
     if (MVM_UNLIKELY(!encoding_name_init)) {
         MVM_gc_allocate_gen2_default_set(tc);
-        encoding_utf8_name        = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "utf8");
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_utf8_name, "Encoding name");
-        encoding_ascii_name       = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "ascii");
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_ascii_name, "Encoding name");
-        encoding_latin1_name      = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "iso-8859-1");
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_latin1_name, "Encoding name");
-        encoding_utf16_name       = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "utf16");
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_utf16_name, "Encoding name");
-        encoding_windows1252_name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "windows-1252");
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_windows1252_name, "Encoding name");
-        encoding_windows1251_name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "windows-1251");
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_windows1251_name, "Encoding name");
-        encoding_shiftjis_name     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "windows-932");
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_shiftjis_name, "Encoding name");
-        encoding_utf8_c8_name     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "utf8-c8");
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_utf8_c8_name, "Encoding name");
+        for (i = 0; i < MVM_encoding_type_MAX; i++) {
+            /* Catch it in case the array is not in the proper order. */
+            if (i + 1 != encoding_names[i].code)
+                MVM_oops(tc, "Encoding %s does not have the correct define during initialization.", encoding_names[i].encoding_cname);
+
+            encoding_names[i].encoding_name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, encoding_names[i].encoding_cname);
+            MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&encoding_names[i].encoding_name, "Encoding name");
+        }
         encoding_name_init   = 1;
         MVM_gc_allocate_gen2_default_clear(tc);
     }
-
-    if (MVM_string_equal(tc, name, encoding_utf8_name)) {
-        return MVM_encoding_type_utf8;
+    for (i = 0; i < MVM_encoding_type_MAX; i++) {
+        if (MVM_string_equal(tc, name, encoding_names[i].encoding_name))
+            return i + 1;
     }
-    else if (MVM_string_equal(tc, name, encoding_ascii_name)) {
-        return MVM_encoding_type_ascii;
-    }
-    else if (MVM_string_equal(tc, name, encoding_latin1_name)) {
-        return MVM_encoding_type_latin1;
-    }
-    else if (MVM_string_equal(tc, name, encoding_windows1252_name)) {
-        return MVM_encoding_type_windows1252;
-    }
-    else if (MVM_string_equal(tc, name, encoding_windows1251_name)) {
-        return MVM_encoding_type_windows1251;
-    }
-    else if (MVM_string_equal(tc, name, encoding_utf16_name)) {
-        return MVM_encoding_type_utf16;
-    }
-    else if (MVM_string_equal(tc, name, encoding_utf8_c8_name)) {
-        return MVM_encoding_type_utf8_c8;
-    }
-    else if (MVM_string_equal(tc, name, encoding_shiftjis_name)) {
-        return MVM_encoding_type_shiftjis;
-    }
-    else {
+    {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
         MVM_exception_throw_adhoc_free(tc, waste, "Unknown string encoding: '%s'",

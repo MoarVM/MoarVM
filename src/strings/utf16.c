@@ -101,44 +101,69 @@ MVMuint32 MVM_string_utf16_decodestream(MVMThreadContext *tc, MVMDecodeStream *d
 
     return reached_stopper;
 }
+#define UTF16_DECODE_BIG_ENDIAN 1
+#define UTF16_DECODE_LITTLE_ENDIAN 2
+#define UTF16_DECODE_AUTO_ENDIAN 4
+static MVMString * MVM_string_utf16_decode_main(MVMThreadContext *tc,
+        const MVMObject *result_type, char *utf16_chars, size_t bytes, int endianess);
+MVMString * MVM_string_utf16be_decode(MVMThreadContext *tc,
+        const MVMObject *result_type, char *utf16_chars, size_t bytes) {
+    return MVM_string_utf16_decode_main(tc, result_type, utf16_chars, bytes, UTF16_DECODE_BIG_ENDIAN);
+}
+MVMString * MVM_string_utf16le_decode(MVMThreadContext *tc,
+            const MVMObject *result_type, char *utf16_chars, size_t bytes) {
+    return MVM_string_utf16_decode_main(tc, result_type, utf16_chars, bytes, UTF16_DECODE_LITTLE_ENDIAN);
+}
+MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
+            const MVMObject *result_type, char *utf16_chars, size_t bytes) {
+#ifdef MVM_BIGENDIAN
+    int mode = UTF16_DECODE_BIG_ENDIAN;
+#else
+    int mode = UTF16_DECODE_LITTLE_ENDIAN;
+#endif
+    /* set the byte order if there's a BOM */
+    if (bytes >= 2) {
+        if (!memcmp(utf16_chars, BOM_UTF16LE, 2)) {
+            mode = UTF16_DECODE_LITTLE_ENDIAN;
+            utf16_chars += 2;
+            bytes -= 2;
+        }
+        else if (!memcmp(utf16_chars, BOM_UTF16BE, 2)) {
+            mode = UTF16_DECODE_BIG_ENDIAN;
+            utf16_chars += 2;
+            bytes -= 2;
+        }
+    }
+    return MVM_string_utf16_decode_main(tc, result_type, utf16_chars, bytes, mode);
+}
 /* Decodes the specified number of bytes of utf16 into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR. */
-MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
-        const MVMObject *result_type, char *utf16_chars, size_t bytes) {
+static MVMString * MVM_string_utf16_decode_main(MVMThreadContext *tc,
+        const MVMObject *result_type, char *utf16_chars, size_t bytes, int endianess) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     size_t str_pos = 0;
     MVMuint8 *utf16 = (MVMuint8 *)utf16_chars;
-    MVMuint8 *utf16_end;
-    /* set the default byte order */
-#ifdef MVM_BIGENDIAN
-    int low = 1;
-    int high = 0;
-#else
-    int low = 0;
-    int high = 1;
-#endif
+    MVMuint8 *utf16_end = NULL;
+    int low, high;
     MVMNormalizer norm;
     MVMint32 ready;
+    switch (endianess) {
+        case UTF16_DECODE_BIG_ENDIAN:
+            low  = 1;
+            high = 0;
+            break;
+        case UTF16_DECODE_LITTLE_ENDIAN:
+            low  = 0;
+            high = 1;
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "Unknown mode set in utf16 decode. This should never happen.");
+    }
 
     if (bytes % 2) {
         MVM_exception_throw_adhoc(tc, "Malformed UTF-16; odd number of bytes");
     }
 
-    /* set the byte order if there's a BOM */
-    if (bytes >= 2) {
-        if (!memcmp(utf16, BOM_UTF16LE, 2)) {
-            low = 0;
-            high = 1;
-            utf16 += 2;
-            bytes -= 2;
-        }
-        else if (!memcmp(utf16, BOM_UTF16BE, 2)) {
-            low = 1;
-            high = 0;
-            utf16 += 2;
-            bytes -= 2;
-        }
-    }
     utf16_end = utf16 + bytes;
 
     /* possibly allocating extra space; oh well */
