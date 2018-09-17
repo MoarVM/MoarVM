@@ -217,11 +217,27 @@ static MVMString * MVM_string_utf16_decode_main(MVMThreadContext *tc,
 
     return result;
 }
-
+MVM_STATIC_INLINE MVMuint16 swap_bytes(MVMuint16 uint16, int enable_byte_swap) {
+    return enable_byte_swap
+        ? (((MVMuint8*) &uint16)[0] << 8)
+            + ((MVMuint8*) &uint16)[1]
+        : uint16;
+}
+char * MVM_string_utf16_encode_substr_main(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement, MVMint32 translate_newlines, int endianess);
 /* Encodes the specified substring to utf16. The result string is NULL terminated, but
  * the specified size is the non-null part. (This being UTF-16, there are 2 null bytes
  * on the end.) */
+char * MVM_string_utf16be_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement, MVMint32 translate_newlines) {
+    return MVM_string_utf16_encode_substr_main(tc, str, output_size, start, length, replacement, translate_newlines, UTF16_DECODE_BIG_ENDIAN);
+}
+char * MVM_string_utf16le_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement, MVMint32 translate_newlines) {
+    return MVM_string_utf16_encode_substr_main(tc, str, output_size, start, length, replacement, translate_newlines, UTF16_DECODE_LITTLE_ENDIAN);
+}
 char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement, MVMint32 translate_newlines) {
+    return MVM_string_utf16_encode_substr_main(tc, str, output_size, start, length, replacement, translate_newlines, UTF16_DECODE_AUTO_ENDIAN);
+}
+
+char * MVM_string_utf16_encode_substr_main(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement, MVMint32 translate_newlines, int endianess) {
     MVMStringIndex strgraphs = MVM_string_graphs(tc, str);
     MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - start : length);
     MVMuint16 *result;
@@ -231,7 +247,14 @@ char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
     MVMuint64 repl_length = 0;
     MVMint32 alloc_size;
     MVMuint64 scratch_space = 0;
-
+    int enable_byte_swap = 0;
+#ifdef MVM_BIGENDIAN
+    if (endianess == UTF16_DECODE_LITTLE_ENDIAN)
+        enable_byte_swap = 1;
+#else
+    if (endianess == UTF16_DECODE_BIG_ENDIAN)
+        enable_byte_swap = 1;
+#endif
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
@@ -271,13 +294,13 @@ char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
         }
 
         if (value < 0x10000) {
-            result_pos[0] = value;
+            result_pos[0] = swap_bytes(value, enable_byte_swap);
             result_pos++;
         }
         else if (value <= 0x1FFFFF) {
             value -= 0x10000;
-            result_pos[0] = 0xD800 + (value >> 10);
-            result_pos[1] = 0xDC00 + (value & 0x3FF);
+            result_pos[0] = swap_bytes(0xD800 + (value >> 10), enable_byte_swap);
+            result_pos[1] = swap_bytes(0xDC00 + (value & 0x3FF), enable_byte_swap);
             result_pos += 2;
         }
         else if (replacement) {

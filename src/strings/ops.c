@@ -1701,6 +1701,10 @@ char * MVM_string_encode_config(MVMThreadContext *tc, MVMString *s, MVMint64 sta
             return MVM_string_latin1_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
         case MVM_encoding_type_utf16:
             return MVM_string_utf16_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
+        case MVM_encoding_type_utf16le:
+            return MVM_string_utf16le_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
+        case MVM_encoding_type_utf16be:
+            return MVM_string_utf16be_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
         case MVM_encoding_type_windows1252:
             return MVM_string_windows1252_encode_substr_config(tc, s, output_size, start, length, replacement, translate_newlines, config);
         case MVM_encoding_type_windows1251:
