@@ -1231,15 +1231,26 @@ MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
     } else {
         error = "Program has more than one active thread";
     }
-    uv_mutex_unlock(&instance->mutex_threads);
 
-    /* Restart the system threads */
+    if (pid == 0) {
+        /* Reinitialize uv_loop_t after fork in child */
+        MVMThread *head = instance->threads;
+        for (; head != NULL; head = head->body.next)
+            uv_loop_fork(head->body.tc->loop);
+        if (instance->event_loop)
+            uv_loop_fork(instance->event_loop);
+    }
+
+    /* Release the thread lock, otherwise we can't start them */
+    uv_mutex_unlock(&instance->mutex_threads);
+    /* Without the mutex_event_loop being held, this might race */
     MVM_spesh_worker_start(tc);
+
+    /* However, locks are nonrecursive, so unlocking is needed prior to
+     * restarting the event loop */
+    uv_mutex_unlock(&instance->mutex_event_loop);
     if (instance->event_loop)
         MVM_io_eventloop_start(tc);
-
-    /* Release the locks */
-    uv_mutex_unlock(&instance->mutex_event_loop);
 
     if (error != NULL)
         MVM_exception_throw_adhoc(tc, "fork() failed: %s\n", error);
