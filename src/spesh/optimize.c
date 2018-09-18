@@ -1129,27 +1129,35 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
 
 /* Optimizes a hllbool instruction away if the value is known */
 static void optimize_hllbool(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMuint32 for_op = ins->info->opcode == MVM_OP_hllboolfor ? 1 : 0;
     MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-        MVMSpeshFacts *obj_facts  = MVM_spesh_get_facts(tc, g, ins->operands[1]);
-        MVMHLLConfig  *hll_config = ins->info->opcode == MVM_OP_hllbool
-            ? g->sf->body.cu->body.hll_config
-            : MVM_hll_get_config_for(tc, MVM_spesh_get_facts(tc, g, ins->operands[2])->value.s);
-        MVMObject     *hll_bool   = obj_facts->value.i ? hll_config->true_value : hll_config->false_value;
-        MVMSpeshFacts *how_facts;
-
-        MVMint16 spesh_slot = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable*)hll_bool);
+        MVMSpeshFacts *tgt_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+        MVMObject *hll_bool;
+        MVMHLLConfig *hll_config;
+        if (for_op) {
+            MVMSpeshFacts *for_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
+            if (!(for_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE))
+                return;
+            hll_config = MVM_hll_get_config_for(tc, for_facts->value.s);
+        }
+        else {
+            hll_config = g->sf->body.cu->body.hll_config;
+        }
+        hll_bool = obj_facts->value.i ? hll_config->true_value : hll_config->false_value;
 
         MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+        if (for_op)
+            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
+
         ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
-        ins->operands[1].lit_i16 = spesh_slot;
-        /* Store facts about the value in the write operand */
-        how_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
-        how_facts->flags  |= (MVM_SPESH_FACT_KNOWN_VALUE | MVM_SPESH_FACT_KNOWN_TYPE);
-        how_facts->value.o = hll_bool;
-        how_facts->type    = STABLE(hll_bool)->WHAT;
+        ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+            (MVMCollectable*)hll_bool);
+        tgt_facts->flags  |= (MVM_SPESH_FACT_KNOWN_VALUE | MVM_SPESH_FACT_KNOWN_TYPE);
+        tgt_facts->value.o = hll_bool;
+        tgt_facts->type    = STABLE(hll_bool)->WHAT;
         MVM_spesh_use_facts(tc, g, obj_facts);
-        MVM_spesh_facts_depend(tc, g, how_facts, obj_facts);
+        MVM_spesh_facts_depend(tc, g, tgt_facts, obj_facts);
     }
 }
 
