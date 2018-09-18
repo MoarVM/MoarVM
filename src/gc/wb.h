@@ -10,6 +10,10 @@ MVM_STATIC_INLINE void MVM_gc_write_barrier(MVMThreadContext *tc, MVMCollectable
     if (((update_root->flags & MVM_CF_SECOND_GEN) && referenced && !(referenced->flags & MVM_CF_SECOND_GEN)))
         MVM_gc_write_barrier_hit_by(tc, update_root, referenced);
 }
+MVM_STATIC_INLINE void MVM_gc_write_barrier_no_update_referenced(MVMThreadContext *tc, MVMCollectable *update_root, MVMCollectable *referenced) {
+    if (((update_root->flags & MVM_CF_SECOND_GEN) && referenced && !(referenced->flags & MVM_CF_SECOND_GEN)))
+        MVM_gc_write_barrier_hit(tc, update_root);
+}
 
 /* Does an assignment, but makes sure the write barrier MVM_WB is applied
  * first. Takes the root object, the address within it we're writing to, and
