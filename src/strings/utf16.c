@@ -1,15 +1,15 @@
 #include "moar.h"
 
-#define BOM_UTF16LE "\xff\xfe"
-#define BOM_UTF16BE "\xfe\xff"
+const static MVMuint8 BOM_UTF16LE[2] = { 0xFF, 0xFE };
+const static MVMuint8 BOM_UTF16BE[2] = { 0xFE, 0xFF };
 #define UTF16_DECODE_BIG_ENDIAN 1
 #define UTF16_DECODE_LITTLE_ENDIAN 2
 #define UTF16_DECODE_AUTO_ENDIAN 4
-MVM_STATIC_INLINE int is_little_endian (MVMuint8 *buf8) {
-    return memcmp(buf8, BOM_UTF16LE, 2) == 0;
+MVM_STATIC_INLINE int has_little_endian_bom (MVMuint8 *buf8) {
+    return buf8[0] == BOM_UTF16LE[0] && buf8[1] == BOM_UTF16LE[1];
 }
-MVM_STATIC_INLINE int is_big_endian (MVMuint8 *buf8) {
-    return memcmp(buf8, BOM_UTF16BE, 2) == 0;
+MVM_STATIC_INLINE int has_big_endian_bom (MVMuint8 *buf8) {
+    return buf8[0] == BOM_UTF16BE[0] && buf8[1] == BOM_UTF16BE[1];
 }
 MVM_STATIC_INLINE void init_utf16_decoder_state(MVMDecodeStream *ds, int setting) {
     if (!ds->decoder_state) {
@@ -61,6 +61,9 @@ MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStre
     int low, high;
     MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
     MVMuint8 *bytes = (unsigned char *)cur_bytes->bytes;
+    /* Set to 1 to remove the BOM even when big endian or little endian are
+     * explicitly specified. */
+    int remove_bom = 0;
 
     /* If there's no buffers, we're done. */
     if (!ds->bytes_head)
@@ -95,17 +98,34 @@ MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStre
         MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
         MVMuint8 *bytes = (unsigned char *)cur_bytes->bytes;
         if (ds->abs_byte_pos == 0 && pos + 1 < cur_bytes->length) {
-            if (is_little_endian(bytes + pos)) {
-                low = 0;
-                high = 1;
-                last_accept_pos = pos += 2;
-                utf16_decoder_state(ds) = UTF16_DECODE_LITTLE_ENDIAN;
+            if (has_little_endian_bom(bytes + pos)) {
+                /* Only change the setting if we are using standard 'utf16' decode
+                 * which is meant to detect the encoding. */
+                if (endianess == UTF16_DECODE_AUTO_ENDIAN) {
+                    low = 0;
+                    high = 1;
+                    last_accept_pos = pos += 2;
+                    utf16_decoder_state(ds) = UTF16_DECODE_LITTLE_ENDIAN;
+                }
+                /* If we see little endian BOM and we're set to utf16le, skip
+                 * the BOM. */
+                else if (endianess == UTF16_DECODE_LITTLE_ENDIAN && remove_bom) {
+                    last_accept_pos = pos += 2;
+                }
             }
-            else if (is_big_endian(bytes + pos)) {
-                low = 1;
-                high = 0;
-                last_accept_pos = pos += 2;
-                utf16_decoder_state(ds) = UTF16_DECODE_BIG_ENDIAN;
+            else if (has_big_endian_bom(bytes + pos)) {
+                if (endianess == UTF16_DECODE_AUTO_ENDIAN) {
+                    low = 1;
+                    high = 0;
+                    last_accept_pos = pos += 2;
+                    utf16_decoder_state(ds) = UTF16_DECODE_BIG_ENDIAN;
+                }
+                /* If we see a big endian BOM and we're set to utf16be, skip
+                 * the BOM. */
+                else if (endianess == UTF16_DECODE_BIG_ENDIAN && remove_bom) {
+                    last_accept_pos = pos += 2;
+                }
+
             }
         }
         while (pos + 1 < cur_bytes->length) {
@@ -183,12 +203,12 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
 #endif
     /* set the byte order if there's a BOM */
     if (2 <= bytes) {
-        if (is_little_endian(utf16_chars)) {
+        if (has_little_endian_bom(utf16_chars)) {
             mode = UTF16_DECODE_LITTLE_ENDIAN;
             utf16_chars += 2;
             bytes -= 2;
         }
-        else if (is_big_endian(utf16_chars)) {
+        else if (has_big_endian_bom(utf16_chars)) {
             mode = UTF16_DECODE_BIG_ENDIAN;
             utf16_chars += 2;
             bytes -= 2;
