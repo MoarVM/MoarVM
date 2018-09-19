@@ -5394,6 +5394,24 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                  cur_op += 2;
                  goto NEXT;
             }
+            OP(writeint):
+            OP(writeuint):
+            OP(writenum): {
+                MVMObject *buf  = GET_REG(cur_op, 0).o;
+                MVMuint64 off   = (MVMuint64)GET_REG(cur_op, 2).i64;
+                MVMuint64 num   = *(MVMuint64*)&GET_REG(cur_op, 4).n64;
+                MVMuint64 flags = (MVMuint64)GET_REG(cur_op, 6).i64;
+                MVMRegister byte;
+                char i;
+                for(i = 0; i < 8; i++) {
+                    byte.i64 = (unsigned char)((num & (0xFFull << (i * 8))) >> (i * 8));
+                    REPR(buf)->pos_funcs.bind_pos(tc, STABLE(buf), buf,
+                        OBJECT_BODY(buf), off + i, byte, MVM_reg_int64);
+                }
+                MVM_SC_WB_OBJ(tc, buf);
+                cur_op += 8;
+                goto NEXT;
+            }
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
