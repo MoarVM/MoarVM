@@ -823,12 +823,14 @@ static void tweak_succ(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
 /* Finds return instructions and re-writes them into gotos, doing any needed
  * boxing or unboxing. */
 static void return_to_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *return_ins, MVMSpeshOperand target) {
+    MVMSpeshOperand ver_target = MVM_spesh_manipulate_new_version(tc, g, target.reg.orig);
     MVMSpeshOperand *operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
-    operands[0]               = target;
+    operands[0]               = ver_target;
     operands[1]               = return_ins->operands[0];
     return_ins->info          = MVM_op_get_op(MVM_OP_set);
     return_ins->operands      = operands;
-    MVM_spesh_get_facts(tc, g, target)->writer = return_ins;
+    MVM_spesh_get_facts(tc, g, ver_target)->writer = return_ins;
+    MVM_spesh_copy_facts(tc, g, operands[0], operands[1]);
 }
 
 static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *return_bb,
@@ -837,15 +839,16 @@ static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *re
     MVMSpeshOperand type_temp     = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
 
     /* Create and insert boxing instruction after current return instruction. */
+    MVMSpeshOperand ver_target = MVM_spesh_manipulate_new_version(tc, g, target.reg.orig);
     MVMSpeshIns      *box_ins     = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     MVMSpeshOperand *box_operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
     box_ins->info                 = MVM_op_get_op(box_op);
     box_ins->operands             = box_operands;
-    box_operands[0]               = target;
+    box_operands[0]               = ver_target;
     box_operands[1]               = return_ins->operands[0];
     box_operands[2]               = type_temp;
     MVM_spesh_manipulate_insert_ins(tc, return_bb, return_ins, box_ins);
-    MVM_spesh_get_facts(tc, g, target)->writer = box_ins;
+    MVM_spesh_get_facts(tc, g, ver_target)->writer = box_ins;
     MVM_spesh_usages_add_by_reg(tc, g, box_operands[1], box_ins);
     MVM_spesh_usages_add_by_reg(tc, g, box_operands[2], box_ins);
 
@@ -936,11 +939,15 @@ static void rewrite_obj_return(MVMThreadContext *tc, MVMSpeshGraph *g,
 static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                      MVMSpeshGraph *inlinee, MVMSpeshBB *invoke_bb,
                      MVMSpeshIns *invoke_ins, MVMSpeshBB *inlinee_last_bb) {
-    /* Locate return instructions. */
+    /* Locate return instructions and rewrite them. For each non-void return,
+     * given the invoke instruction was itself non-void, we generate a new SSA
+     * version of the target register. We then insert a PHI that merges those
+     * versions. */
     MVMSpeshBB *bb = inlinee->entry;
-    MVMuint32 saw_return = 0;
-    MVMSpeshFacts *prop_facts_from = NULL;
-    MVMSpeshFacts *prop_facts_to = NULL;
+    MVMint32 initial_last_result_version = invoke_ins->info->opcode != MVM_OP_invoke_v
+        ? inliner->fact_counts[invoke_ins->operands[0].reg.orig]
+        : -1;
+    MVMint32 saw_return = 0;
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
@@ -980,13 +987,6 @@ static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 rewrite_str_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_o:
-                if (!saw_return && invoke_ins->info->opcode == MVM_OP_invoke_o) {
-                    prop_facts_from = MVM_spesh_get_facts(tc, inliner, ins->operands[0]);
-                    prop_facts_to = MVM_spesh_get_facts(tc, inliner, invoke_ins->operands[0]);
-                }
-                else {
-                    prop_facts_from = prop_facts_to = NULL;
-                }
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
                 tweak_succ(tc, inliner, bb, invoke_bb, invoke_bb->succ[0], saw_return);
@@ -996,11 +996,30 @@ static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             }
             ins = ins->next;
         }
-        if (bb == inlinee_last_bb) break;
+        if (bb == inlinee_last_bb) {
+            MVMint32 final_last_result_version = invoke_ins->info->opcode != MVM_OP_invoke_v
+                ? inliner->fact_counts[invoke_ins->operands[0].reg.orig]
+                : -1;
+            if (final_last_result_version != initial_last_result_version) {
+                /* Produced one or more return results; need a PHI. */
+                MVMuint32 num_rets = final_last_result_version - initial_last_result_version;
+                MVMuint32 i;
+                MVMSpeshIns *phi = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshIns));
+                phi->info = get_phi(tc, inliner, num_rets + 1);
+                phi->operands = MVM_spesh_alloc(tc, inliner, (1 + num_rets) * sizeof(MVMSpeshOperand));
+                phi->operands[0] = invoke_ins->operands[0];
+                MVM_spesh_get_facts(tc, inliner, phi->operands[0])->writer = phi;
+                for (i = 0; i < num_rets; i++) {
+                    phi->operands[i + 1].reg.orig = invoke_ins->operands[0].reg.orig;
+                    phi->operands[i + 1].reg.i = initial_last_result_version + i;
+                    MVM_spesh_usages_add_by_reg(tc, inliner, phi->operands[i + 1], phi);
+                }
+                MVM_spesh_manipulate_insert_ins(tc, bb->linear_next, NULL, phi);
+            }
+            break;
+        }
         bb = bb->linear_next;
     }
-    if (prop_facts_from && prop_facts_to)
-        MVM_spesh_copy_facts_resolved(tc, inliner, prop_facts_to, prop_facts_from);
 }
 
 /* Re-writes argument passing and parameter taking instructions to simple
