@@ -165,6 +165,18 @@
 
 (template: not_i (flagval (zr $1)))
 
+(template: coerce_is
+  (call (^func &MVM_coerce_i_s)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   int)) ptr_sz))
+
+(template: coerce_si
+  (call (^func &MVM_coerce_s_i)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
+
 (template: smrt_numify!
   (callv (^func &MVM_coerce_smart_numify)
     (arglist
@@ -1752,6 +1764,13 @@
       (carg $2   ptr)
       (carg $1   ptr)) ptr_sz))
 
+(template: coerce_Is
+  (call (^func &MVM_bigint_to_str)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg (const 10 int_sz) int)) ptr_sz))
+
 (template: coerce_sI
   (call (^func &MVM_coerce_sI)
     (arglist
@@ -2451,6 +2470,12 @@
       (carg $2 ptr)
       (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_uint64) int_sz) int))))
+
+(template: coerce_us
+  (call (^func &MVM_coerce_u_s)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   int)) ptr_sz))
 
 (template: hllbool
   (let: (($hllconfig (^getf (cu) MVMCompUnit body.hll_config)))
