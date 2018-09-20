@@ -23,6 +23,15 @@
 (template: trunc_i16 (ucast $1 int_sz 2))
 (template: trunc_i32 (ucast $1 int_sz 4))
 
+(template: extend_u8  (ucast $1 int_sz 1))
+(template: extend_u16 (ucast $1 int_sz 2))
+(template: extend_u32 (ucast $1 int_sz 4))
+
+(template: extend_i8  (scast $1 int_sz 1))
+(template: extend_i16 (scast $1 int_sz 2))
+(template: extend_i32 (scast $1 int_sz 4))
+
+
 (template: goto (branch $0))
 
 (template: if_i
