@@ -1797,6 +1797,16 @@
       (carg $1   ptr)
       (carg $2   int)) ptr_sz))
 
+(template: radix_I
+  (call (^func &MVM_bigint_radix)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   int)
+      (carg $2   ptr)
+      (carg $3   int)
+      (carg $4   int)
+      (carg $5   ptr)) ptr_sz))
+
 (template: connect_sk
   (callv (^func &MVM_io_connect)
     (arglist
