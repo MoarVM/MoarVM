@@ -2478,6 +2478,15 @@
     (^getf $hllconfig MVMHLLConfig true_value)
     (^getf $hllconfig MVMHLLConfig false_value))))
 
+(template: hllboolfor
+  (let: (($hllconfig (call (^func &MVM_hll_get_config_for)
+                       (arglist
+                         (carg (tc) ptr)
+                         (carg $2   ptr)) ptr_sz)))
+    (if (nz $1)
+      (^getf $hllconfig MVMHLLConfig true_value)
+      (^getf $hllconfig MVMHLLConfig false_value))))
+
 (template: sp_resolvecode
   (call (^func &MVM_frame_resolve_invokee_spesh)
     (arglist
