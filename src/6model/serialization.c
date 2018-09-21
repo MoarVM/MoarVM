@@ -909,12 +909,13 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
         tc->serialized = output;
         tc->serialized_size = output_size;
         tc->serialized_string_heap = writer->root.string_heap;
-        return NULL;
+        output_b64 = base64_encode(output, output_size);
     }
-
-    /* Base 64 encode. */
-    output_b64 = base64_encode(output, output_size);
-    MVM_free(output);
+    else {
+        /* Base 64 encode. */
+        output_b64 = base64_encode(output, output_size);
+        MVM_free(output);
+    }
     if (output_b64 == NULL)
         MVM_exception_throw_adhoc(tc,
             "Serialization error: failed to convert to base64");
