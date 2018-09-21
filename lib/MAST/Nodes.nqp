@@ -94,6 +94,10 @@ class MAST::CompUnit is MAST::Node {
     # String list of extop names.
     has @!extop_names;
 
+    # Serialized data.
+    has $!serialized;
+    has $!string_heap;
+
     method add_frame($frame) {
         my int $idx := nqp::elems(@!frames);
         $frame.set_index($idx);
@@ -126,6 +130,18 @@ class MAST::CompUnit is MAST::Node {
         nqp::defined($frame)
             ?? ($!deserialize_frame := $frame)
             !! $!deserialize_frame
+    }
+
+    method serialized($serialized?) {
+        nqp::defined($serialized)
+            ?? ($!serialized := $serialized)
+            !! $!serialized
+    }
+
+    method string_heap($string_heap?) {
+        nqp::defined($string_heap)
+            ?? ($!string_heap := $string_heap)
+            !! $!string_heap
     }
 
     method sc_idx($sc) {
