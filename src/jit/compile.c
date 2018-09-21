@@ -91,6 +91,22 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     /* Clear up the compiler */
     MVM_jit_compiler_deinit(tc, &cl);
 
+#if linux
+    if (tc->instance->jit_perf_map) {
+        MVMStaticFrame *sf = jg->sg->sf;
+        char symbol_name[1024];
+        char *file_location = MVM_staticframe_file_location(tc, sf);
+        char *frame_name = MVM_string_utf8_encode_C_string(tc, sf->body.name);
+        snprintf(symbol_name, sizeof(symbol_name) - 1,
+                 "%s(%s)",  frame_name, file_location);
+        fprintf(tc->instance->jit_perf_map, "%lx %lx %s\n",
+                (unsigned long) code->func_ptr, code->size, symbol_name);
+        fflush(tc->instance->jit_perf_map);
+        MVM_free(file_location);
+        MVM_free(frame_name);
+    }
+#endif
+
     /* Logging for insight */
     if (tc->instance->jit_bytecode_dir) {
         MVM_jit_log_bytecode(tc, code);

@@ -92,6 +92,7 @@ The following environment variables are respected:\n\
     MVM_JIT_DISABLE             Disables JITting to machine code\n\
     MVM_JIT_EXPR_DISABLE        Disable advanced 'expression' JIT\n\
     MVM_JIT_LOG                 Specifies a JIT-compiler log file\n\
+    MVM_JIT_PERF_MAP            Create a map file for the 'perf' profiler (linux only)\n\
     MVM_JIT_BYTECODE_DIR        Specifies a directory for JIT bytecode dumps\n\
     MVM_SPESH_INLINE_LOG        Dump details of inlining attempts to stderr\n\
     MVM_CROSS_THREAD_WRITE_LOG  Log unprotected cross-thread object writes to stderr\n\

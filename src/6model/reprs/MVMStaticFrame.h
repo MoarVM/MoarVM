@@ -137,3 +137,6 @@ struct MVMStaticFrameInstrumentation {
 
 /* Function for REPR setup. */
 const MVMREPROps * MVMStaticFrame_initialize(MVMThreadContext *tc);
+
+/* Debugging help. */
+char * MVM_staticframe_file_location(MVMThreadContext *tc, MVMStaticFrame *sf);

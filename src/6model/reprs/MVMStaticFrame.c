@@ -303,3 +303,22 @@ static const MVMREPROps MVMStaticFrame_this_repr = {
     unmanaged_size, /* unmanaged_size */
     describe_refs,
 };
+
+
+char * MVM_staticframe_file_location(MVMThreadContext *tc, MVMStaticFrame *sf) {
+    MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &sf->body, 0);
+    MVMCompUnit *cu = sf->body.cu;
+    MVMint32           str_idx = ann ? ann->filename_string_heap_index : 0;
+    MVMint32           line_nr = ann ? ann->line_number : 1;
+    MVMString        *filename = cu->body.filename;
+    char        *filename_utf8 = "<unknown>";
+    char               *result = MVM_malloc(1024);
+    if (ann && str_idx < cu->body.num_strings)
+        filename = MVM_cu_string(tc, cu, str_idx);
+    if (filename)
+        filename_utf8 = MVM_string_utf8_encode_C_string(tc, filename);
+    snprintf(result, 1023, "%s:%d", filename_utf8, line_nr);
+    if (filename)
+        MVM_free(filename_utf8);
+    return result;
+}
