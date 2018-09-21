@@ -307,6 +307,8 @@ struct MVMInstance {
     MVMint32 jit_expr_last_bb;
     /* File for JIT logging */
     FILE *jit_log_fh;
+    /* File for JIT perf map logging */
+    FILE *jit_perf_map;
 
     /* Directory name for JIT bytecode dumps */
     char *jit_bytecode_dir;

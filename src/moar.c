@@ -53,12 +53,7 @@ static FILE *fopen_perhaps_with_pid(char *env_var, char *path, const char *mode)
             result = fopen(path, mode);
         } else {
             char *fixed_path = malloc(path_length + 16);
-            MVMint64 pid;
-#ifdef _WIN32
-            pid = _getpid();
-#else
-            pid = getpid();
-#endif
+            MVMint64 pid = MVM_proc_getpid(NULL);
             /* We make the brave assumption that
              * pids only go up to 16 characters. */
             snprintf(fixed_path, path_length + 16, path, pid);
@@ -266,6 +261,19 @@ MVMInstance * MVM_vm_create_instance(void) {
     jit_log = getenv("MVM_JIT_LOG");
     if (jit_log && jit_log[0])
         instance->jit_log_fh = fopen_perhaps_with_pid("MVM_JIT_LOG", jit_log, "w");
+
+#if linux
+    {
+        char *jit_perf_map = getenv("MVM_JIT_PERF_MAP");
+        if (jit_perf_map && *jit_perf_map) {
+            char perf_map_filename[32];
+            snprintf(perf_map_filename, sizeof(perf_map_filename),
+                     "/tmp/perf-%d.map", MVM_proc_getpid(NULL));
+            instance->jit_perf_map = fopen(perf_map_filename, "w");
+        }
+    }
+#endif
+
     jit_bytecode_dir = getenv("MVM_JIT_BYTECODE_DIR");
     if (jit_bytecode_dir && jit_bytecode_dir[0]) {
         size_t bytecode_map_name_size = strlen(jit_bytecode_dir) + strlen("/jit-map.txt") + 1;
