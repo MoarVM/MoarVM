@@ -30,6 +30,40 @@ class ViewOptions {
     has Bool:D $.subject-origin is rw = True;
     has Bool:D $.subject is rw        = True;
     has Bool:D $.author is rw         = False;
+    has Bool:D $.dropped is rw        = True;
+    method format-output ($thing) {
+        my @text;
+        if self.commit {
+            my @all = $thing<ID>;
+            @all.append: $thing{$merged-into} if $thing{$merged-into};
+            @text.push: '[' ~ @all».substr(0, 8).join(',') ~ ']';
+        }
+        if self.dropped && $thing<dropped> {
+            @text.push: '<dropped>';
+        }
+        @text.push: '{' ~ ($thing<CustomCategory> // $thing<AutoCategory> // "???") ~ '}' if self.category;
+        if self.subject-origin {
+            if $thing<CustomSubject> {
+                @text.push: '(Custom)';
+            }
+            elsif $thing<AutoSubject> {
+                @text.push: '(Auto)';
+            }
+            else {
+                @text.push: '(Commit)';
+            }
+        }
+        @text.push: ($thing<CustomSubject> // $thing<AutoSubject> // $thing<Subject>);
+        if $thing<changes> && self.modified-files {
+            @text.push: '|';
+            @text.push: $thing.<changes>».<filename>.join(", ");
+        }
+        if self.author {
+            @text.push: '|';
+            @text.push: $thing<AuthorName>;
+        }
+        @text.join(' ');
+    }
 }
 # @keywords is used to help the categorizer. Keyword is checked first, then
 # the directory (which can be either a string or an array of strings) is checked.
@@ -49,6 +83,10 @@ my @keywords =
     ChangelogClassifier.new(title => 'Core', directory => 'src/core'),
     ChangelogClassifier.new(title => 'GC', directory => 'src/gc')
 ;
+sub format-output ($thing, :$author = False, :$print-modified-files = False, :$print-commit = False, :$print-category = False, :$print-subject-origin = False) {
+    my $viewopts = ViewOptions.new(:$author, :modified-files($print-modified-files), :commit($print-commit), :category($print-category), :subject-origin($print-subject-origin));
+    $viewopts.format-output($thing);
+}
 sub git (*@args) {
     my $cmd = run 'git', @args, :out, :err;
     my $out = $cmd.out.slurp;
@@ -79,38 +117,8 @@ sub is-expr-jit (Str:D $text) {
     }
     @result;
 }
-multi sub format-output ($thing, ViewOptions:D $viewopts) {
-    format-output($thing, :author($viewopts.author), :print-modified-files($viewopts.modified-files), :print-commit($viewopts.commit), :print-category($viewopts.category), :print-subject-origin($viewopts.subject-origin));
-}
-multi sub format-output ($thing, :$author = False, :$print-modified-files = False, :$print-commit = False, :$print-category = False, :$print-subject-origin = False) {
-    my @text;
-    if $print-commit {
-        my @all = $thing<ID>;
-        @all.append: $thing{$merged-into} if $thing{$merged-into};
-        @text.push: '[' ~ @all».substr(0, 8).join(',') ~ ']';
-    }
-    @text.push: '{' ~ ($thing<CustomCategory> // $thing<AutoCategory> // "???") ~ '}' if $print-category;
-    if $print-subject-origin {
-        if $thing<CustomSubject> {
-            @text.push: '(Custom)';
-        }
-        elsif $thing<AutoSubject> {
-            @text.push: '(Auto)';
-        }
-        else {
-            @text.push: '(Commit)';
-        }
-    }
-    @text.push: ($thing<CustomSubject> // $thing<AutoSubject> // $thing<Subject>);
-    if $thing<changes> && $print-modified-files {
-        @text.push: '|';
-        @text.push: $thing.<changes>».<filename>.join(", ");
-    }
-    if $author {
-        @text.push: '|';
-        @text.push: $thing<AuthorName>;
-    }
-    @text.join(' ');
+sub print-message(Str:D $text, :$status) {
+    say "{'  ' if $status }$text";
 }
 sub get-subject ($item) {
     $item<CustomSubject> // $item<AutoSubject> // $item<Subject>;
@@ -118,12 +126,10 @@ sub get-subject ($item) {
 sub get-category ($item) {
     $item<CustomCategory> // $item<AutoCategory> // "???";
 }
-my $dat-file = "updatechangelog.dat";
 sub get-folder-name (Str:D $str) {
     my @split = $str.split('/');
     my $result = ((@split - 1 < 2) ?? @split[0] !! @split[0..1]).join('/');
     $result = $str if $result eq 'src';
-    #say "in: $str out: $result";
     return $result;
 }
 use Test;
@@ -140,15 +146,16 @@ sub get-main-dir ($thing) {
         my $folder = get-folder-name($change<filename>);
         %folders{$folder} += $addition-weight * $change<added> + $remove-weight * $change<removed>;
     }
-    #say "\%folders.perl: «" ~ %folders.perl ~ "»";
     %folders.sort(-*.value).first.key;
 }
 # TODO remove %categories
-sub do-item ($item, $viewopts, @loggy, %categories, Bool:D :$deep = False) {
+sub do-item ($item, $viewopts, @loggy, %categories, Str:D $output-filename, Bool:D :$deep = False) {
     my $not-done = True;
     while ($not-done) {
-        say format-output($item, $viewopts);
-        my $response = prompt "MODIFY (e)dit/(d)rop/(c)ategory/d(o)ne/(T)itlecase/[(m)erge into other commit]/[change (v)iew opts]; PRINT (b)ody/d(i)ff/num-(l)eft/(D)ump/(C)omplete/(U)uncomplete; GOTO (n)ext/(G)oto commit ID; (Q)uit and save or (s)ave: ";
+        say $viewopts.format-output($item);
+        my $response = prompt "MODIFY (e)dit/(d)rop/(c)ategory/d(o)ne/(T)itlecase/[(m)erge into other commit]/[change (v)iew opts]; " ~
+            "PRINT (b)ody/d(i)ff/num-(l)eft/(D)ump/(C)omplete/(U)uncomplete; " ~
+            "GOTO (n)ext/(G)oto commit ID; (Q)uit and save or (s)ave: ";
         given $response {
             when 'v' {
                 say "Toggle view options. (m)odified files, (c)ommit, (C)ategory, subject (o)rigin, (a)uthor, (q)uit this menu and go back";
@@ -207,7 +214,7 @@ sub do-item ($item, $viewopts, @loggy, %categories, Bool:D :$deep = False) {
 
             }
             when 'D' {
-                say "Dumping this commit:\n";
+                print-message "Dumping this commit:\n", :status;
                 say $item.perl;
                 say "";
             }
@@ -217,6 +224,9 @@ sub do-item ($item, $viewopts, @loggy, %categories, Bool:D :$deep = False) {
                 my $need = @loggy.first({.<ID>.starts-with($merge-into.trim)});
                 if !$need {
                     say "\nERROR: Can't find commit $need\n";
+                }
+                elsif $item<ID>.lc.starts-with($merge-into.lc) {
+                    say "\nCannot merge a commit into itself!\n";
                 }
                 elsif $item{$merged-to} && $item{$merged-to}.first(*.starts-with($merge-into.trim)) {
                     say "\nERROR: This has already been merged into that one\n";
@@ -231,7 +241,14 @@ sub do-item ($item, $viewopts, @loggy, %categories, Bool:D :$deep = False) {
             }
 
             when 'd' {
-                $item<dropped> = "User";
+                if $item<dropped> {
+                    print-message "UNdropped commit", :status;
+                    $item<dropped>:delete;
+                }
+                else {
+                    $item<dropped> = "User";
+                    print-message "DROPped commit", :status;
+                }
                 $not-done = False;
             }
             when 'i' {
@@ -253,7 +270,7 @@ sub do-item ($item, $viewopts, @loggy, %categories, Bool:D :$deep = False) {
                 for @loggy -> $ite {
                     %hash{$ite<ID>} = $ite;
                 }
-                spurt "updatechangelog.dat", to-json(%hash);
+                spurt $output-filename, to-json(%hash);
                 if $response ~~ /Q/ {
                     exit;
                 }
@@ -276,16 +293,16 @@ sub do-item ($item, $viewopts, @loggy, %categories, Bool:D :$deep = False) {
                         next if !$item<done>;
                     }
                     if $response.contains('s') {
-                        %categories{get-category($item)}.push: $item;
+                        %categories{ get-category($item) }.push: $item;
                     }
                     else {
-                        $proc.in.say(format-output($item, $viewopts));
+                        $proc.in.say: $viewopts.format-output($item);
                     }
                 }
                 if $response.contains('s') {
                     for %categories.keys.sort -> $key {
                         for %categories{$key}.list -> $item {
-                            $proc.in.say(format-output($item, $viewopts));
+                            $proc.in.say($viewopts.format-output($item));
                         }
                     }
                 }
@@ -298,7 +315,7 @@ sub do-item ($item, $viewopts, @loggy, %categories, Bool:D :$deep = False) {
                 if $need {
                     if !$deep {
                         while ($need) {
-                            $need = do-item $need, $viewopts, @loggy, %categories, :deep;
+                            $need = do-item $need, $viewopts, @loggy, %categories, $output-filename, :deep;
                         }
                     }
                     # We are already one deep so return it to continue
@@ -337,22 +354,45 @@ sub prompt-it (Str:D $pretext = '') {
         }
     }
 }
+sub next-tag (Str:D $tag) {
+    my ($year, $month) = $tag.split('.');
+    if $month == 12 {
+        $year++;
+        $month = 1;
+    }
+    else {
+        $month++;
+    }
+    sprintf "%i.%.2i", $year, $month;
+}
+class OutputFile {
+    has IO::Path $.filename;
+    method parse {
+    }
+}
 sub MAIN (Bool:D :$print-modified-files = False, Bool:D :$print-commit = False) {
+    my $last-tag = last-tag();
+    my $next-tag = next-tag($last-tag);
+    my $output-filename = $next-tag ~ "-changelog.json";
     my @loggy = git-log '--topo-order', "{last-tag()}..master", :get-changes;
     my %categories;
-    if $dat-file.IO.f {
+    my $dat = OutputFile.new(:filename($output-filename.IO));
+    if $output-filename.IO.f {
         my $answer = 'y';
         while $answer ne 'y' && $answer ne 'n' {
             $answer = prompt "Load saved changelog info file? y/n: ";
         }
         if $answer eq 'y' {
-            my %hash = from-json $dat-file.IO.slurp;
+            my %hash = from-json $output-filename.IO.slurp;
             for @loggy <-> $logone {
                 if %hash{$logone<ID>} {
                     $logone = %hash{$logone<ID>};
                 }
             }
         }
+    }
+    else {
+        say "file isn't here";
     }
     for @loggy -> $change {
         my $has-pushed = False;
@@ -406,19 +446,22 @@ sub MAIN (Bool:D :$print-modified-files = False, Bool:D :$print-commit = False) 
     }
     # Remove the expr jit op additions so we can combine them into one entry
     my @new-expr-jit-ops;
-    #for %categories<JIT>.list <-> $item {
-    #    my $result = is-expr-jit($item<Subject>);
-    #    if $result {
-    #        @new-expr-jit-ops.append: $result.list;
-    #        $item<dropped> = 'auto';
-    #        $item<dropped>:delete;
-    #    }
-    #}
     my $viewopts = ViewOptions.new;
     for @loggy.reverse -> $item {
         next if $item<dropped>;
         next if $item<done>;
-        do-item($item, $viewopts, @loggy, %categories);
+        do-item($item, $viewopts, @loggy, %categories, $output-filename);
+    }
+    my $prompt-result;
+    while !$prompt-result || $prompt-result ne 'y'|'n' {
+        $prompt-result = prompt "Should we save y/n?: ";
+    }
+    if $prompt-result eq 'y' {
+        my %hash;
+        for @loggy -> $ite {
+            %hash{$ite<ID>} = $ite;
+        }
+        spurt $output-filename, to-json(%hash);
     }
     my $has-outputted-expr-jit-ops = False;
     for %categories.keys.sort -> $key {
