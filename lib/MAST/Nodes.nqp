@@ -457,19 +457,33 @@ class MAST::ExtOp is MAST::Node {
     has str $!name;
 
     method new(str :$op!, :$cu!, *@operands) {
-        my $obj := nqp::create(self);
-        nqp::bindattr_i($obj, MAST::ExtOp, '$!op', $cu.get_extop_code($op));
-        nqp::bindattr($obj, MAST::ExtOp, '@!operands', @operands);
-        nqp::bindattr_s($obj, MAST::ExtOp, '$!name', $op);
-        $obj
+        self.new_with_operand_array(@operands, :$op, :$cu)
     }
 
     method new_with_operand_array(@operands, str :$op!, :$cu!) {
-        my $obj := nqp::create(self);
-        nqp::bindattr_i($obj, MAST::ExtOp, '$!op', $cu.get_extop_code($op));
-        nqp::bindattr($obj, MAST::ExtOp, '@!operands', @operands);
-        nqp::bindattr_s($obj, MAST::ExtOp, '$!name', $op);
-        $obj
+        my int $op_code := $cu.get_extop_code($op);
+
+        my $bytecode := $buf.new;
+        my @extop_sigs := nqp::getattr($*MAST_FRAME.compunit, MAST::CompUnit, '@!extop_sigs');
+        nqp::die("Invalid extension op $op specified")
+            if $op_code < 1024 || $op_code - 1024 >= nqp::elems(@extop_sigs); # EXTOP_BASE
+        my @operand_sigs := @extop_sigs[$op_code - 1024];
+
+        $bytecode.write_uint16($op_code);
+
+        my $num_operands := nqp::elems(@operand_sigs);
+        nqp::die("Instruction has invalid number of operads")
+            if nqp::elems(@operands) != $num_operands;
+        my int $idx := 0;
+        while $idx < $num_operands {
+            my $flags := nqp::atpos_i(@operand_sigs, $idx);
+            my $rw    := $flags +& $MVM_operand_rw_mask;
+            my $type  := $flags +& $MVM_operand_type_mask;
+            $*MAST_FRAME.compile_operand($bytecode, $rw, $type, @operands[$idx]);
+            $idx++;
+        }
+
+        $bytecode
     }
 
     method op() { $!op }
@@ -1058,6 +1072,7 @@ class MAST::Frame is MAST::Node {
         $!string-heap.add($s);
     }
     method callsites() { $!callsites }
+    method compunit()  { $!compunit }
     method labels() { %!labels }
     method label-fixups() { %!label-fixups }
     method resolve-label($label) {
@@ -1206,27 +1221,6 @@ class MAST::Frame is MAST::Node {
         }
         else {
             nqp::die('Invalid action code for handler scope');
-        }
-    }
-    multi method write_instruction(MAST::ExtOp $i) {
-        my $op := $i.op;
-        my @extop_sigs := nqp::getattr($!compunit, MAST::CompUnit, '@!extop_sigs');
-        nqp::die("Invalid extension op $op specified")
-            if $op < 1024 || $op - 1024 >= nqp::elems(@extop_sigs); # EXTOP_BASE
-        my @operands := @extop_sigs[$op - 1024];
-
-        $!bytecode.write_uint16($op);
-
-        my $num_operands := nqp::elems(@operands);
-        nqp::die("Instruction has invalid number of operads")
-            if nqp::elems($i.operands) != $num_operands;
-        my $idx := 0;
-        while $idx < $num_operands {
-            my $flags := nqp::atpos_i(@operands, $idx);
-            my $rw    := $flags +& $MVM_operand_rw_mask;
-            my $type  := $flags +& $MVM_operand_type_mask;
-            self.compile_operand($!bytecode, $rw, $type, $i.operands[$idx]);
-            $idx++;
         }
     }
     multi method write_instruction($i) {
