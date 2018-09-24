@@ -308,57 +308,18 @@ class MAST::CompUnit is MAST::Node {
 
 # Literal values.
 class MAST::SVal is MAST::Node {
-    has str $!value;
-
     method new(:$value!) {
-        my $obj := nqp::create(self);
-        nqp::bindattr_s($obj, MAST::SVal, '$!value', $value);
-        $obj
-    }
-
-    method dump_lines(@lines, $indent) {
-        # XXX: escape line breaks and such...
-        nqp::push(@lines, $indent~"MAST::SVal value<$!value>");
+        $*MAST_FRAME.add-string(~$value)
     }
 }
 class MAST::IVal is MAST::Node {
-    # The integer value.
-    has int $!value;
-
-    # Size in bits (8, 16, 32, 64).
-    has int $!size;
-
-    # Whether or not it's signed.
-    has int $!signed;
-
     method new(:$value!, :$size = 64, :$signed = 1) {
-        my $obj := nqp::create(self);
-        nqp::bindattr_i($obj, MAST::IVal, '$!value', $value);
-        nqp::bindattr_i($obj, MAST::IVal, '$!size', $size);
-        nqp::bindattr_i($obj, MAST::IVal, '$!signed', $signed);
-        $obj
-    }
-
-    method dump_lines(@lines, $indent) {
-        nqp::push(@lines, $indent~"MAST::IVal value<$!value>, size<$!size>, signed<$!signed>");
+        $value
     }
 }
 class MAST::NVal is MAST::Node {
-    # The floating point value.
-    has num $!value;
-
-    # Size in bits (32, 64).
-    has int $!size;
-
     method new(:$value!, :$size = 64) {
-        my $obj := nqp::create(self);
-        nqp::bindattr_n($obj, MAST::NVal, '$!value', $value);
-        nqp::bindattr_i($obj, MAST::NVal, '$!size', $size);
-        $obj
-    }
-
-    method dump_lines(@lines, $indent) {
-        nqp::push(@lines, $indent~"MAST::NVal value<$!value>, size<$!size>");
+        $value
     }
 }
 
@@ -438,7 +399,7 @@ class MAST::Op is MAST::Node {
     method new_with_operand_array(@operands, str :$op!) {
         my $bytecode := nqp::create($buf);
         if $op eq 'const_i64' {
-            my $value := nqp::getattr(@operands[1], MAST::IVal, '$!value');
+            my int $value := @operands[1];
             if -32767 < $value && $value < 32768 {
                 $bytecode.write_uint16(%MAST::Ops::codes<const_i64_16>);
                 self.write_operand($bytecode, %op_codes{$op}, 0, @operands[0]);
@@ -1027,20 +988,21 @@ class MAST::Frame is MAST::Node {
     method compile_operand($bytecode, int $rw, int $type, $arg) {
         if $rw == nqp::const::MVM_OPERAND_LITERAL {
             if $type == nqp::const::MVM_OPERAND_INT64 {
-                $bytecode.write_uint64(nqp::getattr($arg, MAST::IVal, '$!value'));
+                my int $value := $arg;
+                $bytecode.write_uint64($value);
             }
             elsif $type == nqp::const::MVM_OPERAND_INT16 {
-                my $value := nqp::getattr($arg, MAST::IVal, '$!value');
+                my int $value := $arg;
                 if $value < -32768 || 32767 < $value {
                     nqp::die("Value outside range of 16-bit MAST::IVal");
                 }
                 $bytecode.write_uint16($value);
             }
             elsif $type == nqp::const::MVM_OPERAND_NUM64 {
-                $bytecode.write_double(nqp::getattr($arg, MAST::NVal, '$!value'));
+                $bytecode.write_double($arg);
             }
             elsif $type == nqp::const::MVM_OPERAND_STR {
-                $bytecode.write_uint32(self.add-string(nqp::getattr($arg, MAST::SVal, '$!value')));
+                $bytecode.write_uint32($arg);
             }
             elsif $type == nqp::const::MVM_OPERAND_INS {
                 my $key := nqp::objectid($arg);
