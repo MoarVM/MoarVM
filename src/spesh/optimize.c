@@ -712,6 +712,8 @@ static void optimize_guard(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
                 || opcode == MVM_OP_sp_guardtype) {
             if ((facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) && facts->type == ((MVMSTable *)g->spesh_slots[sslot])->WHAT) {
                 can_drop_type_guard = 1;
+                MVM_spesh_graph_add_comment(tc, g, ins, "used to guard for %s",
+                        MVM_6model_get_debug_name(tc, facts->type));
             }
         }
         if (opcode == MVM_OP_sp_guardconc || opcode == MVM_OP_sp_guardjustconc) {
@@ -1233,6 +1235,15 @@ static void lex_to_constant(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
     MVMuint16 ss = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
         (MVMCollectable *)log_obj);
 
+    if (MVM_spesh_debug_enabled(tc)) {
+        MVMSpeshFacts *name_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+        char *lexname = MVM_string_utf8_encode_C_string(tc, name_facts->value.s);
+
+        MVM_spesh_graph_add_comment(tc, g, ins, "%s of lexical '%s'",
+                ins->info->name, lexname);
+        MVM_free(lexname);
+    }
+
     /* Transform lookup instruction into spesh slot read. */
     ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
     MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
@@ -1430,7 +1441,8 @@ static void add_synthetic_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *
 /* Inserts an argument type guard as suggested by a logged type tuple. */
 static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
                                   MVMSpeshStatsType *type_info,
-                                  MVMSpeshCallInfo *arg_info, MVMuint32 arg_idx) {
+                                  MVMSpeshCallInfo *arg_info, MVMuint32 arg_idx,
+                                  MVMuint32 add_comment) {
     MVMuint32 deopt_target, deopt_index;
 
     /* Split the SSA version of the arg. */
@@ -1455,6 +1467,10 @@ static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_usages_add_by_reg(tc, g, preguard_reg, guard);
     MVM_spesh_get_facts(tc, g, guard_reg)->writer = guard;
 
+    if (add_comment) {
+        MVM_spesh_graph_add_comment(tc, g, guard, "inserted argument guards");
+    }
+
     /* Also give the instruction a deopt annotation, and related it to the
      * one on the prepargs. */
     MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
@@ -1465,7 +1481,8 @@ static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
 /* Inserts an argument decont type guard as suggested by a logged type tuple. */
 static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
                                          MVMSpeshStatsType *type_info,
-                                         MVMSpeshCallInfo *arg_info, MVMuint32 arg_idx) {
+                                         MVMSpeshCallInfo *arg_info, MVMuint32 arg_idx,
+                                         MVMuint32 add_comment) {
     MVMSpeshIns *decont, *guard;
     MVMuint32 deopt_target, deopt_index;
     MVMSpeshOperand throwaway;
@@ -1503,6 +1520,10 @@ static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_usages_add_by_reg(tc, g, temp, guard);
     MVM_spesh_get_facts(tc, g, guard->operands[0])->writer = guard;
 
+    if (add_comment) {
+        MVM_spesh_graph_add_comment(tc, g, guard, "inserted argument guards");
+    }
+
     /* Also give the instruction a deopt annotation and reference prepargs
      * deopt index. */
     MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
@@ -1518,6 +1539,7 @@ static void check_and_tweak_arg_guards(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVMuint32 n = arg_info->cs->flag_count;
     MVMuint32 arg_idx = 0;
     MVMuint32 i;
+    MVMuint32 first_guard = 1;
     for (i = 0; i < n; i++, arg_idx++) {
         if (arg_info->cs->arg_flags[i] & MVM_CALLSITE_ARG_NAMED)
             arg_idx++;
@@ -1534,11 +1556,15 @@ static void check_and_tweak_arg_guards(MVMThreadContext *tc, MVMSpeshGraph *g,
                         && !(arg_facts->flags & MVM_SPESH_FACT_CONCRETE)) ||
                     (!type_tuple[i].type_concrete
                         && !(arg_facts->flags & MVM_SPESH_FACT_TYPEOBJ));
-                if (need_guard)
-                    insert_arg_type_guard(tc, g, &type_tuple[i], arg_info, arg_idx);
+                if (need_guard) {
+                    insert_arg_type_guard(tc, g, &type_tuple[i], arg_info, arg_idx, first_guard);
+                    first_guard = 0;
+                }
             }
-            if (t_decont_type)
-                insert_arg_decont_type_guard(tc, g, &type_tuple[i], arg_info, arg_idx);
+            if (t_decont_type) {
+                insert_arg_decont_type_guard(tc, g, &type_tuple[i], arg_info, arg_idx, first_guard);
+                first_guard = 0;
+            }
         }
     }
 }
@@ -2005,6 +2031,13 @@ static void optimize_plugin(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
      * instruction. If not, just rewrite the resolve instruction into the
      * spesh version of itself including the index. */
     if (agg_guard_index != -1) {
+        if (MVM_spesh_debug_enabled(tc)) {
+            MVMString *plugin_name = MVM_spesh_get_string(tc, g, ins->operands[1]);
+            char *plugin_name_c = MVM_string_utf8_encode_C_string(tc, plugin_name);
+            MVM_spesh_graph_add_comment(tc, g, ins, "spesh plugin '%s'",
+                    plugin_name_c);
+            MVM_free(plugin_name_c);
+        }
         MVM_spesh_plugin_rewrite_resolve(tc, g, bb, ins, logged_ann->data.bytecode_offset,
                 agg_guard_index);
     }
