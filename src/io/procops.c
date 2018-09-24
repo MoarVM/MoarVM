@@ -1,5 +1,6 @@
 #include "moar.h"
 #include "platform/time.h"
+#include "platform/fork.h"
 #include "tinymt64.h"
 #include "bithacks.h"
 
@@ -643,7 +644,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     /* Create input/output handles as needed. */
     if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.write)) {
         uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
-        uv_pipe_init(tc->loop, pipe, 0);
+        uv_pipe_init(loop, pipe, 0);
         pipe->data = si;
         process_stdio[0].flags       = UV_CREATE_PIPE | UV_READABLE_PIPE;
         process_stdio[0].data.stream = (uv_stream_t *)pipe;
@@ -660,12 +661,12 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     }
     if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.merge_bytes)) {
         si->pipe_stdout = MVM_malloc(sizeof(uv_pipe_t));
-        uv_pipe_init(tc->loop, si->pipe_stdout, 0);
+        uv_pipe_init(loop, si->pipe_stdout, 0);
         si->pipe_stdout->data = si;
         process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
         process_stdio[1].data.stream = (uv_stream_t *)si->pipe_stdout;
         si->pipe_stderr = MVM_malloc(sizeof(uv_pipe_t));
-        uv_pipe_init(tc->loop, si->pipe_stderr, 0);
+        uv_pipe_init(loop, si->pipe_stderr, 0);
         si->pipe_stderr->data = si;
         process_stdio[2].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
         process_stdio[2].data.stream = (uv_stream_t *)si->pipe_stderr;
@@ -675,7 +676,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     else {
         if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_bytes)) {
             si->pipe_stdout = MVM_malloc(sizeof(uv_pipe_t));
-            uv_pipe_init(tc->loop, si->pipe_stdout, 0);
+            uv_pipe_init(loop, si->pipe_stdout, 0);
             si->pipe_stdout->data = si;
             process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
             process_stdio[1].data.stream = (uv_stream_t *)si->pipe_stdout;
@@ -692,7 +693,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         }
         if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_bytes)) {
             si->pipe_stderr = MVM_malloc(sizeof(uv_pipe_t));
-            uv_pipe_init(tc->loop, si->pipe_stderr, 0);
+            uv_pipe_init(loop, si->pipe_stderr, 0);
             si->pipe_stderr->data = si;
             process_stdio[2].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
             process_stdio[2].data.stream = (uv_stream_t *)si->pipe_stderr;
@@ -721,7 +722,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
 
     /* Attach data, spawn, report any error. */
     process->data = si;
-    spawn_result  = uv_spawn(tc->loop, process, &process_options);
+    spawn_result  = uv_spawn(loop, process, &process_options);
     if (spawn_result) {
         MVMObject *msg_box = NULL;
         si->state = STATE_DONE;
@@ -1155,4 +1156,105 @@ void MVM_proc_getrusage(MVMThreadContext *tc, MVMObject *result) {
     MVM_repr_bind_pos_i(tc, result, 15, usage.ru_nsignals);
     MVM_repr_bind_pos_i(tc, result, 16, usage.ru_nvcsw);
     MVM_repr_bind_pos_i(tc, result, 17, usage.ru_nivcsw);
+}
+
+/*
+
+Per Linux Programmer's Manual fork(2):
+
+       fork()  creates  a  new process by duplicating the calling process.  The new
+       process is referred to  as  the  child  process.   The  calling  process  is
+       referred to as the parent process.
+
+And:
+
+       *  The child process is created with a single  thread—the  one  that  called
+          fork().   The entire virtual address space of the parent is replicated in
+          the child, including the states  of  mutexes,  condition  variables,  and
+          other  pthreads  objects; the use of pthread_atfork(3) may be helpful for
+          dealing with problems that this can cause.
+
+       *  After a fork() in a multithreaded program, the child can safely call only
+          async-signal-safe  functions (see signal-safety(7)) until such time as it
+          calls execve(2).
+
+As it happens, MoarVM is inherently multithreaded - a spesh thread is started at
+startup, and an asynchronous IO thread is started on demand. A debugserver
+thread may also be started.
+
+So before we can fork, we have to pretend we're temporarily non-multithreaded.
+It is possible to stop the system threads because we have control over the locks
+they use and we can signal them to stop. Because we have no such control over
+user threads, we will not attempt to fork() in that case, and throw an exception
+instead.
+
+The simplest way of doing this that I can see is:
+
+- prevent other threads from starting the event loop
+- prevent other threads from modifying the threads list,
+  since we'll need to inspect it.
+
+*/
+
+MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
+    MVMInstance *instance = tc->instance;
+    const char *error = NULL;
+    MVMint32 alive = 0;
+    MVMint64 pid = -1;
+
+    if (!MVM_platform_supports_fork(tc))
+        MVM_exception_throw_adhoc(tc, "This platform does not support fork()");
+
+    /* Acquire the necessary locks. The event loop mutex will protect
+     * modification of the event loop. Nothing yet protects against the
+     * modification of the spesh worker, but this is currently the only code
+     * that it could conflict with. Maybe we need an explicit fork loop */
+    MVM_gc_mark_thread_blocked(tc);
+    uv_mutex_lock(&instance->mutex_event_loop);
+    MVM_gc_mark_thread_unblocked(tc);
+
+    /* Stop and join the system threads */
+    MVM_spesh_worker_stop(tc);
+    MVM_io_eventloop_stop(tc);
+    MVM_spesh_worker_join(tc);
+    MVM_io_eventloop_join(tc);
+    /* Allow MVM_io_eventloop_start to restart the thread if necessary */
+    instance->event_loop_thread = NULL;
+
+    MVM_gc_mark_thread_blocked(tc);
+    uv_mutex_lock(&instance->mutex_threads);
+    MVM_gc_mark_thread_unblocked(tc);
+
+    /* Check if we are single threaded and if true, fork() */
+    if (MVM_thread_cleanup_threads_list(tc, &instance->threads) == 1) {
+        pid = MVM_platform_fork(tc);
+    } else {
+        error = "Program has more than one active thread";
+    }
+
+    if (pid == 0) {
+        /* Reinitialize uv_loop_t after fork in child */
+        MVMThread *head = instance->threads;
+        for (; head != NULL; head = head->body.next)
+            uv_loop_fork(head->body.tc->loop);
+        if (instance->event_loop)
+            uv_loop_fork(instance->event_loop);
+    }
+
+    /* Release the thread lock, otherwise we can't start them */
+    uv_mutex_unlock(&instance->mutex_threads);
+    /* Without the mutex_event_loop being held, this might race */
+    MVM_spesh_worker_start(tc);
+
+    /* However, locks are nonrecursive, so unlocking is needed prior to
+     * restarting the event loop */
+    uv_mutex_unlock(&instance->mutex_event_loop);
+    if (instance->event_loop)
+        MVM_io_eventloop_start(tc);
+
+    if (error != NULL)
+        MVM_exception_throw_adhoc(tc, "fork() failed: %s\n", error);
+
+    return pid;
+
 }

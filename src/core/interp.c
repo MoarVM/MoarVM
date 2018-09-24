@@ -109,6 +109,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
      * program entry point). */
     initial_invoke(tc, invoke_data);
 
+    /* initial_invoke is supposed to have setup interpreter state; if it hasn't,
+     * it wasn't a 'real' thread. */
+    if (!cur_op)
+        goto return_label;
+
     /* Set jump point, for if we arrive back in the interpreter from an
      * exception thrown from C code. */
     setjmp(tc->interp_jump);
@@ -5382,6 +5387,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     : config->false_value;
                 cur_op += 6;
                 goto NEXT;
+            }
+            OP(fork): {
+                 GET_REG(cur_op, 0).i64 = MVM_proc_fork(tc);
+                 cur_op += 2;
+                 goto NEXT;
             }
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);

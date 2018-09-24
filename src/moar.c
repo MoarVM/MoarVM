@@ -168,7 +168,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->main_thread->last_payload = instance->VMNull;
 
     /* Initialize event loop thread starting mutex. */
-    init_mutex(instance->mutex_event_loop_start, "event loop thread start");
+    init_mutex(instance->mutex_event_loop, "event loop thread start");
 
     /* Create main thread object, and also make it the start of the all threads
      * linked list. Set up the mutex to protect it. */
@@ -362,7 +362,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     setup_std_handles(instance->main_thread);
 
     /* Set up the specialization worker thread and a log for the main thread. */
-    MVM_spesh_worker_setup(instance->main_thread);
+    MVM_spesh_worker_start(instance->main_thread);
     MVM_spesh_log_initialize_thread(instance->main_thread, 1);
 
     /* Back to nursery allocation, now we're set up. */
@@ -500,9 +500,15 @@ static void cleanup_callsite_interns(MVMInstance *instance) {
  * should clear up all resources and free all memory; in practice, it falls
  * short of this goal at the moment. */
 void MVM_vm_destroy_instance(MVMInstance *instance) {
+
     /* Join any foreground threads and flush standard handles. */
     MVM_thread_join_foreground(instance->main_thread);
     MVM_io_flush_standard_handles(instance->main_thread);
+
+    /* Stop system threads */
+    MVM_spesh_worker_stop(instance->main_thread);
+    MVM_spesh_worker_join(instance->main_thread);
+    MVM_io_eventloop_destroy(instance->main_thread);
 
     /* Run the GC global destruction phase. After this,
      * no 6model object pointers should be accessed. */
@@ -604,8 +610,8 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_free(instance->int_const_cache);
     MVM_free(instance->int_to_str_cache);
 
-    /* Clean up event loop starting mutex. */
-    uv_mutex_destroy(&instance->mutex_event_loop_start);
+    /* Clean up event loop mutex. */
+    uv_mutex_destroy(&instance->mutex_event_loop);
 
     /* Destroy main thread contexts and thread list mutex. */
     MVM_tc_destroy(instance->main_thread);

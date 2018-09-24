@@ -269,6 +269,9 @@ struct MVMInstance {
     /* Mutex taken when install specializations. */
     uv_mutex_t mutex_spesh_install;
 
+    /* The thread object representing the spesh thread */
+    MVMObject *spesh_thread;
+
     /* The concurrent queue used to send logs to spesh_thread, provided it
      * is enabled. */
     MVMObject *spesh_queue;
@@ -328,9 +331,9 @@ struct MVMInstance {
      * queue of tasks that need to be processed by the event loop thread
      * and an array of active tasks, for the purpose of keeping them GC
      * marked. */
-    MVMThreadContext *event_loop_thread;
-    uv_mutex_t        mutex_event_loop_start;
-    uv_sem_t          sem_event_loop_started;
+    MVMObject        *event_loop_thread;
+    uv_loop_t        *event_loop;
+    uv_mutex_t        mutex_event_loop;
     MVMObject        *event_loop_todo_queue;
     MVMObject        *event_loop_permit_queue;
     MVMObject        *event_loop_cancel_queue;
