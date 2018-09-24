@@ -24,8 +24,19 @@ struct MVMStaticFrameBody {
     MVMuint8 *static_env_flags;
 
     /* If the frame has state variables. */
-    MVMuint32 has_state_vars;
+    MVMuint8 has_state_vars;
 
+    /* Should we allocate the frame directly on the heap? Doing so may avoid
+     * needing to promote it there later. Set by measuring the number of times
+     * the frame is promoted to the heap relative to the number of times it is
+     * invoked, and then only pre-specialization. */
+    MVMuint8 allocate_on_heap;
+
+    /* Is the frame marked as not being allowed to inline? */
+    MVMuint8 no_inline;
+
+    /* Does the frame contain specializable instructions? */
+    MVMuint8 specializable;
     /* Zero if the frame was never invoked. Above zero is the instrumentation
      * level the VM was atlast time the frame was invoked. See MVMInstance for
      * the VM instance wide field for this. */
@@ -47,6 +58,9 @@ struct MVMStaticFrameBody {
 
     /* Count of lexicals. */
     MVMuint32 num_lexicals;
+
+    /* Count of annotations (see further down below */
+    MVMuint32              num_annotations;
 
     /* Inital contents of the work area, copied into place to make sure we have
      * VMNulls in all the object slots. */
@@ -73,18 +87,6 @@ struct MVMStaticFrameBody {
     /* Does the frame have an exit handler we need to run? */
     MVMuint8 has_exit_handler;
 
-    /* Should we allocate the frame directly on the heap? Doing so may avoid
-     * needing to promote it there later. Set by measuring the number of times
-     * the frame is promoted to the heap relative to the number of times it is
-     * invoked, and then only pre-specialization. */
-    MVMuint8 allocate_on_heap;
-
-    /* Is the frame marked as not being allowed to inline? */
-    MVMuint8 no_inline;
-
-    /* Does the frame contain specializable instructions? */
-    MVMuint8 specializable;
-
     /* The compilation unit unique ID of this frame. */
     MVMString *cuuid;
 
@@ -98,7 +100,6 @@ struct MVMStaticFrameBody {
     MVMCode *static_code;
 
     /* Annotation details */
-    MVMuint32              num_annotations;
     MVMuint8              *annotations_data;
 
     /* The original bytecode for this frame (before endian swapping). */

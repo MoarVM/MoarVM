@@ -61,10 +61,10 @@
  * Hence, a write barrier (MVM_ASSIGN_REF) is split into two parts:
 
  * + check_wb (root, value, label)
- * + hit_wb (root)
+ * + hit_wb (root, value)
 
  * You should have the label parameter point somewhere after hit_wb, and save
- * and restore your temporaries around the hib_wb.
+ * and restore your temporaries around the hit_wb.
  **/
 
 
@@ -107,10 +107,12 @@
 |.type SCREFBODY, MVMSerializationContextBody
 |.type NFGSYNTH, MVMNFGSynthetic
 |.type CODE, MVMCode
+|.type BIGINTBODY, MVMP6bigintBody
 |.type U8, MVMuint8
 |.type U16, MVMuint16
 |.type U32, MVMuint32
 |.type U64, MVMuint64
+|.type MPINT, mp_int
 
 
 /* Static allocation of relevant types to registers. I pick
@@ -236,10 +238,11 @@ const unsigned char * MVM_jit_actions(void) {
 | jnz lbl;
 |.endmacro;
 
-|.macro hit_wb, obj
+|.macro hit_wb, obj, value
+| mov ARG3, value
 | mov ARG2, obj;
 | mov ARG1, TC;
-| callp &MVM_gc_write_barrier_hit;
+| callp &MVM_gc_write_barrier_hit_by;
 |.endmacro
 
 |.macro get_spesh_slot, reg, idx;
@@ -367,6 +370,20 @@ static MVMint64 fits_in_32_bit(MVMint64 number) {
     /* Used to determine if a 64 bit integer can be safely used as a
      * 32 bit constant for immediate mode access */
     return (number >= INT32_MIN) && (number <= INT32_MAX);
+}
+
+static void emit_fastcreate(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                            MVMSpeshIns *ins) {
+    MVMuint16 size     = ins->operands[1].lit_i16;
+    MVMint16 spesh_idx = ins->operands[2].lit_i16;
+    | mov ARG1, TC;
+    | mov ARG2, size;
+    | callp &MVM_gc_allocate_nursery;
+    | get_spesh_slot TMP1, spesh_idx;
+    | mov aword OBJECT:RV->st, TMP1;  // st is 64 bit (pointer)
+    | mov word OBJECT:RV->header.size, size; // object size is 16 bit
+    | mov TMP1d, dword TC->thread_id;  // thread id is 32 bit
+    | mov dword OBJECT:RV->header.owner, TMP1d; // does this even work?
 }
 
 /* compile per instruction, can't really do any better yet */
@@ -549,10 +566,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | jz >1;
         | throw_adhoc "getlexreldyn needs a context"
         |1:
-        | mov ARG3, CONTEXT:TMP5->body.context;
+        | mov ARG2, TMP5
         | mov ARG1, TC
-        | mov ARG2, aword WORK[name];
-        | callp &MVM_frame_getdynlex;
+        | mov ARG3, aword WORK[name];
+        | callp &MVM_context_dynamic_lookup;
         | mov WORK[dst], RV;
         break;
     }
@@ -596,7 +613,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         if (lexical_types[idx] == MVM_reg_obj ||
             lexical_types[idx] == MVM_reg_str) {
             | check_wb TMP1, TMP3, >2;
-            | hit_wb TMP1;
+            | hit_wb TMP1, TMP3;
             |2:
         }
         break;
@@ -647,6 +664,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_sp_p6oget_i:
     case MVM_OP_sp_p6oget_n:
     case MVM_OP_sp_p6oget_s:
+    case MVM_OP_sp_p6oget_bi:
     case MVM_OP_sp_p6oget_o:
     case MVM_OP_sp_p6ogetvc_o:
     case MVM_OP_sp_p6ogetvt_o: {
@@ -683,7 +701,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             | check_wb TMP1, TMP3, >3;
             | mov qword [rbp-0x28], TMP2; // address
             | mov qword [rbp-0x30], TMP3; // value
-            | hit_wb WORK[obj]; // write barrier for header
+            | hit_wb WORK[obj], TMP3; // write barrier for header
             | mov TMP3, qword [rbp-0x30];
             | mov TMP2, qword [rbp-0x28];
             |3:
@@ -711,13 +729,26 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             | check_wb TMP1, TMP3, >3;
             | mov qword [rbp-0x28], TMP2; // address
             | mov qword [rbp-0x30], TMP3; // value
-            | hit_wb WORK[obj]; // write barrier for header
+            | hit_wb WORK[obj], TMP3; // write barrier for header
             | mov TMP3, qword [rbp-0x30];
             | mov TMP2, qword [rbp-0x28];
             |3:
             | mov qword [TMP2], TMP3;
             /* done */
             |4:
+        } else if (op == MVM_OP_sp_p6oget_bi) {
+            /* Big integer case */
+            | mov TMP4d, BIGINTBODY:TMP2->u.smallint.flag;
+            | cmp TMP4d, dword MVM_BIGINT_32_FLAG;
+            | jne >5;
+            | movsxd TMP3, dword BIGINTBODY:TMP2->u.smallint.value;
+            | jmp >6;
+            | 5:
+            | mov ARG1, TC;
+            | mov ARG2, TMP2;
+            | callp &MVM_p6bigint_get_int64;
+            | mov TMP3, RV;
+            | 6:
         } else {
             /* the regular case */
             | mov TMP3, [TMP2];
@@ -729,6 +760,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_sp_bind_i64:
     case MVM_OP_sp_bind_n:
     case MVM_OP_sp_bind_s:
+    case MVM_OP_sp_bind_s_nowb:
     case MVM_OP_sp_bind_o: {
         MVMint16 obj    = ins->operands[0].reg.orig;
         MVMint16 offset = ins->operands[1].lit_i16;
@@ -740,7 +772,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             | check_wb TMP1, TMP2, >2;
             /* note: it is uneccesary to store pointers, because they
                can just be loaded from memory */
-            | hit_wb WORK[obj];
+            | hit_wb WORK[obj], WORK[val];
             | mov TMP1, aword WORK[obj]; // reload object
             | mov TMP2, aword WORK[val]; // reload value
             |2: // done
@@ -801,7 +833,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             | check_wb TMP1, TMP2, >2;
             | mov qword [rbp-0x28], TMP2; // store value
             | mov qword [rbp-0x30], TMP3; // store body pointer
-            | hit_wb WORK[obj];
+            | hit_wb WORK[obj], WORK[val];
             | mov TMP3, qword [rbp-0x30]; // restore body pointer
             | mov TMP2, qword [rbp-0x28]; // restore value
             |2: // done
@@ -1685,18 +1717,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         break;
     }
     case MVM_OP_sp_fastcreate: {
-        MVMint16 dst       = ins->operands[0].reg.orig;
-        MVMuint16 size     = ins->operands[1].lit_i16;
-        MVMint16 spesh_idx = ins->operands[2].lit_i16;
-        | mov ARG1, TC;
-        | mov ARG2, size;
-        | callp &MVM_gc_allocate_nursery;
-        | get_spesh_slot TMP1, spesh_idx;
-        | mov aword OBJECT:RV->st, TMP1;  // st is 64 bit (pointer)
-        | mov word OBJECT:RV->header.size, size; // object size is 16 bit
-        | mov TMP1d, dword TC->thread_id;  // thread id is 32 bit
-        | mov dword OBJECT:RV->header.owner, TMP1d; // does this even work?
-        | mov aword WORK[dst], RV; // store in local register
+        MVMint16 dst = ins->operands[0].reg.orig;
+        emit_fastcreate(tc, compiler, jg, ins);
+        | mov aword WORK[dst], RV;
         break;
     }
     case MVM_OP_decont:
@@ -2204,6 +2227,170 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov64 TMP1, true_value;
         |2:
         | mov WORK[target], TMP1;
+        break;
+    }
+    case MVM_OP_sp_fastbox_i:
+    case MVM_OP_sp_fastbox_i_ic:
+    case MVM_OP_sp_fastbox_bi:
+    case MVM_OP_sp_fastbox_bi_ic: {
+        MVMint32 use_cache = op == MVM_OP_sp_fastbox_i_ic || op == MVM_OP_sp_fastbox_bi_ic;
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 offset = ins->operands[3].lit_i16;
+        MVMint16 val = ins->operands[4].reg.orig;
+        if (use_cache) {
+            MVMObject **cache = tc->instance->int_const_cache->cache[ins->operands[5].lit_i16];
+            MVMint16 dst = ins->operands[0].reg.orig;
+            | mov TMP1, WORK[val]
+            | cmp TMP1, 14
+            | jg >1
+            | cmp TMP1, -1
+            | jl >1
+            | inc TMP1
+            | mov64 TMP2, (MVMuint64)cache
+            | mov TMP2, [TMP2 + TMP1 * 8]
+            | mov WORK[dst], TMP2
+            | jmp >2
+            |1:
+        }
+        emit_fastcreate(tc, compiler, jg, ins);
+        | mov aword WORK[dst], RV;
+        | mov TMP3, WORK[val];
+        if (op == MVM_OP_sp_fastbox_i || op == MVM_OP_sp_fastbox_i_ic) {
+            /* Normal integer */
+            | mov qword [RV+offset], TMP3;
+        }
+        else {
+            /* Big integer; if it's in smallint range we poke it in directly,
+             * and if not we do a function call to create a bigint. */
+            MVMuint16 val_offset = offset + 4;
+            | cmp TMP3, qword 2147483647LL
+            | jg >3
+            | cmp TMP3, qword -2147483648LL
+            | jl >3
+            | mov dword [RV+offset], MVM_BIGINT_32_FLAG
+            | mov dword [RV+val_offset], TMP3d
+            | jmp >4
+            |3:
+            | mov ARG1, RV
+            | add ARG1, offset
+            | mov ARG2, TMP3
+            | callp &MVM_p6bigint_store_as_mp_int;
+            |4:
+        }
+        if (use_cache) {
+            |2:
+        }
+        break;
+    }
+    case MVM_OP_sp_add_I:
+    case MVM_OP_sp_sub_I:
+    case MVM_OP_sp_mul_I: {
+        MVMint16 a = ins->operands[3].reg.orig;
+        MVMint16 b = ins->operands[4].reg.orig;
+        MVMint16 c = ins->operands[0].reg.orig;
+        MVMint16 offset = ins->operands[5].lit_i16;
+        MVMint16 val_offset = offset + 4;
+        MVMObject **cache = tc->instance->int_const_cache->cache[ins->operands[6].lit_i16];
+
+        /* See if they're both smallint. */
+        | mov TMP1, WORK[a];
+        | mov TMP2, WORK[b];
+        | mov TMP4d, dword [TMP1 + offset];
+        | cmp TMP4d, MVM_BIGINT_32_FLAG;
+        | jne >1;
+        | mov TMP4d, dword [TMP2 + offset];
+        | cmp TMP4d, MVM_BIGINT_32_FLAG;
+        | jne >1;
+
+        /* Both smallint, so try to do the addition. If it overflows, fall
+         * back to the slow path. */
+        | mov TMP4d, dword [TMP1 + val_offset]
+        switch (op) {
+            case MVM_OP_sp_add_I:
+                | add TMP4d, dword [TMP2 + val_offset]
+                break;
+            case MVM_OP_sp_sub_I:
+                | sub TMP4d, dword [TMP2 + val_offset]
+                break;
+            case MVM_OP_sp_mul_I:
+                | imul TMP4d, dword [TMP2 + val_offset]
+                break;
+        }
+        | jo >1
+
+        /* No overflow. See if it's in integer cache range. */
+        | cmp TMP4d, 14
+        | jg >2
+        | cmp TMP4d, -1
+        | jl >2
+        | inc TMP4d
+        | mov64 TMP2, (MVMuint64)cache
+        | mov TMP2, [TMP2 + TMP4d * 8]
+        | mov WORK[c], TMP2
+        | jmp >3
+        |2:
+        | mov dword [rbp-0x30], TMP4d;
+        emit_fastcreate(tc, compiler, jg, ins);
+        | mov aword WORK[c], RV;
+        | mov TMP4d, dword [rbp-0x30];
+        | mov dword [RV + offset], MVM_BIGINT_32_FLAG
+        | mov dword [RV + val_offset], TMP4d
+        | mov WORK[c], RV
+        | jmp >3
+
+        /* The slow path does a function call. Make sure to read the args
+         * before storing the result value, in case they're aimed at the
+         * same register. */
+        |1:
+        emit_fastcreate(tc, compiler, jg, ins);
+        | mov ARG1, TC;
+        | mov ARG2, WORK[a];
+        | add ARG2, offset
+        | mov ARG3, WORK[b];
+        | add ARG3, offset
+        | mov aword WORK[c], RV;
+        | mov ARG4, RV;
+        | add ARG4, offset
+        switch (op) {
+            case MVM_OP_sp_add_I:
+                | callp &MVM_bigint_fallback_add;
+                break;
+            case MVM_OP_sp_sub_I:
+                | callp &MVM_bigint_fallback_sub;
+                break;
+            case MVM_OP_sp_mul_I:
+                | callp &MVM_bigint_fallback_mul;
+                break;
+        }
+        |3:
+        break;
+    }
+    case MVM_OP_sp_bool_I: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 a = ins->operands[1].reg.orig;
+        MVMint16 offset = ins->operands[2].lit_i16;
+        MVMint16 val_offset = offset + 4;
+        /* Is this a smallint? */
+        | mov TMP1, WORK[a];
+        | mov TMP4d, dword [TMP1 + offset];
+        | cmp TMP4d, MVM_BIGINT_32_FLAG;
+        | jne >1;
+        /* Smallbigint. Test the 32bit value for nonzero. */
+        | mov TMP4d, dword [TMP1 + val_offset]
+        | test TMP4d, TMP4d;
+        | setnz TMP3b;
+        | movzx TMP3, TMP3b;
+        | mov WORK[dst], TMP3;
+        | jmp >2
+        |1:
+        /* Bigint; check a->used for nonzero. */
+        | mov TMP4, [TMP1 + offset]
+        | mov TMP3d, dword MPINT:TMP4->used;
+        | test TMP3d, TMP3d;
+        | setnz TMP3b;
+        | movzx TMP3, TMP3b;
+        | mov WORK[dst], TMP3;
+        |2:
         break;
     }
     default:
@@ -2717,13 +2904,6 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
     MVM_jit_log(tc, "emit guard <%s>\n", guard->ins->info->name);
     /* load object and spesh slot value, except for those that don't need it */
     | mov TMP1, WORK[obj];
-    /* most of the time a guard destination is the same real register, but if
-     * not then emit a store. */
-    if (op != MVM_OP_sp_guardsf) {
-        MVMint16 dest = guard->ins->operands[0].reg.orig;
-        if (dest != obj)
-            | mov WORK[dest], TMP1
-    }
     if (op != MVM_OP_sp_guardjustconc && op != MVM_OP_sp_guardjusttype) {
         MVMint16 spesh_idx = guard->ins->operands[op == MVM_OP_sp_guardsf ? 1 : 2].lit_i16;
         | get_spesh_slot TMP2, spesh_idx;
@@ -2796,7 +2976,14 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
         | test_type_object TMP1;
         | jz >1;
     }
-    /* if we're here, we didn't jump to deopt, so skip it */
+    /* If we're here, we didn't jump to deopt. Most of the time a guard
+     * destination is the same real register, but if not then emit a store
+     * here before jumping over the deopt code. */
+    if (op != MVM_OP_sp_guardsf) {
+        MVMint16 dest = guard->ins->operands[0].reg.orig;
+        if (dest != obj)
+            | mov WORK[dest], TMP1
+    }
     | jmp >2;
     |1:
     /* emit deopt */

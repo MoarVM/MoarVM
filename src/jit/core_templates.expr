@@ -1716,14 +1716,14 @@
                    (carg (tc) ptr)
                    (carg $4   ptr)) ptr_sz)))
     (dov
-      (store \$0 $res ptr_sz)
       (callv (^func &MVM_bigint_expmod)
         (arglist
           (carg (tc) ptr)
           (carg $res ptr)
           (carg $1   ptr)
           (carg $2   ptr)
-          (carg $3   ptr))))))
+          (carg $3   ptr)))
+      (store \$0 $res ptr_sz))))
 
 (template: isprime_I
   (call (^func &MVM_bigint_is_prime)

@@ -13,17 +13,16 @@ static void copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 to_orig
     tfacts->type          = ffacts->type;
     tfacts->decont_type   = ffacts->decont_type;
     tfacts->value         = ffacts->value;
-    tfacts->log_guard     = ffacts->log_guard;
+    tfacts->log_guards    = ffacts->log_guards;
+    tfacts->num_log_guards = ffacts->num_log_guards;
 }
 
 /* Called when one set of facts depend on another, allowing any log guard
  * that is to thank to be marked used as needed later on. */
 void MVM_spesh_facts_depend(MVMThreadContext *tc, MVMSpeshGraph *g,
                             MVMSpeshFacts *target, MVMSpeshFacts *source) {
-    if (source->flags & MVM_SPESH_FACT_FROM_LOG_GUARD) {
-        target->flags     |= MVM_SPESH_FACT_FROM_LOG_GUARD;
-        target->log_guard  = source->log_guard;
-    }
+    target->log_guards = source->log_guards;
+    target->num_log_guards = source->num_log_guards;
 }
 
 /* Handles object-creating instructions. */
@@ -357,8 +356,10 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         MVMSpeshOperand guard_reg = ins->operands[0];
         MVMSpeshOperand preguard_reg = MVM_spesh_manipulate_new_version(tc, g,
                 ins->operands[0].reg.orig);
+        MVMSpeshFacts *pre_facts = &g->facts[preguard_reg.reg.orig][preguard_reg.reg.i];
         MVMSpeshFacts *facts = &g->facts[guard_reg.reg.orig][guard_reg.reg.i];
         ins->operands[0] = preguard_reg;
+        pre_facts->writer = ins;
 
         /* Add facts and choose guard op. */
         facts->type = agg_type;
@@ -392,6 +393,8 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             MVM_spesh_manipulate_insert_ins(tc, bb, ins, guard);
         else
             MVM_spesh_manipulate_insert_ins(tc, bb->linear_next, NULL, guard);
+        facts->writer = guard;
+        MVM_spesh_usages_add_by_reg(tc, g, preguard_reg, guard);
 
         /* Move deopt annotation to the guard instruction. */
         ann = ins->annotations;
@@ -410,6 +413,10 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         deopt_one_ann->next = NULL;
         guard->annotations = deopt_one_ann;
 
+        /* Move deopt usages to the preguard register. */
+        pre_facts->usage.deopt_users = facts->usage.deopt_users;
+        facts->usage.deopt_users = NULL;
+
         /* Add entry in log guards table, and mark facts as depending on it. */
         if (g->num_log_guards % 16 == 0) {
             MVMSpeshLogGuard *orig_log_guards = g->log_guards;
@@ -421,8 +428,9 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         }
         g->log_guards[g->num_log_guards].ins = guard;
         g->log_guards[g->num_log_guards].bb = ins->next ? bb : bb->linear_next;
-        facts->flags |= MVM_SPESH_FACT_FROM_LOG_GUARD;
-        facts->log_guard = g->num_log_guards;
+        facts->log_guards = MVM_spesh_alloc(tc, g, sizeof(MVMint32));
+        facts->log_guards[0] = g->num_log_guards;
+        facts->num_log_guards++;
         g->num_log_guards++;
     }
 }
@@ -453,37 +461,8 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         if (p && ann_deopt_one && ann_logged && ins->info->opcode != MVM_OP_speshresolve)
             log_facts(tc, g, bb, ins, p, ann_deopt_one, ann_logged);
 
-        /* Look through operands for reads and writes. */
-        is_phi = ins->info->opcode == MVM_SSA_PHI;
-        for (i = 0; i < ins->info->num_operands; i++) {
-            /* Reads need usage tracking. */
-            if ((is_phi && i > 0)
-                || (!is_phi && (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)) {
-                MVMSpeshFacts *facts = &(g->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i]);
-                MVM_spesh_usages_add(tc, g, facts, ins);
-            }
-
-            /* Writes need the writing instruction to be specified. */
-            if ((is_phi && i == 0)
-                || (!is_phi && (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_write_reg)) {
-                MVMSpeshFacts *facts = &(g->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i]);
-                facts->writer    = ins;
-            }
-        }
-
         /* Look for ops that are fact-interesting. */
         switch (ins->info->opcode) {
-        case MVM_OP_inc_i:
-        case MVM_OP_inc_u:
-        case MVM_OP_dec_i:
-        case MVM_OP_dec_u: {
-            /* These all read as well as write a value, so bump usages. */
-            MVMSpeshOperand reader;
-            reader.reg.orig = ins->operands[0].reg.orig;
-            reader.reg.i = ins->operands[0].reg.i - 1;
-            MVM_spesh_usages_add_by_reg(tc, g, reader, ins);
-            break;
-        }
         case MVM_OP_set:
             copy_facts(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
@@ -495,6 +474,13 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[1].reg.orig, ins->operands[1].reg.i);
             break;
         case MVM_OP_sp_fastcreate:
+        case MVM_OP_sp_fastbox_i:
+        case MVM_OP_sp_fastbox_bi:
+        case MVM_OP_sp_fastbox_i_ic:
+        case MVM_OP_sp_fastbox_bi_ic:
+        case MVM_OP_sp_add_I:
+        case MVM_OP_sp_sub_I:
+        case MVM_OP_sp_mul_I:
             create_facts_with_type(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ((MVMSTable *)g->spesh_slots[ins->operands[2].lit_i16])->WHAT);
@@ -739,6 +725,10 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             g->facts[result.reg.orig][result.reg.i].flags |= MVM_SPESH_FACT_DECONTED;
             break;
         }
+        case MVM_OP_setdispatcher:
+        case MVM_OP_setdispatcherfor:
+            g->sets_dispatcher = 1;
+            break;
         case MVM_OP_sp_guard:
         case MVM_OP_sp_guardconc:
         case MVM_OP_sp_guardtype:
@@ -777,8 +767,8 @@ static void tweak_block_handler_usage(MVMThreadContext *tc, MVMSpeshGraph *g) {
 /* Kicks off fact discovery from the top of the (dominator) tree. */
 void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p,
         MVMuint32 is_specialized) {
-    /* The facts pass sets up usage normal usage information. */
-    add_bb_facts(tc, g, g->entry, p);
+    /* Set up normal usage information. */
+    MVM_spesh_usages_create_usage(tc, g);
     tweak_block_handler_usage(tc, g);
 
     /* We do an initial dead instruction pass before then computing the deopt
@@ -791,4 +781,7 @@ void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPl
         MVM_spesh_eliminate_dead_ins(tc, g);
         MVM_spesh_usages_create_deopt_usage(tc, g);
     }
+
+    /* Finally, collect facts. */
+    add_bb_facts(tc, g, g->entry, p);
 }

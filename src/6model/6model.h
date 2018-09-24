@@ -149,6 +149,10 @@ typedef enum {
     /* Has this item been chained into a gen2 freelist? This is only used in
      * GC debug more. */
     MVM_CF_DEBUG_IN_GEN2_FREE_LIST = 4096,
+
+    /* Is this object a nursery object that has been referenced from gen2?
+     * Used to promote it earlier. */
+    MVM_CF_REF_FROM_GEN2 = 8192,
 } MVMCollectableFlags;
 
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX

@@ -110,6 +110,9 @@ struct MVMSpeshGraph {
 
     /* Did we specialize on the invocant type? */
     MVMuint8 specialized_on_invocant;
+
+    /* Do we set a dispatcher? */
+    MVMuint8 sets_dispatcher;
 };
 
 /* A temporary register, added to support transformations. */
@@ -174,6 +177,9 @@ struct MVMSpeshBB {
 
     /* Is this block an inlining of another one? */
     MVMint8 inlined;
+
+    /* Is this block an inline of one that may cause deopt? */
+    MVMint8 inlined_may_cause_deopt;
 
     /* Is this basic block part of a jump list? */
     MVMint8 jumplist;
@@ -245,6 +251,7 @@ struct MVMSpeshAnn {
             MVMuint32 filename_string_index;
             MVMuint32 line_number;
         } lineno;
+        char *comment;
     } data;
 };
 
@@ -261,6 +268,7 @@ struct MVMSpeshAnn {
 #define MVM_SPESH_ANN_LINENO        10
 #define MVM_SPESH_ANN_LOGGED        11
 #define MVM_SPESH_ANN_DEOPT_SYNTH   12
+#define MVM_SPESH_ANN_COMMENT       4096
 
 /* Functions to create/destroy the spesh graph. */
 MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
@@ -276,6 +284,9 @@ void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist 
 void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g);
 MVM_PUBLIC void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes);
 MVMOpInfo *get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint32 nrargs);
+
+MVM_PUBLIC void MVM_spesh_graph_add_comment(MVMThreadContext *tc, MVMSpeshGraph *g,
+    MVMSpeshIns *ins, const char *fmt, ...);
 
 MVM_STATIC_INLINE MVMuint32 MVM_spesh_is_inc_dec_op(MVMuint16 opcode) {
     return opcode == MVM_OP_inc_i || opcode == MVM_OP_dec_i ||

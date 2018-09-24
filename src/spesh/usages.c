@@ -40,6 +40,54 @@ void MVM_spesh_usages_add_for_handler_by_reg(MVMThreadContext *tc, MVMSpeshGraph
     MVM_spesh_usages_add_for_handler(tc, g, MVM_spesh_get_facts(tc, g, used));
 }
 
+/* Takes a spesh graph and adds usage information. */
+static void add_usage_for_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
+    MVMint32 i;
+    MVMSpeshIns *ins = bb->first_ins;
+    while (ins) {
+        /* Look through operands for reads and writes. */
+        MVMint32 is_phi = ins->info->opcode == MVM_SSA_PHI;
+        for (i = 0; i < ins->info->num_operands; i++) {
+            /* Reads need usage tracking. */
+            if ((is_phi && i > 0)
+                || (!is_phi && (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)) {
+                MVMSpeshFacts *facts = &(g->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i]);
+                MVM_spesh_usages_add(tc, g, facts, ins);
+            }
+
+            /* Writes need the writing instruction to be specified. */
+            if ((is_phi && i == 0)
+                || (!is_phi && (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_write_reg)) {
+                MVMSpeshFacts *facts = &(g->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i]);
+                facts->writer    = ins;
+            }
+        }
+
+        /* These all read as well as write a value, so bump usages. */
+        switch (ins->info->opcode) {
+            case MVM_OP_inc_i:
+            case MVM_OP_inc_u:
+            case MVM_OP_dec_i:
+            case MVM_OP_dec_u: {
+                MVMSpeshOperand reader;
+                reader.reg.orig = ins->operands[0].reg.orig;
+                reader.reg.i = ins->operands[0].reg.i - 1;
+                MVM_spesh_usages_add_by_reg(tc, g, reader, ins);
+                break;
+            }
+        }
+
+        ins = ins->next;
+    }
+
+    /* Visit children. */
+    for (i = 0; i < bb->num_children; i++)
+        add_usage_for_bb(tc, g, bb->children[i]);
+}
+void MVM_spesh_usages_create_usage(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    add_usage_for_bb(tc, g, g->entry);
+}
+
 /* Takes a spesh graph with DU chains already build and correct, and builds up
  * deopt use chains for it. The algorithm keeps track of writers with reads
  * that have not yet been observed, and when we reach a deopt point adds the

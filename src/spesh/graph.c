@@ -63,6 +63,35 @@ void MVM_spesh_graph_add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g
     g->num_deopt_addrs++;
 }
 
+MVM_FORMAT(printf, 4, 5)
+MVM_PUBLIC void MVM_spesh_graph_add_comment(MVMThreadContext *tc, MVMSpeshGraph *g,
+    MVMSpeshIns *ins, const char *fmt, ...) {
+    size_t size;
+    char *comment;
+    va_list ap;
+    MVMSpeshAnn *ann;
+
+    if (!MVM_spesh_debug_enabled(tc))
+        return;
+
+    va_start(ap, fmt);
+
+    size = vsnprintf(NULL, 0, fmt, ap);
+    comment = MVM_spesh_alloc(tc, g, ++size);
+
+    va_end(ap);
+
+    ann               = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+    ann->type         = MVM_SPESH_ANN_COMMENT;
+    ann->data.comment = comment;
+    ann->next         = ins->annotations;
+    ins->annotations  = ann;
+
+    va_start(ap, fmt);
+    vsnprintf(comment, size, fmt, ap);
+    va_end(ap);
+}
+
 /* Records the current bytecode position as a logged annotation. Used for
  * resolving logged values. */
 static void add_logged_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins_node,
@@ -379,8 +408,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     /* Annotate instructions that are handler-significant. */
     for (i = 0; i < g->num_handlers; i++) {
         /* Start or got may be -1 if the code the handler covered became
-         * dead. If so, mark the handler as removed. */
-        if (g->handlers[i].start_offset == -1 || g->handlers[i].goto_offset == -1) {
+         * dead. If so, mark the handler as removed. Ditto if end is
+         * before start (would never match). */
+        if (g->handlers[i].start_offset == -1 || g->handlers[i].goto_offset == -1 ||
+                g->handlers[i].start_offset > g->handlers[i].end_offset) {
             if (!g->unreachable_handlers)
                 g->unreachable_handlers = MVM_spesh_alloc(tc, g, g->num_handlers);
             g->unreachable_handlers[i] = 1;
@@ -544,6 +575,9 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
              * mark it as an active handler. Unmark those where we see the
              * end of the handler. */
             if (cur_bb->first_ins->annotations) {
+                /* Process them in two passes in case we have two on the
+                 * same instruction and disordered. */
+                MVMuint32 has_end = 0;
                 MVMSpeshAnn *ann = cur_bb->first_ins->annotations;
                 while (ann) {
                     switch (ann->type) {
@@ -554,13 +588,24 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                             }
                             break;
                         case MVM_SPESH_ANN_FH_END:
-                            if (!is_catch_handler(tc, g, ann->data.frame_handler_index)) {
-                                active_handlers[ann->data.frame_handler_index] = 0;
-                                num_active_handlers--;
-                            }
+                            has_end = 1;
                             break;
                     }
                     ann = ann->next;
+                }
+                if (has_end) {
+                    ann = cur_bb->first_ins->annotations;
+                    while (ann) {
+                        switch (ann->type) {
+                            case MVM_SPESH_ANN_FH_END:
+                                if (!is_catch_handler(tc, g, ann->data.frame_handler_index)) {
+                                    active_handlers[ann->data.frame_handler_index] = 0;
+                                    num_active_handlers--;
+                                }
+                                break;
+                        }
+                        ann = ann->next;
+                    }
                 }
             }
 
@@ -707,6 +752,7 @@ static void insert_object_null_instructions(MVMThreadContext *tc, MVMSpeshGraph 
             null_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand));
             null_ins->operands[0].reg.orig = i;
             MVM_spesh_manipulate_insert_ins(tc, insert_bb, insert_after, null_ins);
+            insert_after = null_ins;
         }
     }
 }

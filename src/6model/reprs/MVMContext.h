@@ -33,6 +33,7 @@ const MVMREPROps * MVMContext_initialize(MVMThreadContext *tc);
 MVM_PUBLIC MVMObject * MVM_context_from_frame(MVMThreadContext *tc, MVMFrame *f);
 MVMObject * MVM_context_apply_traversal(MVMThreadContext *tc, MVMContext *ctx, MVMuint8 traversal);
 MVMFrame * MVM_context_get_frame(MVMThreadContext *tc, MVMContext *ctx);
+MVMFrame * MVM_context_get_frame_or_outer(MVMThreadContext *tc, MVMContext *ctx);
 MVMObject * MVM_context_lexicals_as_hash(MVMThreadContext *tc, MVMContext *ctx);
 MVMint64 MVM_context_lexical_primspec(MVMThreadContext *tc, MVMContext *ctx, MVMString *name);
 MVMObject * MVM_context_get_code(MVMThreadContext *tc, MVMContext *ctx);

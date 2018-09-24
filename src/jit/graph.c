@@ -1723,6 +1723,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_p6oget_n:
     case MVM_OP_sp_p6ogetvc_o:
     case MVM_OP_sp_p6ogetvt_o:
+    case MVM_OP_sp_p6oget_bi:
     case MVM_OP_sp_p6obind_i:
     case MVM_OP_sp_p6obind_n:
     case MVM_OP_sp_p6obind_s:
@@ -1730,6 +1731,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_bind_i64:
     case MVM_OP_sp_bind_n:
     case MVM_OP_sp_bind_s:
+    case MVM_OP_sp_bind_s_nowb:
     case MVM_OP_sp_bind_o:
     case MVM_OP_sp_get_i64:
     case MVM_OP_sp_get_n:
@@ -1826,6 +1828,16 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_cas_o:
     case MVM_OP_sp_atomicload_o:
     case MVM_OP_sp_atomicstore_o:
+        /* Specialized boxings */
+    case MVM_OP_sp_fastbox_i:
+    case MVM_OP_sp_fastbox_i_ic:
+    case MVM_OP_sp_fastbox_bi:
+    case MVM_OP_sp_fastbox_bi_ic:
+        /* Specialized boxings */
+    case MVM_OP_sp_add_I:
+    case MVM_OP_sp_sub_I:
+    case MVM_OP_sp_mul_I:
+    case MVM_OP_sp_bool_I:
         jg_append_primitive(tc, jg, ins);
         break;
         /* Unspecialized parameter access */

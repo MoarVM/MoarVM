@@ -117,6 +117,8 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
     while (cur_ins) {
         MVMSpeshAnn *ann = cur_ins->annotations;
         MVMuint32 line_number;
+        MVMuint32 pop_inlines = 0;
+        MVMuint32 num_comments = 0;
 
         while (ann) {
             /* These four annotations carry a deopt index that we can find a
@@ -162,7 +164,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                 case MVM_SPESH_ANN_INLINE_END:
                     appendf(ds, "      [Annotation: Inline End (%d)]\n",
                         ann->data.inline_idx);
-                    pop_inline(tc, inline_stack);
+                    pop_inlines++;
                     break;
                 case MVM_SPESH_ANN_DEOPT_INLINE:
                     appendf(ds, "      [Annotation: INS Deopt Inline (idx %d -> pc %d; line %d)]\n",
@@ -173,12 +175,20 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         ann->data.deopt_idx, g->deopt_addrs[2 * ann->data.deopt_idx], line_number);
                     break;
                 case MVM_SPESH_ANN_LINENO: {
-                    char *cstr = MVM_string_utf8_encode_C_string(tc,
-                        MVM_cu_string(tc, get_current_cu(tc, g, inline_stack),
-                        ann->data.lineno.filename_string_index));
-                    appendf(ds, "      [Annotation: Line Number: %s:%d]\n",
-                        cstr, ann->data.lineno.line_number);
-                    MVM_free(cstr);
+                    char *cstr;
+                    MVMCompUnit *cu = get_current_cu(tc, g, inline_stack);
+                    if (cu->body.num_strings < ann->data.lineno.filename_string_index) {
+                        appendf(ds, "      [Annotation: Line Number: <out of bounds>:%d]\n",
+                        ann->data.lineno.line_number);
+                    }
+                    else {
+                        cstr = MVM_string_utf8_encode_C_string(tc,
+                            MVM_cu_string(tc, get_current_cu(tc, g, inline_stack),
+                            ann->data.lineno.filename_string_index));
+                        appendf(ds, "      [Annotation: Line Number: %s:%d]\n",
+                            cstr, ann->data.lineno.line_number);
+                        MVM_free(cstr);
+                    }
                     break;
                 }
                 case MVM_SPESH_ANN_LOGGED:
@@ -189,10 +199,25 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                     appendf(ds, "      [Annotation: INS Deopt Synth (idx %d)]\n",
                         ann->data.deopt_idx);
                     break;
+                case MVM_SPESH_ANN_COMMENT:
+                    num_comments++;
+                    break;
                 default:
                     appendf(ds, "      [Annotation: %d (unknown)]\n", ann->type);
             }
             ann = ann->next;
+        }
+        while (pop_inlines--)
+            pop_inline(tc, inline_stack);
+
+        if (num_comments > 1) {
+            ann = cur_ins->annotations;
+            while (ann) {
+                if (ann->type == MVM_SPESH_ANN_COMMENT) {
+                    appendf(ds, "      # %s\n", ann->data.comment);
+                }
+                ann = ann->next;
+            }
         }
 
         appendf(ds, "      %-15s ", cur_ins->info->name);
@@ -369,6 +394,16 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                     }
                 } else {
                     appendf(ds, " (not deserialized)");
+                }
+            }
+            if (num_comments == 1) {
+                ann = cur_ins->annotations;
+                while (ann) {
+                    if (ann->type == MVM_SPESH_ANN_COMMENT) {
+                        appendf(ds, "  # %s", ann->data.comment);
+                        break;
+                    }
+                    ann = ann->next;
                 }
             }
         }

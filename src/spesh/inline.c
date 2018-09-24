@@ -164,6 +164,18 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     return 1;
 }
 
+/* Gets the effective size for inlining considerations of a specialization,
+ * which is its code size minus the code size of its inlines. */
+MVMint32 get_effective_size(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
+    MVMint32 result = cand->bytecode_size;
+    MVMuint32 i;
+    for (i = 0; i < cand->num_inlines; i++)
+        result -= cand->inlines[i].bytecode_size;
+    if (result < 0)
+        result = 0;
+    return (MVMuint32)result;
+}
+
 /* Sees if it will be possible to inline the target code ref, given we could
  * already identify a spesh candidate. Returns NULL if no inlining is possible
  * or a graph ready to be merged if it will be possible. */
@@ -171,12 +183,13 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
                                                MVMStaticFrame *target_sf,
                                                MVMSpeshCandidate *cand,
                                                MVMSpeshIns *invoke_ins,
-                                               char **no_inline_reason) {
+                                               char **no_inline_reason,
+                                               MVMuint32 *effective_size) {
     MVMSpeshGraph *ig;
 
     /* Check bytecode size is within the inline limit. */
-    if (cand->bytecode_size > MVM_SPESH_MAX_INLINE_SIZE &&
-            target_sf->body.bytecode_size > MVM_SPESH_MAX_INLINE_SIZE) {
+    *effective_size = get_effective_size(tc, cand);
+    if (*effective_size > MVM_SPESH_MAX_INLINE_SIZE) {
         *no_inline_reason = "bytecode is too large to inline";
         return NULL;
     }
@@ -409,7 +422,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
                  MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins,
                  MVMSpeshOperand code_ref_reg,
-                 MVMuint32 *inline_boundary_handler) {
+                 MVMuint32 *inline_boundary_handler, MVMuint16 bytecode_size) {
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
     MVMint32        i, orig_inlines, total_inlines, orig_deopt_addrs;
@@ -475,6 +488,14 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     rewrite_outer_lookup(tc, inliner, ins, inliner->num_locals,
                         MVM_OP_sp_getlexvia_ins, code_ref_reg);
             }
+            else if (opcode == MVM_OP_takedispatcher) {
+                /* If the inlining code doesn't set a dispatcher, takedispatcher
+                 * in the inlinee can be assumed to always return null. */
+                if (!inliner->sets_dispatcher && !inlinee->sets_dispatcher) {
+                    ins->info = MVM_op_get_op(MVM_OP_null);
+                    ins->operands[0].reg.orig += inliner->num_locals;
+                }
+            }
             else {
                 if (!same_comp_unit) {
                     if (ins->info->opcode == MVM_OP_const_s) {
@@ -531,6 +552,18 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         bb = bb->linear_next;
     }
 
+    /* If we saw that we may deopt anywhere, mark the basic blocks of the
+     * inline as maybe deopting; this prevents us doing too aggressive
+     * optimizations within them. */
+    if (may_cause_deopt) {
+        bb = inlinee->entry;
+        while (bb) {
+            bb->inlined_may_cause_deopt = 1;
+            bb = bb->linear_next;
+        }
+    }
+
+    /* Link inlinee BBs into the linear next chain. */
     bb = invoke_bb->linear_next;
     invoke_bb->linear_next = inlinee_first_bb = inlinee->entry->linear_next;
     inlinee_last_bb->linear_next = bb;
@@ -617,6 +650,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         inliner->inlines[i].locals_start += inliner->num_locals;
         inliner->inlines[i].lexicals_start += inliner->num_lexicals;
         inliner->inlines[i].return_deopt_idx += orig_deopt_addrs;
+        inliner->inlines[i].bytecode_size = 0;
     }
     inliner->inlines[total_inlines - 1].sf             = inlinee_sf;
     inliner->inlines[total_inlines - 1].code_ref_reg   = code_ref_reg.reg.orig;
@@ -651,6 +685,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     inliner->inlines[total_inlines - 1].deopt_named_used_bit_field =
         inlinee->deopt_named_used_bit_field;
     inliner->inlines[total_inlines - 1].may_cause_deopt = may_cause_deopt;
+    inliner->inlines[total_inlines - 1].bytecode_size   = bytecode_size;
     inliner->num_inlines = total_inlines;
 
     /* Create/update per-specialization local and lexical type maps. */
@@ -788,12 +823,14 @@ static void tweak_succ(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
 /* Finds return instructions and re-writes them into gotos, doing any needed
  * boxing or unboxing. */
 static void return_to_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *return_ins, MVMSpeshOperand target) {
+    MVMSpeshOperand ver_target = MVM_spesh_manipulate_new_version(tc, g, target.reg.orig);
     MVMSpeshOperand *operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
-    operands[0]               = target;
+    operands[0]               = ver_target;
     operands[1]               = return_ins->operands[0];
     return_ins->info          = MVM_op_get_op(MVM_OP_set);
     return_ins->operands      = operands;
-    MVM_spesh_get_facts(tc, g, target)->writer = return_ins;
+    MVM_spesh_get_facts(tc, g, ver_target)->writer = return_ins;
+    MVM_spesh_copy_facts(tc, g, operands[0], operands[1]);
 }
 
 static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *return_bb,
@@ -802,15 +839,16 @@ static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *re
     MVMSpeshOperand type_temp     = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
 
     /* Create and insert boxing instruction after current return instruction. */
+    MVMSpeshOperand ver_target = MVM_spesh_manipulate_new_version(tc, g, target.reg.orig);
     MVMSpeshIns      *box_ins     = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     MVMSpeshOperand *box_operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
     box_ins->info                 = MVM_op_get_op(box_op);
     box_ins->operands             = box_operands;
-    box_operands[0]               = target;
+    box_operands[0]               = ver_target;
     box_operands[1]               = return_ins->operands[0];
     box_operands[2]               = type_temp;
     MVM_spesh_manipulate_insert_ins(tc, return_bb, return_ins, box_ins);
-    MVM_spesh_get_facts(tc, g, target)->writer = box_ins;
+    MVM_spesh_get_facts(tc, g, ver_target)->writer = box_ins;
     MVM_spesh_usages_add_by_reg(tc, g, box_operands[1], box_ins);
     MVM_spesh_usages_add_by_reg(tc, g, box_operands[2], box_ins);
 
@@ -901,9 +939,15 @@ static void rewrite_obj_return(MVMThreadContext *tc, MVMSpeshGraph *g,
 static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                      MVMSpeshGraph *inlinee, MVMSpeshBB *invoke_bb,
                      MVMSpeshIns *invoke_ins, MVMSpeshBB *inlinee_last_bb) {
-    /* Locate return instructions. */
+    /* Locate return instructions and rewrite them. For each non-void return,
+     * given the invoke instruction was itself non-void, we generate a new SSA
+     * version of the target register. We then insert a PHI that merges those
+     * versions. */
     MVMSpeshBB *bb = inlinee->entry;
-    MVMuint32 saw_return = 0;
+    MVMint32 initial_last_result_version = invoke_ins->info->opcode != MVM_OP_invoke_v
+        ? inliner->fact_counts[invoke_ins->operands[0].reg.orig]
+        : -1;
+    MVMint32 saw_return = 0;
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
@@ -952,7 +996,28 @@ static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             }
             ins = ins->next;
         }
-        if (bb == inlinee_last_bb) break;
+        if (bb == inlinee_last_bb) {
+            MVMint32 final_last_result_version = invoke_ins->info->opcode != MVM_OP_invoke_v
+                ? inliner->fact_counts[invoke_ins->operands[0].reg.orig]
+                : -1;
+            if (final_last_result_version != initial_last_result_version) {
+                /* Produced one or more return results; need a PHI. */
+                MVMuint32 num_rets = final_last_result_version - initial_last_result_version;
+                MVMuint32 i;
+                MVMSpeshIns *phi = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshIns));
+                phi->info = get_phi(tc, inliner, num_rets + 1);
+                phi->operands = MVM_spesh_alloc(tc, inliner, (1 + num_rets) * sizeof(MVMSpeshOperand));
+                phi->operands[0] = invoke_ins->operands[0];
+                MVM_spesh_get_facts(tc, inliner, phi->operands[0])->writer = phi;
+                for (i = 0; i < num_rets; i++) {
+                    phi->operands[i + 1].reg.orig = invoke_ins->operands[0].reg.orig;
+                    phi->operands[i + 1].reg.i = initial_last_result_version + i;
+                    MVM_spesh_usages_add_by_reg(tc, inliner, phi->operands[i + 1], phi);
+                }
+                MVM_spesh_manipulate_insert_ins(tc, bb->linear_next, NULL, phi);
+            }
+            break;
+        }
         bb = bb->linear_next;
     }
 }
@@ -1121,13 +1186,13 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                       MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
                       MVMSpeshIns *invoke_ins, MVMSpeshGraph *inlinee,
                       MVMStaticFrame *inlinee_sf, MVMSpeshOperand code_ref_reg,
-                      MVMuint32 proxy_deopt_idx) {
+                      MVMuint32 proxy_deopt_idx, MVMuint16 bytecode_size) {
     MVMSpeshIns *first_ins;
 
     /* Merge inlinee's graph into the inliner. */
     MVMuint32 inline_boundary_handler;
     MVMSpeshBB *inlinee_last_bb = merge_graph(tc, inliner, inlinee, inlinee_sf,
-        invoke_bb, invoke_ins, code_ref_reg, &inline_boundary_handler);
+        invoke_bb, invoke_ins, code_ref_reg, &inline_boundary_handler, bytecode_size);
 
     /* If we're profiling, note it's an inline. */
     first_ins = find_first_instruction(tc, inlinee);

@@ -265,8 +265,11 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             }
 
             /* Did we see it in the nursery before, or should we move it to
-             * gen2 anyway since it a persistent ID was requested? */
-            if (item->flags & (MVM_CF_NURSERY_SEEN | MVM_CF_HAS_OBJECT_ID)) {
+             * gen2 anyway since either:
+             *   * A persistent ID was requested?
+             *   * It is referenced by a gen2 aggregate
+             */
+            if (item->flags & (MVM_CF_NURSERY_SEEN | MVM_CF_HAS_OBJECT_ID | MVM_CF_REF_FROM_GEN2)) {
                 /* Yes; we should move it to the second generation. Allocate
                  * space in the second generation. */
                 to_gen2 = 1;
@@ -349,7 +352,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             for (k = gen2count; k < max; k++) {
                 j = worklist->list[k];
                 if (*j)
-                    MVM_gc_write_barrier(tc, new_addr, *j);
+                    MVM_gc_write_barrier_no_update_referenced(tc, new_addr, *j);
             }
         }
     }
@@ -363,8 +366,13 @@ void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMC
     assert(!(new_addr->flags & MVM_CF_FORWARDER_VALID));
     /*assert(REPR(new_addr));*/
     sc_idx = MVM_sc_get_idx_of_sc(new_addr);
-    if (sc_idx > 0)
+    if (sc_idx > 0) {
+#if MVM_GC_DEBUG
+        if (sc_idx >= tc->instance->all_scs_next_idx)
+            MVM_panic(1, "SC index out of range");
+#endif
         MVM_gc_worklist_add(tc, worklist, &(tc->instance->all_scs[sc_idx]->sc));
+    }
 
     if (new_addr->flags & MVM_CF_TYPE_OBJECT) {
         /* Add the STable to the worklist. */

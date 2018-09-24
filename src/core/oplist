@@ -470,7 +470,7 @@ scwbenable          w(int64)
 pushcompsc          r(obj)
 popcompsc           w(obj)
 scgetdesc           w(str) r(obj)
-loadbytecode        w(str) r(str) :invokish :maycausedeopt
+loadbytecode        w(str) r(str) :invokish :maycausedeopt :noinline
 masttofile          r(obj) r(obj) r(str)
 masttocu            w(obj) r(obj) r(obj) :invokish :maycausedeopt
 iscompunit          w(int64) r(obj) :pure
@@ -797,8 +797,8 @@ param_on2_u         w(uint64) str str ins :noinline
 stat_time           w(num64) r(str) r(int64)
 lstat_time          w(num64) r(str) r(int64)
 setdebugtypename    r(obj) r(str)
-loadbytecodebuffer  r(obj) :invokish :maycausedeopt
-loadbytecodefh      r(obj) r(str) :invokish :maycausedeopt
+loadbytecodebuffer  r(obj) :invokish :maycausedeopt :noinline
+loadbytecodefh      r(obj) r(str) :invokish :maycausedeopt :noinline
 throwpayloadlex     w(obj) int64 r(obj) :throwish
 throwpayloadlexcaller w(obj) int64 r(obj) :throwish
 lastexpayload       w(obj)
@@ -856,7 +856,7 @@ getppid             w(int64)
 getsignals          w(obj) :useshll
 slice               w(obj) r(obj) r(int64) r(int64)
 speshreg            r(str) r(str) r(obj)
-speshresolve     -a w(obj) str :deoptonepoint :logged :noinline :specializable
+speshresolve     -a w(obj) str :deoptonepoint :logged :noinline :specializable :invokish
 speshguardtype      r(obj) r(obj)
 speshguardconcrete  r(obj)
 speshguardtypeobj   r(obj)
@@ -931,7 +931,7 @@ sp_fastinvoke_o  .s w(obj) r(obj) int16 :maycausedeopt
 # included inside of the instruction since it will have moved afterwards, and
 # we also include the static frame so that this instruction can survive being
 # inlined.
-sp_speshresolve     w(obj) str uint32 sslot :maycausedeopt :useshll
+sp_speshresolve     w(obj) str uint32 sslot :maycausedeopt :useshll :invokish
 
 # Error generation if a named param is unused (name goes in spesh slot).
 sp_paramnamesused   sslot
@@ -962,6 +962,7 @@ sp_bind_i16      .s r(obj) int16 r(int64)
 sp_bind_i8       .s r(obj) int16 r(int64)
 sp_bind_n        .s r(obj) int16 r(num64)
 sp_bind_s        .s r(obj) int16 r(str)
+sp_bind_s_nowb   .s r(obj) int16 r(str)
 
 # Same as above, but for p6opaques, handling the NULL sentinel and the
 # real_data thing for mixins. The vt variant vivifies a NULL with a
@@ -972,10 +973,22 @@ sp_p6ogetvc_o    .s w(obj) r(obj) int16 sslot
 sp_p6oget_i      .s w(int64) r(obj) int16 :pure
 sp_p6oget_n      .s w(num64) r(obj) int16 :pure
 sp_p6oget_s      .s w(str) r(obj) int16 :pure
+sp_p6oget_bi     .s w(int64) r(obj) int16 :pure
 sp_p6obind_o     .s r(obj) int16 r(obj)
 sp_p6obind_i     .s r(obj) int16 r(int64)
 sp_p6obind_n     .s r(obj) int16 r(num64)
 sp_p6obind_s     .s r(obj) int16 r(str)
+
+# Lowered int and bigint box ops. These combine a fastcreate and a writing of
+# the value as appropriate. The first two read operands have the same meaning
+# as in sp_fastcreate, the third is the offset in the object to box to, and
+# the final operand is the integer to box. The _ic variants include an extra
+# argument which is the type index in the integer cache; they do a lookup in
+# the integer cache before performing a box operation.
+sp_fastbox_i     .s w(obj) int16 sslot int16 r(int64) :pure
+sp_fastbox_bi    .s w(obj) int16 sslot int16 r(int64) :pure
+sp_fastbox_i_ic  .s w(obj) int16 sslot int16 r(int64) int16 :pure
+sp_fastbox_bi_ic .s w(obj) int16 sslot int16 r(int64) int16 :pure
 
 # Follow a pointer at an offset to an object and get/store a value there.
 sp_deref_get_i64      .s w(int64) r(obj) int16 :pure
@@ -1002,9 +1015,20 @@ sp_boolify_iter_hash  .s w(int64) r(obj) :pure
 
 # Unguarded atomic ops (when we know it's a concrete target that certainly
 # has the operation).
-sp_cas_o            w(obj) r(obj) r(obj) r(obj) :invokish :maycausedeopt
-sp_atomicload_o     w(obj) r(obj)
-sp_atomicstore_o    r(obj) r(obj) :invokish :maycausedeopt
+sp_cas_o              .s w(obj) r(obj) r(obj) r(obj) :invokish :maycausedeopt
+sp_atomicload_o       .s w(obj) r(obj)
+sp_atomicstore_o      .s r(obj) r(obj) :invokish :maycausedeopt
+
+# Lowered big integer operations, where inputs and output type are consistent.
+# They start with the same operands as a fastcreate, which will be used if the
+# result can not be served from the cache. The second index is the offset of
+# the bigint structure within the body of the object. The third index is the
+# index into the box type cache, for objects that are in range.
+sp_add_I         .s w(obj) int16 sslot r(obj) r(obj) int16 int16 :pure
+sp_sub_I         .s w(obj) int16 sslot r(obj) r(obj) int16 int16 :pure
+sp_mul_I         .s w(obj) int16 sslot r(obj) r(obj) int16 int16 :pure
+
+sp_bool_I        .s w(int64) r(obj) int16 :pure
 
 # Profiler recording ops. Naming convention: start with prof_. Must all be
 # marked .s, which is how the validator knows to exclude them. (For that
