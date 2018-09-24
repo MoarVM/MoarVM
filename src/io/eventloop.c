@@ -95,7 +95,7 @@ static void enter_loop(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister 
     uv_run(loop, UV_RUN_DEFAULT);
 
     /* Allow the cleanup of threadcontext to process the (redundant) loop */
-    tc->loop = tc->loop;
+    tc->loop = tc_loop;
 }
 
 /* Sees if we have an event loop processing thread set up already, and
