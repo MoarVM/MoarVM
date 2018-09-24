@@ -495,13 +495,117 @@ class MAST::Call is MAST::Node {
 
     method new(:$target!, :@flags!, :$result = MAST::Node, :$op = 0, *@args) {
         sanity_check(@flags, @args);
-        my $obj := nqp::create(self);
-        nqp::bindattr($obj, MAST::Call, '$!target', $target);
-        nqp::bindattr($obj, MAST::Call, '@!flags', @flags);
-        nqp::bindattr($obj, MAST::Call, '@!args', @args);
-        nqp::bindattr($obj, MAST::Call, '$!result', $result);
-        nqp::bindattr_i($obj, MAST::Call, '$!op', $op);
-        $obj
+        my $bytecode := nqp::create($buf);
+        my $callsite-id := $*MAST_FRAME.callsites.get_callsite_id(@flags, @args);
+
+        $bytecode.write_uint16(%MAST::Ops::codes<prepargs>);
+        $bytecode.write_uint16($callsite-id);
+
+        my $call_op :=
+            $op == 1
+                ?? %MAST::Ops::codes<nativeinvoke_v>
+                !! $op == 2
+                    ?? %MAST::Ops::codes<speshresolve>
+                    !! %MAST::Ops::codes<invoke_v>;
+
+        my uint16 $arg_pos := $op == 1 ?? 1 !! 0;
+        my uint16 $arg_out_pos := 0;
+        for @flags -> $flag {
+            if $flag +& $Arg::named {
+                $bytecode.write_uint16(%MAST::Ops::codes<argconst_s>);
+                $bytecode.write_uint16($arg_out_pos);
+                $*MAST_FRAME.compile_operand($bytecode, 0, $MVM_operand_str, @args[$arg_pos]);
+                $arg_pos++;
+                $arg_out_pos++;
+            }
+            elsif $flag +& $Arg::flat {
+                nqp::die("Illegal flat arg to speshresolve") if $op == 2;
+            }
+
+            if $op == 2 && !($flag +& $Arg::obj) {
+                nqp::die("Illegal non-object arg to speshresolve");
+            }
+            if $flag +& $Arg::obj {
+                $bytecode.write_uint16(%MAST::Ops::codes<arg_o>);
+                $bytecode.write_uint16($arg_out_pos);
+                $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_obj, @args[$arg_pos]);
+            }
+            elsif $flag +& $Arg::str {
+                $bytecode.write_uint16(%MAST::Ops::codes<arg_s>);
+                $bytecode.write_uint16($arg_out_pos);
+                $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_str, @args[$arg_pos]);
+            }
+            elsif $flag +& $Arg::int {
+                $bytecode.write_uint16(%MAST::Ops::codes<arg_i>);
+                $bytecode.write_uint16($arg_out_pos);
+                $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_int64, @args[$arg_pos]);
+            }
+            elsif $flag +& $Arg::num {
+                $bytecode.write_uint16(%MAST::Ops::codes<arg_n>);
+                $bytecode.write_uint16($arg_out_pos);
+                $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_num64, @args[$arg_pos]);
+            }
+            else {
+                nqp::die("Unhandled arg type $flag");
+            }
+            $arg_pos++;
+            $arg_out_pos++;
+        }
+
+	my $res_type;
+        if $op == 2 {
+            nqp::die('speshresolve must have a result')
+                unless $result.isa(MAST::Local);
+            nqp::die('MAST::Local index out of range')
+                if $result.index >= nqp::elems($*MAST_FRAME.local_types);
+            nqp::die('speshresolve must have an object result')
+                if type_to_local_type($*MAST_FRAME.local_types()[$result.index]) != $MVM_reg_obj;
+            $res_type := $MVM_operand_obj;
+        }
+        elsif $result.isa(MAST::Local) {
+            my @local_types := $*MAST_FRAME.local_types;
+            my $index := $result.index;
+            if $result.index >= nqp::elems(@local_types) {
+                nqp::die("MAST::Local index out of range");
+            }
+            my $op_name := $op == 0 ?? 'invoke_' !! 'nativeinvoke_';
+            if nqp::objprimspec(@local_types[$index]) == 1 {
+                $op_name := $op_name ~ 'i';
+                $res_type := $MVM_operand_int64;
+            }
+            elsif nqp::objprimspec(@local_types[$index]) == 2 {
+                $op_name := $op_name ~ 'n';
+                $res_type := $MVM_operand_num64;
+            }
+            elsif nqp::objprimspec(@local_types[$index]) == 3 {
+                $op_name := $op_name ~ 's';
+                $res_type := $MVM_operand_str;
+            }
+            elsif nqp::objprimspec(@local_types[$index]) == 0 { # object
+                $op_name := $op_name ~ 'o';
+                $res_type := $MVM_operand_obj;
+            }
+            else {
+                nqp::die('Invalid MAST::Local type ' ~ @local_types[$index] ~ ' for return value ' ~ $index);
+            }
+            $call_op := %MAST::Ops::codes{$op_name};
+        }
+
+        $bytecode.write_uint16($call_op);
+        if $call_op != %MAST::Ops::codes<invoke_v> && $call_op != %MAST::Ops::codes<nativeinvoke_v> {
+            $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_read_reg, $res_type, $result);
+        }
+        if $op == 2 {
+            $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_literal, $MVM_operand_str, $target);
+        }
+        else {
+            $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_obj, $target);
+        }
+        if $op == 1 {
+            $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_obj, @args[0]);
+        }
+
+        $bytecode
     }
 
     sub sanity_check(@flags, @args) {
@@ -953,6 +1057,7 @@ class MAST::Frame is MAST::Node {
     method add-string(str $s) {
         $!string-heap.add($s);
     }
+    method callsites() { $!callsites }
     method labels() { %!labels }
     method label-fixups() { %!label-fixups }
     method resolve-label($label) {
@@ -1053,121 +1158,6 @@ class MAST::Frame is MAST::Node {
         }
         else {
             nqp::die("Unknown operand mode $rw cannot be compiled");
-        }
-    }
-    multi method write_instruction(MAST::Call $i) {
-        my $target := nqp::getattr($i, MAST::Call, '$!target');
-        my @flags  := nqp::getattr($i, MAST::Call, '@!flags');
-        my @args   := nqp::getattr($i, MAST::Call, '@!args');
-        my $result := nqp::getattr($i, MAST::Call, '$!result');
-        my $op     := nqp::getattr($i, MAST::Call, '$!op');
-        my $callsite-id := $!callsites.get_callsite_id(@flags, @args);
-
-        $!bytecode.write_uint16(%MAST::Ops::codes<prepargs>);
-        $!bytecode.write_uint16($callsite-id);
-
-        my $call_op :=
-            $op == 1
-                ?? %MAST::Ops::codes<nativeinvoke_v>
-                !! $op == 2
-                    ?? %MAST::Ops::codes<speshresolve>
-                    !! %MAST::Ops::codes<invoke_v>;
-
-        my uint16 $arg_pos := $op == 1 ?? 1 !! 0;
-        my uint16 $arg_out_pos := 0;
-        for @flags -> $flag {
-            if $flag +& $Arg::named {
-                $!bytecode.write_uint16(%MAST::Ops::codes<argconst_s>);
-                $!bytecode.write_uint16($arg_out_pos);
-                self.compile_operand($!bytecode, 0, $MVM_operand_str, @args[$arg_pos]);
-                $arg_pos++;
-                $arg_out_pos++;
-            }
-            elsif $flag +& $Arg::flat {
-                nqp::die("Illegal flat arg to speshresolve") if $op == 2;
-            }
-
-            if $op == 2 && !($flag +& $Arg::obj) {
-                nqp::die("Illegal non-object arg to speshresolve:\n" ~ $i.dump);
-            }
-            if $flag +& $Arg::obj {
-                $!bytecode.write_uint16(%MAST::Ops::codes<arg_o>);
-                $!bytecode.write_uint16($arg_out_pos);
-                self.compile_operand($!bytecode, $MVM_operand_read_reg, $MVM_operand_obj, @args[$arg_pos]);
-            }
-            elsif $flag +& $Arg::str {
-                $!bytecode.write_uint16(%MAST::Ops::codes<arg_s>);
-                $!bytecode.write_uint16($arg_out_pos);
-                self.compile_operand($!bytecode, $MVM_operand_read_reg, $MVM_operand_str, @args[$arg_pos]);
-            }
-            elsif $flag +& $Arg::int {
-                $!bytecode.write_uint16(%MAST::Ops::codes<arg_i>);
-                $!bytecode.write_uint16($arg_out_pos);
-                self.compile_operand($!bytecode, $MVM_operand_read_reg, $MVM_operand_int64, @args[$arg_pos]);
-            }
-            elsif $flag +& $Arg::num {
-                $!bytecode.write_uint16(%MAST::Ops::codes<arg_n>);
-                $!bytecode.write_uint16($arg_out_pos);
-                self.compile_operand($!bytecode, $MVM_operand_read_reg, $MVM_operand_num64, @args[$arg_pos]);
-            }
-            else {
-                nqp::die("Unhandled arg type $flag");
-            }
-            $arg_pos++;
-            $arg_out_pos++;
-        }
-
-	my $res_type;
-        if $op == 2 {
-            nqp::die('speshresolve must have a result')
-                unless $result.isa(MAST::Local);
-            nqp::die('MAST::Local index out of range')
-                if $result.index >= nqp::elems(self.local_types);
-            nqp::die('speshresolve must have an object result')
-                if type_to_local_type(self.local_types()[$result.index]) != $MVM_reg_obj;
-            $res_type := $MVM_operand_obj;
-        }
-        elsif $result.isa(MAST::Local) {
-            my @local_types := self.local_types;
-            my $index := $result.index;
-            if $result.index >= nqp::elems(@local_types) {
-                nqp::die("MAST::Local index out of range");
-            }
-            my $op_name := $op == 0 ?? 'invoke_' !! 'nativeinvoke_';
-            if nqp::objprimspec(@local_types[$index]) == 1 {
-                $op_name := $op_name ~ 'i';
-                $res_type := $MVM_operand_int64;
-            }
-            elsif nqp::objprimspec(@local_types[$index]) == 2 {
-                $op_name := $op_name ~ 'n';
-                $res_type := $MVM_operand_num64;
-            }
-            elsif nqp::objprimspec(@local_types[$index]) == 3 {
-                $op_name := $op_name ~ 's';
-                $res_type := $MVM_operand_str;
-            }
-            elsif nqp::objprimspec(@local_types[$index]) == 0 { # object
-                $op_name := $op_name ~ 'o';
-                $res_type := $MVM_operand_obj;
-            }
-            else {
-                nqp::die('Invalid MAST::Local type ' ~ @local_types[$index] ~ ' for return value ' ~ $index);
-            }
-            $call_op := %MAST::Ops::codes{$op_name};
-        }
-
-        $!bytecode.write_uint16($call_op);
-        if $call_op != %MAST::Ops::codes<invoke_v> && $call_op != %MAST::Ops::codes<nativeinvoke_v> {
-            self.compile_operand($!bytecode, $MVM_operand_read_reg, $res_type, $result);
-        }
-        if $op == 2 {
-            self.compile_operand($!bytecode, $MVM_operand_literal, $MVM_operand_str, $target);
-        }
-        else {
-            self.compile_operand($!bytecode, $MVM_operand_read_reg, $MVM_operand_obj, $target);
-        }
-        if $op == 1 {
-            self.compile_operand($!bytecode, $MVM_operand_read_reg, $MVM_operand_obj, @args[0]);
         }
     }
     multi method write_instruction(MAST::Annotated $i) {
