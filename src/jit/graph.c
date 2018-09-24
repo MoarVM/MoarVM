@@ -475,7 +475,8 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
             MVM_jit_log(tc, "Invoke instruction: <%s>\n", ins->info->name);
 
             if (!(object_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)) {
-                MVM_jit_log(tc, "BAIL: op <%s> (Can't find nc_site value on spesh ins)\n", ins->info->name);
+                MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins,
+                                            "BAIL: op <%s> (Can't find nc_site value on spesh ins)", ins->info->name);
                 return 0;
             }
 
@@ -541,9 +542,9 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
     }
  checkargs:
     if (!ins || i < cs->arg_count) {
-        MVM_jit_log(tc, "Could not find invoke opcode or enough arguments\n"
-                    "BAIL: op <%s>, expected args: %d, num of args: %d\n",
-                    ins? ins->info->name : "NULL", i, cs->arg_count);
+        MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins,
+                                    "BAIL: op <%s>, expected args: %d, num of args: %d",
+                                    ins? ins->info->name : "NULL", i, cs->arg_count);
         return 0;
     }
     MVM_jit_log(tc, "Invoke instruction: <%s>\n", ins->info->name);
@@ -2202,7 +2203,6 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                 hll_config = MVM_hll_get_config_for(tc, facts->value.s);
             } else {
                 add_bail_comment(tc, jg, ins);
-                MVM_jit_log(tc, "BAIL: op <%s>", ins->info->name);
                 return 0;
             }
         }
@@ -2220,7 +2220,6 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
             jg_append_primitive(tc, jg, ins);
         } else {
             add_bail_comment(tc, jg, ins);
-            MVM_jit_log(tc, "BAIL: op <%s>", ins->info->name);
             return 0;
         }
         break;
@@ -2386,7 +2385,6 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_assign_n:
     case MVM_OP_assign_s:
         if (!consume_reprop(tc, jg, iter, ins)) {
-            MVM_jit_log(tc, "BAIL: op <%s> (devirt attempted)\n", ins->info->name);
             add_bail_comment(tc, jg, ins);
             return 0;
         }
@@ -3536,7 +3534,6 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         }
         if (!emitted_extop) {
             add_bail_comment(tc, jg, ins);
-            MVM_jit_log(tc, "BAIL: op <%s>\n", ins->info->name);
             return 0;
         }
     }
