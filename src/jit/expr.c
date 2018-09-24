@@ -597,20 +597,6 @@ static void active_values_flush(MVMThreadContext *tc, MVMJitExprTree *tree,
     }
 }
 
-static void add_begin_comment(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns *ins) {
-    MVMSpeshGraph *g = jg->sg;
-    if (MVM_spesh_debug_enabled(tc)) {
-        MVM_spesh_graph_add_comment(tc, g, ins, "start of exprjit tree");
-    }
-}
-
-static void add_bail_comment(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns *ins) {
-    MVMSpeshGraph *g = jg->sg;
-    if (MVM_spesh_debug_enabled(tc)) {
-        MVM_spesh_graph_add_comment(tc, g, ins, "EXPRJIT: bailed");
-    }
-}
-
 MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIterator *iter) {
     MVMSpeshGraph *sg = jg->sg;
     MVMSpeshIns *entry = iter->ins;
@@ -641,9 +627,9 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
     values = MVM_malloc(sizeof(struct ValueDefinition)*sg->num_locals);
     memset(values, -1, sizeof(struct ValueDefinition)*sg->num_locals);
 
-#define BAIL(x, ...) do { if (x) { MVM_jit_log(tc, __VA_ARGS__); goto done; } } while (0)
+#define BAIL(x, ...) do { if (x) { MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins, __VA_ARGS__); goto done; } } while (0)
 
-    add_begin_comment(tc, jg, iter->ins);
+    MVM_spesh_graph_add_comment(tc, jg->sg, iter->ins, "start of exprjit tree");
 
     /* Generate a tree based on templates. The basic idea is to keep a
        index to the node that last computed the value of a local.
@@ -664,8 +650,8 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         struct ValueDefinition *defined_value = NULL;
 
         /* check if this is a getlex and if we can handle it */
-        BAIL(opcode == MVM_OP_getlex && getlex_needs_autoviv(tc, jg, ins), "Can't compile object getlex\n");
-        BAIL(opcode == MVM_OP_bindlex && bindlex_needs_write_barrier(tc, jg, ins), "Can't compile write-barrier bindlex\n");
+        BAIL(opcode == MVM_OP_getlex && getlex_needs_autoviv(tc, jg, ins), "Can't compile object getlex");
+        BAIL(opcode == MVM_OP_bindlex && bindlex_needs_write_barrier(tc, jg, ins), "Can't compile write-barrier bindlex");
 
         /* Check annotations that may require handling or wrapping the expression */
         for (ann = ins->annotations; ann != NULL; ann = ann->next) {
@@ -728,7 +714,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                 case MVM_OP_sp_guardconc:
                 case MVM_OP_sp_guardtype:
                 case MVM_OP_sp_guardsf:
-                    BAIL(1, "Cannot handle DEOPT_ONE (ins=%s)\n", ins->info->name);
+                    BAIL(1, "Cannot handle DEOPT_ONE (ins=%s)", ins->info->name);
                     break;
                 }
                 break;
@@ -762,15 +748,12 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
              * we do need to process the annotation to setup the frame handler
              * correctly.
              */
-            
-            BAIL(after_label >= 0, "A PHI node should not have an after label\n");
+            BAIL(after_label >= 0, "A PHI node should not have an after label");
             continue;
         }
 
         template = MVM_jit_get_template_for_opcode(opcode);
-        if (template == NULL)
-            add_bail_comment(tc, jg, ins);
-        BAIL(template == NULL, "Cannot get template for: %s\n", ins->info->name);
+        BAIL(template == NULL, "Cannot get template for: %s", ins->info->name);
 
         check_template(tc, template, ins);
 
@@ -808,7 +791,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                     memset(values + opr.reg.orig, -1, sizeof(struct ValueDefinition));
                 } else {
                     /* record this value, should be only one for the root */
-                    BAIL(i != 0, "Write reg operand %d\n", i);
+                    BAIL(i != 0, "Write reg operand %d", i);
                     MVM_JIT_EXPR_INFO(tree, root)->type = opr_type >> 3;
                     defined_value = values + opr.reg.orig;
                     defined_value->addr = operands[i];
@@ -821,7 +804,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                 /* does not define a value we can look up, but we may need to
                  * insert a store */
                 if (!(template->flags & MVM_JIT_EXPR_TEMPLATE_DESTRUCTIVE)) {
-                    BAIL(i != 0, "Write lex operand %d\n", i);
+                    BAIL(i != 0, "Write lex operand %d", i);
                     MVM_JIT_EXPR_INFO(tree, root)->type = opr_type >> 3;
                     /* insert the store to lexicals directly, do not record as value */
                     root = MVM_jit_expr_add_store(tc, tree, operands[i], root, MVM_JIT_REG_SZ);

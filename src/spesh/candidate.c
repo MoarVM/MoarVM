@@ -38,7 +38,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     MVMSpeshCandidate *candidate;
     MVMSpeshCandidate **new_candidate_list;
     MVMStaticFrameSpesh *spesh;
-    MVMuint64 start_time, spesh_time;
+    MVMuint64 start_time, spesh_time, jit_time, end_time;
 
     /* If we've reached our specialization limit, don't continue. */
     if (tc->instance->spesh_limit)
@@ -110,24 +110,30 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     if (tc->instance->jit_enabled) {
         MVMJitGraph *jg;
         if (MVM_spesh_debug_enabled(tc))
-            start_time = uv_hrtime();
+            jit_time = uv_hrtime();
+
         jg = MVM_jit_try_make_graph(tc, sg);
         if (jg != NULL) {
             candidate->jitcode = MVM_jit_compile_graph(tc, jg);
             MVM_jit_graph_destroy(tc, jg);
         }
-        if (MVM_spesh_debug_enabled(tc)) {
-            MVM_spesh_debug_printf(tc, "JIT was %s and compilation took %" PRIu64 "us\n",
-                                   candidate->jitcode ? "successful" : "not successful",
-                                   (uv_hrtime() - start_time) / 1000);
-        }
     }
 
     if (MVM_spesh_debug_enabled(tc)) {
         char *after = MVM_spesh_dump(tc, sg);
+        end_time = uv_hrtime();
         MVM_spesh_debug_printf(tc, "After:\n%s", after);
-        MVM_spesh_debug_printf(tc, "Specialization took %dus\n\n========\n\n",
-            (int)((spesh_time - start_time) / 1000));
+        MVM_spesh_debug_printf(tc,
+            "Specialization took " PRIu64 "us (total %" PRIu64"us)"
+            "\n\n=============\n\n",
+            (spesh_time - start_time) / 1000,
+            (end_time - start_time) / 1000);
+
+        if (tc->instance->jit_enabled) {
+            MVM_spesh_debug_printf(tc,
+                "JIT was %ssuccessful and compilation took %" PRIu64 "us\n",
+                candidate->jitcode ? "" : "not ", (end_time - jit_time) / 1000);
+        }
         MVM_free(after);
         fflush(tc->instance->spesh_log_fh);
     }
