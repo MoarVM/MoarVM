@@ -36,7 +36,6 @@ struct MVMSpeshFacts {
 /* Various fact flags. */
 #define MVM_SPESH_FACT_KNOWN_TYPE           1   /* Has a known type. */
 #define MVM_SPESH_FACT_KNOWN_VALUE          2   /* Has a known value. */
-#define MVM_SPESH_FACT_DECONTED             4   /* Know it's decontainerized. */
 #define MVM_SPESH_FACT_CONCRETE             8   /* Know it's a concrete object. */
 #define MVM_SPESH_FACT_TYPEOBJ              16  /* Know it's a type object. */
 #define MVM_SPESH_FACT_KNOWN_DECONT_TYPE    32  /* Has a known type after decont. */

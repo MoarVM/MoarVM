@@ -560,7 +560,9 @@ static void optimize_hllize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
  * propagate any needed information. */
 static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
-    if (obj_facts->flags & (MVM_SPESH_FACT_DECONTED | MVM_SPESH_FACT_TYPEOBJ)) {
+    if ((obj_facts->flags & MVM_SPESH_FACT_TYPEOBJ) ||
+            (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
+            !obj_facts->type->st->container_spec) {
         /* Know that we don't need to decont. */
         ins->info = MVM_op_get_op(MVM_OP_set);
         MVM_spesh_use_facts(tc, g, obj_facts);
@@ -1284,14 +1286,10 @@ static void lex_to_constant(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
     facts->flags  |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_KNOWN_VALUE;
     facts->type    = STABLE(log_obj)->WHAT;
     facts->value.o = log_obj;
-    if (IS_CONCRETE(log_obj)) {
+    if (IS_CONCRETE(log_obj))
         facts->flags |= MVM_SPESH_FACT_CONCRETE;
-        if (!STABLE(log_obj)->container_spec)
-            facts->flags |= MVM_SPESH_FACT_DECONTED;
-    }
-    else {
+    else
         facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
-    }
 }
 
 /* Optimizes away a lexical lookup when we know the value won't change from
@@ -2431,10 +2429,6 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
             /*else fprintf(stderr, "(diverging type) ");*/
         }
         /*if (common_flags & MVM_SPESH_FACT_KNOWN_VALUE) fprintf(stderr, "value ");*/
-        if (common_flags & MVM_SPESH_FACT_DECONTED) {
-            /*fprintf(stderr, "deconted ");*/
-            target_facts->flags |= MVM_SPESH_FACT_DECONTED;
-        }
         if (common_flags & MVM_SPESH_FACT_CONCRETE) {
             /*fprintf(stderr, "concrete ");*/
             target_facts->flags |= MVM_SPESH_FACT_CONCRETE;

@@ -40,14 +40,6 @@ static void create_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 obj_o
 
     /* We know it's a concrete object. */
     obj_facts->flags |= MVM_SPESH_FACT_CONCRETE;
-
-    /* If we know the type object, then we can check to see if
-     * it's a container type. */
-    if (type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
-        MVMObject *type = type_facts->type;
-        if (type && !STABLE(type)->container_spec)
-            obj_facts->flags |= MVM_SPESH_FACT_DECONTED;
-    }
 }
 
 static void create_facts_with_type(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -61,11 +53,6 @@ static void create_facts_with_type(MVMThreadContext *tc, MVMSpeshGraph *g,
 
     /* We know it's a concrete object. */
     obj_facts->flags |= MVM_SPESH_FACT_CONCRETE;
-
-    /* If we know the type object, then we can check to see if
-     * it's a container type. */
-    if (type && !STABLE(type)->container_spec)
-        obj_facts->flags |= MVM_SPESH_FACT_DECONTED;
 }
 
 /* Adds facts from knowing the exact value being put into an object local. */
@@ -83,15 +70,11 @@ static void object_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 tgt_o
     g->facts[tgt_orig][tgt_i].type   = STABLE(obj)->WHAT;
     g->facts[tgt_orig][tgt_i].flags |= MVM_SPESH_FACT_KNOWN_TYPE;
 
-    /* Set concreteness and decontainerized flags. */
-    if (IS_CONCRETE(obj)) {
+    /* Set concreteness flags. */
+    if (IS_CONCRETE(obj))
         g->facts[tgt_orig][tgt_i].flags |= MVM_SPESH_FACT_CONCRETE;
-        if (!STABLE(obj)->container_spec)
-            g->facts[tgt_orig][tgt_i].flags |= MVM_SPESH_FACT_DECONTED;
-    }
-    else {
-        g->facts[tgt_orig][tgt_i].flags |= MVM_SPESH_FACT_TYPEOBJ | MVM_SPESH_FACT_DECONTED;
-    }
+    else
+        g->facts[tgt_orig][tgt_i].flags |= MVM_SPESH_FACT_TYPEOBJ;
 }
 void MVM_spesh_facts_object_facts(MVMThreadContext *tc, MVMSpeshGraph *g,
                                   MVMSpeshOperand tgt, MVMObject *obj) {
@@ -108,11 +91,12 @@ static void decont_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *in
     /* If we know the original is decontainerized already, just copy its
      * info. */
     MVMint32 in_flags = in_facts->flags;
-    if (in_flags & MVM_SPESH_FACT_DECONTED)
+    if ((in_flags & MVM_SPESH_FACT_TYPEOBJ) ||
+            (in_flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
+            !in_facts->type->st->container_spec) {
         copy_facts(tc, g, out_orig, out_i, in_orig, in_i);
-
-    /* We know the result is decontainerized. */
-    out_facts->flags |= MVM_SPESH_FACT_DECONTED;
+        return;
+    }
 
     /* We may also know the original was containerized, and have some facts
      * about its contents. */
@@ -366,17 +350,13 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
         if (agg_concrete && !agg_type_object) {
             facts->flags |= MVM_SPESH_FACT_CONCRETE;
-            if (!agg_type->st->container_spec)
-                facts->flags |= MVM_SPESH_FACT_DECONTED;
             guard_op = MVM_OP_sp_guardconc;
         }
         else if (agg_type_object && !agg_concrete) {
-            facts->flags |= MVM_SPESH_FACT_TYPEOBJ | MVM_SPESH_FACT_DECONTED;
+            facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
             guard_op = MVM_OP_sp_guardtype;
         }
         else {
-            if (!agg_type->st->container_spec)
-                facts->flags |= MVM_SPESH_FACT_DECONTED;
             guard_op = MVM_OP_sp_guard;
         }
 
@@ -719,12 +699,6 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[4].reg.orig, ins->operands[4].reg.i);
             break;
-        case MVM_OP_cas_o:
-        case MVM_OP_atomicload_o: {
-            MVMSpeshOperand result = ins->operands[0];
-            g->facts[result.reg.orig][result.reg.i].flags |= MVM_SPESH_FACT_DECONTED;
-            break;
-        }
         case MVM_OP_setdispatcher:
         case MVM_OP_setdispatcherfor:
             g->sets_dispatcher = 1;

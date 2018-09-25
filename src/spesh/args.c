@@ -15,14 +15,10 @@ static void add_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
     MVMObject *type = type_tuple_entry.type;
     g->facts[orig][i].type = type;
     g->facts[orig][i].flags |= MVM_SPESH_FACT_KNOWN_TYPE;
-    if (type_tuple_entry.type_concrete) {
+    if (type_tuple_entry.type_concrete)
         g->facts[orig][i].flags |= MVM_SPESH_FACT_CONCRETE;
-        if (!type->st->container_spec)
-            g->facts[orig][i].flags |= MVM_SPESH_FACT_DECONTED;
-    }
-    else {
-        g->facts[orig][i].flags |= MVM_SPESH_FACT_TYPEOBJ | MVM_SPESH_FACT_DECONTED;
-    }
+    else
+        g->facts[orig][i].flags |= MVM_SPESH_FACT_TYPEOBJ;
 
     /* Add any decontainerized type info. */
     if (type_tuple_entry.decont_type) {
