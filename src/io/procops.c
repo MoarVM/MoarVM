@@ -1199,7 +1199,6 @@ The simplest way of doing this that I can see is:
 MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
     MVMInstance *instance = tc->instance;
     const char *error = NULL;
-    MVMint32 alive = 0;
     MVMint64 pid = -1;
 
     if (!MVM_platform_supports_fork(tc))
@@ -1236,7 +1235,8 @@ MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
         /* Reinitialize uv_loop_t after fork in child */
         MVMThread *head = instance->threads;
         for (; head != NULL; head = head->body.next)
-            uv_loop_fork(head->body.tc->loop);
+            if (head->body.stage < MVM_thread_stage_exited)
+                uv_loop_fork(head->body.tc->loop);
         if (instance->event_loop)
             uv_loop_fork(instance->event_loop);
     }

@@ -74,6 +74,9 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
     add_collectable(tc, worklist, snapshot, tc->instance->compiler_registry, "Compiler registry");
     add_collectable(tc, worklist, snapshot, tc->instance->hll_syms, "HLL symbols");
     add_collectable(tc, worklist, snapshot, tc->instance->clargs, "Command line args");
+
+    add_collectable(tc, worklist, snapshot, tc->instance->event_loop_thread,
+        "Event loop thread");
     add_collectable(tc, worklist, snapshot, tc->instance->event_loop_todo_queue,
         "Event loop todo queue");
     add_collectable(tc, worklist, snapshot, tc->instance->event_loop_permit_queue,
@@ -82,8 +85,11 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
         "Event loop cancel queue");
     add_collectable(tc, worklist, snapshot, tc->instance->event_loop_active, "Event loop active");
 
+    add_collectable(tc, worklist, snapshot, tc->instance->spesh_thread,
+        "Specialization thread");
     add_collectable(tc, worklist, snapshot, tc->instance->spesh_queue,
         "Specialization log queue");
+
     if (worklist)
         MVM_spesh_plan_gc_mark(tc, tc->instance->spesh_plan, worklist);
 

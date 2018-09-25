@@ -263,7 +263,7 @@ MVMint32 MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head)
             case MVM_thread_stage_exited:
             case MVM_thread_stage_clearing_nursery:
                 /* push it to the new starting list */
-                this->body.next = new_list;
+                MVM_ASSIGN_REF(tc, &(this->common.header), this->body.next, new_list);
                 new_list = this;
                 break;
             case MVM_thread_stage_destroyed:
@@ -277,6 +277,37 @@ MVMint32 MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head)
     }
     *head = new_list;
     return alive;
+}
+
+static const char * thread_stage_name(MVMThreadStages stage) {
+    switch (stage) {
+    case MVM_thread_stage_unstarted:
+        return "unstarted";
+    case MVM_thread_stage_starting:
+        return "starting";
+    case MVM_thread_stage_waiting:
+        return "waiting";
+    case MVM_thread_stage_started:
+        return "started";
+    case MVM_thread_stage_exited:
+        return "exited";
+    case MVM_thread_stage_clearing_nursery:
+        return "clearing_nursery";
+    case MVM_thread_stage_destroyed:
+        return "destroyed";
+    default:
+        return "INVALID";
+    }
+}
+
+/* use this in a debugger */
+void MVM_thread_dump(MVMThreadContext *tc) {
+    MVMThread *head = tc->instance->threads;
+    for (; head != NULL; head = head->body.next) {
+        fprintf(stderr, "thread id: %d stage=%s tc=%p\n",
+                head->body.thread_id, thread_stage_name(head->body.stage),
+                head->body.tc);
+    }
 }
 
 /* Goes through all non-app-lifetime threads and joins them. */
