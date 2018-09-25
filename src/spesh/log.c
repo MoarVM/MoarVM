@@ -76,16 +76,62 @@ void MVM_spesh_log_new_compunit(MVMThreadContext *tc) {
     }
 }
 
-/* Log the entry to a call frame. */
-void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf, MVMCallsite *cs) {
+/* Log the entry to a call frame along with the parameters. */
+static void log_param_type(MVMThreadContext *tc, MVMint32 cid, MVMuint16 arg_idx,
+                           MVMObject *value, MVMSpeshLogEntryKind kind, MVMint32 rw_cont) {
+    MVMSpeshLog *sl = tc->spesh_log;
+    MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
+    entry->kind = kind;
+    entry->id = cid;
+    MVM_ASSIGN_REF(tc, &(sl->common.header), entry->param.type, value->st->WHAT);
+    entry->param.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_TYPE_FLAG_CONCRETE : 0;
+    if (rw_cont)
+        entry->param.flags |= MVM_SPESH_LOG_TYPE_FLAG_RW_CONT;
+    entry->param.arg_idx = arg_idx;
+    commit_entry(tc, sl);
+}
+void log_parameter(MVMThreadContext *tc, MVMint32 cid, MVMuint16 arg_idx, MVMObject *param) {
+    MVMContainerSpec const *cs = STABLE(param)->container_spec;
+    MVMROOT(tc, param, {
+        log_param_type(tc, cid, arg_idx, param, MVM_SPESH_LOG_PARAMETER,
+            cs && IS_CONCRETE(param) && cs->fetch_never_invokes
+                ? cs->can_store(tc, param)
+                : 0);
+    });
+    if (tc->spesh_log && IS_CONCRETE(param)) {
+        if (cs && cs->fetch_never_invokes && REPR(param)->ID != MVM_REPR_ID_NativeRef) {
+            MVMRegister r;
+            cs->fetch(tc, param, &r);
+            log_param_type(tc, cid, arg_idx, r.o, MVM_SPESH_LOG_PARAMETER_DECONT, 0);
+        }
+    }
+}
+void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf,
+                         MVMCallsite *cs, MVMRegister *args) {
     MVMSpeshLog *sl = tc->spesh_log;
     if (sl) {
+        /* Log the entry itself. */
         MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
         entry->kind = MVM_SPESH_LOG_ENTRY;
         entry->id = cid;
         MVM_ASSIGN_REF(tc, &(sl->common.header), entry->entry.sf, sf);
         entry->entry.cs = cs->is_interned ? cs : NULL;
         commit_entry(tc, sl);
+
+        /* Log each parameter in the args buffer. */
+        if (cs->is_interned) {
+            MVMuint32 i;
+            MVMuint32 arg_idx = 0;
+            for (i = 0; i < cs->flag_count; i++) {
+                if (!MVM_spesh_log_is_logging(tc))
+                    break;
+                if (cs->arg_flags[i] & MVM_CALLSITE_ARG_NAMED)
+                    arg_idx++;
+                if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ)
+                    log_parameter(tc, cid, arg_idx, args[arg_idx].o);
+                arg_idx++;
+            }
+        }
     }
 }
 
@@ -111,38 +157,6 @@ void MVM_spesh_log_type(MVMThreadContext *tc, MVMObject *value) {
     entry->type.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_TYPE_FLAG_CONCRETE : 0;
     entry->type.bytecode_offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start)) - 2;
     commit_entry(tc, sl);
-}
-
-/* Log a parameter type and, maybe, decontainerized type. */
-static void log_param_type(MVMThreadContext *tc, MVMint32 cid, MVMuint16 arg_idx,
-                           MVMObject *value, MVMSpeshLogEntryKind kind, MVMint32 rw_cont) {
-    MVMSpeshLog *sl = tc->spesh_log;
-    MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
-    entry->kind = kind;
-    entry->id = cid;
-    MVM_ASSIGN_REF(tc, &(sl->common.header), entry->param.type, value->st->WHAT);
-    entry->param.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_TYPE_FLAG_CONCRETE : 0;
-    if (rw_cont)
-        entry->param.flags |= MVM_SPESH_LOG_TYPE_FLAG_RW_CONT;
-    entry->param.arg_idx = arg_idx;
-    commit_entry(tc, sl);
-}
-void MVM_spesh_log_parameter(MVMThreadContext *tc, MVMuint16 arg_idx, MVMObject *param) {
-    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
-    MVMContainerSpec const *cs = STABLE(param)->container_spec;
-    MVMROOT(tc, param, {
-        log_param_type(tc, cid, arg_idx, param, MVM_SPESH_LOG_PARAMETER,
-            cs && IS_CONCRETE(param) && cs->fetch_never_invokes
-                ? cs->can_store(tc, param)
-                : 0);
-    });
-    if (tc->spesh_log && IS_CONCRETE(param)) {
-        if (cs && cs->fetch_never_invokes && REPR(param)->ID != MVM_REPR_ID_NativeRef) {
-            MVMRegister r;
-            cs->fetch(tc, param, &r);
-            log_param_type(tc, cid, arg_idx, r.o, MVM_SPESH_LOG_PARAMETER_DECONT, 0);
-        }
-    }
 }
 
 /* Log a static value. */

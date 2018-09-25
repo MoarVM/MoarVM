@@ -532,12 +532,12 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                 MVMROOT3(tc, static_frame, code_ref, outer, {
                     if (on_heap) {
                         MVMROOT(tc, frame, {
-                            MVM_spesh_log_entry(tc, id, static_frame, callsite);
+                            MVM_spesh_log_entry(tc, id, static_frame, callsite, args);
                         });
                     }
                     else {
                         MVMROOT2(tc, frame->caller, frame->static_info, {
-                            MVM_spesh_log_entry(tc, id, static_frame, callsite);
+                            MVM_spesh_log_entry(tc, id, static_frame, callsite, args);
                         });
                     }
                 });
