@@ -232,6 +232,36 @@ static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
     }
 }
 
+/* Sees if we can resolve an eqaddr at compile time. If we know both of the
+ * values, we can resolve it to a 1. If we know the types differ, we can
+ * resolve it to a 0. */
+static void optimize_eqaddr(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMSpeshFacts *obj_a_facts  = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    MVMSpeshFacts *obj_b_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
+    MVMint16 known_result = -1;
+    if (obj_a_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE &&
+            obj_b_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE &&
+            obj_a_facts->value.o == obj_b_facts->value.o)
+        known_result = 1;
+    else if (obj_a_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE &&
+            obj_b_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE &&
+            obj_a_facts->type != obj_b_facts->type)
+        known_result = 0;
+    if (known_result >= 0) {
+        MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+        ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
+        ins->operands[1].lit_i16 = known_result;
+        result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+        result_facts->value.i = known_result;
+
+        MVM_spesh_usages_delete(tc, g, obj_a_facts, ins);
+        MVM_spesh_usages_delete(tc, g, obj_b_facts, ins);
+        MVM_spesh_facts_depend(tc, g, result_facts, obj_a_facts);
+        MVM_spesh_use_facts(tc, g, obj_a_facts);
+        MVM_spesh_facts_depend(tc, g, result_facts, obj_b_facts);
+        MVM_spesh_use_facts(tc, g, obj_b_facts);
+    }
+}
 static void optimize_is_reprid(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     MVMuint32 wanted_repr_id;
@@ -2622,6 +2652,9 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             break;
         case MVM_OP_istype:
             optimize_istype(tc, g, ins);
+            break;
+        case MVM_OP_eqaddr:
+            optimize_eqaddr(tc, g, ins);
             break;
         case MVM_OP_objprimspec:
             optimize_objprimspec(tc, g, ins);
