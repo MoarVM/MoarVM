@@ -231,8 +231,8 @@ int wmain(int argc, wchar_t *wargv[])
                     fprintf(stderr, "ERROR: Invalid characters in debug port flag: %s\n", portstr);
                     return EXIT_FAILURE;
                 }
-                if (port <= 1024 || port > 65535) {
-                    fprintf(stderr, "ERROR: debug server port out of range. We only accept ports above 1024 and below 65535. (got: %lld)\n", port);
+                if (port <= 1024 || 65535 < port) {
+                    fprintf(stderr, "ERROR: debug server port out of range. We only accept ports above 1024 and below 65535. (got: %"PRIi64")\n", port);
                     return EXIT_FAILURE;
                 }
                 debugserverport = (MVMuint32)port;

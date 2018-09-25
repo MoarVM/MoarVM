@@ -4,16 +4,12 @@ struct MVMConcBlockingQueueNode {
     MVMConcBlockingQueueNode *next;
 };
 
-/* Memory used for mutexes and cond vars; these can't live in the object body
- * directly as they are sensitive to being moved, but putting them together in
- * a single struct means we can malloc a single bit of memory to hold them. */
-struct MVMConcBlockingQueueLocks {
-    uv_mutex_t  head_lock;
-    uv_mutex_t  tail_lock;
-    uv_cond_t   head_cond;
-};
 
-/* Representation used for concurrent blocking queue. */
+/* Representation used for concurrent blocking queue. Rather than hold the body
+ * inline, the object holds a pointer to the body. The body itself is allocated
+ * by malloc() rather than GC. This prevents it from being moved which would be
+ * a problem for mutexes and condition variables. Also, it prevents the GC from
+ * moving the body while we are blocked on acquiring a lock (for example) */
 struct MVMConcBlockingQueueBody {
     /* Head and tail of the queue. */
     MVMConcBlockingQueueNode *head;
@@ -23,11 +19,15 @@ struct MVMConcBlockingQueueBody {
     AO_t elems;
 
     /* Locks and condition variables storage. */
-    MVMConcBlockingQueueLocks *locks;
+    uv_mutex_t  head_lock;
+    uv_mutex_t  tail_lock;
+    uv_cond_t   head_cond;
 };
+
 struct MVMConcBlockingQueue {
     MVMObject common;
-    MVMConcBlockingQueueBody body;
+    /* As noted, a pointer, not an inline struct */
+    MVMConcBlockingQueueBody *body;
 };
 
 /* Function for REPR setup. */

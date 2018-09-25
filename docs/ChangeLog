@@ -1,6 +1,98 @@
 See https://github.com/MoarVM/MoarVM/wiki/ChangeLog-Draft for the draft changelog
 since the previous release.
 
+New in 2018.09
+
+Core:
++ [6edaac44] Add true_value and false_value to HLL config for future hllbool op
+
+Documentation:
++ [156b5bc3] Clarify a few things in bytecode specification
++ [e17a53b8] Update the release guide a bit
+
+GC:
++ [ccf3dd37] Fix alignment of nursery allocations. Fixes segfaults on armhf
+
+IO:
++ [51f2db57] Add support in write_fhb op for writing 16 bit VM arrays to a
+  filehandle
+
+JIT:
++ [848f74e3] Add exprjit macros for register type constants
++ [18cb687c] Add ^zero/^one exprjit macros for 0 and 1 integers
++ [398f073b] Add param_sp and hasunipropc exprjit templates
++ [9e0237ed] Add binddynlex exprjit template
++ [3c10d230] Add getarg_* exprjit templates
++ [af6353d3] Add bindlex_n* exprjit templates
++ [9ed59041] Add reprname exprjit template
++ [f43ab19e] Add objprim{bits,unsigned} exprjit templates
++ [722f0939] Add down-cast operations to cast_unsigned_load_addr
++ [891d5c02] Implement truncation via unsigned cast for expr JIT
++ [ef474331] Teach the lego JIT to compile hllbool
++ [c1c2b7e3,c1c2b7e3] JIT compile hllboolfor, hllboolfor
++ [756a97d1] JIT compile hllbool
++ [37a2cd36] Increase array size of args on MVMJitTile struct
++ [9bef425a] Add objprimspec exprjit template
++ [9590c483] Implement cast_load_addr tile for exprjit
++ [6556de6d] Make minor JIT doc changes
++ [17365037] Add a macro for decoder_ensure_decoder and templates for
+  decoder<addbytes takebytes takeline empty>
++ [f71f55cf] JIT decoder(empty|takebytes)
++ [c1b7b549] Add paramnamesused exprjit template
++ [f5928803] Add getpid and hintfor exprjit templates
++ [8a70d24d] Add ctx exprjit template
++ [14f6956c] Add existspos exprjit template
++ [77d75210][14f6956c][8a70d24d][f5928803][c1b7b549][9bef425a][f43ab19e]
+  [9ed59041][af6353d3][3c10d230][9e0237ed][398f073b]
+  Add unshift_*, existspos, ctx, getpid, hintfor, paramnamesused, objprimspec,
+  objprim{bits,unsigned}, reprname, bindlex_n*, getarg_*, binddynlex, param_sp
+  and hasunipropc exprjit templates
++ [1d4bd3ec] Bind 'let:' declarations eagerly in expr JIT compiler
++ [dc1cc51b] Tighten scope rules for expr JIT compiler
++ [e4542ee1] New template compiler, Single-pass compilation, Better type and
+  format checking, a few syntax changes
++ [7567696e] Pass MVMRegister to lexical-binding function for exprjit. This
+  accommodates the exprjit templates and allows us to the pass the value
+  instead of a pointer.
+
+Libraries:
++ [73e2f53d] Update libuv to 1.23.0
+
+Ops:
++ [954bdf88] New hllbool and hllboolfor ops
+
+Platform:
++ [3abd2888] Throw error on failure in decodelocaltime
++ [a8dfd479] Fix on decodelocaltime on Windows
+
+Profiler:
++ [bcbe9b20] Pass an array with information on types to profiler
+
+Spesh:
++ [24860d4c] Let spesh discover the type of hllbool[for]
++ [7c5740fb] Teach spesh to replace hllboolfor by the result for known values
++ [ee0004bf] Teach spesh to replace hllbool by the result for known values
++ [2fb3265a] Fix segfault of native subs with more than 8 arguments
++ [c49fc88a] Fix rw args of JITed calls to JITed native calls
++ [96b88eba] Leak fixes in Spash
++ [b217a115] Destroy inlinee after inlining
+
+Strings:
++ [3e94a68f] Pass through BOM with utf16le and utf16be
++ [ff750504] Make sure MVM_string_utf16le/be_decodestream are predeclared
++ [ad12d8e4] Fix some bugs with utf16* decodestream get_chars, and retain state
++ [792cdd58,ad12d8e4 ff750504 3e94a68f] Add support for utf16le and utf16be to
+  decodestream. utf16le and utf16be do not expect a byte order marker and
+  will pass them through as Zero Width Non-Break Space per UTF16 spec
++ [ddde0950] Add encode support for utf16le and utf16be
++ [b162c7c4] Add utf16le and utf16be encoding types and implement for buffer
+  decode
++ [578c2f76] Add support for utf-16 to decodestream
++ [f06c695a] Make Unicode Block name lookup work for unassigned cp's
+
+Misc:
++ [652056de] Fix use-after-free in cleanup
+
 New in 2018.08
 
 6model:

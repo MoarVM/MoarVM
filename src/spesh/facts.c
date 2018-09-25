@@ -558,6 +558,27 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 tc->instance->boot_types.BOOTHash);
             break;
+        case MVM_OP_hllboolfor: {
+            MVMSpeshOperand *name_op = &ins->operands[1];
+            MVMSpeshFacts *namefacts = &g->facts[name_op->reg.orig][name_op->reg.i];
+            if (namefacts->writer && namefacts->writer->info->opcode == MVM_OP_const_s) {
+                MVMString *hllname = MVM_cu_string(tc, g->sf->body.cu, ins->operands[1].lit_str_idx);
+                MVMHLLConfig *hll = MVM_hll_get_config_for(tc, hllname);
+                if (hll->true_value && hll->false_value && STABLE(hll->true_value)->WHAT == STABLE(hll->false_value)->WHAT)
+                    create_facts_with_type(tc, g,
+                        ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                        STABLE(hll->true_value)->WHAT);
+            }
+            break;
+        }
+        case MVM_OP_hllbool: {
+            MVMHLLConfig *hll = g->sf->body.cu->body.hll_config;
+            if (hll->true_value && hll->false_value && STABLE(hll->true_value)->WHAT == STABLE(hll->false_value)->WHAT)
+                create_facts_with_type(tc, g,
+                    ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                    STABLE(hll->true_value)->WHAT);
+            break;
+        }
         case MVM_OP_hllboxtype_i:
             object_facts(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
