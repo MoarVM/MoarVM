@@ -647,7 +647,7 @@ MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
     } else {
         MVMint32 num   = ba->u.smallint.value;
         MVMint32 denom = bb->u.smallint.value;
-        MVMint32 value;
+        MVMint64 value;
         if ((cmp_a == MP_LT) ^ (cmp_b == MP_LT)) {
             if (denom == 0) {
                 MVM_exception_throw_adhoc(tc, "Division by zero");
@@ -658,7 +658,7 @@ MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
                 value = num / denom;
             }
         } else {
-            value = num / denom;
+            value = (MVMint64)num / denom;
         }
         store_int64_result(bc, value);
     }
