@@ -135,7 +135,7 @@ our %TC_POSIX = (
     ccshared   => '-fPIC',
     ldshared   => '-shared @ccshared@',
     moarshared => '',
-    ldrpath    => '-Wl,-rpath,"/@libdir@"',
+    ldrpath    => '-Wl,-z,origin,-rpath,\'$$ORIGIN/../lib\'',
 
     arflags => 'rcs',
     arout   => '',
