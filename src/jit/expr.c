@@ -597,6 +597,19 @@ static void active_values_flush(MVMThreadContext *tc, MVMJitExprTree *tree,
     }
 }
 
+static void add_begin_comment(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns *ins) {
+    MVMSpeshGraph *g = jg->sg;
+    if (MVM_spesh_debug_enabled(tc)) {
+        MVM_spesh_graph_add_comment(tc, g, ins, "start of exprjit tree");
+    }
+}
+
+static void add_bail_comment(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns *ins) {
+    MVMSpeshGraph *g = jg->sg;
+    if (MVM_spesh_debug_enabled(tc)) {
+        MVM_spesh_graph_add_comment(tc, g, ins, "EXPRJIT: bailed");
+    }
+}
 
 MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIterator *iter) {
     MVMSpeshGraph *sg = jg->sg;
@@ -629,6 +642,8 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
     memset(values, -1, sizeof(struct ValueDefinition)*sg->num_locals);
 
 #define BAIL(x, ...) do { if (x) { MVM_jit_log(tc, __VA_ARGS__); goto done; } } while (0)
+
+    add_begin_comment(tc, jg, iter->ins);
 
     /* Generate a tree based on templates. The basic idea is to keep a
        index to the node that last computed the value of a local.
@@ -747,11 +762,14 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
              * we do need to process the annotation to setup the frame handler
              * correctly.
              */
+            
             BAIL(after_label >= 0, "A PHI node should not have an after label\n");
             continue;
         }
 
         template = MVM_jit_get_template_for_opcode(opcode);
+        if (template == NULL)
+            add_bail_comment(tc, jg, ins);
         BAIL(template == NULL, "Cannot get template for: %s\n", ins->info->name);
 
         check_template(tc, template, ins);

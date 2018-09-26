@@ -755,6 +755,13 @@ static void jg_sc_wb(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshOperand chec
     jg_append_call_c(tc, jg, &MVM_SC_WB_OBJ, 2, args, MVM_JIT_RV_VOID, -1);
 }
 
+static void add_devirt_comment(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns *ins) {
+    MVMSpeshGraph *g = jg->sg;
+    if (MVM_spesh_debug_enabled(tc)) {
+        MVM_spesh_graph_add_comment(tc, g, ins, "JIT: devirtualized");
+        MVM_jit_log(tc, "devirt: emitted an %s via consume_reprop\n", ins->info->name);
+    }
+}
 
 static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                MVMSpeshIterator *iterator, MVMSpeshIns *ins) {
@@ -886,7 +893,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                              op == MVM_OP_atpos_s || op == MVM_OP_atkey_s ? MVM_reg_str :
                                                                     MVM_reg_obj } };
                 jg_append_call_c(tc, jg, function, 7, args, MVM_JIT_RV_VOID, -1);
-                MVM_jit_log(tc, "devirt: emitted an %s via consume_reprop\n", ins->info->name);
+                add_devirt_comment(tc, jg, ins);
                 return 1;
             }
             case MVM_OP_bindkey_i:
@@ -928,7 +935,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                              op == MVM_OP_bindpos_s || op == MVM_OP_bindkey_s ? MVM_reg_str :
                                                                     MVM_reg_obj } };
                 jg_append_call_c(tc, jg, function, 7, args, MVM_JIT_RV_VOID, -1);
-                MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop\n", ins->info->name);
+                add_devirt_comment(tc, jg, ins);
                 jg_sc_wb(tc, jg, ins->operands[0]);
                 return 1;
             }
@@ -945,7 +952,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                          { MVM_JIT_REG_VAL,     invocant },
                                          { MVM_JIT_REG_OBJBODY, invocant } };
                 jg_append_call_c(tc, jg, function, 4, args, MVM_JIT_RV_INT, dst);
-                MVM_jit_log(tc, "devirt: emitted an elems via consume_reprop\n");
+                add_devirt_comment(tc, jg, ins);
                 return 1;
             }
             case MVM_OP_getattr_i:
@@ -993,9 +1000,8 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                                  op == MVM_OP_getattr_n || op == MVM_OP_getattrs_n ? MVM_reg_num64 :
                                                  op == MVM_OP_getattr_s || op == MVM_OP_getattrs_s ? MVM_reg_str :
                                                                         MVM_reg_obj } };
-                    MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop\n", ins->info->name);
                     jg_append_call_c(tc, jg, function, 9, args, MVM_JIT_RV_VOID, -1);
-
+                    add_devirt_comment(tc, jg, ins);
                     return 1;
                 } else {
                     MVM_jit_log(tc, "devirt: couldn't %s; concreteness not sure\n", ins->info->name);
@@ -1030,7 +1036,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                              { MVM_JIT_REG_VAL,     type },
                                              { MVM_JIT_REG_VAL,     attrname },
                                              { MVM_JIT_LITERAL,     attrhint } };
-                    MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
+                    add_devirt_comment(tc, jg, ins);
                     jg_append_call_c(tc, jg, function, 6, args, MVM_JIT_RV_INT, dst);
 
                     return 1;
@@ -1085,7 +1091,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                                  op == MVM_OP_bindattr_n || op == MVM_OP_bindattrs_n ? MVM_reg_num64 :
                                                  op == MVM_OP_bindattr_s || op == MVM_OP_bindattrs_s ? MVM_reg_str :
                                                                         MVM_reg_obj } };
-                    MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop\n", ins->info->name);
+                    add_devirt_comment(tc, jg, ins);
                     jg_append_call_c(tc, jg, function, 9, args, MVM_JIT_RV_VOID, -1);
                     jg_sc_wb(tc, jg, ins->operands[0]);
                     return 1;
@@ -1112,7 +1118,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                          { MVM_JIT_REG_VAL,     attrname } };
 
 
-                MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop\n", ins->info->name);
+                add_devirt_comment(tc, jg, ins);
                 jg_append_call_c(tc, jg, function, 4, args, MVM_JIT_RV_INT, result);
                 return 1;
                 break;
@@ -1144,7 +1150,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                              op == MVM_OP_push_s || op == MVM_OP_unshift_s ? MVM_reg_str :
                                                                     MVM_reg_obj } };
                 jg_append_call_c(tc, jg, function, 6, args, MVM_JIT_RV_VOID, -1);
-                MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop\n", ins->info->name);
+                add_devirt_comment(tc, jg, ins);
                 jg_sc_wb(tc, jg, ins->operands[0]);
                 return 1;
             }
@@ -1175,7 +1181,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                              op == MVM_OP_pop_s || op == MVM_OP_shift_s ? MVM_reg_str :
                                                                     MVM_reg_obj } };
                 jg_append_call_c(tc, jg, function, 6, args, MVM_JIT_RV_VOID, -1);
-                MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop\n", ins->info->name);
+                add_devirt_comment(tc, jg, ins);
                 return 1;
             }
             case MVM_OP_setelemspos: {
@@ -1190,7 +1196,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                          { MVM_JIT_REG_OBJBODY, invocant },
                                          { MVM_JIT_REG_VAL,     amount } };
                 jg_append_call_c(tc, jg, function, 5, args, MVM_JIT_RV_VOID, -1);
-                MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop\n", ins->info->name);
+                add_devirt_comment(tc, jg, ins);
                 return 1;
             }
             case MVM_OP_existskey: {
@@ -1207,7 +1213,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                          { MVM_JIT_REG_OBJBODY, invocant },
                                          { MVM_JIT_REG_VAL,     keyidx } };
                 jg_append_call_c(tc, jg, function, 5, args, MVM_JIT_RV_INT, dst);
-                MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop\n", ins->info->name);
+                add_devirt_comment(tc, jg, ins);
                 return 1;
             }
             case MVM_OP_splice: {
@@ -1226,7 +1232,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                          { MVM_JIT_REG_VAL,     offset   },
                                          { MVM_JIT_REG_VAL,     count    } };
                 jg_append_call_c(tc, jg, function, 7, args, MVM_JIT_RV_VOID, -1);
-                MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop\n", ins->info->name);
+                add_devirt_comment(tc, jg, ins);
                 return 1;
             }
             case MVM_OP_decont_i:
@@ -1246,8 +1252,10 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
 
                 void *function = NULL;
 
-                if (st->container_spec == NULL)
+                if (st->container_spec == NULL) {
+                    MVM_spesh_graph_add_comment(tc, jg->sg, ins, "JIT: not devirtualized: null container spec");
                     goto skipdevirt;
+                }
 
                 function = MVM_container_devirtualize_fetch_for_jit(tc, st, reg_type);
 
@@ -1261,13 +1269,14 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                              :                             st->container_spec->fetch_s;
 
                     jg_append_call_c(tc, jg, function, 3, args, MVM_JIT_RV_VOID, -1);
-                    MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop (simple)\n", ins->info->name);
+                    add_devirt_comment(tc, jg, ins);
                 }
                 else {
                     MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                              { MVM_JIT_REG_VAL, { obj } } };
 
                     jg_append_call_c(tc, jg, function, 2, args, ret_type, dst);
+                    MVM_spesh_graph_add_comment(tc, jg->sg, ins, "JIT: double-devirtualized");
                     MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop (advanced)\n", ins->info->name);
 
                 }
@@ -1296,12 +1305,13 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                 function = MVM_container_devirtualize_store_for_jit(tc, st, reg_type);
 
                 if (!function) {
-                    MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop (simple)\n", ins->info->name);
+                    add_devirt_comment(tc, jg, ins);
                     function = reg_type == MVM_reg_int64 ? st->container_spec->store_i
                              : reg_type == MVM_reg_num64 ? st->container_spec->store_n
                              :                             (void *)st->container_spec->store_s;
                 }
                 else {
+                    MVM_spesh_graph_add_comment(tc, jg->sg, ins, "JIT: double-devirtualized");
                     MVM_jit_log(tc, "devirt: emitted a %s via consume_reprop (advanced)\n", ins->info->name);
                 }
 
@@ -1312,6 +1322,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                 MVM_jit_log(tc, "devirt: please implement emitting repr op %s\n", ins->info->name);
         }
     } else {
+        MVM_spesh_graph_add_comment(tc, jg->sg, ins, "JIT: not devirtualized: type unknown");
         MVM_jit_log(tc, "devirt: repr op %s couldn't be devirtualized: type unknown\n", ins->info->name);
     }
 
@@ -1633,6 +1644,14 @@ skipdevirt:
     }
 
     return 1;
+}
+
+static void add_bail_comment(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns *ins) {
+    MVMSpeshGraph *g = jg->sg;
+    if (MVM_spesh_debug_enabled(tc)) {
+        MVM_spesh_graph_add_comment(tc, g, ins, "JIT: bailed completely");
+        MVM_jit_log(tc, "BAIL: op <%s>", ins->info->name);
+    }
 }
 
 static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
@@ -2182,6 +2201,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
             if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
                 hll_config = MVM_hll_get_config_for(tc, facts->value.s);
             } else {
+                add_bail_comment(tc, jg, ins);
                 MVM_jit_log(tc, "BAIL: op <%s>", ins->info->name);
                 return 0;
             }
@@ -2199,6 +2219,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
             ins->operands[2].lit_i64 = (MVMint64)hll_config;
             jg_append_primitive(tc, jg, ins);
         } else {
+            add_bail_comment(tc, jg, ins);
             MVM_jit_log(tc, "BAIL: op <%s>", ins->info->name);
             return 0;
         }
@@ -2366,6 +2387,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_assign_s:
         if (!consume_reprop(tc, jg, iter, ins)) {
             MVM_jit_log(tc, "BAIL: op <%s> (devirt attempted)\n", ins->info->name);
+            add_bail_comment(tc, jg, ins);
             return 0;
         }
         break;
@@ -3513,6 +3535,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
             }
         }
         if (!emitted_extop) {
+            add_bail_comment(tc, jg, ins);
             MVM_jit_log(tc, "BAIL: op <%s>\n", ins->info->name);
             return 0;
         }
