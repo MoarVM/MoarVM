@@ -170,7 +170,6 @@ struct MVMJitCallC {
     void       *func_ptr;
     MVMJitCallArg  *args;
     MVMuint16   num_args;
-    MVMuint16  has_vargs;
     MVMJitRVMode rv_mode;
     MVMint16      rv_idx;
 };
