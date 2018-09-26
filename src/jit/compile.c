@@ -43,7 +43,6 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     MVMJitCode *code;
     MVMJitNode *node = jg->first_node;
 
-    MVM_jit_log(tc, "Starting compilation\n");
     /* initialation */
     MVM_jit_compiler_init(tc, &cl, jg);
     /* generate code */
@@ -126,25 +125,23 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
 
    /* compile the function */
     if ((dasm_error = dasm_link(cl, &codesize)) != 0) {
-        MVM_jit_log(tc, "DynASM could not link, error: %d\n", dasm_error);
+        fprintf(stderr, "DynASM could not link, error: %d\n", dasm_error);
         return NULL;
     }
 
     memory = MVM_platform_alloc_pages(codesize, MVM_PAGE_READ|MVM_PAGE_WRITE);
     if ((dasm_error = dasm_encode(cl, memory)) != 0) {
-        MVM_jit_log(tc, "DynASM could not encode, error: %d\n", dasm_error);
+        fprintf(stderr, "DynASM could not encode, error: %d\n", dasm_error);
         return NULL;
     }
 
     /* set memory readable + executable */
     if (!MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC)) {
-        MVM_jit_log(tc, "Setting jit page executable failed or was denied. deactivating jit.\n");
+        fprintf(stderr, "Setting jit page executable failed or was denied. deactivating jit.\n");
         /* our caller allocated the compiler and our caller must clean it up */
         tc->instance->jit_enabled = 0;
         return NULL;
     }
-
-    MVM_jit_log(tc, "Bytecode size: %"MVM_PRSz"\n", codesize);
 
     /* Create code segment */
     code = MVM_malloc(sizeof(MVMJitCode));
@@ -177,7 +174,7 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     for (i = 0; i < code->num_labels; i++) {
         MVMint32 offset = dasm_getpclabel(cl, i);
         if (offset < 0)
-            MVM_jit_log(tc, "Got negative offset for dynamic label %d\n", i);
+            fprintf(stderr, "JIT ERROR: Negative offset for dynamic label %d\n", i);
         code->labels[i] = memory + offset;
     }
     /* We only ever use one global label, which is the exit label */
