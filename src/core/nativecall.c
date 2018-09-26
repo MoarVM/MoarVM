@@ -404,7 +404,6 @@ void init_c_call_node(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMJitNode *node,
         node->u.call.args = NULL;
     }
     node->u.call.num_args = num_args;
-    node->u.call.has_vargs = 0;
     node->u.call.rv_mode = MVM_JIT_RV_VOID;
     node->u.call.rv_idx  = -1;
 }

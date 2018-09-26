@@ -33,7 +33,6 @@ static void jg_append_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
     node->type             = MVM_JIT_NODE_CALL_C;
     node->u.call.func_ptr  = func_ptr;
     node->u.call.num_args  = num_args;
-    node->u.call.has_vargs = 0; /* don't support them yet */
     /* Call argument array is typically stack allocated,
      * so they need to be copied */
     node->u.call.args      = MVM_spesh_alloc(tc, jg->sg, args_size);

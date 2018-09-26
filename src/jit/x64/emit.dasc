@@ -2688,10 +2688,6 @@ static void emit_win64_callargs(MVMThreadContext *tc, MVMJitCompiler *compiler, 
 void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                          MVMJitCallC * call_spec) {
 
-    MVM_jit_log(tc, "emit c call <%d args>\n", call_spec->num_args);
-    if (call_spec->has_vargs) {
-        MVM_oops(tc, "JIT can't handle varargs yet");
-    }
     |.if WIN32;
     || emit_win64_callargs(tc, compiler, jg, call_spec->args, call_spec->num_args);
     |.else;
