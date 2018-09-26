@@ -90,7 +90,6 @@ static void jg_append_label(MVMThreadContext *tc, MVMJitGraph *jg, MVMint32 name
     jg_append_node(jg, node);
 
     jg->label_nodes[name] = node;
-    MVM_jit_log(tc, "append label: %d\n", node->u.label.name);
 }
 
 static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
@@ -423,7 +422,6 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
         case MVM_OP_argconst_i:
         case MVM_OP_argconst_n:
         case MVM_OP_argconst_s:
-            MVM_jit_log(tc, "Invoke arg: <%s>\n", ins->info->name);
             arg_ins[i++] = ins;
             break;
         case MVM_OP_invoke_v:
@@ -470,8 +468,6 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
             MVMObject *nc_site;
 
             MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, iter->graph, ins->operands[1]);
-
-            MVM_jit_log(tc, "Invoke instruction: <%s>\n", ins->info->name);
 
             if (!(object_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)) {
                 MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins,
@@ -534,8 +530,9 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
             is_resolve            = 1;
             goto checkargs;
         default:
-            MVM_jit_log(tc, "Unexpected opcode in invoke sequence: <%s>\n",
-                        ins->info->name);
+            MVM_spesh_graph_add_comment(tc, iter->graph, ins,
+                "BAIL: Unexpected opcode in invoke sequence: <%s>",
+                ins->info->name);
             return 0;
         }
     }
@@ -546,7 +543,6 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
                                     ins? ins->info->name : "NULL", i, cs->arg_count);
         return 0;
     }
-    MVM_jit_log(tc, "Invoke instruction: <%s>\n", ins->info->name);
     /* get label /after/ current (invoke) ins, where we'll need to reenter the JIT */
     reentry_label = MVM_jit_label_after_ins(tc, jg, iter->bb, ins);
     /* create invoke node */
@@ -646,16 +642,6 @@ static MVMuint16 * try_fake_extop_regs(MVMThreadContext *tc, MVMSpeshGraph *sg, 
     return regs;
 }
 
-static void log_inline(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMint32 inline_idx, MVMint32 is_entry) {
-    MVMStaticFrame *sf = sg->inlines[inline_idx].sf;
-    char *name         = MVM_string_utf8_encode_C_string(tc, sf->body.name);
-    char *cuuid        = MVM_string_utf8_encode_C_string(tc, sf->body.cuuid);
-    MVM_jit_log(tc, "%s inline %d (name: %s, cuuid: %s)\n", is_entry ? "Entering" : "Leaving",
-                inline_idx, name, cuuid);
-    MVM_free(name);
-    MVM_free(cuuid);
-}
-
 static void before_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                        MVMSpeshIterator *iter, MVMSpeshIns  *ins) {
     MVMSpeshBB   *bb = iter->bb;
@@ -704,8 +690,6 @@ static void before_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         case MVM_SPESH_ANN_INLINE_START: {
             label = MVM_jit_label_before_ins(tc, jg, bb, ins);
             jg->inlines[ann->data.inline_idx].start_label = label;
-            if (tc->instance->jit_log_fh)
-                log_inline(tc, jg->sg, ann->data.inline_idx, 1);
             has_label = 1;
             break;
         }
@@ -733,8 +717,6 @@ static void after_ins(MVMThreadContext *tc, MVMJitGraph *jg,
             MVMint32 label = MVM_jit_label_after_ins(tc, jg, bb, ins);
             jg_append_label(tc, jg, label);
             jg->inlines[ann->data.inline_idx].end_label = label;
-            if (tc->instance->jit_log_fh)
-                log_inline(tc, jg->sg, ann->data.inline_idx, 0);
         } else if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS) {
             /* An underlying assumption here is that this instruction
              * will in fact set the jit_entry_label to a correct
@@ -1641,7 +1623,6 @@ static void add_bail_comment(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns 
 static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                             MVMSpeshIterator *iter, MVMSpeshIns *ins) {
     MVMint16 op = ins->info->opcode;
-    MVM_jit_log(tc, "append_ins: <%s>\n", ins->info->name);
     switch(op) {
     case MVM_SSA_PHI:
     case MVM_OP_no_op:
@@ -3507,7 +3488,6 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  { MVM_JIT_INTERP_TC } },
                                                  { MVM_JIT_DATA_LABEL,  { data_label } }};
                         jg_append_call_c(tc, jg, extops[i].func, 2, args, MVM_JIT_RV_VOID, -1);
-                        MVM_jit_log(tc, "append extop: <%s>\n", ins->info->name);
                         emitted_extop = 1;
                     }
                     break;
@@ -3584,15 +3564,6 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
 
     if (!MVM_jit_support()) {
         return NULL;
-    }
-
-    if (tc->instance->jit_log_fh) {
-        char *cuuid = MVM_string_utf8_encode_C_string(tc, sg->sf->body.cuuid);
-        char *name  = MVM_string_utf8_encode_C_string(tc, sg->sf->body.name);
-        MVM_jit_log(tc, "Constructing JIT graph (cuuid: %s, name: '%s')\n",
-                    cuuid, name);
-        MVM_free(cuuid);
-        MVM_free(name);
     }
 
     MVM_spesh_iterator_init(tc, &iter, sg);

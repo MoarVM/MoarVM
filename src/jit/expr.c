@@ -704,7 +704,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                 jg->inlines[ann->data.inline_idx].end_label = after_label;
                 break;
             case MVM_SPESH_ANN_DEOPT_INLINE:
-                MVM_jit_log(tc, "Not sure if we can handle DEOPT_INLINE on instruction %s\n", ins->info->name);
                 break;
             case MVM_SPESH_ANN_DEOPT_ONE_INS:
                 /* we should only see this in guards, which we don't do just
@@ -821,7 +820,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
              * to replace an invokish version with a non-invokish version (but
              * perhaps best if that is opt-in so people don't accidentally
              * forget to set it). */
-            MVM_jit_log(tc, "EXPR: adding throwish guard to op (%s)\n", ins->info->name);
             active_values_flush(tc, tree, values, sg->num_locals);
             store_directly = 1;
         }
@@ -857,13 +855,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
     if (tree->roots_num > 0) {
         active_values_flush(tc, tree, values, sg->num_locals);
         MVM_jit_expr_tree_analyze(tc, tree);
-        MVM_jit_log(tc, "Build tree out of: [");
-        for (ins = entry; ins != iter->ins; ins = ins->next) {
-            if (ins->info->opcode == MVM_SSA_PHI)
-                continue;
-            MVM_jit_log(tc, "%s, ", ins->info->name);
-        }
-        MVM_jit_log(tc, "]\n");
     } else {
         /* Don't return empty trees, nobody wants that */
         MVM_jit_expr_tree_destroy(tc, tree);
