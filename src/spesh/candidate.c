@@ -124,8 +124,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
         end_time = uv_hrtime();
         MVM_spesh_debug_printf(tc, "After:\n%s", after);
         MVM_spesh_debug_printf(tc,
-            "Specialization took " PRIu64 "us (total %" PRIu64"us)"
-            "\n\n=============\n\n",
+            "Specialization took %" PRIu64 "us (total %" PRIu64"us)\n",
             (spesh_time - start_time) / 1000,
             (end_time - start_time) / 1000);
 
@@ -133,7 +132,12 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
             MVM_spesh_debug_printf(tc,
                 "JIT was %ssuccessful and compilation took %" PRIu64 "us\n",
                 candidate->jitcode ? "" : "not ", (end_time - jit_time) / 1000);
+            if (candidate->jitcode) {
+                MVM_spesh_debug_printf(tc, "    Bytecode size: %" PRIu64 " byte\n",
+                                       candidate->jitcode->size);
+            }
         }
+        MVM_spesh_debug_printf(tc, "\n========\n\n");
         MVM_free(after);
         fflush(tc->instance->spesh_log_fh);
     }
