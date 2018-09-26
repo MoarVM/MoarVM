@@ -68,7 +68,7 @@ JIT_STUB     = src/jit/stub@obj@
 JIT_OBJECTS  = src/jit/graph@obj@ \
                src/jit/label@obj@ \
                src/jit/compile@obj@ \
-               src/jit/log@obj@ \
+               src/jit/dump@obj@ \
                src/jit/expr@obj@ \
                src/jit/tile@obj@ \
                src/jit/linear_scan@obj@ \
@@ -414,7 +414,7 @@ HEADERS = src/moar.h \
           src/jit/tile.h \
           src/jit/register.h \
           src/jit/interface.h \
-          src/jit/log.h \
+          src/jit/dump.h \
           src/instrument/crossthreadwrite.h \
           src/instrument/line_coverage.h \
           src/gen/config.h \
