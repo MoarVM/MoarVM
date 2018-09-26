@@ -396,15 +396,15 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                     appendf(ds, " (not deserialized)");
                 }
             }
-            if (num_comments == 1) {
-                ann = cur_ins->annotations;
-                while (ann) {
-                    if (ann->type == MVM_SPESH_ANN_COMMENT) {
-                        appendf(ds, "  # %s", ann->data.comment);
-                        break;
-                    }
-                    ann = ann->next;
+        }
+        if (num_comments == 1) {
+            ann = cur_ins->annotations;
+            while (ann) {
+                if (ann->type == MVM_SPESH_ANN_COMMENT) {
+                    appendf(ds, "  # %s", ann->data.comment);
+                    break;
                 }
+                ann = ann->next;
             }
         }
         append(ds, "\n");
