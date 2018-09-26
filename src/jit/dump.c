@@ -1,16 +1,6 @@
 #include "moar.h"
 
-/* inline this? maybe */
-void MVM_jit_log(MVMThreadContext *tc, const char * fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    if (tc->instance->jit_log_fh) {
-        vfprintf(tc->instance->jit_log_fh, fmt, args);
-    }
-    va_end(args);
-}
-
-void MVM_jit_log_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
+void MVM_jit_dump_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
     /* Filename format: moar-jit-%d.bin. number can consume at most 10
      * bytes, moar-jit-.bin is 13 bytes, one byte for the zero at the
      * end, one byte for the directory separator is 25 bytes, plus the
@@ -30,20 +20,25 @@ void MVM_jit_log_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
             char *frame_cuuid  = code->sf
                 ? MVM_string_utf8_encode_C_string(tc, code->sf->body.cuuid)
                 : NULL;
-            /* I'd like to add linenumber and filename information, but it's really a lot of work at this point */
+            char *frame_file_nr = code->sf
+                ? MVM_staticframe_file_location(tc, code->sf)
+                : NULL;
             fprintf(
                 tc->instance->jit_bytecode_map,
-                "%s\t%s\t%s\n",
+                "%s\t%s\t%s\t%s\n",
                 filename,
                 frame_name ? frame_name : "(unknown)",
-                frame_cuuid ? frame_cuuid : "(unknown)"
+                frame_cuuid ? frame_cuuid : "(unknown)",
+                frame_file_nr ? frame_file_nr : "(unknown)"
             );
             fflush(tc->instance->jit_bytecode_map);
             MVM_free(frame_name);
             MVM_free(frame_cuuid);
+            MVM_free(frame_file_nr);
         }
     } else {
-        MVM_jit_log(tc, "ERROR: could dump bytecode in %s\n", filename);
+        fprintf(stderr, "JIT ERROR: could not dump bytecode: %s",
+                strerror(errno));
     }
     MVM_free(filename);
 }
@@ -73,8 +68,8 @@ static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         }
     }
     nargs[j] = 0;
-    MVM_jit_log(tc, "%04d%s%s (%s; sz=%d)\n", node, indent, op_name,
-                nargs, info->size);
+    fprintf(traverser->data, "%04d%s%s (%s; sz=%d)\n",
+            node, indent, op_name, nargs, info->size);
 }
 
 static void ascend_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
@@ -86,7 +81,7 @@ static void ascend_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 
 static void write_graphviz_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                                 MVMJitExprTree *tree, MVMint32 node) {
-    FILE *graph_file            = traverser->data;
+    FILE *graph_file       = traverser->data;
     const char *op_name    = MVM_jit_expr_operator_name(tc, tree->nodes[node]);
     MVMint32 *links        = MVM_JIT_EXPR_LINKS(tree, node);
     MVMint32 *args         = MVM_JIT_EXPR_ARGS(tree, node);
@@ -112,9 +107,10 @@ static void write_graphviz_node(MVMThreadContext *tc, MVMJitTreeTraverser *trave
 }
 
 
-void MVM_jit_log_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
+void MVM_jit_dump_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
     MVMJitTreeTraverser traverser;
-    if (!tc->instance->jit_log_fh)
+    FILE *log = tc->instance->jit_log_fh;
+    if (!log)
         return;
     traverser.policy    = MVM_JIT_TRAVERSER_ONCE;
     traverser.preorder  = NULL;
@@ -122,16 +118,16 @@ void MVM_jit_log_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
     traverser.postorder = &write_graphviz_node;
     traverser.data      = tc->instance->jit_log_fh;
 
-    MVM_jit_log(tc, "Starting dump of JIT expression tree\n"
-                    "====================================\n");
-    MVM_jit_log(tc, "digraph {\n");
+    fprintf(log, "Starting dump of JIT expression tree\n"
+                 "====================================\n");
+    fprintf(log, "digraph {\n");
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);
-    MVM_jit_log(tc, "}\n");
-    MVM_jit_log(tc, "End dump of JIT expression tree\n"
-                    "====================================\n");
+    fprintf(log, "}\n");
+    fprintf(log, "End dump of JIT expression tree\n"
+                 "====================================\n");
 }
 
-void MVM_jit_log_tile_list(MVMThreadContext *tc, MVMJitTileList *list) {
+void MVM_jit_dump_tile_list(MVMThreadContext *tc, MVMJitTileList *list) {
     MVMint32 i, j;
     FILE *f = tc->instance->jit_log_fh;
     if (!f)
