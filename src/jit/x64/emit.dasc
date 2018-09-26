@@ -391,7 +391,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
                             MVMJitPrimitive * prim) {
     MVMSpeshIns *ins = prim->ins;
     MVMuint16 op = ins->info->opcode;
-    MVM_jit_log(tc, "emit opcode: <%s>\n", ins->info->name);
     /* Quite a few of these opcodes are copies. Ultimately, I want to
      * move copies to their own node (MVMJitCopy or such), and reduce
      * the number of copies (and thereby increase the efficiency), but
@@ -416,7 +415,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_const_n64: {
         MVMint16 reg = ins->operands[0].reg.orig;
         MVMint64 valbytes = ins->operands[1].lit_i64;
-        MVM_jit_log(tc, "store const %f\n", ins->operands[1].lit_n64);
         | mov64 TMP1, valbytes;
         | mov WORK[reg], TMP1;
         break;
@@ -502,9 +500,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         lexical_types = (!out && jg->sg->lexical_types ?
                          jg->sg->lexical_types :
                          sf->body.lexical_types);
-        MVM_jit_log(tc, "Lexical type of register: %d\n", lexical_types[idx]);
         if (lexical_types[idx] == MVM_reg_obj) {
-            MVM_jit_log(tc, "Emit lex vifivy check\n");
             /* if it is zero, check if we need to auto-vivify */
             | test TMP5, TMP5;
             | jnz >1;
@@ -538,7 +534,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         /* read value */
         | mov TMP5, REGISTER:TMP5[idx];
         if (op == MVM_OP_sp_getlexvia_o) {
-            MVM_jit_log(tc, "Emit lex vifivy check for via code-ref lookup\n");
             /* if it is zero, check if we need to auto-vivify */
             | test TMP5, TMP5;
             | jnz >1;
@@ -1049,8 +1044,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             if (operand_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE &&
                 fits_in_32_bit(operand_facts->value.i)) {
                 MVMint64 value = operand_facts->value.i;
-                MVM_jit_log(tc, "accumulator for %s stayed in memory and "
-                            " constant value %"PRId64" used\n", ins->info->name, value);
+                MVM_spesh_graph_add_comment(tc, jg->sg, ins, "JIT optimized to memory/constant operation");
                 switch(ins->info->opcode) {
                 case MVM_OP_add_i:
                     | add qword WORK[reg_a], qword value;
@@ -1069,7 +1063,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
                     break;
                 }
             } else {
-                MVM_jit_log(tc, "accumulator for %s stayed in memory\n", ins->info->name);
+                MVM_spesh_graph_add_comment(tc, jg->sg, ins, "JIT optimized to memory/register operation");
                 | mov rax, WORK[reg_c];
                 switch(ins->info->opcode) {
                 case MVM_OP_add_i:
@@ -1093,8 +1087,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             if (operand_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE &&
                 fits_in_32_bit(operand_facts->value.i)) {
                 MVMint64 value = operand_facts->value.i;
-                MVM_jit_log(tc, "constant value %"PRId64" used for %s\n",
-                            value, ins->info->name);
+                MVM_spesh_graph_add_comment(tc, jg->sg, ins, "JIT optimized to register/constant operation");
                 | mov rax, WORK[reg_b];
                 switch(ins->info->opcode) {
                 case MVM_OP_add_i:
@@ -2748,7 +2741,6 @@ void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, M
      * awkward dispatching issues */
     | gc_sync_point;
     if (ins == NULL || ins->info->opcode == MVM_OP_goto) {
-        MVM_jit_log(tc, "emit jump to label %d\n", name);
         if (name == MVM_JIT_BRANCH_EXIT) {
             | jmp ->exit
         } else {
@@ -2756,8 +2748,6 @@ void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, M
         }
     } else {
         MVMint16 val = ins->operands[0].reg.orig;
-        MVM_jit_log(tc, "emit branch <%s> to label %d\n",
-                    ins->info->name, name);
         switch(ins->info->opcode) {
         case MVM_OP_if_i:
             | mov rax, WORK[val];
@@ -2853,7 +2843,6 @@ void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, M
 
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                         MVMint32 label) {
-    MVM_jit_log(tc, "Emitting label %d\n", label);
     | =>(label):
 }
 
@@ -2897,7 +2886,6 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
                         MVMJitGuard *guard) {
     MVMint16 op        = guard->ins->info->opcode;
     MVMint16 obj       = guard->ins->operands[op == MVM_OP_sp_guardsf ? 0 : 1].reg.orig;
-    MVM_jit_log(tc, "emit guard <%s>\n", guard->ins->info->name);
     /* load object and spesh slot value, except for those that don't need it */
     | mov TMP1, WORK[obj];
     if (op != MVM_OP_sp_guardjustconc && op != MVM_OP_sp_guardjusttype) {
@@ -2995,7 +2983,6 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
 void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitInvoke *invoke) {
     MVMint16 i;
     MVMuint16 callsite_idx = invoke->callsite_idx;
-    MVM_jit_log(tc, "Emit invoke (%d args)\n", invoke->arg_count);
 
     /* The return address for the interpreter */
     | get_cur_op TMP2;
@@ -3119,7 +3106,6 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
 void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                            MVMJitJumpList *jumplist) {
     MVMint32 i;
-    MVM_jit_log(tc, "Emit jumplist (%"PRId64" labels)\n", jumplist->num_labels);
     | mov TMP1, WORK[jumplist->reg];
     | cmp TMP1, 0;
     | jl >2;
