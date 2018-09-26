@@ -38,7 +38,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     MVMSpeshCandidate *candidate;
     MVMSpeshCandidate **new_candidate_list;
     MVMStaticFrameSpesh *spesh;
-    MVMuint64 start_time;
+    MVMuint64 start_time, spesh_time;
 
     /* If we've reached our specialization limit, don't continue. */
     if (tc->instance->spesh_limit)
@@ -50,8 +50,6 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
 #if MVM_GC_DEBUG
     tc->in_spesh = 1;
 #endif
-    if (MVM_spesh_debug_enabled(tc))
-        start_time = uv_hrtime();
     sg = MVM_spesh_graph_create(tc, p->sf, 0, 1);
     if (MVM_spesh_debug_enabled(tc)) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, p->sf->body.name);
@@ -64,6 +62,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
         MVM_free(c_cuid);
         MVM_free(before);
         fflush(tc->instance->spesh_log_fh);
+        start_time = uv_hrtime();
     }
 
     /* Attach the graph so we will be able to mark it during optimization,
@@ -84,14 +83,8 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     /* Clear active graph; beyond this point, no more GC syncs. */
     tc->spesh_active_graph = NULL;
 
-    if (MVM_spesh_debug_enabled(tc)) {
-        char *after = MVM_spesh_dump(tc, sg);
-        MVM_spesh_debug_printf(tc, "After:\n%s", after);
-        MVM_spesh_debug_printf(tc, "Specialization took %dus\n\n========\n\n",
-            (int)((uv_hrtime() - start_time) / 1000));
-        MVM_free(after);
-        fflush(tc->instance->spesh_log_fh);
-    }
+    if (MVM_spesh_debug_enabled(tc))
+        spesh_time = uv_hrtime();
 
     /* Generate code and install it into the candidate. */
     sc = MVM_spesh_codegen(tc, sg);
@@ -116,7 +109,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
      * the spesh graph and can safely be deleted with it. */
     if (tc->instance->jit_enabled) {
         MVMJitGraph *jg;
-        if (tc->instance->spesh_log_fh)
+        if (MVM_spesh_debug_enabled(tc))
             start_time = uv_hrtime();
         jg = MVM_jit_try_make_graph(tc, sg);
         if (jg != NULL) {
@@ -128,6 +121,15 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
                                    candidate->jitcode ? "successful" : "not successful",
                                    (uv_hrtime() - start_time) / 1000);
         }
+    }
+
+    if (MVM_spesh_debug_enabled(tc)) {
+        char *after = MVM_spesh_dump(tc, sg);
+        MVM_spesh_debug_printf(tc, "After:\n%s", after);
+        MVM_spesh_debug_printf(tc, "Specialization took %dus\n\n========\n\n",
+            (int)((spesh_time - start_time) / 1000));
+        MVM_free(after);
+        fflush(tc->instance->spesh_log_fh);
     }
 
     /* calculate work environment taking JIT spill area into account */
