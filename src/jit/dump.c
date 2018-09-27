@@ -7,37 +7,21 @@ void MVM_jit_dump_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
      * length of the bytecode directory itself */
     size_t filename_size = strlen(tc->instance->jit_bytecode_dir) + 25;
     char * filename = MVM_malloc(filename_size);
-    FILE * out;
-    snprintf(filename, filename_size, "%s/moar-jit-%04d.bin", tc->instance->jit_bytecode_dir, code->seq_nr);
-    out = fopen(filename, "w");
-    if (out) {
-        fwrite(code->func_ptr, sizeof(char), code->size, out);
-        fclose(out);
-        if (tc->instance->jit_bytecode_map) {
-            char *frame_name   = code->sf
-                ? MVM_string_utf8_encode_C_string(tc, code->sf->body.name)
-                : NULL;
-            char *frame_cuuid  = code->sf
-                ? MVM_string_utf8_encode_C_string(tc, code->sf->body.cuuid)
-                : NULL;
-            char *frame_file_nr = code->sf
-                ? MVM_staticframe_file_location(tc, code->sf)
-                : NULL;
-            fprintf(
-                tc->instance->jit_bytecode_map,
-                "%s\t%s\t%s\t%s\n",
-                filename,
-                frame_name ? frame_name : "(unknown)",
-                frame_cuuid ? frame_cuuid : "(unknown)",
-                frame_file_nr ? frame_file_nr : "(unknown)"
-            );
-            fflush(tc->instance->jit_bytecode_map);
-            MVM_free(frame_name);
-            MVM_free(frame_cuuid);
-            MVM_free(frame_file_nr);
+    FILE * dump;
+    snprintf(filename, filename_size, "%s/moar-jit-%04d.bin",
+             tc->instance->jit_bytecode_dir, code->seq_nr);
+    dump = fopen(filename, "w");
+    if (dump) {
+        fwrite(code->func_ptr, sizeof(char), code->size, dump);
+        fclose(dump);
+        if (tc->instance->spesh_log_fh) {
+            fprintf(tc->instance->spesh_log_fh,
+                    "JIT: Dumped bytecode to %s\n\n", filename);
         }
     } else {
-        fprintf(stderr, "JIT ERROR: could not dump bytecode: %s",
+        FILE *file = tc->instance->spesh_log_fh ?
+            tc->instance->spesh_log_fh : stderr;
+        fprintf(file, "JIT ERROR: could not dump bytecode: %s",
                 strerror(errno));
     }
     MVM_free(filename);
@@ -109,31 +93,31 @@ static void write_graphviz_node(MVMThreadContext *tc, MVMJitTreeTraverser *trave
 
 void MVM_jit_dump_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
     MVMJitTreeTraverser traverser;
-    FILE *log = tc->instance->jit_log_fh;
+    FILE *log = tc->instance->spesh_log_fh;
     if (!log)
         return;
     traverser.policy    = MVM_JIT_TRAVERSER_ONCE;
     traverser.preorder  = NULL;
     traverser.inorder   = NULL;
     traverser.postorder = &write_graphviz_node;
-    traverser.data      = tc->instance->jit_log_fh;
+    traverser.data      = log;
 
-    fprintf(log, "Starting dump of JIT expression tree\n"
-                 "====================================\n");
+    fprintf(log, "JIT: Starting dump of JIT expression tree\n"
+                 "=========================================\n\n");
     fprintf(log, "digraph {\n");
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);
-    fprintf(log, "}\n");
+    fprintf(log, "}\n\n");
     fprintf(log, "End dump of JIT expression tree\n"
-                 "====================================\n");
+                 "===============================\n\n");
 }
 
 void MVM_jit_dump_tile_list(MVMThreadContext *tc, MVMJitTileList *list) {
     MVMint32 i, j;
-    FILE *f = tc->instance->jit_log_fh;
+    FILE *f = tc->instance->spesh_log_fh;
     if (!f)
         return;
-    fprintf(f, "Starting tile list log\n"
-              "======================\n");
+    fprintf(f, "JIT: Starting tile list log\n"
+               "===========================\n\n");
     for (i = 0; i < list->blocks_num; i++) {
         MVMint32 start = list->blocks[i].start, end = list->blocks[i].end;
         fprintf(f, "Block{%d} [%d-%d)\n", i, start, end);
@@ -150,7 +134,7 @@ void MVM_jit_dump_tile_list(MVMThreadContext *tc, MVMJitTileList *list) {
         }
 
     }
-    fprintf(f, "End of tile list log\n"
-              "======================\n");
+    fprintf(f, "\nEnd of tile list log\n"
+                 "====================\n\n");
 
 }

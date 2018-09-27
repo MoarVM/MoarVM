@@ -107,11 +107,9 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
 #endif
 
     /* Logging for insight */
-    if (tc->instance->jit_bytecode_dir) {
+    if (MVM_jit_bytecode_dump_enabled(tc))
         MVM_jit_dump_bytecode(tc, code);
-    }
-    if (tc->instance->jit_log_fh)
-        fflush(tc->instance->jit_log_fh);
+
     return code;
 }
 
@@ -275,7 +273,9 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
     MVMint32 i;
     /* First stage, tile the tree */
     list = MVM_jit_tile_expr_tree(tc, compiler, tree);
-    MVM_jit_dump_tile_list(tc, list);
+
+    if (MVM_jit_debug_enabled(tc))
+        MVM_jit_dump_tile_list(tc, list);
 
     /* Second stage, allocate registers */
     MVM_jit_linear_scan_allocate(tc, compiler, list);

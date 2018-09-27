@@ -296,25 +296,20 @@ struct MVMInstance {
      ************************************************************************/
 
     /* Flag for if jit is enabled */
-    MVMint32 jit_enabled;
-
-    MVMint32 jit_expr_enabled;
+    MVMuint8 jit_enabled;
+    MVMuint8 jit_expr_enabled;
+    MVMuint8 jit_debug_enabled;
 
     /* bisection flags, to stop the JIT from using the expression compiler above
      * certain frame seq nr / basic blocks nrs, allowing a debugger to figure
      * out where a particular piece of code breaks */
     MVMint32 jit_expr_last_frame;
     MVMint32 jit_expr_last_bb;
-    /* File for JIT logging */
-    FILE *jit_log_fh;
     /* File for JIT perf map logging */
     FILE *jit_perf_map;
 
     /* Directory name for JIT bytecode dumps */
     char *jit_bytecode_dir;
-
-    /* File for map of frame information for bytecode dumps */
-    FILE *jit_bytecode_map;
 
     /* sequence number for JIT compiled frames */
     MVMint32 jit_seq_nr;
