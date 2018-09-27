@@ -108,6 +108,38 @@ void plan_for_sf(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf) {
     }
 }
 
+/* Maximum stack depth is a decent heuristic for the order to specialize in,
+ * but sometimes it's misleading, and we end up with a planned specialization
+ * of a callee having a lower maximum than the caller. Boost the depth of any
+ * callees in such a situation. */
+void twiddle_stack_depths(MVMThreadContext *tc, MVMSpeshPlanned *planned, MVMuint32 num_planned) {
+    MVMuint32 i;
+    if (num_planned < 2)
+        return;
+    for (i = 0; i < num_planned; i++) {
+        /* For each planned specialization, look for its calls. */
+        MVMSpeshPlanned *p = &(planned[i]);
+        MVMuint32 j;
+        for (j = 0; j < p->num_type_stats; j++) {
+            MVMSpeshStatsByType *sbt = p->type_stats[j];
+            MVMuint32 k;
+            for (k = 0; k < sbt->num_by_offset; k++) {
+                MVMSpeshStatsByOffset *sbo = &(sbt->by_offset[k]);
+                MVMuint32 l;
+                for (l = 0; l < sbo->num_invokes; l++) {
+                    /* Found an invoke. If we plan a specialization for it,
+                     * then bump its count. */
+                    MVMStaticFrame *invoked_sf = sbo->invokes[l].sf;
+                    MVMuint32 m;
+                    for (m = 0; m < num_planned; m++)
+                        if (planned[m].sf == invoked_sf)
+                            planned[m].max_depth = p->max_depth + 1;
+                }
+            }
+        }
+    }
+}
+
 /* Sorts the plan in descending order of maximum call depth. */
 void sort_plan(MVMThreadContext *tc, MVMSpeshPlanned *planned, MVMuint32 n) {
     if (n >= 2) {
@@ -143,6 +175,7 @@ MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_fr
         MVMObject *sf = MVM_repr_at_pos_o(tc, updated_static_frames, i);
         plan_for_sf(tc, plan, (MVMStaticFrame *)sf);
     }
+    twiddle_stack_depths(tc, plan->planned, plan->num_planned);
     sort_plan(tc, plan->planned, plan->num_planned);
 #if MVM_GC_DEBUG
     tc->in_spesh = 0;
