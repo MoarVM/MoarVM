@@ -77,7 +77,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     char *spesh_log, *spesh_nodelay, *spesh_disable, *spesh_inline_disable,
          *spesh_osr_disable, *spesh_limit, *spesh_blocking, *spesh_inline_log;
-    char *jit_log, *jit_expr_disable, *jit_disable, *jit_bytecode_dir, *jit_last_frame, *jit_last_bb;
+    char *jit_expr_disable, *jit_disable, *jit_bytecode_dir, *jit_last_frame, *jit_last_bb;
     char *dynvar_log;
     int init_stat;
 
@@ -258,9 +258,11 @@ MVMInstance * MVM_vm_create_instance(void) {
         instance->jit_expr_enabled = 1;
 
 
-    jit_log = getenv("MVM_JIT_LOG");
-    if (jit_log && jit_log[0])
-        instance->jit_log_fh = fopen_perhaps_with_pid("MVM_JIT_LOG", jit_log, "w");
+    {
+        char *jit_debug = getenv("MVM_JIT_DEBUG");
+        if (jit_debug && jit_debug[0])
+            instance->jit_debug_enabled = 1;
+    }
 
 #if linux
     {
@@ -275,14 +277,9 @@ MVMInstance * MVM_vm_create_instance(void) {
 #endif
 
     jit_bytecode_dir = getenv("MVM_JIT_BYTECODE_DIR");
-    if (jit_bytecode_dir && jit_bytecode_dir[0]) {
-        size_t bytecode_map_name_size = strlen(jit_bytecode_dir) + strlen("/jit-map.txt") + 1;
-        char *bytecode_map_name = MVM_malloc(bytecode_map_name_size);
-        snprintf(bytecode_map_name, bytecode_map_name_size, "%s/jit-map.txt", jit_bytecode_dir);
-        instance->jit_bytecode_map = fopen(bytecode_map_name, "w");
+    if (jit_bytecode_dir && jit_bytecode_dir[0])
         instance->jit_bytecode_dir = jit_bytecode_dir;
-        MVM_free(bytecode_map_name);
-    }
+
     jit_last_frame = getenv("MVM_JIT_EXPR_LAST_FRAME");
     jit_last_bb    = getenv("MVM_JIT_EXPR_LAST_BB");
 
@@ -465,10 +462,6 @@ void MVM_vm_exit(MVMInstance *instance) {
     /* Close any spesh or jit log. */
     if (instance->spesh_log_fh)
         fclose(instance->spesh_log_fh);
-    if (instance->jit_log_fh)
-        fclose(instance->jit_log_fh);
-    if (instance->jit_bytecode_map)
-        fclose(instance->jit_bytecode_map);
     if (instance->dynvar_log_fh) {
         fprintf(instance->dynvar_log_fh, "- x 0 0 0 0 %"PRId64" %"PRIu64" %"PRIu64"\n", instance->dynvar_log_lasttime, uv_hrtime(), uv_hrtime());
         fclose(instance->dynvar_log_fh);
@@ -596,8 +589,8 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     uv_mutex_destroy(&instance->mutex_spesh_sync);
     if (instance->spesh_log_fh)
         fclose(instance->spesh_log_fh);
-    if (instance->jit_log_fh)
-        fclose(instance->jit_log_fh);
+    if (instance->jit_perf_map)
+        fclose(instance->jit_perf_map);
     if (instance->dynvar_log_fh)
         fclose(instance->dynvar_log_fh);
     if (instance->jit_breakpoints) {
