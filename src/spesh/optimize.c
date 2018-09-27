@@ -438,7 +438,7 @@ static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
 static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
     MVMSpeshFacts *flag_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
     MVMuint8 negated_op;
-    MVMuint8 truthvalue;
+    MVMint8 truthvalue = -1;
 
     switch (ins->info->opcode) {
         case MVM_OP_if_i:
@@ -460,16 +460,24 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
         switch (ins->info->opcode) {
             case MVM_OP_if_i:
             case MVM_OP_unless_i:
-                truthvalue = flag_facts->value.i;
+                truthvalue = flag_facts->value.i ? 1 : 0;
                 break;
             case MVM_OP_if_n:
             case MVM_OP_unless_n:
-                truthvalue = flag_facts->value.n != 0.0;
+                truthvalue = flag_facts->value.n != 0.0 ? 1 : 0;
                 break;
+            case MVM_OP_ifnonnull:
+                truthvalue = REPR(flag_facts->value.o)->ID != MVM_REPR_ID_MVMNull;
             default:
                 return;
         }
+    }
+    else if (flag_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+        if (ins->info->opcode == MVM_OP_ifnonnull)
+            truthvalue = REPR(flag_facts->type)->ID != MVM_REPR_ID_MVMNull;
+    }
 
+    if (truthvalue >= 0) {
         MVM_spesh_use_facts(tc, g, flag_facts);
 
         truthvalue = truthvalue ? 1 : 0;
@@ -491,10 +499,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
         /* Since the CFG has changed, we may have some dead basic blocks; do
          * an elimination pass. */
         MVM_spesh_eliminate_dead_bbs(tc, g, 1);
-
-        return;
     }
-
 }
 
 
@@ -2542,6 +2547,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_unless_i:
         case MVM_OP_if_n:
         case MVM_OP_unless_n:
+        case MVM_OP_ifnonnull:
             optimize_iffy(tc, g, ins, bb);
             break;
         case MVM_OP_if_o:
