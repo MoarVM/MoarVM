@@ -2141,9 +2141,6 @@ static void optimize_prof_allocated(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
     MVMSpeshFacts *logee_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
     if (MVM_spesh_usages_used_once(tc, g, ins->operands[0])) {
         MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
-        /* This check should always succeed, but just in case ... */
-        if (logee_facts->writer)
-            MVM_spesh_manipulate_delete_ins(tc, g, bb, logee_facts->writer);
     }
 }
 
