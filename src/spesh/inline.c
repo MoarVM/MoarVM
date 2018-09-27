@@ -228,7 +228,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
 /* Tries to get a spesh graph for a particular unspecialized candidate. */
 MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadContext *tc,
         MVMSpeshGraph *inliner, MVMStaticFrame *target_sf, MVMSpeshIns *invoke_ins,
-        MVMSpeshCallInfo *call_info, char **no_inline_reason) {
+        MVMSpeshCallInfo *call_info, MVMSpeshStatsType *type_tuple, char **no_inline_reason) {
     MVMSpeshGraph *ig;
 
     /* Cannot inline with flattening args. */
@@ -246,7 +246,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadConte
      * is inlineable as we can get rid of many :noinline ops (especially in
      * the args specialization). */
     ig = MVM_spesh_graph_create(tc, target_sf, 0, 1);
-    MVM_spesh_args_from_callinfo(tc, ig, call_info);
+    MVM_spesh_args_from_callinfo(tc, ig, call_info, type_tuple);
     MVM_spesh_facts_discover(tc, ig, NULL, 0);
     MVM_spesh_optimize(tc, ig, NULL);
 

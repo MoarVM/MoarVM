@@ -1962,7 +1962,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         else if (target_sf->body.bytecode_size < MVM_SPESH_MAX_INLINE_SIZE) {
             char *no_inline_reason = NULL;
             MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph_from_unspecialized(
-                    tc, g, target_sf, ins, arg_info, &no_inline_reason);
+                    tc, g, target_sf, ins, arg_info, stable_type_tuple, &no_inline_reason);
             log_inline(tc, g, target_sf, inline_graph, target_sf->body.bytecode_size,
                     no_inline_reason, 1);
             if (inline_graph) {
