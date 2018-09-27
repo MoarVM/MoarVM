@@ -77,7 +77,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     char *spesh_log, *spesh_nodelay, *spesh_disable, *spesh_inline_disable,
          *spesh_osr_disable, *spesh_limit, *spesh_blocking, *spesh_inline_log;
-    char *jit_expr_disable, *jit_disable, *jit_bytecode_dir, *jit_last_frame, *jit_last_bb;
+    char *jit_expr_disable, *jit_disable, *jit_last_frame, *jit_last_bb;
     char *dynvar_log;
     int init_stat;
 
@@ -276,9 +276,24 @@ MVMInstance * MVM_vm_create_instance(void) {
     }
 #endif
 
-    jit_bytecode_dir = getenv("MVM_JIT_BYTECODE_DIR");
-    if (jit_bytecode_dir && jit_bytecode_dir[0])
-        instance->jit_bytecode_dir = jit_bytecode_dir;
+    {
+        char *jit_dump_bytecode = getenv("MVM_JIT_DUMP_BYTECODE");
+        if (jit_dump_bytecode && jit_dump_bytecode[0]) {
+            char tmpdir[1024];
+            size_t len = sizeof tmpdir;
+            char *jit_bytecode_dir;
+            uv_fs_t req;
+            uv_os_tmpdir(tmpdir, &len);
+            jit_bytecode_dir = MVM_malloc(len + 32);
+            snprintf(jit_bytecode_dir, len+32, "%s/moar-jit.%d",
+                     tmpdir, MVM_proc_getpid(NULL));
+            if (uv_fs_mkdir(NULL, &req, jit_bytecode_dir, 0755, NULL) == 0) {
+                instance->jit_bytecode_dir = jit_bytecode_dir;
+            } else {
+                MVM_free(jit_bytecode_dir);
+            }
+        }
+    }
 
     jit_last_frame = getenv("MVM_JIT_EXPR_LAST_FRAME");
     jit_last_bb    = getenv("MVM_JIT_EXPR_LAST_BB");
@@ -593,6 +608,8 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
         fclose(instance->jit_perf_map);
     if (instance->dynvar_log_fh)
         fclose(instance->dynvar_log_fh);
+    if (instance->jit_bytecode_dir)
+        MVM_free(instance->jit_bytecode_dir);
     if (instance->jit_breakpoints) {
         MVM_VECTOR_DESTROY(instance->jit_breakpoints);
     }
