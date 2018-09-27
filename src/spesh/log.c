@@ -123,7 +123,7 @@ void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf,
             MVMuint32 i;
             MVMuint32 arg_idx = 0;
             for (i = 0; i < cs->flag_count; i++) {
-                if (!MVM_spesh_log_is_logging(tc))
+                if (!tc->spesh_log)
                     break;
                 if (cs->arg_flags[i] & MVM_CALLSITE_ARG_NAMED)
                     arg_idx++;
