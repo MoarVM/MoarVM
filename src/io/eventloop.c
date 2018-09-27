@@ -83,19 +83,11 @@ static void enter_loop(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister 
     uv_loop_t    *loop = tc->instance->event_loop;
     uv_async_t   *async = tc->instance->event_loop_wakeup;
 
-    /* We don't use this loop anymore - this is a bit paranoid, but the fastest
-     * way to figure out if something is using the wrong event loop */
-    uv_loop_t *tc_loop = tc->loop;
-    tc->loop = NULL;
-
     /* Bind the thread context for the wakeup signal */
     async->data = tc;
 
     /* Enter event loop */
     uv_run(loop, UV_RUN_DEFAULT);
-
-    /* Allow the cleanup of threadcontext to process the (redundant) loop */
-    tc->loop = tc_loop;
 }
 
 /* Sees if we have an event loop processing thread set up already, and

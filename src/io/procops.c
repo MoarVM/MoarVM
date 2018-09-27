@@ -1231,14 +1231,9 @@ MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
         error = "Program has more than one active thread";
     }
 
-    if (pid == 0) {
+    if (pid == 0 && instance->event_loop) {
         /* Reinitialize uv_loop_t after fork in child */
-        MVMThread *head = instance->threads;
-        for (; head != NULL; head = head->body.next)
-            if (head->body.stage < MVM_thread_stage_exited)
-                uv_loop_fork(head->body.tc->loop);
-        if (instance->event_loop)
-            uv_loop_fork(instance->event_loop);
+        uv_loop_fork(instance->event_loop);
     }
 
     /* Release the thread lock, otherwise we can't start them */

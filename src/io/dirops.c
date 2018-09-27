@@ -48,7 +48,7 @@ static int mkdir_p(MVMThreadContext *tc, char *pathname, MVMint64 mode) {
                 created = 1;
             }
 #else
-            if (uv_fs_stat(tc->loop, &req, pathname, NULL) <= 0) {
+            if (uv_fs_stat(NULL, &req, pathname, NULL) <= 0) {
                 if (mkdir(pathname, mode) != -1) {
                     created = 1;
                 }
@@ -117,7 +117,7 @@ void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
     char * const pathname = MVM_string_utf8_c8_encode_C_string(tc, path);
     uv_fs_t req;
 
-    if(uv_fs_rmdir(tc->loop, &req, pathname, NULL) < 0 ) {
+    if(uv_fs_rmdir(NULL, &req, pathname, NULL) < 0 ) {
         MVM_free(pathname);
         MVM_exception_throw_adhoc(tc, "Failed to rmdir: %s", uv_strerror(req.result));
     }

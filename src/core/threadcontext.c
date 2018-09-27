@@ -10,21 +10,6 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
     /* Associate with VM instance. */
     tc->instance = instance;
 
-    /* Use default loop for main thread; create a new one for others. */
-    if (instance->main_thread) {
-        int r;
-
-        tc->loop = MVM_calloc(1, sizeof(uv_loop_t));
-        r = uv_loop_init(tc->loop);
-        if (r < 0) {
-            MVM_free(tc->loop);
-            MVM_free(tc);
-            MVM_exception_throw_adhoc(parent, "Could not create a new Thread: %s", uv_strerror(r));
-        }
-    } else {
-        tc->loop = uv_default_loop();
-    }
-
     /* Set up GC nursery. We only allocate tospace initially, and allocate
      * fromspace the first time this thread GCs, provided it ever does. */
     tc->nursery_tospace_size = MVM_gc_new_thread_nursery_size(instance);
@@ -71,9 +56,6 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
  * objects from this nursery to the second generation. Only after
  * that is true should this be called. */
 void MVM_tc_destroy(MVMThreadContext *tc) {
-    /* We run once again (non-blocking) to eventually close filehandles. */
-    uv_run(tc->loop, UV_RUN_NOWAIT);
-
     /* Free specialization state. */
     MVM_spesh_sim_stack_destroy(tc, tc->spesh_sim_stack);
 
@@ -104,9 +86,6 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     MVM_free(tc->nfa_fates);
     MVM_free(tc->nfa_longlit);
     MVM_free(tc->multi_dim_indices);
-
-    /* Destroy the libuv event loop */
-    uv_loop_delete(tc->loop);
 
     /* Free the thread context itself. */
     memset(tc, 0, sizeof(MVMThreadContext));

@@ -40,14 +40,14 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename) {
     uv_fs_t req;
 
     /* Ensure the file exists, and get its size. */
-    if (uv_fs_stat(tc->loop, &req, filename, NULL) < 0) {
+    if (uv_fs_stat(NULL, &req, filename, NULL) < 0) {
         MVM_exception_throw_adhoc(tc, "While looking for '%s': %s", filename, uv_strerror(req.result));
     }
 
     size = req.statbuf.st_size;
 
     /* Map the bytecode file into memory. */
-    if ((fd = uv_fs_open(tc->loop, &req, filename, O_RDONLY, 0, NULL)) < 0) {
+    if ((fd = uv_fs_open(NULL, &req, filename, O_RDONLY, 0, NULL)) < 0) {
         MVM_exception_throw_adhoc(tc, "While trying to open '%s': %s", filename, uv_strerror(req.result));
     }
 
@@ -56,7 +56,7 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename) {
         MVM_exception_throw_adhoc(tc, "Could not map file '%s' into memory: %s", filename, "FIXME");
     }
 
-    if (uv_fs_close(tc->loop, &req, fd, NULL) < 0) {
+    if (uv_fs_close(NULL, &req, fd, NULL) < 0) {
         MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", uv_strerror(req.result));
     }
 
@@ -76,7 +76,7 @@ MVMCompUnit * MVM_cu_map_from_file_handle(MVMThreadContext *tc, uv_file fd, MVMu
     uv_fs_t req;
 
     /* Ensure the file exists, and get its size. */
-    if (uv_fs_fstat(tc->loop, &req, fd, NULL) < 0) {
+    if (uv_fs_fstat(NULL, &req, fd, NULL) < 0) {
         MVM_exception_throw_adhoc(tc, "Trying to stat: %s", uv_strerror(req.result));
     }
 

@@ -265,9 +265,6 @@ struct MVMThreadContext {
      * Per-thread state held by assorted VM subsystems
      ************************************************************************/
 
-    /* libuv event loop */
-    uv_loop_t *loop;
-
     /* Mutex that must be released if we throw an exception. Used in places
      * like I/O, which grab a mutex but may throw an exception. */
     uv_mutex_t *ex_release_mutex;
