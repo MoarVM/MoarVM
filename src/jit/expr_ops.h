@@ -49,6 +49,8 @@
     _(OR, 2, 0),  \
     _(XOR, 2, 0), \
     _(NOT, 1, 0), \
+    _(LSHIFT, 2, 0), \
+    _(RSHIFT, 2, 0), \
     /* boolean logic */ \
     _(ALL, -1, 0), \
     _(ANY, -1, 0), \
