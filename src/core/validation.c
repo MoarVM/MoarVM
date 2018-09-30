@@ -219,10 +219,10 @@ static void validate_literal_operand(Validator *val, MVMuint32 flags) {
 
         case MVM_operand_obj:
         case MVM_operand_type_var:
-            fail(val, MSG(val, "operand type %i can't be a literal"), type);
+            fail(val, MSG(val, "operand type %"PRIu32" can't be a literal"), type);
 
         default:
-            fail(val, MSG(val, "unknown operand type %i"), type);
+            fail(val, MSG(val, "unknown operand type %"PRIu32), type);
     }
 
     ensure_bytes(val, size);
@@ -292,7 +292,7 @@ static void validate_reg_operand(Validator *val, MVMuint32 flags) {
     }
 
     if (reg_type != operand_type)
-        fail(val, MSG(val, "operand type %i does not match register type %i"),
+        fail(val, MSG(val, "operand type %"PRIu32" does not match register type %"PRIu32),
                 operand_type, reg_type);
 
 next_operand:
@@ -343,7 +343,7 @@ static void validate_lex_operand(Validator *val, MVMuint32 flags) {
     }
 
     if (lex_type != operand_type)
-        fail(val, MSG(val, "operand type %i does not match lexical type %i"),
+        fail(val, MSG(val, "operand type %"PRIu32" does not match lexical type %"PRIu32),
                 operand_type, lex_type);
 
   next_operand:
@@ -370,7 +370,7 @@ static void validate_operand(Validator *val, MVMuint32 flags) {
             break;
 
         default:
-            fail(val, MSG(val, "invalid instruction rw flag %i"), rw);
+            fail(val, MSG(val, "invalid instruction rw flag %"PRIu32), rw);
     }
 }
 

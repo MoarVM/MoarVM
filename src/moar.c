@@ -270,7 +270,7 @@ MVMInstance * MVM_vm_create_instance(void) {
         if (jit_perf_map && *jit_perf_map) {
             char perf_map_filename[32];
             snprintf(perf_map_filename, sizeof(perf_map_filename),
-                     "/tmp/perf-%d.map", MVM_proc_getpid(NULL));
+                     "/tmp/perf-%"PRIi64".map", MVM_proc_getpid(NULL));
             instance->jit_perf_map = fopen(perf_map_filename, "w");
         }
     }
@@ -285,7 +285,7 @@ MVMInstance * MVM_vm_create_instance(void) {
             uv_fs_t req;
             uv_os_tmpdir(tmpdir, &len);
             jit_bytecode_dir = MVM_malloc(len + 32);
-            snprintf(jit_bytecode_dir, len+32, "%s/moar-jit.%d",
+            snprintf(jit_bytecode_dir, len+32, "%s/moar-jit.%"PRIi64,
                      tmpdir, MVM_proc_getpid(NULL));
             if (uv_fs_mkdir(NULL, &req, jit_bytecode_dir, 0755, NULL) == 0) {
                 instance->jit_bytecode_dir = jit_bytecode_dir;
