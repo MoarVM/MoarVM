@@ -539,8 +539,8 @@ MVMint32 MVM_unicode_normalize_should_break(MVMThreadContext *tc, MVMCodepoint a
         return 0;
     if (a == 0x0D || b == 0x0D)
         return 1;
-    /* For utf8-c8 graphemes. These we can't request property values and act like
-     * control's */
+    /* For utf8-c8 graphemes. We treat these as control's (always break). Return
+     * early because we can't request property values for these as well. */
     if (a < 0 || b < 0) {
         if ((a < 0 && MVM_nfg_get_synthetic_info(tc, a)->is_utf8_c8) || (b < 0 && MVM_nfg_get_synthetic_info(tc, b)->is_utf8_c8))
             return 1;
@@ -574,34 +574,15 @@ MVMint32 MVM_unicode_normalize_should_break(MVMThreadContext *tc, MVMCodepoint a
             }
             /* Otherwise don't break */
             return 0;
-        /* Don't break after ZWJ for E_Base_GAZ or Glue_After_ZWJ */
+        /* Do not break within emoji modifier sequences or emoji zwj sequences. */
+        /* \p{Extended_Pictographic} Extend* ZWJ × \p{Extended_Pictographic} */
         case MVM_UNICODE_PVALUE_GCB_ZWJ:
-            switch (GCB_b) {
-                case MVM_UNICODE_PVALUE_GCB_E_BASE_GAZ:
-                case MVM_UNICODE_PVALUE_GCB_ZWJ:
-                case MVM_UNICODE_PVALUE_GCB_GLUE_AFTER_ZWJ:
-                    return 0;
-            }
+            if (MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_EXTENDED_PICTOGRAPHIC))
+                return 0;
+                /* Don't break after ZWJ for E_Base_GAZ or Glue_After_ZWJ */
+            /* May be able to be removed */
             if ( b == UNI_CP_FEMALE_SIGN || b == UNI_CP_MALE_SIGN )
                 return 0;
-            /* Don't break after ZWJ for Emoji property characters that have
-             * GCB=Other. This is *not* a unicode text segmentation rule but
-             * is needed to not break inside Emoji sequences. As the rule to
-             * not break in Emoji sequences is specified by Unicode to need
-             * customization to perform properly. */
-            if (GCB_b == MVM_UNICODE_PVALUE_GCB_OTHER
-            && 127 < b /* Numbers and # have property Emoji. So make sure we're not in ASCII range */
-            && MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_EMOJI) )
-                return 0;
-        case MVM_UNICODE_PVALUE_GCB_E_MODIFIER:
-            if (MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_EMOJI_MODIFIER_BASE)) {
-                /* Don't break after ZWJ if it's an Emoji Sequence.
-                 * At the moment FEMALE SIGN and MALE SIGN don't have different
-                 * GCB properties, or any special Emoji properties (Unicode 9.0),
-                 * so we explictly check these codepoints here */
-                if ( b == UNI_CP_FEMALE_SIGN || b == UNI_CP_MALE_SIGN )
-                    return 0;
-            }
             break;
         case MVM_UNICODE_PVALUE_GCB_L:
             if (GCB_b == MVM_UNICODE_PVALUE_GCB_L  || GCB_b == MVM_UNICODE_PVALUE_GCB_V ||
@@ -626,19 +607,6 @@ MVMint32 MVM_unicode_normalize_should_break(MVMThreadContext *tc, MVMCodepoint a
         /* Don't break before ZWJ */
         case MVM_UNICODE_PVALUE_GCB_ZWJ:
             return 0;
-        case MVM_UNICODE_PVALUE_GCB_E_MODIFIER:
-            switch (GCB_a) {
-                case MVM_UNICODE_PVALUE_GCB_E_BASE_GAZ:
-                    return 0;
-                case MVM_UNICODE_PVALUE_GCB_E_BASE:
-                    return 0;
-            }
-            if (MVM_unicode_codepoint_get_property_int(tc, a, MVM_UNICODE_PROPERTY_EMOJI_MODIFIER_BASE)) {
-                /* Not all emoji modifiers have E_BASE or E_BASE_GAZ, some cases we need to check the
-                 * Emoji_Modifier_Base property */
-                return 0;
-            }
-            break;
         /* Don't break before spacing marks. */
         case MVM_UNICODE_PVALUE_GCB_SPACINGMARK:
             return 0;

@@ -311,5 +311,8 @@ spurt $out-file, @composed-arrays.join("\n");
 print qq:to/END/;
 Done writing $out-file.
 {'=' x 70}
-MAKE SURE TO RUN `tools/CollationTest.t` to ensure there are ~74 failures only!
+MAKE SURE TO RUN `perl6 CollationTestGen.p6 --folder=MoarVM/UNIDATA/UCA/CollationTest --test-only --should-test ` to ensure there are ~74 failures only!
+
+Then paste those failures (if they're ok into CollationTestGen.p6 in the \%todo variable.
+{'=' x 70}
 END
