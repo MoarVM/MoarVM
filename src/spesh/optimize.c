@@ -1835,12 +1835,12 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                     target = dest.o;
             }
         }
-        if (!target || !IS_CONCRETE(target))
+        if (!target || !IS_CONCRETE(target) || ((MVMCode *)target)->body.is_compiler_stub)
             return;
 
         /* If we resolved to something better than the code object, then add
          * the resolved item in a spesh slot and insert a lookup. */
-        if (target != code && !((MVMCode *)target)->body.is_compiler_stub) {
+        if (target != code) {
             MVMSpeshIns *pa_ins = arg_info->prepargs_ins;
             MVMSpeshIns *ss_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
             ss_ins->info        = MVM_op_get_op(MVM_OP_sp_getspeshslot);
