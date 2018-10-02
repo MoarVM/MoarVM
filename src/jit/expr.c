@@ -51,7 +51,11 @@ struct ValueDefinition {
     MVMint32 addr;
 };
 
+static MVMint32 noop_code[] = { MVM_JIT_NOOP, 0 };
 
+static struct MVMJitExprTemplate noop_template = {
+    noop_code, "ns", 2, 0, 0
+};
 
 /* Logical negation of MVMJitExprOp flags. */
 MVMint32 MVM_jit_expr_op_negate_flag(MVMThreadContext *tc, MVMint32 op) {
@@ -327,36 +331,6 @@ void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree, MVMS
     }
 }
 
-/* This function is to check the internal consistency of a template
- * before I apply it.  I need this because I make a lot of mistakes in
- * writing templates, and debugging is hard. */
-static void check_template(MVMThreadContext *tc, const MVMJitExprTemplate *template, MVMSpeshIns *ins) {
-#if MVM_JIT_DEBUG
-    MVMint32 i;
-    for (i = 0; i < template->len; i++) {
-        switch(template->info[i]) {
-        case 0:
-            MVM_oops(tc, "JIT: Template info shorter than template length (instruction %s)", ins->info->name);
-            break;
-        case 'l':
-            if (template->code[i] >= i || template->code[i] < 0)
-                MVM_oops(tc, "JIT: Template link out of bounds (instruction: %s)", ins->info->name);
-            break;
-        case 'i':
-            if (template->code[i] < 0 ||
-                (template->code[i] >= ins->info->num_operands &&
-                 !ins_has_single_input_output_operand(ins)))
-                MVM_oops(tc, "JIT: Operand access (%d) out of bounds (instruction: %s)", template->code[i], ins->info->name);
-            break;
-        default:
-            continue;
-        }
-    }
-    if (template->info[i])
-        MVM_oops(tc, "JIT: Template info longer than template length (instruction: %s)",
-                 ins->info->name);
-#endif
-}
 
 /* Add template to nodes, filling in operands and linking tree nodes. Return template root */
 static MVMint32 apply_template(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 len, char *info,
@@ -597,6 +571,10 @@ static void active_values_flush(MVMThreadContext *tc, MVMJitExprTree *tree,
     }
 }
 
+static MVMint32 tree_is_empty(MVMThreadContext *tc, MVMJitExprTree *tree) {
+    return tree->nodes_num == 0;
+}
+
 MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIterator *iter) {
     MVMSpeshGraph *sg = jg->sg;
     MVMSpeshIns *entry = iter->ins;
@@ -604,7 +582,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
     MVMJitExprTree *tree;
     MVMint32 operands[MVM_MAX_OPERANDS];
     struct ValueDefinition *values;
-    MVMint32 root, node;
     MVMuint16 i;
     /* No instructions, just skip */
     if (!iter->ins)
@@ -616,9 +593,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
     MVM_VECTOR_INIT(tree->constants, 16);
     MVM_VECTOR_INIT(tree->roots, 16);
 
-    /* start with a no-op so every valid reference is nonzero */
-    MVM_VECTOR_PUSH(tree->nodes, MVM_JIT_NOOP);
-    MVM_VECTOR_PUSH(tree->nodes, 0);
+
 
     tree->graph      = jg;
     /* Hold indices to the node that last computed a value belonging
@@ -627,9 +602,8 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
     values = MVM_malloc(sizeof(struct ValueDefinition)*sg->num_locals);
     memset(values, -1, sizeof(struct ValueDefinition)*sg->num_locals);
 
-#define BAIL(x, ...) do { if (x) { MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins, __VA_ARGS__); goto done; } } while (0)
+#define BAIL(x, ...) do { if (x) { MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins, "expr bail: " __VA_ARGS__); goto done; } } while (0)
 
-    MVM_spesh_graph_add_comment(tc, jg->sg, iter->ins, "start of exprjit tree");
 
     /* Generate a tree based on templates. The basic idea is to keep a
        index to the node that last computed the value of a local.
@@ -645,12 +619,12 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         MVMuint16 opcode = ins->info->opcode;
         MVMSpeshAnn *ann;
         const MVMJitExprTemplate *template;
-        MVMint32 before_label = -1, after_label = -1, store_directly = 0;
+        MVMint32 before_label = -1, after_label = -1, store_directly = 0, root = 0;
 
         struct ValueDefinition *defined_value = NULL;
 
         /* check if this is a getlex and if we can handle it */
-        BAIL(opcode == MVM_OP_getlex && getlex_needs_autoviv(tc, jg, ins), "Can't compile object getlex");
+        BAIL(opcode == MVM_OP_getlex && getlex_needs_autoviv(tc, jg, ins), "getlex with autoviv");
         BAIL(opcode == MVM_OP_bindlex && bindlex_needs_write_barrier(tc, jg, ins), "Can't compile write-barrier bindlex");
 
         /* Check annotations that may require handling or wrapping the expression */
@@ -733,28 +707,20 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
 
 
         if (opcode == MVM_SSA_PHI || opcode == MVM_OP_no_op) {
-            /* By definition, a PHI node can only occur at the start of a basic
-             * block. (A no_op instruction only seems to happen as the very
-             * first instruction of a frame, and I'm not sure why).
-             *
-             * Thus, if it happens that we've processed annotations on those
-             * instructions (which probably means they migrated there from
-             * somewhere else), they always refer to the start of the basic
-             * block, which is already assigned a label and
-             * dynamic-control-handler.
-             *
-             * So we never need to do anything with this label and wrapper, but
-             * we do need to process the annotation to setup the frame handler
-             * correctly.
-             */
-            BAIL(after_label >= 0, "A PHI node should not have an after label");
-            continue;
+            /* No template here, but we may have to emit labels */
+            if (after_label < 0 && (before_label < 0 || tree_is_empty(tc, tree)))
+                continue;
+            goto emit;
         }
 
         template = MVM_jit_get_template_for_opcode(opcode);
         BAIL(template == NULL, "Cannot get template for: %s", ins->info->name);
+        if (tree_is_empty(tc, tree)) {
+            /* start with a no-op so every valid reference is nonzero */
+            MVM_jit_expr_apply_template(tc, tree, &noop_template, NULL);
+            MVM_spesh_graph_add_comment(tc, jg->sg, iter->ins, "start of exprjit tree");
+        }
 
-        check_template(tc, template, ins);
 
         MVM_jit_expr_load_operands(tc, tree, ins, values, operands);
         root = MVM_jit_expr_apply_template(tc, tree, template, operands);
@@ -827,6 +793,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
 
         /* Add root to tree to ensure source evaluation order, wrapped with
          * labels if necessary. */
+    emit:
         if (before_label >= 0 && MVM_jit_label_is_for_ins(tc, jg, before_label)) {
             MVM_VECTOR_PUSH(tree->roots, MVM_jit_expr_add_label(tc, tree, before_label));
         }
@@ -845,7 +812,9 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             defined_value->root = tree->roots_num;
         }
 
-        MVM_VECTOR_PUSH(tree->roots, root);
+        if (root != 0)
+            MVM_VECTOR_PUSH(tree->roots, root);
+
         if (after_label >= 0 && MVM_jit_label_is_for_ins(tc, jg, after_label)) {
             MVM_VECTOR_PUSH(tree->roots, MVM_jit_expr_add_label(tc, tree, after_label));
         }

@@ -15,7 +15,6 @@ struct MVMJitCompiler {
     MVMJitGraph   *graph;
 
     MVMint32    label_offset;
-    MVMint32    label_max;
 
     /* For spilling values that don't fit into the register allocator */
     MVMint32    spills_base;
