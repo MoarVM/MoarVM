@@ -492,7 +492,10 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 /* If the inlining code doesn't set a dispatcher, takedispatcher
                  * in the inlinee can be assumed to always return null. */
                 if (!inliner->sets_dispatcher && !inlinee->sets_dispatcher) {
+                    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, inlinee, ins->operands[0]);
                     ins->info = MVM_op_get_op(MVM_OP_null);
+                    facts->flags = MVM_SPESH_FACT_KNOWN_TYPE;
+                    facts->type = tc->instance->VMNull;
                     ins->operands[0].reg.orig += inliner->num_locals;
                 }
             }

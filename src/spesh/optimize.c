@@ -3062,6 +3062,12 @@ static void post_inline_visit_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
             case MVM_OP_box_u:
                 try_eliminate_box_unbox_pair(tc, g, bb, ins, MVM_OP_unbox_u, MVM_OP_decont_u, pips);
                 break;
+            /* takedispatcher can be optimized out in the inlining step,
+             * but we will only benefit if we look for isnull instructions
+             * again in the post-inline pass. */
+            case MVM_OP_isnull:
+                optimize_isnull(tc, g, bb, ins);
+                break;
             case MVM_OP_unbox_i:
             case MVM_OP_unbox_n:
             case MVM_OP_unbox_s:
