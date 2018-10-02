@@ -901,6 +901,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
         /* Free up any temporary registers we created. */
         for (i = 0; i < MVM_VECTOR_ELEMS(temps); i++)
             MVM_spesh_manipulate_release_temp_reg(tc, g, temps[i]);
+        MVM_VECTOR_DESTROY(temps);
         MVM_free(arg_regs);
     }
 }
