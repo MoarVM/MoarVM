@@ -71,6 +71,12 @@ MVMint32 flattened_type_to_register_kind(MVMThreadContext *tc, MVMSTable *st) {
 /* Apply a transformation to the graph. */
 static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs,
         MVMSpeshBB *bb, Transformation *t) {
+    /* Don't apply if we discovered this allocation wasn't possible to scalar
+     * replace. */
+    if (t->allocation->irreplaceable)
+        return;
+
+    /* Otherwise, go by the type of transform. */
     switch (t->transform) {
         case TRANSFORM_DELETE_FASTCREATE: {
             MVMSTable *st = t->fastcreate.st;
@@ -153,6 +159,18 @@ static MVMuint16 attribute_offset_to_reg(MVMThreadContext *tc, MVMSpeshPEAAlloca
     return alloc->hypothetical_attr_reg_idxs[idx];
 }
 
+static MVMuint32 allocation_tracked(MVMSpeshPEAAllocation *alloc) {
+    return alloc && !alloc->irreplaceable;
+}
+
+static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
+    MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, o);
+    /* If there's another op using it, we'd need to materialize.
+     * We don't support that yet, so just mark it irreplaceable. */
+    if (target->pea.allocation)
+        target->pea.allocation->irreplaceable = 1;
+}
+
 static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs) {
     MVMSpeshBB *bb = g->entry;
     MVMuint32 found_replaceable = 0;
@@ -185,11 +203,11 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                 case MVM_OP_sp_p6obind_n:
                 case MVM_OP_sp_p6obind_s:
                 case MVM_OP_sp_p6obind_o: {
-                    /* TODO: For _o we should also inspect the argument that we read in order to
-                     * bind into here. In case we are tracking it also. */
+                    /* Schedule transform of bind into an attribute of a
+                     * tracked object into a set. */
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[0]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
-                    if (alloc) {
+                    if (allocation_tracked(alloc)) {
                         Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
                         tran->allocation = alloc;
                         tran->transform = TRANSFORM_BINDATTR_TO_SET;
@@ -198,6 +216,12 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                                 ins->operands[1].lit_i16);
                         add_transform_for_bb(tc, gs, bb, tran);
                     }
+
+                    /* For now, no transitive EA, so for the object case,
+                     * mark the object being stored as requiring the real
+                     * object. */
+                    if (ins->info->opcode == MVM_OP_sp_p6obind_o)
+                        real_object_required(tc, g, ins->operands[2]);
                     break;
                 }
                 case MVM_OP_sp_p6oget_i:
@@ -206,7 +230,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                 case MVM_OP_sp_p6ogetvt_o: {
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[1]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
-                    if (alloc) {
+                    if (allocation_tracked(alloc)) {
                         Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
                         tran->allocation = alloc;
                         tran->transform = TRANSFORM_GETATTR_TO_SET;
@@ -217,17 +241,20 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     }
                     break;
                 }
-                default: {
+                case MVM_SSA_PHI: {
+                    /* For now, don't handle these. */
                    MVMuint32 i = 0;
-                   for (i = 0; i < ins->info->num_operands; i++) {
-                       if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg) {
-                            MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[i]);
-                            /* If there's another op using it, we'd need to materialize.
-                             * We don't support that yet, so bail out. */
-                            if (target->pea.allocation)
-                                return 0;
-                       }
-                   }
+                   for (i = 1; i < ins->info->num_operands; i++)
+                        real_object_required(tc, g, ins->operands[i]);
+                    break;
+                }
+                default: {
+                    /* Other instructions using tracked objects require the
+                     * real object. */
+                   MVMuint32 i = 0;
+                   for (i = 0; i < ins->info->num_operands; i++)
+                       if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
+                            real_object_required(tc, g, ins->operands[i]);
                    break;
                }
             }

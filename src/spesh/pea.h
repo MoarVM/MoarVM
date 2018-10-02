@@ -9,6 +9,10 @@ struct MVMSpeshPEAAllocation {
     /* The set of indexes for registers we will hypothetically allocate for
      * the attributes of this type. */
     MVMuint16 *hypothetical_attr_reg_idxs;
+
+    /* Have we seen something that invalidates our ability to scalar replace
+     * this? */
+    MVMuint8 irreplaceable;
 };
 
 /* Information held per SSA value. */
