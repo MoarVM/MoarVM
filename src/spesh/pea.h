@@ -10,6 +10,10 @@ struct MVMSpeshPEAAllocation {
      * the attributes of this type. */
     MVMuint16 *hypothetical_attr_reg_idxs;
 
+    /* The last deopt instruction offset when we started to track this
+     * allocation. */
+    MVMuint32 initial_deopt_ins;
+
     /* Have we seen something that invalidates our ability to scalar replace
      * this? */
     MVMuint8 irreplaceable;

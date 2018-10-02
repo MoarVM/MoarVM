@@ -174,12 +174,17 @@ static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs) {
     MVMSpeshBB *bb = g->entry;
     MVMuint32 found_replaceable = 0;
+    MVMuint32 ins_count = 0;
+    MVMuint32 latest_deopt_ins = 0;
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
-            /* We currently cannot handle any deoptimization taking place. */
+            /* If a deopt might take place, then all tracked allocations at
+             * this point become irreplaceable if they are used after the
+             * deopt. We just track the latest deopt instruction to handle
+             * that for now. Later we'll deal with deopt properly. */
             if (ins->info->may_cause_deopt)
-                return 0;
+                latest_deopt_ins = ins_count;
 
             /* Look for significant instructions. */
             switch (ins->info->opcode) {
@@ -195,6 +200,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                         tran->fastcreate.st = st;
                         add_transform_for_bb(tc, gs, bb, tran);
                         target->pea.allocation = alloc;
+                        alloc->initial_deopt_ins = latest_deopt_ins;
                         found_replaceable = 1;
                     }
                     break;
@@ -208,13 +214,18 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[0]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
                     if (allocation_tracked(alloc)) {
-                        Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
-                        tran->allocation = alloc;
-                        tran->transform = TRANSFORM_BINDATTR_TO_SET;
-                        tran->attr.ins = ins;
-                        tran->attr.hypothetical_reg_idx = attribute_offset_to_reg(tc, alloc,
-                                ins->operands[1].lit_i16);
-                        add_transform_for_bb(tc, gs, bb, tran);
+                        if (alloc->initial_deopt_ins == latest_deopt_ins) {
+                            Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+                            tran->allocation = alloc;
+                            tran->transform = TRANSFORM_BINDATTR_TO_SET;
+                            tran->attr.ins = ins;
+                            tran->attr.hypothetical_reg_idx = attribute_offset_to_reg(tc, alloc,
+                                    ins->operands[1].lit_i16);
+                            add_transform_for_bb(tc, gs, bb, tran);
+                        }
+                        else {
+                            alloc->irreplaceable = 1;
+                        }
                     }
 
                     /* For now, no transitive EA, so for the object case,
@@ -231,13 +242,18 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[1]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
                     if (allocation_tracked(alloc)) {
-                        Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
-                        tran->allocation = alloc;
-                        tran->transform = TRANSFORM_GETATTR_TO_SET;
-                        tran->attr.ins = ins;
-                        tran->attr.hypothetical_reg_idx = attribute_offset_to_reg(tc, alloc,
-                                ins->operands[2].lit_i16);
-                        add_transform_for_bb(tc, gs, bb, tran);
+                        if (alloc->initial_deopt_ins == latest_deopt_ins) {
+                            Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+                            tran->allocation = alloc;
+                            tran->transform = TRANSFORM_GETATTR_TO_SET;
+                            tran->attr.ins = ins;
+                            tran->attr.hypothetical_reg_idx = attribute_offset_to_reg(tc, alloc,
+                                    ins->operands[2].lit_i16);
+                            add_transform_for_bb(tc, gs, bb, tran);
+                        }
+                        else {
+                            alloc->irreplaceable = 1;
+                        }
                     }
                     break;
                 }
@@ -260,6 +276,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
             }
 
             ins = ins->next;
+            ins_count++;
         }
 
         /* For now, we only handle linear code with no flow control. */
