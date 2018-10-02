@@ -3068,6 +3068,12 @@ static void post_inline_visit_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
             case MVM_OP_isnull:
                 optimize_isnull(tc, g, bb, ins);
                 break;
+            /* isnull being turned into a constant is not useful unless
+             * branches based on it get eliminated, too. */
+            case MVM_OP_if_i:
+            case MVM_OP_unless_i:
+                optimize_iffy(tc, g, ins, bb);
+                break;
             case MVM_OP_unbox_i:
             case MVM_OP_unbox_n:
             case MVM_OP_unbox_s:
@@ -3248,6 +3254,7 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
      * add new fact dependencies. Do a final dead instruction elimination pass
      * to clean up after it. */
     post_inline_pass(tc, g, g->entry);
+    eliminate_pointless_gotos(tc, g);
     MVM_spesh_eliminate_dead_ins(tc, g);
 #if MVM_SPESH_CHECK_DU
     MVM_spesh_usages_check(tc, g);
