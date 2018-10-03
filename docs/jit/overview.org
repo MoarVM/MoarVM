@@ -127,61 +127,64 @@ And an example of a macro definition would be:
 *** Operators
 
 These are all the operators that are known by the expression language
-as of today (<2017-09-25 Mon>).
+as of today (<2018-09-30 Sun>).
 
-| Operator  | Shape                            | Type     | Semantics                                              |
-|-----------+----------------------------------+----------+--------------------------------------------------------|
-| =LOAD=    | =(load reg $size)=               | =reg=    | Load a value from a memory address                     |
-| =STORE=   | =(store reg reg $size)=          | =void=   | Store a value to a memory address                      |
-| =CONST=   | =(const $value $size)=           | =reg=    | Load a constant value to a register                    |
-| =ADDR=    | =(addr reg $ofs)=                | =reg=    | Add a constant offset to a pointer                     |
-| =IDX=     | =(idx reg reg $scale)=           | =reg=    | Compute a pointer for an index in an array             |
-| =COPY=    | =(copy reg)=                     | =reg=    | Copy this value (opaque to tiling)                     |
-|-----------+----------------------------------+----------+--------------------------------------------------------|
-| =LT=      | =(lt reg reg)=                   | =flag=   | First operand is smaller than second                   |
-| =LE=      | =(le reg reg)=                   | =flag=   | First operand is smaller than or equal to second       |
-| =EQ=      | =(eq reg reg)=                   | =flag=   | First operand is equal to second                       |
-| =NE=      | =(ne reg reg)=                   | =flag=   | First operand is not equal to second                   |
-| =GE=      | =(ge reg reg)=                   | =flag=   | First operand is larger than or equal to second        |
-| =GT=      | =(gt reg reg)=                   | =flag=   | First operand is larger than second                    |
-| =NZ=      | =(nz reg)=                       | =flag=   | Operand is nonzero                                     |
-| =ZR=      | =(zr reg)=                       | =flag=   | Operand equals zero                                    |
-|-----------+----------------------------------+----------+--------------------------------------------------------|
-| =CAST=    | =(cast reg $to $from $sign)=     | =reg=    | Convert a value from smaller to larger representation  |
-| =FLAGVAL= | =(flagval flag)=                 | =reg=    | Binary value of comparison operator                    |
-| =DISCARD= | =(discard reg)=                  | =void=   | Discard value of child operator                        |
-|-----------+----------------------------------+----------+--------------------------------------------------------|
-| =ADD=     | =(add reg reg)=                  | =reg=    | Add two integer values                                 |
-| =SUB=     | =(sub reg reg)=                  | =reg=    | Subtract second operand from first                     |
-| =AND=     | =(and reg reg)=                  | =reg=    | Binary AND (intersection) of two operands              |
-| =OR=      | =(or reg reg)=                   | =reg=    | Binary OR (union) of two operands                      |
-| =XOR=     | =(xor reg reg)=                  | =reg=    | Binary XOR of two operands                             |
-| =NOT=     | =(not reg)=                      | =reg=    | Binary negation of operand                             |
-|-----------+----------------------------------+----------+--------------------------------------------------------|
-| =ALL=     | =(all flag+)=                    | =flag=   | Variadic short-circuit logical AND                     |
-| =ANY=     | =(any flag+)=                    | =flag=   | Variadic short-circuit logical OR                      |
-|-----------+----------------------------------+----------+--------------------------------------------------------|
-| =DO=      | =(do void* reg)=                 | =reg=    | Execute multiple statements and return last expression |
-| =DOV=     | =(do void+)=                     | =void=   | Execute multiple statements                            |
-| =WHEN=    | =(when flag void)=               | =void=   | Execute statement if condition is met                  |
-| =IF=      | =(if flag reg reg)=              | =reg=    | Yield value of conditional expression                  |
-| =IFV=     | =(ifv flag void void)=           | =void=   | Conditionally execute one of two statements            |
-|-----------+----------------------------------+----------+--------------------------------------------------------|
-| =BRANCH=  | =(branch reg)=                   | =void=   | Jump to code position                                  |
-| =LABEL=   | =(label $label)=                 | =reg=    | Load position of code                                  |
-| =MARK=    | =(mark (label $label))=          | =void=   | Mark this position                                     |
-|-----------+----------------------------------+----------+--------------------------------------------------------|
-| =CALL=    | =(call reg (arglist ...) $size)= | =reg=    | Call a function and return a value                     |
-| =CALLV=   | =(call reg (arglist ...))=       | =void=   | Call a function without a return value                 |
-| =ARGLIST= | =(arglist (carg reg $type)+)=    | =c_args= | Setup function call arguments                          |
-| =CARG=    | =(carg reg $type)=               | =void=   | Annotate value with 'parameter type'                   |
-|-----------+----------------------------------+----------+--------------------------------------------------------|
-| =GUARD=   | =(guard void $before $after)=    | =void=   | Wrap a statement with code before and after            |
-|-----------+----------------------------------+----------+--------------------------------------------------------|
-| =TC=      | =(tc)=                           | =reg=    | Refer to MoarVM thread context                         |
-| =CU=      | =(cu)=                           | =reg=    | Refer to current compilation unit                      |
-| =LOCAL=   | =(local)=                        | =reg=    | Refer to current frame working memory                  |
-| =STACK=   | =(stack)=                        | =reg=    | Refer to top of C frame stack                          |
+| Operator  | Shape                            | Type     | Semantics                                                                                             |
+|-----------+----------------------------------+----------+-------------------------------------------------------------------------------------------------------|
+| =LOAD=    | =(load reg $size)=               | =reg=    | Load a value from a memory address                                                                    |
+| =STORE=   | =(store reg reg $size)=          | =void=   | Store a value to a memory address                                                                     |
+| =CONST=   | =(const $value $size)=           | =reg=    | Load a constant value to a register                                                                   |
+| =ADDR=    | =(addr reg $ofs)=                | =reg=    | Add a constant offset to a pointer                                                                    |
+| =IDX=     | =(idx reg reg $scale)=           | =reg=    | Compute a pointer for an index in an array                                                            |
+| =COPY=    | =(copy reg)=                     | =reg=    | Copy this value (opaque to tiling)                                                                    |
+|-----------+----------------------------------+----------+-------------------------------------------------------------------------------------------------------|
+| =LT=      | =(lt reg reg)=                   | =flag=   | First operand is smaller than second                                                                  |
+| =LE=      | =(le reg reg)=                   | =flag=   | First operand is smaller than or equal to second                                                      |
+| =EQ=      | =(eq reg reg)=                   | =flag=   | First operand is equal to second                                                                      |
+| =NE=      | =(ne reg reg)=                   | =flag=   | First operand is not equal to second                                                                  |
+| =GE=      | =(ge reg reg)=                   | =flag=   | First operand is larger than or equal to second                                                       |
+| =GT=      | =(gt reg reg)=                   | =flag=   | First operand is larger than second                                                                   |
+| =NZ=      | =(nz reg)=                       | =flag=   | Operand is nonzero                                                                                    |
+| =ZR=      | =(zr reg)=                       | =flag=   | Operand equals zero                                                                                   |
+|-----------+----------------------------------+----------+-------------------------------------------------------------------------------------------------------|
+| =SCAST=   | =(scast reg $to $from $sign)=    | =reg=    | Convert a signed value from smaller to larger representation                                          |
+| =UCAST=   | =(ucast reg $to $from $sign)=    | =reg=    | Convert an unsigned value from one representation to another (larger to smaller or smaller to larger) |
+| =FLAGVAL= | =(flagval flag)=                 | =reg=    | Binary value of comparison operator                                                                   |
+| =DISCARD= | =(discard reg)=                  | =void=   | Discard value of child operator                                                                       |
+|-----------+----------------------------------+----------+-------------------------------------------------------------------------------------------------------|
+| =ADD=     | =(add reg reg)=                  | =reg=    | Add two integer values                                                                                |
+| =SUB=     | =(sub reg reg)=                  | =reg=    | Subtract second operand from first                                                                    |
+| =AND=     | =(and reg reg)=                  | =reg=    | Binary AND (intersection) of two operands                                                             |
+| =OR=      | =(or reg reg)=                   | =reg=    | Binary OR (union) of two operands                                                                     |
+| =XOR=     | =(xor reg reg)=                  | =reg=    | Binary XOR of two operands                                                                            |
+| =NOT=     | =(not reg)=                      | =reg=    | Binary negation of operand                                                                            |
+| =LSHIFT=  | =(lshift reg reg)=               | =reg=    | Binary left shift of operand                                                                          |
+| =RSHIFT=  | =(rshift reg reg)=               | =reg=    | Binary right shift of operand. Bits shifted in match previous sign bit                                |
+|-----------+----------------------------------+----------+-------------------------------------------------------------------------------------------------------|
+| =ALL=     | =(all flag+)=                    | =flag=   | Variadic short-circuit logical AND                                                                    |
+| =ANY=     | =(any flag+)=                    | =flag=   | Variadic short-circuit logical OR                                                                     |
+|-----------+----------------------------------+----------+-------------------------------------------------------------------------------------------------------|
+| =DO=      | =(do void* reg)=                 | =reg=    | Execute multiple statements and return last expression                                                |
+| =DOV=     | =(do void+)=                     | =void=   | Execute multiple statements                                                                           |
+| =WHEN=    | =(when flag void)=               | =void=   | Execute statement if condition is met                                                                 |
+| =IF=      | =(if flag reg reg)=              | =reg=    | Yield value of conditional expression                                                                 |
+| =IFV=     | =(ifv flag void void)=           | =void=   | Conditionally execute one of two statements                                                           |
+|-----------+----------------------------------+----------+-------------------------------------------------------------------------------------------------------|
+| =BRANCH=  | =(branch reg)=                   | =void=   | Jump to code position                                                                                 |
+| =LABEL=   | =(label $label)=                 | =reg=    | Load position of code                                                                                 |
+| =MARK=    | =(mark (label $label))=          | =void=   | Mark this position                                                                                    |
+|-----------+----------------------------------+----------+-------------------------------------------------------------------------------------------------------|
+| =CALL=    | =(call reg (arglist ...) $size)= | =reg=    | Call a function and return a value                                                                    |
+| =CALLV=   | =(call reg (arglist ...))=       | =void=   | Call a function without a return value                                                                |
+| =ARGLIST= | =(arglist (carg reg $type)+)=    | =c_args= | Setup function call arguments                                                                         |
+| =CARG=    | =(carg reg $type)=               | =void=   | Annotate value with 'parameter type'                                                                  |
+|-----------+----------------------------------+----------+-------------------------------------------------------------------------------------------------------|
+| =GUARD=   | =(guard void $before $after)=    | =void=   | Wrap a statement with code before and after                                                           |
+|-----------+----------------------------------+----------+-------------------------------------------------------------------------------------------------------|
+| =TC=      | =(tc)=                           | =reg=    | Refer to MoarVM thread context                                                                        |
+| =CU=      | =(cu)=                           | =reg=    | Refer to current compilation unit                                                                     |
+| =LOCAL=   | =(local)=                        | =reg=    | Refer to current frame working memory                                                                 |
+| =STACK=   | =(stack)=                        | =reg=    | Refer to top of C frame stack                                                                         |
 
 
 *** Tree iteration and manipulation

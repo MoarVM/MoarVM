@@ -77,6 +77,11 @@
 (tile: xor_reg       (xor reg reg) reg 2)
 (tile: not_reg       (not reg) reg 2)
 
+(tile: lshift_reg    (lshift reg reg) reg 2)
+(tile: lshift_const  (lshift reg (const $val $size)) reg 3)
+(tile: rshift_reg    (rshift reg reg) reg 2)
+(tile: rshift_const  (rshift reg (const $val $size)) reg 3)
+
 (tile: sub_reg       (sub reg reg) reg 2)
 (tile: sub_const     (sub reg (const $val $size)) reg 3)
 (tile: sub_load_addr (sub reg (load (subr reg $ofs) $sz)) reg 6)

@@ -144,6 +144,11 @@
 
 (template: add_i (add $1 $2))
 (template: sub_i (sub $1 $2))
+
+(template: abs_i
+  (let: (($mask (rshift $1 (const 63 int_sz))))
+    (xor (add $1 $mask) $mask)))
+
 (template: inc_i (add $1 (^one)))
 (template: dec_i (sub $1 (^one)))
 
@@ -151,6 +156,9 @@
 (template: bor_i  (or  $1 $2))
 (template: bxor_i (xor $1 $2))
 (template: bnot_i (not $1))
+
+(template: blshift_i (lshift $1 $2))
+(template: brshift_i (rshift $1 $2))
 
 (template: not_i (flagval (zr $1)))
 

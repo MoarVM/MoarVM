@@ -476,6 +476,15 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             cast_mode = MVM_JIT_UCAST;
             break;
         }
+        /* signed binary operations */
+   case MVM_JIT_LSHIFT:
+   case MVM_JIT_RSHIFT:
+        {
+            node_size = MAX(MVM_JIT_EXPR_INFO(tree, links[0])->size,
+                            MVM_JIT_EXPR_INFO(tree, links[1])->size);
+            cast_mode = MVM_JIT_SCAST;
+            break;
+        }
    case MVM_JIT_FLAGVAL:
         /* XXX THIS IS A HACK
          *
