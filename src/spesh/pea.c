@@ -1,5 +1,18 @@
 #include "moar.h"
 
+/* Debug logging of EA. */
+#define PEA_LOG 0
+static void pea_log(char *fmt, ...) {
+#if PEA_LOG
+    va_list args;
+    fprintf(stderr, "PEA: ");
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+    fprintf(stderr, "\n");
+#endif
+}
+
 /* A transformation that we want to perform. */
 #define TRANSFORM_DELETE_FASTCREATE 0
 #define TRANSFORM_GETATTR_TO_SET    1
@@ -89,6 +102,7 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
                     flattened_type_to_register_kind(tc, repr_data->flattened_stables[i]));
             }
             MVM_spesh_manipulate_delete_ins(tc, g, bb, t->fastcreate.ins);
+            pea_log("eliminated an allocation of %s", st->debug_name);
             break;
         }
         case TRANSFORM_GETATTR_TO_SET: {
@@ -163,12 +177,17 @@ static MVMuint32 allocation_tracked(MVMSpeshPEAAllocation *alloc) {
     return alloc && !alloc->irreplaceable;
 }
 
-static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
+static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+                                 MVMSpeshOperand o) {
     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, o);
     /* If there's another op using it, we'd need to materialize.
      * We don't support that yet, so just mark it irreplaceable. */
-    if (target->pea.allocation)
-        target->pea.allocation->irreplaceable = 1;
+    if (target->pea.allocation) {
+        if (!target->pea.allocation->irreplaceable) {
+            target->pea.allocation->irreplaceable = 1;
+            pea_log("replacement impossible due to %s", ins->info->name);
+        }
+    }
 }
 
 static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs) {
@@ -238,14 +257,15 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                         }
                         else {
                             alloc->irreplaceable = 1;
+                            pea_log("replacement blocked by NYI deopt handling");
                         }
                     }
 
                     /* For now, no transitive EA, so for the object case,
                      * mark the object being stored as requiring the real
                      * object. */
-                    if (ins->info->opcode == MVM_OP_sp_p6obind_o)
-                        real_object_required(tc, g, ins->operands[2]);
+                    if (opcode == MVM_OP_sp_p6obind_o || opcode == MVM_OP_sp_bind_o)
+                        real_object_required(tc, g, ins, ins->operands[2]);
                     break;
                 }
                 case MVM_OP_sp_p6oget_i:
@@ -268,6 +288,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                         }
                         else {
                             alloc->irreplaceable = 1;
+                            pea_log("replacement blocked by NYI deopt handling");
                         }
                     }
                     break;
@@ -276,7 +297,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     /* For now, don't handle these. */
                    MVMuint32 i = 0;
                    for (i = 1; i < ins->info->num_operands; i++)
-                        real_object_required(tc, g, ins->operands[i]);
+                        real_object_required(tc, g, ins, ins->operands[i]);
                     break;
                 }
                 default: {
@@ -285,7 +306,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                    MVMuint32 i = 0;
                    for (i = 0; i < ins->info->num_operands; i++)
                        if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
-                            real_object_required(tc, g, ins->operands[i]);
+                            real_object_required(tc, g, ins, ins->operands[i]);
                    break;
                }
             }
@@ -296,8 +317,10 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
 
         /* For now, we only handle linear code with no flow control. */
         bb = bb->linear_next;
-        if (bb && bb->num_succ > 1)
+        if (bb && bb->num_succ > 1) {
+            pea_log("replacement blocked by NYI num_succ > 1");
             return 0;
+        }
     }
     return found_replaceable;
 }
@@ -310,7 +333,15 @@ void MVM_spesh_pea(MVMThreadContext *tc, MVMSpeshGraph *g) {
     gs.bb_states = MVM_spesh_alloc(tc, g, g->num_bbs * sizeof(BBState));
     for (i = 0; i < g->num_bbs; i++)
         MVM_VECTOR_INIT(gs.bb_states[i].transformations, 0);
-    
+
+    if (PEA_LOG) {
+        char *sf_name = MVM_string_utf8_encode_C_string(tc, g->sf->body.name);
+        char *sf_cuuid = MVM_string_utf8_encode_C_string(tc, g->sf->body.cuuid);
+        pea_log("considering frame '%s' (%s)", sf_name, sf_cuuid);
+        MVM_free(sf_name);
+        MVM_free(sf_cuuid);
+    }
+
     if (analyze(tc, g, &gs)) {
         MVMSpeshBB *bb = g->entry;
         gs.attr_regs = MVM_spesh_alloc(tc, g, gs.latest_hypothetical_reg_idx * sizeof(MVMuint16));
