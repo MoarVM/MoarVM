@@ -809,7 +809,7 @@ static void dfs(MVMSpeshBB **rpo, MVMint32 *insert_pos, MVMuint8 *seen, MVMSpesh
     bb->rpo_idx = *insert_pos;
     (*insert_pos)--;
 }
-static MVMSpeshBB ** reverse_postorder(MVMThreadContext *tc, MVMSpeshGraph *g) {
+MVMSpeshBB ** MVM_spesh_graph_reverse_postorder(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB **rpo  = MVM_calloc(g->num_bbs, sizeof(MVMSpeshBB *));
     MVMuint8    *seen = MVM_calloc(g->num_bbs, 1);
     MVMint32     ins  = g->num_bbs - 1;
@@ -1242,7 +1242,7 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMint32 i, num_locals;
 
     /* Compute dominance frontiers. */
-    MVMSpeshBB **rpo  = reverse_postorder(tc, g);
+    MVMSpeshBB **rpo  = MVM_spesh_graph_reverse_postorder(tc, g);
     MVMint32    *doms = compute_dominators(tc, g, rpo);
     add_children(tc, g, rpo, doms);
     add_dominance_frontiers(tc, g, rpo, doms);
@@ -1374,7 +1374,7 @@ void MVM_spesh_graph_recompute_dominance(MVMThreadContext *tc, MVMSpeshGraph *g)
 
     /* Now form the new dominance tree. */
     add_predecessors(tc, g);
-    rpo = reverse_postorder(tc, g);
+    rpo = MVM_spesh_graph_reverse_postorder(tc, g);
     doms = compute_dominators(tc, g, rpo);
     add_children(tc, g, rpo, doms);
     MVM_free(rpo);

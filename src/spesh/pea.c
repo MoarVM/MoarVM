@@ -198,11 +198,13 @@ static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 }
 
 static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs) {
-    MVMSpeshBB *bb = g->entry;
+    MVMSpeshBB **rpo = MVM_spesh_graph_reverse_postorder(tc, g);
     MVMuint32 found_replaceable = 0;
     MVMuint32 ins_count = 0;
     MVMuint32 latest_deopt_ins = 0;
-    while (bb) {
+    MVMuint32 i;
+    for (i = 0; i < g->num_bbs; i++) {
+        MVMSpeshBB *bb = rpo[i];
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
             MVMuint16 opcode = ins->info->opcode;
@@ -338,12 +340,13 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
         }
 
         /* For now, we only handle linear code with no flow control. */
-        bb = bb->linear_next;
-        if (bb && bb->num_succ > 1) {
+        if (bb->num_succ > 1) {
             pea_log("replacement blocked by NYI num_succ > 1");
+            MVM_free(rpo);
             return 0;
         }
     }
+    MVM_free(rpo);
     return found_replaceable;
 }
 
