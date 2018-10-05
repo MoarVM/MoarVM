@@ -199,6 +199,7 @@ static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 
 static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs) {
     MVMSpeshBB **rpo = MVM_spesh_graph_reverse_postorder(tc, g);
+    MVMuint8 *seen = MVM_calloc(g->num_bbs, 1);
     MVMuint32 found_replaceable = 0;
     MVMuint32 ins_count = 0;
     MVMuint32 latest_deopt_ins = 0;
@@ -206,6 +207,18 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
     for (i = 0; i < g->num_bbs; i++) {
         MVMSpeshBB *bb = rpo[i];
         MVMSpeshIns *ins = bb->first_ins;
+
+        /* For now, we don't handle loops; bail entirely if we see one. */
+        MVMuint32 j;
+        for (j = 0; j < bb->num_pred; j++) {
+            if (!seen[bb->pred[j]->rpo_idx]) {
+                pea_log("partial escape analysis not implemented for loops");
+                MVM_free(seen);
+                MVM_free(rpo);
+                return 0;
+            }
+        }
+
         while (ins) {
             MVMuint16 opcode = ins->info->opcode;
 
@@ -339,14 +352,10 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
             ins_count++;
         }
 
-        /* For now, we only handle linear code with no flow control. */
-        if (bb->num_succ > 1) {
-            pea_log("replacement blocked by NYI num_succ > 1");
-            MVM_free(rpo);
-            return 0;
-        }
+        seen[bb->rpo_idx] = 1;
     }
     MVM_free(rpo);
+    MVM_free(seen);
     return found_replaceable;
 }
 
