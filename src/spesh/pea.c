@@ -179,6 +179,8 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
+            MVMuint16 opcode = ins->info->opcode;
+
             /* If a deopt might take place, then all tracked allocations at
              * this point become irreplaceable if they are used after the
              * deopt. We just track the latest deopt instruction to handle
@@ -187,7 +189,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                 latest_deopt_ins = ins_count;
 
             /* Look for significant instructions. */
-            switch (ins->info->opcode) {
+            switch (opcode) {
                 case MVM_OP_sp_fastcreate: {
                     MVMSTable *st = (MVMSTable *)g->spesh_slots[ins->operands[2].lit_i16];
                     MVMSpeshPEAAllocation *alloc = try_track_allocation(tc, g, gs, ins, st);
@@ -205,6 +207,11 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     }
                     break;
                 }
+                case MVM_OP_sp_bind_i64:
+                case MVM_OP_sp_bind_n:
+                case MVM_OP_sp_bind_s:
+                case MVM_OP_sp_bind_s_nowb:
+                case MVM_OP_sp_bind_o:
                 case MVM_OP_sp_p6obind_i:
                 case MVM_OP_sp_p6obind_n:
                 case MVM_OP_sp_p6obind_s:
@@ -215,12 +222,18 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
                     if (allocation_tracked(alloc)) {
                         if (alloc->initial_deopt_ins == latest_deopt_ins) {
+                            MVMint32 is_p6o_op = opcode == MVM_OP_sp_p6obind_i ||
+                                opcode == MVM_OP_sp_p6obind_n ||
+                                opcode == MVM_OP_sp_p6obind_s ||
+                                opcode == MVM_OP_sp_p6obind_o;
                             Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
                             tran->allocation = alloc;
                             tran->transform = TRANSFORM_BINDATTR_TO_SET;
                             tran->attr.ins = ins;
                             tran->attr.hypothetical_reg_idx = attribute_offset_to_reg(tc, alloc,
-                                    ins->operands[1].lit_i16);
+                                    is_p6o_op
+                                        ? ins->operands[1].lit_i16
+                                        : ins->operands[1].lit_i16 - sizeof(MVMObject));
                             add_transform_for_bb(tc, gs, bb, tran);
                         }
                         else {
@@ -238,6 +251,8 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                 case MVM_OP_sp_p6oget_i:
                 case MVM_OP_sp_p6oget_n:
                 case MVM_OP_sp_p6oget_s:
+                case MVM_OP_sp_p6oget_o:
+                case MVM_OP_sp_p6ogetvc_o:
                 case MVM_OP_sp_p6ogetvt_o: {
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[1]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
