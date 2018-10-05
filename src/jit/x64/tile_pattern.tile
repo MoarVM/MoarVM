@@ -73,6 +73,8 @@
 (tile: and_load_addr (and reg (load (andr reg $ofs) $sz)) reg 6)
 (tile: and_load_idx  (and reg (load (idx reg reg $scale) $size)) reg 6)
 
+(tile: mul_reg       (mul reg reg) reg 2)
+
 (tile: or_reg        (or reg reg) reg 2)
 (tile: xor_reg       (xor reg reg) reg 2)
 (tile: not_reg       (not reg) reg 2)

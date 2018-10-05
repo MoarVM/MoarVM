@@ -567,6 +567,13 @@ MVM_JIT_TILE_DECL(and_load_idx) {
     }
 }
 
+MVM_JIT_TILE_DECL(mul_reg) {
+    MVMint8 reg[2];
+    ensure_two_operand_pre(tc, compiler, tile, reg);
+    | imul Rq(reg[0]), Rq(reg[1]);
+    ensure_two_operand_post(tc, compiler, tile, reg);
+}
+
 MVM_JIT_TILE_DECL(or_reg) {
     MVMint8 reg[2];
     ensure_two_operand_pre(tc, compiler, tile, reg);

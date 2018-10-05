@@ -44,6 +44,7 @@
     /* integer arithmetic */ \
     _(ADD, 2, 0), \
     _(SUB, 2, 0), \
+    _(MUL, 2, 0), \
     /* binary operations */ \
     _(AND, 2, 0), \
     _(OR, 2, 0),  \

@@ -30,6 +30,8 @@ MVM_JIT_TILE_DECL(sub_const);
 MVM_JIT_TILE_DECL(sub_load_addr);
 MVM_JIT_TILE_DECL(sub_load_idx);
 
+MVM_JIT_TILE_DECL(mul_reg);
+
 MVM_JIT_TILE_DECL(and_reg);
 MVM_JIT_TILE_DECL(and_const);
 MVM_JIT_TILE_DECL(and_load_addr);
