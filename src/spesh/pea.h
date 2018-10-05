@@ -21,7 +21,13 @@ struct MVMSpeshPEAAllocation {
 
 /* Information held per SSA value. */
 struct MVMSpeshPEAInfo {
+    /* If this value is an allocation that is potentially being scalar
+     * replaced, it's stored in here. */
     MVMSpeshPEAAllocation *allocation;
+
+    /* If the facts of this depend on the scalar replacement of a given
+     * allocation, it is recorded here. */
+    MVMSpeshPEAAllocation *depend_allocation;
 };
 
 void MVM_spesh_pea(MVMThreadContext *tc, MVMSpeshGraph *g);

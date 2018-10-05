@@ -18,6 +18,7 @@ static void pea_log(char *fmt, ...) {
 #define TRANSFORM_GETATTR_TO_SET    1
 #define TRANSFORM_BINDATTR_TO_SET   2
 #define TRANSFORM_DELETE_SET        3
+#define TRANSFORM_GUARD_TO_SET      4
 typedef struct {
     /* The allocation that this transform relates to eliminating. */
     MVMSpeshPEAAllocation *allocation;
@@ -38,6 +39,9 @@ typedef struct {
         struct {
             MVMSpeshIns *ins;
         } set;
+        struct {
+            MVMSpeshIns *ins;
+        } guard;
     };
 } Transformation;
 
@@ -45,6 +49,20 @@ typedef struct {
 typedef struct {
     MVM_VECTOR_DECL(Transformation *, transformations);
 } BBState;
+
+/* Shadow facts are used to track hypothetical extra information about an SSA
+ * value. We hold them separately from the real facts, since they may not end
+ * up applying (e.g. in the case of a loop where we have to iterate to a fixed
+ * point). They can be indexed in two ways: by a hypothetical register ID or
+ * by a concrete register ID (the former used for registers that we will only
+ * create if we really do scalar replacement). */
+typedef struct {
+    MVMuint16 is_hypothetical;
+    MVMuint16 hypothetical_reg_idx;
+    MVMuint16 concrete_orig;
+    MVMuint16 concrete_i;
+    MVMSpeshFacts facts;
+} ShadowFact;
 
 /* State we hold during the entire partial escape analysis process. */
 typedef struct {
@@ -58,6 +76,9 @@ typedef struct {
 
     /* State held per basic block. */
     BBState *bb_states;
+
+    /* Shadow facts. */
+    MVM_VECTOR_DECL(ShadowFact, shadow_facts);
 } GraphState;
 
 /* Turns a flattened-in STable into a register type to allocate, if possible.
@@ -117,6 +138,7 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             ins->operands[1].reg.i = MVM_spesh_manipulate_get_current_version(tc, g,
                 ins->operands[1].reg.orig);
             MVM_spesh_usages_add_by_reg(tc, g, ins->operands[1], ins);
+            MVM_spesh_graph_add_comment(tc, g, ins, "read of scalar-replaced attribute");
             break;
         }
         case TRANSFORM_BINDATTR_TO_SET: {
@@ -133,11 +155,19 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
                 ins->operands[0].reg.orig);
             ins->operands[1] = ins->operands[2];
             MVM_spesh_get_facts(tc, g, ins->operands[0])->writer = ins;
+            MVM_spesh_graph_add_comment(tc, g, ins, "write of scalar-replaced attribute");
             break;
         }
         case TRANSFORM_DELETE_SET:
             MVM_spesh_manipulate_delete_ins(tc, g, bb, t->set.ins);
             break;
+        case TRANSFORM_GUARD_TO_SET: {
+            MVMSpeshIns *ins = t->guard.ins;
+            ins->info = MVM_op_get_op(MVM_OP_set);
+            MVM_spesh_graph_add_comment(tc, g, ins, "guard eliminated by scalar replacement");
+            pea_log("eliminated a guard");
+            break;
+        }
         default:
             MVM_oops(tc, "Unimplemented partial escape analysis transform");
     }
@@ -169,21 +199,81 @@ static MVMSpeshPEAAllocation * try_track_allocation(MVMThreadContext *tc, MVMSpe
     return NULL;
 }
 
+/* Add a transform to hypothetically be applied. */
 static void add_transform_for_bb(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *bb,
         Transformation *tran) {
     MVM_VECTOR_PUSH(gs->bb_states[bb->idx].transformations, tran);
 }
 
+/* Gets the shadow facts for a register, or returns NULL if there aren't
+ * any. The _h form takes a hypothetical register ID, the _c form a
+ * concrete register.*/
+static MVMSpeshFacts * get_shadow_facts_h(MVMThreadContext *tc, GraphState *gs, MVMuint16 idx) {
+    MVMint32 i;
+    for (i = 0; i < gs->shadow_facts_num; i++) {
+        ShadowFact *sf = &(gs->shadow_facts[i]);
+        if (sf->is_hypothetical && sf->hypothetical_reg_idx == idx)
+            return &(sf->facts);
+    }
+    return NULL;
+}
+static MVMSpeshFacts * get_shadow_facts_c(MVMThreadContext *tc, GraphState *gs, MVMSpeshOperand o) {
+    MVMint32 i;
+    for (i = 0; i < gs->shadow_facts_num; i++) {
+        ShadowFact *sf = &(gs->shadow_facts[i]);
+        if (!sf->is_hypothetical && sf->concrete_orig == o.reg.orig &&
+                sf->concrete_i == o.reg.i)
+            return &(sf->facts);
+    }
+    return NULL;
+}
+
+/* Shadow facts are facts that we hold about a value based upon the new
+ * information we have available thanks to scalar replacement. This adds
+ * a new one. Note that any previously held shadow facts are this point
+ * may be invalidated due to reallocation. This will get recreate new
+ * shadow facts if they already exist. The _h form takes a hypothetical
+ * register ID, the _c form a concrete register. */
+static MVMSpeshFacts * create_shadow_facts_h(MVMThreadContext *tc, GraphState *gs, MVMuint16 idx) {
+    MVMSpeshFacts *facts = get_shadow_facts_h(tc, gs, idx);
+    if (!facts) {
+        ShadowFact sf;
+        sf.is_hypothetical = 1;
+        sf.hypothetical_reg_idx = idx;
+        memset(&(sf.facts), 0, sizeof(MVMSpeshFacts));
+        MVM_VECTOR_PUSH(gs->shadow_facts, sf);
+        facts = &(gs->shadow_facts[gs->shadow_facts_num - 1].facts);
+    }
+    return facts;
+}
+static MVMSpeshFacts * create_shadow_facts_c(MVMThreadContext *tc, GraphState *gs, MVMSpeshOperand o) {
+    MVMSpeshFacts *facts = get_shadow_facts_c(tc, gs, o);
+    if (!facts) {
+        ShadowFact sf;
+        sf.is_hypothetical = 0;
+        sf.concrete_orig = o.reg.orig;
+        sf.concrete_i = o.reg.i;
+        memset(&(sf.facts), 0, sizeof(MVMSpeshFacts));
+        MVM_VECTOR_PUSH(gs->shadow_facts, sf);
+        facts = &(gs->shadow_facts[gs->shadow_facts_num - 1].facts);
+    }
+    return facts;
+}
+
+/* Map an object offset to the register with its scalar replacement. */
 static MVMuint16 attribute_offset_to_reg(MVMThreadContext *tc, MVMSpeshPEAAllocation *alloc,
         MVMint16 offset) {
     MVMuint32 idx = MVM_p6opaque_offset_to_attr_idx(tc, alloc->type, offset);
     return alloc->hypothetical_attr_reg_idxs[idx];
 }
 
+/* Check if an allocation is being tracked. */
 static MVMuint32 allocation_tracked(MVMSpeshPEAAllocation *alloc) {
     return alloc && !alloc->irreplaceable;
 }
 
+/* Indicates that a real object is required; will eventually mark a point at
+ * which we materialize. */
 static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
                                  MVMSpeshOperand o) {
     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, o);
@@ -197,6 +287,9 @@ static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     }
 }
 
+/* Performs the analysis phase of partial escape anslysis, figuring out what
+ * rewrites we can do on the graph to achieve scalar replacement of objects
+ * and, perhaps, some guard eliminations. */
 static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs) {
     MVMSpeshBB **rpo = MVM_spesh_graph_reverse_postorder(tc, g);
     MVMuint8 *seen = MVM_calloc(g->num_bbs, 1);
@@ -222,12 +315,42 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
         while (ins) {
             MVMuint16 opcode = ins->info->opcode;
 
-            /* If a deopt might take place, then all tracked allocations at
-             * this point become irreplaceable if they are used after the
-             * deopt. We just track the latest deopt instruction to handle
-             * that for now. Later we'll deal with deopt properly. */
-            if (ins->info->may_cause_deopt)
-                latest_deopt_ins = ins_count;
+            /* See if this is an instruction where a deopt might take place.
+             * If yes, then we first consider whether it's a guard that the
+             * extra information available thanks to Scalar Replacement might
+             * let us eliminate. If it *is*, then we no longer consider this a
+             * deopt point, and schedule a transform of the guard into a set.
+             * Otherwise, for now, since we don't have deopt support, we'll
+             * just consider the all tracfked allocations at this point to be
+             * irreplaceable. */
+            if (ins->info->may_cause_deopt) {
+                MVMuint32 settify = 0;
+                MVMSpeshPEAAllocation *settify_dep = NULL;
+                switch (opcode) {
+                    case MVM_OP_sp_guardconc: {
+                        MVMSpeshFacts *hyp_facts = get_shadow_facts_c(tc, gs,
+                                ins->operands[1]);
+                        if (hyp_facts && (hyp_facts->flags & MVM_SPESH_FACT_CONCRETE) &&
+                                (hyp_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
+                                hyp_facts->pea.depend_allocation) {
+                            MVMSTable *wanted = (MVMSTable *)g->spesh_slots[ins->operands[2].lit_ui16];
+                            settify = wanted == hyp_facts->type->st;
+                            settify_dep = hyp_facts->pea.depend_allocation;
+                        }
+                        break;
+                    }
+                }
+                if (settify) {
+                    Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+                    tran->allocation = settify_dep;
+                    tran->transform = TRANSFORM_GUARD_TO_SET;
+                    tran->guard.ins = ins;
+                    add_transform_for_bb(tc, gs, bb, tran);
+                }
+                else {
+                    latest_deopt_ins = ins_count;
+                }
+            }
 
             /* Look for significant instructions. */
             switch (opcode) {
@@ -282,15 +405,23 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                                 opcode == MVM_OP_sp_p6obind_n ||
                                 opcode == MVM_OP_sp_p6obind_s ||
                                 opcode == MVM_OP_sp_p6obind_o;
+                            MVMuint16 hypothetical_reg = attribute_offset_to_reg(tc, alloc,
+                                    is_p6o_op
+                                        ? ins->operands[1].lit_i16
+                                        : ins->operands[1].lit_i16 - sizeof(MVMObject));
                             Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
                             tran->allocation = alloc;
                             tran->transform = TRANSFORM_BINDATTR_TO_SET;
                             tran->attr.ins = ins;
-                            tran->attr.hypothetical_reg_idx = attribute_offset_to_reg(tc, alloc,
-                                    is_p6o_op
-                                        ? ins->operands[1].lit_i16
-                                        : ins->operands[1].lit_i16 - sizeof(MVMObject));
+                            tran->attr.hypothetical_reg_idx = hypothetical_reg;
                             add_transform_for_bb(tc, gs, bb, tran);
+                            if (opcode == MVM_OP_sp_p6obind_o || opcode == MVM_OP_sp_bind_o) {
+                                MVMSpeshFacts *tgt_facts = create_shadow_facts_h(tc, gs,
+                                        hypothetical_reg);
+                                MVMSpeshFacts *src_facts = MVM_spesh_get_facts(tc, g,
+                                        ins->operands[2]);
+                                MVM_spesh_copy_facts_resolved(tc, g, tgt_facts, src_facts);
+                            }
                         }
                         else {
                             alloc->irreplaceable = 1;
@@ -315,13 +446,25 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
                     if (allocation_tracked(alloc)) {
                         if (alloc->initial_deopt_ins == latest_deopt_ins) {
+                            MVMuint16 hypothetical_reg = attribute_offset_to_reg(tc, alloc,
+                                    ins->operands[2].lit_i16);
                             Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
                             tran->allocation = alloc;
                             tran->transform = TRANSFORM_GETATTR_TO_SET;
                             tran->attr.ins = ins;
-                            tran->attr.hypothetical_reg_idx = attribute_offset_to_reg(tc, alloc,
-                                    ins->operands[2].lit_i16);
+                            tran->attr.hypothetical_reg_idx = hypothetical_reg;
                             add_transform_for_bb(tc, gs, bb, tran);
+                            if (opcode == MVM_OP_sp_p6oget_o || opcode == MVM_OP_sp_p6ogetvc_o ||
+                                    opcode == MVM_OP_sp_p6ogetvt_o) {
+                                MVMSpeshFacts *tgt_facts = create_shadow_facts_c(tc, gs,
+                                        ins->operands[0]);
+                                MVMSpeshFacts *src_facts = get_shadow_facts_h(tc, gs,
+                                        hypothetical_reg);
+                                if (src_facts) {
+                                    MVM_spesh_copy_facts_resolved(tc, g, tgt_facts, src_facts);
+                                    tgt_facts->pea.depend_allocation = alloc;
+                                }
+                            }
                         }
                         else {
                             alloc->irreplaceable = 1;
@@ -364,6 +507,7 @@ void MVM_spesh_pea(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
     GraphState gs;
     memset(&gs, 0, sizeof(GraphState));
+    MVM_VECTOR_INIT(gs.shadow_facts, 0);
     gs.bb_states = MVM_spesh_alloc(tc, g, g->num_bbs * sizeof(BBState));
     for (i = 0; i < g->num_bbs; i++)
         MVM_VECTOR_INIT(gs.bb_states[i].transformations, 0);
@@ -388,4 +532,5 @@ void MVM_spesh_pea(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
     for (i = 0; i < g->num_bbs; i++)
         MVM_VECTOR_DESTROY(gs.bb_states[i].transformations);
+    MVM_VECTOR_DESTROY(gs.shadow_facts);
 }
