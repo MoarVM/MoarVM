@@ -452,6 +452,7 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         /* signed binary operations */
     case MVM_JIT_ADD:
     case MVM_JIT_SUB:
+    case MVM_JIT_MUL:
     case MVM_JIT_LT:
     case MVM_JIT_LE:
     case MVM_JIT_GE:
