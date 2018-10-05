@@ -17,6 +17,7 @@ static void pea_log(char *fmt, ...) {
 #define TRANSFORM_DELETE_FASTCREATE 0
 #define TRANSFORM_GETATTR_TO_SET    1
 #define TRANSFORM_BINDATTR_TO_SET   2
+#define TRANSFORM_DELETE_SET        3
 typedef struct {
     /* The allocation that this transform relates to eliminating. */
     MVMSpeshPEAAllocation *allocation;
@@ -34,6 +35,9 @@ typedef struct {
             MVMSpeshIns *ins;
             MVMSTable *st;
         } fastcreate;
+        struct {
+            MVMSpeshIns *ins;
+        } set;
     };
 } Transformation;
 
@@ -131,6 +135,9 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             MVM_spesh_get_facts(tc, g, ins->operands[0])->writer = ins;
             break;
         }
+        case TRANSFORM_DELETE_SET:
+            MVM_spesh_manipulate_delete_ins(tc, g, bb, t->set.ins);
+            break;
         default:
             MVM_oops(tc, "Unimplemented partial escape analysis transform");
     }
@@ -223,6 +230,21 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                         target->pea.allocation = alloc;
                         alloc->initial_deopt_ins = latest_deopt_ins;
                         found_replaceable = 1;
+                    }
+                    break;
+                }
+                case MVM_OP_set: {
+                    /* A set instruction just aliases the tracked object; we
+                     * can potentially elimiante it. */
+                    MVMSpeshFacts *source = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+                    MVMSpeshPEAAllocation *alloc = source->pea.allocation;
+                    if (allocation_tracked(alloc)) {
+                        Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+                        tran->allocation = alloc;
+                        tran->transform = TRANSFORM_DELETE_SET;
+                        tran->set.ins = ins;
+                        add_transform_for_bb(tc, gs, bb, tran);
+                        MVM_spesh_get_facts(tc, g, ins->operands[0])->pea.allocation = alloc;
                     }
                     break;
                 }
