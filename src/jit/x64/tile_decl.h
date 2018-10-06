@@ -39,11 +39,6 @@ MVM_JIT_TILE_DECL(or_reg);
 MVM_JIT_TILE_DECL(xor_reg);
 MVM_JIT_TILE_DECL(not_reg);
 
-MVM_JIT_TILE_DECL(lshift_reg);
-MVM_JIT_TILE_DECL(lshift_const);
-MVM_JIT_TILE_DECL(rshift_reg);
-MVM_JIT_TILE_DECL(rshift_const);
-
 MVM_JIT_TILE_DECL(test);
 MVM_JIT_TILE_DECL(test_addr);
 MVM_JIT_TILE_DECL(test_idx);
