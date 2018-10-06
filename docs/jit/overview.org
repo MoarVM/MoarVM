@@ -158,8 +158,6 @@ as of today (<2018-09-30 Sun>).
 | =OR=      | =(or reg reg)=                   | =reg=    | Binary OR (union) of two operands                                                                     |
 | =XOR=     | =(xor reg reg)=                  | =reg=    | Binary XOR of two operands                                                                            |
 | =NOT=     | =(not reg)=                      | =reg=    | Binary negation of operand                                                                            |
-| =LSHIFT=  | =(lshift reg reg)=               | =reg=    | Binary left shift of operand                                                                          |
-| =RSHIFT=  | =(rshift reg reg)=               | =reg=    | Binary right shift of operand. Bits shifted in match previous sign bit                                |
 |-----------+----------------------------------+----------+-------------------------------------------------------------------------------------------------------|
 | =ALL=     | =(all flag+)=                    | =flag=   | Variadic short-circuit logical AND                                                                    |
 | =ANY=     | =(any flag+)=                    | =flag=   | Variadic short-circuit logical OR                                                                     |
