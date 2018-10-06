@@ -497,6 +497,15 @@ static void push_name_and_port(MVMThreadContext *tc, struct sockaddr_storage *na
     MVM_repr_push_o(tc, arr, port_o);
 }
 
+static void push_handle_fd(MVMThreadContext *tc, MVMObject *arr, uv_handle_t *handle) {
+    uv_os_fd_t fd;
+    uv_fileno(handle, &fd);
+    MVMROOT(tc, arr, {
+        MVMObject *fd_o = (MVMObject *)MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, fd);
+        MVM_repr_push_o(tc, arr, fd_o);
+    });
+}
+
 /* Info we convey about a connection attempt task. */
 typedef struct {
     struct sockaddr  *dest;
@@ -532,6 +541,8 @@ static void on_connect(uv_connect_t* req, int status) {
 
                 uv_tcp_getsockname(ci->socket, (struct sockaddr *)&sockaddr, &name_len);
                 push_name_and_port(tc, &sockaddr, arr);
+
+                push_handle_fd(tc, arr, (uv_handle_t *)ci->socket);
             }
         });
     }
@@ -546,6 +557,7 @@ static void on_connect(uv_connect_t* req, int status) {
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
         });
     }
@@ -584,6 +596,7 @@ static void connect_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *asyn
                 MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
                 MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
                 MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
                 MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             });
             MVM_repr_push_o(tc, t->body.queue, arr);
@@ -698,8 +711,12 @@ static void on_connection(uv_stream_t *server, int status) {
                 uv_tcp_getpeername(client, (struct sockaddr *)&sockaddr, &name_len);
                 push_name_and_port(tc, &sockaddr, arr);
 
+                push_handle_fd(tc, arr, (uv_handle_t *)li->socket);
+
                 uv_tcp_getsockname(client, (struct sockaddr *)&sockaddr, &name_len);
                 push_name_and_port(tc, &sockaddr, arr);
+
+                push_handle_fd(tc, arr, (uv_handle_t *)client);
             }
         });
     }
@@ -715,7 +732,9 @@ static void on_connection(uv_stream_t *server, int status) {
             MVM_repr_push_o(tc, arr, msg_box);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
         });
     }
@@ -752,6 +771,7 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
                 MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
                 MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
                 MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
                 MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             });
             MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
