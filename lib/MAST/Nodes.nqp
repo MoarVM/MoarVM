@@ -407,13 +407,13 @@ class MAST::Op is MAST::Node {
                 $bytecode.write_uint16(%MAST::Ops::codes<const_i64_16>);
                 self.write_operand($bytecode, %op_codes{$op}, 0, @operands[0]);
                 $bytecode.write_uint16($value);
-                return nqp::create($buf);
+                return;
             }
             elsif -2147483647 < $value && $value < 2147483647 {
                 $bytecode.write_uint16(%MAST::Ops::codes<const_i64_32>);
                 self.write_operand($bytecode, %op_codes{$op}, 0, @operands[0]);
                 $bytecode.write_uint32($value);
-                return nqp::create($buf);
+                return;
             }
         }
         $bytecode.write_uint16(%op_codes{$op});
@@ -422,7 +422,6 @@ class MAST::Op is MAST::Node {
         for @operands -> $o {
             self.write_operand($bytecode, %op_codes{$op}, $idx++, $o);
         }
-        nqp::create($buf)
     }
 
     method write_operand($bytecode, $op, $idx, $o) {
@@ -485,8 +484,6 @@ class MAST::ExtOp is MAST::Node {
             $*MAST_FRAME.compile_operand($bytecode, $rw, $type, @operands[$idx]);
             $idx++;
         }
-
-        nqp::create($buf)
     }
 
     method op() { $!op }
@@ -621,8 +618,6 @@ class MAST::Call is MAST::Node {
         if $op == 1 {
             $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_obj, @args[0]);
         }
-
-        nqp::create($buf);
     }
 
     sub sanity_check(@flags, @args) {
@@ -673,7 +668,6 @@ class MAST::Call is MAST::Node {
 class MAST::Annotated is MAST::Node {
     method new(:$file = '<anon>', :$line!) {
         $*MAST_FRAME.add-annotation(:$file, :$line);
-        nqp::create($buf)
     }
 }
 
@@ -724,7 +718,6 @@ class MAST::HandlerScope is MAST::Node {
             }
         }
         $*MAST_FRAME.add-handler-scope(:$start, :$category_mask, :$action, :$goto, :$block, :$label);
-        nqp::create($buf)
     }
 }
 
