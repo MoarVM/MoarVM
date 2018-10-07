@@ -264,6 +264,108 @@
       (carg $1 ptr)
       (carg \$0 ptr))))
 
+# invoke sequence
+
+ # rsp = rbp - 0x100 ; rbp-0x30 = rsp+0xd0
+(macro: ^cur_callsite () (addr (stack) 0xd0))
+
+(template: prepargs
+  (letv:
+    (($callsite (load (idx (^getf (cu) MVMCompUnit body.callsites) $0 ptr_sz) ptr_sz)))
+      (^setf (^frame) MVMFrame cur_args_callsite $callsite)
+      (store (^cur_callsite) $callsite ptr_sz)))
+
+(template: arg_i
+  (store (^arg $0) $1 reg_sz))
+(template: arg_n
+  (store (^arg $0) $1 reg_sz))
+(template: arg_s
+  (store (^arg $0) $1 reg_sz))
+(template: arg_o
+  (store (^arg $0) $1 reg_sz))
+(template: argconst_i
+  (store (^arg $0) $1 reg_sz))
+(template: argconst_n
+  (store (^arg $0) $1 reg_sz))
+(template: argconst_s
+  (store (^arg $0) (^cu_string $1) reg_sz))
+
+(macro: ^invoke_slow (,code ,return_type ,return_value)
+  (letv: (($code
+          (call (^func MVM_frame_find_invokee_multi_ok)
+            (arglist
+              (carg (tc) ptr_sz)
+              (carg ,code ptr_sz)
+              (carg (^cur_callsite) ptr_sz)
+              (carg (^getf (^frame) MVMFrame args) ptr_sz)
+              (carg (^nullptr) ptr_sz)
+             ) ptr_sz))
+         ($frame (^frame)))
+    (^setf $frame MVMFrame return_value ,return_value)
+    (^setf $frame MVMFrame return_type
+      (const (&QUOTE ,return_type) (&sizeof MVMReturnType)))
+    (^setf $frame MVMFrame return_address
+      (load (^getf (tc) MVMThreadContext interp_cur_op) ptr_sz))
+    (callv (^getf (^stable $code) MVMSTable invoke)
+      (arglist
+        (carg (tc) ptr_sz)
+        (carg $code ptr_sz)
+        (carg (load (^cur_callsite) ptr_sz) ptr_sz)
+        (carg (^getf $frame MVMFrame args) ptr_sz)))))
+
+(template: invoke_v
+  (^invoke_slow $0 MVM_RETURN_VOID (^nullptr)))
+(template: invoke_i!
+  (^invoke_slow $1 MVM_RETURN_INT \$0))
+(template: invoke_n!
+  (^invoke_slow $1 MVM_RETURN_NUM \$0))
+(template: invoke_s!
+  (^invoke_slow $1 MVM_RETURN_STR \$0))
+(template: invoke_o!
+  (^invoke_slow $1 MVM_RETURN_OBJ \$0))
+
+(macro: ^invoke_fast (,code ,spesh_cand ,return_type ,return_value)
+  (letv: (($frame (^frame)) ($code (copy ,code)))
+    (^setf $frame MVMFrame return_value ,return_value)
+    (^setf $frame MVMFrame return_type
+      (const (&QUOTE ,return_type) (&sizeof MVMReturnType)))
+    (^setf $frame MVMFrame return_address
+      (load (^getf (tc) MVMThreadContext interp_cur_op) ptr_sz))
+    (callv (^func MVM_frame_invoke)
+      (arglist
+        (carg (tc) ptr_sz)
+        (carg (^getf $code MVMCode body.sf) ptr_sz)
+        (carg (load (^cur_callsite) ptr_sz) ptr_sz)
+        (carg (^getf $frame MVMFrame args) ptr_sz)
+        (carg (^getf $code MVMCode body.outer) ptr_sz)
+        (carg $code ptr_sz)
+        (carg (scast ,spesh_cand 4 2) (&sizeof MVMint32))))
+    ))
+
+(template: sp_fastinvoke_v
+  (^invoke_fast $0 $1 MVM_RETURN_VOID (^nullptr)))
+(template: sp_fastinvoke_i!
+  (^invoke_fast $1 $2 MVM_RETURN_INT \$0))
+(template: sp_fastinvoke_n!
+  (^invoke_fast $1 $2 MVM_RETURN_NUM \$0))
+(template: sp_fastinvoke_s!
+  (^invoke_fast $1 $2 MVM_RETURN_STR \$0))
+(template: sp_fastinvoke_o!
+  (^invoke_fast $1 $2 MVM_RETURN_OBJ \$0))
+
+(template: sp_speshresolve!
+  (dov
+    (^setf (^frame) MVMFrame return_address
+      (load (^getf (tc) MVMThreadContext interp_cur_op) ptr_sz))
+    (callv (^func MVM_spesh_plugin_resolve_jit)
+      (arglist
+        (carg (tc) ptr_sz)
+        (carg (^cu_string $1) ptr_sz)
+        (carg \$0 ptr_sz)
+        (carg $2 (&sizeof MVMuint32))
+        (carg (^spesh_slot_value $3) ptr_sz)
+        (carg (load (^cur_callsite) ptr_sz) ptr_sz)))))
+
 (template: checkarity
   (callv (^func &MVM_args_checkarity)
     (arglist
