@@ -131,7 +131,10 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
         cur_op += 2;
         if (op_num < MVM_OP_EXT_BASE) {
             op_info = MVM_op_get_op(op_num);
-            a("%-18s ", op_info->name);
+            if (op_info)
+                a("%-18s ", op_info->name);
+            else
+                a("invalid OP        ");
         }
         else {
             MVMint16 ext_op_num = op_num - MVM_OP_EXT_BASE;
@@ -152,9 +155,12 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
                 tmp_extop_info.name = NULL;
             }
             else {
-                MVM_exception_throw_adhoc(tc, "Extension op %d out of range", (int)op_num);
+                a("Extension op %d out of range", (int)op_num);
             }
         }
+
+        if (!op_info)
+            continue;
 
         for (i = 0; i < op_info->num_operands; i++) {
             if (i) a(", ");
@@ -214,20 +220,26 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
                         break;
                     case MVM_operand_str:
                         operand_size = 4;
-                        tmpstr = MVM_string_utf8_encode_C_string(
-                            tc, MVM_cu_string(tc, cu, GET_UI32(cur_op, 0)));
-                        /* XXX C-string-literal escape the \ and '
-                            and line breaks and non-ascii someday */
-                        a("'%s'", tmpstr);
-                        MVM_free(tmpstr);
+                        if (GET_UI32(cur_op, 0) < cu->body.num_strings) {
+                            tmpstr = MVM_string_utf8_encode_C_string(
+                                    tc, MVM_cu_string(tc, cu, GET_UI32(cur_op, 0)));
+                            /* XXX C-string-literal escape the \ and '
+                                and line breaks and non-ascii someday */
+                            a("'%s'", tmpstr);
+                            MVM_free(tmpstr);
+                        }
+                        else
+                            a("invalid string index: %d", GET_UI32(cur_op, 0));
                         break;
                     case MVM_operand_ins:
                         operand_size = 4;
                         /* luckily all the ins operands are at the end
                         of op operands, so I can wait to resolve the label
                         to the end. */
-                        labels[GET_UI32(cur_op, 0)] |= MVM_val_branch_target;
-                        jumps[lineno] = GET_UI32(cur_op, 0);
+                        if (GET_UI32(cur_op, 0) < bytecode_size) {
+                            labels[GET_UI32(cur_op, 0)] |= MVM_val_branch_target;
+                            jumps[lineno] = GET_UI32(cur_op, 0);
+                        }
                         break;
                     case MVM_operand_obj:
                         /* not sure what a literal object is */
@@ -290,8 +302,9 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
             if (labels[byte_offset] & MVM_val_branch_target) {
                 /* found a byte_offset where a label should be.
                  now crawl up through the lines to find which line starts there */
-                while (linelocs[line_number] != byte_offset) line_number++;
-                linelabels[line_number] = label_number++;
+                while (line_number < lineno && linelocs[line_number] != byte_offset) line_number++;
+                if (line_number < lineno)
+                    linelabels[line_number] = label_number++;
             }
         }
         o = oP;
@@ -325,8 +338,11 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
             if (jumps[j]) {
                 /* horribly inefficient for large frames.  again, should use a hash */
                 line_number = 0;
-                while (linelocs[line_number] != jumps[j]) line_number++;
-                a("label_%u(%05u)", linelabels[line_number], line_number);
+                while (line_number < lineno && linelocs[line_number] != jumps[j]) line_number++;
+                if (line_number < lineno)
+                    a("label_%u(%05u)", linelabels[line_number], line_number);
+                else
+                    a("label (invalid: %05u)", jumps[j]);
             }
             a("\n");
         }

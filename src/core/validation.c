@@ -190,7 +190,7 @@ static void validate_branch_targets(Validator *val) {
 
         if ((flag & MVM_BC_branch_target) && !(flag & MVM_BC_op_boundary))
             fail(val, MSG(val, "branch targets offset %" PRIu32
-                "within instruction %" PRIu32), pos, instr);
+                " within instruction %" PRIu32), pos, instr);
     }
 }
 
