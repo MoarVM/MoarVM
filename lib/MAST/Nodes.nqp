@@ -62,6 +62,9 @@ nqp::setmethcache($buf, nqp::hash(
     'write_uint32_at', method (uint32 $i, uint32 $pos) {
         nqp::writeuint(self, $pos, $i, 4);
     },
+    'read_uint32_at', method (uint32 $pos) {
+        nqp::bitshiftl_i(nqp::atpos_i(self, $pos + 3), 24) +| nqp::bitshiftl_i(nqp::atpos_i(self, $pos + 2), 16) +| nqp::bitshiftl_i(nqp::atpos_i(self, $pos + 1), 8) +| nqp::atpos_i(self, $pos)
+    },
     'write_uint16', method (uint16 $i) {
         nqp::writeuint(self, nqp::elems(self), $i, 2);
     },
@@ -397,20 +400,20 @@ class MAST::Op is MAST::Node {
     }
 
     method new_with_operand_array(@operands, str :$op!) {
-        my $bytecode := nqp::create($buf);
+        my $bytecode := $*MAST_FRAME.bytecode;
         if $op eq 'const_i64' {
             my int $value := @operands[1];
             if -32767 < $value && $value < 32768 {
                 $bytecode.write_uint16(%MAST::Ops::codes<const_i64_16>);
                 self.write_operand($bytecode, %op_codes{$op}, 0, @operands[0]);
                 $bytecode.write_uint16($value);
-                return $bytecode;
+                return nqp::create($buf);
             }
             elsif -2147483647 < $value && $value < 2147483647 {
                 $bytecode.write_uint16(%MAST::Ops::codes<const_i64_32>);
                 self.write_operand($bytecode, %op_codes{$op}, 0, @operands[0]);
                 $bytecode.write_uint32($value);
-                return $bytecode;
+                return nqp::create($buf);
             }
         }
         $bytecode.write_uint16(%op_codes{$op});
@@ -419,7 +422,7 @@ class MAST::Op is MAST::Node {
         for @operands -> $o {
             self.write_operand($bytecode, %op_codes{$op}, $idx++, $o);
         }
-        $bytecode
+        nqp::create($buf)
     }
 
     method write_operand($bytecode, $op, $idx, $o) {
@@ -461,9 +464,9 @@ class MAST::ExtOp is MAST::Node {
     }
 
     method new_with_operand_array(@operands, str :$op!, :$cu!) {
+        my $bytecode := $*MAST_FRAME.bytecode;
         my int $op_code := $cu.get_extop_code($op);
 
-        my $bytecode := $buf.new;
         my @extop_sigs := nqp::getattr($*MAST_FRAME.compunit, MAST::CompUnit, '@!extop_sigs');
         nqp::die("Invalid extension op $op specified")
             if $op_code < 1024 || $op_code - 1024 >= nqp::elems(@extop_sigs); # EXTOP_BASE
@@ -483,7 +486,7 @@ class MAST::ExtOp is MAST::Node {
             $idx++;
         }
 
-        $bytecode
+        nqp::create($buf)
     }
 
     method op() { $!op }
@@ -509,7 +512,7 @@ class MAST::Call is MAST::Node {
 
     method new(:$target!, :@flags!, :$result = MAST::Node, :$op = 0, *@args) {
         sanity_check(@flags, @args);
-        my $bytecode := nqp::create($buf);
+        my $bytecode := $*MAST_FRAME.bytecode;
         my $callsite-id := $*MAST_FRAME.callsites.get_callsite_id(@flags, @args);
 
         $bytecode.write_uint16(%MAST::Ops::codes<prepargs>);
@@ -619,7 +622,7 @@ class MAST::Call is MAST::Node {
             $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_obj, @args[0]);
         }
 
-        $bytecode
+        nqp::create($buf);
     }
 
     sub sanity_check(@flags, @args) {
@@ -668,21 +671,9 @@ class MAST::Call is MAST::Node {
 
 # A series of instructions that fall on a particular line in a particular source file
 class MAST::Annotated is MAST::Node {
-    has str $!file;
-    has int $!line;
-    has @!instructions;
-
-    method new(:$file = '<anon>', :$line!, :@instructions!) {
-        my $obj := nqp::create(self);
-        nqp::bindattr_s($obj, MAST::Annotated, '$!file', $file);
-        nqp::bindattr_i($obj, MAST::Annotated, '$!line', $line);
-        nqp::bindattr($obj, MAST::Annotated, '@!instructions', @instructions);
-        $obj
-    }
-
-    method dump_lines(@lines, $indent) {
-        nqp::push(@lines, $indent~"MAST::Annotated: file: $!file, line: $!line, instructions:");
-        nqp::push(@lines, $_.dump($indent ~ '  ')) for @!instructions;
+    method new(:$file = '<anon>', :$line!) {
+        $*MAST_FRAME.add-annotation(:$file, :$line);
+        nqp::create($buf)
     }
 }
 
@@ -714,29 +705,12 @@ module HandlerCategory {
 
 # A region with a handler.
 class MAST::HandlerScope is MAST::Node {
-    has @!instructions;
-    has int $!category_mask;
-    has int $!action;
-    has $!goto_label;
-    has $!block_local;
-    has $!label_local;
-
-    method new(:@instructions!, :$category_mask!, :$action!, :$goto!, :$block, :$label) {
-        my $obj := nqp::create(self);
-        nqp::bindattr($obj, MAST::HandlerScope, '@!instructions', @instructions);
-        nqp::bindattr_i($obj, MAST::HandlerScope, '$!category_mask', $category_mask);
-        nqp::bindattr_i($obj, MAST::HandlerScope, '$!action', $action);
-        if nqp::istype($goto, MAST::Label) {
-            nqp::bindattr($obj, MAST::HandlerScope, '$!goto_label', $goto);
-        }
-        else {
+    method new(:$start, :$category_mask!, :$action!, :$goto!, :$block, :$label) {
+        unless nqp::istype($goto, MAST::Label) {
             nqp::die("Handler needs a MAST::Label to unwind to");
         }
         if $action == $HandlerAction::invoke_and_we'll_see {
-            if nqp::istype($block, MAST::Local) {
-                nqp::bindattr($obj, MAST::HandlerScope, '$!block_local', $block);
-            }
-            else {
+            unless nqp::istype($block, MAST::Local) {
                 nqp::die("Handler action invoke-and-we'll-see needs a MAST::Local to invoke");
             }
         }
@@ -745,14 +719,12 @@ class MAST::HandlerScope is MAST::Node {
             nqp::die("Unknown handler action");
         }
         if $category_mask +& $HandlerCategory::labeled {
-            if nqp::istype($label, MAST::Local) {
-                nqp::bindattr($obj, MAST::HandlerScope, '$!label_local', $label);
-            }
-            else {
+            unless nqp::istype($label, MAST::Local) {
                 nqp::die("Handler category 'labeled' needs a MAST::Local");
             }
         }
-        $obj
+        $*MAST_FRAME.add-handler-scope(:$start, :$category_mask, :$action, :$goto, :$block, :$label);
+        nqp::create($buf)
     }
 }
 
@@ -761,9 +733,9 @@ sub get_typename($type) {
 }
 
 class MoarVM::Handler {
-    has $!start_offset;
-    has $!end_offset;
-    has $!category_mask;
+    has int32 $!start_offset;
+    has int32 $!end_offset;
+    has int32 $!category_mask;
     has $!action;
     has $!label;
     has $!label_reg;
@@ -784,6 +756,10 @@ class MoarVM::Handler {
     method set_label_reg($l) { $!label_reg := $l }
     method local()           { $!local }
     method set_local($l)     { $!local := $l }
+    method add-offset(int32 $offset) {
+        $!start_offset := $!start_offset + $offset;
+        $!end_offset := $!end_offset + $offset;
+    }
 }
 
 # Represents a frame, which is a unit of invocation. This captures the
@@ -853,11 +829,53 @@ class MAST::Frame is MAST::Node {
     has uint32 $!bytecode-offset;
     has %!labels;
     has %!label-fixups;
+    has @!child-label-fixups;
     has @!lexical_names_idxs;
     has $!annotations;
     has $!annotations-offset;
     has $!num-annotations;
     has @!handlers;
+    has $!saved-bytecode;
+    has $!saved-annotations-offset;
+
+    method start_prologue() {
+        if !nqp::isnull($!saved-bytecode) {
+            nqp::die("Nested start_prologue detected!");
+        }
+        $!saved-bytecode := $!bytecode;
+        $!bytecode := nqp::create($buf);
+        $!saved-annotations-offset := nqp::elems($!annotations);
+    }
+
+    method end_prologue() {
+        my int32 $offset := nqp::elems($!bytecode);
+        for @!child-label-fixups {
+            my int32 $at := $_;
+            my int32 $pos := $!saved-bytecode.read_uint32_at($at);
+            $pos := $pos + $offset;
+            $!saved-bytecode.write_uint32_at($pos, $at);
+        }
+        @!child-label-fixups := nqp::list;
+        $!bytecode.write_buf($!saved-bytecode);
+        $!saved-bytecode := nqp::null();
+        for %!labels {
+            my int32 $pos := nqp::iterval($_);
+            $pos := $pos + $offset;
+            %!labels{nqp::iterkey_s($_)} := $pos;
+        }
+        for @!handlers {
+            $_.add-offset($offset);
+        }
+        my int32 $at := 0;
+        my int32 $end := $!saved-annotations-offset;
+        my int32 $ann-size := 3 * 4;
+        while $at < $end {
+            my int32 $pos := $!annotations.read_uint32_at($at); # FIXME getting bogus result here
+            $pos := $pos + $offset;
+            $!annotations.write_uint32_at($pos, $at);
+            $at := $at + $ann-size;
+        }
+    }
 
     my int $cuuid_src := 0;
     sub fresh_id() {
@@ -885,7 +903,7 @@ class MAST::Frame is MAST::Node {
         $!compunit           := $compunit;
         $!string-heap        := $writer.string-heap;
         $!callsites          := $writer.callsites;
-        $!annotations        := $writer.annotations;
+        $!annotations        := $buf.new;
         $!annotations-offset := nqp::elems($!annotations);
         $!num-annotations    := 0;
         $!bytecode           := $buf.new;
@@ -895,7 +913,8 @@ class MAST::Frame is MAST::Node {
         %!labels             := nqp::hash;
         %!label-fixups       := nqp::hash;
         @!lexical_names_idxs := nqp::list;
-        $!annotations-offset := nqp::elems($!annotations);
+        $!saved-bytecode     := nqp::null;
+        @!child-label-fixups := nqp::list;
     }
 
     method prepare() {
@@ -1031,7 +1050,9 @@ class MAST::Frame is MAST::Node {
     method bytecode() { $!bytecode }
     method bytecode-length() { nqp::elems($!bytecode) }
     method bytecode-offset() { $!bytecode-offset }
+    method annotations() { $!annotations }
     method annotations-offset() { $!annotations-offset }
+    method set-annotations-offset($offset) { $!annotations-offset := $offset }
     method set-bytecode-offset($offset) { $!bytecode-offset := $offset }
     method local_types() {
         @!local_types
@@ -1079,8 +1100,7 @@ class MAST::Frame is MAST::Node {
         %!labels{nqp::objectid($label)}
     }
 
-    proto method write_instruction($i) { * }
-    multi method write_instruction(MAST::Label $i) {
+    method add-label(MAST::Label $i) {
         my $pos := nqp::elems($!bytecode);
         my $key := nqp::objectid($i);
         if %!labels{$key} {
@@ -1127,6 +1147,9 @@ class MAST::Frame is MAST::Node {
             elsif $type == nqp::const::MVM_OPERAND_INS {
                 my $key := nqp::objectid($arg);
                 my %labels := self.labels;
+                if nqp::isnull($!saved-bytecode) {
+                    nqp::push(@!child-label-fixups, nqp::elems($!bytecode));
+                }
                 if nqp::existskey(%labels, $key) {
                     $bytecode.write_uint32(%labels{$key});
                 }
@@ -1175,46 +1198,35 @@ class MAST::Frame is MAST::Node {
             nqp::die("Unknown operand mode $rw cannot be compiled");
         }
     }
-    multi method write_instruction(MAST::Annotated $i) {
+    method add-annotation(:$file, :$line) {
         $!annotations.write_uint32(nqp::elems($!bytecode));
-        $!annotations.write_uint32(self.add-string(nqp::getattr($i, MAST::Annotated, '$!file')));
-        $!annotations.write_uint32(nqp::getattr($i, MAST::Annotated, '$!line'));
-        for nqp::getattr($i, MAST::Annotated, '@!instructions') {
-            self.write_instruction($_);
-        }
+        $!annotations.write_uint32(self.add-string($file));
+        $!annotations.write_uint32($line);
         $!num-annotations++;
     }
-    multi method write_instruction(MAST::HandlerScope $i) {
-        my $start := nqp::elems($!bytecode);
-        for nqp::getattr($i, MAST::HandlerScope, '@!instructions') {
-            self.write_instruction($_);
+    method add-handler-scope(:$category_mask, :$action, :$goto, :$block, :$label, :$start!) {
+        unless nqp::defined($start) {
+            nqp::die("MAST::HandlerScope needs a start");
         }
-        my $category_mask := nqp::getattr($i, MAST::HandlerScope, '$!category_mask');
-        my $action := nqp::getattr($i, MAST::HandlerScope, '$!action');
         my $handler := MoarVM::Handler.new(
             :start_offset($start),
             :end_offset(nqp::elems($!bytecode)),
             :$category_mask,
             :$action,
-            :label(nqp::getattr($i, MAST::HandlerScope, '$!goto_label')),
+            :label($goto),
         );
         nqp::push(@!handlers, $handler);
         if $category_mask +& 4096 { # MVM_EX_CATEGORY_LABELED
-            my $l := nqp::getattr($i, MAST::HandlerScope, '$!label_local');
             nqp::die('MAST::Local required for HandlerScope with loop label')
-                unless $l.isa(MAST::Local);
+                unless $label.isa(MAST::Local);
             nqp::die('MAST::Local index out of range in HandlerScope')
-                if $l.index >= nqp::elems(self.local_types);
+                if $label.index >= nqp::elems(self.local_types);
             nqp::die('MAST::Local for HandlerScope must be an object')
-                if type_to_local_type(self.local_types()[$l.index]) != $MVM_reg_obj;
-            $handler.set_label_reg($l.index);
+                if type_to_local_type(self.local_types()[$label.index]) != $MVM_reg_obj;
+            $handler.set_label_reg($label.index);
         }
         if $action == 2 { # HANDLER_INVOKE
-            $handler.set_local(nqp::getattr(
-                nqp::getattr($i, MAST::HandlerScope, '$!block_local'),
-                MAST::Local,
-                '$!index'
-            ));
+            $handler.set_local(nqp::getattr($block, MAST::Local, '$!index'));
         }
         elsif $action == 0 || $action == 1 { # HANDLER_UNWIND_GOTO || HANDLER_UNWIND_GOTO_OBJ 
             $handler.set_local(0);
@@ -1223,17 +1235,23 @@ class MAST::Frame is MAST::Node {
             nqp::die('Invalid action code for handler scope');
         }
     }
-    multi method write_instruction($i) {
-        for %!label-fixups { # fixup fixups
-            my @fixups := nqp::iterval($_);
-            for @fixups {
-                if nqp::objectid($_[0]) == nqp::objectid($i) {
-                    $_[0] := $!bytecode,
-                    $_[1] := $_[1] + nqp::elems($!bytecode);
-                }
+    method write_instruction($i) {
+        if nqp::isnull($i) || ! nqp::defined($i) || (nqp::istype($i, $buf) && nqp::elems($i) == 0) {
+            return;
+        }
+        if nqp::istype($i, $buf) {
+            note("got a buf with elems?");
+            $!bytecode.write_buf($i)
+        }
+        elsif nqp::istype($i, MAST::Label) {
+            nqp::die("got a MAST::Label in instruction list, need to add-label it instead!");
+        }
+        else {
+            my $how := nqp::how($i);
+            if nqp::defined($how) {
+                note($how.name($i));
             }
         }
-        $!bytecode.write_buf($i)
     }
     method write_operand($i, $idx, $o) {
         my $flags := nqp::atpos_i(@MAST::Ops::values, nqp::atpos_i(@MAST::Ops::offsets, $i.op) + $idx);
