@@ -9,9 +9,10 @@ static MVMProfileThreadData * get_thread_data(MVMThreadContext *tc) {
     return tc->prof_data;
 }
 
-static MVMProfileCallNode *make_new_pcn(MVMProfileThreadData *ptd) {
+static MVMProfileCallNode *make_new_pcn(MVMProfileThreadData *ptd, MVMuint64 current_hrtime) {
     MVMProfileCallNode *current_call = ptd->current_call;
     MVMProfileCallNode *pcn     = MVM_calloc(1, sizeof(MVMProfileCallNode));
+    pcn->first_entry_time = current_hrtime;
     if (current_call) {
         MVMProfileCallNode *pred = current_call;
         pcn->pred = pred;
@@ -27,11 +28,15 @@ static MVMProfileCallNode *make_new_pcn(MVMProfileThreadData *ptd) {
         if (!ptd->call_graph)
             ptd->call_graph = pcn;
     }
+
+    return pcn;
 }
 
 /* Log that we're entering a new frame. */
 void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 mode) {
     MVMProfileThreadData *ptd = get_thread_data(tc);
+
+    MVMuint64 current_hrtime = uv_hrtime();
 
     /* Try to locate the entry node, if it's in the call graph already. */
     MVMProfileCallNode *pcn = NULL;
@@ -44,7 +49,7 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
     /* If we didn't find a call graph node, then create one and add it to the
      * graph. */
     if (!pcn) {
-        pcn = make_new_pcn(ptd, sf);
+        pcn = make_new_pcn(ptd, current_hrtime);
         pcn->sf = sf;
     }
 
@@ -69,7 +74,7 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
     pcn->entry_mode = mode;
 
     /* Log entry time; clear skip time. */
-    pcn->cur_entry_time = uv_hrtime();
+    pcn->cur_entry_time = current_hrtime;
     pcn->cur_skip_time  = 0;
 
     /* The current call graph node becomes this one. */
@@ -80,6 +85,7 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
 void MVM_profile_log_enter_native(MVMThreadContext *tc, MVMObject *nativecallsite) {
     MVMProfileThreadData *ptd = get_thread_data(tc);
     MVMProfileCallNode *pcn = NULL;
+    MVMuint64 current_hrtime = uv_hrtime();
     MVMNativeCallBody *callbody;
     MVMuint32 i;
 
@@ -98,7 +104,7 @@ void MVM_profile_log_enter_native(MVMThreadContext *tc, MVMObject *nativecallsit
     /* If we didn't find a call graph node, then create one and add it to the
      * graph. */
     if (!pcn) {
-        pcn = make_new_pcn(ptd);
+        pcn = make_new_pcn(ptd, current_hrtime);
         pcn->native_target_name = callbody->sym_name;
     }
 
@@ -107,7 +113,7 @@ void MVM_profile_log_enter_native(MVMThreadContext *tc, MVMObject *nativecallsit
     pcn->entry_mode = 0;
 
     /* Log entry time; clear skip time. */
-    pcn->cur_entry_time = uv_hrtime();
+    pcn->cur_entry_time = current_hrtime;
     pcn->cur_skip_time  = 0;
 
     /* The current call graph node becomes this one. */
