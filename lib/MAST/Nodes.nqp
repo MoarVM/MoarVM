@@ -779,9 +779,6 @@ class MAST::Frame is MAST::Node {
     # they do not get a name.
     has @!local_types;
 
-    # The instructions for this frame.
-    has @!instructions;
-
     # The outer frame, if any.
     has $!outer;
 
@@ -888,7 +885,6 @@ class MAST::Frame is MAST::Node {
         @!lexical_types      := nqp::list();
         @!lexical_names      := nqp::list();
         @!local_types        := nqp::list();
-        @!instructions       := nqp::list();
         $!outer              := MAST::Node;
         %!lexical_map        := nqp::hash();
         @!static_lex_values  := nqp::list_i();
@@ -913,9 +909,6 @@ class MAST::Frame is MAST::Node {
     method prepare() {
         for @!lexical_names {
             nqp::push(@!lexical_names_idxs, self.add-string($_));
-        }
-        for @!instructions -> $i {
-            self.write_instruction($i);
         }
     }
 
@@ -951,10 +944,6 @@ class MAST::Frame is MAST::Node {
         my $index := +@!local_types;
         @!local_types[$index] := $type;
         $index
-    }
-
-    method instructions() {
-        @!instructions
     }
 
     method set_outer($outer) {
@@ -1028,12 +1017,6 @@ class MAST::Frame is MAST::Node {
                 ?? "name<" ~ $!outer.name ~ ">, cuuid<"~$!outer.cuuid ~ '>'
                 !! "<none>"
             ));
-            nqp::push(@lines, "$indent  Instructions:");
-            $x := 0;
-            for @!instructions {
-                my $prefix := $indent ~ '  [' ~ $x++ ~ '] ';
-                nqp::push(@lines, $prefix ~ $_.dump($indent));
-            }
             nqp::push(@lines, '');
         }
     }
@@ -1226,24 +1209,6 @@ class MAST::Frame is MAST::Node {
         }
         else {
             nqp::die('Invalid action code for handler scope');
-        }
-    }
-    method write_instruction($i) {
-        if nqp::isnull($i) || ! nqp::defined($i) || (nqp::istype($i, $buf) && nqp::elems($i) == 0) {
-            return;
-        }
-        if nqp::istype($i, $buf) {
-            note("got a buf with elems?");
-            $!bytecode.write_buf($i)
-        }
-        elsif nqp::istype($i, MAST::Label) {
-            nqp::die("got a MAST::Label in instruction list, need to add-label it instead!");
-        }
-        else {
-            my $how := nqp::how($i);
-            if nqp::defined($how) {
-                note($how.name($i));
-            }
         }
     }
     method write_operand($i, $idx, $o) {
