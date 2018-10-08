@@ -73,6 +73,9 @@ struct MVMProfileCallNode {
     /* If the static frame is NULL, we're collecting data on a native call */
     char *native_target_name;
 
+    /* When was this node first entered, ever? */
+    MVMuint64 first_entry_time;
+
     /* The timestamp when we entered the node. */
     MVMuint64 cur_entry_time;
 
