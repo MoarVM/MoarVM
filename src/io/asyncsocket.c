@@ -440,10 +440,28 @@ static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
     return 0;
 }
 
+static MVMint64 socket_is_tty(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOAsyncSocketData *data = (MVMIOAsyncSocketData *)h->body.data;
+    uv_handle_t *handle = (uv_handle_t *)data->handle;
+    return (MVMint64)(handle->type == UV_TTY);
+}
+
+static MVMint64 socket_handle(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOAsyncSocketData *data = (MVMIOAsyncSocketData *)h->body.data;
+    uv_handle_t *handle = (uv_handle_t *)data->handle;
+    int fd;
+    uv_os_fd_t fh;
+    uv_fileno(handle, &fh);
+    fd = uv_open_osfhandle(fh);
+    return (MVMint64)fd;
+}
+
 /* IO ops table, populated with functions. */
 static const MVMIOClosable      closable       = { close_socket };
 static const MVMIOAsyncReadable async_readable = { read_bytes };
 static const MVMIOAsyncWritable async_writable = { write_bytes };
+static const MVMIOIntrospection introspection  = { socket_is_tty,
+                                                   socket_handle };
 static const MVMIOOps op_table = {
     &closable,
     NULL,
@@ -455,7 +473,7 @@ static const MVMIOOps op_table = {
     NULL,
     NULL,
     NULL,
-    NULL,
+    &introspection,
     NULL,
     NULL,
     NULL
@@ -517,14 +535,17 @@ static void socket_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
     si->socket       = MVM_malloc(sizeof(uv_tcp_t));
     si->socket->data = data;
     if ((r = uv_tcp_init(loop, si->socket)) < 0) {
-        MVM_repr_push_o(tc, arr, t->body.schedulee);
-        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTIO);
-        MVMROOT(tc, arr, {
-            MVMString *msg_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, uv_strerror(r));
-            MVMObject *msg_box = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, msg_str);
+        MVMROOT2(tc, arr, t, {
+            MVMString *msg_str;
+            MVMObject *msg_box;
+
+            MVM_repr_push_o(tc, arr, t->body.schedulee);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTIO);
+            msg_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, uv_strerror(r));
+            msg_box = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, msg_str);
             MVM_repr_push_o(tc, arr, msg_box);
+            MVM_repr_push_o(tc, t->body.queue, arr);
         });
-        MVM_repr_push_o(tc, t->body.queue, arr);
 
         /* Cleanup handles. */
         uv_close((uv_handle_t *)si->socket, free_on_close_cb);
@@ -576,7 +597,7 @@ MVMObject * MVM_io_socket_create_async(MVMThreadContext *tc, MVMObject *queue,
             "asyncsocket result type must have AsyncTask REPR");
 
     /* Create async task handle. */
-    MVMROOT(tc, queue, {
+    MVMROOT2(tc, queue, schedulee, {
         task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, async_type);
     });
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
@@ -832,7 +853,7 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
     li->tc         = tc;
     li->work_idx   = MVM_io_eventloop_add_active_work(tc, async_task);
 
-    /* Create and initialize socket and connection, and start listening. */
+    /* Initialize connection and start listening. */
     li->socket->data  = data;
     if ((r = uv_tcp_bind(li->socket, li->dest, 0)) < 0 ||
         (r = uv_listen((uv_stream_t *)li->socket, li->backlog, on_connection))) {
