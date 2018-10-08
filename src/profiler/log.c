@@ -9,6 +9,26 @@ static MVMProfileThreadData * get_thread_data(MVMThreadContext *tc) {
     return tc->prof_data;
 }
 
+static MVMProfileCallNode *make_new_pcn(MVMProfileThreadData *ptd) {
+    MVMProfileCallNode *current_call = ptd->current_call;
+    MVMProfileCallNode *pcn     = MVM_calloc(1, sizeof(MVMProfileCallNode));
+    if (current_call) {
+        MVMProfileCallNode *pred = current_call;
+        pcn->pred = pred;
+        if (pred->num_succ == pred->alloc_succ) {
+            pred->alloc_succ += 8;
+            pred->succ = MVM_realloc(pred->succ,
+                    pred->alloc_succ * sizeof(MVMProfileCallNode *));
+        }
+        pred->succ[pred->num_succ] = pcn;
+        pred->num_succ++;
+    }
+    else {
+        if (!ptd->call_graph)
+            ptd->call_graph = pcn;
+    }
+}
+
 /* Log that we're entering a new frame. */
 void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 mode) {
     MVMProfileThreadData *ptd = get_thread_data(tc);
@@ -24,23 +44,8 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
     /* If we didn't find a call graph node, then create one and add it to the
      * graph. */
     if (!pcn) {
-        pcn     = MVM_calloc(1, sizeof(MVMProfileCallNode));
+        pcn = make_new_pcn(ptd, sf);
         pcn->sf = sf;
-        if (ptd->current_call) {
-            MVMProfileCallNode *pred = ptd->current_call;
-            pcn->pred = pred;
-            if (pred->num_succ == pred->alloc_succ) {
-                pred->alloc_succ += 8;
-                pred->succ = MVM_realloc(pred->succ,
-                    pred->alloc_succ * sizeof(MVMProfileCallNode *));
-            }
-            pred->succ[pred->num_succ] = pcn;
-            pred->num_succ++;
-        }
-        else {
-            if (!ptd->call_graph)
-                ptd->call_graph = pcn;
-        }
     }
 
     /* Increment entry counts. */
@@ -93,23 +98,8 @@ void MVM_profile_log_enter_native(MVMThreadContext *tc, MVMObject *nativecallsit
     /* If we didn't find a call graph node, then create one and add it to the
      * graph. */
     if (!pcn) {
-        pcn     = MVM_calloc(1, sizeof(MVMProfileCallNode));
+        pcn = make_new_pcn(ptd);
         pcn->native_target_name = callbody->sym_name;
-        if (ptd->current_call) {
-            MVMProfileCallNode *pred = ptd->current_call;
-            pcn->pred = pred;
-            if (pred->num_succ == pred->alloc_succ) {
-                pred->alloc_succ += 8;
-                pred->succ = MVM_realloc(pred->succ,
-                    pred->alloc_succ * sizeof(MVMProfileCallNode *));
-            }
-            pred->succ[pred->num_succ] = pcn;
-            pred->num_succ++;
-        }
-        else {
-            if (!ptd->call_graph)
-                ptd->call_graph = pcn;
-        }
     }
 
     /* Increment entry counts. */
