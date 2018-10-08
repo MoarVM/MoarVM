@@ -413,6 +413,7 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
                                         const MVMProfileCallNode *pcn, MVMObject *types_array) {
     MVMObject *node_hash  = new_hash(tc);
     MVMuint32  i;
+    MVMuint64 absolute_start_time;
 
     /* Let's see if we're dealing with a native call or a regular moar call */
     if (pcn->sf) {
@@ -474,13 +475,16 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
         MVM_repr_bind_key_o(tc, node_hash, pds->inlined_entries,
             box_i(tc, pcn->inlined_entries));
 
+    /* Use the main thread's start time for absolute timings */
+    absolute_start_time = tc->instance->main_thread->prof_data->start_time;
+
     /* Total (inclusive) time. */
     MVM_repr_bind_key_o(tc, node_hash, pds->inclusive_time,
         box_i(tc, pcn->total_time / 1000));
 
     /* Earliest entry time */
     MVM_repr_bind_key_o(tc, node_hash, pds->first_entry_time,
-        box_i(tc, pcn->first_entry_time / 1000));
+        box_i(tc, (pcn->first_entry_time - absolute_start_time) / 1000));
 
     /* OSR and deopt counts. */
     if (pcn->osr_count)
