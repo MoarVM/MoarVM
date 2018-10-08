@@ -333,6 +333,7 @@ typedef struct {
     MVMString *promoted_bytes;
     MVMString *gen2_roots;
     MVMString *start_time;
+    MVMString *first_entry_time;
     MVMString *osr;
     MVMString *deopt_one;
     MVMString *deopt_all;
@@ -476,6 +477,10 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
     /* Total (inclusive) time. */
     MVM_repr_bind_key_o(tc, node_hash, pds->inclusive_time,
         box_i(tc, pcn->total_time / 1000));
+
+    /* Earliest entry time */
+    MVM_repr_bind_key_o(tc, node_hash, pds->first_entry_time,
+        box_i(tc, pcn->first_entry_time / 1000));
 
     /* OSR and deopt counts. */
     if (pcn->osr_count)
@@ -631,6 +636,7 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
         pds.promoted_bytes  = str(tc, "promoted_bytes");
         pds.gen2_roots      = str(tc, "gen2_roots");
         pds.start_time      = str(tc, "start_time");
+        pds.first_entry_time= str(tc, "first_entry_time");
         pds.osr             = str(tc, "osr");
         pds.deopt_one       = str(tc, "deopt_one");
         pds.deopt_all       = str(tc, "deopt_all");
