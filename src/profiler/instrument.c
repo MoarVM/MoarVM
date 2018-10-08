@@ -553,6 +553,10 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
     MVM_repr_bind_key_o(tc, thread_hash, pds->total_time,
         box_i(tc, (ptd->end_time - ptd->start_time) / 1000));
 
+    /* Add start time */
+    MVM_repr_bind_key_o(tc, thread_hash, pds->start_time,
+        box_i(tc, (ptd->start_time - absolute_start_time) / 1000));
+
     /* Add call graph. */
     if (ptd->call_graph)
         MVM_repr_bind_key_o(tc, thread_hash, pds->call_graph,
