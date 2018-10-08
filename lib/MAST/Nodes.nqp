@@ -356,6 +356,7 @@ class MAST::Lexical is MAST::Node {
     }
 
     method index() { $!index }
+    method frames_out() { $!frames_out }
 
     method dump_lines(@lines, $indent) {
         nqp::push(@lines, $indent~"MAST::Lexical index<$!index>, frames_out<$!frames_out>");
@@ -394,34 +395,14 @@ class MAST::Op is MAST::Node {
 
     my %op_codes := MAST::Ops.WHO<%codes>;
     my @op_names := MAST::Ops.WHO<@names>;
+    my %generators := MAST::Ops.WHO<%generators>;
 
     method new(str :$op!, *@operands) {
         self.new_with_operand_array(@operands, :$op)
     }
 
     method new_with_operand_array(@operands, str :$op!) {
-        my $bytecode := $*MAST_FRAME.bytecode;
-        if $op eq 'const_i64' {
-            my int $value := @operands[1];
-            if -32767 < $value && $value < 32768 {
-                $bytecode.write_uint16(%MAST::Ops::codes<const_i64_16>);
-                self.write_operand($bytecode, %op_codes{$op}, 0, @operands[0]);
-                $bytecode.write_uint16($value);
-                return;
-            }
-            elsif -2147483647 < $value && $value < 2147483647 {
-                $bytecode.write_uint16(%MAST::Ops::codes<const_i64_32>);
-                self.write_operand($bytecode, %op_codes{$op}, 0, @operands[0]);
-                $bytecode.write_uint32($value);
-                return;
-            }
-        }
-        $bytecode.write_uint16(%op_codes{$op});
-
-        my int $idx := 0;
-        for @operands -> $o {
-            self.write_operand($bytecode, %op_codes{$op}, $idx++, $o);
-        }
+        %generators{$op}(|@operands)
     }
 
     method write_operand($bytecode, $op, $idx, $o) {
