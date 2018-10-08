@@ -4,6 +4,13 @@
 #include "platform/sys.h"
 #include "platform/time.h"
 
+static void add_bail_comment(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns *ins) {
+    MVMSpeshGraph *g = jg->sg;
+    if (MVM_spesh_debug_enabled(tc)) {
+        MVM_spesh_graph_add_comment(tc, g, ins, "JIT: bailed completely");
+    }
+}
+
 
 static void jg_append_node(MVMJitGraph *jg, MVMJitNode *node) {
     if (jg->last_node) {
@@ -449,172 +456,17 @@ static void jg_append_guard(MVMThreadContext *tc, MVMJitGraph *jg,
 
 static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
                                MVMSpeshIterator *iter, MVMSpeshIns *ins) {
-    MVMCompUnit       *cu = iter->graph->sf->body.cu;
-    MVMint16 callsite_idx = ins->operands[0].callsite_idx;
-    MVMCallsite       *cs = cu->body.callsites[callsite_idx];
-    MVMSpeshIns **arg_ins = MVM_spesh_alloc(tc, iter->graph, sizeof(MVMSpeshIns*) * cs->arg_count);
-    MVMint16            i = 0;
-    MVMJitNode      *node;
-    MVMint32      reentry_label;
-    MVMReturnType return_type;
-    MVMint16      return_register;
-    MVMint16      code_register_or_name;
-    MVMint16      spesh_cand_or_sf_slot;
-    MVMint16      is_fast;
-    MVMint16      is_resolve = 0;
-    MVMuint32     resolve_offset = 0;
-
-    while ((ins = ins->next)) {
-        switch(ins->info->opcode) {
-        case MVM_OP_arg_i:
-        case MVM_OP_arg_n:
-        case MVM_OP_arg_s:
-        case MVM_OP_arg_o:
-        case MVM_OP_argconst_i:
-        case MVM_OP_argconst_n:
-        case MVM_OP_argconst_s:
-            arg_ins[i++] = ins;
-            break;
-        case MVM_OP_invoke_v:
-            return_type           = MVM_RETURN_VOID;
-            return_register       = -1;
-            code_register_or_name = ins->operands[0].reg.orig;
-            spesh_cand_or_sf_slot = -1;
-            is_fast               = 0;
-            goto checkargs;
-        case MVM_OP_invoke_i:
-            return_type           = MVM_RETURN_INT;
-            return_register       = ins->operands[0].reg.orig;
-            code_register_or_name = ins->operands[1].reg.orig;
-            spesh_cand_or_sf_slot = -1;
-            is_fast               = 0;
-            goto checkargs;
-        case MVM_OP_invoke_n:
-            return_type           = MVM_RETURN_NUM;
-            return_register       = ins->operands[0].reg.orig;
-            code_register_or_name = ins->operands[1].reg.orig;
-            spesh_cand_or_sf_slot = -1;
-            is_fast               = 0;
-            goto checkargs;
-        case MVM_OP_invoke_s:
-            return_type           = MVM_RETURN_STR;
-            return_register       = ins->operands[0].reg.orig;
-            code_register_or_name = ins->operands[1].reg.orig;
-            spesh_cand_or_sf_slot = -1;
-            is_fast               = 0;
-            goto checkargs;
-        case MVM_OP_invoke_o:
-            return_type           = MVM_RETURN_OBJ;
-            return_register       = ins->operands[0].reg.orig;
-            code_register_or_name = ins->operands[1].reg.orig;
-            spesh_cand_or_sf_slot = -1;
-            is_fast               = 0;
-            goto checkargs;
-        case MVM_OP_nativeinvoke_o: {
-            MVMint16 dst     = ins->operands[0].reg.orig;
-            MVMint16 restype = ins->operands[2].reg.orig;
-            MVMNativeCallBody *body;
-            MVMJitGraph *nc_jg;
-
-            MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, iter->graph, ins->operands[1]);
-
-            if (!(object_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)) {
-                MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins,
-                                            "BAIL: op <%s> (Can't find nc_site value on spesh ins)", ins->info->name);
-                return 0;
-            }
-
-            body = MVM_nativecall_get_nc_body(tc, object_facts->value.o);
-            nc_jg = MVM_nativecall_jit_graph_for_caller_code(tc, iter->graph, body, restype, dst, arg_ins);
-            if (nc_jg == NULL)
-                return 0;
-
-            jg->last_node->next = nc_jg->first_node;
-            jg->last_node = nc_jg->last_node;
-
-            goto success;
-        }
-        case MVM_OP_sp_fastinvoke_v:
-            return_type           = MVM_RETURN_VOID;
-            return_register       = -1;
-            code_register_or_name = ins->operands[0].reg.orig;
-            spesh_cand_or_sf_slot = ins->operands[1].lit_i16;
-            is_fast               = 1;
-            goto checkargs;
-        case MVM_OP_sp_fastinvoke_o:
-            return_type           = MVM_RETURN_OBJ;
-            return_register       = ins->operands[0].reg.orig;;
-            code_register_or_name = ins->operands[1].reg.orig;
-            spesh_cand_or_sf_slot = ins->operands[2].lit_i16;
-            is_fast               = 1;
-            goto checkargs;
-        case MVM_OP_sp_fastinvoke_s:
-            return_type           = MVM_RETURN_STR;
-            return_register       = ins->operands[0].reg.orig;;
-            code_register_or_name = ins->operands[1].reg.orig;
-            spesh_cand_or_sf_slot = ins->operands[2].lit_i16;
-            is_fast               = 1;
-            goto checkargs;
-        case MVM_OP_sp_fastinvoke_i:
-            return_type           = MVM_RETURN_INT;
-            return_register       = ins->operands[0].reg.orig;;
-            code_register_or_name = ins->operands[1].reg.orig;
-            spesh_cand_or_sf_slot = ins->operands[2].lit_i16;
-            is_fast               = 1;
-            goto checkargs;
-        case MVM_OP_sp_fastinvoke_n:
-            return_type           = MVM_RETURN_NUM;
-            return_register       = ins->operands[0].reg.orig;;
-            code_register_or_name = ins->operands[1].reg.orig;
-            spesh_cand_or_sf_slot = ins->operands[2].lit_i16;
-            is_fast               = 1;
-            goto checkargs;
-        case MVM_OP_sp_speshresolve:
-            return_type           = MVM_RETURN_OBJ;
-            return_register       = ins->operands[0].reg.orig;;
-            code_register_or_name = ins->operands[1].lit_ui32;
-            resolve_offset        = ins->operands[2].lit_ui32;
-            spesh_cand_or_sf_slot = ins->operands[3].lit_i16;
-            is_fast               = 0;
-            is_resolve            = 1;
-            goto checkargs;
-        default:
-            MVM_spesh_graph_add_comment(tc, iter->graph, ins,
-                "BAIL: Unexpected opcode in invoke sequence: <%s>",
-                ins->info->name);
-            return 0;
-        }
-    }
- checkargs:
-    if (!ins || i < cs->arg_count) {
-        MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins,
-                                    "BAIL: op <%s>, expected args: %d, num of args: %d",
-                                    ins? ins->info->name : "NULL", i, cs->arg_count);
+    MVMJitExprTree *tree = MVM_jit_expr_tree_build(tc, jg, iter);
+    if (tree != NULL) {
+        MVMJitNode *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
+        node->type       = MVM_JIT_NODE_EXPR_TREE;
+        node->u.tree     = tree;
+        tree->seq_nr     = jg->expr_seq_nr++;
+        jg_append_node(jg, node);
+    } else {
+        add_bail_comment(tc, jg, ins);
         return 0;
     }
-    /* get label /after/ current (invoke) ins, where we'll need to reenter the JIT */
-    reentry_label = MVM_jit_label_after_ins(tc, jg, iter->bb, ins);
-    /* create invoke node */
-    node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
-    node->type                           = MVM_JIT_NODE_INVOKE;
-    node->u.invoke.callsite_idx          = callsite_idx;
-    node->u.invoke.arg_count             = cs->arg_count;
-    node->u.invoke.arg_ins               = arg_ins;
-    node->u.invoke.return_type           = return_type;
-    node->u.invoke.return_register       = return_register;
-    node->u.invoke.code_register_or_name = code_register_or_name;
-    node->u.invoke.spesh_cand_or_sf_slot = spesh_cand_or_sf_slot;
-    node->u.invoke.resolve_offset        = resolve_offset;
-    node->u.invoke.reentry_label         = reentry_label;
-    node->u.invoke.is_fast               = is_fast;
-    node->u.invoke.is_resolve            = is_resolve;
-    jg_append_node(jg, node);
-
-    /* append reentry label */
-    jg_append_label(tc, jg, reentry_label);
-  success:
-    /* move forward to invoke ins */
-    iter->ins = ins;
     return 1;
 }
 
@@ -1706,14 +1558,6 @@ skipdevirt:
     }
 
     return 1;
-}
-
-static void add_bail_comment(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns *ins) {
-    MVMSpeshGraph *g = jg->sg;
-    if (MVM_spesh_debug_enabled(tc)) {
-        MVM_spesh_graph_add_comment(tc, g, ins, "JIT: bailed completely because of <%s>",
-                                    ins->info->name);
-    }
 }
 
 static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
@@ -3777,9 +3621,7 @@ start:
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
     }
-    case MVM_OP_prepargs: {
-        return consume_invoke(tc, jg, iter, ins);
-    }
+
     case MVM_OP_getexcategory: {
         MVMint16 dst     = ins->operands[0].reg.orig;
         MVMint16 obj     = ins->operands[1].reg.orig;
@@ -3977,6 +3819,11 @@ static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
 
     /* Try to consume the (rest of the) basic block per instruction */
     while (iter->ins) {
+        if (iter->ins->info->opcode == MVM_OP_prepargs) {
+            if (!consume_invoke(tc, jg, iter, iter->ins))
+                return 0;
+            continue;
+        }
         before_ins(tc, jg, iter, iter->ins);
         if(!consume_ins(tc, jg, iter, iter->ins))
             return 0;
