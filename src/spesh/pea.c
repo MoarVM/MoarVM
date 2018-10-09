@@ -474,10 +474,21 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     break;
                 }
                 case MVM_SSA_PHI: {
-                    /* For now, don't handle these. */
-                   MVMuint32 i = 0;
-                   for (i = 1; i < ins->info->num_operands; i++)
-                        real_object_required(tc, g, ins, ins->operands[i]);
+                    /* If a PHI doesn't really merge anything, and its input is
+                     * a tracked object, we just alias the output. */
+                    MVMuint16 num_operands = ins->info->num_operands;
+                    if (num_operands == 2) {
+                        MVMSpeshFacts *source = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+                        MVMSpeshPEAAllocation *alloc = source->pea.allocation;
+                        if (allocation_tracked(alloc))
+                            MVM_spesh_get_facts(tc, g, ins->operands[0])->pea.allocation = alloc;
+                    }
+                    else {
+                        /* Otherwise, don't handle these for now. */
+                        MVMuint32 i = 0;
+                        for (i = 1; i < ins->info->num_operands; i++)
+                            real_object_required(tc, g, ins, ins->operands[i]);
+                    }
                     break;
                 }
                 default: {
