@@ -127,7 +127,7 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
                     flattened_type_to_register_kind(tc, repr_data->flattened_stables[i]));
             }
             MVM_spesh_manipulate_delete_ins(tc, g, bb, t->fastcreate.ins);
-            pea_log("eliminated an allocation of %s", st->debug_name);
+            pea_log("OPT: eliminated an allocation of %s", st->debug_name);
             break;
         }
         case TRANSFORM_GETATTR_TO_SET: {
@@ -165,7 +165,7 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             MVMSpeshIns *ins = t->guard.ins;
             ins->info = MVM_op_get_op(MVM_OP_set);
             MVM_spesh_graph_add_comment(tc, g, ins, "guard eliminated by scalar replacement");
-            pea_log("eliminated a guard");
+            pea_log("OPT: eliminated a guard");
             break;
         }
         default:
