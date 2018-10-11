@@ -367,6 +367,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_encoderepconf: return MVM_string_encode_to_buf_config;
     case MVM_OP_strfromname: return MVM_unicode_string_from_name;
     case MVM_OP_callercode: return MVM_frame_caller_code;
+
+    case MVM_OP_vectorapply: return MVM_vectorized_apply_op;
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
     }
@@ -3470,6 +3472,21 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 1, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_vectorapply: {
+        MVMint16 a        = ins->operands[0].reg.orig;
+        MVMint16 b        = ins->operands[1].reg.orig;
+        MVMint16 target   = ins->operands[2].reg.orig;
+        MVMint16 opcode   = ins->operands[3].reg.orig;
+        MVMint16 is_cross = ins->operands[4].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { a } },
+                                 { MVM_JIT_REG_VAL, { b } },
+                                 { MVM_JIT_REG_VAL, { target } },
+                                 { MVM_JIT_REG_VAL, { opcode } },
+                                 { MVM_JIT_REG_VAL, { is_cross } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 6, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     default: {
