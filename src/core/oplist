@@ -873,6 +873,8 @@ hllboolfor          w(obj) r(int64) r(str) :pure :useshll
 decodelocaltime    w(obj) r(int64)
 fork               w(int64)
 
+vectorapply        r(obj) r(obj) r(obj) r(uint32) r(uint32) r(uint32)
+
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
 

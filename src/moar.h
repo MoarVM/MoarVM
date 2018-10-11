@@ -195,6 +195,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "io/asyncsocket.h"
 #include "io/asyncsocketudp.h"
 #include "math/bigintops.h"
+#include "math/vectorized.h"
 #include "mast/driver.h"
 #include "core/intcache.h"
 #include "core/fixedsizealloc.h"
