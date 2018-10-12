@@ -213,7 +213,7 @@ static MVMint32 MVM_jit_expr_add_const_n64(MVMThreadContext *tc, MVMJitExprTree 
     }
 }
 
-static MVMint32 MVM_jit_expr_add_const_ptr(MVMThreadContext *tc, MVMJitExprTree *tree, const void *const_ptr) {
+MVMint32 MVM_jit_expr_add_const_ptr(MVMThreadContext *tc, MVMJitExprTree *tree, const void *const_ptr) {
     MVM_VECTOR_ENSURE_SPACE(tree->constants, 1);
     {
         MVMint32 t = tree->constants_num++;
@@ -463,6 +463,15 @@ MVMint32 MVM_jit_expr_apply_template_adhoc(MVMThreadContext *tc, MVMJitExprTree 
     return apply_template(tc, tree, i, info, code, NULL);
 }
 
+MVMint32 MVM_jit_expr_add_variadic(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 operator, MVMint32 size, MVMint32 *operands) {
+    MVMint32 base = MVM_VECTOR_ELEMS(tree->nodes);
+    MVM_VECTOR_ENSURE_SPACE(tree->nodes, 2 + size);
+    MVM_VECTOR_PUSH(tree->nodes, operator);
+    MVM_VECTOR_PUSH(tree->nodes, 0); /* claim info node */
+    MVM_JIT_EXPR_INFO(tree, base)->num_links = size;
+    MVM_VECTOR_APPEND(tree->nodes, operands, size);
+    return base;
+}
 
 /* Collect tree analysis information, add stores of computed values */
 static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
@@ -778,15 +787,35 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             }
         }
 
-        if (opcode == MVM_SSA_PHI || opcode == MVM_OP_no_op) {
+        /* Special handling for some opcodes */
+        switch (opcode) {
+        case MVM_SSA_PHI:
+        case MVM_OP_no_op:
             /* No template here, but we may have to emit labels */
             if (after_label < 0 && (before_label < 0 || tree_is_empty(tc, tree)))
                 continue;
             goto emit;
+        case MVM_OP_nativeinvoke_i:
+        case MVM_OP_nativeinvoke_s:
+        case MVM_OP_nativeinvoke_o: {
+            MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[1]);
+
+            MVMSpeshOperand dst = ins->operands[0];
+            BAIL(!(MVM_SPESH_FACT_KNOWN_VALUE & facts->flags),
+                 "nativeinvoke expr JIT needs a known value");
+            MVM_jit_expr_load_operands(tc, tree, sg, ins, values, operands);
+            root = MVM_jit_nativecall_expr_tree(tc, tree, facts->value.o, operands[0], operands[0]);
+            BAIL(root == 0, "Could not build expr tree for nativeinvoke");
+            /* tree will have flushed the emit */
+            memset(values + dst.reg.orig, -1, sizeof(struct ValueDefinition));
+            goto emit;
+        }
+        default:
+            template = MVM_jit_get_template_for_opcode(opcode);
+            BAIL(template == NULL, "Cannot get template for: %s", ins->info->name);
+            break;
         }
 
-        template = MVM_jit_get_template_for_opcode(opcode);
-        BAIL(template == NULL, "Cannot get template for: %s", ins->info->name);
         if (tree_is_empty(tc, tree)) {
             /* start with a no-op so every valid reference is nonzero */
             MVM_jit_expr_apply_template(tc, tree, &noop_template, NULL);

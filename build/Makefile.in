@@ -73,6 +73,7 @@ JIT_OBJECTS  = src/jit/graph@obj@ \
                src/jit/expr@obj@ \
                src/jit/tile@obj@ \
                src/jit/linear_scan@obj@ \
+               src/jit/nativecall@obj@ \
                src/jit/interface@obj@
 
 
@@ -440,6 +441,7 @@ HEADERS = src/moar.h \
           src/jit/compile.h \
           src/jit/tile.h \
           src/jit/register.h \
+          src/jit/nativecall.h \
           src/jit/interface.h \
           src/jit/dump.h \
           src/instrument/crossthreadwrite.h \

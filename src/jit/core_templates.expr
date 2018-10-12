@@ -2790,6 +2790,8 @@
 (template: sp_getarg_s (load (^parg $1) ptr_sz))
 
 (template: sp_getspeshslot (^spesh_slot_value $1))
+(template: sp_bind_s_nowb
+  (store (add $0 $1) $2 ptr_sz))
 
 (template: sp_findmeth!
   (ifv (eq (^stable $1) (^spesh_slot_value $3))
@@ -2811,7 +2813,6 @@
     (^setf $block MVMObject header.size $1)
     (^setf $block MVMObject header.owner (^getf (tc) MVMThreadContext thread_id))
     (store \$0 $block ptr_sz)))
-
 (template: sp_p6oget_o
   (let: (($val (load (add (^p6obody $1) $2) ptr_sz)))
     (if (nz $val)
