@@ -502,7 +502,7 @@ struct MVMREPROps_Positional {
      * they know the type of the passed array, otherwise they should use the REPR
      * API. */
     void (*splice) (MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMObject *target_array,
+        MVMObject *root, void *data, MVMObject *from,
         MVMint64 offset, MVMuint64 elems);
 
     /* Multi-dimensional array read. */
@@ -540,6 +540,10 @@ struct MVMREPROps_Positional {
     /* Multi-dim version of as_atomic. */
     AO_t * (*pos_as_atomic_multidim) (MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data, MVMint64 num_indices, MVMint64 *indices);
+
+    void (*write_buf) (MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, char *from,
+        MVMint64 offset, MVMuint64 elems);
 };
 struct MVMREPROps_Associative {
     /* Gets the value at the specified key and places it in the passed

@@ -877,6 +877,19 @@ static void aslice(MVMThreadContext *tc, MVMSTable *st, MVMObject *src, void *da
     copy_elements(tc, src, dest, start, 0, elems);
 }
 
+static void write_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, char *from, MVMint64 offset, MVMuint64 count) {
+    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
+    MVMArrayBody     *body      = (MVMArrayBody *)data;
+    MVMint64 start = body->start;
+    MVMint64 elems = body->elems;
+
+    /* resize the array if necessary*/
+    if (elems < offset + count)
+        set_size_internal(tc, body, offset + count, repr_data);
+
+    memcpy(body->slots.u8 + (start + offset) * repr_data->elem_size, from, count);
+}
+
 /* This whole splice optimization can be optimized for the case we have two
  * MVMArray representation objects. */
 static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *from, MVMint64 offset, MVMuint64 count) {
@@ -1396,7 +1409,8 @@ static const MVMREPROps VMArray_this_repr = {
         set_dimensions,
         get_elem_storage_spec,
         pos_as_atomic,
-        pos_as_atomic_multidim
+        pos_as_atomic_multidim,
+        write_buf
     },    /* pos_funcs */
     MVM_REPR_DEFAULT_ASS_FUNCS,
     elems,
