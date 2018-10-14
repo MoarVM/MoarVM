@@ -801,12 +801,12 @@ void MVM_serialization_write_stable_ref(MVMThreadContext *tc, MVMSerializationWr
 }
 
 /* Concatenates the various output segments into a single binary MVMString. */
-static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWriter *writer) {
+static MVMObject * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *type) {
     char      *output      = NULL;
     char      *output_b64  = NULL;
     MVMuint32  output_size = 0;
     MVMuint32  offset      = 0;
-    MVMString *result;
+    MVMObject *result;
 
     /* Calculate total size. */
     output_size += MVM_ALIGN_SECTION(HEADER_SIZE);
@@ -909,6 +909,15 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
         tc->serialized = output;
         tc->serialized_size = output_size;
         tc->serialized_string_heap = writer->root.string_heap;
+        if (type) {
+            int i = 0;
+            result = REPR(type)->allocate(tc, STABLE(type));
+            if (REPR(result)->initialize)
+                REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
+            REPR(result)->pos_funcs.write_buf(tc, STABLE(result), result, OBJECT_BODY(result), output, 0, output_size);
+
+            return result;
+        }
         output_b64 = base64_encode(output, output_size);
     }
     else {
@@ -921,7 +930,7 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
             "Serialization error: failed to convert to base64");
 
     /* Make a MVMString containing it. */
-    result = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, output_b64);
+    result = (MVMObject *)MVM_string_ascii_decode_nt(tc, tc->instance->VMString, output_b64);
     MVM_free(output_b64);
     return result;
 }
@@ -1376,9 +1385,9 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
     serialize_repossessions(tc, writer);
 }
 
-MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *empty_string_heap) {
+MVMObject * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *empty_string_heap, MVMObject *type) {
     MVMSerializationWriter *writer;
-    MVMString *result   = NULL;
+    MVMObject *result   = NULL;
     MVMint32   sc_elems = (MVMint32)sc->body->num_objects;
 
     /* We don't sufficiently root things in here for the GC, so enforce gen2
@@ -1423,7 +1432,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     /* Build a single result out of the serialized data; note if we're in the
      * compiler pipeline this will return null and stash the output to write
      * to a bytecode file later. */
-    result = concatenate_outputs(tc, writer);
+    result = concatenate_outputs(tc, writer, type);
 
     /* Clear up afterwards. */
     MVM_free(writer->contexts_list);

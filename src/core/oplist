@@ -875,6 +875,7 @@ buffertocu          w(obj) r(obj) :invokish :maycausedeopt
 writeint            r(obj) r(uint64) r(int64)  r(uint64)
 writeuint           r(obj) r(uint64) r(uint64) r(uint64)
 writenum            r(obj) r(uint64) r(num64)  r(uint64)
+serializetobuf      w(obj) r(obj) r(obj) r(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

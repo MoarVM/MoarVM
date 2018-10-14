@@ -3103,7 +3103,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                     MVM_exception_throw_adhoc(tc,
                         "Must provide an SCRef operand to serialize");
-                GET_REG(cur_op, 0).s = MVM_serialization_serialize(tc, (MVMSerializationContext *)sc, obj);
+                GET_REG(cur_op, 0).s = (MVMString *)MVM_serialization_serialize(
+                    tc,
+                    (MVMSerializationContext *)sc,
+                    obj,
+                    NULL
+                );
                 cur_op += 6;
                 goto NEXT;
             }
@@ -5419,6 +5424,22 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         OBJECT_BODY(buf), off + i, byte, MVM_reg_int64);
                 }
                 MVM_SC_WB_OBJ(tc, buf);
+                cur_op += 8;
+                goto NEXT;
+            }
+            OP(serializetobuf): {
+                MVMObject *sc   = GET_REG(cur_op, 2).o;
+                MVMObject *obj  = GET_REG(cur_op, 4).o;
+                MVMObject *type = GET_REG(cur_op, 6).o;
+                if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                    MVM_exception_throw_adhoc(tc,
+                        "Must provide an SCRef operand to serialize");
+                GET_REG(cur_op, 0).o = MVM_serialization_serialize(
+                    tc,
+                    (MVMSerializationContext *)sc,
+                    obj,
+                    type
+                );
                 cur_op += 8;
                 goto NEXT;
             }

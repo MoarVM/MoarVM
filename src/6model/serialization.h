@@ -175,8 +175,8 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     MVMObject *string_heap, MVMObject *codes_static, MVMObject *repo_conflicts,
     MVMString *data);
 MVMString * MVM_sha1(MVMThreadContext *tc, MVMString *str);
-MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc,
-    MVMObject *empty_string_heap);
+MVMObject * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc,
+    MVMObject *empty_string_heap, MVMObject *type);
 
 /* Functions for demanding an object/STable/code be made available (that is,
  * by lazily deserializing it). */
