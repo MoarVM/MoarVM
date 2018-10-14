@@ -50,11 +50,41 @@ class Op {
         }
     }'
             !!
-    'sub (' ~ @!operands.map({'$op' ~ $++}).join(', ') ~ ') {
+    'sub (' ~ @!operands.map({self.generate_arg($_, $++)}).join(', ') ~ ') {
         my $bytecode := $*MAST_FRAME.bytecode;
         $bytecode.write_uint16(' ~ $.code ~ ');
         ' ~ join("\n        ", @!operands.map({self.generate_operand($_, $++)})) ~ '
     }'
+    }
+    method generate_arg($operand, $i) {
+        if OperandFlag.parse($operand) -> (:$rw, :$type, :$type_var, :$special) {
+            if !$rw {
+                if $type {
+                    $type ~ ' $op' ~ $i
+                }
+                elsif ($special // '') eq 'ins' {
+                    '$op' ~ $i
+                }
+                elsif ($special // '') eq 'coderef' {
+                    '$op' ~ $i
+                }
+                elsif ($special // '') eq 'callsite' {
+                    '$op' ~ $i
+                }
+                elsif ($special // '') eq 'sslot' {
+                    '$op' ~ $i
+                }
+                else {
+                    '$op' ~ $i
+                }
+            }
+            elsif $rw eq 'r' || $rw eq 'w' {
+                '$op' ~ $i
+            }
+            elsif $rw eq 'rl' || $rw eq 'wl' {
+                '$op' ~ $i
+            }
+        }
     }
     method generate_operand($operand, $i) {
         if OperandFlag.parse($operand) -> (:$rw, :$type, :$type_var, :$special) {
@@ -97,15 +127,13 @@ class Op {
                     '$bytecode.write_double($op' ~ $i ~ ');'
                 }
                 elsif ($type // '') eq 'str' {
-                    '$bytecode.write_uint32($op' ~ $i ~ ');'
+                    '$bytecode.write_uint32($*MAST_FRAME.add-string($op' ~ $i ~ '));'
                 }
                 elsif ($special // '') eq 'ins' {
                     "\$*MAST_FRAME.compile_operand(\$bytecode, 0, nqp::const::MVM_OPERAND_INS, \$op$i);"
                 }
                 elsif ($special // '') eq 'coderef' {
-                    q[nqp::die("Expected MAST::Frame, but didn't get one")
-                        unless $op] ~ $i ~ '.isa(MAST::Frame);
-                    {my $index := $*MAST_FRAME.writer.get_frame_index($op' ~ $i ~ ');
+                    '{my $index := $*MAST_FRAME.writer.get_frame_index($op' ~ $i ~ ');
                     $bytecode.write_uint16($index);}'
                 }
                 elsif ($special // '') eq 'callsite' {
