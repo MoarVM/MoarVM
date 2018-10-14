@@ -441,10 +441,11 @@ class MAST::ExtOp is MAST::Node {
 # a set of flags, describing each argument. Some flags need two actual
 # arguments, one specifying the name, the next the actual value.
 class MAST::Call is MAST::Node {
-    method new(:$target!, :@flags!, :$result = MAST::Node, :$op = 0, *@args) {
-        sanity_check(@flags, @args);
-        my $bytecode := $*MAST_FRAME.bytecode;
-        my $callsite-id := $*MAST_FRAME.callsites.get_callsite_id(@flags, @args);
+    method new(:$target!, :@flags!, :$result = MAST::Node, :$op = 0, *@argvalues) {
+        sanity_check(@flags, @argvalues);
+        my $frame := $*MAST_FRAME;
+        my $bytecode := $frame.bytecode;
+        my $callsite-id := $frame.callsites.get_callsite_id(@flags, @argvalues);
 
         $bytecode.write_uint16(%MAST::Ops::codes<prepargs>);
         $bytecode.write_uint16($callsite-id);
@@ -462,7 +463,7 @@ class MAST::Call is MAST::Node {
             if $flag +& $Arg::named {
                 $bytecode.write_uint16(%MAST::Ops::codes<argconst_s>);
                 $bytecode.write_uint16($arg_out_pos);
-                $*MAST_FRAME.compile_operand($bytecode, 0, $MVM_operand_str, @args[$arg_pos]);
+                $frame.compile_operand($bytecode, 0, $MVM_operand_str, @argvalues[$arg_pos]);
                 $arg_pos++;
                 $arg_out_pos++;
             }
@@ -476,22 +477,22 @@ class MAST::Call is MAST::Node {
             if $flag +& $Arg::obj {
                 $bytecode.write_uint16(%MAST::Ops::codes<arg_o>);
                 $bytecode.write_uint16($arg_out_pos);
-                $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_obj, @args[$arg_pos]);
+                $frame.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_obj, @argvalues[$arg_pos]);
             }
             elsif $flag +& $Arg::str {
                 $bytecode.write_uint16(%MAST::Ops::codes<arg_s>);
                 $bytecode.write_uint16($arg_out_pos);
-                $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_str, @args[$arg_pos]);
+                $frame.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_str, @argvalues[$arg_pos]);
             }
             elsif $flag +& $Arg::int {
                 $bytecode.write_uint16(%MAST::Ops::codes<arg_i>);
                 $bytecode.write_uint16($arg_out_pos);
-                $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_int64, @args[$arg_pos]);
+                $frame.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_int64, @argvalues[$arg_pos]);
             }
             elsif $flag +& $Arg::num {
                 $bytecode.write_uint16(%MAST::Ops::codes<arg_n>);
                 $bytecode.write_uint16($arg_out_pos);
-                $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_num64, @args[$arg_pos]);
+                $frame.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_num64, @argvalues[$arg_pos]);
             }
             else {
                 nqp::die("Unhandled arg type $flag");
@@ -505,13 +506,13 @@ class MAST::Call is MAST::Node {
             nqp::die('speshresolve must have a result')
                 unless $result.isa(MAST::Local);
             nqp::die('MAST::Local index out of range')
-                if $result.index >= nqp::elems($*MAST_FRAME.local_types);
+                if $result.index >= nqp::elems($frame.local_types);
             nqp::die('speshresolve must have an object result')
-                if type_to_local_type($*MAST_FRAME.local_types()[$result.index]) != $MVM_reg_obj;
+                if type_to_local_type($frame.local_types()[$result.index]) != $MVM_reg_obj;
             $res_type := $MVM_operand_obj;
         }
         elsif $result.isa(MAST::Local) {
-            my @local_types := $*MAST_FRAME.local_types;
+            my @local_types := $frame.local_types;
             my $index := $result.index;
             if $result.index >= nqp::elems(@local_types) {
                 nqp::die("MAST::Local index out of range");
@@ -541,16 +542,16 @@ class MAST::Call is MAST::Node {
 
         $bytecode.write_uint16($call_op);
         if $call_op != %MAST::Ops::codes<invoke_v> && $call_op != %MAST::Ops::codes<nativeinvoke_v> {
-            $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_read_reg, $res_type, $result);
+            $frame.compile_operand($bytecode, $MVM_operand_read_reg, $res_type, $result);
         }
         if $op == 2 {
-            $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_literal, $MVM_operand_str, $target);
+            $frame.compile_operand($bytecode, $MVM_operand_literal, $MVM_operand_str, $target);
         }
         else {
-            $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_obj, $target);
+            $frame.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_obj, $target);
         }
         if $op == 1 {
-            $*MAST_FRAME.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_obj, @args[0]);
+            $frame.compile_operand($bytecode, $MVM_operand_read_reg, $MVM_operand_obj, @argvalues[0]);
         }
     }
 
