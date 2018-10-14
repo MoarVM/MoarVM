@@ -138,7 +138,7 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
         }
         else {
             MVMint16 ext_op_num = op_num - MVM_OP_EXT_BASE;
-            if (ext_op_num < cu->body.num_extops) {
+            if (0 <= ext_op_num && ext_op_num < cu->body.num_extops) {
                 MVMExtOpRecord r = cu->body.extops[ext_op_num];
                 MVMuint8 j;
                 memset(&tmp_extop_info, 0, sizeof(MVMOpInfo));
