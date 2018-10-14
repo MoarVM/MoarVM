@@ -390,9 +390,6 @@ class MAST::Label is MAST::Node {
 # An operation to be executed. The operands must be either registers,
 # literals or labels (depending on what the instruction needs).
 class MAST::Op is MAST::Node {
-    has int $!op;
-    has @!operands;
-
     my %op_codes := MAST::Ops.WHO<%codes>;
     my @op_names := MAST::Ops.WHO<@names>;
     my %generators := MAST::Ops.WHO<%generators>;
@@ -404,41 +401,11 @@ class MAST::Op is MAST::Node {
     method new_with_operand_array(@operands, str :$op!) {
         %generators{$op}(|@operands)
     }
-
-    method write_operand($bytecode, $op, $idx, $o) {
-        my $flags := nqp::atpos_i(@MAST::Ops::values, nqp::atpos_i(@MAST::Ops::offsets, $op) + $idx);
-        my $rw    := $flags +& $MVM_operand_rw_mask;
-        my $type  := $flags +& $MVM_operand_type_mask;
-        $*MAST_FRAME.compile_operand($bytecode, $rw, $type, $o);
-    }
-
-    my @kind_to_args := [0,
-        $Arg::int,  # $MVM_reg_int8            := 1;
-        $Arg::int,  # $MVM_reg_int16           := 2;
-        $Arg::int,  # $MVM_reg_int32           := 3;
-        $Arg::int,  # $MVM_reg_int64           := 4;
-        $Arg::num,  # $MVM_reg_num32           := 5;
-        $Arg::num,  # $MVM_reg_num64           := 6;
-        $Arg::str,  # $MVM_reg_str             := 7;
-        $Arg::obj   # $MVM_reg_obj             := 8;
-    ];
-    method op() { $!op }
-    method operands() { @!operands }
-
-    method dump_lines(@lines, $indent) {
-        my str $opname := nqp::atpos_s(@op_names, $!op);
-        nqp::push(@lines, $indent ~ "MAST::Op $opname");
-        nqp::push(@lines, $_.dump($indent ~ '    ')) for @!operands;
-    }
 }
 
 # An extension operation to be executed. The operands must be either
 # registers, literals or labels (depending on what the instruction needs).
 class MAST::ExtOp is MAST::Node {
-    has int $!op;
-    has @!operands;
-    has str $!name;
-
     method new(str :$op!, :$cu!, *@operands) {
         self.new_with_operand_array(@operands, :$op, :$cu)
     }
@@ -466,14 +433,6 @@ class MAST::ExtOp is MAST::Node {
             $idx++;
         }
     }
-
-    method op() { $!op }
-    method operands() { @!operands }
-
-    method dump_lines(@lines, $indent) {
-        nqp::push(@lines, $indent ~ "MAST::ExtOp $!name");
-        nqp::push(@lines, $_.dump($indent ~ '    ')) for @!operands;
-    }
 }
 
 # A call. A register holding the thing to call should be specified, along
@@ -482,12 +441,6 @@ class MAST::ExtOp is MAST::Node {
 # a set of flags, describing each argument. Some flags need two actual
 # arguments, one specifying the name, the next the actual value.
 class MAST::Call is MAST::Node {
-    has $!target;
-    has @!flags;
-    has @!args;
-    has $!result;
-    has int $!op;
-
     method new(:$target!, :@flags!, :$result = MAST::Node, :$op = 0, *@args) {
         sanity_check(@flags, @args);
         my $bytecode := $*MAST_FRAME.bytecode;
@@ -611,37 +564,6 @@ class MAST::Call is MAST::Node {
             nqp::die("Flags indicated there should be $flag_needed_args args, but have " ~
                 +@args);
         }
-    }
-
-    method dump_lines(@lines, $indent) {
-        nqp::push(@lines, $indent~"MAST::Call");
-        nqp::push(@lines, "$indent  target:");
-        nqp::push(@lines, $!target.dump($indent ~ '    '));
-        nqp::push(@lines, "$indent  result:");
-        nqp::push(@lines, $!result.dump($indent ~ '    '));
-        nqp::push(@lines, "$indent  flags:");
-        for @!flags -> $flag {
-            my $str := "$indent   ";
-            if $flag +& $Arg::named {
-                $str := $str ~ " named";
-            }
-            elsif $flag +& $Arg::flat {
-                $str := $str ~ " flat";
-            }
-            elsif $flag +& $Arg::flatnamed {
-                $str := $str ~ " flat/named";
-            }
-            else {
-                $str := $str ~ " positional" ;
-            }
-            $str := $str ~ " obj" if $flag +& $Arg::obj;
-            $str := $str ~ " int" if $flag +& $Arg::int;
-            $str := $str ~ " num" if $flag +& $Arg::num;
-            $str := $str ~ " str" if $flag +& $Arg::str;
-            nqp::push(@lines, $str);
-        }
-        nqp::push(@lines, "$indent  args:");
-        nqp::push(@lines, $_.dump($indent ~ '    ')) for @!args;
     }
 }
 
@@ -841,7 +763,7 @@ class MAST::Frame is MAST::Node {
         my int32 $end := $!saved-annotations-offset;
         my int32 $ann-size := 3 * 4;
         while $at < $end {
-            my int32 $pos := $!annotations.read_uint32_at($at); # FIXME getting bogus result here
+            my int32 $pos := $!annotations.read_uint32_at($at);
             $pos := $pos + $offset;
             $!annotations.write_uint32_at($pos, $at);
             $at := $at + $ann-size;
