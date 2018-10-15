@@ -123,19 +123,22 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
 
    /* compile the function */
     if ((dasm_error = dasm_link(cl, &codesize)) != 0) {
-        fprintf(stderr, "DynASM could not link, error: %d\n", dasm_error);
+        if (tc->instance->jit_debug_enabled)
+            fprintf(stderr, "DynASM could not link, error: %d\n", dasm_error);
         return NULL;
     }
 
     memory = MVM_platform_alloc_pages(codesize, MVM_PAGE_READ|MVM_PAGE_WRITE);
     if ((dasm_error = dasm_encode(cl, memory)) != 0) {
-        fprintf(stderr, "DynASM could not encode, error: %d\n", dasm_error);
+        if (tc->instance->jit_debug_enabled)
+            fprintf(stderr, "DynASM could not encode, error: %d\n", dasm_error);
         return NULL;
     }
 
     /* set memory readable + executable */
     if (!MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC)) {
-        fprintf(stderr, "Setting jit page executable failed or was denied. deactivating jit.\n");
+        if (tc->instance->jit_debug_enabled)
+            fprintf(stderr, "JIT: Impossible to mark code read/executable");
         /* our caller allocated the compiler and our caller must clean it up */
         tc->instance->jit_enabled = 0;
         return NULL;
@@ -171,8 +174,12 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
 
     for (i = 0; i < code->num_labels; i++) {
         MVMint32 offset = dasm_getpclabel(cl, i);
-        if (offset < 0)
-            fprintf(stderr, "JIT ERROR: Negative offset for dynamic label %d\n", i);
+        if (offset < 0) {
+            if (tc->instance->jit_debug_enabled)
+                fprintf(stderr, "JIT ERROR: Negative offset for dynamic label %d\n", i);
+            MVM_jit_code_destroy(tc, code);
+            return NULL;
+        }
         code->labels[i] = memory + offset;
     }
     /* We only ever use one global label, which is the exit label */

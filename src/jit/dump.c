@@ -1,30 +1,22 @@
 #include "moar.h"
 
 void MVM_jit_dump_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
-    /* Filename format: moar-jit-%d.bin. number can consume at most 10
-     * bytes, moar-jit-.bin is 13 bytes, one byte for the zero at the
-     * end, one byte for the directory separator is 25 bytes, plus the
-     * length of the bytecode directory itself */
-    size_t filename_size = strlen(tc->instance->jit_bytecode_dir) + 25;
-    char * filename = MVM_malloc(filename_size);
+    char filename[1024];
     FILE * dump;
-    snprintf(filename, filename_size, "%s/moar-jit-%04d.bin",
+    snprintf(filename, sizeof(filename), "%s/moar-jit-%04d.bin",
              tc->instance->jit_bytecode_dir, code->seq_nr);
     dump = fopen(filename, "w");
     if (dump) {
         fwrite(code->func_ptr, sizeof(char), code->size, dump);
         fclose(dump);
-        if (tc->instance->spesh_log_fh) {
-            fprintf(tc->instance->spesh_log_fh,
-                    "JIT: Dumped bytecode to %s\n\n", filename);
-        }
-    } else {
+        if (MVM_spesh_debug_enabled(tc))
+            MVM_spesh_debug_printf(tc, "JIT: Dumped bytecode to %s\n\n", filename);
+    } else if (tc->instance->jit_debug_enabled) {
         FILE *file = tc->instance->spesh_log_fh ?
             tc->instance->spesh_log_fh : stderr;
         fprintf(file, "JIT ERROR: could not dump bytecode: %s",
                 strerror(errno));
     }
-    MVM_free(filename);
 }
 
 
