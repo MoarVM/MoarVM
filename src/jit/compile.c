@@ -146,9 +146,16 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
 
     /* Create code segment */
     code = MVM_malloc(sizeof(MVMJitCode));
+
     code->func_ptr   = (void (*)(MVMThreadContext*,MVMCompUnit*,void*)) memory;
     code->size       = codesize;
     code->bytecode   = (MVMuint8*)MAGIC_BYTECODE;
+
+    /* add sequence number */
+    code->seq_nr       = tc->instance->jit_seq_nr++;
+    /* by definition */
+    code->ref_cnt      = 1;
+
     code->sf         = jg->sg->sf;
     code->spill_size = cl->spills_num;
     if (cl->spills_num > 0) {
@@ -195,10 +202,6 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     code->num_inlines  = jg->inlines_num;
     code->inlines      = COPY_ARRAY(jg->inlines, jg->inlines_alloc);
 
-    /* add sequence number */
-    code->seq_nr       = tc->instance->jit_seq_nr++;
-    /* by definition */
-    code->ref_cnt      = 1;
 
     return code;
 }
