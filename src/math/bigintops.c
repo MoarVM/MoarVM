@@ -991,6 +991,7 @@ static int mp_faster_radix_size (mp_int *a, int radix, int *size)
      * small enough to fit into a single mp_digit.
      */
     if (radix == 10) {
+        mp_clamp(&t);
         while ((&t)->used > 1) {
             if ((res = mp_div_d(&t, (mp_digit) 100000000000000000, &t, &d)) != MP_OKAY) {
               mp_clear(&t);
