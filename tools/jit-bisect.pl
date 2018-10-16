@@ -209,6 +209,7 @@ if ($OPTS{spesh}) {
         %$spesh_flags,
         MVM_SPESH_LOG => $log_file,
         MVM_SPESH_LIMIT => $last_good_frame + 1,
+        MVM_JIT_DEBUG => 1,
     }, $timeout);
     print STDERR "Done\n";
 } else {
@@ -218,15 +219,14 @@ if ($OPTS{spesh}) {
     }, $timeout);
     printf STDERR ('JIT Broken Frame/BB: %d / %d'."\n", $last_good_frame + 1, $last_good_block + 1);
 
-    my $dump_script = File::Spec->catfile($FindBin::Bin, 'jit-dump.pl');
-    my @dump_command = (
-        $^X, $dump_script,
-        '--frame' => $last_good_frame + 1,
-        '--block' => $last_good_block + 1,
-        ($timeout ? ('--timeout' => $timeout) : ()),
-        '--', @command
-    );
-    run_with(\@dump_command, {}) if $OPTS{dump};
+    run_with(\@command, {
+        MVM_SPESH_LOG => sprintf('spesh-%04d-%04d.txt',
+                                 $last_good_frame + 1, $last_good_block + 1),
+        MVM_JIT_DEBUG => 1,
+        MVM_SPESH_LIMIT => $last_good_frame + 1,
+        MVM_JIT_EXPR_LAST_FRAME => $last_good_frame + 1,
+        MVM_JIT_EXPR_LAST_BB => $last_good_block + 1,
+    }) if $OPTS{dump};
 }
 
 __END__

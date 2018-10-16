@@ -41,8 +41,9 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     MVMuint64 start_time, spesh_time, jit_time, end_time;
 
     /* If we've reached our specialization limit, don't continue. */
+    MVMint32 spesh_produced = ++tc->instance->spesh_produced;
     if (tc->instance->spesh_limit)
-        if (++tc->instance->spesh_produced > tc->instance->spesh_limit)
+        if (spesh_produced > tc->instance->spesh_limit)
             return;
 
     /* Produce the specialization graph and, if we're logging, dump it out

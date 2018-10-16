@@ -3523,8 +3523,8 @@ static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
     /* Try to create an expression tree */
     if (tc->instance->jit_expr_enabled &&
         (tc->instance->jit_expr_last_frame < 0 ||
-         tc->instance->jit_seq_nr < tc->instance->jit_expr_last_frame ||
-         (tc->instance->jit_seq_nr == tc->instance->jit_expr_last_frame &&
+         tc->instance->spesh_produced < tc->instance->jit_expr_last_frame ||
+         (tc->instance->spesh_produced == tc->instance->jit_expr_last_frame &&
           (tc->instance->jit_expr_last_bb < 0 ||
            iter->bb->idx <= tc->instance->jit_expr_last_bb)))) {
 
