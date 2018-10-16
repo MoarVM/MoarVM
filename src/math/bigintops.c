@@ -944,6 +944,77 @@ MVMObject * MVM_bigint_from_bigint(MVMThreadContext *tc, MVMObject *result_type,
     return result;
 }
 
+
+/* returns size of ASCII reprensentation */
+static int mp_faster_radix_size (mp_int *a, int radix, int *size)
+{
+    int     res, digs;
+    mp_int  t;
+    mp_digit d;
+
+    *size = 0;
+
+    /* make sure the radix is in range */
+    if ((radix < 2) || (radix > 64))
+        return MP_VAL;
+
+    if (mp_iszero(a) == MP_YES) {
+        *size = 2;
+        return MP_OKAY;
+    }
+
+    /* special case for binary */
+    if (radix == 2) {
+        *size = mp_count_bits(a) + ((a->sign == MP_NEG) ? 1 : 0) + 1;
+        return MP_OKAY;
+    }
+
+    digs = 0; /* digit count */
+
+    if (a->sign == MP_NEG)
+        ++digs;
+
+    /* init a copy of the input */
+    if ((res = mp_init_copy(&t, a)) != MP_OKAY)
+        return res;
+
+    /* force temp to positive */
+    t.sign = MP_ZPOS;
+
+    /* fetch out all of the digits */
+
+#if DIGIT_BIT == 60
+    /* Optimization for base-10 numbers.
+     * Logic is designed for 60-bit mp_digit, with 100000000000000000
+     * being the largest 10**n that can fit into it, which gives us 17 digits.
+     * So we reduce the number in 17 digit chunks, until we get to a number
+     * small enough to fit into a single mp_digit.
+     */
+    if (radix == 10) {
+        while ((&t)->used > 1) {
+            if ((res = mp_div_d(&t, (mp_digit) 100000000000000000, &t, &d)) != MP_OKAY) {
+              mp_clear(&t);
+              return res;
+            }
+            digs += 17;
+        }
+    }
+#endif
+
+    while (mp_iszero(&t) == MP_NO) {
+        if ((res = mp_div_d(&t, (mp_digit) radix, &t, &d)) != MP_OKAY) {
+            mp_clear(&t);
+            return res;
+        }
+        ++digs;
+    }
+    mp_clear(&t);
+
+    /* return digs + 1, the 1 is for the NULL byte that would be required. */
+    *size = digs + 1;
+    return MP_OKAY;
+}
+
 MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
     MVMP6bigintBody *body = get_bigint_body(tc, a);
     if (MVM_BIGINT_IS_BIG(body)) {
@@ -952,7 +1023,7 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
         char *buf;
         MVMString *result;
         int is_malloced = 0;
-        mp_radix_size(i, base, &len);
+        mp_faster_radix_size(i, base, &len);
         if (len < 120) {
             buf = alloca(len);
         }
