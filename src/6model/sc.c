@@ -224,8 +224,16 @@ MVMObject * MVM_sc_try_get_object(MVMThreadContext *tc, MVMSerializationContext 
         return NULL;
 }
 
-/* Given an SC, an index, and an object, store the object at that index. */
+/* Given an SC, an index, and an object, store the object at that index and update
+ * its SC index to match. */
 void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *obj) {
+    MVM_sc_set_object_no_update(tc, sc, idx, obj);
+    MVM_sc_set_idx_in_sc(&obj->header, idx);
+}
+
+/* Given an SC, an index, and an object, store the object at that index. Do
+ * not update the object's own SC index, however. */
+void MVM_sc_set_object_no_update(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *obj) {
     if (idx < 0)
         MVM_exception_throw_adhoc(tc, "Invalid (negative) object root index %"PRId64"", idx);
     if (idx < sc->body->num_objects) {
@@ -244,7 +252,6 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
         MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->root_objects[idx], obj);
         sc->body->num_objects = idx + 1;
     }
-    MVM_sc_set_idx_in_sc(&obj->header, idx);
 }
 
 /* Given an SC and an index, fetch the STable stored there. */
@@ -271,7 +278,8 @@ MVMSTable * MVM_sc_try_get_stable(MVMThreadContext *tc, MVMSerializationContext 
         return NULL;
 }
 
-/* Given an SC, an index, and an STable, store the STable at the index. */
+/* Given an SC, an index, and an STable, store the STable at the index. Does not
+ * modify the SC marked on the STable itself. */
 void MVM_sc_set_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMSTable *st) {
     if (MVM_UNLIKELY(idx < 0))
         MVM_exception_throw_adhoc(tc,

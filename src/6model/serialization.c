@@ -3083,7 +3083,7 @@ static void resolve_param_interns(MVMThreadContext *tc, MVMSerializationReader *
         /* Try to find a matching parameterization. */
         matching = MVM_6model_parametric_try_find_parameterization(tc, STABLE(ptype), params);
         if (matching) {
-            MVM_sc_set_object(tc, reader->root.sc, type_idx, matching);
+            MVM_sc_set_object_no_update(tc, reader->root.sc, type_idx, matching);
             MVM_sc_set_stable(tc, reader->root.sc, st_idx, STABLE(matching));
         }
     }
