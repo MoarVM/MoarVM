@@ -1005,6 +1005,24 @@ class MAST::Frame is MAST::Node {
         $Arg::str,  # $MVM_reg_str             := 7;
         $Arg::obj   # $MVM_reg_obj             := 8;
     ];
+    method compile_label($bytecode, $arg) {
+        my $key := nqp::objectid($arg);
+        my %labels := self.labels;
+        if nqp::isnull($!saved-bytecode) {
+            nqp::push(@!child-label-fixups, nqp::elems($!bytecode));
+        }
+        if nqp::existskey(%labels, $key) {
+            $bytecode.write_uint32(%labels{$key});
+        }
+        else {
+            my %label-fixups := self.label-fixups;
+            my @fixups := nqp::existskey(%label-fixups, $key)
+                ?? %label-fixups{$key}
+                !! (%label-fixups{$key} := nqp::list);
+            nqp::push(@fixups, [$bytecode, nqp::elems($bytecode)]);
+            $bytecode.write_uint32(0);
+        }
+    }
     method compile_operand($bytecode, int $rw, int $type, $arg) {
         if $rw == nqp::const::MVM_OPERAND_LITERAL {
             if $type == nqp::const::MVM_OPERAND_INT64 {
@@ -1025,22 +1043,7 @@ class MAST::Frame is MAST::Node {
                 $bytecode.write_uint32(self.add-string($arg));
             }
             elsif $type == nqp::const::MVM_OPERAND_INS {
-                my $key := nqp::objectid($arg);
-                my %labels := self.labels;
-                if nqp::isnull($!saved-bytecode) {
-                    nqp::push(@!child-label-fixups, nqp::elems($!bytecode));
-                }
-                if nqp::existskey(%labels, $key) {
-                    $bytecode.write_uint32(%labels{$key});
-                }
-                else {
-                    my %label-fixups := self.label-fixups;
-                    my @fixups := nqp::existskey(%label-fixups, $key)
-                        ?? %label-fixups{$key}
-                        !! (%label-fixups{$key} := nqp::list);
-                    nqp::push(@fixups, [$bytecode, nqp::elems($bytecode)]);
-                    $bytecode.write_uint32(0);
-                }
+                self.compile_label($bytecode, $arg);
             }
             elsif $type == nqp::const::MVM_OPERAND_CODEREF {
                 nqp::die("Expected MAST::Frame, but didn't get one")
