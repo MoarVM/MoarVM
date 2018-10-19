@@ -47,6 +47,14 @@ MVM_NO_RETURN static void throw_error(MVMThreadContext *tc, int r, char *operati
     }
 #endif
 
+#if defined(NI_MAXHOST)
+    #define MVM_MAX_HOST_NAME_LEN NI_MAXHOST
+#elif defined(HOST_NAME_MAX)
+    #define MVM_MAX_HOST_NAME_LEN HOST_NAME_MAX
+#else
+    #define MVM_MAX_HOST_NAME_LEN 1024
+#endif
+
  /* Data that we keep for a socket-based handle. */
 typedef struct {
     /* The socket handle (file descriptor on POSIX, SOCKET on Windows). */
@@ -515,7 +523,7 @@ MVMObject * MVM_io_socket_create(MVMThreadContext *tc, MVMint64 listen) {
 }
 
 MVMString * MVM_io_get_hostname(MVMThreadContext *tc) {
-    char hostname[65];
-    gethostname(hostname, 65);
+    char hostname[MVM_MAX_HOST_NAME_LEN+1];
+    gethostname(hostname, (int)sizeof hostname);
     return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, hostname);
 }
