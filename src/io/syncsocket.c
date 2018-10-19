@@ -48,8 +48,10 @@ MVM_NO_RETURN static void throw_error(MVMThreadContext *tc, int r, char *operati
 #endif
 
 /* MAXHOSTNAMELEN (based on libuv usage) */
+#if !defined(_WIN32)
 #if !defined(__MVS__)
 #include <sys/param.h>
+#endif
 #endif
 #ifndef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN 256
