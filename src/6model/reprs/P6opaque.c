@@ -1755,7 +1755,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         }
         break;
     case MVM_OP_unbox_n:
-    case MVM_OP_decont_n:
+/*  case MVM_OP_decont_n:    XXX TODO: figure out why this case hangs/slow https://github.com/rakudo/rakudo/issues/2395 */
         if (repr_data->unbox_num_slot >= 0) {
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_num_slot];
             if (embedded_st->REPR->ID == MVM_REPR_ID_P6num) {
