@@ -1396,6 +1396,42 @@ void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist 
         MVM_gc_worklist_add(tc, worklist, &(g->inlines[i].sf));
 }
 
+/* Describes GCables for a heap snapshot. */
+void MVM_spesh_graph_describe(MVMThreadContext *tc, MVMSpeshGraph *g, MVMHeapSnapshotState *snapshot) {
+    MVMuint16 i, j, num_locals, num_facts, *local_types;
+
+    /* Mark static frame. */
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot, g->sf, "Static frame");
+
+    /* Mark facts. */
+    num_locals = g->num_locals;
+    local_types = g->local_types ? g->local_types : g->sf->body.local_types;
+    for (i = 0; i < num_locals; i++) {
+        num_facts = g->fact_counts[i];
+        for (j = 0; j < num_facts; j++) {
+            MVMint32 flags = g->facts[i][j].flags;
+            if (flags & MVM_SPESH_FACT_KNOWN_TYPE)
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot, (g->facts[i][j].type), "Known Type");
+            if (flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE)
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot, (g->facts[i][j].decont_type), "Known Decont Type");
+            if (flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+                if (local_types[i] == MVM_reg_obj)
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot, (g->facts[i][j].value.o), "Known Value");
+                else if (local_types[i] == MVM_reg_str)
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot, (g->facts[i][j].value.s), "Known String Value");
+            }
+        }
+    }
+
+    /* Mark spesh slots. */
+    for (i = 0; i < g->num_spesh_slots; i++)
+        MVM_profile_heap_add_collectable_rel_idx(tc, snapshot, (g->spesh_slots[i]), i);
+
+    /* Mark inlines. */
+    for (i = 0; i < g->num_inlines; i++)
+        MVM_profile_heap_add_collectable_rel_idx(tc, snapshot, (g->inlines[i].sf), i);
+}
+
 /* Destroys a spesh graph, deallocating all its associated memory. */
 void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Free all of the allocated node memory. */

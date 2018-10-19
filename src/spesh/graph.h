@@ -281,6 +281,7 @@ void MVM_spesh_graph_add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g
     MVMSpeshIns *ins_node, MVMuint32 deopt_target, MVMint32 type);
 void MVM_spesh_graph_recompute_dominance(MVMThreadContext *tc, MVMSpeshGraph *g);
 void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist *worklist);
+void MVM_spesh_graph_describe(MVMThreadContext *tc, MVMSpeshGraph *g, MVMHeapSnapshotState *snapshot);
 void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g);
 MVM_PUBLIC void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes);
 MVMOpInfo *get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint32 nrargs);
