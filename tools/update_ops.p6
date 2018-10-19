@@ -25,35 +25,35 @@ class Op {
     has @.operands;
     has %.adverbs;
     method generator() {
+        my $offset = 2;
         $.name eq 'const_i64'
             ??
-    'sub ($op0, $op1) {
+    'sub ($op0, int $value) {
         my $bytecode := $*MAST_FRAME.bytecode;
-        my int $value := $op1;
+        my uint $elems := nqp::elems($bytecode);
+        my uint $index := $op0.index;
         if -32767 < $value && $value < 32768 {
-            $bytecode.write_uint16(597);
-            my $index := $op0.index;
-            $bytecode.write_uint16($index);
-            $bytecode.write_uint16($value);
+            nqp::writeuint($bytecode, $elems, 597, 2);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 2);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 2);
         }
         elsif -2147483647 < $value && $value < 2147483647 {
-            $bytecode.write_uint16(598);
-            my $index := $op0.index;
-            $bytecode.write_uint16($index);
-            $bytecode.write_uint32($value);
+            nqp::writeuint($bytecode, $elems, 598, 2);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 2);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 4);
         }
         else {
-            $bytecode.write_uint16(' ~ $.code ~ ');
-            my $index := $op0.index;
-            $bytecode.write_uint16($index);
-            $bytecode.write_uint64($value);
+            nqp::writeuint($bytecode, $elems, ' ~ $.code ~ ', 2);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 2);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 6);
         }
     }'
             !!
     'sub (' ~ @!operands.map({self.generate_arg($_, $++)}).join(', ') ~ ') {
         my $bytecode := $*MAST_FRAME.bytecode;
-        $bytecode.write_uint16(' ~ $.code ~ ');
-        ' ~ join("\n        ", @!operands.map({self.generate_operand($_, $++)})) ~ '
+        my uint $elems := nqp::elems($bytecode);
+        nqp::writeuint($bytecode, $elems, ' ~ $.code ~ ', 2);
+        ' ~ join("\n        ", @!operands.map({self.generate_operand($_, $++, $offset)})) ~ '
     }'
     }
     method generate_arg($operand, $i) {
@@ -86,55 +86,69 @@ class Op {
             }
         }
     }
-    method generate_operand($operand, $i) {
+    sub writeuint($offset is rw, $size, $var) {
+        my $pos = $offset;
+        $offset += $size;
+        my $flags = $size;
+        $flags = 6 if $size == 8;
+        'nqp::writeuint($bytecode, nqp::add_i($elems, ' ~ $pos ~ '), ' ~ $var ~ ', ' ~ $flags ~ ');'
+    }
+    sub writenum($offset is rw, $var) {
+        my $pos = $offset;
+        $offset += 8;
+        'nqp::writenum($bytecode, nqp::add_i($elems, ' ~ $pos ~ '), ' ~ $var ~ ', 0)'
+    }
+    method generate_operand($operand, $i, $offset is rw) {
         if OperandFlag.parse($operand) -> (:$rw, :$type, :$type_var, :$special) {
             if !$rw {
                 if ($type // '') eq 'int64' {
-                    '{my int $value := $op' ~ $i ~ '; $bytecode.write_uint64($value);}'
+                    '{my int $value := $op' ~ $i ~ '; ' ~ writeuint($offset, 8, '$value') ~ '}'
                 }
                 elsif ($type // '') eq 'int32' {
                     '{my int $value := $op' ~ $i ~ ';
                     if $value < -2147483648 || 2147483647 < $value {
                         nqp::die("Value outside range of 32-bit MAST::IVal");
                     }
-                    $bytecode.write_uint64($value);}'
+                    ' ~ writeuint($offset, 8, '$value') ~ '}'
                 }
                 elsif ($type // '') eq 'uint32' {
                     '{my int $value := $op' ~ $i ~ ';
                     if $value < 0 || 4294967296 < $value {
                         nqp::die("Value outside range of 32-bit MAST::IVal");
                     }
-                    $bytecode.write_uint64($value);}'
+                    ' ~ writeuint($offset, 8, '$value') ~ '}'
                 }
                 elsif ($type // '') eq 'int16' {
                     '{my int $value := $op' ~ $i ~ ';
                     if $value < -32768 || 32767 < $value {
                         nqp::die("Value outside range of 16-bit MAST::IVal");
                     }
-                    $bytecode.write_uint16($value);}'
+                    ' ~ writeuint($offset, 2, '$value') ~ '}'
                 }
                 elsif ($type // '') eq 'int8' {
                     '{my int $value := $op' ~ $i ~ ';
                     if $value < -128 || 127 < $value {
                         nqp::die("Value outside range of 8-bit MAST::IVal");
                     }
-                    $bytecode.write_uint16($value);}'
+                    ' ~ writeuint($offset, 2, '$value') ~ '}'
                 }
                 elsif ($type // '') eq 'num64' {
-                    '$bytecode.write_double($op' ~ $i ~ ');'
+                    writenum($offset, '$op' ~ $i)
                 }
                 elsif ($type // '') eq 'num32' {
-                    '$bytecode.write_double($op' ~ $i ~ ');'
+                    writenum($offset, '$op' ~ $i)
                 }
                 elsif ($type // '') eq 'str' {
-                    '$bytecode.write_uint32($*MAST_FRAME.add-string($op' ~ $i ~ '));'
+                    'my uint $index' ~ $i ~ ' := $*MAST_FRAME.add-string($op' ~ $i ~ '); '
+                    ~ writeuint($offset, 4, '$index' ~ $i);
                 }
                 elsif ($special // '') eq 'ins' {
-                    "\$*MAST_FRAME.compile_operand(\$bytecode, 0, nqp::const::MVM_OPERAND_INS, \$op$i);"
+                    $offset += 4;
+                    "\$*MAST_FRAME.compile_label(\$bytecode, \$op$i);"
                 }
                 elsif ($special // '') eq 'coderef' {
-                    '{my $index := $*MAST_FRAME.writer.get_frame_index($op' ~ $i ~ ');
-                    $bytecode.write_uint16($index);}'
+                    'my uint $index' ~ $i ~ ' := $*MAST_FRAME.writer.get_frame_index($op' ~ $i ~ '); '
+                    ~ writeuint($offset, 2, '$index' ~ $i)
                 }
                 elsif ($special // '') eq 'callsite' {
                 }
@@ -149,7 +163,6 @@ class Op {
 #                    unless $arg.isa(MAST::Local);
 #
 #                my @local_types := self.local_types;
-                '{my $index := $op' ~ $i ~ '.index;' ~
 #                if $arg.index > nqp::elems(@local_types) {
 #                    nqp::die("MAST::Local index out of range");
 #                }
@@ -157,14 +170,16 @@ class Op {
 #                if ($type != nqp::bitshiftl_i(type_to_local_type($local_type), 3) && $type != nqp::const::MVM_OPERAND_TYPE_VAR) {
 #                    nqp::die("MAST::Local of wrong type specified: $type, expected $local_type (" ~ nqp::bitshiftl_i(type_to_local_type($local_type), 3) ~ ")");
 #                }
+                'my uint $index' ~ $i ~ ' := $op' ~ $i ~ '.index; '
 
-                '$bytecode.write_uint16($index);}'
+                ~ writeuint($offset, 2, '$index' ~ $i)
             }
             elsif $rw eq 'rl' || $rw eq 'wl' {
-                q[{nqp::die("Expected MAST::Lexical, but didn't get one")
-                    unless $op] ~ $i ~ q[.isa(MAST::Lexical);
-                $bytecode.write_uint16($op] ~ $i ~ q[.index);
-                $bytecode.write_uint16($op] ~ $i ~ q[.frames_out);}]
+                q[nqp::die("Expected MAST::Lexical, but didn't get one") unless $op] ~ $i ~ q[.isa(MAST::Lexical);]
+                ~ 'my uint $index' ~ $i ~ ' := $op' ~ $i ~ '.index; '
+                ~ 'my uint $frames_out' ~ $i ~ ' := $op' ~ $i ~ '.frames_out; '
+                ~ writeuint($offset, 2, '$index' ~ $i)
+                ~ writeuint($offset, 2, '$frames_out' ~ $i)
             }
             else {
                 die("Unknown operand mode $rw cannot be compiled");
