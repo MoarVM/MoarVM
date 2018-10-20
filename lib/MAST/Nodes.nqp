@@ -40,47 +40,48 @@ my int $MVM_operand_uint16      := ($MVM_reg_uint16 * 8);
 my int $MVM_operand_uint32      := ($MVM_reg_uint32 * 8);
 my int $MVM_operand_uint64      := ($MVM_reg_uint64 * 8);
 
-my $buf := nqp::newtype(nqp::null(), 'VMArray');
-nqp::composetype($buf, nqp::hash('array', nqp::hash('type', uint8)));
-nqp::setmethcache($buf, nqp::hash(
-    'new', method () {
-        nqp::create($buf)
-    },
-    'write_s', method (str $s) {
-        my @subbuf := nqp::encode($s, 'utf8', nqp::create($buf));
+class MAST::Bytecode is repr('VMArray') is array_type(uint8) {
+    method new() {
+        nqp::create(self)
+    }
+    method write_s(str $s) {
+        my @subbuf := nqp::encode($s, 'utf8', nqp::create(self));
         self.write_buf(@subbuf);
-    },
-    'write_double', method (num $n) {
+    }
+    method write_double(num $n) {
         nqp::writenum(self, nqp::elems(self), $n, 0);
-    },
-    'write_uint32', method (uint32 $i) {
+    }
+    method write_uint32(uint32 $i) {
         nqp::writeuint(self, nqp::elems(self), $i, 4);
-    },
-    'write_uint64', method (uint64 $i) {
+    }
+    method write_uint64(uint64 $i) {
         nqp::writeuint(self, nqp::elems(self), $i, 6);
-    },
-    'write_uint32_at', method (uint32 $i, uint32 $pos) {
+    }
+    method read_uint32_at(uint32 $pos) {
+          nqp::bitshiftl_i(nqp::atpos_i(self, $pos + 3), 24)
+        + nqp::bitshiftl_i(nqp::atpos_i(self, $pos + 2), 16)
+        + nqp::bitshiftl_i(nqp::atpos_i(self, $pos + 1), 8)
+        + nqp::atpos_i(self, $pos)
+    }
+    method write_uint32_at(uint32 $i, uint32 $pos) {
         nqp::writeuint(self, $pos, $i, 4);
-    },
-    'read_uint32_at', method (uint32 $pos) {
-        nqp::bitshiftl_i(nqp::atpos_i(self, $pos + 3), 24) +| nqp::bitshiftl_i(nqp::atpos_i(self, $pos + 2), 16) +| nqp::bitshiftl_i(nqp::atpos_i(self, $pos + 1), 8) +| nqp::atpos_i(self, $pos)
-    },
-    'write_uint16', method (uint16 $i) {
+    }
+    method write_uint16(uint16 $i) {
         nqp::writeuint(self, nqp::elems(self), $i, 2);
-    },
-    'write_uint8', method (uint8 $i) {
+    }
+    method write_uint8(uint8 $i) {
         nqp::writeuint(self, nqp::elems(self), $i, 0);
-    },
-    'write_buf', method (@buf) {
+    }
+    method write_buf(@buf) {
         nqp::splice(self, @buf, nqp::elems(self), 0);
-    },
-    'dump', method () {
+    }
+    method dump() {
         note(nqp::elems(self) ~ " bytes");
         for self {
             note($_);
         }
     }
-));
+}
 
 my %uint_map;
 my %int_map;
@@ -737,7 +738,7 @@ class MAST::Frame is MAST::Node {
             nqp::die("Nested start_prologue detected!");
         }
         $!saved-bytecode := $!bytecode;
-        $!bytecode := nqp::create($buf);
+        $!bytecode := nqp::create(MAST::Bytecode);
         $!saved-annotations-offset := nqp::elems($!annotations);
     }
 
@@ -796,10 +797,10 @@ class MAST::Frame is MAST::Node {
         $!compunit           := $compunit;
         $!string-heap        := $writer.string-heap;
         $!callsites          := $writer.callsites;
-        $!annotations        := $buf.new;
+        $!annotations        := MAST::Bytecode.new;
         $!annotations-offset := nqp::elems($!annotations);
         $!num-annotations    := 0;
-        $!bytecode           := $buf.new;
+        $!bytecode           := MAST::Bytecode.new;
         $!cuuid-idx          := $!string-heap.add($!cuuid);
         $!name-idx           := $!string-heap.add($!name);
         @!handlers           := nqp::list;
