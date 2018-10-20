@@ -1623,7 +1623,7 @@ void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *valu
     if (!lex_reg) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste, "No contextual found with name '%s'",
+        MVM_exception_throw_adhoc_free(tc, waste, "Dynamic variable '%s' not found",
             c_name);
     }
     switch (type) {
