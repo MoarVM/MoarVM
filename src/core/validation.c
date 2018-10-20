@@ -292,8 +292,8 @@ static void validate_reg_operand(Validator *val, MVMuint32 flags) {
     }
 
     if (reg_type != operand_type)
-        fail(val, MSG(val, "operand type %"PRIu32" does not match register type %"PRIu32),
-                operand_type, reg_type);
+        fail(val, MSG(val, "operand type %PRIu32 does not match register type %PRIu32 for op %s in frame %s"),
+                operand_type, reg_type, val->cur_info->name, MVM_string_utf8_maybe_encode_C_string(val->tc, val->frame->body.name));
 
 next_operand:
     val->cur_op += 2;
