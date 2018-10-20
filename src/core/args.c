@@ -325,9 +325,15 @@ MVMArgInfo MVM_args_get_optional_pos_str(MVMThreadContext *tc, MVMArgProcContext
     autounbox(tc, MVM_CALLSITE_ARG_STR, "string", result);
     return result;
 }
-MVMArgInfo MVM_args_get_pos_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
+MVMuint64 MVM_args_get_required_pos_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos) {
     MVMArgInfo result;
-    args_get_pos(tc, ctx, pos, required, result);
+    args_get_pos(tc, ctx, pos, MVM_ARG_REQUIRED, result);
+    autounbox(tc, MVM_CALLSITE_ARG_INT, "unsigned integer", result);
+    return result.arg.u64;
+}
+MVMArgInfo MVM_args_get_optional_pos_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos) {
+    MVMArgInfo result;
+    args_get_pos(tc, ctx, pos, MVM_ARG_OPTIONAL, result);
     autounbox(tc, MVM_CALLSITE_ARG_INT, "unsigned integer", result);
     return result;
 }
