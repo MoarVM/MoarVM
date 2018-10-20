@@ -270,6 +270,10 @@ void MVM_repr_bind_pos_o(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx, MVM
         idx, val, MVM_reg_obj);
 }
 
+void MVM_repr_write_buf(MVMThreadContext *tc, MVMObject *obj, char *value, MVMint64 offset, MVMint64 size) {
+    REPR(obj)->pos_funcs.write_buf(tc, STABLE(obj), obj, OBJECT_BODY(obj), value, offset, size);
+}
+
 static void bind_pos_multidim(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices, MVMRegister value, MVMuint16 kind) {
     MVMint64 num_indices;
     MVM_repr_populate_indices_array(tc, indices, &num_indices);

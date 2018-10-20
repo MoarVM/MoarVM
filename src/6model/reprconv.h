@@ -37,6 +37,8 @@ MVM_PUBLIC void MVM_repr_bind_pos_n(MVMThreadContext *tc, MVMObject *obj, MVMint
 MVM_PUBLIC void MVM_repr_bind_pos_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx, MVMString *value);
 MVM_PUBLIC void MVM_repr_bind_pos_o(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx, MVMObject *value);
 
+MVM_PUBLIC void MVM_repr_write_buf(MVMThreadContext *tc, MVMObject *obj, char *value, MVMint64 offset, MVMint64 size);
+
 MVM_PUBLIC void MVM_repr_bind_pos_multidim_i(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices, MVMint64 value);
 MVM_PUBLIC void MVM_repr_bind_pos_multidim_n(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices, MVMnum64 value);
 MVM_PUBLIC void MVM_repr_bind_pos_multidim_s(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices, MVMString *value);

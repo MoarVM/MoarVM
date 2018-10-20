@@ -198,6 +198,9 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_bindpos_s: return MVM_repr_bind_pos_s;
     case MVM_OP_bindpos_o: return MVM_repr_bind_pos_o;
 
+    case MVM_OP_writeint:  return MVM_repr_write_buf;
+    case MVM_OP_writeuint: return MVM_repr_write_buf;
+
     case MVM_OP_bindkey_i: return MVM_repr_bind_key_i;
     case MVM_OP_bindkey_n: return MVM_repr_bind_key_n;
     case MVM_OP_bindkey_s: return MVM_repr_bind_key_s;
@@ -2297,6 +2300,47 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { lock } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_writeuint:
+    case MVM_OP_writeint: {
+        MVMint16 buf   = ins->operands[0].reg.orig;
+        MVMint16 off   = ins->operands[1].reg.orig;
+        MVMint16 value = ins->operands[2].reg.orig;
+        MVMint16 flags = ins->operands[3].reg.orig;
+        MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[3]);
+        if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+            unsigned char const size  = 1 << (facts->value.i >> 1);
+
+            MVMSpeshFacts *type_facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[0]);
+            if (type_facts && type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && type_facts->type &&
+                    type_facts->flags & MVM_SPESH_FACT_CONCRETE) {
+                void *function = (void *)((MVMObject*)type_facts->type)->st->REPR->pos_funcs.write_buf;
+
+                MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                         { MVM_JIT_REG_STABLE,  buf },
+                                         { MVM_JIT_REG_VAL,     buf },
+                                         { MVM_JIT_REG_OBJBODY, buf },
+                                         { MVM_JIT_REG_ADDR,    value },
+                                         { MVM_JIT_REG_VAL,     off },
+                                         { MVM_JIT_LITERAL,     size } };
+                jg_append_call_c(tc, jg, function, 7, args, MVM_JIT_RV_VOID, -1);
+            }
+            else {
+                MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                         { MVM_JIT_REG_VAL,     buf },
+                                         { MVM_JIT_REG_ADDR,    value },
+                                         { MVM_JIT_REG_VAL,     off },
+                                         { MVM_JIT_LITERAL,     size } };
+                jg_append_call_c(tc, jg, op_to_func(tc, op), 5, args, MVM_JIT_RV_VOID, -1);
+            }
+        }
+        else {
+            MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins,
+                            "BAIL: op <%s>, - no known value for writeint flags",
+                            ins->info->name);
+            return 0;
+        }
         break;
     }
         /* repr ops */
