@@ -1649,11 +1649,17 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_div_n:
     case MVM_OP_neg_n:
         /* number coercion */
+    case MVM_OP_coerce_iu:
+    case MVM_OP_coerce_ui:
     case MVM_OP_coerce_ni:
     case MVM_OP_coerce_in:
+    case MVM_OP_extend_i16:
+    case MVM_OP_extend_u16:
     case MVM_OP_extend_i32:
     case MVM_OP_trunc_i16:
+    case MVM_OP_trunc_u16:
     case MVM_OP_trunc_i32:
+    case MVM_OP_trunc_u32:
         /* comparison (integer) */
     case MVM_OP_eq_i:
     case MVM_OP_ne_i:

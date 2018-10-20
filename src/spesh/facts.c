@@ -210,6 +210,14 @@ static void trunc_i16_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
         tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
     }
 }
+static void coerce_iu_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMSpeshFacts *src_facts = &g->facts[ins->operands[1].reg.orig][ins->operands[1].reg.i];
+    if (src_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        MVMSpeshFacts *tgt_facts = &g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i];
+        tgt_facts->value.i = (MVMint16)src_facts->value.i;
+        tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+    }
+}
 
 /* Discover facts from extops. */
 static void discover_extop(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
@@ -495,7 +503,12 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[2].reg.orig, ins->operands[2].reg.i);
             break;
+        case MVM_OP_trunc_u16:
         case MVM_OP_trunc_i16:
+            trunc_i16_facts(tc, g, ins);
+            break;
+        case MVM_OP_coerce_ui:
+        case MVM_OP_coerce_iu:
             trunc_i16_facts(tc, g, ins);
             break;
         case MVM_OP_bootint:
