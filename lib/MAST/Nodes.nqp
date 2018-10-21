@@ -1,5 +1,8 @@
 use MASTOps;
 
+my int $initial_bytecode_size    := 128; # How much memory we reserve initially for a frame's bytecode
+my int $initial_annotations_size := 128; # How much memory we reserve initially for a frame's annotations
+
 my int $MVM_reg_void            := 0; # not really a register; just a result/return kind marker
 my int $MVM_reg_int8            := 1;
 my int $MVM_reg_int16           := 2;
@@ -739,6 +742,8 @@ class MAST::Frame is MAST::Node {
         }
         $!saved-bytecode := $!bytecode;
         $!bytecode := nqp::create(MAST::Bytecode);
+        nqp::setelems($!bytecode, $initial_bytecode_size);
+        nqp::setelems($!bytecode, 0);
         $!saved-annotations-offset := nqp::elems($!annotations);
     }
 
@@ -809,6 +814,10 @@ class MAST::Frame is MAST::Node {
         @!lexical_names_idxs := nqp::list;
         $!saved-bytecode     := nqp::null;
         @!child-label-fixups := nqp::list;
+        nqp::setelems($!bytecode, $initial_bytecode_size);
+        nqp::setelems($!bytecode, 0);
+        nqp::setelems($!annotations, $initial_annotations_size);
+        nqp::setelems($!annotations, 0);
     }
 
     method prepare() {
