@@ -50,11 +50,19 @@ class Op {
     }'
             !!
     'sub (' ~ @!operands.map({self.generate_arg($_, $++)}).join(', ') ~ ') {
-        my $bytecode := $*MAST_FRAME.bytecode;
+        ' ~ (self.needs_frame ?? 'my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;' !! 'my $bytecode := $*MAST_FRAME.bytecode;') ~ '
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, ' ~ $.code ~ ', 2);
         ' ~ join("\n        ", @!operands.map({self.generate_operand($_, $++, $offset)})) ~ '
     }'
+    }
+    method needs_frame() {
+        for @!operands -> $operand {
+            if OperandFlag.parse($operand) -> (:$rw, :$type, :$type_var, :$special) {
+                return True if !$rw and (($type // '') eq 'str' or ($special // '') eq 'ins' | 'coderef');
+            }
+        }
+        return False;
     }
     method generate_arg($operand, $i) {
         if OperandFlag.parse($operand) -> (:$rw, :$type, :$type_var, :$special) {
@@ -139,15 +147,15 @@ class Op {
                     writenum($offset, '$op' ~ $i)
                 }
                 elsif ($type // '') eq 'str' {
-                    'my uint $index' ~ $i ~ ' := $*MAST_FRAME.add-string($op' ~ $i ~ '); '
+                    'my uint $index' ~ $i ~ ' := $frame.add-string($op' ~ $i ~ '); '
                     ~ writeuint($offset, 4, '$index' ~ $i);
                 }
                 elsif ($special // '') eq 'ins' {
                     $offset += 4;
-                    "\$*MAST_FRAME.compile_label(\$bytecode, \$op$i);"
+                    "\$frame.compile_label(\$bytecode, \$op$i);"
                 }
                 elsif ($special // '') eq 'coderef' {
-                    'my uint $index' ~ $i ~ ' := $*MAST_FRAME.writer.get_frame_index($op' ~ $i ~ '); '
+                    'my uint $index' ~ $i ~ ' := $frame.writer.get_frame_index($op' ~ $i ~ '); '
                     ~ writeuint($offset, 2, '$index' ~ $i)
                 }
                 elsif ($special // '') eq 'callsite' {
