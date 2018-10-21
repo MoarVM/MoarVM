@@ -239,6 +239,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_encode: return MVM_string_encode_to_buf;
     case MVM_OP_decoderaddbytes: return MVM_decoder_add_bytes;
     case MVM_OP_decodertakeline: return MVM_decoder_take_line;
+    case MVM_OP_decodertakeallchars: return MVM_decoder_take_all_chars;
     case MVM_OP_decodertakebytes: return MVM_decoder_take_bytes;
     case MVM_OP_decoderempty: return MVM_decoder_empty;
 
@@ -3013,6 +3014,18 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_REG_VAL, { inc } } };
         jg_append_call_c(tc, jg, &MVM_decoder_ensure_decoder, 3, argc, MVM_JIT_RV_VOID, -1);
         jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_decodertakeallchars: {
+        MVMint16 dst     = ins->operands[0].reg.orig;
+        MVMint16 decoder = ins->operands[1].reg.orig;
+        MVMJitCallArg argc[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { decoder } },
+                                 { MVM_JIT_LITERAL_PTR, { (uintptr_t)"decodertakeallchars" } } };
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { decoder } } };
+        jg_append_call_c(tc, jg, &MVM_decoder_ensure_decoder, 3, argc, MVM_JIT_RV_VOID, -1);
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
     }
     case MVM_OP_decodertakeline: {
