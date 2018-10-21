@@ -749,13 +749,12 @@ class MAST::Frame is MAST::Node {
 
     method end_prologue() {
         my int32 $offset := nqp::elems($!bytecode);
-        for @!child-label-fixups {
-            my int32 $at := $_;
+        for @!child-label-fixups -> int32 $at{
             my int32 $pos := $!saved-bytecode.read_uint32_at($at);
             $pos := $pos + $offset;
             $!saved-bytecode.write_uint32_at($pos, $at);
         }
-        @!child-label-fixups := nqp::list;
+        @!child-label-fixups := nqp::list_i;
         $!bytecode.write_buf($!saved-bytecode);
         $!saved-bytecode := nqp::null();
         for %!labels {
@@ -813,7 +812,7 @@ class MAST::Frame is MAST::Node {
         %!label-fixups       := nqp::hash;
         @!lexical_names_idxs := nqp::list;
         $!saved-bytecode     := nqp::null;
-        @!child-label-fixups := nqp::list;
+        @!child-label-fixups := nqp::list_i;
         nqp::setelems($!bytecode, $initial_bytecode_size);
         nqp::setelems($!bytecode, 0);
         nqp::setelems($!annotations, $initial_annotations_size);
@@ -998,9 +997,8 @@ class MAST::Frame is MAST::Node {
         }
         %!labels{$key} := $pos;
         if nqp::existskey(%!label-fixups, $key) {
-            for %!label-fixups{$key} {
-                my int32 $at := $_[1];
-                $_[0].write_uint32_at($pos, $at);
+            for %!label-fixups{$key} -> int32 $at {
+                $!bytecode.write_uint32_at($pos, $at);
             }
         }
     }
@@ -1019,7 +1017,7 @@ class MAST::Frame is MAST::Node {
         my $key := nqp::objectid($arg);
         my %labels := self.labels;
         if nqp::isnull($!saved-bytecode) {
-            nqp::push(@!child-label-fixups, nqp::elems($!bytecode));
+            nqp::push_i(@!child-label-fixups, nqp::elems($!bytecode));
         }
         if nqp::existskey(%labels, $key) {
             $bytecode.write_uint32(%labels{$key});
@@ -1028,8 +1026,8 @@ class MAST::Frame is MAST::Node {
             my %label-fixups := self.label-fixups;
             my @fixups := nqp::existskey(%label-fixups, $key)
                 ?? %label-fixups{$key}
-                !! (%label-fixups{$key} := nqp::list);
-            nqp::push(@fixups, [$bytecode, nqp::elems($bytecode)]);
+                !! (%label-fixups{$key} := nqp::list_i);
+            nqp::push_i(@fixups, nqp::elems($bytecode));
             $bytecode.write_uint32(0);
         }
     }
