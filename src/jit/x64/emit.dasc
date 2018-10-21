@@ -1243,12 +1243,31 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], TMP1;
         break;
     }
+    case MVM_OP_extend_i8: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        | mov RV, WORK[src];
+        | cbw;
+        | cwde;
+        | cdqe;
+        | mov WORK[dst], RV;
+        break;
+    }
+    case MVM_OP_extend_u8: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        | mov TMP1, WORK[src];
+        | xor TMP2, TMP2;
+        | mov TMP2w, TMP1w;
+        | mov WORK[dst], TMP2;
+        break;
+    }
     case MVM_OP_extend_i16: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
         | mov RV, WORK[src];
-        | cwde
-        | cdqe
+        | cwde;
+        | cdqe;
         | mov WORK[dst], RV;
         break;
     }
@@ -1265,8 +1284,26 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
         | mov RV, WORK[src];
-        | cdqe
+        | cdqe;
         | mov WORK[dst], RV;
+        break;
+    }
+    case MVM_OP_extend_u32: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        | mov TMP1, WORK[src];
+        | mov TMP2d, TMP1d;
+        | mov WORK[dst], TMP1;
+        break;
+    }
+    case MVM_OP_trunc_u8:
+    case MVM_OP_trunc_i8: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        | mov TMP1, WORK[src];
+        | xor TMP2, TMP2;
+        | mov TMP2b, TMP1b;
+        | mov WORK[dst], TMP2;
         break;
     }
     case MVM_OP_trunc_u16:
