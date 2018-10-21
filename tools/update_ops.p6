@@ -31,7 +31,7 @@ class Op {
     'sub ($op0, int $value) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
-        my uint $index := $op0.index;
+        my uint $index := $op0;
         if -32767 < $value && $value < 32768 {
             nqp::writeuint($bytecode, $elems, 597, 2);
             nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 2);
@@ -163,14 +163,14 @@ class Op {
 #                    unless $arg.isa(MAST::Local);
 #
 #                my @local_types := self.local_types;
-#                if $arg.index > nqp::elems(@local_types) {
+#                if $arg > nqp::elems(@local_types) {
 #                    nqp::die("MAST::Local index out of range");
 #                }
 #                my $local_type := @local_types[$index];
 #                if ($type != nqp::bitshiftl_i(type_to_local_type($local_type), 3) && $type != nqp::const::MVM_OPERAND_TYPE_VAR) {
 #                    nqp::die("MAST::Local of wrong type specified: $type, expected $local_type (" ~ nqp::bitshiftl_i(type_to_local_type($local_type), 3) ~ ")");
 #                }
-                'my uint $index' ~ $i ~ ' := $op' ~ $i ~ '.index; '
+                'my uint $index' ~ $i ~ ' := $op' ~ $i ~ '; '
 
                 ~ writeuint($offset, 2, '$index' ~ $i)
             }
