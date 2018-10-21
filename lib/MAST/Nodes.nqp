@@ -329,7 +329,7 @@ class MAST::NVal is MAST::Node {
 
 # A local lookup.
 class MAST::Local is MAST::Node {
-    has int $!index;
+    has uint $!index is box_target;
 
     method new(:$index!) {
         my $obj := nqp::create(self);
@@ -507,15 +507,15 @@ class MAST::Call is MAST::Node {
             nqp::die('speshresolve must have a result')
                 unless $result.isa(MAST::Local);
             nqp::die('MAST::Local index out of range')
-                if $result.index >= nqp::elems($frame.local_types);
+                if $result >= nqp::elems($frame.local_types);
             nqp::die('speshresolve must have an object result')
-                if type_to_local_type($frame.local_types()[$result.index]) != $MVM_reg_obj;
+                if type_to_local_type($frame.local_types()[$result]) != $MVM_reg_obj;
             $res_type := $MVM_operand_obj;
         }
         elsif $result.isa(MAST::Local) {
             my @local_types := $frame.local_types;
-            my $index := $result.index;
-            if $result.index >= nqp::elems(@local_types) {
+            my $index := $result;
+            if $index >= nqp::elems(@local_types) {
                 nqp::die("MAST::Local index out of range");
             }
             my $op_name := $op == 0 ?? 'invoke_' !! 'nativeinvoke_';
@@ -1061,8 +1061,8 @@ class MAST::Frame is MAST::Node {
                 unless $arg.isa(MAST::Local);
 
             my @local_types := self.local_types;
-            my $index := $arg.index;
-            if $arg.index > nqp::elems(@local_types) {
+            my int $index := $arg;
+            if $index > nqp::elems(@local_types) {
                 nqp::die("MAST::Local index out of range");
             }
             my $local_type := @local_types[$index];
@@ -1104,9 +1104,9 @@ class MAST::Frame is MAST::Node {
             nqp::die('MAST::Local required for HandlerScope with loop label')
                 unless $label.isa(MAST::Local);
             nqp::die('MAST::Local index out of range in HandlerScope')
-                if $label.index >= nqp::elems(self.local_types);
+                if $label >= nqp::elems(self.local_types);
             nqp::die('MAST::Local for HandlerScope must be an object')
-                if type_to_local_type(self.local_types()[$label.index]) != $MVM_reg_obj;
+                if type_to_local_type(self.local_types()[$label]) != $MVM_reg_obj;
             $handler.set_label_reg($label.index);
         }
         if $action == 2 { # HANDLER_INVOKE
