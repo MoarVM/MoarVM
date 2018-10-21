@@ -522,19 +522,20 @@ class MAST::Call is MAST::Node {
                 nqp::die("MAST::Local index out of range");
             }
             my $op_name := $op == 0 ?? 'invoke_' !! 'nativeinvoke_';
-            if nqp::objprimspec(@local_types[$index]) == 1 {
+            my $primspec := nqp::objprimspec(@local_types[$index]);
+            if $primspec == 1 {
                 $op_name := $op_name ~ 'i';
                 $res_type := $MVM_operand_int64;
             }
-            elsif nqp::objprimspec(@local_types[$index]) == 2 {
+            elsif $primspec == 2 {
                 $op_name := $op_name ~ 'n';
                 $res_type := $MVM_operand_num64;
             }
-            elsif nqp::objprimspec(@local_types[$index]) == 3 {
+            elsif $primspec == 3 {
                 $op_name := $op_name ~ 's';
                 $res_type := $MVM_operand_str;
             }
-            elsif nqp::objprimspec(@local_types[$index]) == 0 { # object
+            elsif $primspec == 0 { # object
                 $op_name := $op_name ~ 'o';
                 $res_type := $MVM_operand_obj;
             }
