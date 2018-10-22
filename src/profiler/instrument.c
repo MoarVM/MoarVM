@@ -309,6 +309,7 @@ typedef struct {
     MVMString *call_graph;
     MVMString *name;
     MVMString *id;
+    MVMString *parent;
     MVMString *file;
     MVMString *line;
     MVMString *entries;
@@ -599,6 +600,10 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
     MVM_repr_bind_key_o(tc, thread_hash, pds->thread,
         box_i(tc, othertc->thread_id));
 
+    /* Add parent thread id. */
+    MVM_repr_bind_key_o(tc, thread_hash, pds->parent,
+        box_i(tc, ptd->parent_thread_id));
+
     return thread_hash;
 }
 
@@ -620,6 +625,7 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
         pds.call_graph      = str(tc, "call_graph");
         pds.name            = str(tc, "name");
         pds.id              = str(tc, "id");
+        pds.parent          = str(tc, "parent");
         pds.file            = str(tc, "file");
         pds.line            = str(tc, "line");
         pds.entries         = str(tc, "entries");

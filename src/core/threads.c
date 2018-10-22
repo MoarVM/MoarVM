@@ -115,6 +115,13 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
     if (REPR(child)->ID == MVM_REPR_ID_MVMThread && IS_CONCRETE(thread_obj)) {
         MVMThreadContext *child_tc = child->body.tc;
 
+        /* If we're profiling in the current thread, we'll also want to
+         * profile in the child thread, so let's save the thread ID of
+         * the creating thread in the child thread. */
+        if (tc->prof_data) {
+            MVM_profile_log_thread_created(tc, child_tc);
+        }
+
         /* Mark thread as GC blocked until the thread actually starts. */
         MVM_gc_mark_thread_blocked(child_tc);
 

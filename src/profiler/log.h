@@ -12,6 +12,9 @@ struct MVMProfileThreadData {
     /* The time we finished profiling, if we got there already. */
     MVMuint64 end_time;
 
+    /* The thread ID of the thread responsible for spawning this thread. */
+    MVMuint32 parent_thread_id;
+
     /* Garbage collection time measurements. */
     MVMProfileGC *gcs;
     MVMuint32 num_gcs;
@@ -170,6 +173,7 @@ void MVM_profile_log_exit(MVMThreadContext *tc);
 void MVM_profile_log_unwind(MVMThreadContext *tc);
 MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadContext *tc, const MVMFrame *root_frame);
 void MVM_profile_log_continuation_invoke(MVMThreadContext *tc, const MVMProfileContinuationData *cd);
+void MVM_profile_log_thread_created(MVMThreadContext *tc, MVMThreadContext *child_tc);
 void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj);
 void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full, MVMuint32 this_thread_responsible);
 void MVM_profiler_log_gc_end(MVMThreadContext *tc);

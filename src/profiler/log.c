@@ -214,6 +214,12 @@ void MVM_profile_log_continuation_invoke(MVMThreadContext *tc, const MVMProfileC
         MVM_profile_log_enter(tc, cd->sfs[i], cd->modes[i]);
 }
 
+/* Called when a new thread is spawned off of another thread */
+void MVM_profile_log_thread_created(MVMThreadContext *tc, MVMThreadContext *child_tc) {
+    MVMProfileThreadData *prof_data = get_thread_data(child_tc);
+    prof_data->parent_thread_id = tc->thread_id;
+}
+
 /* Log that we've just allocated the passed object (just log the type). */
 void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
     MVMProfileThreadData *ptd  = get_thread_data(tc);
