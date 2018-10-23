@@ -127,7 +127,7 @@ And an example of a macro definition would be:
 *** Operators
 
 These are all the operators that are known by the expression language
-as of today (<2018-09-30 Sun>).
+as of today (<2018-10-23 Tues>).
 
 | Operator  | Shape                            | Type     | Semantics                                                                                             |
 |-----------+----------------------------------+----------+-------------------------------------------------------------------------------------------------------|
@@ -154,6 +154,7 @@ as of today (<2018-09-30 Sun>).
 |-----------+----------------------------------+----------+-------------------------------------------------------------------------------------------------------|
 | =ADD=     | =(add reg reg)=                  | =reg=    | Add two integer values                                                                                |
 | =SUB=     | =(sub reg reg)=                  | =reg=    | Subtract second operand from first                                                                    |
+| =MUL=     | =(mul reg reg)=                  | =reg=    | Multiply two integer values                                                                           |
 | =AND=     | =(and reg reg)=                  | =reg=    | Binary AND (intersection) of two operands                                                             |
 | =OR=      | =(or reg reg)=                   | =reg=    | Binary OR (union) of two operands                                                                     |
 | =XOR=     | =(xor reg reg)=                  | =reg=    | Binary XOR of two operands                                                                            |
