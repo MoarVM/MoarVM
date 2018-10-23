@@ -661,6 +661,8 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
                     MVMSpeshOperand orig_src = ins->operands[1];
                     MVMSpeshOperand sslot;
 
+                    MVMSpeshFacts *sslot_facts;
+
                     ins->info = MVM_op_get_op(unbox_op);
                     ins->operands[0] = val_temp;
 
@@ -680,15 +682,19 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
                     MVM_spesh_manipulate_insert_ins(tc, bb, ins, box_ins);
                     MVM_spesh_manipulate_insert_ins(tc, bb, ins, ss_ins);
 
-                    get_facts_direct(tc, g, ss_temp)->writer = ss_ins;
                     get_facts_direct(tc, g, val_temp)->writer = ins;
                     get_facts_direct(tc, g, orig_dst)->writer = box_ins;
+
+                    sslot_facts = get_facts_direct(tc, g, ss_temp);
+                    sslot_facts->writer = ss_ins;
+                    sslot_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE | MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_TYPEOBJ;
+                    sslot_facts->type = out_type;
+                    sslot_facts->value.o = out_type;
 
                     MVM_spesh_usages_add_by_reg(tc, g, ss_temp, box_ins);
                     MVM_spesh_usages_add_by_reg(tc, g, val_temp, box_ins);
 
-                    MVM_spesh_graph_add_comment(tc, g, ins, "optimized into decont + box");
-                    fprintf(stderr, "optimized into decont + box\n");
+                    MVM_spesh_graph_add_comment(tc, g, ins, "decont -> decont_* + box_*");
 
                     res_facts->type = out_type;
                     res_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
