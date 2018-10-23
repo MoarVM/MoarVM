@@ -619,28 +619,85 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
             /* If we didn't yet set facts, and the incoming type is a native
              * reference, then we can set facts based on knowing what it will
              * decont/box to. */
-           if (!set_facts && stable->REPR->ID == MVM_REPR_ID_NativeRef) {
+            if (!set_facts && stable->REPR->ID == MVM_REPR_ID_NativeRef) {
                 MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)stable->REPR_data;
                 MVMHLLConfig *hll = stable->hll_owner;
                 MVMObject *out_type = NULL;
+                MVMuint16 primitive_type = repr_data->primitive_type;
+                MVMuint16 register_type = 0;
+                MVMuint32 box_op;
+                MVMuint32 unbox_op;
+
                 if (!hll)
                     hll = g->sf->body.cu->body.hll_config;
-                switch (repr_data->primitive_type) {
+                switch (primitive_type) {
                     case MVM_STORAGE_SPEC_BP_INT:
                         out_type = hll->int_box_type;
+                        register_type = MVM_reg_int64;
+                        box_op = MVM_OP_box_i;
+                        unbox_op = MVM_OP_decont_i;
                         break;
                     case MVM_STORAGE_SPEC_BP_NUM:
                         out_type = hll->num_box_type;
+                        register_type = MVM_reg_num64;
+                        box_op = MVM_OP_box_n;
+                        unbox_op = MVM_OP_decont_n;
                         break;
                     case MVM_STORAGE_SPEC_BP_STR:
                         out_type = hll->str_box_type;
+                        register_type = MVM_reg_str;
+                        box_op = MVM_OP_box_s;
+                        unbox_op = MVM_OP_decont_s;
                         break;
                 }
+
                 if (out_type) {
+                    MVMSpeshIns *box_ins = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+                    MVMSpeshIns *ss_ins  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+
+                    MVMSpeshOperand val_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, register_type);
+                    MVMSpeshOperand ss_temp  = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+                    MVMSpeshOperand orig_dst = ins->operands[0];
+                    MVMSpeshOperand orig_src = ins->operands[1];
+                    MVMSpeshOperand sslot;
+
+                    ins->info = MVM_op_get_op(unbox_op);
+                    ins->operands[0] = val_temp;
+
+                    sslot.lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable *)out_type);
+
+                    ss_ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+                    ss_ins->operands = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
+                    ss_ins->operands[0] = ss_temp;
+                    ss_ins->operands[1] = sslot;
+
+                    box_ins->info = MVM_op_get_op(box_op);
+                    box_ins->operands = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 3);
+                    box_ins->operands[0] = orig_dst;
+                    box_ins->operands[1] = val_temp;
+                    box_ins->operands[2] = ss_temp;
+
+                    MVM_spesh_manipulate_insert_ins(tc, bb, ins, box_ins);
+                    MVM_spesh_manipulate_insert_ins(tc, bb, ins, ss_ins);
+
+                    get_facts_direct(tc, g, ss_temp)->writer = ss_ins;
+                    get_facts_direct(tc, g, val_temp)->writer = ins;
+                    get_facts_direct(tc, g, orig_dst)->writer = box_ins;
+
+                    MVM_spesh_usages_add_by_reg(tc, g, ss_temp, box_ins);
+                    MVM_spesh_usages_add_by_reg(tc, g, val_temp, box_ins);
+
+                    MVM_spesh_graph_add_comment(tc, g, ins, "optimized into decont + box");
+                    fprintf(stderr, "optimized into decont + box\n");
+
                     res_facts->type = out_type;
                     res_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
                     set_facts = 1;
+
+                    MVM_spesh_manipulate_release_temp_reg(tc, g, ss_temp);
+                    MVM_spesh_manipulate_release_temp_reg(tc, g, val_temp);
                 }
+
             }
         }
 
