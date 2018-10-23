@@ -3158,7 +3158,7 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
         codes_static, OBJECT_BODY(codes_static),
         scodes + reader->root.num_closures);
 
-    /* Handle any type parameterization interning, menaing we should not
+    /* Handle any type parameterization interning, meaning we should not
      * deserialize our own versions of things. */
     resolve_param_interns(tc, reader);
 
