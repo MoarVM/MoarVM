@@ -27,7 +27,7 @@ void MVM_6model_parametric_setup(MVMThreadContext *tc, MVMObject *type, MVMObjec
     st->mode_flags |= MVM_PARAMETRIC_TYPE;
 }
 
-/* Parameterize a type. Re-use an existing parameterization of there is one that
+/* Parameterize a type. Re-use an existing parameterization if there is one that
  * matches. Otherwise, run the parameterization creator. */
 typedef struct {
     MVMObject   *parametric_type;
