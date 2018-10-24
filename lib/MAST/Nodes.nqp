@@ -279,8 +279,12 @@ class MAST::CompUnit is MAST::Node {
     }
 
     method add_strings(@strings) {
+        my $i := 1;
+        my $elems := $!writer.string-heap.elems;
         for @strings {
-            $!writer.add-string($_ || '');
+            if ++$i > $elems {
+                $!writer.add-string($_);
+            }
         }
     }
 

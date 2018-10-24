@@ -1388,6 +1388,8 @@ MVMObject * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     MVMSerializationWriter *writer;
     MVMObject *result   = NULL;
     MVMint32   sc_elems = (MVMint32)sc->body->num_objects;
+    MVMint64 i = 0;
+    MVMint64 seed_strings = MVM_repr_elems(tc, empty_string_heap);
 
     /* We don't sufficiently root things in here for the GC, so enforce gen2
      * allocation. */
@@ -1401,6 +1403,10 @@ MVMObject * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     writer->root.string_heap    = empty_string_heap;
     writer->root.dependent_scs  = MVM_calloc(1, sizeof(MVMSerializationContext *));
     writer->seen_strings        = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+
+    for (i = 0; i < seed_strings; i++) {
+        MVM_repr_bind_key_int(tc, writer->seen_strings, MVM_repr_at_pos_s(tc, empty_string_heap, i), i + 1);
+    }
 
     /* Allocate initial memory space for storing serialized tables and data. */
     writer->dependencies_table_alloc = DEP_TABLE_ENTRY_SIZE * 4;
@@ -1423,7 +1429,7 @@ MVMObject * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     writer->root.param_interns_data  = (char *)MVM_calloc(1, writer->param_interns_data_alloc);
 
     /* Initialize MVMString heap so first entry is the NULL MVMString. */
-    MVM_repr_push_s(tc, empty_string_heap, NULL);
+    MVM_repr_unshift_s(tc, empty_string_heap, NULL);
 
     /* Start serializing. */
     serialize(tc, writer);
