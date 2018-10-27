@@ -467,12 +467,13 @@ sub MAIN (Bool:D :$print-modified-files = False, Bool:D :$print-commit = False) 
     for %categories.keys.sort -> $key {
         my $title;
         my @list;
-        if $key eq 'JIT' && !$has-outputted-expr-jit-ops {
+        if $key eq 'JIT' && !$has-outputted-expr-jit-ops && @new-expr-jit-ops {
             $has-outputted-expr-jit-ops = True;
             my $str = "Add " ~ @new-expr-jit-ops.join(", ") ~ " exprjit ops";
             @list.push: $str;
         }
-        @list.append: %categories{$key}.grep({!$_<dropped>}).map({format-output($_, :$print-modified-files, :$print-commit)});
+        my $vo = ViewOptions.new(:!modified-files, :!category, :!subject-origin);
+        @list.append: %categories{$key}.grep({!$_<dropped>}).map({$vo.format-output($_, :$print-modified-files, :$print-commit)});
         # $print-modified-files is used to print out the files modified at the end of the line
         $title = $key;
         say "\n$title:";
