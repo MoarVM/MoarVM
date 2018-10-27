@@ -1,6 +1,68 @@
 See https://github.com/MoarVM/MoarVM/wiki/ChangeLog-Draft for the draft changelog
 since the previous release.
 
+New in 2018.10
+
+6model:
++ [8501e2e8] Fix off-by-one in multi cache spesh lookup, fixing an issue resolving multi's with named arguments
++ [d66206d0] [ConcBlockingQueue] Implement unshift, enabling queue users to 'jump the line'
++ [a7fa9e6b] save 16 bytes in MVMStaticFrameBody by rearranging struct order
++ [c3527467] Lower unbox of P6[int|num|str]
++ [429139ed,c3527467] Box lowering for P6[int|num|str] to improve NQP performance
++ [0c7483b3] Lower box_[ns] with P6opaque removing C call, indirections and checks
+
+Core:
++ [5e1b2554] Optimize bool_I to sp_bool_I
++ [49f1c7bd] Lower add_I, sub_I, and mul_I where possible
++ [663fa2ca] Mark [sp_]speshresolve as :invokish
+
+Docs:
++ [fcceaabf] Update JIT docs to include new ops
+
+GC:
++ [9e90cdd6] Don't set ref'd from gen2 flag during GC
++ [2b09f6ec] Immediately promote objects ref'd from gen2 to speed up the usage of large or long lived data structures
+
+IO:
++ [e1eb9af3] Implement async socket introspection functions
++ [a5dd7652] Remove per-thread libuv loop object, which was being used but unneeded
+
+JIT:
++ [32a47383] Fix bug causing sleep op to receive bogus values. Was visible in Rakudo when ThreadPoolSchedular was in use, causing high cpu usage even when doing nothing
++ [95d22798] Update jit-bisect.pl work in the new Spesh log
++ [58e5161e] Fix legacy JIT of strfromname
++ [8c2dd3ad] Be more silent about internal failures
++ [adef0806] Remove MVM_JIT_BYTECODE_DIR and add MVM_JIT_DUMP_BYTECODE which dumps bytecode to /tmp/
++ [80b18871] Remove JIT log file and log to the Spesh log instead
++ [9a1cc175,8c2dd3ad] Make DynASM link errors and JIT unable to get rx pages print to STDERR when Spesh log turned on
++ [0554add8] Implement a perf map file on Linux with new environment variable MVM_JIT_PERF_MAP
+
+Math:
++ [8f6b2ac8] Make big Int stringification 1.58x as fast for Ints larger than 2⁶⁰ (base 10)
++ [ad3a80cb] Fix coredump with mul_I -> div_I ops
+
+Ops:
++ [abb5c69b] Implement fork op
+
+Spesh:
++ [4666ff43] Make heap snapshot profiler functional again
++ [597ccb09] Pass on type tuple when inlining unspecialized
++ [1500090a] Optimize ifnonnull branches out if we can determine which way they branch
++ [5103e9f8] Simplify/improve optimization of decont
++ [196fa224] Optimize eqaddr into a constant if possible
++ [b2d27cbe] Tear down spesh worker in full_cleanup
++ [8aaf696a] Fix SSA handling of inlinees with multiple return
++ [7ae914b6] Fix and tidy up hllbool specializations
++ [ab2d58eb] Add MVM_spesh_graph_add_comment() allowing to insert arbitrary strings into spesh log
++ [50c76e21] Subtract nested inlinees when checking inline size
++ [6147e0e5] Clear up and start improving box optimization
++ [7f0d5327] Fix spesh dump for when inline entirely vanishes
++ [a4b4d837] Optimize "hot" wval lookup into spesh slot access
+
+Strings:
++ [95d7e63c] Update Unicode Collation data to UCA 11.0
++ [41425c81] Update Unicode data to version 11.0, update grapheme break rules for 11.0 changes
+
 New in 2018.09
 
 Core:
