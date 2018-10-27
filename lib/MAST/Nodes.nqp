@@ -78,6 +78,9 @@ class MAST::Bytecode is repr('VMArray') is array_type(uint8) {
     method write_buf(@buf) {
         nqp::splice(self, @buf, nqp::elems(self), 0);
     }
+    method write_buf_at(@buf, $offset) {
+        nqp::splice(self, @buf, $offset, 0);
+    }
     method dump() {
         note(nqp::elems(self) ~ " bytes");
         for self {
@@ -662,9 +665,9 @@ class MoarVM::Handler {
     method set_label_reg($l) { $!label_reg := $l }
     method local()           { $!local }
     method set_local($l)     { $!local := $l }
-    method add-offset(int32 $offset) {
-        $!start_offset := $!start_offset + $offset;
-        $!end_offset := $!end_offset + $offset;
+    method add-offset(int32 $offset, int32 $after) {
+        $!start_offset := $!start_offset + $offset if $!start_offset >= $after;
+        $!end_offset := $!end_offset + $offset if $!end_offset >= $after;
     }
 }
 
@@ -732,53 +735,128 @@ class MAST::Frame is MAST::Node {
     has uint32 $!bytecode-offset;
     has %!labels;
     has %!label-fixups;
-    has @!child-label-fixups;
     has @!lexical_names_idxs;
     has $!annotations;
-    has $!annotations-offset;
+    has int32 $!annotations-offset;
     has $!num-annotations;
     has @!handlers;
-    has $!saved-bytecode;
-    has $!saved-annotations-offset;
+    has @!buffer-stack;
+    has @!child-label-fixups;
 
-    method start_prologue() {
-        if !nqp::isnull($!saved-bytecode) {
-            nqp::die("Nested start_prologue detected!");
+    class SubBuffer {
+        has $!bytecode;
+        has int32 $!annotations-offset;
+        has int32 $!annotations-end;
+        has %!labels;
+        has @!label-fixups;
+        has @!handlers;
+        method new($bytecode, int32 $annotations-offset, %labels, @label-fixups, @handlers) {
+            my $obj := nqp::create(self);
+            $obj.BUILD($bytecode, $annotations-offset, %labels, @label-fixups, @handlers);
+            $obj
         }
-        $!saved-bytecode := $!bytecode;
-        $!bytecode := nqp::create(MAST::Bytecode);
-        nqp::setelems($!bytecode, $initial_bytecode_size);
-        nqp::setelems($!bytecode, 0);
-        $!saved-annotations-offset := nqp::elems($!annotations);
+        method BUILD($bytecode, int32 $annotations-offset, %labels, @label-fixups, @handlers) {
+            $!bytecode           := $bytecode;
+            $!annotations-offset := $annotations-offset;
+            %!labels             := %labels;
+            @!label-fixups       := @label-fixups;
+            @!handlers           := @handlers;
+        }
+        method bytecode() { $!bytecode }
+        method annotations-offset() { $!annotations-offset }
+        method annotations-end() { $!annotations-end }
+        method label-fixups() { @!label-fixups }
+        method labels() { %!labels }
+        method handlers() { @!handlers }
+        method end-annotations(int32 $offset) { $!annotations-end := $offset };
     }
 
-    method end_prologue() {
-        my int32 $offset := nqp::elems($!bytecode);
-        for @!child-label-fixups -> int32 $at{
-            my int32 $pos := $!saved-bytecode.read_uint32_at($at);
-            $pos := $pos + $offset;
-            $!saved-bytecode.write_uint32_at($pos, $at);
+    method start_subbuffer() {
+        nqp::push(@!buffer-stack, SubBuffer.new(
+            $!bytecode := nqp::create(MAST::Bytecode),
+            $!annotations-offset := nqp::elems($!annotations),
+            %!labels := nqp::hash,
+            @!child-label-fixups := nqp::list_i,
+            @!handlers := nqp::list,
+        ));
+
+        nqp::setelems($!bytecode, $initial_bytecode_size);
+        nqp::setelems($!bytecode, 0);
+    }
+
+    method end_subbuffer() {
+        my $subbuffer := nqp::pop(@!buffer-stack);
+        my $current := @!buffer-stack[nqp::elems(@!buffer-stack) - 1];
+        $!bytecode := $current.bytecode;
+        @!child-label-fixups := $current.label-fixups;
+        %!labels := $current.labels;
+        $!annotations-offset := $current.annotations-offset;
+        @!handlers := $current.handlers;
+        $subbuffer.end-annotations(nqp::elems($!annotations));
+        $subbuffer
+    }
+
+    method insert_bytecode($subbuffer, int32 $insert_offset) {
+        my $subbytecode := $subbuffer.bytecode;
+        my int32 $offset := nqp::elems($subbytecode);
+        # if there's a label at $insert_offset and there's already an instruction, we assume
+        # that we need to move the label with the instruction. If there's just a label but
+        # no instruction yet, we assume the label was meant for the inserted instruction.
+        my int $include_pos := ($insert_offset < nqp::elems($!bytecode));
+
+        for @!child-label-fixups -> int32 $at {
+            my int32 $pos := $!bytecode.read_uint32_at($at);
+            if $include_pos ?? $pos >= $insert_offset !! $pos > $insert_offset {
+                $pos := $pos + $offset;
+                $!bytecode.write_uint32_at($pos, $at);
+            }
         }
-        @!child-label-fixups := nqp::list_i;
-        $!bytecode.write_buf($!saved-bytecode);
-        $!saved-bytecode := nqp::null();
+        for $subbuffer.label-fixups -> int32 $at {
+            my int32 $pos := $subbytecode.read_uint32_at($at);
+            $pos := $pos + $insert_offset;
+            $subbytecode.write_uint32_at($pos, $at);
+            nqp::push_i(@!child-label-fixups, $at + $insert_offset); # for nested subbuffers
+        }
         for %!labels {
             my int32 $pos := nqp::iterval($_);
-            $pos := $pos + $offset;
-            %!labels{nqp::iterkey_s($_)} := $pos;
+            if $include_pos ?? $pos >= $insert_offset !! $pos > $insert_offset {
+                $pos := $pos + $offset;
+                %!labels{nqp::iterkey_s($_)} := $pos;
+            }
         }
         for @!handlers {
-            $_.add-offset($offset);
+            $_.add-offset($offset, $insert_offset);
         }
-        my int32 $at := 0;
-        my int32 $end := $!saved-annotations-offset;
+        my int32 $at := $!annotations-offset;
+        my int32 $end := $subbuffer.annotations-offset;
         my int32 $ann-size := 3 * 4;
         while $at < $end {
             my int32 $pos := $!annotations.read_uint32_at($at);
-            $pos := $pos + $offset;
-            $!annotations.write_uint32_at($pos, $at);
+            if $pos >= $insert_offset {
+                $pos := $pos + $offset;
+                $!annotations.write_uint32_at($pos, $at);
+            }
             $at := $at + $ann-size;
         }
+
+        if $insert_offset > 0 {
+            for $subbuffer.labels {
+                %!labels{nqp::iterkey_s($_)} := nqp::iterval($_) + $insert_offset;
+            }
+            for $subbuffer.handlers {
+                $_.add-offset($insert_offset, 0);
+                nqp::push(@!handlers, $_);
+            }
+            $end := $subbuffer.annotations-end;
+            while $at < $end {
+                my int32 $pos := $!annotations.read_uint32_at($at);
+                $pos := $pos + $insert_offset;
+                $!annotations.write_uint32_at($pos, $at);
+                $at := $at + $ann-size;
+            }
+        }
+
+        $!bytecode.write_buf_at($subbytecode, $insert_offset);
     }
 
     my int $cuuid_src := 0;
@@ -816,12 +894,13 @@ class MAST::Frame is MAST::Node {
         %!labels             := nqp::hash;
         %!label-fixups       := nqp::hash;
         @!lexical_names_idxs := nqp::list;
-        $!saved-bytecode     := nqp::null;
+        @!buffer-stack       := nqp::list;
         @!child-label-fixups := nqp::list_i;
         nqp::setelems($!bytecode, $initial_bytecode_size);
         nqp::setelems($!bytecode, 0);
         nqp::setelems($!annotations, $initial_annotations_size);
         nqp::setelems($!annotations, 0);
+        nqp::push(@!buffer-stack, SubBuffer.new($!bytecode, 0, %!labels, @!child-label-fixups, @!handlers));
     }
 
     method prepare() {
@@ -1021,9 +1100,7 @@ class MAST::Frame is MAST::Node {
     method compile_label($bytecode, $arg) {
         my $key := nqp::objectid($arg);
         my %labels := self.labels;
-        if nqp::isnull($!saved-bytecode) {
-            nqp::push_i(@!child-label-fixups, nqp::elems($!bytecode));
-        }
+        nqp::push_i(@!child-label-fixups, nqp::elems($!bytecode));
         if nqp::existskey(%labels, $key) {
             $bytecode.write_uint32(%labels{$key});
         }
