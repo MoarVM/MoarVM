@@ -61,10 +61,7 @@ class MAST::Bytecode is repr('VMArray') is array_type(uint8) {
         nqp::writeuint(self, nqp::elems(self), $i, 6);
     }
     method read_uint32_at(uint32 $pos) {
-          nqp::bitshiftl_i(nqp::atpos_i(self, $pos + 3), 24)
-        + nqp::bitshiftl_i(nqp::atpos_i(self, $pos + 2), 16)
-        + nqp::bitshiftl_i(nqp::atpos_i(self, $pos + 1), 8)
-        + nqp::atpos_i(self, $pos)
+        nqp::readuint(self, $pos, 4)
     }
     method write_uint32_at(uint32 $i, uint32 $pos) {
         nqp::writeuint(self, $pos, $i, 4);
