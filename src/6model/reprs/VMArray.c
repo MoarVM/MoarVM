@@ -890,6 +890,20 @@ static void write_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
     memcpy(body->slots.u8 + (start + offset) * repr_data->elem_size, from, count);
 }
 
+MVMint64 read_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 offset, MVMuint64 count) {
+    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
+    MVMArrayBody     *body      = (MVMArrayBody *)data;
+    MVMint64 start = body->start;
+    MVMint64 result;
+
+    if (offset < 0 || start + body->elems < offset + count) {
+        MVM_exception_throw_adhoc(tc, "MVMArray: read_buf out of bounds offset %lld start %lld elems %lld count %lld", offset, start, body->elems, count);
+    }
+
+    memcpy(&result, body->slots.u8 + (start + offset) * repr_data->elem_size, count);
+    return result;
+}
+
 /* This whole splice optimization can be optimized for the case we have two
  * MVMArray representation objects. */
 static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *from, MVMint64 offset, MVMuint64 count) {
@@ -1410,7 +1424,8 @@ static const MVMREPROps VMArray_this_repr = {
         get_elem_storage_spec,
         pos_as_atomic,
         pos_as_atomic_multidim,
-        write_buf
+        write_buf,
+        read_buf
     },    /* pos_funcs */
     MVM_REPR_DEFAULT_ASS_FUNCS,
     elems,

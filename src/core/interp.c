@@ -5443,6 +5443,26 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             }
+            OP(readint):
+            OP(readuint): {
+                MVMObject*    const buf   = GET_REG(cur_op, 2).o;
+                MVMuint64     const off   = (MVMuint64)GET_REG(cur_op, 4).i64;
+                MVMuint64     const flags = (MVMuint64)GET_REG(cur_op, 6).i64;
+                unsigned char const size  = 1 << (flags >> 1);
+                GET_REG(cur_op, 0).i64 = REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf), off, size);
+                MVM_SC_WB_OBJ(tc, buf);
+                cur_op += 8;
+                goto NEXT;
+            }
+            OP(readnum): {
+                MVMObject*    const buf   = GET_REG(cur_op, 2).o;
+                MVMuint64     const off   = (MVMuint64)GET_REG(cur_op, 4).i64;
+                MVMuint64     const flags = (MVMuint64)GET_REG(cur_op, 6).i64;
+                GET_REG(cur_op, 0).n64 = REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf), off, 8);
+                MVM_SC_WB_OBJ(tc, buf);
+                cur_op += 8;
+                goto NEXT;
+            }
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;

@@ -544,6 +544,9 @@ struct MVMREPROps_Positional {
     void (*write_buf) (MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, char *from,
         MVMint64 offset, MVMuint64 elems);
+
+    MVMint64 (*read_buf) (MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMint64 offset, MVMuint64 elems);
 };
 struct MVMREPROps_Associative {
     /* Gets the value at the specified key and places it in the passed
