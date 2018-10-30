@@ -251,6 +251,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 checkarity_bb  = bb;
                 break;
             case MVM_OP_param_rp_i:
+            case MVM_OP_param_rp_u:
             case MVM_OP_param_rp_n:
             case MVM_OP_param_rp_s:
             case MVM_OP_param_rp_o: {
@@ -267,6 +268,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 break;
             }
             case MVM_OP_param_op_i:
+            case MVM_OP_param_op_u:
             case MVM_OP_param_op_n:
             case MVM_OP_param_op_s:
             case MVM_OP_param_op_o: {
@@ -285,10 +287,12 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 break;
             }
             case MVM_OP_param_on_i:
+            case MVM_OP_param_on_u:
             case MVM_OP_param_on_n:
             case MVM_OP_param_on_s:
             case MVM_OP_param_on_o:
             case MVM_OP_param_rn_i:
+            case MVM_OP_param_rn_u:
             case MVM_OP_param_rn_n:
             case MVM_OP_param_rn_s:
             case MVM_OP_param_rn_o:
@@ -323,10 +327,6 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
             case MVM_OP_param_on2_n:
             case MVM_OP_param_on2_s:
             case MVM_OP_param_on2_o:
-            case MVM_OP_param_rp_u:
-            case MVM_OP_param_op_u:
-            case MVM_OP_param_rn_u:
-            case MVM_OP_param_on_u:
             case MVM_OP_param_rn2_u:
             case MVM_OP_param_on2_u:
                 /* Don't understand how to specialize these yet. */
@@ -365,6 +365,14 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                             prim_spec(tc, type_tuple, i) != MVM_STORAGE_SPEC_BP_INT)
                         goto cleanup;
                 break;
+            case MVM_OP_param_rp_u:
+            case MVM_OP_param_op_u:
+                if (arg_flag != MVM_CALLSITE_ARG_INT)
+                    if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
+                            prim_spec(tc, type_tuple, i) != MVM_STORAGE_SPEC_BP_INT) {
+                        goto cleanup;
+                    }
+                break;
             case MVM_OP_param_rp_n:
             case MVM_OP_param_op_n:
                 if (arg_flag != MVM_CALLSITE_ARG_NUM)
@@ -398,8 +406,21 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
         for (i = 0; i < cs->num_pos; i++) {
             MVMCallsiteEntry arg_flag = cs->arg_flags[i];
             switch (pos_ins[i]->info->opcode) {
+                /* FIXME add support for param_rp_u here */
             case MVM_OP_param_rp_i:
             case MVM_OP_param_op_i:
+                if (arg_flag == MVM_CALLSITE_ARG_INT) {
+                    pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
+                }
+                else {
+                    pos_unbox(tc, g, pos_bb[i], pos_ins[i], MVM_op_get_op(MVM_OP_unbox_i));
+                    pos_added[i]++;
+                    if (type_tuple && type_tuple[i].type)
+                        add_facts(tc, g, i, type_tuple[i], pos_ins[i]);
+                }
+                break;
+            case MVM_OP_param_rp_u:
+            case MVM_OP_param_op_u:
                 if (arg_flag == MVM_CALLSITE_ARG_INT) {
                     pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
                 }
