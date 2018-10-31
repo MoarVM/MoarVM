@@ -299,9 +299,13 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 }
                 else if (!(new_addr->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
                     MVMObject *new_obj_addr = (MVMObject *)new_addr;
-                    if (REPR(new_obj_addr)->unmanaged_size)
-                        tc->gc_promoted_bytes += REPR(new_obj_addr)->unmanaged_size(tc,
+                    if (REPR(new_obj_addr)->unmanaged_size) {
+                        MVMuint64 unmanaged_size =  REPR(new_obj_addr)->unmanaged_size(tc,
                             STABLE(new_obj_addr), OBJECT_BODY(new_obj_addr));
+                        tc->gc_promoted_bytes += unmanaged_size;
+                        if (tc->instance->profiling)
+                            MVM_profiler_log_unmanaged_data_promoted(tc, unmanaged_size);
+                    }
                 }
 
                 /* If we're going to sweep the second generation, also need

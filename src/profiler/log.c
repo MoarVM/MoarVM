@@ -292,6 +292,9 @@ void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full, MVMuint32 t
         ptd->alloc_gcs += 16;
         ptd->gcs = MVM_realloc(ptd->gcs, ptd->alloc_gcs * sizeof(MVMProfileGC));
     }
+
+    ptd->gc_promoted_unmanaged_bytes = 0;
+
     gc = &ptd->gcs[ptd->num_gcs];
     gc->full          = full;
     gc->cleared_bytes = (char *)tc->nursery_alloc -
@@ -318,11 +321,13 @@ void MVM_profiler_log_gc_end(MVMThreadContext *tc) {
 
     /* Record retained and promoted bytes. */
     retained_bytes = (char *)tc->nursery_alloc - (char *)tc->nursery_tospace;
-    ptd->gcs[ptd->num_gcs].promoted_bytes = tc->gc_promoted_bytes;
+    ptd->gcs[ptd->num_gcs].promoted_bytes = tc->gc_promoted_bytes - ptd->gc_promoted_unmanaged_bytes;
+    ptd->gcs[ptd->num_gcs].promoted_unmanaged_bytes = ptd->gc_promoted_unmanaged_bytes;
+
     ptd->gcs[ptd->num_gcs].retained_bytes = retained_bytes;
 
     /* Tweak cleared bytes count. */
-    ptd->gcs[ptd->num_gcs].cleared_bytes -= (retained_bytes + tc->gc_promoted_bytes);
+    ptd->gcs[ptd->num_gcs].cleared_bytes -= (retained_bytes + tc->gc_promoted_bytes - ptd->gc_promoted_unmanaged_bytes);
 
     /* Record number of gen 2 roots (from gen2 to nursery) */
     ptd->gcs[ptd->num_gcs].num_gen2roots = tc->num_gen2roots;
@@ -335,6 +340,12 @@ void MVM_profiler_log_gc_end(MVMThreadContext *tc) {
         pcn->cur_skip_time += gc_time;
         pcn = pcn->pred;
     }
+}
+
+void MVM_profiler_log_unmanaged_data_promoted(MVMThreadContext *tc, MVMuint64 amount) {
+    MVMProfileThreadData *ptd = get_thread_data(tc);
+
+    ptd->gc_promoted_unmanaged_bytes += amount;
 }
 
 /* Log that we're starting some work on bytecode specialization or JIT. */

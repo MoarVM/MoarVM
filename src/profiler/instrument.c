@@ -332,6 +332,7 @@ typedef struct {
     MVMString *cleared_bytes;
     MVMString *retained_bytes;
     MVMString *promoted_bytes;
+    MVMString *promoted_bytes_unmanaged;
     MVMString *gen2_roots;
     MVMString *start_time;
     MVMString *first_entry_time;
@@ -584,6 +585,8 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
             box_i(tc, ptd->gcs[i].retained_bytes));
         MVM_repr_bind_key_o(tc, gc_hash, pds->promoted_bytes,
             box_i(tc, ptd->gcs[i].promoted_bytes));
+        MVM_repr_bind_key_o(tc, gc_hash, pds->promoted_bytes_unmanaged,
+            box_i(tc, ptd->gcs[i].promoted_unmanaged_bytes));
         MVM_repr_bind_key_o(tc, gc_hash, pds->gen2_roots,
             box_i(tc, ptd->gcs[i].num_gen2roots));
         MVM_repr_bind_key_o(tc, gc_hash, pds->start_time,
@@ -661,6 +664,8 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
 
         pds.has_unmanaged_data = str(tc, "has_unmanaged_data");
         pds.repr               = str(tc, "repr");
+
+        pds.promoted_bytes_unmanaged  = str(tc, "promoted_bytes_unmanaged");
 
         types_array = new_array(tc);
 

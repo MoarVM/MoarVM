@@ -29,6 +29,11 @@ struct MVMProfileThreadData {
     /* Current GC start time, if any. */
     MVMuint64 cur_gc_start_time;
 
+    /* We would like to split "promoted bytes" into managed and
+     * unmanaged, so that subtracting it from the nursery size
+     * doesn't give us negative values. */
+    MVMuint64 gc_promoted_unmanaged_bytes;
+
     /* We have to make sure to not count the newest allocation infinitely
      * often if there's a conditionally-allocating operation (like getlex)
      * that gets called multiple times with no actual allocations in between */
@@ -62,6 +67,8 @@ struct MVMProfileGC {
     MVMuint32 cleared_bytes;
     MVMuint32 retained_bytes;
     MVMuint32 promoted_bytes;
+
+    MVMuint64 promoted_unmanaged_bytes;
 
     /* Inter-generation links count */
     MVMuint32 num_gen2roots;
@@ -177,6 +184,7 @@ void MVM_profile_log_thread_created(MVMThreadContext *tc, MVMThreadContext *chil
 void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj);
 void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full, MVMuint32 this_thread_responsible);
 void MVM_profiler_log_gc_end(MVMThreadContext *tc);
+void MVM_profiler_log_unmanaged_data_promoted(MVMThreadContext *tc, MVMuint64 amount);
 void MVM_profiler_log_spesh_start(MVMThreadContext *tc);
 void MVM_profiler_log_spesh_end(MVMThreadContext *tc);
 void MVM_profiler_log_osr(MVMThreadContext *tc, MVMuint64 jitted);
