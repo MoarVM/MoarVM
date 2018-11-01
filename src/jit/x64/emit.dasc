@@ -1148,7 +1148,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             break;
         case MVM_OP_brshift_i:
             | mov cl, byte WORK[reg_c];
-            | shr rax, cl;
+            | sar rax, cl;
             break;
         }
         | mov WORK[reg_a], rax;
