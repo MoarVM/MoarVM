@@ -802,6 +802,14 @@
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
 
+(template: unbox_u
+  (call (^getf (^repr $1) MVMREPROps box_funcs.get_uint)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $1) ptr)
+      (carg $1 ptr)
+      (carg (^body $1) ptr)) int_sz))
+
 (template: atpos_i!
   (callv (^getf (^repr $1) MVMREPROps pos_funcs.at_pos)
     (arglist
