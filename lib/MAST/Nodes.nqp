@@ -403,7 +403,7 @@ class MAST::Op is MAST::Node {
     my %generators := MAST::Ops.WHO<%generators>;
 
     method new(str :$op!, *@operands) {
-        self.new_with_operand_array(@operands, :$op)
+        %generators{$op}(|@operands)
     }
 
     method new_with_operand_array(@operands, str :$op!) {
