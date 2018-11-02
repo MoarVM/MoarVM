@@ -279,8 +279,8 @@ class MAST::CompUnit is MAST::Node {
     }
 
     method add_strings(@strings) {
-        my $i := 1;
-        my $elems := $!writer.string-heap.elems;
+        my int $i := 1;
+        my int $elems := nqp::unbox_i($!writer.string-heap.elems);
         for @strings {
             if ++$i > $elems {
                 $!writer.add-string($_);
