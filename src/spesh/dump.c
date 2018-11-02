@@ -514,6 +514,9 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
                 if (g->facts[i][j].writer && g->facts[i][j].writer->info->opcode == MVM_SSA_PHI) {
                     appendf(ds, " (merged from %d regs)", g->facts[i][j].writer->info->num_operands - 1);
                 }
+                if (flags & 1) {
+                    appendf(ds, " (type: %s)", MVM_6model_get_debug_name(tc, g->facts[i][j].type));
+                }
             }
             else {
                 appendf(ds, "    r%d(%d): usages=%d%s", i, j,
