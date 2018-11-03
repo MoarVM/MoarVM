@@ -43,6 +43,14 @@ my int $MVM_operand_uint16      := ($MVM_reg_uint16 * 8);
 my int $MVM_operand_uint32      := ($MVM_reg_uint32 * 8);
 my int $MVM_operand_uint64      := ($MVM_reg_uint64 * 8);
 
+my uint $op_code_prepargs     := %MAST::Ops::codes<prepargs>;
+my uint $op_code_argconst_s   := %MAST::Ops::codes<argconst_s>;
+my uint $op_code_invoke_v     := %MAST::Ops::codes<invoke_v>;
+my uint $op_code_invoke_i     := %MAST::Ops::codes<invoke_i>;
+my uint $op_code_invoke_n     := %MAST::Ops::codes<invoke_n>;
+my uint $op_code_invoke_s     := %MAST::Ops::codes<invoke_s>;
+my uint $op_code_invoke_o     := %MAST::Ops::codes<invoke_o>;
+
 class MAST::Bytecode is repr('VMArray') is array_type(uint8) {
     method new() {
         nqp::create(self)
@@ -1215,5 +1223,48 @@ class MAST::Frame is MAST::Node {
         my $rw    := $flags +& $MVM_operand_rw_mask;
         my $type  := $flags +& $MVM_operand_type_mask;
         self.compile_operand($!bytecode, $rw, $type, $o);
+    }
+    method compile-simple-call($target, $result) {
+        my uint $callsite-id := self.callsites.get_callsite_id_from_args([], []); #TODO could pre-compute this
+        my uint64 $bytecode_pos := nqp::elems($!bytecode);
+
+        nqp::writeuint($!bytecode, $bytecode_pos, $op_code_prepargs, 2);
+        nqp::writeuint($!bytecode, nqp::add_i($bytecode_pos, 2), $callsite-id, 2);
+        $bytecode_pos := $bytecode_pos + 4;
+
+        if nqp::defined($result) { # We got a return value
+            my @local_types := self.local_types;
+            my uint $index := nqp::unbox_u($result);
+            if $index >= nqp::elems(@local_types) {
+                nqp::die("MAST::Local index out of range");
+            }
+            my int $primspec := nqp::objprimspec(@local_types[$index]);
+            my uint $op_code;
+            if $primspec == 1 {
+                $op_code := $op_code_invoke_i;
+            }
+            elsif $primspec == 2 {
+                $op_code := $op_code_invoke_n;
+            }
+            elsif $primspec == 3 {
+                $op_code := $op_code_invoke_s;
+            }
+            elsif $primspec == 0 { # object
+                $op_code := $op_code_invoke_o;
+            }
+            else {
+                nqp::die('Invalid MAST::Local type ' ~ @local_types[$index] ~ ' for return value ' ~ $index);
+            }
+            nqp::writeuint($!bytecode, $bytecode_pos, $op_code, 2);
+            my uint $res_index := nqp::unbox_u($result);
+            nqp::writeuint($!bytecode, nqp::add_i($bytecode_pos, 2), $res_index, 2);
+            my uint $callee_reg_index := nqp::unbox_u($target);
+            nqp::writeuint($!bytecode, nqp::add_i($bytecode_pos, 4), $callee_reg_index, 2);
+        }
+        else {
+            nqp::writeuint($!bytecode, $bytecode_pos, $op_code_invoke_v, 2);
+            my uint $callee_reg_index := nqp::unbox_u($target);
+            nqp::writeuint($!bytecode, nqp::add_i($bytecode_pos, 2), $callee_reg_index, 2);
+        }
     }
 }
