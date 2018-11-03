@@ -104,8 +104,8 @@ static const MVMREPROps MVMMultiCache_this_repr = {
 
 /* Filters for various parts of action.arg_match. */
 #define MVM_MULTICACHE_ARG_IDX_FILTER  (2 * MVM_INTERN_ARITY_LIMIT - 1)
-#define MVM_MULTICACHE_ARG_CONC_FILTER 0x10
-#define MVM_MULTICACHE_ARG_RW_FILTER   0x20
+#define MVM_MULTICACHE_ARG_CONC_FILTER (2 * MVM_INTERN_ARITY_LIMIT)
+#define MVM_MULTICACHE_ARG_RW_FILTER   (4 * MVM_INTERN_ARITY_LIMIT)
 #define MVM_MULTICACHE_TYPE_ID_FILTER  (0xFFFFFFFFFFFFFFFFULL ^ (MVM_TYPE_CACHE_ID_INCR - 1))
 
 /* Debug support dumps the tree after each addition. */
