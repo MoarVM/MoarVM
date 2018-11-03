@@ -5,12 +5,198 @@
 constant $EXT_BASE = 1024;
 constant $EXT_CU_LIMIT = 1024;
 
+# Figures out the various flags for an operand type.
+grammar OperandFlag {
+    token TOP {
+        | <rw> '(' [ <type> | <type_var> ] ')'
+        | <type>
+        | <special>
+    }
+    token rw       { < rl wl r w > }
+    token type     { < int8 int16 int32 int64 num32 num64 str obj uint8 uint16 uint32 uint64 > }
+    token type_var { '`1' }
+    token special  { < ins lo coderef callsite sslot > }
+}
+
 class Op {
     has $.code;
     has $.name;
     has $.mark;
     has @.operands;
     has %.adverbs;
+    method generator() {
+        my $offset = 2;
+        $.name eq 'const_i64'
+            ??
+    'sub ($op0, int $value) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+        my uint $index := nqp::unbox_u($op0);
+        if -32767 < $value && $value < 32768 {
+            nqp::writeuint($bytecode, $elems, 597, 2);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 2);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 2);
+        }
+        elsif -2147483647 < $value && $value < 2147483647 {
+            nqp::writeuint($bytecode, $elems, 598, 2);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 2);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 4);
+        }
+        else {
+            nqp::writeuint($bytecode, $elems, ' ~ $.code ~ ', 2);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 2);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 6);
+        }
+    }'
+            !!
+    'sub (' ~ @!operands.map({self.generate_arg($_, $++)}).join(', ') ~ ') {
+        ' ~ (self.needs_frame ?? 'my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;' !! 'my $bytecode := $*MAST_FRAME.bytecode;') ~ '
+        my uint $elems := nqp::elems($bytecode);
+        nqp::writeuint($bytecode, $elems, ' ~ $.code ~ ', 2);
+        ' ~ join("\n        ", @!operands.map({self.generate_operand($_, $++, $offset)})) ~ '
+    }'
+    }
+    method needs_frame() {
+        for @!operands -> $operand {
+            if OperandFlag.parse($operand) -> (:$rw, :$type, :$type_var, :$special) {
+                return True if !$rw and (($type // '') eq 'str' or ($special // '') eq 'ins' | 'coderef');
+            }
+        }
+        return False;
+    }
+    method generate_arg($operand, $i) {
+        if OperandFlag.parse($operand) -> (:$rw, :$type, :$type_var, :$special) {
+            if !$rw {
+                if $type {
+                    $type ~ ' $op' ~ $i
+                }
+                elsif ($special // '') eq 'ins' {
+                    '$op' ~ $i
+                }
+                elsif ($special // '') eq 'coderef' {
+                    '$op' ~ $i
+                }
+                elsif ($special // '') eq 'callsite' {
+                    '$op' ~ $i
+                }
+                elsif ($special // '') eq 'sslot' {
+                    '$op' ~ $i
+                }
+                else {
+                    '$op' ~ $i
+                }
+            }
+            elsif $rw eq 'r' || $rw eq 'w' {
+                '$op' ~ $i
+            }
+            elsif $rw eq 'rl' || $rw eq 'wl' {
+                '$op' ~ $i
+            }
+        }
+    }
+    sub writeuint($offset is rw, $size, $var) {
+        my $pos = $offset;
+        $offset += $size;
+        my $flags = $size;
+        $flags = 6 if $size == 8;
+        'nqp::writeuint($bytecode, nqp::add_i($elems, ' ~ $pos ~ '), ' ~ $var ~ ', ' ~ $flags ~ ');'
+    }
+    sub writenum($offset is rw, $var) {
+        my $pos = $offset;
+        $offset += 8;
+        'nqp::writenum($bytecode, nqp::add_i($elems, ' ~ $pos ~ '), ' ~ $var ~ ', 0)'
+    }
+    method generate_operand($operand, $i, $offset is rw) {
+        if OperandFlag.parse($operand) -> (:$rw, :$type, :$type_var, :$special) {
+            if !$rw {
+                if ($type // '') eq 'int64' {
+                    '{my int $value := $op' ~ $i ~ '; ' ~ writeuint($offset, 8, '$value') ~ '}'
+                }
+                elsif ($type // '') eq 'int32' {
+                    '{my int $value := $op' ~ $i ~ ';
+                    if $value < -2147483648 || 2147483647 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    ' ~ writeuint($offset, 8, '$value') ~ '}'
+                }
+                elsif ($type // '') eq 'uint32' {
+                    '{my int $value := $op' ~ $i ~ ';
+                    if $value < 0 || 4294967296 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    ' ~ writeuint($offset, 8, '$value') ~ '}'
+                }
+                elsif ($type // '') eq 'int16' {
+                    '{my int $value := $op' ~ $i ~ ';
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    ' ~ writeuint($offset, 2, '$value') ~ '}'
+                }
+                elsif ($type // '') eq 'int8' {
+                    '{my int $value := $op' ~ $i ~ ';
+                    if $value < -128 || 127 < $value {
+                        nqp::die("Value outside range of 8-bit MAST::IVal");
+                    }
+                    ' ~ writeuint($offset, 2, '$value') ~ '}'
+                }
+                elsif ($type // '') eq 'num64' {
+                    writenum($offset, '$op' ~ $i)
+                }
+                elsif ($type // '') eq 'num32' {
+                    writenum($offset, '$op' ~ $i)
+                }
+                elsif ($type // '') eq 'str' {
+                    'my uint $index' ~ $i ~ ' := $frame.add-string($op' ~ $i ~ '); '
+                    ~ writeuint($offset, 4, '$index' ~ $i);
+                }
+                elsif ($special // '') eq 'ins' {
+                    $offset += 4;
+                    "\$frame.compile_label(\$bytecode, \$op$i);"
+                }
+                elsif ($special // '') eq 'coderef' {
+                    'my uint $index' ~ $i ~ ' := $frame.writer.get_frame_index($op' ~ $i ~ '); '
+                    ~ writeuint($offset, 2, '$index' ~ $i)
+                }
+                elsif ($special // '') eq 'callsite' {
+                }
+                elsif ($special // '') eq 'sslot' {
+                }
+                else {
+                    die "literal operand type $type/$special NYI";
+                }
+            }
+            elsif $rw eq 'r' || $rw eq 'w' {
+#                nqp::die("Expected MAST::Local, but didn't get one. Got a " ~ $arg.HOW.name($arg) ~ " instead")
+#                    unless nqp::istype($arg,MAST::Local);
+#
+#                my @local_types := self.local_types;
+#                if $arg > nqp::elems(@local_types) {
+#                    nqp::die("MAST::Local index out of range");
+#                }
+#                my $local_type := @local_types[$index];
+#                if ($type != nqp::bitshiftl_i(type_to_local_type($local_type), 3) && $type != nqp::const::MVM_OPERAND_TYPE_VAR) {
+#                    nqp::die("MAST::Local of wrong type specified: $type, expected $local_type (" ~ nqp::bitshiftl_i(type_to_local_type($local_type), 3) ~ ")");
+#                }
+                'my uint $index' ~ $i ~ ' := nqp::unbox_u($op' ~ $i ~ '); '
+
+                ~ writeuint($offset, 2, '$index' ~ $i)
+            }
+            elsif $rw eq 'rl' || $rw eq 'wl' {
+                q[nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op] ~ $i ~ q[, MAST::Lexical);]
+                ~ 'my uint $index' ~ $i ~ ' := $op' ~ $i ~ '.index; '
+                ~ 'my uint $frames_out' ~ $i ~ ' := $op' ~ $i ~ '.frames_out; '
+                ~ writeuint($offset, 2, '$index' ~ $i)
+                ~ writeuint($offset, 2, '$frames_out' ~ $i)
+            }
+            else {
+                die("Unknown operand mode $rw cannot be compiled");
+            }
+        }
+        else {
+            die "Cannot parse operand '$operand'";
+        }
+    }
 }
 
 sub MAIN($file = "src/core/oplist") {
@@ -170,6 +356,8 @@ BEGIN {
         join(",\n    ", @ops.map({ "'$_.name()', $_.code()" }))~');
     MAST::Ops.WHO<@names> := nqp::list_s('~
         join(",\n    ", @ops.map({ "'$_.name()'" }))~');
+    MAST::Ops.WHO<%generators> := nqp::hash('~
+        join(",\n    ", @ops.map({ "'$_.name()', $_.generator()" }))~');
 }',
         P6 => '
 unit module MAST::Ops;
@@ -244,18 +432,6 @@ sub opcode_details(@ops) {
     }
 }
 
-# Figures out the various flags for an operand type.
-grammar OperandFlag {
-    token TOP {
-        | <rw> '(' [ <type> | <type_var> ] ')'
-        | <type>
-        | <special>
-    }
-    token rw       { < rl wl r w > }
-    token type     { < int8 int16 int32 int64 num32 num64 str obj uint8 uint16 uint32 uint64 > }
-    token type_var { '`1' }
-    token special  { < ins lo coderef callsite sslot > }
-}
 my %rwflags = (
     r  => 'MVM_operand_read_reg',
     w  => 'MVM_operand_write_reg',

@@ -201,13 +201,13 @@ MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_p
 
     /* If it wasn't found, store it for the future. */
     if (!found) {
-        if (interns->num_by_arity[num_flags] % 8 == 0) {
+        if (interns->num_by_arity[num_flags] % MVM_INTERN_ARITY_LIMIT == 0) {
             if (interns->num_by_arity[num_flags])
                 interns->by_arity[num_flags] = MVM_realloc(
                     interns->by_arity[num_flags],
-                    sizeof(MVMCallsite *) * (interns->num_by_arity[num_flags] + 8));
+                    sizeof(MVMCallsite *) * (interns->num_by_arity[num_flags] + MVM_INTERN_ARITY_LIMIT));
             else
-                interns->by_arity[num_flags] = MVM_malloc(sizeof(MVMCallsite *) * 8);
+                interns->by_arity[num_flags] = MVM_malloc(sizeof(MVMCallsite *) * MVM_INTERN_ARITY_LIMIT);
         }
         interns->by_arity[num_flags][interns->num_by_arity[num_flags]++] = cs;
         cs->is_interned = 1;
