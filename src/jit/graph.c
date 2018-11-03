@@ -110,6 +110,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_return_o: return MVM_args_set_result_obj;
     case MVM_OP_return_n: return MVM_args_set_result_num;
     case MVM_OP_coerce_is: return MVM_coerce_i_s;
+    case MVM_OP_coerce_us: return MVM_coerce_u_s;
     case MVM_OP_coerce_ns: return MVM_coerce_n_s;
     case MVM_OP_coerce_si: return MVM_coerce_s_i;
     case MVM_OP_coerce_sn: return MVM_coerce_s_n;
@@ -2588,6 +2589,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_coerce_ns:
     case MVM_OP_coerce_si:
     case MVM_OP_coerce_is:
+    case MVM_OP_coerce_us:
     case MVM_OP_coerce_In: {
         MVMint16 src = ins->operands[1].reg.orig;
         MVMint16 dst = ins->operands[0].reg.orig;
