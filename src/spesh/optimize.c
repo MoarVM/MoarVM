@@ -236,7 +236,7 @@ static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
  * values, we can resolve it to a 1. If we know the types differ, we can
  * resolve it to a 0. */
 static void optimize_eqaddr(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
-    MVMSpeshFacts *obj_a_facts  = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    MVMSpeshFacts *obj_a_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     MVMSpeshFacts *obj_b_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
     MVMint16 known_result = -1;
     if (obj_a_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE &&
@@ -2456,6 +2456,7 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
     MVMuint32 operand;
     MVMint32 common_flags;
     MVMObject *common_type;
+    MVMObject *common_value;
     MVMObject *common_decont_type;
     MVMSpeshFacts *target_facts = get_facts_direct(tc, g, ins->operands[0]);
     MVMSpeshFacts *cur_operand_facts;
@@ -2469,6 +2470,7 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
     cur_operand_facts = get_facts_direct(tc, g, ins->operands[1]);
     common_flags       = cur_operand_facts->flags;
     common_type        = cur_operand_facts->type;
+    common_value       = cur_operand_facts->value.o;
     common_decont_type = cur_operand_facts->decont_type;
     total_log_guards   = cur_operand_facts->num_log_guards;
 
@@ -2476,6 +2478,7 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
         cur_operand_facts = get_facts_direct(tc, g, ins->operands[operand]);
         common_flags = common_flags & cur_operand_facts->flags;
         common_type = common_type == cur_operand_facts->type && common_type ? common_type : NULL;
+        common_value = common_value == cur_operand_facts->value.o && common_value ? common_value : NULL;
         common_decont_type = common_decont_type == cur_operand_facts->decont_type && common_decont_type
             ? common_decont_type
             : NULL;
@@ -2493,7 +2496,12 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
             }
             /*else fprintf(stderr, "(diverging type) ");*/
         }
-        /*if (common_flags & MVM_SPESH_FACT_KNOWN_VALUE) fprintf(stderr, "value ");*/
+        if (common_flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+            if (common_value) {
+                target_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+                target_facts->value.o = common_value;
+            }
+        }
         if (common_flags & MVM_SPESH_FACT_CONCRETE) {
             /*fprintf(stderr, "concrete ");*/
             target_facts->flags |= MVM_SPESH_FACT_CONCRETE;
