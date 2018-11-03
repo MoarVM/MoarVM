@@ -168,7 +168,7 @@ class Op {
             }
             elsif $rw eq 'r' || $rw eq 'w' {
 #                nqp::die("Expected MAST::Local, but didn't get one. Got a " ~ $arg.HOW.name($arg) ~ " instead")
-#                    unless $arg.isa(MAST::Local);
+#                    unless nqp::istype($arg,MAST::Local);
 #
 #                my @local_types := self.local_types;
 #                if $arg > nqp::elems(@local_types) {
@@ -183,7 +183,7 @@ class Op {
                 ~ writeuint($offset, 2, '$index' ~ $i)
             }
             elsif $rw eq 'rl' || $rw eq 'wl' {
-                q[nqp::die("Expected MAST::Lexical, but didn't get one") unless $op] ~ $i ~ q[.isa(MAST::Lexical);]
+                q[nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op] ~ $i ~ q[, MAST::Lexical);]
                 ~ 'my uint $index' ~ $i ~ ' := $op' ~ $i ~ '.index; '
                 ~ 'my uint $frames_out' ~ $i ~ ' := $op' ~ $i ~ '.frames_out; '
                 ~ writeuint($offset, 2, '$index' ~ $i)
