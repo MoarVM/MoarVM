@@ -6230,13 +6230,13 @@ BEGIN {
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 35, 2);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
-        nqp::die("Expected MAST::Lexical, but didn't get one") unless $op1.isa(MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
     },
     'bindlex', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 36, 2);
-        nqp::die("Expected MAST::Lexical, but didn't get one") unless $op0.isa(MAST::Lexical);my uint $index0 := $op0.index; my uint $frames_out0 := $op0.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 4), $frames_out0, 2);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op0, MAST::Lexical);my uint $index0 := $op0.index; my uint $frames_out0 := $op0.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 4), $frames_out0, 2);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index1, 2);
     },
     'getlex_ni', sub ($op0, str $op1) {
@@ -10870,21 +10870,21 @@ BEGIN {
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 638, 2);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
-        nqp::die("Expected MAST::Lexical, but didn't get one") unless $op1.isa(MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
     },
     'getlexref_n', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 639, 2);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
-        nqp::die("Expected MAST::Lexical, but didn't get one") unless $op1.isa(MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
     },
     'getlexref_s', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 640, 2);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
-        nqp::die("Expected MAST::Lexical, but didn't get one") unless $op1.isa(MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
     },
     'getlexref_ni', sub ($op0, str $op1) {
         my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
@@ -11486,28 +11486,28 @@ BEGIN {
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 711, 2);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
-        nqp::die("Expected MAST::Lexical, but didn't get one") unless $op1.isa(MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
     },
     'getlexref_i16', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 712, 2);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
-        nqp::die("Expected MAST::Lexical, but didn't get one") unless $op1.isa(MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
     },
     'getlexref_i8', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 713, 2);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
-        nqp::die("Expected MAST::Lexical, but didn't get one") unless $op1.isa(MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
     },
     'getlexref_n32', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 714, 2);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
-        nqp::die("Expected MAST::Lexical, but didn't get one") unless $op1.isa(MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
     },
     'box_u', sub ($op0, $op1, $op2) {
         my $bytecode := $*MAST_FRAME.bytecode;
@@ -11592,28 +11592,28 @@ BEGIN {
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 726, 2);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
-        nqp::die("Expected MAST::Lexical, but didn't get one") unless $op1.isa(MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
     },
     'getlexref_u32', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 727, 2);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
-        nqp::die("Expected MAST::Lexical, but didn't get one") unless $op1.isa(MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
     },
     'getlexref_u16', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 728, 2);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
-        nqp::die("Expected MAST::Lexical, but didn't get one") unless $op1.isa(MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
     },
     'getlexref_u8', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 729, 2);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
-        nqp::die("Expected MAST::Lexical, but didn't get one") unless $op1.isa(MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
     },
     'param_rp_u', sub ($op0, int16 $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
@@ -12457,14 +12457,14 @@ BEGIN {
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 831, 2);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
-        nqp::die("Expected MAST::Lexical, but didn't get one") unless $op1.isa(MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
     },
     'sp_getlex_ins', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 832, 2);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
-        nqp::die("Expected MAST::Lexical, but didn't get one") unless $op1.isa(MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
     },
     'sp_getlex_no', sub ($op0, str $op1) {
         my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
