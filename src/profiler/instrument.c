@@ -202,6 +202,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_getattrsref_i:
             case MVM_OP_getattrsref_n:
             case MVM_OP_getattrsref_s:
+            case MVM_OP_nativecallcast:
                 add_allocation_logging(tc, g, bb, ins);
                 break;
             case MVM_OP_nativecallinvoke:
