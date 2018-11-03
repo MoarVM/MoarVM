@@ -801,14 +801,18 @@ class MAST::Frame is MAST::Node {
         # no instruction yet, we assume the label was meant for the inserted instruction.
         my int $include_pos := ($insert_offset < nqp::elems($!bytecode));
 
-        for @!child-label-fixups -> int32 $at {
+        my $iter := nqp::iterator(@!child-label-fixups);
+        while $iter {
+            my int32 $at := nqp::shift_i($iter);
             my int32 $pos := $!bytecode.read_uint32_at($at);
             if $include_pos ?? $pos >= $insert_offset !! $pos > $insert_offset {
                 $pos := $pos + $offset;
                 $!bytecode.write_uint32_at($pos, $at);
             }
         }
-        for $subbuffer.label-fixups -> int32 $at {
+        $iter := nqp::iterator($subbuffer.label-fixups);
+        while $iter {
+            my int32 $at := nqp::shift_i($iter);
             my int32 $pos := $subbytecode.read_uint32_at($at);
             $pos := $pos + $insert_offset;
             $subbytecode.write_uint32_at($pos, $at);
@@ -912,7 +916,7 @@ class MAST::Frame is MAST::Node {
     }
 
     method add_lexical($type, $name) {
-        my $index := +@!lexical_types;
+        my int $index := nqp::elems(@!lexical_types);
         @!lexical_types[$index] := $type;
         @!lexical_names[$index] := $name;
         %!lexical_map{$name} := $index;
@@ -935,7 +939,7 @@ class MAST::Frame is MAST::Node {
     }
 
     method add_local($type) {
-        my $index := +@!local_types;
+        my int $index := nqp::elems(@!local_types);
         @!local_types[$index] := $type;
         $index
     }
@@ -1071,15 +1075,16 @@ class MAST::Frame is MAST::Node {
     }
 
     method add-label(MAST::Label $i) {
-        my $pos := nqp::elems($!bytecode);
-        my $key := nqp::objectid($i);
+        my int $pos := nqp::elems($!bytecode);
+        my int $key := nqp::objectid($i);
         if %!labels{$key} {
             nqp::die("Duplicate label at $pos");
         }
         %!labels{$key} := $pos;
         if nqp::existskey(%!label-fixups, $key) {
-            for %!label-fixups{$key} -> int32 $at {
-                $!bytecode.write_uint32_at($pos, $at);
+            my $iter := nqp::iterator(%!label-fixups{$key});
+            while $iter {
+                $!bytecode.write_uint32_at($pos, nqp::shift_i($iter));
             }
         }
     }
