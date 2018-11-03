@@ -60,10 +60,10 @@ class MAST::Bytecode is repr('VMArray') is array_type(uint8) {
     method write_uint64(uint64 $i) {
         nqp::writeuint(self, nqp::elems(self), $i, 6);
     }
-    method read_uint32_at(uint32 $pos) {
+    method read_uint32_at(uint $pos) {
         nqp::readuint(self, $pos, 4)
     }
-    method write_uint32_at(uint32 $i, uint32 $pos) {
+    method write_uint32_at(uint32 $i, uint $pos) {
         nqp::writeuint(self, $pos, $i, 4);
     }
     method write_uint16(uint16 $i) {
@@ -75,7 +75,7 @@ class MAST::Bytecode is repr('VMArray') is array_type(uint8) {
     method write_buf(@buf) {
         nqp::splice(self, @buf, nqp::elems(self), 0);
     }
-    method write_buf_at(@buf, $offset) {
+    method write_buf_at(@buf, int $offset) {
         nqp::splice(self, @buf, $offset, 0);
     }
     method dump() {
