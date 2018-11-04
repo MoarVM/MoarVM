@@ -443,10 +443,29 @@ static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
     return 0;
 }
 
+static MVMint64 socket_is_tty(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOAsyncUDPSocketData *data   = (MVMIOAsyncUDPSocketData *)h->body.data;
+    uv_handle_t             *handle = (uv_handle_t *)data->handle;
+    return (MVMint64)(handle->type == UV_TTY);
+}
+
+static MVMint64 socket_handle(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOAsyncUDPSocketData *data   = (MVMIOAsyncUDPSocketData *)h->body.data;
+    uv_handle_t             *handle = (uv_handle_t *)data->handle;
+    int        fd;
+    uv_os_fd_t fh;
+
+    uv_fileno(handle, &fh);
+    fd = uv_open_osfhandle(fh);
+    return (MVMint64)fd;
+}
+
 /* IO ops table, populated with functions. */
 static const MVMIOClosable        closable          = { close_socket };
 static const MVMIOAsyncReadable   async_readable    = { read_bytes };
 static const MVMIOAsyncWritableTo async_writable_to = { write_bytes_to };
+static const MVMIOIntrospection   introspection     = { socket_is_tty,
+                                                        socket_handle };
 static const MVMIOOps op_table = {
     &closable,
     NULL,
@@ -458,7 +477,7 @@ static const MVMIOOps op_table = {
     NULL,
     NULL,
     NULL,
-    NULL,
+    &introspection,
     NULL,
     NULL,
     NULL
