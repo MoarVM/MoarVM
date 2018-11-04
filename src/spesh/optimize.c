@@ -977,25 +977,24 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
                 MVMSpeshIns     *new_ins   = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
                 MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
                 MVMSpeshOperand  temp      = MVM_spesh_manipulate_get_temp_reg(tc, g, register_type);
-                MVMSpeshOperand  orig_dst  = ins->operands[0];
 
                 ins->info = MVM_op_get_op(register_type == MVM_reg_num64 ? MVM_OP_unbox_n : MVM_OP_unbox_i);
-                ins->operands[0] = temp;
 
                 if (is_strify)
                     new_ins->info = MVM_op_get_op(register_type == MVM_reg_num64 ? MVM_OP_coerce_ns : MVM_OP_coerce_is);
                 else
                     new_ins->info = MVM_op_get_op(register_type == MVM_reg_num64 ? MVM_OP_set : MVM_OP_coerce_in);
                 new_ins->operands = operands;
-                operands[0] = orig_dst;
+                operands[0] = ins->operands[0];
                 operands[1] = temp;
 
                 /* We can directly "eliminate" a set instruction here. */
                 if (new_ins->info->opcode != MVM_OP_set) {
+                    ins->operands[0] = temp;
                     MVM_spesh_manipulate_insert_ins(tc, bb, ins, new_ins);
                     MVM_spesh_usages_add_by_reg(tc, g, temp, new_ins);
-                } else {
-                    ins->operands[0] = orig_dst;
+                    get_facts_direct(tc, g, temp)->writer = ins;
+                    get_facts_direct(tc, g, operands[0])->writer = new_ins;
                 }
 
                 /* Finally, let's try to optimize the unboxing REPROp. */
