@@ -193,6 +193,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "io/timers.h"
 #include "io/filewatchers.h"
 #include "io/signals.h"
+#include "io/sockopts.h"
 #include "io/asyncsocket.h"
 #include "io/asyncsocketudp.h"
 #include "math/bigintops.h"

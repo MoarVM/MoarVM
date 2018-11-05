@@ -3597,6 +3597,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = tc->instance->stderr_handle;
                 cur_op += 2;
                 goto NEXT;
+            OP(getsockopts):
+                GET_REG(cur_op, 0).o = MVM_io_get_sockopts(tc);
+                cur_op += 2;
+                goto NEXT;
             OP(connect_sk):
                 MVM_io_connect(tc, GET_REG(cur_op, 0).o,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);

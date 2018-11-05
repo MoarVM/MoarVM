@@ -367,6 +367,12 @@ struct MVMInstance {
     /* Flags indicating the signals available on the host system */
     MVMuint64       valid_sigs;
 
+    /* Cache the socket option array */
+    MVMObject      *sockopt_arr;
+
+    /* Flags indicating the socket options available on the host system */
+    MVMuint64       valid_sockopts;
+
     /************************************************************************
      * Caching and interning
      ************************************************************************/

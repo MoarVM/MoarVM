@@ -821,9 +821,105 @@ BEGIN {
     2054,
     2058,
     2062,
+<<<<<<< HEAD
     2066,
     2070,
     2072);
+=======
+<<<<<<< HEAD
+    2066);
+=======
+    2066,
+    2070,
+    2071,
+    2075,
+    2079,
+    2083,
+    2086,
+    2089,
+    2093,
+    2097,
+    2100,
+    2103,
+    2107,
+    2109,
+    2111,
+    2113,
+    2115,
+    2117,
+    2119,
+    2121,
+    2123,
+    2125,
+    2127,
+    2130,
+    2133,
+    2136,
+    2139,
+    2143,
+    2144,
+    2146,
+    2150,
+    2153,
+    2156,
+    2159,
+    2162,
+    2165,
+    2168,
+    2171,
+    2174,
+    2177,
+    2180,
+    2183,
+    2186,
+    2189,
+    2192,
+    2195,
+    2198,
+    2201,
+    2205,
+    2209,
+    2212,
+    2215,
+    2218,
+    2221,
+    2224,
+    2227,
+    2230,
+    2233,
+    2238,
+    2243,
+    2249,
+    2255,
+    2258,
+    2261,
+    2264,
+    2267,
+    2271,
+    2275,
+    2278,
+    2281,
+    2282,
+    2284,
+    2286,
+    2288,
+    2292,
+    2294,
+    2296,
+    2303,
+    2310,
+    2317,
+    2320,
+    2320,
+    2320,
+    2321,
+    2322,
+    2322,
+    2323,
+    2325,
+    2329);
+>>>>>>> Implement getsockopts op
+>>>>>>> Implement getsockopts op
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     2,
     2,
@@ -1642,9 +1738,105 @@ BEGIN {
     4,
     4,
     4,
+<<<<<<< HEAD
     4,
     2,
     1);
+=======
+<<<<<<< HEAD
+    4);
+=======
+    4,
+    1,
+    4,
+    4,
+    4,
+    3,
+    3,
+    4,
+    4,
+    3,
+    3,
+    4,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    3,
+    3,
+    3,
+    3,
+    4,
+    1,
+    2,
+    4,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    4,
+    4,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    5,
+    5,
+    6,
+    6,
+    3,
+    3,
+    3,
+    3,
+    4,
+    4,
+    3,
+    3,
+    1,
+    2,
+    2,
+    2,
+    4,
+    2,
+    2,
+    7,
+    7,
+    7,
+    3,
+    0,
+    0,
+    1,
+    1,
+    0,
+    1,
+    2,
+    4,
+    2);
+>>>>>>> Implement getsockopts op
+>>>>>>> Implement getsockopts op
     MAST::Ops.WHO<@values> := nqp::list_i(10,
     8,
     18,
@@ -3714,10 +3906,279 @@ BEGIN {
     50,
     65,
     161,
+<<<<<<< HEAD
     161,
     34,
     65,
     66);
+=======
+<<<<<<< HEAD
+    161);
+=======
+    161,
+    66,
+    66,
+    65,
+    128,
+    152,
+    66,
+    65,
+    128,
+    152,
+    66,
+    65,
+    128,
+    152,
+    65,
+    128,
+    152,
+    65,
+    128,
+    152,
+    66,
+    65,
+    128,
+    152,
+    66,
+    65,
+    128,
+    152,
+    66,
+    65,
+    152,
+    66,
+    65,
+    152,
+    66,
+    65,
+    65,
+    152,
+    66,
+    65,
+    66,
+    65,
+    66,
+    67,
+    82,
+    83,
+    66,
+    56,
+    66,
+    16,
+    66,
+    16,
+    66,
+    16,
+    66,
+    16,
+    65,
+    16,
+    34,
+    65,
+    16,
+    50,
+    65,
+    16,
+    58,
+    65,
+    16,
+    66,
+    65,
+    16,
+    66,
+    56,
+    152,
+    128,
+    128,
+    66,
+    128,
+    66,
+    65,
+    56,
+    128,
+    66,
+    16,
+    128,
+    66,
+    65,
+    16,
+    34,
+    65,
+    16,
+    34,
+    65,
+    16,
+    34,
+    65,
+    16,
+    34,
+    65,
+    16,
+    50,
+    65,
+    16,
+    58,
+    65,
+    16,
+    65,
+    16,
+    65,
+    65,
+    16,
+    33,
+    65,
+    16,
+    33,
+    65,
+    16,
+    33,
+    65,
+    16,
+    33,
+    65,
+    16,
+    49,
+    65,
+    16,
+    57,
+    65,
+    16,
+    57,
+    66,
+    65,
+    16,
+    66,
+    65,
+    16,
+    128,
+    66,
+    65,
+    16,
+    128,
+    34,
+    65,
+    16,
+    50,
+    65,
+    16,
+    58,
+    65,
+    16,
+    34,
+    65,
+    16,
+    65,
+    16,
+    65,
+    65,
+    16,
+    33,
+    65,
+    16,
+    49,
+    65,
+    16,
+    57,
+    66,
+    16,
+    128,
+    16,
+    33,
+    66,
+    16,
+    128,
+    16,
+    33,
+    66,
+    16,
+    128,
+    16,
+    33,
+    16,
+    66,
+    16,
+    128,
+    16,
+    33,
+    16,
+    34,
+    65,
+    16,
+    50,
+    65,
+    16,
+    65,
+    33,
+    16,
+    65,
+    49,
+    16,
+    66,
+    16,
+    16,
+    65,
+    82,
+    16,
+    16,
+    65,
+    58,
+    128,
+    24,
+    66,
+    128,
+    32,
+    66,
+    34,
+    65,
+    34,
+    65,
+    34,
+    65,
+    66,
+    65,
+    65,
+    65,
+    66,
+    65,
+    65,
+    65,
+    66,
+    16,
+    128,
+    65,
+    65,
+    16,
+    16,
+    66,
+    16,
+    128,
+    65,
+    65,
+    16,
+    16,
+    66,
+    16,
+    128,
+    65,
+    65,
+    16,
+    16,
+    34,
+    65,
+    16,
+    128,
+    65,
+    65,
+    65,
+    16,
+    56,
+    24,
+    24,
+    32,
+    24,
+    24);
+>>>>>>> Implement getsockopts op
+>>>>>>> Implement getsockopts op
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'const_i8', 1,
     'const_i16', 2,
@@ -4536,9 +4997,105 @@ BEGIN {
     'serializetobuf', 815,
     'readint', 816,
     'readuint', 817,
+<<<<<<< HEAD
     'readnum', 818,
     'smrt_intify', 819,
     'uname', 820);
+=======
+<<<<<<< HEAD
+    'readnum', 818);
+=======
+    'readnum', 818,
+    'getsockopts', 819,
+    'sp_guard', 820,
+    'sp_guardconc', 821,
+    'sp_guardtype', 822,
+    'sp_guardsf', 823,
+    'sp_guardsfouter', 824,
+    'sp_guardobj', 825,
+    'sp_guardnotobj', 826,
+    'sp_guardjustconc', 827,
+    'sp_guardjusttype', 828,
+    'sp_rebless', 829,
+    'sp_resolvecode', 830,
+    'sp_decont', 831,
+    'sp_getlex_o', 832,
+    'sp_getlex_ins', 833,
+    'sp_getlex_no', 834,
+    'sp_getarg_o', 835,
+    'sp_getarg_i', 836,
+    'sp_getarg_n', 837,
+    'sp_getarg_s', 838,
+    'sp_fastinvoke_v', 839,
+    'sp_fastinvoke_i', 840,
+    'sp_fastinvoke_n', 841,
+    'sp_fastinvoke_s', 842,
+    'sp_fastinvoke_o', 843,
+    'sp_speshresolve', 844,
+    'sp_paramnamesused', 845,
+    'sp_getspeshslot', 846,
+    'sp_findmeth', 847,
+    'sp_fastcreate', 848,
+    'sp_get_o', 849,
+    'sp_get_i64', 850,
+    'sp_get_i32', 851,
+    'sp_get_i16', 852,
+    'sp_get_i8', 853,
+    'sp_get_n', 854,
+    'sp_get_s', 855,
+    'sp_bind_o', 856,
+    'sp_bind_i64', 857,
+    'sp_bind_i32', 858,
+    'sp_bind_i16', 859,
+    'sp_bind_i8', 860,
+    'sp_bind_n', 861,
+    'sp_bind_s', 862,
+    'sp_bind_s_nowb', 863,
+    'sp_p6oget_o', 864,
+    'sp_p6ogetvt_o', 865,
+    'sp_p6ogetvc_o', 866,
+    'sp_p6oget_i', 867,
+    'sp_p6oget_n', 868,
+    'sp_p6oget_s', 869,
+    'sp_p6oget_bi', 870,
+    'sp_p6obind_o', 871,
+    'sp_p6obind_i', 872,
+    'sp_p6obind_n', 873,
+    'sp_p6obind_s', 874,
+    'sp_fastbox_i', 875,
+    'sp_fastbox_bi', 876,
+    'sp_fastbox_i_ic', 877,
+    'sp_fastbox_bi_ic', 878,
+    'sp_deref_get_i64', 879,
+    'sp_deref_get_n', 880,
+    'sp_deref_bind_i64', 881,
+    'sp_deref_bind_n', 882,
+    'sp_getlexvia_o', 883,
+    'sp_getlexvia_ins', 884,
+    'sp_getstringfrom', 885,
+    'sp_getwvalfrom', 886,
+    'sp_jit_enter', 887,
+    'sp_boolify_iter', 888,
+    'sp_boolify_iter_arr', 889,
+    'sp_boolify_iter_hash', 890,
+    'sp_cas_o', 891,
+    'sp_atomicload_o', 892,
+    'sp_atomicstore_o', 893,
+    'sp_add_I', 894,
+    'sp_sub_I', 895,
+    'sp_mul_I', 896,
+    'sp_bool_I', 897,
+    'prof_enter', 898,
+    'prof_enterspesh', 899,
+    'prof_enterinline', 900,
+    'prof_enternative', 901,
+    'prof_exit', 902,
+    'prof_allocated', 903,
+    'ctw_check', 904,
+    'coverage_log', 905,
+    'breakpoint', 906);
+>>>>>>> Implement getsockopts op
+>>>>>>> Implement getsockopts op
     MAST::Ops.WHO<@names> := nqp::list_s('no_op',
     'const_i8',
     'const_i16',
@@ -5357,9 +5914,105 @@ BEGIN {
     'serializetobuf',
     'readint',
     'readuint',
+<<<<<<< HEAD
     'readnum',
     'smrt_intify',
     'uname');
+=======
+<<<<<<< HEAD
+    'readnum');
+=======
+    'readnum',
+    'getsockopts',
+    'sp_guard',
+    'sp_guardconc',
+    'sp_guardtype',
+    'sp_guardsf',
+    'sp_guardsfouter',
+    'sp_guardobj',
+    'sp_guardnotobj',
+    'sp_guardjustconc',
+    'sp_guardjusttype',
+    'sp_rebless',
+    'sp_resolvecode',
+    'sp_decont',
+    'sp_getlex_o',
+    'sp_getlex_ins',
+    'sp_getlex_no',
+    'sp_getarg_o',
+    'sp_getarg_i',
+    'sp_getarg_n',
+    'sp_getarg_s',
+    'sp_fastinvoke_v',
+    'sp_fastinvoke_i',
+    'sp_fastinvoke_n',
+    'sp_fastinvoke_s',
+    'sp_fastinvoke_o',
+    'sp_speshresolve',
+    'sp_paramnamesused',
+    'sp_getspeshslot',
+    'sp_findmeth',
+    'sp_fastcreate',
+    'sp_get_o',
+    'sp_get_i64',
+    'sp_get_i32',
+    'sp_get_i16',
+    'sp_get_i8',
+    'sp_get_n',
+    'sp_get_s',
+    'sp_bind_o',
+    'sp_bind_i64',
+    'sp_bind_i32',
+    'sp_bind_i16',
+    'sp_bind_i8',
+    'sp_bind_n',
+    'sp_bind_s',
+    'sp_bind_s_nowb',
+    'sp_p6oget_o',
+    'sp_p6ogetvt_o',
+    'sp_p6ogetvc_o',
+    'sp_p6oget_i',
+    'sp_p6oget_n',
+    'sp_p6oget_s',
+    'sp_p6oget_bi',
+    'sp_p6obind_o',
+    'sp_p6obind_i',
+    'sp_p6obind_n',
+    'sp_p6obind_s',
+    'sp_fastbox_i',
+    'sp_fastbox_bi',
+    'sp_fastbox_i_ic',
+    'sp_fastbox_bi_ic',
+    'sp_deref_get_i64',
+    'sp_deref_get_n',
+    'sp_deref_bind_i64',
+    'sp_deref_bind_n',
+    'sp_getlexvia_o',
+    'sp_getlexvia_ins',
+    'sp_getstringfrom',
+    'sp_getwvalfrom',
+    'sp_jit_enter',
+    'sp_boolify_iter',
+    'sp_boolify_iter_arr',
+    'sp_boolify_iter_hash',
+    'sp_cas_o',
+    'sp_atomicload_o',
+    'sp_atomicstore_o',
+    'sp_add_I',
+    'sp_sub_I',
+    'sp_mul_I',
+    'sp_bool_I',
+    'prof_enter',
+    'prof_enterspesh',
+    'prof_enterinline',
+    'prof_enternative',
+    'prof_exit',
+    'prof_allocated',
+    'ctw_check',
+    'coverage_log',
+    'breakpoint');
+>>>>>>> Implement getsockopts op
+>>>>>>> Implement getsockopts op
     MAST::Ops.WHO<%generators> := nqp::hash('no_op', sub () {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
@@ -8574,7 +9227,7 @@ BEGIN {
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'newmixintype', sub ($op0, $op1, $op2) {
+    'DEPRECATED_1', sub ($op0, $op1, $op2) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 414, 5);
@@ -9281,7 +9934,11 @@ BEGIN {
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
+<<<<<<< HEAD
+    'newmixintype', sub ($op0, $op1, $op2) {
+=======
     'threadjoin', sub ($op0) {
+>>>>>>> Implement getsockopts op
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 508, 5);
@@ -11714,6 +12371,1504 @@ BEGIN {
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
+<<<<<<< HEAD
+=======
+    },
+    'getsockopts', sub ($op0) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 819, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 819, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+    },
+    'sp_guard', sub ($op0, $op1, $op2, uint32 $op3) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+        nqp::writeuint($bytecode, $elems, 820, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        
+        {my int $value := $op3;
+                    if $value < 0 || 4294967296 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 13);}
+    },
+    'sp_guardconc', sub ($op0, $op1, $op2, uint32 $op3) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 820, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 821, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        
+        {my int $value := $op3;
+                    if $value < 0 || 4294967296 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 13);}
+    },
+    'sp_guardtype', sub ($op0, $op1, $op2, uint32 $op3) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 821, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 822, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        
+        {my int $value := $op3;
+                    if $value < 0 || 4294967296 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 13);}
+    },
+    'sp_guardsf', sub ($op0, $op1, uint32 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 822, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 823, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        
+        {my int $value := $op2;
+                    if $value < 0 || 4294967296 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 13);}
+    },
+    'sp_guardsfouter', sub ($op0, $op1, uint32 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 823, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 824, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        
+        {my int $value := $op2;
+                    if $value < 0 || 4294967296 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 13);}
+    },
+    'sp_guardobj', sub ($op0, $op1, $op2, uint32 $op3) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 824, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 825, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        
+        {my int $value := $op3;
+                    if $value < 0 || 4294967296 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 13);}
+    },
+    'sp_guardnotobj', sub ($op0, $op1, $op2, uint32 $op3) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 825, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 826, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        
+        {my int $value := $op3;
+                    if $value < 0 || 4294967296 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 13);}
+    },
+    'sp_guardjustconc', sub ($op0, $op1, uint32 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 826, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 827, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < 0 || 4294967296 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 13);}
+    },
+    'sp_guardjusttype', sub ($op0, $op1, uint32 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 827, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 828, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < 0 || 4294967296 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 13);}
+    },
+    'sp_rebless', sub ($op0, $op1, $op2, uint32 $op3) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 828, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 829, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op3;
+                    if $value < 0 || 4294967296 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 8), $value, 13);}
+    },
+    'sp_resolvecode', sub ($op0, $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 829, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 830, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+    },
+    'sp_decont', sub ($op0, $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 830, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 831, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+    },
+    'sp_getlex_o', sub ($op0, $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 831, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 832, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
+>>>>>>> Implement getsockopts op
+    },
+    'sp_getlex_ins', sub ($op0, $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 832, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 833, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 2);
+>>>>>>> Implement getsockopts op
+    },
+    'sp_getlex_no', sub ($op0, str $op1) {
+        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 833, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
+=======
+        nqp::writeuint($bytecode, $elems, 834, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 4);
+>>>>>>> Implement getsockopts op
+    },
+    'sp_getarg_o', sub ($op0, int16 $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 834, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 835, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+    },
+    'sp_getarg_i', sub ($op0, int16 $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 835, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 836, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+    },
+    'sp_getarg_n', sub ($op0, int16 $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 836, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 837, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+    },
+    'sp_getarg_s', sub ($op0, int16 $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 837, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 838, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+    },
+    'sp_fastinvoke_v', sub ($op0, int16 $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 838, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 839, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+    },
+    'sp_fastinvoke_i', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 839, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 840, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_fastinvoke_n', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 840, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 841, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_fastinvoke_s', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 841, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 842, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_fastinvoke_o', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 842, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 843, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_speshresolve', sub ($op0, str $op1, uint32 $op2, $op3) {
+        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 843, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
+=======
+        nqp::writeuint($bytecode, $elems, 844, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 4);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < 0 || 4294967296 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 8), $value, 13);}
+        
+    },
+    'sp_paramnamesused', sub ($op0) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 844, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 845, 2);
+>>>>>>> Implement getsockopts op
+        
+    },
+    'sp_getspeshslot', sub ($op0, $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 845, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 846, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        
+    },
+    'sp_findmeth', sub ($op0, $op1, str $op2, $op3) {
+        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 846, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+        my uint $index2 := $frame.add-string($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 9);
+=======
+        nqp::writeuint($bytecode, $elems, 847, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+        my uint $index2 := $frame.add-string($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 4);
+>>>>>>> Implement getsockopts op
+        
+    },
+    'sp_fastcreate', sub ($op0, int16 $op1, $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 847, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 848, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        
+    },
+    'sp_get_o', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 848, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 849, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_get_i64', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 849, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 850, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_get_i32', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 850, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 851, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_get_i16', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 851, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 852, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_get_i8', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 852, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 853, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_get_n', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 853, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 854, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_get_s', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 854, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 855, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_bind_o', sub ($op0, int16 $op1, $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 855, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 856, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+    },
+    'sp_bind_i64', sub ($op0, int16 $op1, $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 856, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 857, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+    },
+    'sp_bind_i32', sub ($op0, int16 $op1, $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 857, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 858, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+    },
+    'sp_bind_i16', sub ($op0, int16 $op1, $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 858, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 859, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+    },
+    'sp_bind_i8', sub ($op0, int16 $op1, $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 859, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 860, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+    },
+    'sp_bind_n', sub ($op0, int16 $op1, $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 860, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 861, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+    },
+    'sp_bind_s', sub ($op0, int16 $op1, $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 861, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 862, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+    },
+    'sp_bind_s_nowb', sub ($op0, int16 $op1, $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 862, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 863, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+    },
+    'sp_p6oget_o', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 863, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 864, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_p6ogetvt_o', sub ($op0, $op1, int16 $op2, $op3) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 864, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 865, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+        
+    },
+    'sp_p6ogetvc_o', sub ($op0, $op1, int16 $op2, $op3) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 865, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 866, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+        
+    },
+    'sp_p6oget_i', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 866, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 867, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_p6oget_n', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 867, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 868, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_p6oget_s', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 868, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 869, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_p6oget_bi', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 869, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 870, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_p6obind_o', sub ($op0, int16 $op1, $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 870, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 871, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+    },
+    'sp_p6obind_i', sub ($op0, int16 $op1, $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 871, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 872, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+    },
+    'sp_p6obind_n', sub ($op0, int16 $op1, $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 872, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 873, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+    },
+    'sp_p6obind_s', sub ($op0, int16 $op1, $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 873, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 874, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+    },
+    'sp_fastbox_i', sub ($op0, int16 $op1, $op2, int16 $op3, $op4) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 874, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 875, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        
+        {my int $value := $op3;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+        my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index4, 5);
+    },
+    'sp_fastbox_bi', sub ($op0, int16 $op1, $op2, int16 $op3, $op4) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 875, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 876, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        
+        {my int $value := $op3;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+        my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index4, 5);
+    },
+    'sp_fastbox_i_ic', sub ($op0, int16 $op1, $op2, int16 $op3, $op4, int16 $op5) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 876, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 877, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        
+        {my int $value := $op3;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+        my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index4, 5);
+        {my int $value := $op5;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 10), $value, 5);}
+    },
+    'sp_fastbox_bi_ic', sub ($op0, int16 $op1, $op2, int16 $op3, $op4, int16 $op5) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 877, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 878, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        
+        {my int $value := $op3;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+        my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index4, 5);
+        {my int $value := $op5;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 10), $value, 5);}
+    },
+    'sp_deref_get_i64', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 878, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 879, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_deref_get_n', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 879, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 880, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_deref_bind_i64', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 880, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 881, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_deref_bind_n', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 881, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 882, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'sp_getlexvia_o', sub ($op0, int16 $op1, int16 $op2, $op3) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 882, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 883, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+        my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
+    },
+    'sp_getlexvia_ins', sub ($op0, int16 $op1, int16 $op2, $op3) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 883, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 884, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+        my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
+    },
+    'sp_getstringfrom', sub ($op0, $op1, int32 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 884, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 885, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        
+        {my int $value := $op2;
+                    if $value < -2147483648 || 2147483647 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 13);}
+    },
+    'sp_getwvalfrom', sub ($op0, $op1, int64 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 885, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 886, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        
+        {my int $value := $op2; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 13);}
+    },
+    'sp_jit_enter', sub ($op0) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 886, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 887, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+    },
+    'sp_boolify_iter', sub ($op0, $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 887, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 888, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+    },
+    'sp_boolify_iter_arr', sub ($op0, $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 888, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 889, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+    },
+    'sp_boolify_iter_hash', sub ($op0, $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 889, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 890, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+    },
+    'sp_cas_o', sub ($op0, $op1, $op2, $op3) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 890, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+        my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 891, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 2);
+        my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 2);
+>>>>>>> Implement getsockopts op
+    },
+    'sp_atomicload_o', sub ($op0, $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 891, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 892, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+    },
+    'sp_atomicstore_o', sub ($op0, $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 892, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 893, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+    },
+    'sp_add_I', sub ($op0, int16 $op1, $op2, $op3, $op4, int16 $op5, int16 $op6) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 893, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 894, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        
+        my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index3, 5);
+        my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index4, 5);
+        {my int $value := $op5;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 10), $value, 5);}
+        {my int $value := $op6;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 12), $value, 5);}
+    },
+    'sp_sub_I', sub ($op0, int16 $op1, $op2, $op3, $op4, int16 $op5, int16 $op6) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 894, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 895, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        
+        my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index3, 5);
+        my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index4, 5);
+        {my int $value := $op5;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 10), $value, 5);}
+        {my int $value := $op6;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 12), $value, 5);}
+    },
+    'sp_mul_I', sub ($op0, int16 $op1, $op2, $op3, $op4, int16 $op5, int16 $op6) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 895, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 896, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+        
+        my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index3, 5);
+        my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index4, 5);
+        {my int $value := $op5;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 10), $value, 5);}
+        {my int $value := $op6;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 12), $value, 5);}
+    },
+    'sp_bool_I', sub ($op0, $op1, int16 $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 896, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 897, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op2;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 5);}
+    },
+    'prof_enter', sub () {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 897, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 898, 2);
+>>>>>>> Implement getsockopts op
+        
+    },
+    'prof_enterspesh', sub () {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 898, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 899, 2);
+>>>>>>> Implement getsockopts op
+        
+    },
+    'prof_enterinline', sub ($op0) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 899, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 900, 2);
+>>>>>>> Implement getsockopts op
+        
+    },
+    'prof_enternative', sub ($op0) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 900, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 901, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+    },
+    'prof_exit', sub () {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 901, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 902, 2);
+>>>>>>> Implement getsockopts op
+        
+    },
+    'prof_allocated', sub ($op0) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 902, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 903, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+    },
+    'ctw_check', sub ($op0, int16 $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 903, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 904, 2);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -32768 || 32767 < $value {
+                        nqp::die("Value outside range of 16-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);}
+    },
+    'coverage_log', sub (str $op0, int32 $op1, int32 $op2, int64 $op3) {
+        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 904, 5);
+        my uint $index0 := $frame.add-string($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 9);
+=======
+        nqp::writeuint($bytecode, $elems, 905, 2);
+        my uint $index0 := $frame.add-string($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 4);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op1;
+                    if $value < -2147483648 || 2147483647 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 6), $value, 13);}
+        {my int $value := $op2;
+                    if $value < -2147483648 || 2147483647 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 14), $value, 13);}
+        {my int $value := $op3; nqp::writeuint($bytecode, nqp::add_i($elems, 22), $value, 13);}
+    },
+    'breakpoint', sub (int32 $op0, int32 $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 818, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+        my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
     'smrt_intify', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
@@ -11727,5 +13882,23 @@ BEGIN {
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 820, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+=======
+<<<<<<< HEAD
+        nqp::writeuint($bytecode, $elems, 905, 5);
+=======
+        nqp::writeuint($bytecode, $elems, 906, 2);
+>>>>>>> Implement getsockopts op
+        {my int $value := $op0;
+                    if $value < -2147483648 || 2147483647 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 2), $value, 13);}
+        {my int $value := $op1;
+                    if $value < -2147483648 || 2147483647 < $value {
+                        nqp::die("Value outside range of 32-bit MAST::IVal");
+                    }
+                    nqp::writeuint($bytecode, nqp::add_i($elems, 10), $value, 13);}
+>>>>>>> Implement getsockopts op
+>>>>>>> Implement getsockopts op
     });
 }

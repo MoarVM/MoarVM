@@ -820,8 +820,12 @@ static const void * const LABELS[] = {
     &&OP_readint,
     &&OP_readuint,
     &&OP_readnum,
+<<<<<<< HEAD
     &&OP_smrt_intify,
     &&OP_uname,
+=======
+    &&OP_getsockopts,
+>>>>>>> Implement getsockopts op
     &&OP_sp_guard,
     &&OP_sp_guardconc,
     &&OP_sp_guardtype,
@@ -1025,6 +1029,18 @@ static const void * const LABELS[] = {
     NULL,
     NULL,
     NULL,
+<<<<<<< HEAD
+=======
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+<<<<<<< HEAD
+=======
+    NULL,
+    NULL,
+>>>>>>> Implement getsockopts op
+>>>>>>> Implement getsockopts op
     &&OP_CALL_EXTOP,
     &&OP_CALL_EXTOP,
     &&OP_CALL_EXTOP,
