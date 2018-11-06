@@ -437,6 +437,8 @@ MVMint64 socket_getport(MVMThreadContext *tc, MVMOSHandle *h) {
     return port;
 }
 
+static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h);
+
 static MVMint64 socket_is_tty(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     return (MVMint64)isatty(data->handle);
@@ -447,7 +449,53 @@ static MVMint64 socket_handle(MVMThreadContext *tc, MVMOSHandle *h) {
     return (MVMint64)data->handle;
 }
 
-static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h);
+static MVMint64 get_sock_opt(MVMThreadContext *tc, MVMOSHandle *h, int option) {
+    MVMIOSyncSocketData *data   = (MVMIOSyncSocketData *)h->body.data;
+    int                  s      = data->handle;
+    socklen_t            len;
+    int                  e;
+    MVMint64             output;
+
+    if (option == SO_LINGER) {
+        struct linger input;
+        len = sizeof(struct linger);
+        e = getsockopt(s, SOL_SOCKET, option, (char *)&input, &len);
+        output = (input.l_onoff > 0) ? input.l_linger : -1;
+    } else {
+        int input;
+        len = sizeof(int);
+        e = getsockopt(s, SOL_SOCKET, option, (char *)&input, &len);
+        output = (MVMint64)input;
+    }
+
+    if (e < 0) {
+        MVM_exception_throw_adhoc(tc, "failed to get socket option %s from socket %d: %s",
+                MVM_io_get_sockopt_name(option), s, strerror(errno));
+    }
+
+    return output;
+}
+
+static MVMint64 set_sock_opt(MVMThreadContext *tc, MVMOSHandle *h, int option, MVMint64 value) {
+    MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
+    int                  s    = data->handle;
+    int                  e;
+
+    if (option == SO_LINGER) {
+        struct linger input = { ((value < 0) ? 0 : 1), ((value < 0) ? 0 : value) };
+        e = setsockopt(s, SOL_SOCKET, option, (char *)&input, sizeof(struct linger));
+    } else {
+        int input = (int)value;
+        e = setsockopt(s, SOL_SOCKET, option, (char *)&input, sizeof(int));
+    }
+
+    if (e < 0) {
+        MVM_exception_throw_adhoc(tc, "failed to get socket option %s from socket %d: %s",
+                MVM_io_get_sockopt_name(option), s, strerror(errno));
+    }
+
+    return value;
+}
 
 /* IO ops table, populated with functions. */
 static const MVMIOClosable      closable      = { close_socket };
@@ -456,13 +504,14 @@ static const MVMIOSyncReadable  sync_readable = { socket_read_bytes,
 static const MVMIOSyncWritable  sync_writable = { socket_write_bytes,
                                                   socket_flush,
                                                   socket_truncate };
-static const MVMIOSockety             sockety = { socket_connect,
+static const MVMIOSockety       sockety       = { socket_connect,
                                                   socket_bind,
                                                   socket_accept,
                                                   socket_getport };
 static const MVMIOIntrospection introspection = { socket_is_tty,
                                                   socket_handle };
-
+static const MVMIOOptions       options       = { get_sock_opt,
+                                                  set_sock_opt };
 static const MVMIOOps op_table = {
     &closable,
     &sync_readable,
@@ -475,6 +524,7 @@ static const MVMIOOps op_table = {
     NULL,
     NULL,
     &introspection,
+    &options,
     NULL,
     NULL,
     gc_free

@@ -1009,6 +1009,7 @@
 #define MVM_OP_breakpoint 908
 =======
 #define MVM_OP_getsockopts 819
+<<<<<<< HEAD
 #define MVM_OP_sp_guard 820
 #define MVM_OP_sp_guardconc 821
 #define MVM_OP_sp_guardtype 822
@@ -1097,7 +1098,101 @@
 #define MVM_OP_coverage_log 905
 #define MVM_OP_breakpoint 906
 >>>>>>> Implement getsockopts op
+<<<<<<< HEAD
 >>>>>>> Implement getsockopts op
+=======
+=======
+#define MVM_OP_getsockopt 820
+#define MVM_OP_setsockopt 821
+#define MVM_OP_sp_guard 822
+#define MVM_OP_sp_guardconc 823
+#define MVM_OP_sp_guardtype 824
+#define MVM_OP_sp_guardsf 825
+#define MVM_OP_sp_guardsfouter 826
+#define MVM_OP_sp_guardobj 827
+#define MVM_OP_sp_guardnotobj 828
+#define MVM_OP_sp_guardjustconc 829
+#define MVM_OP_sp_guardjusttype 830
+#define MVM_OP_sp_rebless 831
+#define MVM_OP_sp_resolvecode 832
+#define MVM_OP_sp_decont 833
+#define MVM_OP_sp_getlex_o 834
+#define MVM_OP_sp_getlex_ins 835
+#define MVM_OP_sp_getlex_no 836
+#define MVM_OP_sp_getarg_o 837
+#define MVM_OP_sp_getarg_i 838
+#define MVM_OP_sp_getarg_n 839
+#define MVM_OP_sp_getarg_s 840
+#define MVM_OP_sp_fastinvoke_v 841
+#define MVM_OP_sp_fastinvoke_i 842
+#define MVM_OP_sp_fastinvoke_n 843
+#define MVM_OP_sp_fastinvoke_s 844
+#define MVM_OP_sp_fastinvoke_o 845
+#define MVM_OP_sp_speshresolve 846
+#define MVM_OP_sp_paramnamesused 847
+#define MVM_OP_sp_getspeshslot 848
+#define MVM_OP_sp_findmeth 849
+#define MVM_OP_sp_fastcreate 850
+#define MVM_OP_sp_get_o 851
+#define MVM_OP_sp_get_i64 852
+#define MVM_OP_sp_get_i32 853
+#define MVM_OP_sp_get_i16 854
+#define MVM_OP_sp_get_i8 855
+#define MVM_OP_sp_get_n 856
+#define MVM_OP_sp_get_s 857
+#define MVM_OP_sp_bind_o 858
+#define MVM_OP_sp_bind_i64 859
+#define MVM_OP_sp_bind_i32 860
+#define MVM_OP_sp_bind_i16 861
+#define MVM_OP_sp_bind_i8 862
+#define MVM_OP_sp_bind_n 863
+#define MVM_OP_sp_bind_s 864
+#define MVM_OP_sp_bind_s_nowb 865
+#define MVM_OP_sp_p6oget_o 866
+#define MVM_OP_sp_p6ogetvt_o 867
+#define MVM_OP_sp_p6ogetvc_o 868
+#define MVM_OP_sp_p6oget_i 869
+#define MVM_OP_sp_p6oget_n 870
+#define MVM_OP_sp_p6oget_s 871
+#define MVM_OP_sp_p6oget_bi 872
+#define MVM_OP_sp_p6obind_o 873
+#define MVM_OP_sp_p6obind_i 874
+#define MVM_OP_sp_p6obind_n 875
+#define MVM_OP_sp_p6obind_s 876
+#define MVM_OP_sp_fastbox_i 877
+#define MVM_OP_sp_fastbox_bi 878
+#define MVM_OP_sp_fastbox_i_ic 879
+#define MVM_OP_sp_fastbox_bi_ic 880
+#define MVM_OP_sp_deref_get_i64 881
+#define MVM_OP_sp_deref_get_n 882
+#define MVM_OP_sp_deref_bind_i64 883
+#define MVM_OP_sp_deref_bind_n 884
+#define MVM_OP_sp_getlexvia_o 885
+#define MVM_OP_sp_getlexvia_ins 886
+#define MVM_OP_sp_getstringfrom 887
+#define MVM_OP_sp_getwvalfrom 888
+#define MVM_OP_sp_jit_enter 889
+#define MVM_OP_sp_boolify_iter 890
+#define MVM_OP_sp_boolify_iter_arr 891
+#define MVM_OP_sp_boolify_iter_hash 892
+#define MVM_OP_sp_cas_o 893
+#define MVM_OP_sp_atomicload_o 894
+#define MVM_OP_sp_atomicstore_o 895
+#define MVM_OP_sp_add_I 896
+#define MVM_OP_sp_sub_I 897
+#define MVM_OP_sp_mul_I 898
+#define MVM_OP_sp_bool_I 899
+#define MVM_OP_prof_enter 900
+#define MVM_OP_prof_enterspesh 901
+#define MVM_OP_prof_enterinline 902
+#define MVM_OP_prof_enternative 903
+#define MVM_OP_prof_exit 904
+#define MVM_OP_prof_allocated 905
+#define MVM_OP_ctw_check 906
+#define MVM_OP_coverage_log 907
+#define MVM_OP_breakpoint 908
+>>>>>>> Implement getsockopt/setsockopt support
+>>>>>>> Implement getsockopt/setsockopt support
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

@@ -440,6 +440,7 @@ static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
     return 0;
 }
 
+<<<<<<< HEAD
 static MVMint64 socket_is_tty(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOAsyncSocketData *data   = (MVMIOAsyncSocketData *)h->body.data;
     uv_handle_t          *handle = (uv_handle_t *)data->handle;
@@ -455,6 +456,69 @@ static MVMint64 socket_handle(MVMThreadContext *tc, MVMOSHandle *h) {
     uv_fileno(handle, &fh);
     fd = uv_open_osfhandle(fh);
     return (MVMint64)fd;
+=======
+static MVMint64 get_sock_opt(MVMThreadContext *tc, MVMOSHandle *h, int option) {
+    MVMIOAsyncSocketData *data   = h->body.data;
+    uv_handle_t          *handle = (uv_handle_t *)data->handle;
+    uv_os_fd_t            fd;
+    int                   s;
+    socklen_t             len;
+    int                   e;
+    MVMint64              output;
+
+    MVMROOT(tc, h, {
+        uv_fileno(handle, &fd);
+        s = uv_open_osfhandle(fd);
+        if (s < 0) MVM_exception_throw_adhoc(tc, "cannot get socket options from invalid sockets");
+    });
+
+    if (option == SO_LINGER) {
+        struct linger input;
+        len = sizeof(struct linger);
+        e = getsockopt(s, SOL_SOCKET, option, (char *)&input, &len);
+        output = (input.l_onoff >= 0) ? input.l_linger : -1;
+    } else {
+        int input;
+        len = sizeof(int);
+        e = getsockopt(s, SOL_SOCKET, option, (char *)&input, &len);
+        output = (MVMint64)input;
+    }
+
+    if (e < 0) {
+        MVM_exception_throw_adhoc(tc, "failed to get socket option %s from socket %d: %s",
+                MVM_io_get_sockopt_name(option), s, strerror(errno));
+    }
+
+    return output;
+}
+
+static MVMint64 set_sock_opt(MVMThreadContext *tc, MVMOSHandle *h, int option, MVMint64 value) {
+    MVMIOAsyncSocketData *data   = h->body.data;
+    uv_handle_t          *handle = (uv_handle_t *)data->handle;
+    uv_os_fd_t            fd;
+    int                   s;
+    int                   e;
+
+    MVMROOT(tc, h, {
+        uv_fileno(handle, &fd);
+        s = uv_open_osfhandle(fd);
+        if (s < 0) MVM_exception_throw_adhoc(tc, "cannot set socket options to invalid socket");
+    });
+
+    if (option == SO_LINGER) {
+        struct linger input = { ((value < 0) ? 0 : 1), ((value < 0) ? 0 : value) };
+        e = setsockopt(s, SOL_SOCKET, option, (char *)&input, sizeof(struct linger));
+    } else {
+        int input = (int)value;
+        e = setsockopt(s, SOL_SOCKET, option, (char *)&input, sizeof(int));
+    }
+
+    if (e < 0) {
+        MVM_exception_throw_adhoc(tc, "failed to get socket option %s from socket %d: %s",
+                MVM_io_get_sockopt_name(option), s, strerror(errno));
+    }
+
+    return value;
 }
 
 /* IO ops table, populated with functions. */
@@ -463,6 +527,9 @@ static const MVMIOAsyncReadable async_readable = { read_bytes };
 static const MVMIOAsyncWritable async_writable = { write_bytes };
 static const MVMIOIntrospection introspection  = { socket_is_tty,
                                                    socket_handle };
+static const MVMIOOptions       options        = { get_sock_opt,
+                                                   set_sock_opt };
+>>>>>>> Implement getsockopt/setsockopt support
 static const MVMIOOps op_table = {
     &closable,
     NULL,
@@ -475,6 +542,7 @@ static const MVMIOOps op_table = {
     NULL,
     NULL,
     &introspection,
+    &options,
     NULL,
     NULL,
     NULL

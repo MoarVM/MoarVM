@@ -882,6 +882,8 @@ readnum             w(num64) r(obj) r(uint64) r(uint64)
 smrt_intify         w(int64) r(obj) :pure :invokish :maycausedeopt
 uname               w(obj) :pure
 getsockopts         w(obj) :useshll
+getsockopt          w(int64) r(obj) r(int32)
+setsockopt          r(obj) r(int32) r(int64)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

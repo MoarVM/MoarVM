@@ -3,37 +3,25 @@
 #ifdef _WIN32
 #include <ws2def.h>
 #else
+#include <netinet/tcp.h>
 #include <sys/socket.h>
 #endif
 
-#define NUM_SOCKOPTS_WANTED 25
+#define NUM_SOCKOPTS_WANTED 12
 
 #define SOCKOPTS(X) \
-   X( MVM_SO_DEBUG       ) \
-   X( MVM_SO_ACCEPTCONN  ) \
-   X( MVM_SO_REUSEADDR   ) \
-   X( MVM_SO_KEEPALIVE   ) \
-   X( MVM_SO_DONTROUTE   ) \
    X( MVM_SO_BROADCAST   ) \
-   X( MVM_SO_USELOOPBACK ) \
+   X( MVM_SO_KEEPALIVE   ) \
    X( MVM_SO_LINGER      ) \
-   X( MVM_SO_OOBINLINE   ) \
-   X( MVM_SO_REUSEPORT   ) \
-   X( MVM_SO_TIMESTAMP   ) \
-   X( MVM_SO_BINDANY     ) \
-   X( MVM_SO_ZEROIZE     ) \
-   X( MVM_SO_SNDBUF      ) \
    X( MVM_SO_RCVBUF      ) \
-   X( MVM_SO_SNDLOWAT    ) \
-   X( MVM_SO_RCVLOWAT    ) \
-   X( MVM_SO_SNDTIMEO    ) \
-   X( MVM_SO_RCVTIMEO    ) \
+   X( MVM_SO_REUSEADDR   ) \
+   X( MVM_SO_SNDBUF      ) \
+   X( MVM_TCP_NODELAY    ) \
+   X( MVM_SO_TIMEOUT     ) \
+   X( MVM_SO_OOBINLINE   ) \
+   X( MVM_SO_DONTROUTE   ) \
    X( MVM_SO_ERROR       ) \
-   X( MVM_SO_TYPE        ) \
-   X( MVM_SO_NETPROC     ) \
-   X( MVM_SO_RTABLE      ) \
-   X( MVM_SO_PEERCRED    ) \
-   X( MVM_SO_SPLICE      )
+   X( MVM_SO_TYPE        )
 
 #define GEN_ENUMS(v)   v,
 #define GEN_STRING(v) #v,
@@ -52,80 +40,41 @@ static void populate_sockopt_values(MVMint16 sockopt_vals[NUM_SOCKOPTS_WANTED]) 
         sockopt_vals[i] = 0;
     }
 
-#ifdef SO_DEBUG
-    sockopt_vals[MVM_SO_DEBUG]       = SO_DEBUG;
-#endif
-#ifdef SO_ACCEPTCONN
-    sockopt_vals[MVM_SO_ACCEPTCONN]  = SO_ACCEPTCONN;
-#endif
-#ifdef SO_REUSEADDR
-    sockopt_vals[MVM_SO_REUSEADDR]   = SO_REUSEADDR;
+#ifdef SO_BROADCAST
+    sockopt_vals[MVM_SO_BROADCAST] = SO_BROADCAST;
 #endif
 #ifdef SO_KEEPALIVE
-    sockopt_vals[MVM_SO_KEEPALIVE]   = SO_KEEPALIVE;
-#endif
-#ifdef SO_DONTROUTE
-    sockopt_vals[MVM_SO_DONTROUTE]   = SO_DONTROUTE;
-#endif
-#ifdef SO_BROADCAST
-    sockopt_vals[MVM_SO_BROADCAST]   = SO_BROADCAST;
-#endif
-#ifdef SO_USELOOPBACK
-    sockopt_vals[MVM_SO_USELOOPBACK] = SO_USELOOPBACK;
+    sockopt_vals[MVM_SO_KEEPALIVE] = SO_KEEPALIVE;
 #endif
 #ifdef SO_LINGER
-    sockopt_vals[MVM_SO_LINGER]      = SO_LINGER;
-#endif
-#ifdef SO_OOBINLINE
-    sockopt_vals[MVM_SO_OOBINLINE]   = SO_OOBINLINE;
-#endif
-#ifdef SO_REUSEPORT
-    sockopt_vals[MVM_SO_REUSEPORT]   = SO_REUSEPORT;
-#endif
-#ifdef SO_TIMESTAMP
-    sockopt_vals[MVM_SO_TIMESTAMP]   = SO_TIMESTAMP;
-#endif
-#ifdef SO_BINDANY
-    sockopt_vals[MVM_SO_BINDANY]     = SO_BINDANY;
-#endif
-#ifdef SO_ZEROIZE
-    sockopt_vals[MVM_SO_ZEROIZE]     = SO_ZEROIZE;
-#endif
-#ifdef SO_SNDBUF
-    sockopt_vals[MVM_SO_SNDBUF]      = SO_SNDBUF;
+    sockopt_vals[MVM_SO_LINGER] = SO_LINGER;
 #endif
 #ifdef SO_RCVBUF
-    sockopt_vals[MVM_SO_RCVBUF]      = SO_RCVBUF;
+    sockopt_vals[MVM_SO_RCVBUF] = SO_RCVBUF;
 #endif
-#ifdef SO_SNDLOWAT
-    sockopt_vals[MVM_SO_SNDLOWAT]    = SO_SNDLOWAT;
+#ifdef SO_REUSEADDR
+    sockopt_vals[MVM_SO_REUSEADDR] = SO_REUSEADDR;
 #endif
-#ifdef SO_RCVLOWAT
-    sockopt_vals[MVM_SO_RCVLOWAT]    = SO_RCVLOWAT;
+#ifdef SO_SNDBUF
+    sockopt_vals[MVM_SO_SNDBUF] = SO_SNDBUF;
 #endif
-#ifdef SO_SNDTIMEO
-    sockopt_vals[MVM_SO_SNDTIMEO]    = SO_SNDTIMEO;
+#ifdef TCP_NODELAY
+    sockopt_vals[MVM_TCP_NODELAY] = TCP_NODELAY;
 #endif
-#ifdef SO_RCVTIMEO
-    sockopt_vals[MVM_SO_RCVTIMEO]    = SO_RCVTIMEO;
+#ifdef SO_TIMEOUT
+    sockopt_vals[MVM_SO_TIMEOUT] = SO_TIMEOUT;
+#endif
+#ifdef SO_OOBINLINE
+    sockopt_vals[MVM_SO_OOBINLINE] = SO_OOBINLINE;
+#endif
+#ifdef SO_DONTROUTE
+    sockopt_vals[MVM_SO_DONTROUTE] = SO_DONTROUTE;
 #endif
 #ifdef SO_ERROR
-    sockopt_vals[MVM_SO_ERROR]       = SO_ERROR;
+    sockopt_vals[MVM_SO_ERROR] = SO_ERROR;
 #endif
 #ifdef SO_TYPE
-    sockopt_vals[MVM_SO_TYPE]        = SO_TYPE;
-#endif
-#ifdef SO_NETPROC
-    sockopt_vals[MVM_SO_NETPROC]     = SO_NETPROC;
-#endif
-#ifdef SO_RTABLE
-    sockopt_vals[MVM_SO_RTABLE]      = SO_RTABLE;
-#endif
-#ifdef SO_PEERCRED
-    sockopt_vals[MVM_SO_PEERCRED]    = SO_PEERCRED;
-#endif
-#ifdef SO_SPLICE
-    sockopt_vals[MVM_SO_SPLICE]      = SO_SPLICE;
+    sockopt_vals[MVM_SO_TYPE]  = SO_TYPE;
 #endif
 }
 
@@ -190,4 +139,21 @@ MVMObject * MVM_io_get_sockopts(MVMThreadContext *tc) {
     });
 
     return sockopt_arr;
+}
+
+const char * MVM_io_get_sockopt_name(int option) {
+    switch (option) {
+        case SO_BROADCAST: return "SO_BROADCAST";
+        case SO_KEEPALIVE: return "SO_KEEPALIVE";
+        case SO_LINGER:    return "SO_LINGER";
+        case SO_RCVBUF:    return "SO_RCVBUF";
+        case SO_REUSEADDR: return "SO_REUSEADDR";
+        case SO_SNDBUF:    return "SO_SNDBUF";
+        case SO_DEBUG:     return "SO_DEBUG";
+        case SO_DONTROUTE: return "SO_DONTROUTE";
+        case SO_OOBINLINE: return "SO_OOBINLINE";
+        case SO_ERROR:     return "SO_ERROR";
+        case SO_TYPE:      return "SO_TYPE";
+        default:           return "unknown";
+    }
 }

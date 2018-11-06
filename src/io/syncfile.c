@@ -399,6 +399,7 @@ static const MVMIOOps op_table = {
     NULL,
     &lockable,
     &introspection,
+	NULL,
     &set_buffer_size,
     NULL,
     gc_free

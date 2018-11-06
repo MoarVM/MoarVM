@@ -825,7 +825,12 @@ static const void * const LABELS[] = {
     &&OP_uname,
 =======
     &&OP_getsockopts,
+<<<<<<< HEAD
 >>>>>>> Implement getsockopts op
+=======
+    &&OP_getsockopt,
+    &&OP_setsockopt,
+>>>>>>> Implement getsockopt/setsockopt support
     &&OP_sp_guard,
     &&OP_sp_guardconc,
     &&OP_sp_guardtype,
@@ -1036,11 +1041,17 @@ static const void * const LABELS[] = {
     NULL,
     NULL,
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     NULL,
     NULL,
 >>>>>>> Implement getsockopts op
+<<<<<<< HEAD
 >>>>>>> Implement getsockopts op
+=======
+=======
+>>>>>>> Implement getsockopt/setsockopt support
+>>>>>>> Implement getsockopt/setsockopt support
     &&OP_CALL_EXTOP,
     &&OP_CALL_EXTOP,
     &&OP_CALL_EXTOP,

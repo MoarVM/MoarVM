@@ -392,3 +392,33 @@ void MVM_io_flush_standard_handles(MVMThreadContext *tc) {
     MVM_io_flush(tc, tc->instance->stdout_handle, 0);
     MVM_io_flush(tc, tc->instance->stderr_handle, 0);
 }
+
+MVMint64 MVM_io_getsockopt(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 option) {
+    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "getsockopt");
+    if (handle->body.ops->options) {
+        MVMint64 value;
+        MVMROOT(tc, handle, {
+            uv_mutex_t *mutex = acquire_mutex(tc, handle);
+            value = handle->body.ops->options->get_sock_opt(tc, handle, (int)option);
+            release_mutex(tc, mutex);
+        });
+        return value;
+    } else {
+        MVM_exception_throw_adhoc(tc, "Cannot get socket options on this kind of handle");
+    }
+}
+
+MVMint64 MVM_io_setsockopt(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 option, MVMint64 value) {
+    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "setsockopt");
+    if (handle->body.ops->options) {
+        MVMint64 result;
+        MVMROOT(tc, handle, {
+            uv_mutex_t *mutex = acquire_mutex(tc, handle);
+            result = handle->body.ops->options->set_sock_opt(tc, handle, (int)option, value);
+            release_mutex(tc, mutex);
+        });
+        return result;
+    } else {
+        MVM_exception_throw_adhoc(tc, "Cannot set socket options on this kind of handle");
+    }
+}

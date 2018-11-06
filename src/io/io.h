@@ -13,6 +13,7 @@ struct MVMIOOps {
     MVMObject * (*get_async_task_handle) (MVMThreadContext *tc, MVMOSHandle *h);
     const MVMIOLockable        *lockable;
     const MVMIOIntrospection   *introspection;
+    const MVMIOOptions         *options;
     void (*set_buffer_size) (MVMThreadContext *tc, MVMOSHandle *h, MVMint64 size);
 
     /* How to mark the handle's data, if needed. */
@@ -85,6 +86,12 @@ struct MVMIOIntrospection {
     MVMint64 (*native_descriptor) (MVMThreadContext *tc, MVMOSHandle *h);
 };
 
+/* Permits getting/setting socket options */
+struct MVMIOOptions {
+    MVMint64 (*get_sock_opt) (MVMThreadContext *tc, MVMOSHandle *h, MVMint32 option);
+    MVMint64 (*set_sock_opt) (MVMThreadContext *tc, MVMOSHandle *h, MVMint32 option, MVMint64 value);
+};
+
 MVMint64 MVM_io_close(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_io_is_tty(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_io_fileno(MVMThreadContext *tc, MVMObject *oshandle);
@@ -112,3 +119,5 @@ MVMint64 MVM_io_getport(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_set_buffer_size(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 size);
 MVMObject * MVM_io_get_async_task_handle(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_flush_standard_handles(MVMThreadContext *tc);
+MVMint64 MVM_io_getsockopt(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 option);
+MVMint64 MVM_io_setsockopt(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 option, MVMint64 value);

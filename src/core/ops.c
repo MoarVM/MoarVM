@@ -12318,6 +12318,36 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
+        MVM_OP_getsockopt,
+        "getsockopt",
+        "  ",
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int32 }
+    },
+    {
+        MVM_OP_setsockopt,
+        "setsockopt",
+        "  ",
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int32, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
         MVM_OP_sp_guard,
         "sp_guard",
         ".s",
@@ -13697,14 +13727,23 @@ static const MVMOpInfo MVM_op_infos[] = {
 };
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 static const unsigned short MVM_op_counts = 913;
 =======
+=======
+>>>>>>> Implement getsockopt/setsockopt support
 <<<<<<< HEAD
 static const unsigned short MVM_op_counts = 909;
 =======
 static const unsigned short MVM_op_counts = 907;
 >>>>>>> Implement getsockopts op
+<<<<<<< HEAD
 >>>>>>> Implement getsockopts op
+=======
+=======
+static const unsigned short MVM_op_counts = 909;
+>>>>>>> Implement getsockopt/setsockopt support
+>>>>>>> Implement getsockopt/setsockopt support
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

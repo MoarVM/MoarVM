@@ -238,6 +238,7 @@ typedef struct MVMIOAsyncWritableTo MVMIOAsyncWritableTo;
 typedef struct MVMIOSeekable MVMIOSeekable;
 typedef struct MVMIOSockety MVMIOSockety;
 typedef struct MVMIOIntrospection MVMIOIntrospection;
+typedef struct MVMIOOptions MVMIOOptions;
 typedef struct MVMIOLockable MVMIOLockable;
 typedef struct MVMDecodeStream MVMDecodeStream;
 typedef struct MVMDecodeStreamBytes MVMDecodeStreamBytes;

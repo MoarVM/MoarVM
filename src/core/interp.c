@@ -3601,6 +3601,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = MVM_io_get_sockopts(tc);
                 cur_op += 2;
                 goto NEXT;
+            OP(getsockopt):
+                GET_REG(cur_op, 0).i64 = MVM_io_getsockopt(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i32);
+                cur_op += 6;
+                goto NEXT;
+            OP(setsockopt):
+                MVM_io_setsockopt(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i32, GET_REG(cur_op, 4).i64);
+                cur_op += 6;
+                goto NEXT;
             OP(connect_sk):
                 MVM_io_connect(tc, GET_REG(cur_op, 0).o,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
