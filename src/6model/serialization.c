@@ -921,17 +921,29 @@ static MVMObject * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
         return NULL;
     }
 
-    /* Base 64 encode. */
-    output_b64 = base64_encode(output, output_size);
-    MVM_free(output);
-    if (output_b64 == NULL)
-        MVM_exception_throw_adhoc(tc,
-            "Serialization error: failed to convert to base64");
+    if (type) {
+        int i = 0;
+        result = REPR(type)->allocate(tc, STABLE(type));
+        if (REPR(result)->initialize)
+            REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
+        REPR(result)->pos_funcs.write_buf(tc, STABLE(result), result, OBJECT_BODY(result), output, 0, output_size);
 
-    /* Make a MVMString containing it. */
-    result = (MVMObject *)MVM_string_ascii_decode_nt(tc, tc->instance->VMString, output_b64);
-    MVM_free(output_b64);
-    return result;
+        MVM_free(output);
+
+        return result;
+    } else {
+        /* Base 64 encode. */
+        output_b64 = base64_encode(output, output_size);
+        MVM_free(output);
+        if (output_b64 == NULL)
+            MVM_exception_throw_adhoc(tc,
+                "Serialization error: failed to convert to base64");
+
+        /* Make a MVMString containing it. */
+        result = (MVMObject *)MVM_string_ascii_decode_nt(tc, tc->instance->VMString, output_b64);
+        MVM_free(output_b64);
+        return result;
+    }
 }
 
 /* Serializes the possibly-not-deserialized HOW. */
