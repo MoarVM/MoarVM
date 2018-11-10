@@ -894,7 +894,7 @@ MVMint64 read_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMint64 start = body->start;
-    MVMint64 result;
+    MVMint64 result = 0;
 
     if (offset < 0 || start + body->elems < offset + count) {
         MVM_exception_throw_adhoc(tc, "MVMArray: read_buf out of bounds offset %ld start %ld elems %lu count %lu", offset, start, body->elems, count);
