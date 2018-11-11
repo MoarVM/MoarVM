@@ -900,6 +900,18 @@ static MVMObject * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
         MVM_exception_throw_adhoc(tc,
             "Serialization sanity check failed: offset != output_size");
 
+    if (type) { /* nqp::serializetobuffer */
+        int i = 0;
+        result = REPR(type)->allocate(tc, STABLE(type));
+        if (REPR(result)->initialize)
+            REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
+        REPR(result)->pos_funcs.write_buf(tc, STABLE(result), result, OBJECT_BODY(result), output, 0, output_size);
+
+        return result;
+    }
+
+    /* nqp::serialize */
+
     /* If we are compiling at present, then just stash the output for later
      * incorporation into the bytecode file. */
     if (tc->compiling_scs && MVM_repr_elems(tc, tc->compiling_scs) &&
@@ -909,15 +921,6 @@ static MVMObject * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
         tc->serialized = output;
         tc->serialized_size = output_size;
         tc->serialized_string_heap = writer->root.string_heap;
-        if (type) {
-            int i = 0;
-            result = REPR(type)->allocate(tc, STABLE(type));
-            if (REPR(result)->initialize)
-                REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
-            REPR(result)->pos_funcs.write_buf(tc, STABLE(result), result, OBJECT_BODY(result), output, 0, output_size);
-
-            return result;
-        }
         return NULL;
     }
 
