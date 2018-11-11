@@ -702,6 +702,8 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
 
                     MVM_spesh_manipulate_release_temp_reg(tc, g, ss_temp);
                     MVM_spesh_manipulate_release_temp_reg(tc, g, val_temp);
+
+                    MVM_spesh_use_facts(tc, g, obj_facts);
                 }
 
             }
