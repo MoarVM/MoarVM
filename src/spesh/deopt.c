@@ -199,8 +199,6 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
  * at a valid de-optimization point. Typically used when a guard fails. */
 void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_target) {
     MVMFrame *f = tc->cur_frame;
-    if (tc->instance->profiling)
-        MVM_profiler_log_deopt_one(tc);
 #if MVM_LOG_DEOPTS
     fprintf(stderr, "Deopt one requested by interpreter in frame '%s' (cuid '%s')\n",
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
@@ -233,8 +231,6 @@ void MVM_spesh_deopt_one_direct(MVMThreadContext *tc, MVMuint32 deopt_offset,
         MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid),
         deopt_offset, deopt_target);
 #endif
-    if (tc->instance->profiling)
-        MVM_profiler_log_deopt_one(tc);
     clear_dynlex_cache(tc, f);
     deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
 
@@ -290,8 +286,6 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
         MVM_string_utf8_encode_C_string(tc, l->static_info->body.name),
         MVM_string_utf8_encode_C_string(tc, l->static_info->body.cuuid));
 #endif
-    if (tc->instance->profiling)
-        MVM_profiler_log_deopt_all(tc);
 
     while (f) {
         clear_dynlex_cache(tc, f);

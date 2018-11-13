@@ -109,6 +109,12 @@ struct MVMProfileCallNode {
     MVMuint32 num_alloc;
     MVMuint32 alloc_alloc;
 
+    /* Deoptimizations for different situations, and the number of
+     * situation counts we have so far. */
+    MVMProfileDeoptCount *deopt;
+    MVMuint32 num_deopt;
+    MVMuint32 alloc_deopt;
+
     /* The total inclusive time so far spent in this node. */
     MVMuint64 total_time;
 
@@ -153,6 +159,26 @@ struct MVMProfileAllocationCount {
     MVMuint64 allocations_jit;
 };
 
+/* Allocation counts for a call node. */
+struct MVMProfileDeoptCount {
+    /* The STable or StaticFrame that was guarded for. */
+    MVMObject *expected;
+
+    /* The STable or StaticFrame of the value that was encountered unexpectedly. */
+    union {
+        MVMSTable *type;
+        MVMStaticFrame *sf;
+    } got;
+
+    MVMuint64 deopt_total;
+
+    /* How often did we deopt in a specific mode? */
+    MVMuint64 concness_miss;
+    MVMuint64 type_miss;
+    MVMuint64 outer_miss;
+    MVMuint64 exact_miss;
+};
+
 /* When a continuation is taken, we attach one of these to it. It carries the
  * data needed to restore profiler state if the continuation is invoked. */
 struct MVMProfileContinuationData {
@@ -173,6 +199,12 @@ struct MVMProfileContinuationData {
 #define MVM_PROFILE_ENTER_JIT           3
 #define MVM_PROFILE_ENTER_JIT_INLINE    4
 
+#define MVM_PROFILE_WANTED_CONC         16
+#define MVM_PROFILE_WANTED_TYPEOBJ      32
+#define MVM_PROFILE_WANTED_TYPEMATCH    64
+#define MVM_PROFILE_WANTED_IDENTMATCH   128
+#define MVM_PROFILE_WANTED_OUTERMATCH   256
+
 /* Logging functions. */
 void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 mode);
 void MVM_profile_log_enter_native(MVMThreadContext *tc, MVMObject *nativecallsite);
@@ -188,5 +220,8 @@ void MVM_profiler_log_unmanaged_data_promoted(MVMThreadContext *tc, MVMuint64 am
 void MVM_profiler_log_spesh_start(MVMThreadContext *tc);
 void MVM_profiler_log_spesh_end(MVMThreadContext *tc);
 void MVM_profiler_log_osr(MVMThreadContext *tc, MVMuint64 jitted);
-void MVM_profiler_log_deopt_one(MVMThreadContext *tc);
-void MVM_profiler_log_deopt_all(MVMThreadContext *tc);
+
+void MVM_profiler_log_deopt_one_obj(MVMThreadContext *tc, MVMSTable *expected, MVMObject *got);
+void MVM_profiler_log_deopt_one_sf(MVMThreadContext *tc, MVMStaticFrame *expected, MVMObject *got);
+
+void MVM_profiler_log_deopt_rebless(MVMThreadContext *tc, MVMObject *source, MVMObject *target);

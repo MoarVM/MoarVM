@@ -3109,7 +3109,35 @@ static void try_eliminate_box_unbox_pair(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
     }
 }
+static void twiddle_graphs_visit_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
+    MVMint32 i;
 
+    MVMSpeshIns *ins = bb->first_ins;
+    MVMuint32 opcode_to_use = 0;
+    while (ins) {
+        MVMSpeshIns *next = ins->next;
+        switch (ins->info->opcode) {
+            case MVM_OP_sp_guard:           opcode_to_use = MVM_OP_prof_guard; break;
+            case MVM_OP_sp_guardconc:       opcode_to_use = MVM_OP_prof_guardconc; break;
+            case MVM_OP_sp_guardtype:       opcode_to_use = MVM_OP_prof_guardtype; break;
+            case MVM_OP_sp_guardsf:         opcode_to_use = MVM_OP_prof_guardsf; break;
+            case MVM_OP_sp_guardsfouter:    opcode_to_use = MVM_OP_prof_guardsfouter; break;
+            case MVM_OP_sp_guardobj:        opcode_to_use = MVM_OP_prof_guardobj; break;
+            case MVM_OP_sp_guardnotobj:     opcode_to_use = MVM_OP_prof_guardnotobj; break;
+            case MVM_OP_sp_guardjustconc:   opcode_to_use = MVM_OP_prof_guardjustconc; break;
+            case MVM_OP_sp_guardjusttype:   opcode_to_use = MVM_OP_prof_guardjusttype; break;
+        }
+        if (opcode_to_use != 0) {
+            ins->info = MVM_op_get_op(opcode_to_use);
+            opcode_to_use = 0;
+        }
+        ins = next;
+    }
+
+    /* Visit children. */
+    for (i = 0; i < bb->num_children; i++)
+        twiddle_graphs_visit_bb(tc, g, bb->children[i]);
+}
 
 static void post_inline_visit_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                  PostInlinePassState *pips) {
@@ -3197,6 +3225,10 @@ static void post_inline_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB 
             MVM_spesh_manipulate_delete_ins(tc, g, sb->bb, sb->ins);
         }
         MVM_free(sb);
+    }
+
+    if (tc->instance->profiling) {
+        twiddle_graphs_visit_bb(tc, g, g->entry);
     }
 
     MVM_VECTOR_DESTROY(pips.seen_box_ins);

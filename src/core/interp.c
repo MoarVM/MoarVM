@@ -6235,6 +6235,126 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(prof_exit):
                 MVM_profile_log_exit(tc);
                 goto NEXT;
+            OP(prof_guard): {
+                MVMRegister *target = &GET_REG(cur_op, 0);
+                MVMObject *check = GET_REG(cur_op, 2).o;
+                MVMSTable *want  = (MVMSTable *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                cur_op += 10;
+                if (!check || STABLE(check) != want)
+                    MVM_profiler_log_and_deopt_one_obj(tc, GET_UI32(cur_op, -4), want, check, MVM_PROFILE_WANTED_TYPEMATCH);
+                else
+                    target->o = check;
+                goto NEXT;
+            }
+            OP(prof_guardconc): {
+                MVMRegister *target = &GET_REG(cur_op, 0);
+                MVMObject *check = GET_REG(cur_op, 2).o;
+                MVMSTable *want  = (MVMSTable *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                cur_op += 10;
+                if (!check || !IS_CONCRETE(check) || STABLE(check) != want)
+                    MVM_profiler_log_and_deopt_one_obj(tc, GET_UI32(cur_op, -4), want, check, MVM_PROFILE_WANTED_TYPEMATCH | MVM_PROFILE_WANTED_CONC);
+                else
+                    target->o = check;
+                goto NEXT;
+            }
+            OP(prof_guardtype): {
+                MVMRegister *target = &GET_REG(cur_op, 0);
+                MVMObject *check = GET_REG(cur_op, 2).o;
+                MVMSTable *want  = (MVMSTable *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                cur_op += 10;
+                if (!check || IS_CONCRETE(check) || STABLE(check) != want)
+                    MVM_profiler_log_and_deopt_one_obj(tc, GET_UI32(cur_op, -4), want, check, MVM_PROFILE_WANTED_TYPEMATCH | MVM_PROFILE_WANTED_TYPEOBJ);
+                else
+                    target->o = check;
+                goto NEXT;
+            }
+            OP(prof_guardsf): {
+                MVMObject *check = GET_REG(cur_op, 0).o;
+                MVMStaticFrame *want = (MVMStaticFrame *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                cur_op += 8;
+                if (REPR(check)->ID != MVM_REPR_ID_MVMCode ||
+                        ((MVMCode *)check)->body.sf != want)
+                    MVM_profiler_log_and_deopt_one_sf(tc, GET_UI32(cur_op, -4), want, check, MVM_PROFILE_WANTED_IDENTMATCH);
+                goto NEXT;
+            }
+            OP(prof_guardsfouter): {
+                MVMObject *check = GET_REG(cur_op, 0).o;
+                MVMStaticFrame *want = (MVMStaticFrame *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                cur_op += 8;
+                if (REPR(check)->ID != MVM_REPR_ID_MVMCode ||
+                        ((MVMCode *)check)->body.sf != want ||
+                        ((MVMCode *)check)->body.outer != tc->cur_frame)
+                    MVM_profiler_log_and_deopt_one_sf(tc, GET_UI32(cur_op, -4), want, check, MVM_PROFILE_WANTED_OUTERMATCH);
+                goto NEXT;
+            }
+            OP(prof_guardobj): {
+                MVMRegister *target = &GET_REG(cur_op, 0);
+                MVMObject *check = GET_REG(cur_op, 2).o;
+                MVMObject *want = (MVMObject *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                cur_op += 10;
+                if (check != want) {
+                    /*MVM_profiler_log_and_deopt_one_obj(tc, GET_UI32(cur_op, -4), want, check, MVM_PROFILE_WANTED_IDENTMATCH);*/
+                    fprintf(stderr, "couldn't log a guardobj deopt\n");
+                    MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                }
+                else
+                    target->o = check;
+                goto NEXT;
+            }
+            OP(prof_guardnotobj): {
+                MVMRegister *target = &GET_REG(cur_op, 0);
+                MVMObject *check = GET_REG(cur_op, 2).o;
+                MVMObject *do_not_want = (MVMObject *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                cur_op += 10;
+                if (check == do_not_want) {
+                    /*MVM_profiler_log_and_deopt_one_obj(tc, GET_UI32(cur_op, -4), do_not_want, check, MVM_PROFILE_WANTED_IDENTMATCH);*/
+                    fprintf(stderr, "couldn't log a guardnotobj deopt\n");
+                    MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                }
+                else
+                    target->o = check;
+                goto NEXT;
+            }
+            OP(prof_guardjustconc): {
+                MVMRegister *target = &GET_REG(cur_op, 0);
+                MVMObject *check = GET_REG(cur_op, 2).o;
+                cur_op += 8;
+                if (!IS_CONCRETE(check))
+                    MVM_profiler_log_and_deopt_one_obj(tc, GET_UI32(cur_op, -4), 0, check, MVM_PROFILE_WANTED_CONC);
+                else
+                    target->o = check;
+                goto NEXT;
+            }
+            OP(prof_guardjusttype): {
+                MVMRegister *target = &GET_REG(cur_op, 0);
+                MVMObject *check = GET_REG(cur_op, 2).o;
+                cur_op += 8;
+                if (IS_CONCRETE(check))
+                    MVM_profiler_log_and_deopt_one_obj(tc, GET_UI32(cur_op, -4), 0, check, MVM_PROFILE_WANTED_TYPEOBJ);
+                else
+                    target->o = check;
+                goto NEXT;
+            }
+            OP(prof_rebless): {
+                MVMObject *source = GET_REG(cur_op, 2).o;
+                MVMObject *target = GET_REG(cur_op, 4).o;
+                if (!REPR(GET_REG(cur_op, 2).o)->change_type) {
+                    MVM_exception_throw_adhoc(tc, "This REPR cannot change type");
+                }
+                REPR(source)->change_type(tc, source, target);
+                GET_REG(cur_op, 0).o = source;
+                MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o);
+                cur_op += 10;
+                MVM_profiler_log_and_deopt_rebless(tc, GET_UI32(cur_op, -4), source, target);
+                goto NEXT;
+            }
             OP(prof_allocated):
                 MVM_profile_log_allocated(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;

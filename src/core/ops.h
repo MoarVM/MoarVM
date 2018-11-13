@@ -903,10 +903,19 @@
 #define MVM_OP_prof_enterinline 899
 #define MVM_OP_prof_enternative 900
 #define MVM_OP_prof_exit 901
-#define MVM_OP_prof_allocated 902
-#define MVM_OP_ctw_check 903
-#define MVM_OP_coverage_log 904
-#define MVM_OP_breakpoint 905
+#define MVM_OP_prof_guard 902
+#define MVM_OP_prof_guardconc 903
+#define MVM_OP_prof_guardtype 904
+#define MVM_OP_prof_guardsf 905
+#define MVM_OP_prof_guardsfouter 906
+#define MVM_OP_prof_guardobj 907
+#define MVM_OP_prof_guardnotobj 908
+#define MVM_OP_prof_guardjustconc 909
+#define MVM_OP_prof_guardjusttype 910
+#define MVM_OP_prof_allocated 911
+#define MVM_OP_ctw_check 912
+#define MVM_OP_coverage_log 913
+#define MVM_OP_breakpoint 914
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

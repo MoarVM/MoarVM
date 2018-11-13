@@ -384,18 +384,95 @@ void MVM_profiler_log_osr(MVMThreadContext *tc, MVMuint64 jitted) {
     }
 }
 
+static MVMProfileDeoptCount * find_or_make_deopt_count_entry(MVMThreadContext *tc, MVMObject *expected, MVMObject *got) {
+    MVMProfileThreadData *ptd  = get_thread_data(tc);
+    MVMProfileCallNode   *pcn  = ptd->current_call;
+
+    MVMuint8 is_stable = expected->header.flags & MVM_CF_STABLE;
+    MVMuint8 got_stable = got->header.flags & MVM_CF_STABLE;
+    MVMuint8 want_staticframe = !is_stable && REPR(expected)->ID == MVM_REPR_ID_MVMCode;
+
+    /* TODO NYI */
+    if (want_staticframe) return NULL;
+
+    if (pcn) {
+        /* See if there's an existing entry to update. */
+        MVMuint32 i;
+
+        for (i = 0; i < pcn->num_deopt; i++) {
+            if ((MVMSTable *)pcn->deopt[i].expected == (is_stable ? expected : STABLE(expected))) {
+                if ((MVMSTable *)pcn->deopt[i].expected == (got_stable ? got : STABLE(got))) {
+                    return &pcn->deopt[i];
+                }
+            }
+        }
+
+        /* No entry; create one. */
+        if (pcn->num_deopt == pcn->alloc_deopt) {
+            pcn->alloc_deopt += 8;
+            pcn->deopt = MVM_realloc(pcn->deopt,
+                pcn->alloc_deopt * sizeof(MVMProfileDeoptCount));
+        }
+        pcn->deopt[pcn->num_deopt].expected   = is_stable ? expected : STABLE(expected);
+        pcn->deopt[pcn->num_deopt].got.type   = got_stable ? got : STABLE(got);
+        pcn->deopt[pcn->num_deopt].concness_miss  = 0;
+        pcn->deopt[pcn->num_deopt].type_miss  = 0;
+        pcn->deopt[pcn->num_deopt].outer_miss = 0;
+        pcn->deopt[pcn->num_deopt].exact_miss = 0;
+
+        pcn->deopt[pcn->num_deopt].deopt_total = 0;
+
+        return &pcn->deopt[pcn->num_deopt];
+    }
+}
+
 /* Log that local deoptimization took pace. */
-void MVM_profiler_log_deopt_one(MVMThreadContext *tc) {
-    MVMProfileThreadData *ptd = get_thread_data(tc);
-    MVMProfileCallNode   *pcn = ptd->current_call;
-    if (pcn)
-        pcn->deopt_one_count++;
+void MVM_profiler_log_and_deopt_one_obj(MVMThreadContext *tc, MVMuint32 deopt_target, MVMSTable *expected, MVMObject *got, MVMuint16 wantmode) {
+    if (tc->instance->profiling) {
+        MVMProfileDeoptCount *pdc = find_or_make_deopt_count_entry(tc, expected, got);
+        if (pdc) {
+            if (wantmode & MVM_PROFILE_WANTED_CONC) {
+                if (!IS_CONCRETE(got))
+                    pdc->concness_miss++;
+            }
+            if (wantmode & MVM_PROFILE_WANTED_TYPEOBJ) {
+                if (IS_CONCRETE(got))
+                    pdc->concness_miss++;
+            }
+            if (wantmode & MVM_PROFILE_WANTED_TYPEMATCH) {
+                if (STABLE(got) != expected)
+                    pdc->type_miss++;
+            }
+            pdc->deopt_total++;
+        }
+    }
+    MVM_spesh_deopt_one(tc, deopt_target);
+}
+
+void MVM_profiler_log_and_deopt_one_sf(MVMThreadContext *tc, MVMuint32 deopt_target, MVMStaticFrame *expected, MVMObject *got, MVMuint16 wantmode) {
+    if (tc->instance->profiling) {
+        MVMProfileDeoptCount *pdc = find_or_make_deopt_count_entry(tc, expected, got);
+        if (pdc) {
+            if (wantmode & MVM_PROFILE_WANTED_IDENTMATCH) {
+                pdc->outer_miss++;
+            }
+            if (wantmode & MVM_PROFILE_WANTED_TYPEOBJ) {
+                pdc->exact_miss++;
+            }
+            pdc->deopt_total++;
+        }
+    }
+    MVM_spesh_deopt_one(tc, deopt_target);
 }
 
 /* Log that full-stack deoptimization took pace. */
-void MVM_profiler_log_deopt_all(MVMThreadContext *tc) {
-    MVMProfileThreadData *ptd = get_thread_data(tc);
-    MVMProfileCallNode   *pcn = ptd->current_call;
-    if (pcn)
-        pcn->deopt_all_count++;
+void MVM_profiler_log_and_deopt_rebless(MVMThreadContext *tc, MVMuint32 deopt_target, MVMObject *source, MVMObject *target) {
+    if (tc->instance->profiling) {
+        MVMProfileThreadData *ptd = get_thread_data(tc);
+        MVMProfileCallNode   *pcn = ptd->current_call;
+        if (pcn)
+            pcn->deopt_all_count++;
+    }
+    MVM_spesh_deopt_all(tc);
+    MVM_spesh_deopt_one(tc, deopt_target);
 }

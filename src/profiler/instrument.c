@@ -742,6 +742,10 @@ static void mark_call_graph_node(MVMThreadContext *tc, MVMProfileCallNode *node,
     MVM_gc_worklist_add(tc, worklist, &(node->sf));
     for (i = 0; i < node->num_alloc; i++)
         MVM_gc_worklist_add(tc, worklist, &(node->alloc[i].type));
+    for (i = 0; i < node->num_deopt; i++) {
+        MVM_gc_worklist_add(tc, worklist, &(node->deopt[i].expected));
+        MVM_gc_worklist_add(tc, worklist, &(node->deopt[i].got.type));
+    }
     for (i = 0; i < node->num_succ; i++)
         add_node(tc, nodelist, node->succ[i]);
 }
