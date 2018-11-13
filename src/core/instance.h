@@ -258,6 +258,7 @@ struct MVMInstance {
     MVMint8 spesh_inline_enabled;
     MVMint8 spesh_inline_log;
     MVMint8 spesh_osr_enabled;
+    MVMint8 spesh_pea_enabled;
     MVMint8 spesh_nodelay;
     MVMint8 spesh_blocking;
 
