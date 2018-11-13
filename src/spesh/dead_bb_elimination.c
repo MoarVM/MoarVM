@@ -41,6 +41,19 @@ static void cleanup_dead_bb_instructions(MVMThreadContext *tc, MVMSpeshGraph *g,
                      * unreachable. */
                     g->inlines[ann->data.inline_idx].unreachable = 1;
                     break;
+                case MVM_SPESH_ANN_INLINE_END: {
+                    /* Move it to the previous basic block, unless we already
+                     * found that its start is unreachable. */
+                    if (!g->inlines[ann->data.inline_idx].unreachable) {
+                        MVMSpeshBB *move_to_bb = linear_prev_with_ins(tc, g, dead_bb);
+                        if (move_to_bb) {
+                            MVMSpeshIns *move_to_ins = move_to_bb->last_ins;
+                            ann->next = move_to_ins->annotations;
+                            move_to_ins->annotations = ann;
+                        }
+                    }
+                    break;
+                }
                 case MVM_SPESH_ANN_FH_START: {
                     /* Move the start to the next basic block if possible. If
                      * not, just mark the handler deleted; its end must be in
