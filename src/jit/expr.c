@@ -705,7 +705,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             }
         }
 
-
         if (opcode == MVM_SSA_PHI || opcode == MVM_OP_no_op) {
             /* No template here, but we may have to emit labels */
             if (after_label < 0 && (before_label < 0 || tree_is_empty(tc, tree)))
@@ -721,14 +720,13 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             MVM_spesh_graph_add_comment(tc, jg->sg, iter->ins, "start of exprjit tree");
         }
 
-
         MVM_jit_expr_load_operands(tc, tree, ins, values, operands);
         root = MVM_jit_expr_apply_template(tc, tree, template, operands);
 
         /* mark operand types */
         for (i = 0; i < ins->info->num_operands; i++) {
-            MVMint8 opr_kind = ins->info->operands[i];
-            MVMint8 opr_type = opr_kind & MVM_operand_type_mask;
+            MVMuint8 opr_kind = ins->info->operands[i];
+            MVMuint8 opr_type = opr_kind & MVM_operand_type_mask;
             MVMSpeshOperand opr = ins->operands[i];
             if (opr_type == MVM_operand_type_var) {
                 switch (opr_kind & MVM_operand_rw_mask) {
@@ -776,10 +774,8 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                 }
                 break;
             }
+            assert(MVM_JIT_EXPR_INFO(tree, operands[i])->type >= 0);
         }
-
-
-
 
         if (ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
             /* NB: we should make this a template-level flag; should be possible
@@ -789,7 +785,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             active_values_flush(tc, tree, values, sg->num_locals);
             store_directly = 1;
         }
-
 
         /* Add root to tree to ensure source evaluation order, wrapped with
          * labels if necessary. */

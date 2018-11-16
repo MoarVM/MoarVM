@@ -134,7 +134,7 @@ my %OPTS = (
     spesh => 0,
     nodelay => 0,
 );
-GetOptions(\%OPTS, qw(verbose dump! timeout=i spesh)) or die "Could not get options";
+GetOptions(\%OPTS, qw(verbose dump! timeout=i spesh nodelay)) or die "Could not get options";
 
 my @command = @ARGV;
 die 'Command is required' unless @command;

@@ -576,7 +576,9 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
         }
         if (MVM_JIT_TILE_YIELDS_VALUE(tile) && MVM_JIT_EXPR_INFO(tree, node)->type != 0) {
             LiveRange *range = alc->values + value_set_find(alc->sets, node)->idx;
-            _ASSERT(range->reg_type == 0 || (range->reg_type) == MVM_JIT_EXPR_INFO(tree, node)->type,
+            // compare only the lower bits, because (for the moment) we don't care about signed/unsigned
+            // difference, not for storage anyway
+            _ASSERT(range->reg_type == 0 || (range->reg_type & 0xf) == (MVM_JIT_EXPR_INFO(tree, node)->type & 0xf),
                     "Register types do not match between value and node");
             /* shift to match MVM_reg_types. should arguably be a macro maybe */
             range->reg_type = MVM_JIT_EXPR_INFO(tree, node)->type;
