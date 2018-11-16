@@ -132,6 +132,7 @@ my %OPTS = (
     dump => 1,
     timeout => undef,
     spesh => 0,
+    nodelay => 0,
 );
 GetOptions(\%OPTS, qw(verbose dump! timeout=i spesh)) or die "Could not get options";
 
@@ -161,6 +162,7 @@ delete @ENV{qw(
     MVM_SPESH_OSR_DISABLE
 )} if $OPTS{spesh};
 $ENV{MVM_SPESH_BLOCKING} = 1;
+$ENV{MVM_SPESH_NODELAY} = 1 if exists $OPTS{nodelay};
 
 # I find that the addition of the MVM_SPESH_LOG / MVM_JIT_LOG
 # environment variable can sometimes change the spesh order of
