@@ -91,7 +91,9 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     MVM_jit_compiler_deinit(tc, &cl);
 
 #if linux
-    if (tc->instance->jit_perf_map) {
+    /* Native Call compiles code that doesn't correspond
+     * to a staticframe, in which case we just skip this. */
+    if (tc->instance->jit_perf_map && jg->sg->sf) {
         MVMStaticFrame *sf = jg->sg->sf;
         char symbol_name[1024];
         char *file_location = MVM_staticframe_file_location(tc, sf);
