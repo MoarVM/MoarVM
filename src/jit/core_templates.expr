@@ -19,9 +19,9 @@
 
 (template: set (copy $1))
 
-(template: trunc_i8 (ucast $1 1 int_sz))
-(template: trunc_i16 (ucast $1 2 int_sz))
-(template: trunc_i32 (ucast $1 4 int_sz))
+(template: trunc_i8 (ucast $1 int_sz 1))
+(template: trunc_i16 (ucast $1 int_sz 2))
+(template: trunc_i32 (ucast $1 int_sz 4))
 
 (template: goto (branch $0))
 
