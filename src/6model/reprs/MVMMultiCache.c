@@ -487,8 +487,9 @@ MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_ob
             ? arg_info->arg_facts[arg_idx]
             : NULL;
         if (type_tuple) {
-            MVMuint64 tt_offset = arg_idx >= arg_info->cs->num_pos
-                ? ((arg_idx + 1) - arg_info->cs->num_pos) / 2
+            MVMuint16 num_pos = arg_info->cs->num_pos;
+            MVMuint64 tt_offset = arg_idx >= num_pos
+                ? ((arg_idx - 1) - num_pos) / 2 + num_pos
                 : arg_idx;
             MVMuint32 is_rw = type_tuple[tt_offset].rw_cont;
             MVMSTable *known_type_st = NULL;
