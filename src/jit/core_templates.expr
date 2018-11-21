@@ -23,6 +23,15 @@
 (template: trunc_i16 (ucast $1 int_sz 2))
 (template: trunc_i32 (ucast $1 int_sz 4))
 
+(template: extend_u8  (ucast $1 int_sz 1))
+(template: extend_u16 (ucast $1 int_sz 2))
+(template: extend_u32 (ucast $1 int_sz 4))
+
+(template: extend_i8  (scast $1 int_sz 1))
+(template: extend_i16 (scast $1 int_sz 2))
+(template: extend_i32 (scast $1 int_sz 4))
+
+
 (template: goto (branch $0))
 
 (template: if_i
@@ -155,6 +164,18 @@
 (template: bnot_i (not $1))
 
 (template: not_i (flagval (zr $1)))
+
+(template: coerce_is
+  (call (^func &MVM_coerce_i_s)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   int)) ptr_sz))
+
+(template: coerce_si
+  (call (^func &MVM_coerce_s_i)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
 
 (template: smrt_numify!
   (callv (^func &MVM_coerce_smart_numify)
@@ -1743,6 +1764,13 @@
       (carg $2   ptr)
       (carg $1   ptr)) ptr_sz))
 
+(template: coerce_Is
+  (call (^func &MVM_bigint_to_str)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg (const 10 int_sz) int)) ptr_sz))
+
 (template: coerce_sI
   (call (^func &MVM_coerce_sI)
     (arglist
@@ -1768,6 +1796,16 @@
       (carg (tc) ptr)
       (carg $1   ptr)
       (carg $2   int)) ptr_sz))
+
+(template: radix_I
+  (call (^func &MVM_bigint_radix)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   int)
+      (carg $2   ptr)
+      (carg $3   int)
+      (carg $4   int)
+      (carg $5   ptr)) ptr_sz))
 
 (template: connect_sk
   (callv (^func &MVM_io_connect)
@@ -2443,11 +2481,26 @@
       (carg \$0 ptr)
       (carg (const (&QUOTE MVM_reg_uint64) int_sz) int))))
 
+(template: coerce_us
+  (call (^func &MVM_coerce_u_s)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   int)) ptr_sz))
+
 (template: hllbool
   (let: (($hllconfig (^getf (cu) MVMCompUnit body.hll_config)))
   (if (nz $1)
     (^getf $hllconfig MVMHLLConfig true_value)
     (^getf $hllconfig MVMHLLConfig false_value))))
+
+(template: hllboolfor
+  (let: (($hllconfig (call (^func &MVM_hll_get_config_for)
+                       (arglist
+                         (carg (tc) ptr)
+                         (carg $2   ptr)) ptr_sz)))
+    (if (nz $1)
+      (^getf $hllconfig MVMHLLConfig true_value)
+      (^getf $hllconfig MVMHLLConfig false_value))))
 
 (template: serializetobuf
   (call (^func &MVM_serialization_serialize)
