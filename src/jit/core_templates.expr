@@ -2276,6 +2276,10 @@
         (^zero)))
     (^zero)))
 
+(template: coerce_iu  (copy $1))
+
+(template: coerce_ui  (copy $1))
+
 (template: decont_u!
   (callv (^func &MVM_6model_container_decont_u)
     (arglist
