@@ -17,6 +17,10 @@ struct MVMSpeshPEAAllocation {
     /* Have we seen something that invalidates our ability to scalar replace
      * this? */
     MVMuint8 irreplaceable;
+
+    /* The deopt materialization index, and whether we have allocated one yet. */
+    MVMuint8 has_deopt_materialization_idx;
+    MVMuint16 deopt_materialization_idx;
 };
 
 /* Information held per SSA value. */

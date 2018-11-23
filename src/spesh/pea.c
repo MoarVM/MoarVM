@@ -310,6 +310,65 @@ static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     }
 }
 
+/* Gets, allocating if needed, the deopt materialization info index of a
+ * particular tracked object. */
+static MVMuint16 get_deopt_materialization_info(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *f) {
+    MVMSpeshPEAAllocation *alloc = f->pea.allocation;
+    if (alloc->has_deopt_materialization_idx) {
+        return alloc->deopt_materialization_idx;
+    }
+    else {
+        MVMSpeshPEAMaterializeInfo mi;
+        mi.stable_sslot = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable *)alloc->type->st);
+        /* TODO need to add register to materialize into, but we can't do that
+         * until transform time, when we have the real ones. So should register
+         * a transform to do it. */
+        alloc->deopt_materialization_idx = MVM_VECTOR_ELEMS(g->deopt_pea.materialize_info);
+        alloc->has_deopt_materialization_idx = 1;
+        MVM_VECTOR_PUSH(g->deopt_pea.materialize_info, mi);
+        return alloc->deopt_materialization_idx;
+    }
+}
+
+/* Checks if any of the tracked objects are needed beyond this deopt point,
+ * and adds a materialization and deopt point record if so. */
+static void add_deopt_materializations_idx(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs,
+                                           MVMint32 deopt_idx) {
+    MVMint32 i, j;
+    for (i = 0; i < MVM_VECTOR_ELEMS(gs->tracked_registers); i++) {
+        MVMSpeshFacts *tracked_facts = MVM_spesh_get_facts(tc, g, gs->tracked_registers[i].reg);
+        MVMSpeshDeoptUseEntry *deopt_user = tracked_facts->usage.deopt_users;
+        while (deopt_user) {
+            if (deopt_user->deopt_idx == deopt_idx) {
+                MVMSpeshPEADeoptPoint dp;
+                dp.deopt_point_idx = deopt_idx;
+                dp.materialize_info_idx = get_deopt_materialization_info(tc, g, tracked_facts);
+                dp.target_reg = gs->tracked_registers[i].reg.reg.orig;
+                MVM_VECTOR_PUSH(g->deopt_pea.deopt_point, dp);
+            }
+            deopt_user = deopt_user->next;
+        }
+    }
+}
+
+/* Goes through the deopt indices at the specified instruction, and sees if
+ * any of the tracked objects are needed beyond the deopt point. If so,
+ * adds their materialization. */
+static void add_deopt_materializations_ins(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs,
+                                           MVMSpeshIns *deopt_ins) {
+    MVMSpeshAnn *ann = deopt_ins->annotations;
+    while (ann) {
+        switch (ann->type) {
+            case MVM_SPESH_ANN_DEOPT_ONE_INS:
+            case MVM_SPESH_ANN_DEOPT_ALL_INS:
+            case MVM_SPESH_ANN_DEOPT_INLINE:
+                add_deopt_materializations_idx(tc, g, gs, ann->data.deopt_idx);
+                break;
+        }
+        ann = ann->next;
+    }
+}
+
 /* Performs the analysis phase of partial escape anslysis, figuring out what
  * rewrites we can do on the graph to achieve scalar replacement of objects
  * and, perhaps, some guard eliminations. */
