@@ -582,6 +582,26 @@ static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMStaticFrame *sf)
     MVM_free(ann);
 }
 
+static void dump_deopt_pea(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
+    MVMint32 i;
+    if (MVM_VECTOR_ELEMS(g->deopt_pea.materialize_info)) {
+        append(ds, "\nMaterializations:\n");
+        for (i = 0; i < MVM_VECTOR_ELEMS(g->deopt_pea.materialize_info); i++) {
+            MVMSpeshPEAMaterializeInfo *mat = &(g->deopt_pea.materialize_info[i]);
+            MVMSTable *st = (MVMSTable *)g->spesh_slots[mat->stable_sslot];
+            appendf(ds, "  %d: %s", i, st->debug_name);
+        }
+    }
+    if (MVM_VECTOR_ELEMS(g->deopt_pea.deopt_point)) {
+        append(ds, "\n\nDeopt point materialization mappings:\n");
+        for (i = 0; i < MVM_VECTOR_ELEMS(g->deopt_pea.deopt_point); i++) {
+            MVMSpeshPEADeoptPoint *dp = &(g->deopt_pea.deopt_point[i]);
+            appendf(ds, "  At %d materialize %d into r%d\n", dp->deopt_point_idx,
+                    dp->materialize_info_idx, dp->target_reg);
+        }
+    }
+}
+
 /* Dump a spesh graph into string form, for debugging purposes. */
 char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *cur_bb;
@@ -662,6 +682,9 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
             }
         }
     }
+
+    /* Dump materialization deopt into. */
+    dump_deopt_pea(tc, &ds, g);
 
     append(&ds, "\n");
 
