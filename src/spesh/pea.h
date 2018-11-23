@@ -48,9 +48,6 @@ struct MVMSpeshPEAMaterializeInfo {
     /* The spesh slot containing the STable of the object to materialize. */
     MVMuint16 stable_sslot;
 
-    /* The register to materialize into. */
-    MVMuint16 target_reg;
-
     /* A list of the registers holding the attributes to put into the
      * materialized object. */
     MVMuint16 *attr_regs;
@@ -64,7 +61,10 @@ struct MVMSpeshPEADeoptPoint {
 
     /* The index into the materialize_info specifying how to materialize
      * this object. */
-    MVMuint32 materialize_info_idx;
+    MVMuint16 materialize_info_idx;
+
+    /* The register to put the materialized object into. */
+    MVMuint16 target_reg;
 };
 
 void MVM_spesh_pea(MVMThreadContext *tc, MVMSpeshGraph *g);
