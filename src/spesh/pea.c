@@ -64,6 +64,16 @@ typedef struct {
     MVMSpeshFacts facts;
 } ShadowFact;
 
+/* A tracked register is one that is either the target of an allocation or
+ * aliasing an allocation. We map it to the allocation tracking info. */
+typedef struct {
+    /* The register that is tracked. */
+    MVMSpeshOperand reg;
+
+    /* The allocation that is tracked there. */
+    MVMSpeshPEAAllocation *allocation;
+} TrackedRegister;
+
 /* State we hold during the entire partial escape analysis process. */
 typedef struct {
     /* The latest temporary register index. We use these indices before we
@@ -79,6 +89,9 @@ typedef struct {
 
     /* Shadow facts. */
     MVM_VECTOR_DECL(ShadowFact, shadow_facts);
+
+    /* Tracked registers. */
+    MVM_VECTOR_DECL(TrackedRegister, tracked_registers);
 } GraphState;
 
 /* Turns a flattened-in STable into a register type to allocate, if possible.
@@ -173,6 +186,15 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
     }
 }
 
+/* Adds a register to the set of those being tracked by the escape algorithm. */
+static void add_tracked_register(MVMThreadContext *tc, GraphState *gs, MVMSpeshOperand reg,
+                                 MVMSpeshPEAAllocation *alloc) {
+    TrackedRegister tr;
+    tr.reg = reg;
+    tr.allocation = alloc;
+    MVM_VECTOR_PUSH(gs->tracked_registers, tr);
+}
+
 /* Sees if this is something we can potentially avoid really allocating. If
  * it is, sets up the allocation tracking state that we need. */
 static MVMSpeshPEAAllocation * try_track_allocation(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -194,6 +216,7 @@ static MVMSpeshPEAAllocation * try_track_allocation(MVMThreadContext *tc, MVMSpe
              * register if we apply transforms. */
             alloc->hypothetical_attr_reg_idxs[i] = gs->latest_hypothetical_reg_idx++;
         }
+        add_tracked_register(tc, gs, alloc_ins->operands[0], alloc);
         return alloc;
     }
     return NULL;
@@ -383,6 +406,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                         tran->set.ins = ins;
                         add_transform_for_bb(tc, gs, bb, tran);
                         MVM_spesh_get_facts(tc, g, ins->operands[0])->pea.allocation = alloc;
+                        add_tracked_register(tc, gs, ins->operands[0], alloc);
                     }
                     break;
                 }
@@ -519,6 +543,7 @@ void MVM_spesh_pea(MVMThreadContext *tc, MVMSpeshGraph *g) {
     GraphState gs;
     memset(&gs, 0, sizeof(GraphState));
     MVM_VECTOR_INIT(gs.shadow_facts, 0);
+    MVM_VECTOR_INIT(gs.tracked_registers, 0);
     gs.bb_states = MVM_spesh_alloc(tc, g, g->num_bbs * sizeof(BBState));
     for (i = 0; i < g->num_bbs; i++)
         MVM_VECTOR_INIT(gs.bb_states[i].transformations, 0);
@@ -544,6 +569,7 @@ void MVM_spesh_pea(MVMThreadContext *tc, MVMSpeshGraph *g) {
     for (i = 0; i < g->num_bbs; i++)
         MVM_VECTOR_DESTROY(gs.bb_states[i].transformations);
     MVM_VECTOR_DESTROY(gs.shadow_facts);
+    MVM_VECTOR_DESTROY(gs.tracked_registers);
 }
 
 /* Clean up any deopt info. */
