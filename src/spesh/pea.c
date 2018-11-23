@@ -545,3 +545,9 @@ void MVM_spesh_pea(MVMThreadContext *tc, MVMSpeshGraph *g) {
         MVM_VECTOR_DESTROY(gs.bb_states[i].transformations);
     MVM_VECTOR_DESTROY(gs.shadow_facts);
 }
+
+/* Clean up any deopt info. */
+void MVM_spesh_pea_destroy_deopt_info(MVMThreadContext *tc, MVMSpeshPEADeopt *deopt_pea) {
+    MVM_VECTOR_DESTROY(deopt_pea->materialize_info);
+    MVM_VECTOR_DESTROY(deopt_pea->deopt_point);
+}

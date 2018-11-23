@@ -102,6 +102,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     candidate->num_deopts    = sg->num_deopt_addrs;
     candidate->deopts        = sg->deopt_addrs;
     candidate->deopt_named_used_bit_field = sg->deopt_named_used_bit_field;
+    candidate->deopt_pea     = sg->deopt_pea;
     candidate->num_locals    = sg->num_locals;
     candidate->num_lexicals  = sg->num_lexicals;
     candidate->num_inlines   = sg->num_inlines;
@@ -209,6 +210,7 @@ void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candid
     MVM_free(candidate->handlers);
     MVM_free(candidate->spesh_slots);
     MVM_free(candidate->deopts);
+    MVM_spesh_pea_destroy_deopt_info(tc, &(candidate->deopt_pea));
     MVM_free(candidate->inlines);
     MVM_free(candidate->local_types);
     MVM_free(candidate->lexical_types);

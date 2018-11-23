@@ -157,11 +157,30 @@ static void deopt_named_args_used(MVMThreadContext *tc, MVMFrame *f) {
         f->params.named_used.bit_field = f->spesh_cand->deopt_named_used_bit_field;
 }
 
+/* Materialize an individual replaced object. */
+static void materialize_object(MVMThreadContext *tc, MVMFrame *f, MVMuint32 info_idx) {
+    MVM_panic(1, "Deopt: materialize_object NYI");
+}
+
+/* Materialize all replaced objects that need to be at this deopt point. */
+static void materialize_replaced_objects(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset) {
+    MVMint32 i;
+    MVMSpeshCandidate *cand = f->spesh_cand;
+    for (i = 0; i < MVM_VECTOR_ELEMS(cand->deopt_pea.deopt_point); i++) {
+        if (cand->deopt_pea.deopt_point[i].deopt_point_idx == deopt_offset)
+            materialize_object(tc, f, cand->deopt_pea.deopt_point[i].materialize_info_idx);
+    }
+}
+
 static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset, MVMint32 deopt_target) {
-    /* Found it; are we in an inline? */
-    MVMSpeshInline *inlines = f->spesh_cand->inlines;
+    /* Found it. We materialize any replaced objects first, then if
+     * we have stuff replaced in inlines then uninlining will take
+     * care of moving it out into the frames where it belongs. */
     deopt_named_args_used(tc, f);
-    if (inlines) {
+    materialize_replaced_objects(tc, f, deopt_offset);
+
+    /* Check if we have inlines. */
+    if (f->spesh_cand->inlines) {
         /* Yes, going to have to re-create the frames; uninline
          * moves the interpreter, so we can just tweak the last
          * frame. For the moment, uninlining creates its frames
@@ -192,7 +211,6 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
           MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
 #endif
     }
-
 }
 
 /* De-optimizes the currently executing frame, provided it is specialized and

@@ -30,4 +30,42 @@ struct MVMSpeshPEAInfo {
     MVMSpeshPEAAllocation *depend_allocation;
 };
 
+/* Information that we retain about a replaced allocations in order that we
+ * can materialize them upon deoptimization. */
+struct MVMSpeshPEADeopt {
+    /* Array of materialization info, specifying how to materialize a given
+     * replaced object. */
+    MVM_VECTOR_DECL(MVMSpeshPEAMaterializeInfo, materialize_info);
+
+    /* Pairings of deoptimization points and objects to materialize at those
+     * point. */
+    MVM_VECTOR_DECL(MVMSpeshPEADeoptPoint, deopt_point);
+};
+
+/* The information needed to materialize a particular replaced allocation
+ * (that is, to recreate it on the heap). */
+struct MVMSpeshPEAMaterializeInfo {
+    /* The spesh slot containing the STable of the object to materialize. */
+    MVMuint16 stable_sslot;
+
+    /* The register to materialize into. */
+    MVMuint16 target_reg;
+
+    /* A list of the registers holding the attributes to put into the
+     * materialized object. */
+    MVMuint16 *attr_regs;
+};
+
+/* Information about that needs to be materialized at a particular deopt
+ * point. */
+struct MVMSpeshPEADeoptPoint {
+    /* The index of the deopt point. */
+    MVMint32 deopt_point_idx;
+
+    /* The index into the materialize_info specifying how to materialize
+     * this object. */
+    MVMuint32 materialize_info_idx;
+};
+
 void MVM_spesh_pea(MVMThreadContext *tc, MVMSpeshGraph *g);
+void MVM_spesh_pea_destroy_deopt_info(MVMThreadContext *tc, MVMSpeshPEADeopt *deopt_pea);
