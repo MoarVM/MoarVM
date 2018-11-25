@@ -7,21 +7,19 @@
 #include <sys/socket.h>
 #endif
 
-#define NUM_SOCKOPTS_WANTED 12
+#define NUM_SOCKOPTS_WANTED 10
 
 #define SOCKOPTS(X) \
-   X( MVM_SO_BROADCAST   ) \
-   X( MVM_SO_KEEPALIVE   ) \
-   X( MVM_SO_LINGER      ) \
-   X( MVM_SO_RCVBUF      ) \
-   X( MVM_SO_REUSEADDR   ) \
-   X( MVM_SO_SNDBUF      ) \
-   X( MVM_TCP_NODELAY    ) \
-   X( MVM_SO_TIMEOUT     ) \
-   X( MVM_SO_OOBINLINE   ) \
-   X( MVM_SO_DONTROUTE   ) \
-   X( MVM_SO_ERROR       ) \
-   X( MVM_SO_TYPE        )
+   X( MVM_SO_BROADCAST ) \
+   X( MVM_SO_KEEPALIVE ) \
+   X( MVM_SO_LINGER    ) \
+   X( MVM_SO_RCVBUF    ) \
+   X( MVM_SO_REUSEADDR ) \
+   X( MVM_SO_SNDBUF    ) \
+   X( MVM_TCP_NODELAY  ) \
+   X( MVM_SO_TIMEOUT   ) \
+   X( MVM_SO_OOBINLINE ) \
+   X( MVM_SO_DONTROUTE )
 
 #define GEN_ENUMS(v)   v,
 #define GEN_STRING(v) #v,
@@ -69,12 +67,6 @@ static void populate_sockopt_values(MVMint16 sockopt_vals[NUM_SOCKOPTS_WANTED]) 
 #endif
 #ifdef SO_DONTROUTE
     sockopt_vals[MVM_SO_DONTROUTE] = SO_DONTROUTE;
-#endif
-#ifdef SO_ERROR
-    sockopt_vals[MVM_SO_ERROR] = SO_ERROR;
-#endif
-#ifdef SO_TYPE
-    sockopt_vals[MVM_SO_TYPE]  = SO_TYPE;
 #endif
 }
 
@@ -152,8 +144,6 @@ const char * MVM_io_get_sockopt_name(int option) {
         case SO_DEBUG:     return "SO_DEBUG";
         case SO_DONTROUTE: return "SO_DONTROUTE";
         case SO_OOBINLINE: return "SO_OOBINLINE";
-        case SO_ERROR:     return "SO_ERROR";
-        case SO_TYPE:      return "SO_TYPE";
         default:           return "unknown";
     }
 }
