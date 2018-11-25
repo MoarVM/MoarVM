@@ -1929,7 +1929,7 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
                             }
                             else if (attr_st->REPR->ID == MVM_REPR_ID_P6int) {
                                 MVMint64 val = attr_st->REPR->box_funcs.get_int(tc, attr_st, obj, (char *)data + offset);
-                                fprintf(stderr, "=%ld", val);
+                                fprintf(stderr, "=%"PRIi64, val);
                             }
                             else {
                                 fprintf(stderr, "[%d]=%s", repr_data->attribute_offsets[slot], MVM_6model_get_stable_debug_name(tc, attr_st));

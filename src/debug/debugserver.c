@@ -701,7 +701,7 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
 
     if (current != (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED)
             && (current & MVMSUSPENDSTATUS_MASK) != MVMSuspendState_SUSPEND_REQUEST) {
-        fprintf(stderr, "wrong state to resume from: %lu\n", MVM_load(&tc->gc_status));
+        fprintf(stderr, "wrong state to resume from: %zu\n", MVM_load(&tc->gc_status));
         return 1;
     }
 
@@ -737,7 +737,7 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
         communicate_success(tc, ctx, argument);
 
     if (tc->instance->debugserver->debugspam_protocol)
-        fprintf(stderr, "success resuming thread; its status is now %lu\n", MVM_load(&tc->gc_status));
+        fprintf(stderr, "success resuming thread; its status is now %zu\n", MVM_load(&tc->gc_status));
 
     return 0;
 }
@@ -1273,7 +1273,7 @@ static MVMint32 create_context_or_code_obj_debug_handle(MVMThreadContext *dtc, c
 
     if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
         if (dtc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "can only retrieve a context or code obj handle if thread is 'UNABLE' (is %lu)\n", to_do->body.tc->gc_status);
+            fprintf(stderr, "can only retrieve a context or code obj handle if thread is 'UNABLE' (is %zu)\n", to_do->body.tc->gc_status);
         return 1;
     }
 
@@ -2168,7 +2168,7 @@ static bool socket_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
     size_t read;
     MVMuint8 *orig_data = (MVMuint8 *)data;
     if (debugspam_network)
-        fprintf(stderr, "asked to read %lu bytes\n", limit);
+        fprintf(stderr, "asked to read %zu bytes\n", limit);
     while (total_read < limit) {
         if ((read = recv(*((Socket*)ctx->buf), data, limit, 0)) == -1) {
             if (debugspam_network)
@@ -2180,13 +2180,13 @@ static bool socket_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
             return 0;
         }
         if (debugspam_network)
-            fprintf(stderr, "%lu ", read);
+            fprintf(stderr, "%zu ", read);
         data = (void *)(((MVMuint8*)data) + read);
         total_read += read;
     }
 
     if (debugspam_network) {
-        fprintf(stderr, "... recv received %lu bytes\n", total_read);
+        fprintf(stderr, "... recv received %zu bytes\n", total_read);
         fprintf(stderr, "cmp read: ");
         for (idx = 0; idx < limit; idx++) {
             fprintf(stderr, "%x ", orig_data[idx]);
@@ -2202,7 +2202,7 @@ static size_t socket_writer(cmp_ctx_t *ctx, const void *data, size_t limit) {
     size_t sent;
     MVMuint8 *orig_data = (MVMuint8 *)data;
     if (debugspam_network)
-        fprintf(stderr, "asked to send %3lu bytes: ", limit);
+        fprintf(stderr, "asked to send %3zu bytes: ", limit);
     while (total_sent < limit) {
         if ((sent = send(*(Socket*)ctx->buf, data, limit, 0)) == -1) {
             if (debugspam_network)
@@ -2214,12 +2214,12 @@ static size_t socket_writer(cmp_ctx_t *ctx, const void *data, size_t limit) {
             return 0;
         }
         if (debugspam_network)
-            fprintf(stderr, "%2lu ", sent);
+            fprintf(stderr, "%2zu ", sent);
         data = (void *)(((MVMuint8*)data) + sent);
         total_sent += sent;
     }
     if (debugspam_network)
-        fprintf(stderr, "... send sent %3lu bytes\n", total_sent);
+        fprintf(stderr, "... send sent %3zu bytes\n", total_sent);
     return 1;
 }
 
