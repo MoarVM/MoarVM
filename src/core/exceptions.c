@@ -82,8 +82,8 @@ typedef struct {
 static MVMint32 handler_can_handle(MVMFrame *f, MVMFrameHandler *fh, MVMint32 cat, MVMObject *payload) {
     MVMuint32         category_mask = fh->category_mask;
     MVMuint64       block_has_label = category_mask & MVM_EX_CAT_LABELED;
-    MVMuint64           block_label = block_has_label ? (MVMuint64)(f->work[fh->label_reg].o) : 0;
-    MVMuint64          thrown_label = payload ? (MVMuint64)payload : 0;
+    MVMuint64           block_label = block_has_label ? (uintptr_t)(f->work[fh->label_reg].o) : 0;
+    MVMuint64          thrown_label = payload ? (uintptr_t)payload : 0;
     MVMuint64 identical_label_found = thrown_label == block_label;
     return ((cat & category_mask) == cat && (!(cat & MVM_EX_CAT_LABELED) || identical_label_found))
         || ((category_mask & MVM_EX_CAT_CONTROL) && cat != MVM_EX_CAT_CATCH);

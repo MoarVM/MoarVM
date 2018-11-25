@@ -247,7 +247,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
     for (fixup_idx = 0; fixup_idx < fixup_elems; fixup_idx++) {
         MVMSpeshIns *ins = to_fixup[fixup_idx];
 
-        ins->operands[3].lit_i64 = (MVMint64)line_report_store;
+        ins->operands[3].lit_i64 = (uintptr_t)line_report_store;
     }
 
     if (array_slot == 0) {

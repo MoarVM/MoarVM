@@ -2151,7 +2151,7 @@ static void optimize_plugin(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
 }
 
 static void optimize_coverage_log(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
-    char *cache        = (char *)ins->operands[3].lit_i64;
+    char *cache        = (char *)(uintptr_t)ins->operands[3].lit_i64;
     MVMint32 cache_idx = ins->operands[2].lit_i32;
 
     if (cache[cache_idx] != 0) {

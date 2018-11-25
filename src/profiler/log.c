@@ -229,7 +229,7 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
          * nursery; we may have generated some "allocated" log instructions
          * after operations that may or may not allocate what they return.
          */
-        MVMuint32 distance = ((MVMuint64)tc->nursery_alloc - (MVMuint64)obj);
+        MVMuint32 distance = (uintptr_t)tc->nursery_alloc - (uintptr_t)obj;
 
         if (!obj) {
             return;
@@ -237,7 +237,7 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
 
         /* Since some ops first allocate, then call something else that may
          * also allocate, we may have to allow for a bit of grace distance. */
-        if ((MVMuint64)obj > (MVMuint64)tc->nursery_tospace && distance <= obj->header.size && obj != ptd->last_counted_allocation) {
+        if ((uintptr_t)obj > (uintptr_t)tc->nursery_tospace && distance <= obj->header.size && obj != ptd->last_counted_allocation) {
             /* See if there's an existing node to update. */
             MVMObject            *what = STABLE(obj)->WHAT;
             MVMuint32 i;

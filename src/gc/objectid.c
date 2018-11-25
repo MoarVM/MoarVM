@@ -8,7 +8,7 @@ MVMuint64 MVM_gc_object_id(MVMThreadContext *tc, MVMObject *obj) {
     /* If it's already in the old generation, just use memory address, as
      * gen2 objects never move. */
     if (obj->header.flags & MVM_CF_SECOND_GEN) {
-        id = (MVMuint64)obj;
+        id = (uintptr_t)obj;
     }
 
     /* Otherwise, see if we already have a persistent object ID. */
@@ -30,7 +30,7 @@ MVMuint64 MVM_gc_object_id(MVMThreadContext *tc, MVMObject *obj) {
                 sizeof(MVMObject *), entry);
             obj->header.flags |= MVM_CF_HAS_OBJECT_ID;
         }
-        id = (MVMuint64)entry->gen2_addr;
+        id = (uintptr_t)entry->gen2_addr;
         uv_mutex_unlock(&tc->instance->mutex_object_ids);
     }
 

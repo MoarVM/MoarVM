@@ -1918,7 +1918,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(getwhere):
-                GET_REG(cur_op, 0).i64 = (MVMint64)GET_REG(cur_op, 2).o;
+                GET_REG(cur_op, 0).i64 = (uintptr_t)GET_REG(cur_op, 2).o;
                 cur_op += 4;
                 goto NEXT;
             OP(eqaddr):
@@ -6302,7 +6302,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMString *filename = MVM_cu_string(tc, cu, GET_UI32(cur_op, 0));
                 MVMuint32 lineno    = GET_UI32(cur_op, 4);
                 MVMuint32 cacheidx  = GET_UI32(cur_op, 8);
-                char      *cache    = (char *)MVM_BC_get_I64(cur_op, 12);
+                char      *cache    = (char *)(uintptr_t)MVM_BC_get_I64(cur_op, 12);
                 MVM_line_coverage_report(tc, filename, lineno, cacheidx, cache);
                 cur_op += 20;
                 goto NEXT;

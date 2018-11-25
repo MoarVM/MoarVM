@@ -445,7 +445,7 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
 
         /* Use static frame memory address to get a unique ID. */
         MVM_repr_bind_key_o(tc, node_hash, pds->id,
-            box_i(tc, (MVMint64)pcn->sf));
+            box_i(tc, (MVMint64)(uintptr_t)pcn->sf));
     } else {
         MVMString *function_name_string =
             MVM_string_utf8_c8_decode(tc, tc->instance->VMString,
@@ -461,7 +461,7 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
 
         /* Use the address of the name string as unique ID. a hack, but oh well. */
         MVM_repr_bind_key_o(tc, node_hash, pds->id,
-            box_i(tc, (MVMint64)pcn->native_target_name));
+            box_i(tc, (MVMint64)(uintptr_t)pcn->native_target_name));
     }
 
     /* Entry counts. */
@@ -509,7 +509,7 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
             MVMProfileAllocationCount *alloc = &pcn->alloc[i];
 
             MVMObject *type       = pcn->alloc[i].type;
-            MVMObject *type_info  = insert_if_not_exists(tc, pds, types_array, (MVMint64)type);
+            MVMObject *type_info  = insert_if_not_exists(tc, pds, types_array, (MVMint64)(uintptr_t)type);
 
             if (type_info) {
                 bind_extra_info(tc, type_info, pds->managed_size, box_i(tc, STABLE(type)->size));
@@ -519,7 +519,7 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
                 bind_extra_info(tc, type_info, pds->repr, box_s(tc, str(tc, REPR(type)->name)));
             }
 
-            MVM_repr_bind_key_o(tc, alloc_info, pds->id, box_i(tc, (MVMint64)type));
+            MVM_repr_bind_key_o(tc, alloc_info, pds->id, box_i(tc, (MVMint64)(uintptr_t)type));
             if (alloc->allocations_spesh)
                 MVM_repr_bind_key_o(tc, alloc_info, pds->spesh,
                     box_i(tc, alloc->allocations_spesh));
