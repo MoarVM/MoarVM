@@ -709,6 +709,7 @@ realclean: clean
 	-$(CMD)@mtclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@dcclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@cmpclean@ $(NOOUT) $(NOERR)
+	-$(RM) $(MINILUA) $(NOOUT) $(NOERR)
 
 distclean: realclean
 	$(MSG) remove executable and libraries
