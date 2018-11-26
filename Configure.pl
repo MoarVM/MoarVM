@@ -212,20 +212,12 @@ if (-e "$config{pkgconfig}") {
 
 # conditionally set include dirs and install rules
 $config{cincludes} = '' unless defined $config{cincludes};
+$config{lincludes} = '' unless defined $config{lincludes};
 $config{install}   = '' unless defined $config{install};
 if ($args{'has-libuv'}) {
     $defaults{-thirdparty}->{uv} = undef;
     unshift @{$config{usrlibs}}, 'uv';
-    if ($config{pkgconfig_works}) {
-        my $result = `$config{pkgconfig} --cflags libuv`;
-        if ( $? == 0 ) {
-            $result =~ s/\n/ /g;
-            $config{cincludes} .= ' ' . "$result";
-            print("Adding extra include for libuv: $result\n");
-        } else {
-            print("Error occured when running $config{pkgconfig} --cflags libuv.\n");
-        }
-    }
+    setup_native_library('libuv') if $config{pkgconfig_works};
 }
 else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libuv/include'
@@ -239,16 +231,7 @@ else {
 if ($args{'has-libatomic_ops'}) {
     $defaults{-thirdparty}->{lao} = undef;
     unshift @{$config{usrlibs}}, 'atomic_ops';
-    if ($config{pkgconfig_works}) {
-        my $result = `$config{pkgconfig} --cflags atomic_ops`;
-        if ( $? == 0 ) {
-            $result =~ s/\n/ /g;
-            $config{cincludes} .= ' ' . "$result";
-            print("Adding extra include for atomic_ops: $result\n");
-        } else {
-            print("Error occured when running $config{pkgconfig} --cflags atomic_ops.\n");
-        }
-    }
+    setup_native_library('atomic_ops') if $config{pkgconfig_works};
 }
 else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libatomicops/src';
@@ -277,6 +260,12 @@ else {
 if ($args{'has-libtommath'}) {
     $defaults{-thirdparty}->{tom} = undef;
     unshift @{$config{usrlibs}}, 'tommath';
+    if (index($config{cincludes}, '-I/usr/local/include') == -1) {
+        $config{cincludes} = join(' ', $config{cincludes}, '-I/usr/local/include');
+    }
+    if (index($config{lincludes}, '-L/usr/local/lib') == -1) {
+        $config{lincludes} = join(' ', $config{lincludes}, '-L/usr/local/lib');
+    }
 }
 else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libtommath';
@@ -292,24 +281,7 @@ if ($args{'has-libffi'}) {
     $defaults{-thirdparty}->{dcb} = undef;
     $defaults{-thirdparty}->{dl}  = undef;
     if ($config{pkgconfig_works}) {
-        my $result_cflags = `$config{pkgconfig} --cflags libffi`;
-        if ( $? == 0 ) {
-            $result_cflags =~ s/\n/ /g;
-            $config{cincludes} .= " $result_cflags";
-            print("Adding extra include for libffi: $result_cflags\n");
-        }
-        else {
-            print("Error occured when running $config{pkgconfig} --cflags libffi.\n");
-        }
-        my $result_libs = `$config{pkgconfig} --libs libffi`;
-        if ( $? == 0 ) {
-            $result_libs =~ s/\n/ /g;
-            $config{ldusr} .= " $result_libs";
-            print("Adding extra libs for libffi: $result_libs\n");
-        }
-        else {
-            print("Error occured when running $config{pkgconfig} --libs libffi.\n");
-        }
+        setup_native_library('libffi');
     }
     elsif ($^O eq 'solaris') {
         my ($first) = map { m,(.+)/ffi\.h$, && "/$1"  } grep { m,/ffi\.h$, } `pkg contents libffi`;
@@ -328,6 +300,12 @@ elsif ($args{'has-dyncall'}) {
     $defaults{-thirdparty}->{dcb} = undef;
     $defaults{-thirdparty}->{dl}  = undef;
     $config{nativecall_backend} = 'dyncall';
+    if (index($config{cincludes}, '-I/usr/local/include') == -1) {
+        $config{cincludes} = join(' ', $config{cincludes}, '-I/usr/local/include');
+    }
+    if (index($config{lincludes}, '-L/usr/local/lib') == -1) {
+        $config{lincludes} = join(' ', $config{lincludes}, '-L/usr/local/lib');
+    }
 }
 else {
     $config{nativecall_backend} = 'dyncall';
@@ -342,6 +320,7 @@ else {
 
 # mangle library names
 $config{ldlibs} = join ' ',
+    $config{lincludes},
     (map { sprintf $config{ldusr}, $_; } @{$config{usrlibs}}),
     (map { sprintf $config{ldsys}, $_; } @{$config{syslibs}});
 $config{ldlibs} = ' -lasan ' . $config{ldlibs} if $args{asan} && $^O ne 'darwin' && $config{cc} ne 'clang';
@@ -781,8 +760,8 @@ sub generate {
             # In-between slashes in makefiles need to be backslashes on Windows.
             # Double backslashes in config.c, beause these are in qq-strings.
             my $bs = $dest =~ /Makefile/ ? '\\' : '\\\\';
-			$line =~ s/(\w|\.|\w\:|\$\(PREFIX\))\/(?=\w|\.|\*)/$1$bs/g;
-			$line =~ s/(\w|\.|\w\:|\$\(PREFIX\))\\(?=\w|\.|\*)/$1$bs/g if $bs eq '\\\\';
+            $line =~ s/(\w|\.|\w\:|\$\(PREFIX\))\/(?=\w|\.|\*)/$1$bs/g;
+            $line =~ s/(\w|\.|\w\:|\$\(PREFIX\))\\(?=\w|\.|\*)/$1$bs/g if $bs eq '\\\\';
 
             # gmake doesn't like \*
             $line =~ s/(\w|\.|\w\:|\$\(PREFIX\))\\\*/$1\\\\\*/g
@@ -849,6 +828,33 @@ sub write_backend_config {
 sub wsl_bash_on_win {
     open my $fh, '<', '/proc/sys/kernel/osrelease' or return 0;
     return ((readline $fh) =~ /\A\d\.\d\.\d-\d+-Microsoft\s*\z/) ? 1 : 0;
+}
+
+# set up cincludes and lincludes flags for a native library
+sub setup_native_library {
+    my $library = shift;
+    my $result_cflags = `$config{pkgconfig} --cflags $library`;
+    if ( $? == 0 ) {
+        $result_cflags =~ s/\n//g;
+        if (index($config{cincludes}, $result_cflags) == -1) {
+            $config{cincludes} = join(' ', $config{cincludes}, $result_cflags);
+            print("Adding extra include for $library: $result_cflags\n");
+        }
+    }
+    else {
+        print("Error occured when running $config{pkgconfig} --cflags $library.\n");
+    }
+    my $result_libs = `$config{pkgconfig} --libs-only-L $library`;
+    if ( $? == 0 ) {
+        $result_libs =~ s/\n//g;
+        if (index($config{lincludes}, $result_libs) == -1) {
+            $config{lincludes} = join(' ', $config{lincludes}, $result_libs);
+            print("Adding extra libs for $library: $result_libs\n");
+        }
+    }
+    else {
+        print("Error occured when running $config{pkgconfig} --libs-only-L $library.\n");
+    }
 }
 
 __END__
