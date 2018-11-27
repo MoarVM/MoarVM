@@ -3,6 +3,7 @@
 #
 use Git::Log;
 use JSON::Fast;
+use Terminal::ANSIColor;
 my $merged-into = "MergedInto";
 my $merged-to   = "MergedTo";
 class ChangelogClassifier {
@@ -31,6 +32,7 @@ class ViewOptions {
     has Bool:D $.subject is rw        = True;
     has Bool:D $.author is rw         = False;
     has Bool:D $.dropped is rw        = True;
+    has Bool:D $.color is rw          = False;
     method format-output ($thing) {
         my @text;
         if self.commit {
@@ -41,7 +43,11 @@ class ViewOptions {
         if self.dropped && $thing<dropped> {
             @text.push: '<dropped>';
         }
-        @text.push: '{' ~ ($thing<CustomCategory> // $thing<AutoCategory> // "???") ~ '}' if self.category;
+        if self.category {
+            my $cat = '{' ~ ($thing<CustomCategory> // $thing<AutoCategory> // "???") ~ '}';
+            $cat = colored($cat, 'bold') if $!color;
+            @text.push: $cat;
+        }
         if self.subject-origin {
             if $thing<CustomSubject> {
                 @text.push: '(Custom)';
@@ -53,7 +59,9 @@ class ViewOptions {
                 @text.push: '(Commit)';
             }
         }
-        @text.push: ($thing<CustomSubject> // $thing<AutoSubject> // $thing<Subject>);
+        my $subj = ($thing<CustomSubject> // $thing<AutoSubject> // $thing<Subject>);
+        $subj = colored($subj, 'bold') if $!color;
+        @text.push: $subj;
         if $thing<changes> && self.modified-files {
             @text.push: '|';
             @text.push: $thing.<changes>».<filename>.join(", ");
@@ -446,7 +454,7 @@ sub MAIN (Bool:D :$print-modified-files = False, Bool:D :$print-commit = False) 
     }
     # Remove the expr jit op additions so we can combine them into one entry
     my @new-expr-jit-ops;
-    my $viewopts = ViewOptions.new;
+    my $viewopts = ViewOptions.new(:color, :author);
     for @loggy.reverse -> $item {
         next if $item<dropped>;
         next if $item<done>;
