@@ -34,6 +34,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMSpeshLogBody *log = (MVMSpeshLogBody *)data;
     MVMuint32 i;
     MVM_gc_worklist_add(tc, worklist, &(log->thread));
+    if (!log->entries)
+        return;
     for (i = 0; i < log->used; i++) {
         switch (log->entries[i].kind) {
             case MVM_SPESH_LOG_ENTRY:
