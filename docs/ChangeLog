@@ -1,6 +1,78 @@
 See https://github.com/MoarVM/MoarVM/wiki/ChangeLog-Draft for the draft changelog
 since the previous release.
 
+New in 2018.11
+
+6model:
++ [7ba02259] Correct named argument type tuple index calc. Fixes an
+  out-of-bounds memory access. Resolves issue #996
++ [9f19fffa] Add new write_buf repr function to speed up write* ops
+
+Core:
++ [dcb1dce9] JIT compile param_rp_u
++ [65db5b4d] Implement writeuint op
++ [f6fb4646] Make bytecode dumper more resilient against invalid bytecode
+
+Docs:
++ [43c5cd4a] Add mul exprjit op to documentation
+
+JIT:
++ [7a110b71] Add hllboolfor exprjit template
++ [9b2ab169] Add radix_I exprjit template
++ [0accc8ce] Add coerce_* exprjit templates
++ [5167d102] Add extend_{u,i}* exprjit templates
++ [0c2b13a2] Add exprjit integer multiplication op: mul_i
++ [d40bac9f] Use arithmetic right shift in JIT of brshift_i to ensure new bits
+  are shifted to match the initial sign bit
++ [9468b7f7] Fix trunc to casting upwards
++ [e7a1330b] JIT compile coerce_us
++ [cfd6c966] Expr JIT template for sp_findmeth
++ [d6ad3117] Expr JIT compile serializetobuf
++ [40a4e375] Expr JIT compile unbox_u
++ [fbdb36d7] JIT compile unbox_u
++ [efff300c] JIT compile remaining extend and trunc ops: extend_{i8,u8,u32} and trunc_{i8,u8}
++ [39ded5fe] JIT compile decodertakeallchars
++ [64b44ea0] JIT compile writeint and writeuint
++ [2c4967d1] Teach the lego JIT about coerce_(iu|ui), extend_[ui]16, trunc_u(16|32)
+
+Ops:
++ [6dfa5043] Implement readint, readuint and readnum ops
++ [231cd1a1] New serializetobuf op for assisting bytecode assembly in NQP
++ [07464ae3] Add a writedouble op
++ [311e2683] Add the buffertocu op
+
+Other:
++ A large number of MAST class changes were made. Previously they were fed as
+  one big batch into mastcompiler.c. Now the QAST is turned into bytecode as
+  directly as possible. This greatly decreases the maximum memory used.
++ [d590f25b] Ensure make realclean removes minilua binary
++ [9ef725d5] Always rebuild minilua to work around issue #999
++ [d721125d] Fix MVM_operand_type_mask in lib/MAST. The old mask was not
+  extended when unsigned types were added.
+
+Profiler:
++ [6ff60a3b] Fix "pointer cast size mismatch" warnings on 32-bit arch's to resolve issue #444
++ [7aa9500e] Keep track of nativecallcast invokes
++ [cd4f98af] Split "cleared bytes" into managed/unmanaged to prevent underflow
++ [add43502] Log parent thread id on thread creation
++ [acb5000b] call node's first entry time should be relative
++ [5e142f46] Expose a thread's start time
++ [3eadf765] Expose first entry time in profiler data
++ [543f53aa,3eadf765 acb5000b] Expose first entry time in profiler data
+
+Spesh:
++ [c933b516] Free spesh log entries after consuming them. Reduces memory usage
++ [6236eb5d] Fix a segfault that could occur due to missing facts
++ [25e7fa48] Teach spesh about known values for PHI nodes
++ [a74af558] output known type's debugname in spesh log
++ [950fb0e1] Unblock optimizing the box_* into a fastbox. Allow box_i to go through int cache.
++ [d8065362] decont on nativeref shall become decont_* + box_* to more easily
+  get rid of a native ref taking instruction.
+
+Tooling/Build:
++ [c0799ec1] Include system library paths in Configure.pl if configured to use them to fix issue #1000
++ [c130b7cd] Add a --nodelay flag to jit-bisect.pl
+
 New in 2018.10
 
 6model:
