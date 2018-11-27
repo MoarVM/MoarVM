@@ -195,8 +195,8 @@ MVMString * MVM_string_utf16le_decode(MVMThreadContext *tc,
     return MVM_string_utf16_decode_main(tc, result_type, (MVMuint8*)utf16_chars, bytes, UTF16_DECODE_LITTLE_ENDIAN);
 }
 MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
-            const MVMObject *result_type, char *_utf16_chars, size_t bytes) {
-    MVMuint8 *utf16_chars = (MVMuint8*)utf16_chars;
+            const MVMObject *result_type, char *utf16_chars_in, size_t bytes) {
+    MVMuint8 *utf16_chars = (MVMuint8*)utf16_chars_in;
 #ifdef MVM_BIGENDIAN
     int mode = UTF16_DECODE_BIG_ENDIAN;
 #else
