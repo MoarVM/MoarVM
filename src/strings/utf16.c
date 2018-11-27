@@ -187,15 +187,16 @@ MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStre
 static MVMString * MVM_string_utf16_decode_main(MVMThreadContext *tc,
         const MVMObject *result_type, MVMuint8 *utf16_chars, size_t bytes, int endianess);
 MVMString * MVM_string_utf16be_decode(MVMThreadContext *tc,
-        const MVMObject *result_type, MVMuint8 *utf16_chars, size_t bytes) {
-    return MVM_string_utf16_decode_main(tc, result_type, utf16_chars, bytes, UTF16_DECODE_BIG_ENDIAN);
+        const MVMObject *result_type, char *utf16_chars, size_t bytes) {
+    return MVM_string_utf16_decode_main(tc, result_type, (MVMuint8*)utf16_chars, bytes, UTF16_DECODE_BIG_ENDIAN);
 }
 MVMString * MVM_string_utf16le_decode(MVMThreadContext *tc,
-            const MVMObject *result_type, MVMuint8 *utf16_chars, size_t bytes) {
-    return MVM_string_utf16_decode_main(tc, result_type, utf16_chars, bytes, UTF16_DECODE_LITTLE_ENDIAN);
+            const MVMObject *result_type, char *utf16_chars, size_t bytes) {
+    return MVM_string_utf16_decode_main(tc, result_type, (MVMuint8*)utf16_chars, bytes, UTF16_DECODE_LITTLE_ENDIAN);
 }
 MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
-            const MVMObject *result_type, MVMuint8 *utf16_chars, size_t bytes) {
+            const MVMObject *result_type, char *_utf16_chars, size_t bytes) {
+    MVMuint8 *utf16_chars = (MVMuint8*)utf16_chars;
 #ifdef MVM_BIGENDIAN
     int mode = UTF16_DECODE_BIG_ENDIAN;
 #else
@@ -214,7 +215,7 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
             bytes -= 2;
         }
     }
-    return MVM_string_utf16_decode_main(tc, result_type, utf16_chars, bytes, mode);
+    return MVM_string_utf16_decode_main(tc, result_type, (MVMuint8*)utf16_chars, bytes, mode);
 }
 /* Decodes the specified number of bytes of utf16 into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR. */
