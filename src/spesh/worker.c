@@ -128,6 +128,11 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                         uv_cond_signal(sl->body.block_condvar);
                         uv_mutex_unlock(sl->body.block_mutex);
                     }
+                    {
+                        MVMSpeshLogEntry *entries = sl->body.entries;
+                        sl->body.entries = NULL;
+                        MVM_free(entries);
+                    }
                 });
             }
             else if (MVM_is_null(tc, log_obj)) {
