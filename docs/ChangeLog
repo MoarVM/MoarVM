@@ -3,6 +3,18 @@ since the previous release.
 
 New in 2018.11
 
+Other:
++ Rework the way bytecode is generated. Eliminate most of the MAST classes and
+  allow us to compile bytecode without having to have everything in memory at
+  the same time. The new compiler can walk the QAST tree and turn what used to
+  be multile MAST objects into a single buffer. Now the QAST is turned into
+  bytecode as directly as possible. This greatly decreases the maximum memory
+  used for this operation.
++ [d590f25b] Ensure make realclean removes minilua binary
++ [9ef725d5] Always rebuild minilua to work around issue #999
++ [d721125d] Fix MVM_operand_type_mask in lib/MAST. The old mask was not
+  extended when unsigned types were added.
+
 6model:
 + [7ba02259] Correct named argument type tuple index calc. Fixes an
   out-of-bounds memory access. Resolves issue #996
@@ -41,24 +53,13 @@ Ops:
 + [07464ae3] Add a writedouble op
 + [311e2683] Add the buffertocu op
 
-Other:
-+ A large number of MAST class changes were made. Previously they were fed as
-  one big batch into mastcompiler.c. Now the QAST is turned into bytecode as
-  directly as possible. This greatly decreases the maximum memory used.
-+ [d590f25b] Ensure make realclean removes minilua binary
-+ [9ef725d5] Always rebuild minilua to work around issue #999
-+ [d721125d] Fix MVM_operand_type_mask in lib/MAST. The old mask was not
-  extended when unsigned types were added.
-
 Profiler:
 + [6ff60a3b] Fix "pointer cast size mismatch" warnings on 32-bit arch's to resolve issue #444
 + [7aa9500e] Keep track of nativecallcast invokes
 + [cd4f98af] Split "cleared bytes" into managed/unmanaged to prevent underflow
 + [add43502] Log parent thread id on thread creation
 + [acb5000b] call node's first entry time should be relative
-+ [5e142f46] Expose a thread's start time
-+ [3eadf765] Expose first entry time in profiler data
-+ [543f53aa,3eadf765 acb5000b] Expose first entry time in profiler data
++ [543f53aa,3eadf765 acb5000b] Expose first entry and start time in profiler data
 
 Spesh:
 + [c933b516] Free spesh log entries after consuming them. Reduces memory usage
