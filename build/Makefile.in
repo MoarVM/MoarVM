@@ -480,6 +480,7 @@ UV_SOLARIS = 3rdparty/libuv/src/unix/sunos@obj@ \
             $(UV_UNIX)
 
 UV_AIX = 3rdparty/libuv/src/unix/aix@obj@ \
+         3rdparty/libuv/src/unix/aix-common@obj@ \
          $(UV_UNIX)
 
 UV_OBJECTS = @uvobjects@
