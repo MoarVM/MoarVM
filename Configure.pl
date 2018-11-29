@@ -463,6 +463,11 @@ if ($config{cc} eq 'cl') {
 build::probe::C_type_bool(\%config, \%defaults);
 build::probe::computed_goto(\%config, \%defaults);
 build::probe::pthread_yield(\%config, \%defaults);
+if ($^O eq 'aix') {
+    build::probe::numbits(\%config, \%defaults);
+    $config{ldflags} = join(',', $config{ldflags}, '-bmaxdata:0x80000000')
+        if $config{arch_bits} == 32;
+}
 build::probe::rdtscp(\%config, \%defaults);
 
 my $order = $config{be} ? 'big endian' : 'little endian';
