@@ -19,7 +19,7 @@ static void pea_log(char *fmt, ...) {
 #define TRANSFORM_BINDATTR_TO_SET   2
 #define TRANSFORM_DELETE_SET        3
 #define TRANSFORM_GUARD_TO_SET      4
-#define TRANSFORM_SAVE_DEOPT_REGS   5
+#define TRANSFORM_ADD_DEOPT_POINT   5
 typedef struct {
     /* The allocation that this transform relates to eliminating. */
     MVMSpeshPEAAllocation *allocation;
@@ -43,6 +43,10 @@ typedef struct {
         struct {
             MVMSpeshIns *ins;
         } guard;
+        struct {
+            MVMint32 deopt_point_idx;
+            MVMuint16 target_reg;
+        } dp;
     };
 } Transformation;
 
@@ -120,6 +124,42 @@ MVMint32 flattened_type_to_register_kind(MVMThreadContext *tc, MVMSTable *st) {
     }
 }
 
+/* Gets, allocating if needed, the deopt materialization info index of a
+ * particular tracked object. */
+static MVMuint16 get_deopt_materialization_info(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                                GraphState *gs, MVMSpeshPEAAllocation *alloc) {
+    if (alloc->has_deopt_materialization_idx) {
+        return alloc->deopt_materialization_idx;
+    }
+    else {
+        MVMSpeshPEAMaterializeInfo mi;
+
+        /* Build up information about registers containing attribute data. */
+        MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)alloc->type->st->REPR_data;
+        MVMuint32 num_attrs = repr_data->num_attributes;
+        MVMuint16 *attr_regs;
+        if (num_attrs > 0) {
+            MVMuint32 i;
+            attr_regs = MVM_malloc(num_attrs * sizeof(MVMuint16));
+            for (i = 0; i < num_attrs; i++)
+                attr_regs[i] = gs->attr_regs[alloc->hypothetical_attr_reg_idxs[i]];
+        }
+        else {
+            attr_regs = NULL;
+        }
+
+        /* Set up and add materialization info. */
+        mi.stable_sslot = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable *)alloc->type->st);
+        mi.num_attr_regs = num_attrs;
+        mi.attr_regs = attr_regs;
+        alloc->deopt_materialization_idx = MVM_VECTOR_ELEMS(g->deopt_pea.materialize_info);
+        alloc->has_deopt_materialization_idx = 1;
+        MVM_VECTOR_PUSH(g->deopt_pea.materialize_info, mi);
+
+        return alloc->deopt_materialization_idx;
+    }
+}
+
 /* Apply a transformation to the graph. */
 static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs,
         MVMSpeshBB *bb, Transformation *t) {
@@ -182,22 +222,12 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             pea_log("OPT: eliminated a guard");
             break;
         }
-        case TRANSFORM_SAVE_DEOPT_REGS: {
-            MVMSpeshPEAAllocation *alloc = t->allocation;
-            MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)alloc->type->st->REPR_data;
-            MVMuint32 num_attrs = repr_data->num_attributes;
-            MVMuint16 *attr_regs;
-            if (num_attrs > 0) {
-                MVMuint32 i;
-                attr_regs = MVM_malloc(num_attrs * sizeof(MVMuint16));
-                for (i = 0; i < num_attrs; i++)
-                    attr_regs[i] = gs->attr_regs[alloc->hypothetical_attr_reg_idxs[i]];
-            }
-            else {
-                attr_regs = NULL;
-            }
-            g->deopt_pea.materialize_info[alloc->deopt_materialization_idx].num_attr_regs = num_attrs;
-            g->deopt_pea.materialize_info[alloc->deopt_materialization_idx].attr_regs = attr_regs;
+        case TRANSFORM_ADD_DEOPT_POINT: {
+            MVMSpeshPEADeoptPoint dp;
+            dp.deopt_point_idx = t->dp.deopt_point_idx;
+            dp.materialize_info_idx = get_deopt_materialization_info(tc, g, gs, t->allocation);
+            dp.target_reg = t->dp.target_reg;
+            MVM_VECTOR_PUSH(g->deopt_pea.deopt_point, dp);
             break;
         }
         default:
@@ -329,51 +359,24 @@ static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     }
 }
 
-/* Gets, allocating if needed, the deopt materialization info index of a
- * particular tracked object. */
-static MVMuint16 get_deopt_materialization_info(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-                                                GraphState *gs, MVMSpeshFacts *f) {
-    MVMSpeshPEAAllocation *alloc = f->pea.allocation;
-    if (alloc->has_deopt_materialization_idx) {
-        return alloc->deopt_materialization_idx;
-    }
-    else {
-        Transformation *tran;
-
-        /* Store materialization info that we already have available. */
-        MVMSpeshPEAMaterializeInfo mi;
-        mi.stable_sslot = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable *)alloc->type->st);
-        alloc->deopt_materialization_idx = MVM_VECTOR_ELEMS(g->deopt_pea.materialize_info);
-        alloc->has_deopt_materialization_idx = 1;
-        MVM_VECTOR_PUSH(g->deopt_pea.materialize_info, mi);
-
-        /* We can't set the registers holding the attributes yet, because they
-         * are not allocated until we're past the hypothetical phase. So add a
-         * transformation to do that. */
-        tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
-        tran->allocation = alloc;
-        tran->transform = TRANSFORM_SAVE_DEOPT_REGS;
-        add_transform_for_bb(tc, gs, bb, tran);
-
-        return alloc->deopt_materialization_idx;
-    }
-}
-
 /* Checks if any of the tracked objects are needed beyond this deopt point,
- * and adds a materialization and deopt point record if so. */
+ * and adds a transform to set up that deopt info if needed. */
 static void add_deopt_materializations_idx(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                            GraphState *gs, MVMint32 deopt_idx) {
     MVMint32 i, j;
     for (i = 0; i < MVM_VECTOR_ELEMS(gs->tracked_registers); i++) {
         MVMSpeshFacts *tracked_facts = MVM_spesh_get_facts(tc, g, gs->tracked_registers[i].reg);
+        MVMSpeshPEAAllocation *alloc = tracked_facts->pea.allocation;
         MVMSpeshDeoptUseEntry *deopt_user = tracked_facts->usage.deopt_users;
         while (deopt_user) {
             if (deopt_user->deopt_idx == deopt_idx) {
-                MVMSpeshPEADeoptPoint dp;
-                dp.deopt_point_idx = deopt_idx;
-                dp.materialize_info_idx = get_deopt_materialization_info(tc, g, bb, gs, tracked_facts);
-                dp.target_reg = gs->tracked_registers[i].reg.reg.orig;
-                MVM_VECTOR_PUSH(g->deopt_pea.deopt_point, dp);
+                Transformation *tran;
+                tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+                tran->allocation = alloc;
+                tran->transform = TRANSFORM_ADD_DEOPT_POINT;
+                tran->dp.deopt_point_idx = deopt_idx;
+                tran->dp.target_reg = gs->tracked_registers[i].reg.reg.orig;
+                add_transform_for_bb(tc, gs, bb, tran);
             }
             deopt_user = deopt_user->next;
         }
