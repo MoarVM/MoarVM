@@ -583,17 +583,20 @@ static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMStaticFrame *sf)
 }
 
 static void dump_deopt_pea(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
-    MVMint32 i;
+    MVMint32 i, j;
     if (MVM_VECTOR_ELEMS(g->deopt_pea.materialize_info)) {
         append(ds, "\nMaterializations:\n");
         for (i = 0; i < MVM_VECTOR_ELEMS(g->deopt_pea.materialize_info); i++) {
             MVMSpeshPEAMaterializeInfo *mat = &(g->deopt_pea.materialize_info[i]);
             MVMSTable *st = (MVMSTable *)g->spesh_slots[mat->stable_sslot];
-            appendf(ds, "  %d: %s", i, st->debug_name);
+            appendf(ds, "  %d: %s from regs ", i, st->debug_name);
+            for (j = 0; j < mat->num_attr_regs; j++)
+                appendf(ds, j > 0 ? ", r%hu" : "r%hu", mat->attr_regs[j]);
+            append(ds, "\n");
         }
     }
     if (MVM_VECTOR_ELEMS(g->deopt_pea.deopt_point)) {
-        append(ds, "\n\nDeopt point materialization mappings:\n");
+        append(ds, "\nDeopt point materialization mappings:\n");
         for (i = 0; i < MVM_VECTOR_ELEMS(g->deopt_pea.deopt_point); i++) {
             MVMSpeshPEADeoptPoint *dp = &(g->deopt_pea.deopt_point[i]);
             appendf(ds, "  At %d materialize %d into r%d\n", dp->deopt_point_idx,

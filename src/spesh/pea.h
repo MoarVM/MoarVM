@@ -52,6 +52,10 @@ struct MVMSpeshPEAMaterializeInfo {
     /* The spesh slot containing the STable of the object to materialize. */
     MVMuint16 stable_sslot;
 
+    /* The number of attribute registers (can be discovered, but this makes it
+     * easier to process, and we've empty space in the struct anyway). */
+    MVMuint16 num_attr_regs;
+
     /* A list of the registers holding the attributes to put into the
      * materialized object. */
     MVMuint16 *attr_regs;
