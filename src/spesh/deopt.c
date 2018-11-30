@@ -162,13 +162,29 @@ static void materialize_object(MVMThreadContext *tc, MVMFrame *f, MVMuint32 info
     MVM_panic(1, "Deopt: materialize_object NYI");
 }
 
-/* Materialize all replaced objects that need to be at this deopt point. */
-static void materialize_replaced_objects(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset) {
+/* Materialize all replaced objects that need to be at this deopt index. */
+static void materialize_replaced_objects(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_index) {
     MVMint32 i;
     MVMSpeshCandidate *cand = f->spesh_cand;
-    for (i = 0; i < MVM_VECTOR_ELEMS(cand->deopt_pea.deopt_point); i++) {
-        if (cand->deopt_pea.deopt_point[i].deopt_point_idx == deopt_offset)
+    MVMuint32 num_deopt_points = MVM_VECTOR_ELEMS(cand->deopt_pea.deopt_point);
+    for (i = 0; i < num_deopt_points; i++) {
+        if (cand->deopt_pea.deopt_point[i].deopt_point_idx == deopt_index)
             materialize_object(tc, f, cand->deopt_pea.deopt_point[i].materialize_info_idx);
+    }
+}
+
+/* If there are any materializations, resolve the deopt_offset into and index
+ * and then perform them. */
+static void materialize_replaced_objects_by_offset(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset) {
+    MVMSpeshCandidate *cand = f->spesh_cand;
+    if (MVM_VECTOR_ELEMS(cand->deopt_pea.deopt_point)) {
+        MVMint32 i;
+        for (i = 0; i < cand->num_deopts; i++) {
+            if (cand->deopts[2 * i + 1] == deopt_offset) {
+                materialize_replaced_objects(tc, f, i);
+                break;
+            }
+        }
     }
 }
 
@@ -177,7 +193,7 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
      * we have stuff replaced in inlines then uninlining will take
      * care of moving it out into the frames where it belongs. */
     deopt_named_args_used(tc, f);
-    materialize_replaced_objects(tc, f, deopt_offset);
+    materialize_replaced_objects_by_offset(tc, f, deopt_offset);
 
     /* Check if we have inlines. */
     if (f->spesh_cand->inlines) {
@@ -320,6 +336,7 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                  * just update return address. */
                 MVMint32 deopt_offset = f->spesh_cand->deopts[2 * deopt_idx + 1];
                 MVMint32 deopt_target = f->spesh_cand->deopts[2 * deopt_idx];
+                materialize_replaced_objects(tc, f, deopt_idx);
                 if (f->spesh_cand->inlines) {
                     MVMROOT2(tc, f, l, {
                         uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, l);
