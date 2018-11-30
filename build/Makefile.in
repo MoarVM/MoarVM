@@ -705,6 +705,7 @@ realclean: clean
 	$(MSG) remove 3rdparty files
 	-$(CMD)@uvclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@laoclean@ $(NOOUT) $(NOERR)
+	-$(RM) @laolib@ $(NOOUT) $(NOERR)
 	-$(CMD)@tomclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@shaclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@mtclean@ $(NOOUT) $(NOERR)
