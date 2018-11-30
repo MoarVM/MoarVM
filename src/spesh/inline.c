@@ -454,7 +454,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMuint32 *inline_boundary_handler, MVMuint16 bytecode_size) {
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
-    MVMint32        i, j, orig_inlines, total_inlines, orig_deopt_addrs;
+    MVMint32        i, j, orig_inlines, total_inlines, orig_deopt_addrs, orig_deopt_pea_mat_infos;
     MVMuint32       total_handlers = inliner->num_handlers + inlinee->num_handlers + 1;
     MVMSpeshBB     *inlinee_first_bb = NULL, *inlinee_last_bb = NULL;
     MVMuint8        may_cause_deopt = 0;
@@ -608,6 +608,32 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             : inlinee->entry->succ[0];
         MVM_spesh_manipulate_remove_successor(tc, inlinee->entry, move);
         MVM_spesh_manipulate_add_successor(tc, inliner, inliner->entry, move);
+    }
+
+    /* Merge materialization deopt info (for scalar-replaced entities). */
+    orig_deopt_pea_mat_infos = MVM_VECTOR_ELEMS(inliner->deopt_pea.materialize_info);
+    for (i = 0; i < MVM_VECTOR_ELEMS(inlinee->deopt_pea.materialize_info); i++) {
+        MVMSpeshPEAMaterializeInfo mi_orig = inlinee->deopt_pea.materialize_info[0];
+        MVMSpeshPEAMaterializeInfo mi_new;
+        mi_new.stable_sslot = mi_orig.stable_sslot + inliner->num_spesh_slots;
+        mi_new.num_attr_regs = mi_orig.num_attr_regs;
+        if (mi_new.num_attr_regs) {
+            mi_new.attr_regs = MVM_malloc(mi_new.num_attr_regs * sizeof(MVMuint16));
+            for (j = 0; j < mi_new.num_attr_regs; j++)
+                mi_new.attr_regs[j] = mi_orig.attr_regs[j] + inliner->num_locals;
+        }
+        else {
+            mi_new.attr_regs = NULL;
+        }
+        MVM_VECTOR_PUSH(inliner->deopt_pea.materialize_info, mi_new);
+    }
+    for (i = 0; i < MVM_VECTOR_ELEMS(inlinee->deopt_pea.deopt_point); i++) {
+        MVMSpeshPEADeoptPoint dp_orig = inlinee->deopt_pea.deopt_point[i];
+        MVMSpeshPEADeoptPoint dp_new;
+        dp_new.deopt_point_idx = dp_orig.deopt_point_idx + inliner->num_deopt_addrs;
+        dp_new.materialize_info_idx = dp_orig.materialize_info_idx + orig_deopt_pea_mat_infos;
+        dp_new.target_reg = dp_orig.target_reg + inliner->num_locals;
+        MVM_VECTOR_PUSH(inliner->deopt_pea.deopt_point, dp_new);
     }
 
     /* Merge facts, fixing up deopt indexes in usage chains. */
