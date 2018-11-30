@@ -216,6 +216,9 @@ static void materialize_replaced_objects_by_offset(MVMThreadContext *tc, MVMFram
         MVMint32 i;
         for (i = 0; i < cand->num_deopts; i++) {
             if (cand->deopts[2 * i + 1] == deopt_offset) {
+#if MVM_LOG_DEOPTS
+                fprintf(stderr, "    Resolved offset %d to deopt index %d\n", deopt_offset, i);
+#endif
                 materialize_replaced_objects(tc, f, i);
                 return;
             }
