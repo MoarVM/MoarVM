@@ -410,7 +410,6 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
     MVMuint8 *seen = MVM_calloc(g->num_bbs, 1);
     MVMuint32 found_replaceable = 0;
     MVMuint32 ins_count = 0;
-    MVMuint32 latest_deopt_ins = 0;
     MVMuint32 i;
     for (i = 0; i < g->num_bbs; i++) {
         MVMSpeshBB *bb = rpo[i];
@@ -435,9 +434,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
              * extra information available thanks to Scalar Replacement might
              * let us eliminate. If it *is*, then we no longer consider this a
              * deopt point, and schedule a transform of the guard into a set.
-             * Otherwise, for now, since we don't have deopt support, we'll
-             * just consider the all tracfked allocations at this point to be
-             * irreplaceable. */
+             * Also, make entries into the deopt materializations table. */
             if (ins->info->may_cause_deopt) {
                 MVMuint32 settify = 0;
                 MVMSpeshPEAAllocation *settify_dep = NULL;
@@ -462,9 +459,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     tran->guard.ins = ins;
                     add_transform_for_bb(tc, gs, bb, tran);
                 }
-                else {
-                    latest_deopt_ins = ins_count;
-                }
+                add_deopt_materializations_ins(tc, g, bb, gs, ins);
             }
 
             /* Look for significant instructions. */
@@ -481,7 +476,6 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                         tran->fastcreate.st = st;
                         add_transform_for_bb(tc, gs, bb, tran);
                         target->pea.allocation = alloc;
-                        alloc->initial_deopt_ins = latest_deopt_ins;
                         found_replaceable = 1;
                     }
                     break;
@@ -516,32 +510,26 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[0]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
                     if (allocation_tracked(alloc)) {
-                        if (alloc->initial_deopt_ins == latest_deopt_ins) {
-                            MVMint32 is_p6o_op = opcode == MVM_OP_sp_p6obind_i ||
-                                opcode == MVM_OP_sp_p6obind_n ||
-                                opcode == MVM_OP_sp_p6obind_s ||
-                                opcode == MVM_OP_sp_p6obind_o;
-                            MVMuint16 hypothetical_reg = attribute_offset_to_reg(tc, alloc,
-                                    is_p6o_op
-                                        ? ins->operands[1].lit_i16
-                                        : ins->operands[1].lit_i16 - sizeof(MVMObject));
-                            Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
-                            tran->allocation = alloc;
-                            tran->transform = TRANSFORM_BINDATTR_TO_SET;
-                            tran->attr.ins = ins;
-                            tran->attr.hypothetical_reg_idx = hypothetical_reg;
-                            add_transform_for_bb(tc, gs, bb, tran);
-                            if (opcode == MVM_OP_sp_p6obind_o || opcode == MVM_OP_sp_bind_o) {
-                                MVMSpeshFacts *tgt_facts = create_shadow_facts_h(tc, gs,
-                                        hypothetical_reg);
-                                MVMSpeshFacts *src_facts = MVM_spesh_get_facts(tc, g,
-                                        ins->operands[2]);
-                                MVM_spesh_copy_facts_resolved(tc, g, tgt_facts, src_facts);
-                            }
-                        }
-                        else {
-                            alloc->irreplaceable = 1;
-                            pea_log("replacement blocked by NYI deopt handling");
+                        MVMint32 is_p6o_op = opcode == MVM_OP_sp_p6obind_i ||
+                            opcode == MVM_OP_sp_p6obind_n ||
+                            opcode == MVM_OP_sp_p6obind_s ||
+                            opcode == MVM_OP_sp_p6obind_o;
+                        MVMuint16 hypothetical_reg = attribute_offset_to_reg(tc, alloc,
+                                is_p6o_op
+                                    ? ins->operands[1].lit_i16
+                                    : ins->operands[1].lit_i16 - sizeof(MVMObject));
+                        Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+                        tran->allocation = alloc;
+                        tran->transform = TRANSFORM_BINDATTR_TO_SET;
+                        tran->attr.ins = ins;
+                        tran->attr.hypothetical_reg_idx = hypothetical_reg;
+                        add_transform_for_bb(tc, gs, bb, tran);
+                        if (opcode == MVM_OP_sp_p6obind_o || opcode == MVM_OP_sp_bind_o) {
+                            MVMSpeshFacts *tgt_facts = create_shadow_facts_h(tc, gs,
+                                    hypothetical_reg);
+                            MVMSpeshFacts *src_facts = MVM_spesh_get_facts(tc, g,
+                                    ins->operands[2]);
+                            MVM_spesh_copy_facts_resolved(tc, g, tgt_facts, src_facts);
                         }
                     }
 
@@ -561,30 +549,24 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[1]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
                     if (allocation_tracked(alloc)) {
-                        if (alloc->initial_deopt_ins == latest_deopt_ins) {
-                            MVMuint16 hypothetical_reg = attribute_offset_to_reg(tc, alloc,
-                                    ins->operands[2].lit_i16);
-                            Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
-                            tran->allocation = alloc;
-                            tran->transform = TRANSFORM_GETATTR_TO_SET;
-                            tran->attr.ins = ins;
-                            tran->attr.hypothetical_reg_idx = hypothetical_reg;
-                            add_transform_for_bb(tc, gs, bb, tran);
-                            if (opcode == MVM_OP_sp_p6oget_o || opcode == MVM_OP_sp_p6ogetvc_o ||
-                                    opcode == MVM_OP_sp_p6ogetvt_o) {
-                                MVMSpeshFacts *tgt_facts = create_shadow_facts_c(tc, gs,
-                                        ins->operands[0]);
-                                MVMSpeshFacts *src_facts = get_shadow_facts_h(tc, gs,
-                                        hypothetical_reg);
-                                if (src_facts) {
-                                    MVM_spesh_copy_facts_resolved(tc, g, tgt_facts, src_facts);
-                                    tgt_facts->pea.depend_allocation = alloc;
-                                }
+                        MVMuint16 hypothetical_reg = attribute_offset_to_reg(tc, alloc,
+                                ins->operands[2].lit_i16);
+                        Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+                        tran->allocation = alloc;
+                        tran->transform = TRANSFORM_GETATTR_TO_SET;
+                        tran->attr.ins = ins;
+                        tran->attr.hypothetical_reg_idx = hypothetical_reg;
+                        add_transform_for_bb(tc, gs, bb, tran);
+                        if (opcode == MVM_OP_sp_p6oget_o || opcode == MVM_OP_sp_p6ogetvc_o ||
+                                opcode == MVM_OP_sp_p6ogetvt_o) {
+                            MVMSpeshFacts *tgt_facts = create_shadow_facts_c(tc, gs,
+                                    ins->operands[0]);
+                            MVMSpeshFacts *src_facts = get_shadow_facts_h(tc, gs,
+                                    hypothetical_reg);
+                            if (src_facts) {
+                                MVM_spesh_copy_facts_resolved(tc, g, tgt_facts, src_facts);
+                                tgt_facts->pea.depend_allocation = alloc;
                             }
-                        }
-                        else {
-                            alloc->irreplaceable = 1;
-                            pea_log("replacement blocked by NYI deopt handling");
                         }
                     }
                     break;
