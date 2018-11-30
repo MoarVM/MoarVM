@@ -5,7 +5,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #define DEFAULT_MODE 0x01B6
-typedef struct stat STAT;
+typedef struct stat STAT_t;
 #else
 #include <fcntl.h>
 #include <errno.h>
@@ -23,7 +23,7 @@ typedef struct stat STAT;
 #define isatty _isatty
 #define ftruncate _chsize
 #define fstat _fstat
-typedef struct _stat STAT;
+typedef struct _stat STAT_t;
 #endif
 
 /* Data that we keep for a file-based handle. */
@@ -164,7 +164,7 @@ static MVMint64 mvm_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     if (data->seekable) {
         MVMint64 seek_pos;
-        STAT statbuf;
+        STAT_t statbuf;
         if (fstat(data->fd, &statbuf) == -1)
             MVM_exception_throw_adhoc(tc, "Failed to stat file descriptor: %s",
                 strerror(errno));
@@ -439,7 +439,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     char * const fname = MVM_string_utf8_c8_encode_C_string(tc, filename);
     int fd;
     int flag;
-    STAT statbuf;
+    STAT_t statbuf;
 
     /* Resolve mode description to flags. */
     char * const fmode  = MVM_string_utf8_encode_C_string(tc, mode);

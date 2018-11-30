@@ -65,6 +65,8 @@ typedef struct siphash siphash;
     /* See: http://sourceforge.net/p/predef/wiki/Endianness/ */
 #      if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
 #        include <sys/endian.h>
+#      elif defined(_AIX)
+#        include <sys/machine.h>
 #      else
 #        include <endian.h>
 #      endif
@@ -84,6 +86,7 @@ typedef struct siphash siphash;
 #    define MVM_MAYBE_TO_LITTLE_ENDIAN_64(x) ((uint64_t)(x))
 #    define MVM_MAYBE_TO_LITTLE_ENDIAN_32(x) ((uint32_t)(x))
 #endif
+
 #if !defined(MVM_CAN_UNALIGNED_INT64)
 #   include <string.h>
 #endif
