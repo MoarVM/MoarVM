@@ -217,10 +217,13 @@ static void materialize_replaced_objects_by_offset(MVMThreadContext *tc, MVMFram
         for (i = 0; i < cand->num_deopts; i++) {
             if (cand->deopts[2 * i + 1] == deopt_offset) {
                 materialize_replaced_objects(tc, f, i);
-                break;
+                return;
             }
         }
     }
+#if MVM_LOG_DEOPTS
+    fprintf(stderr, "    Failed to find deopt index for offset %d\n", deopt_offset);
+#endif
 }
 
 static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset, MVMint32 deopt_target) {
