@@ -1285,8 +1285,8 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
 
                 if (!function) {
                     MVM_spesh_graph_add_comment(tc, iter->graph, ins, "JIT: devirtualized");;
-                    function = reg_type == MVM_reg_int64 ? st->container_spec->store_i
-                             : reg_type == MVM_reg_num64 ? st->container_spec->store_n
+                    function = reg_type == MVM_reg_int64 ? (void *)st->container_spec->store_i
+                             : reg_type == MVM_reg_num64 ? (void *)st->container_spec->store_n
                              :                             (void *)st->container_spec->store_s;
                 }
                 else {
