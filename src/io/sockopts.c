@@ -7,19 +7,18 @@
 #include <sys/socket.h>
 #endif
 
-#define NUM_SOCKOPTS_WANTED 10
+#define NUM_SOCKOPTS_WANTED 9
 
 #define SOCKOPTS(X) \
-   X( MVM_SO_BROADCAST ) \
-   X( MVM_SO_KEEPALIVE ) \
-   X( MVM_SO_LINGER    ) \
-   X( MVM_SO_RCVBUF    ) \
-   X( MVM_SO_REUSEADDR ) \
-   X( MVM_SO_SNDBUF    ) \
-   X( MVM_TCP_NODELAY  ) \
-   X( MVM_SO_TIMEOUT   ) \
-   X( MVM_SO_OOBINLINE ) \
-   X( MVM_SO_DONTROUTE )
+    X( MVM_SO_BROADCAST ) \
+    X( MVM_SO_KEEPALIVE ) \
+    X( MVM_SO_LINGER    ) \
+    X( MVM_SO_REUSEADDR ) \
+    X( MVM_SO_DONTROUTE ) \
+    X( MVM_SO_SNDBUF    ) \
+    X( MVM_SO_RCVBUF    ) \
+    X( MVM_SO_OOBINLINE ) \
+    X( MVM_TCP_NODELAY  )
 
 #define GEN_ENUMS(v)   v,
 #define GEN_STRING(v) #v,
@@ -32,7 +31,7 @@ static char const * const SOCKOPTS_WANTED[NUM_SOCKOPTS_WANTED] = {
     SOCKOPTS(GEN_STRING)
 };
 
-static void populate_sockopt_values(MVMint16 sockopt_vals[NUM_SOCKOPTS_WANTED]) {
+static void populate_sockopt_values(MVMint32 sockopt_vals[NUM_SOCKOPTS_WANTED]) {
     MVMint8 i;
     for (i = 0; i < NUM_SOCKOPTS_WANTED; ++i) {
         sockopt_vals[i] = 0;
@@ -47,31 +46,28 @@ static void populate_sockopt_values(MVMint16 sockopt_vals[NUM_SOCKOPTS_WANTED]) 
 #ifdef SO_LINGER
     sockopt_vals[MVM_SO_LINGER] = SO_LINGER;
 #endif
-#ifdef SO_RCVBUF
-    sockopt_vals[MVM_SO_RCVBUF] = SO_RCVBUF;
-#endif
 #ifdef SO_REUSEADDR
     sockopt_vals[MVM_SO_REUSEADDR] = SO_REUSEADDR;
-#endif
-#ifdef SO_SNDBUF
-    sockopt_vals[MVM_SO_SNDBUF] = SO_SNDBUF;
-#endif
-#ifdef TCP_NODELAY
-    sockopt_vals[MVM_TCP_NODELAY] = TCP_NODELAY;
-#endif
-#ifdef SO_TIMEOUT
-    sockopt_vals[MVM_SO_TIMEOUT] = SO_TIMEOUT;
-#endif
-#ifdef SO_OOBINLINE
-    sockopt_vals[MVM_SO_OOBINLINE] = SO_OOBINLINE;
 #endif
 #ifdef SO_DONTROUTE
     sockopt_vals[MVM_SO_DONTROUTE] = SO_DONTROUTE;
 #endif
+#ifdef SO_SNDBUF
+    sockopt_vals[MVM_SO_SNDBUF] = SO_SNDBUF;
+#endif
+#ifdef SO_RCVBUF
+    sockopt_vals[MVM_SO_RCVBUF] = SO_RCVBUF;
+#endif
+#ifdef SO_OOBINLINE
+    sockopt_vals[MVM_SO_OOBINLINE] = SO_OOBINLINE;
+#endif
+#ifdef TCP_NODELAY
+    sockopt_vals[MVM_TCP_NODELAY] = TCP_NODELAY;
+#endif
 }
 
-static void populate_instance_valid_sockopts(MVMThreadContext *tc, MVMint16 sockopt_vals[NUM_SOCKOPTS_WANTED]) {
-    MVMuint64 valid_sockopts = 0;
+static void populate_instance_valid_sockopts(MVMThreadContext *tc, MVMint32 sockopt_vals[NUM_SOCKOPTS_WANTED]) {
+    MVMint32 valid_sockopts = 0;
     MVMint8 i;
 
     if (tc->instance->valid_sockopts) return;
@@ -90,7 +86,7 @@ MVMObject * MVM_io_get_sockopts(MVMThreadContext *tc) {
     MVMHLLConfig *       hll          = MVM_hll_current(tc);
     MVMObject    *       sockopt_arr;
 
-    MVMint16 sockopt_wanted_vals[NUM_SOCKOPTS_WANTED];
+    MVMint32 sockopt_wanted_vals[NUM_SOCKOPTS_WANTED];
     populate_sockopt_values(sockopt_wanted_vals);
 
     if (instance->sockopt_arr) {
@@ -133,17 +129,17 @@ MVMObject * MVM_io_get_sockopts(MVMThreadContext *tc) {
     return sockopt_arr;
 }
 
-const char * MVM_io_get_sockopt_name(int option) {
+const char * MVM_io_get_sockopt_name(MVMint32 option) {
     switch (option) {
         case SO_BROADCAST: return "SO_BROADCAST";
         case SO_KEEPALIVE: return "SO_KEEPALIVE";
         case SO_LINGER:    return "SO_LINGER";
-        case SO_RCVBUF:    return "SO_RCVBUF";
         case SO_REUSEADDR: return "SO_REUSEADDR";
-        case SO_SNDBUF:    return "SO_SNDBUF";
-        case SO_DEBUG:     return "SO_DEBUG";
         case SO_DONTROUTE: return "SO_DONTROUTE";
+        case SO_SNDBUF:    return "SO_SNDBUF";
+        case SO_RCVBUF:    return "SO_RCVBUF";
         case SO_OOBINLINE: return "SO_OOBINLINE";
+        case TCP_NODELAY:  return "TCP_NODELAY";
         default:           return "unknown";
     }
 }

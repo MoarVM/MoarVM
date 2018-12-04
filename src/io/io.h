@@ -89,7 +89,7 @@ struct MVMIOIntrospection {
 /* Permits getting/setting socket options */
 struct MVMIOOptions {
     MVMint64 (*get_sock_opt) (MVMThreadContext *tc, MVMOSHandle *h, MVMint32 option);
-    MVMint64 (*set_sock_opt) (MVMThreadContext *tc, MVMOSHandle *h, MVMint32 option, MVMint64 value);
+    void     (*set_sock_opt) (MVMThreadContext *tc, MVMOSHandle *h, MVMint32 option, MVMint64 value);
 };
 
 MVMint64 MVM_io_close(MVMThreadContext *tc, MVMObject *oshandle);
@@ -120,4 +120,4 @@ void MVM_io_set_buffer_size(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 
 MVMObject * MVM_io_get_async_task_handle(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_flush_standard_handles(MVMThreadContext *tc);
 MVMint64 MVM_io_getsockopt(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 option);
-MVMint64 MVM_io_setsockopt(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 option, MVMint64 value);
+void MVM_io_setsockopt(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 option, MVMint64 value);

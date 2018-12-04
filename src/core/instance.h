@@ -371,7 +371,7 @@ struct MVMInstance {
     MVMObject      *sockopt_arr;
 
     /* Flags indicating the socket options available on the host system */
-    MVMuint64       valid_sockopts;
+    MVMint32        valid_sockopts;
 
     /************************************************************************
      * Caching and interning
