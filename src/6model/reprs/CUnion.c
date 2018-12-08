@@ -137,7 +137,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
 
             if (num_dimensions > 1) {
                 MVM_exception_throw_adhoc(tc,
-                    "Only one dimensions supported in CStruct attribute");
+                    "Only one dimensions supported in CUnion attribute");
             }
 
             if (!MVM_is_null(tc, type)) {
@@ -191,9 +191,6 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                             MVMint64 dim_one     =  MVM_repr_at_pos_i(tc, dimensions, 0);
                             MVMObject *elem_type = carray_repr_data->elem_type;
 
-                            // How do we distinguish between these members:
-                            // a) struct  foo [32] alias;
-                            // b) struct *foo [32] alias;
                             if (carray_repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CSTRUCT) {
                                 MVMCStructREPRData *cstruct_repr_data = (MVMCStructREPRData *)STABLE(elem_type)->REPR_data;
                                 bits                                  = cstruct_repr_data->struct_size * 8 * dim_one;
