@@ -394,7 +394,9 @@ module Arg {
 # label goes; can also be used as an instruction operand).
 class MAST::Label is MAST::Node {
     method new() {
-        nqp::create(self)
+        my $label := nqp::create(self);
+        $*MAST_FRAME.keep-label($label);
+        $label
     }
 
     method dump_lines(@lines, $indent) {
@@ -739,6 +741,7 @@ class MAST::Frame is MAST::Node {
     has $!bytecode;
     has uint32 $!bytecode-offset;
     has %!labels;
+    has @!labels;
     has %!label-fixups;
     has @!lexical_names_idxs;
     has $!annotations;
@@ -901,6 +904,7 @@ class MAST::Frame is MAST::Node {
         $!name-idx           := $!string-heap.add($!name);
         @!handlers           := nqp::list;
         %!labels             := nqp::hash;
+        @!labels             := nqp::list;
         %!label-fixups       := nqp::hash;
         @!lexical_names_idxs := nqp::list_i;
         @!buffer-stack       := nqp::list;
@@ -1082,9 +1086,13 @@ class MAST::Frame is MAST::Node {
         %!labels{nqp::objectid($label)}
     }
 
+    method keep-label(MAST::Label $l) {
+        nqp::push(@!labels, $l);
+    }
+
     method add-label(MAST::Label $i) {
         my int $pos := nqp::elems($!bytecode);
-        my int $key := nqp::objectid($i);
+        my str $key := nqp::objectid($i);
         if %!labels{$key} {
             nqp::die("Duplicate label at $pos");
         }
