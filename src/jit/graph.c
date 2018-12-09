@@ -2322,7 +2322,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 flags = ins->operands[3].reg.orig;
         MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[3]);
         if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-            unsigned char const size  = 1 << (facts->value.i >> 1);
+            unsigned char const size  = 1 << (facts->value.i >> ((facts->value.i & 1) ? 2 : 1));
 
             MVMSpeshFacts *type_facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[0]);
             if (type_facts && type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && type_facts->type &&
@@ -2363,7 +2363,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 flags = ins->operands[3].reg.orig;
         MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[3]);
         if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-            unsigned char const size  = 1 << (facts->value.i >> 1);
+            unsigned char const size  = 1 << (facts->value.i >> ((facts->value.i & 1) ? 2 : 1));
 
             MVMSpeshFacts *type_facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[0]);
             if (type_facts && type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && type_facts->type &&

@@ -33,26 +33,26 @@ class Op {
         my uint $elems := nqp::elems($bytecode);
         my uint $index := nqp::unbox_u($op0);
         if -32767 < $value && $value < 32768 {
-            nqp::writeuint($bytecode, $elems, 597, 2);
-            nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 2);
-            nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 2);
+            nqp::writeuint($bytecode, $elems, 597, 5);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 5);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);
         }
         elsif -2147483647 < $value && $value < 2147483647 {
-            nqp::writeuint($bytecode, $elems, 598, 2);
-            nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 2);
-            nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 4);
+            nqp::writeuint($bytecode, $elems, 598, 5);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 5);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 9);
         }
         else {
-            nqp::writeuint($bytecode, $elems, ' ~ $.code ~ ', 2);
-            nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 2);
-            nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 6);
+            nqp::writeuint($bytecode, $elems, ' ~ $.code ~ ', 5);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 5);
+            nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 13);
         }
     }'
             !!
     'sub (' ~ @!operands.map({self.generate_arg($_, $++)}).join(', ') ~ ') {
         ' ~ (self.needs_frame ?? 'my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;' !! 'my $bytecode := $*MAST_FRAME.bytecode;') ~ '
         my uint $elems := nqp::elems($bytecode);
-        nqp::writeuint($bytecode, $elems, ' ~ $.code ~ ', 2);
+        nqp::writeuint($bytecode, $elems, ' ~ $.code ~ ', 5);
         ' ~ join("\n        ", @!operands.map({self.generate_operand($_, $++, $offset)})) ~ '
     }'
     }
@@ -97,8 +97,9 @@ class Op {
     sub writeuint($offset is rw, $size, $var) {
         my $pos = $offset;
         $offset += $size;
-        my $flags = $size;
-        $flags = 6 if $size == 8;
+        my $flags = $size * 2;
+        $flags = 12 if $size == 8;
+        $flags++; # force little endian
         'nqp::writeuint($bytecode, nqp::add_i($elems, ' ~ $pos ~ '), ' ~ $var ~ ', ' ~ $flags ~ ');'
     }
     sub writenum($offset is rw, $var) {

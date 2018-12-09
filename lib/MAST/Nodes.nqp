@@ -60,25 +60,25 @@ class MAST::Bytecode is repr('VMArray') is array_type(uint8) {
         self.write_buf(@subbuf);
     }
     method write_double(num $n) {
-        nqp::writenum(self, nqp::elems(self), $n, 0);
+        nqp::writenum(self, nqp::elems(self), $n, 1);
     }
     method write_uint32(uint32 $i) {
-        nqp::writeuint(self, nqp::elems(self), $i, 4);
+        nqp::writeuint(self, nqp::elems(self), $i, 9);
     }
     method write_uint64(uint64 $i) {
-        nqp::writeuint(self, nqp::elems(self), $i, 6);
+        nqp::writeuint(self, nqp::elems(self), $i, 13);
     }
     method read_uint32_at(uint $pos) {
-        nqp::readuint(self, $pos, 4)
+        nqp::readuint(self, $pos, 9)
     }
     method write_uint32_at(uint32 $i, uint $pos) {
-        nqp::writeuint(self, $pos, $i, 4);
+        nqp::writeuint(self, $pos, $i, 9);
     }
     method write_uint16(uint16 $i) {
-        nqp::writeuint(self, nqp::elems(self), $i, 2);
+        nqp::writeuint(self, nqp::elems(self), $i, 5);
     }
     method write_uint8(uint8 $i) {
-        nqp::writeuint(self, nqp::elems(self), $i, 0);
+        nqp::writeuint(self, nqp::elems(self), $i, 1);
     }
     method write_buf(@buf) {
         nqp::splice(self, @buf, nqp::elems(self), 0);
@@ -1236,8 +1236,8 @@ class MAST::Frame is MAST::Node {
         my uint $callsite-id := self.callsites.get_callsite_id_from_args([], []); #TODO could pre-compute this
         my uint64 $bytecode_pos := nqp::elems($!bytecode);
 
-        nqp::writeuint($!bytecode, $bytecode_pos, $op_code_prepargs, 2);
-        nqp::writeuint($!bytecode, nqp::add_i($bytecode_pos, 2), $callsite-id, 2);
+        nqp::writeuint($!bytecode, $bytecode_pos, $op_code_prepargs, 5);
+        nqp::writeuint($!bytecode, nqp::add_i($bytecode_pos, 2), $callsite-id, 5);
         $bytecode_pos := $bytecode_pos + 4;
 
         if nqp::defined($result) { # We got a return value
@@ -1263,16 +1263,16 @@ class MAST::Frame is MAST::Node {
             else {
                 nqp::die('Invalid MAST::Local type ' ~ @local_types[$index] ~ ' for return value ' ~ $index);
             }
-            nqp::writeuint($!bytecode, $bytecode_pos, $op_code, 2);
+            nqp::writeuint($!bytecode, $bytecode_pos, $op_code, 5);
             my uint $res_index := nqp::unbox_u($result);
-            nqp::writeuint($!bytecode, nqp::add_i($bytecode_pos, 2), $res_index, 2);
+            nqp::writeuint($!bytecode, nqp::add_i($bytecode_pos, 2), $res_index, 5);
             my uint $callee_reg_index := nqp::unbox_u($target);
-            nqp::writeuint($!bytecode, nqp::add_i($bytecode_pos, 4), $callee_reg_index, 2);
+            nqp::writeuint($!bytecode, nqp::add_i($bytecode_pos, 4), $callee_reg_index, 5);
         }
         else {
-            nqp::writeuint($!bytecode, $bytecode_pos, $op_code_invoke_v, 2);
+            nqp::writeuint($!bytecode, $bytecode_pos, $op_code_invoke_v, 5);
             my uint $callee_reg_index := nqp::unbox_u($target);
-            nqp::writeuint($!bytecode, nqp::add_i($bytecode_pos, 2), $callee_reg_index, 2);
+            nqp::writeuint($!bytecode, nqp::add_i($bytecode_pos, 2), $callee_reg_index, 5);
         }
     }
 }

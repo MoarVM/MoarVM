@@ -5405,7 +5405,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMuint64     const off   = (MVMuint64)GET_REG(cur_op, 2).i64;
                 MVMuint64     const value = (MVMuint64)GET_REG(cur_op, 4).i64;
                 MVMuint64     const flags = (MVMuint64)GET_REG(cur_op, 6).i64;
-                unsigned char const size  = 1 << (flags >> 1);
+                unsigned char const size  = 1 << (flags >> ((flags & 1) ? 2 : 1));
                 REPR(buf)->pos_funcs.write_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf), (char*)&value, off, size);
                 MVM_SC_WB_OBJ(tc, buf);
                 cur_op += 8;
@@ -5448,7 +5448,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject*    const buf   = GET_REG(cur_op, 2).o;
                 MVMuint64     const off   = (MVMuint64)GET_REG(cur_op, 4).i64;
                 MVMuint64     const flags = (MVMuint64)GET_REG(cur_op, 6).i64;
-                unsigned char const size  = 1 << (flags >> 1);
+                unsigned char const size  = 1 << (flags >> ((flags & 1) ? 2 : 1));
                 GET_REG(cur_op, 0).i64 = REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf), off, size);
                 MVM_SC_WB_OBJ(tc, buf);
                 cur_op += 8;
