@@ -75,11 +75,16 @@ static void gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
         MVM_free(data);
 }
 
+static void cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *t, void *data) {
+    WatchInfo *wi = (WatchInfo *)data;
+    uv_fs_event_stop(&wi->handle);
+}
+
 /* Operations table for a file watcher task. */
 static const MVMAsyncTaskOps op_table = {
     setup,
     NULL,
-    NULL,
+    cancel,
     NULL,
     gc_free
 };
