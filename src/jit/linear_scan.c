@@ -5,9 +5,6 @@
 static MVMint8 available_gpr[] = {
     MVM_JIT_ARCH_AVAILABLE_GPR(MVM_JIT_REG)
 };
-static MVMint8 available_num[] = {
-    MVM_JIT_ARCH_NUM(MVM_JIT_REG)
-};
 /* bitmap, so make it '|' to combine the shifted register numbers */
 #undef __COMMA__
 #define __COMMA__ |
@@ -99,11 +96,8 @@ typedef struct {
     /* Spilled values */
     MVM_VECTOR_DECL(MVMint32, spilled);
 
-
-    /* Register handout ring */
-    MVMint8   reg_ring[MAX_ACTIVE];
-    MVMint32  reg_give, reg_take;
-
+    /* Currently free registers */
+    MVMBitmap reg_free;
 } RegisterAllocator;
 
 
@@ -343,22 +337,18 @@ MVMint32 values_cmp_last_ref(LiveRange *values, MVMint32 a, MVMint32 b) {
 #define NEXT_IN_RING(a,x) (((x)+1) == MVM_ARRAY_SIZE(a) ? 0 : ((x)+1))
 MVMint8 get_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitStorageClass reg_cls) {
     /* ignore storage class for now */
-    MVMint8 reg_num;
-    reg_num       = alc->reg_ring[alc->reg_take];
+    MVMint8 reg_num = MVM_FFS(alc->reg_free) - 1;
     if (reg_num >= 0) {
-        /* not empty */
-        alc->reg_ring[alc->reg_take] = -1; /* mark used */
-        alc->reg_take = NEXT_IN_RING(alc->reg_ring, alc->reg_take);
+        MVM_bitmap_delete(&alc->reg_free, reg_num);
     }
     return reg_num;
 }
 
 void free_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitStorageClass reg_cls, MVMint8 reg_num) {
-    if (alc->reg_ring[alc->reg_give] != -1) {
-        MVM_oops(tc, "No space to release register %d to ring", reg_num);
+    if (MVM_bitmap_get_low(alc->reg_free, reg_num)) {
+        MVM_oops(tc, "Register %d is already free", reg_num);
     }
-    alc->reg_ring[alc->reg_give] = reg_num;
-    alc->reg_give = NEXT_IN_RING(alc->reg_ring, alc->reg_give);
+    MVM_bitmap_set_low(&alc->reg_free, reg_num);
 }
 
 void assign_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
@@ -576,8 +566,8 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
         }
         if (MVM_JIT_TILE_YIELDS_VALUE(tile) && MVM_JIT_EXPR_INFO(tree, node)->type != 0) {
             LiveRange *range = alc->values + value_set_find(alc->sets, node)->idx;
-            // compare only the lower bits, because (for the moment) we don't care about signed/unsigned
-            // difference, not for storage anyway
+            /* compare only the lower bits, because (for storage purposes) we
+             * don't care about the signed/unsigned disticntion */
             _ASSERT(range->reg_type == 0 || (range->reg_type & 0xf) == (MVM_JIT_EXPR_INFO(tree, node)->type & 0xf),
                     "Register types do not match between value and node");
             /* shift to match MVM_reg_types. should arguably be a macro maybe */
@@ -1135,10 +1125,7 @@ void MVM_jit_linear_scan_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler
     alc.active_top = 0;
     memset(alc.active, -1, sizeof(alc.active));
 
-    alc.reg_give = alc.reg_take = 0;
-    memcpy(alc.reg_ring, available_gpr,
-           sizeof(available_gpr));
-
+    alc.reg_free = AVAILABLE_GPR_BITMAP;
     /* run algorithm */
     determine_live_ranges(tc, &alc, list);
     linear_scan(tc, &alc, list);

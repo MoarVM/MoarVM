@@ -98,7 +98,7 @@ enum {
     MVM_JIT_ARCH_GPR(MVM_JIT_REG)
 };
 enum {
-    MVM_JIT_ARCH_NUM(MVM_JIT_REG)
+    MVM_JIT_ARCH_FPR(MVM_JIT_REG)
 };
 /* it's a ridiculous, dangerous macro and it shouldn't escape */
 #undef __COMMA__

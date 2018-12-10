@@ -19,7 +19,7 @@ MVM_JIT_EXPR_OPS(MVM_JIT_OP_ENUM)
 };
 
 /* samcv++ for this trick */
-#define MVM_STATIC_ASSERT(x) typedef char __ASSERT[(x)?1:-1];
+#define MVM_STATIC_ASSERT(x) typedef char __ASSERT[(x)?1:-1]
 
 /* Tree node information for easy access and use during compilation (a
    symbol table entry of sorts) */
