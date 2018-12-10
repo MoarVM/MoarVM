@@ -5462,8 +5462,23 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject*    const buf   = GET_REG(cur_op, 2).o;
                 MVMuint64     const off   = (MVMuint64)GET_REG(cur_op, 4).i64;
                 MVMuint64     const flags = (MVMuint64)GET_REG(cur_op, 6).i64;
-                unsigned char const size  = 1 << (flags >> ((flags & 1) ? 2 : 1));
-                GET_REG(cur_op, 0).i64 = REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf), off, size);
+                unsigned char const size  = 1 << (flags >> 2);
+                if ((flags & 3) == 3 || size > 8) {
+                    MVM_exception_throw_adhoc(tc, "Invalid flags value for readint");
+                }
+                if ((flags & 3) == MVM_SWITCHENDIAN) {
+                    MVMRegister byte;
+                    char i;
+                    GET_REG(cur_op, 0).i64 = 0;
+                    for(i = 0; i < size; i++) {
+                        REPR(buf)->pos_funcs.at_pos(tc, STABLE(buf), buf,
+                            OBJECT_BODY(buf), off + size - 1 - i, &byte, MVM_reg_int64);
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 0).i64 | (byte.i64 << (i * 8));
+                    }
+                }
+                else {
+                    GET_REG(cur_op, 0).i64 = REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf), off, size);
+                }
                 MVM_SC_WB_OBJ(tc, buf);
                 cur_op += 8;
                 goto NEXT;
