@@ -95,6 +95,12 @@ struct MVMOpInfo {
 #define MVM_operand_uint64      (MVM_reg_uint64 << 3)
 #define MVM_operand_type_mask   (31 << 3)
 
+#ifdef MVM_BIGENDIAN
+#define MVM_SWITCHENDIAN 1
+#else
+#define MVM_SWITCHENDIAN 2
+#endif
+
 /* Functions. */
 void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data);
 MVM_PUBLIC void MVM_interp_enable_tracing();

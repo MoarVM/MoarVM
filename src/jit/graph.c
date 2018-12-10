@@ -2322,29 +2322,37 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 flags = ins->operands[3].reg.orig;
         MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[3]);
         if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-            unsigned char const size  = 1 << (facts->value.i >> ((facts->value.i & 1) ? 2 : 1));
+            if ((facts->value.i & 3) != MVM_SWITCHENDIAN) {
+                unsigned char const size  = 1 << (facts->value.i >> 2);
 
-            MVMSpeshFacts *type_facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[0]);
-            if (type_facts && type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && type_facts->type &&
-                    type_facts->flags & MVM_SPESH_FACT_CONCRETE) {
-                void *function = (void *)((MVMObject*)type_facts->type)->st->REPR->pos_funcs.write_buf;
+                MVMSpeshFacts *type_facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[0]);
+                if (type_facts && type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && type_facts->type &&
+                        type_facts->flags & MVM_SPESH_FACT_CONCRETE) {
+                    void *function = (void *)((MVMObject*)type_facts->type)->st->REPR->pos_funcs.write_buf;
 
-                MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
-                                         { MVM_JIT_REG_STABLE,  buf },
-                                         { MVM_JIT_REG_VAL,     buf },
-                                         { MVM_JIT_REG_OBJBODY, buf },
-                                         { MVM_JIT_REG_ADDR,    value },
-                                         { MVM_JIT_REG_VAL,     off },
-                                         { MVM_JIT_LITERAL,     size } };
-                jg_append_call_c(tc, jg, function, 7, args, MVM_JIT_RV_VOID, -1);
+                    MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                             { MVM_JIT_REG_STABLE,  buf },
+                                             { MVM_JIT_REG_VAL,     buf },
+                                             { MVM_JIT_REG_OBJBODY, buf },
+                                             { MVM_JIT_REG_ADDR,    value },
+                                             { MVM_JIT_REG_VAL,     off },
+                                             { MVM_JIT_LITERAL,     size } };
+                    jg_append_call_c(tc, jg, function, 7, args, MVM_JIT_RV_VOID, -1);
+                }
+                else {
+                    MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                             { MVM_JIT_REG_VAL,     buf },
+                                             { MVM_JIT_REG_ADDR,    value },
+                                             { MVM_JIT_REG_VAL,     off },
+                                             { MVM_JIT_LITERAL,     size } };
+                    jg_append_call_c(tc, jg, op_to_func(tc, op), 5, args, MVM_JIT_RV_VOID, -1);
+                }
             }
             else {
-                MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
-                                         { MVM_JIT_REG_VAL,     buf },
-                                         { MVM_JIT_REG_ADDR,    value },
-                                         { MVM_JIT_REG_VAL,     off },
-                                         { MVM_JIT_LITERAL,     size } };
-                jg_append_call_c(tc, jg, op_to_func(tc, op), 5, args, MVM_JIT_RV_VOID, -1);
+                MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins,
+                                "BAIL: op <%s>, - endian switching not yet supported by JIT",
+                                ins->info->name);
+                return 0;
             }
         }
         else {

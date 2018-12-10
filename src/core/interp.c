@@ -5405,8 +5405,22 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMuint64     const off   = (MVMuint64)GET_REG(cur_op, 2).i64;
                 MVMuint64     const value = (MVMuint64)GET_REG(cur_op, 4).i64;
                 MVMuint64     const flags = (MVMuint64)GET_REG(cur_op, 6).i64;
-                unsigned char const size  = 1 << (flags >> ((flags & 1) ? 2 : 1));
-                REPR(buf)->pos_funcs.write_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf), (char*)&value, off, size);
+                unsigned char const size  = 1 << (flags >> 2);
+                if ((flags & 3) == 3 || size > 8) {
+                    MVM_exception_throw_adhoc(tc, "Invalid flags value for writeint");
+                }
+                if ((flags & 3) == MVM_SWITCHENDIAN) {
+                    MVMRegister byte;
+                    char i;
+                    for(i = 0; i < size; i++) {
+                        byte.i64 = (unsigned char)((value & (0xFFull << (i * 8))) >> (i * 8));
+                        REPR(buf)->pos_funcs.bind_pos(tc, STABLE(buf), buf,
+                            OBJECT_BODY(buf), off + size - 1 - i, byte, MVM_reg_int64);
+                    }
+                }
+                else {
+                    REPR(buf)->pos_funcs.write_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf), (char*)&value, off, size);
+                }
                 MVM_SC_WB_OBJ(tc, buf);
                 cur_op += 8;
                 goto NEXT;
