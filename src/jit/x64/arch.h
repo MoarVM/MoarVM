@@ -18,7 +18,7 @@
     _(R15)
 
 
-#define MVM_JIT_ARCH_NUM(_) \
+#define MVM_JIT_ARCH_FPR(_) \
     _(XMM0) __COMMA__ \
     _(XMM1) __COMMA__ \
     _(XMM2) __COMMA__ \
@@ -26,7 +26,15 @@
     _(XMM4) __COMMA__ \
     _(XMM5) __COMMA__ \
     _(XMM6) __COMMA__ \
-    _(XMM7)
+    _(XMM7) __COMMA__ \
+    _(XMM8) __COMMA__ \
+    _(XMM9) __COMMA__ \
+    _(XMM10) __COMMA__ \
+    _(XMM11) __COMMA__ \
+    _(XMM12) __COMMA__ \
+    _(XMM13) __COMMA__ \
+    _(XMM14) __COMMA__ \
+    _(XMM15)
 
 
 #if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_POSIX
@@ -66,8 +74,15 @@
 
 /* SSE used for arguments */
 
-#define MVM_JIT_ARCH_ARG_NUM(_) \
-    MVM_JIT_ARCH_NUM(_)
+#define MVM_JIT_ARCH_ARG_FPR(_) \
+    _(XMM0) __COMMA__ \
+    _(XMM1) __COMMA__ \
+    _(XMM2) __COMMA__ \
+    _(XMM3) __COMMA__ \
+    _(XMM4) __COMMA__ \
+    _(XMM5) __COMMA__ \
+    _(XMM6) __COMMA__ \
+    _(XMM7)
 
 #else
 
@@ -95,7 +110,7 @@
     _(RDX) __COMMA__ \
     _(R8) __COMMA__ \
     _(R9)
-#define MVM_JIT_ARCH_ARG_NUM(_) \
+#define MVM_JIT_ARCH_ARG_FPR(_) \
     _(XMM0) __COMMA__ \
     _(XMM1) __COMMA__ \
     _(XMM2) __COMMA__ \
@@ -104,3 +119,4 @@
 
 /* Frame declarations */
 #define MVM_JIT_ARCH_NUM_GPR 16
+#define MVM_JIT_ARCH_NUM_FPR 16
