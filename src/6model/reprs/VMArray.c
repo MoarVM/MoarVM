@@ -900,7 +900,11 @@ MVMint64 read_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
         MVM_exception_throw_adhoc(tc, "MVMArray: read_buf out of bounds offset %lld start %lld elems %llu count %llu", offset, start, body->elems, count);
     }
 
-    memcpy(&result, body->slots.u8 + (start + offset) * repr_data->elem_size, count);
+    memcpy(((char*)&result)
+#if MVM_BIGENDIAN
+	+ (8 - count)
+#endif
+	, body->slots.u8 + (start + offset) * repr_data->elem_size, count);
     return result;
 }
 

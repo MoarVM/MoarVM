@@ -5424,7 +5424,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                 }
                 else {
-                    REPR(buf)->pos_funcs.write_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf), (char*)&value, off, size);
+                    REPR(buf)->pos_funcs.write_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf),
+			(char*)&value
+#if MVM_BIGENDIAN
+			+ (8 - size)
+#endif
+			, off, size);
                 }
                 MVM_SC_WB_OBJ(tc, buf);
                 cur_op += 8;
