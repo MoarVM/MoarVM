@@ -5414,8 +5414,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     char i;
                     for(i = 0; i < size; i++) {
                         byte.i64 = (unsigned char)((value & (0xFFull << (i * 8))) >> (i * 8));
-                        REPR(buf)->pos_funcs.bind_pos(tc, STABLE(buf), buf,
-                            OBJECT_BODY(buf), off + size - 1 - i, byte, MVM_reg_int64);
+                        REPR(buf)->pos_funcs.bind_pos(tc, STABLE(buf), buf, OBJECT_BODY(buf),
+#if MVM_BIGENDIAN
+                            off + i,
+#else
+                            off + size - 1 - i,
+#endif
+                            byte, MVM_reg_int64);
                     }
                 }
                 else {
@@ -5471,8 +5476,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     char i;
                     GET_REG(cur_op, 0).i64 = 0;
                     for(i = 0; i < size; i++) {
-                        REPR(buf)->pos_funcs.at_pos(tc, STABLE(buf), buf,
-                            OBJECT_BODY(buf), off + size - 1 - i, &byte, MVM_reg_int64);
+                        REPR(buf)->pos_funcs.at_pos(tc, STABLE(buf), buf, OBJECT_BODY(buf),
+#if MVM_BIGENDIAN
+                            off + i,
+#else
+                            off + size - 1 - i,
+#endif
+                            &byte, MVM_reg_int64);
                         GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 0).i64 | (byte.i64 << (i * 8));
                     }
                 }
