@@ -440,10 +440,29 @@ static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
     return 0;
 }
 
+static MVMint64 socket_is_tty(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOAsyncSocketData *data   = (MVMIOAsyncSocketData *)h->body.data;
+    uv_handle_t          *handle = (uv_handle_t *)data->handle;
+    return (MVMint64)(handle->type == UV_TTY);
+}
+
+static MVMint64 socket_handle(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOAsyncSocketData *data   = (MVMIOAsyncSocketData *)h->body.data;
+    uv_handle_t          *handle = (uv_handle_t *)data->handle;
+    int        fd;
+    uv_os_fd_t fh;
+
+    uv_fileno(handle, &fh);
+    fd = uv_open_osfhandle(fh);
+    return (MVMint64)fd;
+}
+
 /* IO ops table, populated with functions. */
 static const MVMIOClosable      closable       = { close_socket };
 static const MVMIOAsyncReadable async_readable = { read_bytes };
 static const MVMIOAsyncWritable async_writable = { write_bytes };
+static const MVMIOIntrospection introspection  = { socket_is_tty,
+                                                   socket_handle };
 static const MVMIOOps op_table = {
     &closable,
     NULL,
@@ -455,7 +474,7 @@ static const MVMIOOps op_table = {
     NULL,
     NULL,
     NULL,
-    NULL,
+    &introspection,
     NULL,
     NULL,
     NULL
@@ -682,21 +701,31 @@ static void on_connection(uv_stream_t *server, int status) {
     if ((r = uv_accept(server, (uv_stream_t *)client)) == 0) {
         /* Allocate and set up handle. */
         MVMROOT2(tc, arr, t, {
-            MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-            MVMIOAsyncSocketData *data   = MVM_calloc(1, sizeof(MVMIOAsyncSocketData));
-            data->handle                 = (uv_stream_t *)client;
-            result->body.ops             = &op_table;
-            result->body.data            = data;
-
-            MVM_repr_push_o(tc, arr, (MVMObject *)result);
-            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            struct sockaddr_storage sockaddr;
+            int name_len = sizeof(struct sockaddr_storage);
 
             {
-                struct sockaddr_storage sockaddr;
-                int name_len = sizeof(struct sockaddr_storage);
+                MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
+                MVMIOAsyncSocketData *data   = MVM_calloc(1, sizeof(MVMIOAsyncSocketData));
+                data->handle                 = (uv_stream_t *)client;
+                result->body.ops             = &op_table;
+                result->body.data            = data;
+
+                MVM_repr_push_o(tc, arr, (MVMObject *)result);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
 
                 uv_tcp_getpeername(client, (struct sockaddr *)&sockaddr, &name_len);
                 push_name_and_port(tc, &sockaddr, arr);
+            }
+
+            {
+                MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
+                MVMIOAsyncSocketData *data   = MVM_calloc(1, sizeof(MVMIOAsyncSocketData));
+                data->handle                 = (uv_stream_t *)li->socket;
+                result->body.ops             = &op_table;
+                result->body.data            = data;
+
+                MVM_repr_push_o(tc, arr, (MVMObject *)result);
 
                 uv_tcp_getsockname(client, (struct sockaddr *)&sockaddr, &name_len);
                 push_name_and_port(tc, &sockaddr, arr);
@@ -715,6 +744,7 @@ static void on_connection(uv_stream_t *server, int status) {
             MVM_repr_push_o(tc, arr, msg_box);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTIO);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
         });
@@ -751,6 +781,7 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
                 MVM_repr_push_o(tc, arr, msg_box);
                 MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
                 MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
+                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTIO);
                 MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
                 MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             });
@@ -774,6 +805,14 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
 
         MVMROOT2(tc, arr, async_task, {
+            MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
+            MVMIOAsyncSocketData *data   = MVM_calloc(1, sizeof(MVMIOAsyncSocketData));
+            data->handle                 = (uv_stream_t *)li->socket;
+            result->body.ops             = &op_table;
+            result->body.data            = data;
+
+            MVM_repr_push_o(tc, arr, (MVMObject *)result);
+
             uv_tcp_getsockname(li->socket, (struct sockaddr *)&sockaddr, &name_len);
             push_name_and_port(tc, &sockaddr, arr);
         });

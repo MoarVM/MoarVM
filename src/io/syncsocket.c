@@ -439,7 +439,7 @@ MVMint64 socket_getport(MVMThreadContext *tc, MVMOSHandle *h) {
 
 static MVMint64 socket_is_tty(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
-    return isatty(data->handle);
+    return (MVMint64)isatty(data->handle);
 }
 
 static MVMint64 socket_handle(MVMThreadContext *tc, MVMOSHandle *h) {
