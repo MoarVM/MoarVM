@@ -129,8 +129,15 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     MVMRegister *found;
     MVMuint16 got_kind;
     MVMFrame *found_frame;
-    if (!setup_frame_walker(tc, &fw, body) || !MVM_spesh_frame_walker_get_lex(tc, &fw,
-            name, &found, &got_kind, 1, &found_frame)) {
+    MVMuint32 needs_root = kind == MVM_reg_obj || kind == MVM_reg_str;
+    MVMuint32 missing;
+    if (needs_root)
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&(value.o));
+    missing = !setup_frame_walker(tc, &fw, body) || !MVM_spesh_frame_walker_get_lex(tc, &fw,
+            name, &found, &got_kind, 1, &found_frame);
+    if (needs_root)
+        MVM_gc_root_temp_pop(tc);
+    if (missing) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
         MVM_exception_throw_adhoc_free(tc, waste,
