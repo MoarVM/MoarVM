@@ -452,6 +452,11 @@ void MVM_spesh_plugin_resolve_jit(MVMThreadContext *tc, MVMString *name,
                                   MVMStaticFrame *sf, MVMCallsite *callsite) {
     MVMObject *resolved;
     MVMuint16 guard_offset;
+
+    /* Save callsite in frame (the JIT's output doesn't do so, and we need
+     * it for GC marking). */
+    tc->cur_frame->cur_args_callsite = callsite;
+
     MVMROOT2(tc, name, sf, {
         resolved = resolve_using_guards(tc, position, callsite, &guard_offset, sf);
     });
