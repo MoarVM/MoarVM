@@ -2363,8 +2363,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         }
         break;
     }
-    case MVM_OP_readuint:
-    case MVM_OP_readint: {
+    case MVM_OP_readuint: {
         MVMint16 dst   = ins->operands[0].reg.orig;
         MVMint16 buf   = ins->operands[1].reg.orig;
         MVMint16 off   = ins->operands[2].reg.orig;
