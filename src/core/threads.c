@@ -204,7 +204,7 @@ void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
     if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread && IS_CONCRETE(thread_obj)) {
         int status = try_join(tc, (MVMThread *)thread_obj);
         if (status < 0)
-            MVM_panic(MVM_exitcode_compunit, "Could not join thread: errorcode %d", status);
+            MVM_exception_throw_adhoc(tc, "Could not join thread: %s", uv_strerror(status));
     }
     else {
         MVM_exception_throw_adhoc(tc,
