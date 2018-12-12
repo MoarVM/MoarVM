@@ -5478,18 +5478,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         (op == MVM_OP_readint ? "readint" : "readuint"));
                 }
                 if ((flags & 3) == MVM_SWITCHENDIAN) {
-                    MVMRegister byte;
-                    char i;
-                    GET_REG(cur_op, 0).u64 = 0;
-                    for(i = 0; i < size; i++) {
-                        REPR(buf)->pos_funcs.at_pos(tc, STABLE(buf), buf, OBJECT_BODY(buf),
-#if MVM_BIGENDIAN
-                            off + i,
-#else
-                            off + size - 1 - i,
-#endif
-                            &byte, MVM_reg_int64);
-                        GET_REG(cur_op, 0).u64 = GET_REG(cur_op, 0).u64 | (byte.u64 << (i * 8));
+                    MVMuint64 val = REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf), off, size);
+                    if (size == 1) {
+                        GET_REG(cur_op, 0).u64 = val;
+                    }
+                    else if (size == 2) {
+                        GET_REG(cur_op, 0).u64 = (MVMuint16)(val << 8) | (val >> 8 );
+                    }
+                    else if (size == 4) {
+                        val = (MVMuint32)((val << 8) & 0xFF00FF00) | ((val >> 8) & 0xFF00FF );
+                        GET_REG(cur_op, 0).u64 = (MVMuint32)((val << 16)) | (val >> 16);
+                    }
+                    else if (size == 8) {
+                        val = ((val << 8) & 0xFF00FF00FF00FF00ULL ) | ((val >> 8) & 0x00FF00FF00FF00FFULL );
+                        val = ((val << 16) & 0xFFFF0000FFFF0000ULL ) | ((val >> 16) & 0x0000FFFF0000FFFFULL );
+                        GET_REG(cur_op, 0).u64 = (val << 32) | (val >> 32);
                     }
                 }
                 else {
