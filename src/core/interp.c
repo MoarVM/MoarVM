@@ -5501,7 +5501,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_SC_WB_OBJ(tc, buf);
                 if (op == MVM_OP_readint) {
                     if (size == 1) {
-                        GET_REG(cur_op, 0).u64 = (MVMint64)(MVMint8)GET_REG(cur_op, 0).u64;
+                        GET_REG(cur_op, 0).i64 = (MVMint64)(MVMint8)GET_REG(cur_op, 0).u64;
                     }
                     else if (size == 2) {
                         GET_REG(cur_op, 0).i64 = (MVMint64)(MVMint16)GET_REG(cur_op, 0).u64;
