@@ -1133,6 +1133,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMuint16 num_attributes = repr_data->num_attributes;
     MVMuint16 i;
+    data = MVM_p6opaque_real_data(tc, data);
     for (i = 0; i < num_attributes; i++) {
         MVMuint16 a_offset = repr_data->attribute_offsets[i];
         MVMSTable *a_st = repr_data->flattened_stables[i];

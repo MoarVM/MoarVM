@@ -3031,7 +3031,8 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
          * repossession (perhaps due to mixing in to it), so put the
          * STable it should now have in place. */
         updated_st = read_object_table_entry(tc, reader, slot, NULL);
-        MVM_ASSIGN_REF(tc, &(orig_obj->header), orig_obj->st, updated_st);
+        if (updated_st != orig_obj->st)
+            REPR(orig_obj)->change_type(tc, orig_obj, updated_st->WHAT);
 
         /* Put this on the list of things we should deserialize right away. */
         worklist_add_index(tc, &(reader->wl_objects), slot);
