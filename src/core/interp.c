@@ -5402,9 +5402,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(writeint):
             OP(writeuint): {
                 MVMObject*    const buf   = GET_REG(cur_op, 0).o;
-                MVMuint64     const off   = (MVMuint64)GET_REG(cur_op, 2).i64;
-                MVMuint64     const value = (MVMuint64)GET_REG(cur_op, 4).i64;
-                MVMuint64     const flags = (MVMuint64)GET_REG(cur_op, 6).i64;
+                MVMint64      const off   = (MVMuint64)GET_REG(cur_op, 2).i64;
+                MVMuint64     const value = (MVMuint64)GET_REG(cur_op, 4).u64;
+                MVMuint64     const flags = (MVMuint64)GET_REG(cur_op, 6).u64;
                 unsigned char const size  = 1 << (flags >> 2);
                 if (!IS_CONCRETE(buf))
                     MVM_exception_throw_adhoc(tc, "Cannot write to a %s type object", MVM_6model_get_debug_name(tc, buf));
@@ -5439,9 +5439,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(writenum): {
                 MVMObject *buf  = GET_REG(cur_op, 0).o;
-                MVMuint64 off   = (MVMuint64)GET_REG(cur_op, 2).i64;
+                MVMint64  off   = (MVMuint64)GET_REG(cur_op, 2).i64;
                 MVMuint64 num   = *(MVMuint64*)&GET_REG(cur_op, 4).n64;
-                MVMuint64 flags = (MVMuint64)GET_REG(cur_op, 6).i64;
+                MVMuint64 flags = (MVMuint64)GET_REG(cur_op, 6).u64;
                 MVMRegister byte;
                 char i;
                 if (!IS_CONCRETE(buf))
@@ -5474,7 +5474,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(readint):
             OP(readuint): {
                 MVMObject*    const buf   = GET_REG(cur_op, 2).o;
-                MVMuint64     const off   = (MVMuint64)GET_REG(cur_op, 4).u64;
+                MVMint64      const off   = (MVMuint64)GET_REG(cur_op, 4).i64;
                 MVMuint64     const flags = (MVMuint64)GET_REG(cur_op, 6).u64;
                 unsigned char const size  = 1 << (flags >> 2);
                 if (!IS_CONCRETE(buf))
@@ -5521,8 +5521,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(readnum): {
                 MVMObject*    const buf   = GET_REG(cur_op, 2).o;
-                MVMuint64     const off   = (MVMuint64)GET_REG(cur_op, 4).i64;
-                MVMuint64     const flags = (MVMuint64)GET_REG(cur_op, 6).i64;
+                MVMint64      const off   = (MVMuint64)GET_REG(cur_op, 4).i64;
+                MVMuint64     const flags = (MVMuint64)GET_REG(cur_op, 6).u64;
                 if (!IS_CONCRETE(buf))
                     MVM_exception_throw_adhoc(tc, "Cannot read from a %s type object", MVM_6model_get_debug_name(tc, buf));
                 GET_REG(cur_op, 0).n64 = REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf), off, 8);

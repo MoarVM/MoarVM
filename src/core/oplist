@@ -872,8 +872,8 @@ hllboolfor          w(obj) r(int64) r(str) :pure :useshll
 decodelocaltime     w(obj) r(int64)
 fork                w(int64)
 buffertocu          w(obj) r(obj) :invokish :maycausedeopt
-writeint            r(obj) r(uint64) r(int64)  r(uint64)
-writeuint           r(obj) r(uint64) r(uint64) r(uint64)
+writeint            r(obj) r(int64) r(int64)  r(uint64)
+writeuint           r(obj) r(int64) r(uint64) r(uint64)
 writenum            r(obj) r(uint64) r(num64)  r(uint64)
 serializetobuf      w(obj) r(obj) r(obj) r(obj)
 readint             w(int64) r(obj) r(uint64) r(uint64)
