@@ -5406,6 +5406,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMuint64     const value = (MVMuint64)GET_REG(cur_op, 4).i64;
                 MVMuint64     const flags = (MVMuint64)GET_REG(cur_op, 6).i64;
                 unsigned char const size  = 1 << (flags >> 2);
+                if (!IS_CONCRETE(buf))
+                    MVM_exception_throw_adhoc(tc, "Cannot write to a %s type object", MVM_6model_get_debug_name(tc, buf));
                 if ((flags & 3) == 3 || size > 8) {
                     MVM_exception_throw_adhoc(tc, "Invalid flags value for writeint");
                 }
@@ -5442,6 +5444,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMuint64 flags = (MVMuint64)GET_REG(cur_op, 6).i64;
                 MVMRegister byte;
                 char i;
+                if (!IS_CONCRETE(buf))
+                    MVM_exception_throw_adhoc(tc, "Cannot write to a %s type object", MVM_6model_get_debug_name(tc, buf));
                 for(i = 0; i < 8; i++) {
                     byte.i64 = (unsigned char)((num & (0xFFull << (i * 8))) >> (i * 8));
                     REPR(buf)->pos_funcs.bind_pos(tc, STABLE(buf), buf,
@@ -5473,6 +5477,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMuint64     const off   = (MVMuint64)GET_REG(cur_op, 4).u64;
                 MVMuint64     const flags = (MVMuint64)GET_REG(cur_op, 6).u64;
                 unsigned char const size  = 1 << (flags >> 2);
+                if (!IS_CONCRETE(buf))
+                    MVM_exception_throw_adhoc(tc, "Cannot read from a %s type object", MVM_6model_get_debug_name(tc, buf));
                 if ((flags & 3) == 3 || size > 8) {
                     MVM_exception_throw_adhoc(tc, "Invalid flags value for %s",
                         (op == MVM_OP_readint ? "readint" : "readuint"));
@@ -5517,6 +5523,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject*    const buf   = GET_REG(cur_op, 2).o;
                 MVMuint64     const off   = (MVMuint64)GET_REG(cur_op, 4).i64;
                 MVMuint64     const flags = (MVMuint64)GET_REG(cur_op, 6).i64;
+                if (!IS_CONCRETE(buf))
+                    MVM_exception_throw_adhoc(tc, "Cannot read from a %s type object", MVM_6model_get_debug_name(tc, buf));
                 GET_REG(cur_op, 0).n64 = REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf), off, 8);
                 MVM_SC_WB_OBJ(tc, buf);
                 cur_op += 8;
