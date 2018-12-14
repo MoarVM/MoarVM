@@ -123,15 +123,15 @@ void MVM_frame_destroy(MVMThreadContext *tc, MVMFrame *frame) {
         MVM_args_proc_cleanup(tc, &frame->params);
         MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_work,
             frame->work);
-        if (frame->extra) {
-            MVMFrameExtra *e = frame->extra;
-            if (e->continuation_tags)
-                MVM_continuation_free_tags(tc, frame);
-            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
-        }
     }
     if (frame->env)
         MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_env, frame->env);
+    if (frame->extra) {
+        MVMFrameExtra *e = frame->extra;
+        if (e->continuation_tags)
+            MVM_continuation_free_tags(tc, frame);
+        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
+    }
 }
 
 /* Creates a frame for usage as a context only, possibly forcing all of the
