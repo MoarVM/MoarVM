@@ -883,11 +883,9 @@ static void write_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
     MVMint64 start = body->start;
     MVMint64 elems = body->elems;
 
-    /* Handle negative offset. */
+    /* Throw on negative offset. */
     if (offset < 0) {
-        offset += elems;
-        if (offset < 0)
-            MVM_exception_throw_adhoc(tc, "MVMArray: Index out of bounds");
+        MVM_exception_throw_adhoc(tc, "MVMArray: Index out of bounds");
     }
 
     /* resize the array if necessary*/
@@ -902,11 +900,6 @@ MVMint64 read_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMint64 start = body->start;
     MVMint64 result = 0;
-
-    /* Handle negative offset. */
-    if (offset < 0) {
-        offset += body->elems;
-    }
 
     if (offset < 0 || start + body->elems < offset + count) {
         MVM_exception_throw_adhoc(tc, "MVMArray: read_buf out of bounds offset %lld start %lld elems %llu count %llu", offset, start, body->elems, count);
