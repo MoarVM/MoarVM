@@ -99,9 +99,7 @@ MVM_JIT_TILE_DECL(add_reg) {
 The =MVM_JIT_TILE_DECL= macro expands to a tile function declaration
 (which is assigned to a tile *object* in the tile *list*, which is
 what we use to represent the compiled code just prior to emitting it
-to the DynASM buffer). There is a second (redundant) pre-declaration
-of the tile function in the =src/jit/x64/tile_decl.h= which you'll
-also need to add.
+to the DynASM buffer).
 
 For x64, common tile functions are:
 

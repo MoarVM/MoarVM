@@ -210,24 +210,10 @@ machine code for it's architecture. For machine code output we use the
 library. Please read that link for detailed information on DynASM.
 With DynASM, tile implementation becomes simple.
 
-For x64, the tile name is declared in
-`src/jit/x64/tile_decl.h`. This is necessary as the tiler
-tables (which themselves reside in the generated header file
-`src/jit/x64/tile_tables.h` refer to the tile function
-symbol, and so require the name to be predeclared. Because the tile
-function signature is rather long, I use a macro to define the
-function:
-
-    /* in src/jit/x64/tile_decl.h */
-    MVM_JIT_TILE_DECL(xor);
-    MVM_JIT_TILE_DECL(xor_const);
-    MVM_JIT_TILE_DECL(xor_addr);
-
-The implementation is defined in
-`src/jit/x64/tiles.dasc`. This file is included from
-`src/jit/x64/emit.dasc`, which is the file that includes
-the original JIT architecture-specific code. A tile implementation
-looks much like this:
+The tile implementation is defined in `src/jit/x64/tiles.dasc`. This
+file is included from `src/jit/x64/emit.dasc`, which is the file that
+includes the original JIT architecture-specific code. A tile
+implementation looks much like this:
 
     /* in src/jit/x64/tiles.dasc, supposing we only care about 8 byte xor */
     MVM_JIT_TILE_DECL(xor) {
