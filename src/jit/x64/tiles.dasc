@@ -1,6 +1,4 @@
 /* -*-C-*- */
-#include "tile_decl.h"
-
 #define DIE(...) do { MVM_oops(tc, __VA_ARGS__); } while (0)
 
 /* NB: The rax/eax/ax/al/ah register is *reserved* for internal use in tiles by
