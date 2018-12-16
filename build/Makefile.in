@@ -485,17 +485,15 @@ TOM_OBJECTS = @tomobjects@
 THIRDPARTY = @thirdpartylibs@
 
 MINILUA = 3rdparty/dynasm/minilua@exe@
+MINILUA_LDFLAGS = -lm
 DYNASM  = $(MINILUA) 3rdparty/dynasm/dynasm.lua
 DYNASM_SCRIPTS = 3rdparty/dynasm/dynasm.lua 3rdparty/dynasm/dasm_x86.lua
 DYNASM_HEADERS = 3rdparty/dynasm/dasm_proto.h 3rdparty/dynasm/dasm_x86.h
 
 .SUFFIXES: .c @obj@ .i @asm@ .dasc .expr .tile .h
-.PHONY: clean realclean install ALWAYS_REBUILD lib all help test reconfig clangcheck gcccheck libuv tracing cgoto switch no-tracing no-cgoto distclean release sandwich
+.PHONY: clean realclean install lib all help test reconfig clangcheck gcccheck libuv tracing cgoto switch no-tracing no-cgoto distclean release sandwich
 
 all: moar@exe@ pkgconfig/moar.pc
-
-# Empty target, just in case our make doesn't support the .PHONY property
-ALWAYS_REBUILD:
 
 install: all
 	$(MKPATH) "$(DESTDIR)$(BINDIR)"
@@ -616,9 +614,9 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_uca.c src/st
 	$(MSG) generating $@
 	$(CMD) $(CAT) src/strings/unicode_db.c src/strings/unicode_uca.c src/strings/unicode_ops.c > $@ $(NOERR)
 
-# Always rebuild minilua to workaround issue #999
-$(MINILUA): ALWAYS_REBUILD 3rdparty/dynasm/minilua.c
-	$(CC) $(CFLAGS) $(LDFLAGS) 3rdparty/dynasm/minilua.c -o $@ $(LDLIBS)
+# Minilua requires only -lm, no libraries
+$(MINILUA): 3rdparty/dynasm/minilua.c
+	$(CC) $(MINILUA_LDFLAGS) 3rdparty/dynasm/minilua.c -o $@
 
 .dasc.c:
 	$(MSG) preprocessing $<
