@@ -3,7 +3,6 @@
 #include <math.h>
 
 #if MVM_JIT_ARCH == MVM_JIT_ARCH_X64
-#include "jit/x64/tile_decl.h"
 #include "jit/x64/tile_pattern.h"
 #endif
 

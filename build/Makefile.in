@@ -655,7 +655,7 @@ src/jit/core_templates.h: src/jit/core_templates.expr src/jit/macro.expr \
 src/jit/x64/tile_pattern.h: src/jit/x64/tile_pattern.tile tools/tiler-table-generator.pl src/jit/expr_ops.h
 
 src/jit/expr@obj@: src/jit/core_templates.h
-src/jit/tile@obj@: src/jit/x64/tile_pattern.h src/jit/x64/tile_decl.h
+src/jit/tile@obj@: src/jit/x64/tile_pattern.h
 
 src/jit/compile@obj@ src/jit/linear_scan@obj@ src/jit/x64/arch@obj@ @jit_obj@: src/jit/internal.h src/jit/x64/arch.h
 
