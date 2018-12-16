@@ -73,6 +73,24 @@ static MVMObject * fastcreate(MVMThreadContext *tc, MVMuint8 *cur_op) {
     return obj;
 }
 
+MVMuint64 switch_endian(MVMuint64 val, unsigned char size) {
+    if (size == 1) {
+        return val;
+    }
+    else if (size == 2) {
+        return (MVMuint16)((val & 0x00FF) << 8) | ((val >> 8 ) & 0x00FF);
+    }
+    else if (size == 4) {
+        val = (MVMuint32)((val << 8) & 0xFF00FF00) | ((val >> 8) & 0xFF00FF );
+        return (MVMuint32)((val << 16)) | (val >> 16);
+    }
+    else if (size == 8) {
+        val = ((val << 8) & 0xFF00FF00FF00FF00ULL ) | ((val >> 8) & 0x00FF00FF00FF00FFULL );
+        val = ((val << 16) & 0xFFFF0000FFFF0000ULL ) | ((val >> 16) & 0x0000FFFF0000FFFFULL );
+        return (val << 32) | (val >> 32);
+    }
+}
+
 /* This is the interpreter run loop. We have one of these per thread. */
 void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data) {
 #if MVM_CGOTO
@@ -5403,7 +5421,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(writeuint): {
                 MVMObject*    const buf   = GET_REG(cur_op, 0).o;
                 MVMint64      const off   = (MVMuint64)GET_REG(cur_op, 2).i64;
-                MVMuint64     const value = (MVMuint64)GET_REG(cur_op, 4).u64;
+                MVMuint64           value = (MVMuint64)GET_REG(cur_op, 4).u64;
                 MVMuint64     const flags = (MVMuint64)GET_REG(cur_op, 6).u64;
                 unsigned char const size  = 1 << (flags >> 2);
                 if (!IS_CONCRETE(buf))
@@ -5412,27 +5430,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc, "Invalid flags value for writeint");
                 }
                 if ((flags & 3) == MVM_SWITCHENDIAN) {
-                    MVMRegister byte;
-                    char i;
-                    for(i = 0; i < size; i++) {
-                        byte.i64 = (unsigned char)((value & (0xFFull << (i * 8))) >> (i * 8));
-                        REPR(buf)->pos_funcs.bind_pos(tc, STABLE(buf), buf, OBJECT_BODY(buf),
-#if MVM_BIGENDIAN
-                            off + i,
-#else
-                            off + size - 1 - i,
-#endif
-                            byte, MVM_reg_int64);
-                    }
+                    value = switch_endian(value, size);
                 }
-                else {
-                    REPR(buf)->pos_funcs.write_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf),
-			(char*)&value
+                REPR(buf)->pos_funcs.write_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf),
+                    (char*)&value
 #if MVM_BIGENDIAN
-			+ (8 - size)
+                    + (8 - size)
 #endif
-			, off, size);
-                }
+                    , off, size);
                 MVM_SC_WB_OBJ(tc, buf);
                 cur_op += 8;
                 goto NEXT;
@@ -5493,33 +5498,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMint64      const off   = (MVMuint64)GET_REG(cur_op, 4).i64;
                 MVMuint64     const flags = (MVMuint64)GET_REG(cur_op, 6).u64;
                 unsigned char const size  = 1 << (flags >> 2);
+                MVMuint64 val;
                 if (!IS_CONCRETE(buf))
                     MVM_exception_throw_adhoc(tc, "Cannot read from a %s type object", MVM_6model_get_debug_name(tc, buf));
                 if ((flags & 3) == 3 || size > 8) {
                     MVM_exception_throw_adhoc(tc, "Invalid flags value for %s",
                         (op == MVM_OP_readint ? "readint" : "readuint"));
                 }
-                if ((flags & 3) == MVM_SWITCHENDIAN) {
-                    MVMuint64 val = REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf), off, size);
-                    if (size == 1) {
-                        GET_REG(cur_op, 0).u64 = val;
-                    }
-                    else if (size == 2) {
-                        GET_REG(cur_op, 0).u64 = (MVMuint16)(val << 8) | (val >> 8 );
-                    }
-                    else if (size == 4) {
-                        val = (MVMuint32)((val << 8) & 0xFF00FF00) | ((val >> 8) & 0xFF00FF );
-                        GET_REG(cur_op, 0).u64 = (MVMuint32)((val << 16)) | (val >> 16);
-                    }
-                    else if (size == 8) {
-                        val = ((val << 8) & 0xFF00FF00FF00FF00ULL ) | ((val >> 8) & 0x00FF00FF00FF00FFULL );
-                        val = ((val << 16) & 0xFFFF0000FFFF0000ULL ) | ((val >> 16) & 0x0000FFFF0000FFFFULL );
-                        GET_REG(cur_op, 0).u64 = (val << 32) | (val >> 32);
-                    }
-                }
-                else {
-                    GET_REG(cur_op, 0).u64 = REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf), off, size);
-                }
+
+                val = REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf), off, size);
+                GET_REG(cur_op, 0).u64 = ((flags & 3) == MVM_SWITCHENDIAN) ? switch_endian(val, size) : val;
+
                 if (op == MVM_OP_readint) {
                     if (size == 1) {
                         GET_REG(cur_op, 0).i64 = (MVMint64)(MVMint8)GET_REG(cur_op, 0).u64;
