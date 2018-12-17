@@ -5440,16 +5440,32 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(writenum): {
                 MVMObject *buf  = GET_REG(cur_op, 0).o;
                 MVMint64  off   = (MVMuint64)GET_REG(cur_op, 2).i64;
-                MVMuint64 num   = *(MVMuint64*)&GET_REG(cur_op, 4).n64;
                 MVMuint64 flags = (MVMuint64)GET_REG(cur_op, 6).u64;
+                unsigned char const size = 1 << (flags >> 2);
                 MVMRegister byte;
                 char i;
                 if (!IS_CONCRETE(buf))
                     MVM_exception_throw_adhoc(tc, "Cannot write to a %s type object", MVM_6model_get_debug_name(tc, buf));
-                for(i = 0; i < 8; i++) {
-                    byte.i64 = (unsigned char)((num & (0xFFull << (i * 8))) >> (i * 8));
-                    REPR(buf)->pos_funcs.bind_pos(tc, STABLE(buf), buf,
-                        OBJECT_BODY(buf), off + i, byte, MVM_reg_int64);
+                switch (size) {
+                    case 4: {
+                        MVMnum32 num32 = (MVMnum32)GET_REG(cur_op, 4).n64;
+                        MVMuint32 num = *(MVMuint32*)&num32;
+                        for(i = 0; i < 4; i++) {
+                            byte.i64 = (unsigned char)((num & (0xFFu << (i * 8))) >> (i * 8));
+                            REPR(buf)->pos_funcs.bind_pos(tc, STABLE(buf), buf,
+                                OBJECT_BODY(buf), off + i, byte, MVM_reg_int64);
+                        }
+                        break;
+                    }
+                    default: {
+                        MVMuint64 num = *(MVMuint64*)&GET_REG(cur_op, 4).n64;
+                        for(i = 0; i < 8; i++) {
+                            byte.i64 = (unsigned char)((num & (0xFFull << (i * 8))) >> (i * 8));
+                            REPR(buf)->pos_funcs.bind_pos(tc, STABLE(buf), buf,
+                                OBJECT_BODY(buf), off + i, byte, MVM_reg_int64);
+                        }
+                        break;
+                    }
                 }
                 MVM_SC_WB_OBJ(tc, buf);
                 cur_op += 8;
@@ -5504,7 +5520,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 else {
                     GET_REG(cur_op, 0).u64 = REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf), off, size);
                 }
-                MVM_SC_WB_OBJ(tc, buf);
                 if (op == MVM_OP_readint) {
                     if (size == 1) {
                         GET_REG(cur_op, 0).i64 = (MVMint64)(MVMint8)GET_REG(cur_op, 0).u64;
@@ -5523,10 +5538,25 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject*    const buf   = GET_REG(cur_op, 2).o;
                 MVMint64      const off   = (MVMuint64)GET_REG(cur_op, 4).i64;
                 MVMuint64     const flags = (MVMuint64)GET_REG(cur_op, 6).u64;
+                unsigned char const size  = 1 << (flags >> 2);
                 if (!IS_CONCRETE(buf))
                     MVM_exception_throw_adhoc(tc, "Cannot read from a %s type object", MVM_6model_get_debug_name(tc, buf));
-                GET_REG(cur_op, 0).n64 = REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf), off, 8);
-                MVM_SC_WB_OBJ(tc, buf);
+                switch (size) {
+                    case 8: {
+                        MVMuint64 read = REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf),
+                                buf, OBJECT_BODY(buf), off, 8);
+                        GET_REG(cur_op, 0).n64 = *(MVMnum64 *)&read;
+                        break;
+                    }
+                    case 4: {
+                        MVMuint32 read = (MVMuint32)REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf),
+                                buf, OBJECT_BODY(buf), off, 4);
+                        GET_REG(cur_op, 0).n64 = *(MVMnum32 *)&read;
+                        break;
+                    }
+                    default:
+                        MVM_exception_throw_adhoc(tc, "Cannot read a num of %d bytes", size);
+                }
                 cur_op += 8;
                 goto NEXT;
             }
