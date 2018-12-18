@@ -73,7 +73,7 @@ static MVMObject * fastcreate(MVMThreadContext *tc, MVMuint8 *cur_op) {
     return obj;
 }
 
-MVMuint64 switch_endian(MVMuint64 val, unsigned char size) {
+static MVMuint64 switch_endian(MVMuint64 val, unsigned char size) {
     if (size == 1) {
         return val;
     }
