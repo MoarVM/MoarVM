@@ -894,7 +894,7 @@ static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
 }
 
 /* If we have a const_i and a coerce_in, we can emit a const_n instead. */
-static void optimize_coerce_in(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+static void optimize_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
 
     if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
@@ -909,24 +909,6 @@ static void optimize_coerce_in(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
 
         result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
         result_facts->value.n = result;
-    }
-}
-
-/* A coerce_ni after a coerce_in can become a set. Hooray! */
-static void optimize_coerce_ni(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
-    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
-
-    if (facts->writer && facts->writer->info->opcode == MVM_OP_coerce_in) {
-        MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
-
-        MVM_spesh_usages_delete(tc, g, facts, ins);
-
-        ins->info = MVM_op_get_op(MVM_OP_set);
-        ins->operands[1].reg = facts->writer->operands[1].reg;
-
-        MVM_spesh_usages_add_by_reg(tc, g, ins->operands[1], ins);
-
-        MVM_spesh_graph_add_comment(tc, g, ins, "Removed redundant int-to-num-to-int coerce");
     }
 }
 
@@ -2672,10 +2654,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             break;
         }
         case MVM_OP_coerce_in:
-            optimize_coerce_in(tc, g, bb, ins);
-            break;
-        case MVM_OP_coerce_ni:
-            optimize_coerce_ni(tc, g, bb, ins);
+            optimize_coerce(tc, g, bb, ins);
             break;
         case MVM_OP_smrt_numify:
         case MVM_OP_smrt_strify:
