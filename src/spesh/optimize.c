@@ -969,11 +969,22 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
 
             return;
         }
-        can_result = MVM_spesh_try_can_method(tc, facts->type,
-                is_strify ? tc->instance->str_consts.Str : tc->instance->str_consts.Num);
+        /* We cheat a little, since we have full control over the boot
+         * types. XXX is it a fair DIHWIDT if the user adds stuff to those? */
+        if (facts->type == tc->instance->boot_types.BOOTInt
+                || facts->type == tc->instance->boot_types.BOOTNum
+                || facts->type == tc->instance->boot_types.BOOTStr) {
+            can_result = 0;
+        }
+        else {
+            can_result = MVM_spesh_try_can_method(tc, facts->type,
+                    is_strify ? tc->instance->str_consts.Str : tc->instance->str_consts.Num);
+        }
 
         if (can_result == -1) {
             /* Couldn't safely figure out if the type has a Str method or not. */
+            MVM_spesh_graph_add_comment(tc, g, ins, "Couldn't safely determine whether %s can .Str/.Num",
+                    MVM_6model_get_debug_name(tc, facts->type));
             return;
         } else if (can_result == 0) {
             MVM_spesh_use_facts(tc, g, facts);
@@ -982,6 +993,8 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
             if (is_strify && REPR(facts->type)->ID == MVM_REPR_ID_MVMException) {
                 MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 3);
                 MVMSpeshOperand *old_opers = ins->operands;
+
+                MVM_spesh_graph_add_comment(tc, g, ins, "specialized from %s", ins->info->name);
 
                 ins->info = MVM_op_get_op(MVM_OP_sp_get_s);
 
@@ -997,6 +1010,8 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
                 MVMSpeshIns     *new_ins   = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
                 MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
                 MVMSpeshOperand  temp      = MVM_spesh_manipulate_get_temp_reg(tc, g, register_type);
+
+                MVM_spesh_graph_add_comment(tc, g, ins, "specialized from %s", ins->info->name);
 
                 ins->info = MVM_op_get_op(register_type == MVM_reg_num64 ? MVM_OP_unbox_n : MVM_OP_unbox_i);
 
@@ -1034,6 +1049,8 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
                 MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
                 MVMSpeshOperand  temp      = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
                 MVMSpeshOperand  orig_dst  = ins->operands[0];
+
+                MVM_spesh_graph_add_comment(tc, g, ins, "specialized from %s", ins->info->name);
 
                 ins->info = MVM_op_get_op(MVM_OP_elems);
                 ins->operands[0] = temp;
