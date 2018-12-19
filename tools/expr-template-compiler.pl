@@ -9,7 +9,7 @@ use Scalar::Util qw(looks_like_number refaddr reftype);
 
 # use my libs
 use FindBin;
-use lib $FindBin::Bin;
+use lib File::Spec->catdir($FindBin::Bin, 'lib');
 
 use sexpr;
 use expr_ops;
