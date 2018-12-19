@@ -1,10 +1,10 @@
 package expr_ops;
 use strict;
 use warnings;
-use File::Spec::Functions qw(catdir  updir catpath splitpath);
+use File::Spec::Functions qw(catdir updir catpath splitpath);
 use constant EXPR_OPS_H => do {
     my ($path, $directory, $filename) = splitpath(__FILE__);
-    catpath($path, catdir($directory, updir(), 'src','jit'), 'expr_ops.h');
+    catpath($path, catdir($directory, (updir()) x 2, 'src','jit'), 'expr_ops.h');
 };
 
 sub parse_expr_ops {
