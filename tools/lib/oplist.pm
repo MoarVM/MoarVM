@@ -1,12 +1,12 @@
 package oplist;
 use strict;
 use warnings;
-use File::Spec;
+use File::Spec::Functions qw(splitpath updir catpath catdir);
 use constant OPLIST => do {
-    my ($path, $directory, $filename) = File::Spec->splitpath(__FILE__);
-    my $ud = File::Spec->updir();
-    File::Spec->catpath($path, File::Spec->catdir($directory, ($ud) x 2,, qw(src core)), 'oplist');
+    my ($path, $directory, $filename) = splitpath(__FILE__);
+    catpath($path, catdir($directory, (updir()) x 2, qw(src core)), 'oplist');
 };
+
 # Parse MoarVM oplist file and stash it in @OPLIST and %OPLIST
 sub parse_oplist {
     my ($fh) = @_;
@@ -22,8 +22,10 @@ sub parse_oplist {
                 $attribute = $_;
             } elsif (m/^:\w+$/) {
                 push @adverbs, $_;
+            } elsif (m/^([rw])l?\((.+)\)$/) {
+                push @operands, $1 => $2;
             } else {
-                push @operands, $_;
+                push @operands, '' => $_;
             }
         }
         push @oplist, [ $name, $attribute, \@operands, \@adverbs ];
