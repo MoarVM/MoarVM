@@ -2,9 +2,11 @@
 package tiler;
 use strict;
 use warnings;
+
 use Getopt::Long;
+use File::Spec;
 use FindBin;
-use lib $FindBin::Bin;
+use lib File::Spec->catdir($FindBin::Bin, 'lib');
 
 use sexpr;
 use expr_ops;

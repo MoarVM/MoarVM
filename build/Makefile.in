@@ -80,6 +80,8 @@ JIT_INTERMEDIATES = src/jit/x64/emit.c \
                     src/jit/x64/tile_pattern.h \
                     src/jit/core_templates.h
 
+JIT_PERL_LIBS = tools/lib/sexpr.pm tools/lib/expr_ops.pm tools/lib/oplist.pm
+
 MAIN_OBJECTS = src/main@obj@
 
 OBJECTS = $(OBJECTS1) $(OBJECTS2)
@@ -648,11 +650,12 @@ src/jit/x64/emit.c: src/jit/x64/emit.dasc src/jit/x64/tiles.dasc $(MINILUA) $(DY
 
 # Expression list tables
 src/jit/core_templates.h: src/jit/core_templates.expr src/jit/macro.expr \
-    tools/expr-template-compiler.pl tools/sexpr.pm tools/expr_ops.pm tools/oplist.pm \
-    src/core/oplist src/jit/expr_ops.h
+    src/core/oplist src/jit/expr_ops.h \
+	tools/expr-template-compiler.pl $(JIT_PERL_LIBS)
 
 # Architecture-specific tiles
-src/jit/x64/tile_pattern.h: src/jit/x64/tile_pattern.tile tools/tiler-table-generator.pl src/jit/expr_ops.h
+src/jit/x64/tile_pattern.h: src/jit/x64/tile_pattern.tile src/jit/expr_ops.h \
+   tools/tiler-table-generator.pl $(JIT_PERL_LIBS)
 
 src/jit/expr@obj@: src/jit/core_templates.h
 src/jit/tile@obj@: src/jit/x64/tile_pattern.h

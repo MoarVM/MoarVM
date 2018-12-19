@@ -1,11 +1,11 @@
 package oplist;
 use strict;
 use warnings;
-use Data::Dumper;
 use File::Spec;
 use constant OPLIST => do {
     my ($path, $directory, $filename) = File::Spec->splitpath(__FILE__);
-    File::Spec->catpath($path, File::Spec->catdir($directory, File::Spec->updir(), qw(src core)), 'oplist');
+    my $ud = File::Spec->updir();
+    File::Spec->catpath($path, File::Spec->catdir($directory, ($ud) x 2,, qw(src core)), 'oplist');
 };
 # Parse MoarVM oplist file and stash it in @OPLIST and %OPLIST
 sub parse_oplist {
