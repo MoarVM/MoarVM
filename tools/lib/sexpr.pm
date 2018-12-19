@@ -1,7 +1,6 @@
 package sexpr;
 use strict;
 use warnings;
-use Carp qw(croak);
 use Exporter qw(import);
 our @EXPORT = qw(sexpr_decode sexpr_encode);
 
@@ -16,6 +15,7 @@ our @EXPORT = qw(sexpr_decode sexpr_encode);
 
 sub sexpr_encode {
     my $list = shift;
+    return "'$list'" unless ref($list);
     my $out = '(';
     for my $item (@$list) {
         if (ref($item) eq 'ARRAY') {

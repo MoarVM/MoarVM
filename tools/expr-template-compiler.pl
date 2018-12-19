@@ -6,6 +6,7 @@ use warnings FATAL => 'all';
 use Getopt::Long;
 use File::Spec;
 use Scalar::Util qw(looks_like_number refaddr reftype);
+use List::Util qw(pairkeys);
 
 # use my libs
 use FindBin;
@@ -27,7 +28,6 @@ use oplist;
 # options to compile
 my %OPTIONS = (
     prefix => 'MVM_JIT_',
-    oplist => File::Spec->catfile($FindBin::Bin, File::Spec->updir, qw(src core oplist)),
     include => 1,
 );
 GetOptions(\%OPTIONS, qw(prefix=s list=s input=s output=s include! test));
@@ -91,18 +91,11 @@ my %VARIADIC = map { $_ => 1 } grep $EXPR_OPS{$_}{num_operands} < 0, keys %EXPR_
 # first read the correct order of opcodes
 my %OPNAMES = map { $OPLIST[$_][0] => $_ } 0..$#OPLIST;
 
-# cache operand direction
-sub opcode_operand_direction {
-    $_[0] =~ m/^([rw])l?\(/ ? $1 : '';
-}
-
 # Pre compute exptected operand type and direction
 my %MOAR_OPERAND_DIRECTION;
 for my $opcode (@OPLIST) {
     my ($opname, undef, $operands) = @$opcode;
-    $MOAR_OPERAND_DIRECTION{$opname} = [
-        map opcode_operand_direction($_), @$operands
-    ];
+    $MOAR_OPERAND_DIRECTION{$opname} = [pairkeys @$operands];
 }
 
 # Need a global constant table
