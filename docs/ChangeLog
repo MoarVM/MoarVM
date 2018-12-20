@@ -4,15 +4,14 @@ New in 2018.12
 + [6788cab6] Fix repossessions that cause object size "changes"
 
 Core:
-+ [987269ea] Get readnum working, try for 32-bit num support
++ [987269ea] Get readnum op working, try for 32-bit num support
 + [30088ed4] Fix memory leak of MVMFrameExtra
 + [1343702c] Fix segfault on {read,write}{uint,int} on a type object
-+ [c32000ba] Use read_buf also when switching endianness
 + [a8e63d2f] Sign extend values when reading less than 64 bit in readint
 + [8e078a2f] Improve handling of failure to join a thread, throw instead of
-  handling and provide text exception text instead of just the error code
+  handling and provide exception text instead of just the error code
 + [437d5b01] Fix big endian (read|write)u?int of < qword on big endian systems
-+ [35ea9581] Fix bytestream ops always converting to big endian if a switch is
++ [35ea9581] Fix bytestream ops from always converting to big endian if a switch is
   necessary
 + [1c3b0c93] Fix possibility of label id clash in bytecode compiler
 
@@ -30,7 +29,7 @@ JIT:
 + [b8ba4707] Support endian switching in read{uint,int}
 + [73b079c3,b8ba4707 437d5b01 35ea9581 c32000ba 652b2f4a] Support endian
   switching in write{uint,int} and read{uint,int}, fix big endian
-  {read,write}{uint,int} of < qword on big endian systems,, Use read_buf also when
+  {read,write}{uint,int} of < qword on big endian systems, use read_buf also when
   switching endianness
 + [c2952f9e] JIT compile coerce_sI op
 
@@ -39,10 +38,10 @@ Platform:
 
 Spesh:
 + [7d353030] Set callsite in frame for JIT spesh plugin resolve. Otherwise, we
-  won't properly mark the `args` buffer, which can lead to us processing outdated
+  won't properly mark the `args` buffer which can lead to us processing outdated
   args
 + [0d5f389c] Don't dump "Facts" in "Before" part of spesh log
-+ [c2640e1d] Discover Type Facts of coerce_sI op
++ [c2640e1d] Discover type Facts of coerce_sI op
 
 Strings:
 + [4a7da329] Fix a case where the UTF-16 decoder would have a corrupted final
@@ -52,10 +51,10 @@ Strings:
 
 Tooling/Build:
 + [caf10703] Bring trace spesh optimizer GDB script up to date
-+ [ef9e65ca] Make sure libatomicops build file is removed with make realclean
++ [ef9e65ca] Make sure libatomicops build file is removed with `make realclean`
 + [7eb00c0b] Add missing libuv file to Makefile.in for AIX
 + [474b5264] Enable detection of 32 bit AIX systems in Configure.pl. This allows
-  the compiled program to use a 'large' memory space
+  the compiled program to use a large memory space
 
 New in 2018.11
 
@@ -119,7 +118,7 @@ Profiler:
 
 Spesh:
 + [c933b516] Free spesh log entries after consuming them. Reduces memory usage
-+ [6236eb5d] Fix a segfault that could occur due to missing facts
++ [6236eb5d] Fix a segfault that could occur due to missing Facts
 + [25e7fa48] Teach spesh about known values for PHI nodes
 + [a74af558] output known type's debugname in spesh log
 + [950fb0e1] Unblock optimizing the box_* into a fastbox. Allow box_i to go through int cache.
