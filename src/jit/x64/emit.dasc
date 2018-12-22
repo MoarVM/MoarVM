@@ -2160,7 +2160,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCode;
         | je >1;
         | test_type_object TMP1;
-        | jnz >1;
+        | jz >1;
         | throw_adhoc "getcodename requires a concrete object";
         |1:
         | mov TMP2, CODE:TMP1->body.name;
