@@ -105,7 +105,7 @@ class Op {
     sub writenum($offset is rw, $var) {
         my $pos = $offset;
         $offset += 8;
-        'nqp::writenum($bytecode, nqp::add_i($elems, ' ~ $pos ~ '), ' ~ $var ~ ', 0)'
+        'nqp::writenum($bytecode, nqp::add_i($elems, ' ~ $pos ~ '), ' ~ $var ~ ', 13)'
     }
     method generate_operand($operand, $i, $offset is rw) {
         if OperandFlag.parse($operand) -> (:$rw, :$type, :$type_var, :$special) {

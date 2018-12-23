@@ -5446,7 +5446,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *buf  = GET_REG(cur_op, 0).o;
                 MVMint64  off   = (MVMuint64)GET_REG(cur_op, 2).i64;
                 MVMuint64 flags = (MVMuint64)GET_REG(cur_op, 6).u64;
-                unsigned char const size = 1 << (flags >> 2);
+                unsigned char size = 1 << (flags >> 2);
                 MVMRegister byte;
                 char i;
                 if (!IS_CONCRETE(buf))
@@ -5454,21 +5454,29 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 switch (size) {
                     case 4: {
                         MVMnum32 num32 = (MVMnum32)GET_REG(cur_op, 4).n64;
-                        MVMuint32 num = *(MVMuint32*)&num32;
-                        for(i = 0; i < 4; i++) {
-                            byte.i64 = (unsigned char)((num & (0xFFu << (i * 8))) >> (i * 8));
-                            REPR(buf)->pos_funcs.bind_pos(tc, STABLE(buf), buf,
-                                OBJECT_BODY(buf), off + i, byte, MVM_reg_int64);
+                        MVMuint64 value = *(MVMuint32*)&num32;
+                        if ((flags & 3) == MVM_SWITCHENDIAN) {
+                            value = switch_endian(value, size);
                         }
+                        REPR(buf)->pos_funcs.write_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf),
+                            (char*)&value
+#if MVM_BIGENDIAN
+                            + (8 - size)
+#endif
+                            , off, size);
                         break;
                     }
                     default: {
-                        MVMuint64 num = *(MVMuint64*)&GET_REG(cur_op, 4).n64;
-                        for(i = 0; i < 8; i++) {
-                            byte.i64 = (unsigned char)((num & (0xFFull << (i * 8))) >> (i * 8));
-                            REPR(buf)->pos_funcs.bind_pos(tc, STABLE(buf), buf,
-                                OBJECT_BODY(buf), off + i, byte, MVM_reg_int64);
+                        MVMuint64 value = *(MVMuint64*)&GET_REG(cur_op, 4).n64;
+                        if ((flags & 3) == MVM_SWITCHENDIAN) {
+                            value = switch_endian(value, size);
                         }
+                        REPR(buf)->pos_funcs.write_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf),
+                            (char*)&value
+#if MVM_BIGENDIAN
+                            + (8 - size)
+#endif
+                            , off, size);
                         break;
                     }
                 }
@@ -5534,12 +5542,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case 8: {
                         MVMuint64 read = REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf),
                                 buf, OBJECT_BODY(buf), off, 8);
+                        if ((flags & 3) == MVM_SWITCHENDIAN) {
+                            read = switch_endian(read, size);
+                        }
                         GET_REG(cur_op, 0).n64 = *(MVMnum64 *)&read;
                         break;
                     }
                     case 4: {
                         MVMuint32 read = (MVMuint32)REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf),
                                 buf, OBJECT_BODY(buf), off, 4);
+                        if ((flags & 3) == MVM_SWITCHENDIAN) {
+                            read = switch_endian(read, size);
+                        }
                         GET_REG(cur_op, 0).n64 = *(MVMnum32 *)&read;
                         break;
                     }

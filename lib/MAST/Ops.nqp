@@ -6021,14 +6021,14 @@ BEGIN {
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 5, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
-        nqp::writenum($bytecode, nqp::add_i($elems, 4), $op1, 0)
+        nqp::writenum($bytecode, nqp::add_i($elems, 4), $op1, 13)
     },
     'const_n64', sub ($op0, num64 $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 6, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
-        nqp::writenum($bytecode, nqp::add_i($elems, 4), $op1, 0)
+        nqp::writenum($bytecode, nqp::add_i($elems, 4), $op1, 13)
     },
     'const_s', sub ($op0, str $op1) {
         my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
@@ -6973,7 +6973,7 @@ BEGIN {
                         nqp::die("Value outside range of 16-bit MAST::IVal");
                     }
                     nqp::writeuint($bytecode, nqp::add_i($elems, 2), $value, 5);}
-        nqp::writenum($bytecode, nqp::add_i($elems, 4), $op1, 0)
+        nqp::writenum($bytecode, nqp::add_i($elems, 4), $op1, 13)
     },
     'argconst_s', sub (int16 $op0, str $op1) {
         my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;

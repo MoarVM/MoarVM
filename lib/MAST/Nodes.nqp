@@ -60,7 +60,7 @@ class MAST::Bytecode is repr('VMArray') is array_type(uint8) {
         self.write_buf(@subbuf);
     }
     method write_double(num $n) {
-        nqp::writenum(self, nqp::elems(self), $n, 1);
+        nqp::writenum(self, nqp::elems(self), $n, 13);
     }
     method write_uint32(uint32 $i) {
         nqp::writeuint(self, nqp::elems(self), $i, 9);
