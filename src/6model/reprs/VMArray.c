@@ -1404,6 +1404,37 @@ static void describe_refs (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMST
     }
 }
 
+MVMObject *vmarray_direct_atpos_o_to_o(MVMThreadContext *tc, MVMObject *obj, MVMint64 index) {
+    MVMArrayBody *body = (MVMArrayBody *)OBJECT_BODY(obj);
+    MVMObject *found;
+
+    if (index < 0) {
+        index += body->elems;
+        if (index < 0)
+            MVM_exception_throw_adhoc(tc, "MVMArray: Index out of bounds");
+    }
+
+    if (index >= body->elems)
+        return tc->instance->VMNull;
+
+    found = body->slots.o[body->start + index];
+    return found ? found : tc->instance->VMNull;
+}
+
+void *MVM_VMArray_devirtualize_ins_for_jit(MVMThreadContext *tc, MVMSTable *st, MVMSpeshIns *ins) {
+    switch (ins->info->opcode) {
+        case MVM_OP_atpos_o:
+            if (((MVMArrayREPRData *)st->REPR_data)->slot_type != MVM_ARRAY_OBJ) {
+                return NULL;
+            }
+            break;
+        default:
+            return NULL;
+    }
+
+    return vmarray_direct_atpos_o_to_o;
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     return &VMArray_this_repr;

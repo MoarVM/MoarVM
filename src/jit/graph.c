@@ -865,6 +865,23 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                     ? (void *)((MVMObject*)type_facts->type)->st->REPR->ass_funcs.at_key
                     : (void *)((MVMObject*)type_facts->type)->st->REPR->pos_funcs.at_pos;
 
+                /* Can attempt to double-devirt for VMArray */
+                if (alternative == 0) {
+                    if (REPR(type_facts->type)->ID == MVM_REPR_ID_VMArray) {
+                        void *alternative_function = MVM_VMArray_devirtualize_ins_for_jit(tc, STABLE(type_facts->type), ins);
+
+                        if (alternative_function != NULL) {
+                            MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                                     { MVM_JIT_REG_VAL,     invocant },
+                                                     { MVM_JIT_REG_VAL,     value } };
+                            jg_append_call_c(tc, jg, alternative_function, 3, args, MVM_JIT_RV_PTR, dst);
+                            MVM_spesh_graph_add_comment(tc, iter->graph, ins, "JIT: double-devirtualized");;
+                            return 1;
+                        }
+                    }
+                }
+
+                {
                 MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                          { MVM_JIT_REG_STABLE,  invocant },
                                          { MVM_JIT_REG_VAL,     invocant },

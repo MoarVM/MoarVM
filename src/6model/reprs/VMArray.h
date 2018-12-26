@@ -76,3 +76,5 @@ struct MVMArrayREPRData {
     MVMObject *elem_type;
 };
 void MVM_VMArray_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind);
+
+void *MVM_VMArray_devirtualize_ins_for_jit(MVMThreadContext *tc, MVMSTable *st, MVMSpeshIns *ins);
