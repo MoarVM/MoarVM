@@ -1421,18 +1421,40 @@ MVMObject *vmarray_direct_atpos_o_to_o(MVMThreadContext *tc, MVMObject *obj, MVM
     return found ? found : tc->instance->VMNull;
 }
 
+MVMint64 vmarray_direct_atpos_i64_to_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 index) {
+    MVMArrayBody *body = (MVMArrayBody *)OBJECT_BODY(obj);
+    MVMObject *found;
+
+    if (index < 0) {
+        index += body->elems;
+        if (index < 0)
+            MVM_exception_throw_adhoc(tc, "MVMArray: Index out of bounds");
+    }
+
+    if (index >= body->elems)
+        return 0;
+
+    return (MVMint64)body->slots.i64[body->start + index];
+}
+
 void *MVM_VMArray_devirtualize_ins_for_jit(MVMThreadContext *tc, MVMSTable *st, MVMSpeshIns *ins) {
     switch (ins->info->opcode) {
         case MVM_OP_atpos_o:
             if (((MVMArrayREPRData *)st->REPR_data)->slot_type != MVM_ARRAY_OBJ) {
                 return NULL;
             }
+            return vmarray_direct_atpos_o_to_o;
+            break;
+        case MVM_OP_atpos_i:
+            if (((MVMArrayREPRData *)st->REPR_data)->slot_type != MVM_ARRAY_I64) {
+                return NULL;
+            }
+            return vmarray_direct_atpos_i64_to_i;
             break;
         default:
             return NULL;
     }
 
-    return vmarray_direct_atpos_o_to_o;
 }
 
 /* Initializes the representation. */
