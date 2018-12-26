@@ -1197,17 +1197,13 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                 MVM_spesh_graph_add_comment(tc, iter->graph, ins, "JIT: devirtualized");;
                 return 1;
             }
-            case MVM_OP_slice:
             case MVM_OP_splice: {
                 MVMint16 invocant = ins->operands[0].reg.orig;
                 MVMint16 source   = ins->operands[1].reg.orig;
                 MVMint16 offset   = ins->operands[2].reg.orig;
                 MVMint16 count    = ins->operands[3].reg.orig;
 
-                void *function =
-                    op == MVM_OP_splice
-                        ? (void *)(((MVMObject*)type_facts->type)->st->REPR->pos_funcs.splice)
-                        : (void *)(((MVMObject*)type_facts->type)->st->REPR->pos_funcs.slice);
+                void *function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.splice;
 
                 MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                          { MVM_JIT_REG_STABLE,  invocant },
