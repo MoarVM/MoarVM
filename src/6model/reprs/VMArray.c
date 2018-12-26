@@ -1363,6 +1363,18 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         }
         break;
     }
+    case MVM_OP_elems: {
+            MVMSpeshOperand target   = ins->operands[0];
+            MVMSpeshOperand obj      = ins->operands[1];
+
+            MVM_spesh_graph_add_comment(tc, g, ins, "specialized from elems on VMArray");
+
+            ins->info                 = MVM_op_get_op(MVM_OP_sp_get_i64);
+            ins->operands             = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            ins->operands[0]          = target;
+            ins->operands[1]          = obj;
+            ins->operands[2].lit_i16 = offsetof(MVMArray, body.elems);
+    }
     }
 }
 
