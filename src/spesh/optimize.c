@@ -433,12 +433,108 @@ static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
 }
 
 
+static MVMuint8 will_output_one_or_zero(MVMSpeshIns *ins) {
+    switch (ins->info->opcode) {
+        case MVM_OP_isrwcont:
+        case MVM_OP_iscont:
+        case MVM_OP_iscont_i:
+        case MVM_OP_iscont_n:
+        case MVM_OP_iscont_s:
+        case MVM_OP_isfalse_s:
+        case MVM_OP_istrue_s:
+        case MVM_OP_isconcrete:
+        case MVM_OP_isnull:
+        case MVM_OP_islist:
+        case MVM_OP_ishash:
+        case MVM_OP_isint:
+        case MVM_OP_isnum:
+        case MVM_OP_isstr:
+        case MVM_OP_istype:
+        case MVM_OP_isnonnull:
+            /* TODO more stuff */
+            return 1;
+        case MVM_OP_eq_i:
+        case MVM_OP_eq_n:
+        case MVM_OP_eq_s:
+
+        case MVM_OP_lt_i:
+        case MVM_OP_lt_I:
+        case MVM_OP_lt_n:
+        case MVM_OP_lt_s:
+
+        case MVM_OP_le_i:
+        case MVM_OP_le_I:
+        case MVM_OP_le_n:
+        case MVM_OP_le_s:
+
+        case MVM_OP_gt_i:
+        case MVM_OP_gt_I:
+        case MVM_OP_gt_n:
+        case MVM_OP_gt_s:
+
+        case MVM_OP_ge_i:
+        case MVM_OP_ge_I:
+        case MVM_OP_ge_n:
+        case MVM_OP_ge_s:
+            return 1;
+
+        default:
+            return 0;
+    }
+}
+
 /* iffy ops that operate on a known value register can turn into goto
  * or be dropped. */
 static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
     MVMSpeshFacts *flag_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+    MVMSpeshIns *writer = (ins->info->opcode == MVM_OP_if_i || ins->info->opcode == MVM_OP_unless_i) ? flag_facts->writer : NULL;
     MVMuint8 negated_op;
     MVMint8 truthvalue = -1;
+
+    if (writer && (writer->info->opcode == MVM_OP_band_i || writer->info->opcode == MVM_OP_bor_i)) {
+        MVMSpeshFacts *a_facts = MVM_spesh_get_facts(tc, g, writer->operands[1]);
+        MVMSpeshFacts *b_facts = MVM_spesh_get_facts(tc, g, writer->operands[2]);
+
+        MVMuint8 how_many_known = !!(a_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)
+            + !!(b_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE);
+
+        if (how_many_known == 1) {
+            MVMSpeshFacts *known_facts = (a_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) ? a_facts : b_facts;
+            MVMSpeshFacts *unknown_facts = (known_facts == a_facts) ? b_facts : a_facts;
+
+            MVMint64 other_value = known_facts->value.i;
+
+            if (will_output_one_or_zero(unknown_facts->writer) && (other_value == 0 || other_value == 1)) {
+                if (writer->info->opcode == MVM_OP_band_i) {
+                    if (other_value == 0) {
+                        truthvalue = 0;
+                    }
+                    else {
+                        /* Read value directly from other register */
+                        MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[0], ins);
+                        ins->operands[0] = writer->operands[known_facts == a_facts ? 2 : 1];
+                        MVM_spesh_usages_add_by_reg(tc, g, ins->operands[0], ins);
+                        MVM_spesh_graph_add_comment(tc, g, ins, "skipped a band_i with 1");
+                    }
+                }
+                else {
+                    if (other_value == 1) {
+                        truthvalue = 1;
+                    }
+                    else {
+                        /* Read value directly from other register */
+                        MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[0], ins);
+                        ins->operands[0] = writer->operands[known_facts == a_facts ? 2 : 1];
+                        MVM_spesh_usages_add_by_reg(tc, g, ins->operands[0], ins);
+                        MVM_spesh_graph_add_comment(tc, g, ins, "skipped a bor_i with 0");
+                    }
+                }
+                if (truthvalue != -1) {
+                    MVM_spesh_graph_add_comment(tc, g, writer, "result of this calculation no longer used by %s", ins->info->name);
+                }
+            }
+        }
+    }
 
     switch (ins->info->opcode) {
         case MVM_OP_if_i:
@@ -456,7 +552,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             return;
     }
 
-    if (flag_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+    if ((flag_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) || truthvalue != -1) {
         switch (ins->info->opcode) {
             case MVM_OP_if_i:
             case MVM_OP_unless_i:
@@ -1059,6 +1155,30 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
              * make an invocation to .Str or .Num here and perhaps have it
              * in-lined. */
         }
+    }
+}
+
+static void optimize_and_or(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshFacts *a_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    MVMSpeshFacts *b_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
+
+    MVMuint8 how_many_known = !!(a_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)
+        + !!(b_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE);
+
+    if (how_many_known == 2) {
+        MVMSpeshFacts *res_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+        MVMint64 result;
+        if (ins->info->opcode == MVM_OP_band_i) {
+            result = a_facts->value.i & b_facts->value.i;
+        }
+        else {
+            result = a_facts->value.i | b_facts->value.i;
+        }
+        res_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+        res_facts->value.i = result;
+    }
+    else if (how_many_known == 1) {
+        MVM_spesh_graph_add_comment(tc, g, ins, "%d arguments have a known value", how_many_known);
     }
 }
 
@@ -2838,6 +2958,10 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_ne_s:
         case MVM_OP_eq_s:
             optimize_string_equality(tc, g, bb, ins);
+            break;
+        case MVM_OP_band_i:
+        case MVM_OP_bor_i:
+            optimize_and_or(tc, g, bb, ins);
             break;
         case MVM_OP_newexception:
         case MVM_OP_bindexmessage:
