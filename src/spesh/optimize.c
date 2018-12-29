@@ -1145,7 +1145,7 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
         }
         /* assign a constant value */
         ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
-        ins->operands[1].lit_i64 = truthvalue;
+        ins->operands[1].lit_i16 = truthvalue;
         /* we're no longer using this object (but we rely on the facts provided) */
         MVM_spesh_use_facts(tc, g, input_facts);
         MVM_spesh_usages_delete(tc, g, input_facts, ins);
