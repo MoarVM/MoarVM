@@ -3211,26 +3211,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_load_bytecode(tc, filename);
                 goto NEXT;
             }
-            OP(masttofile):
-                MVM_mast_to_file(tc, GET_REG(cur_op, 0).o,
-                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s);
-                cur_op += 6;
-                goto NEXT;
-            OP(masttocu): {
-                /* This op will end up returning into the runloop to run
-                 * deserialization and load code, so make sure we're done
-                 * processing this op really. */
-                MVMObject *node = GET_REG(cur_op, 2).o;
-                MVMObject *types = GET_REG(cur_op, 4).o;
-                MVMRegister *result_reg = &GET_REG(cur_op, 0);
-                cur_op += 6;
-
-                /* Set up return (really continuation after load) address
-                 * and enter bytecode loading process. */
-                tc->cur_frame->return_address = cur_op;
-                MVM_mast_to_cu(tc, node, types, result_reg);
-                goto NEXT;
-            }
             OP(iscompunit): {
                 MVMObject *maybe_cu = GET_REG(cur_op, 2).o;
                 GET_REG(cur_op, 0).i64 = REPR(maybe_cu)->ID == MVM_REPR_ID_MVMCompUnit;
@@ -6348,6 +6328,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             /* The compiler compiles faster if all deprecated are together and at the end
              * even though the op numbers are technically out of order. */
+            OP(DEPRECATED_1):
+            OP(DEPRECATED_2):
+                MVM_exception_throw_adhoc(tc, "The mastto* ops were removed in MoarVM 2018.01.");
             OP(DEPRECATED_4):
             OP(DEPRECATED_5):
             OP(DEPRECATED_6):

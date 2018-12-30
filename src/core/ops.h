@@ -415,8 +415,8 @@
 #define MVM_OP_popcompsc 411
 #define MVM_OP_scgetdesc 412
 #define MVM_OP_loadbytecode 413
-#define MVM_OP_masttofile 414
-#define MVM_OP_masttocu 415
+#define MVM_OP_DEPRECATED_1 414
+#define MVM_OP_DEPRECATED_2 415
 #define MVM_OP_iscompunit 416
 #define MVM_OP_compunitmainline 417
 #define MVM_OP_compunitcodes 418

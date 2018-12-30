@@ -19,7 +19,6 @@ SRCDIRS := src \
            src/gc \
            src/gen \
            src/io \
-           src/mast \
            src/math \
            src/platform \
            src/platform/posix \

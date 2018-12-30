@@ -471,8 +471,8 @@ pushcompsc          r(obj)
 popcompsc           w(obj)
 scgetdesc           w(str) r(obj)
 loadbytecode        w(str) r(str) :invokish :maycausedeopt :noinline
-masttofile          r(obj) r(obj) r(str)
-masttocu            w(obj) r(obj) r(obj) :invokish :maycausedeopt
+DEPRECATED_1        r(obj) r(obj) r(str)
+DEPRECATED_2        w(obj) r(obj) r(obj) :invokish :maycausedeopt
 iscompunit          w(int64) r(obj) :pure
 compunitmainline    w(obj) r(obj)
 compunitcodes       w(obj) r(obj)

@@ -6208,8 +6208,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP_masttofile,
-        "masttofile",
+        MVM_OP_DEPRECATED_1,
+        "DEPRECATED_1",
         "  ",
         3,
         0,
@@ -6223,8 +6223,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP_masttocu,
-        "masttocu",
+        MVM_OP_DEPRECATED_2,
+        "DEPRECATED_2",
         "  ",
         3,
         0,

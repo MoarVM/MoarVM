@@ -186,8 +186,6 @@ OBJECTS = src/core/callsite@obj@ \
           src/6model/bootstrap@obj@ \
           src/6model/sc@obj@ \
           src/6model/serialization@obj@ \
-          src/mast/compiler@obj@ \
-          src/mast/driver@obj@ \
           src/spesh/dump@obj@ \
           src/spesh/graph@obj@ \
           src/spesh/codegen@obj@ \
@@ -349,9 +347,6 @@ HEADERS = src/moar.h \
           src/6model/reprs/MVMSpeshLog.h \
           src/6model/reprs/MVMStaticFrameSpesh.h \
           src/6model/sc.h \
-          src/mast/compiler.h \
-          src/mast/driver.h \
-          src/mast/nodes.h \
           src/spesh/dump.h \
           src/spesh/debug.h \
           src/spesh/graph.h \
@@ -521,7 +516,6 @@ install: all
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/gc"
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/gen"
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/io"
-	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/mast"
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/math"
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/platform"
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/profiler"
@@ -539,7 +533,6 @@ install: all
 	$(CP) src/gc/*.h "$(DESTDIR)$(PREFIX)/include/moar/gc"
 	$(CP) src/gen/*.h "$(DESTDIR)$(PREFIX)/include/moar/gen"
 	$(CP) src/io/*.h "$(DESTDIR)$(PREFIX)/include/moar/io"
-	$(CP) src/mast/*.h "$(DESTDIR)$(PREFIX)/include/moar/mast"
 	$(CP) src/math/*.h "$(DESTDIR)$(PREFIX)/include/moar/math"
 	$(CP) src/platform/*.h "$(DESTDIR)$(PREFIX)/include/moar/platform"
 	$(CP) src/profiler/*.h "$(DESTDIR)$(PREFIX)/include/moar/profiler"

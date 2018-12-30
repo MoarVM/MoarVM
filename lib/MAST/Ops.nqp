@@ -4559,8 +4559,8 @@ BEGIN {
     'popcompsc', 411,
     'scgetdesc', 412,
     'loadbytecode', 413,
-    'masttofile', 414,
-    'masttocu', 415,
+    'DEPRECATED_1', 414,
+    'DEPRECATED_2', 415,
     'iscompunit', 416,
     'compunitmainline', 417,
     'compunitcodes', 418,
@@ -5465,8 +5465,8 @@ BEGIN {
     'popcompsc',
     'scgetdesc',
     'loadbytecode',
-    'masttofile',
-    'masttocu',
+    'DEPRECATED_1',
+    'DEPRECATED_2',
     'iscompunit',
     'compunitmainline',
     'compunitcodes',
@@ -9171,7 +9171,7 @@ BEGIN {
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'masttofile', sub ($op0, $op1, $op2) {
+    'DEPRECATED_1', sub ($op0, $op1, $op2) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 414, 5);
@@ -9179,7 +9179,7 @@ BEGIN {
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'masttocu', sub ($op0, $op1, $op2) {
+    'DEPRECATED_2', sub ($op0, $op1, $op2) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 415, 5);
