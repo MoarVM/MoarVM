@@ -329,11 +329,12 @@ my $value_map = {
 };
 
 # Generates MAST::Ops constants module.
-sub op_constants(@ops) {
+sub op_constants(@ops is copy) {
     my @offsets;
     my @counts;
     my @values;
     my $values_idx = 0;
+    @ops .= grep: {$_.mark ne '.s' and not $_.name ~~ /^['sp_'|'prof_'|'DEPRECTAED']/};
     for @ops -> $op {
         my $last_idx = $values_idx;
         @offsets.push($values_idx);
