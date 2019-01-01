@@ -468,6 +468,9 @@ static void validate_sequence(Validator *val) {
         type = val->cur_mark[0];
         id   = val->cur_mark[1];
 
+        if (val->cur_info->specializable)
+            val->frame->body.specializable = 1;
+
         switch (type) {
             case MARK_special:
                 if (id == seq_id)
@@ -620,6 +623,9 @@ static void validate_block(Validator *val) {
         read_op(val);
         type = val->cur_mark[0];
         id   = val->cur_mark[1];
+
+        if (val->cur_info->specializable)
+            val->frame->body.specializable = 1;
 
         if (id != block_id)
             fail(val, MSG(val, "expected instruction marked '%c' but got '%c'"),
