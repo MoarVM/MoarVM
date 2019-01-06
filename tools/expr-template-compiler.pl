@@ -6,7 +6,7 @@ use warnings FATAL => 'all';
 use Getopt::Long;
 use File::Spec;
 use Scalar::Util qw(looks_like_number refaddr reftype);
-use List::Util qw(pairkeys);
+use List::Util qw(pairkeys pairvalues);
 
 # use my libs
 use FindBin;
@@ -56,6 +56,8 @@ END {
 my %OPERATOR_TYPES = (
     (map { $_ => 'void' } qw(store discard dov when ifv branch mark callv guard)),
     (map { $_ => 'flag' } qw(lt le eq ne ge gt nz zr all any)),
+    (map { $_ => 'num' }  qw(const_num load_num)),
+    (map { $_ => '?' }    qw(if copy do)),
     qw(arglist) x 2,
     qw(carg) x 2,
 );
@@ -66,36 +68,45 @@ my %OPERAND_TYPES = (
     flagval => 'flag',
     all => 'flag',
     any => 'flag',
-    do => 'void,reg',
+    copy => '?',
+    do => 'void,?',
     dov => 'void',
     when => 'flag,void',
-    if => 'flag,reg,reg',
+    if => 'flag,?,?',
     ifv => 'flag,void,void',
     call => 'reg,arglist',
     callv => 'reg,arglist',
     arglist => 'carg',
+    carg => '?',
+    store_num => 'reg,num',
     guard => 'void',
 );
 
 # which list item is the size
 my %OP_SIZE_PARAM = (
     load => 2,
+    load_num => 2,
     store => 3,
+    store_num => 3,
     call => 3,
     const => 2,
     cast => 2,
 );
 
+# Map MoarVM types to expr types
+my %MOAR_TYPES = (
+    num32 => 'num',
+    num64 => 'num',
+    '`1'  => '?',
+);
+
 my %VARIADIC = map { $_ => 1 } grep $EXPR_OPS{$_}{num_operands} < 0, keys %EXPR_OPS;
 
-# first read the correct order of opcodes
-my %OPNAMES = map { $OPLIST[$_][0] => $_ } 0..$#OPLIST;
-
-# Pre compute exptected operand type and direction
-my %MOAR_OPERAND_DIRECTION;
-for my $opcode (@OPLIST) {
-    my ($opname, undef, $operands) = @$opcode;
-    $MOAR_OPERAND_DIRECTION{$opname} = [pairkeys @$operands];
+sub moar_operands {
+    my ($opcode) = @_;
+    my @types = pairvalues @{$OPLIST{$opcode}{operands}};
+    push @types, @types if ($opcode =~ m/^(inc|dec)_[iu]$/); # hack
+    return map {; "\$$_" => $MOAR_TYPES{$types[$_]} || 'reg' } (0..$#types);
 }
 
 # Need a global constant table
@@ -108,6 +119,7 @@ sub compile_template {
         tmpl  => [],
         desc  => [],
         opcode => $opcode,
+        operands => +{ moar_operands($opcode) },
         constants => \%CONSTANTS,
     };
     my ($mode, $root) = compile_expression($compiler, $expr);
@@ -133,19 +145,17 @@ sub link_declarations {
         my @definitions;
         for my $declaration (@$declarations) {
             my ($name, $definition) = @$declaration;
-            my $type = check_type($definition);
-            die "declaration $name must be reg but got $type"
-                unless $type eq 'reg';
             link_declarations($definition, %env);
+            check_type(expr_type($definition), '?');
             $env{$name} = $definition;
             push @definitions, ['discard', $definition];
         }
         for my $expr (@expressions) {
             link_declarations($expr, %env);
         }
-        my $type = check_type($expressions[$#expressions]);
+        my $type = expr_type($expressions[$#expressions], \%env);
         # replace statement with DO/DOV
-        @$expr = ($type eq 'reg' ? 'do' : 'dov', @definitions, @expressions);
+        @$expr = ($type eq 'void' ? 'dov' : 'do', @definitions, @expressions);
     } else {
         for my $i (1..$#$expr) {
             my $operand = $expr->[$i];
@@ -213,25 +223,30 @@ sub expand_macro {
     return \@result;
 }
 
-sub check_type {
-    my ($expr) = @_;
-    if (is_arrayref($expr)) {
-        my ($operator, @operands) = @$expr;
-        return check_type($operands[$#operands]) if $operator eq 'let:';
-        die "Expected operator but got macro" if $operator =~ m/^&/;
-        return $OPERATOR_TYPES{$operator} || 'reg';
-    } elsif ($expr =~ m/^\\?\$(\w+)$/) {
-        # TODO - we can do much better, but it is not easy,
-        # because there are a number of opcodes like 'bindlex'
-        # which introduce wildcards, and a number of operators
-        # (like COPY and STORE) which are generic.
-        return 'reg';
+sub expr_type {
+    my ($expr, $env) = @_;
+    # operand value
+    return $env->{$1} || die "$1 is not declared" if ($expr =~ m/^\\?(\$\w+)$/);
+    my ($operator, @operands) = @$expr;
+    die "Expected operator but got $operator" if $operator =~ m/(^&)|(:$)/;
+    # try to resolve polymorphic operators
+    if ($operator eq 'if') {
+        my ($left, $right) = map expr_type($_, $env), @operands;
+        check_type($left, $right); # should be equivalent
+        return $left;
+    } elsif ($operator eq 'do') {
+        return expr_type($operands[$#operands], $env);
+    } elsif ($operator eq 'copy') {
+        return expr_type($operands[0], $env);
     } else {
-        die "Expected operator or type, got " . sexpr_encode($expr);
+        return $OPERATOR_TYPES{$operator} || 'reg';
     }
 }
 
-
+sub check_type {
+    my ($got, $want) = @_;
+    #print STDERR "Got $got wanted $want\n";
+}
 
 sub compile_expression {
     my ($compiler, $expr) = @_;
@@ -275,11 +290,7 @@ sub compile_expression {
 
     my $i = 0;
     for (; $i < $num_operands; $i++) {
-        my $type = check_type($operands[$i]);
-        die "Mismatched type, got $type expected $types[$i] " .
-	  "for $operator @{[sexpr_encode($operands[$i])]}) " .
-	  " [$compiler->{opcode}]"
-            unless $type eq $types[$i];
+        check_type(expr_type($operands[$i], $compiler->{operands}), $types[$i]);
         push @code, compile_operand($compiler, $operands[$i]);
     }
 
@@ -325,7 +336,8 @@ sub compile_reference {
         my $opcode = $compiler->{opcode};
         # special case for dec_i/inc_i
         return 'i' => $name if $opcode =~ m/^(dec|inc)_i$/ and $name <= 1;
-        my $direction = $MOAR_OPERAND_DIRECTION{$opcode};
+        my $operands = $OPLIST{$opcode}{operands};
+        my $direction = [pairkeys @$operands];
         die "Invalid operand reference $expr for $opcode"
             unless $name >= 0 && $name < @$direction;
         if ($direction->[$name] eq 'w') {
@@ -440,10 +452,10 @@ sub parse_file {
             my $flags    = 0;
             if ($opcode =~ s/!$//) {
                 die "No write operand for destructive template $opcode"
-                    unless grep $_ eq 'w', @{$MOAR_OPERAND_DIRECTION{$opcode}};
+                    unless grep m/w/, pairkeys @{$OPLIST{$opcode}{operands}};
                 $flags |= 1;
             }
-            die "Opcode '$opcode' unknown" unless exists $OPNAMES{$opcode};
+            die "Opcode '$opcode' unknown" unless exists $OPLIST{$opcode};
             die "Opcode '$opcode' redefined" if exists $info{$opcode};
 
             $template = link_declarations($template);
