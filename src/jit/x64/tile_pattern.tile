@@ -1,5 +1,5 @@
 # -*-whitespace-*-
-# Terminals: reg, mem, flag, void, expr, lab
+# Types: reg, num, flag, void
 #
 
 #
@@ -16,10 +16,13 @@
 (define: (all flag) flag)
 (define: (any flag) flag)
 (define: (if flag reg) reg)
+(define: (if flag num) num)
 (define: (ifv flag void) void)
 (define: (when flag void) void)
 (define: (discard reg) void)
+(define: (discard num) void)
 (define: (do void reg) reg)
+(define: (do void num) num)
 (define: (dov void void) void)
 
 
@@ -31,7 +34,7 @@
 # ALIASING
 #
 (define: (copy reg) reg)
-
+(define: (copy num) num)
 
 #
 # MEMORY TRAFFIC
@@ -43,16 +46,17 @@
 
 (tile: const_large (const_large $value $size) reg 3)
 (tile: const_large (const_ptr $ptr) reg 3)
-
+(tile: const_num   (const_num $num $size) num 3)
 
 (tile: load_reg  (load reg $size) reg 5)
 (tile: load_addr (load (addr reg $ofs) $size) reg 5)
 (tile: load_idx  (load (idx reg reg $scale) $size) reg 5)
+(tile: load_num  (load reg $size) num 5)
 
 (tile: store (store reg reg $size) void 5)
 (tile: store_addr (store (addr reg $ofs) reg $size) void 5)
 (tile: store_idx  (store (idx reg reg $scl) reg $size) void 5)
-
+(tile: store_num  (store_num reg num $size) void 5)
 
 (tile: cast_signed             (scast reg $to_size $from_size) reg 2)
 (tile: cast_unsigned           (ucast reg $to_size $from_size) reg 2)
