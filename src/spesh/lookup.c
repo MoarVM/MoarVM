@@ -43,3 +43,22 @@ MVMint8 MVM_spesh_get_lex_type(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMuint1
         return sf->body.lexical_types[idx];
     }
 }
+
+MVMuint8 MVM_spesh_get_opr_type(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMSpeshIns *ins, MVMint32 i) {
+    MVMSpeshOperand opr = ins->operands[i];
+    MVMuint8 opr_kind = ins->info->operands[i];
+    MVMuint8 opr_type = opr_kind & MVM_operand_type_mask;
+    if (opr_type == MVM_operand_type_var) {
+        switch (opr_kind & MVM_operand_rw_mask) {
+        case MVM_operand_read_reg:
+        case MVM_operand_write_reg:
+            opr_type = MVM_spesh_get_reg_type(tc, sg, opr.reg.orig) << 3; /* shift up 3 to match operand type */
+            break;
+        case MVM_operand_read_lex:
+        case MVM_operand_write_lex:
+            opr_type = MVM_spesh_get_lex_type(tc, sg, opr.lex.outers, opr.lex.idx) << 3;
+            break;
+        }
+    }
+    return opr_type;
+}

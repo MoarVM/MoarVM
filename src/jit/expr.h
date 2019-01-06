@@ -105,6 +105,10 @@ MVM_STATIC_INLINE MVMuint8 MVM_JIT_EXPR_NCHILD(MVMJitExprTree *tree, MVMint32 no
     return MVM_JIT_EXPR_INFO(tree, node)->num_links;
 }
 
+MVM_STATIC_INLINE MVMuint8 MVM_JIT_EXPR_TYPE(MVMJitExprTree *tree, MVMint32 node) {
+    return MVM_JIT_EXPR_INFO(tree, node)->type;
+}
+
 MVM_STATIC_INLINE MVMint32 MVM_JIT_EXPR_FIRST_CHILD(MVMJitExprTree *tree, MVMint32 node) {
     return node + 2;
 }
@@ -118,3 +122,7 @@ MVM_STATIC_INLINE MVMint32 * MVM_JIT_EXPR_ARGS(MVMJitExprTree *tree, MVMint32 no
     return MVM_JIT_EXPR_LINKS(tree, node) + MVM_JIT_EXPR_NCHILD(tree, node);
 }
 
+MVM_STATIC_INLINE MVMint32 MVM_JIT_EXPR_IS_NUM(MVMJitExprTree *tree, MVMint32 node) {
+    MVMuint8 expr_type = MVM_JIT_EXPR_TYPE(tree,node);
+    return expr_type == MVM_reg_num32 || expr_type == MVM_reg_num64;
+}

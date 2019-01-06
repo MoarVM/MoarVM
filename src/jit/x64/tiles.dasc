@@ -39,6 +39,21 @@ MVM_JIT_TILE_DECL(const_large) {
     | mov64 Rq(out), val;
 }
 
+MVM_JIT_TILE_DECL(const_num) {
+    MVMint8 out = tile->values[0];
+    MVMnum64 val = tree->constants[tile->args[0]].n;
+    unsigned char bytes[sizeof(val)];
+    int i;
+    memcpy(bytes, &val, sizeof(val));
+    |.data;
+    |5:
+    for (i = 0; i < sizeof(bytes); i++) {
+        |.byte bytes[i];
+    }
+    |.code;
+    | movsd xmm(out), qword [<5];
+}
+
 MVM_JIT_TILE_DECL(load_reg) {
     MVMint8 out  = tile->values[0];
     MVMint8 base = tile->values[1];
@@ -111,6 +126,11 @@ MVM_JIT_TILE_DECL(load_idx) {
     }
 }
 
+MVM_JIT_TILE_DECL(load_num) {
+    MVMint8 out = tile->values[0];
+    MVMint8 addr = tile->values[1];
+    | movsd xmm(out), qword [Rq(addr)];
+}
 
 MVM_JIT_TILE_DECL(store) {
     MVMint8 base  = tile->values[1];
@@ -183,6 +203,11 @@ MVM_JIT_TILE_DECL(store_idx) {
     }
 }
 
+MVM_JIT_TILE_DECL(store_num) {
+    MVMint8 addr = tile->values[0];
+    MVMint8 val =  tile->values[1];
+    | movsd qword [Rq(addr)], xmm(val);
+}
 
 MVM_JIT_TILE_DECL(cast_signed) {
     MVMint32 to_size   = tile->args[0];
