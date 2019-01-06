@@ -485,7 +485,7 @@ TOM_OBJECTS = @tomobjects@
 THIRDPARTY = @thirdpartylibs@
 
 MINILUA = 3rdparty/dynasm/minilua@exe@
-MINILUA_LDFLAGS = -lm
+MINILUA_LDLIBS = -lm
 DYNASM  = $(MINILUA) 3rdparty/dynasm/dynasm.lua
 DYNASM_SCRIPTS = 3rdparty/dynasm/dynasm.lua 3rdparty/dynasm/dasm_x86.lua
 DYNASM_HEADERS = 3rdparty/dynasm/dasm_proto.h 3rdparty/dynasm/dasm_x86.h
@@ -616,7 +616,7 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_uca.c src/st
 
 # Minilua requires only -lm, no libraries
 $(MINILUA): 3rdparty/dynasm/minilua.c
-	$(CC) $(MINILUA_LDFLAGS) 3rdparty/dynasm/minilua.c -o $@
+	$(CC) $(MINILUA_LDFLAGS) 3rdparty/dynasm/minilua.c $(MINILUA_LDLIBS) -o $@
 
 .dasc.c:
 	$(MSG) preprocessing $<
