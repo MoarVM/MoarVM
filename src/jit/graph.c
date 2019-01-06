@@ -35,8 +35,13 @@ static void jg_append_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
     node->u.call.num_args  = num_args;
     /* Call argument array is typically stack allocated,
      * so they need to be copied */
-    node->u.call.args      = MVM_spesh_alloc(tc, jg->sg, args_size);
-    memcpy(node->u.call.args, call_args, args_size);
+    if (num_args > 0) {
+        node->u.call.args      = MVM_spesh_alloc(tc, jg->sg, args_size);
+        memcpy(node->u.call.args, call_args, args_size);
+    }
+    else {
+        node->u.call.args = NULL;
+    }
     node->u.call.rv_mode   = rv_mode;
     node->u.call.rv_idx    = rv_idx;
     jg_append_node(jg, node);
