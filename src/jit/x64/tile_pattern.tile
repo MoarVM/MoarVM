@@ -128,8 +128,7 @@
 
 # placeholder for arglist pseudotile
 (define: (arglist (carg reg)) c_args 1)
-
-
+(define: (arglist (carg num)) c_args 1)
 
 (tile: call      (call  reg c_args $size) reg 4)
 (tile: call      (callv reg c_args) void 4)
