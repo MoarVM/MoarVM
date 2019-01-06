@@ -902,7 +902,7 @@ MVMint64 read_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     MVMint64 result = 0;
 
     if (offset < 0 || start + body->elems < offset + count) {
-        MVM_exception_throw_adhoc(tc, "MVMArray: read_buf out of bounds offset %lld start %lld elems %llu count %llu", offset, start, body->elems, count);
+        MVM_exception_throw_adhoc(tc, "MVMArray: read_buf out of bounds offset %"PRIi64" start %"PRIi64" elems %"PRIu64" count %"PRIu64, offset, start, body->elems, count);
     }
 
     memcpy(((char*)&result)
