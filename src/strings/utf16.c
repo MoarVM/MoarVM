@@ -59,8 +59,6 @@ MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStre
     MVMint32 last_accept_pos, last_was_cr;
     MVMuint32 reached_stopper;
     int low, high;
-    MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
-    MVMuint8 *bytes = (unsigned char *)cur_bytes->bytes;
     /* Set to 1 to remove the BOM even when big endian or little endian are
      * explicitly specified. */
     int remove_bom = 0;
