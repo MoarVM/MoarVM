@@ -362,14 +362,15 @@ static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 /* Checks if any of the tracked objects are needed beyond this deopt point,
  * and adds a transform to set up that deopt info if needed. */
 static void add_deopt_materializations_idx(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-                                           GraphState *gs, MVMint32 deopt_idx) {
+                                           GraphState *gs, MVMint32 deopt_idx,
+                                           MVMint32 deopt_user_idx) {
     MVMint32 i, j;
     for (i = 0; i < MVM_VECTOR_ELEMS(gs->tracked_registers); i++) {
         MVMSpeshFacts *tracked_facts = MVM_spesh_get_facts(tc, g, gs->tracked_registers[i].reg);
         MVMSpeshPEAAllocation *alloc = tracked_facts->pea.allocation;
         MVMSpeshDeoptUseEntry *deopt_user = tracked_facts->usage.deopt_users;
         while (deopt_user) {
-            if (deopt_user->deopt_idx == deopt_idx) {
+            if (deopt_user->deopt_idx == deopt_user_idx) {
                 Transformation *tran;
                 tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
                 tran->allocation = alloc;
@@ -388,14 +389,26 @@ static void add_deopt_materializations_idx(MVMThreadContext *tc, MVMSpeshGraph *
  * adds their materialization. */
 static void add_deopt_materializations_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                            GraphState *gs, MVMSpeshIns *deopt_ins) {
+    /* Make a first pass to see if there's a SYNTH deopt index; if there is,
+     * that is the one we use to do a lookup inside of the usages. */
+    MVMint32 deopt_user_idx = -1;
     MVMSpeshAnn *ann = deopt_ins->annotations;
+    while (ann) {
+        if (ann->type == MVM_SPESH_ANN_DEOPT_SYNTH) {
+            deopt_user_idx = ann->data.deopt_idx;
+            break;
+        }
+        ann = ann->next;
+    }
+
+    /* Now go over the concrete indexes that will appear when we actually deopt. */
     while (ann) {
         switch (ann->type) {
             case MVM_SPESH_ANN_DEOPT_ONE_INS:
             case MVM_SPESH_ANN_DEOPT_ALL_INS:
             case MVM_SPESH_ANN_DEOPT_INLINE:
-            case MVM_SPESH_ANN_DEOPT_SYNTH:
-                add_deopt_materializations_idx(tc, g, bb, gs, ann->data.deopt_idx);
+                add_deopt_materializations_idx(tc, g, bb, gs, ann->data.deopt_idx,
+                        deopt_user_idx >= 0 ? deopt_user_idx : ann->data.deopt_idx);
                 break;
         }
         ann = ann->next;
