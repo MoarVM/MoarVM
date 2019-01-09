@@ -55,6 +55,16 @@ struct MVMSpeshCandidate {
 
     /* JIT-code structure. */
     MVMJitCode *jitcode;
+
+    /* Information used to reconstruct deoptimization usage info should we do
+     * an inline of this candidate. It's stored as a sequence of integers of
+     * the form:
+     *  - Bytecode offset of writing instruction
+     *  - Number of deopt indices that follow
+     *  - The deopt indices
+     *  There is a trailing -1 bytecode offset to mark the end of the data.
+     */
+    MVMint32 *deopt_usage_info;
 };
 
 /* Functions for creating and clearing up specializations. */
