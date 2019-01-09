@@ -176,6 +176,27 @@ MVMint32 get_effective_size(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
     return (MVMuint32)result;
 }
 
+/* Add deopt usage info to the inlinee. */
+void add_deopt_usages(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 *deopt_usage_info,
+                      MVMSpeshIns **deopt_usage_ins) {
+    MVMuint32 usage_idx = 0;
+    MVMuint32 ins_idx = 0;
+    while (deopt_usage_info[usage_idx] != -1) {
+        MVMSpeshIns *ins = deopt_usage_ins[ins_idx++];
+        MVMint32 count = deopt_usage_info[usage_idx + 1];
+        MVMint32 i;
+        usage_idx += 2;
+        for (i = 0; i < count; i++) {
+            MVMint32 deopt_idx = deopt_usage_info[usage_idx++];
+            MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+            MVMSpeshDeoptUseEntry *entry = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshDeoptUseEntry));
+            entry->deopt_idx = deopt_idx;
+            entry->next = facts->usage.deopt_users;
+            facts->usage.deopt_users = entry;
+        }
+    }
+}
+
 /* Sees if it will be possible to inline the target code ref, given we could
  * already identify a spesh candidate. Returns NULL if no inlining is possible
  * or a graph ready to be merged if it will be possible. */
@@ -186,6 +207,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
                                                char **no_inline_reason,
                                                MVMuint32 *effective_size) {
     MVMSpeshGraph *ig;
+    MVMSpeshIns **deopt_usage_ins = NULL;
 
     /* Check bytecode size is within the inline limit. */
     *effective_size = get_effective_size(tc, cand);
@@ -200,13 +222,14 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
 
     /* Build graph from the already-specialized bytecode and check if we can
      * inline the graph. */
-    ig = MVM_spesh_graph_create_from_cand(tc, target_sf, cand, 0);
+    ig = MVM_spesh_graph_create_from_cand(tc, target_sf, cand, 0, &deopt_usage_ins);
     if (is_graph_inlineable(tc, inliner, target_sf, invoke_ins, ig, no_inline_reason)) {
         /* We can inline it. Do facts discovery, which also sets usage counts.
          * We also need to bump counts for any inline's code_ref_reg to make
          * sure it stays available for deopt. */
         MVMuint32 i;
         MVM_spesh_facts_discover(tc, ig, NULL, 1);
+        add_deopt_usages(tc, ig, cand->deopt_usage_info, deopt_usage_ins);
         for (i = 0; i < ig->num_inlines; i++) {
             /* We can't be very precise about this, because we don't know the
              * SSA version in effect. So bump usages of all version of the
@@ -216,10 +239,12 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
             for (j = 0; j < ig->fact_counts[reg]; j++)
                 MVM_spesh_usages_add_unconditional_deopt_usage(tc, ig, &(ig->facts[reg][j]));
         }
+        MVM_free(deopt_usage_ins);
         return ig;
     }
     else {
         /* Not possible to inline. Clear it up. */
+        MVM_free(deopt_usage_ins);
         MVM_spesh_graph_destroy(tc, ig);
         return NULL;
     }
