@@ -450,7 +450,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMuint32 *inline_boundary_handler, MVMuint16 bytecode_size) {
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
-    MVMint32        i, orig_inlines, total_inlines, orig_deopt_addrs;
+    MVMint32        i, j, orig_inlines, total_inlines, orig_deopt_addrs;
     MVMuint32       total_handlers = inliner->num_handlers + inlinee->num_handlers + 1;
     MVMSpeshBB     *inlinee_first_bb = NULL, *inlinee_last_bb = NULL;
     MVMuint8        may_cause_deopt = 0;
@@ -606,7 +606,16 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         MVM_spesh_manipulate_add_successor(tc, inliner, inliner->entry, move);
     }
 
-    /* Merge facts. */
+    /* Merge facts, fixing up deopt indexes in usage chains. */
+    for (i = 0; i < inlinee->num_locals; i++) {
+        for (j = 0; j < inlinee->fact_counts[i]; j++) {
+            MVMSpeshDeoptUseEntry *due = inlinee->facts[i][j].usage.deopt_users;
+            while (due) {
+                due->deopt_idx += inliner->num_deopt_addrs;
+                due = due->next;
+            }
+        }
+    }
     merged_facts = MVM_spesh_alloc(tc, inliner,
         (inliner->num_locals + inlinee->num_locals) * sizeof(MVMSpeshFacts *));
     memcpy(merged_facts, inliner->facts,
