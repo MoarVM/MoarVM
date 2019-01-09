@@ -260,11 +260,13 @@ else {
 if ($args{'has-libtommath'}) {
     $defaults{-thirdparty}->{tom} = undef;
     unshift @{$config{usrlibs}}, 'tommath';
-    if (index($config{cincludes}, '-I/usr/local/include') == -1) {
-        $config{cincludes} = join(' ', $config{cincludes}, '-I/usr/local/include');
-    }
-    if (index($config{lincludes}, '-L/usr/local/lib') == -1) {
-        $config{lincludes} = join(' ', $config{lincludes}, '-L/usr/local/lib');
+    if (!$config{pkgconfig_works} || !setup_native_library('libtommath')) {
+        if (index($config{cincludes}, '-I/usr/local/include') == -1) {
+            $config{cincludes} = join(' ', $config{cincludes}, '-I/usr/local/include');
+        }
+        if (index($config{lincludes}, '-L/usr/local/lib') == -1) {
+            $config{lincludes} = join(' ', $config{lincludes}, '-L/usr/local/lib');
+        }
     }
 }
 else {
@@ -848,6 +850,7 @@ sub setup_native_library {
     }
     else {
         print("Error occured when running $config{pkgconfig} --cflags $library.\n");
+        return 0;
     }
     my $result_libs = `$config{pkgconfig} --libs-only-L $library`;
     if ( $? == 0 ) {
@@ -859,7 +862,9 @@ sub setup_native_library {
     }
     else {
         print("Error occured when running $config{pkgconfig} --libs-only-L $library.\n");
+        return 0;
     }
+    return 1;
 }
 
 __END__
