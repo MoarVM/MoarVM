@@ -14,7 +14,8 @@
 
 (template: const_i16 (copy $1))
 (template: const_i64 (copy $1))
-(template: const_n64 (copy $1))
+# Disabled for the time being
+#(template: const_n64 (copy $1))
 (template: const_s (^cu_string $1))
 
 (template: set (copy $1))
@@ -43,7 +44,7 @@
     (branch $1)))
 
 (template: getlex (copy $1))
-(template: bindlex! (store \$0 $1 reg_sz))
+(template: bindlex (copy $1))
 
 (template: getlex_ni
   (load
@@ -55,7 +56,7 @@
     int_sz))
 
 (template: getlex_nn
-  (load
+  (load_num
     (call (^func &MVM_frame_find_lexical_by_name)
       (arglist
         (carg (tc) ptr)
@@ -2462,7 +2463,7 @@
       (carg $3 int)) int_sz))
 
 (template: getarg_i (load (^arg $1) int_sz))
-(template: getarg_n (load (^arg $1) num_sz))
+(template: getarg_n (load_num (^arg $1) num_sz))
 (template: getarg_s (load (^arg $1) ptr_sz))
 (template: getarg_o (load (^arg $1) ptr_sz))
 
@@ -2601,7 +2602,7 @@
 
 (template: sp_getarg_o (load (^parg $1) ptr_sz))
 (template: sp_getarg_i (load (^parg $1) int_sz))
-(template: sp_getarg_n (load (^parg $1) num_sz))
+(template: sp_getarg_n (load_num (^parg $1) num_sz))
 (template: sp_getarg_s (load (^parg $1) ptr_sz))
 
 (template: sp_getspeshslot (^spesh_slot_value $1))
@@ -2643,14 +2644,14 @@
         (copy $type)))))
 
 (template: sp_p6oget_i (load (add (^p6obody $1) $2) int_sz))
-(template: sp_p6oget_n (load (add (^p6obody $1) $2) num_sz))
+(template: sp_p6oget_n (load_num (add (^p6obody $1) $2) num_sz))
 (template: sp_p6oget_s (load (add (^p6obody $1) $2) ptr_sz))
 
 (template: sp_p6obind_o
   (^store_write_barrier! $0 (add (^p6obody $0) $1) $2))
 
 (template: sp_p6obind_i (store (add (^p6obody $0) $1) $2 int_sz))
-(template: sp_p6obind_n (store (add (^p6obody $0) $1) $2 int_sz))
+(template: sp_p6obind_n (store_num (add (^p6obody $0) $1) $2 num_sz))
 (template: sp_p6obind_s
   (^store_write_barrier! $0 (add (^p6obody $0) $1) $2))
 

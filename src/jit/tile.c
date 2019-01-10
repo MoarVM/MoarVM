@@ -119,7 +119,7 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 MVMint32 rstate = tiler->states[links[1]].state;
                 state_info = MVM_jit_tile_state_lookup(tc, op, lstate, rstate);
             }
-            _ASSERT(state_info != NULL, "Tiler table could not find next state for %s\n", info->name);
+            assert(state_info != NULL);
             tiler->states[node].state = state_info[3];
             tiler->states[node].rule  = state_info[4];
         }

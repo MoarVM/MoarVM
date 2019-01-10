@@ -6,7 +6,8 @@ use warnings FATAL => 'all';
 use Getopt::Long;
 use File::Spec;
 use Scalar::Util qw(looks_like_number refaddr reftype);
-use List::Util qw(pairkeys pairvalues);
+use List::Util qw(pairkeys pairvalues pairgrep);
+use Carp qw(confess);
 
 # use my libs
 use FindBin;
@@ -54,7 +55,7 @@ END {
 
 # Expected result type
 my %OPERATOR_TYPES = (
-    (map { $_ => 'void' } qw(store discard dov when ifv branch mark callv guard)),
+    (map { $_ => 'void' } qw(store store_num discard dov when ifv branch mark callv guard)),
     (map { $_ => 'flag' } qw(lt le eq ne ge gt nz zr all any)),
     (map { $_ => 'num' }  qw(const_num load_num)),
     (map { $_ => '?' }    qw(if copy do)),
@@ -113,13 +114,13 @@ sub moar_operands {
 my %CONSTANTS;
 
 sub compile_template {
-    my ($expr, $opcode) = @_;
+    my ($expr, $opcode, $operands) = @_;
     my $compiler = +{
         expr  => {},
         tmpl  => [],
         desc  => [],
         opcode => $opcode,
-        operands => +{ moar_operands($opcode) },
+        operands => $operands,
         constants => \%CONSTANTS,
     };
     my ($mode, $root) = compile_expression($compiler, $expr);
@@ -146,7 +147,7 @@ sub link_declarations {
         for my $declaration (@$declarations) {
             my ($name, $definition) = @$declaration;
             link_declarations($definition, %env);
-            check_type(expr_type($definition), '?');
+            check_type(expr_type($definition), '?', $operator);
             $env{$name} = $definition;
             push @definitions, ['discard', $definition];
         }
@@ -227,13 +228,15 @@ sub expr_type {
     my ($expr, $env) = @_;
     # operand value
     return $env->{$1} || die "$1 is not declared" if ($expr =~ m/^\\?(\$\w+)$/);
+
     my ($operator, @operands) = @$expr;
     die "Expected operator but got $operator" if $operator =~ m/(^&)|(:$)/;
     # try to resolve polymorphic operators
-    if ($operator eq 'if') {
-        my ($left, $right) = map expr_type($_, $env), @operands;
-        check_type($left, $right); # should be equivalent
-        return $left;
+    if ($operator =~ /ifv?/) {
+        my ($flag, $left, $right) = map expr_type($_, $env), @operands;
+        check_type($flag, 'flag', $operator); # must be a flag
+        return check_type($left eq '?' ? ($right, $left) : ($left, $right),
+                          $operator); # should be equivalent
     } elsif ($operator eq 'do') {
         return expr_type($operands[$#operands], $env);
     } elsif ($operator eq 'copy') {
@@ -244,8 +247,10 @@ sub expr_type {
 }
 
 sub check_type {
-    my ($got, $want) = @_;
-    #print STDERR "Got $got wanted $want\n";
+    my ($got, $want, $why) = @_;
+    return $got if $want eq $got;
+    return $got if $want eq '?' and $got =~ m/reg|num/;
+    confess "$why: Got $got wanted $want";
 }
 
 sub compile_expression {
@@ -290,7 +295,8 @@ sub compile_expression {
 
     my $i = 0;
     for (; $i < $num_operands; $i++) {
-        check_type(expr_type($operands[$i], $compiler->{operands}), $types[$i]);
+        check_type(expr_type($operands[$i], $compiler->{operands}), $types[$i],
+                   $operator);
         push @code, compile_operand($compiler, $operands[$i]);
     }
 
@@ -449,26 +455,32 @@ sub parse_file {
         } elsif ($keyword eq 'template:') {
             my $opcode   = shift @$tree;
             my $template = shift @$tree;
-            my $flags    = 0;
-            if ($opcode =~ s/!$//) {
-                die "No write operand for destructive template $opcode"
-                    unless grep m/w/, pairkeys @{$OPLIST{$opcode}{operands}};
-                $flags |= 1;
-            }
+
+            my $destructive = 0+!!($opcode =~ s/!$//);
             die "Opcode '$opcode' unknown" unless exists $OPLIST{$opcode};
             die "Opcode '$opcode' redefined" if exists $info{$opcode};
 
+            my (undef,$output) = pairgrep { $a eq 'w' } @{$OPLIST{$opcode}{operands}};
+            die "No write operand for destructive template $opcode"
+                if $destructive && !$output;
             $template = link_declarations($template);
             $template = apply_macros($template, $macros);
 
-            my $compiled = compile_template($template, $opcode);
+            my $operands = +{ moar_operands($opcode) };
+            my $expr_type = expr_type($template, $operands);
+
+            my $output_type = ($destructive || !$output) ?
+                'void' : ($MOAR_TYPES{$output} || 'reg');
+            check_type($expr_type, $output_type, $opcode);
+
+            my $compiled = compile_template($template, $opcode, $operands);
 
             $info{$opcode} = {
                 idx => scalar @templates,
                 info => $compiled->{desc},
                 root => $compiled->{root},
                 len => length($compiled->{desc}),
-                flags => $flags
+                flags => $destructive,
             };
             push @templates, @{$compiled->{template}};
         } elsif ($keyword eq 'include:') {
