@@ -935,9 +935,9 @@ sp_bindlex_os    .s wl(`1) r(`1)
 
 # Following are for fast, unchecked grabbing of args from the arg buffer.
 sp_getarg_o      .s w(obj) int16 :pure
-sp_getarg_i      .s w(obj) int16 :pure
-sp_getarg_n      .s w(obj) int16 :pure
-sp_getarg_s      .s w(obj) int16 :pure
+sp_getarg_i      .s w(int64) int16 :pure
+sp_getarg_n      .s w(num64) int16 :pure
+sp_getarg_s      .s w(str) int16 :pure
 
 # Fast invocation (link directly to an existing spesh candidate).
 sp_fastinvoke_v  .s r(obj) int16 :maycausedeopt
