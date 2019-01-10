@@ -97,6 +97,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     candidate->bytecode      = sc->bytecode;
     candidate->bytecode_size = sc->bytecode_size;
     candidate->handlers      = sc->handlers;
+    candidate->deopt_usage_info = sc->deopt_usage_info;
     candidate->num_handlers  = sg->num_handlers;
     candidate->num_deopts    = sg->num_deopt_addrs;
     candidate->deopts        = sg->deopt_addrs;
@@ -213,5 +214,6 @@ void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candid
     MVM_free(candidate->lexical_types);
     if (candidate->jitcode)
         MVM_jit_code_destroy(tc, candidate->jitcode);
+    MVM_free(candidate->deopt_usage_info);
     MVM_free(candidate);
 }

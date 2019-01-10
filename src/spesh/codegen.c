@@ -21,6 +21,10 @@ typedef struct {
 
     /* Copied frame handlers (which we'll update offsets of). */
     MVMFrameHandler *handlers;
+
+    /* Persisted deopt usage info, so we can recover it should be produce an
+     * inline from this bytecode in the future. */
+    MVM_VECTOR_DECL(MVMint32, deopt_usage_info);
 } SpeshWriterState;
 
 /* Write functions; all native endian. */
@@ -104,7 +108,29 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
         }
 
         if (ins->info->opcode != MVM_SSA_PHI) {
-            /* Real instruction, not a phi. Emit opcode. */
+            /* Real instruction, not a phi. See if we need to save any deopt
+             * usage information at this location. */
+            if (g->facts && ins->info->num_operands >= 1 &&
+                    (ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
+                MVMSpeshDeoptUseEntry *deopt_users = MVM_spesh_get_facts(tc, g,
+                        ins->operands[0])->usage.deopt_users;
+                if (deopt_users) {
+                    MVMint32 count = 0;
+                    MVMSpeshDeoptUseEntry *count_entry = deopt_users;
+                    while (count_entry) {
+                        count++;
+                        count_entry = count_entry->next;
+                    }
+                    MVM_VECTOR_PUSH(ws->deopt_usage_info, ws->bytecode_pos);
+                    MVM_VECTOR_PUSH(ws->deopt_usage_info, count);
+                    while (deopt_users) {
+                        MVM_VECTOR_PUSH(ws->deopt_usage_info, deopt_users->deopt_idx);
+                        deopt_users = deopt_users->next;
+                    }
+                }
+            }
+
+            /* Emit opcode. */
             if (ins->info->opcode == (MVMuint16)-1) {
                 /* Ext op; resolve. */
                 MVMExtOpRecord *extops     = g->sf->body.cu->body.extops;
@@ -251,6 +277,7 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     ws->fixup_bbs       = MVM_malloc(ws->alloc_fixups * sizeof(MVMSpeshBB *));
     for (i = 0; i < g->num_bbs; i++)
         ws->bb_offsets[i] = -1;
+    MVM_VECTOR_INIT(ws->deopt_usage_info, 0);
 
     /* Create copy of handlers, and -1 all offsets so we can catch missing
      * updates. */
@@ -327,11 +354,16 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
         }
     }
 
+    /* Add terminating -1 to the deopt usage info. */
+    if (g->facts)
+        MVM_VECTOR_PUSH(ws->deopt_usage_info, -1);
+
     /* Produce result data structure. */
-    res                = MVM_malloc(sizeof(MVMSpeshCode));
-    res->bytecode      = ws->bytecode;
-    res->bytecode_size = ws->bytecode_pos;
-    res->handlers      = ws->handlers;
+    res                   = MVM_malloc(sizeof(MVMSpeshCode));
+    res->bytecode         = ws->bytecode;
+    res->bytecode_size    = ws->bytecode_pos;
+    res->handlers         = ws->handlers;
+    res->deopt_usage_info = ws->deopt_usage_info;
 
     /* Cleanup. */
     MVM_free(ws->bb_offsets);

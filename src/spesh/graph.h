@@ -274,7 +274,7 @@ struct MVMSpeshAnn {
 MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
     MVMuint32 cfg_only, MVMuint32 insert_object_nulls);
 MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStaticFrame *sf,
-    MVMSpeshCandidate *cand, MVMuint32 cfg_only);
+    MVMSpeshCandidate *cand, MVMuint32 cfg_only, MVMSpeshIns ***deopt_usage_ins_out);
 MVMSpeshBB * MVM_spesh_graph_linear_prev(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *search);
 void MVM_spesh_graph_grow_deopt_table(MVMThreadContext *tc, MVMSpeshGraph *g);
 void MVM_spesh_graph_add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g,

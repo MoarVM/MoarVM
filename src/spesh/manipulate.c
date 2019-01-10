@@ -65,7 +65,9 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g,
                 /* This moves to the previous instruction, but we need to put
                  * it on the end of the list, so the earlier deopt point will
                  * win when searching for deopt points. Otherwise, we can
-                 * deopt to a later place than we should have. */
+                 * deopt to a later place than we should have. Also, we should
+                 * never move a later deopt instruction onto something with a
+                 * deopt all or an inline, otherwise it can confuse uninlining. */
                 if (!prev) {
                     MVMSpeshBB *prev_bb = MVM_spesh_graph_linear_prev(tc, g, bb);
                     while (prev_bb && !prev_bb->last_ins)
@@ -75,13 +77,24 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g,
                 }
                 if (prev) {
                     MVMSpeshAnn *append_to = prev->annotations;
-                    while (append_to && append_to->next)
+                    MVMint32 conflict = 0;
+                    while (append_to) {
+                        if (append_to->type == MVM_SPESH_ANN_DEOPT_ALL_INS ||
+                                append_to->type == MVM_SPESH_ANN_DEOPT_INLINE) {
+                            conflict = 1;
+                            break;
+                        }
+                        if (!append_to->next)
+                            break;
                         append_to = append_to->next;
-                    if (append_to)
-                        append_to->next = ann;
-                    else
-                        prev->annotations = ann;
-                    ann->next = NULL;
+                    }
+                    if (!conflict) {
+                        if (append_to)
+                            append_to->next = ann;
+                        else
+                            prev->annotations = ann;
+                        ann->next = NULL;
+                    }
                 }
                 break;
         }

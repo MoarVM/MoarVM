@@ -134,7 +134,8 @@ static MVMint32 already_succs(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *
 #define MVM_CFG_BB_END      2
 #define MVM_CFG_BB_JUMPLIST 4
 static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf,
-                      MVMint32 *existing_deopts, MVMint32 num_existing_deopts) {
+                      MVMint32 *existing_deopts, MVMint32 num_existing_deopts,
+                      MVMint32 *deopt_usage_info, MVMSpeshIns ***deopt_usage_ins_out) {
     MVMSpeshBB  *cur_bb, *prev_bb;
     MVMSpeshIns *last_ins;
     MVMint64     i;
@@ -714,6 +715,24 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         }
     }
 
+    /* We may also need to reconstruct deopt usage info, to allow optimizing of
+     * inlinees. That is persisted using bytecode offsets, and this is the last
+     * place we can map those into instructions, so do it here if needed. */
+    if (deopt_usage_ins_out && deopt_usage_info) {
+        MVM_VECTOR_DECL(MVMSpeshIns *, usage_ins);
+        MVMuint32 idx = 0;
+        MVM_VECTOR_INIT(usage_ins, 32);
+        while (1) {
+            MVMint32 offset = deopt_usage_info[idx];
+            if (offset == -1)
+                break;
+            MVM_VECTOR_PUSH(usage_ins, ins_flat[byte_to_ins_flags[offset] >> 3]);
+            idx++;
+            idx += deopt_usage_info[idx] + 1; /* Skip over deopt indices */
+        }
+        *deopt_usage_ins_out = usage_ins;
+    }
+
     /* Clear up the temporary arrays. */
     MVM_free(byte_to_ins_flags);
     MVM_free(ins_flat);
@@ -1274,7 +1293,7 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
     }
 
     /* Build the CFG out of the static frame, and transform it to SSA. */
-    build_cfg(tc, g, sf, NULL, 0);
+    build_cfg(tc, g, sf, NULL, 0, NULL, NULL);
     if (insert_object_nulls)
         insert_object_null_instructions(tc, g);
     if (!cfg_only) {
@@ -1289,7 +1308,8 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
 
 /* Takes a static frame and creates a spesh graph for it. */
 MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStaticFrame *sf,
-                                                 MVMSpeshCandidate *cand, MVMuint32 cfg_only) {
+                                                 MVMSpeshCandidate *cand, MVMuint32 cfg_only,
+                                                 MVMSpeshIns ***deopt_usage_ins_out) {
     /* Create top-level graph object. */
     MVMSpeshGraph *g     = MVM_calloc(1, sizeof(MVMSpeshGraph));
     g->sf                = sf;
@@ -1323,7 +1343,8 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     }
 
     /* Build the CFG out of the static frame, and transform it to SSA. */
-    build_cfg(tc, g, sf, cand->deopts, cand->num_deopts);
+    build_cfg(tc, g, sf, cand->deopts, cand->num_deopts, cand->deopt_usage_info,
+            deopt_usage_ins_out);
     if (!cfg_only) {
         MVM_spesh_eliminate_dead_bbs(tc, g, 0);
         add_predecessors(tc, g);
