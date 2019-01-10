@@ -1673,7 +1673,8 @@ skipdevirt:
 static void add_bail_comment(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns *ins) {
     MVMSpeshGraph *g = jg->sg;
     if (MVM_spesh_debug_enabled(tc)) {
-        MVM_spesh_graph_add_comment(tc, g, ins, "JIT: bailed completely");
+        MVM_spesh_graph_add_comment(tc, g, ins, "JIT: bailed completely because of <%s>",
+                                    ins->info->name);
     }
 }
 
