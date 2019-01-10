@@ -364,7 +364,7 @@ static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 static void add_deopt_materializations_idx(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                            GraphState *gs, MVMint32 deopt_idx,
                                            MVMint32 deopt_user_idx) {
-    MVMint32 i, j;
+    MVMint32 i;
     for (i = 0; i < MVM_VECTOR_ELEMS(gs->tracked_registers); i++) {
         MVMSpeshFacts *tracked_facts = MVM_spesh_get_facts(tc, g, gs->tracked_registers[i].reg);
         MVMSpeshPEAAllocation *alloc = tracked_facts->pea.allocation;
@@ -402,6 +402,7 @@ static void add_deopt_materializations_ins(MVMThreadContext *tc, MVMSpeshGraph *
     }
 
     /* Now go over the concrete indexes that will appear when we actually deopt. */
+    ann = deopt_ins->annotations;
     while (ann) {
         switch (ann->type) {
             case MVM_SPESH_ANN_DEOPT_ONE_INS:
