@@ -110,7 +110,7 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
         if (ins->info->opcode != MVM_SSA_PHI) {
             /* Real instruction, not a phi. See if we need to save any deopt
              * usage information at this location. */
-            if (ins->info->num_operands >= 1 &&
+            if (g->facts && ins->info->num_operands >= 1 &&
                     (ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
                 MVMSpeshDeoptUseEntry *deopt_users = MVM_spesh_get_facts(tc, g,
                         ins->operands[0])->usage.deopt_users;
@@ -355,7 +355,8 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     }
 
     /* Add terminating -1 to the deopt usage info. */
-    MVM_VECTOR_PUSH(ws->deopt_usage_info, -1);
+    if (g->facts)
+        MVM_VECTOR_PUSH(ws->deopt_usage_info, -1);
 
     /* Produce result data structure. */
     res                   = MVM_malloc(sizeof(MVMSpeshCode));
