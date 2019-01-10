@@ -319,6 +319,19 @@ void MVM_spesh_usages_create_deopt_usage(MVMThreadContext *tc, MVMSpeshGraph *g)
     process_bb_for_deopt_usage(tc, &state, g, g->entry);
 }
 
+/* Adds a deopt usage. */
+void MVM_spesh_usages_add_deopt_usage(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshFacts *facts, MVMint32 deopt_idx) {
+    MVMSpeshDeoptUseEntry *deopt_entry = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshDeoptUseEntry));
+    deopt_entry->deopt_idx = deopt_idx;
+    deopt_entry->next = facts->usage.deopt_users;
+    facts->usage.deopt_users = deopt_entry;
+}
+void MVM_spesh_usages_add_deopt_usage_by_reg(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshOperand operand, MVMint32 deopt_idx) {
+    MVM_spesh_usages_add_deopt_usage(tc, g, MVM_spesh_get_facts(tc, g, operand), deopt_idx);
+}
+
 /* Adds an unconditional deopt usage (that is, not dependent on any particular
  * deopt point). */
 void MVM_spesh_usages_add_unconditional_deopt_usage(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -353,23 +366,22 @@ void MVM_spesh_usages_remove_unused_deopt(MVMThreadContext *tc, MVMSpeshGraph *g
     MVMuint8 *deopt_used = MVM_spesh_alloc(tc, g, g->num_deopt_addrs);
     MVMSpeshBB *bb = g->entry;
     while (bb) {
-        if (!bb->inlined) {
-            MVMSpeshIns *ins = bb->first_ins;
-            while (ins) {
-                MVMSpeshAnn *ann = ins->annotations;
-                while (ann) {
-                    switch (ann->type) {
-                        case MVM_SPESH_ANN_DEOPT_ONE_INS:
-                        case MVM_SPESH_ANN_DEOPT_ALL_INS:
-                        case MVM_SPESH_ANN_DEOPT_SYNTH:
-                            if (ins->info->may_cause_deopt)
-                                deopt_used[ann->data.deopt_idx] = 1;
-                            break;
-                    }
-                    ann = ann->next;
+        MVMSpeshIns *ins = bb->first_ins;
+        while (ins) {
+            MVMSpeshAnn *ann = ins->annotations;
+            while (ann) {
+                switch (ann->type) {
+                    case MVM_SPESH_ANN_DEOPT_ONE_INS:
+                    case MVM_SPESH_ANN_DEOPT_ALL_INS:
+                    case MVM_SPESH_ANN_DEOPT_INLINE:
+                    case MVM_SPESH_ANN_DEOPT_SYNTH:
+                        if (ins->info->may_cause_deopt)
+                            deopt_used[ann->data.deopt_idx] = 1;
+                        break;
                 }
-                ins = ins->next;
+                ann = ann->next;
             }
+            ins = ins->next;
         }
         bb = bb->linear_next;
     }

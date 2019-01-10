@@ -454,21 +454,48 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMuint32 *inline_boundary_handler, MVMuint16 bytecode_size) {
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
-    MVMint32        i, j, orig_inlines, total_inlines, orig_deopt_addrs, orig_deopt_pea_mat_infos;
+    MVMint32        i, j, orig_inlines, total_inlines, orig_deopt_addrs,
+                    orig_deopt_pea_mat_infos, impl_deopt_idx;
     MVMuint32       total_handlers = inliner->num_handlers + inlinee->num_handlers + 1;
     MVMSpeshBB     *inlinee_first_bb = NULL, *inlinee_last_bb = NULL;
     MVMuint8        may_cause_deopt = 0;
+    MVMSpeshBB *bb;
+    MVM_VECTOR_DECL(MVMSpeshOperand, regs_for_deopt);
 
-    /* If the inliner and inlinee are from different compilation units, we
-     * potentially have to fix up extra things. */
+    /* If the inliner and inlinee are from different compilation units or
+     * HLLs, we potentially have to fix up extra things. */
     MVMint32 same_comp_unit = inliner->sf->body.cu == inlinee->sf->body.cu;
-
     MVMint32 same_hll = same_comp_unit || inliner->sf->body.cu->body.hll_config ==
             inlinee_sf->body.cu->body.hll_config;
 
+    /* Gather all of the registers that have a deopt usage at the point of
+     * the invoke. We'll need to distribute deopt usages inside of the
+     * inline to them for correctness of later analyses that use the deopt
+     * usage information. */
+    impl_deopt_idx = return_deopt_idx(tc, invoke_ins);
+    MVM_VECTOR_INIT(regs_for_deopt, 0);
+    for (i = 0; i < inliner->sf->body.num_locals; i++) {
+        MVMint32 vers = inliner->fact_counts[i];
+        for (j = 0; j < vers; j++) {
+            MVMSpeshDeoptUseEntry *due = inliner->facts[i][j].usage.deopt_users;
+            while (due) {
+                if (due->deopt_idx == impl_deopt_idx) {
+                    MVMSpeshOperand o;
+                    o.reg.orig = i;
+                    o.reg.i = j;
+                    MVM_VECTOR_PUSH(regs_for_deopt, o);
+                }
+                due = due->next;
+            }
+        }
+    }
+
     /* Renumber the locals, lexicals, and basic blocks of the inlinee; also
-     * re-write any indexes in annotations that need it. */
-    MVMSpeshBB *bb = inlinee->entry;
+     * re-write any indexes in annotations that need it. Since in this pass
+     * we identify all deopt points, we also take the opportunity to add
+     * deopt users to all registers that have deopt usages thanks to the
+     * invoke. */
+    bb = inlinee->entry;
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
@@ -481,6 +508,9 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 case MVM_SPESH_ANN_DEOPT_INLINE:
                 case MVM_SPESH_ANN_DEOPT_OSR:
                     ann->data.deopt_idx += inliner->num_deopt_addrs;
+                    for (i = 0; i < MVM_VECTOR_ELEMS(regs_for_deopt); i++)
+                        MVM_spesh_usages_add_deopt_usage_by_reg(tc, inliner,
+                                regs_for_deopt[i], ann->data.deopt_idx);
                     break;
                 case MVM_SPESH_ANN_INLINE_START:
                 case MVM_SPESH_ANN_INLINE_END:
