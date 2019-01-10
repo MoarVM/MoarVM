@@ -180,8 +180,10 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
                 gs->attr_regs[idx] = MVM_spesh_manipulate_get_unique_reg(tc, g,
                     flattened_type_to_register_kind(tc, repr_data->flattened_stables[i]));
             }
+            pea_log("OPT: eliminated an allocation of %s into r%d(%d)",
+                    st->debug_name, t->fastcreate.ins->operands[0].reg.orig,
+                    t->fastcreate.ins->operands[0].reg.i);
             MVM_spesh_manipulate_delete_ins(tc, g, bb, t->fastcreate.ins);
-            pea_log("OPT: eliminated an allocation of %s", st->debug_name);
             break;
         }
         case TRANSFORM_GETATTR_TO_SET: {
