@@ -449,6 +449,7 @@ UV_UNIX = 3rdparty/libuv/src/strscpy@obj@ \
 UV_LINUX = 3rdparty/libuv/src/unix/linux-core@obj@ \
            3rdparty/libuv/src/unix/linux-inotify@obj@ \
            3rdparty/libuv/src/unix/linux-syscalls@obj@ \
+           3rdparty/libuv/src/unix/procfs-exepath@obj@ \
            3rdparty/libuv/src/unix/proctitle@obj@ \
            $(UV_UNIX)
 
