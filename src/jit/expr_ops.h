@@ -18,7 +18,6 @@
     _(LOAD, 1, 1),   \
     _(LOAD_NUM, 1, 1), \
     _(STORE, 2, 1), \
-    _(STORE_NUM, 2, 1), \
     _(ADDR, 1, 1),  \
     _(IDX, 2, 1),   \
     /* constant up to 4 bytes */ \
