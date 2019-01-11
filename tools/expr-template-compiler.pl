@@ -79,7 +79,7 @@ my %OPERAND_TYPES = (
     callv => 'reg,arglist',
     arglist => 'carg',
     carg => '?',
-    store_num => 'reg,num',
+    store => 'reg,?',
     guard => 'void',
 );
 
@@ -226,9 +226,9 @@ sub expand_macro {
 
 sub expr_type {
     my ($expr, $env) = @_;
-    # operand value
-    return $env->{$1} || die "$1 is not declared" if ($expr =~ m/^\\?(\$\w+)$/);
-
+    # operand value; a reference (\$0) is always a reg
+    return $1 ? 'reg' : $env->{$2} || die "$2 is not declared"
+        if ($expr =~ m/^(\\?)(\$\w+)$/);
     my ($operator, @operands) = @$expr;
     die "Expected operator but got $operator" if $operator =~ m/(^&)|(:$)/;
     # try to resolve polymorphic operators

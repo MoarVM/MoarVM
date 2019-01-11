@@ -44,7 +44,7 @@
     (branch $1)))
 
 (template: getlex (copy $1))
-(template: bindlex (copy $1))
+(template: bindlex! (store \$0 $1 reg_sz))
 
 (template: getlex_ni
   (load
@@ -2651,7 +2651,7 @@
   (^store_write_barrier! $0 (add (^p6obody $0) $1) $2))
 
 (template: sp_p6obind_i (store (add (^p6obody $0) $1) $2 int_sz))
-(template: sp_p6obind_n (store_num (add (^p6obody $0) $1) $2 num_sz))
+(template: sp_p6obind_n (store (add (^p6obody $0) $1) $2 num_sz))
 (template: sp_p6obind_s
   (^store_write_barrier! $0 (add (^p6obody $0) $1) $2))
 

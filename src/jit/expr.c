@@ -153,11 +153,6 @@ static MVMint32 MVM_jit_expr_add_store(MVMThreadContext *tc, MVMJitExprTree *tre
     return MVM_jit_expr_apply_template_adhoc(tc, tree, "ns...", MVM_JIT_STORE, 1, addr, val, sz);
 }
 
-static MVMint32 MVM_jit_expr_add_store_num(MVMThreadContext *tc, MVMJitExprTree *tree,
-                                       MVMint32 addr, MVMint32 val, MVMint32 sz) {
-    return MVM_jit_expr_apply_template_adhoc(tc, tree, "ns...", MVM_JIT_STORE_NUM, 1, addr, val, sz);
-}
-
 static MVMint32 MVM_jit_expr_add_cast(MVMThreadContext *tc, MVMJitExprTree *tree,
                                       MVMint32 cast_mode, MVMint32 node, MVMint32 to_size, MVMint32 from_size) {
     return MVM_jit_expr_apply_template_adhoc(tc, tree, "ns....", cast_mode, 1, node, to_size, from_size);
@@ -288,14 +283,6 @@ static MVMint32 bindlex_needs_write_barrier(MVMThreadContext *tc, MVMJitGraph *j
     MVMuint16 lexical_type = MVM_spesh_get_lex_type(tc, jg->sg, opr.lex.outers, opr.lex.idx);
     /* need to hit a write barrier if we bindlex to a string */
     return lexical_type == MVM_reg_obj || lexical_type == MVM_reg_str;
-}
-
-static MVMint32 store_value(MVMThreadContext *tc, MVMJitExprTree *tree,
-                            MVMint32 addr, MVMint32 val, MVMint32 sz) {
-    if (MVM_JIT_EXPR_IS_NUM(tree, val)) {
-        return MVM_jit_expr_add_store_num(tc, tree, addr, val, sz);
-    }
-    return MVM_jit_expr_add_store(tc, tree, addr, val, sz);
 }
 
 static MVMint32 load_value(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 addr, MVMuint8 opr_type) {
@@ -617,7 +604,7 @@ static void active_values_flush(MVMThreadContext *tc, MVMJitExprTree *tree,
     MVMint32 i;
     for (i = 0; i < num_values; i++) {
         if (values[i].root >= 0) {
-            tree->roots[values[i].root] = store_value(tc, tree, values[i].addr, values[i].node, MVM_JIT_REG_SZ);
+            tree->roots[values[i].root] = MVM_jit_expr_add_store(tc, tree, values[i].addr, values[i].node, MVM_JIT_REG_SZ);
         }
         if (values[i].node >= 0) {
             memset(values + i, -1, sizeof(struct ValueDefinition));
@@ -812,7 +799,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                     BAIL(i != 0, "Write lex operand %d", i);
                     MVM_JIT_EXPR_INFO(tree, root)->type = opr_type >> 3;
                     /* insert the store to lexicals directly, do not record as value */
-                    root = store_value(tc, tree, operands[i], root, MVM_JIT_REG_SZ);
+                    root = MVM_jit_expr_add_store(tc, tree, operands[i], root, MVM_JIT_REG_SZ);
                 }
                 break;
             }
@@ -825,7 +812,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
              * non-invokish version, which should be possible in a specialization */
             active_values_flush(tc, tree, values, sg->num_locals);
             if (defined_value != NULL) {
-                root = store_value(tc, tree, defined_value->addr, root, MVM_JIT_REG_SZ);
+                root = MVM_jit_expr_add_store(tc, tree, defined_value->addr, root, MVM_JIT_REG_SZ);
                 defined_value = NULL;
             }
         }
