@@ -134,7 +134,7 @@ void MVM_spesh_manipulate_cleanup_ins_deps(MVMThreadContext *tc, MVMSpeshGraph *
     }
 }
 
-/* Inserts an instruction after the specified instruciton, or at the start of
+/* Inserts an instruction after the specified instruction, or at the start of
  * the basic block if the instruction is NULL. */
 void MVM_spesh_manipulate_insert_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshIns *previous, MVMSpeshIns *to_insert) {
     /* Do the insertion. */
