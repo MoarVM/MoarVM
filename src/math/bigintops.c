@@ -61,7 +61,7 @@ static const int mp_get_double_digits_needed
 = ((MANTISSA_BITS_IN_DOUBLE + DIGIT_BIT) / DIGIT_BIT) + 1;
 static const double mp_get_double_multiplier = (double)(MP_MASK + 1);
 
-static MVMnum64 mp_get_double(mp_int *a, int shift) {
+static MVMnum64 s_mp_get_double(mp_int *a, int shift) {
     MVMnum64 d;
     int i, limit, final_shift;
     d = 0.0;
@@ -714,8 +714,8 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
         }
     }
     else {
-        MVMnum64 f_base = mp_get_double(base, 0);
-        MVMnum64 f_exp = mp_get_double(exponent, 0);
+        MVMnum64 f_base = s_mp_get_double(base, 0);
+        MVMnum64 f_exp = s_mp_get_double(exponent, 0);
         r = MVM_repr_box_num(tc, num_type, pow(f_base, f_exp));
     }
     clear_temp_bigints(tmp, 2);
@@ -1082,7 +1082,7 @@ MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a) {
 
     if (MVM_BIGINT_IS_BIG(ba)) {
         mp_int *ia = ba->u.bigint;
-        return mp_get_double(ia, 0);
+        return s_mp_get_double(ia, 0);
     } else {
         return (double)ba->u.smallint.value;
     }
@@ -1132,7 +1132,7 @@ MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
             if (mp_div(&scaled, ib, &scaled, NULL) != MP_OKAY)
                 MVM_exception_throw_adhoc(tc,
                     "Failed to preform bigint division");
-            c = mp_get_double(&scaled, bbits);
+            c = s_mp_get_double(&scaled, bbits);
             mp_clear(&scaled);
         }
         clear_temp_bigints(tmp, 2);
@@ -1142,6 +1142,15 @@ MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     return c;
 }
 
+/* 
+    The old version of LibTomMath has it publically defined the new one not,
+    so we can take the (non)existance as a marker.
+ */
+#ifndef MP_GEN_RANDOM_MAX
+#define MP_GEN_RANDOM_MAX MP_MASK
+#define MP_NEW_LTM_VERSION
+#endif
+
 MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b) {
     MVMObject *result;
     MVMP6bigintBody *ba;
@@ -1150,6 +1159,7 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
     MVMint8 use_small_arithmetic = 0;
     MVMint8 have_to_negate = 0;
     MVMint32 smallint_max = 0;
+
 
     if (MVM_BIGINT_IS_BIG(bb)) {
         if (can_be_smallint(bb->u.bigint)) {
@@ -1164,7 +1174,13 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
 
     if (use_small_arithmetic) {
         if (MP_GEN_RANDOM_MAX >= abs(smallint_max)) {
+#ifdef MP_NEW_LTM_VERSION
+            mp_digit p = MP_GEN_RANDOM_MAX;
+            mp_rand_digit(&p);
+            mp_digit result_int = p;
+#else
             mp_digit result_int = MP_GEN_RANDOM();
+#endif
             result_int = result_int % smallint_max;
             if(have_to_negate)
                 result_int *= -1;
