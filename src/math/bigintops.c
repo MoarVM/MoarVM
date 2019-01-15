@@ -1142,6 +1142,16 @@ MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     return c;
 }
 
+
+/* 
+    The old version of LibTomMath has it publically defined the new one not,
+    so we can take the (non)existance as a marker.
+ */
+#ifndef MP_GEN_RANDOM_MAX
+#define MP_GEN_RANDOM_MAX MP_MASK
+#define MP_NEW_LTM_VERSION
+#endif
+
 MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b) {
     MVMObject *result;
     MVMP6bigintBody *ba;
@@ -1164,7 +1174,13 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
 
     if (use_small_arithmetic) {
         if (MP_GEN_RANDOM_MAX >= abs(smallint_max)) {
+#ifdef MP_NEW_LTM_VERSION
+            mp_digit p = MP_GEN_RANDOM_MAX;
+            mp_rand_digit(&p);
+            mp_digit result_int = p;
+#else
             mp_digit result_int = MP_GEN_RANDOM();
+#endif
             result_int = result_int % smallint_max;
             if(have_to_negate)
                 result_int *= -1;
