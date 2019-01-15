@@ -57,23 +57,23 @@ int MVM_bigint_mp_set_uint64(mp_int * a, MVMuint64 b) {
  *  https://github.com/czurnieden/libtommath/blob/master/bn_mp_get_double.c
  *  and slightly modified to fit MoarVM's setup.
  */
-static const int mp_get_double_digits_needed
+static const int MVM_mp_get_double_digits_needed
 = ((MANTISSA_BITS_IN_DOUBLE + DIGIT_BIT) / DIGIT_BIT) + 1;
-static const double mp_get_double_multiplier = (double)(MP_MASK + 1);
+static const double MVM_mp_get_double_multiplier = (double)(MP_MASK + 1);
 
-static MVMnum64 mp_get_double(mp_int *a, int shift) {
+static MVMnum64 MVM_mp_get_double_shift(mp_int *a, int shift) {
     MVMnum64 d;
     int i, limit, final_shift;
     d = 0.0;
 
     mp_clamp(a);
     i = a->used;
-    limit = (i <= mp_get_double_digits_needed)
-        ? 0 : i - mp_get_double_digits_needed;
+    limit = (i <= MVM_mp_get_double_digits_needed)
+        ? 0 : i - MVM_mp_get_double_digits_needed;
 
     while (i-- > limit) {
         d += a->dp[i];
-        d *= mp_get_double_multiplier;
+        d *= MVM_mp_get_double_multiplier;
     }
 
     if (a->sign == MP_NEG)
@@ -714,8 +714,8 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
         }
     }
     else {
-        MVMnum64 f_base = mp_get_double(base, 0);
-        MVMnum64 f_exp = mp_get_double(exponent, 0);
+        MVMnum64 f_base = MVM_mp_get_double_shift(base, 0);
+        MVMnum64 f_exp = MVM_mp_get_double_shift(exponent, 0);
         r = MVM_repr_box_num(tc, num_type, pow(f_base, f_exp));
     }
     clear_temp_bigints(tmp, 2);
@@ -1082,7 +1082,7 @@ MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a) {
 
     if (MVM_BIGINT_IS_BIG(ba)) {
         mp_int *ia = ba->u.bigint;
-        return mp_get_double(ia, 0);
+        return MVM_mp_get_double_shift(ia, 0);
     } else {
         return (double)ba->u.smallint.value;
     }
@@ -1132,7 +1132,7 @@ MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
             if (mp_div(&scaled, ib, &scaled, NULL) != MP_OKAY)
                 MVM_exception_throw_adhoc(tc,
                     "Failed to preform bigint division");
-            c = mp_get_double(&scaled, bbits);
+            c = MVM_mp_get_double_shift(&scaled, bbits);
             mp_clear(&scaled);
         }
         clear_temp_bigints(tmp, 2);
