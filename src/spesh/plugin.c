@@ -5,6 +5,12 @@
  * inside of the specializer, perhaps because we don't communicate sufficient
  * information for it to do what is required. */
 
+/* A limit to stop us ending up with an oddly large number of guards. This
+ * usually indicates a plugin bug; there's also an option to turn on a log
+ * of stack traces where we end up with more than this. */
+#define MVM_SPESH_GUARD_LIMIT   1000
+#define MVM_SPESH_GUARD_DEBUG   0
+
 /* Registers a new spesh plugin. */
 void MVM_spesh_plugin_register(MVMThreadContext *tc, MVMString *language,
         MVMString *name, MVMObject *plugin) {
@@ -296,23 +302,31 @@ static void add_resolution_to_guard_set(MVMThreadContext *tc, void *sr_data) {
     MVMSpeshPluginSpecialReturnData *srd = (MVMSpeshPluginSpecialReturnData *)sr_data;
     MVMSpeshPluginState *base_state = get_plugin_state(tc, srd->sf);
     MVMSpeshPluginGuardSet *base_guards = guard_set_for_position(tc, srd->position, base_state);
-    MVMSpeshPluginGuardSet *new_guards = append_guard(tc, base_guards, srd->result->o,
-            srd->sf->body.spesh);
-    if (new_guards != base_guards) {
-        MVMSpeshPluginState *new_state = updated_state(tc, base_state, srd->position,
-                base_guards, new_guards);
-        MVMuint32 committed = MVM_trycas(
-                &srd->sf->body.spesh->body.plugin_state,
-                base_state, new_state);
-        if (committed) {
-            free_dead_guards(tc, base_guards);
-            free_dead_state(tc, base_state);
+    if (!base_guards || base_guards->num_guards < MVM_SPESH_GUARD_LIMIT) {
+        MVMSpeshPluginGuardSet *new_guards = append_guard(tc, base_guards, srd->result->o,
+                srd->sf->body.spesh);
+        if (new_guards != base_guards) {
+            MVMSpeshPluginState *new_state = updated_state(tc, base_state, srd->position,
+                    base_guards, new_guards);
+            MVMuint32 committed = MVM_trycas(
+                    &srd->sf->body.spesh->body.plugin_state,
+                    base_state, new_state);
+            if (committed) {
+                free_dead_guards(tc, base_guards);
+                free_dead_state(tc, base_state);
+            }
+            else {
+                /* Lost update race. Discard; a retry will happen naturally. */
+                free_dead_guards(tc, new_guards);
+                free_dead_state(tc, new_state);
+            }
         }
-        else {
-            /* Lost update race. Discard; a retry will happen naturally. */
-            free_dead_guards(tc, new_guards);
-            free_dead_state(tc, new_state);
-        }
+    }
+    else {
+#if MVM_SPESH_GUARD_DEBUG
+        fprintf(stderr, "Too many plugin guards added; probable spesh plugin bug\n");
+        MVM_dump_backtrace(tc);
+#endif
     }
 
     /* Clear up recording state. */
