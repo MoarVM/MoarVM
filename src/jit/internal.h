@@ -82,26 +82,18 @@ void MVM_jit_spill_memory_release(MVMThreadContext *tc, MVMJitCompiler *compiler
 #include MVM_JIT_ARCH_H
 #endif
 
-
 #undef MVM_JIT_ARCH_X64
 #undef MVM_JIT_PLATFORM_POSIX
 #undef MVM_JIT_PLATFORM_WIN32
 
-/* declare comma (register name separater) to be literal ',', which makes the
- * enum declaration work */
-#ifdef __COMMA__
-#error "Defining __COMMA__ cannot end well"
-#endif
-
-#define __COMMA__ ,
 enum {
-    MVM_JIT_ARCH_GPR(MVM_JIT_REG)
-};
-enum {
+    MVM_JIT_ARCH_GPR(MVM_JIT_REG),
     MVM_JIT_ARCH_FPR(MVM_JIT_REG)
 };
-/* it's a ridiculous, dangerous macro and it shouldn't escape */
-#undef __COMMA__
+
+extern const MVMBitmap MVM_JIT_AVAILABLE_REGISTERS;
+extern const MVMBitmap MVM_JIT_RESERVED_REGISTERS;
+extern const MVMBitmap MVM_JIT_SPARE_REGISTERS;
 
 /* We need max and min macros, they used to be in libtommath, but aren't anymore */
 #ifndef MAX
