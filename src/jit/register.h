@@ -1,11 +1,10 @@
 /* different places in which we can store stuff */
 typedef enum {
-    MVM_JIT_STORAGE_LOCAL,
-    MVM_JIT_STORAGE_STACK,
     MVM_JIT_STORAGE_GPR,  /* general purpose register */
     MVM_JIT_STORAGE_FPR,  /* floating point register */
-    MVM_JIT_STORAGE_NVR   /* non-volatile register */
-}  MVMJitStorageClass;
+    MVM_JIT_STORAGE_LOCAL,
+    MVM_JIT_STORAGE_STACK,
+} MVMJitStorageClass;
 
 /* a reference to a place something is stored */
 typedef struct {

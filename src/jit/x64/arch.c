@@ -4,7 +4,26 @@
 #define MVM_JIT_PLATFORM_POSIX 1
 #define MVM_JIT_PLATFORM_WIN32 2
 
+const MVMBitmap MVM_JIT_REGISTER_CLASS[] = {
+    /* gpr */ 0x0000ffff,
+    /* fpr */ 0xffff0000
+};
+
+#define R(x) (1<<MVM_JIT_REG(R ## x))
+#define XMM(n) (1<<MVM_JIT_REG(XMM ## n));
+
+const MVMBitmap MVM_JIT_SPARE_REGISTERS = R(AX);
+
 #if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_POSIX
+
+/* rbx(3), rsp(4), rbp(5), r12, r13, r14, r15 */
+const MVMBitmap MVM_JIT_RESERVED_REGISTERS =
+    R(BX)|R(SP)|R(BP)|R(12)|R(13)|R(14)|R(15);
+
+/* rcx(1), rdx(2), rsi(6), rdi(7), r8,r9,r10,r11 */
+const MVMBitmap MVM_JIT_AVAILABLE_REGISTERS =
+    R(CX)|R(DX)|R(SI)|R(DI)|R(8)|R(9)|R(10)|R(11);
+
 
 static const MVMint8 arg_gpr[] = {
     MVM_JIT_REG(RDI),
@@ -53,6 +72,13 @@ void MVM_jit_arch_storage_for_arglist(MVMThreadContext *tc, MVMJitCompiler *comp
 
 
 #elif MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_WIN32
+
+/* rbx(3), rsp(4), rbp(5), rsi(6), rsi(8), r12, r13, r14, r15 */
+const MVMBitmap MVM_JIT_RESERVED_REGISTERS =
+    R(BX)|R(SP)|R(BP)|R(SI)|R(DI)|R(12)|R(13)|R(14)|R(15);
+/* rcx(1), rdx(2), r8,r9,r10,r11 */
+const MVMBitMap MVM_JIT_AVAILABLE_REGISTERS =
+    R(CX)|R(DX)|R(8)|R(9)|R(10)|R(11)|R(12);
 
 static const MVMint8 arg_gpr[] = {
     MVM_JIT_REG(RCX),

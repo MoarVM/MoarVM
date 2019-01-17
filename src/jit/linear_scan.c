@@ -1,21 +1,8 @@
 #include "moar.h"
 #include "internal.h"
 
-#define __COMMA__ ,
-static MVMint8 available_gpr[] = {
-    MVM_JIT_ARCH_AVAILABLE_GPR(MVM_JIT_REG)
-};
-/* bitmap, so make it '|' to combine the shifted register numbers */
-#undef __COMMA__
-#define __COMMA__ |
-#define SHIFT(x) (1 << (MVM_JIT_REG(x)))
-static const MVMBitmap NVR_GPR_BITMAP = MVM_JIT_ARCH_NONVOLATILE_GPR(SHIFT);
-static const MVMBitmap AVAILABLE_GPR_BITMAP = MVM_JIT_ARCH_AVAILABLE_GPR(SHIFT);
-#undef SHIFT
-#undef __COMMA__
 
 
-#define MAX_ACTIVE sizeof(available_gpr)
 #define NYI(x) MVM_oops(tc, #x  "not yet implemented")
 #define _ASSERT(b, msg) if (!(b)) do { MVM_panic(1, msg); } while (0)
 
@@ -87,7 +74,7 @@ typedef struct {
 
     /* 'Currently' active values */
     MVMint32 active_top;
-    MVMint32 active[MAX_ACTIVE];
+    MVMint32 active[MVM_JIT_ARCH_NUM_REG];
 
     /* Values still left to do (heap) */
     MVM_VECTOR_DECL(MVMint32, worklist);
@@ -334,7 +321,6 @@ MVMint32 values_cmp_last_ref(LiveRange *values, MVMint32 a, MVMint32 b) {
 }
 
 /* register assignment logic */
-#define NEXT_IN_RING(a,x) (((x)+1) == MVM_ARRAY_SIZE(a) ? 0 : ((x)+1))
 MVMint8 get_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitStorageClass reg_cls) {
     /* ignore storage class for now */
     MVMint8 reg_num = MVM_FFS(alc->reg_free) - 1;
@@ -786,7 +772,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     struct {
         MVMint8 in_reg; /* register number that is to be moved in */
         MVMint8 num_out; /* how many values need to make room for me */
-    } topological_map[MVM_JIT_ARCH_NUM_GPR]; /* reverse map for topological sort of moves */
+    } topological_map[MVM_JIT_ARCH_NUM_REG]; /* reverse map for topological sort of moves */
 
     struct {
         MVMint8 reg_num;
@@ -906,7 +892,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     }
 
     while (call_bitmap & arg_bitmap) {
-        MVMuint32 free_reg = ~(call_bitmap | arg_bitmap | NVR_GPR_BITMAP);
+        MVMBitmap free_reg = ~(call_bitmap | arg_bitmap | MVM_JIT_RESERVED_REGISTERS | MVM_JIT_SPARE_REGISTERS);
         /* FFS counts registers starting from 1 */
         MVMuint8 src = MVM_FFS(call_bitmap & arg_bitmap) - 1;
         MVMuint8 dst = MVM_FFS(free_reg) - 1;
@@ -943,7 +929,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     /* with call_bitmap and arg_bitmap given, we can determine the spare
      * register used for allocation; NB this may only be necessary in some
      * cases */
-    spare_register = MVM_FFS(~(call_bitmap | arg_bitmap | NVR_GPR_BITMAP)) - 1;
+    spare_register = MVM_FFS(MVM_JIT_SPARE_REGISTERS) - 1;
     _ASSERT(spare_register >= 0, "JIT: No spare register for moves");
 
     for (i = 0; i < stack_transfer_top; i++) {
@@ -973,7 +959,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
          * moving 'a' out of thee way into a spare register, then moving c to a,
          * b to c, and finally moving the spare register to 'b'
          */
-        for (i = 0; i < MVM_JIT_ARCH_NUM_GPR; i++) {
+        for (i = 0; i < MVM_ARRAY_SIZE(topological_map); i++) {
             if (topological_map[i].num_out > 0) {
                 MVMint8 src, dst;
                 INSERT_MOVE(spare_register, i);
@@ -1057,8 +1043,9 @@ static void process_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVM
     MVMint32 tile_order_nr = alc->values[v].start;
     if (MVM_JIT_REGISTER_HAS_REQUIREMENT(alc->values[v].register_spec)) {
         reg = MVM_JIT_REGISTER_REQUIREMENT(alc->values[v].register_spec);
-        if (MVM_bitmap_get_low(NVR_GPR_BITMAP, reg)) {
-            assign_register(tc, alc, list, v, MVM_JIT_STORAGE_NVR, reg);
+        if (MVM_bitmap_get_low(MVM_JIT_RESERVED_REGISTERS, reg)) {
+            /* directly assign a resreved registers */
+            assign_register(tc, alc, list, v, MVM_JIT_STORAGE_GPR, reg);
         } else {
             /* TODO; might require swapping / spilling */
             NYI(general_purpose_register_spec);
@@ -1125,7 +1112,7 @@ void MVM_jit_linear_scan_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler
     alc.active_top = 0;
     memset(alc.active, -1, sizeof(alc.active));
 
-    alc.reg_free = AVAILABLE_GPR_BITMAP;
+    alc.reg_free = MVM_JIT_AVAILABLE_REGISTERS;
     /* run algorithm */
     determine_live_ranges(tc, &alc, list);
     linear_scan(tc, &alc, list);
