@@ -409,7 +409,7 @@ static void call_resolver(MVMThreadContext *tc, MVMString *name, MVMRegister *re
     srd = MVM_malloc(sizeof(MVMSpeshPluginSpecialReturnData));
     srd->result = result;
     srd->position = position;
-    srd->sf = tc->cur_frame->static_info;
+    srd->sf = sf;
     srd->prev_plugin_guards = prev_plugin_guards;
     srd->prev_plugin_guard_args = prev_plugin_guard_args;
     srd->prev_num_plugin_guards = prev_num_plugin_guards;
