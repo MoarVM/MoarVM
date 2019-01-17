@@ -177,7 +177,24 @@ static void materialize_object(MVMThreadContext *tc, MVMFrame *f, MVMObject ***m
                 MVMuint16 offset = repr_data->attribute_offsets[i];
                 MVMSTable *flattened = repr_data->flattened_stables[i];
                 if (flattened) {
-                    MVM_panic(1, "Native attribute deopt materialization NYI");
+                    const MVMStorageSpec *ss = flattened->REPR->get_storage_spec(tc, flattened);
+                    int ok = 0;
+                    switch (ss->boxed_primitive) {
+                        case MVM_STORAGE_SPEC_BP_INT:
+                            flattened->REPR->box_funcs.set_int(tc, flattened, obj,
+                                (char *)data + offset, value.i64);
+                            break;
+                        case MVM_STORAGE_SPEC_BP_NUM:
+                            flattened->REPR->box_funcs.set_num(tc, flattened, obj,
+                                (char *)data + offset, value.n64);
+                            break;
+                        case MVM_STORAGE_SPEC_BP_STR:
+                            flattened->REPR->box_funcs.set_str(tc, flattened, obj,
+                                (char *)data + offset, value.s);
+                            break;
+                        default:
+                            MVM_panic(1, "Unimplemented case of native attribute deopt materialization");
+                    }
                 }
                 else {
                     *((MVMObject **)(data + offset)) = value.o;
