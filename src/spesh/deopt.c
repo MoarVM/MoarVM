@@ -178,7 +178,6 @@ static void materialize_object(MVMThreadContext *tc, MVMFrame *f, MVMObject ***m
                 MVMSTable *flattened = repr_data->flattened_stables[i];
                 if (flattened) {
                     const MVMStorageSpec *ss = flattened->REPR->get_storage_spec(tc, flattened);
-                    int ok = 0;
                     switch (ss->boxed_primitive) {
                         case MVM_STORAGE_SPEC_BP_INT:
                             flattened->REPR->box_funcs.set_int(tc, flattened, obj,
