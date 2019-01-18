@@ -1174,12 +1174,13 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
 
     if (use_small_arithmetic) {
         if (MP_GEN_RANDOM_MAX >= abs(smallint_max)) {
+            mp_digit result_int;
 #ifdef MP_NEW_LTM_VERSION
             mp_digit p = MP_GEN_RANDOM_MAX;
             mp_rand_digit(&p);
-            mp_digit result_int = p;
+            result_int = p;
 #else
-            mp_digit result_int = MP_GEN_RANDOM();
+            result_int = MP_GEN_RANDOM();
 #endif
             result_int = result_int % smallint_max;
             if(have_to_negate)
