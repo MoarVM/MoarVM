@@ -20,13 +20,10 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&mro);
 
     flat_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&flat_list);
 
     class_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&class_list);
 
     attr_map_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_map_list);
 
     /* Walk through the parents list. */
     while (mro_idx)
@@ -47,9 +44,7 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
             MVMObject *attr_map = NULL;
 
             if (MVM_iter_istrue(tc, attr_iter)) {
-                MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_iter);
                 attr_map = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
-                MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_map);
             }
 
             while (MVM_iter_istrue(tc, attr_iter)) {
@@ -74,15 +69,12 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
                 MVM_repr_push_o(tc, flat_list, attr);
             }
 
-            if (attr_map) {
-                MVM_gc_root_temp_pop_n(tc, 2);
-            }
-
             /* Add to class list and map list. */
             MVM_repr_push_o(tc, class_list, current_class);
             MVM_repr_push_o(tc, attr_map_list, attr_map);
         }
         else {
+            MVM_gc_allocate_gen2_default_clear(tc);
             MVM_exception_throw_adhoc(tc,
                 "CStruct representation does not support multiple inheritance");
         }
@@ -90,7 +82,7 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
         MVM_gc_root_temp_pop(tc); /* current_class */
     }
 
-    MVM_gc_root_temp_pop_n(tc, 5);
+    MVM_gc_root_temp_pop_n(tc, 2); /* mro, st */
 
     /* We can now form the name map. */
     num_classes = MVM_repr_elems(tc, class_list);
@@ -121,9 +113,9 @@ static MVMint32 round_up_to_multi(MVMint32 i, MVMint32 m) {
 static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_info, MVMCStructREPRData *repr_data, MVMSTable *st) {
     /* Compute index mapping table and get flat list of attributes. */
     MVMObject *flat_list;
-    MVMROOT(tc, st, {
-        flat_list = index_mapping_and_flat_list(tc, repr_info, repr_data, st);
-    });
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&st);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&repr_info);
+    flat_list = index_mapping_and_flat_list(tc, repr_info, repr_data, st);
 
     /* If we have no attributes in the index mapping, then just the header. */
     if (repr_data->name_to_index_mapping[0].class_key == NULL) {
@@ -144,8 +136,10 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
         MVMint32 cur_init_slot    = 0;
         MVMint32 i;
 
-        if (info_alloc == 0)
+        if (info_alloc == 0) {
+            MVM_gc_allocate_gen2_default_clear(tc);
             MVM_exception_throw_adhoc(tc, "Class %s has no attributes, which is illegal with the CStruct representation.", MVM_6model_get_stable_debug_name(tc, st));
+        }
 
         /* Allocate location/offset arrays and GC mark info arrays. */
         repr_data->num_attributes      = num_attrs;
@@ -171,6 +165,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
             MVMint32   align = ALIGNOF(void *);
 
             if (num_dimensions > 1) {
+                MVM_gc_allocate_gen2_default_clear(tc);
                 MVM_exception_throw_adhoc(tc,
                     "Only one dimensions supported in CStruct attribute");
             }
@@ -289,6 +284,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     MVM_ASSIGN_REF(tc, &(st->header), repr_data->member_types[i], type);
                 }
                 else {
+                    MVM_gc_allocate_gen2_default_clear(tc);
                     MVM_exception_throw_adhoc(tc,
                         "CStruct representation only handles attributes of type:\n"
                         "  (u)int8, (u)int16, (u)int32, (u)int64, (u)long, (u)longlong, num32, num64, (s)size_t, bool, Str\n"
@@ -296,11 +292,13 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                 }
             }
             else {
+                MVM_gc_allocate_gen2_default_clear(tc);
                 MVM_exception_throw_adhoc(tc,
                     "CStruct representation requires the types of all attributes to be specified");
             }
 
             if (bits % 8) {
+                MVM_gc_allocate_gen2_default_clear(tc);
                  MVM_exception_throw_adhoc(tc,
                     "CStruct only supports native types that are a multiple of 8 bits wide (was passed: %"PRId32")", bits);
             }
@@ -328,6 +326,8 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
         if (repr_data->initialize_slots)
             repr_data->initialize_slots[cur_init_slot] = -1;
     }
+
+    MVM_gc_root_temp_pop_n(tc, 2); /* repr_info, st */
 }
 
 /* Helper for reading a pointer at the specified offset. */
@@ -378,7 +378,9 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *repr_info) {
     /* Compute allocation strategy. */
     MVMCStructREPRData *repr_data = MVM_calloc(1, sizeof(MVMCStructREPRData));
     MVMObject *attr_info = MVM_repr_at_key_o(tc, repr_info, tc->instance->str_consts.attribute);
+    MVM_gc_allocate_gen2_default_set(tc);
     compute_allocation_strategy(tc, attr_info, repr_data, st);
+    MVM_gc_allocate_gen2_default_clear(tc);
     st->REPR_data = repr_data;
 }
 
