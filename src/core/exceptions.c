@@ -624,6 +624,27 @@ void MVM_dump_backtrace(MVMThreadContext *tc) {
     });
 }
 
+char * MVM_dump_backtrace_to_str(MVMThreadContext *tc) {
+    MVMFrame *cur_frame = tc->cur_frame;
+    char *result = MVM_calloc(5096, 1);
+    MVMuint32 count = 0;
+    MVMROOT(tc, cur_frame, {
+        while (cur_frame != NULL && strlen(result) < 4000) {
+            char *line = MVM_exception_backtrace_line(tc, cur_frame, count++,
+                *(tc->interp_cur_op));
+            if (strlen(line) + strlen(result) > 4096) {
+                MVM_free(line);
+                break;
+            }
+            result = strncat(result, line, 4095 - strlen(result));
+            result = strncat(result, "\n", 4095 - strlen(result));
+            MVM_free(line);
+            cur_frame = cur_frame->caller;
+        }
+    });
+    return result;
+}
+
 /* Panic over an unhandled exception throw by category. */
 static void panic_unhandled_cat(MVMThreadContext *tc, MVMuint32 cat) {
     /* If it's a control exception, try promoting it to a catch one. */

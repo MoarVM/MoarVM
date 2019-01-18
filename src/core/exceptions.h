@@ -82,6 +82,7 @@ struct MVMActiveHandler {
 MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj);
 MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *exObj);
 void MVM_dump_backtrace(MVMThreadContext *tc);
+char * MVM_dump_backtrace_to_str(MVMThreadContext *tc);
 void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, MVMRegister *resume_result);
 void MVM_exception_die(MVMThreadContext *tc, MVMString *str, MVMRegister *rr);
 void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *exObj, MVMRegister *resume_result);

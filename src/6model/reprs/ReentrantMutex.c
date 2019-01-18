@@ -40,8 +40,10 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     /* The ThreadContext has already been destroyed by the GC. */
     MVMReentrantMutex *rm = (MVMReentrantMutex *)obj;
-    if (rm->body.lock_count)
+    if (rm->body.lock_count) {
+        fprintf(stderr, "%s", rm->body.backtrace);
         MVM_panic(1, "Tried to garbage-collect a locked mutex");
+    }
     uv_mutex_destroy(rm->body.mutex);
     MVM_free(rm->body.mutex);
 }
@@ -136,6 +138,10 @@ void MVM_reentrantmutex_lock(MVMThreadContext *tc, MVMReentrantMutex *rm) {
         MVMROOT(tc, rm, {
             MVM_gc_mark_thread_blocked(tc);
             uv_mutex_lock(rm->body.mutex);
+            if (rm->body.backtrace) {
+                MVM_free(rm->body.backtrace);
+            }
+            rm->body.backtrace = MVM_dump_backtrace_to_str(tc);
             MVM_gc_mark_thread_unblocked(tc);
         });
         MVM_store(&rm->body.holder_id, tc->thread_id);
@@ -159,6 +165,10 @@ void MVM_reentrantmutex_unlock(MVMThreadContext *tc, MVMReentrantMutex *rm) {
         if (MVM_decr(&rm->body.lock_count) == 1) {
             /* Decremented the last recursion count; really unlock. */
             MVM_store(&rm->body.holder_id, 0);
+            if (rm->body.backtrace) {
+                MVM_free(rm->body.backtrace);
+                rm->body.backtrace = NULL;
+            }
             uv_mutex_unlock(rm->body.mutex);
             tc->num_locks--;
             /*MVM_telemetry_timestamp(rm->body.mutex, "this ReentrantMutex unlocked");*/

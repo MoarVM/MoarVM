@@ -10,6 +10,11 @@ struct MVMReentrantMutexBody {
 
     /* How many times we've taken the lock. */
     AO_t lock_count;
+
+    void *garbage;
+
+    /* Backtrace of last successful acquisition */
+    char *backtrace;
 };
 struct MVMReentrantMutex {
     MVMObject common;
