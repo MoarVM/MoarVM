@@ -2124,7 +2124,8 @@ static void optimize_plugin(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
                                 }
                                 else {
                                     /* Unstable guard indexes. */
-                                    return;
+                                    agg_guard_index = -1;
+                                    goto specialize;
                                 }
                             }
                         }
@@ -2141,6 +2142,7 @@ static void optimize_plugin(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
         }
     }
 
+    specialize:
     /* If we picked a guard index, insert the guards and rewrite the resolve
      * instruction. If not, just rewrite the resolve instruction into the
      * spesh version of itself including the index. */
