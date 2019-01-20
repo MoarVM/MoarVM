@@ -5543,6 +5543,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             }
+            OP(uname):
+                MVM_platform_uname(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;

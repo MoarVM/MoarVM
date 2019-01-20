@@ -879,6 +879,7 @@ serializetobuf      w(obj) r(obj) r(obj) r(obj)
 readint             w(int64) r(obj) r(uint64) r(uint64)
 readuint            w(uint64) r(obj) r(uint64) r(uint64)
 readnum             w(num64) r(obj) r(uint64) r(uint64)
+uname               r(obj) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
