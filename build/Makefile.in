@@ -420,7 +420,8 @@ HEADERS = src/moar.h \
           3rdparty/cmp/cmp.h \
           src/platform/memmem32.h
 
-UV_UNIX = 3rdparty/libuv/src/fs-poll@obj@ \
+UV_UNIX = 3rdparty/libuv/src/strscpy@obj@ \
+          3rdparty/libuv/src/fs-poll@obj@ \
           3rdparty/libuv/src/inet@obj@ \
           3rdparty/libuv/src/uv-common@obj@ \
           3rdparty/libuv/src/version@obj@ \
