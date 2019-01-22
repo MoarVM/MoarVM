@@ -80,8 +80,9 @@ struct MVMJitTreeTraverser {
 
 
 /* properties of expression ops */
-MVMint32 MVM_jit_expr_op_negate_flag(MVMThreadContext *tc, MVMint32 op);
-MVMint32 MVM_jit_expr_op_is_binary_noncommutative(MVMThreadContext *tc, MVMint32 op);
+enum MVMJitExprOperator MVM_jit_expr_op_invert_comparison(enum MVMJitExprOperator op);
+MVMint32 MVM_jit_expr_op_is_binary(enum MVMJitExprOperator op);
+MVMint32 MVM_jit_expr_op_is_commutative(enum MVMJitExprOperator op);
 
 MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIterator *iter);
 MVMint32 MVM_jit_expr_apply_template(MVMThreadContext *tc, MVMJitExprTree *tree, const MVMJitExprTemplate*, MVMint32 *operands);

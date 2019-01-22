@@ -385,14 +385,14 @@ static void ensure_two_operand_pre(MVMThreadContext *tc, MVMJitCompiler *compile
         reg[0] = in1;
         reg[1] = in2;
     } else if (out == in2) {
-        if (MVM_jit_expr_op_is_binary_noncommutative(tc, tile->op)) {
-            | mov rax, Rq(in1);
-            reg[0] = MVM_JIT_ARCH_X64_RAX;
-            reg[1] = in2;
-        } else {
+        if (MVM_jit_expr_op_is_commutative(tile->op)) {
             /* in this case, r2 <op> r1 == r0 <op> r1 */
             reg[0] = out;
             reg[1] = in1;
+        } else {
+            | mov rax, Rq(in1);
+            reg[0] = MVM_JIT_REG(RAX);
+            reg[1] = in2;
         }
     } else {
         /* insert a copy */
