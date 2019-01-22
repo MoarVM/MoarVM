@@ -57,8 +57,8 @@ static struct MVMJitExprTemplate noop_template = {
     noop_code, "ns", 2, 0, 0
 };
 
-/* Logical negation of MVMJitExprOp flags. */
-MVMint32 MVM_jit_expr_op_negate_flag(MVMThreadContext *tc, MVMint32 op) {
+/* Logical negation of comparison operators */
+enum MVMJitExprOperator MVM_jit_expr_op_invert_comparison(enum MVMJitExprOperator op) {
     switch(op) {
     case MVM_JIT_LT:
         return MVM_JIT_GE;
@@ -82,9 +82,15 @@ MVMint32 MVM_jit_expr_op_negate_flag(MVMThreadContext *tc, MVMint32 op) {
     return -1; /* not a flag */
 }
 
-MVMint32 MVM_jit_expr_op_is_binary_noncommutative(MVMThreadContext *tc, MVMint32 op) {
+
+/* Binary operators of the form: a = op(b,c) */
+MVMint32 MVM_jit_expr_op_is_binary(enum MVMJitExprOperator op) {
     switch (op) {
+    case MVM_JIT_ADD:
     case MVM_JIT_SUB:
+    case MVM_JIT_MUL:
+    case MVM_JIT_AND:
+    case MVM_JIT_OR:
     case MVM_JIT_XOR:
         /* and DIV, SHIFT, etc */
         return 1;
@@ -93,6 +99,20 @@ MVMint32 MVM_jit_expr_op_is_binary_noncommutative(MVMThreadContext *tc, MVMint32
         return 0;
     }
 }
+
+/* Commutative binary operators: op(a,b) == op(b,a) */
+MVMint32 MVM_jit_expr_op_is_commutative(enum MVMJitExprOperator op) {
+    switch (op) {
+    case MVM_JIT_ADD:
+    case MVM_JIT_MUL:
+    case MVM_JIT_AND:
+    case MVM_JIT_OR:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
 
 
 static MVMint32 MVM_jit_expr_add_regaddr(MVMThreadContext *tc, MVMJitExprTree *tree,

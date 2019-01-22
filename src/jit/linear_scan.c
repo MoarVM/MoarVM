@@ -892,6 +892,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     }
 
     while (call_bitmap & arg_bitmap) {
+        /* we need the spare register for the cycle breaking */
         MVMBitmap free_reg = ~(call_bitmap | arg_bitmap | MVM_JIT_RESERVED_REGISTERS | MVM_JIT_SPARE_REGISTERS);
         /* FFS counts registers starting from 1 */
         MVMuint8 src = MVM_FFS(call_bitmap & arg_bitmap) - 1;
@@ -1035,6 +1036,10 @@ MVM_STATIC_INLINE void process_tile(MVMThreadContext *tc, RegisterAllocator *alc
                 NYI(tile_use_requirements);
             }
         }
+        if (MVM_jit_expr_op_is_binary(tile->op)) {
+            /* implement reshuffling */
+            assert(tile->values[0] != 0);
+        }
     }
 }
 
@@ -1044,7 +1049,7 @@ static void process_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVM
     if (MVM_JIT_REGISTER_HAS_REQUIREMENT(alc->values[v].register_spec)) {
         reg = MVM_JIT_REGISTER_REQUIREMENT(alc->values[v].register_spec);
         if (MVM_bitmap_get_low(MVM_JIT_RESERVED_REGISTERS, reg)) {
-            /* directly assign a resreved registers */
+            /* directly assign a reserved register */
             assign_register(tc, alc, list, v, MVM_JIT_STORAGE_GPR, reg);
         } else {
             /* TODO; might require swapping / spilling */
@@ -1074,8 +1079,8 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
     /* loop over all tiles and peek on the value heap */
     while (tile_cursor < list->items_num) {
 
-        if (alc->worklist_num > 0 && live_range_heap_peek(alc->values, alc->worklist) < order_nr(tile_cursor)) {
-            /* we've processed all tiles prior to this live range */
+        if (alc->worklist_num > 0 && live_range_heap_peek(alc->values, alc->worklist) <= order_nr(tile_cursor)) {
+            /* we've processed all tiles prior to this live range, but not the one that thie live range starts with */
             MVMint32 live_range = live_range_heap_pop(alc->values, alc->worklist, &alc->worklist_num, values_cmp_first_ref);
             MVMint32 tile_order_nr = alc->values[live_range].start;
             _DEBUG("Processing live range %d (first ref %d, last ref %d)",

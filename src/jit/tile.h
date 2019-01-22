@@ -13,12 +13,12 @@ struct MVMJitTileTemplate {
 struct MVMJitTile {
     void (*emit)(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile, MVMJitExprTree *tree);
     MVMint32 node;
-    MVMint32 op;
+    enum MVMJitExprOperator op;
 
     MVMint32  num_refs;
     MVMint32   refs[4];
     MVMint32   args[6];
-    MVMint8  values[4];
+    MVMuint8 values[4];
 
     MVMuint32 register_spec;
     MVMint8   size;

@@ -530,7 +530,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             } else {
                 /* Other tests require a conditional branch, but no label */
                 MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_conditional_branch,
-                                                       2, 0, MVM_jit_expr_op_negate_flag(tc, flag), when_label);
+                                                       2, 0, MVM_jit_expr_op_invert_comparison(flag), when_label);
                 branch->debug_name = "(branch :fail)";
                 MVM_VECTOR_PUSH(list->items, branch);
                 start_basic_block(tc, tiler, first_child);
@@ -571,7 +571,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             /* Flag should be negated (ALL = short-circiut unless condition)) */
             MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler,
                                                    MVM_jit_compile_conditional_branch, 2, 0,
-                                                   MVM_jit_expr_op_negate_flag(tc, flag), all_label);
+                                                   MVM_jit_expr_op_invert_comparison(flag), all_label);
             branch->debug_name = "(conditional-branch :fail)";
             MVM_VECTOR_PUSH(list->items, branch);
             start_basic_block(tc, tiler, first_child + i);
@@ -644,7 +644,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             } else {
                 MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler,
                                                        MVM_jit_compile_conditional_branch, 2, 0,
-                                                       MVM_jit_expr_op_negate_flag(tc, flag), left_label);
+                                                       MVM_jit_expr_op_invert_comparison(flag), left_label);
                 branch->debug_name = "(conditional-branch: fail)";
                 MVM_VECTOR_PUSH(list->items, branch);
                 start_basic_block(tc, tiler, first_child);
