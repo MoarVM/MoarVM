@@ -827,6 +827,19 @@ static int cmp_tile_insert(const void *p1, const void *p2) {
 }
 
 
+/* Inserting a tile means pushing it onto an edit list. The edit list is later
+ * merged with the tile list (MVM_jit_tile_list_edit).  This keeps inserting M
+ * tiles into a list of size N a O(N+M) operation (rather than quadratic if we'd
+ * do the insert in-place. It also ensures that we have a consistent address of
+ * each tile in the list prior to the modification.
+ *
+ * The tile is inserted:
+ *
+ * - after the offset into the list (prior to the edit) indicated by the
+ *   position. A negative offset is valid.
+ * - relative to other inserts at the same position, indicated by the order
+ */
+
 void MVM_jit_tile_list_insert(MVMThreadContext *tc, MVMJitTileList *list, MVMJitTile *tile, MVMint32 position, MVMint32 order) {
     struct MVMJitTileInsert i = { position, order, tile };
     MVM_VECTOR_PUSH(list->inserts, i);

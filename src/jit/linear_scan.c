@@ -676,6 +676,7 @@ static MVMint32 insert_load_before_use(MVMThreadContext *tc, RegisterAllocator *
     MVMJitTile *tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_load, 2, 1,
                                          MVM_JIT_STORAGE_LOCAL, load_pos, 0);
     LiveRange *range = alc->values + n;
+    tile->debug_name = "#load-before-use";
     MVM_jit_tile_list_insert(tc, list, tile, ref->tile_idx - 1, +1); /* insert just prior to use */
     range->synthetic[0] = tile;
     range->first = range->last = ref;
@@ -691,6 +692,7 @@ static MVMint32 insert_store_after_definition(MVMThreadContext *tc, RegisterAllo
     MVMJitTile *tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_store, 2, 2,
                                          MVM_JIT_STORAGE_LOCAL, store_pos, 0, 0);
     LiveRange *range  = alc->values + n;
+    tile->debug_name = "#store-after-definition";
     MVM_jit_tile_list_insert(tc, list, tile, ref->tile_idx, -1); /* insert just after storage */
     range->synthetic[1] = tile;
     range->first = range->last = ref;
@@ -861,7 +863,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     }
 
     _DEBUG("%d transfers required", transfers_required);
-
+    /* NB: tile is inserted after tile at position, relative to the order. */
 #define INSERT_TILE(_tile, _pos, _order) MVM_jit_tile_list_insert(tc, list, _tile, _pos, _order)
 #define INSERT_NEXT_TILE(_tile) INSERT_TILE(_tile, arglist_idx, ins_pos++)
 #define MAKE_TILE(_code, _narg, _nval, ...) MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_ ## _code, _narg, _nval, __VA_ARGS__)
@@ -1036,10 +1038,6 @@ MVM_STATIC_INLINE void process_tile(MVMThreadContext *tc, RegisterAllocator *alc
                 NYI(tile_use_requirements);
             }
         }
-        if (MVM_jit_expr_op_is_binary(tile->op)) {
-            /* implement reshuffling */
-            assert(tile->values[0] != 0);
-        }
     }
 }
 
@@ -1107,6 +1105,52 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
     _DEBUG("END OF LINEAR SCAN%s","\n");
 }
 
+static void enforce_operand_requirements(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
+#define MVM_JIT_ARCH_X64 1
+#if MVM_JIT_ARCH == MVM_JIT_ARCH_X64
+    MVMint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(list->items); i++) {
+        MVMJitTile *tile = list->items[i];
+        /* Ensure two-operand order: a=op(b,c) must become a=op(a,xb)
+         * 4 options are possible:
+         * a == b : done
+         * a != b, a != c: copy b to a, use a as b
+         * a != b, a == c, op is commutative: use c as b, a as c
+         * a != b, a == c, op is not commutative:
+         *     use temparary as a, copy b to a, use temporary as b, copy temporary to c
+         * This is valid because we never change a tile once it's assigned. */
+        if (MVM_jit_expr_op_is_binary(tile->op) && tile->values[0] != tile->values[1]) {
+            assert(tile->values[0] != 0);
+            if (tile->num_refs == 2 && tile->values[0] == tile->values[2]) {
+                if (MVM_jit_expr_op_is_commutative(tile->op)) {
+                    /* We can change the order of values, and get the same result */
+                    tile->values[2] = tile->values[1];
+                    tile->values[1] = tile->values[0];
+                } else {
+                    /* Move to a temporary */
+                    MVMint8 spare_register = MVM_FFS(MVM_JIT_SPARE_REGISTERS) - 1;
+                    MVMJitTile *before = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_move, 0, 2, spare_register, tile->values[1]);
+                    MVMJitTile *after  = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_move, 0, 2, tile->values[0], spare_register);
+                    before->debug_name = "#move tmp <- in";
+                    after->debug_name = "#move out <- tmp";
+                    MVM_jit_tile_list_insert(tc, list, before, i - 1, 1024); /* very last thing before the tile */
+                    MVM_jit_tile_list_insert(tc, list, after, i, -1024); /* very first thing after the tile */
+                    tile->values[0] = tile->values[1] = spare_register;
+                }
+            } else {
+                /* insert a copy to the output register */
+                MVMJitTile *move = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_move, 0, 2, tile->values[0], tile->values[1]);
+                tile->debug_name = "#move out <- in";
+                MVM_jit_tile_list_insert(tc, list, move, i - 1, 1024);
+                tile->values[1] = tile->values[0];
+            }
+            assert(tile->values[0] == tile->values[1]);
+        }
+    }
+#endif
+}
+
+
 
 void MVM_jit_linear_scan_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTileList *list) {
     RegisterAllocator alc;
@@ -1121,6 +1165,7 @@ void MVM_jit_linear_scan_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler
     /* run algorithm */
     determine_live_ranges(tc, &alc, list);
     linear_scan(tc, &alc, list);
+    enforce_operand_requirements(tc, &alc, list);
 
     /* deinitialize allocator */
     MVM_free(alc.sets);
