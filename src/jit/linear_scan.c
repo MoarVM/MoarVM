@@ -320,20 +320,32 @@ MVMint32 values_cmp_last_ref(LiveRange *values, MVMint32 a, MVMint32 b) {
     return values[a].end - values[b].end;
 }
 
+MVM_STATIC_INLINE MVMJitTile * first_tile(MVMJitTileList *list, LiveRange *value) {
+    return list->items[value->first->tile_idx];
+}
+
+/* TODO - this is an x86-ism, since x86 prefers to have the first operand an
+ * input-output operand. So this might need revisiting when the register
+ * allocator is ported. */
+MVMint8 try_preferred_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile *tile) {
+    if (tile->num_refs >= 1 && MVM_bitmap_get_low(alc->reg_free, tile->values[1]))
+        return tile->values[1];
+    return -1;
+}
+
 /* register assignment logic */
-MVMint8 get_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitStorageClass reg_cls) {
+MVMint8 allocate_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, LiveRange *value) {
     /* ignore storage class for now */
-    MVMint8 reg_num = MVM_FFS(alc->reg_free) - 1;
-    if (reg_num >= 0) {
+    MVMint8 reg_num = try_preferred_register(tc, alc, first_tile(list, value));
+    if (reg_num < 0)
+        reg_num = MVM_FFS(alc->reg_free) - 1;
+    if (reg_num >= 0)
         MVM_bitmap_delete(&alc->reg_free, reg_num);
-    }
     return reg_num;
 }
 
 void free_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitStorageClass reg_cls, MVMint8 reg_num) {
-    if (MVM_bitmap_get_low(alc->reg_free, reg_num)) {
-        MVM_oops(tc, "Register %d is already free", reg_num);
-    }
+    assert(!MVM_bitmap_get_low(alc->reg_free, reg_num));
     MVM_bitmap_set_low(&alc->reg_free, reg_num);
 }
 
@@ -1054,7 +1066,7 @@ static void process_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVM
             NYI(general_purpose_register_spec);
         }
     } else {
-        while ((reg = get_register(tc, alc, MVM_JIT_STORAGE_GPR)) < 0) {
+        while ((reg = allocate_register(tc, alc, list, alc->values + v)) < 0) {
             /* choose a live range, a register to spill, and a spill location */
             MVMint32 to_spill   = select_live_range_for_spill(tc, alc, list, tile_order_nr);
             MVMint32 spill_pos  = MVM_jit_spill_memory_select(tc, alc->compiler, alc->values[to_spill].reg_type);
