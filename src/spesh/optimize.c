@@ -925,6 +925,9 @@ static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB 
             MVM_spesh_use_facts(tc, g, facts);
         }
 }
+static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                          MVMSpeshIns *ins, MVMSpeshPlanned *p, MVMint32 callee_idx,
+                          MVMSpeshCallInfo *arg_info);
 
 /* smrt_strify and smrt_numify can turn into unboxes, but at least
  * for smrt_numify it's "complicated". Also, later when we know how
@@ -935,13 +938,13 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
 
     MVMuint16 is_strify = ins->info->opcode == MVM_OP_smrt_strify;
 
-    if (facts->flags & (MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE) && facts->type) {
+    if ((facts->flags & (MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE)) && facts->type) {
         const MVMStorageSpec *ss;
         MVMint64 can_result;
 
         ss = REPR(facts->type)->get_storage_spec(tc, STABLE(facts->type));
 
-        if (is_strify && ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
+        if (is_strify && (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)) {
             MVM_spesh_use_facts(tc, g, facts);
 
             ins->info = MVM_op_get_op(MVM_OP_unbox_s);
@@ -1055,9 +1058,119 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
                 return;
             }
         } else if (can_result == 1) {
-            /* When we know how to generate additional callsites, we could
-             * make an invocation to .Str or .Num here and perhaps have it
-             * in-lined. */
+            MVMSpeshIns *prev = ins->prev;
+            MVMSpeshIns *prepargs;
+            MVMSpeshOperand temp_reg;
+            MVMSpeshCallInfo arg_info;
+            MVMSpeshAnn *annotations = ins->annotations;
+            ins->annotations = NULL;
+
+            {
+                MVMSpeshOperand *operands = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ));
+
+                MVMuint32 csidx;
+                MVMuint8 found = 0;
+                MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+                MVMCallsite **callsites = g->sf->body.cu->body.callsites;
+
+                for (csidx = 0; csidx < g->sf->body.cu->body.num_callsites; csidx++) {
+                    MVMCallsite *candidate = callsites[csidx];
+
+                    if (candidate->flag_count == inv_arg_callsite->flag_count
+                        && candidate->arg_count == inv_arg_callsite->arg_count
+                        && candidate->num_pos == inv_arg_callsite->num_pos
+                        && candidate->has_flattening == inv_arg_callsite->has_flattening) {
+                        if (candidate->flag_count == 1 && candidate->arg_flags[0] == inv_arg_callsite->arg_flags[0]) {
+                            found = 1;
+                            break;
+                        }
+                    }
+                }
+
+                if (!found) {
+                    return;
+                }
+
+                prepargs = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+
+                arg_info.cs = callsites[csidx];
+                arg_info.prepargs_ins = prepargs;
+                arg_info.prepargs_bb  = bb;
+
+                prepargs->info = MVM_op_get_op(MVM_OP_prepargs);
+                prepargs->operands = operands;
+                operands[0].callsite_idx = csidx;
+                MVM_spesh_manipulate_insert_ins(tc, bb, prev, prepargs);
+                prev = prepargs;
+            }
+            {
+                MVMSpeshIns     *getslot  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+                MVMSpeshOperand *operands = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
+                MVMObject       *method;
+                MVMSpeshFacts *result_facts;
+
+                method = MVM_spesh_try_find_method(tc, facts->type,
+                        is_strify ? tc->instance->str_consts.Str : tc->instance->str_consts.Num);
+
+                if (!method) {
+                    return;
+                }
+
+
+                getslot->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+                getslot->operands = operands;
+                temp_reg = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+                operands[0] = temp_reg;
+                operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable *)method);
+                MVM_spesh_manipulate_insert_ins(tc, bb, prev->prev, getslot);
+
+                result_facts = MVM_spesh_get_facts(tc, g, temp_reg);
+                result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+                result_facts->value.o = method;
+            }
+            {
+                MVMSpeshIns     *arg_o    = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+                MVMSpeshOperand *operands = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
+
+                arg_o->info = MVM_op_get_op(MVM_OP_arg_o);
+                arg_o->operands = operands;
+                operands[0].lit_i16 = 0;
+                operands[1] = ins->operands[1];
+                MVM_spesh_manipulate_insert_ins(tc, bb, prev, arg_o);
+                MVM_spesh_usages_add_by_reg(tc, g, operands[1], arg_o);
+
+                arg_info.arg_is_const[0] = 0;
+                arg_info.arg_facts[0]    = MVM_spesh_get_and_use_facts(tc, g, operands[1]);
+                arg_info.arg_ins[0]      = arg_o;
+
+                prev = arg_o;
+            }
+            {
+                MVMSpeshIns     *invoke = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+                MVMSpeshOperand *operands = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
+
+                invoke->info = MVM_op_get_op(is_strify ? MVM_OP_invoke_s : MVM_OP_invoke_n);
+                invoke->operands = operands;
+                operands[0] = ins->operands[0];
+                operands[1] = temp_reg;
+                MVM_spesh_manipulate_insert_ins(tc, bb, prev, invoke);
+                MVM_spesh_usages_add_by_reg(tc, g, operands[1], invoke);
+
+                prev = invoke;
+            }
+
+            MVM_spesh_manipulate_release_temp_reg(tc, g, temp_reg);
+            MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+
+            prepargs->annotations = annotations;
+            prev->annotations = annotations;
+
+            if (annotations && annotations->next) {
+                optimize_call(tc, g, bb, prev, NULL, 1, &arg_info);
+                if (prev && prev->next && prev->next->prev)
+                    MVM_spesh_graph_add_comment(tc, g, prev->next->prev, "smart coerce turned into invoke");
+                /*fprintf(stderr, "tc %p g %p bb %p optimized coerce for type %s\n", tc, g, bb, MVM_6model_get_debug_name(tc, facts->type));*/
+            }
         }
     }
 }
