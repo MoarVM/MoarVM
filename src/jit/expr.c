@@ -82,6 +82,15 @@ enum MVMJitExprOperator MVM_jit_expr_op_invert_comparison(enum MVMJitExprOperato
     return -1; /* not a flag */
 }
 
+/* Unary 'true' operators of the form: a=op(b) */
+MVMint32 MVM_jit_expr_op_is_unary(enum MVMJitExprOperator op) {
+    switch (op) {
+    case MVM_JIT_NOT:
+        return 1;
+    default:
+        return 0;
+    }
+}
 
 /* Binary operators of the form: a = op(b,c) */
 MVMint32 MVM_jit_expr_op_is_binary(enum MVMJitExprOperator op) {
