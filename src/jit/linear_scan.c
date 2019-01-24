@@ -1105,6 +1105,7 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
     _DEBUG("END OF LINEAR SCAN%s","\n");
 }
 
+/* Edit the assigned registers and insert copies to enforce the register requirements */
 static void enforce_operand_requirements(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
 #define MVM_JIT_ARCH_X64 1
 #if MVM_JIT_ARCH == MVM_JIT_ARCH_X64
@@ -1140,11 +1141,16 @@ static void enforce_operand_requirements(MVMThreadContext *tc, RegisterAllocator
             } else {
                 /* insert a copy to the output register */
                 MVMJitTile *move = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_move, 0, 2, tile->values[0], tile->values[1]);
-                tile->debug_name = "#move out <- in";
+                move->debug_name = "#move out <- in";
                 MVM_jit_tile_list_insert(tc, list, move, i - 1, 1024);
                 tile->values[1] = tile->values[0];
             }
             assert(tile->values[0] == tile->values[1]);
+        } else if (MVM_jit_expr_op_is_unary(tile->op) && tile->values[0] != tile->values[1] && tile->num_refs == 1) {
+            MVMJitTile *move = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_move, 0, 2, tile->values[0], tile->values[1]);
+            move->debug_name = "#move out <- in";
+            MVM_jit_tile_list_insert(tc, list, move, i - 1, 1024);
+            tile->values[1] = tile->values[0];
         }
     }
 #endif

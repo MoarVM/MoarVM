@@ -414,9 +414,7 @@ MVM_JIT_TILE_DECL(add_load_addr) {
     MVMint8 base  = tile->values[2];
     MVMint32 ofs  = tile->args[0];
     MVMint32 size = tile->args[1];
-    if (in1 != out) {
-        | mov Rq(out), Rq(in1);
-    }
+    assert(out == in1);
     switch (size) {
     case 1:
         | add Rb(out), byte [Rq(base)+ofs];
@@ -442,9 +440,7 @@ MVM_JIT_TILE_DECL(add_load_idx) {
     MVMint8 idx  = tile->values[3];
     MVMint32 scl  = tile->args[0];
     MVMint32 size = tile->args[1];
-    if (in1 != out) {
-        | mov Rq(out), Rq(in1);
-    }
+    assert(out == in1);
     if (scl != 8)
         DIE("IDX Scale %d NYI\n", scl);
     switch (size) {
@@ -478,10 +474,7 @@ MVM_JIT_TILE_DECL(and_const) {
     MVMint8 in1  = tile->values[1];
     MVMint32 val = tile->args[0];
     MVMint32 sz  = tile->args[1];
-
-    if (out != in1) {
-        | mov Rq(out), Rq(in1);
-    }
+    assert(out == in1);
     | and Rq(out), val;
 }
 
@@ -491,9 +484,7 @@ MVM_JIT_TILE_DECL(and_load_addr) {
     MVMint8 base  = tile->values[2];
     MVMint32 ofs  = tile->args[0];
     MVMint32 size = tile->args[1];
-    if (in1 != out) {
-        | mov Rq(out), Rq(in1);
-    }
+    assert(out == in1);
     switch (size) {
     case 1:
         | and Rb(out), byte [Rq(base)+ofs];
@@ -519,10 +510,7 @@ MVM_JIT_TILE_DECL(and_load_idx) {
     MVMint8 idx  = tile->values[3];
     MVMint32 scl  = tile->args[0];
     MVMint32 size = tile->args[1];
-
-    if (out != in1) {
-        | mov Rq(out), Rq(in1);
-    }
+    assert(out == in1);
     if (scl != 8)
         DIE("IDX Scale %d NYI\n", scl);
     switch (size) {
@@ -567,9 +555,7 @@ MVM_JIT_TILE_DECL(xor_reg) {
 MVM_JIT_TILE_DECL(not_reg) {
     MVMint8 out = tile->values[0];
     MVMint8 in  = tile->values[1];
-    if (out != in) {
-        | mov Rq(out), Rq(in);
-    }
+    assert(out == in);
     | not Rq(out);
 }
 
@@ -585,10 +571,7 @@ MVM_JIT_TILE_DECL(sub_const) {
     MVMint8 in1  = tile->values[1];
     MVMint32 val = tile->args[0];
     MVMint32 sz  = tile->args[1];
-
-    if (out != in1) {
-        | mov Rq(out), Rq(in1);
-    }
+    assert(out == in1);
     | sub Rq(out), val;
 }
 
@@ -598,9 +581,7 @@ MVM_JIT_TILE_DECL(sub_load_addr) {
     MVMint8 base  = tile->values[2];
     MVMint32 ofs  = tile->args[0];
     MVMint32 size = tile->args[1];
-    if (in1 != out) {
-        | mov Rq(out), Rq(in1);
-    }
+    assert(out == in1);
     switch (size) {
     case 1:
         | sub Rb(out), byte [Rq(base)+ofs];
@@ -626,9 +607,7 @@ MVM_JIT_TILE_DECL(sub_load_idx) {
     MVMint8 idx  = tile->values[3];
     MVMint32 scl  = tile->args[0];
     MVMint32 size = tile->args[1];
-    if (out != in1) {
-        | mov Rq(out), Rq(in1);
-    }
+    assert(out != in1);
     if (scl != 8)
         DIE("IDX Scale %d NYI\n", scl);
     switch (size) {
