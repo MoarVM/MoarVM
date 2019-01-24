@@ -895,6 +895,29 @@ static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *re
     MVM_spesh_manipulate_release_temp_reg(tc, g, type_temp);
 }
 
+static void return_to_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *return_bb,
+                   MVMSpeshIns *return_ins, MVMSpeshOperand target, MVMuint16 unbox_op) {
+    /*MVMSpeshOperand type_temp     = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);*/
+
+    /* Create and insert unboxing instruction after current return instruction. */
+    MVMSpeshOperand ver_target = MVM_spesh_manipulate_new_version(tc, g, target.reg.orig);
+    MVMSpeshIns     *unbox_ins      = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    MVMSpeshOperand *unbox_operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+    unbox_ins->info                   = MVM_op_get_op(unbox_op);
+    unbox_ins->operands               = unbox_operands;
+    unbox_operands[0]                 = ver_target;
+    unbox_operands[1]                 = return_ins->operands[0];
+    MVM_spesh_manipulate_insert_ins(tc, return_bb, return_ins, unbox_ins);
+    MVM_spesh_get_facts(tc, g, ver_target)->writer = unbox_ins;
+    MVM_spesh_usages_add_by_reg(tc, g, unbox_operands[1], unbox_ins);
+
+    MVM_spesh_graph_add_comment(tc, g, unbox_ins, "unbox for return from inline");
+
+    /* Now turn return instruction node into lookup of appropriate box
+     * type. */
+    MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
+}
+
 static void rewrite_int_return(MVMThreadContext *tc, MVMSpeshGraph *g,
                         MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
                         MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
@@ -963,6 +986,18 @@ static void rewrite_obj_return(MVMThreadContext *tc, MVMSpeshGraph *g,
         break;
     case MVM_OP_invoke_o:
         return_to_set(tc, g, return_ins, invoke_ins->operands[0]);
+        break;
+    case MVM_OP_invoke_i:
+        return_to_unbox(tc, g, return_bb, return_ins, invoke_ins->operands[0],
+                MVM_OP_unbox_i);
+        break;
+    case MVM_OP_invoke_n:
+        return_to_unbox(tc, g, return_bb, return_ins, invoke_ins->operands[0],
+                MVM_OP_unbox_n);
+        break;
+    case MVM_OP_invoke_s:
+        return_to_unbox(tc, g, return_bb, return_ins, invoke_ins->operands[0],
+                MVM_OP_unbox_s);
         break;
     default:
         MVM_oops(tc,
