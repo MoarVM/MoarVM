@@ -1,8 +1,85 @@
 #include "moar.h"
 #include <platform/threads.h>
 
+static ffi_type *ffi_member_type_from_stable(MVMThreadContext *tc, MVMSTable *flattened_stable) {
+    MVMint16 is_unsigned;
+    switch (flattened_stable->REPR->ID) {
+        case MVM_REPR_ID_P6int:
+            is_unsigned = ((MVMP6intREPRData *)flattened_stable->REPR_data)->is_unsigned;
+            switch (((MVMP6intREPRData *)flattened_stable->REPR_data)->bits) {
+                case 8:
+                    return is_unsigned ? &ffi_type_uint8 : &ffi_type_sint8;
+                case 16:
+                    return is_unsigned ? &ffi_type_uint16 : &ffi_type_sint16;
+                case 32:
+                    return is_unsigned ? &ffi_type_uint32 : &ffi_type_sint32;
+                case 64:
+                    return is_unsigned ? &ffi_type_uint64 : &ffi_type_sint64;
+                default:
+                    goto throw;
+            }
+        case MVM_REPR_ID_P6num:
+            switch (((MVMP6numREPRData *)flattened_stable->REPR_data)->bits) {
+                case 32:
+                    return &ffi_type_float;
+                case 64:
+                    return &ffi_type_double;
+                default:
+                    goto throw;
+            }
+        default:
+            goto throw;
+    }
+ throw:
+    MVM_exception_throw_adhoc(tc, "Not implemented in Native Call (flattened): %s", flattened_stable->REPR->name);
+}
+
+static ffi_type *ffi_struct_type(MVMThreadContext *tc, MVMObject *type);
+static ffi_type *ffi_member_type_from_object(MVMThreadContext *tc, MVMObject *member, MVMint32 attribute_location) {
+    switch (REPR(member)->ID) {
+        case MVM_REPR_ID_MVMCStruct:
+            if (attribute_location & MVM_CSTRUCT_ATTR_INLINED)
+                return ffi_struct_type(tc, member);
+            else
+                return &ffi_type_pointer;
+        case MVM_REPR_ID_MVMCPointer:
+            return &ffi_type_pointer;
+        default:
+            goto throw;
+    }
+ throw:
+    MVM_exception_throw_adhoc(tc, "Not implemented in Native Call (not flattened): %s", REPR(member)->name);
+}
+
+static ffi_type *ffi_struct_type(MVMThreadContext *tc, MVMObject *type) {
+    MVMint32 nele, i;
+    ffi_type *result;
+    ffi_type **type_ele;
+    MVMCStructREPRData *repr_data = (MVMCStructREPRData *)STABLE(type)->REPR_data;
+
+    //debug_cstruct(tc, 0, type);
+    nele = repr_data->num_attributes;
+
+    result    = MVM_malloc(sizeof(ffi_type) + (nele + 1) * sizeof(ffi_type *));
+    type_ele = (ffi_type **)(result + 1);
+    type_ele[nele] = NULL;
+
+    result -> size      = 0;
+    result -> alignment = 0;
+    result -> type      = FFI_TYPE_STRUCT;
+    result -> elements  = type_ele;
+
+    for (i = 0; i < nele; i++) {
+        type_ele[i] = repr_data->member_types[i]
+            ? ffi_member_type_from_object(tc, repr_data->member_types[i], repr_data->attribute_locations[i])
+            : ffi_member_type_from_stable(tc, repr_data->flattened_stables[i]);
+    }
+
+    return result;
+}
+
 //~ ffi_type * MVM_nativecall_get_ffi_type(MVMThreadContext *tc, MVMuint64 type_id, void **values, MVMuint64 offset) {
-ffi_type * MVM_nativecall_get_ffi_type(MVMThreadContext *tc, MVMuint64 type_id) {
+ffi_type * MVM_nativecall_get_ffi_type(MVMThreadContext *tc, MVMuint64 type_id, MVMObject *info) {
     if ((type_id & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW)
         return &ffi_type_pointer;
 
@@ -25,7 +102,6 @@ ffi_type * MVM_nativecall_get_ffi_type(MVMThreadContext *tc, MVMuint64 type_id) 
         case MVM_NATIVECALL_ARG_UTF8STR:
         case MVM_NATIVECALL_ARG_UTF16STR:
         case MVM_NATIVECALL_ARG_CPPSTRUCT:
-        case MVM_NATIVECALL_ARG_CSTRUCT:
         case MVM_NATIVECALL_ARG_CPOINTER:
         case MVM_NATIVECALL_ARG_CARRAY:
         case MVM_NATIVECALL_ARG_CUNION:
@@ -42,6 +118,10 @@ ffi_type * MVM_nativecall_get_ffi_type(MVMThreadContext *tc, MVMuint64 type_id) 
             return &ffi_type_ulong;
         case MVM_NATIVECALL_ARG_ULONGLONG:
             return &ffi_type_uint64; /* XXX ffi_type_ulonglong not defined */
+        case MVM_NATIVECALL_ARG_CSTRUCT:
+            return (type_id & MVM_NATIVECALL_ARG_COPY)
+                ? ffi_struct_type(tc, MVM_repr_at_key_o(tc, info, tc->instance->str_consts.typeobj))
+                : &ffi_type_pointer;
         default:
             return &ffi_type_void;
     }
@@ -138,13 +218,13 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         typehash                    = MVM_repr_at_pos_o(tc, sig_info, 0);
         callback_data->types[0]     = MVM_repr_at_key_o(tc, typehash, tc->instance->str_consts.typeobj);
         callback_data->typeinfos[0] = MVM_nativecall_get_arg_type(tc, typehash, 1);
-        callback_data->ffi_ret_type = MVM_nativecall_get_ffi_type(tc, callback_data->typeinfos[0]);
+        callback_data->ffi_ret_type = MVM_nativecall_get_ffi_type(tc, callback_data->typeinfos[0], typehash);
 
         for (i = 1; i < num_info; i++) {
             typehash = MVM_repr_at_pos_o(tc, sig_info, i);
             callback_data->types[i]             = MVM_repr_at_key_o(tc, typehash, tc->instance->str_consts.typeobj);
             callback_data->typeinfos[i]         = MVM_nativecall_get_arg_type(tc, typehash, 0) & ~MVM_NATIVECALL_ARG_FREE_STR;
-            callback_data->ffi_arg_types[i - 1] = MVM_nativecall_get_ffi_type(tc, callback_data->typeinfos[i]);
+            callback_data->ffi_arg_types[i - 1] = MVM_nativecall_get_ffi_type(tc, callback_data->typeinfos[i], typehash);
             switch (callback_data->typeinfos[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
                 case MVM_NATIVECALL_ARG_CHAR:
                 case MVM_NATIVECALL_ARG_SHORT:
@@ -261,7 +341,10 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
                 num_roots++;
                 break;
             case MVM_NATIVECALL_ARG_CSTRUCT:
-                args[i - 1].o = MVM_nativecall_make_cstruct(tc, type, *(void **)cb_args[i - 1]);
+                if (typeinfo & MVM_NATIVECALL_ARG_COPY)
+                    args[i - 1].o = MVM_nativecall_make_cstruct(tc, type, (void **)cb_args[i - 1]);
+                else
+                    args[i - 1].o = MVM_nativecall_make_cstruct(tc, type, *(void **)cb_args[i - 1]);
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
                 num_roots++;
                 break;
@@ -388,7 +471,11 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
             *(void **)cb_result = MVM_nativecall_unmarshal_string(tc, res.o, data->typeinfos[0], NULL);
             break;
         case MVM_NATIVECALL_ARG_CSTRUCT:
-            *(void **)cb_result = MVM_nativecall_unmarshal_cstruct(tc, res.o);
+            if (data->typeinfos[0] & MVM_NATIVECALL_ARG_COPY)
+                memcpy(cb_result, (void *)MVM_nativecall_unmarshal_cstruct(tc, res.o),
+                       ((MVMCStructREPRData*)STABLE(res.o)->REPR_data)->struct_size);
+            else
+                *(void **)cb_result = MVM_nativecall_unmarshal_cstruct(tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_CPPSTRUCT:
             *(void **)cb_result = MVM_nativecall_unmarshal_cppstruct(tc, res.o);
@@ -546,8 +633,12 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 break;
             }
             case MVM_NATIVECALL_ARG_CSTRUCT:
-                values[i]           = MVM_malloc(sizeof(void *));
-                *(void **)values[i] = MVM_nativecall_unmarshal_cstruct(tc, value);
+                if (arg_types[i] & MVM_NATIVECALL_ARG_COPY) {
+                    values[i]           = MVM_nativecall_unmarshal_cstruct(tc, value);
+                } else {
+                    values[i]           = MVM_malloc(sizeof(void *));
+                    *(void **)values[i] = MVM_nativecall_unmarshal_cstruct(tc, value);
+                }
                 break;
             case MVM_NATIVECALL_ARG_CPPSTRUCT: {
                 /* We need to allocate the struct (THIS) for C++ constructor before passing it along. */
@@ -671,7 +762,16 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CSTRUCT:
-                    handle_ret(tc, void *, ffi_arg, MVM_nativecall_make_cstruct);
+                    if (ret_type & MVM_NATIVECALL_ARG_COPY) {
+                        void *ret = MVM_malloc(body->ffi_ret_type->size > sizeof(ffi_arg)
+                                               ? body->ffi_ret_type->size
+                                               : sizeof(ffi_arg));
+                        ffi_call(&cif, entry_point, ret, values);
+                        MVM_gc_mark_thread_unblocked(tc);
+                        result = MVM_nativecall_make_cstruct(tc, res_type, ret);
+                    }
+                    else
+                        handle_ret(tc, void *, ffi_arg, MVM_nativecall_make_cstruct);
                     break;
                 case MVM_NATIVECALL_ARG_CPPSTRUCT:
                     handle_ret(tc, void *, ffi_arg, MVM_nativecall_make_cppstruct);

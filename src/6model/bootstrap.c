@@ -543,6 +543,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(attribute, "attribute");
     string_creator(of, "of");
     string_creator(rw, "rw");
+    string_creator(copy, "copy");
     string_creator(type, "type");
     string_creator(typeobj, "typeobj");
     string_creator(free_str, "free_str");
