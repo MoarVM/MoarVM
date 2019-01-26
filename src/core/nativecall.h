@@ -35,6 +35,8 @@
 #define MVM_NATIVECALL_ARG_NO_RW           0
 #define MVM_NATIVECALL_ARG_RW              256
 #define MVM_NATIVECALL_ARG_RW_MASK         256
+#define MVM_NATIVECALL_ARG_NO_COPY         0
+#define MVM_NATIVECALL_ARG_COPY            512
 
 /* Native callback entry. Hung off MVMNativeCallbackCacheHead, which is
  * a hash owned by the ThreadContext. All MVMNativeCallbacks in a linked

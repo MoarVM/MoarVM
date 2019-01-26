@@ -46,6 +46,7 @@ struct MVMStringConsts {
     MVMString *attribute;
     MVMString *of;
     MVMString *rw;
+    MVMString *copy;
     MVMString *type;
     MVMString *typeobj;
     MVMString *free_str;

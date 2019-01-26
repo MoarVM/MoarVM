@@ -33,6 +33,16 @@ static MVMint16 get_rw_flag(MVMThreadContext *tc, MVMObject *info) {
     return MVM_NATIVECALL_ARG_NO_RW;
 }
 
+/* Gets the flag for whether an arg is copy or not. */
+static MVMint16 get_copy_flag(MVMThreadContext *tc, MVMObject *info) {
+    MVMString *flag = tc->instance->str_consts.copy;
+    if (MVM_repr_exists_key(tc, info, flag)) {
+        if (MVM_repr_get_int(tc, MVM_repr_at_key_o(tc, info, flag)))
+            return MVM_NATIVECALL_ARG_COPY;
+    }
+    return MVM_NATIVECALL_ARG_NO_COPY;
+}
+
 /* Gets the flag for whether an arg is rw or not. */
 static MVMint16 get_refresh_flag(MVMThreadContext *tc, MVMObject *info) {
     MVMString *typeobj_str = tc->instance->str_consts.typeobj;
@@ -99,7 +109,7 @@ MVMint16 MVM_nativecall_get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMi
     else if (strcmp(ctypename, "utf16str") == 0)
         result = MVM_NATIVECALL_ARG_UTF16STR | get_str_free_flag(tc, info);
     else if (strcmp(ctypename, "cstruct") == 0)
-        result = MVM_NATIVECALL_ARG_CSTRUCT;
+        result = MVM_NATIVECALL_ARG_CSTRUCT | get_copy_flag(tc, info);
     else if (strcmp(ctypename, "cppstruct") == 0)
         result = MVM_NATIVECALL_ARG_CPPSTRUCT;
     else if (strcmp(ctypename, "cpointer") == 0)
@@ -117,6 +127,7 @@ MVMint16 MVM_nativecall_get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMi
         MVM_exception_throw_adhoc_free(tc, waste, "Unknown type '%s' used for native call", ctypename);
     }
     MVM_free(ctypename);
+
     return result;
 }
 
@@ -680,7 +691,7 @@ MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *l
         MVMObject *info = MVM_repr_at_pos_o(tc, arg_info, i);
         body->arg_types[i] = MVM_nativecall_get_arg_type(tc, info, 0);
 #ifdef HAVE_LIBFFI
-        body->ffi_arg_types[i] = MVM_nativecall_get_ffi_type(tc, body->arg_types[i]);
+        body->ffi_arg_types[i] = MVM_nativecall_get_ffi_type(tc, body->arg_types[i], info);
 #endif
         if(body->arg_types[i] == MVM_NATIVECALL_ARG_CALLBACK) {
             MVM_ASSIGN_REF(tc, &(site->header), body->arg_info[i],
@@ -694,7 +705,7 @@ MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *l
     /* Transform return argument type info a flag. */
     body->ret_type     = MVM_nativecall_get_arg_type(tc, ret_info, 1);
 #ifdef HAVE_LIBFFI
-    body->ffi_ret_type = MVM_nativecall_get_ffi_type(tc, body->ret_type);
+    body->ffi_ret_type = MVM_nativecall_get_ffi_type(tc, body->ret_type, ret_info);
 #endif
     if (tc->instance->jit_enabled) {
         body->jitcode = create_caller_code(tc, body);

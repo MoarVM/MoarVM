@@ -588,7 +588,15 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                         if (REPR(value)->ID != MVM_REPR_ID_MVMCStruct)
                             MVM_exception_throw_adhoc(tc,
                                 "Can only store CStruct attribute in CStruct slot in CStruct");
-                        cobj = ((MVMCStruct *)value)->body.cstruct;
+                        if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED) {
+                            memcpy((char *)body->cstruct + repr_data->struct_offsets[slot],
+                                   ((MVMCStruct *)value)->body.cstruct,
+                                   ((MVMCStructREPRData *)STABLE(value)->REPR_data)->struct_size);
+                            ((MVMCStruct *)value)->body.cstruct = (char *)body->cstruct + repr_data->struct_offsets[slot];
+                            break;
+                        }
+                        else
+                            cobj = ((MVMCStruct *)value)->body.cstruct;
                     }
                     else if (type == MVM_CSTRUCT_ATTR_CPPSTRUCT) {
                         if (REPR(value)->ID != MVM_REPR_ID_MVMCPPStruct)
