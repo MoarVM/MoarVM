@@ -955,7 +955,8 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
          * types. XXX is it a fair DIHWIDT if the user adds stuff to those? */
         if (facts->type == tc->instance->boot_types.BOOTInt
                 || facts->type == tc->instance->boot_types.BOOTNum
-                || facts->type == tc->instance->boot_types.BOOTStr) {
+                || facts->type == tc->instance->boot_types.BOOTStr
+                || facts->type == tc->instance->boot_types.BOOTHash) {
             can_result = 0;
         }
         else {
