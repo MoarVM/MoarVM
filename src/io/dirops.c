@@ -105,7 +105,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
     if (mkdir_p(tc, pathname, mode) == -1 && errno != EEXIST) {
         int mkdir_error = errno;
         MVM_free(pathname);
-        MVM_exception_throw_adhoc(tc, "Failed to mkdir: %d", mkdir_error);
+        MVM_exception_throw_adhoc(tc, "Failed to mkdir: %s", strerror(mkdir_error));
     }
 
     MVM_free(pathname);
@@ -253,8 +253,9 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
     int opendir_error = errno;
     MVM_free(dir_name);
 
-    if (!dir_handle)
-        MVM_exception_throw_adhoc(tc, "Failed to open dir: %d", opendir_error);
+    if (!dir_handle) {
+        MVM_exception_throw_adhoc(tc, "Failed to open dir: %s", strerror(opendir_error));
+    }
 
     data->dir_handle = dir_handle;
 #endif
@@ -326,7 +327,7 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
         return ret;
     }
 
-    MVM_exception_throw_adhoc(tc, "Failed to read dirhandle: %d", errno);
+    MVM_exception_throw_adhoc(tc, "Failed to read dirhandle: %s", strerror(errno));
 #endif
 }
 
@@ -345,7 +346,7 @@ void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
     data->dir_handle = NULL;
 #else
     if (closedir(data->dir_handle) == -1)
-        MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %d", errno);
+        MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %s", strerror(errno));
     data->dir_handle = NULL;
 #endif
 }
