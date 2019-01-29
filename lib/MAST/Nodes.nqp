@@ -1087,10 +1087,11 @@ class MAST::Frame is MAST::Node {
     method num-annotations() { $!num-annotations }
     method handlers() { @!handlers }
     method size() {
-        my uint32 $size := 50
+        my uint32 $size := 54
             + 2  * nqp::elems(self.local_types)
             + 6  * nqp::elems(self.lexical_types)
-            + 12 * nqp::elems(self.static_lex_values) / 4;
+            + 12 * nqp::elems(self.static_lex_values) / 4
+            + 6  * nqp::elems(self.debug_map);
         for @!handlers {
             $size := $size + 20;
             if $_.category_mask +& 4096 {
