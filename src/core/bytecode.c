@@ -3,10 +3,11 @@
 /* Some constants. */
 #define HEADER_SIZE                 92
 #define MIN_BYTECODE_VERSION        5
-#define MAX_BYTECODE_VERSION        5
-#define FRAME_HEADER_SIZE           (11 * 4 + 3 * 2)
+#define MAX_BYTECODE_VERSION        6
+#define FRAME_HEADER_SIZE           (11 * 4 + 3 * 2 + (bytecode_version >= 6 ? 4 : 0))
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
 #define FRAME_SLV_SIZE              (2 * 2 + 2 * 4)
+#define FRAME_DEBUG_NAME_SIZE       (2 + 4)
 #define SCDEP_HEADER_OFFSET         12
 #define EXTOP_HEADER_OFFSET         20
 #define FRAME_HEADER_OFFSET         28
@@ -448,6 +449,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
     MVMStaticFrame **frames;
     MVMuint8        *pos;
     MVMuint32        bytecode_pos, bytecode_size, i, j;
+    MVMuint16        bytecode_version = rs->version;
 
     /* Allocate frames array. */
     if (rs->expected_frames == 0) {
@@ -537,6 +539,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             MVMuint32 skip = 2 * static_frame_body->num_locals +
                              6 * static_frame_body->num_lexicals;
             MVMuint16 slvs = read_int16(pos, 40);
+            MVMuint32 num_local_debug_names = rs->version >= 6 ? read_int32(pos, 50) : 0;
             pos += FRAME_HEADER_SIZE;
             ensure_can_read(tc, cu, rs, pos, skip);
             pos += skip;
@@ -553,6 +556,8 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             }
             ensure_can_read(tc, cu, rs, pos, slvs * FRAME_SLV_SIZE);
             pos += slvs * FRAME_SLV_SIZE;
+            ensure_can_read(tc, cu, rs, pos, num_local_debug_names * FRAME_DEBUG_NAME_SIZE);
+            pos += num_local_debug_names * FRAME_DEBUG_NAME_SIZE;
         }
     }
 
@@ -578,6 +583,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
     MVMuint32 j;
     MVMuint8 *pos;
     MVMuint16 slvs;
+    MVMuint16 bytecode_version = cu->body.bytecode_version;
 
     /* Ensure we've not already done this. */
     if (sf->body.fully_deserialized)
