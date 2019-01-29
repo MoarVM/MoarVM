@@ -708,6 +708,13 @@ class MAST::Frame is MAST::Node {
     # Mapping of lexical names to lexical index, for lookups.
     has %!lexical_map;
 
+    # Mapping of names to local indexes, for debuging.
+    has %!debug_map;
+
+    # Integer array with alternating pairings of local index and debug name
+    # string heap index.
+    has @!debug_map_idxs;
+
     # Flag bits.
     my int $FRAME_FLAG_EXIT_HANDLER := 1;
     my int $FRAME_FLAG_IS_THUNK     := 2;
@@ -891,6 +898,8 @@ class MAST::Frame is MAST::Node {
         @!local_types        := nqp::list();
         $!outer              := MAST::Node;
         %!lexical_map        := nqp::hash();
+        %!debug_map          := nqp::hash();
+        @!debug_map_idxs     := nqp::list_i();
         @!static_lex_values  := nqp::list_i();
         $!writer             := $writer;
         $!compunit           := $compunit;
@@ -919,6 +928,10 @@ class MAST::Frame is MAST::Node {
     method prepare() {
         for @!lexical_names {
             nqp::push_i(@!lexical_names_idxs, self.add-string($_));
+        }
+        for %!debug_map {
+            nqp::push_i(@!debug_map_idxs, $_.value.index);
+            nqp::push_i(@!debug_map_idxs, self.add-string($_.key));
         }
     }
 
@@ -954,6 +967,18 @@ class MAST::Frame is MAST::Node {
         my int $index := nqp::elems(@!local_types);
         @!local_types[$index] := $type;
         $index
+    }
+
+    method add_local_debug_name($name, $local) {
+        %!debug_map{$name} := $local;
+    }
+
+    method debug_map() {
+        %!debug_map
+    }
+
+    method debug_map_idxs() {
+        @!debug_map_idxs
     }
 
     method set_outer($outer) {
