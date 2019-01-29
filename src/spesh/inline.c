@@ -53,6 +53,10 @@ static int is_static_frame_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inlin
         *no_inline_reason = "inlining is disabled";
         return 0;
     }
+    if (tc->instance->debugserver) {
+        *no_inline_reason = "inlining not supported when debugging";
+        return 0;
+    }
 
     /* Check frame is not marked as not being allowed to be inlined. */
     if (target_sf->body.no_inline) {
