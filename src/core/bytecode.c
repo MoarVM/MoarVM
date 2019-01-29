@@ -608,7 +608,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
     /* Get the number of static lex values and debug local names we'll need
      * to apply. */
     slvs = read_int16(pos, 40);
-    num_debug_locals = read_int16(pos, 50);
+    num_debug_locals = bytecode_version >= 6 ? read_int16(pos, 50) : 0;
 
     /* Skip past header. */
     pos += FRAME_HEADER_SIZE;
@@ -701,7 +701,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
     }
 
     /* Read in the debug local names if we're running the debug server. */
-    if (tc->instance->debugserver) {
+    if (num_debug_locals && tc->instance->debugserver) {
         MVMStaticFrameInstrumentation *ins = sf->body.instrumentation;
         if (!ins)
             ins = MVM_calloc(1, sizeof(MVMStaticFrameInstrumentation));
