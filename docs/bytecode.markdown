@@ -204,6 +204,10 @@ Each frame starts with the following data.
     |    32-bit unsigned integer                              |
     | [NEW IN VERSION 4]                                      |
     +---------------------------------------------------------+
+    | Number of local debug name mappings                     |
+    |    32-bit unsigned integer                              |
+    | [NEW IN VERSION 6]                                      |
+    +---------------------------------------------------------+
 
 This is followed, for each local, by a number indicating what kind of
 local it is. These are stored as 16-bit unsigned integers.
@@ -270,6 +274,17 @@ table. Each entry is as follows:
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
     | SC object index                                         |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+
+From version 6 and up, this is followed by a debug local names table. Each
+entry is as follows:
+
+    +---------------------------------------------------------+
+    | Local index                                             |
+    |    16-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | String heap index for the debug name                    |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
 
