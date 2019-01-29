@@ -580,7 +580,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 /* Finishes up reading and exploding of a frame. */
 void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
                                MVMStaticFrame *sf, MVMint32 dump_only) {
-    MVMuint32 j;
+    MVMuint32 j, num_debug_locals;
     MVMuint8 *pos;
     MVMuint16 slvs;
     MVMuint16 bytecode_version = cu->body.bytecode_version;
@@ -605,8 +605,10 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
     /* Locate start of frame body. */
     pos = sf->body.frame_data_pos;
 
-    /* Get the number of static lex values we'll need to apply. */
+    /* Get the number of static lex values and debug local names we'll need
+     * to apply. */
     slvs = read_int16(pos, 40);
+    num_debug_locals = read_int16(pos, 50);
 
     /* Skip past header. */
     pos += FRAME_HEADER_SIZE;
@@ -696,6 +698,23 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
                 MVM_sc_get_object(tc, sc, read_int32(pos, 8)));
         }
         pos += FRAME_SLV_SIZE;
+    }
+
+    /* Read in the debug local names if we're running the debug server. */
+    if (tc->instance->debugserver) {
+        MVMStaticFrameInstrumentation *ins = sf->body.instrumentation;
+        if (!ins)
+            ins = MVM_calloc(1, sizeof(MVMStaticFrameInstrumentation));
+        for (j = 0; j < num_debug_locals; j++) {
+            MVMuint16 idx = read_int16(pos, 0);
+            MVMString *name = get_heap_string(tc, cu, NULL, pos, 2);
+            MVMStaticFrameDebugLocal *entry = MVM_calloc(1, sizeof(MVMStaticFrameDebugLocal));
+            entry->local_idx = idx;
+            MVM_ASSIGN_REF(tc, &(sf->common.header), entry->name, name);
+            MVM_HASH_BIND(tc, ins->debug_locals, name, entry);
+            pos += 6;
+        }
+        sf->body.instrumentation = ins;
     }
 
     /* Mark the frame fully deserialized. */

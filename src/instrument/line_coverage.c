@@ -266,7 +266,9 @@ static void add_instrumentation(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuin
     else
         instrument_graph_with_breakpoints(tc, sg);
     sc = MVM_spesh_codegen(tc, sg);
-    ins = MVM_calloc(1, sizeof(MVMStaticFrameInstrumentation));
+    ins = sf->body.instrumentation;
+    if (!ins)
+        ins = MVM_calloc(1, sizeof(MVMStaticFrameInstrumentation));
     ins->instrumented_bytecode        = sc->bytecode;
     ins->instrumented_handlers        = sc->handlers;
     ins->instrumented_bytecode_size   = sc->bytecode_size;
@@ -283,7 +285,7 @@ static void add_instrumentation(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuin
 static void line_numbers_instrument(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint8 want_coverage) {
     if (!sf->body.instrumentation || sf->body.bytecode != sf->body.instrumentation->instrumented_bytecode) {
         /* Handle main, non-specialized, bytecode. */
-        if (!sf->body.instrumentation)
+        if (!sf->body.instrumentation || !sf->body.instrumentation->instrumented_bytecode)
             add_instrumentation(tc, sf, want_coverage);
         sf->body.bytecode      = sf->body.instrumentation->instrumented_bytecode;
         sf->body.handlers      = sf->body.instrumentation->instrumented_handlers;

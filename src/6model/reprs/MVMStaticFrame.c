@@ -113,6 +113,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMStaticFrameBody *body = (MVMStaticFrameBody *)data;
     MVMLexicalRegistry *current;
+    MVMStaticFrameDebugLocal *current_debug_local;
 
     /* mvmobjects */
     MVM_gc_worklist_add(tc, worklist, &body->cu);
@@ -143,6 +144,13 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 
     /* Spesh. */
     MVM_gc_worklist_add(tc, worklist, &body->spesh);
+
+    /* Debug symbols. */
+    if (body->instrumentation) {
+        HASH_ITER_FAST(tc, hash_handle, body->instrumentation->debug_locals, current_debug_local, {
+            MVM_gc_worklist_add(tc, worklist, &current_debug_local->name);
+        });
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */

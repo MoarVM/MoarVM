@@ -205,6 +205,7 @@ typedef struct MVMSTable MVMSTable;
 typedef struct MVMStaticFrame MVMStaticFrame;
 typedef struct MVMStaticFrameBody MVMStaticFrameBody;
 typedef struct MVMStaticFrameInstrumentation MVMStaticFrameInstrumentation;
+typedef struct MVMStaticFrameDebugLocal MVMStaticFrameDebugLocal;
 typedef struct MVMStaticFrameSpesh MVMStaticFrameSpesh;
 typedef struct MVMStaticFrameSpeshBody MVMStaticFrameSpeshBody;
 typedef struct MVMStorageSpec MVMStorageSpec;
