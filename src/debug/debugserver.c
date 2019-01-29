@@ -1335,12 +1335,73 @@ static MVMint32 create_caller_or_outer_context_debug_handle(MVMThreadContext *dt
     return 0;
 }
 
+static void write_one_context_lexical(MVMThreadContext *dtc, cmp_ctx_t *ctx, char *c_key_name,
+        MVMuint16 lextype, MVMRegister *result) {
+    cmp_write_str(ctx, c_key_name, strlen(c_key_name));
+    MVM_free(c_key_name);
+
+    if (lextype == MVM_reg_obj) { /* Object */
+        char *debugname;
+
+        if (!result->o)
+            result->o = dtc->instance->VMNull;
+
+        cmp_write_map(ctx, 5);
+
+        cmp_write_str(ctx, "kind", 4);
+        cmp_write_str(ctx, "obj", 3);
+
+        cmp_write_str(ctx, "handle", 6);
+        cmp_write_integer(ctx, allocate_handle(dtc, result->o));
+
+        debugname = MVM_6model_get_debug_name(dtc, result->o);
+
+        cmp_write_str(ctx, "type", 4);
+        cmp_write_str(ctx, debugname, strlen(debugname));
+
+        cmp_write_str(ctx, "concrete", 8);
+        cmp_write_bool(ctx, IS_CONCRETE(result->o));
+
+        cmp_write_str(ctx, "container", 9);
+        cmp_write_bool(ctx, STABLE(result->o)->container_spec == NULL ? 0 : 1);
+    } else {
+        cmp_write_map(ctx, 2);
+
+        cmp_write_str(ctx, "kind", 4);
+        cmp_write_str(ctx,
+                lextype == MVM_reg_int64 ? "int" :
+                lextype == MVM_reg_num32 ? "num" :
+                lextype == MVM_reg_str   ? "str" :
+                "???", 3);
+
+        cmp_write_str(ctx, "value", 5);
+        if (lextype == MVM_reg_int64) {
+            cmp_write_integer(ctx, result->i64);
+        } else if (lextype == MVM_reg_num64) {
+            cmp_write_double(ctx, result->n64);
+        } else if (lextype == MVM_reg_str) {
+            if (result->s && IS_CONCRETE(result->s)) {
+                char *c_value = MVM_string_utf8_encode_C_string(dtc, result->s);
+                cmp_write_str(ctx, c_value, strlen(c_value));
+                MVM_free(c_value);
+            } else {
+                cmp_write_nil(ctx);
+            }
+        } else {
+            if (dtc->instance->debugserver->debugspam_protocol)
+                fprintf(stderr, "what lexical type is %d supposed to be?\n", lextype);
+            cmp_write_nil(ctx);
+        }
+    }
+}
+
 static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
     MVMObject *this_ctx = argument->handle_id
         ? find_handle_target(dtc, argument->handle_id)
         : dtc->instance->VMNull;
     MVMStaticFrame *static_info;
     MVMLexicalRegistry *lexical_names;
+    MVMStaticFrameDebugLocal *debug_locals;
 
     MVMFrame *frame;
     if (MVM_is_null(dtc, this_ctx) || !IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
@@ -1356,10 +1417,22 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
 
     static_info = frame->static_info;
     lexical_names = static_info->body.lexical_names;
-    if (lexical_names) {
+    debug_locals = static_info->body.instrumentation
+        ? static_info->body.instrumentation->debug_locals
+        : NULL;
+    if (lexical_names || debug_locals) {
         MVMLexicalRegistry *entry;
-        MVMuint64 lexcount = HASH_CNT(hash_handle, lexical_names);
+        MVMStaticFrameDebugLocal *debug_entry;
         MVMuint64 lexical_index = 0;
+
+        /* Count up total number of symbols; that is, the lexicals plus the
+         * debug names where the names to not overlap with the lexicals. */
+        MVMuint64 lexcount = HASH_CNT(hash_handle, lexical_names);
+        HASH_ITER(dtc, hash_handle, debug_locals, debug_entry, {
+            MVM_HASH_GET(dtc, lexical_names, debug_entry->name, entry);
+            if (!entry)
+                lexcount++;
+        });
 
         cmp_write_map(ctx, 3);
         cmp_write_str(ctx, "id", 2);
@@ -1377,76 +1450,40 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
             MVMuint16 lextype = static_info->body.lexical_types[entry->value];
             MVMRegister *result = &frame->env[entry->value];
             char *c_key_name;
-
-            if (entry->key && IS_CONCRETE(entry->key))
+            MVMint32 was_from_local = 0;
+            if (entry->key && IS_CONCRETE(entry->key)) {
+                /* Lexical has a name (should always be the case, really). Check
+                 * there is no debug local override for it (which means the lexical
+                 * was lowered into a local, but preserved for some reason). */
                 c_key_name = MVM_string_utf8_encode_C_string(dtc, entry->key);
+                MVM_HASH_GET(dtc, debug_locals, entry->key, debug_entry);
+                if (debug_entry && static_info->body.local_types[debug_entry->local_idx] == lextype) {
+                    result = &frame->work[debug_entry->local_idx];
+                    was_from_local = 1;
+                }
+            }
             else {
                 c_key_name = MVM_malloc(12 + 16);
                 sprintf(c_key_name, "<lexical %"PRIu64">", lexical_index);
             }
-
-            cmp_write_str(ctx, c_key_name, strlen(c_key_name));
-
-            MVM_free(c_key_name);
-
-            if (lextype == MVM_reg_obj) { /* Object */
-                char *debugname;
-
-                if (!result->o) {
-                    /* XXX this can't allocate? */
-                    MVM_frame_vivify_lexical(dtc, frame, entry->value);
-                }
-
-                cmp_write_map(ctx, 5);
-
-                cmp_write_str(ctx, "kind", 4);
-                cmp_write_str(ctx, "obj", 3);
-
-                cmp_write_str(ctx, "handle", 6);
-                cmp_write_integer(ctx, allocate_handle(dtc, result->o));
-
-                debugname = MVM_6model_get_debug_name(dtc, result->o);
-
-                cmp_write_str(ctx, "type", 4);
-                cmp_write_str(ctx, debugname, strlen(debugname));
-
-                cmp_write_str(ctx, "concrete", 8);
-                cmp_write_bool(ctx, IS_CONCRETE(result->o));
-
-                cmp_write_str(ctx, "container", 9);
-                cmp_write_bool(ctx, STABLE(result->o)->container_spec == NULL ? 0 : 1);
-            } else {
-                cmp_write_map(ctx, 2);
-
-                cmp_write_str(ctx, "kind", 4);
-                cmp_write_str(ctx,
-                        lextype == MVM_reg_int64 ? "int" :
-                        lextype == MVM_reg_num32 ? "num" :
-                        lextype == MVM_reg_str   ? "str" :
-                        "???", 3);
-
-                cmp_write_str(ctx, "value", 5);
-                if (lextype == MVM_reg_int64) {
-                    cmp_write_integer(ctx, result->i64);
-                } else if (lextype == MVM_reg_num64) {
-                    cmp_write_double(ctx, result->n64);
-                } else if (lextype == MVM_reg_str) {
-                    if (result->s && IS_CONCRETE(result->s)) {
-                        char *c_value = MVM_string_utf8_encode_C_string(dtc, result->s);
-                        cmp_write_str(ctx, c_value, strlen(c_value));
-                        MVM_free(c_value);
-                    } else {
-                        cmp_write_nil(ctx);
-                    }
-                } else {
-                    if (dtc->instance->debugserver->debugspam_protocol)
-                        fprintf(stderr, "what lexical type is %d supposed to be?\n", lextype);
-                    cmp_write_nil(ctx);
-                }
+            if (!was_from_local && lextype == MVM_reg_obj && !result->o) {
+                /* XXX this can't allocate? */
+                MVM_frame_vivify_lexical(dtc, frame, entry->value);
             }
+            write_one_context_lexical(dtc, ctx, c_key_name, lextype, result);
             if (dtc->instance->debugserver->debugspam_protocol)
                 fprintf(stderr, "wrote a lexical\n");
             lexical_index++;
+        });
+
+        HASH_ITER(dtc, hash_handle, debug_locals, debug_entry, {
+            MVM_HASH_GET(dtc, lexical_names, debug_entry->name, entry);
+            if (!entry) {
+                char *c_key_name = MVM_string_utf8_encode_C_string(dtc, debug_entry->name);
+                MVMRegister *result = &frame->work[debug_entry->local_idx];
+                MVMuint16 lextype = static_info->body.local_types[debug_entry->local_idx];
+                write_one_context_lexical(dtc, ctx, c_key_name, lextype, result);
+            }
         });
     } else {
         cmp_write_map(ctx, 3);
