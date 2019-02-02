@@ -385,6 +385,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_encoderepconf: return MVM_string_encode_to_buf_config;
     case MVM_OP_strfromname: return MVM_unicode_string_from_name;
     case MVM_OP_callercode: return MVM_frame_caller_code;
+    case MVM_OP_stat: return MVM_file_stat;
+    case MVM_OP_lstat: return MVM_file_stat;
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
     }
@@ -2721,6 +2723,18 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { obj } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_stat:
+    case MVM_OP_lstat: {
+        MVMint16 dst      = ins->operands[0].reg.orig;
+        MVMint16 filename = ins->operands[1].reg.orig;
+        MVMint16 status   = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { filename } },
+                                 { MVM_JIT_REG_VAL, { status } },
+                                 { MVM_JIT_LITERAL, { op == MVM_OP_stat ? 0 : 1 } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_INT, dst);
         break;
     }
     case MVM_OP_open_dir: {
