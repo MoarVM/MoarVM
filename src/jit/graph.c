@@ -238,6 +238,9 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
 
     case MVM_OP_queuepoll: return MVM_concblockingqueue_jit_poll;
 
+    case MVM_OP_open_dir: return MVM_dir_open;
+    case MVM_OP_read_dir: return MVM_dir_read;
+    case MVM_OP_close_dir: return MVM_dir_close;
     case MVM_OP_open_fh: return MVM_file_open_fh;
     case MVM_OP_close_fh: return MVM_io_close;
     case MVM_OP_eof_fh: return MVM_io_eof;
@@ -2718,6 +2721,29 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { obj } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_open_dir: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 path = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { path } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_read_dir: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 dho = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { dho } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_close_dir: {
+        MVMint16 fho = ins->operands[0].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { fho } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_close_fh: {
