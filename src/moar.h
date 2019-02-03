@@ -228,7 +228,7 @@ MVM_PUBLIC void MVM_vm_set_prog_name(MVMInstance *instance, const char *prog_nam
 MVM_PUBLIC void MVM_vm_set_lib_path(MVMInstance *instance, int count, const char **lib_path);
 
 /* Returns absolute executable path. */
-int MVM_exepath(char* buffer, size_t* size);
+MVM_PUBLIC int MVM_exepath(char* buffer, size_t* size);
 
 #if defined(__s390__)
 AO_t AO_fetch_compare_and_swap_emulation(volatile AO_t *addr, AO_t old_val, AO_t new_val);
