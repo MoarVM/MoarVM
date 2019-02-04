@@ -7,7 +7,7 @@ struct MVMJitTileTemplate {
 
     MVMint32  num_refs;
     MVMuint32 value_bitmap;
-    MVMuint32 register_spec;
+    MVMuint8 register_spec[4];
 };
 
 struct MVMJitTile {
@@ -20,7 +20,7 @@ struct MVMJitTile {
     MVMint32   args[6];
     MVMuint8 values[4];
 
-    MVMuint32 register_spec;
+    MVMuint8 register_spec[4];
     MVMint8   size;
 
     const char *debug_name;
@@ -66,8 +66,8 @@ void MVM_jit_tile_list_insert(MVMThreadContext *tc, MVMJitTileList *list, MVMJit
 void MVM_jit_tile_list_edit(MVMThreadContext *tc, MVMJitTileList *list);
 void MVM_jit_tile_list_destroy(MVMThreadContext *tc, MVMJitTileList *list);
 
-#define MVM_JIT_TILE_YIELDS_VALUE(t) ((t)->register_spec & 1)
+#define MVM_JIT_TILE_YIELDS_VALUE(t) (MVM_JIT_REGISTER_IS_USED(t->register_spec[0]))
 
-#define MVM_JIT_TILE_NAME(name) MVM_jit_tile ## name
+#define MVM_JIT_TILE_NAME(name) MVM_jit_tile_ ## name
 #define MVM_JIT_TILE_DECL(name) \
     void MVM_JIT_TILE_NAME(name) (MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile, MVMJitExprTree *tree)

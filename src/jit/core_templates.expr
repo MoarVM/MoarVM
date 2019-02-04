@@ -15,7 +15,7 @@
 (template: const_i16 (copy $1))
 (template: const_i64 (copy $1))
 # Disabled for the time being
-#(template: const_n64 (copy $1))
+(template: const_n64 (copy $1))
 (template: const_s (^cu_string $1))
 
 (template: set (copy $1))

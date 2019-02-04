@@ -94,6 +94,7 @@ enum {
 extern const MVMBitmap MVM_JIT_AVAILABLE_REGISTERS;
 extern const MVMBitmap MVM_JIT_RESERVED_REGISTERS;
 extern const MVMBitmap MVM_JIT_SPARE_REGISTERS;
+extern const MVMBitmap MVM_JIT_REGISTER_CLASS[];
 
 /* We need max and min macros, they used to be in libtommath, but aren't anymore */
 #ifndef MAX
