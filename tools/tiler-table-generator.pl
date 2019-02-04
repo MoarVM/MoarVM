@@ -24,12 +24,12 @@ sub sortn {
 
 sub register_spec {
     my ($symbol) = @_;
-    if ($symbol =~ m/^reg/) {
-        return "require($1)" if ($symbol =~ m/:(\w+)$/);
-        return 'any';
-    } else {
-        return 'none';
+    my ($type, $name) = split /:/, $symbol;
+    if ($type eq 'reg' or $type eq 'num') {
+        return sprintf('register_require(%s)', uc $name) if defined $name;
+        return $type eq 'num' ? 'storage_fpr' : 'storage_gpr';
     }
+    return 'storage_none';
 }
 
 sub symbol_name {
@@ -449,25 +449,14 @@ for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
         $text = sprintf('"%s"', $rule->{text});
         $refs = $rule->{refs};
         $nval = bits($refs);
-        $spec = join('|', map sprintf('MVM_JIT_REGISTER_ENCODE(MVM_JIT_REGISTER_%s,%d)',
-                                      uc $rule->{spec}[$_], $_), 0..$#{$rule->{spec}});
+        $spec = join(', ', map(uc "mvm_jit_".$_, @{$rule->{spec}}));
     } else {
         $func = $path = $text = "NULL";
         $refs = 0;
         $nval = 0;
         $spec = 0;
     }
-    print qq(    {
-        $func,
-        $path,
-        $text,
-        $sn1,
-        $sn2,
-        $nval,
-        $refs,
-        $spec
-    },);
-
+    print "  { $func, $path,\n   $text, $sn1, $sn2, $nval, $refs,\n    { $spec } },";
 }
 print "};";
 
@@ -477,7 +466,7 @@ for (my $ruleset_nr = 0; $ruleset_nr < @rulesets; $ruleset_nr++) {
     for (my $sym_nr = 0; $sym_nr < @symbols; $sym_nr++) {
         my $rule = $min_cost{$ruleset_nr,$symbols[$sym_nr]};
         next unless defined $rule;
-        print "    { $ruleset_nr, $sym_nr, $rule },";
+        print "  { $ruleset_nr, $sym_nr, $rule },";
     }
 }
 print "};";
@@ -502,8 +491,8 @@ for my $expr_op (@EXPR_OPS) {
         for my $rs2 (sortn keys %{$table{$head}{$rs1}}) {
             my $state = $table{$head}{$rs1}{$rs2};
             my $best  = $min_cost{$state,'reg'} // $min_cost{$state,'void'} // -1;
-            printf '    { %s%s, %s, %s, %d, %d },',
-                   $PREFIX, $expr_op->[0], $rs1, $rs2, $state, $best;
+            print sprintf('  { %s%s, %s, %s, %d, %d },',
+                          $PREFIX, $expr_op->[0], $rs1, $rs2, $state, $best);
         }
     }
 }

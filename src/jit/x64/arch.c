@@ -5,14 +5,15 @@
 #define MVM_JIT_PLATFORM_WIN32 2
 
 const MVMBitmap MVM_JIT_REGISTER_CLASS[] = {
-    /* gpr */ 0x0000ffff,
-    /* fpr */ 0xffff0000
+    /* none */ 0,
+    /* gpr  */ 0x0000ffff,
+    /* fpr  */ 0xffff0000
 };
 
 #define R(x) (1<<MVM_JIT_REG(R ## x))
-#define XMM(n) (1<<MVM_JIT_REG(XMM ## n));
+#define XMM(n) (1<<MVM_JIT_REG(XMM ## n))
 
-const MVMBitmap MVM_JIT_SPARE_REGISTERS = R(AX);
+const MVMBitmap MVM_JIT_SPARE_REGISTERS = R(AX)|XMM(0);
 
 #if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_POSIX
 
@@ -22,8 +23,8 @@ const MVMBitmap MVM_JIT_RESERVED_REGISTERS =
 
 /* rcx(1), rdx(2), rsi(6), rdi(7), r8,r9,r10,r11 */
 const MVMBitmap MVM_JIT_AVAILABLE_REGISTERS =
-    R(CX)|R(DX)|R(SI)|R(DI)|R(8)|R(9)|R(10)|R(11);
-
+    R(CX)|R(DX)|R(SI)|R(DI)|R(8)|R(9)|R(10)|R(11)|
+    XMM(1)|XMM(2)|XMM(3)|XMM(4)|XMM(5)|XMM(6)|XMM(7);
 
 static const MVMint8 arg_gpr[] = {
     MVM_JIT_REG(RDI),
@@ -78,7 +79,7 @@ const MVMBitmap MVM_JIT_RESERVED_REGISTERS =
     R(BX)|R(SP)|R(BP)|R(SI)|R(DI)|R(12)|R(13)|R(14)|R(15);
 /* rcx(1), rdx(2), r8,r9,r10,r11 */
 const MVMBitMap MVM_JIT_AVAILABLE_REGISTERS =
-    R(CX)|R(DX)|R(8)|R(9)|R(10)|R(11)|R(12);
+    R(CX)|R(DX)|R(8)|R(9)|R(10)|R(11)|R(12)|XMM(1)|XMM(2)|XMM(3)|XMM(4)|XMM(5);
 
 static const MVMint8 arg_gpr[] = {
     MVM_JIT_REG(RCX),

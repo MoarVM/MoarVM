@@ -711,12 +711,13 @@ MVMJitTile * MVM_jit_tile_make_from_template(MVMThreadContext *tc, MVMJitCompile
     MVMJitTile *tile;
     MVMint32 *links = MVM_JIT_EXPR_LINKS(tree, node);
     MVMJitExprInfo *info = MVM_JIT_EXPR_INFO(tree, node);
+
     tile = MVM_spesh_alloc(tc, compiler->graph->sg, sizeof(MVMJitTile));
-    tile->emit          = template->emit;
-    tile->register_spec = template->register_spec;
-    tile->node          = node;
-    tile->op            = tree->nodes[node];
-    tile->size          = info->size;
+    tile->emit  = template->emit;
+    tile->node = node;
+    tile->op   = tree->nodes[node];
+    tile->size = info->size;
+    memcpy(tile->register_spec, template->register_spec, sizeof(tile->register_spec));
 
     /* Assign tile arguments and compute the refering nodes */
     switch (tile->op) {

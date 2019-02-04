@@ -81,6 +81,9 @@ my %OPERAND_TYPES = (
     carg => '?',
     store => 'reg,?',
     guard => 'void',
+    # anything on numbers is polymorphic,
+    # because the output type is the input type
+    map(($_ => '?'), qw(lt le eq ne ge gt nz zr add sub mul)),
 );
 
 # which list item is the size
