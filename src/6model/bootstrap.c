@@ -692,6 +692,12 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
         (MVMCollectable **)&tc->instance->boot_types.BOOTStrArray,
         "BOOTStrArray");
 
+    /* Set some fields on the first TC to exist, since MVM_tc_create
+     * runs before the bootstrap, but tries to initialize these fields to
+     * VMNull regardless */
+    tc->last_payload = tc->instance->VMNull;
+    tc->plugin_guard_args = tc->instance->VMNull;
+
     /* Set up HLL roles. */
     STABLE(tc->instance->boot_types.BOOTInt)->hll_role   = MVM_HLL_ROLE_INT;
     STABLE(tc->instance->boot_types.BOOTNum)->hll_role   = MVM_HLL_ROLE_NUM;
