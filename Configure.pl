@@ -260,11 +260,13 @@ else {
 if ($args{'has-libtommath'}) {
     $defaults{-thirdparty}->{tom} = undef;
     unshift @{$config{usrlibs}}, 'tommath';
-    if (index($config{cincludes}, '-I/usr/local/include') == -1) {
-        $config{cincludes} = join(' ', $config{cincludes}, '-I/usr/local/include');
-    }
-    if (index($config{lincludes}, '-L/usr/local/lib') == -1) {
-        $config{lincludes} = join(' ', $config{lincludes}, '-L/usr/local/lib');
+    if (not $config{crossconf}) {
+        if (index($config{cincludes}, '-I/usr/local/include') == -1) {
+            $config{cincludes} = join(' ', $config{cincludes}, '-I/usr/local/include');
+        }
+        if (index($config{lincludes}, '-L/usr/local/lib') == -1) {
+            $config{lincludes} = join(' ', $config{lincludes}, '-L/usr/local/lib');
+        }
     }
 }
 else {
@@ -300,11 +302,13 @@ elsif ($args{'has-dyncall'}) {
     $defaults{-thirdparty}->{dcb} = undef;
     $defaults{-thirdparty}->{dl}  = undef;
     $config{nativecall_backend} = 'dyncall';
-    if (index($config{cincludes}, '-I/usr/local/include') == -1) {
-        $config{cincludes} = join(' ', $config{cincludes}, '-I/usr/local/include');
-    }
-    if (index($config{lincludes}, '-L/usr/local/lib') == -1) {
-        $config{lincludes} = join(' ', $config{lincludes}, '-L/usr/local/lib');
+    if (not $config{crossconf}) {
+        if (index($config{cincludes}, '-I/usr/local/include') == -1) {
+            $config{cincludes} = join(' ', $config{cincludes}, '-I/usr/local/include');
+        }
+        if (index($config{lincludes}, '-L/usr/local/lib') == -1) {
+            $config{lincludes} = join(' ', $config{lincludes}, '-L/usr/local/lib');
+        }
     }
 }
 else {
