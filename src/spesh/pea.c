@@ -20,6 +20,7 @@ static void pea_log(char *fmt, ...) {
 #define TRANSFORM_DELETE_SET        3
 #define TRANSFORM_GUARD_TO_SET      4
 #define TRANSFORM_ADD_DEOPT_POINT   5
+#define TRANSFORM_ADD_DEOPT_USAGE   6
 typedef struct {
     /* The allocation that this transform relates to eliminating. */
     MVMSpeshPEAAllocation *allocation;
@@ -47,6 +48,10 @@ typedef struct {
             MVMint32 deopt_point_idx;
             MVMuint16 target_reg;
         } dp;
+        struct {
+            MVMint32 deopt_point_idx;
+            MVMuint16 hypothetical_reg_idx;
+        } du;
     };
 } Transformation;
 
@@ -232,6 +237,13 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             MVM_VECTOR_PUSH(g->deopt_pea.deopt_point, dp);
             break;
         }
+        case TRANSFORM_ADD_DEOPT_USAGE: {
+            MVMSpeshOperand used;
+            used.reg.orig = gs->attr_regs[t->du.hypothetical_reg_idx];
+            used.reg.i = MVM_spesh_manipulate_get_current_version(tc, g, used.reg.orig);
+            MVM_spesh_usages_add_deopt_usage_by_reg(tc, g, used, t->du.deopt_point_idx);
+            break;
+        }
         default:
             MVM_oops(tc, "Unimplemented partial escape analysis transform");
     }
@@ -362,7 +374,23 @@ static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 }
 
 /* Checks if any of the tracked objects are needed beyond this deopt point,
- * and adds a transform to set up that deopt info if needed. */
+ * and adds a transform to set up that deopt info if needed. Also makes sure
+ * that current versions of registers used in scalar replacement will have a
+ * deopt usage added, otherwise the data we need to deopt could go missing. */
+static void add_scalar_replacement_deopt_usages(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                                                GraphState *gs, MVMSpeshPEAAllocation *alloc,
+                                                MVMint32 deopt_idx) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)alloc->type->st->REPR_data;
+    MVMuint32 i;
+    for (i = 0; i < repr_data->num_attributes; i++) {
+        Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+        tran->allocation = alloc;
+        tran->transform = TRANSFORM_ADD_DEOPT_USAGE;
+        tran->du.deopt_point_idx = deopt_idx;
+        tran->du.hypothetical_reg_idx = alloc->hypothetical_attr_reg_idxs[i];
+        add_transform_for_bb(tc, gs, bb, tran);
+    }
+}
 static void add_deopt_materializations_idx(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                            GraphState *gs, MVMint32 deopt_idx,
                                            MVMint32 deopt_user_idx) {
@@ -373,13 +401,13 @@ static void add_deopt_materializations_idx(MVMThreadContext *tc, MVMSpeshGraph *
         MVMSpeshDeoptUseEntry *deopt_user = tracked_facts->usage.deopt_users;
         while (deopt_user) {
             if (deopt_user->deopt_idx == deopt_user_idx) {
-                Transformation *tran;
-                tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+                Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
                 tran->allocation = alloc;
                 tran->transform = TRANSFORM_ADD_DEOPT_POINT;
                 tran->dp.deopt_point_idx = deopt_idx;
                 tran->dp.target_reg = gs->tracked_registers[i].reg.reg.orig;
                 add_transform_for_bb(tc, gs, bb, tran);
+                add_scalar_replacement_deopt_usages(tc, g, bb, gs, alloc, deopt_user_idx);
             }
             deopt_user = deopt_user->next;
         }
