@@ -18,6 +18,9 @@
         x ## _alloc = 0; \
     } while (0)
 
+#define MVM_VECTOR_ELEMS(x) \
+    (x ## _num)
+
 #define MVM_VECTOR_SIZE(x) \
     (sizeof(*x) * (x ## _alloc))
 

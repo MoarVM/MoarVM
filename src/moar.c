@@ -76,7 +76,8 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
 
     char *spesh_log, *spesh_nodelay, *spesh_disable, *spesh_inline_disable,
-         *spesh_osr_disable, *spesh_limit, *spesh_blocking, *spesh_inline_log;
+         *spesh_osr_disable, *spesh_limit, *spesh_blocking, *spesh_inline_log,
+         *spesh_pea_disable;
     char *jit_expr_disable, *jit_disable, *jit_last_frame, *jit_last_bb;
     char *dynvar_log;
     int init_stat;
@@ -219,6 +220,9 @@ MVMInstance * MVM_vm_create_instance(void) {
         spesh_osr_disable = getenv("MVM_SPESH_OSR_DISABLE");
         if (!spesh_osr_disable || !spesh_osr_disable[0])
             instance->spesh_osr_enabled = 1;
+        spesh_pea_disable = getenv("MVM_SPESH_PEA_DISABLE");
+        if (!spesh_pea_disable || !spesh_pea_disable[0])
+            instance->spesh_pea_enabled = 1;
     }
 
     init_mutex(instance->mutex_parameterization_add, "parameterization");

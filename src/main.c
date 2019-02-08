@@ -85,6 +85,7 @@ The following environment variables are respected:\n\
     MVM_SPESH_DISABLE           Disables all dynamic optimization\n\
     MVM_SPESH_INLINE_DISABLE    Disables inlining\n\
     MVM_SPESH_OSR_DISABLE       Disables on-stack replacement\n\
+    MVM_SPESH_PEA_DISABLE       Disables partial escape analysis and related optimizations\n\
     MVM_SPESH_BLOCKING          Blocks log-sending thread while specializer runs\n\
     MVM_SPESH_LOG               Specifies a dynamic optimizer log file\n\
     MVM_SPESH_NODELAY           Run dynamic optimization even for cold frames\n\

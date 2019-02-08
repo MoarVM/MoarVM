@@ -69,6 +69,9 @@ struct MVMSpeshGraph {
     MVMuint32 *always_retained_deopt_idxs;
     MVMuint32 num_always_retained_deopt_idxs;
 
+    /* Deopt information produced by escape analysis and scalar replacement. */
+    MVMSpeshPEADeopt deopt_pea;
+
     /* Table of information about inlines, laid out in order of nesting
      * depth. Thus, going through the table in order and finding when we
      * are within the bounds will show up each call frame that needs to
@@ -279,6 +282,7 @@ MVMSpeshBB * MVM_spesh_graph_linear_prev(MVMThreadContext *tc, MVMSpeshGraph *g,
 void MVM_spesh_graph_grow_deopt_table(MVMThreadContext *tc, MVMSpeshGraph *g);
 void MVM_spesh_graph_add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVMSpeshIns *ins_node, MVMuint32 deopt_target, MVMint32 type);
+MVMSpeshBB ** MVM_spesh_graph_reverse_postorder(MVMThreadContext *tc, MVMSpeshGraph *g);
 void MVM_spesh_graph_recompute_dominance(MVMThreadContext *tc, MVMSpeshGraph *g);
 void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist *worklist);
 void MVM_spesh_graph_describe(MVMThreadContext *tc, MVMSpeshGraph *g, MVMHeapSnapshotState *snapshot);

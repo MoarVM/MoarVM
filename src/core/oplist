@@ -507,7 +507,7 @@ gcd_I               w(obj) r(obj) r(obj) r(obj) :pure
 lcm_I               w(obj) r(obj) r(obj) r(obj) :pure
 expmod_I            w(obj) r(obj) r(obj) r(obj) r(obj) :pure
 isprime_I           w(int64) r(obj) r(int64) :pure
-rand_I              w(obj) r(obj) r(obj) :pure
+rand_I              w(obj) r(obj) r(obj)
 coerce_In           w(num64) r(obj) :pure
 coerce_Is           w(str) r(obj) :pure
 coerce_nI           w(obj) r(num64) r(obj) :pure
@@ -612,7 +612,7 @@ continuationreset   w(obj) r(obj) r(obj) :invokish :maycausedeopt
 # this op isn't actually invokish, but it requires the cur_op to be set before doing its work
 continuationcontrol w(obj) r(int64) r(obj) r(obj) :invokish :maycausedeopt
 continuationinvoke  w(obj) r(obj) r(obj) :invokish :maycausedeopt
-randscale_n         w(num64) r(num64) :pure
+randscale_n         w(num64) r(num64)
 uniisblock          w(int64) r(str) r(int64) r(str) :pure
 assertparamcheck    r(int64) :noinline :invokish :maycausedeopt
 hintfor             w(int64) r(obj) r(str)

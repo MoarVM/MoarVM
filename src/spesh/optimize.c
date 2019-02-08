@@ -2310,7 +2310,10 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
 
             ins->info = MVM_op_get_op(MVM_OP_goto);
             ins->operands[0].ins_bb = goto_bbs[picked];
-            bb->succ[0] = goto_bbs[picked];
+
+            while (bb->num_succ)
+                MVM_spesh_manipulate_remove_successor(tc, bb, bb->succ[0]);
+            MVM_spesh_manipulate_add_successor(tc, g, bb, goto_bbs[picked]);
         }
 
         MVM_free(in_handlers);
@@ -3327,14 +3330,23 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
     MVM_spesh_usages_remove_unused_deopt(tc, g);
     MVM_spesh_eliminate_dead_ins(tc, g);
 
-    merge_bbs(tc, g);
+//    merge_bbs(tc, g);
+
+    /* Perform partial escape analysis at this point, which may make more
+     * information available, or give more `set` instructions for the `set`
+     * elimination in the post-inline pass to get rid of. */
+    if (tc->instance->spesh_pea_enabled)
+        MVM_spesh_pea(tc, g);
 
     /* Make a post-inline pass through the graph doing things that are better
      * done after inlinings have taken place. Note that these things must not
      * add new fact dependencies. Do a final dead instruction elimination pass
-     * to clean up after it. */
+     * to clean up after it, and also delete dead BBs thanks to any control
+     * flow opts. */
     post_inline_pass(tc, g, g->entry);
     MVM_spesh_eliminate_dead_ins(tc, g);
+    MVM_spesh_eliminate_dead_bbs(tc, g, 1);
+
 #if MVM_SPESH_CHECK_DU
     MVM_spesh_usages_check(tc, g);
 #endif

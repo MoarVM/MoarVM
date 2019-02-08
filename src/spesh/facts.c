@@ -401,9 +401,14 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         deopt_one_ann->next = NULL;
         guard->annotations = deopt_one_ann;
 
-        /* Move deopt usages to the preguard register. */
-        pre_facts->usage.deopt_users = facts->usage.deopt_users;
-        facts->usage.deopt_users = NULL;
+        /* Copy deopt usages to the preguard register. */
+        {
+            MVMSpeshDeoptUseEntry *due = facts->usage.deopt_users;
+            while (due) {
+                MVM_spesh_usages_add_deopt_usage(tc, g, pre_facts, due->deopt_idx);
+                due = due->next;
+            }
+        }
 
         /* Add entry in log guards table, and mark facts as depending on it. */
         if (g->num_log_guards % 16 == 0) {

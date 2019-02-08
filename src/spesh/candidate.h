@@ -28,6 +28,9 @@ struct MVMSpeshCandidate {
      * typically don't update the array in specialized code. */
     MVMuint64 deopt_named_used_bit_field;
 
+    /* Deopt information produced by escape analysis and scalar replacement. */
+    MVMSpeshPEADeopt deopt_pea;
+
     /* Number of inlines and inlines table; see graph.h for description of
      * the table format. */
     MVMint32 num_inlines;

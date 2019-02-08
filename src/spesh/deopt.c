@@ -157,11 +157,105 @@ static void deopt_named_args_used(MVMThreadContext *tc, MVMFrame *f) {
         f->params.named_used.bit_field = f->spesh_cand->deopt_named_used_bit_field;
 }
 
+/* Materialize an individual replaced object. */
+static void materialize_object(MVMThreadContext *tc, MVMFrame *f, MVMObject ***materialized,
+                               MVMuint16 info_idx, MVMuint16 target_reg) {
+    MVMSpeshCandidate *cand = f->spesh_cand;
+    if (!*materialized)
+        *materialized = MVM_calloc(MVM_VECTOR_ELEMS(cand->deopt_pea.materialize_info), sizeof(MVMObject *));
+    if (!(*materialized)[info_idx]) {
+        MVMROOT(tc, f, {
+            MVMSpeshPEAMaterializeInfo *mi = &(cand->deopt_pea.materialize_info[info_idx]);
+            MVMSTable *st = (MVMSTable *)cand->spesh_slots[mi->stable_sslot];
+            MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+            MVMObject *obj = MVM_gc_allocate_object(tc, st);
+            char *data = (char *)OBJECT_BODY(obj);
+            MVMuint32 num_attrs = repr_data->num_attributes;
+            MVMuint32 i;
+            for (i = 0; i < num_attrs; i++) {
+                MVMRegister value = f->work[mi->attr_regs[i]];
+                MVMuint16 offset = repr_data->attribute_offsets[i];
+                MVMSTable *flattened = repr_data->flattened_stables[i];
+                if (flattened) {
+                    const MVMStorageSpec *ss = flattened->REPR->get_storage_spec(tc, flattened);
+                    switch (ss->boxed_primitive) {
+                        case MVM_STORAGE_SPEC_BP_INT:
+                            flattened->REPR->box_funcs.set_int(tc, flattened, obj,
+                                (char *)data + offset, value.i64);
+                            break;
+                        case MVM_STORAGE_SPEC_BP_NUM:
+                            flattened->REPR->box_funcs.set_num(tc, flattened, obj,
+                                (char *)data + offset, value.n64);
+                            break;
+                        case MVM_STORAGE_SPEC_BP_STR:
+                            flattened->REPR->box_funcs.set_str(tc, flattened, obj,
+                                (char *)data + offset, value.s);
+                            break;
+                        default:
+                            MVM_panic(1, "Unimplemented case of native attribute deopt materialization");
+                    }
+                }
+                else {
+                    *((MVMObject **)(data + offset)) = value.o;
+                }
+            }
+            (*materialized)[info_idx] = obj;
+#if MVM_LOG_DEOPTS
+            fprintf(stderr, "    Materialized a %s\n", st->debug_name);
+#endif
+        });
+    }
+    f->work[target_reg].o = (*materialized)[info_idx];
+}
+
+/* Materialize all replaced objects that need to be at this deopt index. */
+static void materialize_replaced_objects(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_index) {
+    MVMint32 i;
+    MVMSpeshCandidate *cand = f->spesh_cand;
+    MVMuint32 num_deopt_points = MVM_VECTOR_ELEMS(cand->deopt_pea.deopt_point);
+    MVMObject **materialized = NULL;
+    MVMROOT(tc, f, {
+        for (i = 0; i < num_deopt_points; i++) {
+            MVMSpeshPEADeoptPoint *dp = &(cand->deopt_pea.deopt_point[i]);
+            if (dp->deopt_point_idx == deopt_index)
+                materialize_object(tc, f, &materialized, dp->materialize_info_idx, dp->target_reg);
+        }
+    });
+    MVM_free(materialized);
+}
+
+/* If there are any materializations, resolve the deopt_offset into and index
+ * and then perform them. */
+static void materialize_replaced_objects_by_offset(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset) {
+    MVMSpeshCandidate *cand = f->spesh_cand;
+    if (MVM_VECTOR_ELEMS(cand->deopt_pea.deopt_point)) {
+        MVMint32 i;
+        for (i = 0; i < cand->num_deopts; i++) {
+            if (cand->deopts[2 * i + 1] == deopt_offset) {
+#if MVM_LOG_DEOPTS
+                fprintf(stderr, "    Resolved offset %d to deopt index %d\n", deopt_offset, i);
+#endif
+                materialize_replaced_objects(tc, f, i);
+                return;
+            }
+        }
+    }
+#if MVM_LOG_DEOPTS
+    fprintf(stderr, "    Failed to find deopt index for offset %d\n", deopt_offset);
+#endif
+}
+
 static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset, MVMint32 deopt_target) {
-    /* Found it; are we in an inline? */
-    MVMSpeshInline *inlines = f->spesh_cand->inlines;
+    /* Found it. We materialize any replaced objects first, then if
+     * we have stuff replaced in inlines then uninlining will take
+     * care of moving it out into the frames where it belongs. */
     deopt_named_args_used(tc, f);
-    if (inlines) {
+    MVMROOT(tc, f, {
+        materialize_replaced_objects_by_offset(tc, f, deopt_offset);
+    });
+
+    /* Check if we have inlines. */
+    if (f->spesh_cand->inlines) {
         /* Yes, going to have to re-create the frames; uninline
          * moves the interpreter, so we can just tweak the last
          * frame. For the moment, uninlining creates its frames
@@ -192,7 +286,6 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
           MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
 #endif
     }
-
 }
 
 /* De-optimizes the currently executing frame, provided it is specialized and
@@ -302,6 +395,9 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                  * just update return address. */
                 MVMint32 deopt_offset = f->spesh_cand->deopts[2 * deopt_idx + 1];
                 MVMint32 deopt_target = f->spesh_cand->deopts[2 * deopt_idx];
+                MVMROOT2(tc, f, l, {
+                    materialize_replaced_objects(tc, f, deopt_idx);
+                });
                 if (f->spesh_cand->inlines) {
                     MVMROOT2(tc, f, l, {
                         uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, l);
