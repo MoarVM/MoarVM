@@ -19,13 +19,13 @@
  * C-friendly bit of memory and a copy to the GC-able, 6model objects in
  * sync. */
 struct MVMCStructBody {
-    /* GC-marked objects that our C structure points into. */
-    MVMObject **child_objs;
-
     /* Pointer to the actual C structure memory; we don't inline it
      * directly in the body, since it doesn't work so well if we get
      * something returned and are wrapping it. */
     void *cstruct;
+
+    /* GC-marked objects that our C structure points into. */
+    MVMObject **child_objs;
 };
 
 struct MVMCStruct {
