@@ -2535,6 +2535,11 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
         | mov TMP6, FRAME:TMP6->args;
         | mov TMP6, qword REGISTER:TMP6[arg.v.lit_i64];
         break;
+    case MVM_JIT_ARG_DOUBLE:
+        | mov TMP6, TC->cur_frame;
+        | mov TMP6, FRAME:TMP6->args;
+        | mov TMP6, qword REGISTER:TMP6[arg.v.lit_i64];
+        break;
     case MVM_JIT_ARG_I64_RW:
         | mov TMP6, TC->cur_frame;
         | mov TMP6, FRAME:TMP6->args;
@@ -2557,6 +2562,9 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
         break;
     case MVM_JIT_PARAM_I64_RW:
         | lea TMP6, qword WORK[arg.v.lit_i64];
+        break;
+    case MVM_JIT_PARAM_DOUBLE:
+        | mov TMP6, qword WORK[arg.v.lit_i64];
         break;
     case MVM_JIT_PARAM_PTR:
         | mov TMP6, aword WORK[arg.v.lit_i64];
@@ -2704,6 +2712,8 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitCompiler *compiler, 
                 on_stack[num_stack++] = args[i];
             }
             break;
+        case MVM_JIT_ARG_DOUBLE:
+        case MVM_JIT_PARAM_DOUBLE:
         case MVM_JIT_REG_VAL_F:
         case MVM_JIT_LITERAL_F:
             if (num_fpr < 8) {
@@ -2741,7 +2751,9 @@ static void emit_win64_callargs(MVMThreadContext *tc, MVMJitCompiler *compiler, 
     for (i = 0; i < num_reg_args; i++) {
         load_call_arg(tc, compiler, jg, args[i]);
         if (args[i].type == MVM_JIT_REG_VAL_F ||
-            args[i].type == MVM_JIT_LITERAL_F) {
+            args[i].type == MVM_JIT_LITERAL_F ||
+            args[i].type == MVM_JIT_ARG_DOUBLE ||
+            args[i].type == MVM_JIT_PARAM_DOUBLE) {
             emit_sse_arg(tc, compiler, jg, i);
         } else {
             emit_gpr_arg(tc, compiler, jg, i);
