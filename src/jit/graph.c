@@ -1057,7 +1057,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                  * have to emit a bit of code to check and throw or just rely
                  * on a concreteness fact */
 
-                MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[1]);
+                MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[0]);
 
                 if (object_facts->flags & MVM_SPESH_FACT_CONCRETE) {
                     MVMint32 is_name_direct = ins->info->num_operands == 5;
