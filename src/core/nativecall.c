@@ -519,6 +519,12 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
                         ? is_rw ? MVM_JIT_ARG_I64_RW : MVM_JIT_ARG_I64
                         : is_rw ? MVM_JIT_PARAM_I64_RW : MVM_JIT_PARAM_I64;
                     break;
+                case MVM_NATIVECALL_ARG_DOUBLE:
+                    if (is_rw) goto fail;
+                    arg_type = dst == -1
+                        ? MVM_JIT_ARG_DOUBLE
+                        : MVM_JIT_PARAM_DOUBLE;
+                    break;
                 case MVM_NATIVECALL_ARG_CPOINTER:
                     if (is_rw) goto fail;
                     arg_type = dst == -1 ? MVM_JIT_ARG_PTR : MVM_JIT_PARAM_PTR;
