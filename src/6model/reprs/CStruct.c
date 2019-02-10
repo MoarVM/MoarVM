@@ -847,6 +847,137 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMCStruct);
 }
 
+static void add_slot_name_comment(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+                                  MVMString *name, MVMSpeshFacts *type_handle_facts, MVMSTable *st) {
+    if (MVM_spesh_debug_enabled(tc)) {
+        char *name_cstr = MVM_string_utf8_encode_C_string(tc, name);
+        if (type_handle_facts->type != st->WHAT) {
+            MVM_spesh_graph_add_comment(tc, g, ins, "%s of '%s' in %s of a %s",
+                    ins->info->name,
+                    name_cstr,
+                    MVM_6model_get_debug_name(tc, type_handle_facts->type),
+                    MVM_6model_get_stable_debug_name(tc, st));
+        }
+        else {
+            MVM_spesh_graph_add_comment(tc, g, ins, "%s of '%s' in %s",
+                    ins->info->name,
+                    name_cstr,
+                    MVM_6model_get_debug_name(tc, type_handle_facts->type));
+        }
+        MVM_free(name_cstr);
+    }
+}
+static MVMString * spesh_attr_name(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o, MVMint32 indirect) {
+    if (indirect) {
+        MVMSpeshFacts *name_facts = MVM_spesh_get_and_use_facts(tc, g, o);
+        if (name_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)
+            return name_facts->value.s;
+        else
+            return NULL;
+    }
+    else {
+        return MVM_spesh_get_string(tc, g, o);
+    }
+}
+static void make_deref_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins, MVMSpeshOperand orig, MVMSpeshOperand temp) {
+    MVMSpeshIns *deref_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    deref_ins->info = MVM_op_get_op(MVM_OP_sp_get_i64);
+    deref_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+    deref_ins->operands[0] = temp;
+    deref_ins->operands[1] = orig;
+    deref_ins->operands[2].lit_i16 = offsetof(MVMCStruct, body.cstruct);
+
+    MVM_spesh_usages_add_by_reg(tc, g, orig, deref_ins);
+    MVM_spesh_get_facts(tc, g, deref_ins->operands[0])->writer = deref_ins;
+
+    MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, deref_ins);
+}
+static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMCStructREPRData *repr_data = (MVMCStructREPRData *)st->REPR_data;
+    MVMuint16             opcode    = ins->info->opcode;
+    /* Can only use sp_get_i64 to deref a pointer if we're on 64bit */
+    if (sizeof(MVMObject *) != sizeof(MVMuint64))
+        return;
+    if (!repr_data)
+        return;
+    switch (opcode) {
+    /*case MVM_OP_getattr_i:
+    case MVM_OP_getattrs_i: {
+        MVMSpeshFacts *obj_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[1]);
+        MVMSpeshFacts *ch_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[2]);
+        MVMString     *name     = spesh_attr_name(tc, g, ins->operands[3], opcode == MVM_OP_getattrs_i);
+        if (name && ch_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && ch_facts->type
+            && obj_facts->flags & MVM_SPESH_FACT_CONCRETE) {
+            MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type, name);
+            if (slot >= 0 && repr_data->flattened_stables[slot]) {
+                MVMSTable      *flat_st = repr_data->flattened_stables[slot];
+                const MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
+                add_slot_name_comment(tc, g, ins, name, ch_facts, st);
+                if (flat_st->REPR->ID == MVM_REPR_ID_P6int && (
+                            flat_ss->bits == 64 || flat_ss->bits == 32)) {
+                    MVMSpeshOperand temp_reg = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+                    MVMSpeshOperand orig_target = ins->operands[1];
+                    fprintf(stderr, "speshed a %s on CStruct. please don't explode\n", ins->info->name);
+                    if (opcode == MVM_OP_getattrs_i)
+                        MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[3], ins);
+                    MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
+                    ins->info = MVM_op_get_op(
+                            flat_ss->bits == 64 ? MVM_OP_sp_get_i64
+                                                : MVM_OP_sp_get_i32);
+                    ins->operands[1] = temp_reg;
+                    ins->operands[2].lit_i16 = repr_data->struct_offsets[slot];
+
+                    MVM_spesh_usages_add_by_reg(tc, g, temp_reg, ins);
+
+                    make_deref_op(tc, g, bb, ins, orig_target, temp_reg);
+                }
+            }
+        }
+        break;
+    }*/
+    case MVM_OP_bindattr_i:
+    case MVM_OP_bindattrs_i: {
+        MVMSpeshFacts *obj_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[0]);
+        MVMSpeshFacts *ch_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[1]);
+        MVMString     *name     = spesh_attr_name(tc, g, ins->operands[2], opcode == MVM_OP_getattrs_i);
+        if (name && ch_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && ch_facts->type
+            && obj_facts->flags & MVM_SPESH_FACT_CONCRETE) {
+            MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type, name);
+            if (slot >= 0 && repr_data->flattened_stables[slot]) {
+                MVMSTable      *flat_st = repr_data->flattened_stables[slot];
+                const MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
+                add_slot_name_comment(tc, g, ins, name, ch_facts, st);
+                if (flat_st->REPR->ID == MVM_REPR_ID_P6int && (
+                            flat_ss->bits == 64 || flat_ss->bits == 32 || flat_ss->bits == 16 || flat_ss->bits == 8)) {
+                    MVMSpeshOperand temp_reg = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+                    MVMSpeshOperand orig_target = ins->operands[0];
+                    if (opcode == MVM_OP_bindattrs_i)
+                        MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
+                    MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+                    ins->info = MVM_op_get_op(
+                            flat_ss->bits == 64 ? MVM_OP_sp_bind_i64
+                          : flat_ss->bits == 32 ? MVM_OP_sp_bind_i32
+                          : flat_ss->bits == 16 ? MVM_OP_sp_bind_i16
+                          :                       MVM_OP_sp_bind_i8);
+                    ins->operands[0] = temp_reg;
+                    ins->operands[1].lit_i16 = repr_data->struct_offsets[slot];
+                    ins->operands[2] = ins->operands[3];
+
+                    MVM_spesh_usages_add_by_reg(tc, g, temp_reg, ins);
+
+                    make_deref_op(tc, g, bb, ins, orig_target, temp_reg);
+                }
+            }
+        }
+        break;
+    }
+    default:
+        MVM_spesh_graph_add_comment(tc, g, ins, "%s unsupported in CStruct %s",
+                ins->info->name,
+                MVM_6model_get_stable_debug_name(tc, st));
+    }
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMCStruct_initialize(MVMThreadContext *tc) {
     return &CStruct_this_repr;
@@ -881,7 +1012,7 @@ static const MVMREPROps CStruct_this_repr = {
     gc_mark_repr_data,
     gc_free_repr_data,
     compose,
-    NULL, /* spesh */
+    spesh, /* spesh */
     "CStruct", /* name */
     MVM_REPR_ID_MVMCStruct,
     NULL, /* unmanaged_size */

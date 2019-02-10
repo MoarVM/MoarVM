@@ -1791,6 +1791,10 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             }
         }
         break;
+    default:
+        MVM_spesh_graph_add_comment(tc, g, ins, "reprop %s unsupported in P6Opaque %s",
+                ins->info->name,
+                MVM_6model_get_stable_debug_name(tc, st));
     }
 }
 
