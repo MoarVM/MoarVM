@@ -13103,6 +13103,36 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_str }
     },
     {
+        MVM_OP_sp_p6oget_i32,
+        "sp_p6oget_i32",
+        ".s",
+        3,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_sp_p6obind_i32,
+        "sp_p6obind_i32",
+        ".s",
+        3,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
         MVM_OP_sp_fastbox_i,
         "sp_fastbox_i",
         ".s",
@@ -13581,7 +13611,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 906;
+static const unsigned short MVM_op_counts = 908;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

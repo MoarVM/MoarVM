@@ -5999,6 +5999,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_p6oget_i32): {
+                MVMObject *o     = GET_REG(cur_op, 2).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                GET_REG(cur_op, 0).i64 = *((MVMint32 *)(data + GET_UI16(cur_op, 4)));
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_p6obind_i32): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                *((MVMint32 *)(data + GET_UI16(cur_op, 2))) = (MVMint32)GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_fastbox_i): {
                 MVMObject *obj = fastcreate(tc, cur_op);
                 *((MVMint64 *)((char *)obj + GET_UI16(cur_op, 6))) = GET_REG(cur_op, 8).i64;

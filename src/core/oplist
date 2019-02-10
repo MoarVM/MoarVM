@@ -987,6 +987,9 @@ sp_p6obind_i     .s r(obj) int16 r(int64)
 sp_p6obind_n     .s r(obj) int16 r(num64)
 sp_p6obind_s     .s r(obj) int16 r(str)
 
+sp_p6oget_i32    .s w(int64) r(obj) int16 :pure
+sp_p6obind_i32   .s r(obj) int16 r(int64) :pure
+
 # Lowered int and bigint box ops. These combine a fastcreate and a writing of
 # the value as appropriate. The first two read operands have the same meaning
 # as in sp_fastcreate, the third is the offset in the object to box to, and

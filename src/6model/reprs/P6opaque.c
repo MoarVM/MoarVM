@@ -1501,11 +1501,15 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 MVMSTable      *flat_st = repr_data->flattened_stables[slot];
                 const MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
                 add_slot_name_comment(tc, g, ins, name, ch_facts, st);
-                if (flat_st->REPR->ID == MVM_REPR_ID_P6int && flat_ss->bits == 64) {
+                if (flat_st->REPR->ID == MVM_REPR_ID_P6int &&
+                        (flat_ss->bits == 64 || flat_ss->bits == 32)) {
                     if (opcode == MVM_OP_getattrs_i)
                         MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[3], ins);
                     MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
-                    ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_i);
+                    ins->info = MVM_op_get_op(
+                            flat_ss->bits == 64 ? MVM_OP_sp_p6oget_i
+                                                : MVM_OP_sp_p6oget_i32
+                            );
                     ins->operands[2].lit_i16 = repr_data->attribute_offsets[slot];
                 }
             }
@@ -1588,12 +1592,16 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             if (slot >= 0 && repr_data->flattened_stables[slot]) {
                 MVMSTable      *flat_st = repr_data->flattened_stables[slot];
                 const MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
-                if (flat_st->REPR->ID == MVM_REPR_ID_P6int && flat_ss->bits == 64) {
+                if (flat_st->REPR->ID == MVM_REPR_ID_P6int &&
+                        (flat_ss->bits == 64 || flat_ss->bits == 32)) {
                     add_slot_name_comment(tc, g, ins, name, ch_facts, st);
                     if (opcode == MVM_OP_bindattrs_i)
                         MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
                     MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
-                    ins->info = MVM_op_get_op(MVM_OP_sp_p6obind_i);
+                    ins->info = MVM_op_get_op(
+                            flat_ss->bits == 64 ? MVM_OP_sp_p6obind_i
+                                                : MVM_OP_sp_p6obind_i32
+                            );
                     ins->operands[1].lit_i16 = repr_data->attribute_offsets[slot];
                     ins->operands[2] = ins->operands[3];
                 }
