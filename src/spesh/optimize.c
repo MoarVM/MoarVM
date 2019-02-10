@@ -2759,6 +2759,10 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_unshift_n:
         case MVM_OP_unshift_s:
         case MVM_OP_unshift_o:
+        case MVM_OP_push_i:
+        case MVM_OP_push_n:
+        case MVM_OP_push_s:
+        case MVM_OP_push_o:
         case MVM_OP_bindkey_i:
         case MVM_OP_bindkey_n:
         case MVM_OP_bindkey_s:
@@ -2767,10 +2771,6 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_bindpos_n:
         case MVM_OP_bindpos_s:
         case MVM_OP_bindpos_o:
-        case MVM_OP_pop_i:
-        case MVM_OP_pop_n:
-        case MVM_OP_pop_s:
-        case MVM_OP_pop_o:
         case MVM_OP_deletekey:
         case MVM_OP_setelemspos:
         case MVM_OP_splice:
@@ -2799,10 +2799,10 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_shift_n:
         case MVM_OP_shift_s:
         case MVM_OP_shift_o:
-        case MVM_OP_push_i:
-        case MVM_OP_push_n:
-        case MVM_OP_push_s:
-        case MVM_OP_push_o:
+        case MVM_OP_pop_i:
+        case MVM_OP_pop_n:
+        case MVM_OP_pop_s:
+        case MVM_OP_pop_o:
         case MVM_OP_existskey:
         case MVM_OP_existspos:
         case MVM_OP_getattr_i:
