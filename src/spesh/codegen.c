@@ -65,6 +65,40 @@ static void write_num64(SpeshWriterState *ws, MVMnum64 value) {
     ws->bytecode_pos += 8;
 }
 
+/* Deopt user retention logic for the sake of inlining. */
+typedef struct {
+    MVM_VECTOR_DECL(MVMint32, idxs);
+    MVM_VECTOR_DECL(MVMSpeshIns *, seen_phis);
+} AllDeoptUsers;
+static void collect_deopt_users(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand from,
+        AllDeoptUsers *all_deopt_users) {
+    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, from);
+    MVMSpeshDeoptUseEntry *deopt_users = facts->usage.deopt_users;
+    MVMSpeshUseChainEntry *users = facts->usage.users;
+    while (deopt_users) {
+        MVM_VECTOR_PUSH(all_deopt_users->idxs, deopt_users->deopt_idx);
+        deopt_users = deopt_users->next;
+    }
+    while (users) {
+        MVMSpeshIns *ins = users->user;
+        if (ins->info->opcode == MVM_SSA_PHI) {
+            MVMint32 seen = 0;
+            MVMint32 i;
+            for (i = 0; i < MVM_VECTOR_ELEMS(all_deopt_users->seen_phis); i++) {
+                if (all_deopt_users->seen_phis[i] == ins) {
+                    seen = 1;
+                    break;
+                }
+            }
+            if (!seen) {
+                MVM_VECTOR_PUSH(all_deopt_users->seen_phis, ins);
+                collect_deopt_users(tc, g, ins->operands[0], all_deopt_users);
+            }
+        }
+        users = users->next;
+    }
+}
+
 /* Writes instructions within a basic block boundary. */
 static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState *ws, MVMSpeshBB *bb) {
     MVMSpeshIns *ins = bb->first_ins;
@@ -109,25 +143,25 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
 
         if (ins->info->opcode != MVM_SSA_PHI) {
             /* Real instruction, not a phi. See if we need to save any deopt
-             * usage information at this location. */
+             * usage information at this location. If the thing that is
+             * written is consumed by a PHI and those also have deopt users
+             * then we need to handle that case also. */
             if (g->facts && ins->info->num_operands >= 1 &&
                     (ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
-                MVMSpeshDeoptUseEntry *deopt_users = MVM_spesh_get_facts(tc, g,
-                        ins->operands[0])->usage.deopt_users;
-                if (deopt_users) {
-                    MVMint32 count = 0;
-                    MVMSpeshDeoptUseEntry *count_entry = deopt_users;
-                    while (count_entry) {
-                        count++;
-                        count_entry = count_entry->next;
-                    }
+                AllDeoptUsers all_deopt_users;
+                MVM_VECTOR_INIT(all_deopt_users.idxs, 0);
+                MVM_VECTOR_INIT(all_deopt_users.seen_phis, 0);
+                collect_deopt_users(tc, g, ins->operands[0], &all_deopt_users);
+                if (MVM_VECTOR_ELEMS(all_deopt_users.idxs)) {
+                    MVMint32 count = MVM_VECTOR_ELEMS(all_deopt_users.idxs);
+                    MVMint32 i;
                     MVM_VECTOR_PUSH(ws->deopt_usage_info, ws->bytecode_pos);
                     MVM_VECTOR_PUSH(ws->deopt_usage_info, count);
-                    while (deopt_users) {
-                        MVM_VECTOR_PUSH(ws->deopt_usage_info, deopt_users->deopt_idx);
-                        deopt_users = deopt_users->next;
-                    }
+                    for (i = 0; i < count; i++)
+                        MVM_VECTOR_PUSH(ws->deopt_usage_info, all_deopt_users.idxs[i]);
                 }
+                MVM_VECTOR_DESTROY(all_deopt_users.idxs);
+                MVM_VECTOR_DESTROY(all_deopt_users.seen_phis);
             }
 
             /* Emit opcode. */
