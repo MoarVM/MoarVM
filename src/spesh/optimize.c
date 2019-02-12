@@ -116,6 +116,14 @@ MVMint16 MVM_spesh_add_spesh_slot(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCol
     return g->num_spesh_slots++;
 }
 
+/* Some things optimize into the `null` op; make sure it has facts set. */
+static void optimize_null(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                          MVMSpeshIns *ins) {
+    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+    facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_KNOWN_VALUE;
+    facts->value.o = facts->type = tc->instance->VMNull;
+}
+
 /* If an `isnull` is on something we know the type of or value of, then we
  * can quickly verify the type is not based on the null REPR and turn it
  * into a constant. */
@@ -2623,6 +2631,9 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             break;
         case MVM_OP_set:
             copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+            break;
+        case MVM_OP_null:
+            optimize_null(tc, g, bb, ins);
             break;
         case MVM_OP_isnull:
             optimize_isnull(tc, g, bb, ins);
