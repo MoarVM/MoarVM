@@ -2992,17 +2992,13 @@ static MVMSpeshBB * find_bb_with_instruction_linearly_after(MVMThreadContext *tc
     return NULL;
 }
 static MVMuint32 conflict_free(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-        MVMSpeshIns *from, MVMSpeshIns *to, MVMuint16 reg, MVMuint16 allow_inlined,
-        MVMuint16 allow_reads) {
+        MVMSpeshIns *from, MVMSpeshIns *to, MVMuint16 reg, MVMuint16 allow_reads) {
     /* A conflict over reg exists if either from and to are a non-linear BB
      * sequence or if another version of reg is written between from and to. */
     MVMSpeshBB *start_bb = find_bb_with_instruction_linearly_after(tc, g, bb, to);
     MVMSpeshBB *cur_bb = start_bb;
     while (cur_bb) {
-        MVMSpeshIns *check;
-        if (!allow_inlined && cur_bb->inlined_may_cause_deopt)
-            return 0;
-        check = cur_bb == start_bb ? to->prev : cur_bb->last_ins;
+        MVMSpeshIns *check = cur_bb == start_bb ? to->prev : cur_bb->last_ins;
         while (check) {
             MVMuint32 i;
 
@@ -3030,10 +3026,6 @@ static MVMuint32 conflict_free(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
 }
 static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                               MVMSpeshIns *ins) {
-    /* Don't do this if we're within an inline that may cause deopt. */
-    if (bb->inlined_may_cause_deopt)
-        return;
-
     /* If this set is the only user of its second operand, we might be able to
      * change the writing instruction to just write the target of the set. */
     if (MVM_spesh_usages_used_once(tc, g, ins->operands[1])) {
@@ -3041,7 +3033,7 @@ static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
         MVMSpeshIns *writer = source_facts->writer;
         if (!MVM_spesh_is_inc_dec_op(writer->info->opcode) && writer->info->opcode != MVM_SSA_PHI) {
             /* Instruction is OK. Check there is no register use conflict. */
-            if (conflict_free(tc, g, bb, writer, ins, ins->operands[0].reg.orig, 0, 0)) {
+            if (conflict_free(tc, g, bb, writer, ins, ins->operands[0].reg.orig, 0)) {
                 /* All is well. Update writer and delete set. */
                 MVMSpeshOperand new_target = ins->operands[0];
                 MVMSpeshFacts *new_target_facts = MVM_spesh_get_facts(tc, g, new_target);
@@ -3061,7 +3053,7 @@ static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
         MVMSpeshIns *user = MVM_spesh_get_facts(tc, g, ins->operands[0])->usage.users->user;
         if (!MVM_spesh_is_inc_dec_op(user->info->opcode) && user->info->opcode != MVM_SSA_PHI) {
             /* Instruction is OK. Check there is no register use conflict. */
-            if (conflict_free(tc, g, bb, ins, user, ins->operands[1].reg.orig, 0, 1)) {
+            if (conflict_free(tc, g, bb, ins, user, ins->operands[1].reg.orig, 1)) {
                 /* It will work. Find reading operand and update it. */
                 MVMuint32 i;
                 for (i = 1; i < user->info->num_operands; i++) {
@@ -3087,7 +3079,7 @@ static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
  * unbox on the outside, or vice versa. */
 static void try_eliminate_one_box_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                          MVMSpeshIns *box_ins, MVMSpeshIns *unbox_ins) {
-    if (conflict_free(tc, g, bb, box_ins, unbox_ins, box_ins->operands[1].reg.orig, 1, 1)) {
+    if (conflict_free(tc, g, bb, box_ins, unbox_ins, box_ins->operands[1].reg.orig, 1)) {
         /* Make unbox instruction no longer use the boxed value. */
         MVM_spesh_usages_delete_by_reg(tc, g, unbox_ins->operands[1], unbox_ins);
 
