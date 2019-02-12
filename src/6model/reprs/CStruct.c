@@ -967,6 +967,8 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                     MVM_spesh_usages_add_by_reg(tc, g, temp_reg, ins);
 
                     make_deref_op(tc, g, bb, ins, orig_target, temp_reg);
+
+                    MVM_spesh_manipulate_release_temp_reg(tc, g, temp_reg);
                 }
             }
         }
