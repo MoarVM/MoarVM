@@ -1,6 +1,8 @@
 #include "moar.h"
 
 static void optimize_bigint_bool_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins);
+static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                        MVMSpeshPlanned *p);
 
 /* This is where the main optimization work on a spesh graph takes place,
  * using facts discovered during analysis. */
@@ -1987,6 +1989,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
                         code_ref_reg, prepargs_deopt_idx,
                         (MVMuint16)target_sf->body.spesh->body.spesh_candidates[spesh_cand]->bytecode_size);
+                optimize_bb(tc, g, inline_graph->entry, NULL);
 
                 if (MVM_spesh_debug_enabled(tc)) {
                     char *cuuid_cstr = MVM_string_utf8_encode_C_string(tc, target_sf->body.cuuid);
@@ -2695,13 +2698,15 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             optimize_smart_coerce(tc, g, bb, ins);
             break;
         case MVM_OP_invoke_v:
-            optimize_call(tc, g, bb, ins, p, 0, &arg_info);
+            if (!bb->inlined)
+                optimize_call(tc, g, bb, ins, p, 0, &arg_info);
             break;
         case MVM_OP_invoke_i:
         case MVM_OP_invoke_n:
         case MVM_OP_invoke_s:
         case MVM_OP_invoke_o:
-            optimize_call(tc, g, bb, ins, p, 1, &arg_info);
+            if (!bb->inlined)
+                optimize_call(tc, g, bb, ins, p, 1, &arg_info);
             break;
         case MVM_OP_getarg_i:
             optimize_getarg(tc, g, bb, ins);
