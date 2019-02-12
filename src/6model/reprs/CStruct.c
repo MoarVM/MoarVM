@@ -954,6 +954,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                     if (opcode == MVM_OP_bindattrs_i)
                         MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
                     MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+                    MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[0], ins);
                     ins->info = MVM_op_get_op(
                             flat_ss->bits == 64 ? MVM_OP_sp_bind_i64
                           : flat_ss->bits == 32 ? MVM_OP_sp_bind_i32
