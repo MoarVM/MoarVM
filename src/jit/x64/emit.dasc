@@ -789,13 +789,25 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     }
     case MVM_OP_sp_get_i64:
     case MVM_OP_sp_get_n:
-    case MVM_OP_sp_get_s:
+    case MVM_OP_sp_get_s: {
+        MVMint16 dst    = ins->operands[0].reg.orig;
+        MVMint16 obj    = ins->operands[1].reg.orig;
+        MVMint16 offset = ins->operands[2].lit_i16;
+        | mov TMP1, WORK[obj];             // object
+        | mov TMP2, qword [TMP1+offset];   // get value from body
+        | mov WORK[dst], TMP2;
+        break;
+    }
     case MVM_OP_sp_get_o: {
         MVMint16 dst    = ins->operands[0].reg.orig;
         MVMint16 obj    = ins->operands[1].reg.orig;
         MVMint16 offset = ins->operands[2].lit_i16;
-        | mov TMP1, WORK[obj];            // object
+        | mov TMP1, WORK[obj];             // object
         | mov TMP2, qword [TMP1+offset];   // get value from body
+        | test TMP2, TMP2;
+        | jnz >1;
+        | get_vmnull TMP2;
+        |1:
         | mov WORK[dst], TMP2;
         break;
     }
