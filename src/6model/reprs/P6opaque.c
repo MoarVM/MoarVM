@@ -1472,19 +1472,26 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             && obj_facts->flags & MVM_SPESH_FACT_CONCRETE) {
             MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type, name);
             if (slot >= 0 && !repr_data->flattened_stables[slot]) {
+                MVMint8 mixin = st->is_mixin_type;
                 add_slot_name_comment(tc, g, ins, name, ch_facts, st);
                 if (repr_data->auto_viv_values && repr_data->auto_viv_values[slot]) {
                     MVMObject *av_value = repr_data->auto_viv_values[slot];
                     if (IS_CONCRETE(av_value)) {
-                        ins->info = MVM_op_get_op(MVM_OP_sp_p6ogetvc_o);
+                        ins->info = MVM_op_get_op(mixin
+                                ? MVM_OP_sp_p6ogetvc_o
+                                : MVM_OP_sp_getvc_o);
                     }
                     else {
-                        ins->info = MVM_op_get_op(MVM_OP_sp_p6ogetvt_o);
+                        ins->info = MVM_op_get_op(mixin
+                                ? MVM_OP_sp_p6ogetvt_o
+                                : MVM_OP_sp_getvt_o);
                     }
                     if (opcode == MVM_OP_getattrs_o)
                         MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[3], ins);
                     MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
-                    ins->operands[2].lit_i16 = repr_data->attribute_offsets[slot];
+                    ins->operands[2].lit_i16 = mixin
+                        ? repr_data->attribute_offsets[slot]
+                        : sizeof(MVMObject) + repr_data->attribute_offsets[slot];
                     ins->operands[3].lit_i16 = MVM_spesh_add_spesh_slot(tc, g,
                         (MVMCollectable *)av_value);
                 }
@@ -1492,9 +1499,15 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                     if (opcode == MVM_OP_getattrs_o)
                         MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[3], ins);
                     MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
-                    ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_o);
-                    ins->operands[2].lit_i16 = repr_data->attribute_offsets[slot];
-                    MVM_spesh_manipulate_remove_handler_successors(tc, bb);
+                    if (mixin) {
+                        ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_o);
+                        ins->operands[2].lit_i16 = repr_data->attribute_offsets[slot];
+                    }
+                    else {
+                        ins->info = MVM_op_get_op(MVM_OP_sp_get_o);
+                        ins->operands[2].lit_i16 = sizeof(MVMObject) +
+                            repr_data->attribute_offsets[slot];
+                    }
                 }
             }
         }
@@ -1581,12 +1594,19 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             && obj_facts->flags & MVM_SPESH_FACT_CONCRETE) {
             MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type, name);
             if (slot >= 0 && !repr_data->flattened_stables[slot]) {
+                MVMint8 mixin = st->is_mixin_type;
                 add_slot_name_comment(tc, g, ins, name, ch_facts, st);
                 if (opcode == MVM_OP_bindattrs_o)
                     MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
                 MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
-                ins->info = MVM_op_get_op(MVM_OP_sp_p6obind_o);
-                ins->operands[1].lit_i16 = repr_data->attribute_offsets[slot];
+                if (mixin) {
+                    ins->info = MVM_op_get_op(MVM_OP_sp_p6obind_o);
+                    ins->operands[1].lit_i16 = repr_data->attribute_offsets[slot];
+                }
+                else {
+                    ins->info = MVM_op_get_op(MVM_OP_sp_bind_o);
+                    ins->operands[1].lit_i16 = sizeof(MVMObject) + repr_data->attribute_offsets[slot];
+                }
                 ins->operands[2] = ins->operands[3];
             }
         }
