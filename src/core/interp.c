@@ -6023,6 +6023,34 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_getvt_o): {
+                MVMObject *o     = GET_REG(cur_op, 2).o;
+                char      *data  = (char *)o;
+                MVMObject *val   = *((MVMObject **)(data + GET_UI16(cur_op, 4)));
+                if (!val) {
+                    val = (MVMObject *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 6)];
+                    MVM_ASSIGN_REF(tc, &(o->header), *((MVMObject **)(data + GET_UI16(cur_op, 4))), val);
+                }
+                GET_REG(cur_op, 0).o = val;
+                cur_op += 8;
+                goto NEXT;
+            }
+            OP(sp_getvc_o): {
+                MVMObject *o     = GET_REG(cur_op, 2).o;
+                char      *data  = (char *)o;
+                MVMObject *val   = *((MVMObject **)(data + GET_UI16(cur_op, 4)));
+                if (!val) {
+                    /* Clone might allocate, so re-fetch things after it. */
+                    val  = MVM_repr_clone(tc,
+                            (MVMObject *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 6)]);
+                    o    = GET_REG(cur_op, 2).o;
+                    data = (char *)o;
+                    MVM_ASSIGN_REF(tc, &(o->header), *((MVMObject **)(data + GET_UI16(cur_op, 4))), val);
+                }
+                GET_REG(cur_op, 0).o = val;
+                cur_op += 8;
+                goto NEXT;
+            }
             OP(sp_fastbox_i): {
                 MVMObject *obj = fastcreate(tc, cur_op);
                 *((MVMint64 *)((char *)obj + GET_UI16(cur_op, 6))) = GET_REG(cur_op, 8).i64;
