@@ -1984,12 +1984,12 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVMSpeshOperand code_ref_reg = ins->info->opcode == MVM_OP_invoke_v
                         ? ins->operands[0]
                         : ins->operands[1];
-
+                MVMSpeshBB *optimize_from_bb = inline_graph->entry;
                 MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
                         code_ref_reg, prepargs_deopt_idx,
                         (MVMuint16)target_sf->body.spesh->body.spesh_candidates[spesh_cand]->bytecode_size);
-                optimize_bb(tc, g, inline_graph->entry, NULL);
+                optimize_bb(tc, g, optimize_from_bb, NULL);
 
                 if (MVM_spesh_debug_enabled(tc)) {
                     char *cuuid_cstr = MVM_string_utf8_encode_C_string(tc, target_sf->body.cuuid);
@@ -2062,10 +2062,11 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVMSpeshOperand code_ref_reg = ins->info->opcode == MVM_OP_invoke_v
                         ? ins->operands[0]
                         : ins->operands[1];
+                MVMSpeshBB *optimize_from_bb = inline_graph->entry;
                 MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
                         code_ref_reg, prepargs_deopt_idx, 0); /* Don't know an accurate size */
-                optimize_bb(tc, g, inline_graph->entry, NULL);
+                optimize_bb(tc, g, optimize_from_bb, NULL);
             }
         }
 
