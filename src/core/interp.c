@@ -3211,6 +3211,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_load_bytecode(tc, filename);
                 goto NEXT;
             }
+            OP(newmixintype): {
+                MVMObject *how = GET_REG(cur_op, 2).o;
+                MVMString *repr_name = GET_REG(cur_op, 4).s;
+                const MVMREPROps *repr = MVM_repr_get_by_name(tc, repr_name);
+                MVMObject *type = repr->type_object_for(tc, how);
+                STABLE(type)->is_mixin_type = 1;
+                GET_REG(cur_op, 0).o = type;
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(iscompunit): {
                 MVMObject *maybe_cu = GET_REG(cur_op, 2).o;
                 GET_REG(cur_op, 0).i64 = REPR(maybe_cu)->ID == MVM_REPR_ID_MVMCompUnit;
@@ -6342,7 +6352,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             /* The compiler compiles faster if all deprecated are together and at the end
              * even though the op numbers are technically out of order. */
-            OP(DEPRECATED_1):
             OP(DEPRECATED_2):
                 MVM_exception_throw_adhoc(tc, "The mastto* ops were removed in MoarVM 2018.01.");
             OP(DEPRECATED_4):
