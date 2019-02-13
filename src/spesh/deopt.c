@@ -164,10 +164,10 @@ static void materialize_object(MVMThreadContext *tc, MVMFrame *f, MVMObject ***m
     if (!*materialized)
         *materialized = MVM_calloc(MVM_VECTOR_ELEMS(cand->deopt_pea.materialize_info), sizeof(MVMObject *));
     if (!(*materialized)[info_idx]) {
+        MVMSpeshPEAMaterializeInfo *mi = &(cand->deopt_pea.materialize_info[info_idx]);
+        MVMSTable *st = (MVMSTable *)cand->spesh_slots[mi->stable_sslot];
+        MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
         MVMROOT(tc, f, {
-            MVMSpeshPEAMaterializeInfo *mi = &(cand->deopt_pea.materialize_info[info_idx]);
-            MVMSTable *st = (MVMSTable *)cand->spesh_slots[mi->stable_sslot];
-            MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
             MVMObject *obj = MVM_gc_allocate_object(tc, st);
             char *data = (char *)OBJECT_BODY(obj);
             MVMuint32 num_attrs = repr_data->num_attributes;
@@ -200,10 +200,10 @@ static void materialize_object(MVMThreadContext *tc, MVMFrame *f, MVMObject ***m
                 }
             }
             (*materialized)[info_idx] = obj;
-#if MVM_LOG_DEOPTS
-            fprintf(stderr, "    Materialized a %s\n", st->debug_name);
-#endif
         });
+#if MVM_LOG_DEOPTS
+        fprintf(stderr, "    Materialized a %s\n", st->debug_name);
+#endif
     }
     f->work[target_reg].o = (*materialized)[info_idx];
 }
