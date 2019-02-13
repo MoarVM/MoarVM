@@ -5834,7 +5834,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(sp_get_o): {
-                MVMObject *val = ((MVMObject *)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
+                MVMObject *val = *((MVMObject **)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
                 GET_REG(cur_op, 0).o = val ? val : tc->instance->VMNull;
                 cur_op += 6;
                 goto NEXT;
