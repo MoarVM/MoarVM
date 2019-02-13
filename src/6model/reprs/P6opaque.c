@@ -1183,10 +1183,21 @@ static void change_type(MVMThreadContext *tc, MVMObject *obj, MVMObject *new_typ
         MVM_exception_throw_adhoc(tc,
             "Cannot change the type of a %s type object", MVM_6model_get_debug_name(tc, obj));
 
+    /* If the type is already the same, nothing to do. */
+    if (STABLE(obj) == STABLE(new_type))
+        return;
+
     /* Ensure that the REPR of the new type is also P6opaque. */
     if (REPR(new_type)->ID != REPR(obj)->ID)
         MVM_exception_throw_adhoc(tc,
             "New type for %s must have a matching representation (P6opaque vs %s)", MVM_6model_get_debug_name(tc, obj), REPR(new_type)->name);
+
+    /* Ensure the target type is a mixin type. */
+    if (!STABLE(new_type)->is_mixin_type)
+        MVM_exception_throw_adhoc(tc,
+            "New type %s for %s is not a mixin type",
+            MVM_6model_get_debug_name(tc, new_type),
+            MVM_6model_get_debug_name(tc, obj));
 
     /* Ensure the MRO prefixes match up. */
     cur_map_entry = cur_repr_data->name_to_index_mapping;
