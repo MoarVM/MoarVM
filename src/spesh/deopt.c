@@ -167,11 +167,11 @@ static void materialize_object(MVMThreadContext *tc, MVMFrame *f, MVMObject ***m
         MVMSpeshPEAMaterializeInfo *mi = &(cand->deopt_pea.materialize_info[info_idx]);
         MVMSTable *st = (MVMSTable *)cand->spesh_slots[mi->stable_sslot];
         MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
-        MVMObject *obj = MVM_gc_allocate_object(tc, st);
-        char *data = (char *)OBJECT_BODY(obj);
-        MVMuint32 num_attrs = repr_data->num_attributes;
-        MVMuint32 i;
         MVMROOT(tc, f, {
+            MVMObject *obj = MVM_gc_allocate_object(tc, st);
+            char *data = (char *)OBJECT_BODY(obj);
+            MVMuint32 num_attrs = repr_data->num_attributes;
+            MVMuint32 i;
             for (i = 0; i < num_attrs; i++) {
                 MVMRegister value = f->work[mi->attr_regs[i]];
                 MVMuint16 offset = repr_data->attribute_offsets[i];
