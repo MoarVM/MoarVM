@@ -906,9 +906,10 @@
 #define MVM_OP_prof_enternative 902
 #define MVM_OP_prof_exit 903
 #define MVM_OP_prof_allocated 904
-#define MVM_OP_ctw_check 905
-#define MVM_OP_coverage_log 906
-#define MVM_OP_breakpoint 907
+#define MVM_OP_prof_replaced 905
+#define MVM_OP_ctw_check 906
+#define MVM_OP_coverage_log 907
+#define MVM_OP_breakpoint 908
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

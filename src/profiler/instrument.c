@@ -323,6 +323,7 @@ typedef struct {
     MVMString *allocations;
     MVMString *spesh;
     MVMString *jit;
+    MVMString *replaced;
     MVMString *type;
     MVMString *count;
     MVMString *gcs;
@@ -530,6 +531,9 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
                 box_i(tc, alloc->allocations_interp
                           + alloc->allocations_spesh
                           + alloc->allocations_jit));
+            if (alloc->scalar_replaced)
+                MVM_repr_bind_key_o(tc, alloc_info, pds->replaced,
+                    box_i(tc, alloc->scalar_replaced));
             MVM_repr_push_o(tc, alloc_list, alloc_info);
         }
     }
@@ -644,6 +648,7 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
         pds.count           = str(tc, "count");
         pds.spesh           = str(tc, "spesh");
         pds.jit             = str(tc, "jit");
+        pds.replaced        = str(tc, "replaced");
         pds.gcs             = str(tc, "gcs");
         pds.time            = str(tc, "time");
         pds.full            = str(tc, "full");

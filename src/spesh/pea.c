@@ -21,6 +21,7 @@ static void pea_log(char *fmt, ...) {
 #define TRANSFORM_GUARD_TO_SET      4
 #define TRANSFORM_ADD_DEOPT_POINT   5
 #define TRANSFORM_ADD_DEOPT_USAGE   6
+#define TRANSFORM_PROF_ALLOCATED    7
 typedef struct {
     /* The allocation that this transform relates to eliminating. */
     MVMSpeshPEAAllocation *allocation;
@@ -52,6 +53,9 @@ typedef struct {
             MVMint32 deopt_point_idx;
             MVMuint16 hypothetical_reg_idx;
         } du;
+        struct {
+            MVMSpeshIns *ins;
+        } prof;
     };
 } Transformation;
 
@@ -242,6 +246,14 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             used.reg.orig = gs->attr_regs[t->du.hypothetical_reg_idx];
             used.reg.i = MVM_spesh_manipulate_get_current_version(tc, g, used.reg.orig);
             MVM_spesh_usages_add_deopt_usage_by_reg(tc, g, used, t->du.deopt_point_idx);
+            break;
+        }
+        case TRANSFORM_PROF_ALLOCATED: {
+            MVMSpeshIns *ins = t->prof.ins;
+            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[0], ins);
+            ins->info = MVM_op_get_op(MVM_OP_prof_replaced);
+            ins->operands[0].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                    (MVMCollectable *)STABLE(t->allocation->type));
             break;
         }
         default:
@@ -614,6 +626,17 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                         }
                     }
                     break;
+                }
+                case MVM_OP_prof_allocated: {
+                    MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                    MVMSpeshPEAAllocation *alloc = target->pea.allocation;
+                    if (allocation_tracked(alloc)) {
+                        Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+                        tran->allocation = alloc;
+                        tran->transform = TRANSFORM_PROF_ALLOCATED;
+                        tran->prof.ins = ins;
+                        add_transform_for_bb(tc, gs, bb, tran);
+                    }
                 }
                 case MVM_SSA_PHI: {
                     /* If a PHI doesn't really merge anything, and its input is

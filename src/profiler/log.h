@@ -151,6 +151,9 @@ struct MVMProfileAllocationCount {
 
     /* c) in jitted code */
     MVMuint64 allocations_jit;
+
+    /* The number of allocations elimianted thanks to scalar replacement. */
+    MVMuint64 scalar_replaced;
 };
 
 /* When a continuation is taken, we attach one of these to it. It carries the
@@ -182,6 +185,7 @@ MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadConte
 void MVM_profile_log_continuation_invoke(MVMThreadContext *tc, const MVMProfileContinuationData *cd);
 void MVM_profile_log_thread_created(MVMThreadContext *tc, MVMThreadContext *child_tc);
 void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj);
+void MVM_profile_log_scalar_replaced(MVMThreadContext *tc, MVMSTable *st);
 void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full, MVMuint32 this_thread_responsible);
 void MVM_profiler_log_gc_end(MVMThreadContext *tc);
 void MVM_profiler_log_unmanaged_data_promoted(MVMThreadContext *tc, MVMuint64 amount);

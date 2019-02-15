@@ -220,6 +220,50 @@ void MVM_profile_log_thread_created(MVMThreadContext *tc, MVMThreadContext *chil
     prof_data->parent_thread_id = tc->thread_id;
 }
 
+/* Logs one allocation, potentially scalar replaced. */
+void log_one_allocation(MVMThreadContext *tc, MVMObject *obj, MVMProfileCallNode *pcn, MVMuint8 replaced) {
+    MVMObject *what = STABLE(obj)->WHAT;
+    MVMuint32 i;
+    MVMuint8 allocation_target;
+    if (replaced) {
+        allocation_target = 3;
+    } else if (pcn->entry_mode == MVM_PROFILE_ENTER_SPESH || pcn->entry_mode == MVM_PROFILE_ENTER_SPESH_INLINE) {
+        allocation_target = 1;
+    } else if (pcn->entry_mode == MVM_PROFILE_ENTER_JIT || pcn->entry_mode == MVM_PROFILE_ENTER_JIT_INLINE) {
+        allocation_target = 2;
+    } else {
+        allocation_target = 0;
+    }
+
+    /* See if there's an existing node to update. */
+    for (i = 0; i < pcn->num_alloc; i++) {
+        if (pcn->alloc[i].type == what) {
+            if (allocation_target == 0)
+                pcn->alloc[i].allocations_interp++;
+            else if (allocation_target == 1)
+                pcn->alloc[i].allocations_spesh++;
+            else if (allocation_target == 2)
+                pcn->alloc[i].allocations_jit++;
+            else if (allocation_target == 3)
+                pcn->alloc[i].scalar_replaced++;
+            return;
+        }
+    }
+
+    /* No entry; create one. */
+    if (pcn->num_alloc == pcn->alloc_alloc) {
+        pcn->alloc_alloc += 8;
+        pcn->alloc = MVM_realloc(pcn->alloc,
+            pcn->alloc_alloc * sizeof(MVMProfileAllocationCount));
+    }
+    pcn->alloc[pcn->num_alloc].type        = what;
+    pcn->alloc[pcn->num_alloc].allocations_interp = allocation_target == 0;
+    pcn->alloc[pcn->num_alloc].allocations_spesh  = allocation_target == 1;
+    pcn->alloc[pcn->num_alloc].allocations_jit    = allocation_target == 2;
+    pcn->alloc[pcn->num_alloc].scalar_replaced    = allocation_target == 3;
+    pcn->num_alloc++;
+}
+
 /* Log that we've just allocated the passed object (just log the type). */
 void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
     MVMProfileThreadData *ptd  = get_thread_data(tc);
@@ -238,46 +282,18 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
         /* Since some ops first allocate, then call something else that may
          * also allocate, we may have to allow for a bit of grace distance. */
         if ((uintptr_t)obj > (uintptr_t)tc->nursery_tospace && distance <= obj->header.size && obj != ptd->last_counted_allocation) {
-            /* See if there's an existing node to update. */
-            MVMObject            *what = STABLE(obj)->WHAT;
-            MVMuint32 i;
-
-            MVMuint8 allocation_target;
-            if (pcn->entry_mode == MVM_PROFILE_ENTER_SPESH || pcn->entry_mode == MVM_PROFILE_ENTER_SPESH_INLINE) {
-                allocation_target = 1;
-            } else if (pcn->entry_mode == MVM_PROFILE_ENTER_JIT || pcn->entry_mode == MVM_PROFILE_ENTER_JIT_INLINE) {
-                allocation_target = 2;
-            } else {
-                allocation_target = 0;
-            }
-
-            for (i = 0; i < pcn->num_alloc; i++) {
-                if (pcn->alloc[i].type == what) {
-                    if (allocation_target == 0)
-                        pcn->alloc[i].allocations_interp++;
-                    else if (allocation_target == 1)
-                        pcn->alloc[i].allocations_spesh++;
-                    else if (allocation_target == 2)
-                        pcn->alloc[i].allocations_jit++;
-                    ptd->last_counted_allocation = obj;
-                    return;
-                }
-            }
-
-            /* No entry; create one. */
-            if (pcn->num_alloc == pcn->alloc_alloc) {
-                pcn->alloc_alloc += 8;
-                pcn->alloc = MVM_realloc(pcn->alloc,
-                    pcn->alloc_alloc * sizeof(MVMProfileAllocationCount));
-            }
-            pcn->alloc[pcn->num_alloc].type        = what;
-            pcn->alloc[pcn->num_alloc].allocations_interp = allocation_target == 0;
-            pcn->alloc[pcn->num_alloc].allocations_spesh  = allocation_target == 1;
-            pcn->alloc[pcn->num_alloc].allocations_jit    = allocation_target == 2;
+            log_one_allocation(tc, obj, pcn, 0);
             ptd->last_counted_allocation = obj;
-            pcn->num_alloc++;
         }
     }
+}
+
+/* Logs a scalar-replaced allocation. */
+void MVM_profile_log_scalar_replaced(MVMThreadContext *tc, MVMSTable *st) {
+    MVMProfileThreadData *ptd  = get_thread_data(tc);
+    MVMProfileCallNode   *pcn  = ptd->current_call;
+    if (pcn)
+        log_one_allocation(tc, st->WHAT, pcn, 1);
 }
 
 /* Logs the start of a GC run. */

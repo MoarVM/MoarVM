@@ -1997,6 +1997,13 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | callp &MVM_profile_log_enter;
         break;
     }
+    case MVM_OP_prof_replaced: {
+        MVMint16 spesh_idx = ins->operands[0].lit_i16;
+        | mov ARG1, TC;
+        | get_spesh_slot ARG2, spesh_idx;
+        | callp &MVM_profile_log_scalar_replaced;
+        break;
+    }
     case MVM_OP_getobjsc: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[1].reg.orig;

@@ -6333,6 +6333,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_profile_log_allocated(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
+            OP(prof_replaced):
+                MVM_profile_log_scalar_replaced(tc,
+                    (MVMSTable *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 0)]);
+                cur_op += 2;
+                goto NEXT;
             OP(ctw_check): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 MVMint16 blame = GET_I16(cur_op, 2);
