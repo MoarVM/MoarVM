@@ -1939,7 +1939,7 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
                         MVMSTable * const attr_st = repr_data->flattened_stables[slot];
                         if (attr_st == NULL) {
                             MVMObject *value = get_obj_at_offset(data, offset);
-                            if (value != NULL) {
+                            if (value != NULL && REPR(value)->ID == MVM_REPR_ID_P6opaque) {
                                 fprintf(stderr, "=");
                                 dump_p6opaque(tc, value, 1);
                             }
