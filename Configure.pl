@@ -167,6 +167,42 @@ $config{ldinstflags}  = $config{ccinstflags} unless defined $config{ldinstflags}
 
 $config{as}           = $config{cc} unless defined $config{as};
 
+# If we're in macOS, let's verify that the toolchain is consistent.
+if ($^O eq 'darwin') {
+    my $gnu_count = 0;
+
+    # Here are the tools that seem to cause trouble.
+    # If you see other ones, please add them to this list.
+    my @check_tools = qw/ar cc ld make/;
+    for my $tool (map { `which $_` } @config{@check_tools}) {
+        chomp $tool;
+        system "grep -b 'gnu' '$tool'"; # Apple utilities don't match `gnu`
+        if ($? == 0) {
+            $gnu_count += 1;
+        }
+    }
+
+    ## For a GNU toolchain, make sure that they're all GNU.
+    if (exists $args{toolchain} &&
+        $args{toolchain} eq 'gnu' &&
+        $gnu_count != scalar @check_tools)
+    {
+        print "\nNot all tools in the toolchain are GNU. Please correct this and retry.\n"
+            . "See README.markdown for more details.\n\n";
+        exit -1;
+    }
+
+    ## Otherwise, make sure that none of them are GNU
+    elsif ((!exists $args{toolchain} ||
+        $args{toolchain} ne 'gnu' ) &&
+        $gnu_count != 0)
+    {
+        print "\nGNU tools detected, despite this not being a GNU-oriented build.\n"
+            ." Please correct this and retry. See README.markdown for more details.\n\n";
+        exit -1;
+    }
+}
+
 # Probe the compiler.
 build::probe::compiler_usability(\%config, \%defaults);
 
