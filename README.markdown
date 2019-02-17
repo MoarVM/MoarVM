@@ -92,3 +92,23 @@ to IRC.
 
 See the LICENSE file in the root directory for information on the license of
 the source code in the MoarVM repository.
+
+## Troubleshooting
+
+### Linker can't find appropriate symbols on macOS
+
+If MoarVM fails to build, and the error looks something like this:
+
+> ld: symbol(s) not found for architecture x86_64
+
+you likely have an incompatible mix of build and bin utils.
+
+While it is common to have toolchains installed from third party repositories in macOS, they aren't all compatible. In the event you run into this issue, please try these steps.
+
+ 1. Unlink your tools in homebrew: `brew unlink binutils`
+ 2. Destroy and re-clone MoarVM or rakudobrew
+ 3. Attempt the build again from scratch
+
+If you _want_ to use a GNU toolchain, and you get an error telling you to see this file, simply supply the `--toolchain=gnu` flag and this package will configure and build with a GNU toolchain.
+
+**Please note:** If you use mixed Xcode and non-Xcode tools, you are likely to run into trouble. As such, this configuration is unsupported.
