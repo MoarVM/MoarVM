@@ -890,6 +890,8 @@ static void make_deref_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
     MVM_spesh_usages_add_by_reg(tc, g, orig, deref_ins);
     MVM_spesh_get_facts(tc, g, deref_ins->operands[0])->writer = deref_ins;
 
+    MVM_spesh_graph_add_comment(tc, g, ins, "pointer dereference into CStruct body");
+
     MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, deref_ins);
 }
 static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
