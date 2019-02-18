@@ -787,6 +787,15 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov qword [TMP1+offset], TMP2; // store value into body
         break;
     }
+    case MVM_OP_sp_bind_i32: {
+        MVMint16 obj    = ins->operands[0].reg.orig;
+        MVMint16 offset = ins->operands[1].lit_i16;
+        MVMint16 val    = ins->operands[2].reg.orig;
+        | mov TMP1, WORK[obj];            // object
+        | mov TMP2, WORK[val];            // value
+        | mov dword [TMP1+offset], TMP2d; // store value into body
+        break;
+    }
     case MVM_OP_sp_get_i64:
     case MVM_OP_sp_get_n:
     case MVM_OP_sp_get_s: {
@@ -809,6 +818,16 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | get_vmnull TMP2;
         |1:
         | mov WORK[dst], TMP2;
+        break;
+    }
+    case MVM_OP_sp_get_i32: {
+        MVMint16 dst    = ins->operands[0].reg.orig;
+        MVMint16 obj    = ins->operands[1].reg.orig;
+        MVMint16 offset = ins->operands[2].lit_i16;
+        | mov TMP1, WORK[obj];            // object
+        | mov RV, [TMP1+offset];   // get value from body
+        | cdqe;
+        | mov WORK[dst], RV;
         break;
     }
     case MVM_OP_sp_deref_bind_i64:
