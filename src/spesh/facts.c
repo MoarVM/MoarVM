@@ -515,6 +515,11 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[2].reg.orig, ins->operands[2].reg.i);
             break;
+        case MVM_OP_nativecallcast:
+            create_facts(tc, g,
+                ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                ins->operands[2].reg.orig, ins->operands[2].reg.i);
+            break;
         case MVM_OP_trunc_u16:
         case MVM_OP_trunc_i16:
             trunc_i16_facts(tc, g, ins);
