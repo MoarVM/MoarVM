@@ -430,6 +430,10 @@ push @ldflags, '-fsanitize=address'  if $args{asan};
 push @ldflags, $ENV{LDFLAGS}         if $ENV{LDFLAGS};
 $config{ldflags} = join ' ', @ldflags;
 
+# Switch shared lib compiler flags in relocatable case.
+$config{moarshared} = $config{moarshared_relocatable}   if not $args{'no-relocatable'};
+$config{moarshared} = $config{moarshared_norelocatable} if     $args{'no-relocatable'};
+
 # setup library names
 $config{moarlib} = sprintf $config{lib}, $NAME;
 $config{moardll} = sprintf $config{dll}, $NAME;
