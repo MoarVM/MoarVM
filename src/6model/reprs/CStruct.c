@@ -915,8 +915,9 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 MVMSTable      *flat_st = repr_data->flattened_stables[slot];
                 const MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
                 add_slot_name_comment(tc, g, ins, name, ch_facts, st);
-                if (flat_st->REPR->ID == MVM_REPR_ID_P6int && (
-                            flat_ss->bits == 64 || flat_ss->bits == 32 || flat_ss->bits == 16 || flat_ss->bits == 8)) {
+                if (flat_st->REPR->ID == MVM_REPR_ID_P6int &&
+                        (flat_ss->bits == 64 || (flat_ss->bits == 32 || flat_ss->bits == 16 || flat_ss->bits == 8)
+                        && !flat_ss->is_unsigned)) {
                     MVMSpeshOperand temp_reg = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
                     MVMSpeshOperand orig_target = ins->operands[1];
                     if (opcode == MVM_OP_getattrs_i)
@@ -940,7 +941,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             }
         }
         break;
-    }*/
+    }
     case MVM_OP_bindattr_i:
     case MVM_OP_bindattrs_i: {
         MVMSpeshFacts *obj_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[0]);
