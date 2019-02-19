@@ -643,7 +643,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* Merge materialization deopt info (for scalar-replaced entities). */
     orig_deopt_pea_mat_infos = MVM_VECTOR_ELEMS(inliner->deopt_pea.materialize_info);
     for (i = 0; i < MVM_VECTOR_ELEMS(inlinee->deopt_pea.materialize_info); i++) {
-        MVMSpeshPEAMaterializeInfo mi_orig = inlinee->deopt_pea.materialize_info[0];
+        MVMSpeshPEAMaterializeInfo mi_orig = inlinee->deopt_pea.materialize_info[i];
         MVMSpeshPEAMaterializeInfo mi_new;
         mi_new.stable_sslot = mi_orig.stable_sslot + inliner->num_spesh_slots;
         mi_new.num_attr_regs = mi_orig.num_attr_regs;
