@@ -71,7 +71,7 @@ Please specify another installation target by using --prefix=PATH.
 ENOTTOCWD
 }
 
-# Override default target directories with command line argumets
+# Override default target directories with command line arguments
 my @target_dirs = qw{bindir libdir mastdir};
 for my $target (@target_dirs) {
     $config{$target} = $args{$target} if $args{$target};
@@ -94,6 +94,8 @@ if (-d '.git') {
 $args{optimize}     = 3 if not defined $args{optimize} or $args{optimize} eq "";
 $args{debug}        = 3 if defined $args{debug} and $args{debug} eq "";
 
+# Relocatability is not supported on AIX.
+$args{'no-relocatable'} = 1 if $^O eq 'aix';
 
 for (qw(coverage instrument static big-endian has-libtommath has-sha has-libuv
         has-libatomic_ops asan ubsan valgrind show-vec)) {
@@ -431,8 +433,10 @@ push @ldflags, $ENV{LDFLAGS}         if $ENV{LDFLAGS};
 $config{ldflags} = join ' ', @ldflags;
 
 # Switch shared lib compiler flags in relocatable case.
-$config{moarshared} = $config{moarshared_relocatable}   if not $args{'no-relocatable'};
-$config{moarshared} = $config{moarshared_norelocatable} if     $args{'no-relocatable'};
+if (not $args{static} and $config{prefix} ne '/usr') {
+    $config{moarshared} = $config{moarshared_relocatable}   if not $args{'no-relocatable'};
+    $config{moarshared} = $config{moarshared_norelocatable} if     $args{'no-relocatable'};
+}
 
 # setup library names
 $config{moarlib} = sprintf $config{lib}, $NAME;
@@ -1067,6 +1071,8 @@ The default prefix is "install" if this option is not passed.
 =item --no-relocatable
 
 Do not search for the libmoar library relative to the executable path.
+(On AIX MoarVM is always built non-relocatable, since AIX misses a necessary
+mechanism.)
 
 =item --bindir
 
