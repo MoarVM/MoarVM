@@ -32,7 +32,13 @@ typedef struct {
     /* Data per kind of transformation. */
     union {
         struct {
+            /* The attribute instruction. */
             MVMSpeshIns *ins;
+            /* If the referenced object didn't escape, and we replaced it,
+             * we can just delete this operation. This is the allocation
+             * to test if that's the case. */
+            MVMSpeshPEAAllocation *target_allocation;
+            /* The hypothetical register index to read or write. */
             MVMuint16 hypothetical_reg_idx;
         } attr;
         struct {
@@ -197,30 +203,44 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
         }
         case TRANSFORM_GETATTR_TO_SET: {
             MVMSpeshIns *ins = t->attr.ins;
-            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
-            ins->info = MVM_op_get_op(MVM_OP_set);
-            ins->operands[1].reg.orig = gs->attr_regs[t->attr.hypothetical_reg_idx];
-            ins->operands[1].reg.i = MVM_spesh_manipulate_get_current_version(tc, g,
-                ins->operands[1].reg.orig);
-            MVM_spesh_usages_add_by_reg(tc, g, ins->operands[1], ins);
-            MVM_spesh_graph_add_comment(tc, g, ins, "read of scalar-replaced attribute");
+            if (t->attr.target_allocation && !t->attr.target_allocation->irreplaceable) {
+                /* Read of replaced object from replaced object; nothing to
+                 * do at runtime. */
+                MVM_spesh_manipulate_delete_ins(tc, g, bb, t->set.ins);
+            }
+            else {
+                MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+                ins->info = MVM_op_get_op(MVM_OP_set);
+                ins->operands[1].reg.orig = gs->attr_regs[t->attr.hypothetical_reg_idx];
+                ins->operands[1].reg.i = MVM_spesh_manipulate_get_current_version(tc, g,
+                    ins->operands[1].reg.orig);
+                MVM_spesh_usages_add_by_reg(tc, g, ins->operands[1], ins);
+                MVM_spesh_graph_add_comment(tc, g, ins, "read of scalar-replaced attribute");
+            }
             break;
         }
         case TRANSFORM_BINDATTR_TO_SET: {
             MVMSpeshIns *ins = t->attr.ins;
-            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[0], ins);
-            ins->info = MVM_op_get_op(MVM_OP_set);
-            ins->operands[0].reg.orig = gs->attr_regs[t->attr.hypothetical_reg_idx];
-            /* This new_version handling assumes linear code with no flow
-             * control. We need to revisit it later, probably by not caring
-             * about versions here and then placing versions and PHIs as
-             * needed after this operation. However, when we'll also have
-             * to update usages at that point too. */
-            ins->operands[0] = MVM_spesh_manipulate_new_version(tc, g,
-                ins->operands[0].reg.orig);
-            ins->operands[1] = ins->operands[2];
-            MVM_spesh_get_facts(tc, g, ins->operands[0])->writer = ins;
-            MVM_spesh_graph_add_comment(tc, g, ins, "write of scalar-replaced attribute");
+            if (t->attr.target_allocation && !t->attr.target_allocation->irreplaceable) {
+                /* Write of replaced object into replaced object; nothing to
+                 * do at runtime. */
+                MVM_spesh_manipulate_delete_ins(tc, g, bb, t->set.ins);
+            }
+            else {
+                MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[0], ins);
+                ins->info = MVM_op_get_op(MVM_OP_set);
+                ins->operands[0].reg.orig = gs->attr_regs[t->attr.hypothetical_reg_idx];
+                /* This new_version handling assumes linear code with no flow
+                 * control. We need to revisit it later, probably by not caring
+                 * about versions here and then placing versions and PHIs as
+                 * needed after this operation. However, when we'll also have
+                 * to update usages at that point too. */
+                ins->operands[0] = MVM_spesh_manipulate_new_version(tc, g,
+                    ins->operands[0].reg.orig);
+                ins->operands[1] = ins->operands[2];
+                MVM_spesh_get_facts(tc, g, ins->operands[0])->writer = ins;
+                MVM_spesh_graph_add_comment(tc, g, ins, "write of scalar-replaced attribute");
+            }
             break;
         }
         case TRANSFORM_DELETE_SET:
@@ -572,6 +592,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                      * tracked object into a set. */
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[0]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
+                    MVMint32 is_object_bind = opcode == MVM_OP_sp_p6obind_o || opcode == MVM_OP_sp_bind_o;
                     if (allocation_tracked(alloc)) {
                         MVMint32 is_p6o_op = opcode == MVM_OP_sp_p6obind_i ||
                             opcode == MVM_OP_sp_p6obind_n ||
@@ -586,21 +607,34 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                         tran->transform = TRANSFORM_BINDATTR_TO_SET;
                         tran->attr.ins = ins;
                         tran->attr.hypothetical_reg_idx = hypothetical_reg;
-                        add_transform_for_bb(tc, gs, bb, tran);
-                        if (opcode == MVM_OP_sp_p6obind_o || opcode == MVM_OP_sp_bind_o) {
+                        if (is_object_bind) {
+                            /* We're binding one object into another. Create shadow facts
+                             * for the target register that we replace into. */
                             MVMSpeshFacts *tgt_facts = create_shadow_facts_h(tc, gs,
                                     hypothetical_reg);
                             MVMSpeshFacts *src_facts = MVM_spesh_get_facts(tc, g,
                                     ins->operands[2]);
                             MVM_spesh_copy_facts_resolved(tc, g, tgt_facts, src_facts);
-                        }
-                    }
 
-                    /* For now, no transitive EA, so for the object case,
-                     * mark the object being stored as requiring the real
-                     * object. */
-                    if (opcode == MVM_OP_sp_p6obind_o || opcode == MVM_OP_sp_bind_o)
-                        real_object_required(tc, g, ins, ins->operands[2]);
+                            /* Check if that target object is tracked too, in which case
+                             * we can potentially not really do any assignment here. */
+                            if (allocation_tracked(src_facts->pea.allocation)) {
+                                /* Mark transform as dependent on the source, so we'll
+                                 * just do a delete of this instruction if it also ends
+                                 * up not escaping. */
+                                MVMSpeshPEAAllocation *src_alloc = src_facts->pea.allocation;
+                                tran->attr.target_allocation = src_alloc;
+                                tgt_facts->pea.allocation = src_alloc;
+                            }
+                        }
+                        add_transform_for_bb(tc, gs, bb, tran);
+                    }
+                    else {
+                        /* The target of the bind escapes; if this is an object
+                         * bind then the target escapes. */
+                        if (is_object_bind)
+                            real_object_required(tc, g, ins, ins->operands[2]);
+                    }
                     break;
                 }
                 case MVM_OP_sp_p6oget_i:
@@ -611,6 +645,9 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                 case MVM_OP_sp_p6ogetvt_o: {
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[1]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
+                    MVMint32 is_object_get = opcode == MVM_OP_sp_p6oget_o ||
+                                             opcode == MVM_OP_sp_p6ogetvc_o ||
+                                             opcode == MVM_OP_sp_p6ogetvt_o;
                     if (allocation_tracked(alloc)) {
                         MVMuint16 hypothetical_reg = attribute_offset_to_reg(tc, alloc,
                                 ins->operands[2].lit_i16);
@@ -619,18 +656,34 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                         tran->transform = TRANSFORM_GETATTR_TO_SET;
                         tran->attr.ins = ins;
                         tran->attr.hypothetical_reg_idx = hypothetical_reg;
-                        add_transform_for_bb(tc, gs, bb, tran);
-                        if (opcode == MVM_OP_sp_p6oget_o || opcode == MVM_OP_sp_p6ogetvc_o ||
-                                opcode == MVM_OP_sp_p6ogetvt_o) {
-                            MVMSpeshFacts *tgt_facts = create_shadow_facts_c(tc, gs,
-                                    ins->operands[0]);
+                        if (is_object_get) {
+                            /* We're reading an object out of an object that doesn't
+                             * escape. We may have carried some facts about that. */
                             MVMSpeshFacts *src_facts = get_shadow_facts_h(tc, gs,
                                     hypothetical_reg);
                             if (src_facts) {
+                                /* Copy the facts. */
+                                MVMSpeshFacts *tgt_facts = create_shadow_facts_c(tc, gs,
+                                    ins->operands[0]);
                                 MVM_spesh_copy_facts_resolved(tc, g, tgt_facts, src_facts);
                                 tgt_facts->pea.depend_allocation = alloc;
+
+                                /* We might be reading an object that itself is perhaps
+                                 * being scalar replaced. If so, then we note that in the
+                                 * transform, since it may need to simply delete this
+                                 * instruction. We also need to track the target register
+                                 * of the attribute read, since it now aliases a scalar
+                                 * replaced object. The allocation needs to go on the real
+                                 * facts, not the shadow ones. */
+                                if (allocation_tracked(src_facts->pea.allocation)) {
+                                    MVMSpeshPEAAllocation *src_alloc = src_facts->pea.allocation;
+                                    tran->attr.target_allocation = src_alloc;
+                                    MVM_spesh_get_facts(tc, g, ins->operands[0])->pea.allocation = src_alloc;
+                                    add_tracked_register(tc, gs, ins->operands[0], src_alloc);
+                                }
                             }
                         }
+                        add_transform_for_bb(tc, gs, bb, tran);
                     }
                     break;
                 }
