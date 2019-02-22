@@ -10,6 +10,9 @@ struct MVMSpeshPEAAllocation {
      * the attributes of this type. */
     MVMuint16 *hypothetical_attr_reg_idxs;
 
+    /* Allocations that also escape if we do. */
+    MVM_VECTOR_DECL(MVMSpeshPEAAllocation *, escape_dependencies);
+
     /* Have we seen something that invalidates our ability to scalar replace
      * this? */
     MVMuint8 irreplaceable;

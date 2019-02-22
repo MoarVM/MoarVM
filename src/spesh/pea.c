@@ -392,16 +392,23 @@ static MVMuint32 allocation_tracked(MVMSpeshPEAAllocation *alloc) {
 
 /* Indicates that a real object is required; will eventually mark a point at
  * which we materialize. */
+static void mark_irreplaceable(MVMThreadContext *tc, MVMSpeshPEAAllocation *alloc) {
+    alloc->irreplaceable = 1;
+    while (MVM_VECTOR_ELEMS(alloc->escape_dependencies) > 0) {
+        MVMSpeshPEAAllocation *nested = MVM_VECTOR_POP(alloc->escape_dependencies);
+        pea_log("transitively marked another object escaped");
+        mark_irreplaceable(tc, nested);
+    }
+}
 static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
                                  MVMSpeshOperand o) {
     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, o);
     /* If there's another op using it, we'd need to materialize.
      * We don't support that yet, so just mark it irreplaceable. */
-    if (target->pea.allocation) {
-        if (!target->pea.allocation->irreplaceable) {
-            target->pea.allocation->irreplaceable = 1;
-            pea_log("replacement impossible due to %s", ins->info->name);
-        }
+    MVMSpeshPEAAllocation *alloc = target->pea.allocation;
+    if (alloc && !alloc->irreplaceable) {
+        pea_log("replacement impossible due to %s", ins->info->name);
+        mark_irreplaceable(tc, alloc);
     }
 }
 
@@ -625,6 +632,10 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                                 MVMSpeshPEAAllocation *src_alloc = src_facts->pea.allocation;
                                 tran->attr.target_allocation = src_alloc;
                                 tgt_facts->pea.allocation = src_alloc;
+
+                                /* Record that the allocation we're binding escapes if
+                                 * the thing it's being bound into escapes. */
+                                MVM_VECTOR_PUSH(alloc->escape_dependencies, src_alloc);
                             }
                         }
                         add_transform_for_bb(tc, gs, bb, tran);
@@ -777,6 +788,8 @@ void MVM_spesh_pea(MVMThreadContext *tc, MVMSpeshGraph *g) {
     for (i = 0; i < g->num_bbs; i++)
         MVM_VECTOR_DESTROY(gs.bb_states[i].transformations);
     MVM_VECTOR_DESTROY(gs.shadow_facts);
+    for (i = 0; i < MVM_VECTOR_ELEMS(gs.tracked_registers); i++)
+        MVM_VECTOR_DESTROY(gs.tracked_registers[i].allocation->escape_dependencies);
     MVM_VECTOR_DESTROY(gs.tracked_registers);
 }
 
