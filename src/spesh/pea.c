@@ -491,8 +491,8 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
              * let us eliminate. If it *is*, then we no longer consider this a
              * deopt point, and schedule a transform of the guard into a set.
              * Also, make entries into the deopt materializations table. */
+            MVMuint32 settified_guard = 0;
             if (ins->info->may_cause_deopt) {
-                MVMuint32 settify = 0;
                 MVMSpeshPEAAllocation *settify_dep = NULL;
                 switch (opcode) {
                     case MVM_OP_sp_guardconc: {
@@ -502,13 +502,13 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                                 (hyp_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
                                 hyp_facts->pea.depend_allocation) {
                             MVMSTable *wanted = (MVMSTable *)g->spesh_slots[ins->operands[2].lit_ui16];
-                            settify = wanted == hyp_facts->type->st;
+                            settified_guard = wanted == hyp_facts->type->st;
                             settify_dep = hyp_facts->pea.depend_allocation;
                         }
                         break;
                     }
                 }
-                if (settify) {
+                if (settified_guard) {
                     Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
                     tran->allocation = settify_dep;
                     tran->transform = TRANSFORM_GUARD_TO_SET;
@@ -627,6 +627,10 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     }
                     break;
                 }
+                case MVM_OP_sp_guardconc:
+                    if (!settified_guard)
+                        real_object_required(tc, g, ins, ins->operands[1]);
+                    break;
                 case MVM_OP_prof_allocated: {
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[0]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
