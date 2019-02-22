@@ -542,6 +542,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     MVMSpeshFacts *source = MVM_spesh_get_facts(tc, g, ins->operands[1]);
                     MVMSpeshPEAAllocation *alloc = source->pea.allocation;
                     if (allocation_tracked(alloc)) {
+                        /* Add a transform to delete the set instruction. */
                         Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
                         tran->allocation = alloc;
                         tran->transform = TRANSFORM_DELETE_SET;
@@ -549,6 +550,12 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                         add_transform_for_bb(tc, gs, bb, tran);
                         MVM_spesh_get_facts(tc, g, ins->operands[0])->pea.allocation = alloc;
                         add_tracked_register(tc, gs, ins->operands[0], alloc);
+
+                        /* Propagate facts; sometimes they're missing from earlier
+                         * passes. */
+                        MVM_spesh_copy_facts_resolved(tc, g,
+                                MVM_spesh_get_facts(tc, g, ins->operands[0]),
+                                source);
                     }
                     break;
                 }
@@ -649,8 +656,11 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     if (num_operands == 2) {
                         MVMSpeshFacts *source = MVM_spesh_get_facts(tc, g, ins->operands[1]);
                         MVMSpeshPEAAllocation *alloc = source->pea.allocation;
-                        if (allocation_tracked(alloc))
-                            MVM_spesh_get_facts(tc, g, ins->operands[0])->pea.allocation = alloc;
+                        if (allocation_tracked(alloc)) {
+                            MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                            target->pea.allocation = alloc;
+                            MVM_spesh_copy_facts_resolved(tc, g, target, source);
+                        }
                     }
                     else {
                         /* Otherwise, don't handle these for now. */
