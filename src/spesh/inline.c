@@ -610,6 +610,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             inlinee_last_bb = bb;
         bb = bb->linear_next;
     }
+    MVM_VECTOR_DESTROY(regs_for_deopt);
 
     /* If we saw that we may deopt anywhere, mark the basic blocks of the
      * inline as maybe deopting; this prevents us doing too aggressive
