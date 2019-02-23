@@ -440,6 +440,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     int fd;
     int flag;
     STAT_t statbuf;
+    uv_fs_t req;
 
     /* Resolve mode description to flags. */
     char * const fmode  = MVM_string_utf8_encode_C_string(tc, mode);
@@ -451,12 +452,9 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     MVM_free(fmode);
 
     /* Try to open the file. */
-#ifdef _WIN32
-    flag |= _O_BINARY;
-#endif
-    if ((fd = open((const char *)fname, flag, DEFAULT_MODE)) == -1) {
+    if ((fd = uv_fs_open(NULL, &req, (const char *)fname, flag, DEFAULT_MODE, NULL)) < 0) {
         char *waste[] = { fname, NULL };
-        const char *err = strerror(errno);
+        const char *err = uv_strerror(req.result);
         MVM_exception_throw_adhoc_free(tc, waste, "Failed to open file %s: %s", fname, err);
     }
 
