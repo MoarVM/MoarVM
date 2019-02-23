@@ -89,7 +89,7 @@ void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *d
         /* Guard against null pointer dereference below. */
         else
             MVM_exception_throw_adhoc(tc,
-                "Unknown error encountered in MVM_string_decodestream_discard_to");
+                "Unknown error encountered in MVM_string_decodestream_discard_to, pos = %"PRId32"", pos);
     }
     if (ds->bytes_head->length == pos) {
         /* We ate all of the new head buffer too; also free it. */
@@ -205,7 +205,7 @@ static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint3
 
     MVMint32   result_chars = chars - exclude;
     if (result_chars < 0)
-        MVM_exception_throw_adhoc(tc, "DecodeStream take_chars: chars - exclude < 0 should never happen");
+        MVM_exception_throw_adhoc(tc, "DecodeStream take_chars: chars - exclude < 0 should never happen, got (%"PRId32")", result_chars);
 
     result                       = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
     result->body.storage_type    = MVM_STRING_GRAPHEME_32;
@@ -661,7 +661,7 @@ void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeSt
     MVMint32 i, graph_length, graph_pos;
 
     if (num_seps > 0xFFF)
-        MVM_exception_throw_adhoc(tc, "Too many line separators");
+        MVM_exception_throw_adhoc(tc, "Too many line separators (%"PRId32"), max allowed is 4095", num_seps);
 
     MVM_free(sep_spec->sep_lengths);
     MVM_free(sep_spec->sep_graphemes);
@@ -673,7 +673,7 @@ void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeSt
     for (i = 0; i < num_seps; i++) {
         MVMuint32 num_graphs = MVM_string_graphs(tc, seps[i]);
         if (num_graphs > 0xFFFF)
-            MVM_exception_throw_adhoc(tc, "Line separator too long");
+            MVM_exception_throw_adhoc(tc, "Line separator (%"PRIu32") too long, max allowed is 65535", num_graphs);
         sep_spec->sep_lengths[i] = num_graphs;
         graph_length += num_graphs;
     }

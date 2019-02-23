@@ -684,7 +684,7 @@ MVMint64 MVM_string_index_from_end(MVMThreadContext *tc, MVMString *Haystack, MV
 
     if (start < 0 || H_graphs <= start)
         /* maybe return -1 instead? */
-        MVM_exception_throw_adhoc(tc, "index start offset out of range");
+        MVM_exception_throw_adhoc(tc, "index start offset (%"PRId64") out of range (0..%"PRIu32")", start, H_graphs);
 
     index = start;
 
@@ -2797,7 +2797,7 @@ MVMString * MVM_string_chr(MVMThreadContext *tc, MVMint64 cp) {
     MVMGrapheme32 g;
 
     if (cp < 0)
-        MVM_exception_throw_adhoc(tc, "chr codepoint cannot be negative");
+        MVM_exception_throw_adhoc(tc, "chr codepoint (%"PRId64") cannot be negative", cp);
     /* If the codepoint decomposes we may need to normalize it.
      * The first cp that decomposes is U+0340, but to be on the safe side
      * for now we go with the first significant character which at the time

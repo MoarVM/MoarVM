@@ -86,7 +86,7 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadCon
         if (MVM_UNLIKELY(in < 0)) {
             if (MVM_LIKELY(MVM_nfg_get_synthetic_info(tc, in)->is_utf8_c8))
                 return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, n, in, out);
-            MVM_exception_throw_adhoc(tc, "Internal error: encountered non-utf8-c8 synthetic during normalization");
+            MVM_exception_throw_adhoc(tc, "Internal error: encountered non-utf8-c8 synthetic (%"PRId32") during normalization", in);
         }
         /* If in isn't \r */
         if (in != 0x0D || !MVM_NORMALIZE_GRAPHEME(n->form))
