@@ -1685,7 +1685,9 @@ static void add_bail_comment(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns 
 
 static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                             MVMSpeshIterator *iter, MVMSpeshIns *ins) {
-    MVMint16 op = ins->info->opcode;
+    MVMint16 op;
+start:
+    op = ins->info->opcode;
     switch(op) {
     case MVM_SSA_PHI:
     case MVM_OP_no_op:
@@ -1766,10 +1768,6 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_const_s:
     case MVM_OP_null:
         /* argument reading */
-    case MVM_OP_getarg_i:
-    case MVM_OP_getarg_o:
-    case MVM_OP_getarg_n:
-    case MVM_OP_getarg_s:
     case MVM_OP_sp_getarg_i:
     case MVM_OP_sp_getarg_o:
     case MVM_OP_sp_getarg_n:
@@ -1901,6 +1899,51 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_bool_I:
         jg_append_primitive(tc, jg, ins);
         break;
+        /* reading back from arg buffer (after nativeinvoke_o) */
+    case MVM_OP_getarg_i:
+    case MVM_OP_getarg_o:
+    case MVM_OP_getarg_n:
+    case MVM_OP_getarg_s: {
+        /* getarg_* are used to read (possibly modified) values back from the args
+         * buffer. This is done only for native calls (after a nativeinvoke).
+         * However the JIT does not emit any code for the corresponding arg_* ops
+         * for a nativeinvoke. Instead the values are read directly from the WORK
+         * registers and the arg_* ops are only used to mark those registers. This
+         * means that there's nothing in the args buffer to read from. So instead,
+         * turn the getarg_* ops into plain set ops and take the value from the
+         * original WORK register.
+         * Though this is a modification you would usually find in spesh, in this
+         * case it depends on successful JIT compilation of previous ops. As we know
+         * this only when we actually JIT compile, we have to do it here instead */
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 arg = ins->operands[1].reg.orig;
+        MVMSpeshFacts *src_facts = MVM_spesh_get_facts(tc, iter->graph, ins->operands[1]);
+        if (src_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+            MVMSpeshBB *cur_bb = iter->bb;
+            MVMSpeshIns *cur_ins = ins->prev;
+            while (cur_bb) {
+                while (cur_ins) {
+                    if (
+                        cur_ins->info->opcode == MVM_OP_arg_i
+                        && cur_ins->operands[0].lit_i16 == src_facts->value.i
+                    ) {
+                        ins->info = MVM_op_get_op(MVM_OP_set);
+                        ins->operands[1] = cur_ins->operands[1];
+                        MVM_spesh_usages_add_by_reg(tc, iter->graph, ins->operands[1], ins);
+                        MVM_spesh_usages_delete(tc, iter->graph, src_facts, ins);
+                        goto start;
+                    }
+                    cur_ins = cur_ins->prev;
+                }
+                /* FIXME to be correct, we'd need to search all predecessors, not just the
+                 * first but this will do for the currently known use case for getarg_i */
+                cur_bb = cur_bb->pred[0];
+                cur_ins = cur_bb->last_ins;
+            }
+        }
+        jg_append_primitive(tc, jg, ins);
+        break;
+    }
         /* Unspecialized parameter access */
     case MVM_OP_param_rp_i: {
         MVMint16  dst     = ins->operands[0].reg.orig;
