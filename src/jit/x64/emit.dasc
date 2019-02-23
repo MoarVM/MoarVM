@@ -1268,7 +1268,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 src = ins->operands[1].reg.orig;
         | mov TMP1, WORK[src];
         | xor TMP2, TMP2;
-        | mov TMP2w, TMP1w;
+        | mov TMP2b, TMP1b;
         | mov WORK[dst], TMP2;
         break;
     }
