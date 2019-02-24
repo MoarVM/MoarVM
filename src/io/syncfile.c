@@ -9,14 +9,7 @@ typedef struct stat STAT_t;
 #else
 #include <fcntl.h>
 #include <errno.h>
-#define O_CREAT  _O_CREAT
-#define O_RDONLY _O_RDONLY
-#define O_WRONLY _O_WRONLY
-#define O_TRUNC  _O_TRUNC
-#define O_EXCL   _O_EXCL
-#define O_RDWR   _O_RDWR
 #define DEFAULT_MODE _S_IWRITE
-#define open _open
 #define close _close
 #define read _read
 #define write _write
@@ -407,13 +400,13 @@ static const MVMIOOps op_table = {
 /* Builds POSIX flag from mode string. */
 static int resolve_open_mode(int *flag, const char *cp) {
     switch (*cp++) {
-        case 'r': *flag = O_RDONLY; break;
-        case '-': *flag = O_WRONLY; break;
-        case '+': *flag = O_RDWR;   break;
+        case 'r': *flag = UV_FS_O_RDONLY; break;
+        case '-': *flag = UV_FS_O_WRONLY; break;
+        case '+': *flag = UV_FS_O_RDWR;   break;
 
         /* alias for "-c" or "-ct" if by itself */
         case 'w':
-        *flag = *cp ? O_WRONLY | O_CREAT : O_WRONLY | O_CREAT | O_TRUNC;
+        *flag = *cp ? UV_FS_O_WRONLY | UV_FS_O_CREAT : UV_FS_O_WRONLY | UV_FS_O_CREAT | UV_FS_O_TRUNC;
         break;
 
         default:
@@ -424,10 +417,10 @@ static int resolve_open_mode(int *flag, const char *cp) {
         case 0:
         return 1;
 
-        case 'a': *flag |= O_APPEND; break;
-        case 'c': *flag |= O_CREAT;  break;
-        case 't': *flag |= O_TRUNC;  break;
-        case 'x': *flag |= O_EXCL;   break;
+        case 'a': *flag |= UV_FS_O_APPEND; break;
+        case 'c': *flag |= UV_FS_O_CREAT;  break;
+        case 't': *flag |= UV_FS_O_TRUNC;  break;
+        case 'x': *flag |= UV_FS_O_EXCL;   break;
 
         default:
         return 0;
