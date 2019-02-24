@@ -129,6 +129,8 @@ static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
 static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out, MVMint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     char *buf = MVM_malloc(bytes);
+    uv_buf_t iov = uv_buf_init(buf, bytes);
+    uv_fs_t req;
     unsigned int interval_id = MVM_telemetry_interval_start(tc, "syncfile.read_to_buffer");
     MVMint32 bytes_read;
 #ifdef _WIN32
@@ -141,7 +143,7 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
     flush_output_buffer(tc, data);
     do {
         MVM_gc_mark_thread_blocked(tc);
-        bytes_read = read(data->fd, buf, bytes);
+        bytes_read = uv_fs_read(NULL, &req, data->fd, &iov, 1, -1, NULL);
         MVM_gc_mark_thread_unblocked(tc);
     } while(bytes_read == -1 && errno == EINTR);
     if (bytes_read  == -1) {
