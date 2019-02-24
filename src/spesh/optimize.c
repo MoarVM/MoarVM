@@ -3241,12 +3241,17 @@ static void merge_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
             }
             if (bb->linear_next->num_succ) {
                 MVMSpeshBB **succ = MVM_spesh_alloc(tc, g, (bb->num_succ - 1 + bb->linear_next->num_succ) * sizeof(MVMSpeshBB *));
-                int i, j = 0;
+                int i, j = 0, p;
                 for (i = 0; i < bb->num_succ; i++)
                     if (bb->succ[i] != bb->linear_next)
                         succ[j++] = bb->succ[i];
-                for (i = 0; i < bb->linear_next->num_succ; i++)
+                for (i = 0; i < bb->linear_next->num_succ; i++) {
                     succ[j++] = bb->linear_next->succ[i];
+                    /* fixup the to be removed bb's succs' pred */
+                    for (p = 0; p < bb->linear_next->succ[i]->num_pred; p++)
+                        if (bb->linear_next->succ[i]->pred[p] == bb->linear_next)
+                            bb->linear_next->succ[i]->pred[p] = bb;
+                }
                 bb->succ = succ;
             }
             bb->num_succ--;
@@ -3294,7 +3299,7 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
     MVM_spesh_usages_remove_unused_deopt(tc, g);
     MVM_spesh_eliminate_dead_ins(tc, g);
 
-//    merge_bbs(tc, g);
+    merge_bbs(tc, g);
 
     /* Perform partial escape analysis at this point, which may make more
      * information available, or give more `set` instructions for the `set`
