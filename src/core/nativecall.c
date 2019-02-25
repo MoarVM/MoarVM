@@ -1017,13 +1017,13 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
         for (i = 0; i < repr_data->num_attributes; i++) {
             MVMint32 kind = repr_data->attribute_locations[i] & MVM_CSTRUCT_ATTR_MASK;
             MVMint32 slot = repr_data->attribute_locations[i] >> MVM_CSTRUCT_ATTR_SHIFT;
-            void *cptr = NULL;   /* The pointer in the C storage. */
+            void **cptr = NULL;  /* Address of the struct member holding the pointer in the C storage. */
             void *objptr = NULL; /* The pointer in the object representing the C object. */
 
             if (kind == MVM_CSTRUCT_ATTR_IN_STRUCT || !body->child_objs[slot])
                 continue;
 
-            cptr = (void*)((uintptr_t)storage + (uintptr_t)repr_data->struct_offsets[i]);
+            cptr = (void**)((uintptr_t)storage + (uintptr_t)repr_data->struct_offsets[i]);
             if (IS_CONCRETE(body->child_objs[slot])) {
                 switch (kind) {
                     case MVM_CSTRUCT_ATTR_CARRAY:
@@ -1054,7 +1054,7 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                 objptr = NULL;
             }
 
-            if (objptr != cptr)
+            if (objptr != *cptr)
                 body->child_objs[slot] = NULL;
             else
                 MVM_nativecall_refresh(tc, body->child_objs[slot]);
