@@ -541,10 +541,6 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
                 case MVM_NATIVECALL_ARG_UTF8STR:
                     if (is_rw) goto fail;
                     continue; /* already handled */
-                case MVM_NATIVECALL_ARG_CSTRUCT:
-                    if (is_rw) goto fail;
-                    arg_type = dst == -1 ? MVM_JIT_ARG_PTR : MVM_JIT_PARAM_PTR;
-                    break;
                 default:
                     goto fail;
             }
