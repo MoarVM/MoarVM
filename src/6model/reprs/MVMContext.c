@@ -120,6 +120,10 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     *result = *found;
 }
 
+#define IS_SIGNED_INT_REG(x) ((x) == MVM_reg_int64 || (x) == MVM_reg_int32 || (x) == MVM_reg_int16 || (x) == MVM_reg_int8)
+#define IS_UNSIGNED_INT_REG(x) ((x) == MVM_reg_uint64 || (x) == MVM_reg_uint32 || (x) == MVM_reg_uint16 || (x) == MVM_reg_uint8)
+#define IS_INT_REG(x) (IS_SIGNED_INT_REG((x)) || IS_UNSIGNED_INT_REG((x)))
+
 static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister value, MVMuint16 kind) {
     MVMString      *name  = (MVMString *)key;
     MVMContextBody *body  = (MVMContextBody *)data;
@@ -146,7 +150,12 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     }
     MVM_spesh_frame_walker_cleanup(tc, &fw);
 
-    if (got_kind != kind) {
+    /* If the registers don't match up in types (string vs num or num vs int)
+     * we shall complain. If, however, both types are integer types and only
+     * size or signedness mismatch, we can just go ahead and assign; bind_key
+     * only ever passes int64 as the kind anyway, but MVMContext can have
+     * integers of different sizes. */
+    if (got_kind != kind && !(IS_INT_REG(got_kind) && IS_INT_REG(kind))) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
         MVM_exception_throw_adhoc_free(tc, waste,
@@ -157,8 +166,36 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     if (got_kind == MVM_reg_obj || got_kind == MVM_reg_str) {
         MVM_ASSIGN_REF(tc, &(found_frame->header), found->o, value.o);
     }
-    else {
+    else if (got_kind == kind) {
         *found = value;
+    }
+    else if (IS_INT_REG(got_kind)) {
+        switch (got_kind) {
+            case MVM_reg_int8:
+                found->i64 = value.i8;
+                return;
+            case MVM_reg_int16:
+                found->i64 = value.i16;
+                return;
+            case MVM_reg_int32:
+                found->i64 = value.i32;
+                return;
+            case MVM_reg_int64:
+                found->i64 = value.i64;
+                return;
+            case MVM_reg_uint8:
+                found->u64 = value.u8;
+                return;
+            case MVM_reg_uint16:
+                found->u64 = value.u16;
+                return;
+            case MVM_reg_uint32:
+                found->u64 = value.u32;
+                return;
+            case MVM_reg_uint64:
+                found->u64 = value.u64;
+                return;
+        }
     }
 }
 
