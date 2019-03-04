@@ -2602,3 +2602,47 @@
       (carg (tc) ptr)
       (carg (^spesh_slot_value $1) ptr)
       (carg $2 int)) ptr_sz))
+
+(template: prof_enter
+  (callv (^func MVM_profile_log_enter)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^getf (^frame) MVMFrame static_info) ptr)
+      (carg (const (&QUOTE MVM_PROFILE_ENTER_NORMAL) int_sz) int))))
+
+(template: prof_enterspesh
+  (callv (^func MVM_profile_log_enter)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^getf (^frame) MVMFrame static_info) ptr)
+      (carg (const (&QUOTE MVM_PROFILE_ENTER_SPESH) int_sz) int))))
+
+(template: prof_enterinline
+  (callv (^func MVM_profile_log_enter)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^spesh_slot_value $0) ptr)
+      (carg (const (&QUOTE MVM_PROFILE_ENTER_SPESH_INLINE) int_sz) int))))
+
+(template: prof_enternative
+  (callv (^func MVM_profile_log_enter_native)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr))))
+
+(template: prof_exit
+  (callv (^func MVM_profile_log_exit)
+    (arglist
+      (carg (tc) ptr))))
+
+(template: prof_allocated
+  (callv (^func MVM_profile_log_allocated)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr))))
+
+(template: prof_replaced
+  (callv (^func MVM_profile_log_scalar_replaced)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^spesh_slot_value $0) ptr))))
