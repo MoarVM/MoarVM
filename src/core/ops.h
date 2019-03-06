@@ -821,6 +821,7 @@
 #define MVM_OP_readuint 817
 #define MVM_OP_readnum 818
 <<<<<<< HEAD
+<<<<<<< HEAD
 #define MVM_OP_smrt_intify 819
 #define MVM_OP_uname 820
 #define MVM_OP_sp_guard 821
@@ -1102,6 +1103,9 @@
 >>>>>>> Implement getsockopts op
 =======
 =======
+=======
+#define MVM_OP_getsockopts 819
+>>>>>>> Rerun tools/update_ops.p6
 #define MVM_OP_getsockopt 820
 #define MVM_OP_setsockopt 821
 #define MVM_OP_sp_guard 822
@@ -1159,6 +1163,7 @@
 #define MVM_OP_sp_p6obind_i 874
 #define MVM_OP_sp_p6obind_n 875
 #define MVM_OP_sp_p6obind_s 876
+<<<<<<< HEAD
 #define MVM_OP_sp_fastbox_i 877
 #define MVM_OP_sp_fastbox_bi 878
 #define MVM_OP_sp_fastbox_i_ic 879
@@ -1193,6 +1198,43 @@
 #define MVM_OP_breakpoint 908
 >>>>>>> Implement getsockopt/setsockopt support
 >>>>>>> Implement getsockopt/setsockopt support
+=======
+#define MVM_OP_sp_p6oget_i32 877
+#define MVM_OP_sp_p6obind_i32 878
+#define MVM_OP_sp_fastbox_i 879
+#define MVM_OP_sp_fastbox_bi 880
+#define MVM_OP_sp_fastbox_i_ic 881
+#define MVM_OP_sp_fastbox_bi_ic 882
+#define MVM_OP_sp_deref_get_i64 883
+#define MVM_OP_sp_deref_get_n 884
+#define MVM_OP_sp_deref_bind_i64 885
+#define MVM_OP_sp_deref_bind_n 886
+#define MVM_OP_sp_getlexvia_o 887
+#define MVM_OP_sp_getlexvia_ins 888
+#define MVM_OP_sp_getstringfrom 889
+#define MVM_OP_sp_getwvalfrom 890
+#define MVM_OP_sp_jit_enter 891
+#define MVM_OP_sp_boolify_iter 892
+#define MVM_OP_sp_boolify_iter_arr 893
+#define MVM_OP_sp_boolify_iter_hash 894
+#define MVM_OP_sp_cas_o 895
+#define MVM_OP_sp_atomicload_o 896
+#define MVM_OP_sp_atomicstore_o 897
+#define MVM_OP_sp_add_I 898
+#define MVM_OP_sp_sub_I 899
+#define MVM_OP_sp_mul_I 900
+#define MVM_OP_sp_bool_I 901
+#define MVM_OP_prof_enter 902
+#define MVM_OP_prof_enterspesh 903
+#define MVM_OP_prof_enterinline 904
+#define MVM_OP_prof_enternative 905
+#define MVM_OP_prof_exit 906
+#define MVM_OP_prof_allocated 907
+#define MVM_OP_prof_replaced 908
+#define MVM_OP_ctw_check 909
+#define MVM_OP_coverage_log 910
+#define MVM_OP_breakpoint 911
+>>>>>>> Rerun tools/update_ops.p6
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

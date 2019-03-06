@@ -822,6 +822,7 @@ BEGIN {
     2058,
     2062,
 <<<<<<< HEAD
+<<<<<<< HEAD
     2066,
     2070,
     2072);
@@ -930,6 +931,12 @@ BEGIN {
     2335);
 >>>>>>> Implement getsockopt/setsockopt support
 >>>>>>> Implement getsockopt/setsockopt support
+=======
+    2066,
+    2070,
+    2071,
+    2074);
+>>>>>>> Rerun tools/update_ops.p6
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     2,
     2,
@@ -1749,6 +1756,7 @@ BEGIN {
     4,
     4,
 <<<<<<< HEAD
+<<<<<<< HEAD
     4,
     2,
     1);
@@ -1849,6 +1857,12 @@ BEGIN {
     2);
 >>>>>>> Implement getsockopts op
 >>>>>>> Implement getsockopts op
+=======
+    4,
+    1,
+    3,
+    3);
+>>>>>>> Rerun tools/update_ops.p6
     MAST::Ops.WHO<@values> := nqp::list_i(10,
     8,
     18,
@@ -3919,6 +3933,7 @@ BEGIN {
     65,
     161,
 <<<<<<< HEAD
+<<<<<<< HEAD
     161,
     34,
     65,
@@ -3927,6 +3942,8 @@ BEGIN {
 <<<<<<< HEAD
     161);
 =======
+=======
+>>>>>>> Rerun tools/update_ops.p6
     161,
     66,
     34,
@@ -3934,6 +3951,7 @@ BEGIN {
     25,
     65,
     25,
+<<<<<<< HEAD
     33,
     66,
     65,
@@ -4197,6 +4215,9 @@ BEGIN {
     24);
 >>>>>>> Implement getsockopts op
 >>>>>>> Implement getsockopts op
+=======
+    33);
+>>>>>>> Rerun tools/update_ops.p6
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'const_i8', 1,
     'const_i16', 2,
@@ -5016,6 +5037,7 @@ BEGIN {
     'readint', 816,
     'readuint', 817,
 <<<<<<< HEAD
+<<<<<<< HEAD
     'readnum', 818,
     'smrt_intify', 819,
     'uname', 820);
@@ -5209,6 +5231,12 @@ BEGIN {
     'breakpoint', 908);
 >>>>>>> Implement getsockopt/setsockopt support
 >>>>>>> Implement getsockopt/setsockopt support
+=======
+    'readnum', 818,
+    'getsockopts', 819,
+    'getsockopt', 820,
+    'setsockopt', 821);
+>>>>>>> Rerun tools/update_ops.p6
     MAST::Ops.WHO<@names> := nqp::list_s('no_op',
     'const_i8',
     'const_i16',
@@ -6028,6 +6056,7 @@ BEGIN {
     'readint',
     'readuint',
 <<<<<<< HEAD
+<<<<<<< HEAD
     'readnum',
     'smrt_intify',
     'uname');
@@ -6128,6 +6157,12 @@ BEGIN {
     'breakpoint');
 >>>>>>> Implement getsockopts op
 >>>>>>> Implement getsockopts op
+=======
+    'readnum',
+    'getsockopts',
+    'getsockopt',
+    'setsockopt');
+>>>>>>> Rerun tools/update_ops.p6
     MAST::Ops.WHO<%generators> := nqp::hash('no_op', sub () {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
@@ -12486,8 +12521,6 @@ BEGIN {
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
-<<<<<<< HEAD
-=======
     },
     'getsockopts', sub ($op0) {
         my $bytecode := $*MAST_FRAME.bytecode;
@@ -12510,6 +12543,7 @@ BEGIN {
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+<<<<<<< HEAD
     },
     'sp_guard', sub ($op0, $op1, $op2, uint32 $op3) {
         my $bytecode := $*MAST_FRAME.bytecode;
@@ -13568,5 +13602,7 @@ BEGIN {
                     nqp::writeuint($bytecode, nqp::add_i($elems, 10), $value, 13);}
 >>>>>>> Implement getsockopts op
 >>>>>>> Implement getsockopts op
+=======
+>>>>>>> Rerun tools/update_ops.p6
     });
 }

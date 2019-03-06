@@ -13728,6 +13728,7 @@ static const MVMOpInfo MVM_op_infos[] = {
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 static const unsigned short MVM_op_counts = 913;
 =======
 =======
@@ -13744,6 +13745,9 @@ static const unsigned short MVM_op_counts = 907;
 static const unsigned short MVM_op_counts = 909;
 >>>>>>> Implement getsockopt/setsockopt support
 >>>>>>> Implement getsockopt/setsockopt support
+=======
+static const unsigned short MVM_op_counts = 912;
+>>>>>>> Rerun tools/update_ops.p6
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

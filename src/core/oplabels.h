@@ -1037,6 +1037,7 @@ static const void * const LABELS[] = {
 <<<<<<< HEAD
 =======
     NULL,
+<<<<<<< HEAD
     NULL,
     NULL,
     NULL,
@@ -1052,6 +1053,8 @@ static const void * const LABELS[] = {
 =======
 >>>>>>> Implement getsockopt/setsockopt support
 >>>>>>> Implement getsockopt/setsockopt support
+=======
+>>>>>>> Rerun tools/update_ops.p6
     &&OP_CALL_EXTOP,
     &&OP_CALL_EXTOP,
     &&OP_CALL_EXTOP,
