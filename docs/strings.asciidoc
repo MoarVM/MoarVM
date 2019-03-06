@@ -24,7 +24,7 @@ TIP: Remember, all input text is normalized by default.
 Strings are represented by the `MVMString` `struct`
 (link:../src/6model/reprs/MVMString.h[source]). A string’s length is stored as
 a 32-bit unsigned integer, so the maximum number of graphemes allowed in a
-string is *32³² - 1* (4,294,967,295).
+string is *2³² - 1* (4,294,967,295).
 
 For a given string `MVMString *string`,
 `string->body.storage_type` can be one of the following types:
