@@ -1,5 +1,12 @@
 #include "moar.h"
 
+#ifdef _WIN32
+#include <ws2def.h>
+#else
+#include <netinet/tcp.h>
+#include <sys/socket.h>
+#endif
+
 /* Number of bytes we accept per read. */
 #define CHUNK_SIZE 65536
 
@@ -477,17 +484,31 @@ static MVMint64 get_sock_opt(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 opti
         }
     });
 
-    if (option == SO_LINGER) {
-        struct linger input;
-        len = sizeof(struct linger);
-        e = getsockopt(s, SOL_SOCKET, (int)option, (char *)&input, &len);
-        output = (input.l_onoff > 0) ? input.l_linger : -1;
-    }
-    else {
-        int input;
-        len = sizeof(int);
-        e = getsockopt(s, SOL_SOCKET, (int)option, (char *)&input, &len);
-        output = input;
+    switch (option) {
+        case SO_BROADCAST:
+        case SO_KEEPALIVE:
+        case SO_REUSEADDR:
+        case SO_DONTROUTE:
+        case SO_SNDBUF:
+        case SO_RCVBUF:
+        case SO_OOBINLINE:
+        case TCP_NODELAY: {
+            int input;
+            len = sizeof(int);
+            e = getsockopt(s, SOL_SOCKET, (int)option, (char *)&input, &len);
+            output = input;
+            break;
+        }
+        case SO_LINGER: {
+            struct linger input;
+            len = sizeof(struct linger);
+            e = getsockopt(s, SOL_SOCKET, (int)option, (char *)&input, &len);
+            output = (input.l_onoff >= 0) ? input.l_linger : -1;
+            break;
+        }
+        default:
+            MVM_exception_throw_adhoc(tc, "this socket option is not supported by MoarVM: %d\n", (int)option);
+            break;
     }
 
     if (e < 0) {
@@ -513,13 +534,27 @@ static void set_sock_opt(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 option, 
         }
     });
 
-    if (option == SO_LINGER) {
-        struct linger input = { ((value < 0) ? 0 : 1), ((value < 0) ? 0 : value) };
-        e = setsockopt(s, SOL_SOCKET, (int)option, (char *)&input, sizeof(struct linger));
-    }
-    else {
-        int input = (int)value;
-        e = setsockopt(s, SOL_SOCKET, (int)option, (char *)&input, sizeof(int));
+    switch (option) {
+        case SO_BROADCAST:
+        case SO_KEEPALIVE:
+        case SO_REUSEADDR:
+        case SO_DONTROUTE:
+        case SO_SNDBUF:
+        case SO_RCVBUF:
+        case SO_OOBINLINE:
+        case TCP_NODELAY: {
+            int input = (int)value;
+            e = setsockopt(s, SOL_SOCKET, (int)option, (char *)&input, sizeof(int));
+            break;
+        }
+        case SO_LINGER: {
+            struct linger input = { ((value < 0) ? 0 : 1), ((value < 0) ? 0 : value) };
+            e = setsockopt(s, SOL_SOCKET, (int)option, (char *)&input, sizeof(struct linger));
+            break;
+        }
+        default:
+            MVM_exception_throw_adhoc(tc, "this socket option is not supported by MoarVM: %d\n", (int)option);
+            break;
     }
 
     if (e < 0) {
