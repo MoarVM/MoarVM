@@ -409,25 +409,13 @@ void MVM_args_assert_nameds_used(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     MVMuint16 i;
     if (size > 64) {
         for (i = 0; i < size; i++)
-            if (!ctx->named_used.byte_array[i]) {
-                char *c_param = MVM_string_utf8_encode_C_string(tc,
-                    ctx->args[ctx->num_pos + 2 * i].s);
-                char *waste[] = { c_param, NULL };
-                MVM_exception_throw_adhoc_free(tc, waste,
-                    "Unexpected named argument '%s' passed",
-                    c_param);
-            }
+            if (!ctx->named_used.byte_array[i])
+                MVM_args_throw_named_unused_error(tc, ctx->args[ctx->num_pos + 2 * i].s);
     }
     else {
         for (i = 0; i < size; i++)
-            if (!(ctx->named_used.bit_field & ((MVMuint64)1 << i))) {
-                char *c_param = MVM_string_utf8_encode_C_string(tc,
-                    ctx->args[ctx->num_pos + 2 * i].s);
-                char *waste[] = { c_param, NULL };
-                MVM_exception_throw_adhoc_free(tc, waste,
-                    "Unexpected named argument '%s' passed",
-                    c_param);
-            }
+            if (!(ctx->named_used.bit_field & ((MVMuint64)1 << i)))
+                MVM_args_throw_named_unused_error(tc, ctx->args[ctx->num_pos + 2 * i].s);
     }
 }
 
@@ -637,7 +625,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
                 break;
             }
             default:
-                MVM_exception_throw_adhoc(tc, "arg flag is empty in slurpy positional");
+                MVM_exception_throw_adhoc(tc, "Arg flag is empty in slurpy_positional");
         }
 
         find_pos_arg(ctx, pos, arg_info);
@@ -727,7 +715,7 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
                 break;
             }
             default:
-                MVM_exception_throw_adhoc(tc, "arg flag is empty in slurpy named");
+                MVM_exception_throw_adhoc(tc, "Arg flag is empty in slurpy_named");
         }
     }
 
@@ -772,7 +760,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
             MVMStorageSpec  lss   = REPR(list)->pos_funcs.get_elem_storage_spec(tc, STABLE(list));
 
             if ((MVMint64)new_arg_pos + count > 0xFFFF) {
-                MVM_exception_throw_adhoc(tc, "Too many arguments in flattening array.");
+                MVM_exception_throw_adhoc(tc, "Too many arguments (%"PRId64") in flattening array, only %"PRId32" allowed.", (MVMint64)new_arg_pos + count), 0xFFFF;
             }
 
             for (i = 0; i < count; i++) {

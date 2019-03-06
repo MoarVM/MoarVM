@@ -58,7 +58,7 @@ int MVM_dll_free(MVMThreadContext *tc, MVMString *name) {
 
     if (!entry) {
         uv_mutex_unlock(&tc->instance->mutex_dll_registry);
-        MVM_exception_throw_adhoc(tc, "cannot free non-existent library");
+        MVM_exception_throw_adhoc(tc, "cannot free non-existent library '%s'", name);
     }
 
     /* already freed */
@@ -69,7 +69,7 @@ int MVM_dll_free(MVMThreadContext *tc, MVMString *name) {
 
     if (entry->refcount > 0) {
         uv_mutex_unlock(&tc->instance->mutex_dll_registry);
-        MVM_exception_throw_adhoc(tc, "cannot free in-use library");
+        MVM_exception_throw_adhoc(tc, "cannot free in-use library '%s'", name);
     }
 
     MVM_nativecall_free_lib(entry->lib);
@@ -94,13 +94,13 @@ MVMObject * MVM_dll_find_symbol(MVMThreadContext *tc, MVMString *lib,
     if (!entry) {
         uv_mutex_unlock(&tc->instance->mutex_dll_registry);
         MVM_exception_throw_adhoc(tc,
-                "cannot find symbol in non-existent library");
+                "cannot find symbol '%s' in non-existent library", lib);
     }
 
     if (!entry->lib) {
         uv_mutex_unlock(&tc->instance->mutex_dll_registry);
         MVM_exception_throw_adhoc(tc,
-                "cannot find symbol in unloaded library");
+                "cannot find symbol '%s' in unloaded library", lib);
     }
 
     csym = MVM_string_utf8_c8_encode_C_string(tc, sym);

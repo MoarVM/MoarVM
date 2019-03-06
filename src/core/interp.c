@@ -474,7 +474,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *val  = GET_REG(cur_op, 6).o;
                 MVMint16   flag = GET_I16(cur_op, 8);
                 if (flag < 0 || flag > 2)
-                    MVM_exception_throw_adhoc(tc, "setlexvalue provided with invalid flag");
+                    MVM_exception_throw_adhoc(tc, "setlexvalue provided with invalid flag (%"PRId16")", flag);
                 if (IS_CONCRETE(code) && REPR(code)->ID == MVM_REPR_ID_MVMCode) {
                     MVMStaticFrame *sf = ((MVMCode *)code)->body.sf;
                     MVMuint8 found = 0;
@@ -490,7 +490,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         }
                     }
                     if (!found)
-                        MVM_exception_throw_adhoc(tc, "setstaticlex given invalid lexical name");
+                        MVM_exception_throw_adhoc(tc, "setstaticlex given invalid lexical name (%s)", name);
                 }
                 else {
                     MVM_exception_throw_adhoc(tc, "setstaticlex needs a code ref");
@@ -1452,7 +1452,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     else {
                         MVM_exception_throw_adhoc(tc,
-                            "Bad argument index given to captureposprimspec");
+                            "Bad argument index (%"PRId64") given to captureposprimspec", i);
                     }
                 }
                 else {

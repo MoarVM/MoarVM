@@ -28,7 +28,7 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
     });
     if (!sym) {
         uv_mutex_unlock(&tc->instance->mutex_ext_registry);
-        MVM_exception_throw_adhoc(tc, "extension symbol not found");
+        MVM_exception_throw_adhoc(tc, "extension symbol (%s) not found", name);
     }
 
     entry = MVM_malloc(sizeof *entry);
