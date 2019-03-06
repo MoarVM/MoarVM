@@ -47,6 +47,7 @@ Spesh:
 + [0fef86cb] Save deopt usage info when writing bytecode
 + [c5bc342e] Fix rakudo build failure on big endian architectures
 + [07fe8e4a] Teach optimize_smart_coerce About Boot Types
++ [16d03884] Put inline-preventing insturction in spesh log
 
 6model:
 + [19515dbd] Fix segfault in dump_p6opaque when an attribute holds a VMArray
