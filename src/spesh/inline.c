@@ -91,10 +91,12 @@ static int is_static_frame_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inlin
  * and returns zero. Optionally builds up usage counts on the graph. */
 static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                                MVMStaticFrame *target_sf, MVMSpeshIns *invoke_ins,
-                               MVMSpeshGraph *ig, char **no_inline_reason) {
+                               MVMSpeshGraph *ig, char **no_inline_reason, MVMOpInfo **no_inline_info) {
     MVMSpeshBB *bb = ig->entry;
     MVMint32 same_hll = target_sf->body.cu->body.hll_config ==
             inliner->sf->body.cu->body.hll_config;
+    if (no_inline_info)
+        *no_inline_info = NULL;
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
@@ -105,12 +107,16 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
              * which case we're done. */
             if (!is_phi && ins->info->no_inline) {
                 *no_inline_reason = "target has a :noinline instruction";
+                if (no_inline_info)
+                    *no_inline_info = ins->info;
                 return 0;
             }
 
             /* XXX TODO: See if the workaround below is still required */
             if (opcode == MVM_OP_throwpayloadlexcaller && tc->instance->profiling) {
                 *no_inline_reason = "target has throwpayloadlexcaller, which currently causes problems when profiling is on";
+                if (no_inline_info)
+                    *no_inline_info = ins->info;
                 return 0;
             }
 
@@ -118,6 +124,8 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
              * cannot inline. */
             if (!same_hll && ins->info->uses_hll) {
                 *no_inline_reason = "target has a :useshll instruction and HLLs are different";
+                if (no_inline_info)
+                    *no_inline_info = ins->info;
                 return 0;
             }
 
@@ -137,6 +145,8 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             if (opcode == MVM_OP_bindlex) {
                 if (ins->operands[0].lex.outers > 0) {
                     *no_inline_reason = "target has bind to outer lexical";
+                    if (no_inline_info)
+                        *no_inline_info = ins->info;
                     return 0;
                 }
             }
@@ -209,7 +219,8 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
                                                MVMSpeshCandidate *cand,
                                                MVMSpeshIns *invoke_ins,
                                                char **no_inline_reason,
-                                               MVMuint32 *effective_size) {
+                                               MVMuint32 *effective_size,
+                                               MVMOpInfo **no_inline_info) {
     MVMSpeshGraph *ig;
     MVMSpeshIns **deopt_usage_ins = NULL;
 
@@ -227,7 +238,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
     /* Build graph from the already-specialized bytecode and check if we can
      * inline the graph. */
     ig = MVM_spesh_graph_create_from_cand(tc, target_sf, cand, 0, &deopt_usage_ins);
-    if (is_graph_inlineable(tc, inliner, target_sf, invoke_ins, ig, no_inline_reason)) {
+    if (is_graph_inlineable(tc, inliner, target_sf, invoke_ins, ig, no_inline_reason, no_inline_info)) {
         /* We can inline it. Do facts discovery, which also sets usage counts.
          * We also need to bump counts for any inline's code_ref_reg to make
          * sure it stays available for deopt. */
@@ -257,7 +268,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
 /* Tries to get a spesh graph for a particular unspecialized candidate. */
 MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadContext *tc,
         MVMSpeshGraph *inliner, MVMStaticFrame *target_sf, MVMSpeshIns *invoke_ins,
-        MVMSpeshCallInfo *call_info, MVMSpeshStatsType *type_tuple, char **no_inline_reason) {
+        MVMSpeshCallInfo *call_info, MVMSpeshStatsType *type_tuple, char **no_inline_reason, MVMOpInfo **no_inline_info) {
     MVMSpeshGraph *ig;
 
     /* Cannot inline with flattening args. */
@@ -280,7 +291,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadConte
     MVM_spesh_optimize(tc, ig, NULL);
 
     /* See if it's inlineable; clean up if not. */
-    if (is_graph_inlineable(tc, inliner, target_sf, invoke_ins, ig, no_inline_reason)) {
+    if (is_graph_inlineable(tc, inliner, target_sf, invoke_ins, ig, no_inline_reason, no_inline_info)) {
         return ig;
     }
     else {

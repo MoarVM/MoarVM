@@ -8,7 +8,7 @@ static void optimize_bigint_bool_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
 /* Logging of whether we can or can't inline. */
 static void log_inline(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *target_sf,
                        MVMSpeshGraph *inline_graph, MVMuint32 bytecode_size,
-                       char *no_inline_reason, MVMint32 unspecialized) {
+                       char *no_inline_reason, MVMint32 unspecialized, MVMOpInfo *no_inline_info) {
     if (tc->instance->spesh_inline_log) {
         char *c_name_i = MVM_string_utf8_encode_C_string(tc, target_sf->body.name);
         char *c_cuid_i = MVM_string_utf8_encode_C_string(tc, target_sf->body.cuuid);
@@ -21,8 +21,12 @@ static void log_inline(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *t
                 bytecode_size, c_name_t, c_cuid_t);
         }
         else {
-            fprintf(stderr, "Can NOT inline %s (%s) with bytecode size %u into %s (%s): %s\n",
+            fprintf(stderr, "Can NOT inline %s (%s) with bytecode size %u into %s (%s): %s",
                 c_name_i, c_cuid_i, bytecode_size, c_name_t, c_cuid_t, no_inline_reason);
+            if (no_inline_info) {
+                fprintf(stderr, " - ins: %s", no_inline_info->name);
+            }
+            fprintf(stderr, "\n");
         }
         MVM_free(c_name_i);
         MVM_free(c_cuid_i);
@@ -1962,11 +1966,12 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         if (spesh_cand >= 0) {
             /* Yes. Will we be able to inline? */
             char *no_inline_reason = NULL;
+            MVMOpInfo *no_inline_info = NULL;
             MVMuint32 effective_size;
             MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
                 target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
-                ins, &no_inline_reason, &effective_size);
-            log_inline(tc, g, target_sf, inline_graph, effective_size, no_inline_reason, 0);
+                ins, &no_inline_reason, &effective_size, &no_inline_info);
+            log_inline(tc, g, target_sf, inline_graph, effective_size, no_inline_reason, 0, no_inline_info);
             if (inline_graph) {
                 /* Yes, have inline graph, so go ahead and do it. Make sure we
                  * keep the code ref reg alive by giving it a usage count as
@@ -2033,6 +2038,10 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                         name_cstr, cuuid_cstr,
                         spesh_cand,
                         no_inline_reason);
+                    if (no_inline_info)
+                        MVM_spesh_graph_add_comment(tc, g, ins, "inline-preventing instruction: %s",
+                            no_inline_info->name);
+
                     MVM_free(cuuid_cstr);
                     MVM_free(name_cstr);
                 }
@@ -2043,10 +2052,11 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
          * to us. If it's small, then we could produce one and inline it. */
         else if (target_sf->body.bytecode_size < MVM_SPESH_MAX_INLINE_SIZE) {
             char *no_inline_reason = NULL;
+            MVMOpInfo *no_inline_info = NULL;
             MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph_from_unspecialized(
-                    tc, g, target_sf, ins, arg_info, stable_type_tuple, &no_inline_reason);
+                    tc, g, target_sf, ins, arg_info, stable_type_tuple, &no_inline_reason, &no_inline_info);
             log_inline(tc, g, target_sf, inline_graph, target_sf->body.bytecode_size,
-                    no_inline_reason, 1);
+                    no_inline_reason, 1, no_inline_info);
             if (inline_graph) {
                 MVMSpeshOperand code_ref_reg = ins->info->opcode == MVM_OP_invoke_v
                         ? ins->operands[0]
@@ -2061,7 +2071,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         else {
             log_inline(tc, g, target_sf, NULL, target_sf->body.bytecode_size,
                 "no spesh candidate available and bytecode too large to produce an inline",
-                0);
+                0, NULL);
         }
     }
 
