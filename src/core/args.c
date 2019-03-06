@@ -760,7 +760,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
             MVMStorageSpec  lss   = REPR(list)->pos_funcs.get_elem_storage_spec(tc, STABLE(list));
 
             if ((MVMint64)new_arg_pos + count > 0xFFFF) {
-                MVM_exception_throw_adhoc(tc, "Too many arguments (%"PRId64") in flattening array, only %"PRId32" allowed.", (MVMint64)new_arg_pos + count), 0xFFFF;
+                MVM_exception_throw_adhoc(tc, "Too many arguments (%"PRId64") in flattening array, only %"PRId32" allowed.", (MVMint64)new_arg_pos + count, 0xFFFF);
             }
 
             for (i = 0; i < count; i++) {

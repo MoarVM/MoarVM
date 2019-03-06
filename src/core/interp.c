@@ -489,8 +489,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             found = 1;
                         }
                     }
-                    if (!found)
-                        MVM_exception_throw_adhoc(tc, "setstaticlex given invalid lexical name (%s)", name);
+                    if (!found) {
+                        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+                        char *waste[] = { c_name, NULL };
+                        MVM_exception_throw_adhoc_free(tc, waste, "setstaticlex given invalid lexical name '%s'", c_name);
+                    }
                 }
                 else {
                     MVM_exception_throw_adhoc(tc, "setstaticlex needs a code ref");
@@ -5555,7 +5558,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                     MVM_exception_throw_adhoc(tc,
                         "Must provide an SCRef operand to serialize, got %s (%s)",
-                        REPR(sc)->name, MVM_6model_get_debug_name(tc, sc();
+                        REPR(sc)->name, MVM_6model_get_debug_name(tc, sc));
                 GET_REG(cur_op, 0).o = MVM_serialization_serialize(
                     tc,
                     (MVMSerializationContext *)sc,
