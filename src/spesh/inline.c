@@ -91,7 +91,7 @@ static int is_static_frame_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inlin
  * and returns zero. Optionally builds up usage counts on the graph. */
 static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                                MVMStaticFrame *target_sf, MVMSpeshIns *invoke_ins,
-                               MVMSpeshGraph *ig, char **no_inline_reason, MVMOpInfo **no_inline_info) {
+                               MVMSpeshGraph *ig, char **no_inline_reason, MVMOpInfo const **no_inline_info) {
     MVMSpeshBB *bb = ig->entry;
     MVMint32 same_hll = target_sf->body.cu->body.hll_config ==
             inliner->sf->body.cu->body.hll_config;
@@ -220,7 +220,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
                                                MVMSpeshIns *invoke_ins,
                                                char **no_inline_reason,
                                                MVMuint32 *effective_size,
-                                               MVMOpInfo **no_inline_info) {
+                                               MVMOpInfo const **no_inline_info) {
     MVMSpeshGraph *ig;
     MVMSpeshIns **deopt_usage_ins = NULL;
 
@@ -268,7 +268,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
 /* Tries to get a spesh graph for a particular unspecialized candidate. */
 MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadContext *tc,
         MVMSpeshGraph *inliner, MVMStaticFrame *target_sf, MVMSpeshIns *invoke_ins,
-        MVMSpeshCallInfo *call_info, MVMSpeshStatsType *type_tuple, char **no_inline_reason, MVMOpInfo **no_inline_info) {
+        MVMSpeshCallInfo *call_info, MVMSpeshStatsType *type_tuple, char **no_inline_reason, MVMOpInfo const **no_inline_info) {
     MVMSpeshGraph *ig;
 
     /* Cannot inline with flattening args. */

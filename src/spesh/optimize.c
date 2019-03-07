@@ -8,7 +8,7 @@ static void optimize_bigint_bool_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
 /* Logging of whether we can or can't inline. */
 static void log_inline(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *target_sf,
                        MVMSpeshGraph *inline_graph, MVMuint32 bytecode_size,
-                       char *no_inline_reason, MVMint32 unspecialized, MVMOpInfo *no_inline_info) {
+                       char *no_inline_reason, MVMint32 unspecialized, const MVMOpInfo *no_inline_info) {
     if (tc->instance->spesh_inline_log) {
         char *c_name_i = MVM_string_utf8_encode_C_string(tc, target_sf->body.name);
         char *c_cuid_i = MVM_string_utf8_encode_C_string(tc, target_sf->body.cuuid);
@@ -1966,7 +1966,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         if (spesh_cand >= 0) {
             /* Yes. Will we be able to inline? */
             char *no_inline_reason = NULL;
-            MVMOpInfo *no_inline_info = NULL;
+            const MVMOpInfo *no_inline_info = NULL;
             MVMuint32 effective_size;
             MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
                 target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
@@ -2052,7 +2052,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
          * to us. If it's small, then we could produce one and inline it. */
         else if (target_sf->body.bytecode_size < MVM_SPESH_MAX_INLINE_SIZE) {
             char *no_inline_reason = NULL;
-            MVMOpInfo *no_inline_info = NULL;
+            const MVMOpInfo *no_inline_info = NULL;
             MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph_from_unspecialized(
                     tc, g, target_sf, ins, arg_info, stable_type_tuple, &no_inline_reason, &no_inline_info);
             log_inline(tc, g, target_sf, inline_graph, target_sf->body.bytecode_size,
