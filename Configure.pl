@@ -170,10 +170,17 @@ $config{as}           = $config{cc} unless defined $config{as};
 # If we're in macOS, let's verify that the toolchain is consistent.
 if ($^O eq 'darwin') {
     my $gnu_count = 0;
+    my $gnu_toolchain = exists $args{toolschain} && $args{toolschain} eq 'gnu';
+
+    unless ($gnu_toolchain) {
+        # When XCode toolchain is used then force use of XCode's make if
+        # available.
+        $config{make} = '/usr/bin/make' if -x '/usr/bin/make'; 
+    }
 
     # Here are the tools that seem to cause trouble.
     # If you see other ones, please add them to this list.
-    my @check_tools = qw/ar cc ld make/;
+    my @check_tools = qw/ar cc ld/;
     for my $tool (map { `which $_` } @config{@check_tools}) {
         chomp $tool;
         system "grep -b 'gnu' '$tool'"; # Apple utilities don't match `gnu`
@@ -183,20 +190,14 @@ if ($^O eq 'darwin') {
     }
 
     ## For a GNU toolchain, make sure that they're all GNU.
-    if (exists $args{toolchain} &&
-        $args{toolchain} eq 'gnu' &&
-        $gnu_count != scalar @check_tools)
-    {
+    if ($gnu_toolchain && $gnu_count != scalar @check_tools) {
         print "\nNot all tools in the toolchain are GNU. Please correct this and retry.\n"
             . "See README.markdown for more details.\n\n";
         exit -1;
     }
 
     ## Otherwise, make sure that none of them are GNU
-    elsif ((!exists $args{toolchain} ||
-        $args{toolchain} ne 'gnu' ) &&
-        $gnu_count != 0)
-    {
+    elsif (!$gnu_toolchain && $gnu_count != 0) {
         print "\nGNU tools detected, despite this not being a GNU-oriented build.\n"
             ." Please correct this and retry. See README.markdown for more details.\n\n";
         exit -1;
