@@ -530,6 +530,7 @@ static void string_consts(MVMThreadContext *tc) {
 } while (0)
 
     string_creator(empty, "");
+    string_creator(Int, "Int");
     string_creator(Str, "Str");
     string_creator(Num, "Num");
     string_creator(integer, "integer");

@@ -12,6 +12,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
 /* Numification. */
 MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *s);
 void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg);
+void MVM_coerce_smart_intify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg);
 MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj);
 MVMObject* MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMint64 offset, MVMint64 flag);
 

@@ -33,6 +33,7 @@ typedef struct {
 /* Various common string constants. */
 struct MVMStringConsts {
     MVMString *empty;
+    MVMString *Int;
     MVMString *Str;
     MVMString *Num;
     MVMString *integer;
