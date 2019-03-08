@@ -170,7 +170,7 @@ $config{as}           = $config{cc} unless defined $config{as};
 # If we're in macOS, let's verify that the toolchain is consistent.
 if ($^O eq 'darwin') {
     my $gnu_count = 0;
-    my $gnu_toolchain = exists $args{toolschain} && $args{toolschain} eq 'gnu';
+    my $gnu_toolchain = (exists $args{toolchain}) && ($args{toolchain} eq 'gnu');
 
     unless ($gnu_toolchain) {
         # When XCode toolchain is used then force use of XCode's make if
