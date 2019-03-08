@@ -385,7 +385,7 @@ void MVM_coerce_smart_intify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
 
     /* Handle null case. */
     if (MVM_is_null(tc, obj)) {
-        res_reg->i64 = 0.0;
+        res_reg->i64 = 0;
     }
 
     /* Check if there is an Int method. */
