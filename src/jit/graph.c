@@ -1788,6 +1788,7 @@ start:
     case MVM_OP_sp_p6obind_o:
     case MVM_OP_sp_p6obind_i32:
     case MVM_OP_sp_bind_i64:
+    case MVM_OP_sp_bind_i32:
     case MVM_OP_sp_bind_n:
     case MVM_OP_sp_bind_s:
     case MVM_OP_sp_bind_s_nowb:
