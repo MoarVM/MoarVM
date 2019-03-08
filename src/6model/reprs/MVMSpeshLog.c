@@ -59,6 +59,46 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     }
 }
 
+static void describe_refs (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data) {
+    MVMSpeshLogBody  *body      = (MVMSpeshLogBody *)data;
+    MVMuint64         i         = 0;
+
+    if (!body->entries)
+        return;
+    for (i = 0; i < body->used; i++) {
+        switch (body->entries[i].kind) {
+            case MVM_SPESH_LOG_ENTRY:
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->entries[i].entry.sf, "Spesh log entry");
+                break;
+            case MVM_SPESH_LOG_PARAMETER:
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->entries[i].param.type, "Parameter entry");
+                break;
+            case MVM_SPESH_LOG_PARAMETER_DECONT:
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->entries[i].param.type, "Deconted parameter entry");
+                break;
+            case MVM_SPESH_LOG_TYPE:
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->entries[i].type.type, "Type entry");
+                break;
+            case MVM_SPESH_LOG_RETURN:
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->entries[i].type.type, "Return entry");
+                break;
+            case MVM_SPESH_LOG_STATIC:
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->entries[i].value.value, "Static value entry");
+                break;
+            case MVM_SPESH_LOG_INVOKE:
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->entries[i].invoke.sf, "Invoked staticframe entry");
+                break;
+        }
+    }
+}
+
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMSpeshLog *log = (MVMSpeshLog *)obj;
@@ -135,5 +175,5 @@ static const MVMREPROps SpeshLog_this_repr = {
     "MVMSpeshLog", /* name */
     MVM_REPR_ID_MVMSpeshLog,
     unmanaged_size,
-    NULL, /* describe_refs */
+    describe_refs
 };
