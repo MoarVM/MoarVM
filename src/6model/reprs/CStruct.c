@@ -748,6 +748,23 @@ static const MVMStorageSpec storage_spec = {
     0,                          /* is_unsigned */
 };
 
+static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    /* The CStruct data body itself is unmanaged, though it doesn't
+     * necessarily come from regular malloced heap memory */
+    MVMCStructREPRData *repr_data = (MVMCStructREPRData *)st->REPR_data;
+    MVMuint64 result = 0;
+
+    /* The allocated (or just-poisted-at) memory block */
+    /* TODO make sure when structs properly track "ownership" to
+     *      not add this for "child" structs */
+    result += repr_data->struct_size;
+
+    /* The array we hold wrapper objects in */
+    result += repr_data->num_child_objs * sizeof(MVMObject *);
+
+    return result;
+}
+
 /* Gets the storage specification for this representation. */
 static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return &storage_spec;
@@ -1025,6 +1042,6 @@ static const MVMREPROps CStruct_this_repr = {
     spesh, /* spesh */
     "CStruct", /* name */
     MVM_REPR_ID_MVMCStruct,
-    NULL, /* unmanaged_size */
+    unmanaged_size,
     NULL, /* describe_refs */
 };
