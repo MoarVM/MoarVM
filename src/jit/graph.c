@@ -2472,7 +2472,7 @@ start:
         MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[3]);
         if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
             if ((facts->value.i & 3) != MVM_SWITCHENDIAN) {
-                unsigned char const size  = 1 << (facts->value.i >> ((facts->value.i & 1) ? 2 : 1));
+                unsigned char const size  = 1 << (facts->value.i >> 2);
 
                 MVMSpeshFacts *type_facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[0]);
                 if (type_facts && type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && type_facts->type &&

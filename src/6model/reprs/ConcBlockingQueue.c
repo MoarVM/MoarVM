@@ -56,6 +56,12 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     }
 }
 
+static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    MVMConcBlockingQueueBody *cbq = *(MVMConcBlockingQueueBody **)data;
+    MVMuint64 total = MVM_load(&cbq->elems) * sizeof(MVMConcBlockingQueueNode);
+    return total;
+}
+
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMConcBlockingQueue *cbq = (MVMConcBlockingQueue *)obj;
@@ -309,8 +315,8 @@ static const MVMREPROps ConcBlockingQueue_this_repr = {
     NULL, /* spesh */
     "ConcBlockingQueue", /* name */
     MVM_REPR_ID_ConcBlockingQueue,
-    NULL, /* unmanaged_size */
-    NULL, /* describe_refs */
+    unmanaged_size,
+    NULL /* describe_refs */
 };
 
 MVMObject * MVM_concblockingqueue_jit_poll(MVMThreadContext *tc, MVMObject *queue) {
