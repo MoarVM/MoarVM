@@ -1,5 +1,7 @@
 #include "moar.h"
 
+#include "zlib.h"
+
 #ifndef MAX
     #define MAX(x, y) ((y) > (x) ? (y) : (x))
 #endif
@@ -671,10 +673,26 @@ static void destroy_heap_snapshot_collection(MVMThreadContext *tc) {
     tc->instance->heap_snapshots = NULL;
 }
 
+static gzFile sfopen(const char *format, ...) {
+    gzFile result;
+    char filename[1024] = {0};
+    va_list args;
+    va_start(args, format);
+    vsnprintf(&filename, 1022, format, args);
+    va_end(args);
+    result = gzopen(filename, "w8");
+    return result;
+}
+
+static gzFile open_coll_file(MVMHeapSnapshotCollection *col, char *typename) {
+    return sfopen("/tmp/heapdump_%s_%d.txt.gz", typename, col->snapshot_idx);
+}
+
 void string_heap_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMuint64 i;
     MVMHeapDumpIndex *index = col->index;
     FILE *fh = col->fh;
+    gzFile str_fh = open_coll_file(col, "strings");
 
     fputs("strs", fh);
 
@@ -696,12 +714,17 @@ void string_heap_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *
         fwrite(&output_size, sizeof(MVMuint64), 1, fh);
         fwrite(str, sizeof(MVMuint8), output_size, fh);
 
+        gzfwrite(&output_size, sizeof(MVMuint64), 1, str_fh);
+        gzfwrite(str, sizeof(MVMuint8), output_size, str_fh);
+
         /* Adjust the size by how much we wrote, including the size prefix */
 
         index->stringheap_size += sizeof(MVMuint64) + sizeof(MVMuint8) * output_size;
     }
 
     col->strings_written = col->num_strings;
+
+    gzclose(str_fh);
 }
 
 /* The following functions all act the exact same way:
@@ -718,8 +741,12 @@ void types_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMuint64 i;
     MVMHeapDumpIndex *index = col->index;
     FILE *fh = col->fh;
+    gzFile repr_fh, type_fh;
 
     fputs("type", fh);
+
+    repr_fh = open_coll_file(col, "repr");
+    type_fh = open_coll_file(col, "type");
 
     i = col->num_types - col->types_written;
 
@@ -734,16 +761,27 @@ void types_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
 
         fwrite(&t->repr_name, sizeof(MVMuint64), 1, fh);
         fwrite(&t->type_name, sizeof(MVMuint64), 1, fh);
+
+        gzprintf(repr_fh, "%lld\n", t->repr_name);
+        gzprintf(type_fh, "%lld\n", t->type_name);
     }
 
     col->types_written = col->num_types;
+    gzclose(repr_fh);
+    gzclose(type_fh);
 }
 void static_frames_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMuint64 i;
     MVMHeapDumpIndex *index = col->index;
     FILE *fh = col->fh;
+    gzFile names_fh, cuid_fh, line_fh, file_fh;
 
     fputs("fram", fh);
+
+    names_fh = open_coll_file(col, "names");
+    cuid_fh = open_coll_file(col, "cuid");
+    line_fh = open_coll_file(col, "line");
+    file_fh =open_coll_file(col, "file");
 
     i = col->num_static_frames - col->static_frames_written;
 
@@ -759,9 +797,18 @@ void static_frames_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection
         fwrite(&sf->cuid, sizeof(MVMuint64), 1, fh);
         fwrite(&sf->line, sizeof(MVMuint64), 1, fh);
         fwrite(&sf->file, sizeof(MVMuint64), 1, fh);
+
+        gzprintf(names_fh, "%lld\n", sf->name);
+        gzprintf(cuid_fh, "%lld\n", sf->cuid);
+        gzprintf(line_fh, "%lld\n", sf->line);
+        gzprintf(file_fh, "%lld\n", sf->file);
     }
 
     col->static_frames_written = col->num_static_frames;
+    gzclose(names_fh);
+    gzclose(cuid_fh);
+    gzclose(line_fh);
+    gzclose(file_fh);
 }
 
 /* The collectables table gets an entry in the additional "snapshot sizes
@@ -774,6 +821,7 @@ void collectables_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection 
     MVMuint64 i;
     FILE *fh = col->fh;
     MVMHeapSnapshot *s = col->snapshot;
+    gzFile kind_fh, tofi_fh, collsize_fh, unmansize_fh, refstart_fh, refcount_fh;
 
     fputs("coll", fh);
 
@@ -783,8 +831,23 @@ void collectables_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection 
 
     entry->collectables_size += s->num_collectables * i + 4 + sizeof(MVMuint64) * 2;
 
+    kind_fh = open_coll_file(col, "kind");
+    tofi_fh = open_coll_file(col, "tofi");
+    collsize_fh = open_coll_file(col, "size");
+    unmansize_fh =open_coll_file(col, "unman");
+    refstart_fh = open_coll_file(col, "refstart");
+    refcount_fh = open_coll_file(col, "refcount");
+
     for (i = 0; i < s->num_collectables; i++) {
         MVMHeapSnapshotCollectable *coll = &s->collectables[i];
+
+        gzprintf(kind_fh, "%lld\n", coll->kind);
+        gzprintf(tofi_fh, "%lld\n", coll->type_or_frame_index);
+        gzprintf(collsize_fh, "%lld\n", coll->collectable_size);
+        gzprintf(unmansize_fh, "%lld\n", coll->unmanaged_size);
+        gzprintf(refstart_fh, "%lld\n", coll->refs_start);
+        gzprintf(refcount_fh, "%lld\n", coll->num_refs);
+
         fwrite(&coll->kind, sizeof(MVMuint16), 1, fh);
         fwrite(&coll->type_or_frame_index, sizeof(MVMuint32), 1, fh);
         fwrite(&coll->collectable_size, sizeof(MVMuint16), 1, fh);
@@ -797,6 +860,12 @@ void collectables_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection 
         }
         fwrite(&coll->num_refs, sizeof(MVMuint32), 1, fh);
     }
+    gzclose(kind_fh);
+    gzclose(tofi_fh);
+    gzclose(collsize_fh);
+    gzclose(unmansize_fh);
+    gzclose(refstart_fh);
+    gzclose(refcount_fh);
 }
 
 /* The references table has extreme potential for compression by first writing
@@ -812,6 +881,7 @@ void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
     MVMuint64 halfway;
     FILE *fh = col->fh;
     MVMHeapSnapshot *s = col->snapshot;
+    gzFile descr_fh, kind_fh, cindex_fh;
 
     fputs("refs", fh);
     fwrite(&s->num_references, sizeof(MVMuint64), 1, fh);
@@ -822,6 +892,10 @@ void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
 
     halfway = s->num_references / 2 - 1;
 
+    descr_fh = open_coll_file(col, "descrs");
+    kind_fh = open_coll_file(col, "kinds");
+    cindex_fh = open_coll_file(col, "cindex");
+
     for (i = 0; i < s->num_references; i++) {
         MVMHeapSnapshotReference *ref = &s->references[i];
         MVMuint8  descr  = ref->description & ((1 << MVM_SNAPSHOT_REF_KIND_BITS) - 1);
@@ -829,6 +903,10 @@ void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
         MVMuint64 cindex = ref->collectable_index;
 
         MVMuint64 maxval = MAX(kind, cindex);
+
+        gzprintf(descr_fh, "%lld\n", descr);
+        gzprintf(kind_fh, "%lld\n", kind);
+        gzprintf(cindex_fh, "%lld\n", cindex);
 
         if (maxval + 1 >= 1LL << 32) {
             fputc('6', fh);
@@ -871,6 +949,11 @@ void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
             entry->refs_middlepoint = entry->full_refs_size;
         }
     }
+
+    gzclose(descr_fh);
+    gzclose(kind_fh);
+    gzclose(cindex_fh);
+
 }
 
 void snapshot_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
