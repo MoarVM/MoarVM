@@ -11,6 +11,10 @@
         x ## _alloc = _s; \
     } while (0)
 
+#define MVM_VECTOR_CLEAR(x) do { \
+        x ## _num = 0; \
+    } while (0)
+
 #define MVM_VECTOR_DESTROY(x) do { \
         MVM_free(x); \
         x = NULL; \
