@@ -663,18 +663,26 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_sp_p6oget_bi:
     case MVM_OP_sp_p6oget_o:
     case MVM_OP_sp_p6ogetvc_o:
-    case MVM_OP_sp_p6ogetvt_o: {
+    case MVM_OP_sp_p6ogetvt_o:
+    case MVM_OP_sp_getvc_o:
+    case MVM_OP_sp_getvt_o: {
         MVMint16 dst    = ins->operands[0].reg.orig;
         MVMint16 obj    = ins->operands[1].reg.orig;
+        MVMint16 body = offsetof(MVMP6opaque, body);
         MVMint16 offset = ins->operands[2].lit_i16;
-        MVMint16 body   = offsetof(MVMP6opaque, body);
         /* load address and object */
         | mov TMP1, WORK[obj];
-        | lea TMP2, [TMP1 + (offset + body)];
-        | mov TMP4, P6OPAQUE:TMP1->body.replaced;
-        | lea TMP5, [TMP4 + offset];
-        | test TMP4, TMP4;
-        | cmovnz TMP2, TMP5;
+        if (op == MVM_OP_sp_getvc_o || op == MVM_OP_sp_getvt_o) {
+            | lea TMP2, [TMP1 + offset];
+            body = 0; /* Offset is already from the start of the object */
+        }
+        else {
+            | lea TMP2, [TMP1 + (offset + body)];
+            | mov TMP4, P6OPAQUE:TMP1->body.replaced;
+            | lea TMP5, [TMP4 + offset];
+            | test TMP4, TMP4;
+            | cmovnz TMP2, TMP5;
+        }
         /* TMP2 now contains address of item */
         if (op == MVM_OP_sp_p6oget_o) {
             | mov TMP3, [TMP2];
@@ -684,7 +692,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             /* Otherwise load VMNull */
             | get_vmnull TMP3;
             |3:
-        } else if (op == MVM_OP_sp_p6ogetvt_o) {
+        } else if (op == MVM_OP_sp_p6ogetvt_o || op == MVM_OP_sp_getvt_o) {
             /* vivify as type object */
             MVMint16 spesh_idx = ins->operands[3].lit_i16;
             | mov TMP3, [TMP2];
@@ -704,7 +712,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             /* store vivified type value in memory location */
             | mov qword [TMP2], TMP3;
             |4:
-        } else if (op == MVM_OP_sp_p6ogetvc_o) {
+        } else if (op == MVM_OP_sp_p6ogetvc_o || op == MVM_OP_sp_getvc_o) {
             MVMint16 spesh_idx = ins->operands[3].lit_i16;
             | mov TMP3, [TMP2];
             | test TMP3, TMP3;
@@ -787,14 +795,36 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     }
     case MVM_OP_sp_get_i64:
     case MVM_OP_sp_get_n:
-    case MVM_OP_sp_get_s:
+    case MVM_OP_sp_get_s: {
+        MVMint16 dst    = ins->operands[0].reg.orig;
+        MVMint16 obj    = ins->operands[1].reg.orig;
+        MVMint16 offset = ins->operands[2].lit_i16;
+        | mov TMP1, WORK[obj];             // object
+        | mov TMP2, qword [TMP1+offset];   // get value from body
+        | mov WORK[dst], TMP2;
+        break;
+    }
     case MVM_OP_sp_get_o: {
         MVMint16 dst    = ins->operands[0].reg.orig;
         MVMint16 obj    = ins->operands[1].reg.orig;
         MVMint16 offset = ins->operands[2].lit_i16;
-        | mov TMP1, WORK[obj];            // object
+        | mov TMP1, WORK[obj];             // object
         | mov TMP2, qword [TMP1+offset];   // get value from body
+        | test TMP2, TMP2;
+        | jnz >1;
+        | get_vmnull TMP2;
+        |1:
         | mov WORK[dst], TMP2;
+        break;
+    }
+    case MVM_OP_sp_get_i32: {
+        MVMint16 dst    = ins->operands[0].reg.orig;
+        MVMint16 obj    = ins->operands[1].reg.orig;
+        MVMint16 offset = ins->operands[2].lit_i16;
+        | mov TMP1, WORK[obj];            // object
+        | mov RV, [TMP1+offset];   // get value from body
+        | cdqe;
+        | mov WORK[dst], RV;
         break;
     }
     case MVM_OP_sp_deref_bind_i64:

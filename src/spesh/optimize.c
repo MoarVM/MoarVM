@@ -1,6 +1,8 @@
 #include "moar.h"
 
 static void optimize_bigint_bool_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins);
+static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                        MVMSpeshPlanned *p);
 
 /* This is where the main optimization work on a spesh graph takes place,
  * using facts discovered during analysis. */
@@ -118,6 +120,14 @@ MVMint16 MVM_spesh_add_spesh_slot(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCol
     }
     g->spesh_slots[g->num_spesh_slots] = c;
     return g->num_spesh_slots++;
+}
+
+/* Some things optimize into the `null` op; make sure it has facts set. */
+static void optimize_null(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                          MVMSpeshIns *ins) {
+    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+    facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_KNOWN_VALUE;
+    facts->value.o = facts->type = tc->instance->VMNull;
 }
 
 /* If an `isnull` is on something we know the type of or value of, then we
@@ -1979,11 +1989,12 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVMSpeshOperand code_ref_reg = ins->info->opcode == MVM_OP_invoke_v
                         ? ins->operands[0]
                         : ins->operands[1];
-
+                MVMSpeshBB *optimize_from_bb = inline_graph->entry;
                 MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
                         code_ref_reg, prepargs_deopt_idx,
                         (MVMuint16)target_sf->body.spesh->body.spesh_candidates[spesh_cand]->bytecode_size);
+                optimize_bb(tc, g, optimize_from_bb, NULL);
 
                 if (MVM_spesh_debug_enabled(tc)) {
                     char *cuuid_cstr = MVM_string_utf8_encode_C_string(tc, target_sf->body.cuuid);
@@ -2061,9 +2072,11 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVMSpeshOperand code_ref_reg = ins->info->opcode == MVM_OP_invoke_v
                         ? ins->operands[0]
                         : ins->operands[1];
+                MVMSpeshBB *optimize_from_bb = inline_graph->entry;
                 MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
                         code_ref_reg, prepargs_deopt_idx, 0); /* Don't know an accurate size */
+                optimize_bb(tc, g, optimize_from_bb, NULL);
             }
         }
 
@@ -2601,6 +2614,9 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_set:
             copy_facts(tc, g, ins->operands[0], ins->operands[1]);
             break;
+        case MVM_OP_null:
+            optimize_null(tc, g, bb, ins);
+            break;
         case MVM_OP_isnull:
             optimize_isnull(tc, g, bb, ins);
             break;
@@ -2661,13 +2677,15 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             optimize_smart_coerce(tc, g, bb, ins);
             break;
         case MVM_OP_invoke_v:
-            optimize_call(tc, g, bb, ins, p, 0, &arg_info);
+            if (!bb->inlined)
+                optimize_call(tc, g, bb, ins, p, 0, &arg_info);
             break;
         case MVM_OP_invoke_i:
         case MVM_OP_invoke_n:
         case MVM_OP_invoke_s:
         case MVM_OP_invoke_o:
-            optimize_call(tc, g, bb, ins, p, 1, &arg_info);
+            if (!bb->inlined)
+                optimize_call(tc, g, bb, ins, p, 1, &arg_info);
             break;
         case MVM_OP_speshresolve:
             if (p) {
@@ -2966,17 +2984,13 @@ static MVMSpeshBB * find_bb_with_instruction_linearly_after(MVMThreadContext *tc
     return NULL;
 }
 static MVMuint32 conflict_free(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-        MVMSpeshIns *from, MVMSpeshIns *to, MVMuint16 reg, MVMuint16 allow_inlined,
-        MVMuint16 allow_reads) {
+        MVMSpeshIns *from, MVMSpeshIns *to, MVMuint16 reg, MVMuint16 allow_reads) {
     /* A conflict over reg exists if either from and to are a non-linear BB
      * sequence or if another version of reg is written between from and to. */
     MVMSpeshBB *start_bb = find_bb_with_instruction_linearly_after(tc, g, bb, to);
     MVMSpeshBB *cur_bb = start_bb;
     while (cur_bb) {
-        MVMSpeshIns *check;
-        if (!allow_inlined && cur_bb->inlined_may_cause_deopt)
-            return 0;
-        check = cur_bb == start_bb ? to->prev : cur_bb->last_ins;
+        MVMSpeshIns *check = cur_bb == start_bb ? to->prev : cur_bb->last_ins;
         while (check) {
             MVMuint32 i;
 
@@ -3004,10 +3018,6 @@ static MVMuint32 conflict_free(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
 }
 static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                               MVMSpeshIns *ins) {
-    /* Don't do this if we're within an inline that may cause deopt. */
-    if (bb->inlined_may_cause_deopt)
-        return;
-
     /* If this set is the only user of its second operand, we might be able to
      * change the writing instruction to just write the target of the set. */
     if (MVM_spesh_usages_used_once(tc, g, ins->operands[1])) {
@@ -3015,7 +3025,7 @@ static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
         MVMSpeshIns *writer = source_facts->writer;
         if (!MVM_spesh_is_inc_dec_op(writer->info->opcode) && writer->info->opcode != MVM_SSA_PHI) {
             /* Instruction is OK. Check there is no register use conflict. */
-            if (conflict_free(tc, g, bb, writer, ins, ins->operands[0].reg.orig, 0, 0)) {
+            if (conflict_free(tc, g, bb, writer, ins, ins->operands[0].reg.orig, 0)) {
                 /* All is well. Update writer and delete set. */
                 MVMSpeshOperand new_target = ins->operands[0];
                 MVMSpeshFacts *new_target_facts = MVM_spesh_get_facts(tc, g, new_target);
@@ -3035,7 +3045,7 @@ static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
         MVMSpeshIns *user = MVM_spesh_get_facts(tc, g, ins->operands[0])->usage.users->user;
         if (!MVM_spesh_is_inc_dec_op(user->info->opcode) && user->info->opcode != MVM_SSA_PHI) {
             /* Instruction is OK. Check there is no register use conflict. */
-            if (conflict_free(tc, g, bb, ins, user, ins->operands[1].reg.orig, 0, 1)) {
+            if (conflict_free(tc, g, bb, ins, user, ins->operands[1].reg.orig, 1)) {
                 /* It will work. Find reading operand and update it. */
                 MVMuint32 i;
                 for (i = 1; i < user->info->num_operands; i++) {
@@ -3061,7 +3071,7 @@ static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
  * unbox on the outside, or vice versa. */
 static void try_eliminate_one_box_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                          MVMSpeshIns *box_ins, MVMSpeshIns *unbox_ins) {
-    if (conflict_free(tc, g, bb, box_ins, unbox_ins, box_ins->operands[1].reg.orig, 1, 1)) {
+    if (conflict_free(tc, g, bb, box_ins, unbox_ins, box_ins->operands[1].reg.orig, 1)) {
         /* Make unbox instruction no longer use the boxed value. */
         MVM_spesh_usages_delete_by_reg(tc, g, unbox_ins->operands[1], unbox_ins);
 

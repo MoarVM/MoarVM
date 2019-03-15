@@ -371,6 +371,10 @@ struct MVMSTable {
     /* If this STable is currently in the process of being repossessed. Used
      * to trigger clearup of memory pre-repossession. */
     MVMuint8 being_repossessed;
+
+    /* If this STable represents a type that can be the target of a
+     * change_type - that is to say, it's been mixed in to. */
+    MVMuint8 is_mixin_type;
 };
 
 /* The representation operations table. Note that representations are not

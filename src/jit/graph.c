@@ -1782,6 +1782,8 @@ start:
     case MVM_OP_sp_p6ogetvt_o:
     case MVM_OP_sp_p6oget_bi:
     case MVM_OP_sp_p6oget_i32:
+    case MVM_OP_sp_getvc_o:
+    case MVM_OP_sp_getvt_o:
     case MVM_OP_sp_p6obind_i:
     case MVM_OP_sp_p6obind_n:
     case MVM_OP_sp_p6obind_s:
@@ -1794,6 +1796,7 @@ start:
     case MVM_OP_sp_bind_s_nowb:
     case MVM_OP_sp_bind_o:
     case MVM_OP_sp_get_i64:
+    case MVM_OP_sp_get_i32:
     case MVM_OP_sp_get_n:
     case MVM_OP_sp_get_s:
     case MVM_OP_sp_get_o:

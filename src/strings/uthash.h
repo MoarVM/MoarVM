@@ -515,9 +515,12 @@ do {\
     if (head.hh_head) DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,head.hh_head));\
     else out=NULL;\
     while (out) {\
-        if (hashval == (out)->hh.hashv\
-         && MVM_string_equal(tc, (key_in), (MVMString *)((out)->hh.key)))\
-            break;\
+        if (hashval == (out)->hh.hashv) {\
+            MVMString *key_out = (MVMString *)((out)->hh.key);\
+            if ((key_in) == key_out || MVM_string_substrings_equal_nocheck(tc, (key_in), 0,\
+                    (key_in)->body.num_graphs, key_out, 0))\
+                break;\
+        }\
         if ((out)->hh.hh_next)\
             DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,(out)->hh.hh_next));\
         else\

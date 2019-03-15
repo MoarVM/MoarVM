@@ -10,7 +10,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 20
+#define CURRENT_VERSION 21
 #define MIN_VERSION     16
 
 /* Various sizes (in bytes). */
@@ -1172,6 +1172,7 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     }
 
     MVM_serialization_write_cstr(tc, writer, MVM_6model_get_stable_debug_name(tc, st));
+    MVM_serialization_write_int(tc, writer, st->is_mixin_type);
 
     /* Store offset we save REPR data at. */
     write_int32(writer->root.stables_table, offset + 8, writer->stables_data_offset);
@@ -2713,7 +2714,10 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     if (reader->root.version >= 18) {
         st->debug_name = MVM_serialization_read_cstr(tc, reader);
     } else {
-        st->debug_name = 0;
+        st->debug_name = NULL;
+    }
+    if (reader->root.version >= 21) {
+        st->is_mixin_type = MVM_serialization_read_int(tc, reader);
     }
 
     /* If the REPR has a function to deserialize representation data, call it. */

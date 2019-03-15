@@ -76,7 +76,8 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister *result, MVMuint16 kind) {
     MVMHashBody   *body = (MVMHashBody *)data;
     MVMHashEntry *entry = NULL;
-    MVM_HASH_GET(tc, body->hash_head, get_string_key(tc, key_obj), entry);
+    /* key_obj checked in MVM_HASH_GET */
+    MVM_HASH_GET(tc, body->hash_head, (MVMString *)key_obj, entry);
     if (MVM_LIKELY(kind == MVM_reg_obj))
         result->o = entry != NULL ? entry->value : tc->instance->VMNull;
     else
@@ -91,7 +92,7 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     MVMHashBody   *body = (MVMHashBody *)data;
     MVMHashEntry *entry = NULL;
 
-    MVMString *key = get_string_key(tc, key_obj);
+    MVMString *key = (MVMString *)key_obj; /* Checked in MVM_HASH_GET. */
     if (MVM_UNLIKELY(kind != MVM_reg_obj))
         MVM_exception_throw_adhoc(tc,
             "MVMHash representation does not support native type storage");
@@ -120,7 +121,8 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj) {
     MVMHashBody   *body = (MVMHashBody *)data;
     MVMHashEntry *entry = NULL;
-    MVM_HASH_GET(tc, body->hash_head, get_string_key(tc, key_obj), entry);
+    /* key_obj checked in MVM_HASH_GET */
+    MVM_HASH_GET(tc, body->hash_head, (MVMString *)key_obj, entry);
     return entry != NULL;
 }
 
