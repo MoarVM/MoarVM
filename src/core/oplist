@@ -880,6 +880,7 @@ readint             w(int64) r(obj) r(uint64) r(uint64)
 readuint            w(uint64) r(obj) r(uint64) r(uint64)
 readnum             w(num64) r(obj) r(uint64) r(uint64)
 smrt_intify         w(int64) r(obj) :pure :invokish :maycausedeopt
+uname               w(obj) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
