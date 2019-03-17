@@ -3,6 +3,11 @@
 /* Here we turn a spesh tree back into MoarVM bytecode, after optimizations
  * have been applied to it. */
 
+typedef struct {
+    MVM_VECTOR_DECL(MVMint32, idxs);
+    MVM_VECTOR_DECL(MVMSpeshIns *, seen_phis);
+} AllDeoptUsers;
+
 /* Writer state. */
 typedef struct {
     /* Bytecode output buffer. */
@@ -25,6 +30,9 @@ typedef struct {
     /* Persisted deopt usage info, so we can recover it should be produce an
      * inline from this bytecode in the future. */
     MVM_VECTOR_DECL(MVMint32, deopt_usage_info);
+
+    /* Working deopt users state (so we can allocate it once and re-use it). */
+    AllDeoptUsers all_deopt_users;
 } SpeshWriterState;
 
 /* Write functions; all native endian. */
@@ -63,6 +71,36 @@ static void write_num64(SpeshWriterState *ws, MVMnum64 value) {
     ensure_space(ws, 8);
     memcpy(ws->bytecode + ws->bytecode_pos, &value, 8);
     ws->bytecode_pos += 8;
+}
+
+/* Deopt user retention logic for the sake of inlining. */
+static void collect_deopt_users(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand from,
+        AllDeoptUsers *all_deopt_users) {
+    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, from);
+    MVMSpeshDeoptUseEntry *deopt_users = facts->usage.deopt_users;
+    MVMSpeshUseChainEntry *users = facts->usage.users;
+    while (deopt_users) {
+        MVM_VECTOR_PUSH(all_deopt_users->idxs, deopt_users->deopt_idx);
+        deopt_users = deopt_users->next;
+    }
+    while (users) {
+        MVMSpeshIns *ins = users->user;
+        if (ins->info->opcode == MVM_SSA_PHI) {
+            MVMint32 seen = 0;
+            MVMint32 i;
+            for (i = 0; i < MVM_VECTOR_ELEMS(all_deopt_users->seen_phis); i++) {
+                if (all_deopt_users->seen_phis[i] == ins) {
+                    seen = 1;
+                    break;
+                }
+            }
+            if (!seen) {
+                MVM_VECTOR_PUSH(all_deopt_users->seen_phis, ins);
+                collect_deopt_users(tc, g, ins->operands[0], all_deopt_users);
+            }
+        }
+        users = users->next;
+    }
 }
 
 /* Writes instructions within a basic block boundary. */
@@ -109,25 +147,22 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
 
         if (ins->info->opcode != MVM_SSA_PHI) {
             /* Real instruction, not a phi. See if we need to save any deopt
-             * usage information at this location. */
+             * usage information at this location. If the thing that is
+             * written is consumed by a PHI and those also have deopt users
+             * then we need to handle that case also. */
             if (g->facts && ins->info->num_operands >= 1 &&
                     (ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
-                MVMSpeshDeoptUseEntry *deopt_users = MVM_spesh_get_facts(tc, g,
-                        ins->operands[0])->usage.deopt_users;
-                if (deopt_users) {
-                    MVMint32 count = 0;
-                    MVMSpeshDeoptUseEntry *count_entry = deopt_users;
-                    while (count_entry) {
-                        count++;
-                        count_entry = count_entry->next;
-                    }
+                collect_deopt_users(tc, g, ins->operands[0], &(ws->all_deopt_users));
+                if (MVM_VECTOR_ELEMS(ws->all_deopt_users.idxs)) {
+                    MVMint32 count = MVM_VECTOR_ELEMS(ws->all_deopt_users.idxs);
+                    MVMint32 i;
                     MVM_VECTOR_PUSH(ws->deopt_usage_info, ws->bytecode_pos);
                     MVM_VECTOR_PUSH(ws->deopt_usage_info, count);
-                    while (deopt_users) {
-                        MVM_VECTOR_PUSH(ws->deopt_usage_info, deopt_users->deopt_idx);
-                        deopt_users = deopt_users->next;
-                    }
+                    for (i = 0; i < count; i++)
+                        MVM_VECTOR_PUSH(ws->deopt_usage_info, ws->all_deopt_users.idxs[i]);
                 }
+                MVM_VECTOR_CLEAR(ws->all_deopt_users.idxs);
+                MVM_VECTOR_CLEAR(ws->all_deopt_users.seen_phis);
             }
 
             /* Emit opcode. */
@@ -278,6 +313,8 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     for (i = 0; i < g->num_bbs; i++)
         ws->bb_offsets[i] = -1;
     MVM_VECTOR_INIT(ws->deopt_usage_info, 0);
+    MVM_VECTOR_INIT(ws->all_deopt_users.idxs, 0);
+    MVM_VECTOR_INIT(ws->all_deopt_users.seen_phis, 0);
 
     /* Create copy of handlers, and -1 all offsets so we can catch missing
      * updates. */
@@ -369,6 +406,8 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVM_free(ws->bb_offsets);
     MVM_free(ws->fixup_locations);
     MVM_free(ws->fixup_bbs);
+    MVM_VECTOR_DESTROY(ws->all_deopt_users.idxs);
+    MVM_VECTOR_DESTROY(ws->all_deopt_users.seen_phis);
     MVM_free(ws);
 
     return res;

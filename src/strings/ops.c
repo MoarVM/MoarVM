@@ -469,7 +469,7 @@ static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in) {
 }
 
 /* Returns nonzero if two substrings are equal, doesn't check bounds */
-static MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
+MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
         MVMint64 starta, MVMint64 length, MVMString *b, MVMint64 startb) {
     MVMint64 i;
 
