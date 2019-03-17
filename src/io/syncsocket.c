@@ -47,16 +47,6 @@ MVM_NO_RETURN static void throw_error(MVMThreadContext *tc, int r, char *operati
     }
 #endif
 
-/* MAXHOSTNAMELEN (based on libuv usage) */
-#if !defined(_WIN32)
-#if !defined(__MVS__)
-#include <sys/param.h>
-#endif
-#endif
-#ifndef MAXHOSTNAMELEN
-#define MAXHOSTNAMELEN 256
-#endif
-
  /* Data that we keep for a socket-based handle. */
 typedef struct {
     /* The socket handle (file descriptor on POSIX, SOCKET on Windows). */
@@ -525,8 +515,8 @@ MVMObject * MVM_io_socket_create(MVMThreadContext *tc, MVMint64 listen) {
 }
 
 MVMString * MVM_io_get_hostname(MVMThreadContext *tc) {
-    char hostname[MAXHOSTNAMELEN+1];
-    size_t size = MAXHOSTNAMELEN+1;
+    char hostname[UV_MAXHOSTNAMESIZE];
+    size_t size = UV_MAXHOSTNAMESIZE;
     int result = uv_os_gethostname(hostname, &size);
 
     if(result < 0) {
