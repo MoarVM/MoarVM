@@ -2807,7 +2807,7 @@ MVM_PUBLIC void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
 
     worker_entry_point = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTCCode);
     ((MVMCFunction *)worker_entry_point)->body.func = debugserver_worker;
-    MVM_thread_run(tc, MVM_thread_new(tc, worker_entry_point, 1));
+    MVM_thread_run(tc, MVM_thread_new(tc, worker_entry_point, 1, 0));
 }
 
 MVM_PUBLIC void MVM_debugserver_mark_handles(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {

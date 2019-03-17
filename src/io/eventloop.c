@@ -139,7 +139,7 @@ void MVM_io_eventloop_start(MVMThreadContext *tc) {
         loop_runner = MVM_repr_alloc_init(tc, instance->boot_types.BOOTCCode);
         ((MVMCFunction *)loop_runner)->body.func = enter_loop;
 
-        instance->event_loop_thread = MVM_thread_new(tc, loop_runner, 1);
+        instance->event_loop_thread = MVM_thread_new(tc, loop_runner, 1, 0);
         MVM_thread_run(tc, instance->event_loop_thread);
     }
 
