@@ -1,5 +1,6 @@
 #include "moar.h"
 #include <platform/threads.h>
+#include "platform/malloc_trim.h"
 
 /* If we have the job of doing GC for a thread, we add it to our work
  * list. */
@@ -221,6 +222,9 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
         else {
             /* Free gen2 unmarked if full collection. */
             if (gen == MVMGCGenerations_Both) {
+                /* Tell malloc implementation to free empty pages to kernel.
+                 * Currently only activated for Linux. */
+                MVM_malloc_trim();
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
                     "Thread %d run %d : freeing gen2 of thread %d\n",
                     other->thread_id);
