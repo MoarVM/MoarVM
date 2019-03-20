@@ -46,7 +46,10 @@ GetOptions(\%args, qw(
     static has-libtommath has-libatomic_ops
     has-dyncall has-libffi pkgconfig=s
     build=s host=s big-endian jit! enable-jit
-    prefix=s bindir=s libdir=s mastdir=s make-install asan ubsan valgrind telemeh show-autovect show-autovect-failed:s),
+    prefix=s bindir=s libdir=s mastdir=s
+    no-relocatable make-install asan ubsan
+    valgrind telemeh show-autovect
+    show-autovect-failed:s),
 
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 },
@@ -68,7 +71,7 @@ Please specify another installation target by using --prefix=PATH.
 ENOTTOCWD
 }
 
-# Override default target directories with command line argumets
+# Override default target directories with command line arguments
 my @target_dirs = qw{bindir libdir mastdir};
 for my $target (@target_dirs) {
     $config{$target} = $args{$target} if $args{$target};
@@ -91,6 +94,8 @@ if (-d '.git') {
 $args{optimize}     = 3 if not defined $args{optimize} or $args{optimize} eq "";
 $args{debug}        = 3 if defined $args{debug} and $args{debug} eq "";
 
+# Relocatability is not supported on AIX.
+$args{'no-relocatable'} = 1 if $^O eq 'aix';
 
 for (qw(coverage instrument static big-endian has-libtommath has-sha has-libuv
         has-libatomic_ops asan ubsan valgrind show-vec)) {
@@ -417,12 +422,21 @@ $config{cflags} = join ' ', uniq(@cflags);
 my @ldflags = ($config{ldmiscflags});
 push @ldflags, $config{ldoptiflags}  if $args{optimize};
 push @ldflags, $config{lddebugflags} if $args{debug};
-push @ldflags, $config{ldinstflags}       if $args{instrument};
+push @ldflags, $config{ldinstflags}  if $args{instrument};
 push @ldflags, $config{ld_covflags}  if $args{coverage};
-push @ldflags, $config{ldrpath}           if not $args{static} and $config{prefix} ne '/usr';
-push @ldflags, '-fsanitize=address' if $args{asan};
-push @ldflags, $ENV{LDFLAGS}  if $ENV{LDFLAGS};
+if (not $args{static} and $config{prefix} ne '/usr') {
+    push @ldflags, $config{ldrpath_relocatable} if not $args{'no-relocatable'};
+    push @ldflags, $config{ldrpath}             if     $args{'no-relocatable'};
+}
+push @ldflags, '-fsanitize=address'  if $args{asan};
+push @ldflags, $ENV{LDFLAGS}         if $ENV{LDFLAGS};
 $config{ldflags} = join ' ', @ldflags;
+
+# Switch shared lib compiler flags in relocatable case.
+if (not $args{static} and $config{prefix} ne '/usr') {
+    $config{moarshared} = $config{moarshared_relocatable}   if not $args{'no-relocatable'};
+    $config{moarshared} = $config{moarshared_norelocatable} if     $args{'no-relocatable'};
+}
 
 # setup library names
 $config{moarlib} = sprintf $config{lib}, $NAME;
@@ -912,7 +926,7 @@ __END__
                    [--toolchain <toolchain>] [--compiler <compiler>]
                    [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
-                   [--static] [--prefix]
+                   [--static] [--prefix <path>] [--no-relocatable]
                    [--has-libtommath] [--has-sha] [--has-libuv]
                    [--has-libatomic_ops]
                    [--asan] [--ubsan] [--no-jit]
@@ -921,8 +935,8 @@ __END__
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
-                   [--static] [--big-endian] [--prefix]
-                   [--make-install]
+                   [--static] [--prefix <path>] [--no-relocatable]
+                   [--big-endian] [--make-install]
 
 =head2 Use of environment variables
 
@@ -1053,6 +1067,12 @@ builds, the byte order is auto-detected.
 
 Install files in subdirectory /bin, /lib and /include of the supplied path.
 The default prefix is "install" if this option is not passed.
+
+=item --no-relocatable
+
+Do not search for the libmoar library relative to the executable path.
+(On AIX MoarVM is always built non-relocatable, since AIX misses a necessary
+mechanism.)
 
 =item --bindir
 

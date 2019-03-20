@@ -674,3 +674,7 @@ void MVM_vm_set_lib_path(MVMInstance *instance, int count, const char **lib_path
     for (; i < MAX_COUNT; ++i)
         instance->lib_path[i] = NULL;
 }
+
+int MVM_exepath(char* buffer, size_t* size) {
+    return uv_exepath(buffer, size);
+}

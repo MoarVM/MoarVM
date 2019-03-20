@@ -132,10 +132,12 @@ our %TC_POSIX = (
     ldsys => undef,
     ldimp => undef,
 
-    ccshared   => '-fPIC',
-    ldshared   => '-shared @ccshared@',
-    moarshared => '',
-    ldrpath    => '-Wl,-rpath,"/@libdir@"',
+    ccshared                 => '-fPIC',
+    ldshared                 => '-shared @ccshared@',
+    moarshared_norelocatable => '',
+    moarshared_relocatable   => '',
+    ldrpath                  => '-Wl,-rpath,"/@libdir@"',
+    ldrpath_relocatable      => '-Wl,-z,origin,-rpath,\'$$ORIGIN/../lib\'',
 
     arflags => 'rcs',
     arout   => '',
@@ -214,10 +216,12 @@ our %TC_MSVC = (
     ldsys => undef,
     ldimp => '%s.dll.lib',
 
-    ccshared   => '',
-    ldshared   => '/dll',
-    moarshared => '/implib:@moardll@.lib',
-    ldrpath    => '',
+    ccshared                 => '',
+    ldshared                 => '/dll',
+    moarshared_norelocatable => '/implib:@moardll@.lib',
+    moarshared_relocatable   => '/implib:@moardll@.lib',
+    ldrpath                  => '',
+    ldrpath_relocatable      => '',
 
     arflags => '/nologo',
     arout   => '/out:',
@@ -446,12 +450,14 @@ our %OS_MINGW32 = (
     dll   => '%s.dll',
     ldimp => '-l%s.dll',
 
-    libdir     => '@bindir@',
-    ccshared   => '',
-    ldshared   => '-shared -Wl,--out-implib,lib$(notdir $@).a',
-    moarshared => '',
-    ldrpath    => '',
-    sharedlib  => 'lib@moardll@.a',
+    libdir                   => '@bindir@',
+    ccshared                 => '',
+    ldshared                 => '-shared -Wl,--out-implib,lib$(notdir $@).a',
+    moarshared_norelocatable => '',
+    moarshared_relocatable   => '',
+    ldrpath                  => '',
+    ldrpath_relocatable      => '',
+    sharedlib                => 'lib@moardll@.a',
 
     translate_newline_output => 1,
 
@@ -475,10 +481,11 @@ our %OS_POSIX = (
 our %OS_AIX = (
     %OS_POSIX,
 
-    defs        => [ qw( _ALL_SOURCE _XOPEN_SOURCE=500 _LINUX_SOURCE_COMPAT ) ],
-    syslibs     => [ @{$OS_POSIX{syslibs}}, qw( rt dl perfstat ) ],
-    ldmiscflags => '-Wl,-brtl',
-    ldrpath     => '-L"/@libdir@"',
+    defs                => [ qw( _ALL_SOURCE _XOPEN_SOURCE=500 _LINUX_SOURCE_COMPAT ) ],
+    syslibs             => [ @{$OS_POSIX{syslibs}}, qw( rt dl perfstat ) ],
+    ldmiscflags         => '-Wl,-brtl',
+    ldrpath             => '-L"/@libdir@"',
+    ldrpath_relocatable => '-L"/@libdir@"',
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_AIX)' },
@@ -568,10 +575,12 @@ our %OS_DARWIN = (
 
     dll => 'lib%s.dylib',
 
-    ccshared   => '',
-    ldshared   => '-dynamiclib',
-    moarshared => '-install_name "@prefix@/lib/libmoar.dylib"',
-    sharedlib  => 'libmoar.dylib',
+    sharedlib                => 'libmoar.dylib',
+    ccshared                 => '',
+    ldshared                 => '-dynamiclib',
+    moarshared_norelocatable => '-install_name "@prefix@/lib/libmoar.dylib"',
+    moarshared_relocatable   => '-install_name @rpath/libmoar.dylib',
+    ldrpath_relocatable      => '-Wl,-rpath,@executable_path/../lib',
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_DARWIN)' },
