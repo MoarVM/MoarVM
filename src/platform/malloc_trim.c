@@ -1,4 +1,4 @@
-#ifdef __linux__
+#ifdef __GLIBC__
 #include <malloc.h>
 int MVM_malloc_trim(void) {
     /* 128*1024 is the glibc default. */
