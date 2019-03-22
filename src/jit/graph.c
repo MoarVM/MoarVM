@@ -322,6 +322,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_floor_n: return floor;
     case MVM_OP_pow_I: return MVM_bigint_pow;
     case MVM_OP_rand_I: return MVM_bigint_rand;
+    case MVM_OP_abs_n: return fabs;
     case MVM_OP_pow_n: return pow;
     case MVM_OP_time_n: return MVM_proc_time_n;
     case MVM_OP_randscale_n: return MVM_proc_randscale_n;
@@ -3421,6 +3422,7 @@ start:
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
     }
+    case MVM_OP_abs_n:
     case MVM_OP_floor_n:
     case MVM_OP_sqrt_n:
     case MVM_OP_sin_n:
