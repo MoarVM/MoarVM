@@ -127,6 +127,30 @@
       (carg $1   ptr)
       (carg (^caller) ptr))))
 
+(template: return_i
+  (dov
+    (callv (^func &MVM_args_set_result_int)
+      (arglist
+        (carg (tc) ptr)
+        (carg $0 int)
+        (carg (^zero) int)))
+    (callv (^func &MVM_frame_try_return)
+      (arglist
+        (carg (tc) ptr)))
+    (^exit)))
+
+(template: return_s
+  (dov
+    (callv (^func &MVM_args_set_result_str)
+      (arglist
+        (carg (tc) ptr)
+        (carg $0 ptr)
+        (carg (^zero) int)))
+    (callv (^func &MVM_frame_try_return)
+      (arglist
+        (carg (tc) ptr)))
+    (^exit)))
+
 (template: return_o
   (dov
     (callv (^func &MVM_spesh_log_return_type_from_jit)
