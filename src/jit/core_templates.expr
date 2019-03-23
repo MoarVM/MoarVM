@@ -2341,6 +2341,12 @@
         (carg (tc) ptr)
         (carg $1 ptr)) int_sz)))
 
+(template: indexingoptimized
+  (call (^func &MVM_string_indexing_optimized)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 int)) ptr_sz))
+
 (template: unicmp_s
   (call (^func &MVM_unicode_string_compare)
     (arglist
