@@ -2168,6 +2168,12 @@
     (flagval (nz $1))
     (flagval (ne $1 (^vmnull)))))
 
+(template: typeparameterized
+  (call (^func &MVM_6model_parametric_type_parameterized)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) ptr_sz))
+
 (template: lstat
   (call (^func &MVM_file_stat)
     (arglist
