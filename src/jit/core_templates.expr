@@ -1943,6 +1943,15 @@
     (arglist
       (carg (tc) ptr)) int_sz))
 
+(template: replace
+  (call (^func &MVM_string_replace)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   int)
+      (carg $3   int)
+      (carg $4   ptr)) ptr_sz))
+
 (template: assertparamcheck
   (when (zr $0)
     (callv (^func &MVM_args_bind_failed)
