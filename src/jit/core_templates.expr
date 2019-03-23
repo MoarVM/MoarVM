@@ -753,6 +753,12 @@
             (carg (^body $obj) ptr))))
       (store \$0 $obj ptr_sz))))
 
+(template: clone
+  (call (^func &MVM_repr_clone)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) ptr_sz))
+
 (template: isconcrete
   (if (all
         (nz $1)
