@@ -2621,14 +2621,14 @@
     (arglist
       (carg (tc) ptr)
       (carg (^getf (^frame) MVMFrame static_info) ptr)
-      (carg (const (&QUOTE MVM_PROFILE_ENTER_SPESH) int_sz) int))))
+      (carg (const (&QUOTE MVM_PROFILE_ENTER_JIT) int_sz) int))))
 
 (template: prof_enterinline
   (callv (^func MVM_profile_log_enter)
     (arglist
       (carg (tc) ptr)
       (carg (^spesh_slot_value $0) ptr)
-      (carg (const (&QUOTE MVM_PROFILE_ENTER_SPESH_INLINE) int_sz) int))))
+      (carg (const (&QUOTE MVM_PROFILE_ENTER_JIT_INLINE) int_sz) int))))
 
 (template: prof_enternative
   (callv (^func MVM_profile_log_enter_native)
