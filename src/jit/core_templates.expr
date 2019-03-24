@@ -1937,6 +1937,12 @@
     (arglist
       (carg (tc) ptr)) int_sz))
 
+(template: backtrace
+  (call (^func &MVM_exception_backtrace)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) ptr_sz))
+
 (template: assertparamcheck
   (when (zr $0)
     (callv (^func &MVM_args_bind_failed)
