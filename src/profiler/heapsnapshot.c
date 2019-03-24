@@ -1,10 +1,14 @@
 #include "moar.h"
 
 #include "zlib.h"
+#include "zstd.h"
 
 #ifndef MAX
     #define MAX(x, y) ((y) > (x) ? (y) : (x))
 #endif
+
+#define HEAPSNAP_FORMAT 3
+#define DUMP_EVERYTHING_RAW 1
 
 /* Check if we're currently taking heap snapshots. */
 MVMint32 MVM_profile_heap_profiling(MVMThreadContext *tc) {
@@ -688,18 +692,211 @@ static gzFile open_coll_file(MVMHeapSnapshotCollection *col, char *typename) {
     return sfopen("/tmp/heapdump_%s_%d.txt.gz", typename, col->snapshot_idx);
 }
 
-void string_heap_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+
+void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, char *start, size_t offset, size_t elem_size, size_t count, FILE* fh) {
+    char *pointer = (char *)start;
+
+    ZSTD_CStream *cstream;
+
+    size_t outSize = ZSTD_CStreamOutSize();
+
+    ZSTD_inBuffer inbuf;
+    ZSTD_outBuffer outbuf;
+
+    size_t size_position = ftell(fh);
+
+    size_t written_total = 0;
+    size_t original_total = count * elem_size;
+
+    char *out_buffer = MVM_malloc(outSize);
+    outbuf.dst = out_buffer;
+    outbuf.pos = 0;
+    outbuf.size = outSize;
+
+    cstream = ZSTD_createCStream();
+    if (ZSTD_isError(ZSTD_initCStream(cstream, 16))) {
+        MVM_panic(1, "oops");
+    }
+
+    fprintf(stderr, "will compress %lld bytes per field\n", elem_size);
+
+    while (count > 0) {
+        size_t retval;
+        size_t written;
+        ZSTD_inBuffer inbuf;
+
+        inbuf.src = pointer;
+        inbuf.pos = 0;
+        inbuf.size = elem_size;
+
+
+        if (ZSTD_isError(retval = ZSTD_compressStream(cstream, &outbuf, &inbuf))) {
+            fprintf(stderr, "compression error: %s\n", ZSTD_getErrorName(retval));
+        };
+
+        if (outbuf.pos) {
+            fprintf(stderr, "%lld ", outbuf.pos);
+
+            written = fwrite(outbuf.dst, sizeof(char), outbuf.pos, fh);
+            written_total += written;
+            outbuf.pos = 0;
+        }
+
+        pointer += offset;
+        count--;
+    }
+
+    {
+        size_t written;
+        size_t retval;
+
+        if (ZSTD_isError(retval = ZSTD_endStream(cstream, &outbuf))) {
+            fprintf(stderr, "compression error in endStream: %s\n", ZSTD_getErrorName(retval));
+        };
+
+        if (outbuf.pos) {
+            fprintf(stderr, "%lld.\n", outbuf.pos);
+
+            written = fwrite(outbuf.dst, sizeof(char), outbuf.pos, fh);
+            written_total += written;
+            outbuf.pos = 0;
+        }
+        else {
+            fprintf(stderr, "should not happen?!?\n");
+        }
+    }
+
+    fprintf(stderr, "for an attribute, wrote %lld kibytes (compressed from %lld kibytes, %f%%)\n", written_total / 1024,
+            original_total / 1024, written_total * 100.0f / original_total);
+
+    MVM_free(out_buffer);
+}
+
+
+void string_heap_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+    MVMuint64 i = col->strings_written;
+    MVMHeapDumpIndex *index = col->index;
+    FILE *fh = fopen("/tmp/new_format_output.mvmheap", "a");
+
+    size_t result_buffer_size = 2048;
+    char *result_buffer = MVM_malloc(2048);
+    char *result_buffer_insert_pos = result_buffer;
+
+    ZSTD_CStream *cstream;
+
+    /*size_t inSize  = ZSTD_CStreamInSize();*/
+    size_t outSize = ZSTD_CStreamOutSize();
+
+    ZSTD_inBuffer inbuf;
+    ZSTD_outBuffer outbuf;
+
+    /*ZSTD_outBuffer outbuf = { MVM_malloc(outSize), outSize, 0 };*/
+
+    char typename[8] = "strings\0";
+    MVMuint64 size = 0;
+
+    MVMuint64 size_position = 0; 
+
+    while (i < col->num_strings) {
+        char *str = col->strings[i];
+        MVMuint32 output_size = strlen(str);
+
+        if (result_buffer_insert_pos + output_size + 4 >= result_buffer + result_buffer_size) {
+            size_t offset = result_buffer_insert_pos - result_buffer;
+            result_buffer_size += 2048;
+            result_buffer = MVM_realloc(result_buffer, result_buffer_size);
+            result_buffer_insert_pos = result_buffer + offset;
+        }
+
+        memcpy(result_buffer_insert_pos, &output_size, sizeof(MVMuint32));
+        result_buffer_insert_pos += sizeof(MVMuint32);
+
+        memcpy(result_buffer_insert_pos, str, output_size);
+        result_buffer_insert_pos += output_size;
+
+        i++;
+    }
+
+    fprintf(stderr, "%d kilobytes of string data in buffer\n", (result_buffer_insert_pos - result_buffer) / 1024);
+
+    if (result_buffer_insert_pos == result_buffer)
+        return;
+
+    fwrite(&typename, sizeof(char), 8, fh);
+    /* If the stream is seekable, we can go back here to write the size,
+     * but only if we don't write everything in one go anyway */
+    size_position = ftell(fh);
+
+    cstream = ZSTD_createCStream();
+
+    if (ZSTD_isError(ZSTD_initCStream(cstream, 10))) {
+        MVM_panic(1, "oops");
+    }
+
+    inbuf.src = result_buffer;
+    inbuf.pos = 0;
+    inbuf.size = result_buffer_insert_pos - result_buffer;
+    fprintf(stderr, "inbuf: %x %x\n", inbuf.pos, inbuf.size);
+
+    /* TODO write the right size here later */
+    fwrite(&size, sizeof(MVMuint64), 1, fh);
+
+    outbuf.dst = MVM_malloc(1024 * 10);
+
+    while (inbuf.pos < inbuf.size) {
+        size_t returnval = 0;
+        size_t written = 0;
+
+        outbuf.pos = 0;
+        outbuf.size = 1024 * 10;
+
+        fprintf(stderr, "inbuf: %x %x\n", inbuf.pos, inbuf.size);
+        returnval = ZSTD_compressStream(cstream, &outbuf, &inbuf);
+        fprintf(stderr, "returnvalue: %d\n", returnval);
+        fprintf(stderr, "outbuf: %x %x\n", outbuf.pos, outbuf.size);
+
+        if (ZSTD_isError(returnval)) {
+            fprintf(stderr, "%s\n", ZSTD_getErrorName(returnval));
+            MVM_panic(1, "oops");
+        }
+
+        inbuf.src = (char *)inbuf.src + inbuf.pos;
+        inbuf.size -= inbuf.pos;
+        inbuf.pos = 0;
+
+        written = fwrite(outbuf.dst, sizeof(char), outbuf.pos, fh);
+
+        outbuf.pos = 0;
+        fprintf(stderr, "once around the loop\n");
+    }
+
+    ZSTD_endStream(cstream, &outbuf);
+
+    /* If at this point we haven't written anything out yet, it'd be a great
+     * opportunity to write the right size before the data */
+    fwrite(outbuf.dst, sizeof(char), outbuf.pos, fh);
+
+    MVM_free(outbuf.dst);
+    MVM_free(result_buffer);
+    col->strings_written = i;
+
+    fclose(fh);
+}
+
+void string_heap_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMuint64 i;
     MVMHeapDumpIndex *index = col->index;
     FILE *fh = col->fh;
+#if DUMP_EVERYTHING_RAW
     gzFile str_fh = open_coll_file(col, "strings");
+#endif
+
+    i = col->strings_written;
 
     fputs("strs", fh);
 
     /* Write out the number of strings we have and record the "header" size
      * in the index. */
-
-    i = col->num_strings - col->strings_written;
 
     fwrite(&i, sizeof(MVMuint64), 1, fh);
     index->stringheap_size = sizeof(MVMuint64) + 4;
@@ -707,6 +904,7 @@ void string_heap_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *
     for (i = col->strings_written; i < col->num_strings; i++) {
         char *str = col->strings[i];
         MVMuint64 output_size = strlen(str);
+        MVMuint32 smaller_size = strlen(str);
 
         /* Every string is stored as a 64 bit integer length followed by utf8-
          * encoded string data. */
@@ -714,17 +912,53 @@ void string_heap_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *
         fwrite(&output_size, sizeof(MVMuint64), 1, fh);
         fwrite(str, sizeof(MVMuint8), output_size, fh);
 
-        gzfwrite(&output_size, sizeof(MVMuint64), 1, str_fh);
-        gzfwrite(str, sizeof(MVMuint8), output_size, str_fh);
-
         /* Adjust the size by how much we wrote, including the size prefix */
 
         index->stringheap_size += sizeof(MVMuint64) + sizeof(MVMuint8) * output_size;
+
+
+#if DUMP_EVERYTHING_RAW
+        gzfwrite(&smaller_size, sizeof(MVMuint32), 1, str_fh);
+        gzfwrite(str, sizeof(MVMuint8), smaller_size, str_fh);
+#endif
     }
 
+    string_heap_to_filehandle_ver3(tc, col);
+
+    /* Record how many strings have been written so far.
+     * This way, the string heap can be written after each
+     * snapshot, so even if the process crashes, the heap
+     * snapshots are usable */
     col->strings_written = col->num_strings;
 
+#if DUMP_EVERYTHING_RAW
     gzclose(str_fh);
+#endif
+}
+
+#define SERIALIZE_ATTR_STREAM(first_ptr, second_ptr, structtype, fieldname, count) serialize_attribute_stream(\
+        tc,\
+        col,\
+        (first_ptr) + offsetof(structtype,fieldname),\
+        (second_ptr) - (first_ptr),\
+        sizeof(((structtype*)0)->fieldname),\
+        (count),\
+        fh);
+
+void types_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+    if (col->types_written < col->num_types) {
+        FILE *fh = fopen("/tmp/new_format_output.mvmheap", "a");
+
+        char *first_type = &col->types[col->types_written];
+        char *second_type = &col->types[col->types_written + 1];
+
+        SERIALIZE_ATTR_STREAM(first_type, second_type, MVMHeapSnapshotType, repr_name, col->num_types - col->types_written);
+        SERIALIZE_ATTR_STREAM(first_type, second_type, MVMHeapSnapshotType, type_name, col->num_types - col->types_written);
+        fprintf(stderr, "%lld types written\n", col->num_types - col->types_written);
+    }
+    else {
+        fprintf(stderr, "no types written\n");
+    }
 }
 
 /* The following functions all act the exact same way:
@@ -737,7 +971,7 @@ void string_heap_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *
  * We also write a partial table after every snapshot so that if the process
  * crashes we still have a usable file.
  */
-void types_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+void types_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMuint64 i;
     MVMHeapDumpIndex *index = col->index;
     FILE *fh = col->fh;
@@ -745,8 +979,10 @@ void types_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
 
     fputs("type", fh);
 
+#if DUMP_EVERYTHING_RAW
     repr_fh = open_coll_file(col, "repr");
     type_fh = open_coll_file(col, "type");
+#endif
 
     i = col->num_types - col->types_written;
 
@@ -762,15 +998,40 @@ void types_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
         fwrite(&t->repr_name, sizeof(MVMuint64), 1, fh);
         fwrite(&t->type_name, sizeof(MVMuint64), 1, fh);
 
+#if DUMP_EVERYTHING_RAW
         gzprintf(repr_fh, "%lld\n", t->repr_name);
         gzprintf(type_fh, "%lld\n", t->type_name);
+#endif
     }
 
+    types_to_filehandle_ver3(tc, col);
+
     col->types_written = col->num_types;
+
+#if DUMP_EVERYTHING_RAW
     gzclose(repr_fh);
     gzclose(type_fh);
+#endif
 }
-void static_frames_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+
+void static_frames_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+    if (col->static_frames_written < col->num_static_frames) {
+        FILE *fh = fopen("/tmp/new_format_output.mvmheap", "a");
+
+        char *first_sf = &col->static_frames[col->types_written];
+        char *second_sf = &col->static_frames[col->types_written + 1];
+
+        serialize_attribute_stream(tc, col, first_sf + offsetof(MVMHeapSnapshotStaticFrame, name), second_sf - first_sf, sizeof(((MVMHeapSnapshotStaticFrame*)0)->name), col->num_static_frames - col->static_frames_written, fh);
+        serialize_attribute_stream(tc, col, first_sf + offsetof(MVMHeapSnapshotStaticFrame, cuid), second_sf - first_sf, sizeof(((MVMHeapSnapshotStaticFrame*)0)->cuid), col->num_static_frames - col->static_frames_written, fh);
+        serialize_attribute_stream(tc, col, first_sf + offsetof(MVMHeapSnapshotStaticFrame, line), second_sf - first_sf, sizeof(((MVMHeapSnapshotStaticFrame*)0)->line), col->num_static_frames - col->static_frames_written, fh);
+        serialize_attribute_stream(tc, col, first_sf + offsetof(MVMHeapSnapshotStaticFrame, file), second_sf - first_sf, sizeof(((MVMHeapSnapshotStaticFrame*)0)->file), col->num_static_frames - col->static_frames_written, fh);
+        fprintf(stderr, "%lld SFs written\n", col->num_static_frames - col->static_frames_written);
+    }
+    else {
+        fprintf(stderr, "no SFs written\n");
+    }
+}
+void static_frames_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMuint64 i;
     MVMHeapDumpIndex *index = col->index;
     FILE *fh = col->fh;
@@ -778,10 +1039,12 @@ void static_frames_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection
 
     fputs("fram", fh);
 
+#if DUMP_EVERYTHING_RAW
     names_fh = open_coll_file(col, "names");
     cuid_fh = open_coll_file(col, "cuid");
     line_fh = open_coll_file(col, "line");
     file_fh =open_coll_file(col, "file");
+#endif
 
     i = col->num_static_frames - col->static_frames_written;
 
@@ -798,17 +1061,39 @@ void static_frames_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection
         fwrite(&sf->line, sizeof(MVMuint64), 1, fh);
         fwrite(&sf->file, sizeof(MVMuint64), 1, fh);
 
+#if DUMP_EVERYTHING_RAW
         gzprintf(names_fh, "%lld\n", sf->name);
         gzprintf(cuid_fh, "%lld\n", sf->cuid);
         gzprintf(line_fh, "%lld\n", sf->line);
         gzprintf(file_fh, "%lld\n", sf->file);
+#endif
     }
 
+    static_frames_to_filehandle_ver3(tc, col);
+
     col->static_frames_written = col->num_static_frames;
+
+#if DUMP_EVERYTHING_RAW
     gzclose(names_fh);
     gzclose(cuid_fh);
     gzclose(line_fh);
     gzclose(file_fh);
+#endif
+}
+
+void collectables_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapDumpIndexSnapshotEntry *entry) {
+    FILE *fh = fopen("/tmp/new_format_output.mvmheap", "a");
+    MVMHeapSnapshot *s = col->snapshot;
+
+    char *first_coll = &s->collectables[0];
+    char *second_coll = &s->collectables[1];
+
+    serialize_attribute_stream(tc, col, first_coll + offsetof(MVMHeapSnapshotCollectable, kind), second_coll - first_coll, sizeof(((MVMHeapSnapshotCollectable*)0)->kind), s->num_collectables, fh);
+    serialize_attribute_stream(tc, col, first_coll + offsetof(MVMHeapSnapshotCollectable, collectable_size), second_coll - first_coll, sizeof(((MVMHeapSnapshotCollectable*)0)->collectable_size), s->num_collectables, fh);
+    serialize_attribute_stream(tc, col, first_coll + offsetof(MVMHeapSnapshotCollectable, type_or_frame_index), second_coll - first_coll, sizeof(((MVMHeapSnapshotCollectable*)0)->type_or_frame_index), s->num_collectables, fh);
+    serialize_attribute_stream(tc, col, first_coll + offsetof(MVMHeapSnapshotCollectable, num_refs), second_coll - first_coll, sizeof(((MVMHeapSnapshotCollectable*)0)->num_refs), s->num_collectables, fh);
+    serialize_attribute_stream(tc, col, first_coll + offsetof(MVMHeapSnapshotCollectable, refs_start), second_coll - first_coll, sizeof(((MVMHeapSnapshotCollectable*)0)->refs_start), s->num_collectables, fh);
+    serialize_attribute_stream(tc, col, first_coll + offsetof(MVMHeapSnapshotCollectable, unmanaged_size), second_coll - first_coll, sizeof(((MVMHeapSnapshotCollectable*)0)->unmanaged_size), s->num_collectables, fh);
 }
 
 /* The collectables table gets an entry in the additional "snapshot sizes
@@ -817,7 +1102,7 @@ void static_frames_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection
  * This sizes table has three entries for each entry. The first one is the
  * size of the collectables table.
  */
-void collectables_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapDumpIndexSnapshotEntry *entry) {
+void collectables_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapDumpIndexSnapshotEntry *entry) {
     MVMuint64 i;
     FILE *fh = col->fh;
     MVMHeapSnapshot *s = col->snapshot;
@@ -831,22 +1116,27 @@ void collectables_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection 
 
     entry->collectables_size += s->num_collectables * i + 4 + sizeof(MVMuint64) * 2;
 
+    
+#if DUMP_EVERYTHING_RAW
     kind_fh = open_coll_file(col, "kind");
     tofi_fh = open_coll_file(col, "tofi");
     collsize_fh = open_coll_file(col, "size");
     unmansize_fh =open_coll_file(col, "unman");
     refstart_fh = open_coll_file(col, "refstart");
     refcount_fh = open_coll_file(col, "refcount");
+#endif
 
     for (i = 0; i < s->num_collectables; i++) {
         MVMHeapSnapshotCollectable *coll = &s->collectables[i];
 
+#if DUMP_EVERYTHING_RAW
         gzprintf(kind_fh, "%lld\n", coll->kind);
         gzprintf(tofi_fh, "%lld\n", coll->type_or_frame_index);
         gzprintf(collsize_fh, "%lld\n", coll->collectable_size);
         gzprintf(unmansize_fh, "%lld\n", coll->unmanaged_size);
         gzprintf(refstart_fh, "%lld\n", coll->refs_start);
         gzprintf(refcount_fh, "%lld\n", coll->num_refs);
+#endif
 
         fwrite(&coll->kind, sizeof(MVMuint16), 1, fh);
         fwrite(&coll->type_or_frame_index, sizeof(MVMuint32), 1, fh);
@@ -860,12 +1150,27 @@ void collectables_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection 
         }
         fwrite(&coll->num_refs, sizeof(MVMuint32), 1, fh);
     }
+#if DUMP_EVERYTHING_RAW
     gzclose(kind_fh);
     gzclose(tofi_fh);
     gzclose(collsize_fh);
     gzclose(unmansize_fh);
     gzclose(refstart_fh);
     gzclose(refcount_fh);
+#endif
+
+    collectables_to_filehandle_ver3(tc, col, entry);
+}
+
+void references_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapDumpIndexSnapshotEntry *entry) {
+    FILE *fh = fopen("/tmp/new_format_output.mvmheap", "a");
+    MVMHeapSnapshot *s = col->snapshot;
+
+    char *first_ref = &s->references[0];
+    char *second_ref = &s->references[1];
+
+    serialize_attribute_stream(tc, col, first_ref + offsetof(MVMHeapSnapshotReference, description), second_ref - first_ref, sizeof(((MVMHeapSnapshotReference*)0)->description), s->num_references, fh);
+    serialize_attribute_stream(tc, col, first_ref + offsetof(MVMHeapSnapshotReference, collectable_index), second_ref - first_ref, sizeof(((MVMHeapSnapshotReference*)0)->collectable_index), s->num_references, fh);
 }
 
 /* The references table has extreme potential for compression by first writing
@@ -876,7 +1181,7 @@ void collectables_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection 
  * so that the parser can confidently skip to the exact middle of
  * the references table and parse it with two threads in parallel.
  */
-void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapDumpIndexSnapshotEntry *entry) {
+void references_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapDumpIndexSnapshotEntry *entry) {
     MVMuint64 i;
     MVMuint64 halfway;
     FILE *fh = col->fh;
@@ -892,9 +1197,11 @@ void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
 
     halfway = s->num_references / 2 - 1;
 
+#if DUMP_EVERYTHING_RAW
     descr_fh = open_coll_file(col, "descrs");
     kind_fh = open_coll_file(col, "kinds");
     cindex_fh = open_coll_file(col, "cindex");
+#endif
 
     for (i = 0; i < s->num_references; i++) {
         MVMHeapSnapshotReference *ref = &s->references[i];
@@ -904,9 +1211,11 @@ void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
 
         MVMuint64 maxval = MAX(kind, cindex);
 
+#if DUMP_EVERYTHING_RAW
         gzprintf(descr_fh, "%lld\n", descr);
         gzprintf(kind_fh, "%lld\n", kind);
         gzprintf(cindex_fh, "%lld\n", cindex);
+#endif
 
         if (maxval + 1 >= 1LL << 32) {
             fputc('6', fh);
@@ -950,10 +1259,13 @@ void references_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
         }
     }
 
+#if DUMP_EVERYTHING_RAW
     gzclose(descr_fh);
     gzclose(kind_fh);
     gzclose(cindex_fh);
+#endif
 
+    references_to_filehandle_ver3(tc, col, entry);
 }
 
 void snapshot_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
@@ -973,12 +1285,12 @@ void snapshot_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col
     entry->refs_middlepoint  = 0;
     entry->incremental_data  = 0;
 
-    collectables_to_filehandle(tc, col, entry);
-    references_to_filehandle(tc, col, entry);
+    collectables_to_filehandle_ver2(tc, col, entry);
+    references_to_filehandle_ver2(tc, col, entry);
 
-    /*string_heap_to_filehandle(tc, col);*/
-    /*types_to_filehandle(tc, col);*/
-    /*static_frames_to_filehandle(tc, col);*/
+    string_heap_to_filehandle_ver2(tc, col);
+    types_to_filehandle_ver2(tc, col);
+    static_frames_to_filehandle_ver2(tc, col);
 
     /*entry->incremental_data = index->stringheap_size + index->types_size + index->staticframes_size;*/
 }
@@ -997,9 +1309,9 @@ void finish_collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollec
     col->types_written = 0;
     col->static_frames_written = 0;
 
-    string_heap_to_filehandle(tc, col);
-    types_to_filehandle(tc, col);
-    static_frames_to_filehandle(tc, col);
+    string_heap_to_filehandle_ver2(tc, col);
+    types_to_filehandle_ver2(tc, col);
+    static_frames_to_filehandle_ver2(tc, col);
 
     index_to_filehandle(tc, col);
 }
