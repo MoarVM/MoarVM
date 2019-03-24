@@ -244,6 +244,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_open_fh: return MVM_file_open_fh;
     case MVM_OP_close_fh: return MVM_io_close;
     case MVM_OP_eof_fh: return MVM_io_eof;
+    case MVM_OP_istty_fh: return MVM_io_is_tty;
     case MVM_OP_write_fhb: return MVM_io_write_bytes;
     case MVM_OP_read_fhb: return MVM_io_read_bytes;
 
@@ -2829,6 +2830,14 @@ start:
         break;
     }
     case MVM_OP_eof_fh: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 fho = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { fho } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_istty_fh: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 fho = ins->operands[1].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
