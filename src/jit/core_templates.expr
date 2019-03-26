@@ -295,6 +295,12 @@
       (carg $1 ptr)
       (carg \$0 ptr))))
 
+(template: resume
+  (callv (^func &MVM_exception_resume)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr))))
+
 (template: backtracestrings
   (call (^func &MVM_exception_backtrace_strings)
     (arglist
@@ -1943,6 +1949,15 @@
     (arglist
       (carg (tc) ptr)) int_sz))
 
+(template: replace
+  (call (^func &MVM_string_replace)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   int)
+      (carg $3   int)
+      (carg $4   ptr)) ptr_sz))
+
 (template: assertparamcheck
   (when (zr $0)
     (callv (^func &MVM_args_bind_failed)
@@ -2168,6 +2183,12 @@
     (flagval (nz $1))
     (flagval (ne $1 (^vmnull)))))
 
+(template: typeparameterized
+  (call (^func &MVM_6model_parametric_type_parameterized)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) ptr_sz))
+
 (template: typeparameterat
   (call (^func &MVM_6model_parametric_type_parameter_at)
     (arglist
@@ -2265,6 +2286,12 @@
 
 (template: istty_fh
   (call (^func &MVM_io_is_tty)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
+
+(template: fileno_fh
+  (call (^func &MVM_io_fileno)
     (arglist
       (carg (tc) ptr)
       (carg $1   ptr)) int_sz))
@@ -2628,14 +2655,14 @@
     (arglist
       (carg (tc) ptr)
       (carg (^getf (^frame) MVMFrame static_info) ptr)
-      (carg (const (&QUOTE MVM_PROFILE_ENTER_SPESH) int_sz) int))))
+      (carg (const (&QUOTE MVM_PROFILE_ENTER_JIT) int_sz) int))))
 
 (template: prof_enterinline
   (callv (^func MVM_profile_log_enter)
     (arglist
       (carg (tc) ptr)
       (carg (^spesh_slot_value $0) ptr)
-      (carg (const (&QUOTE MVM_PROFILE_ENTER_SPESH_INLINE) int_sz) int))))
+      (carg (const (&QUOTE MVM_PROFILE_ENTER_JIT_INLINE) int_sz) int))))
 
 (template: prof_enternative
   (callv (^func MVM_profile_log_enter_native)

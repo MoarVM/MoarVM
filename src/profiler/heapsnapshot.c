@@ -229,12 +229,21 @@ static MVMuint64 get_frame_idx(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
 static void set_type_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
        MVMHeapSnapshotCollectable *col, MVMSTable *st) {
     MVMuint64 repr_idx = get_string_index(tc, ss, (char *)st->REPR->name, STR_MODE_CONST);
-    MVMuint64 type_idx = MVM_6model_get_stable_debug_name(tc, st)
-        ? get_string_index(tc, ss, MVM_6model_get_stable_debug_name(tc, st), STR_MODE_DUP)
-        : get_string_index(tc, ss, "<anon>", STR_MODE_CONST);
+    char *debug_name = MVM_6model_get_stable_debug_name(tc, st);
+    MVMuint64 type_idx;
 
     MVMuint64 i;
     MVMHeapSnapshotType *t;
+
+    if (strlen(debug_name) != 0) {
+        type_idx = get_string_index(tc, ss, MVM_6model_get_stable_debug_name(tc, st), STR_MODE_DUP);
+    }
+    else {
+        char anon_with_repr[256] = {0};
+        snprintf(anon_with_repr, 250, "<anon %s>", st->REPR->name);
+        type_idx = get_string_index(tc, ss, anon_with_repr, STR_MODE_DUP);
+    }
+
     for (i = 0; i < ss->col->num_types; i++) {
         t = &(ss->col->types[i]);
         if (t->repr_name == repr_idx && t->type_name == type_idx) {
