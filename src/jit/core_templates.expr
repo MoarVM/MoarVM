@@ -295,6 +295,12 @@
       (carg $1 ptr)
       (carg \$0 ptr))))
 
+(template: resume
+  (callv (^func &MVM_exception_resume)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr))))
+
 (template: backtracestrings
   (call (^func &MVM_exception_backtrace_strings)
     (arglist
