@@ -2283,6 +2283,12 @@
       (carg (tc) ptr)
       (carg $1   ptr)) int_sz))
 
+(template: fileno_fh
+  (call (^func &MVM_io_fileno)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
+
 (template: objprimbits
   (if
     (nz $1)
