@@ -383,6 +383,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_bindexcategory: return MVM_bind_exception_category;
     case MVM_OP_exreturnafterunwind: return MVM_exception_returnafterunwind;
 
+    case MVM_OP_backtrace: return MVM_exception_backtrace;
+    case MVM_OP_backtracestrings: return MVM_exception_backtrace_strings;
     case MVM_OP_breakpoint: return MVM_debugserver_breakpoint_check;
     case MVM_OP_sp_getstringfrom: return MVM_cu_string;
     case MVM_OP_encoderepconf: return MVM_string_encode_to_buf_config;
@@ -3767,6 +3769,22 @@ start:
                                  { MVM_JIT_REG_VAL, { replacement } },
                                  { MVM_JIT_REG_VAL, { config } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 6, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_backtrace: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, obj } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_backtracestrings: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, obj } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
     }
     case MVM_OP_breakpoint: {
