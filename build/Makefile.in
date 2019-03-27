@@ -494,10 +494,11 @@ DYNASM  = $(MINILUA) 3rdparty/dynasm/dynasm.lua
 DYNASM_SCRIPTS = 3rdparty/dynasm/dynasm.lua 3rdparty/dynasm/dasm_x86.lua
 DYNASM_HEADERS = 3rdparty/dynasm/dasm_proto.h 3rdparty/dynasm/dasm_x86.h
 
+# 'all' needs to be the first target to be the default. nmake knows nothing about .PHONY and does try to execute it by default if it's first.
+all: moar@exe@ pkgconfig/moar.pc
+
 .SUFFIXES: .c @obj@ .i @asm@ .dasc .expr .tile .h
 .PHONY: clean realclean install lib all help test reconfig clangcheck gcccheck libuv tracing cgoto switch no-tracing no-cgoto distclean release sandwich
-
-all: moar@exe@ pkgconfig/moar.pc
 
 install: all
 	$(MKPATH) "$(DESTDIR)$(BINDIR)"
