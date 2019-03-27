@@ -842,7 +842,7 @@ void string_heap_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollect
 
     cstream = ZSTD_createCStream();
 
-    if (ZSTD_isError(ZSTD_initCStream(cstream, 10))) {
+    if (ZSTD_isError(ZSTD_initCStream(cstream, 19))) {
         MVM_panic(1, "oops");
     }
 
