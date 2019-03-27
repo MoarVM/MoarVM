@@ -5,6 +5,7 @@ struct MVMHeapDumpIndexSnapshotEntry {
     MVMuint64 incremental_data;
 };
 
+/* Used in version 2 of the heap snapshot format */
 struct MVMHeapDumpIndex {
     MVMuint64 stringheap_size;
     MVMuint64 types_size;
@@ -14,6 +15,19 @@ struct MVMHeapDumpIndex {
     MVMHeapDumpIndexSnapshotEntry *snapshot_sizes;
 
     MVMuint64 snapshot_sizes_alloced;
+};
+
+/* Used in version 3 of the heap snapshot format.
+ * There is one top-level TOC for the whole file,
+ * but every snapshot in the file has a TOC of its
+ * own that's got an entry in the top-level TOC.
+ */
+struct MVMHeapDumpTableOfContents {
+    MVMuint32 toc_entry_alloc;
+    MVMuint32 toc_entry_used;
+
+    char **toc_words;
+    MVMuint64 toc_positions;
 };
 
 /* A collection of heap snapshots, with common type and static frame names.
@@ -49,7 +63,12 @@ struct MVMHeapSnapshotCollection {
     MVMuint64 static_frames_written;
     MVMuint64 strings_written;
 
+    /* For heap snapshot format 2, an index */
     MVMHeapDumpIndex *index;
+
+    /* For heap snapshot format 3, table of contents */
+    MVMHeapDumpTableOfContents *toplevel_toc;
+    MVMHeapDumpTableOfContents *second_level_toc;
 
     /* The file handle we are outputting to */
     FILE *fh;
