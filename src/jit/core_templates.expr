@@ -2206,7 +2206,7 @@
   (call (^func &MVM_gc_object_id)
     (arglist
       (carg (tc) ptr)
-      (carg $1 ptr)) ptr_sz))
+      (carg $1 ptr)) int_sz))
 
 (template: lstat
   (call (^func &MVM_file_stat)
