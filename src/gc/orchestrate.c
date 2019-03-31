@@ -228,7 +228,7 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
                     "Thread %d run %d : freeing gen2 of thread %d\n",
                     other->thread_id);
-                MVM_gc_collect_free_gen2_unmarked(other, 0);
+                MVM_gc_collect_free_gen2_unmarked(tc, other, 0);
             }
 
             /* Contribute this thread's promoted bytes. */
@@ -238,7 +238,7 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
             GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
                 "Thread %d run %d : collecting nursery uncopied of thread %d\n",
                 other->thread_id);
-            MVM_gc_collect_free_nursery_uncopied(other, tc->gc_work[i].limit);
+            MVM_gc_collect_free_nursery_uncopied(tc, other, tc->gc_work[i].limit);
 
             /* Handle exited threads. */
             if (MVM_load(&thread_obj->body.stage) == MVM_thread_stage_exited) {
@@ -669,8 +669,8 @@ void MVM_gc_global_destruction(MVMThreadContext *tc) {
     tc->nursery_tospace = nursery_tmp;
 
     /* Run the objects' finalizers */
-    MVM_gc_collect_free_nursery_uncopied(tc, tc->nursery_alloc);
+    MVM_gc_collect_free_nursery_uncopied(tc, tc, tc->nursery_alloc);
     MVM_gc_root_gen2_cleanup(tc);
-    MVM_gc_collect_free_gen2_unmarked(tc, 1);
+    MVM_gc_collect_free_gen2_unmarked(tc, tc, 1);
     MVM_gc_collect_free_stables(tc);
 }

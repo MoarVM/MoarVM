@@ -347,6 +347,10 @@ typedef struct {
     MVMString *managed_size;
     MVMString *has_unmanaged_data;
     MVMString *repr;
+    MVMString *deallocs;
+    MVMString *nursery_fresh;
+    MVMString *nursery_seen;
+    MVMString *gen2;
 } ProfDumpStrs;
 
 typedef struct {
@@ -410,6 +414,18 @@ static MVMObject * dump_call_graph_node_loop(ProfTcPdsStruct *tcpds, const MVMPr
     }
 
     return node_hash;
+}
+
+static void add_type_to_types_array(MVMThreadContext *tc, ProfDumpStrs *pds, MVMObject *type, MVMObject *types_array) {
+    MVMObject *type_info  = insert_if_not_exists(tc, pds, types_array, (MVMint64)(uintptr_t)type);
+
+    if (type_info) {
+        bind_extra_info(tc, type_info, pds->managed_size, box_i(tc, STABLE(type)->size));
+        if (REPR(type)->unmanaged_size)
+            bind_extra_info(tc, type_info, pds->has_unmanaged_data, box_i(tc, 1));
+        bind_extra_info(tc, type_info, pds->type, type);
+        bind_extra_info(tc, type_info, pds->repr, box_s(tc, str(tc, REPR(type)->name)));
+    }
 }
 
 /* Dumps a call graph node. */
@@ -510,15 +526,8 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
             MVMProfileAllocationCount *alloc = &pcn->alloc[i];
 
             MVMObject *type       = pcn->alloc[i].type;
-            MVMObject *type_info  = insert_if_not_exists(tc, pds, types_array, (MVMint64)(uintptr_t)type);
 
-            if (type_info) {
-                bind_extra_info(tc, type_info, pds->managed_size, box_i(tc, STABLE(type)->size));
-                if (REPR(type)->unmanaged_size)
-                    bind_extra_info(tc, type_info, pds->has_unmanaged_data, box_i(tc, 1));
-                bind_extra_info(tc, type_info, pds->type, type);
-                bind_extra_info(tc, type_info, pds->repr, box_s(tc, str(tc, REPR(type)->name)));
-            }
+            add_type_to_types_array(tc, pds, type, types_array);
 
             MVM_repr_bind_key_o(tc, alloc_info, pds->id, box_i(tc, (MVMint64)(uintptr_t)type));
             if (alloc->allocations_spesh)
@@ -575,7 +584,12 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
 
     /* Add GCs. */
     for (i = 0; i < ptd->num_gcs; i++) {
+        MVMuint32 tid;
+
         MVMObject *gc_hash = new_hash(tc);
+
+        MVMProfileGC *gc = &(ptd->gcs[i]);
+
         MVM_repr_bind_key_o(tc, gc_hash, pds->time,
             box_i(tc, ptd->gcs[i].time / 1000));
         MVM_repr_bind_key_o(tc, gc_hash, pds->full,
@@ -596,6 +610,34 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
             box_i(tc, ptd->gcs[i].num_gen2roots));
         MVM_repr_bind_key_o(tc, gc_hash, pds->start_time,
             box_i(tc, (ptd->gcs[i].abstime - absolute_start_time) / 1000));
+        if (gc->num_dealloc) {
+            MVMObject *deallocs_array = new_array(tc);
+            MVM_repr_bind_key_o(tc, gc_hash, pds->deallocs,
+                deallocs_array);
+
+            for (tid = 0; tid < gc->num_dealloc; tid++) {
+                MVMProfileDeallocationCount *dealloc = &(gc->deallocs[tid]);
+
+                MVMObject *type_hash = new_hash(tc);
+
+                if (dealloc->deallocs_nursery_fresh)
+                    MVM_repr_bind_key_o(tc, type_hash, pds->nursery_fresh,
+                            box_i(tc, dealloc->deallocs_nursery_fresh));
+                if (dealloc->deallocs_nursery_seen)
+                    MVM_repr_bind_key_o(tc, type_hash, pds->nursery_seen,
+                            box_i(tc, dealloc->deallocs_nursery_seen));
+                if (dealloc->deallocs_gen2)
+                    MVM_repr_bind_key_o(tc, type_hash, pds->gen2,
+                            box_i(tc, dealloc->deallocs_gen2));
+
+                add_type_to_types_array(tc, pds, dealloc->type, types_data);
+
+                MVM_repr_bind_key_o(tc, type_hash, pds->id, box_i(tc, (MVMint64)(uintptr_t)(dealloc->type)));
+
+                MVM_repr_push_o(tc, deallocs_array, type_hash);
+            }
+        }
+
         MVM_repr_push_o(tc, thread_gcs, gc_hash);
     }
     MVM_repr_bind_key_o(tc, thread_hash, pds->gcs, thread_gcs);
@@ -667,6 +709,10 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
         pds.thread          = str(tc, "thread");
         pds.native_lib      = str(tc, "native library");
         pds.managed_size    = str(tc, "managed_size");
+        pds.deallocs        = str(tc, "deallocs");
+        pds.nursery_fresh   = str(tc, "nursery_fresh");
+        pds.nursery_seen    = str(tc, "nursery_seen");
+        pds.gen2            = str(tc, "gen2");
 
         pds.has_unmanaged_data = str(tc, "has_unmanaged_data");
         pds.repr               = str(tc, "repr");
@@ -750,6 +796,16 @@ static void mark_call_graph_node(MVMThreadContext *tc, MVMProfileCallNode *node,
     for (i = 0; i < node->num_succ; i++)
         add_node(tc, nodelist, node->succ[i]);
 }
+static void mark_gc_entries(MVMThreadContext *tc, MVMProfileThreadData *ptd, MVMGCWorklist *worklist) {
+    MVMuint32 gci;
+    for (gci = 0; gci < ptd->num_gcs; gci++) {
+        MVMProfileGC *gc = &(ptd->gcs[gci]);
+        MVMuint32 ti;
+        for (ti = 0; ti < gc->num_dealloc; ti++) {
+            MVM_gc_worklist_add(tc, worklist, &(gc->deallocs[ti].type));
+        }
+    }
+}
 void MVM_profile_instrumented_mark_data(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     if (tc->prof_data) {
         /* Allocate our worklist on the stack. */
@@ -766,6 +822,8 @@ void MVM_profile_instrumented_mark_data(MVMThreadContext *tc, MVMGCWorklist *wor
             if (node)
                 mark_call_graph_node(tc, node, &nodelist, worklist);
         }
+
+        mark_gc_entries(tc, tc->prof_data, worklist);
 
         MVM_gc_worklist_add(tc, worklist, &(tc->prof_data->collected_data));
 

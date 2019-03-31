@@ -72,6 +72,10 @@ struct MVMProfileGC {
 
     /* Inter-generation links count */
     MVMuint32 num_gen2roots;
+
+    MVMProfileDeallocationCount *deallocs;
+    MVMuint32 num_dealloc;
+    MVMuint32 alloc_dealloc; /* haha */
 };
 
 /* Call graph node, which is kept per thread. */
@@ -156,6 +160,21 @@ struct MVMProfileAllocationCount {
     MVMuint64 scalar_replaced;
 };
 
+struct MVMProfileDeallocationCount {
+    MVMObject *type;
+
+    /* How often was this type freed from the nursery with
+     * the "seen in nursery" flag not set? */
+    MVMuint32 deallocs_nursery_fresh;
+
+    /* How often was this type freed from the nursery with
+     * the "seen in nursery" flag set? */
+    MVMuint32 deallocs_nursery_seen;
+
+    /* How often was this type freed in the old generation? */
+    MVMuint32 deallocs_gen2;
+};
+
 /* When a continuation is taken, we attach one of these to it. It carries the
  * data needed to restore profiler state if the continuation is invoked. */
 struct MVMProfileContinuationData {
@@ -188,6 +207,7 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj);
 void MVM_profile_log_scalar_replaced(MVMThreadContext *tc, MVMSTable *st);
 void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full, MVMuint32 this_thread_responsible);
 void MVM_profiler_log_gc_end(MVMThreadContext *tc);
+void MVM_profiler_log_gc_deallocate(MVMThreadContext *tc, MVMObject *object);
 void MVM_profiler_log_unmanaged_data_promoted(MVMThreadContext *tc, MVMuint64 amount);
 void MVM_profiler_log_spesh_start(MVMThreadContext *tc);
 void MVM_profiler_log_spesh_end(MVMThreadContext *tc);

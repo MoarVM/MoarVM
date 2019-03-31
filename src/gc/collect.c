@@ -569,10 +569,16 @@ static void MVM_gc_collect_enqueue_stable_for_deletion(MVMThreadContext *tc, MVM
  * need to do some additional freeing, however. This goes through the
  * fromspace and does any needed work to free uncopied things (this may
  * run in parallel with the mutator, which will be operating on tospace). */
-void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
+void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *executing_thread, MVMThreadContext *tc, void *limit) {
     /* We start scanning the fromspace, and keep going until we hit
      * the end of the area allocated in it. */
     void *scan = tc->nursery_fromspace;
+
+    MVMuint8 do_prof_log = 0;
+
+    if (executing_thread->prof_data)
+        do_prof_log = 1;
+
     while (scan < limit) {
         /* The object here is dead if it never got a forwarding pointer
          * written in to it. */
@@ -618,6 +624,9 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
             GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : collecting an object %p in the nursery with reprid %d\n", item, REPR(obj)->ID);
             if (dead && REPR(obj)->gc_free)
                 REPR(obj)->gc_free(tc, obj);
+            if (dead && do_prof_log) {
+                MVM_profiler_log_gc_deallocate(executing_thread, obj);
+            }
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
             if (dead && item->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
                 MVM_free(item->sc_forward_u.sci);
@@ -645,11 +654,17 @@ void MVM_gc_collect_free_stables(MVMThreadContext *tc) {
 
 /* Goes through the unmarked objects in the second generation heap and builds
  * free lists out of them. Also does any required finalization. */
-void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc, MVMint32 global_destruction) {
+void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *executing_thread, MVMThreadContext *tc, MVMint32 global_destruction) {
     /* Visit each of the size class bins. */
     MVMGen2Allocator *gen2 = tc->gen2;
     MVMuint32 bin, obj_size, page, i;
+    MVMuint8 do_prof_log = 0;
+
     char ***freelist_insert_pos;
+
+    if (executing_thread->prof_data)
+        do_prof_log = 1;
+
     for (bin = 0; bin < MVM_GEN2_BINS; bin++) {
         /* If we've nothing allocated in this size class, skip it. */
         if (gen2->size_classes[bin].pages == NULL)
@@ -741,6 +756,9 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc, MVMint32 global_des
                     else {
                         /* Object instance; call gc_free if needed. */
                         MVMObject *obj = (MVMObject *)col;
+                        if (do_prof_log) {
+                            MVM_profiler_log_gc_deallocate(executing_thread, obj);
+                        }
                         if (STABLE(obj) && REPR(obj)->gc_free)
                             REPR(obj)->gc_free(tc, obj);
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX

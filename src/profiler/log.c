@@ -287,6 +287,46 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
         }
     }
 }
+void MVM_profiler_log_gc_deallocate(MVMThreadContext *tc, MVMObject *object) {
+    if (tc->instance->profiling) {
+        MVMProfileGC *pgc = &tc->prof_data->gcs[tc->prof_data->num_gcs];
+        MVMObject *what = STABLE(object)->WHAT;
+        MVMCollectable *item = (MVMCollectable *)object;
+        MVMuint32 i;
+
+        MVMuint8 dealloc_target = 0;
+
+        if (item->flags & MVM_CF_SECOND_GEN)
+            dealloc_target = 2;
+        else if (item->flags & MVM_CF_NURSERY_SEEN)
+            dealloc_target = 1;
+
+        /* See if there's an existing node to update. */
+        for (i = 0; i < pgc->num_dealloc; i++) {
+            if (pgc->deallocs[i].type == what) {
+                if (dealloc_target == 2)
+                    pgc->deallocs[i].deallocs_gen2++;
+                else if (dealloc_target == 1)
+                    pgc->deallocs[i].deallocs_nursery_seen++;
+                else
+                    pgc->deallocs[i].deallocs_nursery_fresh++;
+                return;
+            }
+        }
+
+        /* No entry; create one. */
+        if (pgc->num_dealloc == pgc->alloc_dealloc) {
+            pgc->alloc_dealloc += 8;
+            pgc->deallocs = MVM_realloc(pgc->deallocs,
+                pgc->alloc_dealloc * sizeof(MVMProfileDeallocationCount));
+        }
+        pgc->deallocs[pgc->num_dealloc].type                   = what;
+        pgc->deallocs[pgc->num_dealloc].deallocs_nursery_fresh = dealloc_target == 0;
+        pgc->deallocs[pgc->num_dealloc].deallocs_nursery_seen  = dealloc_target == 1;
+        pgc->deallocs[pgc->num_dealloc].deallocs_gen2          = dealloc_target == 2;
+        pgc->num_dealloc++;
+    }
+}
 
 /* Logs a scalar-replaced allocation. */
 void MVM_profile_log_scalar_replaced(MVMThreadContext *tc, MVMSTable *st) {
@@ -317,6 +357,10 @@ void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full, MVMuint32 t
                         (char *)tc->nursery_tospace;
     gc->responsible   = this_thread_responsible;
     gc->gc_seq_num    = MVM_load(&tc->instance->gc_seq_number);
+
+    gc->num_dealloc = 0;
+    gc->alloc_dealloc = 0;
+    gc->deallocs = NULL;
 
     /* Record start time. */
     ptd->cur_gc_start_time = uv_hrtime();
