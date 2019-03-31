@@ -3,9 +3,9 @@
 /* Gets the HOW (meta-object), which may be lazily deserialized. */
 MVMObject * MVM_6model_get_how(MVMThreadContext *tc, MVMSTable *st) {
     MVMObject *HOW = st->HOW;
-    if (!HOW)
+    if (!HOW && st->HOW_sc)
         st->HOW = HOW = MVM_sc_get_object(tc, st->HOW_sc, st->HOW_idx);
-    return HOW;
+    return HOW ? HOW : tc->instance->VMNull;
 }
 
 /* Gets the HOW (meta-object), which may be lazily deserialized, through the
