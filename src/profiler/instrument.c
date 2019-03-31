@@ -591,25 +591,26 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
         MVMProfileGC *gc = &(ptd->gcs[i]);
 
         MVM_repr_bind_key_o(tc, gc_hash, pds->time,
-            box_i(tc, ptd->gcs[i].time / 1000));
+            box_i(tc, gc->time / 1000));
         MVM_repr_bind_key_o(tc, gc_hash, pds->full,
-            box_i(tc, ptd->gcs[i].full));
+            box_i(tc, gc->full));
         MVM_repr_bind_key_o(tc, gc_hash, pds->sequence,
-            box_i(tc, ptd->gcs[i].gc_seq_num - 1));
+            box_i(tc, gc->gc_seq_num - 1));
         MVM_repr_bind_key_o(tc, gc_hash, pds->responsible,
-            box_i(tc, ptd->gcs[i].responsible));
+            box_i(tc, gc->responsible));
         MVM_repr_bind_key_o(tc, gc_hash, pds->cleared_bytes,
-            box_i(tc, ptd->gcs[i].cleared_bytes));
+            box_i(tc, gc->cleared_bytes));
         MVM_repr_bind_key_o(tc, gc_hash, pds->retained_bytes,
-            box_i(tc, ptd->gcs[i].retained_bytes));
+            box_i(tc, gc->retained_bytes));
         MVM_repr_bind_key_o(tc, gc_hash, pds->promoted_bytes,
-            box_i(tc, ptd->gcs[i].promoted_bytes));
+            box_i(tc, gc->promoted_bytes));
         MVM_repr_bind_key_o(tc, gc_hash, pds->promoted_bytes_unmanaged,
-            box_i(tc, ptd->gcs[i].promoted_unmanaged_bytes));
+            box_i(tc, gc->promoted_unmanaged_bytes));
         MVM_repr_bind_key_o(tc, gc_hash, pds->gen2_roots,
-            box_i(tc, ptd->gcs[i].num_gen2roots));
+            box_i(tc, gc->num_gen2roots));
         MVM_repr_bind_key_o(tc, gc_hash, pds->start_time,
-            box_i(tc, (ptd->gcs[i].abstime - absolute_start_time) / 1000));
+            box_i(tc, (gc->abstime - absolute_start_time) / 1000));
+
         if (gc->num_dealloc) {
             MVMObject *deallocs_array = new_array(tc);
             MVM_repr_bind_key_o(tc, gc_hash, pds->deallocs,
