@@ -9,7 +9,7 @@ typedef struct {
 
 /* Creates a new thread handle with the MVMThread representation. Does not
  * actually start execution of the thread, but does give it its unique ID. */
-MVMObject * MVM_thread_new(MVMThreadContext *tc, MVMObject *invokee, MVMint64 app_lifetime) {
+MVMObject * MVM_thread_new(MVMThreadContext *tc, MVMObject *invokee, MVMint64 app_lifetime, MVMint64 stack_size) {
     MVMThread *thread;
     MVMThreadContext *child_tc;
     unsigned int interval_id;
@@ -23,6 +23,7 @@ MVMObject * MVM_thread_new(MVMThreadContext *tc, MVMObject *invokee, MVMint64 ap
     thread->body.stage = MVM_thread_stage_unstarted;
     MVM_ASSIGN_REF(tc, &(thread->common.header), thread->body.invokee, invokee);
     thread->body.app_lifetime = app_lifetime;
+    thread->body.stack_size = stack_size;
 
     /* Try to create the new threadcontext. Can throw if libuv can't
      * create a loop for it for some reason (i.e. too many open files) */
@@ -111,6 +112,7 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
     MVMThread *child = (MVMThread *)thread_obj;
     int status, added;
     ThreadStart *ts;
+    uv_thread_options_t options;
 
     if (REPR(child)->ID == MVM_REPR_ID_MVMThread && IS_CONCRETE(thread_obj)) {
         MVMThreadContext *child_tc = child->body.tc;
@@ -166,7 +168,9 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
         }
 
         /* Do the actual thread creation. */
-        status = uv_thread_create(&child->body.thread, start_thread, ts);
+        options.flags = UV_THREAD_HAS_STACK_SIZE;
+        options.stack_size = child->body.stack_size > 0 ? child->body.stack_size : 0;
+        status = uv_thread_create_ex(&child->body.thread, &options, start_thread, ts);
         if (status < 0)
             MVM_panic(MVM_exitcode_compunit, "Could not spawn thread: errorcode %d", status);
     }

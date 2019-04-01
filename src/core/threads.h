@@ -1,4 +1,4 @@
-MVMObject * MVM_thread_new(MVMThreadContext *tc, MVMObject *invokee, MVMint64 app_lifetime);
+MVMObject * MVM_thread_new(MVMThreadContext *tc, MVMObject *invokee, MVMint64 app_lifetime, MVMint64 stack_size);
 void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread);
 void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread);
 MVMint64 MVM_thread_id(MVMThreadContext *tc, MVMObject *thread);

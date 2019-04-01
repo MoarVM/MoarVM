@@ -564,7 +564,7 @@ rand_i              w(int64)
 rand_n              w(num64)
 time_i              w(int64) :pure
 sleep               r(num64)
-newthread           w(obj) r(obj) r(int64)
+newthread           w(obj) r(obj) r(int64) r(int64)
 threadjoin          r(obj)
 time_n              w(num64) :pure
 exit                r(int64)

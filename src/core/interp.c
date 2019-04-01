@@ -3684,8 +3684,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(newthread):
                 GET_REG(cur_op, 0).o = MVM_thread_new(tc, GET_REG(cur_op, 2).o,
-                    GET_REG(cur_op, 4).i64);
-                cur_op += 6;
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
                 goto NEXT;
             OP(threadjoin):
                 MVM_thread_join(tc, GET_REG(cur_op, 0).o);
