@@ -770,13 +770,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(abs_n):
-                {
-                    MVMnum64 num = GET_REG(cur_op, 2).n64;
-                    /* The 1.0/num logic checks for a negative zero */
-                    if (num < 0 || (num == 0 && 1.0/num < 0) ) num = num * -1;
-                    GET_REG(cur_op, 0).n64 = num;
-                    cur_op += 4;
-                }
+                GET_REG(cur_op, 0).n64 = fabs(GET_REG(cur_op, 2).n64);
+                cur_op += 4;
                 goto NEXT;
             OP(pow_n):
                 GET_REG(cur_op, 0).n64 = pow(GET_REG(cur_op, 2).n64, GET_REG(cur_op, 4).n64);
