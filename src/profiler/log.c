@@ -288,7 +288,7 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
     }
 }
 void MVM_profiler_log_gc_deallocate(MVMThreadContext *tc, MVMObject *object) {
-    if (tc->instance->profiling) {
+    if (tc->instance->profiling && STABLE(object)) {
         MVMProfileGC *pgc = &tc->prof_data->gcs[tc->prof_data->num_gcs];
         MVMObject *what = STABLE(object)->WHAT;
         MVMCollectable *item = (MVMCollectable *)object;
