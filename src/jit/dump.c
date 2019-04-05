@@ -31,8 +31,8 @@ static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     char nargs[80];
 
     (*depth)++;
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-    i = MIN(*depth*2, sizeof(indent)-1);
+#define MVM_MIN(a,b) ((a) < (b) ? (a) : (b))
+    i = MVM_MIN(*depth*2, sizeof(indent)-1);
     memset(indent, ' ', i);
     indent[i] = 0;
     j = 0;

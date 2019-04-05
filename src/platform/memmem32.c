@@ -66,8 +66,8 @@ static uint32_t * memmem_two_uint32(const uint32_t *h0, const uint32_t *n0, cons
 }
 #endif
 
-#define MAX(a,b) ((a)>(b)?(a):(b))
-#define MIN(a,b) ((a)<(b)?(a):(b))
+#define MVM_MAX(a,b) ((a)>(b)?(a):(b))
+#define MVM_MIN(a,b) ((a)<(b)?(a):(b))
 
 #define BITOP(a,b,op) \
  ((a)[(size_t)(b)/(8*sizeof *(a))] op (size_t)1<<((size_t)(b)%(8*sizeof *(a))))
@@ -142,7 +142,7 @@ static char *twoway_memmem_uint32(const uint32_t *h, const uint32_t *z, const ui
 	/* Periodic needle? */
 	if (memcmp(n, n+p, ms+1)) {
 		mem0 = 0;
-		p = MAX(ms, l-ms-1) + 1;
+		p = MVM_MAX(ms, l-ms-1) + 1;
 	} else mem0 = l-p;
 	mem = 0;
 
@@ -169,7 +169,7 @@ static char *twoway_memmem_uint32(const uint32_t *h, const uint32_t *z, const ui
 		}
 
 		/* Compare right half */
-		for (k=MAX(ms+1,mem); k<l && n[k] == h[k]; k++);
+		for (k=MVM_MAX(ms+1,mem); k<l && n[k] == h[k]; k++);
 		if (k < l) {
 			h += k-ms;
 			mem = 0;
