@@ -849,6 +849,7 @@ MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *stat
 static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     MVMFrame *returner = tc->cur_frame;
     MVMFrame *caller   = returner->caller;
+    MVMuint32 need_caller;
     MVM_ASSERT_NOT_FROMSPACE(tc, caller);
 
     /* Clear up any extra frame data. */
@@ -856,12 +857,16 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         MVMFrameExtra *e = returner->extra;
         if (e->continuation_tags)
             MVM_continuation_free_tags(tc, returner);
+        need_caller = e->caller_info_needed;
         /* Preserve the extras if the frame has been used in a ctx operation
          * and marked with caller info. */
         if (!(e->caller_deopt_idx || e->caller_jit_position)) {
             MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
             returner->extra = NULL;
         }
+    }
+    else {
+        need_caller = 0;
     }
 
     /* Clean up frame working space. */
@@ -888,6 +893,8 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
      * in dynamic scope. */
     else {
         returner->work = NULL;
+        if (!need_caller)
+            returner->caller = NULL;
     }
 
     /* Switch back to the caller frame if there is one. */

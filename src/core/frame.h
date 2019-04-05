@@ -148,6 +148,11 @@ struct MVMFrameExtra {
     MVMRegister *dynlex_cache_reg;
     MVMuint16    dynlex_cache_type;
 
+    /* If we use the ctx op, then we need to preserve the caller chain for
+     * walking. We don't want to do that in the general case, since it can
+     * cause memory leaks in certain patterns of closure use. */
+    MVMuint16 caller_info_needed;
+
     /* If we use the ctx op and we have inlining, we no longer have an
      * immutable chain of callers to walk. When our caller had inlines, we
      * record here in the callee the deopt index or JIT position. Then, when

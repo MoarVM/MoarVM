@@ -272,8 +272,9 @@ static const MVMREPROps MVMContext_this_repr = {
 static void snapshot_frame_callees(MVMThreadContext *tc, MVMFrame *f) {
     while (f && f->caller) {
         MVMSpeshCandidate *cand = f->caller->spesh_cand;
+        MVMFrameExtra *extra = MVM_frame_extra(tc, f);
+        extra->caller_info_needed = 1;
         if (cand && cand->num_inlines) {
-            MVMFrameExtra *extra = MVM_frame_extra(tc, f);
             if (cand->jitcode) {
                 if (extra->caller_jit_position)
                     return;
