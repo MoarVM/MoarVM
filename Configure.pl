@@ -94,8 +94,8 @@ if (-d '.git') {
 $args{optimize}     = 3 if not defined $args{optimize} or $args{optimize} eq "";
 $args{debug}        = 3 if defined $args{debug} and $args{debug} eq "";
 
-# Relocatability is not supported on AIX.
-$args{'no-relocatable'} = 1 if $^O eq 'aix';
+# Relocatability is not supported on AIX and OpenBSD.
+$args{'no-relocatable'} = 1 if $^O eq 'aix' || $^O eq 'openbsd';
 
 for (qw(coverage instrument static big-endian has-libtommath has-sha has-libuv
         has-libatomic_ops asan ubsan valgrind show-vec)) {
@@ -1071,8 +1071,8 @@ The default prefix is "install" if this option is not passed.
 =item --no-relocatable
 
 Do not search for the libmoar library relative to the executable path.
-(On AIX MoarVM is always built non-relocatable, since AIX misses a necessary
-mechanism.)
+(On AIX and OpenBSD MoarVM is always built non-relocatable, since both OS'
+miss the necessary mechanism to make this work.)
 
 =item --bindir
 
