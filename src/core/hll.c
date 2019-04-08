@@ -31,6 +31,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         else {
             MVM_HASH_BIND(tc, tc->instance->compiler_hll_configs, name, entry);
         }
+        entry->max_inline_size = MVM_SPESH_DEFAULT_MAX_INLINE_SIZE;
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->int_box_type, "HLL int_box_type");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->num_box_type, "HLL num_box_type");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->str_box_type, "HLL str_box_type");
@@ -85,7 +86,14 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         (config)->member = val; \
     }\
 } while (0)
-
+void set_max_inline_size(MVMThreadContext *tc, MVMObject *config_hash, MVMHLLConfig *config) {
+    MVMROOT(tc, config_hash, {
+        MVMString *key = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "max_inline_size");
+        MVMObject *size = MVM_repr_at_key_o(tc, config_hash, key);
+        if (!MVM_is_null(tc, size))
+            config->max_inline_size = MVM_repr_get_int(tc, size);
+    });
+}
 MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject *config_hash) {
     MVMHLLConfig *config;
 
@@ -143,6 +151,7 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
                 config, MVM_STORAGE_SPEC_BP_NUM, MVM_NATIVEREF_MULTIDIM);
             check_config_key_reftype(tc, config_hash, "str_multidim_ref", str_multidim_ref,
                 config, MVM_STORAGE_SPEC_BP_STR, MVM_NATIVEREF_MULTIDIM);
+            set_max_inline_size(tc, config_hash, config);
         });
 
     MVM_intcache_for(tc, config->int_box_type);

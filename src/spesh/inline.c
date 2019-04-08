@@ -211,6 +211,12 @@ void add_deopt_usages(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 *deopt_us
     }
 }
 
+/* Get the maximum inline size applicable to the specified static frame (it can
+ * be configured by language). */
+int MVM_spesh_inline_get_max_size(MVMThreadContext *tc, MVMStaticFrame *sf) {
+    return sf->body.cu->body.hll_config->max_inline_size;
+}
+
 /* Sees if it will be possible to inline the target code ref, given we could
  * already identify a spesh candidate. Returns NULL if no inlining is possible
  * or a graph ready to be merged if it will be possible. */
@@ -226,7 +232,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
 
     /* Check bytecode size is within the inline limit. */
     *effective_size = get_effective_size(tc, cand);
-    if (*effective_size > MVM_SPESH_MAX_INLINE_SIZE) {
+    if (*effective_size > MVM_spesh_inline_get_max_size(tc, target_sf)) {
         *no_inline_reason = "bytecode is too large to inline";
         return NULL;
     }

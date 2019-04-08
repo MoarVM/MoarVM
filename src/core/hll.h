@@ -67,6 +67,9 @@ struct MVMHLLConfig {
     /* Spesh plugins hash. */
     MVMObject *spesh_plugins;
 
+    /* The maximum code size that we'll inline. */
+    MVMuint32 max_inline_size;
+
     /* HLL name. */
     MVMString *name;
 

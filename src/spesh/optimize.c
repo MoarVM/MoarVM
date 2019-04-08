@@ -2061,7 +2061,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
 
         /* We know what we're calling, but there's no specialization available
          * to us. If it's small, then we could produce one and inline it. */
-        else if (target_sf->body.bytecode_size < MVM_SPESH_MAX_INLINE_SIZE) {
+        else if (target_sf->body.bytecode_size < MVM_spesh_inline_get_max_size(tc, target_sf)) {
             char *no_inline_reason = NULL;
             const MVMOpInfo *no_inline_info = NULL;
             MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph_from_unspecialized(
