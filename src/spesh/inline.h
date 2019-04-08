@@ -1,5 +1,5 @@
-/* Maximum size of bytecode we'll inline. */
-#define MVM_SPESH_MAX_INLINE_SIZE 384
+/* Default maximum size of bytecode we'll inline. */
+#define MVM_SPESH_DEFAULT_MAX_INLINE_SIZE 192
 
 /* Inline table entry. The data is primarily used in deopt. */
 struct MVMSpeshInline {
