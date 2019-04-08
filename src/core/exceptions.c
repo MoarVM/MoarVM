@@ -376,8 +376,6 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         pres_frame = ((MVMException *)ex_obj)->body.origin;
         while (pres_frame) {
             MVMFrameExtra *extra = MVM_frame_extra(tc, pres_frame);
-            if (extra->caller_info_needed)
-                break;
             extra->caller_info_needed = 1;
             pres_frame = pres_frame->caller;
         }
