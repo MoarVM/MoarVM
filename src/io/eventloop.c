@@ -130,6 +130,8 @@ void MVM_io_eventloop_start(MVMThreadContext *tc) {
             instance->boot_types.BOOTQueue);
         instance->event_loop_active       = MVM_repr_alloc_init(tc,
             instance->boot_types.BOOTArray);
+        instance->event_loop_free_indices = MVM_repr_alloc_init(tc,
+            instance->boot_types.BOOTIntArray);
     }
 
     if (!instance->event_loop_thread) {
@@ -218,9 +220,11 @@ void MVM_io_eventloop_send_cancellation_notification(MVMThreadContext *tc, MVMAs
 
 /* Adds a work item to the active async task set. */
 int MVM_io_eventloop_add_active_work(MVMThreadContext *tc, MVMObject *async_task) {
-    int work_idx = MVM_repr_elems(tc, tc->instance->event_loop_active);
+    int work_idx = MVM_repr_elems(tc, tc->instance->event_loop_free_indices) > 0
+        ? MVM_repr_pop_i(tc, tc->instance->event_loop_free_indices)
+        : MVM_repr_elems(tc, tc->instance->event_loop_active);
     MVM_ASSERT_NOT_FROMSPACE(tc, async_task);
-    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
+    MVM_repr_bind_pos_o(tc, tc->instance->event_loop_active, work_idx, async_task);
     return work_idx;
 }
 
@@ -246,7 +250,7 @@ void MVM_io_eventloop_remove_active_work(MVMThreadContext *tc, int *work_idx_to_
     if (work_idx >= 0 && work_idx < MVM_repr_elems(tc, tc->instance->event_loop_active)) {
         *work_idx_to_clear = -1;
         MVM_repr_bind_pos_o(tc, tc->instance->event_loop_active, work_idx, tc->instance->VMNull);
-        /* TODO: start to re-use the indices */
+        MVM_repr_push_i(tc, tc->instance->event_loop_free_indices, work_idx);
     }
     else {
         MVM_panic(1, "cannot remove invalid eventloop work item index %d", work_idx);

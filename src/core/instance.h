@@ -337,6 +337,7 @@ struct MVMInstance {
     MVMObject        *event_loop_permit_queue;
     MVMObject        *event_loop_cancel_queue;
     MVMObject        *event_loop_active;
+    MVMObject        *event_loop_free_indices;
     uv_async_t       *event_loop_wakeup;
 
     /* Standard file handles. */

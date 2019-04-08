@@ -83,7 +83,10 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
         "Event loop permit queue");
     add_collectable(tc, worklist, snapshot, tc->instance->event_loop_cancel_queue,
         "Event loop cancel queue");
-    add_collectable(tc, worklist, snapshot, tc->instance->event_loop_active, "Event loop active");
+    add_collectable(tc, worklist, snapshot, tc->instance->event_loop_active,
+        "Event loop active task list");
+    add_collectable(tc, worklist, snapshot, tc->instance->event_loop_free_indices,
+        "Event loop active free indices list");
 
     add_collectable(tc, worklist, snapshot, tc->instance->spesh_thread,
         "Specialization thread");
