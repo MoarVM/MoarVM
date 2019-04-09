@@ -473,13 +473,9 @@ static MVMint64 get_sock_opt(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 opti
     int                   e;
     MVMint64              output;
 
-    MVMROOT2(tc, handle, fd, {
-        uv_fileno(handle, &fd);
-        s = uv_open_osfhandle(fd);
-        if (s < 0) {
-            MVM_exception_throw_adhoc(tc, "cannot get socket options from invalid sockets with an fd of %d", s);
-        }
-    });
+    uv_fileno(handle, &fd);
+    if ((s = uv_open_osfhandle(fd)) < 0)
+        MVM_exception_throw_adhoc(tc, "cannot get socket options from invalid sockets with an fd of %d", s);
 
     switch (option) {
         case SO_BROADCAST:
@@ -523,13 +519,9 @@ static void set_sock_opt(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 option, 
     int                   s;
     int                   e;
 
-    MVMROOT2(tc, handle, fd, {
-        uv_fileno(handle, &fd);
-        s = uv_open_osfhandle(fd);
-        if (s < 0) {
-            MVM_exception_throw_adhoc(tc, "cannot set socket options on invalid sockets with an fd of %d", s);
-        }
-    });
+    uv_fileno(handle, &fd);
+    if ((s = uv_open_osfhandle(fd)) < 0)
+        MVM_exception_throw_adhoc(tc, "cannot set socket options on invalid sockets with an fd of %d", s);
 
     switch (option) {
         case SO_BROADCAST:

@@ -458,9 +458,8 @@ static MVMint64 get_sock_opt(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 opti
     int                  e;
     MVMint64             output;
 
-    if (s < 0) {
+    if (s < 0)
         MVM_exception_throw_adhoc(tc, "cannot get socket options from invalid sockets with a fd of %d", s);
-    }
 
     switch (option) {
         case SO_BROADCAST:
@@ -502,9 +501,8 @@ static void set_sock_opt(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 option, 
     int                  s    = data->handle;
     int                  e;
 
-    if (s < 0) {
+    if (s < 0)
         MVM_exception_throw_adhoc(tc, "cannot set socket options on invalid sockets with an fd of %d", s);
-    }
 
     switch (option) {
         case SO_BROADCAST:
