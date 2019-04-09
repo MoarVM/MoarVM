@@ -28,7 +28,15 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g,
     while (ins->annotations) {
         MVMSpeshAnn *ann      = ins->annotations;
         MVMSpeshAnn *ann_next = ann->next;
-        switch (ann->type) {
+        /* Special case: we make fake entires into the handler table for
+         * a handler that covers the whole inline, so we can proprerly
+         * process inline boundaries. Those need to move line an inline
+         * end annotation. */
+        int tweaked_type = ann->type == MVM_SPESH_ANN_FH_END &&
+                g->handlers[ann->data.frame_handler_index].category_mask == MVM_EX_INLINE_BOUNDARY
+            ? MVM_SPESH_ANN_INLINE_END
+            : ann->type;
+        switch (tweaked_type) {
             case MVM_SPESH_ANN_FH_START:
             case MVM_SPESH_ANN_FH_GOTO:
             case MVM_SPESH_ANN_INLINE_START:
