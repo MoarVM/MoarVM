@@ -411,7 +411,6 @@ MVMint64 MVM_io_getsockopt(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 o
 void MVM_io_setsockopt(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 option, MVMint64 value) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "setsockopt");
     if (handle->body.ops->options) {
-        MVMint64 result;
         MVMROOT(tc, handle, {
             uv_mutex_t *mutex = acquire_mutex(tc, handle);
             handle->body.ops->options->set_sock_opt(tc, handle, option, value);

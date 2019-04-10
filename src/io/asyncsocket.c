@@ -475,7 +475,7 @@ static MVMint64 get_sock_opt(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 opti
 
     uv_fileno(handle, &fd);
     if ((s = uv_open_osfhandle(fd)) < 0)
-        MVM_exception_throw_adhoc(tc, "cannot get socket options from invalid sockets with an fd of %d", s);
+        MVM_exception_throw_adhoc(tc, "Cannot get socket options from invalid sockets with an fd of %d", s);
 
     switch (option) {
         case SO_BROADCAST:
@@ -484,28 +484,34 @@ static MVMint64 get_sock_opt(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 opti
         case SO_DONTROUTE:
         case SO_SNDBUF:
         case SO_RCVBUF:
-        case SO_OOBINLINE:
-        case TCP_NODELAY: {
+        case SO_OOBINLINE: {
             int input;
             len = sizeof(int);
-            e = getsockopt(s, SOL_SOCKET, (int)option, (char *)&input, &len);
+            e = getsockopt(s, SOL_SOCKET, option, (char *)&input, &len);
             output = input;
             break;
         }
         case SO_LINGER: {
             struct linger input;
             len = sizeof(struct linger);
-            e = getsockopt(s, SOL_SOCKET, (int)option, (char *)&input, &len);
-            output = (input.l_onoff >= 0) ? input.l_linger : -1;
+            e = getsockopt(s, SOL_SOCKET, option, (char *)&input, &len);
+            output = input.l_onoff ? input.l_linger : -1;
+            break;
+        }
+        case TCP_NODELAY: {
+            int input;
+            len = sizeof(int);
+            e = getsockopt(s, IPPROTO_TCP, (int)option, (char *)&input, &len);
+            output = input;
             break;
         }
         default:
-            MVM_exception_throw_adhoc(tc, "this socket option is not supported by MoarVM: %d\n", (int)option);
+            MVM_exception_throw_adhoc(tc, "This socket option is not supported by MoarVM: %d\n", (int)option);
             break;
     }
 
     if (e < 0) {
-        MVM_exception_throw_adhoc(tc, "failed to get socket option %s from socket %d: %s",
+        MVM_exception_throw_adhoc(tc, "Failed to get socket option %s from socket %d: %s",
                 MVM_io_get_sockopt_name(option), s, strerror(errno));
     }
 
@@ -521,7 +527,7 @@ static void set_sock_opt(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 option, 
 
     uv_fileno(handle, &fd);
     if ((s = uv_open_osfhandle(fd)) < 0)
-        MVM_exception_throw_adhoc(tc, "cannot set socket options on invalid sockets with an fd of %d", s);
+        MVM_exception_throw_adhoc(tc, "Cannot set socket options on invalid sockets with an fd of %d", s);
 
     switch (option) {
         case SO_BROADCAST:
@@ -530,24 +536,28 @@ static void set_sock_opt(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 option, 
         case SO_DONTROUTE:
         case SO_SNDBUF:
         case SO_RCVBUF:
-        case SO_OOBINLINE:
-        case TCP_NODELAY: {
-            int input = (int)value;
-            e = setsockopt(s, SOL_SOCKET, (int)option, (char *)&input, sizeof(int));
+        case SO_OOBINLINE: {
+            int input = value;
+            e = setsockopt(s, SOL_SOCKET, option, (char *)&input, sizeof(input));
             break;
         }
         case SO_LINGER: {
-            struct linger input = { ((value < 0) ? 0 : 1), ((value < 0) ? 0 : value) };
-            e = setsockopt(s, SOL_SOCKET, (int)option, (char *)&input, sizeof(struct linger));
+            struct linger input = { ((value < 0) ? 0 : 1), ((value < 0) ? 0 : (int)value) };
+            e = setsockopt(s, SOL_SOCKET, option, (char *)&input, sizeof(input));
+            break;
+        }
+        case TCP_NODELAY: {
+            int input = value;
+            e = setsockopt(e, IPPROTO_TCP, option, (char *)&input, sizeof(input));
             break;
         }
         default:
-            MVM_exception_throw_adhoc(tc, "this socket option is not supported by MoarVM: %d\n", (int)option);
+            MVM_exception_throw_adhoc(tc, "This socket option is not supported by MoarVM: %d\n", (int)option);
             break;
     }
 
     if (e < 0) {
-        MVM_exception_throw_adhoc(tc, "failed to get socket option %s from socket %d: %s",
+        MVM_exception_throw_adhoc(tc, "Failed to set socket option %s for socket %d: %s",
                 MVM_io_get_sockopt_name(option), s, strerror(errno));
     }
 }

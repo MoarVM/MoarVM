@@ -12278,7 +12278,6 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_uint64, MVM_operand_read_reg | MVM_operand_uint64 }
     },
     {
-<<<<<<< HEAD
         MVM_OP_smrt_intify,
         "smrt_intify",
         "  ",
@@ -12298,11 +12297,20 @@ static const MVMOpInfo MVM_op_infos[] = {
         "uname",
         "  ",
         1,
-=======
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj }
+    },
+    {
         MVM_OP_getsockopts,
         "getsockopts",
         "  ",
->>>>>>> Implement getsockopts op
         1,
         0,
         0,
@@ -12310,10 +12318,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-<<<<<<< HEAD
-=======
         1,
->>>>>>> Implement getsockopts op
         0,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
@@ -13726,28 +13731,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-static const unsigned short MVM_op_counts = 913;
-=======
-=======
->>>>>>> Implement getsockopt/setsockopt support
-<<<<<<< HEAD
-static const unsigned short MVM_op_counts = 909;
-=======
-static const unsigned short MVM_op_counts = 907;
->>>>>>> Implement getsockopts op
-<<<<<<< HEAD
->>>>>>> Implement getsockopts op
-=======
-=======
-static const unsigned short MVM_op_counts = 909;
->>>>>>> Implement getsockopt/setsockopt support
->>>>>>> Implement getsockopt/setsockopt support
-=======
-static const unsigned short MVM_op_counts = 912;
->>>>>>> Rerun tools/update_ops.p6
+static const unsigned short MVM_op_counts = 916;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
