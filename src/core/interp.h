@@ -1,3 +1,5 @@
+#include "tommath.h"
+
 /* A GC sync point is a point where we can check if we're being signalled
  * to stop to do a GC run. This is placed at points where it is safe to
  * do such a thing, and hopefully so that it happens often enough; note
@@ -10,6 +12,31 @@
     if (tc->gc_status) { \
         MVM_gc_enter_from_interrupt(tc); \
     }
+
+/* Representation used by big integers; inlined into P6bigint when boxed or
+ * stored in a register after escape analysis and scalar replacement. We
+ * store any values in 32-bit signed range without using the big integer
+ * library. */
+struct MVMP6bigintBody {
+    union {
+        /* A 32-bit integer and a flag indicating this is not a pointer to a
+         * big integer, but instead the 32-bit value should be read. Stored
+         * so that the flag sets the lower bits of any 64-bit pointer, which
+         * should never happen in a real pointer due to alignment. */
+        struct {
+#if defined(MVM_BIGENDIAN) && MVM_PTR_SIZE > 4
+            MVMint32  value;
+            MVMuint32 flag;
+#else
+            MVMuint32 flag;
+            MVMint32  value;
+#endif
+        } smallint;
+
+        /* Pointer to a libtommath big integer. */
+        mp_int *bigint;
+    } u;
+};
 
 /* Different views of a register. */
 union MVMRegister {
@@ -25,6 +52,8 @@ union MVMRegister {
     MVMuint64          u64;
     MVMnum32           n32;
     MVMnum64           n64;
+    MVMP6bigintBody    rbi; /* Referenced big integer */
+    MVMP6bigintBody    obi; /* Owned big integer */
 };
 
 /* Most operands an operation will have. */
@@ -73,6 +102,8 @@ struct MVMOpInfo {
 #define MVM_reg_uint16          18
 #define MVM_reg_uint32          19
 #define MVM_reg_uint64          20
+#define MVM_reg_rbi             21
+#define MVM_reg_obi             22
 
 /* Operand data types. */
 #define MVM_operand_int8        (MVM_reg_int8 << 3)
@@ -92,6 +123,8 @@ struct MVMOpInfo {
 #define MVM_operand_uint16      (MVM_reg_uint16 << 3)
 #define MVM_operand_uint32      (MVM_reg_uint32 << 3)
 #define MVM_operand_uint64      (MVM_reg_uint64 << 3)
+#define MVM_operand_rbi         (MVM_reg_rbi << 3)
+#define MVM_operand_obi         (MVM_reg_obi << 3)
 #define MVM_operand_type_mask   (31 << 3)
 
 #ifdef MVM_BIGENDIAN
