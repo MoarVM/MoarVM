@@ -14,14 +14,16 @@ static void pea_log(char *fmt, ...) {
 }
 
 /* A transformation that we want to perform. */
-#define TRANSFORM_DELETE_FASTCREATE 0
-#define TRANSFORM_GETATTR_TO_SET    1
-#define TRANSFORM_BINDATTR_TO_SET   2
-#define TRANSFORM_DELETE_SET        3
-#define TRANSFORM_GUARD_TO_SET      4
-#define TRANSFORM_ADD_DEOPT_POINT   5
-#define TRANSFORM_ADD_DEOPT_USAGE   6
-#define TRANSFORM_PROF_ALLOCATED    7
+#define TRANSFORM_DELETE_FASTCREATE     0
+#define TRANSFORM_GETATTR_TO_SET        1
+#define TRANSFORM_BINDATTR_TO_SET       2
+#define TRANSFORM_DELETE_SET            3
+#define TRANSFORM_GUARD_TO_SET          4
+#define TRANSFORM_ADD_DEOPT_POINT       5
+#define TRANSFORM_ADD_DEOPT_USAGE       6
+#define TRANSFORM_PROF_ALLOCATED        7
+#define TRANSFORM_DECOMPOSE_BIGINT_BI   8
+#define TRANSFORM_UNBOX_BIGINT          9
 typedef struct {
     /* The allocation that this transform relates to eliminating. */
     MVMSpeshPEAAllocation *allocation;
@@ -62,6 +64,18 @@ typedef struct {
         struct {
             MVMSpeshIns *ins;
         } prof;
+        struct {
+            MVMSpeshIns *ins;
+            MVMuint16 hypothetical_reg_idx_a;
+            MVMuint16 hypothetical_reg_idx_b;
+            MVMuint16 obtain_offset_a;
+            MVMuint16 obtain_offset_b;
+            MVMuint16 replace_op;
+        } decomp_bi_bi;
+        struct {
+            MVMSpeshIns *ins;
+            MVMuint16 hypothetical_reg_idx;
+        } unbox_bi;
     };
 } Transformation;
 
@@ -119,23 +133,46 @@ typedef struct {
  * indicates a reference type), then returns MVM_reg_obj. */
 MVMint32 flattened_type_to_register_kind(MVMThreadContext *tc, MVMSTable *st) {
     if (st) {
-        const MVMStorageSpec *ss = st->REPR->get_storage_spec(tc, st);
-        switch (ss->boxed_primitive) {
-            case MVM_STORAGE_SPEC_BP_INT:
-                if (ss->bits == 64 && !ss->is_unsigned)
-                    return MVM_reg_int64;
-                break;
-            case MVM_STORAGE_SPEC_BP_NUM:
-                if (ss->bits == 64)
-                    return MVM_reg_num64;
-                break;
-            case MVM_STORAGE_SPEC_BP_STR:
-                return MVM_reg_str;
+        if (st->REPR->ID == MVM_REPR_ID_P6bigint) {
+            return MVM_reg_obi;
         }
-        return -1;
+        else {
+            const MVMStorageSpec *ss = st->REPR->get_storage_spec(tc, st);
+            switch (ss->boxed_primitive) {
+                case MVM_STORAGE_SPEC_BP_INT:
+                    if (ss->bits == 64 && !ss->is_unsigned)
+                        return MVM_reg_int64;
+                    break;
+                case MVM_STORAGE_SPEC_BP_NUM:
+                    if (ss->bits == 64)
+                        return MVM_reg_num64;
+                    break;
+                case MVM_STORAGE_SPEC_BP_STR:
+                    return MVM_reg_str;
+            }
+            return -1;
+        }
     }
     else {
         return MVM_reg_obj;
+    }
+}
+
+/* Finds the hypothetical register holding a boxed big integer. */
+static MVMuint16 find_bigint_register(MVMThreadContext *tc, MVMSpeshPEAAllocation *alloc) {
+    MVMSTable *st = alloc->type->st;
+    if (st->REPR->ID == MVM_REPR_ID_P6opaque) {
+        MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+        MVMuint32 i;
+        for (i = 0; i < repr_data->num_attributes; i++) {
+            MVMuint16 kind = flattened_type_to_register_kind(tc, repr_data->flattened_stables[i]);
+            if (kind == MVM_reg_obi)
+                return alloc->hypothetical_attr_reg_idxs[i];
+        }
+        MVM_panic(1, "PEA: no big integer attribute found in find_bigint_register");
+    }
+    else {
+        MVM_panic(1, "PEA: non-P6opaque type in find_bigint_register");
     }
 }
 
@@ -175,6 +212,18 @@ static MVMuint16 get_deopt_materialization_info(MVMThreadContext *tc, MVMSpeshGr
     }
 }
 
+/* Allocates concrete registers for a scalar replacemnet. */
+static void allocate_concrete_registers(MVMThreadContext *tc, MVMSpeshGraph *g,
+        GraphState *gs, MVMSpeshPEAAllocation *alloc) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)alloc->type->st->REPR_data;
+    MVMuint32 i;
+    for (i = 0; i < repr_data->num_attributes; i++) {
+        MVMuint32 idx = alloc->hypothetical_attr_reg_idxs[i];
+        gs->attr_regs[idx] = MVM_spesh_manipulate_get_unique_reg(tc, g,
+            flattened_type_to_register_kind(tc, repr_data->flattened_stables[i]));
+    }
+}
+
 /* Apply a transformation to the graph. */
 static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs,
         MVMSpeshBB *bb, Transformation *t) {
@@ -187,14 +236,8 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
     switch (t->transform) {
         case TRANSFORM_DELETE_FASTCREATE: {
             MVMSTable *st = t->fastcreate.st;
-            MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
             MVMSpeshPEAAllocation *alloc = t->allocation;
-            MVMuint32 i;
-            for (i = 0; i < repr_data->num_attributes; i++) {
-                MVMuint32 idx = alloc->hypothetical_attr_reg_idxs[i];
-                gs->attr_regs[idx] = MVM_spesh_manipulate_get_unique_reg(tc, g,
-                    flattened_type_to_register_kind(tc, repr_data->flattened_stables[i]));
-            }
+            allocate_concrete_registers(tc, g, gs, alloc);
             pea_log("OPT: eliminated an allocation of %s into r%d(%d)",
                     st->debug_name, t->fastcreate.ins->operands[0].reg.orig,
                     t->fastcreate.ins->operands[0].reg.i);
@@ -274,6 +317,68 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             ins->info = MVM_op_get_op(MVM_OP_prof_replaced);
             ins->operands[0].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
                     (MVMCollectable *)STABLE(t->allocation->type));
+            break;
+        }
+        case TRANSFORM_DECOMPOSE_BIGINT_BI: {
+            /* Prepend instructions to read big integer out of box if needed. */
+            MVMSpeshOperand a, b;
+            MVMSpeshIns *ins = t->decomp_bi_bi.ins;
+            if (t->decomp_bi_bi.obtain_offset_a) {
+                MVMuint32 hyp_reg_idx = t->decomp_bi_bi.hypothetical_reg_idx_a;
+                MVMSpeshIns *get_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                get_ins->info = MVM_op_get_op(MVM_OP_sp_get_bi);
+                get_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                gs->attr_regs[hyp_reg_idx] = MVM_spesh_manipulate_get_unique_reg(tc, g, MVM_reg_rbi);
+                a = get_ins->operands[0] = MVM_spesh_manipulate_new_version(tc, g,
+                        gs->attr_regs[hyp_reg_idx]);
+                get_ins->operands[1] = ins->operands[3];
+                get_ins->operands[2].lit_ui16 = t->decomp_bi_bi.obtain_offset_a;
+                MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, get_ins);
+            }
+            else {
+                a.reg.orig = gs->attr_regs[t->decomp_bi_bi.hypothetical_reg_idx_a];
+                a.reg.i = MVM_spesh_manipulate_get_current_version(tc, g, a.reg.orig);
+            }
+            if (t->decomp_bi_bi.obtain_offset_b) {
+                MVMuint32 hyp_reg_idx = t->decomp_bi_bi.hypothetical_reg_idx_b;
+                MVMSpeshIns *get_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                get_ins->info = MVM_op_get_op(MVM_OP_sp_get_bi);
+                get_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                gs->attr_regs[hyp_reg_idx] = MVM_spesh_manipulate_get_unique_reg(tc, g, MVM_reg_rbi);
+                b = get_ins->operands[0] = MVM_spesh_manipulate_new_version(tc, g,
+                        gs->attr_regs[hyp_reg_idx]);
+                get_ins->operands[1] = ins->operands[4];
+                get_ins->operands[2].lit_ui16 = t->decomp_bi_bi.obtain_offset_b;
+                MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, get_ins);
+            }
+            else {
+                b.reg.orig = gs->attr_regs[t->decomp_bi_bi.hypothetical_reg_idx_b];
+                b.reg.i = MVM_spesh_manipulate_get_current_version(tc, g, b.reg.orig);
+            }
+
+            /* Allocate concrete registers for the target bigint. */
+            allocate_concrete_registers(tc, g, gs, t->allocation);
+
+            /* Now, transform the instruction itself. */
+            ins->info = MVM_op_get_op(t->decomp_bi_bi.replace_op);
+            ins->operands[0] = MVM_spesh_manipulate_new_version(tc, g,
+                    gs->attr_regs[find_bigint_register(tc, t->allocation)]);
+            ins->operands[1] = a;
+            ins->operands[2] = b;
+            MVM_spesh_graph_add_comment(tc, g, ins, "big integer op unboxed by scalar replacement");
+            pea_log("OPT: big integer op result unboxed");
+            break;
+        }
+        case TRANSFORM_UNBOX_BIGINT: {
+            MVMSpeshIns *ins = t->unbox_bi.ins;
+            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+            ins->info = MVM_op_get_op(MVM_OP_sp_unbox_bi);
+            ins->operands[1].reg.orig = gs->attr_regs[t->unbox_bi.hypothetical_reg_idx];
+            ins->operands[1].reg.i = MVM_spesh_manipulate_get_current_version(tc, g,
+                ins->operands[1].reg.orig);
+            MVM_spesh_usages_add_by_reg(tc, g, ins->operands[1], ins);
+            MVM_spesh_graph_add_comment(tc, g, ins, "unbox of scalar-replaced boxed bigint");
+            pea_log("OPT: rewrote an integer unbox to use unboxed big integer");
             break;
         }
         default:
@@ -410,6 +515,96 @@ static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
         pea_log("replacement impossible due to %s", ins->info->name);
         mark_irreplaceable(tc, alloc);
     }
+}
+
+/* Unhandled instructions cause anything they read to require a real object
+ * (later, this will be our trigger to materialize). */
+static void unhandled_instruction(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+   MVMuint32 i = 0;
+   for (i = 0; i < ins->info->num_operands; i++)
+       if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
+            real_object_required(tc, g, ins, ins->operands[i]);
+}
+
+/* Takes a binary big integer operation, calculates how it could be decomposed
+ * into big integer register ops, and adds a transform to do so. */
+static int decompose_and_track_bigint_bi(MVMThreadContext *tc, MVMSpeshGraph *g,
+        GraphState *gs, MVMSpeshBB *bb, MVMSpeshIns *ins, MVMuint16 replace_op) {
+    /* See if we can track the result type. */
+    MVMSTable *st = (MVMSTable *)g->spesh_slots[ins->operands[2].lit_i16];
+    MVMSpeshPEAAllocation *alloc = try_track_allocation(tc, g, gs, ins, st);
+    if (alloc) {
+        /* Obtain tracked status of the incoming arguments. */
+        MVMSpeshFacts *a_facts = MVM_spesh_get_facts(tc, g, ins->operands[3]);
+        MVMSpeshPEAAllocation *a_alloc = a_facts->pea.allocation;
+        MVMSpeshFacts *b_facts = MVM_spesh_get_facts(tc, g, ins->operands[4]);
+        MVMSpeshPEAAllocation *b_alloc = b_facts->pea.allocation;
+
+        /* Assemble a decompose transform. If the incoming arguments are
+         * tracked, then we just will use the hypothetical register of the
+         * tracked object's big integer slot. Otherwise, we will allocate a
+         * hypothetical register to read it into. */
+        Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+        tran->allocation = alloc;
+        tran->transform = TRANSFORM_DECOMPOSE_BIGINT_BI;
+        tran->decomp_bi_bi.ins = ins;
+        if (allocation_tracked(a_alloc)) {
+            /* Find the hypothetical register for the attribute in question.
+             * Also, add a dependency on the allocation in question being
+             * replaced. */ 
+            tran->decomp_bi_bi.hypothetical_reg_idx_a = find_bigint_register(tc, a_alloc);
+            MVM_VECTOR_PUSH(alloc->escape_dependencies, a_alloc);
+        }
+        else {
+            /* Allocate a hypothetical big integer reference register, which
+             * we read the value into, and store the offset to read from (which
+             * is our indication that we need to read out of the object too). */
+            tran->decomp_bi_bi.hypothetical_reg_idx_a = gs->latest_hypothetical_reg_idx++;
+            tran->decomp_bi_bi.obtain_offset_a = ins->operands[5].lit_ui16;
+        }
+        if (allocation_tracked(b_alloc)) {
+            tran->decomp_bi_bi.hypothetical_reg_idx_b = find_bigint_register(tc, b_alloc);
+            MVM_VECTOR_PUSH(alloc->escape_dependencies, b_alloc);
+        }
+        else {
+            tran->decomp_bi_bi.hypothetical_reg_idx_b = gs->latest_hypothetical_reg_idx++;
+            tran->decomp_bi_bi.obtain_offset_b = ins->operands[5].lit_ui16;
+        }
+        tran->decomp_bi_bi.replace_op = replace_op;
+        add_transform_for_bb(tc, gs, bb, tran);
+        MVM_spesh_get_facts(tc, g, ins->operands[0])->pea.allocation = alloc;
+        pea_log("started tracking a big integer allocation");
+        return 1;
+    }
+    else {
+        unhandled_instruction(tc, g, ins);
+        return 0;
+    }
+}
+
+/* Tries to rewrite a decont_i on a tracked register into a use of a boxed value. */
+static int try_replace_decont_i(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs, 
+        MVMSpeshBB *bb, MVMSpeshIns *ins, MVMSpeshPEAAllocation *alloc) {
+    MVMSTable *st = alloc->type->st;
+    if (st->REPR->ID == MVM_REPR_ID_P6opaque) {
+        MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+        MVMuint32 i;
+        for (i = 0; i < repr_data->num_attributes; i++) {
+            MVMuint16 kind = flattened_type_to_register_kind(tc, repr_data->flattened_stables[i]);
+            if (kind == MVM_reg_obi) {
+                /* We can replace this with an unbox of a big integer register
+                 * produced by scalar replacement. */
+                Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+                tran->allocation = alloc;
+                tran->transform = TRANSFORM_UNBOX_BIGINT;
+                tran->unbox_bi.ins = ins;
+                tran->unbox_bi.hypothetical_reg_idx = alloc->hypothetical_attr_reg_idxs[i];
+                add_transform_for_bb(tc, gs, bb, tran);
+                return 1;
+            }
+        }
+    }
+    return 0;
 }
 
 /* Checks if any of the tracked objects are needed beyond this deopt point,
@@ -701,6 +896,26 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     }
                     break;
                 }
+                case MVM_OP_sp_add_I:
+                    if (decompose_and_track_bigint_bi(tc, g, gs, bb, ins, MVM_OP_sp_add_bi))
+                        found_replaceable = 1;
+                    break;
+                case MVM_OP_sp_sub_I:
+                    if (decompose_and_track_bigint_bi(tc, g, gs, bb, ins, MVM_OP_sp_sub_bi))
+                        found_replaceable = 1;
+                    break;
+                case MVM_OP_sp_mul_I:
+                    if (decompose_and_track_bigint_bi(tc, g, gs, bb, ins, MVM_OP_sp_mul_bi))
+                        found_replaceable = 1;
+                    break;
+                case MVM_OP_decont_i: {
+                    MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+                    MVMSpeshPEAAllocation *alloc = target->pea.allocation;
+                    if (!(allocation_tracked(alloc) &&
+                                try_replace_decont_i(tc, g, gs, bb, ins, alloc)))
+                        unhandled_instruction(tc, g, ins);
+                    break;
+                }
                 case MVM_OP_sp_guardconc:
                     if (!settified_guard)
                         real_object_required(tc, g, ins, ins->operands[1]);
@@ -740,10 +955,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                 default: {
                     /* Other instructions using tracked objects require the
                      * real object. */
-                   MVMuint32 i = 0;
-                   for (i = 0; i < ins->info->num_operands; i++)
-                       if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
-                            real_object_required(tc, g, ins, ins->operands[i]);
+                   unhandled_instruction(tc, g, ins);
                    break;
                }
             }
