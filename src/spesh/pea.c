@@ -673,9 +673,12 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                             MVMSpeshFacts *src_facts = get_shadow_facts_h(tc, gs,
                                     hypothetical_reg);
                             if (src_facts) {
-                                /* Copy the facts. */
+                                /* Copy the facts (need to re-read them, since src_facts is
+                                 * an interior point that the create call below might
+                                 * move). */
                                 MVMSpeshFacts *tgt_facts = create_shadow_facts_c(tc, gs,
                                     ins->operands[0]);
+                                src_facts = get_shadow_facts_h(tc, gs, hypothetical_reg);
                                 MVM_spesh_copy_facts_resolved(tc, g, tgt_facts, src_facts);
                                 tgt_facts->pea.depend_allocation = alloc;
 
