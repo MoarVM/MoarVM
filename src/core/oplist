@@ -1059,6 +1059,26 @@ sp_add_I         .s w(obj) int16 sslot r(obj) r(obj) int16 int16 :pure
 sp_sub_I         .s w(obj) int16 sslot r(obj) r(obj) int16 int16 :pure
 sp_mul_I         .s w(obj) int16 sslot r(obj) r(obj) int16 int16 :pure
 
+# Unboxed big integer ops, emitted by the escape analyzer. When we read a
+# big integer out of an existing object, the memory of it is owned by that
+# object; we hold that in an rbi register. When we create a big integer,
+# but without its box, we put it into an obi register. These are the ones
+# we must memory-manage. An obi can actually be used in place of an rbi in
+# the context of a read, but an rbi cannot be used by anything that insists
+# on reading an obi. The ops are:
+# * Read the bigint boxed from within an object, which is at the given offset
+sp_get_bi        .s w(rbi) r(obj) int16
+# * Box a native int into a bigint register
+sp_box_bi        .s w(obi) r(int64)
+# * Math operations on unboxed big integer registers
+sp_add_bi        .s w(obi) r(rbi) r(rbi)
+sp_sub_bi        .s w(obi) r(rbi) r(rbi)
+sp_mul_bi        .s w(obi) r(rbi) r(rbi)
+# * Unbox a big integer register to a native integer
+sp_unbox_bi      .s w(int64) r(rbi)
+# * Take ownership of and write a big integer into the give object at the given offset
+sp_takewrite_bi  .s r(obj) int16 r(obi)
+
 sp_bool_I        .s w(int64) r(obj) int16 :pure
 
 # Profiler recording ops. Naming convention: start with prof_. Must all be

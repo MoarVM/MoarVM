@@ -6459,6 +6459,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 14;
                 goto NEXT;
             }
+            OP(sp_get_bi):
+            OP(sp_box_bi):
+            OP(sp_add_bi):
+            OP(sp_sub_bi):
+            OP(sp_mul_bi):
+            OP(sp_unbox_bi):
+            OP(sp_takewrite_bi):
+                MVM_panic(1, "NYI bigint register ops");
             OP(sp_bool_I): {
                 MVMuint16 offset = GET_UI16(cur_op, 4);
                 MVMP6bigintBody *b = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 2).o + offset);
