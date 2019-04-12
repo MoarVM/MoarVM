@@ -13,7 +13,8 @@ grammar OperandFlag {
         | <special>
     }
     token rw       { < rl wl r w > }
-    token type     { < int8 int16 int32 int64 num32 num64 str obj uint8 uint16 uint32 uint64 > }
+    token type     { < int8 int16 int32 int64 num32 num64 str obj
+                       uint8 uint16 uint32 uint64 rbi obi > }
     token type_var { '`1' }
     token special  { < ins lo coderef callsite sslot > }
 }
