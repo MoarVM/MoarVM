@@ -1341,22 +1341,34 @@ static void optimize_object_conditional(MVMThreadContext *tc, MVMSpeshGraph *g, 
     MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
 }
 
-
-
-/* Turns a getlex instruction into getlex_o or getlex_ins depending on type;
- * these get rid of some branching as well as don't log. */
-static void optimize_getlex(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+/* Gets the kind of register a lexical lookup targets. */
+static MVMuint16 get_lexical_kind(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
     MVMuint16 *lexical_types;
     MVMuint16 i;
     MVMStaticFrame *sf = g->sf;
-    for (i = 0; i < ins->operands[1].lex.outers; i++)
+    for (i = 0; i < o.lex.outers; i++)
         sf = sf->body.outer;
     lexical_types = sf == g->sf && g->lexical_types
         ? g->lexical_types
         : sf->body.lexical_types;
-    ins->info = MVM_op_get_op(lexical_types[ins->operands[1].lex.idx] == MVM_reg_obj
+    return lexical_types[o.lex.idx];
+}
+
+/* Turns a getlex instruction into getlex_o or getlex_ins depending on type;
+ * these get rid of some branching as well as don't log. */
+static void optimize_getlex(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    ins->info = MVM_op_get_op(get_lexical_kind(tc, g, ins->operands[1]) == MVM_reg_obj
         ? MVM_OP_sp_getlex_o
         : MVM_OP_sp_getlex_ins);
+}
+
+/* Turns a bindlex instruction into sp_bindlex_in or sp_bindlex_os depending
+ * on type; these get rid of checks whether we need the write barrier. */
+static void optimize_bindlex(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMuint16 kind = get_lexical_kind(tc, g, ins->operands[0]);
+    ins->info = MVM_op_get_op(kind == MVM_reg_obj || kind == MVM_reg_str
+        ? MVM_OP_sp_bindlex_os
+        : MVM_OP_sp_bindlex_in);
 }
 
 /* Transforms a late-bound lexical lookup into a constant. */
@@ -2855,6 +2867,9 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             break;
         case MVM_OP_getlex:
             optimize_getlex(tc, g, ins);
+            break;
+        case MVM_OP_bindlex:
+            optimize_bindlex(tc, g, ins);
             break;
         case MVM_OP_getlex_no:
             /* Use non-logging variant. */

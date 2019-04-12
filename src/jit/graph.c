@@ -1819,6 +1819,10 @@ start:
     case MVM_OP_getlex_no:
     case MVM_OP_sp_getlex_no:
     case MVM_OP_bindlex:
+    case MVM_OP_sp_bindlex_os:
+    case MVM_OP_sp_bindlex_in:
+    case MVM_OP_sp_bindlexvia_os:
+    case MVM_OP_sp_bindlexvia_in:
     case MVM_OP_getwhat:
     case MVM_OP_getwho:
     case MVM_OP_getwhere:

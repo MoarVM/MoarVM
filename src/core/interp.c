@@ -5727,6 +5727,36 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_bindlex_in): {
+                MVMFrame *f = tc->cur_frame;
+                MVMuint16 outers = GET_UI16(cur_op, 2);
+                while (outers) {
+                    if (!f->outer)
+                        MVM_exception_throw_adhoc(tc, "bindlex: outer index out of range");
+                    f = f->outer;
+                    outers--;
+                }
+                GET_LEX(cur_op, 0, f) = GET_REG(cur_op, 4);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_bindlex_os): {
+                MVMFrame *f = tc->cur_frame;
+                MVMuint16 outers = GET_UI16(cur_op, 2);
+                while (outers) {
+                    if (!f->outer)
+                        MVM_exception_throw_adhoc(tc, "bindlex: outer index out of range");
+                    f = f->outer;
+                    outers--;
+                }
+#if MVM_GC_DEBUG
+                MVM_ASSERT_NOT_FROMSPACE(tc, GET_REG(cur_op, 4).o);
+#endif
+                MVM_ASSIGN_REF(tc, &(f->header), GET_LEX(cur_op, 0, f).o,
+                    GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_getarg_o):
                 GET_REG(cur_op, 0).o = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].o;
                 cur_op += 4;
@@ -6164,7 +6194,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sp_getlexvia_ins): {
                 MVMFrame *f = ((MVMCode *)GET_REG(cur_op, 6).o)->body.outer;
-                MVMuint16 idx = GET_UI16(cur_op, 2);
                 MVMuint16 outers = GET_UI16(cur_op, 4) - 1; /* - 1 as already in outer */
                 while (outers) {
                     if (!f->outer)
@@ -6173,6 +6202,38 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     outers--;
                 }
                 GET_REG(cur_op, 0) = GET_LEX(cur_op, 2, f);
+                cur_op += 8;
+                goto NEXT;
+            }
+            OP(sp_bindlexvia_os): {
+                MVMFrame *f = ((MVMCode *)GET_REG(cur_op, 4).o)->body.outer;
+                MVMuint16 outers = GET_UI16(cur_op, 2) - 1; /* - 1 as already in outer */
+                MVMRegister found;
+                while (outers) {
+                    if (!f->outer)
+                        MVM_exception_throw_adhoc(tc, "getlex: outer index out of range");
+                    f = f->outer;
+                    outers--;
+                }
+#if MVM_GC_DEBUG
+                MVM_ASSERT_NOT_FROMSPACE(tc, GET_REG(cur_op, 6).o);
+#endif
+                MVM_ASSIGN_REF(tc, &(f->header), GET_LEX(cur_op, 0, f).o,
+                    GET_REG(cur_op, 6).o);
+                cur_op += 8;
+                goto NEXT;
+            }
+            OP(sp_bindlexvia_in): {
+                MVMFrame *f = ((MVMCode *)GET_REG(cur_op, 4).o)->body.outer;
+                MVMuint16 outers = GET_UI16(cur_op, 2) - 1; /* - 1 as already in outer */
+                MVMRegister found;
+                while (outers) {
+                    if (!f->outer)
+                        MVM_exception_throw_adhoc(tc, "getlex: outer index out of range");
+                    f = f->outer;
+                    outers--;
+                }
+                GET_LEX(cur_op, 0, f) = GET_REG(cur_op, 6);
                 cur_op += 8;
                 goto NEXT;
             }

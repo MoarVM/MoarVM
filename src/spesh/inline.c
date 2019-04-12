@@ -441,6 +441,22 @@ static void rewrite_outer_lookup(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_usages_add_by_reg(tc, g, code_ref_reg, ins);
 }
 
+/* Rewrites a lexical bind to an outer to be done via. a register holding
+ * the outer coderef. */
+static void rewrite_outer_bind(MVMThreadContext *tc, MVMSpeshGraph *g,
+                               MVMSpeshIns *ins, MVMuint16 num_locals,
+                               MVMuint16 op, MVMSpeshOperand code_ref_reg) {
+    MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
+    new_operands[0].lit_ui16 = ins->operands[0].lex.idx;
+    new_operands[1].lit_ui16 = ins->operands[0].lex.outers;
+    new_operands[2] = code_ref_reg;
+    new_operands[3] = ins->operands[1];
+    new_operands[3].reg.orig += num_locals;
+    ins->info = MVM_op_get_op(op);
+    ins->operands = new_operands;
+    MVM_spesh_usages_add_by_reg(tc, g, code_ref_reg, ins);
+}
+
 static void rewrite_hlltype(MVMThreadContext *tc, MVMSpeshGraph *inlinee, MVMSpeshIns *ins) {
     MVMObject *selected_type;
     MVMHLLConfig *hll = inlinee->sf->body.cu->body.hll_config;
@@ -551,6 +567,14 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             else if (opcode == MVM_OP_sp_getlex_ins && ins->operands[1].lex.outers > 0) {
                 rewrite_outer_lookup(tc, inliner, ins, inliner->num_locals,
                     MVM_OP_sp_getlexvia_ins, code_ref_reg);
+            }
+            else if (opcode == MVM_OP_sp_bindlex_in && ins->operands[0].lex.outers > 0) {
+                rewrite_outer_bind(tc, inliner, ins, inliner->num_locals,
+                    MVM_OP_sp_bindlexvia_in, code_ref_reg);
+            }
+            else if (opcode == MVM_OP_sp_bindlex_os && ins->operands[0].lex.outers > 0) {
+                rewrite_outer_bind(tc, inliner, ins, inliner->num_locals,
+                    MVM_OP_sp_bindlexvia_os, code_ref_reg);
             }
             else if (opcode == MVM_OP_getlex && ins->operands[1].lex.outers > 0) {
                 MVMuint16 outers = ins->operands[1].lex.outers;

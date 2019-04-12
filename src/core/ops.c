@@ -12533,6 +12533,36 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str }
     },
     {
+        MVM_OP_sp_bindlex_in,
+        "sp_bindlex_in",
+        ".s",
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_lex | MVM_operand_type_var, MVM_operand_read_reg | MVM_operand_type_var }
+    },
+    {
+        MVM_OP_sp_bindlex_os,
+        "sp_bindlex_os",
+        ".s",
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_lex | MVM_operand_type_var, MVM_operand_read_reg | MVM_operand_type_var }
+    },
+    {
         MVM_OP_sp_getarg_o,
         "sp_getarg_o",
         ".s",
@@ -13343,6 +13373,36 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_type_var, MVM_operand_int16, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
+        MVM_OP_sp_bindlexvia_os,
+        "sp_bindlexvia_os",
+        ".s",
+        4,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_int16, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_sp_bindlexvia_in,
+        "sp_bindlexvia_in",
+        ".s",
+        4,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_int16, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
         MVM_OP_sp_getstringfrom,
         "sp_getstringfrom",
         ".s",
@@ -13686,7 +13746,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 913;
+static const unsigned short MVM_op_counts = 917;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

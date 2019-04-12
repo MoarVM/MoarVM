@@ -918,11 +918,18 @@ sp_rebless       .s w(obj) r(obj) r(obj) uint32 :noinline :maycausedeopt
 sp_resolvecode   .s w(obj) r(obj)
 
 # These are variants of the normal interpreted ops that do not log. Used for
-# the case where we can't JIT-compile, but don't want to keep on logging.
+# the case where we can't JIT-compile, but don't want to keep on logging. Also,
+# the separated _o and _ins forms for getlex allow us to avoid a check of if
+# this is an object register.
 sp_decont        .s w(obj) r(obj) :pure :invokish :maycausedeopt
 sp_getlex_o      .s w(obj) rl(obj) :pure
 sp_getlex_ins    .s w(`1) rl(`1) :pure
 sp_getlex_no     .s w(obj) str :pure :noinline
+
+# Specialized forms of bindlex, avoiding the need to check for register type
+# (`_in` has no write batter, `_os` has the barrier).
+sp_bindlex_in    .s wl(`1) r(`1)
+sp_bindlex_os    .s wl(`1) r(`1)
 
 # Following are for fast, unchecked grabbing of args from the arg buffer.
 sp_getarg_o      .s w(obj) int16 :pure
@@ -1015,11 +1022,13 @@ sp_deref_get_n        .s w(num64) r(obj) int16 :pure
 sp_deref_bind_i64     .s r(obj) r(int64) int16
 sp_deref_bind_n       .s r(obj) r(num64) int16
 
-# These read a lexical via. a code ref held in a register. Used for closure
+# These read/bind a lexical via. a code ref held in a register. Used for closure
 # inlining. The outers count must be at least 1 (e.g. these must never be used
 # for lexicals that are in the current scope).
 sp_getlexvia_o        .s w(obj) int16 int16 r(obj) :pure
 sp_getlexvia_ins      .s w(`1) int16 int16 r(obj) :pure
+sp_bindlexvia_os      .s int16 int16 r(obj) r(obj) :pure
+sp_bindlexvia_in      .s int16 int16 r(obj) r(obj) :pure
 
 sp_getstringfrom      .s w(str) sslot int32 :pure
 sp_getwvalfrom        .s w(obj) sslot int64 :pure

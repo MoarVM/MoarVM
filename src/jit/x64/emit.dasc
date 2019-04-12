@@ -550,6 +550,30 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], TMP5;
         break;
     }
+    case MVM_OP_sp_bindlexvia_os:
+    case MVM_OP_sp_bindlexvia_in: {
+        MVMint16 idx = ins->operands[0].lit_ui16;
+        MVMint16 out = ins->operands[1].lit_ui16;
+        MVMint16 via = ins->operands[2].reg.orig;
+        MVMint16 src = ins->operands[3].reg.orig;
+        MVMint16 i;
+        /* Resolve the frame. */
+        | mov TMP1, WORK[via];
+        | mov TMP1, CODE:TMP1->body.outer;
+        for (i = 1; i < out; i++) /* From 1 as we are already at outer */
+            | mov TMP1, FRAME:TMP1->outer;
+        /* get array of lexicals */
+        | mov TMP2, FRAME:TMP1->env;
+        /* bind the lexical, and write barrier if needed */
+        | mov TMP3, WORK[src]
+        | mov REGISTER:TMP2[idx], TMP3;
+        if (op == MVM_OP_sp_bindlexvia_os) {
+            | check_wb TMP1, TMP3, >2;
+            | hit_wb TMP1, TMP3;
+            |2:
+        }
+        break;
+    }
     case MVM_OP_getlexreldyn: {
         MVMint16 dst  = ins->operands[0].reg.orig;
         MVMint16 ctx  = ins->operands[1].reg.orig;
@@ -587,7 +611,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |2:
         break;
     }
-    case MVM_OP_bindlex: {
+    case MVM_OP_bindlex:
+    case MVM_OP_sp_bindlex_os:
+    case MVM_OP_sp_bindlex_in: {
         MVMuint16 *lexical_types;
         MVMStaticFrame *sf = jg->sg->sf;
         MVMint16 idx = ins->operands[0].lex.idx;
