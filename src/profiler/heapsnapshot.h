@@ -27,7 +27,7 @@ struct MVMHeapDumpTableOfContents {
     MVMuint32 toc_entry_used;
 
     char **toc_words;
-    MVMuint64 toc_positions;
+    MVMuint64 *toc_positions;
 };
 
 /* A collection of heap snapshots, with common type and static frame names.
