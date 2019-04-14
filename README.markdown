@@ -109,6 +109,8 @@ While it is common to have toolchains installed from third party repositories in
  2. Destroy and re-clone MoarVM or rakudobrew
  3. Attempt the build again from scratch
 
+A possible issue arrises with a homebrew built copy of LLVM/clang rather than the system copy, this will appear as a GNU toolchain item as its built with GNU tools. Temporarily unlinking clang/llvm and using the system copy will remedy this. You can check to see if this is an issue with `which clang` returning something similar to /usr/local/opt/llvm/bin/clang rather than /usr/bin/clang
+
 If you _want_ to use a GNU toolchain, and you get an error telling you to see this file, simply supply the `--toolchain=gnu` flag and this package will configure and build with a GNU toolchain.
 
 **Please note:** If you use mixed Xcode and non-Xcode tools, you are likely to run into trouble. As such, this configuration is unsupported.
