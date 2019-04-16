@@ -6459,14 +6459,78 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 14;
                 goto NEXT;
             }
-            OP(sp_get_bi):
+            OP(sp_get_bi): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                GET_REG(cur_op, 0).rbi = *(MVMP6bigintBody *)((char *)obj + GET_UI16(cur_op, 4));
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_box_bi):
-            OP(sp_add_bi):
-            OP(sp_sub_bi):
-            OP(sp_mul_bi):
-            OP(sp_unbox_bi):
+                MVM_panic(1, "NYI sp_box_bi");
+            OP(sp_add_bi): {
+                MVMP6bigintBody ba = GET_REG(cur_op, 2).rbi;
+                MVMP6bigintBody bb = GET_REG(cur_op, 4).rbi;
+                MVMP6bigintBody bc;
+                bc.u.smallint.flag = 0;
+                if (ba.u.smallint.flag == MVM_BIGINT_32_FLAG && bb.u.smallint.flag == MVM_BIGINT_32_FLAG) {
+                    MVMuint64 result = (MVMint64)ba.u.smallint.value + (MVMint64)bb.u.smallint.value;
+                    if (MVM_IS_32BIT_INT(result)) {
+                        bc.u.smallint.value = (MVMint32)result;
+                        bc.u.smallint.flag = MVM_BIGINT_32_FLAG;
+                    }
+                }
+                if (!bc.u.smallint.flag)
+                    MVM_bigint_fallback_add(tc, &ba, &bb, &bc);
+                GET_REG(cur_op, 0).obi = bc;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_sub_bi): {
+                MVMP6bigintBody ba = GET_REG(cur_op, 2).rbi;
+                MVMP6bigintBody bb = GET_REG(cur_op, 4).rbi;
+                MVMP6bigintBody bc;
+                bc.u.smallint.flag = 0;
+                if (ba.u.smallint.flag == MVM_BIGINT_32_FLAG && bb.u.smallint.flag == MVM_BIGINT_32_FLAG) {
+                    MVMuint64 result = (MVMint64)ba.u.smallint.value - (MVMint64)bb.u.smallint.value;
+                    if (MVM_IS_32BIT_INT(result)) {
+                        bc.u.smallint.value = (MVMint32)result;
+                        bc.u.smallint.flag = MVM_BIGINT_32_FLAG;
+                    }
+                }
+                if (!bc.u.smallint.flag)
+                    MVM_bigint_fallback_sub(tc, &ba, &bb, &bc);
+                GET_REG(cur_op, 0).obi = bc;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_mul_bi): {
+                MVMP6bigintBody ba = GET_REG(cur_op, 2).rbi;
+                MVMP6bigintBody bb = GET_REG(cur_op, 4).rbi;
+                MVMP6bigintBody bc;
+                bc.u.smallint.flag = 0;
+                if (ba.u.smallint.flag == MVM_BIGINT_32_FLAG && bb.u.smallint.flag == MVM_BIGINT_32_FLAG) {
+                    MVMuint64 result = (MVMint64)ba.u.smallint.value * (MVMint64)bb.u.smallint.value;
+                    if (MVM_IS_32BIT_INT(result)) {
+                        bc.u.smallint.value = (MVMint32)result;
+                        bc.u.smallint.flag = MVM_BIGINT_32_FLAG;
+                    }
+                }
+                if (!bc.u.smallint.flag)
+                    MVM_bigint_fallback_mul(tc, &ba, &bb, &bc);
+                GET_REG(cur_op, 0).obi = bc;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_unbox_bi): {
+                MVMP6bigintBody ba = GET_REG(cur_op, 2).rbi;
+                GET_REG(cur_op, 0).i64 = ba.u.smallint.flag == MVM_BIGINT_32_FLAG
+                    ? ba.u.smallint.value
+                    : MVM_p6bigint_get_int64(tc, &ba);
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(sp_takewrite_bi):
-                MVM_panic(1, "NYI bigint register ops");
+                MVM_panic(1, "NYI sp_takewrite_bi");
             OP(sp_bool_I): {
                 MVMuint16 offset = GET_UI16(cur_op, 4);
                 MVMP6bigintBody *b = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 2).o + offset);
