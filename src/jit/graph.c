@@ -1877,11 +1877,16 @@ start:
     case MVM_OP_sp_fastbox_i_ic:
     case MVM_OP_sp_fastbox_bi:
     case MVM_OP_sp_fastbox_bi_ic:
-        /* Specialized boxings */
+        /* Specialized bigint ops */
     case MVM_OP_sp_add_I:
     case MVM_OP_sp_sub_I:
     case MVM_OP_sp_mul_I:
     case MVM_OP_sp_bool_I:
+    case MVM_OP_sp_get_bi:
+    case MVM_OP_sp_add_bi:
+    case MVM_OP_sp_sub_bi:
+    case MVM_OP_sp_mul_bi:
+    case MVM_OP_sp_unbox_bi:
         jg_append_primitive(tc, jg, ins);
         break;
         /* reading back from arg buffer (after nativeinvoke_o) */

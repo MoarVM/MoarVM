@@ -2542,6 +2542,89 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |2:
         break;
     }
+    case MVM_OP_sp_get_bi: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 a = ins->operands[1].reg.orig;
+        MVMint16 offset = ins->operands[2].lit_i16;
+        | mov TMP1, WORK[a];
+        | mov TMP1, [TMP1 + offset];
+        | mov WORK[dst], TMP1
+        break;
+    }
+    case MVM_OP_sp_add_bi:
+    case MVM_OP_sp_sub_bi:
+    case MVM_OP_sp_mul_bi: {
+        MVMint16 a = ins->operands[1].reg.orig;
+        MVMint16 b = ins->operands[2].reg.orig;
+        MVMint16 c = ins->operands[0].reg.orig;
+
+        /* See if they're both smallint. */
+        | mov TMP1d, [WORK + 8 * a];
+        | cmp TMP1d, MVM_BIGINT_32_FLAG;
+        | jne >1;
+        | mov TMP1d, [WORK + 8 * b];
+        | cmp TMP1d, MVM_BIGINT_32_FLAG;
+        | jne >1;
+
+        /* Both smallint, so try to do the calculation. If it overflows, fall
+         * back to the slow path. */
+        | mov TMP4d, dword [WORK + 8 * a + 4]
+        switch (op) {
+            case MVM_OP_sp_add_bi:
+                | add TMP4d, dword [WORK + 8 * b + 4]
+                break;
+            case MVM_OP_sp_sub_bi:
+                | sub TMP4d, dword [WORK + 8 * b + 4]
+                break;
+            case MVM_OP_sp_mul_bi:
+                | imul TMP4d, dword [WORK + 8 * b + 4]
+                break;
+        }
+        | jo >1
+
+        /* No overflow; store the result. */
+        | mov dword [WORK + 8 * c], MVM_BIGINT_32_FLAG
+        | mov dword [WORK + 8 * c + 4], TMP4d
+        | jmp >3
+
+        /* The slow path does a function call. Make sure to read the args
+         * before storing the result value, in case they're aimed at the
+         * same register. */
+        |1:
+        | mov ARG1, TC;
+        | lea ARG2, WORK[a];
+        | lea ARG3, WORK[b];
+        | lea ARG4, WORK[c];
+        switch (op) {
+            case MVM_OP_sp_add_bi:
+                | callp &MVM_bigint_fallback_add;
+                break;
+            case MVM_OP_sp_sub_bi:
+                | callp &MVM_bigint_fallback_sub;
+                break;
+            case MVM_OP_sp_mul_bi:
+                | callp &MVM_bigint_fallback_mul;
+                break;
+        }
+        |3:
+        break;
+    }
+    case MVM_OP_sp_unbox_bi: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 a = ins->operands[1].reg.orig;
+        | mov TMP1d, [WORK + 8 * a];
+        | cmp TMP1d, MVM_BIGINT_32_FLAG;
+        | jne >1;
+        | movsxd RV, dword [WORK + 8 * a + 4]
+        | jmp >2;
+        |1:
+        | mov ARG1, TC
+        | lea ARG2, WORK[a]
+        | callp &MVM_p6bigint_get_int64;
+        |2:
+        | mov WORK[dst], RV
+        break;
+    }
     default:
         MVM_panic(1, "Can't JIT opcode <%s>", ins->info->name);
     }
