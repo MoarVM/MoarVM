@@ -401,12 +401,15 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
          * its reference count incremented; just ensure that it is based on the
          * correct static frame (compare on bytecode address to cope with
          * nqp::freshcoderef). */
-        if (MVM_UNLIKELY(outer->static_info->body.orig_bytecode != static_frame->body.outer->body.orig_bytecode)) {
+        if (MVM_UNLIKELY(static_frame->body.outer == 0 || outer->static_info->body.orig_bytecode != static_frame->body.outer->body.orig_bytecode)) {
             char *frame_cuuid = MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid);
             char *frame_name;
             char *outer_cuuid = MVM_string_utf8_encode_C_string(tc, outer->static_info->body.cuuid);
             char *outer_name;
-            char *frame_outer_cuuid = MVM_string_utf8_encode_C_string(tc, static_frame->body.outer->body.cuuid);
+            char *frame_outer_cuuid = MVM_string_utf8_encode_C_string(tc,
+                    static_frame->body.outer
+                        ? static_frame->body.outer->body.cuuid
+                        : tc->instance->str_consts.empty);
             char *frame_outer_name;
 
             char *waste[7] = { frame_cuuid, outer_cuuid, frame_outer_cuuid, NULL, NULL, NULL, NULL };
@@ -428,7 +431,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                 outer_name = "<anonymous static frame>";
             }
 
-            if (static_frame->body.outer->body.name) {
+            if (static_frame->body.outer && static_frame->body.outer->body.name) {
                 frame_outer_name = MVM_string_utf8_encode_C_string(tc, static_frame->body.outer->body.name);
                 waste[waste_counter++] = frame_outer_name;
             }
