@@ -1571,6 +1571,9 @@ MVM_STATIC_INLINE void assert_can_read(MVMThreadContext *tc, MVMSerializationRea
     if (read_end > *(reader->cur_read_end))
         fail_deserialize(tc, NULL, reader,
             "Read past end of serialization data buffer");
+    if (*(reader->cur_read_offset) < 0)
+        fail_deserialize(tc, NULL, reader,
+            "Read before start of serialization data buffer");
 }
 
 /* Reading function for native integers. */
@@ -1597,6 +1600,8 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
     MVMuint8 first;
     MVMuint8 need;
 
+    assert_can_read(tc, reader, 1);
+
     if (read_at >= read_end)
         fail_deserialize(tc, NULL, reader,
                          "Read past end of serialization data buffer");
@@ -1619,9 +1624,7 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
            values. Not clear if that whould be best as a fixed table, a single
            table sent as part of the serialization blob, or multiple tables for
            different contexts (int32, int64, nativeint, others?)  */
-        if (read_at + 8 > read_end)
-            fail_deserialize(tc, NULL, reader,
-                             "Read past end of serialization data buffer");
+        assert_can_read(tc, reader, 9);
 #ifdef MVM_CAN_UNALIGNED_INT64
         *((MVMuint64*)&result) = *((MVMuint64*)read_at);
 #else
