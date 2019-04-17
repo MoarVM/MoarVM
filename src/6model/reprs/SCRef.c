@@ -25,6 +25,11 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVMObject         *BOOTIntArray = instance->boot_types.BOOTIntArray;
     MVMSerializationContextBody *sc = ((MVMSerializationContext *)root)->body;
 
+    if (!sc) {
+        /* XXX figure out what actually causes this */
+        MVM_exception_throw_adhoc(tc, "Cannot initialize an SCRef with a null serialization context");
+    }
+
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&root);
 
     rep_indexes = REPR(BOOTIntArray)->allocate(tc, STABLE(BOOTIntArray));
