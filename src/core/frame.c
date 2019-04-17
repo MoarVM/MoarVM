@@ -1241,8 +1241,15 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
         MVMint32 scid, objid;
         if (MVM_bytecode_find_static_lexical_scref(tc, effective_sf->body.cu,
                 effective_sf, effective_idx, &scid, &objid)) {
-            MVMSerializationContext *sc = MVM_sc_get_sc(tc, effective_sf->body.cu, scid);
+            MVMSerializationContext *sc;
             MVMObject *resolved;
+            /* XXX This really ought to go into the bytecode validator
+             * instead for better performance and earlier crashing */
+            if (effective_sf->body.cu->body.num_scs <= scid) {
+                MVM_exception_throw_adhoc(tc,
+                    "Bytecode corruption: illegal sc dependency of lexical: %d > %d", scid, effective_sf->body.cu->body.num_scs);
+            }
+            sc = MVM_sc_get_sc(tc, effective_sf->body.cu, scid);
             if (sc == NULL)
                 MVM_exception_throw_adhoc(tc,
                     "SC not yet resolved; lookup failed");
