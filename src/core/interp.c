@@ -452,6 +452,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindlex_ng):
                 MVM_exception_throw_adhoc(tc, "get/bindlex_ng NYI");
             OP(getdynlex): {
+                if (MVM_UNLIKELY(tc->cur_frame->caller == 0)) {
+                    MVM_exception_throw_adhoc(tc, "cannot call getdynlex without a caller frame");
+                }
                 GET_REG(cur_op, 0).o = MVM_frame_getdynlex(tc, GET_REG(cur_op, 2).s,
                         tc->cur_frame->caller);
                 cur_op += 4;
