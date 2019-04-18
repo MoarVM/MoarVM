@@ -505,7 +505,11 @@ our %OS_LINUX = (
 our %OS_OPENBSD = (
     %OS_POSIX,
 
-    syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
+    syslibs     => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
+    # XXX: this is required at the moment because of the legojit. If possible,
+    # the legojit should be protected against ROP vulnerabilities and this line
+    # should be removed.
+    ccmiscflags => '-fno-ret-protector',
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_OPENBSD)' },
@@ -559,9 +563,9 @@ our %OS_SOLARIS = (
 
     -thirdparty => {
         dc => { %TP_DC,
-	        rule  => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS) -U_FILE_OFFSET_BITS\' $(MAKE) -f Makefile.embedded sun',
-	        clean => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile.embedded clean',
-	    },
+            rule  => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS) -U_FILE_OFFSET_BITS\' $(MAKE) -f Makefile.embedded sun',
+            clean => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile.embedded clean',
+        },
         uv => { %TP_UVDUMMY, objects => '$(UV_SOLARIS)' },
     },
 );
