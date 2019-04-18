@@ -1035,7 +1035,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         for (i = 0; i < repr_data->num_attributes; i++) {
             MVMuint16 repr_id = MVM_serialization_read_int(tc, reader);
             MVMuint16 slot = MVM_serialization_read_int(tc, reader);
-            if (repr_id)
+            if (repr_id < MVM_REPR_MAX_COUNT)
                 repr_data->unbox_slots[repr_id] = slot;
         }
     } else {
