@@ -650,6 +650,7 @@ terminate_block:
         case 'a':
             validate_operands(val);
             ensure_no_remaining_positionals(val);
+            ensure_no_remaining_args(val);
             break;
     }
 }
