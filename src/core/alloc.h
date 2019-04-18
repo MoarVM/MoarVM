@@ -40,9 +40,8 @@ MVM_STATIC_INLINE void MVM_free(void *p) {
     free(p);
 }
 
-
 #define MVM_free_null(addr) do { \
-    MVM_free((void *)(addr)); \
+    MVM_free((addr)); \
     (addr) = NULL; \
 } while (0)
 
