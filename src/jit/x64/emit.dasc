@@ -3346,6 +3346,13 @@ void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
             | mov Rq(reg_dst), qword [Rq(mem_base)+mem_src];
             break;
         }
+    } else if (reg_cls == MVM_JIT_STORAGE_FPR) {
+        reg_dst = reg_dst & 0xf;
+        switch(size) {
+        case 8:
+            | movsd xmm(reg_dst), qword [Rq(mem_base)+mem_src];
+            break;
+        }
     }
 }
 
@@ -3376,19 +3383,29 @@ void MVM_jit_emit_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
             | mov qword [Rq(mem_base)+mem_dst], Rq(reg_src);
             break;
         }
+    } else if (reg_cls == MVM_JIT_STORAGE_FPR) {
+        reg_src = reg_src & 0xf;
+        switch (size) {
+        case 8:
+            | movsd qword [Rq(mem_base)+mem_dst], xmm(reg_src);
+            break;
+        }
     }
 }
 
 void MVM_jit_emit_copy(MVMThreadContext *tc, MVMJitCompiler *compiler,
                        MVMint32 dst_cls,  MVMint8 dst_reg, MVMint32 src_cls, MVMint8 src_reg) {
-    if (dst_cls == src_cls) {
-        if (dst_cls == MVM_JIT_STORAGE_GPR) {
+
+    if (dst_cls == MVM_JIT_STORAGE_GPR) {
+        if (src_cls == MVM_JIT_STORAGE_GPR) {
             | mov Rq(dst_reg), Rq(src_reg);
-        } else {
-            MVM_oops(tc, "numeric regs nyi");
+        } else { // src_cls == MVM_JIT_STORAGE_FPR
+            | movd Rq(dst_reg), xmm(src_reg & 0xf);
         }
-    } else {
-        MVM_oops(tc, "numeric regs nyi");
+    } else if (src_cls == MVM_JIT_STORAGE_FPR) { // dst_cls == MVM_JIT_STORAGE_FPR
+        | movq xmm(dst_reg & 0xf), xmm(src_reg & 0xf);
+    } else { // src_cls == MVM_JIT_STORAGE_GPR
+        | movd xmm(dst_reg & 0xf), Rq(src_reg);
     }
 }
 
