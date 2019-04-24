@@ -1,7 +1,10 @@
 #include "moar.h"
 
-#define HEAPSNAP_FORMAT 2
-#define DUMP_EVERYTHING_RAW 1
+#ifndef MVM_HEAPSNAPSHOT_FORMAT
+#define MVM_HEAPSNAPSHOT_FORMAT 3
+#endif
+
+#define DUMP_EVERYTHING_RAW 0
 
 #if DUMP_EVERYTHING_RAW
 #include "zlib.h"
@@ -10,7 +13,7 @@
 typedef int (gzFile);
 #endif
 
-#if HEAPSNAP_FORMAT == 3
+#if MVM_HEAPSNAPSHOT_FORMAT == 3
 #include "zstd.h"
 #endif
 
@@ -45,13 +48,13 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
     }
     MVM_free(path);
 
-    if (HEAPSNAP_FORMAT == 2) {
+    if (MVM_HEAPSNAPSHOT_FORMAT == 2) {
         col->index = MVM_calloc(1, sizeof(MVMHeapDumpIndex));
         col->index->snapshot_sizes = MVM_calloc(1, sizeof(MVMHeapDumpIndexSnapshotEntry));
         tc->instance->heap_snapshots = col;
     }
-    else if (HEAPSNAP_FORMAT == 3) {
-        MVMHeapDumpTableOfContents **tocs = { col->toplevel_toc, col->second_level_toc };
+    else if (MVM_HEAPSNAPSHOT_FORMAT == 3) {
+        MVMHeapDumpTableOfContents *tocs[2] = { col->toplevel_toc, col->second_level_toc };
         MVMuint8 i;
         for (i = 0; i < 2; i++) {
             MVMHeapDumpTableOfContents *toc = MVM_calloc(1, sizeof(MVMHeapDumpTableOfContents));
@@ -62,7 +65,7 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
         }
     }
 
-    fprintf(col->fh, "MoarHeapDumpv00%d", HEAPSNAP_FORMAT);
+    fprintf(col->fh, "MoarHeapDumpv00%d", MVM_HEAPSNAPSHOT_FORMAT);
 }
 
 /* Grows storage if it's full, zeroing the extension. Assumes it's only being
@@ -714,7 +717,7 @@ static gzFile open_coll_file(MVMHeapSnapshotCollection *col, char *typename) {
 }
 #endif
 
-#if HEAPSNAP_FORMAT == 3
+#if MVM_HEAPSNAPSHOT_FORMAT == 3
 void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, char *name, char *start, size_t offset, size_t elem_size, size_t count, FILE* fh) {
     char *pointer = (char *)start;
 
@@ -726,6 +729,8 @@ void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotCollection 
     ZSTD_outBuffer outbuf;
 
     size_t size_position = ftell(fh);
+
+    MVMuint16 elem_size_to_write = elem_size;
 
     size_t written_total = 0;
     size_t original_total = count * elem_size;
@@ -741,6 +746,9 @@ void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotCollection 
     }
 
     fprintf(stderr, "will compress %lld bytes per field\n", elem_size);
+
+    /* Write the size per entry to the file */
+    fwrite(&elem_size_to_write, sizeof(MVMuint16), 1, fh);
 
     while (count > 0) {
         size_t retval;
@@ -993,12 +1001,12 @@ void snapshot_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection
     inner_toc->toc_words = MVM_calloc(8, sizeof(char *));
     inner_toc->toc_positions = (MVMuint64 *)MVM_calloc(8, sizeof(MVMuint64));
 
-    collectables_to_filehandle_ver2(tc, col, entry);
-    references_to_filehandle_ver2(tc, col, entry);
+    /*collectables_to_filehandle_ver2(tc, col, entry);*/
+    /*references_to_filehandle_ver2(tc, col, entry);*/
 
-    string_heap_to_filehandle_ver2(tc, col);
-    types_to_filehandle_ver2(tc, col);
-    static_frames_to_filehandle_ver2(tc, col);
+    /*string_heap_to_filehandle_ver2(tc, col);*/
+    /*types_to_filehandle_ver2(tc, col);*/
+    /*static_frames_to_filehandle_ver2(tc, col);*/
 
     MVM_free(inner_toc);
 }
@@ -1374,7 +1382,7 @@ void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
 
             record_snapshot(tc, col, col->snapshot);
 
-#if HEAPSNAP_FORMAT == 3
+#if MVM_HEAPSNAPSHOT_FORMAT == 3
             snapshot_to_filehandle_ver3(tc, col);
 #else
             snapshot_to_filehandle_ver2(tc, col);
