@@ -212,6 +212,13 @@ struct MVMHeapSnapshotState {
      * per repr id is worth a lot. */
     MVMuint64 repr_str_idx_cache[MVM_REPR_MAX_COUNT];
     MVMuint64 type_str_idx_cache[MVM_REPR_MAX_COUNT];
+    MVMuint64 anon_repr_type_str_idx_cache[MVM_REPR_MAX_COUNT];
+
+    MVMuint32 type_of_type_idx_cache[8];
+    MVMuint32 repr_of_type_idx_cache[8];
+    MVMuint32 type_idx_cache[8];
+
+    MVMuint8 type_idx_rotating_insert_slot;
 };
 
 /* Work item used while taking a heap snapshot. */

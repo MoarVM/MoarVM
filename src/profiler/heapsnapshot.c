@@ -200,7 +200,7 @@ static MVMuint64 get_const_string_index_cached(MVMThreadContext *tc, MVMHeapSnap
     MVMuint64 str_idx;
     if (cache && *cache < ss->col->num_strings) {
         if (strcmp(ss->col->strings[*cache], (char *)cstr) == 0) {
-            fprintf(stderr, "hit! %d\n", *cache);
+            /*fprintf(stderr, "hit! %d\n", *cache);*/
             if (str_mode == STR_MODE_OWN)
                 MVM_free(cstr);
             str_idx = *cache;
@@ -208,7 +208,7 @@ static MVMuint64 get_const_string_index_cached(MVMThreadContext *tc, MVMHeapSnap
         else {
             str_idx = get_string_index(tc, ss, (char *)cstr, str_mode);
             *cache = str_idx;
-            fprintf(stderr, "miss! %d\n", str_idx);
+            /*fprintf(stderr, "miss! %d\n", str_idx);*/
         }
     }
     else {
@@ -305,10 +305,26 @@ static void set_type_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
         type_idx = get_string_index(tc, ss, anon_with_repr, STR_MODE_DUP);
     }
 
+    for (i = 0; i < 8; i++) {
+        if (type_idx == ss->type_of_type_idx_cache[i] && repr_idx == ss->repr_of_type_idx_cache[i]) {
+            MVMuint64 result = ss->type_idx_cache[i];
+            if (result < ss->col->num_types && ss->col->types[result].repr_name == repr_idx && ss->col->types[result].type_name == type_idx) {
+                col->type_or_frame_index = ss->type_idx_cache[i];
+                return;
+            }
+        }
+    }
+
     for (i = 0; i < ss->col->num_types; i++) {
         t = &(ss->col->types[i]);
         if (t->repr_name == repr_idx && t->type_name == type_idx) {
             col->type_or_frame_index = i;
+            ss->type_of_type_idx_cache[ss->type_idx_rotating_insert_slot] = type_idx;
+            ss->repr_of_type_idx_cache[ss->type_idx_rotating_insert_slot] = repr_idx;
+            ss->type_idx_cache[ss->type_idx_rotating_insert_slot] = i;
+            ss->type_idx_rotating_insert_slot++;
+            if (ss->type_idx_rotating_insert_slot == 8)
+                ss->type_idx_rotating_insert_slot = 0;
             return;
         }
     }
@@ -1098,9 +1114,9 @@ void write_toc_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *co
 
     toc_start_pos = ftell(fh);
 
-    fprintf(stderr, "writing toc %p at position %p - %d entries\n", to_write, toc_start_pos, to_write->toc_entry_used);
-    if (to_register)
-        fprintf(stderr, "  - will put an entry into %p\n", to_register);
+    /*fprintf(stderr, "writing toc %p at position %p - %d entries\n", to_write, toc_start_pos, to_write->toc_entry_used);*/
+    /*if (to_register)*/
+        /*fprintf(stderr, "  - will put an entry into %p\n", to_register);*/
 
     {
         MVMuint64 entries_to_write = to_write->toc_entry_used;
@@ -1135,8 +1151,8 @@ void snapshot_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection
 
     MVMHeapDumpTableOfContents *outer_toc = col->toplevel_toc;
     MVMHeapDumpTableOfContents *inner_toc = MVM_calloc(sizeof(MVMHeapDumpTableOfContents), 1);
-    
-    fprintf(stderr, "creating a new TOC at %p\n", inner_toc);
+
+    /*fprintf(stderr, "creating a new TOC at %p\n", inner_toc);*/
 
     inner_toc->toc_entry_alloc = 8;
     inner_toc->toc_words = MVM_calloc(8, sizeof(char *));
@@ -1515,7 +1531,7 @@ void finish_collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollec
     {
     MVMHeapDumpTableOfContents *inner_toc = MVM_calloc(sizeof(MVMHeapDumpTableOfContents), 1);
 
-    fprintf(stderr, "finishing collection; creating a new TOC at %p\n", inner_toc);
+    /*fprintf(stderr, "finishing collection; creating a new TOC at %p\n", inner_toc);*/
 
     inner_toc->toc_entry_alloc = 8;
     inner_toc->toc_words = MVM_calloc(8, sizeof(char *));
