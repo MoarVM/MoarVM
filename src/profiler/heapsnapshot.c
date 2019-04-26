@@ -385,6 +385,34 @@ static void process_gc_worklist(MVMThreadContext *tc, MVMHeapSnapshotState *ss, 
                 get_collectable_idx(tc, ss, c));
     }
 }
+static void incorporate_type_stats(MVMThreadContext *tc, MVMHeapSnapshotStats *stats, MVMHeapSnapshotCollectable *col) {
+    if (col->type_or_frame_index >= stats->type_stats_alloc) {
+        MVMuint32 prev_alloc = stats->type_stats_alloc;
+        stats->type_stats_alloc += 512;
+        stats->type_counts   = MVM_recalloc(stats->type_counts,
+                sizeof(MVMuint32) * prev_alloc,
+                sizeof(MVMuint32) * stats->type_stats_alloc);
+        stats->type_size_sum = MVM_recalloc(stats->type_size_sum,
+                sizeof(MVMuint64) * prev_alloc,
+                sizeof(MVMuint64) * stats->type_stats_alloc);
+    }
+    stats->type_counts[col->type_or_frame_index]++;
+    stats->type_size_sum[col->type_or_frame_index] += col->collectable_size + col->unmanaged_size;
+}
+static void incorporate_sf_stats(MVMThreadContext *tc, MVMHeapSnapshotStats *stats, MVMHeapSnapshotCollectable *col) {
+    if (col->type_or_frame_index >= stats->sf_stats_alloc) {
+        MVMuint32 prev_alloc = stats->sf_stats_alloc;
+        stats->sf_stats_alloc += 512;
+        stats->sf_counts   = MVM_recalloc(stats->sf_counts,
+                sizeof(MVMuint32) * prev_alloc,
+                sizeof(MVMuint32) * stats->sf_stats_alloc);
+        stats->sf_size_sum = MVM_recalloc(stats->sf_size_sum,
+                sizeof(MVMuint64) * prev_alloc,
+                sizeof(MVMuint64) * stats->sf_stats_alloc);
+    }
+    stats->sf_counts[col->type_or_frame_index]++;
+    stats->sf_size_sum[col->type_or_frame_index] += col->collectable_size + col->unmanaged_size;
+}
 static void process_object(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
         MVMHeapSnapshotCollectable *col, MVMObject *obj, MVMuint64 *stable_cache, MVMuint64 *sc_cache) {
     process_collectable(tc, ss, col, (MVMCollectable *)obj, sc_cache);
@@ -405,19 +433,7 @@ static void process_object(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
             col->unmanaged_size += REPR(obj)->unmanaged_size(tc, STABLE(obj),
                 OBJECT_BODY(obj));
         if (ss->hs->stats) {
-            MVMHeapSnapshotStats *stats = ss->hs->stats;
-            if (col->type_or_frame_index >= stats->type_stats_alloc) {
-                MVMuint32 prev_alloc = stats->type_stats_alloc;
-                stats->type_stats_alloc += 512;
-                stats->type_counts   = MVM_recalloc(stats->type_counts,
-                        sizeof(MVMuint32) * prev_alloc,
-                        sizeof(MVMuint32) * stats->type_stats_alloc);
-                stats->type_size_sum = MVM_recalloc(stats->type_size_sum,
-                        sizeof(MVMuint64) * prev_alloc,
-                        sizeof(MVMuint64) * stats->type_stats_alloc);
-            }
-            stats->type_counts[col->type_or_frame_index]++;
-            stats->type_size_sum[col->type_or_frame_index] += col->collectable_size + col->unmanaged_size;
+            incorporate_type_stats(tc, ss->hs->stats, col);
         }
     }
 }
@@ -567,19 +583,7 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                 }
 
                 if (ss->hs->stats) {
-                    MVMHeapSnapshotStats *stats = ss->hs->stats;
-                    if (col.type_or_frame_index >= stats->sf_stats_alloc) {
-                        MVMuint32 prev_alloc = stats->sf_stats_alloc;
-                        stats->sf_stats_alloc += 512;
-                        stats->sf_counts   = MVM_recalloc(stats->sf_counts,
-                                sizeof(MVMuint32) * prev_alloc,
-                                sizeof(MVMuint32) * stats->sf_stats_alloc);
-                        stats->sf_size_sum = MVM_recalloc(stats->sf_size_sum,
-                                sizeof(MVMuint64) * prev_alloc,
-                                sizeof(MVMuint64) * stats->sf_stats_alloc);
-                    }
-                    stats->sf_counts[col.type_or_frame_index]++;
-                    stats->sf_size_sum[col.type_or_frame_index] += col.collectable_size + col.unmanaged_size;
+                    incorporate_sf_stats(tc, ss->hs->stats, &col);
                 }
 
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
@@ -1536,6 +1540,76 @@ void finish_collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollec
 #endif
 }
 
+typedef struct {
+    MVMuint32 identity;
+    MVMuint64 value;
+} to_sort_entry;
+
+static int comparator(const void *one_entry, const void *two_entry) {
+    to_sort_entry *one = (to_sort_entry *)one_entry;
+    to_sort_entry *two = (to_sort_entry *)two_entry;
+
+    if (one->value < two->value)
+        return 1;
+    if (one->value > two->value)
+        return -1;
+    return 0;
+}
+
+typedef struct leaderboard {
+    MVMuint32 tofi;
+    MVMuint64 value;
+} leaderboard;
+
+static void make_leaderboards(MVMThreadContext *tc, MVMHeapSnapshot *hs) {
+    MVMHeapSnapshotStats *stats = hs->stats;
+    to_sort_entry *data_body;
+    MVMuint32 i;
+    MVMuint8 which;
+
+    leaderboard boards[4][20];
+
+    char *descriptions[4] = {
+        "types_by_count",
+        "frames_by_count",
+        "types_by_size",
+        "frames_by_size",
+    };
+
+    if (!stats)
+        return;
+
+    /* keep one allocation for all the work */
+    data_body = MVM_malloc(
+            (stats->type_stats_alloc > stats->sf_stats_alloc ? stats->type_stats_alloc : stats->sf_stats_alloc)
+            * sizeof(to_sort_entry)
+            );
+    fprintf(stderr, "{\n");
+    for (which = 0; which < 4; which++) {
+        MVMuint32 size = which == 0 || which == 2 ? stats->type_stats_alloc : stats->sf_stats_alloc;
+        for (i = 0; i < size; i++) {
+            data_body[i].identity = i;
+            data_body[i].value =
+                which == 0 ? stats->type_counts[i]
+                : which == 1 ? stats->sf_counts[i]
+                : which == 2 ? stats->type_size_sum[i]
+                             : stats->sf_size_sum[i];
+        }
+        qsort((void *)data_body, size, sizeof(to_sort_entry), comparator);
+
+        fprintf(stderr, "  %s: [\n", descriptions[which]);
+        for (i = 0; i < 20; i++) {
+            boards[which][i].tofi = data_body[i].identity;
+            boards[which][i].value = data_body[i].value;
+            fprintf(stderr, "      { id: %d, name: \"%s\", score: %d }%s\n",
+                    data_body[i].identity, "NYI", data_body[i].value, i == 20 ? "" : ",");
+        }
+        fprintf(stderr, "  ]\n");
+    }
+    fprintf(stderr, "}\n");
+    MVM_free(data_body);
+}
+
 /* Takes a snapshot of the heap, outputting it to the filehandle */
 void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
     if (MVM_profile_heap_profiling(tc)) {
@@ -1548,6 +1622,8 @@ void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
         if (do_heapsnapshot) {
             col->snapshot = MVM_calloc(1, sizeof(MVMHeapSnapshot));
 
+            col->snapshot->stats = MVM_calloc(1, sizeof(MVMHeapSnapshotStats));
+
             record_snapshot(tc, col, col->snapshot);
 
 #if MVM_HEAPSNAPSHOT_FORMAT == 3
@@ -1557,8 +1633,10 @@ void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
 #endif
             fflush(col->fh);
 
+            make_leaderboards(tc, col->snapshot);
             destroy_current_heap_snapshot(tc);
         }
+
         col->snapshot_idx++;
     }
 }
