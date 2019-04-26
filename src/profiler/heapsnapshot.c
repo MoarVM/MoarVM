@@ -4,6 +4,8 @@
 #define MVM_HEAPSNAPSHOT_FORMAT 3
 #endif
 
+#define ZSTD_COMPRESSION_VALUE 9
+
 /* In order to debug heap snapshot output, or to rapid-prototype new formats,
  * the DUMP_EVERYTHING_RAW define gets you a set of gzipped files into /tmp,
  * one for every property of the objects, and one set per heap snapshot.
@@ -858,7 +860,7 @@ void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotCollection 
     outbuf.size = outSize;
 
     cstream = ZSTD_createCStream();
-    if (ZSTD_isError(return_value = ZSTD_initCStream(cstream, 25))) {
+    if (ZSTD_isError(return_value = ZSTD_initCStream(cstream, ZSTD_COMPRESSION_VALUE))) {
         MVM_panic(1, "ZSTD compression error in heap snapshot: %s", ZSTD_getErrorName(return_value));
     }
 
@@ -987,7 +989,7 @@ void string_heap_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollect
 
     cstream = ZSTD_createCStream();
 
-    if (ZSTD_isError(return_value = ZSTD_initCStream(cstream, 25))) {
+    if (ZSTD_isError(return_value = ZSTD_initCStream(cstream, ZSTD_COMPRESSION_VALUE))) {
         MVM_panic(1, "ZSTD compression error in heap snapshot: %s", ZSTD_getErrorName(return_value));
     }
 
