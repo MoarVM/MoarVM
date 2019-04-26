@@ -180,6 +180,7 @@ typedef struct {
     char             **env;
     char             **args;
     uv_stream_t       *stdin_handle;
+    MVMuint32          had_stdin_handle;
     MVMuint32          seq_stdout;
     MVMuint32          seq_stderr;
     MVMuint32          seq_merge;
@@ -274,7 +275,11 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                 MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
                     tc->instance->VMString, (si && si->stdin_handle
                         ? uv_strerror(r)
-                        : "This process is not opened for write"));
+                        : si && si->had_stdin_handle
+                            ? (si->state == STATE_DONE
+                                ? "Cannot write to process that has already terminated"
+                                : "Cannot write to process after close-stdin")
+                            : "This process is not opened for write"));
                 MVMObject *msg_box = MVM_repr_box_str(tc,
                     tc->instance->boot_types.BOOTStr, msg_str);
                 MVM_repr_push_o(tc, arr, msg_box);
@@ -649,6 +654,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         process_stdio[0].flags       = UV_CREATE_PIPE | UV_READABLE_PIPE;
         process_stdio[0].data.stream = (uv_stream_t *)pipe;
         si->stdin_handle             = (uv_stream_t *)pipe;
+        si->had_stdin_handle         = 1;
     }
     else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdin_fd)) {
         process_stdio[0].flags   = UV_INHERIT_FD;
