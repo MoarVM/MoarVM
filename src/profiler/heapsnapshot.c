@@ -406,7 +406,9 @@ static void process_gc_worklist(MVMThreadContext *tc, MVMHeapSnapshotState *ss, 
 static void incorporate_type_stats(MVMThreadContext *tc, MVMHeapSnapshotStats *stats, MVMHeapSnapshotCollectable *col) {
     if (col->type_or_frame_index >= stats->type_stats_alloc) {
         MVMuint32 prev_alloc = stats->type_stats_alloc;
-        stats->type_stats_alloc += 512;
+        while (col->type_or_frame_index >= stats->type_stats_alloc) {
+            stats->type_stats_alloc += 512;
+        }
         stats->type_counts   = MVM_recalloc(stats->type_counts,
                 sizeof(MVMuint32) * prev_alloc,
                 sizeof(MVMuint32) * stats->type_stats_alloc);
@@ -420,7 +422,9 @@ static void incorporate_type_stats(MVMThreadContext *tc, MVMHeapSnapshotStats *s
 static void incorporate_sf_stats(MVMThreadContext *tc, MVMHeapSnapshotStats *stats, MVMHeapSnapshotCollectable *col) {
     if (col->type_or_frame_index >= stats->sf_stats_alloc) {
         MVMuint32 prev_alloc = stats->sf_stats_alloc;
-        stats->sf_stats_alloc += 512;
+        while (col->type_or_frame_index >= stats->sf_stats_alloc) {
+            stats->sf_stats_alloc += 512;
+        }
         stats->sf_counts   = MVM_recalloc(stats->sf_counts,
                 sizeof(MVMuint32) * prev_alloc,
                 sizeof(MVMuint32) * stats->sf_stats_alloc);
