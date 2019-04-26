@@ -1972,7 +1972,7 @@ start:
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
     }
     case MVM_OP_getuniprop_int:
-    case MVM_OP_getuniprop_bool:{
+    case MVM_OP_getuniprop_bool: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 cp  = ins->operands[1].reg.orig;
         MVMint16 pc  = ins->operands[2].reg.orig;
@@ -1982,7 +1982,7 @@ start:
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_INT, dst);
         break;
     }
-    case MVM_OP_getuniprop_str:{
+    case MVM_OP_getuniprop_str: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 cp  = ins->operands[1].reg.orig;
         MVMint16 pc  = ins->operands[2].reg.orig;
@@ -1992,7 +1992,7 @@ start:
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
-    case MVM_OP_matchuniprop:{
+    case MVM_OP_matchuniprop: {
         MVMint16 dst  = ins->operands[0].reg.orig;
         MVMint16 cp   = ins->operands[1].reg.orig;
         MVMint16 pc   = ins->operands[2].reg.orig;
