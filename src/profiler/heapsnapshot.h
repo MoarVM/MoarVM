@@ -30,6 +30,18 @@ struct MVMHeapDumpTableOfContents {
     MVMuint64 *toc_positions;
 };
 
+struct MVMHeapSnapshotStats {
+    MVMuint64 type_stats_alloc;
+
+    MVMuint32 *type_counts;
+    MVMuint64 *type_size_sum;
+
+    MVMuint64 sf_stats_alloc;
+
+    MVMuint32 *sf_counts;
+    MVMuint64 *sf_size_sum;
+};
+
 /* A collection of heap snapshots, with common type and static frame names.
  * Note that we take care to never refer to heap objects themselves in here,
  * including for types and frames, since to do so would extend their lifetime
@@ -85,6 +97,8 @@ struct MVMHeapSnapshot {
     MVMHeapSnapshotReference *references;
     MVMuint64 num_references;
     MVMuint64 alloc_references;
+
+    MVMHeapSnapshotStats *stats;
 };
 
 /* An object/type object/STable type in the snapshot. */
@@ -192,6 +206,12 @@ struct MVMHeapSnapshotState {
      * around for those times (much cheaper than allocating it whenever we
      * need it). */
     MVMGCWorklist *gcwl;
+
+    /* Many reprs have only one type (BOOTCode) or two
+     * types (P6int, BOOTInt), so caching string index
+     * per repr id is worth a lot. */
+    MVMuint64 repr_str_idx_cache[MVM_REPR_MAX_COUNT];
+    MVMuint64 type_str_idx_cache[MVM_REPR_MAX_COUNT];
 };
 
 /* Work item used while taking a heap snapshot. */
@@ -227,6 +247,8 @@ MVMObject * MVM_profile_heap_end(MVMThreadContext *tc);
  * profile. */
 MVM_PUBLIC void MVM_profile_heap_add_collectable_rel_const_cstr(MVMThreadContext *tc,
     MVMHeapSnapshotState *ss, MVMCollectable *collectable, char *desc);
+MVM_PUBLIC void MVM_profile_heap_add_collectable_rel_const_cstr_cached(MVMThreadContext *tc,
+    MVMHeapSnapshotState *ss, MVMCollectable *collectable, char *desc, MVMuint64 *cache);
 MVM_PUBLIC void MVM_profile_heap_add_collectable_rel_vm_str(MVMThreadContext *tc,
     MVMHeapSnapshotState *ss, MVMCollectable *collectable, MVMString *desc);
 MVM_PUBLIC void MVM_profile_heap_add_collectable_rel_idx(MVMThreadContext *tc,

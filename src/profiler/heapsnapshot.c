@@ -60,7 +60,6 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
         MVMuint8 i;
         MVMHeapDumpTableOfContents *toc = MVM_calloc(1, sizeof(MVMHeapDumpTableOfContents));
         col->toplevel_toc = toc;
-        fprintf(stderr, "creating outermost TOC: %p\n", toc);
         toc->toc_entry_alloc = 8;
         toc->toc_words = MVM_calloc(8, sizeof(char *));
         toc->toc_positions = (MVMuint64 *)MVM_calloc(8, sizeof(MVMuint64) * 2);
@@ -196,6 +195,36 @@ static void add_reference_const_cstr(MVMThreadContext *tc, MVMHeapSnapshotState 
     add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_STRING, str_idx, to);
 }
 
+static MVMuint64 get_const_string_index_cached(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
+                                               char *cstr, MVMuint64 *cache, MVMuint64 str_mode) {
+    MVMuint64 str_idx;
+    if (cache && *cache < ss->col->num_strings) {
+        if (strcmp(ss->col->strings[*cache], (char *)cstr) == 0) {
+            fprintf(stderr, "hit! %d\n", *cache);
+            if (str_mode == STR_MODE_OWN)
+                MVM_free(cstr);
+            str_idx = *cache;
+        }
+        else {
+            str_idx = get_string_index(tc, ss, (char *)cstr, str_mode);
+            *cache = str_idx;
+            fprintf(stderr, "miss! %d\n", str_idx);
+        }
+    }
+    else {
+        str_idx = get_string_index(tc, ss, (char *)cstr, str_mode);
+        if (cache)
+            *cache = str_idx;
+    }
+    return str_idx;
+}
+
+static void add_reference_const_cstr_cached(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
+                                     const char *cstr,  MVMuint64 to, MVMuint64 *cache) {
+    MVMuint64 str_idx = get_const_string_index_cached(tc, ss, cstr, cache, STR_MODE_CONST);
+    add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_STRING, str_idx, to);
+}
+
 /* Adds a reference with a VM string description. */
 static void add_reference_vm_str(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
                                MVMString *str,  MVMuint64 to) {
@@ -260,7 +289,7 @@ static MVMuint64 get_frame_idx(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
  * using an existing type table entry or adding a new one. */
 static void set_type_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
        MVMHeapSnapshotCollectable *col, MVMSTable *st) {
-    MVMuint64 repr_idx = get_string_index(tc, ss, (char *)st->REPR->name, STR_MODE_CONST);
+    MVMuint64 repr_idx = get_const_string_index_cached(tc, ss, (char *)st->REPR->name, &ss->repr_str_idx_cache[st->REPR->ID], STR_MODE_CONST);
     char *debug_name = MVM_6model_get_stable_debug_name(tc, st);
     MVMuint64 type_idx;
 
@@ -268,7 +297,7 @@ static void set_type_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
     MVMHeapSnapshotType *t;
 
     if (strlen(debug_name) != 0) {
-        type_idx = get_string_index(tc, ss, MVM_6model_get_stable_debug_name(tc, st), STR_MODE_DUP);
+        type_idx = get_const_string_index_cached(tc, ss, MVM_6model_get_stable_debug_name(tc, st), &ss->type_str_idx_cache[st->REPR->ID], STR_MODE_DUP);
     }
     else {
         char anon_with_repr[256] = {0};
@@ -333,12 +362,12 @@ static void set_static_frame_index(MVMThreadContext *tc, MVMHeapSnapshotState *s
 
 /* Processes the work items, until we've none left. */
 static void process_collectable(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
-        MVMHeapSnapshotCollectable *col, MVMCollectable *c) {
+        MVMHeapSnapshotCollectable *col, MVMCollectable *c, MVMuint64 *sc_cache) {
     MVMuint32 sc_idx = MVM_sc_get_idx_of_sc(c);
     if (sc_idx > 0)
-        add_reference_const_cstr(tc, ss, "<SC>",
+        add_reference_const_cstr_cached(tc, ss, "<SC>",
             get_collectable_idx(tc, ss,
-                (MVMCollectable *)tc->instance->all_scs[sc_idx]->sc));
+                (MVMCollectable *)tc->instance->all_scs[sc_idx]->sc), sc_cache);
     col->collectable_size = c->size;
 }
 static void process_gc_worklist(MVMThreadContext *tc, MVMHeapSnapshotState *ss, char *desc) {
@@ -357,11 +386,11 @@ static void process_gc_worklist(MVMThreadContext *tc, MVMHeapSnapshotState *ss, 
     }
 }
 static void process_object(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
-        MVMHeapSnapshotCollectable *col, MVMObject *obj) {
-    process_collectable(tc, ss, col, (MVMCollectable *)obj);
+        MVMHeapSnapshotCollectable *col, MVMObject *obj, MVMuint64 *stable_cache, MVMuint64 *sc_cache) {
+    process_collectable(tc, ss, col, (MVMCollectable *)obj, sc_cache);
     set_type_index(tc, ss, col, obj->st);
-    add_reference_const_cstr(tc, ss, "<STable>",
-        get_collectable_idx(tc, ss, (MVMCollectable *)obj->st));
+    add_reference_const_cstr_cached(tc, ss, "<STable>",
+        get_collectable_idx(tc, ss, (MVMCollectable *)obj->st), stable_cache);
     if (IS_CONCRETE(obj)) {
         /* Use object's gc_mark function to find what it references. */
         /* XXX We'll also add an API for getting better information, e.g.
@@ -375,9 +404,31 @@ static void process_object(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
         if (REPR(obj)->unmanaged_size)
             col->unmanaged_size += REPR(obj)->unmanaged_size(tc, STABLE(obj),
                 OBJECT_BODY(obj));
+        if (ss->hs->stats) {
+            MVMHeapSnapshotStats *stats = ss->hs->stats;
+            if (col->type_or_frame_index >= stats->type_stats_alloc) {
+                MVMuint32 prev_alloc = stats->type_stats_alloc;
+                stats->type_stats_alloc += 512;
+                stats->type_counts   = MVM_recalloc(stats->type_counts,
+                        sizeof(MVMuint32) * prev_alloc,
+                        sizeof(MVMuint32) * stats->type_stats_alloc);
+                stats->type_size_sum = MVM_recalloc(stats->type_size_sum,
+                        sizeof(MVMuint64) * prev_alloc,
+                        sizeof(MVMuint64) * stats->type_stats_alloc);
+            }
+            stats->type_counts[col->type_or_frame_index]++;
+            stats->type_size_sum[col->type_or_frame_index] += col->collectable_size + col->unmanaged_size;
+        }
     }
 }
 static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
+    MVMuint64 stable_cache = 0;
+    MVMuint64 sc_cache = 0;
+
+    MVMuint64 cache_1 = 0;
+    MVMuint64 cache_2 = 0;
+    MVMuint64 cache_3 = 0;
+
     while (ss->num_workitems > 0) {
         MVMHeapSnapshotWorkItem item = pop_workitem(tc, ss);
 
@@ -391,20 +442,20 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
         switch (item.kind) {
             case MVM_SNAPSHOT_COL_KIND_OBJECT:
             case MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT:
-                process_object(tc, ss, &col, (MVMObject *)item.target);
+                process_object(tc, ss, &col, (MVMObject *)item.target, &stable_cache, &sc_cache);
                 break;
             case MVM_SNAPSHOT_COL_KIND_STABLE: {
                 MVMuint16 i;
                 MVMSTable *st = (MVMSTable *)item.target;
-                process_collectable(tc, ss, &col, (MVMCollectable *)st);
+                process_collectable(tc, ss, &col, (MVMCollectable *)st, &sc_cache);
                 set_type_index(tc, ss, &col, st);
 
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                     (MVMCollectable *)st->method_cache, "Method cache");
 
                 for (i = 0; i < st->type_check_cache_length; i++)
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                        (MVMCollectable *)st->type_check_cache[i], "Type cache entry");
+                    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                        (MVMCollectable *)st->type_check_cache[i], "Type cache entry", &cache_1);
 
                 if (st->container_spec && st->container_spec->gc_mark_data) {
                     st->container_spec->gc_mark_data(tc, st, ss->gcwl);
@@ -412,9 +463,9 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                 }
 
                 if (st->boolification_spec)
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
                         (MVMCollectable *)st->boolification_spec->method,
-                        "Boolification method");
+                        "Boolification method", &cache_2);
 
                 if (st->invocation_spec) {
                     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
@@ -437,8 +488,8 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                         "Invocation spec valid attribute name (multi)");
                 }
 
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)st->WHO, "WHO");
+                MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                    (MVMCollectable *)st->WHO, "WHO", &cache_3);
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                     (MVMCollectable *)st->WHAT, "WHAT");
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
@@ -513,6 +564,22 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                         }
                     }
                     col.unmanaged_size += frame->allocd_env;
+                }
+
+                if (ss->hs->stats) {
+                    MVMHeapSnapshotStats *stats = ss->hs->stats;
+                    if (col.type_or_frame_index >= stats->sf_stats_alloc) {
+                        MVMuint32 prev_alloc = stats->sf_stats_alloc;
+                        stats->sf_stats_alloc += 512;
+                        stats->sf_counts   = MVM_recalloc(stats->sf_counts,
+                                sizeof(MVMuint32) * prev_alloc,
+                                sizeof(MVMuint32) * stats->sf_stats_alloc);
+                        stats->sf_size_sum = MVM_recalloc(stats->sf_size_sum,
+                                sizeof(MVMuint64) * prev_alloc,
+                                sizeof(MVMuint64) * stats->sf_stats_alloc);
+                    }
+                    stats->sf_counts[col.type_or_frame_index]++;
+                    stats->sf_size_sum[col.type_or_frame_index] += col.collectable_size + col.unmanaged_size;
                 }
 
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
@@ -633,6 +700,12 @@ void MVM_profile_heap_add_collectable_rel_const_cstr(MVMThreadContext *tc,
         add_reference_const_cstr(tc, ss, desc,
             get_collectable_idx(tc, ss, collectable));
 }
+void MVM_profile_heap_add_collectable_rel_const_cstr_cached(MVMThreadContext *tc,
+        MVMHeapSnapshotState *ss, MVMCollectable *collectable, char *desc, MVMuint64 *cache) {
+    if (collectable)
+        add_reference_const_cstr_cached(tc, ss, desc,
+            get_collectable_idx(tc, ss, collectable), cache);
+}
 
 /* API function for adding a collectable to the snapshot, describing its
  * relation to the current collectable with an MVMString. */
@@ -697,7 +770,6 @@ static void destroy_heap_snapshot_collection(MVMThreadContext *tc) {
     MVM_free(col->static_frames);
 
 #if MVM_HEAPSNAPSHOT_FORMAT == 3
-    fprintf(stderr, "destroying heap snapshot collection\n");
     MVM_free(col->toplevel_toc);
     if (col->second_level_toc)
         MVM_free(col->second_level_toc);
@@ -862,7 +934,7 @@ void string_heap_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollect
     char typename[8] = "strings\0";
     MVMuint64 size = 0;
 
-    MVMuint64 size_position = 0;
+    MVMuint64 size_position = 0; 
     MVMuint64 end_position = 0; 
 
     while (i < col->num_strings) {
