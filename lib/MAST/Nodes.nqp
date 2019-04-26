@@ -929,9 +929,9 @@ class MAST::Frame is MAST::Node {
         for @!lexical_names {
             nqp::push_i(@!lexical_names_idxs, self.add-string($_));
         }
-        for %!debug_map {
-            nqp::push_i(@!debug_map_idxs, $_.value.index);
-            nqp::push_i(@!debug_map_idxs, self.add-string($_.key));
+        for sorted_keys(%!debug_map) {
+            nqp::push_i(@!debug_map_idxs, %!debug_map{$_}.index);
+            nqp::push_i(@!debug_map_idxs, self.add-string($_));
         }
     }
 
