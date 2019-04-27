@@ -724,9 +724,10 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
 
         MVM_repr_push_o(tc, tc->prof_data->collected_data, types_array);
 
-        MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, tc, tc->prof_data, types_array));
         while (tc->prof_data->current_call)
             MVM_profile_log_exit(tc);
+
+        MVM_repr_push_o(tc, tc->prof_data->collected_data, dump_thread_data(tc, &pds, tc, tc->prof_data, types_array));
 
         /* Get all thread's data */
         thread = tc->instance->threads;
@@ -824,9 +825,9 @@ void MVM_profile_instrumented_mark_data(MVMThreadContext *tc, MVMGCWorklist *wor
                 mark_call_graph_node(tc, node, &nodelist, worklist);
         }
 
-        mark_gc_entries(tc, tc->prof_data, worklist);
-
         MVM_gc_worklist_add(tc, worklist, &(tc->prof_data->collected_data));
+
+        mark_gc_entries(tc, tc->prof_data, worklist);
 
         MVM_free(nodelist.list);
     }
