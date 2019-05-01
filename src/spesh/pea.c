@@ -159,6 +159,9 @@ typedef struct {
 
     /* Tracked registers. */
     MVM_VECTOR_DECL(TrackedRegister, tracked_registers);
+
+    /* The reverse postorder sort of the graph. */
+    MVMSpeshBB **rpo;
 } GraphState;
 
 /* Turns a flattened-in STable into a register type to allocate, if possible.
@@ -638,8 +641,27 @@ static MVMuint32 allocation_tracked(MVMThreadContext *tc, GraphState *gs, MVMSpe
     return 0;
 }
 
-/* Indicates that a real object is required; will eventually mark a point at
- * which we materialize. */
+/* Adds a register to the target list of a materialization (that is, the registers
+ * that we should write a materialization into). */
+static void add_materialization_target_c(MVMThreadContext *tc, MVMSpeshGraph *g,
+        Transformation *t, MVMSpeshOperand o) {
+    MaterializationTarget *target = MVM_spesh_alloc(tc, g, sizeof(MaterializationTarget));
+    target->reg = o;
+    target->is_hypothetical = 0;
+    target->next = t->materialize.targets;
+    t->materialize.targets = target;
+}
+static void add_materialization_target_h(MVMThreadContext *tc, MVMSpeshGraph *g,
+        Transformation *t, MVMuint16 hyp_reg) {
+    MaterializationTarget *target = MVM_spesh_alloc(tc, g, sizeof(MaterializationTarget));
+    target->hyp_reg = hyp_reg;
+    target->is_hypothetical = 1;
+    target->next = t->materialize.targets;
+    t->materialize.targets = target;
+}
+
+/* Indicates that a real object is required. In most cases, we can insert a
+ * materialization, though in others we must mark the object irreplaceable. */
 static void mark_irreplaceable(MVMThreadContext *tc, MVMSpeshPEAAllocation *alloc) {
     alloc->irreplaceable = 1;
     while (MVM_VECTOR_ELEMS(alloc->escape_dependencies) > 0) {
@@ -648,17 +670,69 @@ static void mark_irreplaceable(MVMThreadContext *tc, MVMSpeshPEAAllocation *allo
         mark_irreplaceable(tc, nested);
     }
 }
+static MVMint32 in_branch(MVMThreadContext *tc, GraphState *gs, MVMSpeshGraph *g,
+        MVMSpeshBB *base, MVMSpeshBB *check) {
+    /* Walk the graph in reverse postorder. When we visit a node with more than
+     * one succ, add the extra succs on (entering a branch). When we visit a
+     * node with more than one pred, add the extra preds on. When we find the
+     * node to check, we expect to have a non-zero branch depth. */
+    MVMint32 branch_depth = 0;
+    MVMint32 i = base->rpo_idx;
+    while (i < g->num_bbs) {
+        MVMSpeshBB *cur = gs->rpo[i];
+        if (cur != base)
+            branch_depth -= cur->num_pred - 1;
+        if (cur == check)
+            return branch_depth != 0;
+        branch_depth += cur->num_succ - 1;
+        i++;
+    }
+    return 1; /* Not found; complex enough topology, so suppose branch. */
+}
+static MVMint32 worth_materializing(MVMThreadContext *tc, GraphState *gs, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshPEAAllocation *alloc) {
+    /* It's worth materializing this if either:
+     * 1. We read from the object (in which case we can have reduced costs
+     *    in guards or indirections between the allocation and here)
+     * 2. We are materializing it in a branch. */
+    return alloc->read || in_branch(tc, gs, g, alloc->allocator_bb, bb);
+}
 static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                  MVMSpeshIns *ins, MVMSpeshOperand o, GraphState *gs,
                                  MVMint32 can_materialize) {
     /* Make sure we didn't already mark the object irreplaceable. */
     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, o);
-    /* If there's another op using it, we'd need to materialize.
-     * We don't support that yet, so just mark it irreplaceable. */
     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
     if (alloc && !alloc->irreplaceable) {
-        pea_log("replacement impossible due to %s", ins->info->name);
-        mark_irreplaceable(tc, alloc);
+        int worthwhile = can_materialize ? worth_materializing(tc, gs, g, bb, alloc) : 0;
+        if (can_materialize && worthwhile) {
+            /* Check we didn't already materialize it. */
+            BBState *bb_state = &(gs->bb_states[bb->idx]);
+            MVMint32 index = alloc->index;
+            MVM_VECTOR_ENSURE_SIZE(bb_state->alloc_state, index + 1);
+            if (!bb_state->alloc_state[index].materialized) {
+                /* Create the materialization transform. */
+                Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+                tran->allocation = alloc;
+                tran->transform = TRANSFORM_MATERIALIZE;
+                tran->materialize.prior_to = ins;
+                add_transform_for_bb(tc, gs, bb, tran);
+
+                /* Add the consuming register as a materialization target. */
+                add_materialization_target_c(tc, g, tran, o);
+
+                /* Mark as materialized. */
+                bb_state->alloc_state[index].materialized = 1;
+                pea_log("inserting materialization due to %s", ins->info->name);
+            }
+        }
+        else {
+            pea_log(can_materialize && !worthwhile
+                    ? "could replace and materialize at %s, but not worthwhile"
+                    : "replacement impossible due to %s",
+                    ins->info->name);
+            mark_irreplaceable(tc, alloc);
+        }
     }
 }
 
@@ -845,7 +919,7 @@ static void setup_bb_state(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *new
         for (j = 0; j < new_bb->num_pred; j++) {
             MVMSpeshBB *pred_bb = new_bb->pred[j];
             BBState *pred_bb_state = &(gs->bb_states[pred_bb->idx]);
-            if (i < MVM_VECTOR_ELEMS(pred_bb_state->alloc_state))
+            if (i < MVM_VECTOR_SIZE(pred_bb_state->alloc_state))
                 if (pred_bb_state->alloc_state[i].materialized)
                     num_materialized++;
         }
@@ -874,6 +948,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
     MVMuint32 found_replaceable = 0;
     MVMuint32 ins_count = 0;
     MVMuint32 i;
+    gs->rpo = rpo;
     for (i = 0; i < g->num_bbs; i++) {
         MVMSpeshBB *bb = rpo[i];
         MVMSpeshIns *ins = bb->first_ins;
@@ -1171,6 +1246,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
 
         seen[bb->rpo_idx] = 1;
     }
+    gs->rpo = NULL;
     MVM_free(rpo);
     MVM_free(seen);
     return found_replaceable;
