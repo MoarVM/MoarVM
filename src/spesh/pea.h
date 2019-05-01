@@ -20,8 +20,11 @@ struct MVMSpeshPEAAllocation {
      * state in the materializations table. */
     MVMuint16 index;
 
+    /* Has this object ever been read from? */
+    MVMuint8 read;
+
     /* Have we seen something that invalidates our ability to scalar replace
-     * this? */
+     * this at all? */
     MVMuint8 irreplaceable;
 
     /* The deopt materialization index, and whether we have allocated one yet. */

@@ -699,6 +699,7 @@ static int decompose_and_track_bigint_bi(MVMThreadContext *tc, MVMSpeshGraph *g,
              * replaced. */ 
             tran->decomp_bi_bi.hypothetical_reg_idx_a = find_bigint_register(tc, a_alloc);
             MVM_VECTOR_PUSH(alloc->escape_dependencies, a_alloc);
+            a_alloc->read = 1;
         }
         else {
             /* Allocate a hypothetical big integer reference register, which
@@ -710,6 +711,7 @@ static int decompose_and_track_bigint_bi(MVMThreadContext *tc, MVMSpeshGraph *g,
         if (allocation_tracked(tc, gs, bb, b_alloc)) {
             tran->decomp_bi_bi.hypothetical_reg_idx_b = find_bigint_register(tc, b_alloc);
             MVM_VECTOR_PUSH(alloc->escape_dependencies, b_alloc);
+            b_alloc->read = 1;
         }
         else {
             tran->decomp_bi_bi.hypothetical_reg_idx_b = gs->latest_hypothetical_reg_idx++;
@@ -745,6 +747,7 @@ static int try_replace_decont_i(MVMThreadContext *tc, MVMSpeshGraph *g, GraphSta
                 tran->unbox_bi.ins = ins;
                 tran->unbox_bi.hypothetical_reg_idx = alloc->hypothetical_attr_reg_idxs[i];
                 add_transform_for_bb(tc, gs, bb, tran);
+                alloc->read = 1;
                 return 1;
             }
         }
@@ -923,6 +926,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     tran->transform = TRANSFORM_GUARD_TO_SET;
                     tran->guard.ins = ins;
                     add_transform_for_bb(tc, gs, bb, tran);
+                    settify_dep->read = 1;
                 }
                 add_deopt_materializations_ins(tc, g, bb, gs, ins);
             }
@@ -1090,6 +1094,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                             }
                         }
                         add_transform_for_bb(tc, gs, bb, tran);
+                        alloc->read = 1;
                     }
                     break;
                 }
