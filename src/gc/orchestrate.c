@@ -251,8 +251,10 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
         }
     }
 
-    MVM_profile_dump_instrumented_data(tc);
-    MVM_profile_heap_take_snapshot(tc);
+    if (is_coordinator) {
+        MVM_profile_dump_instrumented_data(tc);
+        MVM_profile_heap_take_snapshot(tc);
+    }
 
     /* Signal acknowledgement of completing the cleanup,
      * except for STables, and if we're the final to do
