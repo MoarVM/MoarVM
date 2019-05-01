@@ -81,6 +81,17 @@ typedef struct {
 
 /* State held per basic block. */
 typedef struct {
+    /* Has this object been materialized (that is, allocated)? Used to handle
+     * partial escapes. */
+    MVMuint8 materialized;
+} BBAllocationState;
+typedef struct {
+    /* The allocation state of tracked objects; during analysis of the
+     * basic block, this is "as it stands", after processing it's the state
+     * things were in by the end of that basic block's processing. */
+    MVM_VECTOR_DECL(BBAllocationState, alloc_state);
+
+    /* Transformations to apply. */
     MVM_VECTOR_DECL(Transformation *, transformations);
 } BBState;
 
@@ -504,8 +515,17 @@ static MVMuint16 attribute_offset_to_reg(MVMThreadContext *tc, MVMSpeshPEAAlloca
 }
 
 /* Check if an allocation is being tracked. */
-static MVMuint32 allocation_tracked(MVMSpeshPEAAllocation *alloc) {
-    return alloc && !alloc->irreplaceable;
+static MVMuint32 allocation_tracked(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *bb,
+                                    MVMSpeshPEAAllocation *alloc) {
+    /* Must have an allocation record, must not be marked irreplaceable, and
+     * must not have been materialized already. */
+    if (alloc && !alloc->irreplaceable) {
+        BBState *bb_state = &(gs->bb_states[bb->idx]);
+        MVMint32 index = alloc->index;
+        return index >= MVM_VECTOR_ELEMS(bb_state->alloc_state) ||
+            !bb_state->alloc_state[index].materialized;
+    }
+    return 0;
 }
 
 /* Indicates that a real object is required; will eventually mark a point at
@@ -561,7 +581,7 @@ static int decompose_and_track_bigint_bi(MVMThreadContext *tc, MVMSpeshGraph *g,
         tran->allocation = alloc;
         tran->transform = TRANSFORM_DECOMPOSE_BIGINT_BI;
         tran->decomp_bi_bi.ins = ins;
-        if (allocation_tracked(a_alloc)) {
+        if (allocation_tracked(tc, gs, bb, a_alloc)) {
             /* Find the hypothetical register for the attribute in question.
              * Also, add a dependency on the allocation in question being
              * replaced. */ 
@@ -575,7 +595,7 @@ static int decompose_and_track_bigint_bi(MVMThreadContext *tc, MVMSpeshGraph *g,
             tran->decomp_bi_bi.hypothetical_reg_idx_a = gs->latest_hypothetical_reg_idx++;
             tran->decomp_bi_bi.obtain_offset_a = ins->operands[5].lit_ui16;
         }
-        if (allocation_tracked(b_alloc)) {
+        if (allocation_tracked(tc, gs, bb, b_alloc)) {
             tran->decomp_bi_bi.hypothetical_reg_idx_b = find_bigint_register(tc, b_alloc);
             MVM_VECTOR_PUSH(alloc->escape_dependencies, b_alloc);
         }
@@ -693,6 +713,41 @@ static void add_deopt_materializations_ins(MVMThreadContext *tc, MVMSpeshGraph *
     }
 }
 
+/* Go through the predecessor basic blocks, checking if allocations have been
+ * materialized there, building up the initial allocation state for this basic
+ * block. */
+static void setup_bb_state(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *new_bb) {
+    BBState *new_bb_state = &(gs->bb_states[new_bb->idx]);
+    MVMint32 num_allocs = MVM_VECTOR_ELEMS(gs->tracked_allocations);
+    MVMint32 i, j;
+    MVM_VECTOR_INIT(new_bb_state->alloc_state, num_allocs);
+    for (i = 0; i < num_allocs; i++) {
+        /* Go through the predecessors and see if any of them have materialized
+         * the object. */
+        MVMint32 num_materialized = 0;
+        for (j = 0; j < new_bb->num_pred; j++) {
+            MVMSpeshBB *pred_bb = new_bb->pred[j];
+            BBState *pred_bb_state = &(gs->bb_states[pred_bb->idx]);
+            if (i < MVM_VECTOR_ELEMS(pred_bb_state->alloc_state))
+                if (pred_bb_state->alloc_state[i].materialized)
+                    num_materialized++;
+        }
+
+        /* Set materialization state in new BB state. */
+        new_bb_state->alloc_state[i].materialized = num_materialized > 0 ? 1 : 0;
+
+        /* If we have any materialized, and it's not equal to the number of
+         * preds, then the object has only been materialized on some paths to
+         * this point. We'll need to ensure it's materialized on all of them. */
+        if (num_materialized > 0 && num_materialized != new_bb->num_pred) {
+            /* TODO Insert materialization transforms. For now, we will just
+             * conservatively mark the object irreplaceable. */
+            pea_log("Cannot yet handle differring materialization state in preds");
+            mark_irreplaceable(tc, gs->tracked_allocations[i]);
+        }
+    }
+}
+
 /* Performs the analysis phase of partial escape anslysis, figuring out what
  * rewrites we can do on the graph to achieve scalar replacement of objects
  * and, perhaps, some guard eliminations. */
@@ -716,6 +771,11 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                 return 0;
             }
         }
+
+        /* Initialize per-BB allocation state based on our predecessors (the
+         * above check means we can for now assume they all have that state).
+         * This may insert materializations in our predecessors also. */
+        setup_bb_state(tc, gs, bb);
 
         while (ins) {
             MVMuint16 opcode = ins->info->opcode;
@@ -776,7 +836,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                      * can potentially elimiante it. */
                     MVMSpeshFacts *source = MVM_spesh_get_facts(tc, g, ins->operands[1]);
                     MVMSpeshPEAAllocation *alloc = source->pea.allocation;
-                    if (allocation_tracked(alloc)) {
+                    if (allocation_tracked(tc, gs, bb, alloc)) {
                         /* Add a transform to delete the set instruction. */
                         Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
                         tran->allocation = alloc;
@@ -808,7 +868,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[0]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
                     MVMint32 is_object_bind = opcode == MVM_OP_sp_p6obind_o || opcode == MVM_OP_sp_bind_o;
-                    if (allocation_tracked(alloc)) {
+                    if (allocation_tracked(tc, gs, bb, alloc)) {
                         MVMint32 is_p6o_op = opcode == MVM_OP_sp_p6obind_i ||
                             opcode == MVM_OP_sp_p6obind_n ||
                             opcode == MVM_OP_sp_p6obind_s ||
@@ -833,7 +893,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
 
                             /* Check if that target object is tracked too, in which case
                              * we can potentially not really do any assignment here. */
-                            if (allocation_tracked(src_facts->pea.allocation)) {
+                            if (allocation_tracked(tc, gs, bb, src_facts->pea.allocation)) {
                                 /* Mark transform as dependent on the source, so we'll
                                  * just do a delete of this instruction if it also ends
                                  * up not escaping. */
@@ -871,7 +931,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     MVMint32 is_object_get = opcode == MVM_OP_sp_p6oget_o ||
                                              opcode == MVM_OP_sp_p6ogetvc_o ||
                                              opcode == MVM_OP_sp_p6ogetvt_o;
-                    if (allocation_tracked(alloc)) {
+                    if (allocation_tracked(tc, gs, bb, alloc)) {
                         MVMint32 is_p6o_op = opcode != MVM_OP_sp_get_o &&
                             opcode != MVM_OP_sp_get_i64 &&
                             opcode != MVM_OP_sp_get_n &&
@@ -907,7 +967,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                                  * of the attribute read, since it now aliases a scalar
                                  * replaced object. The allocation needs to go on the real
                                  * facts, not the shadow ones. */
-                                if (allocation_tracked(src_facts->pea.allocation)) {
+                                if (allocation_tracked(tc, gs, bb, src_facts->pea.allocation)) {
                                     MVMSpeshPEAAllocation *src_alloc = src_facts->pea.allocation;
                                     tran->attr.target_allocation = src_alloc;
                                     MVM_spesh_get_facts(tc, g, ins->operands[0])->pea.allocation = src_alloc;
@@ -934,7 +994,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                 case MVM_OP_decont_i: {
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[1]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
-                    if (!(allocation_tracked(alloc) &&
+                    if (!(allocation_tracked(tc, gs, bb, alloc) &&
                                 try_replace_decont_i(tc, g, gs, bb, ins, alloc)))
                         unhandled_instruction(tc, g, ins);
                     break;
@@ -946,7 +1006,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                 case MVM_OP_prof_allocated: {
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[0]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
-                    if (allocation_tracked(alloc)) {
+                    if (allocation_tracked(tc, gs, bb, alloc)) {
                         Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
                         tran->allocation = alloc;
                         tran->transform = TRANSFORM_PROF_ALLOCATED;
@@ -961,7 +1021,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     if (num_operands == 2) {
                         MVMSpeshFacts *source = MVM_spesh_get_facts(tc, g, ins->operands[1]);
                         MVMSpeshPEAAllocation *alloc = source->pea.allocation;
-                        if (allocation_tracked(alloc)) {
+                        if (allocation_tracked(tc, gs, bb, alloc)) {
                             MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[0]);
                             target->pea.allocation = alloc;
                             MVM_spesh_copy_facts_resolved(tc, g, target, source);
@@ -1024,7 +1084,8 @@ void MVM_spesh_pea(MVMThreadContext *tc, MVMSpeshGraph *g) {
         }
     }
 
-    for (i = 0; i < g->num_bbs; i++)
+    for (i = 0; i < g->num_bbs; i++) {
+        MVM_VECTOR_DESTROY(gs.bb_states[i].alloc_state);
         MVM_VECTOR_DESTROY(gs.bb_states[i].transformations);
     }
     MVM_VECTOR_DESTROY(gs.tracked_allocations);
