@@ -523,7 +523,7 @@ static void add_tracked_register(MVMThreadContext *tc, GraphState *gs, MVMSpeshO
 /* Sees if this is something we can potentially avoid really allocating. If
  * it is, sets up the allocation tracking state that we need. */
 static MVMSpeshPEAAllocation * try_track_allocation(MVMThreadContext *tc, MVMSpeshGraph *g,
-        GraphState *gs, MVMSpeshIns *alloc_ins, MVMSTable *st) {
+        GraphState *gs, MVMSpeshBB *alloc_bb, MVMSpeshIns *alloc_ins, MVMSTable *st) {
     if (st->REPR->ID == MVM_REPR_ID_P6opaque) {
         /* Go over the attributes, making sure we can handle them and allocating
          * a hypothetical register index for each of them. Bail if we cannot
@@ -546,6 +546,7 @@ static MVMSpeshPEAAllocation * try_track_allocation(MVMThreadContext *tc, MVMSpe
         /* If we get here, we're going to track this allocation and try to do
          * scalar replacement of it. Set it up and store it. */
         alloc->allocator = alloc_ins;
+        alloc->allocator_bb = alloc_bb;
         alloc->type = st->WHAT;
         alloc->index = MVM_VECTOR_ELEMS(gs->tracked_allocations);
         MVM_VECTOR_PUSH(gs->tracked_allocations, alloc);
@@ -676,7 +677,7 @@ static int decompose_and_track_bigint_bi(MVMThreadContext *tc, MVMSpeshGraph *g,
         GraphState *gs, MVMSpeshBB *bb, MVMSpeshIns *ins, MVMuint16 replace_op) {
     /* See if we can track the result type. */
     MVMSTable *st = (MVMSTable *)g->spesh_slots[ins->operands[2].lit_i16];
-    MVMSpeshPEAAllocation *alloc = try_track_allocation(tc, g, gs, ins, st);
+    MVMSpeshPEAAllocation *alloc = try_track_allocation(tc, g, gs, bb, ins, st);
     if (alloc) {
         /* Obtain tracked status of the incoming arguments. */
         MVMSpeshFacts *a_facts = MVM_spesh_get_facts(tc, g, ins->operands[3]);
@@ -930,7 +931,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
             switch (opcode) {
                 case MVM_OP_sp_fastcreate: {
                     MVMSTable *st = (MVMSTable *)g->spesh_slots[ins->operands[2].lit_i16];
-                    MVMSpeshPEAAllocation *alloc = try_track_allocation(tc, g, gs, ins, st);
+                    MVMSpeshPEAAllocation *alloc = try_track_allocation(tc, g, gs, bb, ins, st);
                     if (alloc) {
                         MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[0]);
                         Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));

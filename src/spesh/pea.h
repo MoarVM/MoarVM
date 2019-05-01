@@ -3,6 +3,9 @@ struct MVMSpeshPEAAllocation {
     /* The allocating instruction. */
     MVMSpeshIns *allocator;
 
+    /* The allocating basic block. */
+    MVMSpeshBB *allocator_bb;
+
     /* The allocated type. */
    MVMObject *type; 
 
