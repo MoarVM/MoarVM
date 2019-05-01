@@ -665,18 +665,20 @@ static void add_deopt_materializations_idx(MVMThreadContext *tc, MVMSpeshGraph *
     for (i = 0; i < MVM_VECTOR_ELEMS(gs->tracked_registers); i++) {
         MVMSpeshFacts *tracked_facts = MVM_spesh_get_facts(tc, g, gs->tracked_registers[i].reg);
         MVMSpeshPEAAllocation *alloc = tracked_facts->pea.allocation;
-        MVMSpeshDeoptUseEntry *deopt_user = tracked_facts->usage.deopt_users;
-        while (deopt_user) {
-            if (deopt_user->deopt_idx == deopt_user_idx) {
-                Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
-                tran->allocation = alloc;
-                tran->transform = TRANSFORM_ADD_DEOPT_POINT;
-                tran->dp.deopt_point_idx = deopt_idx;
-                tran->dp.target_reg = gs->tracked_registers[i].reg.reg.orig;
-                add_transform_for_bb(tc, gs, bb, tran);
-                add_scalar_replacement_deopt_usages(tc, g, bb, gs, alloc, deopt_user_idx);
+        if (allocation_tracked(tc, gs, bb, alloc)) {
+            MVMSpeshDeoptUseEntry *deopt_user = tracked_facts->usage.deopt_users;
+            while (deopt_user) {
+                if (deopt_user->deopt_idx == deopt_user_idx) {
+                    Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+                    tran->allocation = alloc;
+                    tran->transform = TRANSFORM_ADD_DEOPT_POINT;
+                    tran->dp.deopt_point_idx = deopt_idx;
+                    tran->dp.target_reg = gs->tracked_registers[i].reg.reg.orig;
+                    add_transform_for_bb(tc, gs, bb, tran);
+                    add_scalar_replacement_deopt_usages(tc, g, bb, gs, alloc, deopt_user_idx);
+                }
+                deopt_user = deopt_user->next;
             }
-            deopt_user = deopt_user->next;
         }
     }
 }
