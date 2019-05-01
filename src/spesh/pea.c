@@ -13,6 +13,18 @@ static void pea_log(char *fmt, ...) {
 #endif
 }
 
+/* A materialization target register record (which register should we write a
+ * materialized object into). */
+struct MaterializationTarget {
+    union {
+        MVMSpeshOperand reg;
+        MVMuint16 hyp_reg;
+    };
+    MVMuint8 is_hypothetical;
+    struct MaterializationTarget *next;
+};
+typedef struct MaterializationTarget MaterializationTarget;
+
 /* A transformation that we want to perform. */
 #define TRANSFORM_DELETE_FASTCREATE     0
 #define TRANSFORM_GETATTR_TO_SET        1
@@ -24,6 +36,7 @@ static void pea_log(char *fmt, ...) {
 #define TRANSFORM_PROF_ALLOCATED        7
 #define TRANSFORM_DECOMPOSE_BIGINT_BI   8
 #define TRANSFORM_UNBOX_BIGINT          9
+#define TRANSFORM_MATERIALIZE           10
 typedef struct {
     /* The allocation that this transform relates to eliminating. */
     MVMSpeshPEAAllocation *allocation;
@@ -76,6 +89,10 @@ typedef struct {
             MVMSpeshIns *ins;
             MVMuint16 hypothetical_reg_idx;
         } unbox_bi;
+        struct {
+            MVMSpeshIns *prior_to;
+            MaterializationTarget *targets;
+        } materialize;
     };
 } Transformation;
 
@@ -225,6 +242,78 @@ static MVMuint16 get_deopt_materialization_info(MVMThreadContext *tc, MVMSpeshGr
         MVM_VECTOR_PUSH(g->deopt_pea.materialize_info, mi);
 
         return alloc->deopt_materialization_idx;
+    }
+}
+
+/* Resolves a register in a materialization target into a concrete register
+ * (it may need no resolution). */
+static MVMSpeshOperand resolve_materialization_target(MVMThreadContext *tc, MVMSpeshGraph *g,
+        GraphState *gs, MaterializationTarget *target) {
+    if (target->is_hypothetical) {
+        MVMSpeshOperand result;
+        result.reg.orig = gs->attr_regs[target->hyp_reg];
+        result.reg.i = MVM_spesh_manipulate_get_current_version(tc, g, result.reg.orig);
+    }
+    else {
+        return target->reg;
+    }
+}
+
+/* Emit the materialization of an object into the specified register. */
+static void emit_materialization(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                                 MVMSpeshIns *prior_to, MVMSpeshOperand target,
+                                 GraphState *gs, MVMSpeshPEAAllocation *alloc) {
+    /* Lookup type information. */
+    MVMSTable *st = STABLE(alloc->type);
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    MVMuint32 num_attrs = repr_data->num_attributes;
+    MVMuint32 i;
+
+    /* Emit a fastcreate instruction to allocate the object. */
+    MVMSpeshIns *fastcreate = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    fastcreate->info = MVM_op_get_op(MVM_OP_sp_fastcreate);
+    fastcreate->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+    fastcreate->operands[0] = target;
+    fastcreate->operands[1].lit_i16 = st->size;
+    fastcreate->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+    MVM_spesh_manipulate_insert_ins(tc, bb, prior_to->prev, fastcreate);
+    MVM_spesh_graph_add_comment(tc, g, fastcreate, "Materialization of scalar-replaced attribute");
+
+    /* Bind each of the attributes into place. */
+    for (i = 0; i < num_attrs; i++) {
+        /* Allocate instruction and determine type of bind instruction we will
+         * need. */
+        MVMSpeshIns *bind = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        bind->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+        switch (flattened_type_to_register_kind(tc, repr_data->flattened_stables[i])) {
+            case MVM_reg_obj:
+                bind->info = MVM_op_get_op(MVM_OP_sp_bind_o);
+                break;
+            case MVM_reg_str:
+                bind->info = MVM_op_get_op(MVM_OP_sp_bind_s_nowb);
+                break;
+            case MVM_reg_int64:
+                bind->info = MVM_op_get_op(MVM_OP_sp_bind_i64);
+                break;
+            case MVM_reg_num64:
+                bind->info = MVM_op_get_op(MVM_OP_sp_bind_n);
+                break;
+            case MVM_reg_obi:
+                bind->info = MVM_op_get_op(MVM_OP_sp_takewrite_bi);
+                break;
+            default:
+                MVM_oops(tc, "Unimplemented attribute kind in materialization");
+        }
+
+        /* Set offset, target, and source registers. */
+        bind->operands[0] = target;
+        bind->operands[1].lit_i16 = sizeof(MVMObject) + repr_data->attribute_offsets[i];
+        bind->operands[2].reg.orig = gs->attr_regs[alloc->hypothetical_attr_reg_idxs[i]];
+        bind->operands[2].reg.i = MVM_spesh_manipulate_get_current_version(tc, g,
+                bind->operands[2].reg.orig);
+
+        /* Insert the bind instruction. */
+        MVM_spesh_manipulate_insert_ins(tc, bb, prior_to->prev, bind);
     }
 }
 
@@ -395,6 +484,22 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             MVM_spesh_usages_add_by_reg(tc, g, ins->operands[1], ins);
             MVM_spesh_graph_add_comment(tc, g, ins, "unbox of scalar-replaced boxed bigint");
             pea_log("OPT: rewrote an integer unbox to use unboxed big integer");
+            break;
+        }
+        case TRANSFORM_MATERIALIZE: {
+            /* Check that we actually need to materialize (have a target). */
+            MaterializationTarget *initial_target = t->materialize.targets;
+            if (initial_target) {
+                MaterializationTarget *alias_target = initial_target->next;
+                MVMSpeshIns *prior_to = t->materialize.prior_to;
+                emit_materialization(tc, g, bb, prior_to,
+                        resolve_materialization_target(tc, g, gs, initial_target),
+                        gs, t->allocation);
+                while (alias_target) {
+                    MVM_oops(tc, "Didn't implement materailization aliasing yet");
+                    alias_target = alias_target->next;
+                }
+            }
             break;
         }
         default:
