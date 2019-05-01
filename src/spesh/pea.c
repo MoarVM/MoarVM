@@ -500,6 +500,10 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
                     alias_target = alias_target->next;
                 }
             }
+            else {
+                pea_log("OPT: prevented pointless materialization of %s",
+                        t->allocation->type->st->debug_name);
+            }
             break;
         }
         default:
