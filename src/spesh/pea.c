@@ -643,8 +643,10 @@ static void mark_irreplaceable(MVMThreadContext *tc, MVMSpeshPEAAllocation *allo
         mark_irreplaceable(tc, nested);
     }
 }
-static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
-                                 MVMSpeshOperand o) {
+static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                                 MVMSpeshIns *ins, MVMSpeshOperand o, GraphState *gs,
+                                 MVMint32 can_materialize) {
+    /* Make sure we didn't already mark the object irreplaceable. */
     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, o);
     /* If there's another op using it, we'd need to materialize.
      * We don't support that yet, so just mark it irreplaceable. */
@@ -655,13 +657,13 @@ static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     }
 }
 
-/* Unhandled instructions cause anything they read to require a real object
- * (later, this will be our trigger to materialize). */
-static void unhandled_instruction(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+/* Unhandled instructions cause anything they read to be materialized. */
+static void unhandled_instruction(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns *ins, GraphState *gs) {
    MVMuint32 i = 0;
    for (i = 0; i < ins->info->num_operands; i++)
        if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
-            real_object_required(tc, g, ins, ins->operands[i]);
+            real_object_required(tc, g, bb, ins, ins->operands[i], gs, 1);
 }
 
 /* Takes a binary big integer operation, calculates how it could be decomposed
@@ -715,7 +717,7 @@ static int decompose_and_track_bigint_bi(MVMThreadContext *tc, MVMSpeshGraph *g,
         return 1;
     }
     else {
-        unhandled_instruction(tc, g, ins);
+        unhandled_instruction(tc, g, bb, ins, gs);
         return 0;
     }
 }
@@ -1019,7 +1021,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                         /* The target of the bind escapes; if this is an object
                          * bind then the target escapes. */
                         if (is_object_bind)
-                            real_object_required(tc, g, ins, ins->operands[2]);
+                            real_object_required(tc, g, bb, ins, ins->operands[2], gs, 1);
                     }
                     break;
                 }
@@ -1103,12 +1105,12 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
                     if (!(allocation_tracked(tc, gs, bb, alloc) &&
                                 try_replace_decont_i(tc, g, gs, bb, ins, alloc)))
-                        unhandled_instruction(tc, g, ins);
+                        unhandled_instruction(tc, g, bb, ins, gs);
                     break;
                 }
                 case MVM_OP_sp_guardconc:
                     if (!settified_guard)
-                        real_object_required(tc, g, ins, ins->operands[1]);
+                        real_object_required(tc, g, bb, ins, ins->operands[1], gs, 1);
                     break;
                 case MVM_OP_prof_allocated: {
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[0]);
@@ -1135,17 +1137,20 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                         }
                     }
                     else {
-                        /* Otherwise, don't handle these for now. */
+                        /* Otherwise, mark the objects involved as irreplaceable
+                         * for now (this is a bit awkward, since to do better
+                         * we should figure out which branches the PHIs merge
+                         * from and place materializations into those.) */
                         MVMuint32 i = 0;
                         for (i = 1; i < ins->info->num_operands; i++)
-                            real_object_required(tc, g, ins, ins->operands[i]);
+                            real_object_required(tc, g, bb, ins, ins->operands[i], gs, 0);
                     }
                     break;
                 }
                 default: {
                     /* Other instructions using tracked objects require the
                      * real object. */
-                   unhandled_instruction(tc, g, ins);
+                   unhandled_instruction(tc, g, bb, ins, gs);
                    break;
                }
             }
