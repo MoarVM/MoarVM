@@ -13,6 +13,10 @@ struct MVMSpeshPEAAllocation {
     /* Allocations that also escape if we do. */
     MVM_VECTOR_DECL(MVMSpeshPEAAllocation *, escape_dependencies);
 
+    /* A unique index for this allocation, for fast lookup of its allocation
+     * state in the materializations table. */
+    MVMuint16 index;
+
     /* Have we seen something that invalidates our ability to scalar replace
      * this? */
     MVMuint8 irreplaceable;

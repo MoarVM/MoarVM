@@ -110,6 +110,11 @@ typedef struct {
 
 /* State we hold during the entire partial escape analysis process. */
 typedef struct {
+    /* The allocations that we are tracking. The indices in this match up
+     * with the index field in a MVMSpeshPEAAllocation, and thus those used
+     * in the per-basic-block materialization state too. */
+    MVM_VECTOR_DECL(MVMSpeshPEAAllocation *, tracked_allocations);
+
     /* The latest temporary register index. We use these indices before we
      * really allocate temporary registers. */
     MVMuint16 latest_hypothetical_reg_idx;
@@ -400,11 +405,12 @@ static void add_tracked_register(MVMThreadContext *tc, GraphState *gs, MVMSpeshO
 static MVMSpeshPEAAllocation * try_track_allocation(MVMThreadContext *tc, MVMSpeshGraph *g,
         GraphState *gs, MVMSpeshIns *alloc_ins, MVMSTable *st) {
     if (st->REPR->ID == MVM_REPR_ID_P6opaque) {
+        /* Go over the attributes, making sure we can handle them and allocating
+         * a hypothetical register index for each of them. Bail if we cannot
+         * handle them. */
         MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
         MVMSpeshPEAAllocation *alloc = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshPEAAllocation));
         MVMuint32 i;
-        alloc->allocator = alloc_ins;
-        alloc->type = st->WHAT;
         alloc->hypothetical_attr_reg_idxs = MVM_spesh_alloc(tc, g,
                 repr_data->num_attributes * sizeof(MVMuint16));
         for (i = 0; i < repr_data->num_attributes; i++) {
@@ -416,6 +422,13 @@ static MVMSpeshPEAAllocation * try_track_allocation(MVMThreadContext *tc, MVMSpe
              * register if we apply transforms. */
             alloc->hypothetical_attr_reg_idxs[i] = gs->latest_hypothetical_reg_idx++;
         }
+
+        /* If we get here, we're going to track this allocation and try to do
+         * scalar replacement of it. Set it up and store it. */
+        alloc->allocator = alloc_ins;
+        alloc->type = st->WHAT;
+        alloc->index = MVM_VECTOR_ELEMS(gs->tracked_allocations);
+        MVM_VECTOR_PUSH(gs->tracked_allocations, alloc);
         add_tracked_register(tc, gs, alloc_ins->operands[0], alloc);
         return alloc;
     }
@@ -986,6 +999,7 @@ void MVM_spesh_pea(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
     GraphState gs;
     memset(&gs, 0, sizeof(GraphState));
+    MVM_VECTOR_INIT(gs.tracked_allocations, 0);
     MVM_VECTOR_INIT(gs.shadow_facts, 0);
     MVM_VECTOR_INIT(gs.tracked_registers, 0);
     gs.bb_states = MVM_spesh_alloc(tc, g, g->num_bbs * sizeof(BBState));
@@ -1012,6 +1026,8 @@ void MVM_spesh_pea(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
     for (i = 0; i < g->num_bbs; i++)
         MVM_VECTOR_DESTROY(gs.bb_states[i].transformations);
+    }
+    MVM_VECTOR_DESTROY(gs.tracked_allocations);
     MVM_VECTOR_DESTROY(gs.shadow_facts);
     for (i = 0; i < MVM_VECTOR_ELEMS(gs.tracked_registers); i++)
         MVM_VECTOR_DESTROY(gs.tracked_registers[i].allocation->escape_dependencies);
