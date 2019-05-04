@@ -444,7 +444,7 @@ sub opcode_details(@ops) {
         }
         take "};\n";
         take "static const unsigned short MVM_op_counts = {+@ops};\n";
-    })
+    }
 }
 
 # Create code to look up an op's mark
@@ -490,8 +490,8 @@ sub mark_spans(@ops) {
             } else if (op >= MVM_OP_EXT_BASE) \{
                 return ".x";
             CODE
-        @pieces.push: '}';
-        @pieces.push: 'return "  "';
+        @pieces.push: "}\n";
+        @pieces.push: 'return "  ";';
         @pieces.join().indent(4);
     }
     for @ops {
