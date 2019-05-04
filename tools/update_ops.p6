@@ -227,6 +227,12 @@ sub MAIN($file = "src/core/oplist") {
             return \&MVM_op_infos[op];
         }
 
+        MVM_PUBLIC const MVMuint8 MVM_op_is_allowed_in_confprog(unsigned short op) \{
+            if (op >= MVM_op_counts)
+                return 0;
+            return MVM_op_allowed_in_confprog[op];
+        }
+
         MVM_PUBLIC const char *MVM_op_get_mark(unsigned short op) \{
 { mark_spans(@ops) }
         }
@@ -408,7 +414,7 @@ sub opcode_defines(@ops) {
 
 # Creates the static array of opcode info.
 sub opcode_details(@ops) {
-    join "\n", gather {
+    (join "\n", gather {
         take "static const MVMOpInfo MVM_op_infos[] = \{";
         for @ops -> $op {
             take "    \{";
@@ -436,7 +442,19 @@ sub opcode_details(@ops) {
         }
         take "};\n";
         take "static const unsigned short MVM_op_counts = {+@ops};\n";
-    }
+    })
+    ~ "\n" ~
+    (join "", gather {
+        take "static const MVMuint8 MVM_op_allowed_in_confprog[] = \{\n";
+        take "    ";
+        for @ops -> $op {
+            if $++ %% 16 {
+                take "\n    ";
+            }
+            take $op.adverbs<confprog> ?? "1," !! "0,";
+        }
+        take "};\n";
+    })
 }
 
 # Create code to look up an op's mark

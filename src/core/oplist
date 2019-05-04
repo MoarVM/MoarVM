@@ -60,11 +60,11 @@ no_op
 const_i8            w(int8) int8 :pure
 const_i16           w(int16) int16 :pure
 const_i32           w(int32) int32 :pure
-const_i64           w(int64) int64 :pure
+const_i64           w(int64) int64 :pure :confprog
 const_n32           w(num32) num32 :pure
 const_n64           w(num64) num64 :pure
-const_s             w(str) str :pure
-set                 w(`1) r(`1) :pure
+const_s             w(str) str :pure :confprog
+set                 w(`1) r(`1) :pure :confprog
 extend_u8           w(uint64) r(uint8) :pure
 extend_u16          w(uint64) r(uint16) :pure
 extend_u32          w(uint64) r(uint32) :pure
@@ -79,9 +79,9 @@ trunc_i16           w(int16) r(int64) :pure
 trunc_i32           w(int32) r(int64) :pure
 extend_n32          w(num64) r(num32) :pure
 trunc_n32           w(num32) r(num64) :pure
-goto             .j ins
-if_i                r(int64) ins
-unless_i            r(int64) ins
+goto             .j ins :confprog
+if_i                r(int64) ins :confprog
+unless_i            r(int64) ins :confprog
 if_n                r(num64) ins
 unless_n            r(num64) ins
 if_s                r(str) ins
@@ -112,34 +112,34 @@ return_n         .r r(num64) :useshll
 return_s         .r r(str) :useshll
 return_o         .r r(obj)
 return           .r
-eq_i                w(int64) r(int64) r(int64) :pure
-ne_i                w(int64) r(int64) r(int64) :pure
-lt_i                w(int64) r(int64) r(int64) :pure
-le_i                w(int64) r(int64) r(int64) :pure
-gt_i                w(int64) r(int64) r(int64) :pure
-ge_i                w(int64) r(int64) r(int64) :pure
-cmp_i               w(int64) r(int64) r(int64) :pure
-add_i               w(int64) r(int64) r(int64) :pure
-sub_i               w(int64) r(int64) r(int64) :pure
-mul_i               w(int64) r(int64) r(int64) :pure
-div_i               w(int64) r(int64) r(int64) :pure
-div_u               w(uint64) r(uint64) r(uint64) :pure
-mod_i               w(int64) r(int64) r(int64) :pure
-mod_u               w(uint64) r(uint64) r(uint64) :pure
-neg_i               w(int64) r(int64) :pure
-abs_i               w(int64) r(int64) :pure
+eq_i                w(int64) r(int64) r(int64) :pure :confprog
+ne_i                w(int64) r(int64) r(int64) :pure :confprog
+lt_i                w(int64) r(int64) r(int64) :pure :confprog
+le_i                w(int64) r(int64) r(int64) :pure :confprog
+gt_i                w(int64) r(int64) r(int64) :pure :confprog
+ge_i                w(int64) r(int64) r(int64) :pure :confprog
+cmp_i               w(int64) r(int64) r(int64) :pure :confprog
+add_i               w(int64) r(int64) r(int64) :pure :confprog
+sub_i               w(int64) r(int64) r(int64) :pure :confprog
+mul_i               w(int64) r(int64) r(int64) :pure :confprog
+div_i               w(int64) r(int64) r(int64) :pure :confprog
+div_u               w(uint64) r(uint64) r(uint64) :pure :confprog
+mod_i               w(int64) r(int64) r(int64) :pure :confprog
+mod_u               w(uint64) r(uint64) r(uint64) :pure :confprog
+neg_i               w(int64) r(int64) :pure :confprog
+abs_i               w(int64) r(int64) :pure :confprog
 inc_i               w(int64)
 inc_u               w(uint64)
 dec_i               w(int64)
 dec_u               w(uint64)
-band_i              w(int64) r(int64) r(int64) :pure
-bor_i               w(int64) r(int64) r(int64) :pure
-bxor_i              w(int64) r(int64) r(int64) :pure
-bnot_i              w(int64) r(int64) :pure
-blshift_i           w(int64) r(int64) r(int64) :pure
-brshift_i           w(int64) r(int64) r(int64) :pure
+band_i              w(int64) r(int64) r(int64) :pure :confprog
+bor_i               w(int64) r(int64) r(int64) :pure :confprog
+bxor_i              w(int64) r(int64) r(int64) :pure :confprog
+bnot_i              w(int64) r(int64) :pure :confprog
+blshift_i           w(int64) r(int64) r(int64) :pure :confprog
+brshift_i           w(int64) r(int64) r(int64) :pure :confprog
 pow_i               w(int64) r(int64) r(int64) :pure
-not_i               w(int64) r(int64) :pure
+not_i               w(int64) r(int64) :pure :confprog
 gcd_i               w(int64) r(int64) r(int64) :pure
 lcm_i               w(int64) r(int64) r(int64) :pure
 eq_n                w(int64) r(num64) r(num64) :pure
@@ -252,30 +252,30 @@ capturehasnameds    w(int64) r(obj) :pure :useshll
 invokewithcapture   w(obj) r(obj) r(obj) :invokish :maycausedeopt
 multicacheadd       w(obj) r(obj) r(obj) r(obj)
 multicachefind      w(obj) r(obj) r(obj)
-null_s              w(str) :pure
-isnull_s            w(int64) r(str) :pure
-eq_s                w(int64) r(str) r(str) :pure
-ne_s                w(int64) r(str) r(str) :pure
-gt_s                w(int64) r(str) r(str) :pure
-ge_s                w(int64) r(str) r(str) :pure
-lt_s                w(int64) r(str) r(str) :pure
-le_s                w(int64) r(str) r(str) :pure
-cmp_s               w(int64) r(str) r(str) :pure
-eqat_s              w(int64) r(str) r(str) r(int64) :pure
-eqatic_s            w(int64) r(str) r(str) r(int64) :pure
-haveat_s            w(int64) r(str) r(int64) r(int64) r(str) r(int64) :pure
-concat_s            w(str) r(str) r(str) :pure
-repeat_s            w(str) r(str) r(int64) :pure
-substr_s            w(str) r(str) r(int64) r(int64) :pure
-index_s             w(int64) r(str) r(str) r(int64) :pure
+null_s              w(str) :pure :confprog
+isnull_s            w(int64) r(str) :pure :confprog
+eq_s                w(int64) r(str) r(str) :pure :confprog
+ne_s                w(int64) r(str) r(str) :pure :confprog
+gt_s                w(int64) r(str) r(str) :pure :confprog
+ge_s                w(int64) r(str) r(str) :pure :confprog
+lt_s                w(int64) r(str) r(str) :pure :confprog
+le_s                w(int64) r(str) r(str) :pure :confprog
+cmp_s               w(int64) r(str) r(str) :pure :confprog
+eqat_s              w(int64) r(str) r(str) r(int64) :pure :confprog
+eqatic_s            w(int64) r(str) r(str) r(int64) :pure :confprog
+haveat_s            w(int64) r(str) r(int64) r(int64) r(str) r(int64) :pure :confprog
+concat_s            w(str) r(str) r(str) :pure :confprog
+repeat_s            w(str) r(str) r(int64) :pure :confprog
+substr_s            w(str) r(str) r(int64) r(int64) :pure :confprog
+index_s             w(int64) r(str) r(str) r(int64) :pure :confprog
 # graphs_s will be DEPRECATED!
 graphs_s            w(int64) r(str) :pure
-codes_s             w(int64) r(str) :pure
-getcp_s             w(int64) r(str) r(int64) :pure
-indexcp_s           w(int64) r(str) r(int64) :pure
-uc                  w(str) r(str) :pure
-lc                  w(str) r(str) :pure
-tc                  w(str) r(str) :pure
+codes_s             w(int64) r(str) :pure :confprog
+getcp_s             w(int64) r(str) r(int64) :pure :confprog
+indexcp_s           w(int64) r(str) r(int64) :pure :confprog
+uc                  w(str) r(str) :pure :confprog
+lc                  w(str) r(str) :pure :confprog
+tc                  w(str) r(str) :pure :confprog
 split               w(obj) r(str) r(str) :pure
 join                w(str) r(str) r(obj) :pure
 getcpbyname         w(int64) r(str) :pure
@@ -285,11 +285,11 @@ unipropcode         w(int64) r(str) :pure
 unipvalcode         w(int64) r(int64) r(str) :pure
 hasuniprop          w(int64) r(str) r(int64) r(int64) r(int64) :pure
 hasunipropc         w(int64) r(str) r(int64) int16 int16 :pure
-chars               w(int64) r(str) :pure
-chr                 w(str) r(int64) :pure
-ordfirst            w(int64) r(str) :pure
-ordat               w(int64) r(str) r(int64) :pure
-rindexfrom          w(int64) r(str) r(str) r(int64) :pure
+chars               w(int64) r(str) :pure :confprog
+chr                 w(str) r(int64) :pure :confprog
+ordfirst            w(int64) r(str) :pure :confprog
+ordat               w(int64) r(str) r(int64) :pure :confprog
+rindexfrom          w(int64) r(str) r(str) r(int64) :pure :confprog
 escape              w(str) r(str) :pure
 flip                w(str) r(str) :pure
 setbuffersize_fh    r(obj) r(int64)
@@ -305,7 +305,7 @@ decode              w(str) r(obj) r(str)
 istrue_s            w(int64) r(str) :pure
 isfalse_s           w(int64) r(str) :pure
 null                w(obj) :pure
-isnull              w(int64) r(obj) :pure :specializable
+isnull              w(int64) r(obj) :pure :specializable :confprog
 ifnonnull           r(obj) ins :specializable
 findmeth            w(obj) r(obj) str :pure :invokish :maycausedeopt :specializable
 findmeth_s          w(obj) r(obj) r(str) :pure :invokish :maycausedeopt :specializable
@@ -313,17 +313,17 @@ can                 w(int64) r(obj) str :pure :invokish :maycausedeopt :speciali
 can_s               w(int64) r(obj) r(str) :pure :invokish :maycausedeopt :specializable
 create              w(obj) r(obj) :pure :specializable
 clone               w(obj) r(obj) :pure :specializable
-isconcrete          w(int64) r(obj) :pure :specializable
+isconcrete          w(int64) r(obj) :pure :specializable :confprog
 rebless             w(obj) r(obj) r(obj) :deoptonepoint
-istype              w(int64) r(obj) r(obj) :pure :invokish :maycausedeopt :specializable
-objprimspec         w(int64) r(obj) :pure :specializable
+istype              w(int64) r(obj) r(obj) :pure :invokish :maycausedeopt :specializable :confprog
+objprimspec         w(int64) r(obj) :pure :specializable :confprog
 gethow              w(obj) r(obj) :pure
 getwhat             w(obj) r(obj) :pure
 getwho              w(obj) r(obj) :pure
 setwho              w(obj) r(obj) r(obj)
-reprname            w(str) r(obj) :pure :specializable
+reprname            w(str) r(obj) :pure :specializable :confprog
 getwhere            w(int64) r(obj) :pure
-eqaddr              w(int64) r(obj) r(obj) :pure
+eqaddr              w(int64) r(obj) r(obj) :pure :confprog
 bindattr_i          r(obj) r(obj) str r(int64) int16 :specializable
 bindattr_n          r(obj) r(obj) str r(num64) int16 :specializable
 bindattr_s          r(obj) r(obj) str r(str) int16 :specializable
@@ -344,12 +344,12 @@ attrinited          w(int64) r(obj) r(obj) r(str) :specializable
 box_i               w(obj) r(int64) r(obj) :pure :specializable
 box_n               w(obj) r(num64) r(obj) :pure :specializable
 box_s               w(obj) r(str) r(obj) :pure :specializable
-unbox_i             w(int64) r(obj) :pure :specializable
+unbox_i             w(int64) r(obj) :pure :specializable :confprog
 unbox_n             w(num64) r(obj) :pure :specializable
-unbox_s             w(str) r(obj) :pure :specializable
-atpos_i             w(int64) r(obj) r(int64) :specializable
+unbox_s             w(str) r(obj) :pure :specializable :confprog
+atpos_i             w(int64) r(obj) r(int64) :specializable :confprog
 atpos_n             w(num64) r(obj) r(int64) :specializable
-atpos_s             w(str) r(obj) r(int64) :specializable
+atpos_s             w(str) r(obj) r(int64) :specializable :confprog
 atpos_o             w(obj) r(obj) r(int64) :specializable
 bindpos_i           r(obj) r(int64) r(int64) :specializable
 bindpos_n           r(obj) r(int64) r(num64) :specializable
@@ -373,7 +373,7 @@ unshift_s           r(obj) r(str) :specializable
 unshift_o           r(obj) r(obj) :specializable
 splice              r(obj) r(obj) r(int64) r(int64) :specializable
 setelemspos         r(obj) r(int64) :specializable
-existspos           w(int64) r(obj) r(int64) :pure :specializable
+existspos           w(int64) r(obj) r(int64) :pure :specializable :confprog
 atkey_i             w(int64) r(obj) r(str) :specializable
 atkey_n             w(num64) r(obj) r(str) :specializable
 atkey_s             w(str) r(obj) r(str) :specializable
@@ -382,9 +382,9 @@ bindkey_i           r(obj) r(str) r(int64) :specializable
 bindkey_n           r(obj) r(str) r(num64) :specializable
 bindkey_s           r(obj) r(str) r(str) :specializable
 bindkey_o           r(obj) r(str) r(obj) :specializable
-existskey           w(int64) r(obj) r(str) :pure :specializable
+existskey           w(int64) r(obj) r(str) :pure :specializable :confprog
 deletekey           r(obj) r(str) :specializable
-elems               w(int64) r(obj) :pure :specializable
+elems               w(int64) r(obj) :pure :specializable :confprog
 knowhow             w(obj) :pure
 knowhowattr         w(obj) :pure
 newtype             w(obj) r(obj) r(str)
@@ -394,8 +394,8 @@ setmethcacheauth    r(obj) r(int64)
 settypecache        r(obj) r(obj)
 settypecheckmode    r(obj) r(int64)
 setboolspec         r(obj) r(int64) r(obj)
-istrue              w(int64) r(obj) :invokish :maycausedeopt :specializable
-isfalse             w(int64) r(obj) :invokish :maycausedeopt :specializable
+istrue              w(int64) r(obj) :invokish :maycausedeopt :specializable :confprog
+isfalse             w(int64) r(obj) :invokish :maycausedeopt :specializable :confprog
 bootint             w(obj) :pure
 bootnum             w(obj) :pure
 bootstr             w(obj) :pure
@@ -404,11 +404,11 @@ bootintarray        w(obj) :pure
 bootnumarray        w(obj) :pure
 bootstrarray        w(obj) :pure
 boothash            w(obj) :pure
-isint               w(int64) r(obj) :pure :specializable
-isnum               w(int64) r(obj) :pure :specializable
-isstr               w(int64) r(obj) :pure :specializable
-islist              w(int64) r(obj) :pure :specializable
-ishash              w(int64) r(obj) :pure :specializable
+isint               w(int64) r(obj) :pure :specializable :confprog
+isnum               w(int64) r(obj) :pure :specializable :confprog
+isstr               w(int64) r(obj) :pure :specializable :confprog
+islist              w(int64) r(obj) :pure :specializable :confprog
+ishash              w(int64) r(obj) :pure :specializable :confprog
 sethllconfig        r(str) r(obj)
 hllboxtype_i        w(obj) :pure
 hllboxtype_n        w(obj) :pure
@@ -447,7 +447,7 @@ setdispatcher       r(obj)
 takedispatcher      w(obj)
 assign              r(obj) r(obj) :invokish :maycausedeopt
 assignunchecked     r(obj) r(obj) :invokish :maycausedeopt
-iscont              w(int64) r(obj) :pure :specializable
+iscont              w(int64) r(obj) :pure :specializable :confprog
 decont              w(obj) r(obj) :pure :invokish :deoptonepoint :logged :maycausedeopt :specializable
 setcontspec         r(obj) r(str) r(obj)
 sha1                w(str) r(str) :pure
@@ -552,7 +552,7 @@ decodetocodes       r(obj) r(str) r(int64) r(obj)
 encodefromcodes     r(obj) r(str) r(obj)
 DEPRECATED_17       r(obj) r(str)
 print               r(str)
-say                 r(str)
+say                 r(str) :confprog
 DEPRECATED_22       w(str) r(obj)
 tell_fh             w(int64) r(obj)
 stat                w(int64) r(str) r(int64)
@@ -560,24 +560,24 @@ tryfindmeth         w(obj) r(obj) str :pure :invokish :maycausedeopt :specializa
 tryfindmeth_s       w(obj) r(obj) r(str) :pure :invokish :maycausedeopt :specializable
 chdir               r(str)
 srand               r(int64)
-rand_i              w(int64)
+rand_i              w(int64) :confprog
 rand_n              w(num64)
-time_i              w(int64) :pure
+time_i              w(int64) :pure :confprog
 sleep               r(num64)
 newthread           w(obj) r(obj) r(int64)
 threadjoin          r(obj)
 time_n              w(num64) :pure
-exit                r(int64)
+exit                r(int64) :confprog
 DEPRECATED_30       w(int64) r(str) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
-cwd                 w(str) :pure
-clargs              w(obj) :pure :useshll
-getenvhash          w(obj) :pure :useshll
+cwd                 w(str) :pure :confprog
+clargs              w(obj) :pure :useshll :confprog
+getenvhash          w(obj) :pure :useshll :confprog
 loadlib             r(str) r(str)
 freelib             r(str)
 findsym             w(obj) r(str) r(str)
 dropsym             r(obj)
 loadext             r(str) r(str)
-backendconfig       w(obj) :pure
+backendconfig       w(obj) :pure :confprog
 getlexouter         w(obj) r(str) :pure :noinline :useshll
 getlexrel           w(obj) r(obj) r(str) :pure :useshll
 getlexreldyn        w(obj) r(obj) r(str) :pure :useshll
@@ -590,7 +590,7 @@ isnanorinf          w(int64) r(num64) :pure
 inf                 w(num64) :pure
 neginf              w(num64) :pure
 nan                 w(num64) :pure
-getpid              w(int64) :pure
+getpid              w(int64) :pure :confprog
 DEPRECATED_29       w(int64) r(obj) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
 filereadable        w(int64) r(str)
 filewritable        w(int64) r(str)
@@ -684,9 +684,9 @@ typeparameters      w(obj) r(obj)
 typeparameterat     w(obj) r(obj) r(int64)
 readlink            w(str) r(str)
 lstat               w(int64) r(str) r(int64)
-iscont_i            w(int64) r(obj) :pure :specializable
-iscont_n            w(int64) r(obj) :pure :specializable
-iscont_s            w(int64) r(obj) :pure :specializable
+iscont_i            w(int64) r(obj) :pure :specializable :confprog
+iscont_n            w(int64) r(obj) :pure :specializable :confprog
+iscont_s            w(int64) r(obj) :pure :specializable :confprog
 assign_i            r(obj) r(int64) :invokish :maycausedeopt :specializable
 assign_n            r(obj) r(num64) :invokish :maycausedeopt :specializable
 assign_s            r(obj) r(str) :invokish :maycausedeopt :specializable
