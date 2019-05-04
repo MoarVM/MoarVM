@@ -923,3 +923,4 @@
 #define MVM_OP_EXT_CU_LIMIT 1024
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op);
+MVM_PUBLIC const char * MVM_op_get_mark(unsigned short op);

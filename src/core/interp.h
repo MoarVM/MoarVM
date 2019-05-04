@@ -40,7 +40,6 @@ union MVMRegister {
 struct MVMOpInfo {
     MVMuint16   opcode;
     const char *name;
-    char        mark[2];
     MVMuint16   num_operands;
     MVMuint8    pure;
     MVMuint8    deopt_point;

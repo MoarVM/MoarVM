@@ -214,18 +214,32 @@ sub MAIN($file = "src/core/oplist") {
     $hf.say("#define MVM_OP_EXT_CU_LIMIT $EXT_CU_LIMIT");
     $hf.say('');
     $hf.say('MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op);');
+    $hf.say('MVM_PUBLIC const char * MVM_op_get_mark(unsigned short op);');
     $hf.close;
 
     # Generate C file
     my $cf = open("src/core/ops.c", :w);
-    $cf.say('#include "moar.h"');
-    $cf.say("/* This file is generated from $file by tools/update_ops.p6. */");
-    $cf.say(opcode_details(@ops));
-    $cf.say('MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {');
-    $cf.say('    if (op >= MVM_op_counts)');
-    $cf.say('        return NULL;');
-    $cf.say('    return &MVM_op_infos[op];');
-    $cf.say('}');
+    $cf.say(qq:to/CORE_OPS/);
+        #include "moar.h"
+        /* This file is generated from $file by tools/update_ops.p6. */
+        { opcode_details(@ops) }
+        MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) \{
+            if (op >= MVM_op_counts)
+                return NULL;
+            return \&MVM_op_infos[op];
+        }
+
+        MVM_PUBLIC const MVMuint8 MVM_op_is_allowed_in_confprog(unsigned short op) \{
+            if (op >= MVM_op_counts)
+                return 0;
+            return MVM_op_allowed_in_confprog[op];
+        }
+
+        MVM_PUBLIC const char *MVM_op_get_mark(unsigned short op) \{
+{ mark_spans(@ops) }
+        }
+
+        CORE_OPS
     $cf.close;
 
     # Generate cgoto labels header.
@@ -408,7 +422,6 @@ sub opcode_details(@ops) {
             take "    \{";
             take "        MVM_OP_$op.name(),";
             take "        \"$op.name()\",";
-            take "        \"$op.mark()\",";
             take "        $op.operands.elems(),";
             take "        $($op.adverbs<pure> ?? '1' !! '0'),";
             take "        $(
@@ -431,7 +444,83 @@ sub opcode_details(@ops) {
         }
         take "};\n";
         take "static const unsigned short MVM_op_counts = {+@ops};\n";
+    })
+}
+
+# Create code to look up an op's mark
+# since marks are rare in the first section of the op list
+# and all marks after a certain point have one (spesh ops),
+# and the marks are only used by the validator anyway,
+# we can leave them out of the MVM_op_infos array that has
+# data used all over the place, thus saving a little bit of
+# memory.
+# 
+# We foolishly(?) rely on the first op to not have a mark
+sub mark_spans(@ops) {
+    my %current;
+    my @spans;
+    %current<mark> = "  ";
+    die "expected first op to not have a mark" unless @ops.head.mark eq "  ";
+    sub store-span {
+        @spans.push(Map.new(%current));
     }
+    sub make-lookup-code {
+        die "expected last span of ops to have the .s mark" unless @spans.tail.<mark> eq ".s";
+        my $spesh-start = @spans.pop.<start>;
+        my @pieces;
+        @pieces.push: q:s:to/CODE/;
+            if (op > $spesh-start) {
+                return ".s";
+            CODE
+        for @spans {
+            if .<count> == 1 {
+                @pieces.push: qq:to/CODE/;
+                    } else if (op == $_.<start>) \{
+                        return "{ .<mark> }";
+                    CODE
+            }
+            else {
+                @pieces.push: qq:to/CODE/;
+                    } else if (op >= $_.<start> && op < { .<start> + .<count> }) \{
+                        return "{ .<mark> }";
+                    CODE
+            }
+        }
+        @pieces.push: qq:to/CODE/;
+            } else if (op >= MVM_OP_EXT_BASE) \{
+                return ".x";
+            CODE
+        @pieces.push: '}';
+        @pieces.push: 'return "  "';
+        @pieces.join().indent(4);
+    }
+    for @ops {
+        my $mark = .mark();
+        if $mark ne '  ' {
+            if %current<mark> eq $mark {
+                %current<count>++;
+            }
+            else {
+                if %current<mark> ne "  " {
+                    store-span;
+                }
+                %current<mark> = $mark;
+                %current<count> = 1;
+                %current<start> = .code;
+            }
+        }
+        else {
+            if %current<mark> ne "  " {
+                store-span;
+            }
+            %current<mark> = "  ";
+        }
+    }
+    store-span;
+
+    .say for @spans;
+
+    make-lookup-code;
 }
 
 my %rwflags = (

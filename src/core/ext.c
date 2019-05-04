@@ -150,8 +150,6 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     entry->func              = func;
     entry->info.name         = cname;
     entry->info.opcode       = (MVMuint16)-1;
-    entry->info.mark[0]      = '.';
-    entry->info.mark[1]      = 'x';
     entry->info.num_operands = num_operands;
     entry->info.pure         = flags & MVM_EXTOP_PURE;
     entry->info.deopt_point  = 0;

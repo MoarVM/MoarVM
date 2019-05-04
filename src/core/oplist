@@ -948,10 +948,10 @@ sp_fastinvoke_o  .s w(obj) r(obj) int16 :maycausedeopt
 # included inside of the instruction since it will have moved afterwards, and
 # we also include the static frame so that this instruction can survive being
 # inlined.
-sp_speshresolve     w(obj) str uint32 sslot :maycausedeopt :useshll :invokish
+sp_speshresolve    .s w(obj) str uint32 sslot :maycausedeopt :useshll :invokish
 
 # Error generation if a named param is unused (name goes in spesh slot).
-sp_paramnamesused   sslot
+sp_paramnamesused  .s sslot
 
 # Look up a spesh slot.
 sp_getspeshslot  .s w(obj) sslot :pure
@@ -1071,7 +1071,7 @@ prof_enternative .s r(obj)
 
 # Normal exit (exception throw and unwind is handled separately). Will always
 # be what we last entered, so no need for separate versions like above.
-prof_exit
+prof_exit        .s
 
 # Recording of allocated types (may not give full picture of allocations, but
 # is at least enough to get a picture).

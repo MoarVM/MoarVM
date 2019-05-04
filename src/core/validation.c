@@ -166,7 +166,7 @@ printf(" %u %s %.2s\n", val->cur_instr, info->name, info->mark);
 
     val->labels[pos] |= MVM_BC_op_boundary;
     val->cur_info     = info;
-    val->cur_mark     = info->mark;
+    val->cur_mark     = MVM_op_get_mark(opcode);
     val->cur_op      += 2;
     val->cur_instr   += 1;
 }
