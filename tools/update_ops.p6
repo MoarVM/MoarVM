@@ -229,12 +229,6 @@ sub MAIN($file = "src/core/oplist") {
             return \&MVM_op_infos[op];
         }
 
-        MVM_PUBLIC const MVMuint8 MVM_op_is_allowed_in_confprog(unsigned short op) \{
-            if (op >= MVM_op_counts)
-                return 0;
-            return MVM_op_allowed_in_confprog[op];
-        }
-
         MVM_PUBLIC const char *MVM_op_get_mark(unsigned short op) \{
 { mark_spans(@ops) }
         }
