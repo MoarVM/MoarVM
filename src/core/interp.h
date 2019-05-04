@@ -41,14 +41,14 @@ struct MVMOpInfo {
     MVMuint16   opcode;
     const char *name;
     MVMuint16   num_operands;
-    MVMuint8    pure;
-    MVMuint8    deopt_point;
-    MVMuint8    may_cause_deopt;
-    MVMuint8    logged;
-    MVMuint8    no_inline;
-    MVMuint8    jittivity;
-    MVMuint8    uses_hll;
-    MVMuint8    specializable;
+    MVMuint8    pure : 1;
+    MVMuint8    deopt_point : 4;
+    MVMuint8    may_cause_deopt : 1;
+    MVMuint8    logged : 1;
+    MVMuint8    no_inline : 1;
+    MVMuint8    jittivity : 2;
+    MVMuint8    uses_hll : 1;
+    MVMuint8    specializable : 1;
     MVMuint8    operands[MVM_MAX_OPERANDS];
 };
 
