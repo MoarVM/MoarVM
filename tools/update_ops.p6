@@ -512,8 +512,6 @@ sub mark_spans(@ops) {
     }
     store-span;
 
-    .say for @spans;
-
     make-lookup-code;
 }
 
