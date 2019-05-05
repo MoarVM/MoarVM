@@ -108,7 +108,7 @@ class Op {
             }
         }
     }
-    sub writeuint($offset is rw, $size, $var) {
+    sub makewriteuint($offset is rw, $size, $var) {
         my $pos = $offset;
         $offset += $size;
         my $flags = $size * 2;
@@ -116,7 +116,7 @@ class Op {
         $flags++; # force little endian
         'nqp::writeuint($bytecode, nqp::add_i($elems, ' ~ $pos ~ '), ' ~ $var ~ ', ' ~ $flags ~ ');'
     }
-    sub writenum($offset is rw, $var) {
+    sub makewritenum($offset is rw, $var) {
         my $pos = $offset;
         $offset += 8;
         'nqp::writenum($bytecode, nqp::add_i($elems, ' ~ $pos ~ '), ' ~ $var ~ ', 13)'
@@ -125,45 +125,29 @@ class Op {
         if OperandFlag.parse($operand) -> (:$rw, :$type, :$type_var, :$special) {
             if !$rw {
                 if ($type // '') eq 'int64' {
-                    '{my int $value := $op' ~ $i ~ '; ' ~ writeuint($offset, 8, '$value') ~ '}'
+                    makewriteuint($offset, 8, '$op' ~ $i)
                 }
                 elsif ($type // '') eq 'int32' {
-                    '{my int $value := $op' ~ $i ~ ';
-                            if $value < -2147483648 || 2147483647 < $value {
-                                nqp::die("Value outside range of 32-bit MAST::IVal");
-                            }
-                            ' ~ writeuint($offset, 8, '$value') ~ '}'
+                    makewriteuint($offset, 8, '$op' ~ $i)
                 }
                 elsif ($type // '') eq 'uint32' {
-                    '{my int $value := $op' ~ $i ~ ';
-                            if $value < 0 || 4294967296 < $value {
-                                nqp::die("Value outside range of 32-bit MAST::IVal");
-                            }
-                            ' ~ writeuint($offset, 8, '$value') ~ '}'
+                    makewriteuint($offset, 8, '$op' ~ $i)
                 }
                 elsif ($type // '') eq 'int16' {
-                    '{my int $value := $op' ~ $i ~ ';
-                            if $value < -32768 || 32767 < $value {
-                                nqp::die("Value outside range of 16-bit MAST::IVal");
-                            }
-                            ' ~ writeuint($offset, 2, '$value') ~ '}'
+                    makewriteuint($offset, 2, '$op' ~ $i)
                 }
                 elsif ($type // '') eq 'int8' {
-                    '{my int $value := $op' ~ $i ~ ';
-                            if $value < -128 || 127 < $value {
-                                nqp::die("Value outside range of 8-bit MAST::IVal");
-                            }
-                            ' ~ writeuint($offset, 2, '$value') ~ '}'
+                    makewriteuint($offset, 2, '$op' ~ $i)
                 }
                 elsif ($type // '') eq 'num64' {
-                     writenum($offset, '$op' ~ $i)
+                    makewritenum($offset, '$op' ~ $i)
                 }
                 elsif ($type // '') eq 'num32' {
-                     writenum($offset, '$op' ~ $i)
+                    makewritenum($offset, '$op' ~ $i)
                 }
                 elsif ($type // '') eq 'str' {
                     'my uint $index' ~ $i ~ ' := $frame.add-string($op' ~ $i ~ '); '
-                    ~ writeuint($offset, 4, '$index' ~ $i);
+                    ~ makewriteuint($offset, 4, '$index' ~ $i);
                 }
                 elsif ($special // '') eq 'ins' {
                     $offset += 4;
@@ -171,7 +155,7 @@ class Op {
                 }
                 elsif ($special // '') eq 'coderef' {
                     'my uint $index' ~ $i ~ ' := $frame.writer.get_frame_index($op' ~ $i ~ '); '
-                    ~ writeuint($offset, 2, '$index' ~ $i)
+                    ~ makewriteuint($offset, 2, '$index' ~ $i)
                 }
                 elsif ($special // '') eq 'callsite' {
                 }
@@ -195,14 +179,14 @@ class Op {
 #                }
                 'my uint $index' ~ $i ~ ' := nqp::unbox_u($op' ~ $i ~ '); '
 
-                ~ writeuint($offset, 2, '$index' ~ $i)
+                ~ makewriteuint($offset, 2, '$index' ~ $i)
             }
             elsif $rw eq 'rl' || $rw eq 'wl' {
                 q[nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op] ~ $i ~ q[, MAST::Lexical);]
                 ~ 'my uint $index' ~ $i ~ ' := $op' ~ $i ~ '.index; '
                 ~ 'my uint $frames_out' ~ $i ~ ' := $op' ~ $i ~ '.frames_out; '
-                ~ writeuint($offset, 2, '$index' ~ $i)
-                ~ writeuint($offset, 2, '$frames_out' ~ $i)
+                ~ makewriteuint($offset, 2, '$index' ~ $i)
+                ~ makewriteuint($offset, 2, '$frames_out' ~ $i)
             }
             else {
                 die("Unknown operand mode $rw cannot be compiled");
