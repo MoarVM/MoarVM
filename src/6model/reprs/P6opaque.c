@@ -1797,6 +1797,29 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 ins->operands[1] = orig_operands[1];
                 ins->operands[2].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_int_slot];
             }
+            else if (embedded_st->REPR->ID == MVM_REPR_ID_P6int) {
+                MVMP6intREPRData *embedded_repr_data = (MVMP6intREPRData *)embedded_st->REPR_data;
+                if (embedded_repr_data->bits == 64 && embedded_repr_data->is_unsigned == 0) {
+                    MVMSpeshOperand *orig_operands = ins->operands;
+                    MVMSpeshFacts *obj_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[1]);
+                    ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_i);
+                    ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                    ins->operands[0] = orig_operands[0];
+                    ins->operands[1] = orig_operands[1];
+                    ins->operands[2].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_int_slot];
+                }
+                else {
+                    MVM_spesh_graph_add_comment(tc, g, ins,
+                        "reprop %s with embedded p6int (%d bits, %d unsigned) unsupported in P6Opaque %s",
+                        ins->info->name, embedded_repr_data->bits, embedded_repr_data->is_unsigned,
+                        MVM_6model_get_stable_debug_name(tc, st));
+                }
+            }
+            else {
+                MVM_spesh_graph_add_comment(tc, g, ins, "reprop %s with embedded ST's repr %s unsupported in P6Opaque %s",
+                        ins->info->name, embedded_st->REPR->name,
+                        MVM_6model_get_stable_debug_name(tc, st));
+            }
         }
         break;
     case MVM_OP_unbox_n:
