@@ -5364,7 +5364,7 @@ BEGIN {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 0, 5);
-        
+
     },
     'const_i8', sub ($op0, int8 $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
@@ -5775,7 +5775,7 @@ BEGIN {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 55, 5);
-        
+
     },
     'eq_i', sub ($op0, $op1, $op2) {
         my $bytecode := $*MAST_FRAME.bytecode;
@@ -6306,12 +6306,7 @@ BEGIN {
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'prepargs', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
-        my uint $elems := nqp::elems($bytecode);
-        nqp::writeuint($bytecode, $elems, 127, 5);
-        
-    },
+    'prepargs', sub ($op0) {die("MAST::Ops generator for prepargs NYI (QASTOperationsMAST is supposed to do it by itself)");},
     'arg_i', sub (int16 $op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
@@ -8241,13 +8236,13 @@ BEGIN {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 368, 5);
-        
+
     },
     'usecompilerhllconfig', sub () {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 369, 5);
-        
+
     },
     'iter', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
@@ -9650,7 +9645,7 @@ BEGIN {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 558, 5);
-        
+
     },
     'getuniname', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
@@ -9736,7 +9731,7 @@ BEGIN {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 569, 5);
-        
+
     },
     'currentthread', sub ($op0) {
         my $bytecode := $*MAST_FRAME.bytecode;
@@ -10055,7 +10050,7 @@ BEGIN {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 608, 5);
-        
+
     },
     'nativecallcast', sub ($op0, $op1, $op2, $op3) {
         my $bytecode := $*MAST_FRAME.bytecode;
@@ -10114,7 +10109,7 @@ BEGIN {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 616, 5);
-        
+
     },
     'nativecallglobal', sub ($op0, $op1, $op2, $op3, $op4) {
         my $bytecode := $*MAST_FRAME.bytecode;
@@ -11382,7 +11377,7 @@ BEGIN {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 776, 5);
-        
+
     },
     'coveragecontrol', sub ($op0) {
         my $bytecode := $*MAST_FRAME.bytecode;

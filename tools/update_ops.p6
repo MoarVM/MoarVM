@@ -26,35 +26,49 @@ class Op {
     has %.adverbs;
     method generator() {
         my $offset = 2;
-        $.name eq 'const_i64'
-            ??
-    'sub ($op0, int $value) {
-        my $bytecode := $*MAST_FRAME.bytecode;
-        my uint $elems := nqp::elems($bytecode);
-        my uint $index := nqp::unbox_u($op0);
-        if -32767 < $value && $value < 32768 {
-            nqp::writeuint($bytecode, $elems, 597, 5);
-            nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 5);
-            nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);
+        if $.name eq "prepargs" {
+            my $signature = @!operands.map({self.generate_arg($_, $++)}).join(', ');
+            'sub (' ~ $signature ~ ') {' ~
+            ~ 'die("MAST::Ops generator for prepargs NYI (QASTOperationsMAST is supposed to do it by itself)");'
+            ~ '}';
         }
-        elsif -2147483647 < $value && $value < 2147483647 {
-            nqp::writeuint($bytecode, $elems, 598, 5);
-            nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 5);
-            nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 9);
+        elsif $.name eq "const_i64" {
+            q:to/CODE/.subst("CODE_GOES_HERE", $.code).chomp;
+            sub ($op0, int $value) {
+                    my $bytecode := $*MAST_FRAME.bytecode;
+                    my uint $elems := nqp::elems($bytecode);
+                    my uint $index := nqp::unbox_u($op0);
+                    if -32767 < $value && $value < 32768 {
+                        nqp::writeuint($bytecode, $elems, 597, 5);
+                        nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 5);
+                        nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 5);
+                    }
+                    elsif -2147483647 < $value && $value < 2147483647 {
+                        nqp::writeuint($bytecode, $elems, 598, 5);
+                        nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 5);
+                        nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 9);
+                    }
+                    else {
+                        nqp::writeuint($bytecode, $elems, CODE_GOES_HERE, 5);
+                        nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 5);
+                        nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 13);
+                    }
+                }
+            CODE
+        } else {
+            my $signature = @!operands.map({self.generate_arg($_, $++)}).join(', ');
+            my $frame-getter = self.needs_frame
+                ?? 'my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;'
+                !! 'my $bytecode := $*MAST_FRAME.bytecode;';
+            my $operands-code = join("\n", @!operands.map({"                " ~ self.generate_operand($_, $++, $offset)}));
+
+            'sub (' ~ $signature ~ ') {' ~ "\n" ~
+                $frame-getter.indent(8) ~ ('
+                my uint $elems := nqp::elems($bytecode);
+                nqp::writeuint($bytecode, $elems, ' ~ $.code ~ ', 5);
+' ~ $operands-code ~ '
+            }').indent(-8);
         }
-        else {
-            nqp::writeuint($bytecode, $elems, ' ~ $.code ~ ', 5);
-            nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index, 5);
-            nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 13);
-        }
-    }'
-            !!
-    'sub (' ~ @!operands.map({self.generate_arg($_, $++)}).join(', ') ~ ') {
-        ' ~ (self.needs_frame ?? 'my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;' !! 'my $bytecode := $*MAST_FRAME.bytecode;') ~ '
-        my uint $elems := nqp::elems($bytecode);
-        nqp::writeuint($bytecode, $elems, ' ~ $.code ~ ', 5);
-        ' ~ join("\n        ", @!operands.map({self.generate_operand($_, $++, $offset)})) ~ '
-    }'
     }
     method needs_frame() {
         for @!operands -> $operand {
@@ -115,37 +129,37 @@ class Op {
                 }
                 elsif ($type // '') eq 'int32' {
                     '{my int $value := $op' ~ $i ~ ';
-                    if $value < -2147483648 || 2147483647 < $value {
-                        nqp::die("Value outside range of 32-bit MAST::IVal");
-                    }
-                    ' ~ writeuint($offset, 8, '$value') ~ '}'
+                            if $value < -2147483648 || 2147483647 < $value {
+                                nqp::die("Value outside range of 32-bit MAST::IVal");
+                            }
+                            ' ~ writeuint($offset, 8, '$value') ~ '}'
                 }
                 elsif ($type // '') eq 'uint32' {
                     '{my int $value := $op' ~ $i ~ ';
-                    if $value < 0 || 4294967296 < $value {
-                        nqp::die("Value outside range of 32-bit MAST::IVal");
-                    }
-                    ' ~ writeuint($offset, 8, '$value') ~ '}'
+                            if $value < 0 || 4294967296 < $value {
+                                nqp::die("Value outside range of 32-bit MAST::IVal");
+                            }
+                            ' ~ writeuint($offset, 8, '$value') ~ '}'
                 }
                 elsif ($type // '') eq 'int16' {
                     '{my int $value := $op' ~ $i ~ ';
-                    if $value < -32768 || 32767 < $value {
-                        nqp::die("Value outside range of 16-bit MAST::IVal");
-                    }
-                    ' ~ writeuint($offset, 2, '$value') ~ '}'
+                            if $value < -32768 || 32767 < $value {
+                                nqp::die("Value outside range of 16-bit MAST::IVal");
+                            }
+                            ' ~ writeuint($offset, 2, '$value') ~ '}'
                 }
                 elsif ($type // '') eq 'int8' {
                     '{my int $value := $op' ~ $i ~ ';
-                    if $value < -128 || 127 < $value {
-                        nqp::die("Value outside range of 8-bit MAST::IVal");
-                    }
-                    ' ~ writeuint($offset, 2, '$value') ~ '}'
+                            if $value < -128 || 127 < $value {
+                                nqp::die("Value outside range of 8-bit MAST::IVal");
+                            }
+                            ' ~ writeuint($offset, 2, '$value') ~ '}'
                 }
                 elsif ($type // '') eq 'num64' {
-                    writenum($offset, '$op' ~ $i)
+                     writenum($offset, '$op' ~ $i)
                 }
                 elsif ($type // '') eq 'num32' {
-                    writenum($offset, '$op' ~ $i)
+                     writenum($offset, '$op' ~ $i)
                 }
                 elsif ($type // '') eq 'str' {
                     'my uint $index' ~ $i ~ ' := $frame.add-string($op' ~ $i ~ '); '
