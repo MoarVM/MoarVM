@@ -1160,11 +1160,11 @@ class MAST::Frame is MAST::Node {
     method compile_operand($bytecode, int $rw, int $type, $arg) {
         if $rw == nqp::const::MVM_OPERAND_LITERAL {
             if $type == nqp::const::MVM_OPERAND_INT64 {
-                my int $value := $arg;
+                my int $value := nqp::unbox_i($arg);
                 $bytecode.write_uint64($value);
             }
             elsif $type == nqp::const::MVM_OPERAND_INT16 {
-                my int $value := $arg;
+                my int $value := nqp::unbox_i($arg);
                 if $value < -32768 || 32767 < $value {
                     nqp::die("Value outside range of 16-bit MAST::IVal");
                 }
@@ -1194,7 +1194,7 @@ class MAST::Frame is MAST::Node {
                 unless $arg.isa(MAST::Local);
 
             my @local_types := self.local_types;
-            my int $index := $arg;
+            my int $index := nqp::unbox_i($arg);
             if $index > nqp::elems(@local_types) {
                 nqp::die("MAST::Local index out of range");
             }
