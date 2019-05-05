@@ -1789,6 +1789,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         if (repr_data->unbox_int_slot >= 0) {
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_int_slot];
             if (embedded_st->REPR->ID == MVM_REPR_ID_P6bigint) {
+                MVMSpeshFacts *obj_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[1]);
                 MVMSpeshOperand *orig_operands = ins->operands;
                 ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_bi);
                 ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
@@ -1802,8 +1803,10 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
     case MVM_OP_decont_n:
         if (repr_data->unbox_num_slot >= 0) {
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_num_slot];
-            if (embedded_st->REPR->ID == MVM_REPR_ID_P6num) {
+            MVMP6numREPRData *embedded_repr_data = (MVMP6numREPRData *)embedded_st->REPR_data;
+            if (embedded_st->REPR->ID == MVM_REPR_ID_P6num && embedded_repr_data->bits == 64) {
                 MVMSpeshOperand *orig_operands = ins->operands;
+                MVMSpeshFacts *obj_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[1]);
                 ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_n);
                 ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
                 ins->operands[0] = orig_operands[0];
@@ -1818,6 +1821,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_str_slot];
             if (embedded_st->REPR->ID == MVM_REPR_ID_P6str) {
                 MVMSpeshOperand *orig_operands = ins->operands;
+                MVMSpeshFacts *obj_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[1]);
                 ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_s);
                 ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
                 ins->operands[0] = orig_operands[0];
