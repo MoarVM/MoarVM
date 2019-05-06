@@ -1,7 +1,6 @@
 New in 2019.05
 
 Other:
-+ [971538bc] Fix update_ops being broken by partial commit
 + [97e28f07] Implement --no-relocatable Configure.pl flag.
 + [2b75a2ff] Use a relative RPATH in moarvm.
 + [62b58164] Update libuv to 1.26
@@ -23,13 +22,12 @@ Core:
 + [65441793] Activate 2nd argument count check for invocations
 + [c90bd6b4] Guard getdynlex against no caller frame
 + [a92be015] Guard some ops in interp against type objects
-+ [35976e24] fuzzing: guard frame invoke error against null outers
++ [35976e24] Fuzzing: guard frame invoke error against null outers
 + [c8a44b8d] Make sure invalid indices for lexical vivify throw
 + [c10fee65] Handle inlining of outer lexical binds
-+ [64679b99] Allow selection of max inline size per HLL. It's clear from measurements that the number that makes sense for Rakudo is a bit on the high side for NQP. Make it possible to set a maximum inline size limit per HLL
++ [64679b99] Allow selection of max inline size per HLL. Makes it possible to set a maximum inline size limit per HLL
 + [5f706515] Simplify abs_n to just use fabs and also jit it (#1073)
 + [d1590671] Add uname op
-+ [e41e355e] Add vivifying non-p6o object ops: sp_getvt_o and sp_getvc_o
 + [b51bb132] Add a newmixintype op
 + [28e2b38b] Add a smrt_intify op
 
@@ -62,7 +60,7 @@ Ops:
 
 Profiler:
 + [423a9cc7] Fix misc. problems with profiling
-+ [95094ae2] Count objects being deallocatedsplit this statistic into "deleted while in nursery and not seen before", "deleted while in nursery, but seen in a previous GC run", and "deleted while in the gen 2".
++ [95094ae2] Count deallocated objects categorized by life time
 + [38252329] Heapsnapshot: properly handle empty debug name
 
 Spesh:
@@ -74,13 +72,14 @@ Spesh:
 + [5994d89c] Add facts to null op during optimize
 + [ff9870ec] Lliberalize eliminate_set to cover inlines
 + [960f4b67] Chase PHIs when retaining deopt info for inlining. Otherwise, we might not keep things alive for deopt points that need them to be alive if it was the PHI itself that got marked with deopt usages
++ [e41e355e] Add vivifying non-p6o object ops: sp_getvt_o and sp_getvc_o
 
 Strings:
 + [295cde4f] Avoid duplicate checks in hash access
 
 Tooling/Build:
 + [cc06ad28] Never build a relocatable moar on OpenBSD. OpenBSDs implementation of $ORIGIN in rpath is unreliable
-+ [49c1eb07] Improve check for used toolchain on macOS
++ [49c1eb07] Check for mixed toolchain on macOS
 + [12bfa1b6] Never build a relocatable moar on AIX
 + [0cb5eca4] update_ops: don't generate prepargs, as nqp does it by itself
 + [0e94d75a] Temporarily use -fno-ret-protector when building on OpenBSD to prevent segfault
