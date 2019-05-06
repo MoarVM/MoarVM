@@ -1,3 +1,90 @@
+New in 2019.05
+
+Other:
++ [971538bc] Fix update_ops being broken by partial commit
++ [97e28f07] Implement --no-relocatable Configure.pl flag.
++ [2b75a2ff] Use a relative RPATH in moarvm.
++ [62b58164] Update libuv to 1.26
++ [8f8026b1] Add MVM_execpath() to public API, a forward to uv_exepath(). The function is helpful to implement wrapper programs
+
+6model:
++ [8fef1999] Reject out-of-bounds unbox slot numbers
++ [275098a2] Don't accept out-of-range repr ids
++ [7b112da3] Guard SCRef initialize against null SC
++ [ab21dd17] Guard serialization read against < 0 offsets
++ [bacfcf96] Heapsnapshot: Calculate CStruct unmanaged size
++ [fab0c4bd] Only Opt 32/16/8 Bit Access On Signed Integers
++ [9a4bbda3] Activate getattr_i Optimization On CStruct
++ [834db592] MVMSpeshLog: implement describe_refs for heap profiler
++ [ea83e229] ConcBlockingQueue: implement unmanaged_size for heap profiler
+
+Core:
++ [2e87a0a0] Use C bitfields to save space in MVMOpInfo, makes these structs go from 40 bytes to 32 bytes
++ [65441793] Activate 2nd argument count check for invocations
++ [c90bd6b4] Guard getdynlex against no caller frame
++ [a92be015] Guard some ops in interp against type objects
++ [35976e24] fuzzing: guard frame invoke error against null outers
++ [c8a44b8d] Make sure invalid indices for lexical vivify throw
++ [c10fee65] Handle inlining of outer lexical binds
++ [64679b99] Allow selection of max inline size per HLL. It's clear from measurements that the number that makes sense for Rakudo is a bit on the high side for NQP. Make it possible to set a maximum inline size limit per HLL
++ [5f706515] Simplify abs_n to just use fabs and also jit it (#1073)
++ [d1590671] Add uname op
++ [e41e355e] Add vivifying non-p6o object ops: sp_getvt_o and sp_getvc_o
++ [b51bb132] Add a newmixintype op
++ [28e2b38b] Add a smrt_intify op
+
+GC:
++ [3dff3a2a] Ensure only one thread can take a heap snapshot or dump data at the same time
+
+IO:
++ [741779ac] Better error handling of process stdin writes. Detect the case that we already closed its stdin handle
++ [adefbe4d] Avoid unbounded growth of active async task list
++ [0a9ccb11] Use UV_MAXHOSTNAMESIZE as cross platform MAXHOSTNAMELEN
+
+JIT:
++ [645a70c0] Add backtrace and backtracestrings lego and exprjit template (#1085)
++ [3c2e98d4] Add istty_fh legojit (#1084)
++ [9e5196d8] Add typeparameterat exprjit template (#1080)
++ [0c6b3b1b] Add indexingoptimized exprjit template (#1078)
++ [e1dc1b39] Add fileno_fh legojit and exprjit template
++ [d568e681] Add typeparameterized exprjit template
++ [6421e512] Add resume exprjit template
++ [0b45ec7b] Add replace exprjit template
++ [5a6b9ea3] Add clone exprjit template
++ [33751f43] JIT sp_bind_i32 And sp_get_i32
++ [c5e43265] Make JIT of sp_get_o match the interp
++ [bfbfd0c1] JIT sp_bind_i32
+
+Ops:
++ [081823ff] MAST Ops: remove redundant range checks
++ [8eb232db] Fix lexical to locals debug_map getting written to bytecode files in random order
+
+
+Profiler:
++ [423a9cc7] Fix misc. problems with profiling
++ [95094ae2] Count objects being deallocatedsplit this statistic into "deleted while in nursery and not seen before", "deleted while in nursery, but seen in a previous GC run", and "deleted while in the gen 2".
++ [38252329] Heapsnapshot: properly handle empty debug name
+
+Spesh:
++ [9cd8a06d] Set the default inline max size to 192 bytes
++ [5e363398] Avoid a bunch of malloc/free churn in code-gen
++ [ade57cee] Learn Type Fact About nativecallcast
++ [0d2968e7] Also call optimize_bb for unspecialized inlines
++ [bc98cb94,0d2968e7] Run optimize_bb over inlined code, Also call optimize_bb for unspecialized inlines
++ [5994d89c] Add facts to null op during optimize
++ [ff9870ec] Lliberalize eliminate_set to cover inlines
++ [960f4b67] Chase PHIs when retaining deopt info for inlining. Otherwise, we might not keep things alive for deopt points that need them to be alive if it was the PHI itself that got marked with deopt usages
+
+Strings:
++ [295cde4f] Avoid duplicate checks in hash access
+
+Tooling/Build:
++ [cc06ad28] Never build a relocatable moar on OpenBSD. OpenBSDs implementation of $ORIGIN in rpath is unreliable
++ [49c1eb07] Improve check for used toolchain on macOS
++ [12bfa1b6] Never build a relocatable moar on AIX
++ [0cb5eca4] update_ops: don't generate prepargs, as nqp does it by itself
++ [0e94d75a] Temporarily use -fno-ret-protector when building on OpenBSD to prevent segfault
+
 New in 2019.03
 
 Spesh:
