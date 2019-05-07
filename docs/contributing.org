@@ -1,0 +1,117 @@
+#+TITLE: Contribution guideline
+
+Or, how to work on MoarVM.
+
+* Community
+
+MoarVM is a fairly small community. We communicate primarily on the
+#moarvm channel on freenode, and to a lesser extent via github issues.
+
+We use IRC bots to keep up to date with new commits that are
+published; but those don't always work well, unfortunately.
+
+The [[https://p6weekly.wordpress.com/][perl6 weekly]] newsletter publishes progress in MoarVM, and there's
+also the =/r/perl6= subreddit.
+
+Apparently you can connect to freenode via discord, but the author of
+this text wouldn't know how.
+
+* Code Standards
+
+Some things to keep in mind are:
+- We support Microsoft Windows, Apple macOS, Linux, and to the extent
+  possible, other POSIX platforms such as the BSDs. (Because we are a
+  small community, we don't always have a testing environment
+  available). Patches to add support for other platforms are welcome.
+  - MoarVM is written in C89 (for reasons of compatibility with the
+    Microsoft VC++ compiler). The practical upshot is that
+    declarations *must* be at the top of a function.
+- We use 4-spaces, no tabs for indentation.
+- Exported (non-static) functions should be 'namespaced' using the
+  prefix =MVM_=, and should typically include the module name,
+  e.g. =MVM_string_graphs=. =static= functions can be named whateever
+  you like. Similarily, public structs should be prefixed with =MVM=
+  as well.
+- Because MoarVM uses a generational garbage collector, code
+  interacting with objects must take this into account:
+  - An object may be moved by the garbage collector, so if any code
+    takes a local pointer to an object, it must be treated as a GC
+    root. This is effected by the =MVMROOT= macro (=src/gc/roots.h=)
+  - An old object may reference a young one, and the nursery collector
+    does not see this reference; hence a write barrier is required to
+    ensure that this reference is counted. This is effected by the
+    =MVM_ASSIGN_REF= macro (=src/gc/wb.h=).
+- We are not afraid of using macros. (But they are a dangerous
+  powertool, so use with care).
+- Neither are we afraid of using dependencies when this makes
+  sense. However, note that all dependencies must be fixed (we use
+  =git submodules= for this purpose) and buildable from source.
+  - Dependencies *must* be compatible with the MoarVM license
+    (ARTISTIC-2.0).
+  - Dependencies *must* be available on our supported platforms (at
+    least Windows, macOS, Linux).
+
+* Building
+
+We use =make= for building, and =perl= for configuring the =Makefile=.
+MoarVM's =Makefile= should be highly parallelizable - the reader is
+adviced to take advantage of this. The author uses the following
+configuration:
+
+#+BEGIN_SRC sh
+export MAKEFLAGS="-j8" # 8 simultaneous jobs allowed
+#+END_SRC
+
+Nobody likes build-time dependencies, so please take that into account
+before adding any.
+
+* Testing
+
+MoarVM doesn't (currently) have a separate testing system, however it
+is exercised by the test suites for =nqp= and =rakudo=.
+
+- =make test= for nqp and rakudo should always pass.
+- rakudo =make spectest= should also pass, but ocassionally regresses,
+  or contains tests that do not pass reliably
+
+Better testing:
+- configure MoarVM with the =--asan= option to catch memory corruption
+  bugs. Note however, that because the runtime optimizer (=spesh=)
+  runs in a separate thread, it may leak memory during a shutdown;
+  this is normal.
+- If you see intermittent failures this may be related to runtime
+  specialization, which runs on a separate thread (which introduces
+  nondeterminism in when the code is optimized and hence run). The
+  environment flag =MVM_SPESH_BLOCKING= synchronizes =spesh= so that
+  this nondeterminism is removed.
+  - The environment flags =MVM_SPESH_DISABLE=, =MVM_JIT_DISABLE=
+    etc. can be used to determine if a bug is in the spesh/JIT
+    subsystem. If it is, the script =tools/jit-bisect.pl= can be used
+    to pinpoint where exactly.
+- run the test suite with the =MVM_SPESH_NODELAY= environment flag
+  set; this will run the optimizer directly (without waiting for a
+  routine to become active).
+
+* Debugging
+
+Pass the =--debug --optimize=0= flags to =Configure.pl= to get a build
+that is usable in a debugger. Note that the default wrapper scripts
+=nqp= and =perl6= are *not* suitable for debugging because they =exec=
+just after starting. You can use the =perl6-gdb-m= wrapper instead; or
+insert =gdb= or =lldb= into an explicit command line yourself. (The
+author of this document typically writes =gdb= scripts).
+
+*NB*: there are recently developed runner programs in C, which are
+equivalent to the old runner scripts, that don't have the same
+problem - you can start this as =perl6-mc=.
+
+* Workflow
+
+Larger features are typically developed on separate branches. Such
+branches should be rebased to keep up to date with master. Bugfixes
+can go to master directly.
+
+* Miscellaneous
+
+Please all be nice to each other.
+
