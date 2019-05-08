@@ -247,7 +247,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMSTable *st,
                         MVMCStructREPRData *cstruct_repr_data = (MVMCStructREPRData *)STABLE(type)->REPR_data;
                         bits                                  = cstruct_repr_data->struct_size * 8;
                         align                                 = cstruct_repr_data->struct_align;
-                        repr_data->attribute_locations[i]    |= MVM_CSTRUCT_ATTR_INLINED;
+                        repr_data->attribute_locations[i]    |= MVM_CPPSTRUCT_ATTR_INLINED;
                     }
                 }
                 else if (type_id == MVM_REPR_ID_MVMCPPStruct) {
@@ -265,13 +265,13 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMSTable *st,
                 else if (type_id == MVM_REPR_ID_MVMCUnion) {
                     /* It's a CUnion. */
                     repr_data->num_child_objs++;
-                    repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CSTRUCT_ATTR_SHIFT) | MVM_CSTRUCT_ATTR_CUNION;
+                    repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CPPSTRUCT_ATTR_SHIFT) | MVM_CPPSTRUCT_ATTR_CUNION;
                     MVM_ASSIGN_REF(tc, &(st->header), repr_data->member_types[i], type);
                     if (inlined) {
                         MVMCUnionREPRData *cunion_repr_data = (MVMCUnionREPRData *)STABLE(type)->REPR_data;
                         bits                                = cunion_repr_data->struct_size * 8;
                         align                               = cunion_repr_data->struct_align;
-                        repr_data->attribute_locations[i]  |= MVM_CSTRUCT_ATTR_INLINED;
+                        repr_data->attribute_locations[i]  |= MVM_CPPSTRUCT_ATTR_INLINED;
                     }
                 }
                 else if (type_id == MVM_REPR_ID_MVMCPointer) {
