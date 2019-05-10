@@ -228,7 +228,7 @@ sub MAIN($file = "src/core/oplist") {
         }
 
         MVM_PUBLIC const MVMuint8 MVM_op_is_allowed_in_confprog(unsigned short op) \{
-            if (op >= MVM_op_counts)
+            if (op > last_op_allowed)
                 return 0;
             return MVM_op_allowed_in_confprog[op];
         }
@@ -346,7 +346,7 @@ sub op_constants(@ops is copy) {
     my @counts;
     my @values;
     my $values_idx = 0;
-    @ops .= grep: {$_.mark ne '.s' and not $_.name ~~ /^['sp_'|'prof_'|'DEPRECTAED']/};
+    @ops .= grep: {$_.mark ne '.s' and not $_.name.starts-with(any('sp_','prof_','DEPRECTAED'))};
     for @ops -> $op {
         my $last_idx = $values_idx;
         @offsets.push($values_idx);
@@ -445,13 +445,20 @@ sub opcode_details(@ops) {
     })
     ~ "\n" ~
     (join "", gather {
-        take "static const MVMuint8 MVM_op_allowed_in_confprog[] = \{\n";
-        take "    ";
-        for @ops -> $op {
-            if $++ %% 16 {
+        my $end-of-normal-ops = @ops.grep(*.mark eq ".s", :k).head;
+        take "static const MVMuint16 last_op_allowed = $($end-of-normal-ops - 1);\n\n";
+        take "static const MVMuint8 MVM_op_allowed_in_confprog[] = \{";
+        for @ops.head($end-of-normal-ops - 1).rotor(8, :partial) -> @eightops {
+            my @bits = @eightops.map(*.adverbs<confprog>.so.Int);
+            @bits.push: 0 while @bits < 8;
+            my $integer = :2[@bits.reverse];
+            if $++ %% 4 {
                 take "\n    ";
             }
-            take $op.adverbs<confprog> ?? "1," !! "0,";
+            else {
+                take " ";
+            }
+            take "0x$integer.base(16),";
         }
         take "};\n";
     })

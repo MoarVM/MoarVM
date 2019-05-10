@@ -248,6 +248,12 @@ struct MVMInstance {
     uv_mutex_t mutex_parameterization_add;
 
     /************************************************************************
+     * Configuration programs (for spesh, profiler, ...)
+     ************************************************************************/
+
+    MVMConfigurationProgram *confprog;
+
+    /************************************************************************
      * Specializer (dynamic optimization)
      ************************************************************************/
 
