@@ -92,8 +92,8 @@ static void decont_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *in
      * info. */
     MVMint32 in_flags = in_facts->flags;
     if ((in_flags & MVM_SPESH_FACT_TYPEOBJ) ||
-            (in_flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
-            !in_facts->type->st->container_spec) {
+            ((in_flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
+            !in_facts->type->st->container_spec)) {
         copy_facts(tc, g, out_orig, out_i, in_orig, in_i);
         return;
     }

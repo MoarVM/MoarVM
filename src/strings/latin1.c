@@ -111,7 +111,7 @@ MVMuint32 MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *
             last_accept_pos = pos;
             total++;
             if (MVM_string_decode_stream_maybe_sep(tc, seps, codepoint) ||
-                    stopper_chars && *stopper_chars == total) {
+                    (stopper_chars && *stopper_chars == total)) {
                 reached_stopper = 1;
                 goto done;
             }

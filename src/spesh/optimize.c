@@ -580,8 +580,8 @@ static void optimize_hllize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
 static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     if ((obj_facts->flags & MVM_SPESH_FACT_TYPEOBJ) ||
-            (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
-            !obj_facts->type->st->container_spec) {
+            ((obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
+            !obj_facts->type->st->container_spec)) {
         /* Know that we don't need to decont. */
         ins->info = MVM_op_get_op(MVM_OP_set);
         MVM_spesh_use_facts(tc, g, obj_facts);
@@ -848,8 +848,8 @@ static void optimize_guard(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
         else if (opcode == MVM_OP_sp_guard && can_drop_type_guard) {
             turn_into_set = 1;
         }
-        else if (opcode == MVM_OP_sp_guardjustconc && can_drop_concrete_guard
-                || opcode == MVM_OP_sp_guardjusttype && can_drop_typeobj_guard) {
+        else if (  (opcode == MVM_OP_sp_guardjustconc && can_drop_concrete_guard)
+                || (opcode == MVM_OP_sp_guardjusttype && can_drop_typeobj_guard)) {
             turn_into_set = 1;
         }
     }
@@ -3016,7 +3016,7 @@ static MVMuint32 conflict_free(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             /* Make sure there's no conflicting register use. */
             for (i = 0; i < check->info->num_operands; i++) {
                 MVMuint16 rw_mode = check->info->operands[i] & MVM_operand_rw_mask;
-                if (rw_mode == MVM_operand_write_reg || !allow_reads && rw_mode == MVM_operand_read_reg)
+                if (rw_mode == MVM_operand_write_reg || (!allow_reads && rw_mode == MVM_operand_read_reg))
                     if (check->operands[i].reg.orig == reg)
                         return 0;
             }
