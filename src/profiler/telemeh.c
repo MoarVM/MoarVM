@@ -194,19 +194,16 @@ MVM_PUBLIC void MVM_telemetry_interval_annotate(uintptr_t subject, int intervalI
 
 MVM_PUBLIC void MVM_telemetry_interval_annotate_dynamic(uintptr_t subject, int intervalID, char *description) {
     struct TelemetryRecord *record = NULL;
-    char *temp = NULL;
-    size_t temp_size;
 
     if (!telemetry_active) { return; }
-    temp_size = strlen(description) + 1;
-    temp      = malloc(temp_size);
-    strncpy(temp, description, temp_size);
 
     record = newRecord();
     record->recordType = DynamicString;
     record->threadID = subject;
     record->u.annotation_dynamic.intervalID = intervalID;
-    record->u.annotation_dynamic.description = temp;
+
+    /* Dynamic description arbitrarily limited for performance reasons. */
+    record->u.annotation_dynamic.description = strndup(description, 1024);
 }
 
 void calibrateTSC(FILE *outfile)
