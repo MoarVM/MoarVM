@@ -131,6 +131,9 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
     add_collectable(tc, worklist, snapshot, tc->instance->sig_arr,
         "Cached signal mapping array");
 
+    if (tc->instance->confprog)
+        MVM_confprog_mark(tc, worklist, snapshot);
+
     MVM_debugserver_mark_handles(tc, worklist, snapshot);
 }
 

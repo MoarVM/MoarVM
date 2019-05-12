@@ -232,6 +232,7 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/profiler/profile@obj@ \
           src/profiler/heapsnapshot@obj@ \
           src/profiler/telemeh@obj@ \
+          src/profiler/configuration@obj@ \
           src/instrument/crossthreadwrite@obj@ \
           src/instrument/line_coverage@obj@ \
           src/platform/sys@obj@ \
@@ -395,6 +396,7 @@ HEADERS = src/moar.h \
           src/profiler/profile.h \
           src/profiler/heapsnapshot.h \
           src/profiler/telemeh.h \
+          src/profiler/configuration.h \
           src/platform/mmap.h \
           src/platform/time.h \
           src/platform/threads.h \

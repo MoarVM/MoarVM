@@ -416,7 +416,7 @@
 #define MVM_OP_scgetdesc 412
 #define MVM_OP_loadbytecode 413
 #define MVM_OP_newmixintype 414
-#define MVM_OP_DEPRECATED_2 415
+#define MVM_OP_installconfprog 415
 #define MVM_OP_iscompunit 416
 #define MVM_OP_compunitmainline 417
 #define MVM_OP_compunitcodes 418
@@ -926,3 +926,4 @@
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op);
 MVM_PUBLIC const char * MVM_op_get_mark(unsigned short op);
+MVM_PUBLIC const MVMuint8 MVM_op_is_allowed_in_confprog(unsigned short op);

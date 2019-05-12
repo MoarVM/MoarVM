@@ -416,7 +416,7 @@ static const void * const LABELS[] = {
     &&OP_scgetdesc,
     &&OP_loadbytecode,
     &&OP_newmixintype,
-    &&OP_DEPRECATED_2,
+    &&OP_installconfprog,
     &&OP_iscompunit,
     &&OP_compunitmainline,
     &&OP_compunitcodes,

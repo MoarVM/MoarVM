@@ -3261,6 +3261,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(installconfprog):
+                MVM_confprog_install(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
             OP(iscompunit): {
                 MVMObject *maybe_cu = GET_REG(cur_op, 2).o;
                 GET_REG(cur_op, 0).i64 = REPR(maybe_cu)->ID == MVM_REPR_ID_MVMCompUnit;
@@ -6503,8 +6507,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             /* The compiler compiles faster if all deprecated are together and at the end
              * even though the op numbers are technically out of order. */
-            OP(DEPRECATED_2):
-                MVM_exception_throw_adhoc(tc, "The mastto* ops were removed in MoarVM 2018.01.");
             OP(DEPRECATED_4):
             OP(DEPRECATED_5):
             OP(DEPRECATED_6):

@@ -2639,7 +2639,7 @@ BEGIN {
     66,
     65,
     57,
-    66,
+    65,
     65,
     65,
     34,
@@ -4139,7 +4139,7 @@ BEGIN {
     'scgetdesc', 412,
     'loadbytecode', 413,
     'newmixintype', 414,
-    'DEPRECATED_2', 415,
+    'installconfprog', 415,
     'iscompunit', 416,
     'compunitmainline', 417,
     'compunitcodes', 418,
@@ -4962,7 +4962,7 @@ BEGIN {
     'scgetdesc',
     'loadbytecode',
     'newmixintype',
-    'DEPRECATED_2',
+    'installconfprog',
     'iscompunit',
     'compunitmainline',
     'compunitcodes',
@@ -8447,7 +8447,7 @@ BEGIN {
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'DEPRECATED_2', sub ($op0, $op1, $op2) {
+    'installconfprog', sub ($op0, $op1, $op2) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 415, 5);

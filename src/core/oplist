@@ -472,7 +472,7 @@ popcompsc           w(obj)
 scgetdesc           w(str) r(obj)
 loadbytecode        w(str) r(str) :invokish :maycausedeopt :noinline
 newmixintype        w(obj) r(obj) r(str)
-DEPRECATED_2        w(obj) r(obj) r(obj) :invokish :maycausedeopt
+installconfprog     r(obj) r(obj) r(obj)
 iscompunit          w(int64) r(obj) :pure
 compunitmainline    w(obj) r(obj)
 compunitcodes       w(obj) r(obj)
