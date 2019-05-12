@@ -16,9 +16,9 @@ use Data::Dump::Tree;
 my $testprog = q:to/CONFPROG/;
     version = 1
     entry profiler_static:
-    log = ~(+(~(5)));
-    log = "hi";
-    log = ~(+("99"));
+    log = ~(sf.name eq "florble");
+    entry jit:
+    log = "hello"
     CONFPROG
 
 die "only support version 1" unless $testprog.lines.head ~~ m/^version \s+ "=" \s+ 1 \s* ";"? $/;
@@ -212,6 +212,11 @@ class IVal is Node {
 
     method type { CPInt }
 }
+class Label is Node {
+    has $.name;
+    has $.type;
+    has $.position is rw; # stores bytecode offset during generation
+}
 
 my %op-to-op = <
     =  bind
@@ -291,8 +296,18 @@ class ConfProgActions {
         make $result;
     }
 
-    method statement:<entrypoint>($/) { make { entrypoint => $<entrypoint>.Str } }
-    method statement:<label>($/) { make { label => $<ident>.Str } }
+    method statement:<entrypoint>($/) {
+        make Label.new(
+            name => $<entrypoint>.Str,
+            type => "entrypoint"
+        );
+    }
+    method statement:<label>($/) {
+        make Label.new(
+            name => $<entrypoint>.Str,
+            type => "user"
+        );
+    }
 
     method statement:<var_update>($/) {
         make Op.new(
@@ -367,11 +382,44 @@ use MASTOps:from<NQP>;
 
 my %op-gen := MAST::Ops.WHO<%generators>;
 
-my $*MAST_FRAME = class { has uint8 @.bytecode; method add-string($str) { say "$str added" }; method compile_label($bytecode, $label) { say "compiling label $label" } }.new;
+my %entrypoint-indices = <
+    profiler_static
+    profiler_dynamic
+    spesh
+    jit
+>.antipairs;
 
-#%op-gen<say>(1);
+my $*MAST_FRAME = class {
+    has uint8 @.bytecode;
+    has str @.strings;
+    has @.entrypoints is default(1);
 
-say $*MAST_FRAME.bytecode;
+    method add-string(str $str) {
+        if @!strings.grep($str, :k) {
+            return $_[0]
+        }
+        @!strings.push: $str;
+        @!strings.end;
+    }
+    method add-entrypoint(str $name) {
+        with %entrypoint-indices{$name} {
+            given @!entrypoints[$_] {
+                when 1 {
+                    $_ = @.bytecode.elems;
+                }
+                default {
+                    die "duplicate entrypoint $name";
+                }
+            }
+        }
+        else {
+            die "unknown entrypoint $name";
+        }
+    }
+    method compile_label($bytecode, $label) {
+        die "label support NYI";
+    }
+}.new;
 
 my $parseresult = ConfProg.parse($testprog, actions => ConfProgActions.new);
 
@@ -596,6 +644,26 @@ multi sub compile_node(IVal $val, :$target!) {
     note "const_i into $target";
     %op-gen<const_i64>($target, $val.value);
 }
+multi sub compile_node(Var $var, :$target) {
+    if $var.scope eq "builtin" {
+        given $var.name {
+            when "sf" {
+                note "builtin var sf to $target (const_s, then getattr)";
+                %op-gen<const_s>(0, "");
+                %op-gen<getattr_o>($target, STRUCT_ACCUMULATOR, STRUCT_SELECT, "staticframe", 0);
+            }
+            default {
+                die "builtin variable $var.name() NYI";
+            }
+        }
+    }
+    elsif $var.scope eq "my" {
+
+    }
+    else {
+        die "unexpected variable scope $var.scope()";
+    }
+}
 multi sub compile_node(Op $op, :$target) {
     note "Op $op.op() into $($target // "-")";
     given $op.op {
@@ -639,7 +707,7 @@ multi sub compile_node(Op $op, :$target) {
         }
         when "getattr" {
             my $value = $op.children[0];
-            my $type = $op.children[1];
+            my $attribute = $op.children[1];
 
             my $targetreg;
             my $targetregtype = to-reg-type($value.type);
@@ -651,20 +719,50 @@ multi sub compile_node(Op $op, :$target) {
                 $targetreg = $*REGALLOC.fresh($targetregtype)
             }
 
+            compile_node($value, target => $targetreg);
+
             # select right struct type
             # this ends up as two noops after the validator has
             # seen it, but the getattr that comes next will use
             # the type identified here for the struct type.
-            %op-gen<const_s>(STRUCT_SELECT, $type);
+            note "const_s in here for STRUCT_SELECT for $value.type.name()";
+            %op-gen<const_s>(STRUCT_SELECT, $value.type.name);
 
-            #%op-gen<getattr_o>(
+            %op-gen<getattr_o>($targetreg, $targetreg, STRUCT_SELECT, $attribute, 0);
 
             if $targetreg != STRUCT_ACCUMULATOR {
                 $*REGALLOC.free($targetreg)
             }
         }
+        when "eq_s" | "ne_s" {
+            my $lhs = $op.children[0];
+            my $rhs = $op.children[1];
+
+            my $leftreg = $*REGALLOC.fresh(RegString);
+            compile_node($lhs, target => $leftreg);
+
+            my $rightreg = $*REGALLOC.fresh(RegString);
+            compile_node($rhs, target => $rightreg);
+
+            note "putting a $op.op() in here";
+            %op-gen{$op.op()}($target, $leftreg, $rightreg);
+
+            $*REGALLOC.release($leftreg);
+            $*REGALLOC.release($rightreg);
+        }
         default {
             die "cannot compile $op.op() yet";
+        }
+    }
+}
+multi compile_node(Label $label) {
+    given $label.type {
+        when "user" {
+            die "user-specified labels NYI";
+        }
+        when "entrypoint" {
+            $label.position = $*MAST_FRAME.add-entrypoint($label.name);
+            say "added entrypoint at position $label.position()";
         }
     }
 }
@@ -675,6 +773,13 @@ for $parseresult.ast {
     }
 }
 
+.say for $*MAST_FRAME.strings.pairs;
+
 say $*MAST_FRAME.bytecode.list.rotor(2).map(*.reverse.fmt("%02x", "").join() ~ " ");
 say $*MAST_FRAME.bytecode.list.rotor(2).map({ :16(.reverse.fmt("%02x", "").join()).fmt("%4d") ~ " " });
+say $*MAST_FRAME.entrypoints;
 
+my int @entrypoints;
+
+use nqp;
+nqp::installconfprog($*MAST_FRAME.bytecode, $*MAST_FRAME.strings, @entrypoints);
