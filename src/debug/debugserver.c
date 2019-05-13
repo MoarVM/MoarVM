@@ -135,7 +135,7 @@ typedef struct {
     fields_set fields_set;
 } request_data;
 
-static MVMint32 write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMThread *thread);
+static void write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMThread *thread);
 static MVMint32 request_all_threads_suspend(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument);
 static MVMuint64 allocate_handle(MVMThreadContext *dtc, MVMObject *target);
 
@@ -353,7 +353,7 @@ MVM_PUBLIC void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32
 }
 
 
-#define REQUIRE(field, message) do { if(!(data->fields_set & (field))) { data->parse_fail = 1; data->parse_fail_message = (message); return 0; }; accepted = accepted | (field); } while (0)
+#define REQUIRE(field, message) do { if (!(data->fields_set & (field))) { data->parse_fail = 1; data->parse_fail_message = (message); return 0; }; accepted = accepted | (field); } while (0)
 
 MVMuint8 check_requirements(MVMThreadContext *tc, request_data *data) {
     fields_set accepted = FS_id | FS_type;
@@ -428,6 +428,8 @@ MVMuint8 check_requirements(MVMThreadContext *tc, request_data *data) {
         if (tc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "debugserver: too many fields in message of type %d: accepted 0x%x, got 0x%x\n", data->type, accepted, data->fields_set);
     }
+
+    return 1;
 }
 
 static MVMuint16 big_endian_16(MVMuint16 number) {
@@ -685,6 +687,8 @@ static MVMint32 request_all_threads_suspend(MVMThreadContext *dtc, cmp_ctx_t *ct
         communicate_error(dtc, ctx, argument);
 
     uv_mutex_unlock(&vm->mutex_threads);
+
+    return success;
 }
 
 static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
@@ -776,7 +780,7 @@ static MVMint32 request_all_threads_resume(MVMThreadContext *dtc, cmp_ctx_t *ctx
     return !success;
 }
 
-static MVMint32 write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMThread *thread) {
+static void write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMThread *thread) {
     MVMThreadContext *tc = thread->body.tc;
     MVMuint64 stack_size = 0;
 
@@ -919,7 +923,7 @@ static void send_thread_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data
     uv_mutex_unlock(&vm->mutex_threads);
 }
 
-static MVMuint64 send_is_execution_suspended_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+static void send_is_execution_suspended_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
     MVMInstance *vm = dtc->instance;
     MVMuint8 result = 1;
     MVMThread *cur_thread;
@@ -2195,6 +2199,8 @@ static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ct
             MVM_free(key);
         });
     }
+
+    return 0;
 }
 
 MVMuint8 debugspam_network;
@@ -2546,8 +2552,8 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
     return check_requirements(tc, data);
 }
 
-#define COMMUNICATE_RESULT(operation) do { if((operation)) { communicate_error(tc, &ctx, &argument); } else { communicate_success(tc, &ctx, &argument); } } while (0)
-#define COMMUNICATE_ERROR(operation) do { if((operation)) { communicate_error(tc, &ctx, &argument); } } while (0)
+#define COMMUNICATE_RESULT(operation) do { if ((operation)) { communicate_error(tc, &ctx, &argument); } else { communicate_success(tc, &ctx, &argument); } } while (0)
+#define COMMUNICATE_ERROR(operation) do { if ((operation)) { communicate_error(tc, &ctx, &argument); } } while (0)
 
 static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     int continue_running = 1;
