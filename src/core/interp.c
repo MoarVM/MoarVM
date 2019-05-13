@@ -96,6 +96,8 @@ static MVMuint64 switch_endian(MVMuint64 val, unsigned char size) {
         val = ((val << 16) & 0xFFFF0000FFFF0000ULL ) | ((val >> 16) & 0x0000FFFF0000FFFFULL );
         return (val << 32) | (val >> 32);
     }
+
+    MVM_panic(1, "Invalid size (%u) when attempting to switch endianness of %"PRIu64"\n", size, val);
 }
 
 /* This is the interpreter run loop. We have one of these per thread. */
