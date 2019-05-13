@@ -161,7 +161,7 @@ MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStre
             last_accept_pos = pos += 2;
             total++;
             if (MVM_string_decode_stream_maybe_sep(tc, seps, value) ||
-                    stopper_chars && *stopper_chars == total) {
+                    (stopper_chars && *stopper_chars == total)) {
                 reached_stopper = 1;
                 goto done;
             }
