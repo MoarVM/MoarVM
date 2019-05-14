@@ -1021,6 +1021,62 @@ static void setup_bb_state(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *new
     }
 }
 
+static void add_object_read_transform(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+        MVMSpeshIns *ins, GraphState *gs, MVMSpeshPEAAllocation *alloc) {
+    MVMuint16 opcode = ins->info->opcode;
+    MVMint32 is_object_get = opcode == MVM_OP_sp_get_o ||
+        opcode == MVM_OP_sp_getvc_o ||
+        opcode == MVM_OP_sp_getvt_o ||
+        opcode == MVM_OP_sp_p6oget_o ||
+        opcode == MVM_OP_sp_p6ogetvc_o ||
+        opcode == MVM_OP_sp_p6ogetvt_o;
+    MVMint32 is_p6o_op = opcode != MVM_OP_sp_get_o &&
+        opcode != MVM_OP_sp_get_i64 &&
+        opcode != MVM_OP_sp_get_n &&
+        opcode != MVM_OP_sp_get_s;
+    MVMint32 offset = is_p6o_op
+        ? ins->operands[2].lit_i16
+        : ins->operands[2].lit_i16 - sizeof(MVMObject);
+    MVMuint16 hypothetical_reg = attribute_offset_to_reg(tc, alloc, offset);
+    Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+    tran->allocation = alloc;
+    tran->transform = TRANSFORM_GETATTR_TO_SET;
+    tran->attr.ins = ins;
+    tran->attr.hypothetical_reg_idx = hypothetical_reg;
+    if (is_object_get) {
+        /* We're reading an object out of an object that doesn't
+         * escape. We may have carried some facts about that. */
+        MVMSpeshFacts *src_facts = get_shadow_facts_h(tc, gs,
+                hypothetical_reg);
+        if (src_facts) {
+            /* Copy the facts (need to re-read them, since src_facts is
+             * an interior point that the create call below might
+             * move). */
+            MVMSpeshFacts *tgt_facts = create_shadow_facts_c(tc, gs,
+                ins->operands[0]);
+            src_facts = get_shadow_facts_h(tc, gs, hypothetical_reg);
+            MVM_spesh_copy_facts_resolved(tc, g, tgt_facts, src_facts);
+            tgt_facts->pea.depend_allocation = alloc;
+
+            /* We might be reading an object that itself is perhaps
+             * being scalar replaced. If so, then we note that in the
+             * transform, since it may need to simply delete this
+             * instruction. We also need to track the target register
+             * of the attribute read, since it now aliases a scalar
+             * replaced object. The allocation needs to go on the real
+             * facts, not the shadow ones. */
+            if (allocation_tracked(tc, gs, bb, src_facts->pea.allocation)) {
+                MVMSpeshPEAAllocation *src_alloc = src_facts->pea.allocation;
+                tran->attr.target_allocation = src_alloc;
+                MVM_spesh_get_facts(tc, g, ins->operands[0])->pea.allocation = src_alloc;
+                add_tracked_register(tc, gs, ins->operands[0], src_alloc);
+            }
+        }
+    }
+    add_transform_for_bb(tc, gs, bb, tran);
+    alloc->read = 1;
+}
+
 /* Performs the analysis phase of partial escape anslysis, figuring out what
  * rewrites we can do on the graph to achieve scalar replacement of objects
  * and, perhaps, some guard eliminations. */
@@ -1192,6 +1248,20 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     }
                     break;
                 }
+                case MVM_OP_sp_getvc_o:
+                case MVM_OP_sp_getvt_o:
+                case MVM_OP_sp_p6ogetvc_o:
+                case MVM_OP_sp_p6ogetvt_o: {
+                    /* Vivifying reads. Check if we've written it; if not, we will
+                     * need to turn this read into an initial bind. */
+                    MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+                    MVMSpeshPEAAllocation *alloc = target->pea.allocation;
+                    if (allocation_tracked(tc, gs, bb, alloc)) {
+                        pea_log("Did not yet implement handling of auto-viv");
+                        unhandled_instruction(tc, g, bb, ins, gs);
+                    }
+                    break;
+                }
                 case MVM_OP_sp_get_o:
                 case MVM_OP_sp_get_i64:
                 case MVM_OP_sp_get_n:
@@ -1199,61 +1269,11 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                 case MVM_OP_sp_p6oget_i:
                 case MVM_OP_sp_p6oget_n:
                 case MVM_OP_sp_p6oget_s:
-                case MVM_OP_sp_p6oget_o:
-                case MVM_OP_sp_p6ogetvc_o:
-                case MVM_OP_sp_p6ogetvt_o: {
+                case MVM_OP_sp_p6oget_o: {
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[1]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
-                    MVMint32 is_object_get = opcode == MVM_OP_sp_p6oget_o ||
-                                             opcode == MVM_OP_sp_p6ogetvc_o ||
-                                             opcode == MVM_OP_sp_p6ogetvt_o;
-                    if (allocation_tracked(tc, gs, bb, alloc)) {
-                        MVMint32 is_p6o_op = opcode != MVM_OP_sp_get_o &&
-                            opcode != MVM_OP_sp_get_i64 &&
-                            opcode != MVM_OP_sp_get_n &&
-                            opcode != MVM_OP_sp_get_s;
-                        MVMint32 offset = is_p6o_op
-                            ? ins->operands[2].lit_i16
-                            : ins->operands[2].lit_i16 - sizeof(MVMObject);
-                        MVMuint16 hypothetical_reg = attribute_offset_to_reg(tc, alloc, offset);
-                        Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
-                        tran->allocation = alloc;
-                        tran->transform = TRANSFORM_GETATTR_TO_SET;
-                        tran->attr.ins = ins;
-                        tran->attr.hypothetical_reg_idx = hypothetical_reg;
-                        if (is_object_get) {
-                            /* We're reading an object out of an object that doesn't
-                             * escape. We may have carried some facts about that. */
-                            MVMSpeshFacts *src_facts = get_shadow_facts_h(tc, gs,
-                                    hypothetical_reg);
-                            if (src_facts) {
-                                /* Copy the facts (need to re-read them, since src_facts is
-                                 * an interior point that the create call below might
-                                 * move). */
-                                MVMSpeshFacts *tgt_facts = create_shadow_facts_c(tc, gs,
-                                    ins->operands[0]);
-                                src_facts = get_shadow_facts_h(tc, gs, hypothetical_reg);
-                                MVM_spesh_copy_facts_resolved(tc, g, tgt_facts, src_facts);
-                                tgt_facts->pea.depend_allocation = alloc;
-
-                                /* We might be reading an object that itself is perhaps
-                                 * being scalar replaced. If so, then we note that in the
-                                 * transform, since it may need to simply delete this
-                                 * instruction. We also need to track the target register
-                                 * of the attribute read, since it now aliases a scalar
-                                 * replaced object. The allocation needs to go on the real
-                                 * facts, not the shadow ones. */
-                                if (allocation_tracked(tc, gs, bb, src_facts->pea.allocation)) {
-                                    MVMSpeshPEAAllocation *src_alloc = src_facts->pea.allocation;
-                                    tran->attr.target_allocation = src_alloc;
-                                    MVM_spesh_get_facts(tc, g, ins->operands[0])->pea.allocation = src_alloc;
-                                    add_tracked_register(tc, gs, ins->operands[0], src_alloc);
-                                }
-                            }
-                        }
-                        add_transform_for_bb(tc, gs, bb, tran);
-                        alloc->read = 1;
-                    }
+                    if (allocation_tracked(tc, gs, bb, alloc))
+                        add_object_read_transform(tc, g, bb, ins, gs, alloc);
                     break;
                 }
                 case MVM_OP_sp_add_I:
