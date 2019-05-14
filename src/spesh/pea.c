@@ -681,6 +681,13 @@ static void mark_attribute_written(MVMThreadContext *tc, GraphState *gs, MVMSpes
     get_used_state(tc, gs, bb, alloc)[idx] = 1;
 }
 
+/* Checks if an attribute was written. */
+static MVMint32 was_attribute_written(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *bb,
+        MVMSpeshPEAAllocation *alloc, MVMint16 offset) {
+    MVMuint32 idx = MVM_p6opaque_offset_to_attr_idx(tc, alloc->type, offset);
+    return get_used_state(tc, gs, bb, alloc)[idx];
+}
+
 /* Adds a register to the target list of a materialization (that is, the registers
  * that we should write a materialization into). */
 static void add_materialization_target_c(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -1031,6 +1038,8 @@ static void add_object_read_transform(MVMThreadContext *tc, MVMSpeshGraph *g, MV
         opcode == MVM_OP_sp_p6ogetvc_o ||
         opcode == MVM_OP_sp_p6ogetvt_o;
     MVMint32 is_p6o_op = opcode != MVM_OP_sp_get_o &&
+        opcode != MVM_OP_sp_getvc_o &&
+        opcode != MVM_OP_sp_getvt_o &&
         opcode != MVM_OP_sp_get_i64 &&
         opcode != MVM_OP_sp_get_n &&
         opcode != MVM_OP_sp_get_s;
@@ -1257,8 +1266,19 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[1]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
                     if (allocation_tracked(tc, gs, bb, alloc)) {
-                        pea_log("Did not yet implement handling of auto-viv");
-                        unhandled_instruction(tc, g, bb, ins, gs);
+                        MVMint32 is_p6o_op = MVM_OP_sp_p6ogetvc_o ||
+                            opcode == MVM_OP_sp_p6ogetvt_o;
+                        MVMint32 offset = opcode == is_p6o_op
+                            ? ins->operands[2].lit_i16
+                            : ins->operands[2].lit_i16 - sizeof(MVMObject);
+                        if (was_attribute_written(tc, gs, bb, alloc, offset)) {
+                            /* Already written, so just a normal access. */
+                            add_object_read_transform(tc, g, bb, ins, gs, alloc);
+                        }
+                        else {
+                            pea_log("Did not yet implement handling of auto-viv");
+                            unhandled_instruction(tc, g, bb, ins, gs);
+                        }
                     }
                     break;
                 }
