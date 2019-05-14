@@ -321,7 +321,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
         else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
             res_reg->s = MVM_coerce_n_s(tc, REPR(obj)->box_funcs.get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
         else
-            MVM_exception_throw_adhoc(tc, "cannot stringify this");
+            MVM_exception_throw_adhoc(tc, "Cannot stringify this type (%s)", MVM_6model_get_stable_debug_name(tc, STABLE(obj)));
     }
 }
 
@@ -376,7 +376,7 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
             res_reg->n64 = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else
-            MVM_exception_throw_adhoc(tc, "cannot numify this");
+            MVM_exception_throw_adhoc(tc, "Cannot numify this type (%s)", MVM_6model_get_stable_debug_name(tc, STABLE(obj)));
     }
 }
 
@@ -423,7 +423,7 @@ void MVM_coerce_smart_intify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
             res_reg->i64 = REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else
-            MVM_exception_throw_adhoc(tc, "cannot intify this");
+            MVM_exception_throw_adhoc(tc, "Cannot intify this type (%s)", MVM_6model_get_stable_debug_name(tc, STABLE(obj)));
     }
 }
 
@@ -447,7 +447,7 @@ MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
             return REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else
-            MVM_exception_throw_adhoc(tc, "cannot intify this");
+            MVM_exception_throw_adhoc(tc, "Cannot intify this type (%s)", MVM_6model_get_stable_debug_name(tc, STABLE(obj)));
     }
 }
 
