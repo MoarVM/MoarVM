@@ -6529,8 +6529,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-            OP(sp_takewrite_bi):
-                MVM_panic(1, "NYI sp_takewrite_bi");
+            OP(sp_takewrite_bi): {
+                MVMObject *o = GET_REG(cur_op, 0).o;
+                *((MVMP6bigintBody *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).obi;
+                /* Mark it as a smallint to make sure we won't treat it as a bigint
+                 * that needs clearing up. */
+                GET_REG(cur_op, 4).obi.u.smallint.flag = MVM_BIGINT_32_FLAG;
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_bool_I): {
                 MVMuint16 offset = GET_UI16(cur_op, 4);
                 MVMP6bigintBody *b = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 2).o + offset);

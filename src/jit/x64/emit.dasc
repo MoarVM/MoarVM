@@ -2625,6 +2625,16 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], RV
         break;
     }
+    case MVM_OP_sp_takewrite_bi: {
+        MVMint16 obj    = ins->operands[0].reg.orig;
+        MVMint16 offset = ins->operands[1].lit_i16;
+        MVMint16 val    = ins->operands[2].reg.orig;
+        | mov TMP1, WORK[obj];            // object
+        | mov TMP2, WORK[val];            // value
+        | mov qword [TMP1+offset], TMP2; // store value into body
+        | mov dword [WORK + 8 * val], MVM_BIGINT_32_FLAG
+        break;
+    }
     default:
         MVM_panic(1, "Can't JIT opcode <%s>", ins->info->name);
     }
