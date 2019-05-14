@@ -212,6 +212,7 @@ sub MAIN($file = "src/core/oplist") {
     $hf.say("#define MVM_OP_EXT_CU_LIMIT $EXT_CU_LIMIT");
     $hf.say('');
     $hf.say('MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op);');
+    $hf.say('MVM_PUBLIC const MVMuint8 MVM_op_is_allowed_in_confprog(unsigned short op);');
     $hf.say('MVM_PUBLIC const char * MVM_op_get_mark(unsigned short op);');
     $hf.close;
 
@@ -230,7 +231,7 @@ sub MAIN($file = "src/core/oplist") {
         MVM_PUBLIC const MVMuint8 MVM_op_is_allowed_in_confprog(unsigned short op) \{
             if (op > last_op_allowed)
                 return 0;
-            return MVM_op_allowed_in_confprog[op];
+            return !!(MVM_op_allowed_in_confprog[op / 8] & (1 << (op % 8)));
         }
 
         MVM_PUBLIC const char *MVM_op_get_mark(unsigned short op) \{

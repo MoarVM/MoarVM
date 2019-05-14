@@ -1,5 +1,3 @@
-use Grammar::Tracer;
-
 use Data::Dump::Tree;
 
 #my $testprog = q:to/CONFPROG/;
@@ -16,9 +14,9 @@ use Data::Dump::Tree;
 my $testprog = q:to/CONFPROG/;
     version = 1
     entry profiler_static:
-    log = ~(sf.name eq "florble");
-    entry jit:
-    log = "hello"
+    log = "this is the name of the frame we're running from";
+    log = sf.name;
+    log = "thank you for your attention";
     CONFPROG
 
 die "only support version 1" unless $testprog.lines.head ~~ m/^version \s+ "=" \s+ 1 \s* ";"? $/;
@@ -479,7 +477,7 @@ multi sub unify_type(Op $node) {
 
             if $lhs.scope eq "my" {
                 with %*LEXPAD{$lhs.name} {
-                    ddt $rhs;
+                    #ddt $rhs;
                     die "cannot assign $rhs.type.name() to variable $lhs.name(), it was already typed to accept only $_.type.name()" unless $rhs.type eqv .type;
                 }
                 else {
@@ -533,6 +531,7 @@ my %*LEXPAD;
 for $parseresult.ast {
     unify_type($_);
 }
+say "==========";
 ddt $parseresult.ast;
 say "";
 say "lexpad";
@@ -728,10 +727,11 @@ multi sub compile_node(Op $op, :$target) {
             note "const_s in here for STRUCT_SELECT for $value.type.name()";
             %op-gen<const_s>(STRUCT_SELECT, $value.type.name);
 
-            %op-gen<getattr_o>($targetreg, $targetreg, STRUCT_SELECT, $attribute, 0);
+            note "getattr assigning from $targetreg to $targetreg";
+            %op-gen<getattr_o>($target, $targetreg, STRUCT_SELECT, $attribute, 0);
 
             if $targetreg != STRUCT_ACCUMULATOR {
-                $*REGALLOC.free($targetreg)
+                $*REGALLOC.release($targetreg)
             }
         }
         when "eq_s" | "ne_s" {
@@ -744,7 +744,7 @@ multi sub compile_node(Op $op, :$target) {
             my $rightreg = $*REGALLOC.fresh(RegString);
             compile_node($rhs, target => $rightreg);
 
-            note "putting a $op.op() in here";
+            note "putting a $op.op() in here between $leftreg and $rightreg";
             %op-gen{$op.op()}($target, $leftreg, $rightreg);
 
             $*REGALLOC.release($leftreg);
@@ -777,9 +777,16 @@ for $parseresult.ast {
 
 say $*MAST_FRAME.bytecode.list.rotor(2).map(*.reverse.fmt("%02x", "").join() ~ " ");
 say $*MAST_FRAME.bytecode.list.rotor(2).map({ :16(.reverse.fmt("%02x", "").join()).fmt("%4d") ~ " " });
+
+dd $*MAST_FRAME.bytecode;
+
 say $*MAST_FRAME.entrypoints;
 
 my int @entrypoints;
 
-use nqp;
-nqp::installconfprog($*MAST_FRAME.bytecode, $*MAST_FRAME.strings, @entrypoints);
+sub run-the-program() {
+    use nqp;
+    nqp::installconfprog($*MAST_FRAME.bytecode, $*MAST_FRAME.strings, @entrypoints);
+}
+
+run-the-program();

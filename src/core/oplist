@@ -56,7 +56,7 @@
 #   specialization (a frame that has no such ops will only ever get a certain
 #   specialization)
 
-no_op
+no_op               :confprog
 const_i8            w(int8) int8 :pure
 const_i16           w(int16) int16 :pure
 const_i32           w(int32) int32 :pure
@@ -181,8 +181,8 @@ coerce_is           w(str) r(int64) :pure
 coerce_ns           w(str) r(num64) :pure
 coerce_si           w(int64) r(str) :pure
 coerce_sn           w(num64) r(str) :pure
-smrt_numify         w(num64) r(obj) :pure :invokish :maycausedeopt :specializable
-smrt_strify         w(str) r(obj) :pure :invokish :maycausedeopt :specializable
+smrt_numify         w(num64) r(obj) :pure :invokish :maycausedeopt :specializable :confprog
+smrt_strify         w(str) r(obj) :pure :invokish :maycausedeopt :specializable :confprog
 prepargs         +a callsite :predeoptonepoint
 arg_i            *a int16 r(int64)
 arg_n            *a int16 r(num64)
@@ -335,7 +335,7 @@ bindattrs_o         r(obj) r(obj) r(str) r(obj) :specializable
 getattr_i           w(int64) r(obj) r(obj) str int16 :specializable
 getattr_n           w(num64) r(obj) r(obj) str int16 :specializable
 getattr_s           w(str) r(obj) r(obj) str int16 :specializable
-getattr_o           w(obj) r(obj) r(obj) str int16 :deoptonepoint :logged :specializable
+getattr_o           w(obj) r(obj) r(obj) str int16 :deoptonepoint :logged :specializable :confprog
 getattrs_i          w(int64) r(obj) r(obj) r(str) :specializable
 getattrs_n          w(num64) r(obj) r(obj) r(str) :specializable
 getattrs_s          w(str) r(obj) r(obj) r(str) :specializable
@@ -655,8 +655,8 @@ asyncreadbytes      w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
 getlexstatic_o      w(obj) r(str) :pure :noinline :logged :specializable
 getlexperinvtype_o  w(obj) r(str) :pure :noinline :logged :specializable
 execname            w(str)
-const_i64_16        w(int64) int16 :pure
-const_i64_32        w(int64) int32 :pure
+const_i64_16        w(int64) int16 :pure :confprog
+const_i64_32        w(int64) int32 :pure :confprog
 isnonnull           w(int64) r(obj) :pure :specializable
 param_rn2_i         w(int64) str str :noinline
 param_rn2_n         w(num64) str str :noinline
@@ -879,7 +879,7 @@ serializetobuf      w(obj) r(obj) r(obj) r(obj)
 readint             w(int64) r(obj) r(uint64) r(uint64)
 readuint            w(uint64) r(obj) r(uint64) r(uint64)
 readnum             w(num64) r(obj) r(uint64) r(uint64)
-smrt_intify         w(int64) r(obj) :pure :invokish :maycausedeopt
+smrt_intify         w(int64) r(obj) :pure :invokish :maycausedeopt :confprog
 uname               w(obj) :pure
 freemem             w(int64) :pure
 totalmem            w(int64) :pure
