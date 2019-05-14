@@ -92,6 +92,7 @@ typedef struct {
         struct {
             MVMSpeshIns *prior_to;
             MaterializationTarget *targets;
+            MVMuint8 *used;
         } materialize;
     };
 } Transformation;
@@ -101,6 +102,10 @@ typedef struct {
     /* Has this object been materialized (that is, allocated)? Used to handle
      * partial escapes. */
     MVMuint8 materialized;
+
+    /* Which of the object's attributes have been used? Used for tracing
+     * auto-viv. */
+    MVMuint8 *used;
 } BBAllocationState;
 typedef struct {
     /* The allocation state of tracked objects; during analysis of the
@@ -265,7 +270,8 @@ static MVMSpeshOperand resolve_materialization_target(MVMThreadContext *tc, MVMS
 /* Emit the materialization of an object into the specified register. */
 static void emit_materialization(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                  MVMSpeshIns *prior_to, MVMSpeshOperand target,
-                                 GraphState *gs, MVMSpeshPEAAllocation *alloc) {
+                                 GraphState *gs, MVMSpeshPEAAllocation *alloc,
+                                 MVMuint8 *used) {
     /* Lookup type information. */
     MVMSTable *st = STABLE(alloc->type);
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
@@ -282,41 +288,43 @@ static void emit_materialization(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     MVM_spesh_manipulate_insert_ins(tc, bb, prior_to->prev, fastcreate);
     MVM_spesh_graph_add_comment(tc, g, fastcreate, "Materialization of scalar-replaced attribute");
 
-    /* Bind each of the attributes into place. */
+    /* Bind each of the attributes into place, provided it was written already. */
     for (i = 0; i < num_attrs; i++) {
-        /* Allocate instruction and determine type of bind instruction we will
-         * need. */
-        MVMSpeshIns *bind = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-        bind->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-        switch (flattened_type_to_register_kind(tc, repr_data->flattened_stables[i])) {
-            case MVM_reg_obj:
-                bind->info = MVM_op_get_op(MVM_OP_sp_bind_o);
-                break;
-            case MVM_reg_str:
-                bind->info = MVM_op_get_op(MVM_OP_sp_bind_s_nowb);
-                break;
-            case MVM_reg_int64:
-                bind->info = MVM_op_get_op(MVM_OP_sp_bind_i64);
-                break;
-            case MVM_reg_num64:
-                bind->info = MVM_op_get_op(MVM_OP_sp_bind_n);
-                break;
-            case MVM_reg_obi:
-                bind->info = MVM_op_get_op(MVM_OP_sp_takewrite_bi);
-                break;
-            default:
-                MVM_oops(tc, "Unimplemented attribute kind in materialization");
+        if (used[i]) {
+            /* Allocate instruction and determine type of bind instruction we will
+             * need. */
+            MVMSpeshIns *bind = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+            bind->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            switch (flattened_type_to_register_kind(tc, repr_data->flattened_stables[i])) {
+                case MVM_reg_obj:
+                    bind->info = MVM_op_get_op(MVM_OP_sp_bind_o);
+                    break;
+                case MVM_reg_str:
+                    bind->info = MVM_op_get_op(MVM_OP_sp_bind_s_nowb);
+                    break;
+                case MVM_reg_int64:
+                    bind->info = MVM_op_get_op(MVM_OP_sp_bind_i64);
+                    break;
+                case MVM_reg_num64:
+                    bind->info = MVM_op_get_op(MVM_OP_sp_bind_n);
+                    break;
+                case MVM_reg_obi:
+                    bind->info = MVM_op_get_op(MVM_OP_sp_takewrite_bi);
+                    break;
+                default:
+                    MVM_oops(tc, "Unimplemented attribute kind in materialization");
+            }
+
+            /* Set offset, target, and source registers. */
+            bind->operands[0] = target;
+            bind->operands[1].lit_i16 = sizeof(MVMObject) + repr_data->attribute_offsets[i];
+            bind->operands[2].reg.orig = gs->attr_regs[alloc->hypothetical_attr_reg_idxs[i]];
+            bind->operands[2].reg.i = MVM_spesh_manipulate_get_current_version(tc, g,
+                    bind->operands[2].reg.orig);
+
+            /* Insert the bind instruction. */
+            MVM_spesh_manipulate_insert_ins(tc, bb, prior_to->prev, bind);
         }
-
-        /* Set offset, target, and source registers. */
-        bind->operands[0] = target;
-        bind->operands[1].lit_i16 = sizeof(MVMObject) + repr_data->attribute_offsets[i];
-        bind->operands[2].reg.orig = gs->attr_regs[alloc->hypothetical_attr_reg_idxs[i]];
-        bind->operands[2].reg.i = MVM_spesh_manipulate_get_current_version(tc, g,
-                bind->operands[2].reg.orig);
-
-        /* Insert the bind instruction. */
-        MVM_spesh_manipulate_insert_ins(tc, bb, prior_to->prev, bind);
     }
 }
 
@@ -495,9 +503,10 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             if (initial_target) {
                 MaterializationTarget *alias_target = initial_target->next;
                 MVMSpeshIns *prior_to = t->materialize.prior_to;
+                MVMuint8 *used = t->materialize.used;
                 emit_materialization(tc, g, bb, prior_to,
                         resolve_materialization_target(tc, g, gs, initial_target),
-                        gs, t->allocation);
+                        gs, t->allocation, used);
                 while (alias_target) {
                     MVM_oops(tc, "Didn't implement materailization aliasing yet");
                     alias_target = alias_target->next;
@@ -647,6 +656,31 @@ static MVMuint32 allocation_tracked(MVMThreadContext *tc, GraphState *gs, MVMSpe
     return 0;
 }
 
+/* Gets the number of attributes in a tracked allocation. */
+static MVMint32 get_num_attributes(MVMThreadContext *tc, MVMSpeshPEAAllocation *alloc) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)alloc->type->st->REPR_data;
+    return repr_data->num_attributes;
+}
+
+/* Gets or allocates the used state for a tracked allocation in the current BB. */
+static MVMuint8 * get_used_state(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *bb,
+        MVMSpeshPEAAllocation *alloc) {
+    BBState *bb_state = &(gs->bb_states[bb->idx]);
+    BBAllocationState *a_state;
+    MVM_VECTOR_ENSURE_SIZE(bb_state->alloc_state, alloc->index + 1);
+    a_state = &(bb_state->alloc_state[alloc->index]);
+    if (!a_state->used)
+        a_state->used = MVM_calloc(1, get_num_attributes(tc, alloc));
+    return a_state->used;
+}
+
+/* Marks an attribute in a tracked object as having been written. */
+static void mark_attribute_written(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *bb,
+        MVMSpeshPEAAllocation *alloc, MVMint16 offset) {
+    MVMuint32 idx = MVM_p6opaque_offset_to_attr_idx(tc, alloc->type, offset);
+    get_used_state(tc, gs, bb, alloc)[idx] = 1;
+}
+
 /* Adds a register to the target list of a materialization (that is, the registers
  * that we should write a materialization into). */
 static void add_materialization_target_c(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -728,6 +762,7 @@ static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
                 tran->allocation = alloc;
                 tran->transform = TRANSFORM_MATERIALIZE;
                 tran->materialize.prior_to = ins;
+                tran->materialize.used = get_used_state(tc, gs, bb, alloc);
                 add_transform_for_bb(tc, gs, bb, tran);
 
                 /* Add the consuming register as a materialization target. */
@@ -808,6 +843,7 @@ static int decompose_and_track_bigint_bi(MVMThreadContext *tc, MVMSpeshGraph *g,
         tran->decomp_bi_bi.replace_op = replace_op;
         add_transform_for_bb(tc, gs, bb, tran);
         MVM_spesh_get_facts(tc, g, ins->operands[0])->pea.allocation = alloc;
+        mark_attribute_written(tc, gs, bb, alloc, ins->operands[5].lit_ui16 - sizeof(MVMObject));
         pea_log("started tracking a big integer allocation");
         return 1;
     }
@@ -924,22 +960,54 @@ static void add_deopt_materializations_ins(MVMThreadContext *tc, MVMSpeshGraph *
 static void setup_bb_state(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *new_bb) {
     BBState *new_bb_state = &(gs->bb_states[new_bb->idx]);
     MVMint32 num_allocs = MVM_VECTOR_ELEMS(gs->tracked_allocations);
-    MVMint32 i, j;
+    MVMint32 i, j, k;
     MVM_VECTOR_INIT(new_bb_state->alloc_state, num_allocs);
     for (i = 0; i < num_allocs; i++) {
         /* Go through the predecessors and see if any of them have materialized
-         * the object. */
+         * the object, as well as counting up how many preds have written to the
+         * attribute. */
         MVMint32 num_materialized = 0;
+        MVMuint32 num_attrs = get_num_attributes(tc, gs->tracked_allocations[i]);
+        MVMuint8 *new_used = MVM_calloc(1, num_attrs);
+        MVMint32 consistent = 1;
         for (j = 0; j < new_bb->num_pred; j++) {
             MVMSpeshBB *pred_bb = new_bb->pred[j];
             BBState *pred_bb_state = &(gs->bb_states[pred_bb->idx]);
-            if (i < MVM_VECTOR_SIZE(pred_bb_state->alloc_state))
-                if (pred_bb_state->alloc_state[i].materialized)
+            if (i < MVM_VECTOR_ALLOCATED(pred_bb_state->alloc_state)) {
+                MVMuint8 *pred_used = pred_bb_state->alloc_state[i].used;
+                if (pred_used)
+                    for (k = 0; k < num_attrs; k++)
+                        new_used[k] += pred_used[k];
+                if (pred_bb_state->alloc_state[i].materialized) {
                     num_materialized++;
+                }
+            }
         }
+
+        /* Look for discrepancies in writes, bail out if they are inconsistent,
+         * and normalize the values to 1 if written. */
+        for (j = 0; j < num_attrs; j++) {
+            if (new_used[j]) {
+                if (new_used[j] == new_bb->num_pred) {
+                    /* Consistently written by all. */
+                    new_used[j] = 1;
+                }
+                else {
+                    /* Inconsistently written. */
+                    pea_log("Inconsistently written attribute in %s; too complex to handle",
+                            gs->tracked_allocations[i]->type->st->debug_name);
+                    mark_irreplaceable(tc, gs->tracked_allocations[i]);
+                    consistent = 0;
+                    break;
+                }
+            }
+        }
+        if (!consistent)
+            continue;
 
         /* Set materialization state in new BB state. */
         new_bb_state->alloc_state[i].materialized = num_materialized > 0 ? 1 : 0;
+        new_bb_state->alloc_state[i].used = new_used;
 
         /* If we have any materialized, and it's not equal to the number of
          * preds, then the object has only been materialized on some paths to
@@ -1080,10 +1148,10 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                             opcode == MVM_OP_sp_p6obind_n ||
                             opcode == MVM_OP_sp_p6obind_s ||
                             opcode == MVM_OP_sp_p6obind_o;
-                        MVMuint16 hypothetical_reg = attribute_offset_to_reg(tc, alloc,
-                                is_p6o_op
-                                    ? ins->operands[1].lit_i16
-                                    : ins->operands[1].lit_i16 - sizeof(MVMObject));
+                        MVMint32 offset = is_p6o_op
+                            ? ins->operands[1].lit_i16
+                            : ins->operands[1].lit_i16 - sizeof(MVMObject);
+                        MVMuint16 hypothetical_reg = attribute_offset_to_reg(tc, alloc, offset);
                         Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
                         tran->allocation = alloc;
                         tran->transform = TRANSFORM_BINDATTR_TO_SET;
@@ -1114,6 +1182,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                             }
                         }
                         add_transform_for_bb(tc, gs, bb, tran);
+                        mark_attribute_written(tc, gs, bb, alloc, offset);
                     }
                     else {
                         /* The target of the bind escapes; if this is an object
@@ -1143,10 +1212,10 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                             opcode != MVM_OP_sp_get_i64 &&
                             opcode != MVM_OP_sp_get_n &&
                             opcode != MVM_OP_sp_get_s;
-                        MVMuint16 hypothetical_reg = attribute_offset_to_reg(tc, alloc,
-                                is_p6o_op
-                                    ? ins->operands[2].lit_i16
-                                    : ins->operands[2].lit_i16 - sizeof(MVMObject));
+                        MVMint32 offset = is_p6o_op
+                            ? ins->operands[2].lit_i16
+                            : ins->operands[2].lit_i16 - sizeof(MVMObject);
+                        MVMuint16 hypothetical_reg = attribute_offset_to_reg(tc, alloc, offset);
                         Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
                         tran->allocation = alloc;
                         tran->transform = TRANSFORM_GETATTR_TO_SET;
@@ -1297,6 +1366,9 @@ void MVM_spesh_pea(MVMThreadContext *tc, MVMSpeshGraph *g) {
     }
 
     for (i = 0; i < g->num_bbs; i++) {
+        MVMint32 j;
+        for (j = 0; j < MVM_VECTOR_ELEMS(gs.bb_states[i].alloc_state); j++)
+            MVM_free(gs.bb_states[i].alloc_state[j].used);
         MVM_VECTOR_DESTROY(gs.bb_states[i].alloc_state);
         MVM_VECTOR_DESTROY(gs.bb_states[i].transformations);
     }

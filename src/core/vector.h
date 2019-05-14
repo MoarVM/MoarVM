@@ -31,6 +31,9 @@
 #define MVM_VECTOR_ELEMS(x) \
     (x ## _num)
 
+#define MVM_VECTOR_ALLOCATED(x) \
+    (x ## _alloc)
+
 #define MVM_VECTOR_GROW(x, size) do {\
         size_t _s = (size); \
         x = MVM_realloc(x, _s*sizeof(*x));   \
