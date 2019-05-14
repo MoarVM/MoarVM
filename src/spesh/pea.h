@@ -23,6 +23,9 @@ struct MVMSpeshPEAAllocation {
     /* Has this object ever been read from? */
     MVMuint8 read;
 
+    /* Is this boxing a big integer? */
+    MVMuint8 bigint;
+
     /* Have we seen something that invalidates our ability to scalar replace
      * this at all? */
     MVMuint8 irreplaceable;

@@ -538,12 +538,18 @@ static MVMSpeshPEAAllocation * try_track_allocation(MVMThreadContext *tc, MVMSpe
                 repr_data->num_attributes * sizeof(MVMuint16));
         for (i = 0; i < repr_data->num_attributes; i++) {
             /* Make sure it's an attribute type we know how to handle. */
-            if (flattened_type_to_register_kind(tc, repr_data->flattened_stables[i]) < 0)
+            MVMint32 kind = flattened_type_to_register_kind(tc, repr_data->flattened_stables[i]);
+            if (kind < 0)
                 return NULL;
 
             /* Pick an index that will later come to refer to an allocated
              * register if we apply transforms. */
             alloc->hypothetical_attr_reg_idxs[i] = gs->latest_hypothetical_reg_idx++;
+
+            /* Note if it's a big integer boxing; we use this as part of the
+             * heuristics for if we're doing a worthwhile rewrite. */
+            if (kind == MVM_reg_obi)
+                alloc->bigint = 1;
         }
 
         /* If we get here, we're going to track this allocation and try to do
@@ -690,12 +696,18 @@ static MVMint32 in_branch(MVMThreadContext *tc, GraphState *gs, MVMSpeshGraph *g
     return 1; /* Not found; complex enough topology, so suppose branch. */
 }
 static MVMint32 worth_materializing(MVMThreadContext *tc, GraphState *gs, MVMSpeshGraph *g,
-        MVMSpeshBB *bb, MVMSpeshPEAAllocation *alloc) {
+        MVMSpeshBB *bb, MVMSpeshIns *ins, MVMSpeshPEAAllocation *alloc) {
     /* It's worth materializing this if either:
      * 1. We read from the object (in which case we can have reduced costs
      *    in guards or indirections between the allocation and here)
-     * 2. We are materializing it in a branch. */
-    return alloc->read || in_branch(tc, gs, g, alloc->allocator_bb, bb);
+     * 2. It is boxing a big integer, in which case the devirtualization of
+     *    the big integer operation makes it worthwhile; we don't do this
+     *    if the value escapes through a return_o, though, since that means
+     *    we're likely in a simple operation.
+     * 3. We are materializing it in a branch. */
+    return alloc->read ||
+        alloc->bigint && ins->info->opcode != MVM_OP_return_o ||
+        in_branch(tc, gs, g, alloc->allocator_bb, bb);
 }
 static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                  MVMSpeshIns *ins, MVMSpeshOperand o, GraphState *gs,
@@ -704,7 +716,7 @@ static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, o);
     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
     if (alloc && !alloc->irreplaceable) {
-        int worthwhile = can_materialize ? worth_materializing(tc, gs, g, bb, alloc) : 0;
+        int worthwhile = can_materialize ? worth_materializing(tc, gs, g, bb, ins, alloc) : 0;
         if (can_materialize && worthwhile) {
             /* Check we didn't already materialize it. */
             BBState *bb_state = &(gs->bb_states[bb->idx]);
