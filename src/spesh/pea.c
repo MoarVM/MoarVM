@@ -37,6 +37,8 @@ typedef struct MaterializationTarget MaterializationTarget;
 #define TRANSFORM_DECOMPOSE_BIGINT_BI   8
 #define TRANSFORM_UNBOX_BIGINT          9
 #define TRANSFORM_MATERIALIZE           10
+#define TRANSFORM_VIVIFY_TYPE           11
+#define TRANSFORM_VIVIFY_CONCRETE       12
 typedef struct {
     /* The allocation that this transform relates to eliminating. */
     MVMSpeshPEAAllocation *allocation;
@@ -56,6 +58,14 @@ typedef struct {
             /* The hypothetical register index to read or write. */
             MVMuint16 hypothetical_reg_idx;
         } attr;
+        struct {
+            /* The attribute instruction. */
+            MVMSpeshIns *ins;
+            /* The hypothetical register index to write. */
+            MVMuint16 hypothetical_reg_idx;
+            /* The sslot containing the type being vivified. */
+            MVMuint16 type_sslot;
+        } viv;
         struct {
             MVMSpeshIns *ins;
             MVMSTable *st;
@@ -516,6 +526,39 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
                 pea_log("OPT: prevented pointless materialization of %s",
                         t->allocation->type->st->debug_name);
             }
+            break;
+        }
+        case TRANSFORM_VIVIFY_TYPE:
+        case TRANSFORM_VIVIFY_CONCRETE: {
+            /* Prepend a lookup of the type object. */
+            MVMuint16 attr_reg = gs->attr_regs[t->attr.hypothetical_reg_idx];
+            MVMSpeshIns *type_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+            type_ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+            type_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+            type_ins->operands[0] = MVM_spesh_manipulate_new_version(tc, g, attr_reg);
+            type_ins->operands[1].lit_i16 = t->viv.type_sslot;
+            MVM_spesh_get_facts(tc, g, type_ins->operands[0])->writer = type_ins;
+            MVM_spesh_manipulate_insert_ins(tc, bb, t->viv.ins->prev, type_ins);
+
+            /* If it's a concrete vivification, insert the clone. */
+            if (t->transform == TRANSFORM_VIVIFY_CONCRETE) {
+                MVMSpeshIns *clone_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                clone_ins->info = MVM_op_get_op(MVM_OP_clone);
+                clone_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+                clone_ins->operands[0] = MVM_spesh_manipulate_new_version(tc, g, attr_reg);
+                clone_ins->operands[1] = type_ins->operands[0];
+                MVM_spesh_get_facts(tc, g, clone_ins->operands[0])->writer = clone_ins;
+                MVM_spesh_usages_add_by_reg(tc, g, clone_ins->operands[1], clone_ins);
+                MVM_spesh_manipulate_insert_ins(tc, bb, t->viv.ins->prev, clone_ins);
+            }
+
+            /* Transform the read into a set. */
+            MVM_spesh_usages_delete_by_reg(tc, g, t->viv.ins->operands[1], t->viv.ins);
+            t->viv.ins->info = MVM_op_get_op(MVM_OP_set);
+            t->viv.ins->operands[1].reg.orig = attr_reg;
+            t->viv.ins->operands[1].reg.i = MVM_spesh_manipulate_get_current_version(tc, g, attr_reg);
+            MVM_spesh_usages_add_by_reg(tc, g, t->viv.ins->operands[1], t->viv.ins);
+            MVM_spesh_graph_add_comment(tc, g, t->viv.ins, "auto-viv of scalar-replaced attribute");
             break;
         }
         default:
@@ -1028,6 +1071,8 @@ static void setup_bb_state(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *new
     }
 }
 
+/* Add a transform that turns an object read into an a register reader
+ * (or, if that object is also tracked, potentially into nothing). */
 static void add_object_read_transform(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         MVMSpeshIns *ins, GraphState *gs, MVMSpeshPEAAllocation *alloc) {
     MVMuint16 opcode = ins->info->opcode;
@@ -1083,6 +1128,30 @@ static void add_object_read_transform(MVMThreadContext *tc, MVMSpeshGraph *g, MV
         }
     }
     add_transform_for_bb(tc, gs, bb, tran);
+    alloc->read = 1;
+}
+
+/* Add a transform that turns an object initial access into a write of the
+ * initial value. */
+static void add_object_autoviv_transform(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns *ins, GraphState *gs, MVMSpeshPEAAllocation *alloc,
+        MVMint32 offset) {
+    /* Work out various properties of the vivification. */
+    MVMuint16 opcode = ins->info->opcode;
+    MVMint32 is_concrete_viv = opcode == MVM_OP_sp_getvc_o || opcode == MVM_OP_sp_p6ogetvc_o;
+    MVMuint16 hypothetical_reg = attribute_offset_to_reg(tc, alloc, offset);
+
+    /* Work out the auto-viv type and build the appropriate transform. */
+    Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+    tran->allocation = alloc;
+    tran->transform = is_concrete_viv ? TRANSFORM_VIVIFY_CONCRETE : TRANSFORM_VIVIFY_TYPE;
+    tran->viv.ins = ins;
+    tran->viv.hypothetical_reg_idx = hypothetical_reg;
+    tran->viv.type_sslot = ins->operands[3].lit_i16;
+    add_transform_for_bb(tc, gs, bb, tran);
+
+    /* Mark attribute written, and mark object read. */
+    mark_attribute_written(tc, gs, bb, alloc, offset);
     alloc->read = 1;
 }
 
@@ -1271,14 +1340,12 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                         MVMint32 offset = opcode == is_p6o_op
                             ? ins->operands[2].lit_i16
                             : ins->operands[2].lit_i16 - sizeof(MVMObject);
-                        if (was_attribute_written(tc, gs, bb, alloc, offset)) {
+                        if (was_attribute_written(tc, gs, bb, alloc, offset))
                             /* Already written, so just a normal access. */
                             add_object_read_transform(tc, g, bb, ins, gs, alloc);
-                        }
-                        else {
-                            pea_log("Did not yet implement handling of auto-viv");
-                            unhandled_instruction(tc, g, bb, ins, gs);
-                        }
+                        else
+                            /* First read, so we need to initialize the attribute. */
+                            add_object_autoviv_transform(tc, g, bb, ins, gs, alloc, offset);
                     }
                     break;
                 }
