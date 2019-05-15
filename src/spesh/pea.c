@@ -295,6 +295,7 @@ static void emit_materialization(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     fastcreate->operands[0] = target;
     fastcreate->operands[1].lit_i16 = st->size;
     fastcreate->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+    MVM_spesh_get_facts(tc, g, fastcreate->operands[0])->writer = fastcreate;
     MVM_spesh_manipulate_insert_ins(tc, bb, prior_to->prev, fastcreate);
     MVM_spesh_graph_add_comment(tc, g, fastcreate, "Materialization of scalar-replaced attribute");
 
@@ -331,6 +332,8 @@ static void emit_materialization(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
             bind->operands[2].reg.orig = gs->attr_regs[alloc->hypothetical_attr_reg_idxs[i]];
             bind->operands[2].reg.i = MVM_spesh_manipulate_get_current_version(tc, g,
                     bind->operands[2].reg.orig);
+            MVM_spesh_usages_add_by_reg(tc, g, bind->operands[0], bind);
+            MVM_spesh_usages_add_by_reg(tc, g, bind->operands[2], bind);
 
             /* Insert the bind instruction. */
             MVM_spesh_manipulate_insert_ins(tc, bb, prior_to->prev, bind);
@@ -459,6 +462,8 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
                         gs->attr_regs[hyp_reg_idx]);
                 get_ins->operands[1] = ins->operands[3];
                 get_ins->operands[2].lit_ui16 = t->decomp_bi_bi.obtain_offset_a;
+                MVM_spesh_get_facts(tc, g, get_ins->operands[0])->writer = get_ins;
+                MVM_spesh_usages_add_by_reg(tc, g, get_ins->operands[1], get_ins);
                 MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, get_ins);
             }
             else {
@@ -475,6 +480,8 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
                         gs->attr_regs[hyp_reg_idx]);
                 get_ins->operands[1] = ins->operands[4];
                 get_ins->operands[2].lit_ui16 = t->decomp_bi_bi.obtain_offset_b;
+                MVM_spesh_get_facts(tc, g, get_ins->operands[0])->writer = get_ins;
+                MVM_spesh_usages_add_by_reg(tc, g, get_ins->operands[1], get_ins);
                 MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, get_ins);
             }
             else {
@@ -486,11 +493,16 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             allocate_concrete_registers(tc, g, gs, t->allocation);
 
             /* Now, transform the instruction itself. */
+            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[3], ins);
+            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[4], ins);
             ins->info = MVM_op_get_op(t->decomp_bi_bi.replace_op);
             ins->operands[0] = MVM_spesh_manipulate_new_version(tc, g,
                     gs->attr_regs[find_bigint_register(tc, t->allocation)]);
             ins->operands[1] = a;
             ins->operands[2] = b;
+            MVM_spesh_get_facts(tc, g, ins->operands[0])->writer = ins;
+            MVM_spesh_usages_add_by_reg(tc, g, ins->operands[1], ins);
+            MVM_spesh_usages_add_by_reg(tc, g, ins->operands[2], ins);
             MVM_spesh_graph_add_comment(tc, g, ins, "big integer op unboxed by scalar replacement");
             pea_log("OPT: big integer op result unboxed");
             break;
