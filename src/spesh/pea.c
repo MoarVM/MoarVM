@@ -277,6 +277,27 @@ static MVMSpeshOperand resolve_materialization_target(MVMThreadContext *tc, MVMS
     }
 }
 
+/* We should not stick a materialization in an args sequence; insert it
+ * prior to that. */
+MVMSpeshIns * find_materialization_insertion_point(MVMThreadContext *tc, MVMSpeshIns *ins) {
+    while (ins) {
+        switch (ins->info->opcode) {
+            case MVM_OP_arg_i:
+            case MVM_OP_arg_n:
+            case MVM_OP_arg_s:
+            case MVM_OP_arg_o:
+            case MVM_OP_argconst_i:
+            case MVM_OP_argconst_n:
+            case MVM_OP_argconst_s:
+                ins = ins->prev;
+                break;
+            default:
+                return ins;
+        }
+    }
+    MVM_oops(tc, "Spesh PEA: failed to find materialization insertion point");
+}
+
 /* Emit the materialization of an object into the specified register. */
 static void emit_materialization(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                  MVMSpeshIns *prior_to, MVMSpeshOperand target,
@@ -526,7 +547,8 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
                 MaterializationTarget *alias_target = initial_target->next;
                 MVMSpeshIns *prior_to = t->materialize.prior_to;
                 MVMuint8 *used = t->materialize.used;
-                emit_materialization(tc, g, bb, prior_to,
+                emit_materialization(tc, g, bb,
+                        find_materialization_insertion_point(tc, prior_to),
                         resolve_materialization_target(tc, g, gs, initial_target),
                         gs, t->allocation, used);
                 while (alias_target) {
