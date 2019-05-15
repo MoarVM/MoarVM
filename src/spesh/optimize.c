@@ -3332,16 +3332,10 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
     MVM_spesh_usages_check(tc, g);
 #endif
 
-    /* Clear up the graph after this initial pass, recomputing the dominance
-     * tree (which in turn updates the preds). */
+    /* Clear up the graph a little after this initial pass, recomputing the
+     * dominance tree (which in turn updates the preds). */
     MVM_spesh_eliminate_dead_bbs(tc, g, 1);
     MVM_spesh_graph_recompute_dominance(tc, g);
-    eliminate_unused_log_guards(tc, g);
-    eliminate_pointless_gotos(tc, g);
-    MVM_spesh_usages_remove_unused_deopt(tc, g);
-    MVM_spesh_eliminate_dead_ins(tc, g);
-
-    merge_bbs(tc, g);
 
     /* Perform partial escape analysis at this point, which may make more
      * information available, or give more `set` instructions for the `set`
@@ -3352,6 +3346,15 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
         MVM_spesh_usages_check(tc, g);
 #endif
     }
+
+    /* In the final, post-inline, pass, we'll assume that all guards that we
+     * might use are now accounted for, so we can elimiante unused ones; we
+     * can also get rid of unused deopt points. */
+    eliminate_unused_log_guards(tc, g);
+    MVM_spesh_usages_remove_unused_deopt(tc, g);
+    MVM_spesh_eliminate_dead_ins(tc, g);
+    eliminate_pointless_gotos(tc, g);
+    merge_bbs(tc, g);
 
     /* Make a post-inline pass through the graph doing things that are better
      * done after inlinings have taken place. Note that these things must not
