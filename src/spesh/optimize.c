@@ -3346,8 +3346,12 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
     /* Perform partial escape analysis at this point, which may make more
      * information available, or give more `set` instructions for the `set`
      * elimination in the post-inline pass to get rid of. */
-    if (tc->instance->spesh_pea_enabled)
+    if (tc->instance->spesh_pea_enabled) {
         MVM_spesh_pea(tc, g);
+#if MVM_SPESH_CHECK_DU
+        MVM_spesh_usages_check(tc, g);
+#endif
+    }
 
     /* Make a post-inline pass through the graph doing things that are better
      * done after inlinings have taken place. Note that these things must not
