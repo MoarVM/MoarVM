@@ -1067,7 +1067,16 @@ sp_sub_bi        .s w(obi) r(rbi) r(rbi)
 sp_mul_bi        .s w(obi) r(rbi) r(rbi)
 # * Unbox a big integer register to a native integer
 sp_unbox_bi      .s w(int64) r(rbi)
-# * Take ownership of and write a big integer into the give object at the given offset
+# * Materialize a big integer. The first 3 arguments are as in sp_fastcreate,
+#   representing the allocation part of the operation. The fourth is the
+#   offset in that object where to write the big integer object, and the
+#   fifth is the register containing the value to write. The final argument
+#   is the type index in the integer cache, used to avoid an allocation if
+#   possible.
+sp_materialize_bi .s w(obj) int16 sslot int16 r(obi) int16 :pure
+# * Take ownership of and write a big integer into the give object at the
+#   given offset (used in materialization if there's more than one attr
+#   in the object or no integer cache for this type)
 sp_takewrite_bi  .s r(obj) int16 r(obi)
 
 sp_bool_I        .s w(int64) r(obj) int16 :pure

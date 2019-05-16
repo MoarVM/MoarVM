@@ -312,57 +312,80 @@ static void emit_materialization(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     MVMSTable *st = STABLE(alloc->type);
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMuint32 num_attrs = repr_data->num_attributes;
-    MVMuint32 i;
+    MVMuint32 i, int_cache_type_idx;
 
-    /* Emit a fastcreate instruction to allocate the object. */
-    MVMSpeshIns *fastcreate = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-    fastcreate->info = MVM_op_get_op(MVM_OP_sp_fastcreate);
-    fastcreate->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-    fastcreate->operands[0] = target;
-    fastcreate->operands[1].lit_i16 = st->size;
-    fastcreate->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
-    MVM_spesh_get_facts(tc, g, fastcreate->operands[0])->writer = fastcreate;
-    MVM_spesh_manipulate_insert_ins(tc, bb, prior_to->prev, fastcreate);
-    MVM_spesh_graph_add_comment(tc, g, fastcreate, "Materialization of scalar-replaced attribute");
+    /* If it's a big integer boxing with a single attribute, then we can use
+     * the materialize op that goes via the integer cache, to avoid doing the
+     * allocation in some cases. */
+    if (alloc->bigint && num_attrs == 1 &&
+            (int_cache_type_idx = MVM_intcache_type_index(tc, st->WHAT)) >= 0) {
+        MVMSpeshIns *materialize = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        materialize->info = MVM_op_get_op(MVM_OP_sp_materialize_bi);
+        materialize->operands = MVM_spesh_alloc(tc, g, 6 * sizeof(MVMSpeshOperand));
+        materialize->operands[0] = target;
+        materialize->operands[1].lit_i16 = st->size;
+        materialize->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+        materialize->operands[3].lit_i16 = sizeof(MVMObject) + repr_data->attribute_offsets[0];
+        materialize->operands[4].reg.orig = gs->attr_regs[alloc->hypothetical_attr_reg_idxs[0]];
+        materialize->operands[4].reg.i = MVM_spesh_manipulate_get_current_version(tc, g,
+                materialize->operands[4].reg.orig);
+        materialize->operands[5].lit_i16 = int_cache_type_idx;
+        MVM_spesh_get_facts(tc, g, materialize->operands[0])->writer = materialize;
+        MVM_spesh_usages_add_by_reg(tc, g, materialize->operands[4], materialize);
+        MVM_spesh_manipulate_insert_ins(tc, bb, prior_to->prev, materialize);
+        MVM_spesh_graph_add_comment(tc, g, materialize, "Materialization of scalar-replaced attribute");
+    }
+    else {
+        /* Emit a fastcreate instruction to allocate the object. */
+        MVMSpeshIns *fastcreate = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        fastcreate->info = MVM_op_get_op(MVM_OP_sp_fastcreate);
+        fastcreate->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+        fastcreate->operands[0] = target;
+        fastcreate->operands[1].lit_i16 = st->size;
+        fastcreate->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+        MVM_spesh_get_facts(tc, g, fastcreate->operands[0])->writer = fastcreate;
+        MVM_spesh_manipulate_insert_ins(tc, bb, prior_to->prev, fastcreate);
+        MVM_spesh_graph_add_comment(tc, g, fastcreate, "Materialization of scalar-replaced attribute");
 
-    /* Bind each of the attributes into place, provided it was written already. */
-    for (i = 0; i < num_attrs; i++) {
-        if (used[i]) {
-            /* Allocate instruction and determine type of bind instruction we will
-             * need. */
-            MVMSpeshIns *bind = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-            bind->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-            switch (flattened_type_to_register_kind(tc, repr_data->flattened_stables[i])) {
-                case MVM_reg_obj:
-                    bind->info = MVM_op_get_op(MVM_OP_sp_bind_o);
-                    break;
-                case MVM_reg_str:
-                    bind->info = MVM_op_get_op(MVM_OP_sp_bind_s_nowb);
-                    break;
-                case MVM_reg_int64:
-                    bind->info = MVM_op_get_op(MVM_OP_sp_bind_i64);
-                    break;
-                case MVM_reg_num64:
-                    bind->info = MVM_op_get_op(MVM_OP_sp_bind_n);
-                    break;
-                case MVM_reg_obi:
-                    bind->info = MVM_op_get_op(MVM_OP_sp_takewrite_bi);
-                    break;
-                default:
-                    MVM_oops(tc, "Unimplemented attribute kind in materialization");
+        /* Bind each of the attributes into place, provided it was written already. */
+        for (i = 0; i < num_attrs; i++) {
+            if (used[i]) {
+                /* Allocate instruction and determine type of bind instruction we will
+                 * need. */
+                MVMSpeshIns *bind = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                bind->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                switch (flattened_type_to_register_kind(tc, repr_data->flattened_stables[i])) {
+                    case MVM_reg_obj:
+                        bind->info = MVM_op_get_op(MVM_OP_sp_bind_o);
+                        break;
+                    case MVM_reg_str:
+                        bind->info = MVM_op_get_op(MVM_OP_sp_bind_s_nowb);
+                        break;
+                    case MVM_reg_int64:
+                        bind->info = MVM_op_get_op(MVM_OP_sp_bind_i64);
+                        break;
+                    case MVM_reg_num64:
+                        bind->info = MVM_op_get_op(MVM_OP_sp_bind_n);
+                        break;
+                    case MVM_reg_obi:
+                        bind->info = MVM_op_get_op(MVM_OP_sp_takewrite_bi);
+                        break;
+                    default:
+                        MVM_oops(tc, "Unimplemented attribute kind in materialization");
+                }
+
+                /* Set offset, target, and source registers. */
+                bind->operands[0] = target;
+                bind->operands[1].lit_i16 = sizeof(MVMObject) + repr_data->attribute_offsets[i];
+                bind->operands[2].reg.orig = gs->attr_regs[alloc->hypothetical_attr_reg_idxs[i]];
+                bind->operands[2].reg.i = MVM_spesh_manipulate_get_current_version(tc, g,
+                        bind->operands[2].reg.orig);
+                MVM_spesh_usages_add_by_reg(tc, g, bind->operands[0], bind);
+                MVM_spesh_usages_add_by_reg(tc, g, bind->operands[2], bind);
+
+                /* Insert the bind instruction. */
+                MVM_spesh_manipulate_insert_ins(tc, bb, prior_to->prev, bind);
             }
-
-            /* Set offset, target, and source registers. */
-            bind->operands[0] = target;
-            bind->operands[1].lit_i16 = sizeof(MVMObject) + repr_data->attribute_offsets[i];
-            bind->operands[2].reg.orig = gs->attr_regs[alloc->hypothetical_attr_reg_idxs[i]];
-            bind->operands[2].reg.i = MVM_spesh_manipulate_get_current_version(tc, g,
-                    bind->operands[2].reg.orig);
-            MVM_spesh_usages_add_by_reg(tc, g, bind->operands[0], bind);
-            MVM_spesh_usages_add_by_reg(tc, g, bind->operands[2], bind);
-
-            /* Insert the bind instruction. */
-            MVM_spesh_manipulate_insert_ins(tc, bb, prior_to->prev, bind);
         }
     }
 }

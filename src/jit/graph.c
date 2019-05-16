@@ -1885,6 +1885,7 @@ start:
     case MVM_OP_sp_mul_bi:
     case MVM_OP_sp_unbox_bi:
     case MVM_OP_sp_takewrite_bi:
+    case MVM_OP_sp_materialize_bi:
         jg_append_primitive(tc, jg, ins);
         break;
         /* reading back from arg buffer (after nativeinvoke_o) */

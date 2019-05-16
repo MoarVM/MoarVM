@@ -6436,6 +6436,23 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(sp_materialize_bi): {
+                MVMP6bigintBody ba = GET_REG(cur_op, 8).obi;
+                if (ba.u.smallint.flag == MVM_BIGINT_32_FLAG &&
+                        ba.u.smallint.value >= -1 && ba.u.smallint.value < 15) {
+                    MVMint16 slot = GET_UI16(cur_op, 10);
+                    GET_REG(cur_op, 0).o = tc->instance->int_const_cache
+                        ->cache[slot][ba.u.smallint.value + 1];
+                }
+                else {
+                    MVMObject *obj = fastcreate(tc, cur_op);
+                    *((MVMP6bigintBody *)((char *)obj + GET_UI16(cur_op, 6))) = ba;
+                    GET_REG(cur_op, 0).o = obj;
+                }
+                GET_REG(cur_op, 8).obi.u.smallint.flag = MVM_BIGINT_32_FLAG;
+                cur_op += 12;
+                goto NEXT;
+            }
             OP(sp_takewrite_bi): {
                 MVMObject *o = GET_REG(cur_op, 0).o;
                 *((MVMP6bigintBody *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).obi;

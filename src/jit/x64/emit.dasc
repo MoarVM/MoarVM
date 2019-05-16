@@ -2542,6 +2542,33 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], RV
         break;
     }
+    case MVM_OP_sp_materialize_bi: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 offset = ins->operands[3].lit_i16;
+        MVMint16 val = ins->operands[4].reg.orig;
+        MVMObject **cache = tc->instance->int_const_cache->cache[ins->operands[5].lit_i16];
+        | mov TMP1d, [WORK + 8 * val];
+        | cmp TMP1d, MVM_BIGINT_32_FLAG;
+        | jne >1;
+        | movsxd TMP1, dword [WORK + 8 * val + 4]
+        | cmp TMP1, 14
+        | jg >1
+        | cmp TMP1, -1
+        | jl >1
+        | inc TMP1
+        | mov64 TMP2, (MVMuint64)cache
+        | mov TMP2, [TMP2 + TMP1 * 8]
+        | mov WORK[dst], TMP2
+        | jmp >2
+        |1:
+        emit_fastcreate(tc, compiler, jg, ins);
+        | mov aword WORK[dst], RV;
+        | mov TMP3, WORK[val];
+        | mov qword [RV+offset], TMP3;
+        |2:
+        | mov dword [WORK + 8 * val], MVM_BIGINT_32_FLAG
+        break;
+    }
     case MVM_OP_sp_takewrite_bi: {
         MVMint16 obj    = ins->operands[0].reg.orig;
         MVMint16 offset = ins->operands[1].lit_i16;
