@@ -109,9 +109,14 @@ typedef struct {
 
 /* State held per basic block. */
 typedef struct {
-    /* Has this object been materialized (that is, allocated)? Used to handle
-     * partial escapes. */
-    MVMuint8 materialized;
+    /* The set of materialization transforms for this allocation. We keep
+     * track of these so that if there is a usage of (typically an alias
+     * of) the materialized value, we can add it to the set of registers
+     * that we should materialize into. We use whether there is anything
+     * in this vector as a way to know if we have allocated anything. The
+     * reason there may be multiple is if we materialize on multiple sides
+     * of a branch. */
+    MVM_VECTOR_DECL(Transformation *, materializations);
 
     /* Which of the object's attributes have been used? Used for tracing
      * auto-viv. */
@@ -729,7 +734,7 @@ static MVMuint32 allocation_tracked(MVMThreadContext *tc, GraphState *gs, MVMSpe
         BBState *bb_state = &(gs->bb_states[bb->idx]);
         MVMint32 index = alloc->index;
         return index >= MVM_VECTOR_ELEMS(bb_state->alloc_state) ||
-            !bb_state->alloc_state[index].materialized;
+            MVM_VECTOR_ELEMS(bb_state->alloc_state[index].materializations) == 0;
     }
     return 0;
 }
@@ -828,34 +833,31 @@ static MVMint32 worth_materializing(MVMThreadContext *tc, GraphState *gs, MVMSpe
 static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                  MVMSpeshIns *ins, MVMSpeshOperand o, GraphState *gs,
                                  MVMint32 can_materialize) {
-    /* Make sure we didn't already mark the object irreplaceable. */
+    /* Make sure we didn't already mark the object irreplaceable or materialize it. */
     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, o);
     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
-    if (alloc && !alloc->irreplaceable) {
+    if (allocation_tracked(tc, gs, bb, alloc)) {
         int worthwhile = can_materialize ? worth_materializing(tc, gs, g, bb, ins, alloc) : 0;
         if (can_materialize && worthwhile) {
-            /* Check we didn't already materialize it. */
+            /* Create the materialization transform. */
             BBState *bb_state = &(gs->bb_states[bb->idx]);
             MVMint32 index = alloc->index;
+            Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+            tran->allocation = alloc;
+            tran->transform = TRANSFORM_MATERIALIZE;
+            tran->materialize.prior_to = ins;
+            tran->materialize.used = get_used_state(tc, gs, bb, alloc);
+            add_transform_for_bb(tc, gs, bb, tran);
+
+            /* Add the consuming register as a materialization target. */
+            add_materialization_target_c(tc, g, tran, o);
+
+            /* Record the materialization. */
             MVM_VECTOR_ENSURE_SIZE(bb_state->alloc_state, index + 1);
-            if (!bb_state->alloc_state[index].materialized) {
-                /* Create the materialization transform. */
-                Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
-                tran->allocation = alloc;
-                tran->transform = TRANSFORM_MATERIALIZE;
-                tran->materialize.prior_to = ins;
-                tran->materialize.used = get_used_state(tc, gs, bb, alloc);
-                add_transform_for_bb(tc, gs, bb, tran);
-
-                /* Add the consuming register as a materialization target. */
-                add_materialization_target_c(tc, g, tran, o);
-
-                /* Mark as materialized. */
-                bb_state->alloc_state[index].materialized = 1;
-                pea_log("inserting materialization of %s due to %s",
-                        alloc->type->st->debug_name,
-                        ins->info->name);
-            }
+            MVM_VECTOR_PUSH(bb_state->alloc_state[index].materializations, tran);
+            pea_log("inserting materialization of %s due to %s",
+                    alloc->type->st->debug_name,
+                    ins->info->name);
         }
         else {
             pea_log(can_materialize && !worthwhile
@@ -1081,21 +1083,31 @@ static void setup_bb_state(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *new
     for (i = 0; i < num_allocs; i++) {
         /* Go through the predecessors and see if any of them have materialized
          * the object, as well as counting up how many preds have written to the
-         * attribute. */
+         * attribute. Build up a set of distinct materializations. */
         MVMint32 num_materialized = 0;
         MVMuint32 num_attrs = get_num_attributes(tc, gs->tracked_allocations[i]);
         MVMuint8 *new_used = MVM_calloc(1, num_attrs);
         MVMint32 consistent = 1;
+        MVM_VECTOR_DECL(Transformation *, distinct_materializations);
+        MVM_VECTOR_INIT(distinct_materializations, 0);
         for (j = 0; j < new_bb->num_pred; j++) {
             MVMSpeshBB *pred_bb = new_bb->pred[j];
             BBState *pred_bb_state = &(gs->bb_states[pred_bb->idx]);
             if (i < MVM_VECTOR_ALLOCATED(pred_bb_state->alloc_state)) {
-                MVMuint8 *pred_used = pred_bb_state->alloc_state[i].used;
+                BBAllocationState *a_state = &(pred_bb_state->alloc_state[i]);
+                MVMuint8 *pred_used = a_state->used;
                 if (pred_used)
                     for (k = 0; k < num_attrs; k++)
                         new_used[k] += pred_used[k];
-                if (pred_bb_state->alloc_state[i].materialized) {
+                if (MVM_VECTOR_ELEMS(a_state->materializations) > 0) {
                     num_materialized++;
+                    for (k = 0; k < MVM_VECTOR_ELEMS(a_state->materializations); k++) {
+                        Transformation *t = a_state->materializations[i];
+                        MVMint32 already_seen;
+                        MVM_VECTOR_CONTAINS(distinct_materializations, t, already_seen);
+                        if (!already_seen)
+                            MVM_VECTOR_PUSH(distinct_materializations, t);
+                    }
                 }
             }
         }
@@ -1118,11 +1130,13 @@ static void setup_bb_state(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *new
                 }
             }
         }
-        if (!consistent)
+        if (!consistent) {
+            MVM_VECTOR_DESTROY(distinct_materializations);
             continue;
+        }
 
         /* Set materialization state in new BB state. */
-        new_bb_state->alloc_state[i].materialized = num_materialized > 0 ? 1 : 0;
+        MVM_VECTOR_ASSIGN(new_bb_state->alloc_state[i].materializations, distinct_materializations);
         new_bb_state->alloc_state[i].used = new_used;
 
         /* If we have any materialized, and it's not equal to the number of
@@ -1540,8 +1554,10 @@ void MVM_spesh_pea(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
     for (i = 0; i < g->num_bbs; i++) {
         MVMint32 j;
-        for (j = 0; j < MVM_VECTOR_ELEMS(gs.bb_states[i].alloc_state); j++)
+        for (j = 0; j < MVM_VECTOR_ELEMS(gs.bb_states[i].alloc_state); j++) {
+            MVM_VECTOR_DESTROY(gs.bb_states[i].alloc_state[j].materializations);
             MVM_free(gs.bb_states[i].alloc_state[j].used);
+        }
         MVM_VECTOR_DESTROY(gs.bb_states[i].alloc_state);
         MVM_VECTOR_DESTROY(gs.bb_states[i].transformations);
     }

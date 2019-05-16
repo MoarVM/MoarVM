@@ -83,3 +83,13 @@
         a ## _alloc = b ## _alloc; \
         a ## _num = b ## _num; \
     } while (0)
+
+#define MVM_VECTOR_CONTAINS(x, elem, result) do { \
+        MVMint32 i; \
+        result = 0; \
+        for (i = 0; i < x ## _num; i++) \
+            if (x[i] == elem) { \
+                result = 1; \
+                break; \
+            } \
+    } while (0)
