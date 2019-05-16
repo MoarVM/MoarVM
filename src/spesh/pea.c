@@ -553,12 +553,20 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
                 MaterializationTarget *alias_target = initial_target->next;
                 MVMSpeshIns *prior_to = t->materialize.prior_to;
                 MVMuint8 *used = t->materialize.used;
+                MVMSpeshOperand target_reg = resolve_materialization_target(tc, g,
+                        gs, initial_target);
                 emit_materialization(tc, g, bb,
                         find_materialization_insertion_point(tc, prior_to),
-                        resolve_materialization_target(tc, g, gs, initial_target),
-                        gs, t->allocation, used);
+                        target_reg, gs, t->allocation, used);
                 while (alias_target) {
-                    MVM_oops(tc, "Didn't implement materailization aliasing yet");
+                    MVMSpeshIns *set = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                    set->info = MVM_op_get_op(MVM_OP_set);
+                    set->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+                    set->operands[0] = resolve_materialization_target(tc, g, gs, alias_target);
+                    set->operands[1] = target_reg;
+                    MVM_spesh_get_facts(tc, g, set->operands[0])->writer = set;
+                    MVM_spesh_usages_add_by_reg(tc, g, set->operands[1], set);
+                    MVM_spesh_manipulate_insert_ins(tc, bb, prior_to->prev, set);
                     alias_target = alias_target->next;
                 }
             }
@@ -733,7 +741,7 @@ static MVMuint32 allocation_tracked(MVMThreadContext *tc, GraphState *gs, MVMSpe
     if (alloc && !alloc->irreplaceable) {
         BBState *bb_state = &(gs->bb_states[bb->idx]);
         MVMint32 index = alloc->index;
-        return index >= MVM_VECTOR_ELEMS(bb_state->alloc_state) ||
+        return index >= MVM_VECTOR_ALLOCATED(bb_state->alloc_state) ||
             MVM_VECTOR_ELEMS(bb_state->alloc_state[index].materializations) == 0;
     }
     return 0;
@@ -788,6 +796,45 @@ static void add_materialization_target_h(MVMThreadContext *tc, MVMSpeshGraph *g,
     target->is_hypothetical = 1;
     target->next = t->materialize.targets;
     t->materialize.targets = target;
+}
+
+/* Checks an instruction for use of materialized objects, and registers the
+ * usage. */
+static void add_materialization_target_if_missing(MVMThreadContext *tc, MVMSpeshGraph *g,
+        Transformation *tran, MVMSpeshOperand user) {
+    /* See if we already have the target register on the list; do nothing if
+     * so. */
+    MaterializationTarget *target = tran->materialize.targets;
+    while (target) {
+        if (!target->is_hypothetical && target->reg.reg.orig == user.reg.orig &&
+                target->reg.reg.i == user.reg.i)
+            return;
+        target = target->next;
+    }
+
+    /* Otherwise, we need to add the target. */
+    add_materialization_target_c(tc, g, tran, user);
+}
+static void handle_materialized_usages(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+        MVMSpeshIns *ins, GraphState *gs) {
+   MVMuint32 i, j;
+   for (i = 0; i < ins->info->num_operands; i++) {
+       if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg) {
+            MVMSpeshOperand user = ins->operands[i];
+            MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, user);
+            MVMSpeshPEAAllocation *alloc = facts->pea.allocation;
+            if (alloc && !alloc->irreplaceable) {
+                BBState *bb_state = &(gs->bb_states[bb->idx]);
+                MVMint32 index = alloc->index;
+                if (index < MVM_VECTOR_ALLOCATED(bb_state->alloc_state)) {
+                    BBAllocationState *a_state = &(bb_state->alloc_state[index]);
+                    for (j = 0; j < MVM_VECTOR_ELEMS(a_state->materializations); j++)
+                        add_materialization_target_if_missing(tc, g,
+                                a_state->materializations[j], user);
+                }
+            }
+       }
+   }
 }
 
 /* Indicates that a real object is required. In most cases, we can insert a
@@ -855,9 +902,8 @@ static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
             /* Record the materialization. */
             MVM_VECTOR_ENSURE_SIZE(bb_state->alloc_state, index + 1);
             MVM_VECTOR_PUSH(bb_state->alloc_state[index].materializations, tran);
-            pea_log("inserting materialization of %s due to %s",
-                    alloc->type->st->debug_name,
-                    ins->info->name);
+            pea_log("inserting materialization of %s (%d) due to %s",
+                    alloc->type->st->debug_name, index, ins->info->name);
         }
         else {
             pea_log(can_materialize && !worthwhile
@@ -1102,7 +1148,7 @@ static void setup_bb_state(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *new
                 if (MVM_VECTOR_ELEMS(a_state->materializations) > 0) {
                     num_materialized++;
                     for (k = 0; k < MVM_VECTOR_ELEMS(a_state->materializations); k++) {
-                        Transformation *t = a_state->materializations[i];
+                        Transformation *t = a_state->materializations[k];
                         MVMint32 already_seen;
                         MVM_VECTOR_CONTAINS(distinct_materializations, t, already_seen);
                         if (!already_seen)
@@ -1301,6 +1347,11 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                 }
                 add_deopt_materializations_ins(tc, g, bb, gs, ins);
             }
+
+            /* If the instruction uses a materialized value, we may need to
+             * record that usage, so the materialization happens and the
+             * correct aliases are set up. */
+            handle_materialized_usages(tc, g, bb, ins, gs);
 
             /* Look for significant instructions. */
             switch (opcode) {
