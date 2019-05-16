@@ -2419,58 +2419,6 @@ static void optimize_container_atomic(MVMThreadContext *tc, MVMSpeshGraph *g,
     }
 }
 
-/* Lower bigint binary ops to specialized forms where possible. */
-static void optimize_bigint_binary_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
-    /* Check that input types and result type are consistent. */
-    MVMObject *common_type = NULL;
-    MVMSpeshFacts *facts[3];
-    MVMuint32 i;
-    for (i = 1; i < 4; i++) {
-        facts[i - 1] = MVM_spesh_get_facts(tc, g, ins->operands[i]);
-        if (facts[i - 1]->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
-            if (common_type == NULL) {
-                common_type = facts[i - 1]->type;
-            }
-            else if (facts[i - 1]->type != common_type) {
-                common_type = NULL;
-                break;
-            }
-        }
-        else {
-            common_type = NULL;
-            break;
-        }
-    }
-    if (common_type && REPR(common_type)->ID == MVM_REPR_ID_P6opaque) {
-        MVMuint16 offset = MVM_p6opaque_get_bigint_offset(tc, common_type->st);
-        MVMint16 cache_type_index = MVM_intcache_type_index(tc, common_type->st->WHAT);
-        if (offset && cache_type_index >= 0) {
-            /* Lower the op. */
-            MVMSpeshOperand *orig_operands = ins->operands;
-            switch (ins->info->opcode) {
-                case MVM_OP_add_I: ins->info = MVM_op_get_op(MVM_OP_sp_add_I); break;
-                case MVM_OP_sub_I: ins->info = MVM_op_get_op(MVM_OP_sp_sub_I); break;
-                case MVM_OP_mul_I: ins->info = MVM_op_get_op(MVM_OP_sp_mul_I); break;
-                default: return;
-            }
-            ins->operands = MVM_spesh_alloc(tc, g, 7 * sizeof(MVMSpeshOperand));
-            ins->operands[0] = orig_operands[0];
-            ins->operands[1].lit_i16 = common_type->st->size;
-            ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
-                    (MVMCollectable *)common_type->st);
-            ins->operands[3] = orig_operands[1];
-            ins->operands[4] = orig_operands[2];
-            ins->operands[5].lit_i16 = offset;
-            ins->operands[6].lit_i16 = cache_type_index;
-            MVM_spesh_usages_delete_by_reg(tc, g, orig_operands[3], ins);
-
-            /* Mark all facts as used. */
-            for (i = 0; i < 3; i++)
-                MVM_spesh_use_facts(tc, g, facts[i]);
-        }
-    }
-}
-
 /* the bool_I op is implemented as two extremely cheap checks, as long as you
  * don't count getting the bigint body out of the containing object. That's
  * why it's very beneficial to give it the "calculate offset into object
@@ -2898,11 +2846,6 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_wval:
         case MVM_OP_wval_wide:
             optimize_wval(tc, g, ins);
-            break;
-        case MVM_OP_add_I:
-        case MVM_OP_sub_I:
-        case MVM_OP_mul_I:
-            optimize_bigint_binary_op(tc, g, bb, ins);
             break;
         case MVM_OP_bool_I:
             optimize_bigint_bool_op(tc, g, bb, ins);

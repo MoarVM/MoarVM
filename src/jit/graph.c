@@ -1878,9 +1878,6 @@ start:
     case MVM_OP_sp_fastbox_bi:
     case MVM_OP_sp_fastbox_bi_ic:
         /* Specialized bigint ops */
-    case MVM_OP_sp_add_I:
-    case MVM_OP_sp_sub_I:
-    case MVM_OP_sp_mul_I:
     case MVM_OP_sp_bool_I:
     case MVM_OP_sp_get_bi:
     case MVM_OP_sp_add_bi:

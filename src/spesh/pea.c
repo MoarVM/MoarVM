@@ -481,7 +481,7 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
                 gs->attr_regs[hyp_reg_idx] = MVM_spesh_manipulate_get_unique_reg(tc, g, MVM_reg_rbi);
                 a = get_ins->operands[0] = MVM_spesh_manipulate_new_version(tc, g,
                         gs->attr_regs[hyp_reg_idx]);
-                get_ins->operands[1] = ins->operands[3];
+                get_ins->operands[1] = ins->operands[1];
                 get_ins->operands[2].lit_ui16 = t->decomp_bi_bi.obtain_offset_a;
                 MVM_spesh_get_facts(tc, g, get_ins->operands[0])->writer = get_ins;
                 MVM_spesh_usages_add_by_reg(tc, g, get_ins->operands[1], get_ins);
@@ -499,7 +499,7 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
                 gs->attr_regs[hyp_reg_idx] = MVM_spesh_manipulate_get_unique_reg(tc, g, MVM_reg_rbi);
                 b = get_ins->operands[0] = MVM_spesh_manipulate_new_version(tc, g,
                         gs->attr_regs[hyp_reg_idx]);
-                get_ins->operands[1] = ins->operands[4];
+                get_ins->operands[1] = ins->operands[2];
                 get_ins->operands[2].lit_ui16 = t->decomp_bi_bi.obtain_offset_b;
                 MVM_spesh_get_facts(tc, g, get_ins->operands[0])->writer = get_ins;
                 MVM_spesh_usages_add_by_reg(tc, g, get_ins->operands[1], get_ins);
@@ -514,8 +514,9 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             allocate_concrete_registers(tc, g, gs, t->allocation);
 
             /* Now, transform the instruction itself. */
+            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
             MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[3], ins);
-            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[4], ins);
             ins->info = MVM_op_get_op(t->decomp_bi_bi.replace_op);
             ins->operands[0] = MVM_spesh_manipulate_new_version(tc, g,
                     gs->attr_regs[find_bigint_register(tc, t->allocation)]);
@@ -819,12 +820,9 @@ static MVMint32 worth_materializing(MVMThreadContext *tc, GraphState *gs, MVMSpe
      * 1. We read from the object (in which case we can have reduced costs
      *    in guards or indirections between the allocation and here)
      * 2. It is boxing a big integer, in which case the devirtualization of
-     *    the big integer operation makes it worthwhile; we don't do this
-     *    if the value escapes through a return_o, though, since that means
-     *    we're likely in a simple operation.
+     *    the big integer operation makes it worthwhile.
      * 3. We are materializing it in a branch. */
-    return alloc->read ||
-        alloc->bigint && ins->info->opcode != MVM_OP_return_o ||
+    return alloc->read || alloc->bigint ||
         in_branch(tc, gs, g, alloc->allocator_bb, bb);
 }
 static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -882,14 +880,39 @@ static void unhandled_instruction(MVMThreadContext *tc, MVMSpeshGraph *g,
  * into big integer register ops, and adds a transform to do so. */
 static int decompose_and_track_bigint_bi(MVMThreadContext *tc, MVMSpeshGraph *g,
         GraphState *gs, MVMSpeshBB *bb, MVMSpeshIns *ins, MVMuint16 replace_op) {
+    MVMSTable *st;
+    MVMSpeshPEAAllocation *alloc;
+
+    /* Make sure that we know the types of the incoming operands and the result,
+     * and we can resolve the big integer offset. */
+    MVMint32 i;
+    for (i = 1; i <= 3; i++) {
+        MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[i]);
+        if (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+            MVMuint16 offset = MVM_p6opaque_get_bigint_offset(tc, facts->type->st);
+            if (!offset) {
+                pea_log("cannot decompose %s because the big integer offset cannot be found",
+                        ins->info->name);
+                unhandled_instruction(tc, g, bb, ins, gs);
+                return 0;
+            }
+        }
+        else {
+            pea_log("cannot decompose %s due to missing operand %d type information",
+                    ins->info->name, i);
+            unhandled_instruction(tc, g, bb, ins, gs);
+            return 0;
+        }
+    }
+
     /* See if we can track the result type. */
-    MVMSTable *st = (MVMSTable *)g->spesh_slots[ins->operands[2].lit_i16];
-    MVMSpeshPEAAllocation *alloc = try_track_allocation(tc, g, gs, bb, ins, st);
+    st = MVM_spesh_get_facts(tc, g, ins->operands[3])->type->st;
+    alloc = try_track_allocation(tc, g, gs, bb, ins, st);
     if (alloc) {
         /* Obtain tracked status of the incoming arguments. */
-        MVMSpeshFacts *a_facts = MVM_spesh_get_facts(tc, g, ins->operands[3]);
+        MVMSpeshFacts *a_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
         MVMSpeshPEAAllocation *a_alloc = a_facts->pea.allocation;
-        MVMSpeshFacts *b_facts = MVM_spesh_get_facts(tc, g, ins->operands[4]);
+        MVMSpeshFacts *b_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
         MVMSpeshPEAAllocation *b_alloc = b_facts->pea.allocation;
 
         /* Assemble a decompose transform. If the incoming arguments are
@@ -913,7 +936,8 @@ static int decompose_and_track_bigint_bi(MVMThreadContext *tc, MVMSpeshGraph *g,
              * we read the value into, and store the offset to read from (which
              * is our indication that we need to read out of the object too). */
             tran->decomp_bi_bi.hypothetical_reg_idx_a = gs->latest_hypothetical_reg_idx++;
-            tran->decomp_bi_bi.obtain_offset_a = ins->operands[5].lit_ui16;
+            tran->decomp_bi_bi.obtain_offset_a = MVM_p6opaque_get_bigint_offset(tc,
+                    a_facts->type->st);
         }
         if (allocation_tracked(tc, gs, bb, b_alloc)) {
             tran->decomp_bi_bi.hypothetical_reg_idx_b = find_bigint_register(tc, b_alloc);
@@ -922,13 +946,21 @@ static int decompose_and_track_bigint_bi(MVMThreadContext *tc, MVMSpeshGraph *g,
         }
         else {
             tran->decomp_bi_bi.hypothetical_reg_idx_b = gs->latest_hypothetical_reg_idx++;
-            tran->decomp_bi_bi.obtain_offset_b = ins->operands[5].lit_ui16;
+            tran->decomp_bi_bi.obtain_offset_b = MVM_p6opaque_get_bigint_offset(tc,
+                    b_facts->type->st);
         }
         tran->decomp_bi_bi.replace_op = replace_op;
         add_transform_for_bb(tc, gs, bb, tran);
         MVM_spesh_get_facts(tc, g, ins->operands[0])->pea.allocation = alloc;
-        mark_attribute_written(tc, gs, bb, alloc, ins->operands[5].lit_ui16 - sizeof(MVMObject));
+        mark_attribute_written(tc, gs, bb, alloc,
+                MVM_p6opaque_get_bigint_offset(tc, alloc->type->st) - sizeof(MVMObject));
         pea_log("started tracking a big integer allocation");
+
+        /* Mark all facts as used. */
+        MVM_spesh_use_facts(tc, g, a_facts);
+        MVM_spesh_use_facts(tc, g, b_facts);
+        MVM_spesh_use_facts(tc, g, MVM_spesh_get_facts(tc, g, ins->operands[3]));
+
         return 1;
     }
     else {
@@ -1397,15 +1429,15 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                         add_object_read_transform(tc, g, bb, ins, gs, alloc);
                     break;
                 }
-                case MVM_OP_sp_add_I:
+                case MVM_OP_add_I:
                     if (decompose_and_track_bigint_bi(tc, g, gs, bb, ins, MVM_OP_sp_add_bi))
                         found_replaceable = 1;
                     break;
-                case MVM_OP_sp_sub_I:
+                case MVM_OP_sub_I:
                     if (decompose_and_track_bigint_bi(tc, g, gs, bb, ins, MVM_OP_sp_sub_bi))
                         found_replaceable = 1;
                     break;
-                case MVM_OP_sp_mul_I:
+                case MVM_OP_mul_I:
                     if (decompose_and_track_bigint_bi(tc, g, gs, bb, ins, MVM_OP_sp_mul_bi))
                         found_replaceable = 1;
                     break;
