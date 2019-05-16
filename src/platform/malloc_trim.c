@@ -1,4 +1,5 @@
-#ifdef __GLIBC__
+#ifdef MVM_HAS_FN_MALLOC_TRIM
+#warning "test warn"
 #include <malloc.h>
 int MVM_malloc_trim(void) {
     /* 128*1024 is the glibc default. */

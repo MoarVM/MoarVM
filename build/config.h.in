@@ -33,6 +33,10 @@
 #define MVM_HAS_PTHREAD_YIELD @has_pthread_yield@
 #endif
 
+#if @has_fn_malloc_trim@
+#define MVM_HAS_FN_MALLOC_TRIM @has_fn_malloc_trim@
+#endif
+
 /* How this compiler does static inline functions. */
 #define MVM_STATIC_INLINE @static_inline@
 
