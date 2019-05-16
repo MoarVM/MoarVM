@@ -39,6 +39,7 @@ typedef struct MaterializationTarget MaterializationTarget;
 #define TRANSFORM_MATERIALIZE           10
 #define TRANSFORM_VIVIFY_TYPE           11
 #define TRANSFORM_VIVIFY_CONCRETE       12
+#define TRANSFORM_UNMATERIALIZE_BI      13
 typedef struct {
     /* The allocation that this transform relates to eliminating. */
     MVMSpeshPEAAllocation *allocation;
@@ -104,6 +105,11 @@ typedef struct {
             MaterializationTarget *targets;
             MVMuint8 *used;
         } materialize;
+        struct {
+            MVMSpeshIns *ins;
+            MVMSTable *st;
+            MVMSpeshOperand unboxed;
+        } unmat_bi;
     };
 } Transformation;
 
@@ -415,11 +421,12 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
         case TRANSFORM_DELETE_FASTCREATE: {
             MVMSTable *st = t->fastcreate.st;
             MVMSpeshPEAAllocation *alloc = t->allocation;
+            MVMSpeshIns *ins = t->fastcreate.ins;
             allocate_concrete_registers(tc, g, gs, alloc);
             pea_log("OPT: eliminated an allocation of %s into r%d(%d)",
-                    st->debug_name, t->fastcreate.ins->operands[0].reg.orig,
-                    t->fastcreate.ins->operands[0].reg.i);
-            MVM_spesh_manipulate_delete_ins(tc, g, bb, t->fastcreate.ins);
+                    st->debug_name, ins->operands[0].reg.orig,
+                    ins->operands[0].reg.i);
+            MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
             break;
         }
         case TRANSFORM_GETATTR_TO_SET: {
@@ -630,6 +637,24 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             t->viv.ins->operands[1].reg.i = MVM_spesh_manipulate_get_current_version(tc, g, attr_reg);
             MVM_spesh_usages_add_by_reg(tc, g, t->viv.ins->operands[1], t->viv.ins);
             MVM_spesh_graph_add_comment(tc, g, t->viv.ins, "auto-viv of scalar-replaced attribute");
+            break;
+        }
+        case TRANSFORM_UNMATERIALIZE_BI: {
+            /* We turn the instruction into a set that writes the unboxed big
+             * integer value into the new target register. */
+            MVMSTable *st = t->unmat_bi.st;
+            MVMSpeshPEAAllocation *alloc = t->allocation;
+            MVMSpeshIns *ins = t->unmat_bi.ins;
+            allocate_concrete_registers(tc, g, gs, alloc);
+            ins->info = MVM_op_get_op(MVM_OP_set);
+            ins->operands[0].reg.orig = gs->attr_regs[alloc->hypothetical_attr_reg_idxs[0]];
+            ins->operands[0] = MVM_spesh_manipulate_new_version(tc, g,
+                ins->operands[0].reg.orig);
+            ins->operands[1] = ins->operands[4];
+            MVM_spesh_get_facts(tc, g, ins->operands[0])->writer = ins;
+            pea_log("OPT: undone big integer materialization of %s into r%d(%d)",
+                    st->debug_name, ins->operands[0].reg.orig,
+                    ins->operands[0].reg.i);
             break;
         }
         default:
@@ -1378,16 +1403,27 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
 
             /* Look for significant instructions. */
             switch (opcode) {
-                case MVM_OP_sp_fastcreate: {
+                case MVM_OP_sp_fastcreate:
+                case MVM_OP_sp_materialize_bi: {
                     MVMSTable *st = (MVMSTable *)g->spesh_slots[ins->operands[2].lit_i16];
                     MVMSpeshPEAAllocation *alloc = try_track_allocation(tc, g, gs, bb, ins, st);
                     if (alloc) {
                         MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[0]);
                         Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
                         tran->allocation = alloc;
-                        tran->transform = TRANSFORM_DELETE_FASTCREATE;
-                        tran->fastcreate.ins = ins;
-                        tran->fastcreate.st = st;
+                        if (opcode == MVM_OP_sp_materialize_bi) {
+                            /* This is a bigint materialization. It will write the value
+                             * of the big integer. */
+                            tran->transform = TRANSFORM_UNMATERIALIZE_BI;
+                            tran->unmat_bi.ins = ins;
+                            tran->unmat_bi.st = st;
+                            tran->unmat_bi.unboxed = ins->operands[4];
+                        }
+                        else {
+                            tran->transform = TRANSFORM_DELETE_FASTCREATE;
+                            tran->fastcreate.ins = ins;
+                            tran->fastcreate.st = st;
+                        }
                         add_transform_for_bb(tc, gs, bb, tran);
                         target->pea.allocation = alloc;
                         found_replaceable = 1;
@@ -1515,6 +1551,20 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
                     if (allocation_tracked(tc, gs, bb, alloc))
                         add_object_read_transform(tc, g, bb, ins, gs, alloc);
+                    break;
+                }
+                case MVM_OP_sp_get_bi: {
+                    MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+                    MVMSpeshPEAAllocation *alloc = target->pea.allocation;
+                    if (allocation_tracked(tc, gs, bb, alloc)) {
+                        Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+                        tran->allocation = alloc;
+                        tran->transform = TRANSFORM_GETATTR_TO_SET;
+                        tran->attr.ins = ins;
+                        tran->attr.hypothetical_reg_idx = find_bigint_register(tc, alloc);
+                        add_transform_for_bb(tc, gs, bb, tran);
+                        alloc->read = 1;
+                    }
                     break;
                 }
                 case MVM_OP_add_I:

@@ -471,6 +471,7 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         case MVM_OP_sp_fastbox_bi:
         case MVM_OP_sp_fastbox_i_ic:
         case MVM_OP_sp_fastbox_bi_ic:
+        case MVM_OP_sp_materialize_bi:
             create_facts_with_type(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ((MVMSTable *)g->spesh_slots[ins->operands[2].lit_i16])->WHAT);
