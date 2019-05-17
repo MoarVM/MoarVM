@@ -1065,6 +1065,14 @@ sp_box_bi        .s w(obi) r(int64)
 sp_add_bi        .s w(obi) r(rbi) r(rbi)
 sp_sub_bi        .s w(obi) r(rbi) r(rbi)
 sp_mul_bi        .s w(obi) r(rbi) r(rbi)
+sp_gcd_bi        .s w(obi) r(rbi) r(rbi)
+sp_cmp_bi        .s w(int64) r(rbi) r(rbi) :pure
+sp_eq_bi         .s w(int64) r(rbi) r(rbi) :pure
+sp_ne_bi         .s w(int64) r(rbi) r(rbi) :pure
+sp_lt_bi         .s w(int64) r(rbi) r(rbi) :pure
+sp_le_bi         .s w(int64) r(rbi) r(rbi) :pure
+sp_gt_bi         .s w(int64) r(rbi) r(rbi) :pure
+sp_ge_bi         .s w(int64) r(rbi) r(rbi) :pure
 # * Unbox a big integer register to a native integer
 sp_unbox_bi      .s w(int64) r(rbi)
 # * Materialize a big integer. The first 3 arguments are as in sp_fastcreate,

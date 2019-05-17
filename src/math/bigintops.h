@@ -17,6 +17,7 @@ MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObje
 MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
         MVMObject *num_type, MVMObject *int_type);
 MVMObject * MVM_bigint_gcd(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
+void MVM_bigint_fallback_gcd(MVMThreadContext *tc, MVMP6bigintBody *ba, MVMP6bigintBody *bb, MVMP6bigintBody *bc);
 MVMObject * MVM_bigint_lcm(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b);
 
 MVMObject * MVM_bigint_or(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
@@ -29,6 +30,7 @@ MVMObject * MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result, MVMObject *a
 MVMObject * MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b, MVMObject *c);
 
 MVMint64 MVM_bigint_cmp(MVMThreadContext *tc, MVMObject *a, MVMObject *b);
+MVMint64 MVM_bigint_fallback_cmp(MVMThreadContext *tc, MVMP6bigintBody *ba, MVMP6bigintBody *bb);
 
 MVMObject * MVM_bigint_from_bigint(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a);
 void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, const char *buf);

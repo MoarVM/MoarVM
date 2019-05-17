@@ -6428,6 +6428,103 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_gcd_bi): {
+                MVMP6bigintBody ba = GET_REG(cur_op, 2).rbi;
+                MVMP6bigintBody bb = GET_REG(cur_op, 4).rbi;
+                MVMP6bigintBody bc;
+                if (ba.u.smallint.flag == MVM_BIGINT_32_FLAG && bb.u.smallint.flag == MVM_BIGINT_32_FLAG) {
+                    /* GCD can only ever result in a smaller number, so no range
+                     * check on the result is needed. */
+                    MVMint32 a = abs(ba.u.smallint.value);
+                    MVMint32 b = abs(bb.u.smallint.value);
+                    MVMint32 c;
+                    while (b != 0) {
+                        c = a % b;
+                        a = b;
+                        b = c;
+                    }
+                    bc.u.smallint.value = a;
+                    bc.u.smallint.flag = MVM_BIGINT_32_FLAG;
+                }
+                else {
+                    MVM_bigint_fallback_gcd(tc, &ba, &bb, &bc);
+                }
+                GET_REG(cur_op, 0).obi = bc;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_cmp_bi): {
+                MVMP6bigintBody ba = GET_REG(cur_op, 2).rbi;
+                MVMP6bigintBody bb = GET_REG(cur_op, 4).rbi;
+                GET_REG(cur_op, 0).i64 =
+                    ba.u.smallint.flag == MVM_BIGINT_32_FLAG && bb.u.smallint.flag == MVM_BIGINT_32_FLAG
+                        ? (ba.u.smallint.value == bb.u.smallint.value
+                                ? 0
+                                : (ba.u.smallint.value < bb.u.smallint.value ? -1 : 1))
+                        : MVM_bigint_fallback_cmp(tc, &ba, &bb);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_eq_bi): {
+                MVMP6bigintBody ba = GET_REG(cur_op, 2).rbi;
+                MVMP6bigintBody bb = GET_REG(cur_op, 4).rbi;
+                GET_REG(cur_op, 0).i64 =
+                    ba.u.smallint.flag == MVM_BIGINT_32_FLAG && bb.u.smallint.flag == MVM_BIGINT_32_FLAG
+                        ? ba.u.smallint.value == bb.u.smallint.value
+                        : MP_EQ == MVM_bigint_fallback_cmp(tc, &ba, &bb);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_ne_bi): {
+                MVMP6bigintBody ba = GET_REG(cur_op, 2).rbi;
+                MVMP6bigintBody bb = GET_REG(cur_op, 4).rbi;
+                GET_REG(cur_op, 0).i64 =
+                    ba.u.smallint.flag == MVM_BIGINT_32_FLAG && bb.u.smallint.flag == MVM_BIGINT_32_FLAG
+                        ? ba.u.smallint.value != bb.u.smallint.value
+                        : MP_EQ != MVM_bigint_fallback_cmp(tc, &ba, &bb);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_lt_bi): {
+                MVMP6bigintBody ba = GET_REG(cur_op, 2).rbi;
+                MVMP6bigintBody bb = GET_REG(cur_op, 4).rbi;
+                GET_REG(cur_op, 0).i64 =
+                    ba.u.smallint.flag == MVM_BIGINT_32_FLAG && bb.u.smallint.flag == MVM_BIGINT_32_FLAG
+                        ? ba.u.smallint.value < bb.u.smallint.value
+                        : MP_LT == MVM_bigint_fallback_cmp(tc, &ba, &bb);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_le_bi): {
+                MVMP6bigintBody ba = GET_REG(cur_op, 2).rbi;
+                MVMP6bigintBody bb = GET_REG(cur_op, 4).rbi;
+                GET_REG(cur_op, 0).i64 =
+                    ba.u.smallint.flag == MVM_BIGINT_32_FLAG && bb.u.smallint.flag == MVM_BIGINT_32_FLAG
+                        ? ba.u.smallint.value <= bb.u.smallint.value
+                        : MP_GT != MVM_bigint_fallback_cmp(tc, &ba, &bb);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_gt_bi): {
+                MVMP6bigintBody ba = GET_REG(cur_op, 2).rbi;
+                MVMP6bigintBody bb = GET_REG(cur_op, 4).rbi;
+                GET_REG(cur_op, 0).i64 =
+                    ba.u.smallint.flag == MVM_BIGINT_32_FLAG && bb.u.smallint.flag == MVM_BIGINT_32_FLAG
+                        ? ba.u.smallint.value > bb.u.smallint.value
+                        : MP_GT == MVM_bigint_fallback_cmp(tc, &ba, &bb);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_ge_bi): {
+                MVMP6bigintBody ba = GET_REG(cur_op, 2).rbi;
+                MVMP6bigintBody bb = GET_REG(cur_op, 4).rbi;
+                GET_REG(cur_op, 0).i64 =
+                    ba.u.smallint.flag == MVM_BIGINT_32_FLAG && bb.u.smallint.flag == MVM_BIGINT_32_FLAG
+                        ? ba.u.smallint.value >= bb.u.smallint.value
+                        : MP_LT != MVM_bigint_fallback_cmp(tc, &ba, &bb);
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_unbox_bi): {
                 MVMP6bigintBody ba = GET_REG(cur_op, 2).rbi;
                 GET_REG(cur_op, 0).i64 = ba.u.smallint.flag == MVM_BIGINT_32_FLAG

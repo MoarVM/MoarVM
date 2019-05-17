@@ -1883,6 +1883,14 @@ start:
     case MVM_OP_sp_add_bi:
     case MVM_OP_sp_sub_bi:
     case MVM_OP_sp_mul_bi:
+    case MVM_OP_sp_gcd_bi:
+    case MVM_OP_sp_cmp_bi:
+    case MVM_OP_sp_eq_bi:
+    case MVM_OP_sp_ne_bi:
+    case MVM_OP_sp_lt_bi:
+    case MVM_OP_sp_le_bi:
+    case MVM_OP_sp_gt_bi:
+    case MVM_OP_sp_ge_bi:
     case MVM_OP_sp_unbox_bi:
     case MVM_OP_sp_takewrite_bi:
     case MVM_OP_sp_materialize_bi:

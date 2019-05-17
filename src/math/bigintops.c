@@ -464,7 +464,7 @@ MVM_BIGINT_BINARY_OP_SIMPLE(sub, { sc = sa - sb; })
 MVM_BIGINT_BINARY_OP_SIMPLE(mul, { sc = sa * sb; })
 MVM_BIGINT_BINARY_OP(lcm)
 
-MVMObject *MVM_bigint_gcd(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b) {
+MVMObject * MVM_bigint_gcd(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b) {
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
     MVMP6bigintBody *bb = get_bigint_body(tc, b);
     MVMP6bigintBody *bc;
@@ -501,6 +501,18 @@ MVMObject *MVM_bigint_gcd(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
     return result;
 }
 
+void MVM_bigint_fallback_gcd(MVMThreadContext *tc, MVMP6bigintBody *ba, MVMP6bigintBody *bb,
+                             MVMP6bigintBody *bc) {
+    mp_int *ia, *ib, *ic;
+    ia = force_bigint(tc, ba, 0);
+    ib = force_bigint(tc, bb, 1);
+    ic = MVM_malloc(sizeof(mp_int));
+    mp_init(ic);
+    mp_gcd(ia, ib, ic);
+    store_bigint_result(bc, ic);
+    adjust_nursery(tc, bc);
+}
+
 MVM_BIGINT_BINARY_OP_2(or , { sc = sa | sb; })
 MVM_BIGINT_BINARY_OP_2(xor, { sc = sa ^ sb; })
 MVM_BIGINT_BINARY_OP_2(and, { sc = sa & sb; })
@@ -519,6 +531,12 @@ MVMint64 MVM_bigint_cmp(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
         MVMint64 sb = bb->u.smallint.value;
         return sa == sb ? 0 : sa <  sb ? -1 : 1;
     }
+}
+
+MVMint64 MVM_bigint_fallback_cmp(MVMThreadContext *tc, MVMP6bigintBody *ba, MVMP6bigintBody *bb) {
+    mp_int *ia = force_bigint(tc, ba, 0);
+    mp_int *ib = force_bigint(tc, bb, 1);
+    return (MVMint64)mp_cmp(ia, ib);
 }
 
 MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b) {
