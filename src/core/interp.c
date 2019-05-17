@@ -6453,6 +6453,40 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_neg_bi): {
+                MVMP6bigintBody ba = GET_REG(cur_op, 2).rbi;
+                MVMP6bigintBody bc;
+                bc.u.smallint.flag = 0;
+                if (ba.u.smallint.flag == MVM_BIGINT_32_FLAG) {
+                    MVMuint64 result = -(MVMint64)ba.u.smallint.value;
+                    if (MVM_IS_32BIT_INT(result)) {
+                        bc.u.smallint.value = (MVMint32)result;
+                        bc.u.smallint.flag = MVM_BIGINT_32_FLAG;
+                    }
+                }
+                if (!bc.u.smallint.flag)
+                    MVM_bigint_fallback_neg(tc, &ba, &bc);
+                GET_REG(cur_op, 0).obi = bc;
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(sp_abs_bi): {
+                MVMP6bigintBody ba = GET_REG(cur_op, 2).rbi;
+                MVMP6bigintBody bc;
+                bc.u.smallint.flag = 0;
+                if (ba.u.smallint.flag == MVM_BIGINT_32_FLAG) {
+                    MVMuint64 result = labs((MVMint64)ba.u.smallint.value);
+                    if (MVM_IS_32BIT_INT(result)) {
+                        bc.u.smallint.value = (MVMint32)result;
+                        bc.u.smallint.flag = MVM_BIGINT_32_FLAG;
+                    }
+                }
+                if (!bc.u.smallint.flag)
+                    MVM_bigint_fallback_abs(tc, &ba, &bc);
+                GET_REG(cur_op, 0).obi = bc;
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(sp_cmp_bi): {
                 MVMP6bigintBody ba = GET_REG(cur_op, 2).rbi;
                 MVMP6bigintBody bb = GET_REG(cur_op, 4).rbi;

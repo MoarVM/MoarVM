@@ -12761,6 +12761,34 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obi, MVM_operand_read_reg | MVM_operand_rbi, MVM_operand_read_reg | MVM_operand_rbi }
     },
     {
+        MVM_OP_sp_neg_bi,
+        "sp_neg_bi",
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obi, MVM_operand_read_reg | MVM_operand_rbi }
+    },
+    {
+        MVM_OP_sp_abs_bi,
+        "sp_abs_bi",
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obi, MVM_operand_read_reg | MVM_operand_rbi }
+    },
+    {
         MVM_OP_sp_cmp_bi,
         "sp_cmp_bi",
         3,
@@ -13053,7 +13081,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 933;
+static const unsigned short MVM_op_counts = 935;
 
 static const MVMuint16 last_op_allowed = 822;
 

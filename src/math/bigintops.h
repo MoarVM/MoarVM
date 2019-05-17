@@ -1,7 +1,9 @@
 int MVM_bigint_mp_set_uint64(mp_int * a, MVMuint64 b);
 
 MVMObject * MVM_bigint_abs(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a);
+void MVM_bigint_fallback_abs(MVMThreadContext *tc, MVMP6bigintBody *ba, MVMP6bigintBody *bc);
 MVMObject * MVM_bigint_neg(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a);
+void MVM_bigint_fallback_neg(MVMThreadContext *tc, MVMP6bigintBody *ba, MVMP6bigintBody *bc);
 MVMObject * MVM_bigint_not(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a);
 /* unused */
 /* void MVM_bigint_sqrt(MVMObject *b, MVMObject *a); */

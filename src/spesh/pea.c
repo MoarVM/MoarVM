@@ -41,6 +41,7 @@ typedef struct MaterializationTarget MaterializationTarget;
 #define TRANSFORM_VIVIFY_CONCRETE       12
 #define TRANSFORM_UNMATERIALIZE_BI      13
 #define TRANSFORM_DECOMPOSE_BIGINT_REL  14
+#define TRANSFORM_DECOMPOSE_BIGINT_UN   15
 typedef struct {
     /* The allocation that this transform relates to eliminating. */
     MVMSpeshPEAAllocation *allocation;
@@ -96,7 +97,7 @@ typedef struct {
             MVMuint16 obtain_offset_a;
             MVMuint16 obtain_offset_b;
             MVMuint16 replace_op;
-        } decomp_bi_bi;
+        } decomp_op_bi;
         struct {
             MVMSpeshIns *ins;
             MVMuint16 hypothetical_reg_idx;
@@ -521,12 +522,13 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
                     (MVMCollectable *)STABLE(t->allocation->type));
             break;
         }
-        case TRANSFORM_DECOMPOSE_BIGINT_BI: {
+        case TRANSFORM_DECOMPOSE_BIGINT_BI:
+        case TRANSFORM_DECOMPOSE_BIGINT_UN: {
             /* Prepend instructions to read big integer out of box if needed. */
             MVMSpeshOperand a, b;
-            MVMSpeshIns *ins = t->decomp_bi_bi.ins;
-            if (t->decomp_bi_bi.obtain_offset_a) {
-                MVMuint32 hyp_reg_idx = t->decomp_bi_bi.hypothetical_reg_idx_a;
+            MVMSpeshIns *ins = t->decomp_op_bi.ins;
+            if (t->decomp_op_bi.obtain_offset_a) {
+                MVMuint32 hyp_reg_idx = t->decomp_op_bi.hypothetical_reg_idx_a;
                 MVMSpeshIns *get_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
                 get_ins->info = MVM_op_get_op(MVM_OP_sp_get_bi);
                 get_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
@@ -534,32 +536,34 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
                 a = get_ins->operands[0] = MVM_spesh_manipulate_new_version(tc, g,
                         gs->attr_regs[hyp_reg_idx]);
                 get_ins->operands[1] = ins->operands[1];
-                get_ins->operands[2].lit_ui16 = t->decomp_bi_bi.obtain_offset_a;
+                get_ins->operands[2].lit_ui16 = t->decomp_op_bi.obtain_offset_a;
                 MVM_spesh_get_facts(tc, g, get_ins->operands[0])->writer = get_ins;
                 MVM_spesh_usages_add_by_reg(tc, g, get_ins->operands[1], get_ins);
                 MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, get_ins);
             }
             else {
-                a.reg.orig = gs->attr_regs[t->decomp_bi_bi.hypothetical_reg_idx_a];
+                a.reg.orig = gs->attr_regs[t->decomp_op_bi.hypothetical_reg_idx_a];
                 a.reg.i = MVM_spesh_manipulate_get_current_version(tc, g, a.reg.orig);
             }
-            if (t->decomp_bi_bi.obtain_offset_b) {
-                MVMuint32 hyp_reg_idx = t->decomp_bi_bi.hypothetical_reg_idx_b;
-                MVMSpeshIns *get_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-                get_ins->info = MVM_op_get_op(MVM_OP_sp_get_bi);
-                get_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-                gs->attr_regs[hyp_reg_idx] = MVM_spesh_manipulate_get_unique_reg(tc, g, MVM_reg_rbi);
-                b = get_ins->operands[0] = MVM_spesh_manipulate_new_version(tc, g,
-                        gs->attr_regs[hyp_reg_idx]);
-                get_ins->operands[1] = ins->operands[2];
-                get_ins->operands[2].lit_ui16 = t->decomp_bi_bi.obtain_offset_b;
-                MVM_spesh_get_facts(tc, g, get_ins->operands[0])->writer = get_ins;
-                MVM_spesh_usages_add_by_reg(tc, g, get_ins->operands[1], get_ins);
-                MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, get_ins);
-            }
-            else {
-                b.reg.orig = gs->attr_regs[t->decomp_bi_bi.hypothetical_reg_idx_b];
-                b.reg.i = MVM_spesh_manipulate_get_current_version(tc, g, b.reg.orig);
+            if (t->transform == TRANSFORM_DECOMPOSE_BIGINT_BI) {
+                if (t->decomp_op_bi.obtain_offset_b) {
+                    MVMuint32 hyp_reg_idx = t->decomp_op_bi.hypothetical_reg_idx_b;
+                    MVMSpeshIns *get_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                    get_ins->info = MVM_op_get_op(MVM_OP_sp_get_bi);
+                    get_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                    gs->attr_regs[hyp_reg_idx] = MVM_spesh_manipulate_get_unique_reg(tc, g, MVM_reg_rbi);
+                    b = get_ins->operands[0] = MVM_spesh_manipulate_new_version(tc, g,
+                            gs->attr_regs[hyp_reg_idx]);
+                    get_ins->operands[1] = ins->operands[2];
+                    get_ins->operands[2].lit_ui16 = t->decomp_op_bi.obtain_offset_b;
+                    MVM_spesh_get_facts(tc, g, get_ins->operands[0])->writer = get_ins;
+                    MVM_spesh_usages_add_by_reg(tc, g, get_ins->operands[1], get_ins);
+                    MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, get_ins);
+                }
+                else {
+                    b.reg.orig = gs->attr_regs[t->decomp_op_bi.hypothetical_reg_idx_b];
+                    b.reg.i = MVM_spesh_manipulate_get_current_version(tc, g, b.reg.orig);
+                }
             }
 
             /* Allocate concrete registers for the target bigint. */
@@ -568,15 +572,18 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             /* Now, transform the instruction itself. */
             MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
             MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
-            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[3], ins);
-            ins->info = MVM_op_get_op(t->decomp_bi_bi.replace_op);
+            if (t->transform == TRANSFORM_DECOMPOSE_BIGINT_BI)
+                MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[3], ins);
+            ins->info = MVM_op_get_op(t->decomp_op_bi.replace_op);
             ins->operands[0] = MVM_spesh_manipulate_new_version(tc, g,
                     gs->attr_regs[find_bigint_register(tc, t->allocation)]);
             ins->operands[1] = a;
-            ins->operands[2] = b;
-            MVM_spesh_get_facts(tc, g, ins->operands[0])->writer = ins;
             MVM_spesh_usages_add_by_reg(tc, g, ins->operands[1], ins);
-            MVM_spesh_usages_add_by_reg(tc, g, ins->operands[2], ins);
+            if (t->transform == TRANSFORM_DECOMPOSE_BIGINT_BI) {
+                ins->operands[2] = b;
+                MVM_spesh_usages_add_by_reg(tc, g, ins->operands[2], ins);
+            }
+            MVM_spesh_get_facts(tc, g, ins->operands[0])->writer = ins;
             MVM_spesh_graph_add_comment(tc, g, ins, "big integer op unboxed by scalar replacement");
             pea_log("OPT: big integer op result unboxed");
             break;
@@ -1053,7 +1060,8 @@ static void unhandled_instruction(MVMThreadContext *tc, MVMSpeshGraph *g,
 }
 
 /* Takes a binary big integer operation, calculates how it could be decomposed
- * into big integer register ops, and adds a transform to do so. */
+ * into big integer register ops, and adds a transform to do so. Forms for both
+ * binary and unary ops that result in a new big integer. */
 static MVMint32 are_types_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
         MVMint32 from, MVMint32 to) {
     MVMint32 i;
@@ -1104,12 +1112,12 @@ static int decompose_and_track_bigint_bi(MVMThreadContext *tc, MVMSpeshGraph *g,
         Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
         tran->allocation = alloc;
         tran->transform = TRANSFORM_DECOMPOSE_BIGINT_BI;
-        tran->decomp_bi_bi.ins = ins;
+        tran->decomp_op_bi.ins = ins;
         if (allocation_tracked(tc, gs, bb, a_alloc)) {
             /* Find the hypothetical register for the attribute in question.
              * Also, add a dependency on the allocation in question being
              * replaced. */ 
-            tran->decomp_bi_bi.hypothetical_reg_idx_a = find_bigint_register(tc, a_alloc);
+            tran->decomp_op_bi.hypothetical_reg_idx_a = find_bigint_register(tc, a_alloc);
             MVM_VECTOR_PUSH(alloc->escape_dependencies, a_alloc);
             a_alloc->read = 1;
         }
@@ -1117,21 +1125,21 @@ static int decompose_and_track_bigint_bi(MVMThreadContext *tc, MVMSpeshGraph *g,
             /* Allocate a hypothetical big integer reference register, which
              * we read the value into, and store the offset to read from (which
              * is our indication that we need to read out of the object too). */
-            tran->decomp_bi_bi.hypothetical_reg_idx_a = gs->latest_hypothetical_reg_idx++;
-            tran->decomp_bi_bi.obtain_offset_a = MVM_p6opaque_get_bigint_offset(tc,
+            tran->decomp_op_bi.hypothetical_reg_idx_a = gs->latest_hypothetical_reg_idx++;
+            tran->decomp_op_bi.obtain_offset_a = MVM_p6opaque_get_bigint_offset(tc,
                     a_facts->type->st);
         }
         if (allocation_tracked(tc, gs, bb, b_alloc)) {
-            tran->decomp_bi_bi.hypothetical_reg_idx_b = find_bigint_register(tc, b_alloc);
+            tran->decomp_op_bi.hypothetical_reg_idx_b = find_bigint_register(tc, b_alloc);
             MVM_VECTOR_PUSH(alloc->escape_dependencies, b_alloc);
             b_alloc->read = 1;
         }
         else {
-            tran->decomp_bi_bi.hypothetical_reg_idx_b = gs->latest_hypothetical_reg_idx++;
-            tran->decomp_bi_bi.obtain_offset_b = MVM_p6opaque_get_bigint_offset(tc,
+            tran->decomp_op_bi.hypothetical_reg_idx_b = gs->latest_hypothetical_reg_idx++;
+            tran->decomp_op_bi.obtain_offset_b = MVM_p6opaque_get_bigint_offset(tc,
                     b_facts->type->st);
         }
-        tran->decomp_bi_bi.replace_op = replace_op;
+        tran->decomp_op_bi.replace_op = replace_op;
         add_transform_for_bb(tc, gs, bb, tran);
         MVM_spesh_get_facts(tc, g, ins->operands[0])->pea.allocation = alloc;
         mark_attribute_written(tc, gs, bb, alloc,
@@ -1142,6 +1150,62 @@ static int decompose_and_track_bigint_bi(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVM_spesh_use_facts(tc, g, a_facts);
         MVM_spesh_use_facts(tc, g, b_facts);
         MVM_spesh_use_facts(tc, g, MVM_spesh_get_facts(tc, g, ins->operands[3]));
+
+        return 1;
+    }
+    else {
+        unhandled_instruction(tc, g, bb, ins, gs);
+        return 0;
+    }
+}
+static int decompose_and_track_bigint_un(MVMThreadContext *tc, MVMSpeshGraph *g,
+        GraphState *gs, MVMSpeshBB *bb, MVMSpeshIns *ins, MVMuint16 replace_op) {
+    MVMSTable *st;
+    MVMSpeshPEAAllocation *alloc;
+
+    /* Make sure that we know the types of the incoming operand and the result,
+     * and we can resolve the big integer offset. */
+    if (!are_types_known(tc, g, ins, 1, 2)) {
+        unhandled_instruction(tc, g, bb, ins, gs);
+        return 0;
+    }
+
+    /* See if we can track the result type. */
+    st = MVM_spesh_get_facts(tc, g, ins->operands[2])->type->st;
+    alloc = try_track_allocation(tc, g, gs, bb, ins, st);
+    if (alloc) {
+        /* Obtain tracked status of the incoming operand. */
+        MVMSpeshFacts *a_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+        MVMSpeshPEAAllocation *a_alloc = a_facts->pea.allocation;
+
+        /* Assemble a decompose transform. If the incoming argument is
+         * tracked, then we just will use the hypothetical register of the
+         * tracked object's big integer slot. Otherwise, we will allocate a
+         * hypothetical register to read it into. */
+        Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+        tran->allocation = alloc;
+        tran->transform = TRANSFORM_DECOMPOSE_BIGINT_UN;
+        tran->decomp_op_bi.ins = ins;
+        if (allocation_tracked(tc, gs, bb, a_alloc)) {
+            tran->decomp_op_bi.hypothetical_reg_idx_a = find_bigint_register(tc, a_alloc);
+            MVM_VECTOR_PUSH(alloc->escape_dependencies, a_alloc);
+            a_alloc->read = 1;
+        }
+        else {
+            tran->decomp_op_bi.hypothetical_reg_idx_a = gs->latest_hypothetical_reg_idx++;
+            tran->decomp_op_bi.obtain_offset_a = MVM_p6opaque_get_bigint_offset(tc,
+                    a_facts->type->st);
+        }
+        tran->decomp_op_bi.replace_op = replace_op;
+        add_transform_for_bb(tc, gs, bb, tran);
+        MVM_spesh_get_facts(tc, g, ins->operands[0])->pea.allocation = alloc;
+        mark_attribute_written(tc, gs, bb, alloc,
+                MVM_p6opaque_get_bigint_offset(tc, alloc->type->st) - sizeof(MVMObject));
+        pea_log("started tracking a big integer allocation");
+
+        /* Mark all facts as used. */
+        MVM_spesh_use_facts(tc, g, a_facts);
+        MVM_spesh_use_facts(tc, g, MVM_spesh_get_facts(tc, g, ins->operands[2]));
 
         return 1;
     }
@@ -1742,6 +1806,14 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     break;
                 case MVM_OP_gcd_I:
                     if (decompose_and_track_bigint_bi(tc, g, gs, bb, ins, MVM_OP_sp_gcd_bi))
+                        found_replaceable = 1;
+                    break;
+                case MVM_OP_neg_I:
+                    if (decompose_and_track_bigint_un(tc, g, gs, bb, ins, MVM_OP_sp_neg_bi))
+                        found_replaceable = 1;
+                    break;
+                case MVM_OP_abs_I:
+                    if (decompose_and_track_bigint_un(tc, g, gs, bb, ins, MVM_OP_sp_abs_bi))
                         found_replaceable = 1;
                     break;
                 case MVM_OP_cmp_I:

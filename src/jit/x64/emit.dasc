@@ -2560,6 +2560,51 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |3:
         break;
     }
+    case MVM_OP_sp_neg_bi:
+    case MVM_OP_sp_abs_bi: {
+        MVMint16 a = ins->operands[1].reg.orig;
+        MVMint16 c = ins->operands[0].reg.orig;
+
+        /* See if it's a smallint. If so, load it and see if we'll overflow. The only
+         * case that can overflow is the minimum 32-bit integer value, since the
+         * maximum integer value is one less. */
+        | mov TMP1d, [WORK + 8 * a]
+        | cmp TMP1d, MVM_BIGINT_32_FLAG
+        | jne >1
+        | mov eax, dword [WORK + 8 * a + 4]
+        | cmp eax, dword -2147483648LL
+        | je >1
+
+        /* Do the calculation as the smallint and store the result. */
+        | mov dword [WORK + 8 * c], MVM_BIGINT_32_FLAG
+        switch (op) {
+            case MVM_OP_sp_neg_bi:
+                | neg eax
+                break;
+            case MVM_OP_sp_abs_bi:
+                | cdq
+                | xor eax, edx
+                | sub eax, edx
+                break;
+        }
+        | mov dword [WORK + 8 * c + 4], eax
+        | jmp >2
+
+        /* Otherwise, call the fallback to get the result. */
+        | mov ARG1, TC;
+        | lea ARG2, WORK[a];
+        | lea ARG3, WORK[c];
+        switch (op) {
+            case MVM_OP_sp_neg_bi:
+                | callp &MVM_bigint_fallback_neg;
+                break;
+            case MVM_OP_sp_abs_bi:
+                | callp &MVM_bigint_fallback_abs;
+                break;
+        }
+        |2:
+        break;
+    }
     case MVM_OP_sp_cmp_bi:
     case MVM_OP_sp_eq_bi:
     case MVM_OP_sp_ne_bi:

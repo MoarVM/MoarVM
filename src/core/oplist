@@ -1066,6 +1066,8 @@ sp_add_bi        .s w(obi) r(rbi) r(rbi)
 sp_sub_bi        .s w(obi) r(rbi) r(rbi)
 sp_mul_bi        .s w(obi) r(rbi) r(rbi)
 sp_gcd_bi        .s w(obi) r(rbi) r(rbi)
+sp_neg_bi        .s w(obi) r(rbi)
+sp_abs_bi        .s w(obi) r(rbi)
 sp_cmp_bi        .s w(int64) r(rbi) r(rbi) :pure
 sp_eq_bi         .s w(int64) r(rbi) r(rbi) :pure
 sp_ne_bi         .s w(int64) r(rbi) r(rbi) :pure

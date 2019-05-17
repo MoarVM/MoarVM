@@ -1884,6 +1884,8 @@ start:
     case MVM_OP_sp_sub_bi:
     case MVM_OP_sp_mul_bi:
     case MVM_OP_sp_gcd_bi:
+    case MVM_OP_sp_neg_bi:
+    case MVM_OP_sp_abs_bi:
     case MVM_OP_sp_cmp_bi:
     case MVM_OP_sp_eq_bi:
     case MVM_OP_sp_ne_bi:

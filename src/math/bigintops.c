@@ -325,6 +325,15 @@ static void two_complement_shl(mp_int *result, mp_int *value, MVMint64 count) {
 }
 
 #define MVM_BIGINT_UNARY_OP(opname, SMALLINT_OP) \
+void MVM_bigint_fallback_##opname(MVMThreadContext *tc, MVMP6bigintBody *ba, MVMP6bigintBody *bc) { \
+    mp_int *ia, *ic; \
+    ia = force_bigint(tc, ba, 0); \
+    ic = MVM_malloc(sizeof(mp_int)); \
+    mp_init(ic); \
+    mp_##opname(ia, ic); \
+    store_bigint_result(bc, ic); \
+    adjust_nursery(tc, bc); \
+} \
 MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MVMObject *source) { \
     MVMP6bigintBody *bb; \
     MVMObject *result; \
