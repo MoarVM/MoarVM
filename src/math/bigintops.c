@@ -166,13 +166,15 @@ static mp_int * force_bigint(MVMThreadContext *tc, const MVMP6bigintBody *body, 
         return body->u.bigint;
     }
     else {
-        MVMint32 value = body->u.smallint.value;
+        MVMint64 value = body->u.smallint.value;
         mp_int *i = tc->temp_bigints[idx];
         if (value >= 0) {
-            mp_set_int(i, value);
+            mp_digit d = value;
+            mp_set(i, d);
         }
         else {
-            mp_set_int(i, -value);
+            mp_digit d = -value;
+            mp_set(i, d);
             mp_neg(i, i);
         }
         return i;
