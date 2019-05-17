@@ -503,6 +503,8 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         case MVM_OP_mul_I:
         case MVM_OP_div_I:
         case MVM_OP_mod_I:
+        case MVM_OP_gcd_I:
+        case MVM_OP_lcm_I:
             create_facts(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[3].reg.orig, ins->operands[3].reg.i);
