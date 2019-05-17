@@ -6,6 +6,7 @@
  * MoarVM per thread. */
 MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance) {
     MVMThreadContext *tc = MVM_calloc(1, sizeof(MVMThreadContext));
+    MVMint32 i;
 
     /* Associate with VM instance. */
     tc->instance = instance;
@@ -39,6 +40,12 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
     /* Initialize random number generator state. */
     MVM_proc_seed(tc, (MVM_platform_now() / 10000) * MVM_proc_getpid(tc));
 
+    /* Allocate temporary big integers. */
+    for (i = 0; i < MVM_NUM_TEMP_BIGINTS; i++) {
+        tc->temp_bigints[i] = MVM_malloc(sizeof(mp_int));
+        mp_init(tc->temp_bigints[i]);
+    }
+
     /* Initialize frame sequence numbers */
     tc->next_frame_nr = 0;
     tc->current_frame_nr = 0;
@@ -63,6 +70,8 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
  * objects from this nursery to the second generation. Only after
  * that is true should this be called. */
 void MVM_tc_destroy(MVMThreadContext *tc) {
+    MVMint32 i;
+
     /* Free specialization state. */
     MVM_spesh_sim_stack_destroy(tc, tc->spesh_sim_stack);
 
@@ -93,6 +102,12 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     MVM_free(tc->nfa_fates);
     MVM_free(tc->nfa_longlit);
     MVM_free(tc->multi_dim_indices);
+
+    /* Free temporary working big integers. */
+    for (i = 0; i < MVM_NUM_TEMP_BIGINTS; i++) {
+        mp_clear(tc->temp_bigints[i]);
+        MVM_free(tc->temp_bigints[i]);
+    }
 
     /* Free the thread context itself. */
     memset(tc, 0, sizeof(MVMThreadContext));
