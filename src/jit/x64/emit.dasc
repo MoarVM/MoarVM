@@ -1635,7 +1635,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint32 reg_b = ins->operands[1].reg.orig;
         MVMint32 reg_c = ins->operands[2].reg.orig;
         /* Call the bigint comparison function. */
-        | mov ARG1, tc;
+        | mov ARG1, TC;
         | mov ARG2, WORK[reg_b];
         | mov ARG3, WORK[reg_c];
         | callp &MVM_bigint_cmp;
