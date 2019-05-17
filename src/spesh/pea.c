@@ -127,6 +127,12 @@ typedef struct {
     /* Which of the object's attributes have been used? Used for tracing
      * auto-viv. */
     MVMuint8 *used;
+
+    /* Was the object seen by the time this basic block was reached?
+     * Used to disregard basic blocks in a merge where the object
+     * could not possibly have been visible, so we don't get spurious
+     * materializations or irreplaceable status. */
+    MVMuint8 seen;
 } BBAllocationState;
 typedef struct {
     /* The allocation state of tracked objects; during analysis of the
@@ -671,6 +677,15 @@ static void add_tracked_register(MVMThreadContext *tc, GraphState *gs, MVMSpeshO
     MVM_VECTOR_PUSH(gs->tracked_registers, tr);
 }
 
+/* Marks an allocation has having been seen. */
+static void mark_allocation_seen(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *bb,
+        MVMSpeshPEAAllocation *alloc) {
+    BBState *bb_state = &(gs->bb_states[bb->idx]);
+    BBAllocationState *a_state;
+    MVM_VECTOR_ENSURE_SIZE(bb_state->alloc_state, alloc->index + 1);
+    bb_state->alloc_state[alloc->index].seen = 1;
+}
+
 /* Sees if this is something we can potentially avoid really allocating. If
  * it is, sets up the allocation tracking state that we need. */
 static MVMSpeshPEAAllocation * try_track_allocation(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -708,6 +723,7 @@ static MVMSpeshPEAAllocation * try_track_allocation(MVMThreadContext *tc, MVMSpe
         alloc->index = MVM_VECTOR_ELEMS(gs->tracked_allocations);
         MVM_VECTOR_PUSH(gs->tracked_allocations, alloc);
         add_tracked_register(tc, gs, alloc_ins->operands[0], alloc);
+        mark_allocation_seen(tc, gs, alloc_bb, alloc);
         return alloc;
     }
     return NULL;
@@ -1183,16 +1199,23 @@ static void setup_bb_state(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *new
         MVMuint8 *new_used = MVM_calloc(1, num_attrs);
         MVMint32 consistent = 1;
         MVM_VECTOR_DECL(Transformation *, distinct_materializations);
+        MVM_VECTOR_DECL(MVMSpeshBB *, applicable_bbs);
         MVM_VECTOR_INIT(distinct_materializations, 0);
+        MVM_VECTOR_INIT(applicable_bbs, 0);
         for (j = 0; j < new_bb->num_pred; j++) {
             MVMSpeshBB *pred_bb = new_bb->pred[j];
             BBState *pred_bb_state = &(gs->bb_states[pred_bb->idx]);
-            if (i < MVM_VECTOR_ALLOCATED(pred_bb_state->alloc_state)) {
+            if (i < MVM_VECTOR_ALLOCATED(pred_bb_state->alloc_state) &&
+                    pred_bb_state->alloc_state[i].seen) {
                 BBAllocationState *a_state = &(pred_bb_state->alloc_state[i]);
+
+                /* Merged used in preds. */
                 MVMuint8 *pred_used = a_state->used;
                 if (pred_used)
                     for (k = 0; k < num_attrs; k++)
                         new_used[k] += pred_used[k];
+
+                /* Merge materializations lists (distinct entries only). */
                 if (MVM_VECTOR_ELEMS(a_state->materializations) > 0) {
                     num_materialized++;
                     for (k = 0; k < MVM_VECTOR_ELEMS(a_state->materializations); k++) {
@@ -1203,6 +1226,12 @@ static void setup_bb_state(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *new
                             MVM_VECTOR_PUSH(distinct_materializations, t);
                     }
                 }
+
+                /* If we're here, we've seen this allocation in a previous BB. */
+                new_bb_state->alloc_state[i].seen = 1;
+
+                /* And this BB is applicable. */
+                MVM_VECTOR_PUSH(applicable_bbs, pred_bb);
             }
         }
 
@@ -1210,7 +1239,7 @@ static void setup_bb_state(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *new
          * and normalize the values to 1 if written. */
         for (j = 0; j < num_attrs; j++) {
             if (new_used[j]) {
-                if (new_used[j] == new_bb->num_pred) {
+                if (new_used[j] == MVM_VECTOR_ELEMS(applicable_bbs)) {
                     /* Consistently written by all. */
                     new_used[j] = 1;
                 }
@@ -1226,6 +1255,7 @@ static void setup_bb_state(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *new
         }
         if (!consistent) {
             MVM_VECTOR_DESTROY(distinct_materializations);
+            MVM_VECTOR_DESTROY(applicable_bbs);
             continue;
         }
 
@@ -1236,12 +1266,14 @@ static void setup_bb_state(MVMThreadContext *tc, GraphState *gs, MVMSpeshBB *new
         /* If we have any materialized, and it's not equal to the number of
          * preds, then the object has only been materialized on some paths to
          * this point. We'll need to ensure it's materialized on all of them. */
-        if (num_materialized > 0 && num_materialized != new_bb->num_pred) {
+        if (num_materialized > 0 && num_materialized != MVM_VECTOR_ELEMS(applicable_bbs)) {
             /* TODO Insert materialization transforms. For now, we will just
              * conservatively mark the object irreplaceable. */
             pea_log("Cannot yet handle differring materialization state in preds");
             mark_irreplaceable(tc, gs->tracked_allocations[i]);
         }
+
+        MVM_VECTOR_DESTROY(applicable_bbs);
     }
 }
 
