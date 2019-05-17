@@ -570,6 +570,7 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             allocate_concrete_registers(tc, g, gs, t->allocation);
 
             /* Now, transform the instruction itself. */
+            pea_log("OPT: big integer result of %s unboxed", ins->info->name);
             MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
             MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
             if (t->transform == TRANSFORM_DECOMPOSE_BIGINT_BI)
@@ -585,7 +586,6 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             }
             MVM_spesh_get_facts(tc, g, ins->operands[0])->writer = ins;
             MVM_spesh_graph_add_comment(tc, g, ins, "big integer op unboxed by scalar replacement");
-            pea_log("OPT: big integer op result unboxed");
             break;
         }
         case TRANSFORM_UNBOX_BIGINT: {
@@ -723,6 +723,7 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             }
 
             /* Now, transform the instruction itself. */
+            pea_log("OPT: big integer relational op %s devirtualized", ins->info->name);
             MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
             MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
             ins->info = MVM_op_get_op(t->decomp_rel_bi.replace_op);
@@ -731,7 +732,6 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             MVM_spesh_usages_add_by_reg(tc, g, ins->operands[1], ins);
             MVM_spesh_usages_add_by_reg(tc, g, ins->operands[2], ins);
             MVM_spesh_graph_add_comment(tc, g, ins, "big integer relational devirtualized");
-            pea_log("OPT: big integer relational op devirtualized");
             break;
         }
         default:
