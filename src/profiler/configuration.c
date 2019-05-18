@@ -9,6 +9,7 @@ enum {
 
 enum {
     FieldSel_staticframe,
+    FieldSel_frame,
 };
 
 typedef struct {
@@ -284,6 +285,9 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
                 if (string_length == 11) { /* staticframe */
                     *hintptr = FieldSel_staticframe;
                 }
+                else if (string_length == 5) { /* frame */
+                    *hintptr = FieldSel_frame;
+                }
             }
             else if (selected_struct_source == StructSel_MVMStaticFrame) {
                 if (string_length == 2) { /* cu */
@@ -493,6 +497,10 @@ void MVM_confprog_run(MVMThreadContext *tc, MVMConfigurationProgram *prog, MVMOb
                     if (field_select == FieldSel_staticframe) {
                         reg_base[REGISTER_STRUCT_ACCUMULATOR].any = tc->cur_frame->static_info;
                         fprintf(stderr, "get a static frame into the struct accumulator: %x\n", tc->cur_frame->static_info);
+                    }
+                    else if (field_select == FieldSel_frame) {
+                        reg_base[REGISTER_STRUCT_ACCUMULATOR].any = tc->cur_frame;
+                        fprintf(stderr, "get a frame into the struct accumulator: %x\n", tc->cur_frame);
                     }
                     else {
                         fprintf(stderr, "NYI case of getattr_o on root struct hit\n");
