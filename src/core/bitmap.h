@@ -68,3 +68,11 @@ MVM_STATIC_INLINE void MVM_bitmap_intersection(MVMBitmap *out, MVMBitmap *a, MVM
         out[i] = a[i] & b[i];
     }
 }
+
+MVM_STATIC_INLINE MVMBitmap MVM_bitmap_with_set(MVMBitmap bitmap, MVMuint8 bit) {
+    return bitmap | (1 << bit);
+}
+
+MVM_STATIC_INLINE MVMBitmap MVM_bitmap_with_clear(MVMBitmap bitmap, MVMuint8 bit) {
+    return bitmap & ~(1 << bit);
+}
