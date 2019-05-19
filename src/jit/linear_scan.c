@@ -43,11 +43,12 @@ typedef struct {
      * definition and one to the last use... we could also point directly into
      * the values array of the tile, but it is not directly necessary */
     MVMJitTile *synthetic[2];
-
-    MVMuint8 register_spec;
-
+    /* Set of registers that this value can be assigned to */
+    MVMBitmap reg_perm;
+    /* Actual register allocated for this value */
     MVMuint8 reg_num;
-    MVMint8  reg_type;
+    /* MVM value type */
+    MVMint8 reg_type;
 
     MVMint32 spill_pos;
     MVMint32 spill_idx;
@@ -152,17 +153,6 @@ static void live_range_merge(LiveRange *a, LiveRange *b) {
     MVMint32 i;
     _DEBUG("Merging live ranges (%d-%d) and (%d-%d)",
            (a)->start, (a)->end, (b)->start, (b)->end);
-    /* Ensure that these register specs are compatible */
-    if (MVM_JIT_REGISTER_HAS_REQUIREMENT(a->register_spec) && !MVM_JIT_REGISTER_HAS_REQUIREMENT(b->register_spec)) {
-        assert(!MVM_JIT_REGISTER_HAS_REQUIREMENT(b->register_spec));
-        assert(MVM_JIT_REGISTER_CLASS[b->register_spec] & MVM_JIT_REGISTER_REQUIREMENT(a->register_spec) != 0);
-    } else if (MVM_JIT_REGISTER_HAS_REQUIREMENT(b->register_spec)) {
-        assert(MVM_JIT_REGISTER_CLASS[a->register_spec] & MVM_JIT_REGISTER_REQUIREMENT(b->register_spec) != 0);
-        /* propagate the register specification */
-        a->register_spec = b->register_spec;
-    } else {
-        assert(a->register_spec == b->register_spec);
-    }
 
     if (a->start <= b->start) {
         head = a->first;
@@ -206,9 +196,14 @@ static void live_range_merge(LiveRange *a, LiveRange *b) {
     }
     a->start = MIN(a->start, b->start);
     a->end   = MAX(a->end, b->end);
+    a->reg_perm = a->reg_perm & b->reg_perm;
+    assert(a->reg_perm != 0);
+
     /* deinitialize the live range */
     b->start = INT32_MAX;
     b->end   = 0;
+    b->reg_perm = 0;
+
 }
 
 static struct Hole * live_range_has_hole(LiveRange *value, MVMint32 order_nr) {
@@ -338,22 +333,21 @@ MVM_STATIC_INLINE MVMJitTile * first_tile(MVMJitTileList *list, LiveRange *value
 /* TODO - this is an x86-ism, since x86 prefers to have the first operand an
  * input-output operand. So this might need revisiting when the register
  * allocator is ported. */
-MVMint8 try_preferred_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile *tile, MVMuint8 spec) {
+MVMint8 try_preferred_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile *tile, MVMBitmap reg_perm) {
     /* Tile has at least one operand.
      * That operand is free.
      * It is also of the desired register class */
     if (tile->num_refs >= 1 && MVM_JIT_REGISTER_IS_USED(tile->refs[1]) &&
-        MVM_bitmap_get_low(alc->reg_free, tile->values[1]) & MVM_JIT_REGISTER_CLASS[spec])
+        MVM_bitmap_get_low(alc->reg_free, tile->values[1]) & reg_perm)
         return tile->values[1];
     return -1;
 }
 
 /* register assignment logic */
 MVMint8 allocate_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, LiveRange *value) {
-    MVMuint8 reg_spec = value->register_spec;
-    MVMint8 reg_num = try_preferred_register(tc, alc, first_tile(list, value), reg_spec);
+    MVMint8 reg_num = try_preferred_register(tc, alc, first_tile(list, value), value->reg_perm);
     if (reg_num < 0)
-        reg_num = MVM_FFS(alc->reg_free & MVM_JIT_REGISTER_CLASS[reg_spec]) - 1;
+        reg_num = MVM_FFS(alc->reg_free & value->reg_perm) - 1;
     if (reg_num >= 0)
         MVM_bitmap_delete(&alc->reg_free, reg_num);
     return reg_num;
@@ -554,12 +548,17 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
         } else {
             /* create a live range if necessary */
             if (MVM_JIT_TILE_YIELDS_VALUE(tile)) {
-                MVMint32 idx          = live_range_init(alc);
+                MVMint32 idx           = live_range_init(alc);
+                MVMuint8 reg_spec     = tile->register_spec[0];
                 alc->sets[node].key   = node;
                 alc->sets[node].idx   = idx;
                 _DEBUG("Create live range %d (tile=%d, node=%d)", idx,i, node);
                 live_range_add_ref(alc, alc->values + idx, i, 0);
-                alc->values[idx].register_spec = tile->register_spec[0];
+                if (MVM_JIT_REGISTER_HAS_REQUIREMENT(reg_spec)) {
+                    alc->values[idx].reg_perm = MVM_bitmap_with_set(0, MVM_JIT_REGISTER_REQUIREMENT(reg_spec));
+                } else {
+                    alc->values[idx].reg_perm = (MVM_JIT_REGISTER_CLASS[reg_spec] & MVM_JIT_AVAILABLE_REGISTERS);
+                }
                 MVM_VECTOR_PUSH(alc->worklist, idx);
             }
             /* account for uses */
@@ -757,7 +756,7 @@ static void live_range_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMJi
         } else {
             n = insert_load_before_use(tc, alc, list, ref, spill_pos);
         }
-        alc->values[n].register_spec = alc->values[to_spill].register_spec;
+        alc->values[n].reg_perm = alc->values[to_spill].reg_perm;
 
         if (order_nr(ref->tile_idx) < code_pos) {
             /* in the past, which means we can safely use the spilled register
@@ -1068,16 +1067,11 @@ MVM_STATIC_INLINE void process_tile(MVMThreadContext *tc, RegisterAllocator *alc
 static void process_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, MVMint32 v) {
     MVMint8 reg;
     MVMint32 tile_order_nr = alc->values[v].start;
-    MVMuint8 spec = alc->values[v].register_spec;
-    if (MVM_JIT_REGISTER_HAS_REQUIREMENT(spec)) {
-        reg = MVM_JIT_REGISTER_REQUIREMENT(spec);
-        if (MVM_bitmap_get_low(MVM_JIT_RESERVED_REGISTERS, reg)) {
-            /* directly assign a reserved register */
-            assign_register(tc, alc, list, v, reg);
-        } else {
-            /* TODO; might require swapping / spilling */
-            NYI(general_purpose_register_spec);
-        }
+    MVMBitmap reg_perm = alc->values[v].reg_perm;
+    if ((MVM_JIT_RESERVED_REGISTERS & reg_perm) != 0) {
+        reg = MVM_FFS(MVM_JIT_RESERVED_REGISTERS & reg_perm) - 1;
+        /* directly assign a reserved register */
+        assign_register(tc, alc, list, v, reg);
     } else {
         while ((reg = allocate_register(tc, alc, list, alc->values + v)) < 0) {
             /* choose a live range, a register to spill, and a spill location */

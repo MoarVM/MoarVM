@@ -79,7 +79,7 @@ const MVMBitmap MVM_JIT_RESERVED_REGISTERS =
     R(BX)|R(SP)|R(BP)|R(SI)|R(DI)|R(12)|R(13)|R(14)|R(15);
 /* rcx(1), rdx(2), r8,r9,r10,r11 */
 const MVMBitmap MVM_JIT_AVAILABLE_REGISTERS =
-    R(CX)|R(DX)|R(8)|R(9)|R(10)|R(11)|R(12)|XMM(1)|XMM(2)|XMM(3)|XMM(4)|XMM(5);
+    R(CX)|R(DX)|R(8)|R(9)|R(10)|R(11)|XMM(1)|XMM(2)|XMM(3)|XMM(4)|XMM(5);
 
 static const MVMint8 arg_gpr[] = {
     MVM_JIT_REG(RCX),
