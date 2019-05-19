@@ -205,7 +205,7 @@ static MVMAsyncTask * read_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObject
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &read_op_table;
-    ri              = MVM_calloc(1, sizeof(ReadInfo));
+    ri              = MVM_CALLOCOBJ(1, ReadInfo);
     MVM_ASSIGN_REF(tc, &(task->common.header), ri->buf_type, buf_type);
     MVM_ASSIGN_REF(tc, &(task->common.header), ri->handle, h);
     task->body.data = ri;
@@ -298,7 +298,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     output_size = (int)buffer->body.elems;
 
     /* Create and initialize write request. */
-    wi->req           = MVM_malloc(sizeof(uv_write_t));
+    wi->req           = MVM_MALLOCOBJ(1, uv_write_t);
     wi->buf           = uv_buf_init(output, output_size);
     wi->req->data     = data;
 
@@ -373,7 +373,7 @@ static MVMAsyncTask * write_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObjec
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &write_op_table;
-    wi              = MVM_calloc(1, sizeof(WriteInfo));
+    wi              = MVM_CALLOCOBJ(1, WriteInfo);
     MVM_ASSIGN_REF(tc, &(task->common.header), wi->handle, h);
     MVM_ASSIGN_REF(tc, &(task->common.header), wi->buf_data, buffer);
     task->body.data = wi;
@@ -432,7 +432,7 @@ static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
             tc->instance->boot_types.BOOTAsync);
     });
     task->body.ops = &close_op_table;
-    ci = MVM_calloc(1, sizeof(CloseInfo));
+    ci = MVM_CALLOCOBJ(1, CloseInfo);
     MVM_ASSIGN_REF(tc, &(task->common.header), ci->handle, h);
     task->body.data = ci;
     MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
@@ -536,7 +536,7 @@ static void on_connect(uv_connect_t* req, int status) {
         /* Allocate and set up handle. */
         MVMROOT2(tc, arr, t, {
             MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-            MVMIOAsyncSocketData *data   = MVM_calloc(1, sizeof(MVMIOAsyncSocketData));
+            MVMIOAsyncSocketData *data   = MVM_CALLOCOBJ(1, MVMIOAsyncSocketData);
             data->handle                 = (uv_stream_t *)ci->socket;
             result->body.ops             = &op_table;
             result->body.data            = data;
@@ -583,8 +583,8 @@ static void connect_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *asyn
     ci->work_idx  = MVM_io_eventloop_add_active_work(tc, async_task);
 
     /* Create and initialize socket and connection. */
-    ci->socket        = MVM_malloc(sizeof(uv_tcp_t));
-    ci->connect       = MVM_malloc(sizeof(uv_connect_t));
+    ci->socket        = MVM_MALLOCOBJ(1, uv_tcp_t);
+    ci->connect       = MVM_MALLOCOBJ(1, uv_connect_t);
     ci->connect->data = data;
     if ((r = uv_tcp_init(loop, ci->socket)) < 0 ||
         (r = uv_tcp_connect(ci->connect, ci->socket, ci->dest, on_connect)) < 0) {
@@ -664,7 +664,7 @@ MVMObject * MVM_io_socket_connect_async(MVMThreadContext *tc, MVMObject *queue,
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &connect_op_table;
-    ci              = MVM_calloc(1, sizeof(ConnectInfo));
+    ci              = MVM_CALLOCOBJ(1, ConnectInfo);
     ci->dest        = dest;
     task->body.data = ci;
 
@@ -693,7 +693,7 @@ static void on_connection(uv_stream_t *server, int status) {
     MVMObject        *arr    = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
     MVMAsyncTask     *t      = MVM_io_eventloop_get_active_work(tc, li->work_idx);
 
-    uv_tcp_t         *client = MVM_malloc(sizeof(uv_tcp_t));
+    uv_tcp_t         *client = MVM_MALLOCOBJ(1, uv_tcp_t);
     int               r;
     uv_tcp_init(server->loop, client);
 
@@ -706,7 +706,7 @@ static void on_connection(uv_stream_t *server, int status) {
 
             {
                 MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-                MVMIOAsyncSocketData *data   = MVM_calloc(1, sizeof(MVMIOAsyncSocketData));
+                MVMIOAsyncSocketData *data   = MVM_CALLOCOBJ(1, MVMIOAsyncSocketData);
                 data->handle                 = (uv_stream_t *)client;
                 result->body.ops             = &op_table;
                 result->body.data            = data;
@@ -720,7 +720,7 @@ static void on_connection(uv_stream_t *server, int status) {
 
             {
                 MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-                MVMIOAsyncSocketData *data   = MVM_calloc(1, sizeof(MVMIOAsyncSocketData));
+                MVMIOAsyncSocketData *data   = MVM_CALLOCOBJ(1, MVMIOAsyncSocketData);
                 data->handle                 = (uv_stream_t *)li->socket;
                 result->body.ops             = &op_table;
                 result->body.data            = data;
@@ -762,7 +762,7 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
     li->work_idx   = MVM_io_eventloop_add_active_work(tc, async_task);
 
     /* Create and initialize socket and connection, and start listening. */
-    li->socket        = MVM_malloc(sizeof(uv_tcp_t));
+    li->socket        = MVM_MALLOCOBJ(1, uv_tcp_t);
     li->socket->data  = data;
     if ((r = uv_tcp_init(loop, li->socket)) < 0 ||
         (r = uv_tcp_bind(li->socket, li->dest, 0)) < 0 ||
@@ -806,7 +806,7 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
 
         MVMROOT2(tc, arr, async_task, {
             MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-            MVMIOAsyncSocketData *data   = MVM_calloc(1, sizeof(MVMIOAsyncSocketData));
+            MVMIOAsyncSocketData *data   = MVM_CALLOCOBJ(1, MVMIOAsyncSocketData);
             data->handle                 = (uv_stream_t *)li->socket;
             result->body.ops             = &op_table;
             result->body.data            = data;
@@ -883,7 +883,7 @@ MVMObject * MVM_io_socket_listen_async(MVMThreadContext *tc, MVMObject *queue,
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &listen_op_table;
-    li              = MVM_calloc(1, sizeof(ListenInfo));
+    li              = MVM_CALLOCOBJ(1, ListenInfo);
     li->dest        = dest;
     li->backlog     = backlog;
     task->body.data = li;

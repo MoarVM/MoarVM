@@ -27,9 +27,9 @@ void send_log(MVMThreadContext *tc, MVMSpeshLog *sl) {
     if (tc->instance->spesh_blocking) {
         uv_mutex_t *block_mutex;
         uv_cond_t *block_condvar;
-        block_mutex = sl->body.block_mutex = MVM_malloc(sizeof(uv_mutex_t));
+        block_mutex = sl->body.block_mutex = MVM_MALLOCOBJ(1, uv_mutex_t);
         uv_mutex_init(sl->body.block_mutex);
-        block_condvar = sl->body.block_condvar = MVM_malloc(sizeof(uv_cond_t));
+        block_condvar = sl->body.block_condvar = MVM_MALLOCOBJ(1, uv_cond_t);
         uv_cond_init(sl->body.block_condvar);
         uv_mutex_lock(sl->body.block_mutex);
         MVMROOT(tc, sl, {

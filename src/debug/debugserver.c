@@ -1197,9 +1197,9 @@ static MVMuint64 find_representant(MVMuint16 *representant, MVMuint64 index) {
 }
 
 static void send_handle_equivalence_classes(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
-    MVMuint16  *representant = MVM_calloc(argument->handle_count, sizeof(MVMuint64));
+    MVMuint16  *representant = MVM_CALLOCOBJ(argument->handle_count, MVMuint64);
     MVMObject **objects      = MVM_calloc(argument->handle_count, sizeof(MVMObject *));
-    MVMuint16  *counts       = MVM_calloc(argument->handle_count, sizeof(MVMuint16));
+    MVMuint16  *counts       = MVM_CALLOCOBJ(argument->handle_count, MVMuint16);
     MVMuint16   idx;
     MVMuint16   classes_count = 0;
 
@@ -2513,7 +2513,7 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
         }
         else if (type_to_parse == 2) {
             uint32_t strsize = 1024;
-            char *string = MVM_calloc(strsize, sizeof(char));
+            char *string = MVM_CALLOCOBJ(strsize, char);
             if (tc->instance->debugserver->debugspam_protocol)
                 fprintf(stderr, "reading a string for %s\n", key_str);
             CHECK(cmp_read_str(ctx, string, &strsize), "Couldn't read string for a key");
@@ -2534,7 +2534,7 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
             uint32_t index;
             CHECK(cmp_read_array(ctx, &arraysize), "Couldn't read array for a key");
             data->handle_count = arraysize;
-            data->handles = MVM_malloc(arraysize * sizeof(MVMuint64));
+            data->handles = MVM_MALLOCOBJ(arraysize, MVMuint64);
             for (index = 0; index < arraysize; index++) {
                 cmp_object_t object;
                 MVMuint64 result;
@@ -2770,7 +2770,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
 } while (0)
 MVM_PUBLIC void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
     MVMInstance *vm = tc->instance;
-    MVMDebugServerData *debugserver = MVM_calloc(1, sizeof(MVMDebugServerData));
+    MVMDebugServerData *debugserver = MVM_CALLOCOBJ(1, MVMDebugServerData);
     MVMObject *worker_entry_point;
     int threadCreateError;
     int init_stat;
@@ -2782,14 +2782,14 @@ MVM_PUBLIC void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
     init_cond(debugserver->tell_threads, "debugserver signals threads");
     init_cond(debugserver->tell_worker, "threads signal debugserver");
 
-    debugserver->handle_table = MVM_malloc(sizeof(MVMDebugServerHandleTable));
+    debugserver->handle_table = MVM_MALLOCOBJ(1, MVMDebugServerHandleTable);
 
     debugserver->handle_table->allocated = 32;
     debugserver->handle_table->used      = 0;
     debugserver->handle_table->next_id   = 1;
-    debugserver->handle_table->entries   = MVM_calloc(debugserver->handle_table->allocated, sizeof(MVMDebugServerHandleTableEntry));
+    debugserver->handle_table->entries   = MVM_CALLOCOBJ(debugserver->handle_table->allocated, MVMDebugServerHandleTableEntry);
 
-    debugserver->breakpoints = MVM_malloc(sizeof(MVMDebugServerBreakpointTable));
+    debugserver->breakpoints = MVM_MALLOCOBJ(1, MVMDebugServerBreakpointTable);
 
     debugserver->breakpoints->files_alloc = 32;
     debugserver->breakpoints->files_used  = 0;

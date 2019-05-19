@@ -599,7 +599,7 @@ fail:
 }
 
 MVMJitCode *create_caller_code(MVMThreadContext *tc, MVMNativeCallBody *body) {
-    MVMSpeshGraph *sg = MVM_calloc(1, sizeof(MVMSpeshGraph));
+    MVMSpeshGraph *sg = MVM_CALLOCOBJ(1, MVMSpeshGraph);
     MVMJitGraph *jg = MVM_nativecall_jit_graph_for_caller_code(tc, sg, body, -1, -1, NULL);
     MVMJitCode *jitcode;
     if (jg != NULL) {

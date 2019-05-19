@@ -24,7 +24,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVMROOT(tc, cu, {
         MVMObject *rm = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTReentrantMutex);
         MVM_ASSIGN_REF(tc, &(root->header), cu->body.deserialize_frame_mutex, rm);
-        cu->body.inline_tweak_mutex = MVM_malloc(sizeof(uv_mutex_t));
+        cu->body.inline_tweak_mutex = MVM_MALLOCOBJ(1, uv_mutex_t);
         uv_mutex_init(cu->body.inline_tweak_mutex);
     });
 }

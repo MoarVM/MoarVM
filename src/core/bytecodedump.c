@@ -105,7 +105,7 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
         /* allocate a line buffer */
         s = 200;
         l = 0;
-        o = MVM_calloc(s, sizeof(char));
+        o = MVM_CALLOCOBJ(s, char);
 
         lineloc = cur_op - bytecode_start;
         /* mark that this line starts at this point in the bytestream */
@@ -292,11 +292,11 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
         lines[lineno++] = o;
     }
     {
-        MVMuint32 *linelabels = MVM_calloc(lineno, sizeof(MVMuint32));
+        MVMuint32 *linelabels = MVM_CALLOCOBJ(lineno, MVMuint32);
         MVMuint32 byte_offset = 0;
         MVMuint32 line_number = 0;
         MVMuint32 label_number = 1;
-        MVMuint32 *annotations = MVM_calloc(lineno, sizeof(MVMuint32));
+        MVMuint32 *annotations = MVM_CALLOCOBJ(lineno, MVMuint32);
 
         for (; byte_offset < bytecode_size; byte_offset++) {
             if (labels[byte_offset] & MVM_val_branch_target) {
@@ -364,7 +364,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32 s = 1024;
     MVMuint32 l = 0;
     MVMuint32 i, j, k;
-    char *o = MVM_calloc(s, sizeof(char));
+    char *o = MVM_CALLOCOBJ(s, char);
     char ***frame_lexicals = MVM_malloc(sizeof(char **) * cu->body.num_frames);
     MVMString *name = MVM_string_utf8_decode(tc, tc->instance->VMString, "", 0);
 
@@ -485,7 +485,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 void MVM_dump_bytecode_of(MVMThreadContext *tc, MVMFrame *frame, MVMSpeshCandidate *maybe_candidate) {
     MVMuint32 s = 1024;
     MVMuint32 l = 0;
-    char *o = MVM_calloc(s, sizeof(char));
+    char *o = MVM_CALLOCOBJ(s, char);
     MVMuint8 *addr;
 
     if (!frame) {
@@ -508,7 +508,7 @@ void MVM_dump_bytecode_of(MVMThreadContext *tc, MVMFrame *frame, MVMSpeshCandida
 void MVM_dump_bytecode_staticframe(MVMThreadContext *tc, MVMStaticFrame *frame) {
     MVMuint32 s = 1024;
     MVMuint32 l = 0;
-    char *o = MVM_calloc(s, sizeof(char));
+    char *o = MVM_CALLOCOBJ(s, char);
 
     bytecode_dump_frame_internal(tc, frame, NULL, NULL, NULL, &o, &s, &l);
 

@@ -16,7 +16,7 @@ void MVM_continuation_reset(MVMThreadContext *tc, MVMObject *tag,
                             MVMObject *code, MVMRegister *res_reg) {
     /* Save the tag. */
     MVMFrameExtra *e = MVM_frame_extra(tc, tc->cur_frame);
-    MVMContinuationTag *tag_record = MVM_malloc(sizeof(MVMContinuationTag));
+    MVMContinuationTag *tag_record = MVM_MALLOCOBJ(1, MVMContinuationTag);
     tag_record->tag = tag;
     tag_record->active_handlers = tc->active_handlers;
     tag_record->next = e->continuation_tags;
@@ -163,7 +163,7 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
     /* If we protected the tag, reinstate it. */
     if (cont->body.protected_tag) {
         MVMFrameExtra *e = MVM_frame_extra(tc, tc->cur_frame);
-        MVMContinuationTag *tag_record = MVM_malloc(sizeof(MVMContinuationTag));
+        MVMContinuationTag *tag_record = MVM_MALLOCOBJ(1, MVMContinuationTag);
         tag_record->tag = cont->body.protected_tag;
         tag_record->active_handlers = tc->active_handlers;
         tag_record->next = e->continuation_tags;

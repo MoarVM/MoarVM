@@ -112,12 +112,12 @@ void MVM_io_eventloop_start(MVMThreadContext *tc) {
     /* This may also be present if this is a thread restart */
     if (!instance->event_loop) {
         /* The underlying loop structure that will handle all IO events. */
-        instance->event_loop              = MVM_malloc(sizeof(uv_loop_t));
+        instance->event_loop              = MVM_MALLOCOBJ(1, uv_loop_t);
         if (uv_loop_init(instance->event_loop) < 0)
             MVM_panic(1, "Unable to initialize event loop");
 
         /* The async signal handler for waking up the thread */
-        instance->event_loop_wakeup       = MVM_malloc(sizeof(uv_async_t));
+        instance->event_loop_wakeup       = MVM_MALLOCOBJ(1, uv_async_t);
         if (uv_async_init(instance->event_loop, instance->event_loop_wakeup, async_handler) != 0)
             MVM_panic(1, "Unable to initialize async wake-up handle for event loop");
 

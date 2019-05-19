@@ -29,7 +29,7 @@ MVMDecodeStream * MVM_string_decodestream_create(MVMThreadContext *tc, MVMint32 
 /* Adds another byte buffer into the decoding stream. */
 void MVM_string_decodestream_add_bytes(MVMThreadContext *tc, MVMDecodeStream *ds, char *bytes, MVMint32 length) {
     if (length > 0) {
-        MVMDecodeStreamBytes *new_bytes = MVM_calloc(1, sizeof(MVMDecodeStreamBytes));
+        MVMDecodeStreamBytes *new_bytes = MVM_CALLOCOBJ(1, MVMDecodeStreamBytes);
         new_bytes->bytes  = bytes;
         new_bytes->length = length;
         if (ds->bytes_tail)
@@ -52,7 +52,7 @@ void MVM_string_decodestream_add_chars(MVMThreadContext *tc, MVMDecodeStream *ds
         ds->chars_reuse = NULL;
     }
     else {
-        new_chars = MVM_malloc(sizeof(MVMDecodeStreamChars));
+        new_chars = MVM_MALLOCOBJ(1, MVMDecodeStreamChars);
     }
     new_chars->chars  = chars;
     new_chars->length = length;
@@ -173,7 +173,7 @@ static void reached_eof(MVMThreadContext *tc, MVMDecodeStream *ds) {
     MVM_unicode_normalizer_eof(tc, &(ds->norm));
     if (MVM_unicode_normalizer_available(tc, &(ds->norm))) {
         MVMint32 ready = MVM_unicode_normalizer_available(tc, &(ds->norm));
-        MVMGrapheme32 *buffer = MVM_malloc(ready * sizeof(MVMGrapheme32));
+        MVMGrapheme32 *buffer = MVM_MALLOCOBJ(ready, MVMGrapheme32);
         MVMint32 count = 0;
         while (ready--)
             buffer[count++] = MVM_unicode_normalizer_get_grapheme(tc, &(ds->norm));
@@ -224,7 +224,7 @@ static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint3
 
     /* Otherwise, need to take and copy. */
     else {
-        result->body.storage.blob_32 = MVM_malloc(result_chars * sizeof(MVMGrapheme32));
+        result->body.storage.blob_32 = MVM_MALLOCOBJ(result_chars, MVMGrapheme32);
         while (found < chars) {
             MVMDecodeStreamChars *cur_chars = ds->chars_head;
             MVMint32 available = cur_chars->length - ds->chars_head_pos;
@@ -472,7 +472,7 @@ static MVMString * get_all_in_buffer(MVMThreadContext *tc, MVMDecodeStream *ds) 
         }
 
         /* Allocate a result buffer of the right size. */
-        result->body.storage.blob_32 = MVM_malloc(length * sizeof(MVMGrapheme32));
+        result->body.storage.blob_32 = MVM_MALLOCOBJ(length, MVMGrapheme32);
         result->body.num_graphs      = length;
 
         /* Copy all the things into the target, freeing as we go. */
@@ -620,7 +620,7 @@ void MVM_string_decodestream_destroy(MVMThreadContext *tc, MVMDecodeStream *ds) 
 /* Calculates and caches various bits of information about separators, for
  * faster line reading. */
 static void cache_sep_info(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec) {
-    MVMGrapheme32 *final_graphemes = MVM_malloc(sep_spec->num_seps * sizeof(MVMGrapheme32));
+    MVMGrapheme32 *final_graphemes = MVM_MALLOCOBJ(sep_spec->num_seps, MVMGrapheme32);
     MVMint32 max_final_grapheme = -1;
     MVMint32 max_sep_length = 1;
     MVMint32 cur_sep_pos = 0;
@@ -642,8 +642,8 @@ static void cache_sep_info(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_
 /* Sets a decode stream separator to its default value. */
 void MVM_string_decode_stream_sep_default(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec) {
     sep_spec->num_seps = 2;
-    sep_spec->sep_lengths = MVM_malloc(sep_spec->num_seps * sizeof(MVMint32));
-    sep_spec->sep_graphemes = MVM_malloc(sep_spec->num_seps * sizeof(MVMGrapheme32));
+    sep_spec->sep_lengths = MVM_MALLOCOBJ(sep_spec->num_seps, MVMint32);
+    sep_spec->sep_graphemes = MVM_MALLOCOBJ(sep_spec->num_seps, MVMGrapheme32);
 
     sep_spec->sep_lengths[0] = 1;
     sep_spec->sep_graphemes[0] = '\n';
@@ -668,7 +668,7 @@ void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeSt
     MVM_free(sep_spec->final_graphemes);
 
     sep_spec->num_seps = num_seps;
-    sep_spec->sep_lengths = MVM_malloc(num_seps * sizeof(MVMint32));
+    sep_spec->sep_lengths = MVM_MALLOCOBJ(num_seps, MVMint32);
     graph_length = 0;
     for (i = 0; i < num_seps; i++) {
         MVMuint32 num_graphs = MVM_string_graphs(tc, seps[i]);
@@ -678,7 +678,7 @@ void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeSt
         graph_length += num_graphs;
     }
 
-    sep_spec->sep_graphemes = MVM_malloc(graph_length * sizeof(MVMGrapheme32));
+    sep_spec->sep_graphemes = MVM_MALLOCOBJ(graph_length, MVMGrapheme32);
     graph_pos = 0;
     for (i = 0; i < num_seps; i++) {
         MVM_string_gi_init(tc, &gi, seps[i]);

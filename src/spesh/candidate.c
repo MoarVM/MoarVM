@@ -93,7 +93,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
 
     /* Generate code and install it into the candidate. */
     sc = MVM_spesh_codegen(tc, sg);
-    candidate = MVM_calloc(1, sizeof(MVMSpeshCandidate));
+    candidate = MVM_CALLOCOBJ(1, MVMSpeshCandidate);
     candidate->bytecode      = sc->bytecode;
     candidate->bytecode_size = sc->bytecode_size;
     candidate->handlers      = sc->handlers;
@@ -163,8 +163,8 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     /* Create a new candidate list and copy any existing ones. Free memory
      * using the FSA safepoint mechanism. */
     spesh = p->sf->body.spesh;
-    new_candidate_list = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-        (spesh->body.num_spesh_candidates + 1) * sizeof(MVMSpeshCandidate *));
+    new_candidate_list = FSA_ALLOCOBJ(tc, tc->instance->fsa,
+        (spesh->body.num_spesh_candidates + 1), MVMSpeshCandidate *);
     if (spesh->body.num_spesh_candidates) {
         size_t orig_size = spesh->body.num_spesh_candidates * sizeof(MVMSpeshCandidate *);
         memcpy(new_candidate_list, spesh->body.spesh_candidates, orig_size);

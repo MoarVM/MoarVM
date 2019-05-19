@@ -902,7 +902,7 @@ static void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
     MVMuint32 num_names = num_unicode_property_keypairs;
 
     while (num_names--) {
-        MVMUnicodeNameRegistry *entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
+        MVMUnicodeNameRegistry *entry = MVM_MALLOCOBJ(1, MVMUnicodeNameRegistry);
         entry->name = (char *)unicode_property_keypairs[num_names].name;
         entry->codepoint = unicode_property_keypairs[num_names].value;
         HASH_ADD_KEYPTR(hash_handle, property_codes_by_names_aliases,
@@ -913,7 +913,7 @@ static void generate_property_codes_by_seq_names(MVMThreadContext *tc) {
     MVMuint32 num_names = num_unicode_seq_keypairs;
 
     while (num_names--) {
-        MVMUnicodeGraphemeNameRegistry *entry = MVM_malloc(sizeof(MVMUnicodeGraphemeNameRegistry));
+        MVMUnicodeGraphemeNameRegistry *entry = MVM_MALLOCOBJ(1, MVMUnicodeGraphemeNameRegistry);
         entry->name = (char *)uni_seq_pairs[num_names].name;
         entry->structindex = uni_seq_pairs[num_names].value;
         HASH_ADD_KEYPTR(hash_handle, property_codes_by_seq_names,
@@ -939,7 +939,7 @@ static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
     MVMUnicodeNameRegistry *entry = NULL, *binaries = NULL;
     for ( ; index < num_unicode_property_value_keypairs; index++) {
         MVMint32 property_code = unicode_property_value_keypairs[index].value >> 24;
-        entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
+        entry = MVM_MALLOCOBJ(1, MVMUnicodeNameRegistry);
         entry->name = (char *)unicode_property_value_keypairs[index].name;
         entry->codepoint = unicode_property_value_keypairs[index].value & 0xFFFFFF;
         HASH_ADD_KEYPTR(hash_handle, hash_array[property_code],
@@ -954,13 +954,13 @@ static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
                     {"No",0}, {"no",0}, {"False",0}, {"false",0}, {"f",0}, {"n",0} };
                 MVMuint8 i;
                 for (i = 0; i < 8; i++) {
-                    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
+                    entry = MVM_MALLOCOBJ(1, MVMUnicodeNameRegistry);
                     entry->name = (char *)yes[i].name;
                     entry->codepoint = yes[i].value;
                     HASH_ADD_KEYPTR(hash_handle, binaries, yes[i].name, strlen(yes[i].name), entry);
                 }
                 for (i = 0; i < 8; i++) {
-                    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
+                    entry = MVM_MALLOCOBJ(1, MVMUnicodeNameRegistry);
                     entry->name = (char *)no[i].name;
                     entry->codepoint = no[i].value;
                     HASH_ADD_KEYPTR(hash_handle, binaries, no[i].name, strlen(no[i].name), entry);

@@ -335,7 +335,7 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
     can_fast_path = MVM_unicode_normalizer_empty(tc, &(ds->norm));
 
     bufsize = ds->result_size_guess;
-    buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
+    buffer = MVM_MALLOCOBJ(bufsize, MVMGrapheme32);
 
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
@@ -413,7 +413,7 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                         * one to the buffers linked list, and continue with a new
                         * one. */
                         MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
-                        buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
+                        buffer = MVM_MALLOCOBJ(bufsize, MVMGrapheme32);
                         count = 0;
                     }
                     buffer[count++] = lag_codepoint;
@@ -473,7 +473,7 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                             * one to the buffers linked list, and continue with a new
                             * one. */
                             MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
-                            buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
+                            buffer = MVM_MALLOCOBJ(bufsize, MVMGrapheme32);
                             count = 0;
                         }
                         buffer[count++] = g;

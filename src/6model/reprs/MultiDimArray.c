@@ -182,7 +182,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *repr_info) {
             if (dimensions < 1)
                 MVM_exception_throw_adhoc(tc,
                     "MultiDimArray REPR must be composed with at least 1 dimension");
-            repr_data = MVM_calloc(1, sizeof(MVMMultiDimArrayREPRData));
+            repr_data = MVM_CALLOCOBJ(1, MVMMultiDimArrayREPRData);
             repr_data->num_dimensions = dimensions;
         }
         else {
@@ -423,7 +423,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     }
 
     if (num_dims > 0) {
-        MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)MVM_malloc(sizeof(MVMMultiDimArrayREPRData));
+        MVMMultiDimArrayREPRData *repr_data = MVM_MALLOCOBJ(1, MVMMultiDimArrayREPRData);
         MVMObject *type;
 
         repr_data->num_dimensions = num_dims;

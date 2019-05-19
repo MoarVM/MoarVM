@@ -268,7 +268,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
     new_size += (num_obj_args - matched_args) * sizeof(MVMMultiCacheNode);
 
     /* Allocate and copy existing cache. */
-    new_head = MVM_fixed_size_alloc(tc, tc->instance->fsa, new_size);
+    new_head = MVM_fixed_size_alloc_named(tc, tc->instance->fsa, new_size, "multi dispatch cache node", 1);
     memcpy(new_head, cache->node_hash_head, cache->cache_memory_size);
 
     /* If we had no head, set it up. */
@@ -315,8 +315,8 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
     /* Make a copy of the results, or allocate new (first result is NULL
      * always) and insert the new result. Schedule old results for freeing. */
     if (cache->num_results) {
-        new_results = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            (cache->num_results + 1) * sizeof(MVMObject *));
+        new_results = MVM_fixed_size_alloc_named(tc, tc->instance->fsa,
+            (cache->num_results + 1) * sizeof(MVMObject *), "multi dispatch cache results array", (cache->num_results + 1));
         memcpy(new_results, cache->results, cache->num_results * sizeof(MVMObject *));
         MVM_ASSIGN_REF(tc, &(cache_obj->header), new_results[cache->num_results], result);
         MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
@@ -325,8 +325,8 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
         cache->num_results++;
     }
     else {
-        new_results = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            2 * sizeof(MVMObject *));
+        new_results = MVM_fixed_size_alloc_named(tc, tc->instance->fsa,
+            2 * sizeof(MVMObject *), "multi dispatch cache results array", 2);
         new_results[0] = NULL; /* Sentinel */
         MVM_ASSIGN_REF(tc, &(cache_obj->header), new_results[1], result);
         cache->results = new_results;

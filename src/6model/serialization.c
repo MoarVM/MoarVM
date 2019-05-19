@@ -1400,7 +1400,7 @@ MVMObject * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     MVM_gc_allocate_gen2_default_set(tc);
 
     /* Set up writer with some initial settings. */
-    writer                      = MVM_calloc(1, sizeof(MVMSerializationWriter));
+    writer                      = MVM_CALLOCOBJ(1, MVMSerializationWriter);
     writer->root.version        = CURRENT_VERSION;
     writer->root.sc             = sc;
     writer->codes_list          = sc->body->root_codes;
@@ -2636,7 +2636,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     *(reader->cur_read_offset) += 1;
     mode = flags & 0xF;
     if (mode != 0xF) {
-        st->boolification_spec = (MVMBoolificationSpec *)MVM_malloc(sizeof(MVMBoolificationSpec));
+        st->boolification_spec = MVM_MALLOCOBJ(1, MVMBoolificationSpec);
         st->boolification_spec->mode = mode;
         MVM_ASSIGN_REF(tc, &(st->header), st->boolification_spec->method, MVM_serialization_read_ref(tc, reader));
     }
@@ -2657,7 +2657,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Invocation spec. */
     if (flags & STABLE_HAS_INVOCATION_SPEC) {
-        st->invocation_spec = (MVMInvocationSpec *)MVM_calloc(1, sizeof(MVMInvocationSpec));
+        st->invocation_spec = MVM_CALLOCOBJ(1, MVMInvocationSpec);
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->class_handle, MVM_serialization_read_ref(tc, reader));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->attr_name, MVM_serialization_read_str(tc, reader));
         st->invocation_spec->hint = MVM_serialization_read_int(tc, reader);
@@ -3124,7 +3124,7 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     MVMint32 scodes, i;
 
     /* Allocate and set up reader. */
-    MVMSerializationReader *reader = MVM_calloc(1, sizeof(MVMSerializationReader));
+    MVMSerializationReader *reader = MVM_CALLOCOBJ(1, MVMSerializationReader);
     reader->root.sc          = sc;
 
     /* If we've been given a NULL string heap, use that of the current

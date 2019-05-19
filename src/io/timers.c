@@ -33,7 +33,7 @@ static void timer_cb(uv_timer_t *handle) {
 /* Sets the timer up on the event loop. */
 static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     TimerInfo *ti = (TimerInfo *)data;
-    ti->handle = MVM_malloc(sizeof(uv_timer_t));
+    ti->handle = MVM_MALLOCOBJ(1, uv_timer_t);
     uv_timer_init(loop, ti->handle);
     ti->work_idx     = MVM_io_eventloop_add_active_work(tc, async_task);
     ti->tc           = tc;
@@ -90,7 +90,7 @@ MVMObject * MVM_io_timer_create(MVMThreadContext *tc, MVMObject *queue,
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops      = &op_table;
-    timer_info          = MVM_malloc(sizeof(TimerInfo));
+    timer_info          = MVM_MALLOCOBJ(1, TimerInfo);
     timer_info->timeout = timeout;
     timer_info->repeat  = repeat;
     task->body.data     = timer_info;

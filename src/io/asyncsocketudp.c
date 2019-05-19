@@ -234,7 +234,7 @@ static MVMAsyncTask * read_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObject
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &read_op_table;
-    ri              = MVM_calloc(1, sizeof(ReadInfo));
+    ri              = MVM_CALLOCOBJ(1, ReadInfo);
     MVM_ASSIGN_REF(tc, &(task->common.header), ri->buf_type, buf_type);
     MVM_ASSIGN_REF(tc, &(task->common.header), ri->handle, h);
     task->body.data = ri;
@@ -307,7 +307,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     output_size = (int)buffer->body.elems;
 
     /* Create and initialize write request. */
-    wi->req           = MVM_malloc(sizeof(uv_udp_send_t));
+    wi->req           = MVM_MALLOCOBJ(1, uv_udp_send_t);
     wi->buf           = uv_buf_init(output, output_size);
     wi->req->data     = data;
     handle_data       = (MVMIOAsyncUDPSocketData *)wi->handle->body.data;
@@ -395,7 +395,7 @@ static MVMAsyncTask * write_bytes_to(MVMThreadContext *tc, MVMOSHandle *h, MVMOb
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &write_op_table;
-    wi              = MVM_calloc(1, sizeof(WriteInfo));
+    wi              = MVM_CALLOCOBJ(1, WriteInfo);
     MVM_ASSIGN_REF(tc, &(task->common.header), wi->handle, h);
     MVM_ASSIGN_REF(tc, &(task->common.header), wi->buf_data, buffer);
     wi->dest_addr = dest_addr;
@@ -493,7 +493,7 @@ typedef struct {
 static void setup_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     /* Set up the UDP handle. */
     SocketSetupInfo *ssi = (SocketSetupInfo *)data;
-    uv_udp_t *udp_handle = MVM_malloc(sizeof(uv_udp_t));
+    uv_udp_t *udp_handle = MVM_MALLOCOBJ(1, uv_udp_t);
     int r;
     if ((r = uv_udp_init(loop, udp_handle)) >= 0) {
         if (ssi->bind_addr)
@@ -509,7 +509,7 @@ static void setup_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         MVM_repr_push_o(tc, arr, t->body.schedulee);
         MVMROOT2(tc, arr, t, {
             MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-            MVMIOAsyncUDPSocketData *data   = MVM_calloc(1, sizeof(MVMIOAsyncUDPSocketData));
+            MVMIOAsyncUDPSocketData *data   = MVM_CALLOCOBJ(1, MVMIOAsyncUDPSocketData);
             data->handle                 = udp_handle;
             result->body.ops             = &op_table;
             result->body.data            = data;
@@ -588,7 +588,7 @@ MVMObject * MVM_io_socket_udp_async(MVMThreadContext *tc, MVMObject *queue,
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &setup_op_table;
-    ssi             = MVM_calloc(1, sizeof(SocketSetupInfo));
+    ssi             = MVM_CALLOCOBJ(1, SocketSetupInfo);
     ssi->bind_addr  = bind_addr;
     ssi->flags      = flags;
     task->body.data = ssi;

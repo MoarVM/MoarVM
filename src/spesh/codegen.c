@@ -301,14 +301,14 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMint32      i, hanlen;
 
     /* Initialize writer state. */
-    SpeshWriterState *ws     = MVM_malloc(sizeof(SpeshWriterState));
+    SpeshWriterState *ws     = MVM_MALLOCOBJ(1, SpeshWriterState);
     ws->bytecode_pos    = 0;
     ws->bytecode_alloc  = 1024;
     ws->bytecode        = MVM_malloc(ws->bytecode_alloc);
-    ws->bb_offsets      = MVM_malloc(g->num_bbs * sizeof(MVMint32));
+    ws->bb_offsets      = MVM_MALLOCOBJ(g->num_bbs, MVMint32);
     ws->num_fixups      = 0;
     ws->alloc_fixups    = 64;
-    ws->fixup_locations = MVM_malloc(ws->alloc_fixups * sizeof(MVMint32));
+    ws->fixup_locations = MVM_MALLOCOBJ(ws->alloc_fixups, MVMint32);
     ws->fixup_bbs       = MVM_malloc(ws->alloc_fixups * sizeof(MVMSpeshBB *));
     for (i = 0; i < g->num_bbs; i++)
         ws->bb_offsets[i] = -1;
@@ -396,7 +396,7 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
         MVM_VECTOR_PUSH(ws->deopt_usage_info, -1);
 
     /* Produce result data structure. */
-    res                   = MVM_malloc(sizeof(MVMSpeshCode));
+    res                   = MVM_MALLOCOBJ(1, MVMSpeshCode);
     res->bytecode         = ws->bytecode;
     res->bytecode_size    = ws->bytecode_pos;
     res->handlers         = ws->handlers;

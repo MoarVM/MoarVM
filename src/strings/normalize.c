@@ -54,7 +54,7 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, const MVMObject *in,
 
     /* Guess output size based on input size. */
     result_alloc = input_codes;
-    result       = MVM_malloc(result_alloc * sizeof(MVMCodepoint));
+    result       = MVM_MALLOCOBJ(result_alloc, MVMCodepoint);
 
     /* Perform normalization. */
     MVM_unicode_normalizer_init(tc, &norm, form);
@@ -95,7 +95,7 @@ MVMString * MVM_unicode_codepoints_c_array_to_nfg_string(MVMThreadContext *tc, M
 
     /* Guess output size based on cp_v size. */
     result_alloc = cp_count;
-    result       = MVM_malloc(result_alloc * sizeof(MVMCodepoint));
+    result       = MVM_MALLOCOBJ(result_alloc, MVMCodepoint);
 
     /* Perform normalization at grapheme level. */
     MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
@@ -152,7 +152,7 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
     /* Validate output array and set up result storage. */
     assert_codepoint_array(tc, out, "Normalization output must be native array of 32-bit integers");
     result_alloc = s->body.num_graphs;
-    result       = MVM_malloc(result_alloc * sizeof(MVMCodepoint));
+    result       = MVM_MALLOCOBJ(result_alloc, MVMCodepoint);
     result_pos   = 0;
 
     /* Create codepoint iterator. */
@@ -200,7 +200,7 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
 void MVM_unicode_normalizer_init(MVMThreadContext *tc, MVMNormalizer *n, MVMNormalization form) {
     n->form               = form;
     n->buffer_size        = 32;
-    n->buffer             = MVM_malloc(n->buffer_size * sizeof(MVMCodepoint));
+    n->buffer             = MVM_MALLOCOBJ(n->buffer_size, MVMCodepoint);
     n->buffer_start       = 0;
     n->buffer_end         = 0;
     n->buffer_norm_end    = 0;

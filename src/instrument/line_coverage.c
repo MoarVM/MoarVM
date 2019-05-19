@@ -127,7 +127,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMint32 last_filename = -1;
 
     MVMuint16 allocd_slots  = g->num_bbs * 2;
-    char *line_report_store = MVM_calloc(allocd_slots, sizeof(char));
+    char *line_report_store = MVM_CALLOCOBJ(allocd_slots, char);
 
     /* Since we don't know the right size for the line report store
      * up front, we will have to realloc it along the way. After that
@@ -268,7 +268,7 @@ static void add_instrumentation(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuin
     sc = MVM_spesh_codegen(tc, sg);
     ins = sf->body.instrumentation;
     if (!ins)
-        ins = MVM_calloc(1, sizeof(MVMStaticFrameInstrumentation));
+        ins = MVM_CALLOCOBJ(1, MVMStaticFrameInstrumentation);
     ins->instrumented_bytecode        = sc->bytecode;
     ins->instrumented_handlers        = sc->handlers;
     ins->instrumented_bytecode_size   = sc->bytecode_size;

@@ -1,3 +1,5 @@
+#include <sys/sdt.h>
+
 /* The global, top-level data structure for the fixed size allocator. */
 struct MVMFixedSizeAlloc {
     /* Size classes for the fixed size allocator. Each one represents a bunch
@@ -94,6 +96,9 @@ struct MVMFixedSizeAllocThreadSizeClass {
 /* The length limit for the per-thread free list. */
 #define MVM_FSA_THREAD_FREELIST_LIMIT   1024
 
+#define FSA_ALLOCOBJ(tc, fsa, count, type_name) MVM_fixed_size_alloc_named(tc, fsa, (count) * sizeof(type_name), #type_name, count)
+#define FSA_CALLOCOBJ(tc, fsa, count, type_name) MVM_fixed_size_alloc_zeroed_named(tc, fsa, (count) * sizeof(type_name), #type_name, count)
+
 /* Functions. */
 MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc);
 void MVM_fixed_size_create_thread(MVMThreadContext *tc);
@@ -106,3 +111,12 @@ void MVM_fixed_size_destroy_thread(MVMThreadContext *tc);
 void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes, void *free);
 void MVM_fixed_size_free_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes, void *free);
 void MVM_fixed_size_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *al);
+
+MVM_STATIC_INLINE void * MVM_fixed_size_alloc_named(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t size, const char *type_name, size_t count) {
+    DTRACE_PROBE3(moarvm, fsaallocobj, type_name, count, size);
+    return MVM_fixed_size_alloc(tc, fsa, size);
+}
+MVM_STATIC_INLINE void * MVM_fixed_size_alloc_zeroed_named(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t size, const char *type_name, size_t count) {
+    DTRACE_PROBE3(moarvm, fsacallocobj, type_name, count, size);
+    return MVM_fixed_size_alloc_zeroed(tc, fsa, size);
+}

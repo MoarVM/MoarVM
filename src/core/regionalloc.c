@@ -13,7 +13,7 @@ void * MVM_region_alloc(MVMThreadContext *tc, MVMRegionAlloc *al, size_t bytes) 
         al->block->alloc += bytes;
     } else {
         /* No block, or block was full. Add another. */
-        MVMRegionBlock *block = MVM_malloc(sizeof(MVMRegionBlock));
+        MVMRegionBlock *block = MVM_MALLOCOBJ(1, MVMRegionBlock);
         size_t buffer_size = al->block == NULL
             ? MVM_REGIONALLOC_FIRST_MEMBLOCK_SIZE
             : MVM_REGIONALLOC_MEMBLOCK_SIZE;

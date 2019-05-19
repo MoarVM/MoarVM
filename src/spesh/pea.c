@@ -149,7 +149,7 @@ static MVMuint16 get_deopt_materialization_info(MVMThreadContext *tc, MVMSpeshGr
         MVMuint16 *attr_regs;
         if (num_attrs > 0) {
             MVMuint32 i;
-            attr_regs = MVM_malloc(num_attrs * sizeof(MVMuint16));
+            attr_regs = MVM_MALLOCOBJ(num_attrs, MVMuint16);
             for (i = 0; i < num_attrs; i++)
                 attr_regs[i] = gs->attr_regs[alloc->hypothetical_attr_reg_idxs[i]];
         }

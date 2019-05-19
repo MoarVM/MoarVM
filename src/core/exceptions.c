@@ -358,7 +358,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
 
     case MVM_EX_ACTION_INVOKE: {
         /* Create active handler record. */
-        MVMActiveHandler *ah = MVM_malloc(sizeof(MVMActiveHandler));
+        MVMActiveHandler *ah = MVM_MALLOCOBJ(1, MVMActiveHandler);
         MVMFrame *cur_frame = tc->cur_frame;
         MVMFrame *pres_frame;
         MVMObject *handler_code;

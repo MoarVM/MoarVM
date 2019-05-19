@@ -42,7 +42,7 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
 
     /* Allocate temporary big integers. */
     for (i = 0; i < MVM_NUM_TEMP_BIGINTS; i++) {
-        tc->temp_bigints[i] = MVM_malloc(sizeof(mp_int));
+        tc->temp_bigints[i] = MVM_MALLOCOBJ(1, mp_int);
         mp_init(tc->temp_bigints[i]);
     }
 

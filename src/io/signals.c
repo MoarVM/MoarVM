@@ -317,7 +317,7 @@ MVMObject * MVM_io_signal_handle(MVMThreadContext *tc, MVMObject *queue,
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops      = &op_table;
-    signal_info         = MVM_malloc(sizeof(SignalInfo));
+    signal_info         = MVM_MALLOCOBJ(1, SignalInfo);
     signal_info->signum = signal;
     task->body.data     = signal_info;
 

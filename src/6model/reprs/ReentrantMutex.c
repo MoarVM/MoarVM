@@ -6,7 +6,7 @@ static const MVMREPROps ReentrantMutex_this_repr;
 /* Populates the object body with a mutex. */
 static void initialize_mutex(MVMThreadContext *tc, MVMReentrantMutexBody *rm) {
     int init_stat;
-    rm->mutex = MVM_malloc(sizeof(uv_mutex_t));
+    rm->mutex = MVM_MALLOCOBJ(1, uv_mutex_t);
     if ((init_stat = uv_mutex_init(rm->mutex)) < 0)
         MVM_exception_throw_adhoc(tc, "Failed to initialize mutex: %s",
             uv_strerror(init_stat));

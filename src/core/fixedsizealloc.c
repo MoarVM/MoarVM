@@ -24,8 +24,8 @@ MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc) {
 #ifdef MVM_VALGRIND_SUPPORT
     int bin_no;
 #endif
-    MVMFixedSizeAlloc *al = MVM_malloc(sizeof(MVMFixedSizeAlloc));
-    al->size_classes = MVM_calloc(MVM_FSA_BINS, sizeof(MVMFixedSizeAllocSizeClass));
+    MVMFixedSizeAlloc *al = MVM_MALLOCOBJ(1, MVMFixedSizeAlloc);
+    al->size_classes = MVM_CALLOCOBJ(MVM_FSA_BINS, MVMFixedSizeAllocSizeClass);
     if ((init_stat = uv_mutex_init(&(al->complex_alloc_mutex))) < 0)
         MVM_exception_throw_adhoc(tc, "Failed to initialize mutex: %s",
             uv_strerror(init_stat));
@@ -45,8 +45,8 @@ MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc) {
 
 /* Creates the per-thread fixed size allocator state. */
 void MVM_fixed_size_create_thread(MVMThreadContext *tc) {
-    MVMFixedSizeAllocThread *al = MVM_malloc(sizeof(MVMFixedSizeAllocThread));
-    al->size_classes = MVM_calloc(MVM_FSA_BINS, sizeof(MVMFixedSizeAllocThreadSizeClass));
+    MVMFixedSizeAllocThread *al = MVM_MALLOCOBJ(1, MVMFixedSizeAllocThread);
+    al->size_classes = MVM_CALLOCOBJ(MVM_FSA_BINS, MVMFixedSizeAllocThreadSizeClass);
     tc->thread_fsa = al;
 }
 
@@ -87,10 +87,16 @@ static void setup_bin(MVMFixedSizeAlloc *al, MVMuint32 bin) {
     /* Work out page size we want. */
     MVMuint32 page_size = MVM_FSA_PAGE_ITEMS * ((bin + 1) << MVM_FSA_BIN_BITS) + MVM_FSA_REDZONE_BYTES * 2 * MVM_FSA_PAGE_ITEMS;
 
+    char page_identifier[64];
+
+    snprintf(page_identifier, 63, "Initial FSA Page bin %d, %d bytes", bin, page_size);
+
+    DTRACE_PROBE3(moarvm, fsa_new_page, bin, page_size, 0);
+
     /* We'll just allocate a single page to start off with. */
     al->size_classes[bin].num_pages = 1;
     al->size_classes[bin].pages     = MVM_malloc(sizeof(void *) * al->size_classes[bin].num_pages);
-    al->size_classes[bin].pages[0]  = MVM_malloc(page_size);
+    al->size_classes[bin].pages[0]  = MVM_malloc_named(page_size, page_identifier, 1);
 
     /* Set up allocation position and limit. */
     al->size_classes[bin].alloc_pos = al->size_classes[bin].pages[0];
@@ -102,12 +108,19 @@ static void add_page(MVMFixedSizeAlloc *al, MVMuint32 bin) {
     /* Work out page size. */
     MVMuint32 page_size = MVM_FSA_PAGE_ITEMS * ((bin + 1) << MVM_FSA_BIN_BITS) + MVM_FSA_REDZONE_BYTES * 2 * MVM_FSA_PAGE_ITEMS;
 
+    char page_identifier[64];
+
     /* Add the extra page. */
     MVMuint32 cur_page = al->size_classes[bin].num_pages;
+
+    snprintf(page_identifier, 63, "Extra FSA Page bin %d, %d bytes", bin, page_size);
+
+    DTRACE_PROBE3(moarvm, fsa_new_page, bin, page_size, cur_page);
+
     al->size_classes[bin].num_pages++;
     al->size_classes[bin].pages = MVM_realloc(al->size_classes[bin].pages,
         sizeof(void *) * al->size_classes[bin].num_pages);
-    al->size_classes[bin].pages[cur_page] = MVM_malloc(page_size);
+    al->size_classes[bin].pages[cur_page] = MVM_malloc_named(page_size, page_identifier, 1);
 
     /* Set up allocation position and limit. */
     al->size_classes[bin].alloc_pos = al->size_classes[bin].pages[cur_page];

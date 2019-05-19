@@ -64,7 +64,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
         /* NOTE: if we really wanted to, we could avoid rehashing... */
         HASH_ITER_FAST(tc, hash_handle, src_body->lexical_names, current, {
-            MVMLexicalRegistry *new_entry = MVM_malloc(sizeof(MVMLexicalRegistry));
+            MVMLexicalRegistry *new_entry = MVM_MALLOCOBJ(1, MVMLexicalRegistry);
             /* don't need to clone the string */
             MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->key, current->key);
             new_entry->value = current->value;
@@ -99,7 +99,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->outer, src_body->outer);
 
     dest_body->num_handlers = src_body->num_handlers;
-    dest_body->handlers     = MVM_malloc(src_body->num_handlers * sizeof(MVMFrameHandler));
+    dest_body->handlers     = MVM_MALLOCOBJ(src_body->num_handlers, MVMFrameHandler);
     if (src_body->num_handlers)
         memcpy(dest_body->handlers, src_body->handlers,
             src_body->num_handlers * sizeof(MVMFrameHandler));

@@ -2592,7 +2592,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(setboolspec): {
                 MVMSTable            *st = GET_REG(cur_op, 0).o->st;
-                MVMBoolificationSpec *bs = MVM_malloc(sizeof(MVMBoolificationSpec));
+                MVMBoolificationSpec *bs = MVM_MALLOCOBJ(1, MVMBoolificationSpec);
                 MVMBoolificationSpec *orig_bs = st->boolification_spec;
                 bs->mode = (MVMuint32)GET_REG(cur_op, 2).i64;
                 MVM_ASSIGN_REF(tc, &(st->header), bs->method, GET_REG(cur_op, 4).o);
@@ -2891,7 +2891,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 0).o, *ch = GET_REG(cur_op, 2).o,
                     *invocation_handler = GET_REG(cur_op, 6).o;
                 MVMString *name = GET_REG(cur_op, 4).s;
-                MVMInvocationSpec *is = MVM_calloc(1, sizeof(MVMInvocationSpec));
+                MVMInvocationSpec *is = MVM_CALLOCOBJ(1, MVMInvocationSpec);
                 MVMSTable *st = STABLE(obj);
                 MVM_ASSIGN_REF(tc, &(st->header), is->class_handle, ch);
                 MVM_ASSIGN_REF(tc, &(st->header), is->attr_name, name);

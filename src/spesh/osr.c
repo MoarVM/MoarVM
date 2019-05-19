@@ -38,8 +38,8 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
     /* Resize work area if needed. */
     if (specialized->work_size > tc->cur_frame->allocd_work) {
         /* Resize work area. */
-        MVMRegister *new_work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-            specialized->work_size);
+        MVMRegister *new_work = MVM_fixed_size_alloc_zeroed_named(tc, tc->instance->fsa,
+            specialized->work_size, "specialized registers", 1);
         MVMRegister *new_args = new_work + num_locals;
         memcpy(new_work, tc->cur_frame->work,
             tc->cur_frame->static_info->body.num_locals * sizeof(MVMRegister));
@@ -65,8 +65,8 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
 
     /* Resize environment if needed. */
     if (specialized->num_lexicals > tc->cur_frame->static_info->body.num_lexicals) {
-        MVMRegister *new_env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-            specialized->env_size);
+        MVMRegister *new_env = MVM_fixed_size_alloc_zeroed_named(tc, tc->instance->fsa,
+            specialized->env_size, "specialized environment", 1);
         if (tc->cur_frame->allocd_env) {
             memcpy(new_env, tc->cur_frame->env,
                 tc->cur_frame->static_info->body.num_lexicals * sizeof(MVMRegister));

@@ -31,8 +31,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
     /* NOTE: if we really wanted to, we could avoid rehashing... */
     HASH_ITER_FAST(tc, hash_handle, src_body->hash_head, current, {
-        MVMHashEntry *new_entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            sizeof(MVMHashEntry));
+        MVMHashEntry *new_entry = FSA_ALLOCOBJ(tc, tc->instance->fsa,
+            1, MVMHashEntry);
         MVMString *key = MVM_HASH_KEY(current);
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, current->value);
         MVM_HASH_BIND(tc, dest_body->hash_head, key, new_entry);
@@ -100,8 +100,8 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     /* first check whether we can must update the old entry. */
     MVM_HASH_GET(tc, body->hash_head, key, entry);
     if (!entry) {
-        entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            sizeof(MVMHashEntry));
+        entry = FSA_ALLOCOBJ(tc, tc->instance->fsa,
+            1, MVMHashEntry);
         MVM_ASSIGN_REF(tc, &(root->header), entry->value, value.o);
         MVM_HASH_BIND(tc, body->hash_head, key, entry);
         MVM_gc_write_barrier(tc, &(root->header), &(key->common.header));
@@ -175,8 +175,8 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     for (i = 0; i < elems; i++) {
         MVMString *key = MVM_serialization_read_str(tc, reader);
         MVMObject *value = MVM_serialization_read_ref(tc, reader);
-        MVMHashEntry *entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            sizeof(MVMHashEntry));
+        MVMHashEntry *entry = FSA_ALLOCOBJ(tc, tc->instance->fsa,
+            1, MVMHashEntry);
         MVM_ASSIGN_REF(tc, &(root->header), entry->value, value);
         MVM_HASH_BIND(tc, body->hash_head, key, entry);
     }

@@ -4,7 +4,7 @@
 MVMSpeshStats * stats_for(MVMThreadContext *tc, MVMStaticFrame *sf) {
     MVMStaticFrameSpesh *spesh = sf->body.spesh;
     if (!spesh->body.spesh_stats)
-        spesh->body.spesh_stats = MVM_calloc(1, sizeof(MVMSpeshStats));
+        spesh->body.spesh_stats = MVM_CALLOCOBJ(1, MVMSpeshStats);
     return spesh->body.spesh_stats;
 }
 
@@ -72,7 +72,7 @@ MVMint32 by_type(MVMThreadContext *tc, MVMSpeshStats *ss, MVMuint32 callsite_idx
     else if (cs_without_object_args(tc, cs)) {
         if (css->num_by_type == 0) {
             css->num_by_type++;
-            css->by_type = MVM_calloc(1, sizeof(MVMSpeshStatsByType));
+            css->by_type = MVM_CALLOCOBJ(1, MVMSpeshStatsByType);
             css->by_type[0].arg_types = arg_types;
         }
         else {
@@ -248,7 +248,7 @@ void add_type_tuple_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
 void sim_stack_init(MVMThreadContext *tc, MVMSpeshSimStack *sims) {
     sims->used = 0;
     sims->limit = 32;
-    sims->frames = MVM_malloc(sims->limit * sizeof(MVMSpeshSimStackFrame));
+    sims->frames = MVM_MALLOCOBJ(sims->limit, MVMSpeshSimStackFrame);
     sims->depth = 0;
 }
 
@@ -268,7 +268,7 @@ void sim_stack_push(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMStaticFrame
     frame->callsite_idx = callsite_idx;
     frame->type_idx = -1;
     frame->arg_types = (cs = ss->by_callsite[callsite_idx].cs)
-        ? MVM_calloc(cs->flag_count, sizeof(MVMSpeshStatsType))
+        ? MVM_CALLOCOBJ(cs->flag_count, MVMSpeshStatsType)
         : NULL;
     frame->offset_logs = NULL;
     frame->offset_logs_used = frame->offset_logs_limit = 0;
@@ -542,7 +542,7 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
         log_from_tc->spesh_sim_stack = NULL;
     }
     else {
-        sims = MVM_malloc(sizeof(MVMSpeshSimStack));
+        sims = MVM_MALLOCOBJ(1, MVMSpeshSimStack);
         sim_stack_init(tc, sims);
     }
 

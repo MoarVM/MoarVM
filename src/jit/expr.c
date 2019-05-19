@@ -589,7 +589,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         return NULL;
 
     /* Make the tree */
-    tree = MVM_malloc(sizeof(MVMJitExprTree));
+    tree = MVM_MALLOCOBJ(1, MVMJitExprTree);
     MVM_VECTOR_INIT(tree->nodes, 256);
     MVM_VECTOR_INIT(tree->constants, 16);
     MVM_VECTOR_INIT(tree->roots, 16);

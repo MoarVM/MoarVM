@@ -497,7 +497,7 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
     else {
         MVMOSHandle * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc,
                 tc->instance->boot_types.BOOTIO);
-        MVMIOSyncSocketData * const data = MVM_calloc(1, sizeof(MVMIOSyncSocketData));
+        MVMIOSyncSocketData * const data = MVM_CALLOCOBJ(1, MVMIOSyncSocketData);
         data->handle = s;
         result->body.ops  = &op_table;
         result->body.data = data;
@@ -508,7 +508,7 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
 
 MVMObject * MVM_io_socket_create(MVMThreadContext *tc, MVMint64 listen) {
     MVMOSHandle         * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-    MVMIOSyncSocketData * const data   = MVM_calloc(1, sizeof(MVMIOSyncSocketData));
+    MVMIOSyncSocketData * const data   = MVM_CALLOCOBJ(1, MVMIOSyncSocketData);
     result->body.ops  = &op_table;
     result->body.data = data;
     return (MVMObject *)result;

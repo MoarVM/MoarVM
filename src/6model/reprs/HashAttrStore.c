@@ -25,7 +25,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
     /* NOTE: if we really wanted to, we could avoid rehashing... */
     HASH_ITER_FAST(tc, hash_handle, src_body->hash_head, current, {
-        MVMHashEntry *new_entry = MVM_malloc(sizeof(MVMHashEntry));
+        MVMHashEntry *new_entry = MVM_MALLOCOBJ(1, MVMHashEntry);
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, current->value);
         MVM_HASH_BIND(tc, dest_body->hash_head, MVM_HASH_KEY(current), new_entry);
     });
@@ -71,7 +71,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         MVMHashEntry *entry;
         MVM_HASH_GET(tc, body->hash_head, name, entry);
         if (!entry) {
-            entry = MVM_malloc(sizeof(MVMHashEntry));
+            entry = MVM_MALLOCOBJ(1, MVMHashEntry);
             MVM_ASSIGN_REF(tc, &(root->header), entry->value, value_reg.o);
             MVM_HASH_BIND(tc, body->hash_head, name, entry);
             MVM_gc_write_barrier(tc, &(root->header), &(name->common.header));

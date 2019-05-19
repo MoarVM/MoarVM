@@ -13,7 +13,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
     }
 
     if (!entry) {
-        entry = MVM_calloc(1, sizeof(MVMHLLConfig));
+        entry = MVM_CALLOCOBJ(1, MVMHLLConfig);
         entry->name = name;
         entry->int_box_type = tc->instance->boot_types.BOOTInt;
         entry->num_box_type = tc->instance->boot_types.BOOTNum;

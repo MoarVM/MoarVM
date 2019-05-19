@@ -25,7 +25,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVMArrayREPRData *repr_data = (MVMArrayREPRData *)MVM_malloc(sizeof(MVMArrayREPRData));
+        MVMArrayREPRData *repr_data = MVM_MALLOCOBJ(1, MVMArrayREPRData);
 
         repr_data->slot_type = MVM_ARRAY_OBJ;
         repr_data->elem_size = sizeof(MVMObject *);
@@ -1222,7 +1222,7 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 
 /* Deserializes representation data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)MVM_malloc(sizeof(MVMArrayREPRData));
+    MVMArrayREPRData *repr_data = MVM_MALLOCOBJ(1, MVMArrayREPRData);
 
     MVMObject *type = MVM_serialization_read_ref(tc, reader);
     MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);

@@ -26,7 +26,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMRegister *args = MVM_malloc(arg_size);
     memcpy(args, src_body->apc->args, arg_size);
 
-    dest_body->apc = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
+    dest_body->apc = MVM_CALLOCOBJ(1, MVMArgProcContext);
     MVM_args_proc_init(tc, dest_body->apc,
         MVM_args_copy_uninterned_callsite(tc, src_body->apc), args);
 }

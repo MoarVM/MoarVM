@@ -154,7 +154,7 @@ void MVM_decoder_configure(MVMThreadContext *tc, MVMDecoder *decoder,
         enter_single_user(tc, decoder);
         decoder->body.ds = MVM_string_decodestream_create(tc, encid, 0,
             should_translate_newlines(tc, config));
-        decoder->body.sep_spec = MVM_malloc(sizeof(MVMDecodeStreamSeparators));
+        decoder->body.sep_spec = MVM_MALLOCOBJ(1, MVMDecodeStreamSeparators);
         MVM_string_decode_stream_sep_default(tc, decoder->body.sep_spec);
         MVM_ASSIGN_REF(tc, &(decoder->common.header), decoder->body.ds->replacement,
             has_replacement(tc, config));

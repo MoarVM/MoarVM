@@ -96,7 +96,7 @@ void MVM_6model_parametric_parameterize(MVMThreadContext *tc, MVMObject *type, M
 
     /* It wasn't found; run parameterizer. */
     code = MVM_frame_find_invokee(tc, st->paramet.ric.parameterizer, NULL);
-    prd  = MVM_malloc(sizeof(ParameterizeReturnData));
+    prd  = MVM_MALLOCOBJ(1, ParameterizeReturnData);
     prd->parametric_type                    = type;
     prd->parameters                         = params;
     prd->result                             = result;

@@ -165,7 +165,7 @@ void sort_plan(MVMThreadContext *tc, MVMSpeshPlanned *planned, MVMuint32 n) {
 /* Forms a specialization plan from considering all frames whose statics have
  * changed. */
 MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_frames) {
-    MVMSpeshPlan *plan = MVM_calloc(1, sizeof(MVMSpeshPlan));
+    MVMSpeshPlan *plan = MVM_CALLOCOBJ(1, MVMSpeshPlan);
     MVMint64 updated = MVM_repr_elems(tc, updated_static_frames);
     MVMint64 i;
 #if MVM_GC_DEBUG

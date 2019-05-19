@@ -198,8 +198,8 @@ static void sort_states_and_add_synth_cp_node(MVMThreadContext *tc, MVMNFABody *
         /* If enough edges, insert synthetic and so the sort. */
         if (applicable_edges >= 4) {
             MVMint64 num_new_edges = num_orig_edges + 1;
-            MVMNFAStateInfo *new_edges = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-                num_new_edges * sizeof(MVMNFAStateInfo));
+            MVMNFAStateInfo *new_edges = FSA_ALLOCOBJ(tc, tc->instance->fsa,
+                num_new_edges, MVMNFAStateInfo);
             new_edges[0].act = MVM_NFA_EDGE_SYNTH_CP_COUNT;
             new_edges[0].arg.i = applicable_edges;
             memcpy(new_edges + 1, body->states[s], num_orig_edges * sizeof(MVMNFAStateInfo));
@@ -225,16 +225,16 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 
     if (body->num_states > 0) {
         /* Read state edge list counts. */
-        body->num_state_edges = MVM_fixed_size_alloc(tc, tc->instance->fsa, body->num_states * sizeof(MVMint64));
+        body->num_state_edges = FSA_ALLOCOBJ(tc, tc->instance->fsa, body->num_states, MVMint64);
         for (i = 0; i < body->num_states; i++)
             body->num_state_edges[i] = MVM_serialization_read_int(tc, reader);
 
         /* Read state graph. */
-        body->states = MVM_fixed_size_alloc(tc, tc->instance->fsa, body->num_states * sizeof(MVMNFAStateInfo *));
+        body->states = FSA_ALLOCOBJ(tc, tc->instance->fsa, body->num_states, MVMNFAStateInfo *);
         for (i = 0; i < body->num_states; i++) {
             MVMint64 edges = body->num_state_edges[i];
             if (edges > 0) {
-                body->states[i] = MVM_fixed_size_alloc(tc, tc->instance->fsa, edges * sizeof(MVMNFAStateInfo));
+                body->states[i] = FSA_ALLOCOBJ(tc, tc->instance->fsa, edges, MVMNFAStateInfo);
             }
             for (j = 0; j < edges; j++) {
                 body->states[i][j].act = MVM_serialization_read_int(tc, reader);
@@ -254,7 +254,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                         }
                         else {
                             MVMint32 num_codes = -cp_or_synth_count;
-                            MVMCodepoint *codes = MVM_fixed_size_alloc(tc, tc->instance->fsa, num_codes * sizeof(MVMCodepoint));
+                            MVMCodepoint *codes = FSA_ALLOCOBJ(tc, tc->instance->fsa, num_codes, MVMCodepoint);
                             MVMint32 k;
                             for (k = 0; k < num_codes; k++)
                                 codes[k] = (MVMCodepoint)MVM_serialization_read_int(tc, reader);
@@ -392,8 +392,8 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
         num_states = MVM_repr_elems(tc, states) - 1;
         nfa->num_states = num_states;
         if (num_states > 0) {
-            nfa->num_state_edges = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, num_states * sizeof(MVMint64));
-            nfa->states = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, num_states * sizeof(MVMNFAStateInfo *));
+            nfa->num_state_edges = FSA_CALLOCOBJ(tc, tc->instance->fsa, num_states, MVMint64);
+            nfa->states = FSA_CALLOCOBJ(tc, tc->instance->fsa, num_states, MVMNFAStateInfo *);
         }
         for (i = 0; i < num_states; i++) {
             MVMObject *edge_info = MVM_repr_at_pos_o(tc, states, i + 1);
@@ -403,7 +403,7 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
 
             nfa->num_state_edges[i] = edges;
             if (edges > 0) {
-                nfa->states[i] = MVM_fixed_size_alloc(tc, tc->instance->fsa, edges * sizeof(MVMNFAStateInfo));
+                nfa->states[i] = FSA_ALLOCOBJ(tc, tc->instance->fsa, edges, MVMNFAStateInfo);
             }
 
             for (j = 0; j < elems; j += 3) {

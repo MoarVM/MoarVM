@@ -1,3 +1,5 @@
+#include <sys/sdt.h>
+
 MVM_STATIC_INLINE void * MVM_malloc(size_t size) {
     void *ptr = malloc(size);
 
@@ -15,6 +17,19 @@ MVM_STATIC_INLINE void * MVM_calloc(size_t num, size_t size) {
 
     return ptr;
 }
+
+#define MVM_MALLOCOBJ(count, type_name) (MVM_malloc_named((count) * sizeof(type_name), #type_name, (count)))
+#define MVM_CALLOCOBJ(count, type_name) (MVM_calloc_named((count), sizeof(type_name), #type_name))
+
+MVM_STATIC_INLINE void * MVM_malloc_named(size_t size, const char *type_name, size_t count) {
+    DTRACE_PROBE3(moarvm, mallocobj, type_name, count, size);
+    return MVM_malloc(size);
+}
+MVM_STATIC_INLINE void * MVM_calloc_named(size_t num, size_t size, const char *type_name) {
+    DTRACE_PROBE3(moarvm, callocobj, type_name, num, size);
+    return MVM_calloc(num, size);
+}
+
 
 MVM_STATIC_INLINE void * MVM_realloc(void *p, size_t size) {
     void *ptr = realloc(p, size);

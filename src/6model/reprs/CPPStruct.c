@@ -143,8 +143,8 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMSTable *st,
 
         /* Allocate location/offset arrays and GC mark info arrays. */
         repr_data->num_attributes      = num_attrs;
-        repr_data->attribute_locations = (MVMint32 *)   MVM_malloc(info_alloc * sizeof(MVMint32));
-        repr_data->struct_offsets      = (MVMint32 *)   MVM_malloc(info_alloc * sizeof(MVMint32));
+        repr_data->attribute_locations = MVM_MALLOCOBJ(info_alloc, MVMint32);
+        repr_data->struct_offsets      = MVM_MALLOCOBJ(info_alloc, MVMint32);
         repr_data->flattened_stables   = (MVMSTable **) MVM_calloc(info_alloc, sizeof(MVMObject *));
         repr_data->member_types        = (MVMObject **) MVM_calloc(info_alloc, sizeof(MVMObject *));
         repr_data->struct_align        = 0;
@@ -368,7 +368,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 /* Composes the representation. */
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *repr_info) {
     /* Compute allocation strategy. */
-    MVMCPPStructREPRData *repr_data = MVM_calloc(1, sizeof(MVMCPPStructREPRData));
+    MVMCPPStructREPRData *repr_data = MVM_CALLOCOBJ(1, MVMCPPStructREPRData);
     MVMObject *attr_info = MVM_repr_at_key_o(tc, repr_info, tc->instance->str_consts.attribute);
     compute_allocation_strategy(tc, st, attr_info, repr_data);
     st->REPR_data = repr_data;
@@ -777,7 +777,7 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 
 /* Deserializes the REPR data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    MVMCPPStructREPRData *repr_data = (MVMCPPStructREPRData *) MVM_malloc(sizeof(MVMCPPStructREPRData));
+    MVMCPPStructREPRData *repr_data = MVM_MALLOCOBJ(1, MVMCPPStructREPRData);
     MVMint32 i, num_classes, num_slots;
 
     repr_data->struct_size    = MVM_serialization_read_int(tc, reader);

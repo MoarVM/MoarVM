@@ -220,7 +220,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
 
     MVMSpeshIns **pos_ins    = MVM_calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
     MVMSpeshBB  **pos_bb     = MVM_calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
-    MVMuint8     *pos_added  = MVM_calloc(MAX_POS_ARGS, sizeof(MVMuint8));
+    MVMuint8     *pos_added  = MVM_CALLOCOBJ(MAX_POS_ARGS, MVMuint8);
     MVMSpeshIns **named_ins  = MVM_calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshIns *));
     MVMSpeshBB  **named_bb   = MVM_calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshBB *));
     MVMint32      req_max    = -1;
@@ -827,7 +827,7 @@ void MVM_spesh_args_from_callinfo(MVMThreadContext *tc, MVMSpeshGraph *g,
     else {
         MVMuint16 i;
         MVMuint16 flags = call_info->cs->flag_count;
-        MVMSpeshStatsType *tt = MVM_calloc(flags, sizeof(MVMSpeshStatsType));
+        MVMSpeshStatsType *tt = MVM_CALLOCOBJ(flags, MVMSpeshStatsType);
         MVMuint16 info_pos = 0;
         for (i = 0; i < flags; i++) {
             MVMCallsiteEntry flag = call_info->cs->arg_flags[i];

@@ -11,12 +11,12 @@ MVMint32 MVM_profile_heap_profiling(MVMThreadContext *tc) {
 
 /* Start heap profiling. */
 void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
-    MVMHeapSnapshotCollection *col = MVM_calloc(1, sizeof(MVMHeapSnapshotCollection));
+    MVMHeapSnapshotCollection *col = MVM_CALLOCOBJ(1, MVMHeapSnapshotCollection);
     char *path;
     MVMString *path_str;
 
-    col->index = MVM_calloc(1, sizeof(MVMHeapDumpIndex));
-    col->index->snapshot_sizes = MVM_calloc(1, sizeof(MVMHeapDumpIndexSnapshotEntry));
+    col->index = MVM_CALLOCOBJ(1, MVMHeapDumpIndex);
+    col->index->snapshot_sizes = MVM_CALLOCOBJ(1, MVMHeapDumpIndexSnapshotEntry);
     tc->instance->heap_snapshots = col;
 
     path_str = MVM_repr_get_str(tc,
@@ -173,7 +173,7 @@ static void add_reference_vm_str(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
 
 /* Adds an entry to the seen hash. */
 static void saw(MVMThreadContext *tc, MVMHeapSnapshotState *ss, void *addr, MVMuint64 idx) {
-    MVMHeapSnapshotSeen *seen = MVM_calloc(1, sizeof(MVMHeapSnapshotSeen));
+    MVMHeapSnapshotSeen *seen = MVM_CALLOCOBJ(1, MVMHeapSnapshotSeen);
     seen->address = addr;
     seen->idx = idx;
     HASH_ADD_KEYPTR(hash_handle, ss->seen, &(seen->address), sizeof(void *), seen);
@@ -925,7 +925,7 @@ void finish_collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollec
 void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
     if (MVM_profile_heap_profiling(tc)) {
         MVMHeapSnapshotCollection *col = tc->instance->heap_snapshots;
-        col->snapshot = MVM_calloc(1, sizeof(MVMHeapSnapshot));
+        col->snapshot = MVM_CALLOCOBJ(1, MVMHeapSnapshot);
 
         record_snapshot(tc, col, col->snapshot);
 

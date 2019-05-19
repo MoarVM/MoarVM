@@ -2268,7 +2268,7 @@ static void optimize_prof_allocated(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
  * same semantics. */
 static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     /* First, see if we have any goto handlers for this category. */
-    MVMint32 *handlers_found = MVM_malloc(g->num_handlers * sizeof(MVMint32));
+    MVMint32 *handlers_found = MVM_MALLOCOBJ(g->num_handlers, MVMint32);
     MVMint32  num_found      = 0;
     MVMuint32 category       = (MVMuint32)ins->operands[1].lit_i64;
     MVMint32  i;
@@ -2282,7 +2282,7 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
      * track of this in optimize_bb as it walks the dominance children, but
      * we need a linear view. */
     if (num_found) {
-        MVMint32    *in_handlers = MVM_calloc(g->num_handlers, sizeof(MVMint32));
+        MVMint32    *in_handlers = MVM_CALLOCOBJ(g->num_handlers, MVMint32);
         MVMSpeshBB **goto_bbs    = MVM_calloc(g->num_handlers, sizeof(MVMSpeshBB *));
         MVMSpeshBB  *search_bb   = g->entry;
         MVMint32     picked      = -1;
@@ -3122,7 +3122,7 @@ static void try_eliminate_box_unbox_pair(MVMThreadContext *tc, MVMSpeshGraph *g,
         user_entry = user_entry->next;
     }
     if (MVM_spesh_usages_is_used(tc, g, ins->operands[0])) {
-        SeenBox *sb = MVM_malloc(sizeof(SeenBox));
+        SeenBox *sb = MVM_MALLOCOBJ(1, SeenBox);
         sb->bb = bb;
         sb->ins = ins;
         MVM_VECTOR_PUSH(pips->seen_box_ins, sb);

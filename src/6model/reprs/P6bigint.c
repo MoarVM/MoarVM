@@ -77,7 +77,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMP6bigintBody *src_body = (MVMP6bigintBody *)src;
     MVMP6bigintBody *dest_body = (MVMP6bigintBody *)dest;
     if (MVM_BIGINT_IS_BIG(src_body)) {
-        dest_body->u.bigint = MVM_malloc(sizeof(mp_int));
+        dest_body->u.bigint = MVM_MALLOCOBJ(1, mp_int);
         mp_init_copy(dest_body->u.bigint, src_body->u.bigint);
     }
     else {
@@ -87,7 +87,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 }
 
 void MVM_p6bigint_store_as_mp_int(MVMP6bigintBody *body, MVMint64 value) {
-    mp_int *i = MVM_malloc(sizeof(mp_int));
+    mp_int *i = MVM_MALLOCOBJ(1, mp_int);
     mp_init(i);
     if (value >= 0) {
         MVM_bigint_mp_set_uint64(i, (MVMuint64)value);
@@ -127,7 +127,7 @@ static void set_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
         body->u.smallint.value = (MVMint32)value;
     }
     else {
-        mp_int *i = MVM_malloc(sizeof(mp_int));
+        mp_int *i = MVM_MALLOCOBJ(1, mp_int);
         mp_init(i);
         MVM_bigint_mp_set_uint64(i, value);
         body->u.bigint = i;
@@ -233,7 +233,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         body->u.smallint.value = MVM_serialization_read_int(tc, reader);
     } else {  /* big int */
         char *buf = MVM_string_ascii_encode(tc, MVM_serialization_read_str(tc, reader), NULL, 0);
-        body->u.bigint = MVM_malloc(sizeof(mp_int));
+        body->u.bigint = MVM_MALLOCOBJ(1, mp_int);
         mp_init(body->u.bigint);
         mp_read_radix(body->u.bigint, buf, 10);
         MVM_free(buf);

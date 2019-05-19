@@ -55,7 +55,6 @@ typedef struct {
     MVMuint32         reg_type_var;
 } Validator;
 
-
 MVM_NO_RETURN static void fail(Validator *val, const char *msg, ...) MVM_FORMAT(printf, 2, 3) MVM_NO_RETURN_ATTRIBUTE;
 static void fail(Validator *val, const char *msg, ...) {
     va_list args;

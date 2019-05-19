@@ -1,7 +1,7 @@
 #include "moar.h"
 
 /* This allows the dynlex cache to be disabled when bug hunting, if needed. */
-#define MVM_DYNLEX_CACHE_ENABLED 1
+#define MVM_DYNLEX_CACHE_ENABLED 0
 
 /* Check spesh candidate pre-selections match the guards. */
 #define MVM_SPESH_CHECK_PRESELECTION 0
@@ -10,7 +10,7 @@
 MVMRegister * MVM_frame_initial_work(MVMThreadContext *tc, MVMuint16 *local_types,
                                      MVMuint16 num_locals) {
     MVMuint16 i;
-    MVMRegister *work_initial = MVM_calloc(num_locals, sizeof(MVMRegister));
+    MVMRegister *work_initial = MVM_CALLOCOBJ(num_locals, MVMRegister);
     for (i = 0; i < num_locals; i++)
         if (local_types[i] == MVM_reg_obj)
             work_initial[i].o = tc->instance->VMNull;
@@ -158,7 +158,7 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
      * is vivified to prevent the clone (which is what creates the correct
      * BEGIN/INIT semantics). */
     if (static_frame->body.env_size) {
-        frame->env = MVM_fixed_size_alloc(tc, tc->instance->fsa, static_frame->body.env_size);
+        frame->env = MVM_fixed_size_alloc_named(tc, tc->instance->fsa, static_frame->body.env_size, "frame's environment", 1);
         frame->allocd_env = static_frame->body.env_size;
         if (autoclose) {
             MVMROOT2(tc, frame, static_frame, {
@@ -281,7 +281,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
     num_locals = jitcode && jitcode->local_types ? jitcode->num_locals :
         (spesh_cand ? spesh_cand->num_locals : static_frame_body->num_locals);
     if (env_size) {
-        frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, env_size);
+        frame->env = MVM_fixed_size_alloc_zeroed_named(tc, tc->instance->fsa, env_size, "frame's environment", 1);
         frame->allocd_env = env_size;
     }
     else {
@@ -293,11 +293,11 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
         if (spesh_cand) {
             /* Allocate zeroed memory. Spesh makes sure we have VMNull setup in
              * the places we need it. */
-            frame->work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, work_size);
+            frame->work = MVM_fixed_size_alloc_zeroed_named(tc, tc->instance->fsa, work_size, "frame's registers", 1);
         }
         else {
             /* Copy frame template with VMNulls in to place. */
-            frame->work = MVM_fixed_size_alloc(tc, tc->instance->fsa, work_size);
+            frame->work = MVM_fixed_size_alloc_named(tc, tc->instance->fsa, work_size, "frame's registers", 1);
             memcpy(frame->work, static_frame_body->work_initial,
                 sizeof(MVMRegister) * static_frame_body->num_locals);
         }
@@ -338,7 +338,7 @@ static MVMFrame * allocate_heap_frame(MVMThreadContext *tc, MVMStaticFrame *stat
     static_frame_body = &(static_frame->body);
     env_size = spesh_cand ? spesh_cand->env_size : static_frame_body->env_size;
     if (env_size) {
-        frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, env_size);
+        frame->env = MVM_fixed_size_alloc_zeroed_named(tc, tc->instance->fsa, env_size, "frame's environment", 1);
         frame->allocd_env = env_size;
     }
     work_size = spesh_cand ? spesh_cand->work_size : static_frame_body->work_size;
@@ -348,13 +348,13 @@ static MVMFrame * allocate_heap_frame(MVMThreadContext *tc, MVMStaticFrame *stat
             MVMuint32 num_locals = spesh_cand->num_locals;
             MVMuint16 *local_types = spesh_cand->local_types;
             MVMuint32 i;
-            frame->work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, work_size);
+            frame->work = MVM_fixed_size_alloc_zeroed_named(tc, tc->instance->fsa, work_size, "frame's registers", 1);
             for (i = 0; i < num_locals; i++)
                 if (local_types[i] == MVM_reg_obj)
                     frame->work[i].o = tc->instance->VMNull;
         }
         else {
-            frame->work = MVM_fixed_size_alloc(tc, tc->instance->fsa, work_size);
+            frame->work = MVM_fixed_size_alloc_named(tc, tc->instance->fsa, work_size, "frame's registers", 1);
             memcpy(frame->work, static_frame_body->work_initial,
                 sizeof(MVMRegister) * static_frame_body->num_locals);
         }
@@ -1074,7 +1074,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
             cur_frame->args[0].o = cur_frame->code_ref;
             cur_frame->args[1].o = tc->instance->VMNull;
             {
-                MVMUnwindData *ud = MVM_malloc(sizeof(MVMUnwindData));
+                MVMUnwindData *ud = MVM_MALLOCOBJ(1, MVMUnwindData);
                 ud->frame = frame;
                 ud->abs_addr = abs_addr;
                 ud->rel_addr = rel_addr;
@@ -1782,10 +1782,10 @@ static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, 
                 *tweak_cs = orig->with_invocant;
             }
             else {
-                MVMCallsite *new   = MVM_calloc(1, sizeof(MVMCallsite));
+                MVMCallsite *new   = MVM_CALLOCOBJ(1, MVMCallsite);
                 MVMint32     fsize = orig->flag_count;
                 new->flag_count    = fsize + 1;
-                new->arg_flags     = MVM_malloc(new->flag_count * sizeof(MVMCallsiteEntry));
+                new->arg_flags     = MVM_MALLOCOBJ(new->flag_count, MVMCallsiteEntry);
                 new->arg_flags[0]  = MVM_CALLSITE_ARG_OBJ;
                 memcpy(new->arg_flags + 1, orig->arg_flags, fsize);
                 new->arg_count      = orig->arg_count + 1;
@@ -1903,7 +1903,7 @@ MVMObject * MVM_frame_resolve_invokee_spesh(MVMThreadContext *tc, MVMObject *inv
  * frame. This is used to hold data that only a handful of frames need. */
 MVMFrameExtra * MVM_frame_extra(MVMThreadContext *tc, MVMFrame *f) {
     if (!f->extra)
-        f->extra = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMFrameExtra));
+        f->extra = FSA_CALLOCOBJ(tc, tc->instance->fsa, 1, MVMFrameExtra);
     return f->extra;
 }
 

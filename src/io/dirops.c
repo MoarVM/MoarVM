@@ -13,7 +13,7 @@
 static wchar_t * UTF8ToUnicode(char *str)
 {
      const int         len = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
-     wchar_t * const result = (wchar_t *)MVM_malloc(len * sizeof(wchar_t));
+     wchar_t * const result = MVM_MALLOCOBJ(len, wchar_t);
 
      MultiByteToWideChar(CP_UTF8, 0, str, -1, result, len);
 
@@ -23,7 +23,7 @@ static wchar_t * UTF8ToUnicode(char *str)
 static char * UnicodeToUTF8(const wchar_t *str)
 {
      const int       len = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
-     char * const result = (char *)MVM_malloc(len * sizeof(char));
+     char * const result = MVM_MALLOCOBJ(len, char);
 
      WideCharToMultiByte(CP_UTF8, 0, str, -1, result, len, NULL, NULL);
 
@@ -87,7 +87,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
         MVM_free(wpathname);
 
         str_len  = wcslen(abs_dirname);
-        wpathname = (wchar_t *)MVM_malloc((str_len + 4) * sizeof(wchar_t));
+        wpathname = MVM_MALLOCOBJ(str_len + 4, wchar_t);
         wcscpy(wpathname, L"\\\\?\\");
         wcscat(wpathname, abs_dirname);
     }
@@ -205,7 +205,7 @@ static const MVMIOOps op_table = {
 /* Open a filehandle, returning a handle. */
 MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
     MVMOSHandle  * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-    MVMIODirIter * const data   = MVM_calloc(1, sizeof(MVMIODirIter));
+    MVMIODirIter * const data   = MVM_CALLOCOBJ(1, MVMIODirIter);
 #ifdef _WIN32
     char *name;
     int str_len;
@@ -232,11 +232,11 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
         MVM_free(wname);
 
         str_len  = wcslen(abs_dirname);
-        dir_name = (wchar_t *)MVM_malloc((str_len + 7) * sizeof(wchar_t));
+        dir_name = MVM_MALLOCOBJ(str_len + 7, wchar_t);
         wcscpy(dir_name, L"\\\\?\\");
         wcscat(dir_name, abs_dirname);
     } else {
-        dir_name = (wchar_t *)MVM_malloc((str_len + 3) * sizeof(wchar_t));
+        dir_name = MVM_MALLOCOBJ(str_len + 3, wchar_t);
         wcscpy(dir_name, wname);
         MVM_free(wname);
     }

@@ -28,7 +28,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     switch (dest_body->storage_type) {
         case MVM_STRING_GRAPHEME_32:
             if (dest_body->num_graphs) {
-                dest_body->storage.blob_32 = MVM_malloc(dest_body->num_graphs * sizeof(MVMGrapheme32));
+                dest_body->storage.blob_32 = MVM_MALLOCOBJ(dest_body->num_graphs, MVMGrapheme32);
                 memcpy(dest_body->storage.blob_32, src_body->storage.blob_32,
                     dest_body->num_graphs * sizeof(MVMGrapheme32));
             }
@@ -42,7 +42,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
             }
             break;
         case MVM_STRING_STRAND:
-            dest_body->storage.strands = MVM_malloc(dest_body->num_strands * sizeof(MVMStringStrand));
+            dest_body->storage.strands = MVM_MALLOCOBJ(dest_body->num_strands, MVMStringStrand);
             memcpy(dest_body->storage.strands, src_body->storage.strands,
                 dest_body->num_strands * sizeof(MVMStringStrand));
             break;

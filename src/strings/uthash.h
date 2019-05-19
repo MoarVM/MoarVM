@@ -67,15 +67,18 @@ do {\
 
 #define UTHASH_VERSION 1.9.9
 
+MVM_STATIC_INLINE void * MVM_fixed_size_alloc_named(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t size, const char *type_name, size_t count);
+MVM_STATIC_INLINE void * MVM_fixed_size_alloc_zeroed_named(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t size, const char *type_name, size_t count);
+
 #ifndef uthash_fatal
 #error "uthash_fatal not defined"
 #define uthash_fatal(msg) exit(-1)        /* fatal error (out of memory,etc) */
 #endif
 #ifndef uthash_malloc
-#define uthash_malloc(tc, sz) MVM_fixed_size_alloc(tc, tc->instance->fsa, sz)      /* malloc fcn                      */
+#define uthash_malloc(tc, sz) MVM_fixed_size_alloc_named(tc, tc->instance->fsa, sz, "uthash_malloc", 1)      /* malloc fcn                      */
 #endif
 #ifndef uthash_malloc_zeroed
-#define uthash_malloc_zeroed(tc, sz) MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sz)      /* malloc fcn                      */
+#define uthash_malloc_zeroed(tc, sz) MVM_fixed_size_alloc_zeroed_named(tc, tc->instance->fsa, sz, "uthash_malloc_zeroed", 1)      /* malloc fcn                      */
 #endif
 #ifndef uthash_free
 #define uthash_free(tc, ptr, sz) MVM_fixed_size_free(tc, tc->instance->fsa, sz, ptr)     /* free fcn                        */
@@ -95,8 +98,6 @@ do {\
 
 #include "strings/uthash_types.h"
 void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes, void *free);
-void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes);
-void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes);
 /* calculate the element whose hash handle address is hhe */
 #define ELMT_FROM_HH(tbl,hhp) ((void*)(((char*)(hhp)) - ((tbl)->hho)))
 

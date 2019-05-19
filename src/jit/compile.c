@@ -147,7 +147,7 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     }
 
     /* Create code segment */
-    code = MVM_malloc(sizeof(MVMJitCode));
+    code = MVM_MALLOCOBJ(1, MVMJitCode);
 
     code->func_ptr   = (void (*)(MVMThreadContext*,MVMCompUnit*,void*)) memory;
     code->size       = codesize;
@@ -163,7 +163,7 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     if (cl->spills_num > 0) {
         MVMint32 sg_num_locals = jg->sg->num_locals;
         code->num_locals  = sg_num_locals + cl->spills_num;
-        code->local_types = MVM_malloc(code->num_locals * sizeof(MVMuint16));
+        code->local_types = MVM_MALLOCOBJ(code->num_locals, MVMuint16);
         if (jg->sg->local_types != NULL) {
             memcpy(code->local_types, jg->sg->local_types, sizeof(MVMuint16)*sg_num_locals);
         } else {

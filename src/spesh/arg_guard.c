@@ -29,7 +29,7 @@ static MVMSpeshArgGuard * copy_and_extend(MVMThreadContext *tc, MVMSpeshArgGuard
     size_t total_nodes = orig_nodes + extra;
     size_t node_size = total_nodes * sizeof(MVMSpeshArgGuardNode);
     size_t size = sizeof(MVMSpeshArgGuard) + node_size;
-    MVMSpeshArgGuard *copy = MVM_fixed_size_alloc(tc, tc->instance->fsa, size);
+    MVMSpeshArgGuard *copy = MVM_fixed_size_alloc_named(tc, tc->instance->fsa, size, "MVMSpeshArgGuard", 1);
     copy->nodes = (MVMSpeshArgGuardNode *)((char *)copy + sizeof(MVMSpeshArgGuard));
     copy->used_nodes = orig_nodes;
     copy->num_nodes = total_nodes;

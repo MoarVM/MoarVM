@@ -109,7 +109,7 @@ void MVM_callsite_destroy(MVMCallsite *cs) {
 }
 
 MVMCallsite *MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
-    MVMCallsite *copy = MVM_malloc(sizeof(MVMCallsite));
+    MVMCallsite *copy = MVM_MALLOCOBJ(1, MVMCallsite);
 
     if (cs->flag_count) {
         copy->arg_flags =  MVM_malloc(cs->flag_count);

@@ -22,7 +22,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMStringConsts str_consts = tc->instance->str_consts;
     MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_consts.array);
     if (!MVM_is_null(tc, info)) {
-        MVMCArrayREPRData *repr_data = MVM_malloc(sizeof(MVMCArrayREPRData));
+        MVMCArrayREPRData *repr_data = MVM_MALLOCOBJ(1, MVMCArrayREPRData);
         MVMObject *type    = MVM_repr_at_key_o(tc, info, str_consts.type);
         const MVMStorageSpec *ss = REPR(type)->get_storage_spec(tc, STABLE(type));
         MVMint32 type_id   = REPR(type)->ID;
@@ -450,7 +450,7 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 
 /* Deserializes the REPR data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *) MVM_malloc(sizeof(MVMCArrayREPRData));
+    MVMCArrayREPRData *repr_data = MVM_MALLOCOBJ(1, MVMCArrayREPRData);
 
     if (reader->root.version >= 19) {
         repr_data->elem_size = MVM_serialization_read_int(tc, reader);

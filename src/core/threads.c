@@ -126,7 +126,7 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
         MVM_gc_mark_thread_blocked(child_tc);
 
         /* Create thread state, to pass to the thread start callback. */
-        ts = MVM_malloc(sizeof(ThreadStart));
+        ts = MVM_MALLOCOBJ(1, ThreadStart);
         ts->tc = child_tc;
 
         /* Push to starting threads list. We may need to retry this if we are

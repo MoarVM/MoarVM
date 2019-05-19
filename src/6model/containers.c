@@ -130,7 +130,7 @@ static const MVMContainerSpec code_pair_spec = {
 };
 
 static void code_pair_set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
-    CodePairContData *data = MVM_malloc(sizeof(CodePairContData));
+    CodePairContData *data = MVM_MALLOCOBJ(1, CodePairContData);
 
     data->fetch_code   = NULL;
     data->store_code   = NULL;
@@ -477,7 +477,7 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
     MVM_HASH_GET(tc, tc->instance->container_registry, name, entry);
 
     if (!entry) {
-        entry = MVM_malloc(sizeof(MVMContainerRegistry));
+        entry = MVM_MALLOCOBJ(1, MVMContainerRegistry);
         entry->name = name;
         entry->configurer  = configurer;
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name,

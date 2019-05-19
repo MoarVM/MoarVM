@@ -86,7 +86,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
     MVM_HASH_GET(tc, tc->native_callback_cache, cuid, callback_data_head);
 
     if (!callback_data_head) {
-        callback_data_head = MVM_malloc(sizeof(MVMNativeCallbackCacheHead));
+        callback_data_head = MVM_MALLOCOBJ(1, MVMNativeCallbackCacheHead);
         callback_data_head->head = NULL;
 
         MVM_HASH_BIND(tc, tc->native_callback_cache, cuid, callback_data_head);
@@ -116,21 +116,21 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         num_info = MVM_repr_elems(tc, sig_info);
 
         /* We'll also build up a MoarVM callsite as we go. */
-        cs                 = MVM_calloc(1, sizeof(MVMCallsite));
+        cs                 = MVM_CALLOCOBJ(1, MVMCallsite);
         cs->flag_count     = num_info - 1;
-        cs->arg_flags      = MVM_malloc(cs->flag_count * sizeof(MVMCallsiteEntry));
+        cs->arg_flags      = MVM_MALLOCOBJ(cs->flag_count, MVMCallsiteEntry);
         cs->arg_count      = num_info - 1;
         cs->num_pos        = num_info - 1;
         cs->has_flattening = 0;
         cs->is_interned    = 0;
         cs->with_invocant  = NULL;
 
-        callback_data                = MVM_malloc(sizeof(MVMNativeCallback));
+        callback_data                = MVM_MALLOCOBJ(1, MVMNativeCallback);
         callback_data->num_types     = num_info;
-        callback_data->typeinfos     = MVM_malloc(num_info * sizeof(MVMint16));
+        callback_data->typeinfos     = MVM_MALLOCOBJ(num_info, MVMint16);
         callback_data->types         = MVM_malloc(num_info * sizeof(MVMObject *));
         callback_data->next          = NULL;
-        cif                          = (ffi_cif *)MVM_malloc(sizeof(ffi_cif));
+        cif                          = MVM_MALLOCOBJ(1, ffi_cif);
         callback_data->convention    = FFI_DEFAULT_ABI;
         callback_data->ffi_arg_types = MVM_malloc(sizeof(ffi_type *) * (cs->arg_count ? cs->arg_count : 1));
 
@@ -226,7 +226,7 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
     interval_id = MVM_telemetry_interval_start(tc, "nativecall callback handler");
 
     /* Build a callsite and arguments buffer. */
-    args = MVM_malloc(data->num_types * sizeof(MVMRegister));
+    args = MVM_MALLOCOBJ(data->num_types, MVMRegister);
     num_roots = 0;
     for (i = 1; i < data->num_types; i++) {
         MVMObject *type     = data->types[i];
@@ -446,7 +446,7 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
         if (MVM_6model_container_is ## cont_X(tc, value)) { \
             MVM_6model_container_de ## cont_X(tc, value, &r); \
             values[i]                       = MVM_malloc(sizeof(void *)); \
-            *(void **)values[i]             = MVM_malloc(sizeof(dc_type)); \
+            *(void **)values[i]             = MVM_MALLOCOBJ(1, dc_type); \
             *(dc_type *)*(void **)values[i] = (dc_type)r. reg_slot ; \
         } \
         else \

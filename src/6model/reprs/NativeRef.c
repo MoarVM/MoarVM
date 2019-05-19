@@ -42,7 +42,7 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 
 /* Deserializes REPR data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    MVMNativeRefREPRData *repr_data = MVM_malloc(sizeof(MVMNativeRefREPRData));
+    MVMNativeRefREPRData *repr_data = MVM_MALLOCOBJ(1, MVMNativeRefREPRData);
     repr_data->primitive_type = MVM_serialization_read_int(tc, reader);
     repr_data->ref_kind       = MVM_serialization_read_int(tc, reader);
     st->REPR_data = repr_data;
@@ -118,7 +118,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                     MVM_exception_throw_adhoc(tc, "NativeRef: invalid refkind in compose");
                 }
 
-                repr_data = MVM_malloc(sizeof(MVMNativeRefREPRData));
+                repr_data = MVM_MALLOCOBJ(1, MVMNativeRefREPRData);
                 repr_data->primitive_type = prim;
                 repr_data->ref_kind       = kind;
                 st->REPR_data             = repr_data;

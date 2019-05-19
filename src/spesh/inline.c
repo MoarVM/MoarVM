@@ -24,8 +24,8 @@ static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUn
         if (extops[i].info == info) {
             MVMuint32 orig_size = target_cu->body.num_extops * sizeof(MVMExtOpRecord);
             MVMuint32 new_size = (target_cu->body.num_extops + 1) * sizeof(MVMExtOpRecord);
-            MVMExtOpRecord *new_extops = MVM_fixed_size_alloc(tc,
-                tc->instance->fsa, new_size);
+            MVMExtOpRecord *new_extops = MVM_fixed_size_alloc_named(tc,
+                tc->instance->fsa, new_size, "MVMExtOpRecord", new_size);
             memcpy(new_extops, target_cu->body.extops, orig_size);
             memcpy(&new_extops[target_cu->body.num_extops], &extops[i], sizeof(MVMExtOpRecord));
             if (target_cu->body.extops)
@@ -412,7 +412,7 @@ static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 static void resize_handlers_table(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMuint32 new_handler_count) {
     if (inliner->handlers == inliner->sf->body.handlers) {
         /* Original handlers table; need a copy. */
-        MVMFrameHandler *new_handlers = MVM_malloc(new_handler_count * sizeof(MVMFrameHandler));
+        MVMFrameHandler *new_handlers = MVM_MALLOCOBJ(new_handler_count, MVMFrameHandler);
         if (inliner->handlers)
             memcpy(new_handlers, inliner->handlers,
                 inliner->num_handlers * sizeof(MVMFrameHandler));
@@ -679,7 +679,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         mi_new.stable_sslot = mi_orig.stable_sslot + inliner->num_spesh_slots;
         mi_new.num_attr_regs = mi_orig.num_attr_regs;
         if (mi_new.num_attr_regs) {
-            mi_new.attr_regs = MVM_malloc(mi_new.num_attr_regs * sizeof(MVMuint16));
+            mi_new.attr_regs = MVM_MALLOCOBJ(mi_new.num_attr_regs, MVMuint16);
             for (j = 0; j < mi_new.num_attr_regs; j++)
                 mi_new.attr_regs[j] = mi_orig.attr_regs[j] + inliner->num_locals;
         }
@@ -766,7 +766,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     total_inlines = inliner->num_inlines + inlinee->num_inlines + 1;
     inliner->inlines = inliner->num_inlines
         ? MVM_realloc(inliner->inlines, total_inlines * sizeof(MVMSpeshInline))
-        : MVM_malloc(total_inlines * sizeof(MVMSpeshInline));
+        : MVM_MALLOCOBJ(total_inlines, MVMSpeshInline);
     if (inlinee->num_inlines)
         memcpy(inliner->inlines + inliner->num_inlines, inlinee->inlines,
             inlinee->num_inlines * sizeof(MVMSpeshInline));

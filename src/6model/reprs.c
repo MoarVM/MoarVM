@@ -159,7 +159,7 @@ static void register_repr(MVMThreadContext *tc, const MVMREPROps *repr, MVMStrin
                 repr->name);
 
     /* Fill a registry entry. */
-    entry = MVM_malloc(sizeof(MVMReprRegistry));
+    entry = MVM_MALLOCOBJ(1, MVMReprRegistry);
     entry->name = name;
     entry->repr = repr;
 

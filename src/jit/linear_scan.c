@@ -506,7 +506,7 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
     MVMint32 num_phi = 0; /* pessimistic but correct upper bound of number of holes */
     MVMJitExprTree *tree = list->tree;
 
-    alc->sets = MVM_calloc(tree->nodes_num, sizeof(UnionFind));
+    alc->sets = MVM_CALLOCOBJ(tree->nodes_num, UnionFind);
     /* up to 4 refs per tile (1 out, 3 in) plus the number of refs per arglist */
     alc->refs = MVM_calloc(list->items_num * 4 + list->num_arglist_refs, sizeof(ValueRef));
     alc->refs_num = 0;

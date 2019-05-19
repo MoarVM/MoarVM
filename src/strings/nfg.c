@@ -43,7 +43,7 @@ static MVMGrapheme32 lookup_synthetic(MVMThreadContext *tc, MVMCodepoint *codes,
 static MVMNFGTrieNode * twiddle_trie_node(MVMThreadContext *tc, MVMNFGTrieNode *current, MVMCodepoint *cur_code, MVMint32 codes_remaining, MVMGrapheme32 synthetic) {
     /* Make a new empty node, which we'll maybe copy some things from the
      * current node into. */
-    MVMNFGTrieNode *new_node = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMNFGTrieNode));
+    MVMNFGTrieNode *new_node = FSA_ALLOCOBJ(tc, tc->instance->fsa, 1, MVMNFGTrieNode);
 
     /* If we've more codes remaining... */
     if (codes_remaining > 0) {
@@ -57,8 +57,8 @@ static MVMNFGTrieNode * twiddle_trie_node(MVMThreadContext *tc, MVMNFGTrieNode *
         if (idx >= 0) {
             /* Make a copy of the next_codes list. */
             size_t the_size = current->num_entries * sizeof(MVMNFGTrieNodeEntry);
-            MVMNFGTrieNodeEntry *new_next_codes = MVM_fixed_size_alloc(tc,
-                tc->instance->fsa, the_size);
+            MVMNFGTrieNodeEntry *new_next_codes = MVM_fixed_size_alloc_named(tc,
+                tc->instance->fsa, the_size, "MVMNFGTrieNodeEntry", current->num_entries);
             memcpy(new_next_codes, current->next_codes, the_size);
 
             /* Update the copy to point to the new child. */
@@ -79,8 +79,8 @@ static MVMNFGTrieNode * twiddle_trie_node(MVMThreadContext *tc, MVMNFGTrieNode *
             MVMint32 orig_entries = current ? current->num_entries : 0;
             MVMint32 new_entries  = orig_entries + 1;
             size_t new_size       = new_entries * sizeof(MVMNFGTrieNodeEntry);
-            MVMNFGTrieNodeEntry *new_next_codes = MVM_fixed_size_alloc(tc,
-                tc->instance->fsa, new_size);
+            MVMNFGTrieNodeEntry *new_next_codes = MVM_fixed_size_alloc_named(tc,
+                tc->instance->fsa, new_size, "MVMNFGTrieNodeEntry", new_entries);
 
             /* Go through original entries, copying those that are for a lower
              * code point than the one we're inserting a child for. */
@@ -153,7 +153,7 @@ static MVMGrapheme32 add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MV
     if (nfg->num_synthetics % MVM_SYNTHETIC_GROW_ELEMS == 0) {
         size_t orig_size = nfg->num_synthetics * sizeof(MVMNFGSynthetic);
         size_t new_size  = (nfg->num_synthetics + MVM_SYNTHETIC_GROW_ELEMS) * sizeof(MVMNFGSynthetic);
-        MVMNFGSynthetic *new_synthetics = MVM_fixed_size_alloc(tc, tc->instance->fsa, new_size);
+        MVMNFGSynthetic *new_synthetics = MVM_fixed_size_alloc_named(tc, tc->instance->fsa, new_size, "MVMNFGSynthetic", new_size);
         if (orig_size) {
             memcpy(new_synthetics, nfg->synthetics, orig_size);
             MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, orig_size, nfg->synthetics);
@@ -197,8 +197,8 @@ static MVMGrapheme32 add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MV
     }
 
 
-    synth->codes     = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-        num_codes * sizeof(MVMCodepoint));
+    synth->codes     = FSA_ALLOCOBJ(tc, tc->instance->fsa,
+        num_codes, MVMCodepoint);
     memcpy(synth->codes, codes, (synth->num_codes * sizeof(MVMCodepoint)));
     synth->case_uc    = 0;
     synth->case_lc    = 0;
@@ -329,7 +329,7 @@ static void compute_case_change(MVMThreadContext *tc, MVMGrapheme32 synth_g, MVM
         MVM_unicode_normalizer_eof(tc, &norm);
 
         num_result_graphs = MVM_unicode_normalizer_available(tc, &norm);
-        result = MVM_malloc(num_result_graphs * sizeof(MVMGrapheme32));
+        result = MVM_MALLOCOBJ(num_result_graphs, MVMGrapheme32);
         for (i = 0; i < num_result_graphs; i++)
             result[i] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
         MVM_unicode_normalizer_cleanup(tc, &norm);

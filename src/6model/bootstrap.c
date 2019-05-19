@@ -471,7 +471,7 @@ static MVMObject * boot_typed_array(MVMThreadContext *tc, char *name, MVMObject 
         });
 
         /* Also give it a boolification spec. */
-        bs = MVM_malloc(sizeof(MVMBoolificationSpec));
+        bs = MVM_MALLOCOBJ(1, MVMBoolificationSpec);
         bs->mode = MVM_BOOL_MODE_HAS_ELEMS;
         bs->method = NULL;
         array->st->boolification_spec = bs;
@@ -608,7 +608,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     MVMObject *type = tc->instance->slot = repr->type_object_for(tc, NULL); \
     if (makeboolspec) { \
         MVMBoolificationSpec *bs; \
-        bs = MVM_malloc(sizeof(MVMBoolificationSpec)); \
+        bs = MVM_MALLOCOBJ(1, MVMBoolificationSpec); \
         bs->mode = boolspec; \
         bs->method = NULL; \
         type->st->boolification_spec = bs; \

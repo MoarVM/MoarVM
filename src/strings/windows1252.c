@@ -362,7 +362,7 @@ MVMuint32 MVM_string_windows125X_decodestream(MVMThreadContext *tc, MVMDecodeStr
         return 1;
 
     bufsize = ds->result_size_guess;
-    buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
+    buffer = MVM_MALLOCOBJ(bufsize, MVMGrapheme32);
 
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
@@ -427,7 +427,7 @@ MVMuint32 MVM_string_windows125X_decodestream(MVMThreadContext *tc, MVMDecodeStr
                 /* We filled the buffer. Attach this one to the buffers
                  * linked list, and continue with a new one. */
                 MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
-                buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
+                buffer = MVM_MALLOCOBJ(bufsize, MVMGrapheme32);
                 count = 0;
             }
             buffer[count++] = graph;

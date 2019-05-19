@@ -13,7 +13,7 @@ MVM_STATIC_INLINE int has_big_endian_bom (MVMuint8 *buf8) {
 }
 MVM_STATIC_INLINE void init_utf16_decoder_state(MVMDecodeStream *ds, int setting) {
     if (!ds->decoder_state) {
-        ds->decoder_state = MVM_malloc(sizeof(MVMint32));
+        ds->decoder_state = MVM_MALLOCOBJ(1, MVMint32);
     }
     *((MVMint32*)ds->decoder_state) = setting;
 }
@@ -73,7 +73,7 @@ MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStre
         return 1;
 
     bufsize = ds->result_size_guess;
-    buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
+    buffer = MVM_MALLOCOBJ(bufsize, MVMGrapheme32);
 
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
@@ -153,7 +153,7 @@ MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStre
                 /* We filled the buffer. Attach this one to the buffers
                  * linked list, and continue with a new one. */
                 MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
-                buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
+                buffer = MVM_MALLOCOBJ(bufsize, MVMGrapheme32);
                 count = 0;
             }
             buffer[count++] = value;

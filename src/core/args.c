@@ -21,7 +21,7 @@ void MVM_args_marked_named_used(MVMThreadContext *tc, MVMuint32 idx) {
 static void init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 num) {
     ctx->named_used_size = num;
     if (num > 64)
-        ctx->named_used.byte_array = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, num);
+        ctx->named_used.byte_array = MVM_fixed_size_alloc_zeroed_named(tc, tc->instance->fsa, num, "named_used byte_array", 1);
     else
         ctx->named_used.bit_field = 0;
 }
@@ -53,7 +53,7 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
 
 /* Make a copy of the callsite. */
 MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    MVMCallsite      *res   = MVM_calloc(1, sizeof(MVMCallsite));
+    MVMCallsite      *res   = MVM_CALLOCOBJ(1, MVMCallsite);
     MVMCallsiteEntry *flags = NULL;
     MVMCallsiteEntry *src_flags;
     MVMint32 fsize;
@@ -68,7 +68,7 @@ MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ct
     }
 
     if (fsize) {
-        flags = MVM_malloc(fsize * sizeof(MVMCallsiteEntry));
+        flags = MVM_MALLOCOBJ(fsize, MVMCallsiteEntry);
         memcpy(flags, src_flags, fsize * sizeof(MVMCallsiteEntry));
     }
     res->flag_count = fsize;
@@ -106,7 +106,7 @@ MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
         memcpy(args, frame->params.args, arg_size);
 
         /* Set up the call capture, copying the callsite. */
-        cc->body.apc  = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
+        cc->body.apc  = MVM_CALLOCOBJ(1, MVMArgProcContext);
         MVM_args_proc_init(tc, cc->body.apc,
             MVM_args_copy_uninterned_callsite(tc, &frame->params),
             args);
@@ -747,8 +747,8 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
 
     if (!ctx->callsite->has_flattening) return;
 
-    new_arg_flags = MVM_malloc(new_arg_flags_size * sizeof(MVMCallsiteEntry));
-    new_args = MVM_malloc(new_args_size * sizeof(MVMRegister));
+    new_arg_flags = MVM_MALLOCOBJ(new_arg_flags_size, MVMCallsiteEntry);
+    new_args = MVM_MALLOCOBJ(new_args_size, MVMRegister);
 
     /* First flatten any positionals in amongst any non-flattening
      * positionals. */
@@ -917,7 +917,7 @@ void MVM_args_bind_failed(MVMThreadContext *tc) {
     if (!bind_error)
         MVM_exception_throw_adhoc(tc, "Bind error occurred, but HLL has no handler");
     bind_error = MVM_frame_find_invokee(tc, bind_error, NULL);
-    res = MVM_calloc(1, sizeof(MVMRegister));
+    res = MVM_CALLOCOBJ(1, MVMRegister);
     inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
     MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, inv_arg_callsite);
     MVM_frame_special_return(tc, cur_frame, bind_error_return, bind_error_unwind, res, mark_sr_data);

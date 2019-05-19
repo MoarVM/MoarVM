@@ -11,7 +11,7 @@ static MVMProfileThreadData * get_thread_data(MVMThreadContext *tc) {
 
 static MVMProfileCallNode *make_new_pcn(MVMProfileThreadData *ptd, MVMuint64 current_hrtime) {
     MVMProfileCallNode *current_call = ptd->current_call;
-    MVMProfileCallNode *pcn     = MVM_calloc(1, sizeof(MVMProfileCallNode));
+    MVMProfileCallNode *pcn     = MVM_CALLOCOBJ(1, MVMProfileCallNode);
     pcn->first_entry_time = current_hrtime;
     if (current_call) {
         MVMProfileCallNode *pred = current_call;
@@ -168,7 +168,7 @@ void MVM_profile_log_unwind(MVMThreadContext *tc) {
  * of view of the profiler, and saves each of them. */
 MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadContext *tc, const MVMFrame *root_frame) {
     MVMProfileThreadData        *ptd       = get_thread_data(tc);
-    MVMProfileContinuationData  *cd        = MVM_malloc(sizeof(MVMProfileContinuationData));
+    MVMProfileContinuationData  *cd        = MVM_MALLOCOBJ(1, MVMProfileContinuationData);
     MVMStaticFrame             **sfs       = NULL;
     MVMuint64                   *modes     = NULL;
     MVMFrame                    *cur_frame = tc->cur_frame;

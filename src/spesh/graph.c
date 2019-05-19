@@ -155,7 +155,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
      *    a basic block. It's possible to have both bits set. If it's part
      *    of a jumplist, it gets the third bit set also.
      * Anything that's just a zero has no instruction starting there. */
-    MVMuint32 *byte_to_ins_flags = MVM_calloc(g->bytecode_size, sizeof(MVMuint32));
+    MVMuint32 *byte_to_ins_flags = MVM_CALLOCOBJ(g->bytecode_size, MVMuint32);
 
     /* Instruction to basic block mapping. Initialized later. */
     MVMSpeshBB **ins_to_bb = NULL;
@@ -867,7 +867,7 @@ static MVMint32 * compute_dominators(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
 
     /* Create result list, with all initialized to undefined (use -1, as it's
      * not a valid basic block index). Start node dominates itself. */
-    MVMint32 *doms = MVM_malloc(g->num_bbs * sizeof(MVMint32));
+    MVMint32 *doms = MVM_MALLOCOBJ(g->num_bbs, MVMint32);
     doms[0] = 0;
     for (i = 1; i < g->num_bbs; i++)
         doms[i] = -1;
@@ -995,7 +995,7 @@ typedef struct {
 /* Creates an SSAVarInfo for each local, initializing it with a list of nodes
  * that assign to the local. */
 static SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph *g) {
-    SSAVarInfo *var_info = MVM_calloc(g->num_locals, sizeof(SSAVarInfo));
+    SSAVarInfo *var_info = MVM_CALLOCOBJ(g->num_locals, SSAVarInfo);
     MVMint32 i;
 
     /* Visit all instructions, looking for local writes. */
@@ -1093,8 +1093,8 @@ static void place_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MV
     bb->first_ins       = ins;
 }
 static void insert_phi_functions(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarInfo *var_info) {
-    MVMint32    *has_already  = MVM_calloc(g->num_bbs, sizeof(MVMint32));
-    MVMint32    *work         = MVM_calloc(g->num_bbs, sizeof(MVMint32));
+    MVMint32    *has_already  = MVM_CALLOCOBJ(g->num_bbs, MVMint32);
+    MVMint32    *work         = MVM_CALLOCOBJ(g->num_bbs, MVMint32);
     MVMSpeshBB **worklist     = MVM_calloc(g->num_bbs, sizeof(MVMSpeshBB *));
     MVMint32     worklist_top = 0;
     MVMint32     iter_count   = 0;
@@ -1276,7 +1276,7 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
 MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
         MVMuint32 cfg_only, MVMuint32 insert_object_nulls) {
     /* Create top-level graph object. */
-    MVMSpeshGraph *g = MVM_calloc(1, sizeof(MVMSpeshGraph));
+    MVMSpeshGraph *g = MVM_CALLOCOBJ(1, MVMSpeshGraph);
     g->sf            = sf;
     g->bytecode      = sf->body.bytecode;
     g->bytecode_size = sf->body.bytecode_size;
@@ -1311,7 +1311,7 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
                                                  MVMSpeshCandidate *cand, MVMuint32 cfg_only,
                                                  MVMSpeshIns ***deopt_usage_ins_out) {
     /* Create top-level graph object. */
-    MVMSpeshGraph *g     = MVM_calloc(1, sizeof(MVMSpeshGraph));
+    MVMSpeshGraph *g     = MVM_CALLOCOBJ(1, MVMSpeshGraph);
     g->sf                = sf;
     g->bytecode          = cand->bytecode;
     g->bytecode_size     = cand->bytecode_size;

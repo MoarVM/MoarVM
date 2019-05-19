@@ -20,7 +20,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMConcBlockingQueue *cbq = (MVMConcBlockingQueue*)root;
-    MVMConcBlockingQueueBody *body = MVM_calloc(1, sizeof(MVMConcBlockingQueueBody));
+    MVMConcBlockingQueueBody *body = MVM_CALLOCOBJ(1, MVMConcBlockingQueueBody);
     /* Initialize locks. */
     int init_stat;
 
@@ -35,7 +35,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
             uv_strerror(init_stat));
 
     /* Head and tail point to a null node. */
-    body->tail = body->head = MVM_calloc(1, sizeof(MVMConcBlockingQueueNode));
+    body->tail = body->head = MVM_CALLOCOBJ(1, MVMConcBlockingQueueNode);
     cbq->body = body;
 }
 
@@ -152,7 +152,7 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
         MVM_exception_throw_adhoc(tc,
             "Cannot store a null value in a concurrent blocking queue");
 
-    add = MVM_calloc(1, sizeof(MVMConcBlockingQueueNode));
+    add = MVM_CALLOCOBJ(1, MVMConcBlockingQueueNode);
 
     interval_id = MVM_telemetry_interval_start(tc, "ConcBlockingQueue.push");
     MVMROOT2(tc, root, to_add, {
@@ -196,7 +196,7 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
 
     interval_id = MVM_telemetry_interval_start(tc, "ConcBlockingQueue.unshift");
 
-    add = MVM_calloc(1, sizeof(MVMConcBlockingQueueNode));
+    add = MVM_CALLOCOBJ(1, MVMConcBlockingQueueNode);
     MVM_ASSIGN_REF(tc, &(root->header), add->value, to_add);
 
     /* We'll need to hold both the head and the tail lock, in case head == tail

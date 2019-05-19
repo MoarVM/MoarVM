@@ -152,7 +152,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
         MVM_exception_throw_adhoc(tc, "Bytecode stream version too high");
 
     /* Allocate reader state. */
-    rs = (ReaderState *)MVM_calloc(1, sizeof(ReaderState));
+    rs = MVM_CALLOCOBJ(1, ReaderState);
     rs->version = version;
     rs->read_limit = cu_body->data_start + cu_body->data_size;
     cu->body.bytecode_version = version;
@@ -260,7 +260,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
     /* Allocate SC lists in compilation unit. */
     cu_body->scs = MVM_malloc(rs->expected_scs * sizeof(MVMSerializationContext *));
     cu_body->scs_to_resolve = MVM_malloc(rs->expected_scs * sizeof(MVMSerializationContextBody *));
-    cu_body->sc_handle_idxs = MVM_malloc(rs->expected_scs * sizeof(MVMint32));
+    cu_body->sc_handle_idxs = MVM_MALLOCOBJ(rs->expected_scs, MVMint32);
     cu_body->num_scs = rs->expected_scs;
 
     /* Resolve all the things. */
@@ -292,7 +292,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
         }
         else {
             if (!scb) {
-                scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
+                scb = MVM_CALLOCOBJ(1, MVMSerializationContextBody);
                 scb->handle = handle;
                 MVM_HASH_BIND(tc, tc->instance->sc_weakhash, handle, scb);
                 MVM_sc_add_all_scs_entry(tc, scb);
@@ -314,8 +314,8 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
     if (num == 0)
         return NULL;
 
-    extops = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-        num * sizeof(MVMExtOpRecord));
+    extops = FSA_CALLOCOBJ(tc, tc->instance->fsa,
+        num, MVMExtOpRecord);
 
     pos = rs->extop_seg;
     for (i = 0; i < num; i++) {
@@ -632,7 +632,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
         }
         for (j = 0; j < sf->body.num_lexicals; j++) {
             MVMString *name = get_heap_string(tc, cu, NULL, pos, 6 * j + 2);
-            MVMLexicalRegistry *entry = MVM_calloc(1, sizeof(MVMLexicalRegistry));
+            MVMLexicalRegistry *entry = MVM_CALLOCOBJ(1, MVMLexicalRegistry);
 
             MVM_ASSIGN_REF(tc, &(sf->common.header), entry->key, name);
             sf->body.lexical_names_list[j] = entry;
@@ -647,7 +647,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
     /* Read in handlers. */
     if (sf->body.num_handlers) {
         /* Allocate space for handler data. */
-        sf->body.handlers = MVM_malloc(sf->body.num_handlers * sizeof(MVMFrameHandler));
+        sf->body.handlers = MVM_MALLOCOBJ(sf->body.num_handlers, MVMFrameHandler);
 
         /* Read each handler. */
         for (j = 0; j < sf->body.num_handlers; j++) {
@@ -704,11 +704,11 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
     if (num_debug_locals && tc->instance->debugserver) {
         MVMStaticFrameInstrumentation *ins = sf->body.instrumentation;
         if (!ins)
-            ins = MVM_calloc(1, sizeof(MVMStaticFrameInstrumentation));
+            ins = MVM_CALLOCOBJ(1, MVMStaticFrameInstrumentation);
         for (j = 0; j < num_debug_locals; j++) {
             MVMuint16 idx = read_int16(pos, 0);
             MVMString *name = get_heap_string(tc, cu, NULL, pos, 2);
-            MVMStaticFrameDebugLocal *entry = MVM_calloc(1, sizeof(MVMStaticFrameDebugLocal));
+            MVMStaticFrameDebugLocal *entry = MVM_CALLOCOBJ(1, MVMStaticFrameDebugLocal);
             entry->local_idx = idx;
             MVM_ASSIGN_REF(tc, &(sf->common.header), entry->name, name);
             MVM_HASH_BIND(tc, ins->debug_locals, name, entry);
@@ -773,10 +773,10 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         pos += 2;
 
         /* Allocate space for the callsite. */
-        callsites[i] = MVM_malloc(sizeof(MVMCallsite));
+        callsites[i] = MVM_MALLOCOBJ(1, MVMCallsite);
         callsites[i]->flag_count = elems;
         if (elems)
-            callsites[i]->arg_flags = MVM_malloc(elems * sizeof(MVMCallsiteEntry));
+            callsites[i]->arg_flags = MVM_MALLOCOBJ(elems, MVMCallsiteEntry);
         else
             callsites[i]->arg_flags = NULL;
 
@@ -884,8 +884,8 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs = dissect_bytecode(tc, cu);
 
     /* Allocate space for the strings heap; we deserialize it lazily. */
-    cu_body->strings = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-        rs->expected_strings * sizeof(MVMString *));
+    cu_body->strings = FSA_CALLOCOBJ(tc, tc->instance->fsa,
+        rs->expected_strings, MVMString *);
     cu_body->num_strings = rs->expected_strings;
     cu_body->orig_strings = rs->expected_strings;
     cu_body->string_heap_fast_table = MVM_calloc(
@@ -950,7 +950,7 @@ MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MV
         }
         if (i)
             cur_anno -= 12;
-        ba = MVM_malloc(sizeof(MVMBytecodeAnnotation));
+        ba = MVM_MALLOCOBJ(1, MVMBytecodeAnnotation);
         ba->bytecode_offset = read_int32(cur_anno, 0);
         ba->filename_string_heap_index = read_int32(cur_anno, 4);
         ba->line_number = read_int32(cur_anno, 8);

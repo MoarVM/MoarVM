@@ -140,11 +140,11 @@ static MVMSpeshPluginGuardSet * append_guard(MVMThreadContext *tc,
     }
     else {
         MVMuint32 insert_pos, i;
-        result = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMSpeshPluginGuardSet));
+        result = FSA_ALLOCOBJ(tc, tc->instance->fsa, 1, MVMSpeshPluginGuardSet);
         result->num_guards = (base_guards ? base_guards->num_guards : 0) +
             tc->num_plugin_guards + 1; /* + 1 for result node */
-        result->guards = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-                sizeof(MVMSpeshPluginGuard) * result->num_guards);
+        result->guards = FSA_ALLOCOBJ(tc, tc->instance->fsa,
+                result->num_guards, MVMSpeshPluginGuard);
         if (base_guards) {
             memcpy(result->guards, base_guards->guards,
                     base_guards->num_guards * sizeof(MVMSpeshPluginGuard));
@@ -198,12 +198,12 @@ static MVMSpeshPluginGuardSet * append_guard(MVMThreadContext *tc,
 MVMSpeshPluginState * updated_state(MVMThreadContext *tc, MVMSpeshPluginState *base_state,
         MVMuint32 position, MVMSpeshPluginGuardSet *base_guards,
         MVMSpeshPluginGuardSet *new_guards) {
-    MVMSpeshPluginState *result = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            sizeof(MVMSpeshPluginState));
+    MVMSpeshPluginState *result = FSA_ALLOCOBJ(tc, tc->instance->fsa,
+            1, MVMSpeshPluginState);
     result->num_positions = (base_state ? base_state->num_positions : 0) +
         (base_guards == NULL ? 1 : 0);
-    result->positions = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            sizeof(MVMSpeshPluginPosition) * result->num_positions);
+    result->positions = FSA_ALLOCOBJ(tc, tc->instance->fsa,
+            result->num_positions, MVMSpeshPluginPosition);
     if (base_state) {
         MVMuint32 copy_from = 0;
         MVMuint32 insert_at = 0;
@@ -362,8 +362,8 @@ static void setup_for_guard_recording(MVMThreadContext *tc, MVMCallsite *callsit
             MVM_exception_throw_adhoc(tc, "A spesh plugin must only be passed object args");
 
     /* Set up guard recording space and arguments array. */
-    tc->plugin_guards = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            MVM_SPESH_PLUGIN_GUARD_LIMIT * sizeof(MVMSpeshPluginGuard));
+    tc->plugin_guards = FSA_ALLOCOBJ(tc, tc->instance->fsa,
+            MVM_SPESH_PLUGIN_GUARD_LIMIT, MVMSpeshPluginGuard);
     tc->num_plugin_guards = 0;
     tc->plugin_guard_args = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
     for (i = 0; i < callsite->flag_count; i++)
@@ -406,7 +406,7 @@ static void call_resolver(MVMThreadContext *tc, MVMString *name, MVMRegister *re
     tc->cur_frame->return_type = MVM_RETURN_OBJ;
     if (next_addr)
         tc->cur_frame->return_address = next_addr; /* JIT sets this otherwise */
-    srd = MVM_malloc(sizeof(MVMSpeshPluginSpecialReturnData));
+    srd = MVM_MALLOCOBJ(1, MVMSpeshPluginSpecialReturnData);
     srd->result = result;
     srd->position = position;
     srd->sf = sf;
@@ -600,7 +600,7 @@ static MVMSpeshOperand *arg_ins_to_reg_list(MVMThreadContext *tc, MVMSpeshGraph 
 
     /* If there are any args, collect registers and delete them. */
     if (max_arg_idx >= 0) {
-        MVMSpeshOperand *result = MVM_malloc((max_arg_idx + 1) * sizeof(MVMSpeshOperand));
+        MVMSpeshOperand *result = MVM_MALLOCOBJ(max_arg_idx + 1, MVMSpeshOperand);
         while (cur_arg->info->opcode == MVM_OP_arg_o) {
             MVMSpeshIns *next_arg = cur_arg->next;
             result[cur_arg->operands[0].lit_ui16] = cur_arg->operands[1];
