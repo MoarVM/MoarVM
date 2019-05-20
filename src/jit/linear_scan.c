@@ -724,8 +724,14 @@ static MVMint32 insert_store_after_definition(MVMThreadContext *tc, RegisterAllo
     return n;
 }
 
-static MVMint32 select_live_range_for_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, MVMint32 code_pos) {
-    return alc->active[alc->active_top-1];
+static MVMint32 select_live_range_for_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, MVMint32 code_pos, MVMBitmap reg_perm) {
+    int i;
+    for (i = alc->active_top - 1; i >= 0; i--) {
+        LiveRange *r = alc->values + alc->active[i];
+        if (MVM_bitmap_get_low(reg_perm, r->reg_num))
+            return alc->active[i];
+    }
+    assert(0);
 }
 
 
@@ -1076,7 +1082,7 @@ static void process_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVM
         while ((reg = allocate_register(tc, alc, list, alc->values + v)) < 0) {
             /* choose a live range, a register to spill, and a spill location */
             /* also one that is valid for this register type */
-            MVMint32 to_spill   = select_live_range_for_spill(tc, alc, list, tile_order_nr);
+            MVMint32 to_spill   = select_live_range_for_spill(tc, alc, list, tile_order_nr, reg_perm);
             MVMint32 spill_pos  = MVM_jit_spill_memory_select(tc, alc->compiler, alc->values[to_spill].reg_type);
             active_set_splice(tc, alc, to_spill);
             _DEBUG("Spilling live range %d at %d to %d to free up a register",
