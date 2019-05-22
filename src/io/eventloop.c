@@ -292,11 +292,13 @@ void MVM_io_eventloop_destroy(MVMThreadContext *tc) {
 
     if (instance->event_loop) {
         uv_close((uv_handle_t*)instance->event_loop_wakeup, NULL);
-        instance->event_loop_wakeup = NULL;
 
         /* Not sure we can always do this */
         uv_loop_close(instance->event_loop);
+       
         MVM_free(instance->event_loop_wakeup);
+        instance->event_loop_wakeup = NULL;
+        
         MVM_free(instance->event_loop);
         instance->event_loop = NULL;
     }
