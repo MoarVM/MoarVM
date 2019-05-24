@@ -237,6 +237,7 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/platform/sys@obj@ \
           src/platform/random@obj@ \
           src/platform/memmem32@obj@ \
+          src/platform/malloc_trim@obj@ \
           src/moar@obj@ \
           @platform@ \
           @jit_obj@
@@ -401,6 +402,7 @@ HEADERS = src/moar.h \
           src/platform/sys.h \
           src/platform/setjmp.h \
           src/platform/memmem.h \
+          src/platform/malloc_trim.h \
           src/platform/random.h \
           src/platform/fork.h \
           src/jit/graph.h \

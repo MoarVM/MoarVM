@@ -407,6 +407,29 @@ EOT
     $config->{cancgoto} = $can_cgoto || 0
 }
 
+sub check_fn_malloc_trim {
+    my ($config) = @_;
+    my $restore = _to_probe_dir();
+    my $includes = '#include <malloc.h>';
+    my $function = 'malloc_trim(0)';
+    _spew('try.c', <<"EOT");
+$includes
+
+int main(int argc, char **argv) {
+    $function;
+    return 0;
+}
+EOT
+
+    print ::dots('    probing existance of optional malloc_trim()');
+    my $can = compile($config, 'try');
+    unless ($config->{crossconf}) {
+        $can  &&= !system './try';
+    }
+    print $can ? "YES\n": "NO\n";
+    $config->{has_fn_malloc_trim} = $can || 0
+}
+
 sub C_type_bool {
     my ($config) = @_;
     my $restore = _to_probe_dir();
