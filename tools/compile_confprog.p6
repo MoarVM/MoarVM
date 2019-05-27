@@ -13,10 +13,12 @@ use Data::Dump::Tree;
 
 my $testprog = q:to/CONFPROG/;
     version = 1
+    entry profiler_dynamic:
+    log = "dynamic profiler entrypoint";
+    profile = choice(0, 1);
     entry profiler_static:
-    log = "this is the name of the frame we're running from";
-    log = sf.name;
-    log = "thank you for your attention";
+    log = "static profiler entrypoint";
+    profile = choice(1, 2, 3, 4);
     CONFPROG
 
 die "only support version 1" unless $testprog.lines.head ~~ m/^version \s+ "=" \s+ 1 \s* ";"? $/;
@@ -956,3 +958,10 @@ sub run-the-program() {
 }
 
 run-the-program();
+
+use MoarVM::Profiler;
+
+profile {
+    ddt $*MAST_FRAME.bytecode;
+    say "profile ends now" for ^10;
+};
