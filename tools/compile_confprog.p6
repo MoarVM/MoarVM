@@ -118,10 +118,10 @@ grammar ConfProg {
     proto regex one_expression { * }
 
     regex one_expression:<literal_number> {
-        <[1..9]> '_'? <[0..9]>* % '_'?
+        <[1..9]> '_'? <[0..9]>* % '_'? | 0
     }
     regex one_expression:<literal_number_base16> {
-        "0x" <[1..9a..fA..F]> '_'? <[0..9a..fA..F]>* % '_'?
+        "0x" [<[1..9a..fA..F]> '_'? <[0..9a..fA..F]>* % '_'? | 0]
     }
 
     regex one_expression:<literal_string> {
