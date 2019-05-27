@@ -62,7 +62,7 @@ const_i16           w(int16) int16 :pure
 const_i32           w(int32) int32 :pure
 const_i64           w(int64) int64 :pure :confprog
 const_n32           w(num32) num32 :pure
-const_n64           w(num64) num64 :pure
+const_n64           w(num64) num64 :pure :confprog
 const_s             w(str) str :pure :confprog
 set                 w(`1) r(`1) :pure :confprog
 extend_u8           w(uint64) r(uint8) :pure
@@ -142,23 +142,23 @@ pow_i               w(int64) r(int64) r(int64) :pure
 not_i               w(int64) r(int64) :pure :confprog
 gcd_i               w(int64) r(int64) r(int64) :pure
 lcm_i               w(int64) r(int64) r(int64) :pure
-eq_n                w(int64) r(num64) r(num64) :pure
-ne_n                w(int64) r(num64) r(num64) :pure
-lt_n                w(int64) r(num64) r(num64) :pure
-le_n                w(int64) r(num64) r(num64) :pure
-gt_n                w(int64) r(num64) r(num64) :pure
-ge_n                w(int64) r(num64) r(num64) :pure
-cmp_n               w(int64) r(num64) r(num64) :pure
-add_n               w(num64) r(num64) r(num64) :pure
-sub_n               w(num64) r(num64) r(num64) :pure
-mul_n               w(num64) r(num64) r(num64) :pure
-div_n               w(num64) r(num64) r(num64) :pure
-mod_n               w(num64) r(num64) r(num64) :pure
-neg_n               w(num64) r(num64) :pure
-abs_n               w(num64) r(num64) :pure
+eq_n                w(int64) r(num64) r(num64) :pure :confprog
+ne_n                w(int64) r(num64) r(num64) :pure :confprog
+lt_n                w(int64) r(num64) r(num64) :pure :confprog
+le_n                w(int64) r(num64) r(num64) :pure :confprog
+gt_n                w(int64) r(num64) r(num64) :pure :confprog
+ge_n                w(int64) r(num64) r(num64) :pure :confprog
+cmp_n               w(int64) r(num64) r(num64) :pure :confprog
+add_n               w(num64) r(num64) r(num64) :pure :confprog
+sub_n               w(num64) r(num64) r(num64) :pure :confprog
+mul_n               w(num64) r(num64) r(num64) :pure :confprog
+div_n               w(num64) r(num64) r(num64) :pure :confprog
+mod_n               w(num64) r(num64) r(num64) :pure :confprog
+neg_n               w(num64) r(num64) :pure :confprog
+abs_n               w(num64) r(num64) :pure :confprog
 pow_n               w(num64) r(num64) r(num64) :pure
-ceil_n              w(num64) r(num64) :pure
-floor_n             w(num64) r(num64) :pure
+ceil_n              w(num64) r(num64) :pure :confprog
+floor_n             w(num64) r(num64) :pure :confprog
 sin_n               w(num64) r(num64) :pure
 asin_n              w(num64) r(num64) :pure
 cos_n               w(num64) r(num64) :pure
@@ -173,14 +173,14 @@ cosh_n              w(num64) r(num64) :pure
 tanh_n              w(num64) r(num64) :pure
 sech_n              w(num64) r(num64) :pure
 sqrt_n              w(num64) r(num64) :pure
-log_n               w(num64) r(num64) :pure
+log_n               w(num64) r(num64) :pure :confprog
 exp_n               w(num64) r(num64) :pure
-coerce_in           w(num64) r(int64) :pure
-coerce_ni           w(int64) r(num64) :pure
-coerce_is           w(str) r(int64) :pure
-coerce_ns           w(str) r(num64) :pure
-coerce_si           w(int64) r(str) :pure
-coerce_sn           w(num64) r(str) :pure
+coerce_in           w(num64) r(int64) :pure :confprog
+coerce_ni           w(int64) r(num64) :pure :confprog
+coerce_is           w(str) r(int64) :pure :confprog
+coerce_ns           w(str) r(num64) :pure :confprog
+coerce_si           w(int64) r(str) :pure :confprog
+coerce_sn           w(num64) r(str) :pure :confprog
 smrt_numify         w(num64) r(obj) :pure :invokish :maycausedeopt :specializable :confprog
 smrt_strify         w(str) r(obj) :pure :invokish :maycausedeopt :specializable :confprog
 prepargs         +a callsite :predeoptonepoint
@@ -561,7 +561,7 @@ tryfindmeth_s       w(obj) r(obj) r(str) :pure :invokish :maycausedeopt :special
 chdir               r(str)
 srand               r(int64)
 rand_i              w(int64) :confprog
-rand_n              w(num64)
+rand_n              w(num64) :confprog
 time_i              w(int64) :pure :confprog
 sleep               r(num64)
 newthread           w(obj) r(obj) r(int64)
