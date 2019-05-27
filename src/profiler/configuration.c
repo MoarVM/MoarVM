@@ -1,5 +1,6 @@
 #include "moar.h"
 
+#define CONFPROG_UNUSED_ENTRYPOINT 1
 
 #define OUTPUT_LOTS_OF_JUNK 1
 
@@ -386,6 +387,7 @@ void MVM_confprog_install(MVMThreadContext *tc, MVMObject *bytecode, MVMObject *
     MVMuint64 bytecode_size;
     MVMuint8 *array_contents;
     MVMConfigurationProgram *confprog;
+    MVMint16 entrypoint_array[MVM_PROGRAM_ENTRYPOINT_COUNT];
 
     CHECK_CONC(bytecode, VMArray, "the bytecode");
     CHECK_CONC(string_array, VMArray, "the string heap");
@@ -429,17 +431,33 @@ void MVM_confprog_install(MVMThreadContext *tc, MVMObject *bytecode, MVMObject *
     {
         MVMObject *arr = entrypoints;
         MVMArrayREPRData *reprdata = (MVMArrayREPRData *)STABLE(arr)->REPR_data;
+        MVMuint64 index;
+        MVMuint64 count;
 
         if (reprdata->slot_type != MVM_ARRAY_I64) {
             MVM_exception_throw_adhoc(tc, "installconfprog requires the entrypoints array to be a native array of 64-bit integers (got a %s)",
                     MVM_6model_get_debug_name(tc, bytecode));
         }
+
+        count = MVM_repr_elems(tc, arr);
+
+        memset(entrypoint_array, 0, sizeof(entrypoint_array));
+
+        junkprint(stderr, "copying over %d entrypoints\n", count);
+
+        for (index = 0; index < count && index < MVM_PROGRAM_ENTRYPOINT_COUNT; index++) {
+            entrypoint_array[index] = MVM_repr_at_pos_i(tc, arr, index);
+            junkprint(stderr, "  - %d == %d\n", index, entrypoint_array[index]);
+        }
     }
 
     confprog = MVM_calloc(sizeof(MVMConfigurationProgram), 1);
 
+    fprintf(stderr, "copying %d (%x) bytecode entries\n", bytecode_size, bytecode_size);
     confprog->bytecode = MVM_malloc(bytecode_size);
     memcpy(confprog->bytecode, array_contents, bytecode_size);
+
+    memcpy(confprog->entrypoints, entrypoint_array, sizeof(entrypoint_array));
 
     confprog->bytecode_length = bytecode_size;
 
@@ -447,7 +465,11 @@ void MVM_confprog_install(MVMThreadContext *tc, MVMObject *bytecode, MVMObject *
 
     MVM_confprog_validate(tc, confprog);
 
-    MVM_confprog_run(tc, confprog, tc->instance->VMNull, 0);
+    tc->instance->confprog = confprog;
+}
+
+MVMuint8 MVM_confprog_has_entrypoint(MVMThreadContext *tc, MVMuint8 entrypoint) {
+    return tc->instance->confprog && entrypoint < MVM_PROGRAM_ENTRYPOINT_COUNT && tc->instance->confprog->entrypoints[entrypoint] != CONFPROG_UNUSED_ENTRYPOINT;
 }
 
 /* Stolen from interp.c */
@@ -462,10 +484,21 @@ void MVM_confprog_install(MVMThreadContext *tc, MVMObject *bytecode, MVMObject *
 MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoint, MVMint64 initial_feature_value) {
     MVMConfigurationProgram *prog = tc->instance->confprog;
     MVMuint8 *cur_op;
+    MVMuint8 *last_op;
+    MVMint64 result;
+
+    MVMuint8 *bytecode_start;
 
     CPRegister *reg_base = MVM_calloc(prog->reg_count + 1, sizeof(CPRegister));
 
-    cur_op = prog->bytecode;
+    reg_base[REGISTER_FEATURE_TOGGLE].i64 = initial_feature_value;
+
+    bytecode_start = prog->bytecode;
+    cur_op = bytecode_start + prog->entrypoints[entrypoint];
+    last_op = bytecode_start + prog->bytecode_length;
+
+    junkprint(stderr, "running confprog for entrypoint %d (at position %d)\n", entrypoint, prog->entrypoints[entrypoint]);
+    junkprint(stderr, "confprog is 0x%x (%d) bytes big", last_op - bytecode_start, last_op - bytecode_start);
 
     runloop: {
         MVMuint16 ins = *((MVMuint16 *)cur_op);
@@ -485,6 +518,10 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
             OP(const_i64):
                 GET_REG(cur_op, 0).i64 = MVM_BC_get_I64(cur_op, 2);
                 junkprint(stderr, "const_i64 %d\n", MVM_BC_get_I64(cur_op, 2));
+                cur_op += 10;
+                goto NEXT;
+            OP(const_n64):
+                GET_REG(cur_op, 0).n64 = MVM_BC_get_N64(cur_op, 2);
                 cur_op += 10;
                 goto NEXT;
             OP(const_i64_16):
@@ -582,6 +619,27 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 cur_op += 4;
                 MVM_coerce_smart_stringify(tc, obj, res);
                 goto NEXT;
+            }
+            OP(gt_n):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).n64 >  GET_REG(cur_op, 4).n64;
+                cur_op += 6;
+                goto NEXT;
+            OP(rand_n):
+                GET_REG(cur_op, 0).n64 = MVM_proc_rand_n(tc);
+                cur_op += 2;
+                goto NEXT;
+            OP(goto):
+                cur_op = bytecode_start + GET_UI32(cur_op, 0);
+                goto NEXT;
+            OP(if_i):
+                if (GET_REG(cur_op, 0).i64)
+                    cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                else
+                    cur_op += 6;
+                goto NEXT;
+            OP(exit): {
+                MVMint64 exit_code = GET_REG(cur_op, 0).i64;
+                goto finish_main_loop;
             }
             default:
                 fprintf(stderr, "operation %s (%d, 0x%x) NYI\n", MVM_op_get_op(ins)->name, ins, ins);

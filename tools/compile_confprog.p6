@@ -81,6 +81,7 @@ grammar ConfProg {
             | 'profiler_dynamic'
             | 'spesh'
             | 'jit'
+            | 'heapsnapshot'
         ] \s*
         ":"
     }
@@ -145,6 +146,10 @@ grammar ConfProg {
     }
     regex one_expression:<prefixed> {
         <prefixop> '(' \s* <expression> \s* ')'
+    }
+
+    regex one_expression:<functioncall> {
+        <ident> '(' (<one_expression> | <named>)* %% [\s* ',' \s*] ')'
     }
 
     proto regex postfixish { * }
@@ -235,6 +240,8 @@ my %prefix-to-op = <
 >;
 
 class ConfProgActions {
+    has %.labels;
+
     method prefixop($/) { make $/.Str }
     method compop($/)   { say $/.Str; make %op-to-op{$/.Str} }
 
@@ -294,6 +301,34 @@ class ConfProgActions {
         make $result;
     }
 
+    method one_expression:<functioncall>($/) {
+        use Data::Dump::Tree::ExtraRoles;
+
+        my @positionals;
+        my @nameds;
+        my $matchddt = Data::Dump::Tree.new;
+        $matchddt does DDTR::MatchDetails;
+        $matchddt.dump: $/;
+
+        for @0 {
+            with .<one_expression> {
+                @positionals.push: .ast;
+            }
+            orwith .<named> {
+                die "named arguments in functioncall NYI";
+                @nameds.push: .ast;
+            }
+        }
+
+        my $result = Op.new(
+            op => "call",
+            children => [
+                flat $<ident>.Str,
+                @positionals, @nameds
+            ]);
+        make $result;
+    }
+
     method statement:<entrypoint>($/) {
         make Label.new(
             name => $<entrypoint>.Str,
@@ -301,10 +336,17 @@ class ConfProgActions {
         );
     }
     method statement:<label>($/) {
-        make Label.new(
-            name => $<entrypoint>.Str,
+        my $label = Label.new(
+            name => $<ident>.Str,
             type => "user"
         );
+        with %.labels{$<ident>.Str} {
+            die "duplicate definition of label $<ident>.Str()";
+        }
+        else {
+            $_ = $label;
+        }
+        make $label;
     }
 
     method statement:<var_update>($/) {
@@ -374,6 +416,7 @@ my %builtins = %(
 my %targets = %(
     profile => CPInt,
     log => CPString,
+    snapshot => CPInt,
 );
 
 use MASTOps:from<NQP>;
@@ -385,12 +428,17 @@ my %entrypoint-indices = <
     profiler_dynamic
     spesh
     jit
+    heapsnapshot
 >.antipairs;
 
 my $*MAST_FRAME = class {
-    has uint8 @.bytecode;
+    has @.bytecode is buf8;
     has str @.strings;
     has @.entrypoints is default(1);
+
+    has %.labelrefs{Any};
+
+    has $.dump-position = 0;
 
     method add-string(str $str) {
         if @!strings.grep($str, :k) {
@@ -415,13 +463,49 @@ my $*MAST_FRAME = class {
         }
     }
     method compile_label($bytecode, $label) {
-        die "label support NYI";
+        with $label.position {
+            die "labels must not appear before their declaration, sorry!"
+        }
+        %.labelrefs{$label}.push: $bytecode.elems;
+        $bytecode.write-uint32($bytecode.elems, 0xbbaabbaabbaabba);
+    }
+
+    method finish-labels() {
+        for %.labelrefs {
+            say "key and value:";
+            say .key.perl();
+            say .value.perl();
+            for .value.list -> $fixup-pos {
+                @!bytecode.write-uint32($fixup-pos, .key.position);
+            }
+        }
+    }
+
+    method dump-new-stuff() {
+        for @!bytecode.skip($!dump-position) -> $a, $b {
+            state $pos = 0;
+            my int $cur-pos = $!dump-position + $pos;
+            $pos += 2;
+
+            my int $sixteenbitval = $b * 256 + $a;
+
+            if $pos == 2 {
+                my Mu $names := MAST::Ops.WHO<@names>;
+                if $sixteenbitval < nqp::elems($names) {
+                    say nqp::atpos_s($names, $sixteenbitval);
+                }
+            }
+
+            say "$cur-pos.fmt("0x% 4x") $sixteenbitval.fmt("%04x") ($sixteenbitval.fmt("%05d"))  -- $a.fmt("%02x") $b.fmt("%02x") / $a.fmt("%03d") $b.fmt("%03d")";
+        }
+        $!dump-position = +@!bytecode;
+        say "";
     }
 }.new;
 
 my $parseresult = ConfProg.parse($testprog, actions => ConfProgActions.new);
 
-"$_[1].perl()".say && $_[0].&ddt && "".say for $parseresult.ast Z $parseresult<statement>.list>>.Str;
+#"$_[1].perl()".say && $_[0].&ddt && "".say for $parseresult.ast Z $parseresult<statement>.list>>.Str;
 
 # type derivation step
 
@@ -504,6 +588,18 @@ multi sub unify_type(Op $node) {
                         ?? CPInt
                         !! die "what"));
         }
+        when "call" {
+            # Go by first child, it ought to be a string with the function name.
+            my $funcname = $node.children[0];
+            given $funcname {
+                when "choice" {
+                    $node.type = CPInt;
+                }
+                default {
+                    die "function call to $funcname.perl() NYI, typo'd, or something else is wrong";
+                }
+            }
+        }
         default {
             warn "unhandled node op $node.op() in unify_type for an Op";
             return Any;
@@ -550,6 +646,7 @@ enum RegisterType <
     RegInteger
     RegString
     RegCString
+    RegNum
 >;
 
 my %CPTypeToRegType := :{
@@ -635,6 +732,8 @@ multi sub compile_coerce($node, $type, :$target!) {
     }
 }
 
+my $current-entrypoint;
+
 multi sub compile_node(SVal $val, :$target!) {
     note "const_s into $target";
     %op-gen<const_s>($target, $val.value);
@@ -657,12 +756,62 @@ multi sub compile_node(Var $var, :$target) {
         }
     }
     elsif $var.scope eq "my" {
-
+        die "user-specified variables NYI"
     }
     else {
         die "unexpected variable scope $var.scope()";
     }
 }
+
+my int $dynamic_label_idx = 1;
+
+sub compile_call(Op $op, :$target) {
+    my $funcname = $op.children[0].Str;
+    given $funcname {
+        when "choice" {
+            say "";
+            say "here is the choice function!";
+            say "";
+            my $value = $*REGALLOC.fresh(RegNum);
+            %op-gen<rand_n>($value);
+        $*MAST_FRAME.dump-new-stuff();
+
+            my $comparison-value = $*REGALLOC.fresh(RegNum);
+            my $comparison-result = $*REGALLOC.fresh(RegInteger);
+
+            my num $step = 1e0 / ($op.children.elems - 1);
+
+            my @individual-labels = Label.new(name => "choice-" ~ $dynamic_label_idx++, type => "internal") xx ($op.children.elems - 2);
+            my $end-label = Label.new(name => "choice-exit-" ~ $dynamic_label_idx++, type => "internal");
+            @individual-labels.push: $end-label;
+
+            my $current-comparison-literal = $step;
+
+            ddt $op;
+
+            for $op.children<>[1..*].list Z @individual-labels {
+                say "choice loop: $_.perl()";
+                say "$_[0].perl()";
+                say "$_[1].perl()";
+                %op-gen<const_n64>($comparison-value, $current-comparison-literal);
+        $*MAST_FRAME.dump-new-stuff();
+                %op-gen<gt_n>($comparison-result, $value, $comparison-value);
+        $*MAST_FRAME.dump-new-stuff();
+                %op-gen<if_i>($comparison-result, .[1]);
+        $*MAST_FRAME.dump-new-stuff();
+                compile_node(.[0], :$target);
+                %op-gen<goto>($end-label);
+        $*MAST_FRAME.dump-new-stuff();
+                compile_node(.[1]);
+            }
+            compile_node($end-label);
+        }
+        default {
+            die "Cannot compile call of function $funcname yet"
+        }
+    }
+}
+
 multi sub compile_node(Op $op, :$target) {
     note "Op $op.op() into $($target // "-")";
     given $op.op {
@@ -676,6 +825,10 @@ multi sub compile_node(Op $op, :$target) {
             if $lhs.scope eq "builtin" {
                 if $lhs.name eq "log" {
                     %op-gen<say>($rhstarget);
+                }
+                elsif $lhs.name eq "snapshot" | "profile" {
+                    note "making a set op into FEATURE_TOGGLE from $rhstarget";
+                    %op-gen<set>(FEATURE_TOGGLE, $rhstarget);
                 }
                 else {
                     die "builtin variable $lhs.name() NYI";
@@ -750,6 +903,10 @@ multi sub compile_node(Op $op, :$target) {
             $*REGALLOC.release($leftreg);
             $*REGALLOC.release($rightreg);
         }
+        when "call" {
+            compile_call($op, :$target) with $target;
+            compile_call($op) without $target;
+        }
         default {
             die "cannot compile $op.op() yet";
         }
@@ -757,11 +914,17 @@ multi sub compile_node(Op $op, :$target) {
 }
 multi compile_node(Label $label) {
     given $label.type {
-        when "user" {
-            die "user-specified labels NYI";
+        when "user" | "internal" {
+            say "compiling label node and setting position:";
+            $label.position = $*MAST_FRAME.bytecode.elems;
+            say "    $label.position.perl()";
         }
         when "entrypoint" {
+            with $current-entrypoint {
+                %op-gen<exit>(0);
+            }
             $label.position = $*MAST_FRAME.add-entrypoint($label.name);
+            $current-entrypoint = $label.name;
             say "added entrypoint at position $label.position()";
         }
     }
@@ -772,6 +935,7 @@ for $parseresult.ast {
         compile_node($_);
     }
 }
+$*MAST_FRAME.finish-labels();
 
 .say for $*MAST_FRAME.strings.pairs;
 
@@ -782,7 +946,9 @@ dd $*MAST_FRAME.bytecode;
 
 say $*MAST_FRAME.entrypoints;
 
-my int @entrypoints;
+say $*MAST_FRAME.entrypoints.perl;
+
+my int @entrypoints = $*MAST_FRAME.entrypoints >>//>> 1;
 
 sub run-the-program() {
     use nqp;
