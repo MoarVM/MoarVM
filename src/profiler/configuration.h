@@ -22,6 +22,6 @@ struct MVMConfigurationProgram {
     MVMint16 entrypoints[MVM_PROGRAM_ENTRYPOINT_COUNT];
 };
 
-void MVM_confprog_run(MVMThreadContext *tc, MVMConfigurationProgram *prog, MVMObject *subject, MVMuint8 entrypoint);
+MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoint, MVMint64 initial_feature_value);
 void MVM_confprog_mark(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot);
 void MVM_confprog_install(MVMThreadContext *tc, MVMObject *bytecode, MVMObject *string_array, MVMObject *entrypoints);

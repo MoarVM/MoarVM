@@ -1,5 +1,14 @@
 #include "moar.h"
 
+
+#define OUTPUT_LOTS_OF_JUNK 1
+
+#if OUTPUT_LOTS_OF_JUNK
+#define junkprint fprintf
+#else
+#define junkprint(fh, str, ...) do { } while (0)
+#endif
+
 enum {
     StructSel_Nothing,
     StructSel_Root,
@@ -117,7 +126,7 @@ static void validate_reg_operand(MVMThreadContext *tc, validatorstate *state, MV
         state->register_types = MVM_recalloc(state->register_types, old_register_alloc, state->register_alloc);
     }
 
-    fprintf(stderr, "encountered register operand of op %s for reg_num %d, current register count %d\n", state->cur_op->name, reg_num, state->register_count);
+    junkprint(stderr, "encountered register operand of op %s for reg_num %d, current register count %d\n", state->cur_op->name, reg_num, state->register_count);
 
     if (reg_num > state->register_count) {
         state->register_count = reg_num + 1;
@@ -125,7 +134,7 @@ static void validate_reg_operand(MVMThreadContext *tc, validatorstate *state, MV
     }
     else {
         if (state->register_types[reg_num] != ((operand << 1) | 1)) {
-            fprintf(stderr, "Invalid operand write; type of register %d was already seen as %d before, now supposed to be %d\n", reg_num, state->register_types[reg_num] >> 1, operand);
+            junkprint(stderr, "Invalid operand write; type of register %d was already seen as %d before, now supposed to be %d\n", reg_num, state->register_types[reg_num] >> 1, operand);
             /*MVM_exception_throw_adhoc(tc, "Invalid operand write; type was already seen as %d before, now supposed to be %d", state->register_types[reg_num] >> 1, operand);*/
         }
     }
@@ -170,13 +179,13 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
     const MVMOpInfo *info;
     MVMuint8 *prev_op_bc_ptr = state->bc_pointer;
 
-    fprintf(stderr, "validate op at %x\n", state->bc_pointer - state->bytecode_root);
+    junkprint(stderr, "validate op at %x\n", state->bc_pointer - state->bytecode_root);
 
     if (!MVM_op_is_allowed_in_confprog(opcode)) {
         /*MVMuint16 op;*/
         /*for (op = 0; op < 916; op++) {*/
             /*if (MVM_op_is_allowed_in_confprog(op)) {*/
-                /*fprintf(stderr, "op %s (%d) is allowed\n", MVM_op_get_op(op)->name, op);*/
+                /*junkprint(stderr, "op %s (%d) is allowed\n", MVM_op_get_op(op)->name, op);*/
             /*}*/
         /*}*/
         MVM_exception_throw_adhoc(tc, "Invalid opcode detected in confprog: %d (%s) at position 0x%x",
@@ -205,7 +214,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
         string_idx = *((MVMuint32 *)state->bc_pointer);
         validate_operand(tc, state, 1, state->cur_op->operands[1]);
 
-        fprintf(stderr, "after validating const_s, %x, before %x, diff %x\n", state->bc_pointer, prev_op_bc_ptr, state->bc_pointer - prev_op_bc_ptr);
+        junkprint(stderr, "after validating const_s, %x, before %x, diff %x\n", state->bc_pointer, prev_op_bc_ptr, state->bc_pointer - prev_op_bc_ptr);
 
         if (reg_num == REGISTER_STRUCT_SELECT) {
             MVMObject *string_at_position = MVM_repr_at_pos_s(tc, state->confprog->string_heap, string_idx);
@@ -220,19 +229,19 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
             switch (string_length) {
                 case 0:
                     state->selected_struct_source = StructSel_Root;
-                    fprintf(stderr, "next getattr will operate on 'root' namespace\n");
+                    junkprint(stderr, "next getattr will operate on 'root' namespace\n");
                     break;
 
                 case 8:
                     /* TODO string comparison */
                     state->selected_struct_source = StructSel_MVMFrame;
-                    fprintf(stderr, "next getattr will operate on an MVMFrame\n");
+                    junkprint(stderr, "next getattr will operate on an MVMFrame\n");
                     break;
 
                 case 14:
                     /* TODO string comparison */
                     state->selected_struct_source = StructSel_MVMStaticFrame;
-                    fprintf(stderr, "next getattr will operate on an MVMStaticFrame\n");
+                    junkprint(stderr, "next getattr will operate on an MVMStaticFrame\n");
                     break;
 
                 default:
@@ -273,14 +282,14 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
         hint = *hintptr;
         validate_operand(tc, state, 4, state->cur_op->operands[4]);
 
-        fprintf(stderr, "currently on %d struct source, string index is %d\n", selected_struct_source, string_idx);
+        junkprint(stderr, "currently on %d struct source, string index is %d\n", selected_struct_source, string_idx);
 
         if (source_reg_num == REGISTER_STRUCT_ACCUMULATOR) {
             MVMObject *string_at_position = MVM_repr_at_pos_s(tc, state->confprog->string_heap, string_idx);
             MVMuint64 string_length = MVM_string_graphs(tc, string_at_position);
             /* Special "fake" getattr */
             if (selected_struct_source == StructSel_Root) {
-                fprintf(stderr, "hint pointer will select a root struct entry\n");
+                junkprint(stderr, "hint pointer will select a root struct entry\n");
                 /* staticframe; TODO string comparison */
                 if (string_length == 11) { /* staticframe */
                     *hintptr = FieldSel_staticframe;
@@ -312,7 +321,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
                 }
             }
 
-            fprintf(stderr, "set hint pointer value to %d\n", *hintptr);
+            junkprint(stderr, "set hint pointer value to %d\n", *hintptr);
         }
         else {
             /* Totally regular getattr call */
@@ -350,9 +359,9 @@ MVMuint8 MVM_confprog_validate(MVMThreadContext *tc, MVMConfigurationProgram *pr
 
     state.selected_struct_source = 0;
 
-    fprintf(stderr, "going to validate program\n");
+    junkprint(stderr, "going to validate program\n");
     while (state.bc_pointer < state.bytecode_root + prog->bytecode_length) {
-        fprintf(stderr, "\nvalidating bytecode at position 0x%x\n", state.bc_pointer - state.bytecode_root);
+        junkprint(stderr, "\nvalidating bytecode at position 0x%x\n", state.bc_pointer - state.bytecode_root);
         validate_op(tc, &state);
     }
 
@@ -392,6 +401,8 @@ void MVM_confprog_install(MVMThreadContext *tc, MVMObject *bytecode, MVMObject *
         }
 
         bytecode_size = MVM_repr_elems(tc, bytecode);
+
+        fprintf(stderr, "got a bytecode array with %d (%x) entries\n", bytecode_size, bytecode_size);
 
         if (bytecode_size % 2 == 1) {
             MVM_exception_throw_adhoc(tc, "installconfprog expected bytecode array to be a multiple of 2 bytes big (got a %d)",
@@ -448,7 +459,8 @@ void MVM_confprog_install(MVMThreadContext *tc, MVMObject *bytecode, MVMObject *
 #define GET_UI16(pc, idx)   *((MVMuint16 *)(pc + idx))
 #define GET_I16(pc, idx)    *((MVMint16 *)(pc + idx))
 
-void MVM_confprog_run(MVMThreadContext *tc, MVMConfigurationProgram *prog, MVMObject *subject, MVMuint8 entrypoint) {
+MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoint, MVMint64 initial_feature_value) {
+    MVMConfigurationProgram *prog = tc->instance->confprog;
     MVMuint8 *cur_op;
 
     CPRegister *reg_base = MVM_calloc(prog->reg_count + 1, sizeof(CPRegister));
@@ -457,69 +469,77 @@ void MVM_confprog_run(MVMThreadContext *tc, MVMConfigurationProgram *prog, MVMOb
 
     runloop: {
         MVMuint16 ins = *((MVMuint16 *)cur_op);
+
         cur_op += 2;
+        if (cur_op >= last_op) {
+            junkprint(stderr, "end of program: %p > %p\n", cur_op, last_op);
+            goto finish_main_loop;
+        }
+
+        junkprint(stderr, "evaluating a %s at position %x (%d)\n", MVM_op_get_op(ins)->name, cur_op - 2 - bytecode_start, cur_op - 2 - bytecode_start);
+
         switch (ins) {
             OP(no_op):
-                fprintf(stderr, "noop\n");
+                junkprint(stderr, "noop\n");
                 goto NEXT;
             OP(const_i64):
                 GET_REG(cur_op, 0).i64 = MVM_BC_get_I64(cur_op, 2);
-                fprintf(stderr, "const_i64 %d\n", MVM_BC_get_I64(cur_op, 2));
+                junkprint(stderr, "const_i64 %d\n", MVM_BC_get_I64(cur_op, 2));
                 cur_op += 10;
                 goto NEXT;
             OP(const_i64_16):
                 GET_REG(cur_op, 0).i64 = GET_I16(cur_op, 2);
-                fprintf(stderr, "const_i64_16 %d into %d\n", GET_I16(cur_op, 2), GET_UI16(cur_op, 0));
+                junkprint(stderr, "const_i64_16 %d into %d\n", GET_I16(cur_op, 2), GET_UI16(cur_op, 0));
                 cur_op += 4;
                 goto NEXT;
             OP(const_s):
                 GET_REG(cur_op, 0).s = MVM_repr_at_pos_s(tc, prog->string_heap, GET_UI32(cur_op, 2));
-                fprintf(stderr, "const_s into reg %d\n", GET_UI16(cur_op, 0));
+                junkprint(stderr, "const_s into reg %d\n", GET_UI16(cur_op, 0));
                 cur_op += 6;
                 goto NEXT;
             OP(set):
                 GET_REG(cur_op, 0) = GET_REG(cur_op, 2);
-                fprintf(stderr, "set\n");
+                junkprint(stderr, "set\n");
                 cur_op += 4;
                 goto NEXT;
             OP(say):
                 MVM_string_say(tc, GET_REG(cur_op, 0).s);
-                fprintf(stderr, "say\n");
+                junkprint(stderr, "say\n");
                 cur_op += 2;
                 goto NEXT;
             OP(getattr_o):
-                fprintf(stderr, "struct select: %x\n", reg_base[REGISTER_STRUCT_SELECT].i64);
+                junkprint(stderr, "struct select: %x\n", reg_base[REGISTER_STRUCT_SELECT].i64);
                 if (reg_base[REGISTER_STRUCT_SELECT].i64 == StructSel_Nothing) {
-                    fprintf(stderr, "getattr_o into %d\n", GET_UI16(cur_op, 0));
+                    junkprint(stderr, "getattr_o into %d\n", GET_UI16(cur_op, 0));
                 }
                 else if (reg_base[REGISTER_STRUCT_SELECT].i64 == StructSel_Root) {
                     MVMuint16 field_select = GET_UI16(cur_op, 10);
                     if (field_select == FieldSel_staticframe) {
                         reg_base[REGISTER_STRUCT_ACCUMULATOR].any = tc->cur_frame->static_info;
-                        fprintf(stderr, "get a static frame into the struct accumulator: %x\n", tc->cur_frame->static_info);
+                        junkprint(stderr, "get a static frame into the struct accumulator: %x\n", tc->cur_frame->static_info);
                     }
                     else if (field_select == FieldSel_frame) {
                         reg_base[REGISTER_STRUCT_ACCUMULATOR].any = tc->cur_frame;
-                        fprintf(stderr, "get a frame into the struct accumulator: %x\n", tc->cur_frame);
+                        junkprint(stderr, "get a frame into the struct accumulator: %x\n", tc->cur_frame);
                     }
                     else {
                         fprintf(stderr, "NYI case of getattr_o on root struct hit\n");
                     }
                 }
                 else {
-                    fprintf(stderr, "getting the struct accumulator's field at offset 0x%x into register %d\n",
+                    junkprint(stderr, "getting the struct accumulator's field at offset 0x%x into register %d\n",
                             GET_UI16(cur_op, 10), GET_UI16(cur_op, 0));
-                    fprintf(stderr, "register %d contents before: 0x%x\n", GET_UI16(cur_op, 0), reg_base[GET_UI16(cur_op, 0)].any);
-                    fprintf(stderr, "register %d contents before: 0x%x\n", REGISTER_STRUCT_ACCUMULATOR, reg_base[REGISTER_STRUCT_ACCUMULATOR].any);
+                    junkprint(stderr, "register %d contents before: 0x%x\n", GET_UI16(cur_op, 0), reg_base[GET_UI16(cur_op, 0)].any);
+                    junkprint(stderr, "register %d contents before: 0x%x\n", REGISTER_STRUCT_ACCUMULATOR, reg_base[REGISTER_STRUCT_ACCUMULATOR].any);
                     reg_base[GET_UI16(cur_op, 0)].any =
                         *((void **)(((char *)reg_base[REGISTER_STRUCT_ACCUMULATOR].any) + GET_UI16(cur_op, 10)));
-                    fprintf(stderr, "register %d contents now: 0x%x\n", GET_UI16(cur_op, 0), reg_base[GET_UI16(cur_op, 0)].any);
+                    junkprint(stderr, "register %d contents now: 0x%x\n", GET_UI16(cur_op, 0), reg_base[GET_UI16(cur_op, 0)].any);
                     /*(char *)(&reg_base[REGISTER_STRUCT_ACCUMULATOR]) = (char *)*/
                 }
                 cur_op += 12;
                 goto NEXT;
             OP(eq_s):
-                fprintf(stderr, "eq_s with %d and %d\n", GET_UI16(cur_op, 2), GET_UI16(cur_op, 4));
+                junkprint(stderr, "eq_s with %d and %d\n", GET_UI16(cur_op, 2), GET_UI16(cur_op, 4));
                 GET_REG(cur_op, 0).i64 = MVM_string_equal(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
                 cur_op += 6;
@@ -565,8 +585,16 @@ void MVM_confprog_run(MVMThreadContext *tc, MVMConfigurationProgram *prog, MVMOb
             }
             default:
                 fprintf(stderr, "operation %s (%d, 0x%x) NYI\n", MVM_op_get_op(ins)->name, ins, ins);
+                goto finish_main_loop;
         }
     }
+
+finish_main_loop:
+
+    result = reg_base[REGISTER_FEATURE_TOGGLE].i64;
+    MVM_free(reg_base);
+
+    return result;
 }
 
 #define add_collectable(tc, worklist, snapshot, col, desc) \
