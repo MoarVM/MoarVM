@@ -135,6 +135,9 @@ struct MVMStaticFrameInstrumentation {
     MVMuint32        uninstrumented_bytecode_size;
     MVMuint32        instrumented_bytecode_size;
     MVMStaticFrameDebugLocal *debug_locals;
+
+    MVMuint8         profiler_confprog_result;
+    MVMuint8         profiler_confprog_version;
 };
 
 struct MVMStaticFrameDebugLocal {

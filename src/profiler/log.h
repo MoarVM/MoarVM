@@ -1,20 +1,23 @@
 /* Per-thread profiling data. */
 struct MVMProfileThreadData {
-    /* The root of the call graph. */
-    MVMProfileCallNode *call_graph;
-
     /* The current call graph node we're in. */
     MVMProfileCallNode *current_call;
+
+    /* Cache whether moar currently has confprogs enabled */
+    MVMuint8 is_dynamic_confprog_installed;
+    MVMuint8 is_static_confprog_installed;
+
+    /* The thread ID of the thread responsible for spawning this thread. */
+    MVMuint32 parent_thread_id;
+
+    /* The root of the call graph. */
+    MVMProfileCallNode *call_graph;
 
     /* The time we started profiling. */
     MVMuint64 start_time;
 
     /* The time we finished profiling, if we got there already. */
     MVMuint64 end_time;
-
-    /* The thread ID of the thread responsible for spawning this thread. */
-    MVMuint32 parent_thread_id;
-
     /* Garbage collection time measurements. */
     MVMProfileGC *gcs;
     MVMuint32 num_gcs;
@@ -83,19 +86,15 @@ struct MVMProfileCallNode {
     /* The frame this data is for.
      * If this CallNode is for a native call, this is NULL. */
     MVMStaticFrame *sf;
-
-    /* If the static frame is NULL, we're collecting data on a native call */
-    char *native_target_name;
-
-    /* When was this node first entered, ever? */
-    MVMuint64 first_entry_time;
-
     /* The timestamp when we entered the node. */
     MVMuint64 cur_entry_time;
 
     /* Time we should skip since cur_entry_time because execution was
      * suspended due to GC or spesh. */
     MVMuint64 cur_skip_time;
+
+    /* Entry mode, persisted for the sake of continuations. */
+    MVMuint64 entry_mode;
 
     /* The node in the profiling call graph that we came from. */
     MVMProfileCallNode *pred;
@@ -137,8 +136,12 @@ struct MVMProfileCallNode {
     /* Number of times deopt_all happened. */
     MVMuint64 deopt_all_count;
 
-    /* Entry mode, persisted for the sake of continuations. */
-    MVMuint64 entry_mode;
+    /* If the static frame is NULL, we're collecting data on a native call */
+    char *native_target_name;
+
+    /* When was this node first entered, ever? */
+    MVMuint64 first_entry_time;
+
 };
 
 /* Allocation counts for a call node. */
