@@ -480,7 +480,7 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
         /* Use static frame memory address to get a unique ID. */
         MVM_repr_bind_key_o(tc, node_hash, pds->id,
             box_i(tc, (MVMint64)(uintptr_t)pcn->sf));
-    } else {
+    } else if (pcn->native_target_name) {
         MVMString *function_name_string =
             MVM_string_utf8_c8_decode(tc, tc->instance->VMString,
                                       pcn->native_target_name, strlen(pcn->native_target_name));
@@ -496,6 +496,18 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
         /* Use the address of the name string as unique ID. a hack, but oh well. */
         MVM_repr_bind_key_o(tc, node_hash, pds->id,
             box_i(tc, (MVMint64)(uintptr_t)pcn->native_target_name));
+    }
+    else {
+        MVM_repr_bind_key_o(tc, node_hash, pds->name,
+            box_s(tc, pds->call_graph));
+        MVM_repr_bind_key_o(tc, node_hash, pds->file,
+            box_s(tc, pds->call_graph));
+
+        MVM_repr_bind_key_o(tc, node_hash, pds->line,
+            box_i(tc, -10));
+
+        MVM_repr_bind_key_o(tc, node_hash, pds->id,
+            box_i(tc, (MVMint64)(uintptr_t)pcn));
     }
 
     /* Entry counts. */
