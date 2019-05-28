@@ -107,15 +107,15 @@ This segment contains a bunch of string data. Each string is laid out as:
     +---------------------------------------------------------+
 
 ## SC Dependencies Table
-This table describes the SCs that the bytecode in this file references
-objects from. The wval opcode specifies an index in this table and an
-index in the SC itself. When the bytecode file is first loaded, we look
-in the known SCs table and resolve all that we can. Then, the deserialize
-code for the compilation unit is run. Whenever the SC creation opcode is
-used, we search all known compilation units to see if they have any
-unresolved SCs, and fill in any gaps that correspond to the newly created
-SC. By the time the deserialize phase for a compilation unit is over, we
-expect that all SCs have been resolved. Thus, the lifetime of an SC is
+This table describes the SCs (Serialization Contexts) that the bytecode in
+this file references objects from. The wval opcode specifies an index in
+this table and an index in the SC itself. When the bytecode file is first
+loaded, we look in the known SCs table and resolve all that we can. Then,
+the deserialize code for the compilation unit is run. Whenever the SC
+creation opcode is used, we search all known compilation units to see if they
+have any unresolved SCs, and fill in any gaps that correspond to the newly
+created SC. By the time the deserialize phase for a compilation unit is over,
+we expect that all SCs have been resolved. Thus, the lifetime of an SC is
 equal to the lifetimes of all the compilation units that reference it,
 since their code depends on it. Note that the primary way an SC is rooted
 is through a compilation unit, and that these roots are established as
