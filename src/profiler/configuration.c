@@ -404,7 +404,7 @@ void MVM_confprog_install(MVMThreadContext *tc, MVMObject *bytecode, MVMObject *
 
         bytecode_size = MVM_repr_elems(tc, bytecode);
 
-        fprintf(stderr, "got a bytecode array with %d (%x) entries\n", bytecode_size, bytecode_size);
+        junkprint(stderr, "got a bytecode array with %d (%x) entries\n", bytecode_size, bytecode_size);
 
         if (bytecode_size % 2 == 1) {
             MVM_exception_throw_adhoc(tc, "installconfprog expected bytecode array to be a multiple of 2 bytes big (got a %d)",
@@ -453,7 +453,7 @@ void MVM_confprog_install(MVMThreadContext *tc, MVMObject *bytecode, MVMObject *
 
     confprog = MVM_calloc(sizeof(MVMConfigurationProgram), 1);
 
-    fprintf(stderr, "copying %d (%x) bytecode entries\n", bytecode_size, bytecode_size);
+    junkprint(stderr, "copying %d (%x) bytecode entries\n", bytecode_size, bytecode_size);
     confprog->bytecode = MVM_malloc(bytecode_size);
     memcpy(confprog->bytecode, array_contents, bytecode_size);
 
@@ -518,11 +518,12 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 goto NEXT;
             OP(const_i64):
                 GET_REG(cur_op, 0).i64 = MVM_BC_get_I64(cur_op, 2);
-                junkprint(stderr, "const_i64 %d\n", MVM_BC_get_I64(cur_op, 2));
+                junkprint(stderr, "const_i64 %d into %d\n", MVM_BC_get_I64(cur_op, 2), GET_UI16(cur_op, 0));
                 cur_op += 10;
                 goto NEXT;
             OP(const_n64):
                 GET_REG(cur_op, 0).n64 = MVM_BC_get_N64(cur_op, 2);
+                junkprint(stderr, "const_n64 %f into %d\n", MVM_BC_get_N64(cur_op, 2), GET_UI16(cur_op, 0));
                 cur_op += 10;
                 goto NEXT;
             OP(const_i64_16):
@@ -627,6 +628,7 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 goto NEXT;
             OP(rand_n):
                 GET_REG(cur_op, 0).n64 = MVM_proc_rand_n(tc);
+                junkprint(stderr, "rand_n result %f into %d\n", GET_REG(cur_op, 0).n64, GET_UI16(cur_op, 0));
                 cur_op += 2;
                 goto NEXT;
             OP(goto):
