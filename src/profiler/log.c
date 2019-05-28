@@ -34,104 +34,114 @@ static MVMProfileCallNode *make_new_pcn(MVMProfileThreadData *ptd, MVMuint64 cur
 
 /* Log that we're entering a new frame. */
 void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 mode) {
-    MVMProfileThreadData *ptd = get_thread_data(tc);
+    if (tc->instance->profiling) {
+        MVMProfileThreadData *ptd = get_thread_data(tc);
 
-    MVMuint64 current_hrtime = uv_hrtime();
+        MVMuint64 current_hrtime = uv_hrtime();
+        
+        MVMuint8 was_entered_via_confprog = 0;
 
-    /* Try to locate the entry node, if it's in the call graph already. */
-    MVMProfileCallNode *pcn = NULL;
-    MVMuint32 i;
-    if (ptd->current_call)
-        for (i = 0; i < ptd->current_call->num_succ; i++)
-            if (ptd->current_call->succ[i]->sf == sf)
-                pcn = ptd->current_call->succ[i];
+        /* Try to locate the entry node, if it's in the call graph already. */
+        MVMProfileCallNode *pcn = NULL;
+        MVMuint32 i;
+        if (ptd->current_call)
+            for (i = 0; i < ptd->current_call->num_succ; i++)
+                if (ptd->current_call->succ[i]->sf == sf)
+                    pcn = ptd->current_call->succ[i];
 
-    if (MVM_UNLIKELY(!ptd->current_call)) {
-        MVMuint8 has_confprogs = tc->instance->confprog && (MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC)
-                    || MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC));
-        /*fprintf(stderr, "\n\n no current call exists \n");*/
-        /* At the very beginning of profiling with a confprog set, the
-         * root call_graph node needs to be created. */
-        if (has_confprogs && !ptd->call_graph) {
-            /*fprintf(stderr, "initialized initial call graph node of thread %p\n", tc);*/
-            ptd->call_graph = MVM_calloc(sizeof(MVMProfileCallNode), 1);
-        }
-        /* In that case, we've got to check if the SF in question is
-         * desired as an entry point */
-        if (sf->body.instrumentation && tc->instance->confprog) {
-            MVMStaticFrameInstrumentation *instrumentation = sf->body.instrumentation;
-            if (instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_NEVER) {
-                fprintf(stderr, "encountered a 'never profile' SF\n");
-                return;
+        if (MVM_UNLIKELY(!ptd->current_call)) {
+            MVMuint8 has_confprogs = tc->instance->confprog && (MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC)
+                        || MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC));
+            /*fprintf(stderr, "\n\n no current call exists \n");*/
+            /* At the very beginning of profiling with a confprog set, the
+             * root call_graph node needs to be created. */
+            if (has_confprogs && !ptd->call_graph) {
+                /*fprintf(stderr, "initialized initial call graph node of thread %p\n", tc);*/
+                ptd->call_graph = MVM_calloc(sizeof(MVMProfileCallNode), 1);
             }
-            else if (instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_TO_BE_DETERMINED) {
-                if (MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC)) {
-                    MVMuint8 result;
-                    fprintf(stderr, "confprog setting was already 'to be determined'\n");
-                    result = MVM_confprog_run(tc, (void *)sf, MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC, MVM_CONFPROG_SF_RESULT_ALWAYS);
-                    instrumentation->profiler_confprog_result = result;
-                    if (result == MVM_CONFPROG_SF_RESULT_NEVER) {
-                        fprintf(stderr, "configured a 'never profile' SF with confprog\n");
-                        return;
+            /* In that case, we've got to check if the SF in question is
+             * desired as an entry point */
+            if (sf->body.instrumentation && tc->instance->confprog) {
+                MVMStaticFrameInstrumentation *instrumentation = sf->body.instrumentation;
+                if (instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_NEVER) {
+                    fprintf(stderr, "encountered a 'never profile' SF\n");
+                    goto confprog_refused_enter;
+                }
+                else if (instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_TO_BE_DETERMINED) {
+                    if (MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC)) {
+                        MVMuint8 result;
+                        fprintf(stderr, "confprog setting was already 'to be determined'\n");
+                        result = MVM_confprog_run(tc, (void *)sf, MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC, MVM_CONFPROG_SF_RESULT_ALWAYS);
+                        instrumentation->profiler_confprog_result = result;
+                        if (result == MVM_CONFPROG_SF_RESULT_NEVER) {
+                            fprintf(stderr, "configured a 'never profile' SF with confprog\n");
+                            goto confprog_refused_enter;
+                        }
+                        fprintf(stderr, "configured a %d SF\n", result);
                     }
-                    fprintf(stderr, "configured a %d SF\n", result);
+                    else if (MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_PROFILER_DYNAMIC)) {
+                        instrumentation->profiler_confprog_result = MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES;
+                        fprintf(stderr, "configured a 'consider dynamic confprog' SF (because no static prog installed)\n");
+                    }
+                    else {
+                        MVM_oops(tc, "here we are, what now?");
+                    }
                 }
-                else if (MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_PROFILER_DYNAMIC)) {
-                    instrumentation->profiler_confprog_result = MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES;
-                    fprintf(stderr, "configured a 'consider dynamic confprog' SF (because no static prog installed)\n");
-                }
-                else {
-                    MVM_oops(tc, "here we are, what now?");
+                if (instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_NO
+                        || instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES) {
+                    fprintf(stderr, "confprog result is 'please run dynamic code'\n");
+                    if (!MVM_confprog_run(tc, (void *)tc->cur_frame, MVM_PROGRAM_ENTRYPOINT_PROFILER_DYNAMIC, instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES)) {
+                        fprintf(stderr, "ran a dynamic confprog for frame, but it said no\n");
+                        goto confprog_refused_enter;
+                    }
+                    fprintf(stderr, "ran a dynamic confprog for frame, and it said yes\n");
                 }
             }
-            if (instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_NO
-                    || instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES) {
-                fprintf(stderr, "confprog result is 'please run dynamic code'\n");
-                if (!MVM_confprog_run(tc, (void *)tc->cur_frame, MVM_PROGRAM_ENTRYPOINT_PROFILER_DYNAMIC, instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES)) {
-                    fprintf(stderr, "ran a dynamic confprog for frame, but it said no\n");
-                    return;
-                }
-                fprintf(stderr, "ran a dynamic confprog for frame, and it said yes\n");
-            }
+            was_entered_via_confprog = 1;
+            ptd->non_calltree_depth = 0;
         }
+        /*else {*/
+            /*fprintf(stderr, "there actually was a current_call. also, pcn is %p\n", pcn);*/
+        /*}*/
+
+        /* If we didn't find a call graph node, then create one and add it to the
+         * graph. */
+        if (!pcn) {
+            pcn = make_new_pcn(ptd, current_hrtime);
+            pcn->sf = sf;
+        }
+
+        /* Increment entry counts. */
+        pcn->total_entries++;
+        switch (mode) {
+            case MVM_PROFILE_ENTER_SPESH:
+                pcn->specialized_entries++;
+                break;
+            case MVM_PROFILE_ENTER_SPESH_INLINE:
+                pcn->specialized_entries++;
+                pcn->inlined_entries++;
+                break;
+            case MVM_PROFILE_ENTER_JIT:
+                pcn->jit_entries++;
+                break;
+            case MVM_PROFILE_ENTER_JIT_INLINE:
+                pcn->jit_entries++;
+                pcn->inlined_entries++;
+                break;
+        }
+        pcn->entry_mode =  mode;
+
+        /* Log entry time; clear skip time. */
+        pcn->cur_entry_time = current_hrtime;
+        pcn->cur_skip_time  = 0;
+
+        /* The current call graph node becomes this one. */
+        ptd->current_call = pcn;
+
+        return;
+    confprog_refused_enter:
+        ptd->non_calltree_depth++;
     }
-    /*else {*/
-        /*fprintf(stderr, "there actually was a current_call. also, pcn is %p\n", pcn);*/
-    /*}*/
-
-    /* If we didn't find a call graph node, then create one and add it to the
-     * graph. */
-    if (!pcn) {
-        pcn = make_new_pcn(ptd, current_hrtime);
-        pcn->sf = sf;
-    }
-
-    /* Increment entry counts. */
-    pcn->total_entries++;
-    switch (mode) {
-        case MVM_PROFILE_ENTER_SPESH:
-            pcn->specialized_entries++;
-            break;
-        case MVM_PROFILE_ENTER_SPESH_INLINE:
-            pcn->specialized_entries++;
-            pcn->inlined_entries++;
-            break;
-        case MVM_PROFILE_ENTER_JIT:
-            pcn->jit_entries++;
-            break;
-        case MVM_PROFILE_ENTER_JIT_INLINE:
-            pcn->jit_entries++;
-            pcn->inlined_entries++;
-            break;
-    }
-    pcn->entry_mode = mode;
-
-    /* Log entry time; clear skip time. */
-    pcn->cur_entry_time = current_hrtime;
-    pcn->cur_skip_time  = 0;
-
-    /* The current call graph node becomes this one. */
-    ptd->current_call = pcn;
 }
 
 /* Log that we've entered a native routine */
@@ -181,6 +191,9 @@ static void log_exit(MVMThreadContext *tc, MVMuint32 unwind) {
     MVMProfileCallNode *pcn = ptd->current_call;
     if (!pcn) {
         if (tc->instance->profiling) {
+            if (ptd->non_calltree_depth-- > 0) {
+                return;
+            }
             /* No frame but still profiling; corruption. */
             MVM_dump_backtrace(tc);
             MVM_panic(1, "Profiler lost sequence");

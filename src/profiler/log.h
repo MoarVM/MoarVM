@@ -18,6 +18,14 @@ struct MVMProfileThreadData {
 
     /* The time we finished profiling, if we got there already. */
     MVMuint64 end_time;
+
+    /* When a confprog is deciding what frames to enter, exiting a frame
+     * when there's no node on the call stack can either be a run-time error,
+     * or it can be completely normal. To differentiate, we have to count the
+     * number of times we entered a frame without setting up a call graph node.
+     */
+    MVMuint32 non_calltree_depth;
+
     /* Garbage collection time measurements. */
     MVMProfileGC *gcs;
     MVMuint32 num_gcs;
