@@ -501,13 +501,14 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
     junkprint(stderr, "confprog is 0x%x (%d) bytes big", last_op - bytecode_start, last_op - bytecode_start);
 
     runloop: {
-        MVMuint16 ins = *((MVMuint16 *)cur_op);
+        MVMuint16 ins;
 
-        cur_op += 2;
         if (cur_op >= last_op) {
             junkprint(stderr, "end of program: %p > %p\n", cur_op, last_op);
             goto finish_main_loop;
         }
+        ins = *((MVMuint16 *)cur_op);
+        cur_op += 2;
 
         junkprint(stderr, "evaluating a %s at position %x (%d)\n", MVM_op_get_op(ins)->name, cur_op - 2 - bytecode_start, cur_op - 2 - bytecode_start);
 
