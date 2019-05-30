@@ -2591,6 +2591,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | jmp >2
 
         /* Otherwise, call the fallback to get the result. */
+        |1:
         | mov ARG1, TC;
         | lea ARG2, WORK[a];
         | lea ARG3, WORK[c];
