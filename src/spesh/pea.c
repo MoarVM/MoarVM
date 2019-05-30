@@ -1068,9 +1068,16 @@ static MVMint32 are_types_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
     for (i = from; i <= to; i++) {
         MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[i]);
         if (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
-            MVMuint16 offset = MVM_p6opaque_get_bigint_offset(tc, facts->type->st);
-            if (!offset) {
-                pea_log("cannot decompose %s because the big integer offset cannot be found",
+            if (REPR(facts->type)->ID == MVM_REPR_ID_P6opaque) {
+                MVMuint16 offset = MVM_p6opaque_get_bigint_offset(tc, facts->type->st);
+                if (!offset) {
+                    pea_log("cannot decompose %s because the big integer offset cannot be found",
+                            ins->info->name);
+                    return 0;
+                }
+            }
+            else {
+                pea_log("cannot decompose operand to %s because it is not a P6opaque",
                         ins->info->name);
                 return 0;
             }
