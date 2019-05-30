@@ -120,39 +120,36 @@ typedef enum {
     /* Has been promoted to the old generation. */
     MVM_CF_SECOND_GEN = 16,
 
-    /* Is shared - that is, more than one thread knows about it. */
-    MVM_CF_SHARED = 32,
-
     /* Has already been added to the gen2 aggregates pointing to nursery
      * objects list. */
-    MVM_CF_IN_GEN2_ROOT_LIST = 64,
+    MVM_CF_IN_GEN2_ROOT_LIST = 32,
 
     /* A full GC run has found this object to be live. */
-    MVM_CF_GEN2_LIVE = 128,
+    MVM_CF_GEN2_LIVE = 64,
 
     /* This object in fromspace is live with a valid forwarder. */
     /* TODO - should be possible to use the same bit for this and GEN2_LIVE. */
-    MVM_CF_FORWARDER_VALID = 256,
+    MVM_CF_FORWARDER_VALID = 128,
 
     /* Have we allocated memory to store a serialization index? */
-    MVM_CF_SERIALZATION_INDEX_ALLOCATED = 512,
+    MVM_CF_SERIALZATION_INDEX_ALLOCATED = 256,
 
     /* Have we arranged a persistent object ID for this object? */
-    MVM_CF_HAS_OBJECT_ID = 1024,
+    MVM_CF_HAS_OBJECT_ID = 512,
 
     /* Have we flagged this object as something we must never repossess? */
     /* Note: if you're hunting for a flag, some day in the future when we
      * have used them all, this one is easy enough to eliminate by having the
      * tiny number of objects marked this way in a remembered set. */
-    MVM_CF_NEVER_REPOSSESS = 2048,
+    MVM_CF_NEVER_REPOSSESS = 1024,
+
+    /* Is this object a nursery object that has been referenced from gen2?
+     * Used to promote it earlier. */
+    MVM_CF_REF_FROM_GEN2 = 2048,
 
     /* Has this item been chained into a gen2 freelist? This is only used in
      * GC debug more. */
     MVM_CF_DEBUG_IN_GEN2_FREE_LIST = 4096,
-
-    /* Is this object a nursery object that has been referenced from gen2?
-     * Used to promote it earlier. */
-    MVM_CF_REF_FROM_GEN2 = 8192,
 } MVMCollectableFlags;
 
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
