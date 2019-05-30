@@ -194,10 +194,8 @@ struct MVMCollectable {
         MVMSTable *st;
     } sc_forward_u;
 
-    /* Identifier of the thread that currently owns the object, if any. If the
-     * object is unshared, then this is always the creating thread. If it is
-     * shared then it's whoever currently holds the mutex on it, or 0 if there
-     * is no held mutex. */
+    /* Identifier of the thread that created the object. 0 if this is a
+     * non-heap frame. */
     MVMuint32 owner;
 
     /* Collectable flags (see MVMCollectableFlags). */
