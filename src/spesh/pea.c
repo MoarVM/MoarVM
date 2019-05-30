@@ -633,7 +633,7 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
         case TRANSFORM_VIVIFY_TYPE:
         case TRANSFORM_VIVIFY_CONCRETE: {
             /* Prepend a lookup of the type object. */
-            MVMuint16 attr_reg = gs->attr_regs[t->attr.hypothetical_reg_idx];
+            MVMuint16 attr_reg = gs->attr_regs[t->viv.hypothetical_reg_idx];
             MVMSpeshIns *type_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
             type_ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
             type_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
