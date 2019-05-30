@@ -1750,9 +1750,9 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[1]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
                     if (allocation_tracked(tc, gs, bb, alloc)) {
-                        MVMint32 is_p6o_op = MVM_OP_sp_p6ogetvc_o ||
+                        MVMint32 is_p6o_op = opcode == MVM_OP_sp_p6ogetvc_o ||
                             opcode == MVM_OP_sp_p6ogetvt_o;
-                        MVMint32 offset = opcode == is_p6o_op
+                        MVMint32 offset = is_p6o_op
                             ? ins->operands[2].lit_i16
                             : ins->operands[2].lit_i16 - sizeof(MVMObject);
                         if (was_attribute_written(tc, gs, bb, alloc, offset))
