@@ -397,8 +397,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* Ensure we have an outer if needed. This is done ahead of allocating the
      * new frame, since an autoclose will force the callstack on to the heap. */
     if (outer) {
-        /* We were provided with an outer frame and it will already have had
-         * its reference count incremented; just ensure that it is based on the
+        /* We were provided with an outer frame. Ensure that it is based on the
          * correct static frame (compare on bytecode address to cope with
          * nqp::freshcoderef). */
         if (MVM_UNLIKELY(static_frame->body.outer == 0 || outer->static_info->body.orig_bytecode != static_frame->body.outer->body.orig_bytecode)) {
