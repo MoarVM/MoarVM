@@ -27,6 +27,18 @@ struct MVMP6opaqueNameMap {
     MVMuint32   num_attrs;
 };
 
+/* An entry describing how to set up an attribute, for example setting
+ * it to VMNull or calling a flattened STable initialization function. */
+#define MVM_P6O_SETUP_FLAT_INIT     0
+#define MVM_P6O_SETUP_VMNULL        1
+struct MVMP6opaqueSetup {
+    /* The kind of initialization to do. */
+    MVMuint16 kind;
+
+    /* The attribute slot. */
+    MVMuint16 slot;
+};
+
 /* The P6opaque REPR data has the slot mapping, allocation size and
  * various other bits of info. It hangs off the REPR_data pointer
  * in the s-table. */
@@ -56,6 +68,9 @@ struct MVMP6opaqueREPRData {
     /* Slot to delegate to when we need to unbox to a native string. */
     MVMint16 unbox_str_slot;
 
+    /* Number of setup slots. */
+    MVMuint16 num_setups;
+
     /* Offsets into the object that are eligible for GC marking, and how
      * many of them we have. */
     MVMuint16 gc_obj_mark_offsets_count;
@@ -69,9 +84,8 @@ struct MVMP6opaqueREPRData {
      * for attributes that are just reference types. */
     MVMSTable **flattened_stables;
 
-    /* Instantiated objects are just a blank piece of memory that needs to
-     * be set up. However, in some cases we'd like them to magically turn in
-     * to some container type. */
+    /* In some cases we want to only set up an object attribute on first access.
+     * This provides the values for such cases. */
     MVMObject **auto_viv_values;
 
     /* If we have any other flattened boxings, this array can be indexed by
@@ -82,9 +96,9 @@ struct MVMP6opaqueREPRData {
      * up in the offset table). Uses a final null entry as a sentinel. */
     MVMP6opaqueNameMap *name_to_index_mapping;
 
-    /* Slots holding flattened objects that need another REPR to initialize
-     * them; terminated with -1. */
-    MVMint16 *initialize_slots;
+    /* Information about how to initially set up the attributes of this
+     * object. */
+    MVMP6opaqueSetup *setups;
 
     /* Slots holding flattened objects that need another REPR to mark them;
      * terminated with -1. */

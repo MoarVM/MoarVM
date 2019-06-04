@@ -153,6 +153,7 @@ typedef struct MVMP6opaqueBody MVMP6opaqueBody;
 typedef struct MVMP6opaqueBoxedTypeMap MVMP6opaqueBoxedTypeMap;
 typedef struct MVMP6opaqueNameMap MVMP6opaqueNameMap;
 typedef struct MVMP6opaqueREPRData MVMP6opaqueREPRData;
+typedef struct MVMP6opaqueSetup MVMP6opaqueSetup;
 typedef struct MVMP6str MVMP6str;
 typedef struct MVMP6strBody MVMP6strBody;
 typedef union  MVMRegister MVMRegister;

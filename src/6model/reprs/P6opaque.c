@@ -75,10 +75,18 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     data = MVM_p6opaque_real_data(tc, data);
     if (repr_data) {
         MVMint64 i;
-        for (i = 0; repr_data->initialize_slots[i] >= 0; i++) {
-            MVMint64   offset = repr_data->attribute_offsets[repr_data->initialize_slots[i]];
-            MVMSTable *st     = repr_data->flattened_stables[repr_data->initialize_slots[i]];
-            st->REPR->initialize(tc, st, root, (char *)data + offset);
+        for (i = 0; i < repr_data->num_setups; i++) {
+            MVMuint16 slot = repr_data->setups[i].slot;
+            MVMint64 offset = repr_data->attribute_offsets[slot];
+            switch (repr_data->setups[i].kind) {
+                case MVM_P6O_SETUP_FLAT_INIT: {
+                    MVMSTable *st = repr_data->flattened_stables[slot];
+                    st->REPR->initialize(tc, st, root, (char *)data + offset);
+                    break;
+                }
+                default:
+                    MVM_panic(1, "P6opaque: corrupt setup kind");
+            }
         }
     }
     else {
@@ -204,7 +212,7 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
     MVM_free(repr_data->auto_viv_values);
     MVM_free(repr_data->unbox_slots);
     MVM_free(repr_data->gc_obj_mark_offsets);
-    MVM_free(repr_data->initialize_slots);
+    MVM_free(repr_data->setups);
     MVM_free(repr_data->gc_mark_slots);
     MVM_free(repr_data->gc_cleanup_slots);
 
@@ -228,7 +236,6 @@ static void free_repr_data(MVMP6opaqueREPRData *repr_data) {
     MVM_free(repr_data->auto_viv_values);
     MVM_free(repr_data->unbox_slots);
     MVM_free(repr_data->gc_obj_mark_offsets);
-    MVM_free(repr_data->initialize_slots);
     MVM_free(repr_data->gc_mark_slots);
     MVM_free(repr_data->gc_cleanup_slots);
 
@@ -705,8 +712,8 @@ static MVMuint16 * allocate_unbox_slots(void) {
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMint64   mro_pos, mro_count, num_parents, total_attrs, num_attrs,
                cur_slot, cur_type, cur_obj_attr,
-               cur_init_slot, cur_mark_slot, cur_cleanup_slot,
-               unboxed_type, i;
+               cur_mark_slot, cur_cleanup_slot,
+               cur_setup, unboxed_type, i;
     MVMuint64  cur_alloc_addr;
     MVMObject *info;
     MVMP6opaqueREPRData *repr_data;
@@ -767,7 +774,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         repr_data->gc_obj_mark_offsets = MVM_malloc(total_attrs * sizeof(MVMuint16));
     }
     repr_data->name_to_index_mapping = (MVMP6opaqueNameMap *)MVM_calloc((mro_count + 1), sizeof(MVMP6opaqueNameMap));
-    repr_data->initialize_slots      = MVM_malloc((total_attrs + 1) * sizeof(MVMuint16));
+    repr_data->setups                = MVM_malloc(total_attrs * sizeof(MVMP6opaqueSetup));
     repr_data->gc_mark_slots         = MVM_malloc((total_attrs + 1) * sizeof(MVMuint16));
     repr_data->gc_cleanup_slots      = MVM_malloc((total_attrs + 1) * sizeof(MVMuint16));
 
@@ -785,7 +792,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     cur_type         = 0;
     cur_alloc_addr   = sizeof(MVMP6opaqueBody);
     cur_obj_attr     = 0;
-    cur_init_slot    = 0;
+    cur_setup        = 0;
     cur_mark_slot    = 0;
     cur_cleanup_slot = 0;
     while (mro_pos--) {
@@ -853,8 +860,9 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
                     /* Does it need special initialization? */
                     if (REPR(type)->initialize) {
-                        repr_data->initialize_slots[cur_init_slot] = cur_slot;
-                        cur_init_slot++;
+                        repr_data->setups[cur_setup].kind = MVM_P6O_SETUP_FLAT_INIT;
+                        repr_data->setups[cur_setup].slot = cur_slot;
+                        cur_setup++;
                     }
 
                     /* Does it have special GC needs? */
@@ -1024,7 +1032,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
     /* Add sentinels/counts. */
     repr_data->gc_obj_mark_offsets_count = cur_obj_attr;
-    repr_data->initialize_slots[cur_init_slot] = -1;
+    repr_data->num_setups = cur_setup;
     repr_data->gc_mark_slots[cur_mark_slot] = -1;
     repr_data->gc_cleanup_slots[cur_cleanup_slot] = -1;
 
@@ -1144,10 +1152,8 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 
 /* Deserializes representation data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    MVMuint16 i, num_classes;
-    MVMuint32 j;
-    MVMuint64 cur_offset;
-    MVMint16 cur_initialize_slot, cur_gc_mark_slot, cur_gc_cleanup_slot;
+    MVMuint16 i, j, num_classes, cur_offset;
+    MVMint16 cur_setup, cur_gc_mark_slot, cur_gc_cleanup_slot;
 
     MVMP6opaqueREPRData *repr_data = MVM_calloc(1, sizeof(MVMP6opaqueREPRData));
 
@@ -1232,12 +1238,12 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
      * derived information. */
     repr_data->attribute_offsets   = (MVMuint16 *)MVM_malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMuint16));
     repr_data->gc_obj_mark_offsets = (MVMuint16 *)MVM_malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMuint16));
-    repr_data->initialize_slots    = (MVMint16 *)MVM_malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
+    repr_data->setups              = MVM_malloc(repr_data->num_attributes * sizeof(MVMP6opaqueSetup));
     repr_data->gc_mark_slots       = (MVMint16 *)MVM_malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
     repr_data->gc_cleanup_slots    = (MVMint16 *)MVM_malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
     repr_data->gc_obj_mark_offsets_count = 0;
     cur_offset          = sizeof(MVMP6opaqueBody);
-    cur_initialize_slot = 0;
+    cur_setup           = 0;
     cur_gc_mark_slot    = 0;
     cur_gc_cleanup_slot = 0;
     for (i = 0; i < repr_data->num_attributes; i++) {
@@ -1258,8 +1264,11 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
             MVMSTable *cur_st = repr_data->flattened_stables[i];
             const MVMStorageSpec *spec = cur_st->REPR->get_storage_spec(tc, cur_st);
             /* Set up flags for initialization and GC. */
-            if (cur_st->REPR->initialize)
-                repr_data->initialize_slots[cur_initialize_slot++] = i;
+            if (cur_st->REPR->initialize) {
+                repr_data->setups[cur_setup].kind = MVM_P6O_SETUP_FLAT_INIT;
+                repr_data->setups[cur_setup].slot = i;
+                cur_setup++;
+            }
             if (cur_st->REPR->gc_mark)
                 repr_data->gc_mark_slots[cur_gc_mark_slot++] = i;
             if (cur_st->REPR->gc_cleanup)
@@ -1279,7 +1288,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         }
     }
     assert(cur_offset <= st->size + sizeof(MVMP6opaqueBody) - sizeof(MVMP6opaque));
-    repr_data->initialize_slots[cur_initialize_slot] = -1;
+    repr_data->num_setups = cur_setup;
     repr_data->gc_mark_slots[cur_gc_mark_slot] = -1;
     repr_data->gc_cleanup_slots[cur_gc_cleanup_slot] = -1;
 
@@ -1600,6 +1609,13 @@ static MVMString * spesh_attr_name(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
         return MVM_spesh_get_string(tc, g, o);
     }
 }
+static MVMint32 has_initializations(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_data) {
+    MVMint32 i;
+    for (i = 0; i < repr_data->num_setups; i++)
+        if (repr_data->setups[i].kind == MVM_P6O_SETUP_FLAT_INIT)
+            return 1;
+    return 0;
+}
 static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMP6opaqueREPRData * repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMuint16             opcode    = ins->info->opcode;
@@ -1607,8 +1623,9 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         return;
     switch (opcode) {
     case MVM_OP_create: {
-        /* Create can be optimized if there are no initialization slots. */
-        if (repr_data->initialize_slots[0] < 0 && !(st->mode_flags & MVM_FINALIZE_TYPE)) {
+        /* Create can be optimized if there are no initializations of flattened
+         * STables and no finalization queue entry needed. */
+        if (!has_initializations(tc, repr_data) && !(st->mode_flags & MVM_FINALIZE_TYPE)) {
             MVMSpeshOperand target   = ins->operands[0];
             MVMSpeshOperand type     = ins->operands[1];
             MVMSpeshFacts *tgt_facts = MVM_spesh_get_facts(tc, g, target);
