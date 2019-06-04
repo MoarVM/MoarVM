@@ -2613,10 +2613,7 @@
     (store \$0 $block ptr_sz)))
 
 (template: sp_p6oget_o
-  (let: (($val (load (add (^p6obody $1) $2) ptr_sz)))
-    (if (nz $val)
-      $val
-      (^vmnull))))
+  (load (add (^p6obody $1) $2) ptr_sz))
 
 (template: sp_p6ogetvt_o
   (let: (($addr (add (^p6obody $1) $2))
