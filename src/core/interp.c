@@ -5937,8 +5937,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(sp_get_o): {
-                MVMObject *val = *((MVMObject **)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
-                GET_REG(cur_op, 0).o = val ? val : tc->instance->VMNull;
+                GET_REG(cur_op, 0).o = *((MVMObject **)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
                 cur_op += 6;
                 goto NEXT;
             }
@@ -6018,9 +6017,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_p6oget_o): {
-                MVMObject *o     = GET_REG(cur_op, 2).o;
-                MVMObject *val = MVM_p6opaque_read_object(tc, o, GET_UI16(cur_op, 4));
-                GET_REG(cur_op, 0).o = val ? val : tc->instance->VMNull;
+                MVMObject *o = GET_REG(cur_op, 2).o;
+                GET_REG(cur_op, 0).o = MVM_p6opaque_read_object(tc, o, GET_UI16(cur_op, 4));
                 cur_op += 6;
                 goto NEXT;
             }

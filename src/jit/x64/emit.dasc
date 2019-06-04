@@ -752,15 +752,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             | cmovnz TMP2, TMP5;
         }
         /* TMP2 now contains address of item */
-        if (op == MVM_OP_sp_p6oget_o) {
-            | mov TMP3, [TMP2];
-            | test TMP3, TMP3;
-            /* Check if object doesn't point to NULL */
-            | jnz >3;
-            /* Otherwise load VMNull */
-            | get_vmnull TMP3;
-            |3:
-        } else if (op == MVM_OP_sp_p6ogetvt_o || op == MVM_OP_sp_getvt_o) {
+        if (op == MVM_OP_sp_p6ogetvt_o || op == MVM_OP_sp_getvt_o) {
             /* vivify as type object */
             MVMint16 spesh_idx = ins->operands[3].lit_i16;
             MVMCollectable *spesh_value = jg->sg->spesh_slots[spesh_idx];
@@ -881,10 +873,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 offset = ins->operands[2].lit_i16;
         | mov TMP1, WORK[obj];             // object
         | mov TMP2, qword [TMP1+offset];   // get value from body
-        | test TMP2, TMP2;
-        | jnz >1;
-        | get_vmnull TMP2;
-        |1:
         | mov WORK[dst], TMP2;
         break;
     }

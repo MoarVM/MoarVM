@@ -84,6 +84,9 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
                     st->REPR->initialize(tc, st, root, (char *)data + offset);
                     break;
                 }
+                case MVM_P6O_SETUP_VMNULL:
+                    set_obj_at_offset(tc, root, data, offset, tc->instance->VMNull);
+                    break;
                 default:
                     MVM_panic(1, "P6opaque: corrupt setup kind");
             }
@@ -952,12 +955,21 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             /* Attribute will live at the current position in the object. */
             repr_data->attribute_offsets[cur_slot] = cur_alloc_addr;
 
-            /* Handle object attributes, which need marking and may have auto-viv needs. */
+            /* Handle object attributes, which need marking and may have setup or
+             * auto-viv needs. */
             if (!inlined) {
                 repr_data->gc_obj_mark_offsets[cur_obj_attr] = cur_alloc_addr;
-                if (MVM_repr_exists_key(tc, attr_info, str_avc))
+                if (MVM_repr_exists_key(tc, attr_info, str_avc)) {
+                    /* It wants to be vivified on first touch. */
                     MVM_ASSIGN_REF(tc, &(st->header), repr_data->auto_viv_values[cur_slot],
                         MVM_repr_at_key_o(tc, attr_info, str_avc));
+                }
+                else {
+                    /* We'll initialize it to VMNull at creation. */
+                    repr_data->setups[cur_setup].kind = MVM_P6O_SETUP_VMNULL;
+                    repr_data->setups[cur_setup].slot = cur_slot;
+                    cur_setup++;
+                }
                 cur_obj_attr++;
             }
 
@@ -1255,6 +1267,13 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
             /* Reference type. Needs marking. */
             repr_data->gc_obj_mark_offsets[repr_data->gc_obj_mark_offsets_count] = cur_offset;
             repr_data->gc_obj_mark_offsets_count++;
+
+            /* If it has no auto-viv, it needs to be set up null. */
+            if (!repr_data->auto_viv_values || !repr_data->auto_viv_values[i]) {
+                repr_data->setups[cur_setup].kind = MVM_P6O_SETUP_VMNULL;
+                repr_data->setups[cur_setup].slot = i;
+                cur_setup++;
+            }
 
             /* Increment by pointer size. */
             cur_offset += sizeof(MVMObject *);
@@ -1616,6 +1635,50 @@ static MVMint32 has_initializations(MVMThreadContext *tc, MVMP6opaqueREPRData *r
             return 1;
     return 0;
 }
+static void emit_setups(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+        MVMSpeshIns *create_ins, MVMP6opaqueREPRData *repr_data) {
+    MVMSpeshOperand null_reg;
+    MVMint32 have_null_reg = 0;
+    MVMSpeshIns *after = create_ins;
+    MVMint32 i;
+    for (i = 0; i < repr_data->num_setups; i++) {
+        switch (repr_data->setups[i].kind) {
+            case MVM_P6O_SETUP_VMNULL: {
+                MVMuint16 slot = repr_data->setups[i].slot;
+                MVMint64 offset = repr_data->attribute_offsets[slot];
+                MVMSpeshIns *setup = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                /* TODO Add a no write barrier variant of this. */
+                setup->info = MVM_op_get_op(MVM_OP_sp_bind_o);
+                setup->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                setup->operands[0] = create_ins->operands[0];
+                setup->operands[1].lit_i16 = sizeof(MVMObject) + offset;
+                if (!have_null_reg) {
+                    /* We produce one null instruction to share over all the
+                     * attributes we might need to set up. */
+                    MVMSpeshIns *null_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                    null_ins->info = MVM_op_get_op(MVM_OP_null);
+                    null_ins->operands = MVM_spesh_alloc(tc, g, 1 * sizeof(MVMSpeshOperand));
+                    null_reg = null_ins->operands[0] = MVM_spesh_manipulate_get_temp_reg(tc,
+                            g, MVM_reg_obj);
+                    MVM_spesh_get_facts(tc, g, null_reg)->writer = null_ins;
+                    MVM_spesh_manipulate_insert_ins(tc, bb, after, null_ins);
+                    after = null_ins;
+                    have_null_reg = 1;
+                }
+                setup->operands[2] = null_reg;
+                MVM_spesh_usages_add_by_reg(tc, g, setup->operands[0], setup);
+                MVM_spesh_usages_add_by_reg(tc, g, setup->operands[2], setup);
+                MVM_spesh_manipulate_insert_ins(tc, bb, after, setup);
+                after = setup;
+                break;
+            }
+            default:
+                MVM_panic(1, "P6opaque: unsupported setup kind in create lowering");
+        }
+    }
+    if (have_null_reg)
+        MVM_spesh_manipulate_release_temp_reg(tc, g, null_reg);
+}
 static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMP6opaqueREPRData * repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMuint16             opcode    = ins->info->opcode;
@@ -1630,16 +1693,19 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             MVMSpeshOperand type     = ins->operands[1];
             MVMSpeshFacts *tgt_facts = MVM_spesh_get_facts(tc, g, target);
 
+            /* Emit the allocation instruction. */
             ins->info                = MVM_op_get_op(MVM_OP_sp_fastcreate);
             ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
             ins->operands[0]         = target;
             ins->operands[1].lit_i16 = st->size;
             ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
             MVM_spesh_usages_delete_by_reg(tc, g, type, ins);
-
             MVM_spesh_graph_add_comment(tc, g, ins, "%s of a %s",
                     ins->info->name,
                     MVM_6model_get_stable_debug_name(tc, st));
+
+            /* Emit any attribute setups. */
+            emit_setups(tc, g, bb, ins, repr_data);
 
             tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
             tgt_facts->type = st->WHAT;
