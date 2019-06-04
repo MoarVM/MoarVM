@@ -8,8 +8,34 @@ void MVM_profile_start(MVMThreadContext *tc, MVMObject *config) {
     if (MVM_repr_exists_key(tc, config, tc->instance->str_consts.kind)) {
         MVMString *kind = MVM_repr_get_str(tc,
             MVM_repr_at_key_o(tc, config, tc->instance->str_consts.kind));
-        if (MVM_string_equal(tc, kind, tc->instance->str_consts.instrumented))
+        if (MVM_string_equal(tc, kind, tc->instance->str_consts.instrumented)) {
+            MVMuint32 i;
+            MVMuint64 s, e;
             MVM_profile_instrumented_start(tc, config);
+
+            /* Call the profiling functions a bunch of times and record how long they took. */
+            s = uv_hrtime();
+            for (i = 0; i < 1000; i++) {
+                MVM_profile_log_enter(tc, tc->cur_frame->static_info, MVM_PROFILE_ENTER_NORMAL);
+                MVM_profile_log_exit(tc);
+            }
+            e = uv_hrtime();
+            tc->instance->profiling_overhead = (MVMuint64) ((e - s) / 1000) * 0.9;
+
+            /* Disable profiling and discard the data we just collected. */
+            uv_mutex_lock(&(tc->instance->mutex_spesh_sync));
+            while (tc->instance->spesh_working != 0)
+                uv_cond_wait(&(tc->instance->cond_spesh_sync), &(tc->instance->mutex_spesh_sync));
+            tc->instance->profiling = 0;
+            MVM_free(tc->prof_data->collected_data);
+            tc->prof_data->collected_data = NULL;
+            MVM_free(tc->prof_data);
+            tc->prof_data = NULL;
+            uv_mutex_unlock(&(tc->instance->mutex_spesh_sync));
+
+            /* Now start profiling for real. */
+            MVM_profile_instrumented_start(tc, config);
+        }
         else if (MVM_string_equal(tc, kind, tc->instance->str_consts.heap))
             MVM_profile_heap_start(tc, config);
         else
