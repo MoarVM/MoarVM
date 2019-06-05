@@ -729,6 +729,8 @@ finish_main_loop:
     result = reg_base[REGISTER_FEATURE_TOGGLE].i64;
     MVM_free(reg_base);
 
+    junkprint(stderr, "confprog result value: %lld\n\n", result);
+
     return result;
 }
 
