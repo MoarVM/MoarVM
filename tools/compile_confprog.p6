@@ -492,6 +492,8 @@ my $*MAST_FRAME = class {
             my int $sixteenbitval = $b * 256 + $a;
 
             if $pos == 2 {
+                use nqp;
+
                 my Mu $names := MAST::Ops.WHO<@names>;
                 if $sixteenbitval < nqp::elems($names) {
                     say nqp::atpos_s($names, $sixteenbitval);

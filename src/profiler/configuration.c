@@ -501,6 +501,8 @@ MVMuint8 MVM_confprog_has_entrypoint(MVMThreadContext *tc, MVMuint8 entrypoint) 
 #define GET_UI16(pc, idx)   *((MVMuint16 *)(pc + idx))
 #define GET_I16(pc, idx)    *((MVMint16 *)(pc + idx))
 
+#define STRING_OR_EMPTY(input) ((input) == 0 ? tc->instance->str_consts.empty : (input))
+
 MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoint, MVMint64 initial_feature_value) {
     MVMConfigurationProgram *prog = tc->instance->confprog;
     MVMuint8 *cur_op;
@@ -663,6 +665,58 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
             OP(exit): {
                 MVMint64 exit_code = GET_REG(cur_op, 0).i64;
                 goto finish_main_loop;
+            OP(index_s):
+                junkprint(stderr, "index_s into %d with %d and %d starting at %d\n",
+                        GET_UI16(cur_op, 0), GET_UI16(cur_op, 2), GET_UI16(cur_op, 4), GET_UI16(cur_op, 6));
+                junkprint(stderr, "values %p and %p starting at %d\n",
+                        GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
+                GET_REG(cur_op, 0).i64 = MVM_string_index(tc,
+                    STRING_OR_EMPTY(GET_REG(cur_op, 2).s), STRING_OR_EMPTY(GET_REG(cur_op, 4).s), GET_REG(cur_op, 6).i64);
+                junkprint(stderr, "index_s result: %d\n", GET_REG(cur_op, 0).i64);
+                cur_op += 8;
+                goto NEXT;
+            OP(eqat_s):
+                GET_REG(cur_op, 0).i64 = MVM_string_equal_at(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
+                    GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            }
+            OP(add_i):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 + GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            OP(sub_i):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 - GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            OP(mul_i):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 * GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            OP(div_i): {
+                MVMint64 num   = GET_REG(cur_op, 2).i64;
+                MVMint64 denom = GET_REG(cur_op, 4).i64;
+                /* if we have a negative result, make sure we floor rather
+                 * than rounding towards zero. */
+                if (denom == 0)
+                    MVM_exception_throw_adhoc(tc, "Division by zero");
+                if ((num < 0) ^ (denom < 0)) {
+                    if ((num % denom) != 0) {
+                        GET_REG(cur_op, 0).i64 = num / denom - 1;
+                    } else {
+                        GET_REG(cur_op, 0).i64 = num / denom;
+                    }
+                } else {
+                    GET_REG(cur_op, 0).i64 = num / denom;
+                }
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(not_i): {
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 ? 0 : 1;
+                cur_op += 4;
+                goto NEXT;
             }
             default:
                 fprintf(stderr, "operation %s (%d, 0x%x) NYI\n", MVM_op_get_op(ins)->name, ins, ins);
