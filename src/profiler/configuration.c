@@ -15,6 +15,7 @@ enum {
     StructSel_Root,
     StructSel_MVMStaticFrame,
     StructSel_MVMFrame,
+    StructSel_MVMCompUnit,
 };
 
 enum {
@@ -38,7 +39,7 @@ typedef struct {
     const MVMOpInfo *prev_op;
 
     MVMuint8 *prev_op_bc;
-    
+
     MVMuint8 selected_struct_source;
 } validatorstate;
 
@@ -239,6 +240,12 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
                     junkprint(stderr, "next getattr will operate on an MVMFrame\n");
                     break;
 
+                case 11:
+                    /* TODO string comparison */
+                    state->selected_struct_source = StructSel_MVMCompUnit;
+                    junkprint(stderr, "next getattr will operate on an MVMCompUnit\n");
+                    break;
+
                 case 14:
                     /* TODO string comparison */
                     state->selected_struct_source = StructSel_MVMStaticFrame;
@@ -246,7 +253,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
                     break;
 
                 default:
-                    MVM_exception_throw_adhoc(tc, "STRUCT_SELECT string NYI or something");
+                    MVM_exception_throw_adhoc(tc, "STRUCT_SELECT string length %d (index %d) NYI or something", string_length, string_idx);
             }
 
             /* Now do a rewrite of const_s into const_i64_16 and noop */
@@ -319,6 +326,19 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
                 }
                 else {
                     MVM_exception_throw_adhoc(tc, "STRUCT_SELECT is MVMStaticFrame, no field with length %d (string heap index %d) implemented", string_length, string_idx);
+                }
+            }
+            else if (selected_struct_source == StructSel_MVMCompUnit) {
+                if (string_length == 8) { /* filename or hll_name */
+                    if (MVM_string_ord_at(tc, string_at_position, 0) == 'f') {
+                        *hintptr = offsetof(MVMCompUnit, body.filename);
+                    }
+                    else if (MVM_string_ord_at(tc, string_at_position, 0) == 'h') {
+                        *hintptr = offsetof(MVMCompUnit, body.hll_name);
+                    }
+                    else {
+                        MVM_exception_throw_adhoc(tc, "STRUCT_SELECT is MVMCompUnit, no field with length %d (string heap index %d) implemented", string_length, string_idx);
+                    }
                 }
             }
 
