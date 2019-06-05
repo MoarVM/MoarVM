@@ -423,7 +423,13 @@ my %targets = %(
 
 use MASTOps:from<NQP>;
 
-my %op-gen := MAST::Ops.WHO<%generators>;
+my %original-op-gen := MAST::Ops.WHO<%generators>;
+
+my %op-gen = %(
+    do for %original-op-gen.keys {
+        $_ => -> |c { %original-op-gen{$_}(|c); $*MAST_FRAME.dump-new-stuff() }
+    }
+);
 
 my %entrypoint-indices = <
     profiler_static
@@ -787,7 +793,6 @@ sub compile_call(Op $op, :$target) {
             say "";
             my $value = $*REGALLOC.fresh(RegNum);
             %op-gen<rand_n>($value);
-        $*MAST_FRAME.dump-new-stuff();
 
             my $comparison-value = $*REGALLOC.fresh(RegNum);
             my $comparison-result = $*REGALLOC.fresh(RegInteger);
@@ -807,14 +812,10 @@ sub compile_call(Op $op, :$target) {
                 say "$_[0].perl()";
                 say "$_[1].perl()";
                 %op-gen<const_n64>($comparison-value, $current-comparison-literal);
-        $*MAST_FRAME.dump-new-stuff();
                 %op-gen<gt_n>($comparison-result, $value, $comparison-value);
-        $*MAST_FRAME.dump-new-stuff();
                 %op-gen<if_i>($comparison-result, .[1]);
-        $*MAST_FRAME.dump-new-stuff();
                 compile_node(.[0], :$target);
                 %op-gen<goto>($end-label);
-        $*MAST_FRAME.dump-new-stuff();
                 compile_node(.[1]);
             }
             compile_node($end-label);
@@ -834,41 +835,30 @@ sub compile_call(Op $op, :$target) {
             if $funcname eq "contains" | "index" {
                 my $positionreg = $*REGALLOC.fresh(RegInteger);
                 %op-gen<const_i64_16>($positionreg, 0);
-        $*MAST_FRAME.dump-new-stuff();
                 %op-gen<index_s>($resultreg, $haystackreg, $needlereg, $positionreg);
                 # index_s returns -1 on not found, 0 or higher on "found in some position"
                 # so we increment by 1 to get zero vs nonzero
-        $*MAST_FRAME.dump-new-stuff();
                 %op-gen<const_i64_16>($positionreg, 1);
-        $*MAST_FRAME.dump-new-stuff();
                 %op-gen<add_i>($resultreg, $resultreg, $positionreg);
-        $*MAST_FRAME.dump-new-stuff();
                 # to get an actual bool result, do the old C trick of
                 # negating the value twice
                 %op-gen<not_i>($resultreg, $resultreg);
-        $*MAST_FRAME.dump-new-stuff();
                 %op-gen<not_i>($resultreg, $resultreg);
-        $*MAST_FRAME.dump-new-stuff();
                 $*REGALLOC.release($positionreg);
             }
             else {
                 my $positionreg = $*REGALLOC.fresh(RegInteger);
                 if $funcname eq "starts-with" {
                     %op-gen<const_i64_16>($positionreg, 0);
-        $*MAST_FRAME.dump-new-stuff();
                 }
                 elsif $funcname eq "ends-with" {
                     %op-gen<chars>($positionreg, $haystackreg);
-        $*MAST_FRAME.dump-new-stuff();
                     my $needlelenreg = $*REGALLOC.fresh(RegInteger);
                     %op-gen<chars>($needlelenreg, $needlereg);
-        $*MAST_FRAME.dump-new-stuff();
                     %op-gen<sub_i>($positionreg, $positionreg, $needlelenreg);
-        $*MAST_FRAME.dump-new-stuff();
                     $*REGALLOC.release($needlelenreg);
                 }
                 %op-gen<eqat_s>($resultreg, $haystackreg, $needlereg, $positionreg);
-        $*MAST_FRAME.dump-new-stuff();
                 $*REGALLOC.release($positionreg);
             }
 
