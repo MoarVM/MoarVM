@@ -18,6 +18,7 @@ my $testprog = q:to/CONFPROG/;
     profile = choice(0, 1);
     entry profiler_static:
     log = "static profiler entrypoint";
+    log = sf.cu.filename;
     profile = contains(sf.cu.filename, "CORE");
     CONFPROG
 
@@ -449,7 +450,8 @@ my $*MAST_FRAME = class {
     has $.dump-position = 0;
 
     method add-string(str $str) {
-        if @!strings.grep($str, :k) {
+        my $found := @!strings.grep($str, :k);
+        if $found -> $_ {
             return $_[0]
         }
         @!strings.push: $str;
