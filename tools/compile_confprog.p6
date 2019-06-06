@@ -18,8 +18,8 @@ my $testprog = q:to/CONFPROG/;
     profile = choice(0, 1);
     entry profiler_static:
     log = "static profiler entrypoint";
-    log = sf.cu.filename;
-    profile = contains(sf.cu.filename, "CORE");
+    log = filename(sf);
+    profile = contains(filename(sf), "/core/");
     CONFPROG
 
 die "only support version 1" unless $testprog.lines.head ~~ m/^version \s+ "=" \s+ 1 \s* ";"? $/;
@@ -39,7 +39,6 @@ my \MVMStaticFrame = CPType.new(name => "MVMStaticFrame",
         cuuid         => CPString,
         name          => CPString,
         outer         => "MVMStaticFrame",
-        file_location => CString,
     });
 
 my \MVMCompUnit = CPType.new(name => "MVMCompUnit",
@@ -152,7 +151,7 @@ grammar ConfProg {
     }
 
     regex one_expression:<functioncall> {
-        <ident> '(' (<one_expression> | <named>)* %% [\s* ',' \s*] ')'
+        <ident> '(' <one_expression>* %% [\s* ',' \s*] ')'
     }
 
     proto regex postfixish { * }
@@ -313,14 +312,12 @@ class ConfProgActions {
         $matchddt does DDTR::MatchDetails;
         $matchddt.dump: $/;
 
-        for @0 {
-            with .<one_expression> {
-                @positionals.push: .ast;
-            }
-            orwith .<named> {
-                die "named arguments in functioncall NYI";
-                @nameds.push: .ast;
-            }
+        for @<one_expression> {
+            @positionals.push: .ast;
+            #orwith .<named> {
+                #die "named arguments in functioncall NYI";
+                #@nameds.push: .ast;
+            #}
         }
 
         my $result = Op.new(
@@ -616,6 +613,21 @@ multi sub unify_type(Op $node) {
                         $node.children == 3;
                     die "$funcname requires two strings as arguments" unless $node.children[1&2].type eqv CPString;
                 }
+                when "filename" | "lineno" {
+                    $node.children[1].&unify_type() without $node.children[1].type;
+
+                    ddt $node;
+
+                    die "$funcname requires a single argument" unless $node.children == 2;
+                    die "$funcname requires a MVMStaticFrame, not a $node.children[1].type.name()" unless $node.children[1].type eqv MVMStaticFrame;
+
+                    if $funcname eq "filename" {
+                        $node.type = CPString;
+                    }
+                    else {
+                        $node.type = CPInt;
+                    }
+                }
                 default {
                     die "function call to $funcname.perl() NYI, typo'd, or something else is wrong";
                 }
@@ -866,6 +878,16 @@ sub compile_call(Op $op, :$target) {
 
             $*REGALLOC.release($haystackreg);
             $*REGALLOC.release($needlereg);
+        }
+        when "filename" | "lineno" {
+            compile_node($op.children[1], target => STRUCT_ACCUMULATOR);
+
+            %op-gen<getcodelocation>(STRUCT_ACCUMULATOR, STRUCT_ACCUMULATOR);
+
+            my $func = $funcname eq "filename"
+                ?? %op-gen<smrt_strify>
+                !! %op-gen<smrt_intify>;
+            $func($target, STRUCT_ACCUMULATOR);
         }
         default {
             die "Cannot compile call of function $funcname yet"

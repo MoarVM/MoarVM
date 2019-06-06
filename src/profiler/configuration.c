@@ -350,6 +350,38 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
 
         state->selected_struct_source = StructSel_Nothing;
     }
+    else if (opcode == MVM_OP_getcodelocation) {
+        MVMuint16 new_opcode;
+        MVMOpInfo *new_info;
+
+        validate_operand(tc, state, 0, state->cur_op->operands[0]);
+        validate_operand(tc, state, 1, state->cur_op->operands[1]);
+
+        new_opcode = *((MVMuint16 *)state->bc_pointer);
+        state->bc_pointer += 2;
+
+        new_info = MVM_op_get_op(new_opcode);
+        if (!new_info)
+            MVM_exception_throw_adhoc(tc, "Invalid opcode detected in confprog: %d  at position 0x%x",
+                    opcode, state->bc_pointer - state->bytecode_root);
+
+        state->prev_op = state->cur_op;
+        state->cur_op = new_info;
+
+        if (new_opcode == MVM_OP_smrt_strify) {
+
+            validate_operand(tc, state, 0, state->cur_op->operands[0]);
+            validate_operand(tc, state, 1, state->cur_op->operands[1]);
+        }
+        else if (new_opcode == MVM_OP_smrt_intify) {
+
+            validate_operand(tc, state, 0, state->cur_op->operands[0]);
+            validate_operand(tc, state, 1, state->cur_op->operands[1]);
+        }
+        else {
+            MVM_exception_throw_adhoc(tc, "Confprog: invalid opcode %s followed getcodelocation; only smrt_strify and smrt_intify are allowed.", MVM_op_get_op(new_opcode)->name);
+        }
+    }
     else {
         validate_operands(tc, state);
     }
@@ -715,6 +747,24 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
             }
             OP(not_i): {
                 GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 ? 0 : 1;
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(getcodelocation): {
+                MVMuint32 line_out = 0;
+                MVMString *file_out = NULL;
+                MVMObject *code_obj = ((MVMStaticFrame *)reg_base[REGISTER_STRUCT_ACCUMULATOR].any)->body.static_code;
+                cur_op += 4;
+                /* The verifier will have made sure the code doesn't end yet */
+                ins = *((MVMuint16 *)cur_op);
+                cur_op += 2;
+                MVM_code_location_out(tc, code_obj, &file_out, &line_out);
+                if (ins == MVM_OP_smrt_strify) {
+                    GET_REG(cur_op, 0).s = file_out;
+                }
+                else {
+                    GET_REG(cur_op, 0).i64 = line_out;
+                }
                 cur_op += 4;
                 goto NEXT;
             }
