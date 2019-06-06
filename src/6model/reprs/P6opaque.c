@@ -65,7 +65,6 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMP6opaqueREPRData * repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
-    data = MVM_p6opaque_real_data(tc, data);
     if (repr_data) {
         MVMint64 i;
         for (i = 0; i < repr_data->num_setups; i++) {
@@ -80,6 +79,21 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
                 case MVM_P6O_SETUP_VMNULL:
                     set_obj_at_offset(tc, root, data, offset, tc->instance->VMNull);
                     break;
+                case MVM_P6O_SETUP_PROTOTYPE: {
+                    MVMObject *prototype = repr_data->auto_viv_values[slot];
+                    if (IS_CONCRETE(prototype)) {
+                        MVMObject *cloned;
+                        MVMROOT(tc, root, {
+                            cloned = MVM_repr_clone(tc, prototype);
+                            data = OBJECT_BODY(root);
+                        });
+                        set_obj_at_offset(tc, root, data, offset, cloned);
+                    }
+                    else {
+                        set_obj_at_offset(tc, root, data, offset, prototype);
+                    }
+                    break;
+                }
                 default:
                     MVM_panic(1, "P6opaque: corrupt setup kind");
             }
@@ -659,6 +673,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
     MVMStringConsts       str_consts = tc->instance->str_consts;
     MVMString        * const str_avc = str_consts.auto_viv_container;
+    MVMString         * const str_sp = str_consts.setup_prototype;
     MVMString       * const str_name = str_consts.name;
     MVMString       * const str_type = str_consts.type;
     MVMString    * const str_ass_del = str_consts.associative_delegate;
@@ -861,6 +876,16 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                     MVM_ASSIGN_REF(tc, &(st->header), repr_data->auto_viv_values[cur_slot],
                         MVM_repr_at_key_o(tc, attr_info, str_avc));
                 }
+                else if (MVM_repr_exists_key(tc, attr_info, str_sp)) {
+                    /* We'll set it up based on a prototype object. We store this
+                     * in the auto_viv_values array, though we'll actually set it
+                     * up right at object creation. We also add it a setups entry. */
+                    MVM_ASSIGN_REF(tc, &(st->header), repr_data->auto_viv_values[cur_slot],
+                        MVM_repr_at_key_o(tc, attr_info, str_sp));
+                    repr_data->setups[cur_setup].kind = MVM_P6O_SETUP_PROTOTYPE;
+                    repr_data->setups[cur_setup].slot = cur_slot;
+                    cur_setup++;
+                }
                 else {
                     /* We'll initialize it to VMNull at creation. */
                     repr_data->setups[cur_setup].kind = MVM_P6O_SETUP_VMNULL;
@@ -1017,12 +1042,24 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 
     MVM_serialization_write_int(tc, writer, repr_data->pos_del_slot);
     MVM_serialization_write_int(tc, writer, repr_data->ass_del_slot);
+
+    {
+        int setup_prototype_slots = 0;
+        for (i = 0; i < repr_data->num_setups; i++)
+            if (repr_data->setups[i].kind == MVM_P6O_SETUP_PROTOTYPE)
+                setup_prototype_slots++;
+        MVM_serialization_write_int(tc, writer, setup_prototype_slots);
+        for (i = 0; i < repr_data->num_setups; i++)
+            if (repr_data->setups[i].kind == MVM_P6O_SETUP_PROTOTYPE)
+                MVM_serialization_write_int(tc, writer, repr_data->setups[i].slot);
+    }
 }
 
 /* Deserializes representation data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     MVMuint16 i, j, num_classes, cur_offset;
     MVMint16 cur_setup, cur_gc_mark_slot, cur_gc_cleanup_slot;
+    MVMuint8 *setup_prototype_slots = NULL;
 
     MVMP6opaqueREPRData *repr_data = MVM_malloc(sizeof(MVMP6opaqueREPRData));
 
@@ -1094,6 +1131,19 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->pos_del_slot = (MVMint16)MVM_serialization_read_int(tc, reader);
     repr_data->ass_del_slot = (MVMint16)MVM_serialization_read_int(tc, reader);
 
+    if (reader->root.version >= 22) {
+        MVMint64 num_setup_prototypes = MVM_serialization_read_int(tc, reader);
+        if (num_setup_prototypes > 0) {
+            setup_prototype_slots = MVM_calloc(1, repr_data->num_attributes);
+            for (i = 0; i < num_setup_prototypes; i++) {
+                MVMint64 slot = MVM_serialization_read_int(tc, reader);
+                if (slot < 0 || slot >= repr_data->num_attributes)
+                    MVM_panic(1, "P6opaque: corrupt slot in serialized representation data");
+                setup_prototype_slots[slot] = 1;
+            }
+        }
+    }
+
     /* Re-calculate the remaining info, which is platform specific or
      * derived information. */
     repr_data->attribute_offsets   = (MVMuint16 *)MVM_malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMuint16));
@@ -1118,6 +1168,14 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
             /* If it has no auto-viv, it needs to be set up null. */
             if (!repr_data->auto_viv_values || !repr_data->auto_viv_values[i]) {
                 repr_data->setups[cur_setup].kind = MVM_P6O_SETUP_VMNULL;
+                repr_data->setups[cur_setup].slot = i;
+                cur_setup++;
+            }
+
+            /* Otherwise, if it has a prototype slot, then it needs a setup entry
+             * for it. */
+            else if (setup_prototype_slots && setup_prototype_slots[i]) {
+                repr_data->setups[cur_setup].kind = MVM_P6O_SETUP_PROTOTYPE;
                 repr_data->setups[cur_setup].slot = i;
                 cur_setup++;
             }
@@ -1161,6 +1219,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     mk_storage_spec(tc, repr_data, &repr_data->storage_spec);
 
     st->REPR_data = repr_data;
+    MVM_free(setup_prototype_slots);
 }
 
 /* Deserializes the data. */
@@ -1476,6 +1535,17 @@ static MVMint32 has_initializations(MVMThreadContext *tc, MVMP6opaqueREPRData *r
             return 1;
     return 0;
 }
+static MVMSpeshIns * emit_speshslot_load(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshOperand target, MVMuint16 sslot, MVMSpeshIns *after) {
+    MVMSpeshIns *sslot_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    sslot_ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+    sslot_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+    sslot_ins->operands[0] = target;
+    sslot_ins->operands[1].lit_ui16 = sslot;
+    MVM_spesh_get_facts(tc, g, target)->writer = sslot_ins;
+    MVM_spesh_manipulate_insert_ins(tc, bb, after, sslot_ins);
+    return sslot_ins;
+}
 static void emit_setups(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         MVMSpeshIns *create_ins, MVMP6opaqueREPRData *repr_data) {
     MVMSpeshOperand null_reg;
@@ -1511,6 +1581,56 @@ static void emit_setups(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 MVM_spesh_usages_add_by_reg(tc, g, setup->operands[2], setup);
                 MVM_spesh_manipulate_insert_ins(tc, bb, after, setup);
                 after = setup;
+                break;
+            }
+            case MVM_P6O_SETUP_PROTOTYPE: {
+                /* Whatever case we have, we'll need a temporary to bind into. */
+                MVMuint16 slot = repr_data->setups[i].slot;
+                MVMint64 offset = repr_data->attribute_offsets[slot];
+                MVMObject *prototype = repr_data->auto_viv_values[slot];
+                MVMSpeshOperand bindee = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+                MVMSpeshIns *bind_ins;
+
+                /* See what we'll be initializing the attribute with. */
+                /* TODO Special case of a P6opaque where we can fastcreate it and bind
+                 * the slots. */
+                if (IS_CONCRETE(prototype)) {
+                    /* Need to get the prototype object and clone it. */
+                    MVMuint16 type_sslot = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)prototype);
+                    MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+                    MVMSpeshIns *clone_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                    clone_ins->info = MVM_op_get_op(MVM_OP_clone);
+                    clone_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+                    clone_ins->operands[0] = bindee;
+                    clone_ins->operands[1] = temp;
+                    MVM_spesh_get_facts(tc, g, bindee)->writer = clone_ins;
+                    MVM_spesh_usages_add_by_reg(tc, g, temp, clone_ins);
+                    after = emit_speshslot_load(tc, g, bb, temp, type_sslot, after);
+                    MVM_spesh_manipulate_insert_ins(tc, bb, after, clone_ins);
+                    after = clone_ins;
+                    MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
+                }
+                else {
+                    /* Load type object into spesh slot. */
+                    MVMuint16 type_sslot = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)prototype);
+                    after = emit_speshslot_load(tc, g, bb, bindee, type_sslot, after);
+                }
+
+                /* Bind it into the object. */
+                bind_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                bind_ins->info = MVM_op_get_op(MVM_OP_sp_bind_o);
+                bind_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                bind_ins->operands[0] = create_ins->operands[0];
+                bind_ins->operands[1].lit_i16 = sizeof(MVMObject) + offset;
+                bind_ins->operands[2] = bindee;
+                MVM_spesh_usages_add_by_reg(tc, g, bind_ins->operands[0], bind_ins);
+                MVM_spesh_usages_add_by_reg(tc, g, bind_ins->operands[2], bind_ins);
+                MVM_spesh_manipulate_insert_ins(tc, bb, after, bind_ins);
+                MVM_spesh_graph_add_comment(tc, g, bind_ins, "attribute setup from prototype");
+                after = bind_ins;
+
+                /* Release temporary holding thing to bind. */
+                MVM_spesh_manipulate_release_temp_reg(tc, g, bindee);
                 break;
             }
             default:

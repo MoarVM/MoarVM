@@ -31,6 +31,7 @@ struct MVMP6opaqueNameMap {
  * it to VMNull or calling a flattened STable initialization function. */
 #define MVM_P6O_SETUP_FLAT_INIT     0
 #define MVM_P6O_SETUP_VMNULL        1
+#define MVM_P6O_SETUP_PROTOTYPE     2
 struct MVMP6opaqueSetup {
     /* The kind of initialization to do. */
     MVMuint16 kind;
