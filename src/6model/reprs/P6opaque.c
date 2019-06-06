@@ -1640,6 +1640,16 @@ static void emit_setups(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
     if (have_null_reg)
         MVM_spesh_manipulate_release_temp_reg(tc, g, null_reg);
 }
+static MVMint32 needs_viv(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_data, MVMint64 slot) {
+    if (repr_data->auto_viv_values && repr_data->auto_viv_values[slot]) {
+        MVMint32 i;
+        for (i = 0; i < repr_data->num_setups; i++)
+            if (repr_data->setups[i].slot == slot)
+                return 0;
+        return 1;
+    }
+    return 0;
+}
 static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMP6opaqueREPRData * repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMuint16             opcode    = ins->info->opcode;
@@ -1684,7 +1694,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             if (slot >= 0 && !repr_data->flattened_stables[slot]) {
                 MVMint8 mixin = st->is_mixin_type;
                 add_slot_name_comment(tc, g, ins, name, ch_facts, st);
-                if (repr_data->auto_viv_values && repr_data->auto_viv_values[slot]) {
+                if (needs_viv(tc, repr_data, slot)) {
                     MVMObject *av_value = repr_data->auto_viv_values[slot];
                     if (IS_CONCRETE(av_value)) {
                         ins->info = MVM_op_get_op(mixin
