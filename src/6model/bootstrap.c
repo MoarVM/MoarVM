@@ -558,6 +558,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(positional_delegate, "positional_delegate");
     string_creator(associative_delegate, "associative_delegate");
     string_creator(auto_viv_container, "auto_viv_container");
+    string_creator(setup_prototype, "setup_prototype");
     string_creator(done, "done");
     string_creator(error, "error");
     string_creator(stdout_bytes, "stdout_bytes");
