@@ -1694,6 +1694,19 @@ static MVMint32 has_initializations(MVMThreadContext *tc, MVMP6opaqueREPRData *r
             return 1;
     return 0;
 }
+static MVMint32 is_prototype_expandable_p6o(MVMThreadContext *tc, MVMObject *check) {
+    /* Expandable means we can rewrite it as a fastcreate and set of binds.
+     * For now, we'll just handle a P6opaque with object attributes. */
+    if (IS_CONCRETE(check) && REPR(check)->ID == MVM_REPR_ID_P6opaque) {
+        MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)STABLE(check)->REPR_data;
+        MVMint32 i;
+        for (i = 0; i < repr_data->num_attributes; i++)
+            if (repr_data->flattened_stables[i])
+                return 0;
+        return 1;
+    }
+    return 0;
+}
 static MVMSpeshIns * emit_speshslot_load(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVMSpeshBB *bb, MVMSpeshOperand target, MVMuint16 sslot, MVMSpeshIns *after) {
     MVMSpeshIns *sslot_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
@@ -1704,6 +1717,55 @@ static MVMSpeshIns * emit_speshslot_load(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_get_facts(tc, g, target)->writer = sslot_ins;
     MVM_spesh_manipulate_insert_ins(tc, bb, after, sslot_ins);
     return sslot_ins;
+}
+static MVMSpeshIns * emit_p6o_prototype_expansion(MVMThreadContext *tc,
+        MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *after,
+        MVMObject *prototype, MVMSpeshOperand bindee) {
+    MVMint32 i;
+
+    /* Emit a fastcreate into the bindee register. */
+    MVMSTable *st = STABLE(prototype);
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    MVMSpeshIns *fastcreate = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    fastcreate->info = MVM_op_get_op(MVM_OP_sp_fastcreate);
+    fastcreate->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+    fastcreate->operands[0] = bindee;
+    fastcreate->operands[1].lit_ui16 = st->size;
+    fastcreate->operands[2].lit_ui16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+    MVM_spesh_get_facts(tc, g, bindee)->writer = fastcreate;
+    MVM_spesh_manipulate_insert_ins(tc, bb, after, fastcreate);
+    MVM_spesh_graph_add_comment(tc, g, fastcreate, "creation of prototype attribute");
+    after = fastcreate;
+
+    /* Go over the attributes and emit binds of those. */
+    for (i = 0; i < repr_data->num_attributes; i++) {
+        MVMSpeshIns *bind_ins;
+
+        /* Emit a load of the object from a spesh slot. */
+        MVMint64 offset = repr_data->attribute_offsets[i];
+        MVMObject *value = get_obj_at_offset(
+            MVM_p6opaque_real_data(tc, OBJECT_BODY(prototype)),
+            offset);
+        MVMuint16 value_sslot = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)value);
+        MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+        after = emit_speshslot_load(tc, g, bb, temp, value_sslot, after);
+
+        /* Emit bind into the attribute. */
+        bind_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        bind_ins->info = MVM_op_get_op(MVM_OP_sp_bind_o);
+        bind_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+        bind_ins->operands[0] = bindee;
+        bind_ins->operands[1].lit_i16 = sizeof(MVMObject) + offset;
+        bind_ins->operands[2] = temp;
+        MVM_spesh_usages_add_by_reg(tc, g, bind_ins->operands[0], bind_ins);
+        MVM_spesh_usages_add_by_reg(tc, g, bind_ins->operands[2], bind_ins);
+        MVM_spesh_manipulate_insert_ins(tc, bb, after, bind_ins);
+        after = bind_ins;
+
+        MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
+    }
+
+    return after;
 }
 static void emit_setups(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         MVMSpeshIns *create_ins, MVMP6opaqueREPRData *repr_data) {
@@ -1751,9 +1813,10 @@ static void emit_setups(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 MVMSpeshIns *bind_ins;
 
                 /* See what we'll be initializing the attribute with. */
-                /* TODO Special case of a P6opaque where we can fastcreate it and bind
-                 * the slots. */
-                if (IS_CONCRETE(prototype)) {
+                if (is_prototype_expandable_p6o(tc, prototype)) {
+                    after = emit_p6o_prototype_expansion(tc, g, bb, after, prototype, bindee);
+                }
+                else if (IS_CONCRETE(prototype)) {
                     /* Need to get the prototype object and clone it. */
                     MVMuint16 type_sslot = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)prototype);
                     MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
