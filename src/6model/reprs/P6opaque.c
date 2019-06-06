@@ -1750,9 +1750,10 @@ static MVMSpeshIns * emit_p6o_prototype_expansion(MVMThreadContext *tc,
         MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
         after = emit_speshslot_load(tc, g, bb, temp, value_sslot, after);
 
-        /* Emit bind into the attribute. */
+        /* Emit bind into the attribute (don't need to write barrier these as
+         * we know the object just allocated is in the nursery). */
         bind_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-        bind_ins->info = MVM_op_get_op(MVM_OP_sp_bind_o);
+        bind_ins->info = MVM_op_get_op(MVM_OP_sp_bind_o_nowb);
         bind_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
         bind_ins->operands[0] = bindee;
         bind_ins->operands[1].lit_i16 = sizeof(MVMObject) + offset;
@@ -1779,8 +1780,9 @@ static void emit_setups(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 MVMuint16 slot = repr_data->setups[i].slot;
                 MVMint64 offset = repr_data->attribute_offsets[slot];
                 MVMSpeshIns *setup = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-                /* TODO Add a no write barrier variant of this. */
-                setup->info = MVM_op_get_op(MVM_OP_sp_bind_o);
+                /* The null symbol is allocated straight into gen2, so safe without
+                 * the GC write barrier. */
+                setup->info = MVM_op_get_op(MVM_OP_sp_bind_o_nowb);
                 setup->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
                 setup->operands[0] = create_ins->operands[0];
                 setup->operands[1].lit_i16 = sizeof(MVMObject) + offset;
