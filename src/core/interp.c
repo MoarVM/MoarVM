@@ -5175,7 +5175,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(cpucores):
-                GET_REG(cur_op, 0).i32 = MVM_platform_cpu_count();
+                GET_REG(cur_op, 0).i64 = MVM_platform_cpu_count();
+                cur_op += 2;
+                goto NEXT;
+            OP(freemem):
+                GET_REG(cur_op, 0).i64 = MVM_platform_free_memory();
+                cur_op += 2;
+                goto NEXT;
+            OP(totalmem):
+                GET_REG(cur_op, 0).i64 = MVM_platform_total_memory();
                 cur_op += 2;
                 goto NEXT;
             OP(eqaticim_s):

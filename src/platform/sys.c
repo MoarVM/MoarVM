@@ -1,15 +1,23 @@
 #include "moar.h"
 #include "platform/sys.h"
 
-MVMuint32 MVM_platform_cpu_count(void) {
-    int count;
+MVMint64 MVM_platform_cpu_count(void) {
+    MVMint64       count;
     uv_cpu_info_t *info;
-    int e;
+    int            e;
 
-    e = uv_cpu_info(&info, &count);
-    if (e == 0) uv_free_cpu_info(info, count);
+    e = uv_cpu_info(&info, (int *)(&count));
+    if (e == 0) uv_free_cpu_info(info, (int)count);
 
     return count;
+}
+
+MVMint64 MVM_platform_free_memory(void) {
+    return uv_get_free_memory();
+}
+
+MVMint64 MVM_platform_total_memory(void) {
+    return uv_get_total_memory();
 }
 
 MVMObject * MVM_platform_uname(MVMThreadContext *tc) {
