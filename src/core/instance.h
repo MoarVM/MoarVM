@@ -62,6 +62,7 @@ struct MVMStringConsts {
     MVMString *positional_delegate;
     MVMString *associative_delegate;
     MVMString *auto_viv_container;
+    MVMString *setup_prototype;
     MVMString *done;
     MVMString *error;
     MVMString *stdout_bytes;
