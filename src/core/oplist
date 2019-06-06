@@ -974,6 +974,7 @@ sp_get_i8        .s w(int64) r(obj) int16 :pure
 sp_get_n         .s w(num64) r(obj) int16 :pure
 sp_get_s         .s w(str) r(obj) int16 :pure
 sp_bind_o        .s r(obj) int16 r(obj)
+sp_bind_o_nowb   .s r(obj) int16 r(obj)
 sp_bind_i64      .s r(obj) int16 r(int64)
 sp_bind_i32      .s r(obj) int16 r(int64)
 sp_bind_i16      .s r(obj) int16 r(int64)
