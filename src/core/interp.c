@@ -5960,6 +5960,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_bind_o_nowb): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                MVMObject *value = GET_REG(cur_op, 4).o;
+                *((MVMObject **)((char *)o + GET_UI16(cur_op, 2))) = value;
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_bind_i64): {
                 MVMObject *o     = GET_REG(cur_op, 0).o;
                 *((MVMint64 *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).i64;
