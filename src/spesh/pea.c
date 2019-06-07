@@ -1690,6 +1690,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                 case MVM_OP_sp_bind_s:
                 case MVM_OP_sp_bind_s_nowb:
                 case MVM_OP_sp_bind_o:
+                case MVM_OP_sp_bind_o_nowb:
                 case MVM_OP_sp_p6obind_i:
                 case MVM_OP_sp_p6obind_n:
                 case MVM_OP_sp_p6obind_s:
@@ -1698,7 +1699,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                      * tracked object into a set. */
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[0]);
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
-                    MVMint32 is_object_bind = opcode == MVM_OP_sp_p6obind_o || opcode == MVM_OP_sp_bind_o;
+                    MVMint32 is_object_bind = opcode == MVM_OP_sp_p6obind_o || opcode == MVM_OP_sp_bind_o || opcode == MVM_OP_sp_bind_o_nowb;
                     if (allocation_tracked(tc, gs, bb, alloc)) {
                         MVMint32 is_p6o_op = opcode == MVM_OP_sp_p6obind_i ||
                             opcode == MVM_OP_sp_p6obind_n ||
