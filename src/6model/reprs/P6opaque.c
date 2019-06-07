@@ -1584,7 +1584,8 @@ static MVMSpeshIns * emit_p6o_prototype_expansion(MVMThreadContext *tc,
     fastcreate->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
     fastcreate->operands[0] = bindee;
     fastcreate->operands[1].lit_ui16 = st->size;
-    fastcreate->operands[2].lit_ui16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+    fastcreate->operands[2].lit_ui16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+        (MVMCollectable *)st);
     MVM_spesh_get_facts(tc, g, bindee)->writer = fastcreate;
     MVM_spesh_manipulate_insert_ins(tc, bb, after, fastcreate);
     MVM_spesh_graph_add_comment(tc, g, fastcreate, "creation of prototype attribute");
@@ -1600,7 +1601,8 @@ static MVMSpeshIns * emit_p6o_prototype_expansion(MVMThreadContext *tc,
         MVMObject *value = get_obj_at_offset(
             MVM_p6opaque_real_data(tc, OBJECT_BODY(prototype)),
             offset);
-        MVMuint16 value_sslot = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)value);
+        MVMuint16 value_sslot = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+            (MVMCollectable *)value);
         MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
         after = emit_speshslot_load(tc, g, bb, temp, value_sslot, after);
 
@@ -1674,7 +1676,8 @@ static void emit_setups(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 }
                 else if (IS_CONCRETE(prototype)) {
                     /* Need to get the prototype object and clone it. */
-                    MVMuint16 type_sslot = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)prototype);
+                    MVMuint16 type_sslot = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                        (MVMCollectable *)prototype);
                     MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
                     MVMSpeshIns *clone_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
                     clone_ins->info = MVM_op_get_op(MVM_OP_clone);
@@ -1691,7 +1694,8 @@ static void emit_setups(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 }
                 else {
                     /* Load type object into spesh slot. */
-                    MVMuint16 type_sslot = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)prototype);
+                    MVMuint16 type_sslot = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                        (MVMCollectable *)prototype);
                     after = emit_speshslot_load(tc, g, bb, bindee, type_sslot, after);
                 }
 
@@ -1748,7 +1752,8 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
             ins->operands[0]         = target;
             ins->operands[1].lit_i16 = st->size;
-            ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+            ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                (MVMCollectable *)st);
             MVM_spesh_usages_delete_by_reg(tc, g, type, ins);
             MVM_spesh_graph_add_comment(tc, g, ins, "%s of a %s",
                     ins->info->name,
@@ -1791,7 +1796,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                     ins->operands[2].lit_i16 = mixin
                         ? repr_data->attribute_offsets[slot]
                         : sizeof(MVMObject) + repr_data->attribute_offsets[slot];
-                    ins->operands[3].lit_i16 = MVM_spesh_add_spesh_slot(tc, g,
+                    ins->operands[3].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
                         (MVMCollectable *)av_value);
                 }
                 else {
@@ -2001,7 +2006,8 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 ins->operands = MVM_spesh_alloc(tc, g, 6 * sizeof(MVMSpeshOperand));
                 ins->operands[0] = orig_operands[0];
                 ins->operands[1].lit_i16 = st->size;
-                ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+                ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                    (MVMCollectable *)st);
                 ins->operands[3].lit_i16 = sizeof(MVMObject) +
                     repr_data->attribute_offsets[repr_data->unbox_int_slot];
                 ins->operands[4] = orig_operands[1];
@@ -2028,7 +2034,8 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 fastcreate->operands[0] = ins->operands[0];
                 tgt_facts->writer = fastcreate;
                 fastcreate->operands[1].lit_i16 = st->size;
-                fastcreate->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+                fastcreate->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                    (MVMCollectable *)st);
                 MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, fastcreate);
 
                 MVM_spesh_graph_add_comment(tc, g, fastcreate, "box_n into a %s",
@@ -2060,7 +2067,8 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 fastcreate->operands[0] = ins->operands[0];
                 tgt_facts->writer = fastcreate;
                 fastcreate->operands[1].lit_i16 = st->size;
-                fastcreate->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+                fastcreate->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc,
+                    g, (MVMCollectable *)st);
                 MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, fastcreate);
 
                 MVM_spesh_graph_add_comment(tc, g, fastcreate, "box_s into a %s",
