@@ -3284,6 +3284,7 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned 
      * information available, or give more `set` instructions for the `set`
      * elimination in the post-inline pass to get rid of. */
     if (tc->instance->spesh_pea_enabled) {
+        MVM_spesh_eliminate_dead_ins(tc, g);
         MVM_spesh_pea(tc, g);
 #if MVM_SPESH_CHECK_DU
         MVM_spesh_usages_check(tc, g);
