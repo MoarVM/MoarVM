@@ -1084,8 +1084,9 @@ static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
         else {
             pea_log(can_materialize && !worthwhile
                     ? "could replace and materialize a %s at %s, but not worthwhile"
-                    : "replacement of %s impossible due to %s",
-                    alloc->type->st->debug_name, ins->info->name);
+                    : "replacement of %s impossible due to %s use of r%d(%d)",
+                    alloc->type->st->debug_name, ins->info->name,
+                    o.reg.orig, o.reg.i);
             mark_irreplaceable(tc, alloc);
         }
     }
