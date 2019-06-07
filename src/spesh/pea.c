@@ -79,7 +79,7 @@ typedef struct {
         struct {
             /* The guard instruction. */
             MVMSpeshIns *ins;
-            /* The the value guarded was a tracked allocation, then that
+            /* If the value guarded was a tracked allocation, then that
              * allocation. */
             MVMSpeshPEAAllocation *target_allocation;
         } guard;
