@@ -77,7 +77,11 @@ typedef struct {
             MVMSpeshIns *ins;
         } set;
         struct {
+            /* The guard instruction. */
             MVMSpeshIns *ins;
+            /* The the value guarded was a tracked allocation, then that
+             * allocation. */
+            MVMSpeshPEAAllocation *target_allocation;
         } guard;
         struct {
             MVMint32 deopt_point_idx;
@@ -494,10 +498,18 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             MVM_spesh_manipulate_delete_ins(tc, g, bb, t->set.ins);
             break;
         case TRANSFORM_GUARD_TO_SET: {
-            MVMSpeshIns *ins = t->guard.ins;
-            ins->info = MVM_op_get_op(MVM_OP_set);
-            MVM_spesh_graph_add_comment(tc, g, ins, "guard eliminated by scalar replacement");
-            pea_log("OPT: eliminated a guard");
+            if (t->guard.target_allocation && !t->guard.target_allocation->irreplaceable) {
+                /* If we guard an object whose allocation was elimianted, then we can
+                 * drop the instruction entirely. */
+                MVM_spesh_manipulate_delete_ins(tc, g, bb, t->guard.ins);
+                pea_log("OPT: eliminated a guard instruction");
+            }
+            else {
+                MVMSpeshIns *ins = t->guard.ins;
+                ins->info = MVM_op_get_op(MVM_OP_set);
+                MVM_spesh_graph_add_comment(tc, g, ins, "guard eliminated by scalar replacement");
+                pea_log("OPT: rewrote a guard instruction into a set");
+            }
             break;
         }
         case TRANSFORM_ADD_DEOPT_POINT: {
@@ -1645,6 +1657,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
             MVMuint32 settified_guard = 0;
             if (ins->info->may_cause_deopt) {
                 MVMSpeshPEAAllocation *settify_dep = NULL;
+                MVMSpeshPEAAllocation *settify_target = NULL;
                 switch (opcode) {
                     case MVM_OP_sp_guardconc: {
                         MVMSpeshFacts *hyp_facts = get_shadow_facts_c(tc, gs,
@@ -1655,6 +1668,15 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                             MVMSTable *wanted = (MVMSTable *)g->spesh_slots[ins->operands[2].lit_ui16];
                             settified_guard = wanted == hyp_facts->type->st;
                             settify_dep = hyp_facts->pea.depend_allocation;
+                            if (allocation_tracked(tc, gs, bb, hyp_facts->pea.allocation)) {
+                                settify_target = hyp_facts->pea.allocation;
+                            }
+                            else {
+                                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                                    ins->operands[1]);
+                                if (allocation_tracked(tc, gs, bb, facts->pea.allocation))
+                                    settify_target = facts->pea.allocation;
+                            }
                         }
                         break;
                     }
@@ -1664,6 +1686,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     tran->allocation = settify_dep;
                     tran->transform = TRANSFORM_GUARD_TO_SET;
                     tran->guard.ins = ins;
+                    tran->guard.target_allocation = settify_target;
                     add_transform_for_bb(tc, gs, bb, tran);
                     settify_dep->read = 1;
                 }
