@@ -1550,14 +1550,26 @@ static MVMint32 is_prototype_expandable_p6o(MVMThreadContext *tc, MVMObject *che
 }
 static MVMSpeshIns * emit_speshslot_load(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVMSpeshBB *bb, MVMSpeshOperand target, MVMuint16 sslot, MVMSpeshIns *after) {
+    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, target);
+    MVMObject *obj = (MVMObject *)g->spesh_slots[sslot];
     MVMSpeshIns *sslot_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     sslot_ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
     sslot_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
     sslot_ins->operands[0] = target;
     sslot_ins->operands[1].lit_ui16 = sslot;
-    MVM_spesh_get_facts(tc, g, target)->writer = sslot_ins;
+    facts->writer = sslot_ins;
+    facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_KNOWN_VALUE |
+        (IS_CONCRETE(obj) ? MVM_SPESH_FACT_CONCRETE : MVM_SPESH_FACT_TYPEOBJ);
+    facts->type = obj->st->WHAT;
+    facts->value.o = obj;
     MVM_spesh_manipulate_insert_ins(tc, bb, after, sslot_ins);
     return sslot_ins;
+}
+static void set_instance_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+        MVMObject *type) {
+    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+    facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
+    facts->type = type->st->WHAT;
 }
 static MVMSpeshIns * emit_p6o_prototype_expansion(MVMThreadContext *tc,
         MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *after,
@@ -1576,6 +1588,7 @@ static MVMSpeshIns * emit_p6o_prototype_expansion(MVMThreadContext *tc,
     MVM_spesh_get_facts(tc, g, bindee)->writer = fastcreate;
     MVM_spesh_manipulate_insert_ins(tc, bb, after, fastcreate);
     MVM_spesh_graph_add_comment(tc, g, fastcreate, "creation of prototype attribute");
+    set_instance_facts(tc, g, fastcreate, prototype);
     after = fastcreate;
 
     /* Go over the attributes and emit binds of those. */
@@ -1674,6 +1687,7 @@ static void emit_setups(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                     MVM_spesh_manipulate_insert_ins(tc, bb, after, clone_ins);
                     after = clone_ins;
                     MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
+                    set_instance_facts(tc, g, clone_ins, prototype);
                 }
                 else {
                     /* Load type object into spesh slot. */
