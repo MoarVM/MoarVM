@@ -300,6 +300,7 @@ static MVMSpeshOperand resolve_materialization_target(MVMThreadContext *tc, MVMS
         MVMSpeshOperand result;
         result.reg.orig = gs->attr_regs[target->hyp_reg];
         result.reg.i = MVM_spesh_manipulate_get_current_version(tc, g, result.reg.orig);
+        return result;
     }
     else {
         return target->reg;
@@ -1012,6 +1013,42 @@ static MVMint32 worth_materializing(MVMThreadContext *tc, GraphState *gs, MVMSpe
     return alloc->read || alloc->bigint ||
         in_branch(tc, gs, g, alloc->allocator_bb, bb);
 }
+static void materialize_attributes(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                                   MVMSpeshIns *prior_ins, GraphState *gs,
+                                   MVMSpeshPEAAllocation *obj_alloc) {
+    /* Go through the attributes and see if any reference tracked objects. */
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)obj_alloc->type->st->REPR_data;
+    MVMint32 i;
+    for (i = 0; i < repr_data->num_attributes; i++) {
+        MVMuint16 hypothetical_reg = obj_alloc->hypothetical_attr_reg_idxs[i];
+        MVMSpeshFacts *attr_facts = get_shadow_facts_h(tc, gs, hypothetical_reg);
+        if (attr_facts && allocation_tracked(tc, gs, bb, attr_facts->pea.allocation)) {
+            /* Create the materialization transform. */
+            MVMSpeshPEAAllocation *attr_alloc = attr_facts->pea.allocation;
+            BBState *bb_state = &(gs->bb_states[bb->idx]);
+            MVMint32 index = attr_alloc->index;
+            Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
+            tran->allocation = attr_alloc;
+            tran->transform = TRANSFORM_MATERIALIZE;
+            tran->materialize.prior_to = prior_ins;
+            tran->materialize.used = get_used_state(tc, gs, bb, attr_alloc);
+
+            /* Add the hypothetical register of the attribute as a materialization
+             * target. */
+            add_materialization_target_h(tc, g, tran, hypothetical_reg);
+
+            /* Record the materialization. */
+            MVM_VECTOR_ENSURE_SIZE(bb_state->alloc_state, index + 1);
+            MVM_VECTOR_PUSH(bb_state->alloc_state[index].materializations, tran);
+            pea_log("inserting materialization of %s (%d) since enclosing %s is materialized",
+                attr_alloc->type->st->debug_name, index, obj_alloc->type->st->debug_name);
+
+            /* Repeat this process recursively. */
+            materialize_attributes(tc, g, bb, prior_ins, gs, attr_alloc);
+            add_transform_for_bb(tc, gs, bb, tran);
+        }
+    }
+}
 static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                  MVMSpeshIns *ins, MVMSpeshOperand o, GraphState *gs,
                                  MVMint32 can_materialize) {
@@ -1029,7 +1066,6 @@ static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
             tran->transform = TRANSFORM_MATERIALIZE;
             tran->materialize.prior_to = ins;
             tran->materialize.used = get_used_state(tc, gs, bb, alloc);
-            add_transform_for_bb(tc, gs, bb, tran);
 
             /* Add the consuming register as a materialization target. */
             add_materialization_target_c(tc, g, tran, o);
@@ -1039,6 +1075,11 @@ static void real_object_required(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
             MVM_VECTOR_PUSH(bb_state->alloc_state[index].materializations, tran);
             pea_log("inserting materialization of %s (%d) due to %s",
                     alloc->type->st->debug_name, index, ins->info->name);
+
+            /* Make sure that we add materializations of any objects that
+             * this one references, but are also tracked, too. */
+            materialize_attributes(tc, g, bb, ins, gs, alloc);
+            add_transform_for_bb(tc, gs, bb, tran);
         }
         else {
             pea_log(can_materialize && !worthwhile
