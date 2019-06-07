@@ -1694,6 +1694,16 @@ static MVMint32 has_initializations(MVMThreadContext *tc, MVMP6opaqueREPRData *r
             return 1;
     return 0;
 }
+static MVMint32 needs_viv(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_data, MVMint64 slot) {
+    if (repr_data->auto_viv_values && repr_data->auto_viv_values[slot]) {
+        MVMint32 i;
+        for (i = 0; i < repr_data->num_setups; i++)
+            if (repr_data->setups[i].slot == slot)
+                return 0;
+        return 1;
+    }
+    return 0;
+}
 static MVMint32 is_prototype_expandable_p6o(MVMThreadContext *tc, MVMObject *check) {
     /* Expandable means we can rewrite it as a fastcreate and set of binds.
      * For now, we'll just handle a P6opaque with object attributes. */
@@ -1753,32 +1763,34 @@ static MVMSpeshIns * emit_p6o_prototype_expansion(MVMThreadContext *tc,
 
     /* Go over the attributes and emit binds of those. */
     for (i = 0; i < repr_data->num_attributes; i++) {
-        MVMSpeshIns *bind_ins;
+        if (!needs_viv(tc, repr_data, i)) {
+            MVMSpeshIns *bind_ins;
 
-        /* Emit a load of the object from a spesh slot. */
-        MVMint64 offset = repr_data->attribute_offsets[i];
-        MVMObject *value = get_obj_at_offset(
-            MVM_p6opaque_real_data(tc, OBJECT_BODY(prototype)),
-            offset);
-        MVMuint16 value_sslot = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
-            (MVMCollectable *)value);
-        MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
-        after = emit_speshslot_load(tc, g, bb, temp, value_sslot, after);
+            /* Emit a load of the object from a spesh slot. */
+            MVMint64 offset = repr_data->attribute_offsets[i];
+            MVMObject *value = get_obj_at_offset(
+                MVM_p6opaque_real_data(tc, OBJECT_BODY(prototype)),
+                offset);
+            MVMuint16 value_sslot = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                (MVMCollectable *)value);
+            MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+            after = emit_speshslot_load(tc, g, bb, temp, value_sslot, after);
 
-        /* Emit bind into the attribute (don't need to write barrier these as
-         * we know the object just allocated is in the nursery). */
-        bind_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-        bind_ins->info = MVM_op_get_op(MVM_OP_sp_bind_o_nowb);
-        bind_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-        bind_ins->operands[0] = bindee;
-        bind_ins->operands[1].lit_i16 = sizeof(MVMObject) + offset;
-        bind_ins->operands[2] = temp;
-        MVM_spesh_usages_add_by_reg(tc, g, bind_ins->operands[0], bind_ins);
-        MVM_spesh_usages_add_by_reg(tc, g, bind_ins->operands[2], bind_ins);
-        MVM_spesh_manipulate_insert_ins(tc, bb, after, bind_ins);
-        after = bind_ins;
+            /* Emit bind into the attribute (don't need to write barrier these as
+             * we know the object just allocated is in the nursery). */
+            bind_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+            bind_ins->info = MVM_op_get_op(MVM_OP_sp_bind_o_nowb);
+            bind_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            bind_ins->operands[0] = bindee;
+            bind_ins->operands[1].lit_i16 = sizeof(MVMObject) + offset;
+            bind_ins->operands[2] = temp;
+            MVM_spesh_usages_add_by_reg(tc, g, bind_ins->operands[0], bind_ins);
+            MVM_spesh_usages_add_by_reg(tc, g, bind_ins->operands[2], bind_ins);
+            MVM_spesh_manipulate_insert_ins(tc, bb, after, bind_ins);
+            after = bind_ins;
 
-        MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
+            MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
+        }
     }
 
     return after;
@@ -1881,16 +1893,6 @@ static void emit_setups(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
     }
     if (have_null_reg)
         MVM_spesh_manipulate_release_temp_reg(tc, g, null_reg);
-}
-static MVMint32 needs_viv(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_data, MVMint64 slot) {
-    if (repr_data->auto_viv_values && repr_data->auto_viv_values[slot]) {
-        MVMint32 i;
-        for (i = 0; i < repr_data->num_setups; i++)
-            if (repr_data->setups[i].slot == slot)
-                return 0;
-        return 1;
-    }
-    return 0;
 }
 static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMP6opaqueREPRData * repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
