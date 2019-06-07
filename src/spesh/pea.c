@@ -1902,8 +1902,22 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     break;
                 }
                 case MVM_OP_sp_guardconc:
-                    if (!settified_guard)
+                    if (settified_guard) {
+                        /* Guard behaves like an (eliminated) set; track aliasing. */
+                        MVMSpeshFacts *source = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+                        MVMSpeshPEAAllocation *alloc = source->pea.allocation;
+                        if (allocation_tracked(tc, gs, bb, alloc)) {
+                            MVM_spesh_get_facts(tc, g, ins->operands[0])->pea.allocation = alloc;
+                            add_tracked_register(tc, gs, ins->operands[0], alloc);
+                            MVM_spesh_copy_facts_resolved(tc, g,
+                                    MVM_spesh_get_facts(tc, g, ins->operands[0]),
+                                    source);
+                        }
+                    }
+                    else {
+                        /* Guard will really happen; need the real object. */
                         real_object_required(tc, g, bb, ins, ins->operands[1], gs, 1);
+                    }
                     break;
                 case MVM_OP_prof_allocated: {
                     MVMSpeshFacts *target = MVM_spesh_get_facts(tc, g, ins->operands[0]);
