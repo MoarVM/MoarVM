@@ -440,12 +440,12 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                                     obj = MVM_repr_box_str(tc, typeobj, str);
                                 });
                             }
-                            child_objs[real_slot] = obj;
                         }
                         else {
                             obj = typeobj;
                         }
                     }
+                    MVM_ASSIGN_REF(tc, &(root->header), body->child_objs[real_slot], obj);
                 }
                 result_reg->o = obj;
             }
