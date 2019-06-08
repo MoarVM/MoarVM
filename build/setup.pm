@@ -506,10 +506,6 @@ our %OS_OPENBSD = (
     %OS_POSIX,
 
     syslibs     => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
-    # XXX: this is required at the moment because of the legojit. If possible,
-    # the legojit should be protected against ROP vulnerabilities and this line
-    # should be removed.
-    ccmiscflags => '-fno-ret-protector',
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_OPENBSD)' },

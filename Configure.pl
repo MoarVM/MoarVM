@@ -223,6 +223,11 @@ if ($config{cc} eq 'gcc' && !$config{can_specific_werror}) {
     $config{ccmiscflags} =~ s/^ +$//;
 }
 
+# Disable ROP vulnerability protection on OpenBSD, since it breaks the legojit.
+if ($^O eq 'openbsd' && $config{cc} eq 'clang') {
+	$config{ccmiscflags} .= ' -fno-ret-protector';
+}
+
 # Set the remaining ldmiscflags. Do this after probing for gcc -Werror probe to not miss that change for the linker.
 $config{ldmiscflags}  = $config{ccmiscflags} unless defined $config{ldmiscflags};
 
