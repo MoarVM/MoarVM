@@ -750,14 +750,14 @@
                    (carg (^stable $1) ptr)) ptr_sz))
          ($initialize (^getf (^repr $1) MVMREPROps initialize)))
     (dov
+      (store \$0 $obj ptr_sz)
       (when (nz $initialize)
         (callv $initialize
           (arglist
             (carg (tc) ptr)
             (carg (^stable $obj) ptr)
             (carg $obj ptr)
-            (carg (^body $obj) ptr))))
-      (store \$0 $obj ptr_sz))))
+            (carg (^body $obj) ptr)))))))
 
 (template: clone
   (call (^func &MVM_repr_clone)
