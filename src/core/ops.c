@@ -10673,7 +10673,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_int64 }
+        { MVM_operand_write_reg | MVM_operand_int32 }
     },
     {
         MVM_OP_eqaticim_s,
@@ -11485,6 +11485,34 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         { MVM_operand_write_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_freemem,
+        "freemem",
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_totalmem,
+        "totalmem",
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_sp_guard,
@@ -12829,7 +12857,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 917;
+static const unsigned short MVM_op_counts = 919;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
@@ -12838,7 +12866,7 @@ MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
 }
 
 MVM_PUBLIC const char *MVM_op_get_mark(unsigned short op) {
-    if (op > 821) {
+    if (op > 823) {
         return ".s";
     } else if (op == 23) {
         return ".j";
@@ -12865,4 +12893,5 @@ MVM_PUBLIC const char *MVM_op_get_mark(unsigned short op) {
     }
     return "  ";
 }
+
 

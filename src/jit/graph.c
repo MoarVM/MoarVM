@@ -348,6 +348,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_decont_s: return MVM_6model_container_decont_s;
     case MVM_OP_getrusage: return MVM_proc_getrusage;
     case MVM_OP_cpucores: return MVM_platform_cpu_count;
+    case MVM_OP_freemem: return MVM_platform_free_memory;
+    case MVM_OP_totalmem: return MVM_platform_total_memory;
     case MVM_OP_getsignals: return MVM_io_get_signals;
     case MVM_OP_sleep: return MVM_platform_sleep;
     case MVM_OP_getlexref_i32: case MVM_OP_getlexref_i16: case MVM_OP_getlexref_i8: case MVM_OP_getlexref_i: return MVM_nativeref_lex_i;
@@ -3579,7 +3581,9 @@ start:
         jg_append_call_c(tc, jg, MVM_thread_lock_count, 2, args, MVM_JIT_RV_INT, dst);
         break;
     }
-    case MVM_OP_cpucores: {
+    case MVM_OP_cpucores:
+    case MVM_OP_freemem:
+    case MVM_OP_totalmem: {
         MVMint16 dst = ins->operands[0].reg.orig;
         jg_append_call_c(tc, jg, op_to_func(tc, op), 0, NULL, MVM_JIT_RV_INT, dst);
         break;
