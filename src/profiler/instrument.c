@@ -390,19 +390,36 @@ static void bind_extra_info(MVMThreadContext *tc, MVMObject *storage, MVMString 
 static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds, const MVMProfileCallNode *pcn, MVMObject *types_array);
 static MVMObject * dump_call_graph_node_loop(ProfTcPdsStruct *tcpds, const MVMProfileCallNode *pcn) {
     MVMuint32 i;
+    MVMuint64 exclusive_time = pcn->total_time;
+    MVMuint64 overhead       = pcn->total_entries * tcpds->tc->instance->profiling_overhead;
     MVMObject *node_hash;
+
+    /* Subtract profiling overhead, unless that would underflow, in which case just clamp to 0. */
+    if (exclusive_time - overhead > exclusive_time)
+        exclusive_time = 0;
+    else
+        exclusive_time -= overhead;
 
     node_hash = dump_call_graph_node(tcpds->tc, tcpds->pds, pcn, tcpds->types_array);
 
     /* Visit successors in the call graph, dumping them and working out the
      * exclusive time. */
     if (pcn->num_succ) {
-        MVMObject *callees        = new_array(tcpds->tc);
-        MVMuint64  exclusive_time = pcn->total_time;
+        MVMObject *callees = new_array(tcpds->tc);
         for (i = 0; i < pcn->num_succ; i++) {
+            MVMuint64 succ_exclusive_time = pcn->succ[i]->total_time;
+            MVMuint64 succ_overhead       = pcn->succ[i]->total_entries * tcpds->tc->instance->profiling_overhead;
+
             MVM_repr_push_o(tcpds->tc, callees,
                 dump_call_graph_node_loop(tcpds, pcn->succ[i]));
-            exclusive_time -= pcn->succ[i]->total_time;
+
+            /* Subtract profiling overhead, unless that would underflow, in which case just clamp to 0. */
+            if (succ_exclusive_time - succ_overhead > succ_exclusive_time)
+                succ_exclusive_time = 0;
+            else
+                succ_exclusive_time -= succ_overhead;
+
+            exclusive_time -= succ_exclusive_time;
         }
         MVM_repr_bind_key_o(tcpds->tc, node_hash, tcpds->pds->exclusive_time,
             box_i(tcpds->tc, exclusive_time / 1000));
@@ -410,7 +427,7 @@ static MVMObject * dump_call_graph_node_loop(ProfTcPdsStruct *tcpds, const MVMPr
     }
     else {
         MVM_repr_bind_key_o(tcpds->tc, node_hash, tcpds->pds->exclusive_time,
-            box_i(tcpds->tc, pcn->total_time / 1000));
+            box_i(tcpds->tc, exclusive_time / 1000));
     }
 
     return node_hash;
