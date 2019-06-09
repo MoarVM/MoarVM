@@ -2247,6 +2247,12 @@
       (carg (tc) ptr)
       (carg $1   ptr)) int_sz))
 
+(template: strfromcodes
+  (call (^func &MVM_unicode_codepoints_to_nfg_string)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) ptr_sz))
+
 (template: eqatim_s
   (call (^func &MVM_string_equal_at_ignore_mark)
     (arglist
