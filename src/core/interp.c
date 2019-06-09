@@ -5178,14 +5178,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_platform_cpu_count();
                 cur_op += 2;
                 goto NEXT;
-            OP(freemem):
-                GET_REG(cur_op, 0).i64 = MVM_platform_free_memory();
-                cur_op += 2;
-                goto NEXT;
-            OP(totalmem):
-                GET_REG(cur_op, 0).i64 = MVM_platform_total_memory();
-                cur_op += 2;
-                goto NEXT;
             OP(eqaticim_s):
                 GET_REG(cur_op, 0).i64 = MVM_string_equal_at_ignore_case_ignore_mark(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
@@ -5608,6 +5600,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(uname):
                 GET_REG(cur_op, 0).o = MVM_platform_uname(tc);
+                cur_op += 2;
+                goto NEXT;
+            OP(freemem):
+                GET_REG(cur_op, 0).i64 = MVM_platform_free_memory();
+                cur_op += 2;
+                goto NEXT;
+            OP(totalmem):
+                GET_REG(cur_op, 0).i64 = MVM_platform_total_memory();
                 cur_op += 2;
                 goto NEXT;
             OP(sp_guard): {

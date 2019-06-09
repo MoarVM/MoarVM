@@ -2,12 +2,12 @@
 #include "platform/sys.h"
 
 MVMint64 MVM_platform_cpu_count(void) {
-    MVMint64       count;
+    int            count;
     uv_cpu_info_t *info;
     int            e;
 
-    e = uv_cpu_info(&info, (int *)(&count));
-    if (e == 0) uv_free_cpu_info(info, (int)count);
+    e = uv_cpu_info(&info, &count);
+    if (e == 0) uv_free_cpu_info(info, count);
 
     return count;
 }
@@ -21,9 +21,9 @@ MVMint64 MVM_platform_total_memory(void) {
 }
 
 MVMObject * MVM_platform_uname(MVMThreadContext *tc) {
-    int error;
-    uv_utsname_t uname;
-    MVMObject *result;
+    int           error;
+    uv_utsname_t  uname;
+    MVMObject    *result;
 
     if ((error = uv_os_uname(&uname)) != 0)
         MVM_exception_throw_adhoc(tc, "Unable to uname: %s", uv_strerror(error));
