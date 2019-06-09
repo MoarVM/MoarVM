@@ -493,7 +493,10 @@ void MVM_confprog_install(MVMThreadContext *tc, MVMObject *bytecode, MVMObject *
 
         count = MVM_repr_elems(tc, arr);
 
-        memset(entrypoint_array, 0, sizeof(entrypoint_array));
+        /* Initialize with sentry value */
+        for (index = 0; index < MVM_PROGRAM_ENTRYPOINT_COUNT; index++) {
+            entrypoint_array[index] = CONFPROG_UNUSED_ENTRYPOINT;
+        }
 
         junkprint(stderr, "copying over %d entrypoints\n", count);
 

@@ -90,15 +90,21 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
                 if (instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_NO
                         || instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES) {
                     fprintf(stderr, "confprog result is 'please run dynamic code'\n");
-                    if (!MVM_confprog_run(tc, (void *)tc->cur_frame, MVM_PROGRAM_ENTRYPOINT_PROFILER_DYNAMIC, instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES)) {
-                        fprintf(stderr, "ran a dynamic confprog for frame, but it said no\n");
+                    if (MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_PROFILER_DYNAMIC)) {
+                        if (!MVM_confprog_run(tc, (void *)tc->cur_frame, MVM_PROGRAM_ENTRYPOINT_PROFILER_DYNAMIC, instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES)) {
+                            fprintf(stderr, "ran a dynamic confprog for frame, but it said no\n");
+                            goto confprog_refused_enter;
+                        }
+                        fprintf(stderr, "ran a dynamic confprog for frame, and it said yes\n");
+                    }
+                    else {
+                        fprintf(stderr, "sf result was to consider a dynamic confprog, but none was installed\n");
                         goto confprog_refused_enter;
                     }
-                    fprintf(stderr, "ran a dynamic confprog for frame, and it said yes\n");
                 }
             }
             was_entered_via_confprog = 1;
-            ptd->non_calltree_depth = 0;
+            fprintf(stderr, "%p entered %p via confprog; nctd is %d\n", tc, sf, ptd->non_calltree_depth);
         }
         /*else {*/
             /*fprintf(stderr, "there actually was a current_call. also, pcn is %p\n", pcn);*/

@@ -13,13 +13,10 @@ use Data::Dump::Tree;
 
 my $testprog = q:to/CONFPROG/;
     version = 1
-    entry profiler_dynamic:
-    log = "dynamic profiler entrypoint";
-    profile = choice(0, 1);
     entry profiler_static:
     log = "static profiler entrypoint";
     log = filename(sf);
-    profile = contains(filename(sf), "/core/");
+    profile = 1 + ((contains(filename(sf), "/core/")) * 3);
     CONFPROG
 
 die "only support version 1" unless $testprog.lines.head ~~ m/^version \s+ "=" \s+ 1 \s* ";"? $/;
@@ -140,7 +137,7 @@ grammar ConfProg {
     }
 
     regex expression:<one> {
-         <one_expression> [\s* <compop> \s* <other_expression=.one_expression>]?
+         <one_expression> [\s* [<compop>|<arithop>] \s* <other_expression=.one_expression>]?
     }
 
     regex one_expression:<parenthesized> {
@@ -171,6 +168,13 @@ grammar ConfProg {
         | "and"
         | "or"
         ]
+    }
+
+    regex arithop {
+        | "+"
+        | "-"
+        | "*"
+        | "/"
     }
 
     regex prefixop {
@@ -233,6 +237,10 @@ my %op-to-op = <
     || or_i
     and and_i
     or or_i
+    + add_i
+    - sub_i
+    * mul_i
+    / div_i
 >;
 
 my %prefix-to-op = <
@@ -246,6 +254,7 @@ class ConfProgActions {
 
     method prefixop($/) { make $/.Str }
     method compop($/)   { say $/.Str; make %op-to-op{$/.Str} }
+    method arithop($/)   { say $/.Str; make %op-to-op{$/.Str} }
 
     method variable:<custom>($/)    { make Var.new( name => $/.Str, scope => "my") }
     method variable:<builtin>($/)   { make Var.new( name => $/.Str, scope => "builtin") }
@@ -271,8 +280,8 @@ class ConfProgActions {
     }
 
     method expression:<one>($/) {
-        if $<other_expression> && $<compop> {
-            make Op.new( op => $<compop>.ast,
+        if $<other_expression> && ($<compop> || $<arithop>) {
+            make Op.new( op => ($<compop> || $<arithop>).ast,
                 children => [
                     $<one_expression>.ast,
                     $<other_expression>.ast,
@@ -308,9 +317,9 @@ class ConfProgActions {
 
         my @positionals;
         my @nameds;
-        my $matchddt = Data::Dump::Tree.new;
-        $matchddt does DDTR::MatchDetails;
-        $matchddt.dump: $/;
+        #my $matchddt = Data::Dump::Tree.new;
+        #$matchddt does DDTR::MatchDetails;
+        #$matchddt.dump: $/;
 
         for @<one_expression> {
             @positionals.push: .ast;
@@ -550,7 +559,7 @@ multi sub unify_type(Op $node) {
             die "rhs of string op must be stringy" unless $rhs.type.stringy;
             $node.type = CPInt;
         }
-        when any(<and_i or_i>) {
+        when any(<and_i or_i add_i sub_i mul_i div_i>) {
             my $lhs = $node.children[0];
             my $rhs = $node.children[1];
 
@@ -596,6 +605,13 @@ multi sub unify_type(Op $node) {
                     !! ($node.op eq "intify"
                         ?? CPInt
                         !! die "what"));
+        }
+        when "negate" {
+            $node.children[0].&unify_type;
+
+            die "negate only works on integers ATM. sorry." unless $node.children[0].type eqv CPInt;
+
+            $node.type = CPInt;
         }
         when "call" {
             # Go by first child, it ought to be a string with the function name.
@@ -970,7 +986,7 @@ multi sub compile_node(Op $op, :$target) {
                 $*REGALLOC.release($targetreg)
             }
         }
-        when "eq_s" | "ne_s" {
+        when any(<eq_s ne_s add_i sub_i mul_i div_i>)  {
             my $lhs = $op.children[0];
             my $rhs = $op.children[1];
 
@@ -989,6 +1005,10 @@ multi sub compile_node(Op $op, :$target) {
         when "call" {
             compile_call($op, :$target) with $target;
             compile_call($op) without $target;
+        }
+        when "negate" {
+            compile_node($op.children[0], :$target);
+            %op-gen<not_i>($target, $target);
         }
         default {
             die "cannot compile $op.op() yet";
@@ -1042,7 +1062,7 @@ run-the-program();
 
 use MoarVM::Profiler;
 
-profile {
-    ddt $*MAST_FRAME.bytecode;
+say profile {
+    .say for $*MAST_FRAME.bytecode.list;
     say "profile ends now" for ^10;
 };
