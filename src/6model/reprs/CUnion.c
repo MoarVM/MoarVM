@@ -129,6 +129,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
             MVMint64 inlined = !MVM_is_null(tc, inlined_val) && MVM_repr_get_int(tc, inlined_val);
             MVMint32   bits  = sizeof(void *) * 8;
             MVMint32   align = ALIGNOF(void *);
+
             if (!MVM_is_null(tc, type)) {
                 /* See if it's a type that we know how to handle in a C struct. */
                 const MVMStorageSpec *spec = REPR(type)->get_storage_spec(tc, STABLE(type));
@@ -179,6 +180,10 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     repr_data->member_types[i] = type;
                     if (inlined) {
                         MVMCStructREPRData *cstruct_repr_data = (MVMCStructREPRData *)STABLE(type)->REPR_data;
+                        if (!cstruct_repr_data) {
+                            MVM_exception_throw_adhoc(tc,
+                                "CUnion: can't inline a CStruct attribute before its type's definition");
+                        }
                         bits                                  = cstruct_repr_data->struct_size * 8;
                         align                                 = cstruct_repr_data->struct_align;
                         repr_data->attribute_locations[i]    |= MVM_CUNION_ATTR_INLINED;
@@ -191,6 +196,10 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     repr_data->member_types[i] = type;
                     if (inlined) {
                         MVMCPPStructREPRData *cppstruct_repr_data = (MVMCPPStructREPRData *)STABLE(type)->REPR_data;
+                        if (!cppstruct_repr_data) {
+                            MVM_exception_throw_adhoc(tc,
+                                "CUnion: can't inline a CPPStruct attribute before its type's definition");
+                        }
                         bits                                      = cppstruct_repr_data->struct_size * 8;
                         align                                     = cppstruct_repr_data->struct_align;
                         repr_data->attribute_locations[i]        |= MVM_CUNION_ATTR_INLINED;
@@ -203,6 +212,10 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     repr_data->member_types[i] = type;
                     if (inlined) {
                         MVMCUnionREPRData *cunion_repr_data = (MVMCUnionREPRData *)STABLE(type)->REPR_data;
+                        if (!cunion_repr_data) {
+                            MVM_exception_throw_adhoc(tc,
+                                "CUnion: can't inline a CUnion attribute before its type's definition");
+                        }
                         bits                                = cunion_repr_data->struct_size * 8;
                         align                               = cunion_repr_data->struct_align;
                         repr_data->attribute_locations[i]  |= MVM_CUNION_ATTR_INLINED;
