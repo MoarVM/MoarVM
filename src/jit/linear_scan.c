@@ -819,7 +819,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
 
     MVMBitmap call_bitmap = 0, arg_bitmap = 0;
 
-    MVMint8 spare_register;
+    MVMuint8 spare_register = MVM_FFS(MVM_JIT_SPARE_REGISTERS) - 1;
 
     MVMint32 i, j, ins_pos = 2;
 
@@ -860,10 +860,11 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
 
     for (i = 0; i < num_args; i++) {
         LiveRange *v = alc->values + arg_values[i];
+        MVMJitStorageClass arg_cls = storage_refs[i]._cls;
         if (v->spill_idx < order_nr(call_idx)) {
             /* spilled prior to the ARGLIST/CALL */
             spilled_args[spilled_args_top++] = i;
-        } else if (storage_refs[i]._cls == MVM_JIT_STORAGE_GPR) {
+        } else if (arg_cls == MVM_JIT_STORAGE_GPR || arg_cls == MVM_JIT_STORAGE_FPR) {
             MVMint8 reg_num = storage_refs[i]._pos;
             if (reg_num != v->reg_num) {
                 _DEBUG("Transfer Rq(%d) -> Rq(%d)", reg_num, v->reg_num);
@@ -885,7 +886,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         }
 
         /* set bitmap */
-        if (storage_refs[i]._cls == MVM_JIT_STORAGE_GPR) {
+        if (arg_cls == MVM_JIT_STORAGE_GPR || arg_cls == MVM_JIT_STORAGE_FPR) {
             MVMint8 reg_num = storage_refs[i]._pos;
             MVM_bitmap_set(&arg_bitmap, reg_num);
         }
@@ -961,8 +962,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     /* with call_bitmap and arg_bitmap given, we can determine the spare
      * register used for allocation; NB this may only be necessary in some
      * cases */
-    spare_register = MVM_FFS(MVM_JIT_SPARE_REGISTERS) - 1;
-    _ASSERT(spare_register >= 0, "JIT: No spare register for moves");
+    assert(spare_register >= 0);
 
     for (i = 0; i < stack_transfer_top; i++) {
         MVMint8 reg_num = stack_transfer[i].reg_num;
@@ -1013,11 +1013,13 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     for (i = 0; i < spilled_args_top; i++) {
         MVMint32 arg = spilled_args[i];
         LiveRange *v = alc->values + arg_values[arg];
-        if (storage_refs[arg]._cls == MVM_JIT_STORAGE_GPR) {
+        MVMJitStorageClass arg_cls = storage_refs[arg]._cls;
+        MVMint32 arg_pos = storage_refs[arg]._pos;
+        if (arg_cls == MVM_JIT_STORAGE_GPR || arg_cls == MVM_JIT_STORAGE_FPR) {
             _DEBUG("Loading spilled value to Rq(%d) from [rbx+%d]", storage_refs[arg]._pos, v->spill_pos);
-            INSERT_LOAD_LOCAL(storage_refs[arg]._pos, v->spill_pos);
-        } else if (storage_refs[arg]._cls == MVM_JIT_STORAGE_STACK) {
-            INSERT_LOCAL_STACK_COPY(storage_refs[arg]._pos, v->spill_pos);
+            INSERT_LOAD_LOCAL(arg_pos, v->spill_pos);
+        } else if (arg_cls == MVM_JIT_STORAGE_STACK) {
+            INSERT_LOCAL_STACK_COPY(arg_pos, v->spill_pos);
         } else {
             NYI(storage_class);
         }
@@ -1155,7 +1157,8 @@ static void enforce_operand_requirements(MVMThreadContext *tc, RegisterAllocator
                     tile->values[1] = tile->values[0];
                 } else {
                     /* Move to a temporary */
-                    MVMint8 spare_register = MVM_FFS(MVM_JIT_SPARE_REGISTERS) - 1;
+                    MVMJitStorageClass reg_cls = MVM_jit_arch_register_class(tile->values[0]);
+                    MVMint8 spare_register = MVM_FFS(MVM_JIT_SPARE_REGISTERS & MVM_JIT_REGISTER_CLASS[reg_cls]) - 1;
                     MVMJitTile *before = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_move, 0, 2, spare_register, tile->values[1]);
                     MVMJitTile *after  = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_move, 0, 2, tile->values[0], spare_register);
                     before->debug_name = "#move tmp <- in";
