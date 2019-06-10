@@ -124,3 +124,9 @@ void MVM_jit_arch_storage_for_arglist(MVMThreadContext *tc, MVMJitCompiler *comp
 #else
 #error "Unknown platform " MVM_JIT_PLATFORM
 #endif
+
+MVMJitStorageClass MVM_jit_arch_register_class(MVMuint8 reg_id) {
+    if (reg_id >= MVM_JIT_REG(XMM0))
+        return MVM_JIT_STORAGE_FPR;
+    return MVM_JIT_STORAGE_GPR;
+}

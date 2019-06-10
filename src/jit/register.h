@@ -1,13 +1,13 @@
-/* different places in which we can store stuff */
+/* Different places in which we can store stuff. */
 typedef enum {
     MVM_JIT_STORAGE_NONE,
     MVM_JIT_STORAGE_GPR,  /* general purpose register */
     MVM_JIT_STORAGE_FPR,  /* floating point register */
-    MVM_JIT_STORAGE_LOCAL,
     MVM_JIT_STORAGE_STACK,
+    MVM_JIT_STORAGE_LOCAL,
 } MVMJitStorageClass;
 
-/* a reference to a place something is stored */
+/* A reference to a place something is stored */
 typedef struct {
     MVMJitStorageClass _cls;
     MVMint32           _pos;
@@ -23,9 +23,8 @@ typedef struct {
 #define MVM_JIT_REGISTER_HAS_REQUIREMENT(spec) ((spec & 0x80) != 0)
 #define MVM_JIT_REGISTER_REQUIREMENT(spec) (spec & 0x7f)
 
-
-
 void MVM_jit_linear_scan_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTileList *list);
 void MVM_jit_arch_storage_for_arglist(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                       MVMJitExprTree *tree, MVMint32 arglist_node,
                                       MVMJitStorageRef *storage);
+MVMJitStorageClass MVM_jit_arch_register_class(MVMuint8 register_id);

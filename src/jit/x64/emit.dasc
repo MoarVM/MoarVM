@@ -3320,92 +3320,98 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler,
 }
 
 
+/* Convenience macros for testing the register class of a register id */
+#define IS_GPR(x) ((x) >= MVM_JIT_REG(RAX) && (x) <= MVM_JIT_REG(R15))
+#define IS_FPR(x) ((x) >= MVM_JIT_REG(XMM0) && (x) <= MVM_JIT_REG(XMM15))
+#define REG_NUM(x) ((x) & 0xf)
+
 void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                       MVMint32 reg_cls, MVMint8 reg_dst,
-                       MVMint32 mem_cls, MVMint32 mem_src, MVMint32 size) {
+                       MVMint8 reg_dst, MVMJitStorageClass mem_cls, MVMint32 mem_src, MVMint32 size) {
     MVMint8 mem_base;
     if (mem_cls == MVM_JIT_STORAGE_LOCAL) {
         mem_base = MVM_JIT_REG(RBX);
     } else if (mem_cls == MVM_JIT_STORAGE_STACK) {
         mem_base = MVM_JIT_REG(RSP);
     } else {
-        MVM_panic(1, "Cannot refer to this memory class: %d", mem_cls);
+        abort();
     }
-    if (reg_cls == MVM_JIT_STORAGE_GPR) {
+    if (IS_GPR(reg_dst)) {
         switch(size) {
         case 1:
             | mov Rb(reg_dst), byte [Rq(mem_base)+mem_src];
-            break;
+            return;
         case 2:
             | mov Rw(reg_dst), word [Rq(mem_base)+mem_src];
-            break;
+            return;
         case 4:
             | mov Rd(reg_dst), dword [Rq(mem_base)+mem_src];
-            break;
+            return;
         case 8:
             | mov Rq(reg_dst), qword [Rq(mem_base)+mem_src];
-            break;
+            return;
         }
-    } else if (reg_cls == MVM_JIT_STORAGE_FPR) {
-        reg_dst = reg_dst & 0xf;
+    } else if (IS_FPR(reg_dst)) {
+        MVMint8 reg_num = REG_NUM(reg_dst);
         switch(size) {
         case 8:
-            | movsd xmm(reg_dst), qword [Rq(mem_base)+mem_src];
-            break;
+            | movsd xmm(reg_num), qword [Rq(mem_base)+mem_src];
+            return;
         }
     }
+    abort();
 }
 
 void MVM_jit_emit_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                        MVMint32 mem_cls, MVMint32 mem_dst,
-                        MVMint32 reg_cls, MVMint8 reg_src, MVMint32 size) {
-
+                        MVMJitStorageClass mem_cls, MVMint32 mem_dst,
+                        MVMint8 reg_src, MVMint32 size) {
     MVMint8 mem_base;
     if (mem_cls == MVM_JIT_STORAGE_LOCAL) {
         mem_base = MVM_JIT_REG(RBX);
     } else if (mem_cls == MVM_JIT_STORAGE_STACK) {
         mem_base = MVM_JIT_REG(RSP);
     } else {
-        MVM_panic(1, "Cannot refer to this memory class: %d", mem_cls);
+        abort();
     }
-    if (reg_cls == MVM_JIT_STORAGE_GPR) {
+
+    if (IS_GPR(reg_src)) {
         switch (size) {
         case 1:
             | mov byte [Rq(mem_base)+mem_dst], Rb(reg_src);
-            break;
+            return;
         case 2:
             | mov word [Rq(mem_base)+mem_dst], Rw(reg_src);
-            break;
+            return;
         case 4:
             | mov dword [Rq(mem_base)+mem_dst], Rd(reg_src);
-            break;
+            return;
         case 8:
             | mov qword [Rq(mem_base)+mem_dst], Rq(reg_src);
-            break;
+            return;
         }
-    } else if (reg_cls == MVM_JIT_STORAGE_FPR) {
+    } else if (IS_FPR(reg_src)) {
         reg_src = reg_src & 0xf;
         switch (size) {
         case 8:
             | movsd qword [Rq(mem_base)+mem_dst], xmm(reg_src);
-            break;
+            return;
         }
     }
+    abort();
 }
 
 void MVM_jit_emit_copy(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                       MVMint32 dst_cls,  MVMint8 dst_reg, MVMint32 src_cls, MVMint8 src_reg) {
+                       MVMint8 dst_reg, MVMint8 src_reg) {
 
-    if (dst_cls == MVM_JIT_STORAGE_GPR) {
-        if (src_cls == MVM_JIT_STORAGE_GPR) {
+    if (IS_GPR(dst_reg)) {
+        if (IS_GPR(src_reg)) {
             | mov Rq(dst_reg), Rq(src_reg);
         } else { // src_cls == MVM_JIT_STORAGE_FPR
-            | movd Rq(dst_reg), xmm(src_reg & 0xf);
+            | movd Rq(dst_reg), xmm(REG_NUM(src_reg));
         }
-    } else if (src_cls == MVM_JIT_STORAGE_FPR) { // dst_cls == MVM_JIT_STORAGE_FPR
-        | movq xmm(dst_reg & 0xf), xmm(src_reg & 0xf);
+    } else if (IS_FPR(src_reg)) { // dst_cls == MVM_JIT_STORAGE_FPR
+        | movq xmm(REG_NUM(dst_reg)), xmm(REG_NUM(src_reg));
     } else { // src_cls == MVM_JIT_STORAGE_GPR
-        | movd xmm(dst_reg & 0xf), Rq(src_reg);
+        | movd xmm(REG_NUM(dst_reg)), Rq(src_reg);
     }
 }
 

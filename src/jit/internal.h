@@ -51,13 +51,11 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler,
 void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitData *data);
 
 void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                       MVMint32 reg_cls, MVMint8 reg_dst,
-                       MVMint32 mem_cls, MVMint32 mem_src, MVMint32 size);
+                       MVMint8 reg_dst, MVMJitStorageClass mem_cls, MVMint32 mem_src, MVMint32 size);
 void MVM_jit_emit_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                        MVMint32 mem_cls, MVMint32 mem_pos,
-                        MVMint32 reg_cls, MVMint8 reg_pos, MVMint32 size);
+                        MVMJitStorageClass mem_cls, MVMint32 mem_pos, MVMint8 reg_src, MVMint32 size);
 void MVM_jit_emit_copy(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                       MVMint32 dst_cls, MVMint8 dst_reg, MVMint32 src_cls, MVMint8 src_num);
+                       MVMint8 dst_reg, MVMint8 src_num);
 void MVM_jit_emit_marker(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 num);
 
 MVMint32 MVM_jit_spill_memory_select(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint8 reg_type);
