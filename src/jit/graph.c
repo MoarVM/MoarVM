@@ -1218,48 +1218,6 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                 MVM_spesh_graph_add_comment(tc, iter->graph, ins, "JIT: devirtualized");;
                 return 1;
             }
-            case MVM_OP_slice: {
-                MVMint16 dst     = ins->operands[0].reg.orig;
-                MVMint16 src     = ins->operands[1].reg.orig;
-                MVMint16 start   = ins->operands[2].reg.orig;
-                MVMint16 end     = ins->operands[3].reg.orig;
-
-                void *function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.slice;
-
-                MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
-                                         { MVM_JIT_REG_STABLE,  src },
-                                         { MVM_JIT_REG_VAL,     src },
-                                         { MVM_JIT_REG_OBJBODY, src },
-                                         { MVM_JIT_REG_VAL,     dst   },
-                                         { MVM_JIT_REG_VAL,     start },
-                                         { MVM_JIT_REG_VAL,     end   } };
-
-                /* First alloc + init the right object */
-                {
-                    if (((MVMObject*)type_facts->type)->st->mode_flags & MVM_FINALIZE_TYPE) {
-                        MVMSpeshIns *create          = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMSpeshIns));
-                        create->info                 = MVM_op_get_op(MVM_OP_create);
-                        create->operands             = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMSpeshOperand) * 2);
-                        create->operands[0].reg.orig = dst;
-                        create->operands[1].reg.orig = src;
-                        jg_append_primitive(tc, jg, create);
-                    }
-                    else {
-                        MVMSpeshIns *fastcreate          = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMSpeshIns));
-                        fastcreate->info                 = MVM_op_get_op(MVM_OP_sp_fastcreate);
-                        fastcreate->operands             = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMSpeshOperand) * 3);
-                        fastcreate->operands[0].reg.orig = dst;
-                        fastcreate->operands[1].lit_i16  = sizeof(MVMArray);
-                        fastcreate->operands[2].lit_i16  = MVM_spesh_add_spesh_slot_try_reuse(tc, jg->sg, (MVMCollectable *)((MVMObject*)type_facts->type)->st);
-                        jg_append_primitive(tc, jg, fastcreate);
-                        MVM_spesh_graph_add_comment(tc, iter->graph, ins, "JIT: fastcreated");
-                    }
-                }
-
-                jg_append_call_c(tc, jg, function, 7, args, MVM_JIT_RV_VOID, -1);
-                MVM_spesh_graph_add_comment(tc, iter->graph, ins, "JIT: devirtualized");
-                return 1;
-            }
             case MVM_OP_splice: {
                 MVMint16 invocant = ins->operands[0].reg.orig;
                 MVMint16 source   = ins->operands[1].reg.orig;
