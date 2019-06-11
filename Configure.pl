@@ -95,7 +95,7 @@ $args{optimize}     = 3 if not defined $args{optimize} or $args{optimize} eq "";
 $args{debug}        = 3 if defined $args{debug} and $args{debug} eq "";
 
 # Relocatability is not supported on AIX and OpenBSD.
-if ( $args{'relocatable'} == 1 && ($^O eq 'aix' || $^O eq 'openbsd') ) {
+if ( $args{relocatable} && ($^O eq 'aix' || $^O eq 'openbsd') ) {
     hardfail('Relocatability is not supported on ' . $^O .
     ".\n    Leave off the --relocatable flag to do a non-relocatable build.");
 }
