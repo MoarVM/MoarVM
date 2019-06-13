@@ -2,7 +2,7 @@
 
 #define CONFPROG_UNUSED_ENTRYPOINT 1
 
-#define OUTPUT_LOTS_OF_JUNK 1
+#define OUTPUT_LOTS_OF_JUNK 0
 
 #if OUTPUT_LOTS_OF_JUNK
 #define junkprint fprintf

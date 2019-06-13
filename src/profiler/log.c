@@ -113,6 +113,8 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
         /* If we didn't find a call graph node, then create one and add it to the
          * graph. */
         if (!pcn) {
+            if (was_entered_via_confprog)
+                ptd->current_call = ptd->call_graph;
             pcn = make_new_pcn(ptd, current_hrtime);
             pcn->sf = sf;
         }
