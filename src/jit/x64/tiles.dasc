@@ -486,6 +486,25 @@ MVM_JIT_TILE_DECL(add_load_idx) {
     }
 }
 
+MVM_JIT_TILE_DECL(add_num) {
+    MVMint8 out = REG_NUM(tile->values[0]);
+    MVMint8 in1 = REG_NUM(tile->values[1]);
+    | addsd xmm(out), xmm(in1);
+}
+
+MVM_JIT_TILE_DECL(sub_num) {
+    MVMint8 out = REG_NUM(tile->values[0]);
+    MVMint8 in1 = REG_NUM(tile->values[1]);
+    | subsd xmm(out), xmm(in1);
+}
+
+MVM_JIT_TILE_DECL(mul_num) {
+    MVMint8 out = REG_NUM(tile->values[0]);
+    MVMint8 in1 = REG_NUM(tile->values[1]);
+    | mulsd xmm(out), xmm(in1);
+}
+
+
 
 MVM_JIT_TILE_DECL(and_reg) {
     MVMint8 reg[2];

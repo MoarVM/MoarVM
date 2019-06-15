@@ -490,9 +490,9 @@ for my $expr_op (@EXPR_OPS) {
     for my $rs1 (sortn keys %{$table{$head}}) {
         for my $rs2 (sortn keys %{$table{$head}{$rs1}}) {
             my $state = $table{$head}{$rs1}{$rs2};
-            my $best  = $min_cost{$state,'reg'} // $min_cost{$state,'void'} // -1;
+            my $best; $best ||= $min_cost{$state,$_} for qw(reg num void);
             print sprintf('  { %s%s, %s, %s, %d, %d },',
-                          $PREFIX, $expr_op->[0], $rs1, $rs2, $state, $best);
+                          $PREFIX, $expr_op->[0], $rs1, $rs2, $state, $best || -1);
         }
     }
 }

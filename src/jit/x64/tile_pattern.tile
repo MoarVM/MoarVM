@@ -88,6 +88,9 @@
 (tile: sub_load_addr (sub reg (load (subr reg $ofs) $sz)) reg 6)
 (tile: sub_load_idx  (sub reg (load (idx reg reg $scale) $size)) reg 6)
 
+(tile: add_num       (add num num) num 2)
+(tile: sub_num       (sub num num) num 2)
+(tile: mul_num       (mul num num) num 2)
 
 #
 # Tests and Comparinsons

@@ -58,7 +58,7 @@ my %OPERATOR_TYPES = (
     (map { $_ => 'void' } qw(store store_num discard dov when ifv branch mark callv guard)),
     (map { $_ => 'flag' } qw(lt le eq ne ge gt nz zr all any)),
     (map { $_ => 'num' }  qw(const_num load_num)),
-    (map { $_ => '?' }    qw(if copy do)),
+    (map { $_ => '?' }    qw(if copy do add sub mul)),
     qw(arglist) x 2,
     qw(carg) x 2,
 );
@@ -150,7 +150,7 @@ sub link_declarations {
         for my $declaration (@$declarations) {
             my ($name, $definition) = @$declaration;
             link_declarations($definition, %env);
-            check_type(expr_type($definition), '?', $operator);
+            check_type(expr_type($definition, \%env), '?', $operator);
             $env{$name} = $definition;
             push @definitions, ['discard', $definition];
         }
@@ -230,7 +230,7 @@ sub expand_macro {
 sub expr_type {
     my ($expr, $env) = @_;
     # operand value; a reference (\$0) is always a reg
-    return $1 ? 'reg' : $env->{$2} || die "$2 is not declared"
+    return $1 ? 'reg' : $env->{$2} || confess "$2 is not declared"
         if ($expr =~ m/^(\\?)(\$\w+)$/);
     my ($operator, @operands) = @$expr;
     die "Expected operator but got $operator" if $operator =~ m/(^&)|(:$)/;
@@ -245,7 +245,15 @@ sub expr_type {
     } elsif ($operator eq 'copy') {
         return expr_type($operands[0], $env);
     } else {
-        return $OPERATOR_TYPES{$operator} || 'reg';
+        my $type = $OPERATOR_TYPES{$operator} || 'reg';
+        if ($type eq '?') {
+            my $subtype = expr_type($operands[0], $env);
+            for my $i (1..$#operands) {
+                check_type(expr_type($operands[$i], $env), $subtype, $operator);
+            }
+            return $subtype;
+        }
+        return $type;
     }
 }
 
@@ -466,10 +474,12 @@ sub parse_file {
             my (undef,$output) = pairgrep { $a eq 'w' } @{$OPLIST{$opcode}{operands}};
             die "No write operand for destructive template $opcode"
                 if $destructive && !$output;
-            $template = link_declarations($template);
+            my $operands = +{ moar_operands($opcode) };
+
+            $template = link_declarations($template, %$operands);
             $template = apply_macros($template, $macros);
 
-            my $operands = +{ moar_operands($opcode) };
+
             my $expr_type = expr_type($template, $operands);
 
             my $output_type = ($destructive || !$output) ?
