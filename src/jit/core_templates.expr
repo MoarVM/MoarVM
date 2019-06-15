@@ -156,6 +156,10 @@
 (template: sub_i (sub $1 $2))
 (template: mul_i (mul $1 $2))
 
+(template: add_n (add $1 $2))
+(template: sub_n (sub $1 $2))
+(template: mul_n (mul $1 $2))
+
 (template: inc_i (add $1 (^one)))
 (template: dec_i (sub $1 (^one)))
 
