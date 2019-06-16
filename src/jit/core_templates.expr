@@ -176,6 +176,12 @@
       (carg (tc) ptr)
       (carg $1   int)) ptr_sz))
 
+(template: coerce_ns
+  (call (^func &MVM_coerce_n_s)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 num)) ptr_sz))
+
 (template: coerce_si
   (call (^func &MVM_coerce_s_i)
     (arglist
