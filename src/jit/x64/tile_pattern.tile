@@ -51,12 +51,16 @@
 (tile: load_reg  (load reg $size) reg 5)
 (tile: load_addr (load (addr reg $ofs) $size) reg 5)
 (tile: load_idx  (load (idx reg reg $scale) $size) reg 5)
-(tile: load_num  (load_num reg $size) num 5)
+
+(tile: load_num       (load_num reg $size) num 5)
+(tile: load_num_addr  (load_num (addr reg $ofs) $size) num 5)
 
 (tile: store (store reg reg $size) void 5)
 (tile: store_addr (store (addr reg $ofs) reg $size) void 5)
 (tile: store_idx  (store (idx reg reg $scl) reg $size) void 5)
-(tile: store_num  (store reg num $size) void 5)
+
+(tile: store_num      (store reg num $size) void 5)
+(tile: store_num_addr (store (addr reg $ofs) num $size) void 5)
 
 (tile: cast_signed             (scast reg $to_size $from_size) reg 2)
 (tile: cast_unsigned           (ucast reg $to_size $from_size) reg 2)

@@ -127,10 +127,18 @@ MVM_JIT_TILE_DECL(load_idx) {
 }
 
 MVM_JIT_TILE_DECL(load_num) {
-    MVMint8 out = tile->values[0] - MVM_JIT_REG(XMM0);
+    MVMint8 out = REG_NUM(tile->values[0]);
     MVMint8 addr = tile->values[1];
     | movsd xmm(out), qword [Rq(addr)];
 }
+
+MVM_JIT_TILE_DECL(load_num_addr) {
+    MVMint8 out = REG_NUM(tile->values[0]);
+    MVMint8 addr = tile->values[1];
+    MVMint32 ofs  = tile->args[0];
+    | movsd xmm(out), qword [Rq(addr)+ofs];
+}
+
 
 MVM_JIT_TILE_DECL(store) {
     MVMint8 base  = tile->values[1];
@@ -208,6 +216,14 @@ MVM_JIT_TILE_DECL(store_num) {
     MVMint8 val =  tile->values[2] - MVM_JIT_REG(XMM0);
     | movsd qword [Rq(addr)], xmm(val);
 }
+
+MVM_JIT_TILE_DECL(store_num_addr) {
+    MVMint8 addr  = tile->values[1];
+    MVMint8 value = REG_NUM(tile->values[2]);
+    MVMint32 ofs  = tile->args[0];
+    | movsd qword [Rq(addr)+ofs], xmm(value);
+}
+
 
 MVM_JIT_TILE_DECL(cast_signed) {
     MVMint32 to_size   = tile->args[0];
