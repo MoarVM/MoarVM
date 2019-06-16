@@ -2,10 +2,12 @@
 use strict;
 use warnings;
 use FindBin;
-use lib $FindBin::Bin;
+use File::Spec;
+use lib File::Spec->catdir($FindBin::Bin, 'lib');
+
 use timeout qw(run_timeout);
 
-use File::Spec;
+
 use File::Temp qw(tempdir);
 use File::Copy qw(copy);
 use Getopt::Long;
@@ -13,7 +15,7 @@ use Getopt::Long;
 my %OPTIONS = (
     dir =>   '.',
     arch => 'x64',
-    timeout => undef
+    timeout => 0,
 );
 
 GetOptions(
@@ -26,7 +28,7 @@ delete @ENV{qw(
     MVM_JIT_DISABLE
     MVM_JIT_EXPR_DISABLE
 )};
-$ENV{MVM_SPESH_BLOCKING} = 1;
+$ENV{$_} = 1 for qw(MVM_SPESH_BLOCKING MVM_JIT_DUMP_BYTECODE MVM_JIT_DEBUG);
 
 die "--frame and --block required" unless $OPTIONS{frame} and $OPTIONS{block};
 my @command = @ARGV;
@@ -41,29 +43,14 @@ for my $frame (@{$OPTIONS{frame}}) {
     $ENV{MVM_JIT_EXPR_LAST_FRAME}    = $frame;
     for my $block (@{$OPTIONS{block}}) {
         $ENV{MVM_JIT_EXPR_LAST_BB} = $block;
-        my $log_directory = tempdir;
-        $ENV{MVM_JIT_BYTECODE_DIR} = $log_directory;
-        $ENV{MVM_JIT_LOG} = File::Spec->catfile($log_directory, 'jit-log.txt');
-        printf("Logging to directory: %s (frame %d block %d)\n", $log_directory, $frame, $block);
-
-        my $result = defined $timeout ?
-            run_timeout(\@command, $timeout) :
-            system @command;
-
-        if ($result == -1) {
-            local $" = " ";
-            die "Could not start `@command`: $!";
-        }
-
+        $ENV{MVM_SPESH_LOG} = sprintf('spesh-log-%04d-%04d.txt', $frame, $block);
+        my ($result, $pid) = run_timeout(\@command, $timeout);
+        my $log_directory = File::Spec->catdir(File::Spec->tmpdir, "moar-jit.$pid");
         my $filename = File::Spec->catfile($log_directory, sprintf('moar-jit-%04d.bin', $frame));
         printf("Want to copy: %s\n", $filename);
         my $bin_out  = File::Spec->catfile($dump_directory, sprintf('moar-jit-%04d-%04d.bin', $frame, $block));
-        my $log_out  = File::Spec->catfile($dump_directory, sprintf('moar-jit-%04d-%04d.log', $frame, $block));
         copy ($filename, $bin_out) or die "Could not copy binary: $!";
-        copy ($ENV{MVM_JIT_LOG}, $log_out) or die "Could not base log: $!";
-
         push @binary, $bin_out;
-
     }
 }
 

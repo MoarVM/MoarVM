@@ -154,7 +154,8 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     code->bytecode   = (MVMuint8*)MAGIC_BYTECODE;
 
     /* add sequence number */
-    code->seq_nr       = tc->instance->jit_seq_nr++;
+    code->seq_nr       = tc->instance->spesh_produced;
+
     /* by definition */
     code->ref_cnt      = 1;
 
