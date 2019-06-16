@@ -407,8 +407,8 @@ MVM_JIT_TILE_DECL(cast_unsigned_load_addr) {
 static void ensure_two_operand_pre(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile, MVMint8 reg[2]) {
     MVMint8 out = tile->values[0], in1 = tile->values[1], in2 = tile->values[2];
     assert(out == in1);
-    reg[0] = out;
-    reg[1] = in2;
+    reg[0] = REG_NUM(out);
+    reg[1] = REG_NUM(in2);
 }
 
 static void ensure_two_operand_post(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile, MVMint8 reg[2]) {
@@ -487,21 +487,24 @@ MVM_JIT_TILE_DECL(add_load_idx) {
 }
 
 MVM_JIT_TILE_DECL(add_num) {
-    MVMint8 out = REG_NUM(tile->values[0]);
-    MVMint8 in1 = REG_NUM(tile->values[1]);
-    | addsd xmm(out), xmm(in1);
+    MVMint8 reg[2];
+    ensure_two_operand_pre(tc, compiler, tile, reg);
+    | addsd xmm(reg[0]), xmm(reg[1]);
+    ensure_two_operand_post(tc, compiler, tile, reg);
 }
 
 MVM_JIT_TILE_DECL(sub_num) {
-    MVMint8 out = REG_NUM(tile->values[0]);
-    MVMint8 in1 = REG_NUM(tile->values[1]);
-    | subsd xmm(out), xmm(in1);
+    MVMint8 reg[2];
+    ensure_two_operand_pre(tc, compiler, tile, reg);
+    | subsd xmm(reg[0]), xmm(reg[1]);
+    ensure_two_operand_post(tc, compiler, tile, reg);
 }
 
 MVM_JIT_TILE_DECL(mul_num) {
-    MVMint8 out = REG_NUM(tile->values[0]);
-    MVMint8 in1 = REG_NUM(tile->values[1]);
-    | mulsd xmm(out), xmm(in1);
+    MVMint8 reg[2];
+    ensure_two_operand_pre(tc, compiler, tile, reg);
+    | mulsd xmm(reg[0]), xmm(reg[1]);
+    ensure_two_operand_post(tc, compiler, tile, reg);
 }
 
 
