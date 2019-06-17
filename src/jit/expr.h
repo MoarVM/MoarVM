@@ -84,7 +84,8 @@ enum MVMJitExprOperator MVM_jit_expr_op_invert_comparison(enum MVMJitExprOperato
 MVMint32 MVM_jit_expr_op_is_binary(enum MVMJitExprOperator op);
 MVMint32 MVM_jit_expr_op_is_unary(enum MVMJitExprOperator op);
 MVMint32 MVM_jit_expr_op_is_commutative(enum MVMJitExprOperator op);
-
+MVMint32 MVM_jit_expr_op_is_call(enum MVMJitExprOperator op);
+const char * MVM_jit_expr_operator_name(MVMThreadContext *tc, enum MVMJitExprOperator operator);
 
 MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIterator *iter);
 MVMint32 MVM_jit_expr_apply_template(MVMThreadContext *tc, MVMJitExprTree *tree, const MVMJitExprTemplate*, MVMint32 *operands);
@@ -93,13 +94,11 @@ void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree, MVMJ
 void MVM_jit_expr_tree_destroy(MVMThreadContext *tc, MVMJitExprTree *tree);
 MVMint32 MVM_jit_expr_tree_get_nodes(MVMThreadContext *tc, MVMJitExprTree *tree,
                                      MVMint32 node, const char *path, MVMint32 *buffer);
-const char * MVM_jit_expr_operator_name(MVMThreadContext *tc, enum MVMJitExprOperator operator);
 
 
 MVM_STATIC_INLINE MVMJitExprInfo * MVM_JIT_EXPR_INFO(MVMJitExprTree *tree, MVMint32 node) {
     return (MVMJitExprInfo*)(tree->nodes + node + 1);
 }
-
 
 MVM_STATIC_INLINE MVMuint8 MVM_JIT_EXPR_NCHILD(MVMJitExprTree *tree, MVMint32 node) {
     return MVM_JIT_EXPR_INFO(tree, node)->num_links;

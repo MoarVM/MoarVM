@@ -57,7 +57,7 @@ END {
 my %OPERATOR_TYPES = (
     (map { $_ => 'void' } qw(store store_num discard dov when ifv branch mark callv guard)),
     (map { $_ => 'flag' } qw(lt le eq ne ge gt nz zr all any)),
-    (map { $_ => 'num' }  qw(const_num load_num)),
+    (map { $_ => 'num' }  qw(const_num load_num calln)),
     (map { $_ => '?' }    qw(if copy do add sub mul)),
     qw(arglist) x 2,
     qw(carg) x 2,
@@ -76,6 +76,7 @@ my %OPERAND_TYPES = (
     if => 'flag,?,?',
     ifv => 'flag,void,void',
     call => 'reg,arglist',
+    calln => 'reg,arglist',
     callv => 'reg,arglist',
     arglist => 'carg',
     carg => '?',

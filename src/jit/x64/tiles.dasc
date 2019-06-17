@@ -911,7 +911,11 @@ MVM_JIT_TILE_DECL(branch_label) {
 static void move_call_value(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile) {
     if (MVM_JIT_TILE_YIELDS_VALUE(tile)) {
         MVMint8 out = tile->values[0];
-        | mov Rq(out), rax;
+        if (IS_GPR(out)) {
+            | mov Rq(out), rax;
+        } else {
+            | movsd xmm(REG_NUM(out)), xmm0;
+        }
     }
 }
 

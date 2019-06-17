@@ -66,7 +66,8 @@
     _(LABEL, 0, 1),  \
     _(MARK, 0, 1), \
     /* call c functions */ \
-    _(CALL, 2, 1),      \
+    _(CALL, 2, 1), \
+    _(CALLN, 2, 0), \
     _(CALLV, 2, 0), \
     _(ARGLIST, -1, 0), \
     _(CARG, 1, 1),     \
