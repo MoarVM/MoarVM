@@ -121,7 +121,7 @@
     (when (any
            (^not_repr_id ,decoder MVM_REPR_ID_Decoder)
            (zr (flagval (^is_conc_obj ,decoder))))
-	(^throw_adhoc (&CAT3 "Operation '" ,op "'can only work on an object with the Decoder representation"))))
+       (^throw_adhoc (&CAT3 "Operation '" ,op "'can only work on an object with the Decoder representation"))))
 
 (macro: ^zero () (const 0 int_sz))
 (macro: ^one  () (const 1 int_sz))

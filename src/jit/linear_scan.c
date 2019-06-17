@@ -1032,11 +1032,9 @@ MVM_STATIC_INLINE void process_tile(MVMThreadContext *tc, RegisterAllocator *alc
     if (tile->op == MVM_JIT_ARGLIST) {
         MVMint32 arglist_idx = tile_cursor;
         MVMint32 call_idx    = tile_cursor + 1;
-        _ASSERT(call_idx < list->items_num &&
-                (list->items[call_idx]->op == MVM_JIT_CALL ||
-                 list->items[call_idx]->op == MVM_JIT_CALLV),
+        _ASSERT(call_idx < list->items_num && MVM_jit_expr_op_is_call(list->items[call_idx]->op),
                 "ARGLIST tiles must be followed by CALL");
-    } else if (tile->op == MVM_JIT_CALL || tile->op == MVM_JIT_CALLV) {
+    } else if (MVM_jit_expr_op_is_call(tile->op)) {
         MVMint32 arglist_idx = tile_cursor - 1;
         MVMint32 call_idx    = tile_cursor;
         _ASSERT(tile_cursor > 0 && list->items[tile_cursor - 1]->op == MVM_JIT_ARGLIST,

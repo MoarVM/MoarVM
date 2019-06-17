@@ -122,6 +122,16 @@ MVMint32 MVM_jit_expr_op_is_commutative(enum MVMJitExprOperator op) {
     }
 }
 
+MVMint32 MVM_jit_expr_op_is_call(enum MVMJitExprOperator op) {
+    switch (op) {
+    case MVM_JIT_CALL:
+    case MVM_JIT_CALLV:
+    case MVM_JIT_CALLN:
+        return 1;
+    default:
+        return 0;
+    }
+}
 
 
 static MVMint32 MVM_jit_expr_add_regaddr(MVMThreadContext *tc, MVMJitExprTree *tree,
@@ -542,6 +552,9 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         }
     case MVM_JIT_CALL:
         node_size = args[0];
+        break;
+    case MVM_JIT_CALLN:
+        node_size = sizeof(MVMnum64);
         break;
     case MVM_JIT_NZ:
     case MVM_JIT_ZR:

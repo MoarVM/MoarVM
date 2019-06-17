@@ -141,9 +141,11 @@
 
 (tile: call      (call  reg c_args $size) reg 4)
 (tile: call      (callv reg c_args) void 4)
+(tile: call      (calln reg c_args) num 4)
 
 (tile: call_func (call  (const_ptr $ptr) c_args $size) reg 4)
 (tile: call_func (callv (const_ptr $ptr) c_args) void 4)
+(tile: call_func (calln (const_prt $ptr) c_args) num 4)
 
 (tile: call_addr (call  (load (addr reg $ofs) $sz) c_args $size) reg 4)
 (tile: call_addr (callv (load (addr reg $ofs) $sz) c_args) void 4)

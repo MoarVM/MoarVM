@@ -188,6 +188,12 @@
       (carg (tc) ptr)
       (carg $1   ptr)) int_sz))
 
+(template: coerce_sn
+  (calln (^func &MVM_coerce_s_n)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr))))
+
 (template: smrt_intify!
   (callv (^func &MVM_coerce_smart_intify)
     (arglist
