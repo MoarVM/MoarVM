@@ -820,6 +820,12 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 cur_op += 8;
                 goto NEXT;
             }
+            OP(eqatic_s):
+                GET_REG(cur_op, 0).i64 = MVM_string_equal_at_ignore_case(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
+                    GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
             OP(eq_i):
                 GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 == GET_REG(cur_op, 4).i64;
                 cur_op += 6;
@@ -898,6 +904,10 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(chars):
+                GET_REG(cur_op, 0).i64 = MVM_string_graphs(tc, GET_REG(cur_op, 2).s);
+                cur_op += 4;
+                goto NEXT;
             default:
                 fprintf(stderr, "operation %s (%d, 0x%x) NYI\n", MVM_op_get_op(ins)->name, ins, ins);
                 goto finish_main_loop;
