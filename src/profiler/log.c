@@ -64,24 +64,24 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
             if (sf->body.instrumentation && tc->instance->confprog) {
                 MVMStaticFrameInstrumentation *instrumentation = sf->body.instrumentation;
                 if (instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_NEVER) {
-                    fprintf(stderr, "encountered a 'never profile' SF\n");
+                    /*fprintf(stderr, "encountered a 'never profile' SF\n");*/
                     goto confprog_refused_enter;
                 }
                 else if (instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_TO_BE_DETERMINED) {
                     if (MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC)) {
                         MVMuint8 result;
-                        fprintf(stderr, "confprog setting was already 'to be determined'\n");
+                        /*fprintf(stderr, "confprog setting was already 'to be determined'\n");*/
                         result = MVM_confprog_run(tc, (void *)sf, MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC, MVM_CONFPROG_SF_RESULT_ALWAYS);
                         instrumentation->profiler_confprog_result = result;
                         if (result == MVM_CONFPROG_SF_RESULT_NEVER) {
-                            fprintf(stderr, "configured a 'never profile' SF with confprog\n");
+                            /*fprintf(stderr, "configured a 'never profile' SF with confprog\n");*/
                             goto confprog_refused_enter;
                         }
-                        fprintf(stderr, "configured a %d SF\n", result);
+                        /*fprintf(stderr, "configured a %d SF\n", result);*/
                     }
                     else if (MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_PROFILER_DYNAMIC)) {
                         instrumentation->profiler_confprog_result = MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES;
-                        fprintf(stderr, "configured a 'consider dynamic confprog' SF (because no static prog installed)\n");
+                        /*fprintf(stderr, "configured a 'consider dynamic confprog' SF (because no static prog installed)\n");*/
                     }
                     else {
                         MVM_oops(tc, "here we are, what now?");
@@ -89,22 +89,22 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
                 }
                 if (instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_NO
                         || instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES) {
-                    fprintf(stderr, "confprog result is 'please run dynamic code'\n");
+                    /*fprintf(stderr, "confprog result is 'please run dynamic code'\n");*/
                     if (MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_PROFILER_DYNAMIC)) {
                         if (!MVM_confprog_run(tc, (void *)tc->cur_frame, MVM_PROGRAM_ENTRYPOINT_PROFILER_DYNAMIC, instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES)) {
-                            fprintf(stderr, "ran a dynamic confprog for frame, but it said no\n");
+                            /*fprintf(stderr, "ran a dynamic confprog for frame, but it said no\n");*/
                             goto confprog_refused_enter;
                         }
-                        fprintf(stderr, "ran a dynamic confprog for frame, and it said yes\n");
+                        /*fprintf(stderr, "ran a dynamic confprog for frame, and it said yes\n");*/
                     }
                     else {
-                        fprintf(stderr, "sf result was to consider a dynamic confprog, but none was installed\n");
+                        /*fprintf(stderr, "sf result was to consider a dynamic confprog, but none was installed\n");*/
                         goto confprog_refused_enter;
                     }
                 }
             }
             was_entered_via_confprog = 1;
-            fprintf(stderr, "%p entered %p via confprog; nctd is %d\n", tc, sf, ptd->non_calltree_depth);
+            /*fprintf(stderr, "%p entered %p via confprog; nctd is %d\n", tc, sf, ptd->non_calltree_depth);*/
         }
         /*else {*/
             /*fprintf(stderr, "there actually was a current_call. also, pcn is %p\n", pcn);*/
