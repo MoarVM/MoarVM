@@ -2,6 +2,21 @@
 
 #include <math.h>
 
+/* This file contains the "confprog" validator and interpreter.
+ *
+ * It is there to allow users to give specific behaviour to a few internal
+ * systems of moarvm.
+ *
+ * At the start, it's for configuring for what static frames (or frames)
+ * the profiler should start profiling (if it isn't already profiling), and
+ * for configuring when the heap snapshot profiler should take a snapshot
+ *
+ * There is a Perl 6 module that offers a confprog compiler named
+ * App::MoarVM::ConfprogCompiler, and nqp's src/vm/moar/HLL/Backend.nqp
+ * has a corresponding loader. The nqp and perl6 commandline programs
+ * recognize a --confprog flag.
+ */
+
 #define CONFPROG_UNUSED_ENTRYPOINT 1
 
 #define OUTPUT_LOTS_OF_JUNK 0
