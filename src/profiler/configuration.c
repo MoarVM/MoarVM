@@ -207,12 +207,12 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
                 /*junkprint(stderr, "op %s (%d) is allowed\n", MVM_op_get_op(op)->name, op);*/
             /*}*/
         /*}*/
-        MVM_exception_throw_adhoc(tc, "Invalid opcode detected in confprog: %d (%s) at position 0x%x",
+        MVM_exception_throw_adhoc(tc, "Invalid opcode detected in confprog: %d (%s) at position 0x%lx",
                 opcode, MVM_op_get_op(opcode)->name, state->bc_pointer - state->bytecode_root);
     }
     info = MVM_op_get_op(opcode);
     if (!info)
-        MVM_exception_throw_adhoc(tc, "Invalid opcode detected in confprog: %d  at position 0x%x",
+        MVM_exception_throw_adhoc(tc, "Invalid opcode detected in confprog: %d  at position 0x%lx",
                 opcode, state->bc_pointer - state->bytecode_root);
 
     state->prev_op = state->cur_op;
@@ -667,6 +667,7 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                     }
                     else {
                         fprintf(stderr, "NYI case of getattr_o on root struct hit\n");
+                        goto finish_main_loop;
                     }
                 }
                 else {
@@ -882,8 +883,10 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 MVMint64 denom = GET_REG(cur_op, 4).i64;
                 /* if we have a negative result, make sure we floor rather
                  * than rounding towards zero. */
-                if (denom == 0)
-                    MVM_exception_throw_adhoc(tc, "Division by zero");
+                if (denom == 0) {
+                    fprintf(stderr, "division by zero in confprog\n");
+                    goto finish_main_loop;
+                }
                 if ((num < 0) ^ (denom < 0)) {
                     if ((num % denom) != 0) {
                         GET_REG(cur_op, 0).i64 = num / denom - 1;
