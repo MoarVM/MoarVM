@@ -820,6 +820,30 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 cur_op += 8;
                 goto NEXT;
             }
+            OP(eq_i):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 == GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            OP(ne_i):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 != GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            OP(lt_i):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 <  GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            OP(le_i):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 <= GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            OP(gt_i):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 >  GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            OP(ge_i):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 >= GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
             OP(add_i):
                 GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 + GET_REG(cur_op, 4).i64;
                 cur_op += 6;
