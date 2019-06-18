@@ -861,3 +861,33 @@ void MVM_profile_instrumented_mark_data(MVMThreadContext *tc, MVMGCWorklist *wor
         MVM_free(nodelist.list);
     }
 }
+
+static void dump_callgraph_node(MVMThreadContext *tc, MVMProfileCallNode *n, MVMuint16 depth) {
+    MVMuint16 dc = depth;
+    MVMuint32 idx;
+    char *name;
+
+    for (dc = depth; dc > 0; dc--) {
+        fputc(' ', stderr);
+    }
+
+    if (n->sf)
+        name = MVM_string_utf8_encode_C_string(tc, n->sf->body.name);
+
+    fprintf(stderr, "+ [%3d] %s\n", n->num_succ, name);
+    MVM_free(name);
+
+    for (idx = 0; idx < n->num_succ; idx++) {
+        dump_callgraph_node(tc, n->succ[idx], depth + 1);
+    }
+}
+
+void MVM_dump_callgraph(MVMThreadContext *tc) {
+    MVMProfileThreadData *ptd = tc->prof_data;
+    MVMProfileCallNode *pcn = ptd->call_graph;
+    fprintf(stderr, "\n----------\nCall Graph of TC %p\n\n", tc);
+    if (pcn && pcn->num_succ) {
+        dump_callgraph_node(tc, pcn, 0);
+    }
+    fprintf(stderr, "\n<<<<<<\n");
+}

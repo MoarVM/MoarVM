@@ -12,6 +12,10 @@
 #define MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES 3
 #define MVM_CONFPROG_SF_RESULT_ALWAYS 4
 
+#define MVM_CONFPROG_HEAPSNAPSHOT_RESULT_NOTHING 0
+#define MVM_CONFPROG_HEAPSNAPSHOT_RESULT_SNAPSHOT 1
+#define MVM_CONFPROG_HEAPSNAPSHOT_RESULT_STATS 2
+
 struct MVMConfigurationProgramEntryPoint {
     MVMuint32 offset;
 };
@@ -27,6 +31,10 @@ struct MVMConfigurationProgram {
     MVMuint32 bytecode_length;
 
     MVMint16 entrypoints[MVM_PROGRAM_ENTRYPOINT_COUNT];
+
+    AO_t return_counts[16];
+    AO_t last_return_time[16];
+    AO_t invoke_counts[MVM_PROGRAM_ENTRYPOINT_COUNT];
 };
 
 MVMuint8 MVM_confprog_has_entrypoint(MVMThreadContext *tc, MVMuint8 entrypoint);

@@ -1,5 +1,7 @@
 #include "moar.h"
 
+#include <math.h>
+
 #define CONFPROG_UNUSED_ENTRYPOINT 1
 
 #define OUTPUT_LOTS_OF_JUNK 0
@@ -219,7 +221,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
         junkprint(stderr, "after validating const_s, %x, before %x, diff %x\n", state->bc_pointer, prev_op_bc_ptr, state->bc_pointer - prev_op_bc_ptr);
 
         if (reg_num == REGISTER_STRUCT_SELECT) {
-            MVMObject *string_at_position = MVM_repr_at_pos_s(tc, state->confprog->string_heap, string_idx);
+            MVMObject *string_at_position = (MVMObject *)MVM_repr_at_pos_s(tc, state->confprog->string_heap, string_idx);
             MVMuint64 string_length;
 
             if (MVM_is_null(tc, string_at_position)) {
@@ -227,7 +229,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
                         string_idx);
             }
 
-            string_length = MVM_string_graphs(tc, string_at_position);
+            string_length = MVM_string_graphs(tc, (MVMString *)string_at_position);
             switch (string_length) {
                 case 0:
                     state->selected_struct_source = StructSel_Root;
@@ -293,8 +295,8 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
         junkprint(stderr, "currently on %d struct source, string index is %d\n", selected_struct_source, string_idx);
 
         if (source_reg_num == REGISTER_STRUCT_ACCUMULATOR) {
-            MVMObject *string_at_position = MVM_repr_at_pos_s(tc, state->confprog->string_heap, string_idx);
-            MVMuint64 string_length = MVM_string_graphs(tc, string_at_position);
+            MVMObject *string_at_position = (MVMObject *)MVM_repr_at_pos_s(tc, state->confprog->string_heap, string_idx);
+            MVMuint64 string_length = MVM_string_graphs(tc, (MVMString *)string_at_position);
             /* Special "fake" getattr */
             if (selected_struct_source == StructSel_Root) {
                 junkprint(stderr, "hint pointer will select a root struct entry\n");
@@ -314,10 +316,10 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
                     *hintptr = offsetof(MVMStaticFrame, body.name);
                 }
                 else if (string_length == 5) { /* cuuid, outer */
-                    if (MVM_string_ord_at(tc, string_at_position, 0) == 'c') {
+                    if (MVM_string_ord_at(tc, (MVMString *)string_at_position, 0) == 'c') {
                         *hintptr = offsetof(MVMStaticFrame, body.cuuid);
                     }
-                    else if (MVM_string_ord_at(tc, string_at_position, 0) == 'o') {
+                    else if (MVM_string_ord_at(tc, (MVMString *)string_at_position, 0) == 'o') {
                         *hintptr = offsetof(MVMStaticFrame, body.outer);
                     }
                     else {
@@ -330,10 +332,10 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
             }
             else if (selected_struct_source == StructSel_MVMCompUnit) {
                 if (string_length == 8) { /* filename or hll_name */
-                    if (MVM_string_ord_at(tc, string_at_position, 0) == 'f') {
+                    if (MVM_string_ord_at(tc, (MVMString *)string_at_position, 0) == 'f') {
                         *hintptr = offsetof(MVMCompUnit, body.filename);
                     }
-                    else if (MVM_string_ord_at(tc, string_at_position, 0) == 'h') {
+                    else if (MVM_string_ord_at(tc, (MVMString *)string_at_position, 0) == 'h') {
                         *hintptr = offsetof(MVMCompUnit, body.hll_name);
                     }
                     else {
@@ -352,7 +354,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
     }
     else if (opcode == MVM_OP_getcodelocation) {
         MVMuint16 new_opcode;
-        MVMOpInfo *new_info;
+        const MVMOpInfo *new_info;
 
         validate_operand(tc, state, 0, state->cur_op->operands[0]);
         validate_operand(tc, state, 1, state->cur_op->operands[1]);
@@ -433,6 +435,32 @@ static void error_concreteness(MVMThreadContext *tc, MVMObject *object, MVMuint1
     else
         MVM_exception_throw_adhoc(tc, "installconfprog requires a concrete %s for %s (got a type objecd %s (a %s) instead)",
             MVM_repr_get_by_id(tc, reprid)->name, purpose, MVM_6model_get_debug_name(tc, object), REPR(object)->name);
+}
+
+MVMint16 stats_position_for_value(MVMThreadContext *tc, MVMuint8 entrypoint, MVMuint64 return_value) {
+    switch (entrypoint) {
+        case MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC:
+            if (return_value >= MVM_CONFPROG_SF_RESULT_TO_BE_DETERMINED && return_value <= MVM_CONFPROG_SF_RESULT_ALWAYS) {
+                return return_value;
+            }
+            if (tc)
+                MVM_exception_throw_adhoc(tc, "Can't get stats for out-of-bounds entrypoint number %d", entrypoint);
+            return -1;
+        case MVM_PROGRAM_ENTRYPOINT_PROFILER_DYNAMIC:
+            if (return_value == 0 || return_value == 1)
+                return MVM_CONFPROG_SF_RESULT_ALWAYS + 1 + return_value;
+            MVM_exception_throw_adhoc(tc, "Can't get stats for out-of-bounds value %d for dynamic profiler entrypoint", return_value);
+            return -1;
+        case MVM_PROGRAM_ENTRYPOINT_HEAPSNAPSHOT:
+            if (return_value >= 0 && return_value <= 2)
+                return MVM_CONFPROG_SF_RESULT_ALWAYS + 1 + 1 + 1 + return_value;
+            MVM_exception_throw_adhoc(tc, "Can't get stats for out-of-bounds value %d for heapsnapshot entrypoint", return_value);
+            return -1;
+        default:
+            if (tc)
+                MVM_exception_throw_adhoc(tc, "Can't get stats for out-of-bounds entrypoint number %d", entrypoint);
+            return -1;
+    }
 }
 
 void MVM_confprog_install(MVMThreadContext *tc, MVMObject *bytecode, MVMObject *string_array, MVMObject *entrypoints) {
@@ -544,6 +572,8 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
     MVMuint8 *last_op;
     MVMint64 result;
 
+    MVMint16 stats_slot;
+
     MVMuint8 *bytecode_start;
 
     CPRegister *reg_base = MVM_calloc(prog->reg_count + 1, sizeof(CPRegister));
@@ -556,6 +586,8 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
 
     junkprint(stderr, "running confprog for entrypoint %d (at position %d)\n", entrypoint, prog->entrypoints[entrypoint]);
     junkprint(stderr, "confprog is 0x%x (%d) bytes big", last_op - bytecode_start, last_op - bytecode_start);
+
+    MVM_incr(&prog->invoke_counts[entrypoint]);
 
     runloop: {
         MVMuint16 ins;
@@ -670,11 +702,78 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
                 cur_op += 6;
                 goto NEXT;
+            OP(add_n):
+                GET_REG(cur_op, 0).n64 = GET_REG(cur_op, 2).n64 + GET_REG(cur_op, 4).n64;
+                cur_op += 6;
+                goto NEXT;
+            OP(sub_n):
+                GET_REG(cur_op, 0).n64 = GET_REG(cur_op, 2).n64 - GET_REG(cur_op, 4).n64;
+                cur_op += 6;
+                goto NEXT;
+            OP(mul_n):
+                GET_REG(cur_op, 0).n64 = GET_REG(cur_op, 2).n64 * GET_REG(cur_op, 4).n64;
+                cur_op += 6;
+                goto NEXT;
+            OP(div_n):
+                GET_REG(cur_op, 0).n64 = GET_REG(cur_op, 2).n64 / GET_REG(cur_op, 4).n64;
+                cur_op += 6;
+                goto NEXT;
+            OP(mod_n): {
+                MVMnum64 a = GET_REG(cur_op, 2).n64;
+                MVMnum64 b = GET_REG(cur_op, 4).n64;
+                GET_REG(cur_op, 0).n64 = b == 0 ? a : a - b * floor(a / b);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(neg_n):
+                GET_REG(cur_op, 0).n64 = -GET_REG(cur_op, 2).n64;
+                cur_op += 4;
+                goto NEXT;
+            OP(abs_n):
+                GET_REG(cur_op, 0).n64 = fabs(GET_REG(cur_op, 2).n64);
+                cur_op += 4;
+                goto NEXT;
+            OP(pow_n):
+                GET_REG(cur_op, 0).n64 = pow(GET_REG(cur_op, 2).n64, GET_REG(cur_op, 4).n64);
+                cur_op += 6;
+                goto NEXT;
+            OP(ceil_n):
+                GET_REG(cur_op, 0).n64 = ceil(GET_REG(cur_op, 2).n64);
+                cur_op += 4;
+                goto NEXT;
+            OP(floor_n):
+                GET_REG(cur_op, 0).n64 = floor(GET_REG(cur_op, 2).n64);
+                cur_op += 4;
+                goto NEXT;
+            OP(coerce_in):
+                GET_REG(cur_op, 0).n64 = (MVMnum64)GET_REG(cur_op, 2).i64;
+                cur_op += 4;
+                goto NEXT;
+            OP(coerce_ni):
+                GET_REG(cur_op, 0).i64 = (MVMint64)GET_REG(cur_op, 2).n64;
+                cur_op += 4;
+                goto NEXT;
+            OP(coerce_is):
+                GET_REG(cur_op, 0).s = MVM_coerce_i_s(tc, GET_REG(cur_op, 2).i64);
+                cur_op += 4;
+                goto NEXT;
+            OP(coerce_ns):
+                GET_REG(cur_op, 0).s = MVM_coerce_n_s(tc, GET_REG(cur_op, 2).n64);
+                cur_op += 4;
+                goto NEXT;
+            OP(coerce_si):
+                GET_REG(cur_op, 0).i64 = MVM_coerce_s_i(tc, GET_REG(cur_op, 2).s);
+                cur_op += 4;
+                goto NEXT;
+            OP(coerce_sn):
+                GET_REG(cur_op, 0).n64 = MVM_coerce_s_n(tc, GET_REG(cur_op, 2).s);
+                cur_op += 4;
+                goto NEXT;
             OP(smrt_strify): {
                 /* Increment PC before calling coercer, as it may make
                  * a method call to get the result. */
                 MVMObject   *obj = GET_REG(cur_op, 2).o;
-                MVMRegister *res = &GET_REG(cur_op, 0);
+                MVMRegister *res = (MVMRegister *)&GET_REG(cur_op, 0);
                 cur_op += 4;
                 MVM_coerce_smart_stringify(tc, obj, res);
                 goto NEXT;
@@ -696,6 +795,10 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                     cur_op = bytecode_start + GET_UI32(cur_op, 2);
                 else
                     cur_op += 6;
+                goto NEXT;
+            OP(time_i):
+                GET_REG(cur_op, 0).i64 = MVM_proc_time_i(tc);
+                cur_op += 2;
                 goto NEXT;
             OP(exit): {
                 MVMint64 exit_code = GET_REG(cur_op, 0).i64;
@@ -756,7 +859,7 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
             OP(getcodelocation): {
                 MVMuint32 line_out = 0;
                 MVMString *file_out = NULL;
-                MVMObject *code_obj = ((MVMStaticFrame *)reg_base[REGISTER_STRUCT_ACCUMULATOR].any)->body.static_code;
+                MVMObject *code_obj = (MVMObject *)((MVMStaticFrame *)reg_base[REGISTER_STRUCT_ACCUMULATOR].any)->body.static_code;
                 cur_op += 4;
                 /* The verifier will have made sure the code doesn't end yet */
                 ins = *((MVMuint16 *)cur_op);
@@ -781,6 +884,13 @@ finish_main_loop:
 
     result = reg_base[REGISTER_FEATURE_TOGGLE].i64;
     MVM_free(reg_base);
+
+    stats_slot = stats_position_for_value(NULL, entrypoint, result);
+
+    if (stats_slot != -1) {
+        MVM_store(&prog->last_return_time[stats_slot], (AO_t)MVM_proc_time_n(tc));
+        MVM_incr(&prog->return_counts[stats_slot]);
+    }
 
     junkprint(stderr, "confprog result value: %lld\n\n", result);
 

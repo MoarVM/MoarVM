@@ -6631,7 +6631,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
         MVM_OP_DEPRECATED_27,
@@ -10673,7 +10673,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_int32 }
+        { MVM_operand_write_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_eqaticim_s,
@@ -12859,13 +12859,13 @@ static const MVMOpInfo MVM_op_infos[] = {
 
 static const unsigned short MVM_op_counts = 919;
 
-static const MVMuint16 last_op_allowed = 820;
+static const MVMuint16 last_op_allowed = 822;
 
 static const MVMuint8 MVM_op_allowed_in_confprog[] = {
     0xD1, 0x1, 0x80, 0x3,
     0x0, 0x0, 0x0, 0xFF,
     0xFF, 0xF0, 0xCB, 0xFF,
-    0x6F, 0x0, 0xA0, 0x7F,
+    0x6F, 0x0, 0xA0, 0x1F,
     0x0, 0x0, 0x0, 0x0,
     0x0, 0x0, 0x0, 0x0,
     0xF0, 0xFF, 0xEF, 0x7,
@@ -12877,7 +12877,7 @@ static const MVMuint8 MVM_op_allowed_in_confprog[] = {
     0x40, 0x0, 0x0, 0x0,
     0x0, 0x0, 0x0, 0x0,
     0x0, 0x0, 0x0, 0x0,
-    0x0, 0x80, 0x80, 0x43,
+    0x0, 0x80, 0x80, 0x63,
     0x7, 0x1, 0x20, 0x0,
     0x0, 0x0, 0x0, 0x0,
     0x0, 0x0, 0x60, 0x0,

@@ -181,8 +181,8 @@ coerce_is           w(str) r(int64) :pure :confprog
 coerce_ns           w(str) r(num64) :pure :confprog
 coerce_si           w(int64) r(str) :pure :confprog
 coerce_sn           w(num64) r(str) :pure :confprog
-smrt_numify         w(num64) r(obj) :pure :invokish :maycausedeopt :specializable :confprog
-smrt_strify         w(str) r(obj) :pure :invokish :maycausedeopt :specializable :confprog
+smrt_numify         w(num64) r(obj) :pure :invokish :maycausedeopt :specializable
+smrt_strify         w(str) r(obj) :pure :invokish :maycausedeopt :specializable
 prepargs         +a callsite :predeoptonepoint
 arg_i            *a int16 r(int64)
 arg_n            *a int16 r(num64)
@@ -530,7 +530,7 @@ read_dir            w(str) r(obj)
 close_dir           r(obj)
 open_fh             w(obj) r(str) r(str)
 close_fh            r(obj)
-open_ex_fh          w(obj) r(str) r(str)
+DEPRECATED_23       w(obj) r(str) r(str)
 DEPRECATED_27       w(str) r(str) r(str)
 DEPRECATED_28       r(str) r(str) r(str)
 DEPRECATED_18       w(int64) r(obj) r(str)
@@ -566,7 +566,7 @@ time_i              w(int64) :pure :confprog
 sleep               r(num64)
 newthread           w(obj) r(obj) r(int64)
 threadjoin          r(obj)
-time_n              w(num64) :pure
+time_n              w(num64) :pure :confprog
 exit                r(int64) :confprog
 DEPRECATED_30       w(int64) r(str) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
 cwd                 w(str) :pure :confprog

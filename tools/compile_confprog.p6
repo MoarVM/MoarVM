@@ -683,35 +683,6 @@ say "lexpad";
 say "";
 ddt %*LEXPAD;
 
-enum SpecialRegister <
-    STRUCT_SELECT
-    STRUCT_ACCUMULATOR
-    FEATURE_TOGGLE
->;
-
-enum RegisterType <
-    RegMVMObject
-    RegStruct
-    RegInteger
-    RegString
-    RegCString
-    RegNum
->;
-
-my %CPTypeToRegType := :{
-    CPInt => RegInteger,
-    CPString => RegString,
-};
-
-sub to-reg-type($type) {
-    with %CPTypeToRegType{$type} {
-        return $_
-    }
-    return RegStruct;
-}
-
-constant $custom_reg_base = +SpecialRegister::.keys;
-
 my $*REGALLOC = class {
     has @!types;
     has @!usage;
