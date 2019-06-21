@@ -388,7 +388,7 @@ static MVMAsyncTask * write_bytes_to(MVMThreadContext *tc, MVMOSHandle *h, MVMOb
     /* Resolve destination and create async task handle. */
     MVMROOT4(tc, queue, schedulee, h, buffer, {
         MVMROOT(tc, async_type, {
-            dest_addr = MVM_io_resolve_host_name(tc, host, port);
+            dest_addr = MVM_io_resolve_host_name(tc, host, port, SOCKET_FAMILY_UNSPEC);
         });
         task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, async_type);
     });
@@ -577,7 +577,7 @@ MVMObject * MVM_io_socket_udp_async(MVMThreadContext *tc, MVMObject *queue,
     /* Resolve hostname. (Could be done asynchronously too.) */
     if (host && IS_CONCRETE(host)) {
         MVMROOT3(tc, queue, schedulee, async_type, {
-            bind_addr = MVM_io_resolve_host_name(tc, host, port);
+            bind_addr = MVM_io_resolve_host_name(tc, host, port, SOCKET_FAMILY_UNSPEC);
         });
     }
 

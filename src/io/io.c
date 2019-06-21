@@ -304,12 +304,12 @@ void MVM_io_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset)
         MVM_exception_throw_adhoc(tc, "Cannot truncate this kind of handle");
 }
 
-void MVM_io_connect(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port) {
+void MVM_io_connect(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port, MVMuint16 family) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "connect");
     if (handle->body.ops->sockety) {
         MVMROOT2(tc, host, handle, {
             uv_mutex_t *mutex = acquire_mutex(tc, handle);
-            handle->body.ops->sockety->connect(tc, handle, host, port);
+            handle->body.ops->sockety->connect(tc, handle, host, port, family);
             release_mutex(tc, mutex);
         });
     }
@@ -317,12 +317,12 @@ void MVM_io_connect(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, 
         MVM_exception_throw_adhoc(tc, "Cannot connect this kind of handle");
 }
 
-void MVM_io_bind(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port, MVMint32 backlog) {
+void MVM_io_bind(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port, MVMuint16 family, MVMint32 backlog) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "bind");
     if (handle->body.ops->sockety) {
         MVMROOT2(tc, host, handle, {
             uv_mutex_t *mutex = acquire_mutex(tc, handle);
-            handle->body.ops->sockety->bind(tc, handle, host, port, backlog);
+            handle->body.ops->sockety->bind(tc, handle, host, port, family, backlog);
             release_mutex(tc, mutex);
         });
     }
