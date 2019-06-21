@@ -188,6 +188,7 @@ static mp_int * force_bigint(MVMThreadContext *tc, const MVMP6bigintBody *body, 
             }
             else {
                 mp_set_int(i, -value);
+                mp_neg(i, i);
             }
             return i;
         }
