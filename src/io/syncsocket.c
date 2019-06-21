@@ -148,6 +148,7 @@ MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
             /* Still something left in the just-read packet for next time. */
             data->last_packet_start += bytes - last_available;
         }
+        MVM_free(use_last_packet);
     }
     else if (data->last_packet) {
         /* Only data from the just-read packet. */
@@ -171,6 +172,7 @@ MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
         *buf = MVM_malloc(bytes);
         memcpy(*buf, use_last_packet + use_last_packet_start, bytes);
         data->eof = 1;
+        MVM_free(use_last_packet);
     }
     else {
         /* Nothing to hand back; at EOF. */
