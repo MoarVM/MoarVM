@@ -645,11 +645,14 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 junkprint(stderr, "set\n");
                 cur_op += 4;
                 goto NEXT;
-            OP(say):
-                MVM_string_say(tc, GET_REG(cur_op, 0).s);
+            OP(say): {
+                MVMString *s = GET_REG(cur_op, 0).s;
+                if (s && IS_CONCRETE(s))
+                    MVM_string_say(tc, s);
                 junkprint(stderr, "say\n");
                 cur_op += 2;
                 goto NEXT;
+            }
             OP(getattr_o):
                 junkprint(stderr, "struct select: %x\n", reg_base[REGISTER_STRUCT_SELECT].i64);
                 if (reg_base[REGISTER_STRUCT_SELECT].i64 == StructSel_Nothing) {
