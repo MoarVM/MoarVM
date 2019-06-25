@@ -50,6 +50,49 @@ static char get_signature_char(MVMint16 type_id) {
             return 'f';
         case MVM_NATIVECALL_ARG_DOUBLE:
             return 'd';
+        case MVM_NATIVECALL_ARG_WCHAR_T:
+#ifdef MVM_WCHAR_UNSIGNED
+#  if MVM_WCHAR_SIZE == 1
+            return 'C';
+#  elif MVM_WCHAR_SIZE == 2
+            return 'S';
+#  elif MVM_WCHAR_SIZE == 4
+            return 'I';
+#  elif MVM_WCHAR_SIZE == 8
+            return 'J';
+#else
+#  if MVM_WCHAR_SIZE == 1
+            return 'c';
+#  elif MVM_WHCAR_SIZE == 2
+            return 's';
+#  elif MVM_WCHAR_SIZE == 4
+            return 'i';
+#  elif MVM_WCHAR_SIZE == 8
+            return 'j';
+#  endif
+#endif
+        case MVM_NATIVECALL_ARG_WINT_T:
+#ifdef MVM_WINT_UNSIGNED
+#  if MVM_WINT_SIZE == 2
+            return 'S';
+#  elif MVM_WINT_SIZE == 4
+            return 'I';
+#  elif MVM_WINT_SIZE == 8
+            return 'J';
+#  endif
+#else
+#  if MVM_WINT_SIZE == 2
+            return 's';
+#  elif MVM_WINT_SIZE == 4
+            return 'i';
+#  elif MVM_WINT_SIZE == 8
+            return 'j';
+#  endif
+#endif
+        case MVM_NATIVECALL_ARG_CHAR16_T:
+            return 's';
+        case MVM_NATIVECALL_ARG_CHAR32_T:
+            return 'i';
         case MVM_NATIVECALL_ARG_ASCIISTR:
         case MVM_NATIVECALL_ARG_UTF8STR:
         case MVM_NATIVECALL_ARG_UTF16STR:
@@ -172,6 +215,26 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
                 case MVM_NATIVECALL_ARG_DOUBLE:
                     cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_NUM;
                     break;
+                case MVM_NATIVECALL_ARG_WCHAR_T:
+#ifdef MVM_WCHAR_UNSIGNED
+                    /* TODO: should probably be UINT, when we can support that. */
+                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+#else
+                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+#endif
+                    break;
+                case MVM_NATIVECALL_ARG_WINT_T:
+#ifdef MVM_WINT_UNSIGNED
+                    /* TODO: should probably be UINT, when we can support that. */
+                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+#else
+                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+#endif
+                    break;
+                case MVM_NATIVECALL_ARG_CHAR16_T:
+                case MVM_NATIVECALL_ARG_CHAR32_T:
+                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                    break;
                 default:
                     cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_OBJ;
                     break;
@@ -253,6 +316,54 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
                 break;
             case MVM_NATIVECALL_ARG_DOUBLE:
                 args[i - 1].n64 = dcbArgDouble(cb_args);
+                break;
+            case MVM_NATIVECALL_ARG_WCHAR_T:
+#ifdef MVM_WCHAR_UNSIGNED
+#  if MVM_WCHAR_SIZE == 1
+                args[i - 1].i64 = dcbArgUChar(cb_args);
+#  elif MVM_WCHAR_SIZE == 2
+                args[i - 1].i64 = dcbArgUShort(cb_args);
+#  elif MVM_WCHAR_SIZE == 4
+                args[i - 1].i64 = dcbArgUInt(cb_args);
+#  elif MVM_WCHAR_SIZE == 8
+                args[i - 1].i64 = dcbArgULong(cb_args);
+#  endif
+#else
+#  if MVM_WCHAR_SIZE == 1
+                args[i - 1].i64 = dcbArgChar(cb_args);
+#  elif MVM_WCHAR_SIZE == 2
+                args[i - 1].i64 = dcbArgShort(cb_args);
+#  elif MVM_WCHAR_SIZE == 4
+                args[i - 1].i64 = dcbArgInt(cb_args);
+#  elif MVM_WCHAR_SIZE == 8
+                args[i - 1].i64 = dcbArgLong(cb_args);
+#  endif
+#endif
+                break;
+            case MVM_NATIVECALL_ARG_WINT_T:
+#ifdef MVM_WINT_UNSIGNED
+#  if MVM_WINT_SIZE == 2
+                args[i - 1].i64 = dcbArgUShort(cb_args);
+#  elif MVM_WINT_SIZE == 4
+                args[i - 1].i64 = dcbArgUInt(cb_args);
+#  elif MVM_WINT_SIZE == 8
+                args[i - 1].i64 = dcbArgULong(cb_args);
+#  endif
+#else
+#  if MVM_WINT_SIZE == 2
+                args[i - 1].i64 = dcbArgShort(cb_args);
+#  elif MVM_WINT_SIZE == 4
+                args[i - 1].i64 = dcbArgInt(cb_args);
+#  elif MVM_WINT_SIZE == 8
+                args[i - 1].i64 = dcbArgLong(cb_args);
+#  endif
+#endif
+                break;
+            case MVM_NATIVECALL_ARG_CHAR16_T:
+                args[i - 1].i64 = dcbArgUShort(cb_args);
+                break;
+            case MVM_NATIVECALL_ARG_CHAR32_T:
+                args[i - 1].i64 = dcbArgUInt(cb_args);
                 break;
             case MVM_NATIVECALL_ARG_ASCIISTR:
             case MVM_NATIVECALL_ARG_UTF8STR:
@@ -393,6 +504,32 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
         case MVM_NATIVECALL_ARG_DOUBLE:
             cb_result->d = MVM_nativecall_unmarshal_double(tc, res.o);
             break;
+        case MVM_NATIVECALL_ARG_WCHAR_T:
+#if MVM_WCHAR_SIZE == 1
+            cb_result->c = MVM_nativecall_unmarshal_wchar_t(tc, res.o);
+#elif MVM_WCHAR_SIZE == 2
+            cb_result->s = MVM_nativecall_unmarshal_wchar_t(tc, res.o);
+#elif MVM_WCHAR_SIZE == 4
+            cb_result->i = MVM_nativecall_unmarshal_wchar_t(tc, res.o);
+#elif MVM_WCHAR_SIZE == 8
+            cb_result->j = MVM_nativecall_unmarshal_wchar_t(tc, res.o);
+#endif
+            break;
+        case MVM_NATIVECALL_ARG_WINT_T:
+#if MVM_WINT_SIZE == 2
+            cb_result->s = MVM_nativecall_unmarshal_wint_t(tc, res.o);
+#elif MVM_WINT_SIZE == 4
+            cb_result->i = MVM_nativecall_unmarshal_wint_t(tc, res.o);
+#elif MVM_WINT_SIZE == 8
+            cb_result->j = MVM_nativecall_unmarshal_wint_t(tc, res.o);
+#endif
+            break;
+        case MVM_NATIVECALL_ARG_CHAR16_T:
+            cb_result->s = MVM_nativecall_unmarshal_char16_t(tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_CHAR32_T:
+            cb_result->d = MVM_nativecall_unmarshal_char32_t(tc, res.o);
+            break;
         case MVM_NATIVECALL_ARG_ASCIISTR:
         case MVM_NATIVECALL_ARG_UTF8STR:
         case MVM_NATIVECALL_ARG_UTF16STR:
@@ -460,7 +597,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
         if (MVM_6model_container_is ## cont_X(tc, value)) { \
             dc_type *rw = (dc_type *)MVM_malloc(sizeof(dc_type)); \
             MVM_6model_container_de ## cont_X(tc, value, &r); \
-            *rw = (dc_type)r. reg_slot ; \
+            *rw = (dc_type)r.reg_slot; \
             if (!free_rws) \
                 free_rws = (void **)MVM_malloc(num_args * sizeof(void *)); \
             free_rws[num_rws] = rw; \
@@ -536,6 +673,54 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 break;
             case MVM_NATIVECALL_ARG_DOUBLE:
                 handle_arg("number", cont_n, DCdouble, n64, dcArgDouble, MVM_nativecall_unmarshal_double);
+                break;
+            case MVM_NATIVECALL_ARG_WCHAR_T:
+#if MVM_WCHAR_UNSIGNED
+#  if MVM_WCHAR_SIZE == 1
+                handle_arg("integer", cont_n, DCuchar, i64, dcArgChar, MVM_nativecall_unmarshal_wchar_t);
+#  elif MVM_WCHAR_SIZE == 2
+                handle_arg("integer", cont_n, DCushort, i64, dcArgShort, MVM_nativecall_unmarshal_wchar_t);
+#  elif MVM_WCHAR_SIZE == 4
+                handle_arg("integer", cont_n, DCuint, i64, dcArgInt, MVM_nativecall_unmarshal_wchar_t);
+#  elif MVM_WCHAR_SIZE == 8
+                handle_arg("integer", cont_n, DCulong, i64, dcArgLong, MVM_nativecall_unmrshal_wchar_t);
+#  endif
+#else
+#  if MVM_WCHAR_SIZE == 1
+                handle_arg("integer", cont_n, DCchar, i64, dcArgChar, MVM_nativecall_unmarshal_wchar_t);
+#  elif MVM_WCHAR_SIZE == 2
+                handle_arg("integer", cont_n, DCshort, i64, dcArgShort, MVM_nativecall_unmarshal_wchar_t);
+#  elif MVM_WCHAR_SIZE == 4
+                handle_arg("integer", cont_n, DCuint, i64, dcArgInt, MVM_nativecall_unmarshal_wchar_t);
+#  elif MVM_WCHAR_SIZE == 8
+                handle_arg("integer", cont_n, DClong, i64, dcArgLong, MVM_nativecall_unmarshal_wchar_t);
+#  endif
+#endif
+                break;
+            case MVM_NATIVECALL_ARG_WINT_T:
+#if MVM_WINT_UNSIGNED
+#  if MVM_WINT_SIZE == 2
+                handle_arg("integer", cont_n, DCushort, i64, dcArgShort, MVM_nativecall_unmarshal_wint_t);
+#  elif MVM_WINT_SIZE == 4
+                handle_arg("integer", cont_n, DCuint, i64, dcArgInt, MVM_nativecall_unmarshal_wint_t);
+#  elif MVM_WINT_SIZE == 8
+                handle_arg("integer", cont_n, DCulong, i64, dcArgLong, MVM_nativecall_unmarshal_wint_t);
+#  endif
+#else
+#  if MVM_WINT_SIZE == 2
+                handle_arg("integer", cont_n, DCshort, i64, dcArgShort, MVM_nativecall_unmarshal_wint_t);
+#  elif MVM_WINT_SIZE == 4
+                handle_arg("integer", cont_n, DCint, i64, dcArgInt, MVM_nativecall_unmarshal_wint_t);
+#  elif MVM_WCHAR_SIZE == 8
+                handle_arg("integer", cont_n, DClong, i64, dcArgLong, MVM_nativecall_unmarshal_wchar_t);
+#  endif
+#endif
+                break;
+            case MVM_NATIVECALL_ARG_CHAR16_T:
+                handle_arg("integer", cont_n, DCushort, i64, dcArgShort, MVM_nativecall_unmarshal_char16_t);
+                break;
+            case MVM_NATIVECALL_ARG_CHAR32_T:
+                handle_arg("integer", cont_n, DCuint, i64, dcArgInt, MVM_nativecall_unmarshal_char32_t);
                 break;
             case MVM_NATIVECALL_ARG_ASCIISTR:
             case MVM_NATIVECALL_ARG_UTF8STR:
@@ -674,6 +859,44 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     result = MVM_nativecall_make_num(tc, res_type, native_result);
                     break;
                 }
+                case MVM_NATIVECALL_ARG_WCHAR_T: {
+#if MVM_WCHAR_SIZE == 1
+                    MVMwchar native_result = (MVMwchar)dcCallChar(vm, entry_point);
+#elif MVM_WCHAR_SIZE == 2
+                    MVMwchar native_result = (MVMwchar)dcCallShort(vm, entry_point);
+#elif MVM_WCHAR_SIZE == 4
+                    MVMwchar native_result = (MVMwchar)dcCallInt(vm, entry_point);
+#elif MVM_WCHAR_SIZE == 8
+                    MVMwchar native_result = (MVMwchar)dcCallLong(vm, entry_point);
+#endif
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_int(tc, res_type, native_result);
+                    break;
+                }
+                case MVM_NATIVECALL_ARG_WINT_T: {
+#if MVM_WINT_SIZE == 2
+                    MVMwint native_result = (MVMwint)dcCallShort(vm, entry_point);
+#elif MVM_WINT_SIZE == 4
+                    MVMwint native_result = (MVMwint)dcCallInt(vm, entry_point);
+#elif MVM_WINT_SIZE == 8
+                    MVMwint native_result = (MVMwint)dcCallLong(vm, entry_point);
+#endif
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_int(tc, res_type, native_result);
+                    break;
+                }
+                case MVM_NATIVECALL_ARG_CHAR16_T: {
+                    MVMchar16 native_result = (MVMchar16)dcCallShort(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_int(tc, res_type, native_result);
+                    break;
+                }
+                case MVM_NATIVECALL_ARG_CHAR32_T: {
+                    MVMchar32 native_result = (MVMchar32)dcCallInt(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_int(tc, res_type, native_result);
+                    break;
+                }
                 case MVM_NATIVECALL_ARG_ASCIISTR:
                 case MVM_NATIVECALL_ARG_UTF8STR:
                 case MVM_NATIVECALL_ARG_UTF16STR: {
@@ -798,6 +1021,54 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 case MVM_NATIVECALL_ARG_ULONGLONG:
                     MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCulonglong *)free_rws[num_rws]);
+                    break;
+                case MVM_NATIVECALL_ARG_WCHAR_T:
+#if MVM_WCHAR_UNSIGNED
+#  if MVM_WCHAR_SIZE == 1
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCuchar *)free_rws[num_rws]);
+#  elif MVM_WCHAR_SIZE == 2
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCushort *)free_rws[num_rws]);
+#  elif MVM_WCHAR_SIZE == 4
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCuint *)free_rws[num_rws]);
+#  elif MVM_WCHAR_SIZE == 8
+                    MVM_6model_container_assign_i(tc, value, (MVmint64)*(DCulong *)free_rws[num_rws]);
+#  endif
+#else
+#  if MVM_WCHAR_SIZE == 1
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCchar *)free_rws[num_rws]);
+#  elif MVM_WCHAR_SIZE == 2
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCshort *)free_rws[num_rws]);
+#  elif MVM_WCHAR_SIZE == 4
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCint *)free_rws[num_rws]);
+#  elif MVM_WCHAR_SIZE == 8
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DClong *)free_rws[num_rws]);
+#  endif
+#endif
+                    break;
+                case MVM_NATIVECALL_ARG_WINT_T:
+#if MVM_WINT_UNSIGNED
+#  if MVM_WINT_SIZE == 2
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCushort *)free_rws[num_rws]);
+#  elif MVM_WINT_SIZE == 4
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCuint *)free_rws[num_rws]);
+#  elif MVM_WINT_SIZE == 8
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCulong *)free_rws[num_rws]);
+#  endif
+#else
+#  if MVM_WINT_SIZE == 2
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCshort *)free_rws[num_rws]);
+#  elif MVM_WINT_SIZE == 4
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCint *)free_rws[num_rws]);
+#  elif MVM_WCHAR_SIZE == 8
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DClong *)free_rws[num_rws]);
+#  endif
+#endif
+                    break;
+                case MVM_NATIVECALL_ARG_CHAR16_T:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCushort *)free_rws[num_rws]);
+                    break;
+                case MVM_NATIVECALL_ARG_CHAR32_T:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCuint *)free_rws[num_rws]);
                     break;
                 case MVM_NATIVECALL_ARG_CPOINTER:
                     REPR(value)->box_funcs.set_int(tc, STABLE(value), value, OBJECT_BODY(value),

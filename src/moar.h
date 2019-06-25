@@ -13,6 +13,9 @@
 /* platform-specific setjmp override */
 #include <platform/setjmp.h>
 
+/* platform-specific wide string handling */
+#include <platform/wchar.h>
+
 /* libuv
  * must precede atomic_ops.h so we get the ordering of Winapi headers right
  */
@@ -35,16 +38,18 @@
 #include "types.h"
 
 /* Sized types. */
-typedef int8_t   MVMint8;
-typedef uint8_t  MVMuint8;
-typedef int16_t  MVMint16;
-typedef uint16_t MVMuint16;
-typedef int32_t  MVMint32;
-typedef uint32_t MVMuint32;
-typedef int64_t  MVMint64;
-typedef uint64_t MVMuint64;
-typedef float    MVMnum32;
-typedef double   MVMnum64;
+typedef int8_t         MVMint8;
+typedef uint8_t        MVMuint8;
+typedef int16_t        MVMint16;
+typedef uint16_t       MVMuint16;
+typedef int32_t        MVMint32;
+typedef uint32_t       MVMuint32;
+typedef int64_t        MVMint64;
+typedef uint64_t       MVMuint64;
+typedef float          MVMnum32;
+typedef double         MVMnum64;
+typedef uint_least16_t MVMchar16;
+typedef uint_least32_t MVMchar32;
 
 /* Alignment. */
 #if HAVE_ALIGNOF

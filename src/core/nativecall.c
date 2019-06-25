@@ -92,6 +92,14 @@ MVMint16 MVM_nativecall_get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMi
         result = MVM_NATIVECALL_ARG_FLOAT | get_rw_flag(tc, info);
     else if (strcmp(ctypename, "double") == 0)
         result = MVM_NATIVECALL_ARG_DOUBLE | get_rw_flag(tc, info);
+    else if (strcmp(ctypename, "wchar_t") == 0)
+        result = MVM_NATIVECALL_ARG_WCHAR_T | get_rw_flag(tc, info);
+    else if (strcmp(ctypename, "wint_t") == 0)
+        result = MVM_NATIVECALL_ARG_WINT_T | get_rw_flag(tc, info);
+    else if (strcmp(ctypename, "char16_t") == 0)
+        result = MVM_NATIVECALL_ARG_CHAR16_T | get_rw_flag(tc, info);
+    else if (strcmp(ctypename, "char32_t") == 0)
+        result = MVM_NATIVECALL_ARG_CHAR32_T | get_rw_flag(tc, info);
     else if (strcmp(ctypename, "asciistr") == 0)
         result = MVM_NATIVECALL_ARG_ASCIISTR | get_str_free_flag(tc, info);
     else if (strcmp(ctypename, "utf8str") == 0)
@@ -281,6 +289,22 @@ float MVM_nativecall_unmarshal_float(MVMThreadContext *tc, MVMObject *value) {
 
 double MVM_nativecall_unmarshal_double(MVMThreadContext *tc, MVMObject *value) {
     return (double)MVM_repr_get_num(tc, value);
+}
+
+MVMwchar MVM_nativecall_unmarshal_wchar_t(MVMThreadContext *tc, MVMObject *value) {
+    return (MVMwchar)MVM_repr_get_int(tc, value);
+}
+
+MVMwint MVM_nativecall_unmarshal_wint_t(MVMThreadContext *tc, MVMObject *value) {
+    return (MVMwint)MVM_repr_get_int(tc, value);
+}
+
+MVMchar16 MVM_nativecall_unmarshal_char16_t(MVMThreadContext *tc, MVMObject *value) {
+    return (MVMchar16)MVM_repr_get_int(tc, value);
+}
+
+MVMchar32 MVM_nativecall_unmarshal_char32_t(MVMThreadContext *tc, MVMObject *value) {
+    return (MVMchar32)MVM_repr_get_int(tc, value);
 }
 
 char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 type, MVMint16 *free) {
@@ -515,6 +539,10 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
                 case MVM_NATIVECALL_ARG_ULONG:
                 case MVM_NATIVECALL_ARG_LONGLONG:
                 case MVM_NATIVECALL_ARG_ULONGLONG:
+                case MVM_NATIVECALL_ARG_WCHAR_T:
+                case MVM_NATIVECALL_ARG_WINT_T:
+                case MVM_NATIVECALL_ARG_CHAR16_T:
+                case MVM_NATIVECALL_ARG_CHAR32_T:
                     arg_type = dst == -1
                         ? is_rw ? MVM_JIT_ARG_I64_RW : MVM_JIT_ARG_I64
                         : is_rw ? MVM_JIT_PARAM_I64_RW : MVM_JIT_PARAM_I64;
@@ -559,6 +587,10 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
         || body->ret_type == MVM_NATIVECALL_ARG_ULONG
         || body->ret_type == MVM_NATIVECALL_ARG_LONGLONG
         || body->ret_type == MVM_NATIVECALL_ARG_ULONGLONG
+        || body->ret_type == MVM_NATIVECALL_ARG_WCHAR_T
+        || body->ret_type == MVM_NATIVECALL_ARG_WINT_T
+        || body->ret_type == MVM_NATIVECALL_ARG_CHAR16_T
+        || body->ret_type == MVM_NATIVECALL_ARG_CHAR32_T
     ) {
         init_box_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_int, restype, dst);
     }
