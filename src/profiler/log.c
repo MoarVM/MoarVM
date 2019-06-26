@@ -102,8 +102,8 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
                         goto confprog_refused_enter;
                     }
                 }
+                was_entered_via_confprog = 1;
             }
-            was_entered_via_confprog = 1;
             /*fprintf(stderr, "%p entered %p via confprog; nctd is %d\n", tc, sf, ptd->non_calltree_depth);*/
         }
         /*else {*/
