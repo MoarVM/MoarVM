@@ -25,6 +25,7 @@ struct MVMP6intBody {
         MVMuint8  u8;
     } value;
 };
+
 struct MVMP6int {
     MVMObject common;
     MVMP6intBody body;
@@ -32,6 +33,7 @@ struct MVMP6int {
 
 /* The bit width requirement is shared for all instances of the same type. */
 struct MVMP6intREPRData {
+    MVMint32       type;
     MVMint16       bits;
     MVMint16       is_unsigned;
     MVMStorageSpec storage_spec;

@@ -28,16 +28,16 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, &P6int_this_repr, HOW);
 
     MVMROOT(tc, st, {
-        MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
+        MVMObject *obj              = MVM_gc_allocate_type_object(tc, st);
         MVMP6intREPRData *repr_data = (MVMP6intREPRData *)MVM_malloc(sizeof(MVMP6intREPRData));
-
-        repr_data->bits = sizeof(MVMint64) * 8;
-        repr_data->is_unsigned = 0;
+        repr_data->type             = MVM_P6INT_C_TYPE_LONGLONG;
+        repr_data->bits             = sizeof(MVMint64) * 8;
+        repr_data->is_unsigned      = 0;
         mk_storage_spec(tc, repr_data->bits, repr_data->is_unsigned, &repr_data->storage_spec);
-        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
-        st->size = sizeof(MVMP6int);
-        st->REPR_data = repr_data;
 
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
+        st->size      = sizeof(MVMP6int);
+        st->REPR_data = repr_data;
     });
 
     return st->WHAT;
@@ -130,9 +130,9 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         MVMObject *is_unsigned_o = MVM_repr_at_key_o(tc, info, str_consts.unsigned_str);
 
         if (!MVM_is_null(tc, bits_o)) {
-            repr_data->bits = MVM_repr_get_int(tc, bits_o);
+            repr_data->type = MVM_repr_get_int(tc, bits_o);
 
-            switch (repr_data->bits) {
+            switch (repr_data->type) {
                 case MVM_P6INT_C_TYPE_CHAR:     repr_data->bits = 8 * sizeof(char);      break;
                 case MVM_P6INT_C_TYPE_SHORT:    repr_data->bits = 8 * sizeof(short);     break;
                 case MVM_P6INT_C_TYPE_INT:      repr_data->bits = 8 * sizeof(int);       break;
@@ -174,6 +174,7 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Serializes the REPR data. */
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
+    MVM_serialization_write_int(tc, writer, repr_data->type);
     MVM_serialization_write_int(tc, writer, repr_data->bits);
     MVM_serialization_write_int(tc, writer, repr_data->is_unsigned);
 }
@@ -182,9 +183,30 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     MVMP6intREPRData *repr_data = (MVMP6intREPRData *)MVM_malloc(sizeof(MVMP6intREPRData));
 
+    if (reader->root.version >= 22) {
+        repr_data->type        = MVM_serialization_read_int(tc, reader);
+        repr_data->bits        = MVM_serialization_read_int(tc, reader);
+        repr_data->is_unsigned = MVM_serialization_read_int(tc, reader);
+    } else {
+        repr_data->bits        = MVM_serialization_read_int(tc, reader);
+        repr_data->is_unsigned = MVM_serialization_read_int(tc, reader);
 
-    repr_data->bits        = MVM_serialization_read_int(tc, reader);
-    repr_data->is_unsigned = MVM_serialization_read_int(tc, reader);
+        /* Guesstimate the type. */
+        switch (repr_data->bits) {
+            case 8:
+                repr_data->type = MVM_P6INT_C_TYPE_CHAR;
+                break;
+            case 16:
+                repr_data->type = MVM_P6INT_C_TYPE_SHORT;
+                break;
+            case 32:
+                repr_data->type = MVM_P6INT_C_TYPE_INT;
+                break;
+            case 64:
+                repr_data->type = MVM_P6INT_C_TYPE_LONGLONG;
+                break;
+        }
+    }
 
     if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
      && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
