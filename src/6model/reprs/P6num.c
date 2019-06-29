@@ -91,12 +91,12 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
     MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_consts.float_str);
     if (!MVM_is_null(tc, info)) {
-        MVMObject *bits_o = MVM_repr_at_key_o(tc, info, str_consts.bits);
+        MVMObject *type_o = MVM_repr_at_key_o(tc, info, str_consts.type);
 
-        if (!MVM_is_null(tc, bits_o)) {
-            repr_data->bits = MVM_repr_get_int(tc, bits_o);
+        if (!MVM_is_null(tc, type_o)) {
+            repr_data->type = MVM_repr_get_int(tc, type_o);
 
-            switch (repr_data->bits) {
+            switch (repr_data->type) {
                 case MVM_P6NUM_C_TYPE_FLOAT:      repr_data->bits = 8 * sizeof(float);       break;
                 case MVM_P6NUM_C_TYPE_DOUBLE:     repr_data->bits = 8 * sizeof(double);      break;
                 case MVM_P6NUM_C_TYPE_LONGDOUBLE: repr_data->bits = 8 * sizeof(long double); break;
@@ -125,15 +125,30 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     MVMP6numREPRData *repr_data = (MVMP6numREPRData *)MVM_malloc(sizeof(MVMP6numREPRData));
 
+    if (reader->root.version >= 22) {
+        repr_data->type = MVM_serialization_read_int(tc, reader);
+        repr_data->bits = MVM_serialization_read_int(tc, reader);
+    } else {
+        repr_data->bits = MVM_serialization_read_int(tc, reader);
 
-    repr_data->bits        = MVM_serialization_read_int(tc, reader);
+        /* Guesstimate the type. */
+        switch (repr_data->bits) {
+            case 32:
+                repr_data->type = MVM_P6NUM_C_TYPE_FLOAT;
+                break;
+            case 64:
+                repr_data->type = MVM_P6NUM_C_TYPE_LONGDOUBLE;
+                break;
+        }
+    }
 
     if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
      && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
-        MVM_exception_throw_adhoc(tc, "MVMP6num: Unsupported int size (%dbit)", repr_data->bits);
+        MVM_exception_throw_adhoc(tc, "MVMP6num: Unsupported num size (%dbit)", repr_data->bits);
 
     if (repr_data->bits)
         mk_storage_spec(tc, repr_data->bits, &repr_data->storage_spec);
+
     st->REPR_data = repr_data;
 }
 
