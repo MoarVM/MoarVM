@@ -15,3 +15,6 @@
 #else
 #  define MVMwint wint_t
 #endif
+
+MVMint64 MVM_platform_is_wchar_unsigned(void);
+MVMint64 MVM_platform_is_wint_unsigned(void);

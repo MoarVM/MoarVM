@@ -239,6 +239,7 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/platform/random@obj@ \
           src/platform/memmem32@obj@ \
           src/platform/malloc_trim@obj@ \
+          src/platform/wchar@obj@ \
           src/moar@obj@ \
           @platform@ \
           @jit_obj@

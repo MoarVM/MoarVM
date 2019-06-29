@@ -5614,6 +5614,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_platform_total_memory();
                 cur_op += 2;
                 goto NEXT;
+            OP(iswcharunsigned):
+                GET_REG(cur_op, 0).i64 = MVM_platform_is_wchar_unsigned();
+                cur_op += 2;
+                goto NEXT;
+            OP(iswintunsigned):
+                GET_REG(cur_op, 0).i64 = MVM_platform_is_wint_unsigned();
+                cur_op += 2;
+                goto NEXT;
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
