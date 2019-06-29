@@ -54,6 +54,17 @@
 
 #define MVM_PTR_SIZE @ptr_size@
 
+#if @wchar_unsigned@
+#define MVM_WCHAR_UNSIGNED
+#endif
+
+#define MVM_WCHAR_SIZE @wchar_size@
+
+#if @wint_unsigned@
+#define MVM_WINT_UNSIGNED
+#endif
+
+#define MVM_WINT_SIZE @wint_size@
 
 #if @havebooltype@
 #define MVM_BOOL @booltype@

@@ -60,6 +60,7 @@ static char get_signature_char(MVMint16 type_id) {
             return 'I';
 #  elif MVM_WCHAR_SIZE == 8
             return 'J';
+#  endif
 #else
 #  if MVM_WCHAR_SIZE == 1
             return 'c';

@@ -424,7 +424,8 @@ HEADERS = src/moar.h \
           src/strings/uthash_types.h \
           src/strings/uthash.h \
           3rdparty/cmp/cmp.h \
-          src/platform/memmem32.h
+          src/platform/memmem32.h \
+		  src/platform/wchar.h
 
 UV_UNIX = 3rdparty/libuv/src/strscpy@obj@ \
           3rdparty/libuv/src/fs-poll@obj@ \
