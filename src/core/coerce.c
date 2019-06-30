@@ -321,7 +321,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
         else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
             res_reg->s = MVM_coerce_n_s(tc, REPR(obj)->box_funcs.get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
         else
-            MVM_exception_throw_adhoc(tc, "cannot stringify this object of type %s (%s)", REPR(obj)->name, MVM_6model_get_debug_name(tc, STABLE(obj)));
+            MVM_exception_throw_adhoc(tc, "Cannot stringify this object of type %s (%s)", REPR(obj)->name, MVM_6model_get_stable_debug_name(tc, STABLE(obj)));
     }
 }
 
@@ -376,8 +376,7 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
             res_reg->n64 = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else
-<<<<<<< HEAD
-            MVM_exception_throw_adhoc(tc, "Cannot numify this type (%s)", MVM_6model_get_stable_debug_name(tc, STABLE(obj)));
+            MVM_exception_throw_adhoc(tc, "Cannot numify this object of type %s (%s)", REPR(obj)->name, MVM_6model_get_stable_debug_name(tc, STABLE(obj)));
     }
 }
 
@@ -424,10 +423,7 @@ void MVM_coerce_smart_intify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
             res_reg->i64 = REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else
-            MVM_exception_throw_adhoc(tc, "Cannot intify this type (%s)", MVM_6model_get_stable_debug_name(tc, STABLE(obj)));
-=======
-            MVM_exception_throw_adhoc(tc, "cannot numify this object of type %s (%s)", REPR(obj)->name, MVM_6model_get_debug_name(tc, obj));
->>>>>>> wip 2
+            MVM_exception_throw_adhoc(tc, "Cannot intify this object of type %s (%s)", REPR(obj)->name, MVM_6model_get_stable_debug_name(tc, STABLE(obj)));
     }
 }
 
@@ -451,11 +447,7 @@ MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
             return REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else
-<<<<<<< HEAD
-            MVM_exception_throw_adhoc(tc, "Cannot intify this type (%s)", MVM_6model_get_stable_debug_name(tc, STABLE(obj)));
-=======
-            MVM_exception_throw_adhoc(tc, "cannot intify this object of type %s (%s)", REPR(obj)->name, MVM_6model_get_debug_name(tc, obj));
->>>>>>> wip 2
+            MVM_exception_throw_adhoc(tc, "Cannot intify this object of type %s (%s)", REPR(obj)->name, MVM_6model_get_stable_debug_name(tc, STABLE(obj)));
     }
 }
 
