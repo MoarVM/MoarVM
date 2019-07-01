@@ -272,10 +272,10 @@ if ($args{'has-libuv'}) {
 else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libuv/include'
                         . ' ' . $defaults{ccinc} . '3rdparty/libuv/src';
-    $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/libuv\n"
-                        . "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/libuv/uv\n"
-                        . "\t\$(CP) 3rdparty/libuv/include/*.h \$(DESTDIR)\$(PREFIX)/include/libuv\n"
-                        . "\t\$(CP) 3rdparty/libuv/include/uv/*.h \$(DESTDIR)\$(PREFIX)/include/libuv/uv\n";
+    $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/libuv\"\n"
+                        . "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/libuv/uv\"\n"
+                        . "\t\$(CP) 3rdparty/libuv/include/*.h \"\$(DESTDIR)\$(PREFIX)/include/libuv\"\n"
+                        . "\t\$(CP) 3rdparty/libuv/include/uv/*.h \"\$(DESTDIR)\$(PREFIX)/include/libuv/uv\"\n";
 }
 
 if ($args{'has-libatomic_ops'}) {
@@ -286,25 +286,25 @@ if ($args{'has-libatomic_ops'}) {
 else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libatomicops/src';
     my $lao             = '$(DESTDIR)$(PREFIX)/include/libatomic_ops';
-    $config{install}   .= "\t\$(MKPATH) $lao/atomic_ops/sysdeps/armcc\n"
-                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/gcc\n"
-                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/hpc\n"
-                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/ibmc\n"
-                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/icc\n"
-                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/loadstore\n"
-                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/msftc\n"
-                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/sunc\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/*.h $lao\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/*.h $lao/atomic_ops\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/*.h $lao/atomic_ops/sysdeps\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/armcc/*.h $lao/atomic_ops/sysdeps/armcc\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/gcc/*.h $lao/atomic_ops/sysdeps/gcc\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/hpc/*.h $lao/atomic_ops/sysdeps/hpc\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/ibmc/*.h $lao/atomic_ops/sysdeps/ibmc\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/icc/*.h $lao/atomic_ops/sysdeps/icc\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/loadstore/*.h $lao/atomic_ops/sysdeps/loadstore\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/msftc/*.h $lao/atomic_ops/sysdeps/msftc\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/sunc/*.h $lao/atomic_ops/sysdeps/sunc\n";
+    $config{install}   .= "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/armcc\"\n"
+                        . "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/gcc\"\n"
+                        . "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/hpc\"\n"
+                        . "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/ibmc\"\n"
+                        . "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/icc\"\n"
+                        . "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/loadstore\"\n"
+                        . "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/msftc\"\n"
+                        . "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/sunc\"\n"
+                        . "\t\$(CP) 3rdparty/libatomicops/src/*.h \"$lao\"\n"
+                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/*.h \"$lao/atomic_ops\"\n"
+                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/*.h \"$lao/atomic_ops/sysdeps\"\n"
+                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/armcc/*.h \"$lao/atomic_ops/sysdeps/armcc\"\n"
+                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/gcc/*.h \"$lao/atomic_ops/sysdeps/gcc\"\n"
+                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/hpc/*.h \"$lao/atomic_ops/sysdeps/hpc\"\n"
+                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/ibmc/*.h \"$lao/atomic_ops/sysdeps/ibmc\"\n"
+                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/icc/*.h \"$lao/atomic_ops/sysdeps/icc\"\n"
+                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/loadstore/*.h \"$lao/atomic_ops/sysdeps/loadstore\"\n"
+                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/msftc/*.h \"$lao/atomic_ops/sysdeps/msftc\"\n"
+                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/sunc/*.h \"$lao/atomic_ops/sysdeps/sunc\"\n";
 }
 
 if ($args{'has-libtommath'}) {
@@ -321,8 +321,8 @@ if ($args{'has-libtommath'}) {
 }
 else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libtommath';
-    $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/libtommath\n"
-                        . "\t\$(CP) 3rdparty/libtommath/*.h \$(DESTDIR)\$(PREFIX)/include/libtommath\n";
+    $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/libtommath\"\n"
+                        . "\t\$(CP) 3rdparty/libtommath/*.h \"\$(DESTDIR)\$(PREFIX)/include/libtommath\"\n";
 }
 
 if ($args{'has-libffi'}) {
@@ -366,10 +366,10 @@ else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/dyncall/dynload'
                         . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncall'
                         . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncallback';
-    $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/dyncall\n"
-                        . "\t\$(CP) 3rdparty/dyncall/dynload/*.h \$(DESTDIR)\$(PREFIX)/include/dyncall\n"
-                        . "\t\$(CP) 3rdparty/dyncall/dyncall/*.h \$(DESTDIR)\$(PREFIX)/include/dyncall\n"
-                        . "\t\$(CP) 3rdparty/dyncall/dyncallback/*.h \$(DESTDIR)\$(PREFIX)/include/dyncall\n";
+    $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n"
+                        . "\t\$(CP) 3rdparty/dyncall/dynload/*.h \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n"
+                        . "\t\$(CP) 3rdparty/dyncall/dyncall/*.h \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n"
+                        . "\t\$(CP) 3rdparty/dyncall/dyncallback/*.h \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n";
 }
 
 # mangle library names
@@ -520,8 +520,8 @@ unless (defined $config{jit_obj}) {
 
 
 if ($config{cc} eq 'cl') {
-    $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/msinttypes\n"
-                        . "\t\$(CP) 3rdparty/msinttypes/*.h \$(DESTDIR)\$(PREFIX)/include/msinttypes\n";
+    $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/msinttypes\"\n"
+                        . "\t\$(CP) 3rdparty/msinttypes/*.h \"\$(DESTDIR)\$(PREFIX)/include/msinttypes\"\n";
 }
 
 build::probe::C_type_bool(\%config, \%defaults);
