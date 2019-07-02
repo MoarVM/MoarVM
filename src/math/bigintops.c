@@ -1203,8 +1203,10 @@ MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 b) {
             return 0;
         }
         else {
-            int result;
-            mp_prime_is_prime(ia, b, &result);
+            int result, err;
+            err = mp_prime_is_prime(ia, b, &result);
+            if (err != MP_OKAY)
+                MVM_exception_throw_adhoc(tc, "Invalid number of rounds (%ld), valid range is 0..%d\n", b, PRIME_SIZE);
             return result;
         }
     } else {
