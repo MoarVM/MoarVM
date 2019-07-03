@@ -926,8 +926,6 @@ void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
     if (MVM_profile_heap_profiling(tc)) {
         MVMHeapSnapshotCollection *col = tc->instance->heap_snapshots;
         MVMint64 do_heapsnapshot = 1;
-
-        fprintf(stderr, "checking for confprog on entrypoint %d\n", MVM_PROGRAM_ENTRYPOINT_HEAPSNAPSHOT);
         if (MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_HEAPSNAPSHOT)) {
             do_heapsnapshot = MVM_confprog_run(tc, NULL, MVM_PROGRAM_ENTRYPOINT_HEAPSNAPSHOT, do_heapsnapshot);
         }
@@ -935,16 +933,12 @@ void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
         if (do_heapsnapshot) {
             col->snapshot = MVM_calloc(1, sizeof(MVMHeapSnapshot));
 
-            fprintf(stderr, "doing snapshot\n");
             record_snapshot(tc, col, col->snapshot);
 
             snapshot_to_filehandle(tc, col);
             fflush(col->fh);
 
             destroy_current_heap_snapshot(tc);
-        }
-        else {
-            fprintf(stderr, "not doing snapshot\n");
         }
         col->snapshot_idx++;
     }
