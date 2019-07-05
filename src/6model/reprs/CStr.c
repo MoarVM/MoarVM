@@ -24,9 +24,10 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 
 /* Copies to the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMCPointerBody *src_body = (MVMCPointerBody *)src;
-    MVMCPointerBody *dest_body = (MVMCPointerBody *)dest;
-    dest_body->ptr = src_body->ptr;
+    MVMCStrBody *src_body  = (MVMCStrBody *)src;
+    MVMCStrBody *dest_body = (MVMCStrBody *)dest;
+    MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->orig, src_body->orig);
+    dest_body->cstr = src_body->cstr;
 }
 
 static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value) {
