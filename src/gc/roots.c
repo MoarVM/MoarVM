@@ -404,7 +404,7 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
     MVM_gc_worklist_add(tc, worklist, &cur_frame->static_info);
 
     /* Mark frame extras if needed. */
-    if (cur_frame->extra) {
+    if (MVM_frame_has_extra(cur_frame)) {
         MVMFrameExtra *e = cur_frame->extra;
         if (e->special_return_data && e->mark_special_return_data)
             e->mark_special_return_data(tc, cur_frame, worklist);

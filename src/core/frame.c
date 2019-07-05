@@ -141,7 +141,7 @@ void MVM_frame_destroy(MVMThreadContext *tc, MVMFrame *frame) {
     }
     if (frame->env)
         MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_env, frame->env);
-    if (frame->extra) {
+    if (MVM_frame_has_extra(frame)) {
         MVMFrameExtra *e = frame->extra;
         if (e->continuation_tags)
             MVM_continuation_free_tags(tc, frame);
@@ -874,7 +874,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     MVM_ASSERT_NOT_FROMSPACE(tc, caller);
 
     /* Clear up any extra frame data. */
-    if (returner->extra) {
+    if (MVM_frame_has_extra(returner)) {
         MVMFrameExtra *e = returner->extra;
         if (e->continuation_tags)
             MVM_continuation_free_tags(tc, returner);
@@ -883,7 +883,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
          * and marked with caller info. */
         if (!(e->caller_deopt_idx || e->caller_jit_position)) {
             MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
-            returner->extra = NULL;
+            returner->flags &= ~MVM_FRAME_FLAG_HAS_EXTRA;
         }
     }
     else {
@@ -940,7 +940,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         *(tc->interp_cu) = caller->static_info->body.cu;
 
         /* Handle any special return hooks. */
-        if (caller->extra) {
+        if (MVM_frame_has_extra(caller)) {
             MVMFrameExtra *e = caller->extra;
             if (e->special_return || e->special_unwind) {
                 MVMSpecialReturn  sr  = e->special_return;
@@ -1007,7 +1007,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
                         result = MVM_repr_box_str(tc, hll->str_box_type, caller->return_value->s);
                         break;
                     case MVM_RETURN_VOID:
-                        result = cur_frame->extra && cur_frame->extra->exit_handler_result
+                        result = MVM_frame_has_extra(cur_frame) && cur_frame->extra->exit_handler_result
                             ? cur_frame->extra->exit_handler_result
                             : tc->instance->VMNull;
                         break;
@@ -1471,7 +1471,7 @@ static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to,
     while (from && from != to) {
         frames++;
         if (frames >= next) {
-            if (!from->extra || !from->extra->dynlex_cache_name || (desperation && frames > 1)) {
+            if (!MVM_frame_has_extra(from) || !from->extra->dynlex_cache_name || (desperation && frames > 1)) {
                 MVMFrameExtra *e = MVM_frame_extra(tc, from);
                 MVM_ASSIGN_REF(tc, &(from->header), e->dynlex_cache_name, name);
                 e->dynlex_cache_reg  = reg;
@@ -1522,7 +1522,7 @@ MVMRegister * MVM_frame_find_dynamic_using_frame_walker(MVMThreadContext *tc,
         if (!MVM_spesh_frame_walker_is_inline(tc, fw)) {
             MVMFrameExtra *e;
             last_real_frame = MVM_spesh_frame_walker_current_frame(tc, fw);
-            e = last_real_frame->extra;
+            e = MVM_frame_has_extra(last_real_frame) ? last_real_frame->extra : NULL;
             if (e && e->dynlex_cache_name) {
                 if (MVM_string_equal(tc, name, e->dynlex_cache_name)) {
                     /* Matching cache entry; if it's far from us, try to cache
@@ -1921,8 +1921,10 @@ MVMObject * MVM_frame_resolve_invokee_spesh(MVMThreadContext *tc, MVMObject *inv
 /* Gets, allocating if needed, the frame extra data structure for the given
  * frame. This is used to hold data that only a handful of frames need. */
 MVMFrameExtra * MVM_frame_extra(MVMThreadContext *tc, MVMFrame *f) {
-    if (!f->extra)
+    if (!MVM_frame_has_extra(f)) {
         f->extra = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMFrameExtra));
+        f->flags |= MVM_FRAME_FLAG_HAS_EXTRA;
+    }
     return f->extra;
 }
 
@@ -1941,7 +1943,7 @@ void MVM_frame_special_return(MVMThreadContext *tc, MVMFrame *f,
 
 /* Clears any special return data on a frame. */
 void MVM_frame_clear_special_return(MVMThreadContext *tc, MVMFrame *f) {
-    if (f->extra) {
+    if (MVM_frame_has_extra(f)) {
         f->extra->special_return = NULL;
         f->extra->special_unwind = NULL;
         f->extra->special_return_data = NULL;

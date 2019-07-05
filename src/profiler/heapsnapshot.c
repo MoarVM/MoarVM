@@ -612,7 +612,7 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                     (MVMCollectable *)frame->static_info, "Static frame");
 
-                if (frame->extra) {
+                if (MVM_frame_has_extra(frame)) {
                     MVMFrameExtra *e = frame->extra;
                     if (e->special_return_data && e->mark_special_return_data) {
                         e->mark_special_return_data(tc, frame, ss->gcwl);

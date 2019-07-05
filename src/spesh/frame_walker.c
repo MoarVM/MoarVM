@@ -74,7 +74,7 @@ static void go_to_first_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MV
     if (f->spesh_cand && f->spesh_cand->inlines) {
         MVMJitCode *jitcode = f->spesh_cand->jitcode;
         if (jitcode) {
-            void *current_position = prev && prev->extra && prev->extra->caller_jit_position
+            void *current_position = prev && MVM_frame_has_extra(prev) && prev->extra->caller_jit_position
                 ? prev->extra->caller_jit_position
                 : MVM_jit_code_get_current_position(tc, jitcode, f);
             MVMint32 idx = MVM_jit_code_get_active_inlines(tc, jitcode, current_position, 0);
@@ -85,7 +85,7 @@ static void go_to_first_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MV
             }
         }
         else {
-            MVMint32 deopt_idx = prev && prev->extra && prev->extra->caller_deopt_idx > 0
+            MVMint32 deopt_idx = prev && MVM_frame_has_extra(prev) && prev->extra->caller_deopt_idx > 0
                 ? prev->extra->caller_deopt_idx - 1
                 : MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, f);
             if (deopt_idx >= 0) {

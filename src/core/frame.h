@@ -1,6 +1,7 @@
 /* Frame flags; provide some HLLs can alias. */
 #define MVM_FRAME_FLAG_STATE_INIT       1 << 0
 #define MVM_FRAME_FLAG_EXIT_HAND_RUN    1 << 1
+#define MVM_FRAME_FLAG_HAS_EXTRA        1 << 2
 #define MVM_FRAME_FLAG_HLL_1            1 << 3
 #define MVM_FRAME_FLAG_HLL_2            1 << 4
 #define MVM_FRAME_FLAG_HLL_3            1 << 5
@@ -202,6 +203,10 @@ struct MVMInvocationSpec {
  * always have the "I'm a heap frame" bit set). */
 MVM_STATIC_INLINE MVMuint32 MVM_FRAME_IS_ON_CALLSTACK(MVMThreadContext *tc, MVMFrame *frame) {
     return frame->header.flags == 0;
+}
+
+MVM_STATIC_INLINE MVMuint32 MVM_frame_has_extra(MVMFrame *frame) {
+    return frame->flags & MVM_FRAME_FLAG_HAS_EXTRA;
 }
 
 /* Forces a frame to the callstack if needed. Done as a static inline to make

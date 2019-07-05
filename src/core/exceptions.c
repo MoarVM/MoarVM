@@ -800,7 +800,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     target = ex->body.origin;
     if (!target)
         MVM_exception_throw_adhoc(tc, "This exception is not resumable");
-    if (!target->extra || target->extra->special_return != unwind_after_handler)
+    if (!MVM_frame_has_extra(target) || target->extra->special_return != unwind_after_handler)
         MVM_exception_throw_adhoc(tc, "This exception is not resumable");
     if (!in_caller_chain(tc, target))
         MVM_exception_throw_adhoc(tc, "Too late to resume this exception");
