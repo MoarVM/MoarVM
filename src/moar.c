@@ -89,11 +89,16 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Create the main thread's ThreadContext and stash it. */
     instance->main_thread = MVM_tc_create(NULL, instance);
+#if MVM_HASH_RANDOMIZE
     /* Get the 128-bit hashSecret */
     MVM_getrandom(instance->main_thread, instance->hashSecrets, sizeof(MVMuint64) * 2);
     /* Just in case MVM_getrandom didn't work, XOR it with some (poorly) randomized data */
     instance->hashSecrets[0] ^= ptr_hash_64_to_64((uintptr_t)instance);
     instance->hashSecrets[1] ^= MVM_proc_getpid(instance->main_thread) * MVM_platform_now();
+#else
+    instance->hashSecrets[0] = 0;
+    instance->hashSecrets[1] = 0;
+#endif
     instance->main_thread->thread_id = 1;
 
     /* Next thread to be created gets ID 2 (the main thread got ID 1). */
