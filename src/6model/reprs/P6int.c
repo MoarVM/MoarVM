@@ -126,42 +126,58 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
     MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_consts.integer);
     if (!MVM_is_null(tc, info)) {
+        MVMObject *type_o        = MVM_repr_at_key_o(tc, info, str_consts.type);
         MVMObject *bits_o        = MVM_repr_at_key_o(tc, info, str_consts.bits);
         MVMObject *is_unsigned_o = MVM_repr_at_key_o(tc, info, str_consts.unsigned_str);
 
-        if (!MVM_is_null(tc, bits_o)) {
-            repr_data->type = MVM_repr_get_int(tc, bits_o);
-
-            switch (repr_data->type) {
-                case MVM_P6INT_C_TYPE_CHAR:     repr_data->bits = 8 * sizeof(char);      break;
-                case MVM_P6INT_C_TYPE_SHORT:    repr_data->bits = 8 * sizeof(short);     break;
-                case MVM_P6INT_C_TYPE_INT:      repr_data->bits = 8 * sizeof(int);       break;
-                case MVM_P6INT_C_TYPE_LONG:     repr_data->bits = 8 * sizeof(long);      break;
-                case MVM_P6INT_C_TYPE_LONGLONG: repr_data->bits = 8 * sizeof(long long); break;
-                case MVM_P6INT_C_TYPE_SIZE_T:   repr_data->bits = 8 * sizeof(size_t);    break;
-#ifdef MVM_BOOL
-                case MVM_P6INT_C_TYPE_BOOL:     repr_data->bits = 8 * sizeof(MVM_BOOL);  break;
-#else
-                case MVM_P6INT_C_TYPE_BOOL:     repr_data->bits = 8 * sizeof(char);      break;
-#endif
-                case MVM_P6INT_C_TYPE_ATOMIC:   repr_data->bits = 8 * sizeof(AO_t);      break;
-                case MVM_P6INT_C_TYPE_WCHAR_T:  repr_data->bits = 8 * sizeof(MVMwchar);  break;
-                case MVM_P6INT_C_TYPE_WINT_T:   repr_data->bits = 8 * sizeof(MVMwint);   break;
-                case MVM_P6INT_C_TYPE_CHAR16_T: repr_data->bits = 8 * sizeof(MVMchar16); break;
-                case MVM_P6INT_C_TYPE_CHAR32_T: repr_data->bits = 8 * sizeof(MVMchar32); break;
+        if (!MVM_is_null(tc, type_o)) {
+            repr_data->type = MVM_repr_get_int(tc, type_o);
+            if (!MVM_is_null(tc, bits_o)) {
+                repr_data->bits = MVM_repr_get_int(tc, bits_o);
             }
-
-            if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
-             && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
-                MVM_exception_throw_adhoc(tc, "MVMP6int: Unsupported int size (%dbit)", repr_data->bits);
-        } else {
+            else {
+                switch (repr_data->type) {
+                    case MVM_P6INT_C_TYPE_CHAR:     repr_data->bits = 8 * sizeof(char);      break;
+                    case MVM_P6INT_C_TYPE_SHORT:    repr_data->bits = 8 * sizeof(short);     break;
+                    case MVM_P6INT_C_TYPE_INT:      repr_data->bits = 8 * sizeof(int);       break;
+                    case MVM_P6INT_C_TYPE_LONG:     repr_data->bits = 8 * sizeof(long);      break;
+                    case MVM_P6INT_C_TYPE_LONGLONG: repr_data->bits = 8 * sizeof(long long); break;
+                    case MVM_P6INT_C_TYPE_SIZE_T:   repr_data->bits = 8 * sizeof(size_t);    break;
+#ifdef MVM_BOOL
+                    case MVM_P6INT_C_TYPE_BOOL:     repr_data->bits = 8 * sizeof(MVM_BOOL);  break;
+#else
+                    case MVM_P6INT_C_TYPE_BOOL:     repr_data->bits = 8 * sizeof(char);      break;
+#endif
+                    case MVM_P6INT_C_TYPE_ATOMIC:   repr_data->bits = 8 * sizeof(AO_t);      break;
+                    case MVM_P6INT_C_TYPE_WCHAR_T:  repr_data->bits = 8 * sizeof(MVMwchar);  break;
+                    case MVM_P6INT_C_TYPE_WINT_T:   repr_data->bits = 8 * sizeof(MVMwint);   break;
+                    case MVM_P6INT_C_TYPE_CHAR16_T: repr_data->bits = 8 * sizeof(MVMchar16); break;
+                    case MVM_P6INT_C_TYPE_CHAR32_T: repr_data->bits = 8 * sizeof(MVMchar32); break;
+                }
+            }
+        }
+        else if (!MVM_is_null(tc, bits_o)) {
+            repr_data->bits = MVM_repr_get_int(tc, bits_o);
+            switch (repr_data->bits) {
+                case 8:  repr_data->type = MVM_P6INT_C_TYPE_CHAR;     break;
+                case 16: repr_data->type = MVM_P6INT_C_TYPE_SHORT;    break;
+                case 32: repr_data->type = MVM_P6INT_C_TYPE_INT;      break;
+                case 64: repr_data->type = MVM_P6INT_C_TYPE_LONGLONG; break;
+            }
+        }
+        else {
+            repr_data->type = MVM_P6INT_C_TYPE_LONGLONG;
             repr_data->bits = default_storage_spec.bits;
         }
 
-        if (!MVM_is_null(tc, is_unsigned_o)) {
+        if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
+         && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
+            MVM_exception_throw_adhoc(tc, "MVMP6int: Unsupported int size (%dbit)", repr_data->bits);
+
+        if (!MVM_is_null(tc, is_unsigned_o))
             repr_data->is_unsigned = MVM_repr_get_int(tc, is_unsigned_o);
-        }
     }
+
     if (repr_data->bits)
         mk_storage_spec(tc, repr_data->bits, repr_data->is_unsigned, &repr_data->storage_spec);
 }
@@ -193,18 +209,10 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
 
         /* Guesstimate the type. */
         switch (repr_data->bits) {
-            case 8:
-                repr_data->type = MVM_P6INT_C_TYPE_CHAR;
-                break;
-            case 16:
-                repr_data->type = MVM_P6INT_C_TYPE_SHORT;
-                break;
-            case 32:
-                repr_data->type = MVM_P6INT_C_TYPE_INT;
-                break;
-            case 64:
-                repr_data->type = MVM_P6INT_C_TYPE_LONGLONG;
-                break;
+            case 8:  repr_data->type = MVM_P6INT_C_TYPE_CHAR;     break;
+            case 16: repr_data->type = MVM_P6INT_C_TYPE_SHORT;    break;
+            case 32: repr_data->type = MVM_P6INT_C_TYPE_INT;      break;
+            case 64: repr_data->type = MVM_P6INT_C_TYPE_LONGLONG; break;
         }
     }
 
