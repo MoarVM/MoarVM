@@ -47,6 +47,8 @@ struct MVMArgInfo {
 };
 
 /* Argument processing context handling. */
+void MVM_args_proc_prepare(MVMArgProcContext *ctx, MVMCallsite *callsite, MVMRegister *args);
+void MVM_args_proc_finish(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, MVMRegister *args);
 void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, MVMRegister *args);
 void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx);
 void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max);

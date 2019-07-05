@@ -55,6 +55,8 @@
 # * :specializable means that the op is possible to optimize through type
 #   specialization (a frame that has no such ops will only ever get a certain
 #   specialization)
+# * :usesparams means that this is a param processing op, which needs the frame
+#   to have an arg processing context set up
 
 no_op               :confprog
 const_i8            w(int8) int8 :pure
@@ -196,25 +198,25 @@ invoke_i         -a w(int64) r(obj) :deoptallpoint :maycausedeopt :specializable
 invoke_n         -a w(num64) r(obj) :deoptallpoint :maycausedeopt :specializable
 invoke_s         -a w(str) r(obj) :deoptallpoint :maycausedeopt :specializable
 invoke_o         -a w(obj) r(obj) :deoptallpoint :deoptonepoint :logged :maycausedeopt :specializable
-checkarity          int16 int16
-param_rp_i       .p w(int64) int16 :pure :noinline
-param_rp_n       .p w(num64) int16 :pure :noinline
-param_rp_s       .p w(str) int16 :pure :noinline
-param_rp_o       .p w(obj) int16 :pure :noinline :useshll
-param_op_i       .p w(int64) int16 ins :pure :noinline
-param_op_n       .p w(num64) int16 ins :pure :noinline
-param_op_s       .p w(str) int16 ins :pure :noinline
-param_op_o       .p w(obj) int16 ins :pure :noinline :useshll
-param_rn_i          w(int64) str :noinline
-param_rn_n          w(num64) str :noinline
-param_rn_s          w(str) str :noinline
-param_rn_o          w(obj) str :noinline :useshll
-param_on_i          w(int64) str ins :noinline
-param_on_n          w(num64) str ins :noinline
-param_on_s          w(str) str ins :noinline
-param_on_o          w(obj) str ins :noinline :useshll
-param_sp         .p w(obj) int16 :pure :noinline :useshll
-param_sn            w(obj) :noinline :useshll
+checkarity          int16 int16 :usesparams
+param_rp_i       .p w(int64) int16 :pure :noinline :usesparams
+param_rp_n       .p w(num64) int16 :pure :noinline :usesparams
+param_rp_s       .p w(str) int16 :pure :noinline :usesparams
+param_rp_o       .p w(obj) int16 :pure :noinline :useshll :usesparams
+param_op_i       .p w(int64) int16 ins :pure :noinline :usesparams
+param_op_n       .p w(num64) int16 ins :pure :noinline :usesparams
+param_op_s       .p w(str) int16 ins :pure :noinline :usesparams
+param_op_o       .p w(obj) int16 ins :pure :noinline :useshll :usesparams
+param_rn_i          w(int64) str :noinline :usesparams
+param_rn_n          w(num64) str :noinline :usesparams
+param_rn_s          w(str) str :noinline :usesparams
+param_rn_o          w(obj) str :noinline :useshll :usesparams
+param_on_i          w(int64) str ins :noinline :usesparams
+param_on_n          w(num64) str ins :noinline :usesparams
+param_on_s          w(str) str ins :noinline :usesparams
+param_on_o          w(obj) str ins :noinline :useshll :usesparams
+param_sp         .p w(obj) int16 :pure :noinline :useshll :usesparams
+param_sn            w(obj) :noinline :useshll :usesparams
 getcode             w(obj) coderef :pure
 caller              w(obj) r(int64) :pure :noinline
 capturelex          r(obj) :noinline
@@ -239,8 +241,8 @@ takehandlerresult   w(obj)
 DEPRECATED_33       w(obj) ins
 DEPRECATED_34       w(obj) r(obj)
 backtracestrings    w(obj) r(obj) :pure
-usecapture          w(obj) :noinline
-savecapture         w(obj) :noinline
+usecapture          w(obj) :noinline :usesparams
+savecapture         w(obj) :noinline :usesparams
 captureposelems     w(int64) r(obj) :pure
 captureposarg       w(obj) r(obj) r(int64) :pure :useshll
 captureposarg_i     w(int64) r(obj) r(int64) :pure
@@ -616,7 +618,7 @@ randscale_n         w(num64) r(num64)
 uniisblock          w(int64) r(str) r(int64) r(str) :pure
 assertparamcheck    r(int64) :noinline :invokish :maycausedeopt
 hintfor             w(int64) r(obj) r(str)
-paramnamesused      :noinline
+paramnamesused      :noinline :usesparams
 getuniname          w(str) r(int64) :pure
 getuniprop_int      w(int64) r(int64) r(int64) :pure
 getuniprop_bool     w(int64) r(int64) r(int64) :pure
@@ -658,14 +660,14 @@ execname            w(str)
 const_i64_16        w(int64) int16 :pure :confprog
 const_i64_32        w(int64) int32 :pure :confprog
 isnonnull           w(int64) r(obj) :pure :specializable
-param_rn2_i         w(int64) str str :noinline
-param_rn2_n         w(num64) str str :noinline
-param_rn2_s         w(str) str str :noinline
-param_rn2_o         w(obj) str str :noinline :useshll
-param_on2_i         w(int64) str str ins :noinline
-param_on2_n         w(num64) str str ins :noinline
-param_on2_s         w(str) str str ins :noinline
-param_on2_o         w(obj) str str ins :noinline :useshll
+param_rn2_i         w(int64) str str :noinline :usesparams
+param_rn2_n         w(num64) str str :noinline :usesparams
+param_rn2_s         w(str) str str :noinline :usesparams
+param_rn2_o         w(obj) str str :noinline :useshll :usesparams
+param_on2_i         w(int64) str str ins :noinline :usesparams
+param_on2_n         w(num64) str str ins :noinline :usesparams
+param_on2_s         w(str) str str ins :noinline :usesparams
+param_on2_o         w(obj) str str ins :noinline :useshll :usesparams
 osrpoint            :osrpoint
 nativecallcast      w(obj) r(obj) r(obj) r(obj)
 spawnprocasync      w(obj) r(obj) r(obj) r(str) r(obj) r(obj)
@@ -788,12 +790,12 @@ getlexref_u         w(obj) rl(uint64) :pure :noinline :useshll
 getlexref_u32       w(obj) rl(uint32) :pure :noinline :useshll
 getlexref_u16       w(obj) rl(uint16) :pure :noinline :useshll
 getlexref_u8        w(obj) rl(uint8) :pure :noinline :useshll
-param_rp_u          w(uint64) int16 :pure :noinline
-param_op_u          w(uint64) int16 ins :pure :noinline
-param_rn_u          w(uint64) str :noinline
-param_on_u          w(uint64) str ins :noinline
-param_rn2_u         w(uint64) str str :noinline
-param_on2_u         w(uint64) str str ins :noinline
+param_rp_u          w(uint64) int16 :pure :noinline :usesparams
+param_op_u          w(uint64) int16 ins :pure :noinline :usesparams
+param_rn_u          w(uint64) str :noinline :usesparams
+param_on_u          w(uint64) str ins :noinline :usesparams
+param_rn2_u         w(uint64) str str :noinline :usesparams
+param_on2_u         w(uint64) str str ins :noinline :usesparams
 stat_time           w(num64) r(str) r(int64)
 lstat_time          w(num64) r(str) r(int64)
 setdebugtypename    r(obj) r(str)

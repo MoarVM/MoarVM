@@ -520,6 +520,12 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         else {
             chosen_bytecode = chosen_cand->bytecode;
         }
+        /* Only set up args processing context if we really need it. If not,
+         * just store enough that we can create it later. */
+        if (chosen_cand->needs_arg_proc_context)
+            MVM_args_proc_init(tc, &frame->params, callsite, args);
+        else
+            MVM_args_proc_prepare(&frame->params, callsite, args);
         frame->effective_spesh_slots = chosen_cand->spesh_slots;
         frame->spesh_cand = chosen_cand;
     }
@@ -557,6 +563,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                 });
             }
         }
+
+        /* Unspecialized code always needs an args processing context. */
+        MVM_args_proc_init(tc, &frame->params, callsite, args);
     }
 
     /* Store the code ref (NULL at the top-level). */
@@ -564,9 +573,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
     /* Outer. */
     frame->outer = outer;
-
-    /* Initialize argument processing. */
-    MVM_args_proc_init(tc, &frame->params, callsite, args);
 
     MVM_jit_code_trampoline(tc);
 
@@ -886,7 +892,8 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
 
     /* Clean up frame working space. */
     if (returner->work) {
-        MVM_args_proc_cleanup(tc, &returner->params);
+        if (!returner->spesh_cand || returner->spesh_cand->needs_arg_proc_context)
+            MVM_args_proc_cleanup(tc, &returner->params);
         MVM_fixed_size_free(tc, tc->instance->fsa, returner->allocd_work,
             returner->work);
     }

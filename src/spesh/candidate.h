@@ -49,6 +49,9 @@ struct MVMSpeshCandidate {
     /* Number of lexicals the specialized code has. */
     MVMuint16 num_lexicals;
 
+    /* Does this need an arg processing context? */
+    MVMuint8 needs_arg_proc_context;
+
     /* Memory sizes to allocate for work/env, taking into account inlining. */
     MVMuint32 work_size;
     MVMuint32 env_size;

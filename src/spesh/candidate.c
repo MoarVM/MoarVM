@@ -98,6 +98,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     candidate->bytecode_size = sc->bytecode_size;
     candidate->handlers      = sc->handlers;
     candidate->deopt_usage_info = sc->deopt_usage_info;
+    candidate->needs_arg_proc_context = sc->needs_arg_proc_context;
     candidate->num_handlers  = sg->num_handlers;
     candidate->num_deopts    = sg->num_deopt_addrs;
     candidate->deopts        = sg->deopt_addrs;

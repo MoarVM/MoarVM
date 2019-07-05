@@ -152,9 +152,18 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
     }
 }
 
-static void deopt_named_args_used(MVMThreadContext *tc, MVMFrame *f) {
-    if (f->spesh_cand->deopt_named_used_bit_field)
+/* Handle any arg-processing related things in deopt. */
+static void deopt_args(MVMThreadContext *tc, MVMFrame *f) {
+    if (!f->spesh_cand->needs_arg_proc_context) {
+        /* Create thea arg processing context for the frame, since we
+         * avoided doing so before this. */
+        MVM_args_proc_finish(tc, &f->params, f->params.callsite, f->params.args);
+    }
+    if (f->spesh_cand->deopt_named_used_bit_field) {
+        /* Put in place markers for named parameters we know we use
+         * (we avoid tracking this in the specialized case). */
         f->params.named_used.bit_field = f->spesh_cand->deopt_named_used_bit_field;
+    }
 }
 
 /* Materialize an individual replaced object. */
@@ -246,10 +255,12 @@ static void materialize_replaced_objects_by_offset(MVMThreadContext *tc, MVMFram
 }
 
 static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset, MVMint32 deopt_target) {
+    /* Handle any arguments related state. */
+    deopt_args(tc, f);
+
     /* Found it. We materialize any replaced objects first, then if
      * we have stuff replaced in inlines then uninlining will take
      * care of moving it out into the frames where it belongs. */
-    deopt_named_args_used(tc, f);
     MVMROOT(tc, f, {
         materialize_replaced_objects_by_offset(tc, f, deopt_offset);
     });
@@ -418,7 +429,7 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                 }
 
                 /* No spesh cand/slots needed now. */
-                deopt_named_args_used(tc, f);
+                deopt_args(tc, f);
                 f->effective_spesh_slots = NULL;
                 if (f->spesh_cand->jitcode) {
                     f->spesh_cand = NULL;

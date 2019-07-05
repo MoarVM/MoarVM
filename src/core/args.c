@@ -26,16 +26,26 @@ static void init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuin
         ctx->named_used.bit_field = 0;
 }
 
-/* Initialize arguments processing context. */
-void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, MVMRegister *args) {
-    /* Stash callsite and argument counts/pointers. */
+/* Store the callsite and args, but don't do any further args processing
+ * context setup work. Used when we just need enough to create it later. */
+void MVM_args_proc_prepare(MVMArgProcContext *ctx, MVMCallsite *callsite, MVMRegister *args) {
     ctx->callsite = callsite;
-    /* initial counts and values; can be altered by flatteners */
-    init_named_used(tc, ctx, MVM_callsite_num_nameds(tc, callsite));
     ctx->args     = args;
+}
+
+/* Finish setup of an argument processing context. Called if we deopt
+ * and need to complete the work. */
+void MVM_args_proc_finish(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, MVMRegister *args) {
+    init_named_used(tc, ctx, MVM_callsite_num_nameds(tc, callsite));
     ctx->num_pos  = callsite->num_pos;
     ctx->arg_count = callsite->arg_count;
     ctx->arg_flags = NULL; /* will be populated by flattener if needed */
+}
+
+/* Initialize arguments processing context. */
+void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, MVMRegister *args) {
+    MVM_args_proc_prepare(ctx, callsite, args);
+    MVM_args_proc_finish(tc, ctx, callsite, args);
 }
 
 /* Clean up an arguments processing context. */

@@ -33,6 +33,10 @@ typedef struct {
 
     /* Working deopt users state (so we can allocate it once and re-use it). */
     AllDeoptUsers all_deopt_users;
+
+    /* Did we encounter an instruction that means we need an arg processing
+     * context? */
+    MVMuint8 needs_arg_proc_context;
 } SpeshWriterState;
 
 /* Write functions; all native endian. */
@@ -182,8 +186,10 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                     MVM_oops(tc, "Spesh: failed to resolve extop in code-gen");
             }
             else {
-                /* Core op. */
+                /* Core op. Track those that need arg processing. */
                 write_int16(ws, ins->info->opcode);
+                if (ins->info->uses_params)
+                    ws->needs_arg_proc_context = 1;
             }
 
             /* Write out operands. */
@@ -315,6 +321,7 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVM_VECTOR_INIT(ws->deopt_usage_info, 0);
     MVM_VECTOR_INIT(ws->all_deopt_users.idxs, 0);
     MVM_VECTOR_INIT(ws->all_deopt_users.seen_phis, 0);
+    ws->needs_arg_proc_context = 0;
 
     /* Create copy of handlers, and -1 all offsets so we can catch missing
      * updates. */
@@ -401,6 +408,7 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     res->bytecode_size    = ws->bytecode_pos;
     res->handlers         = ws->handlers;
     res->deopt_usage_info = ws->deopt_usage_info;
+    res->needs_arg_proc_context = ws->needs_arg_proc_context;
 
     /* Cleanup. */
     MVM_free(ws->bb_offsets);

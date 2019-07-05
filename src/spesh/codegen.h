@@ -11,6 +11,10 @@ struct MVMSpeshCode {
 
     /* Deopt usage info, which will be stored on the candidate. */
     MVMint32 *deopt_usage_info;
+
+    /* Were any instructions that need an arg processing context
+     * observed? */
+    MVMuint8 needs_arg_proc_context;
 };
 
 MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g);
