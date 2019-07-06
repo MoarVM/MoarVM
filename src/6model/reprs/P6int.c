@@ -137,22 +137,22 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             }
             else {
                 switch (repr_data->type) {
-                    case MVM_P6INT_C_TYPE_CHAR:     repr_data->bits = 8 * sizeof(char);      break;
-                    case MVM_P6INT_C_TYPE_SHORT:    repr_data->bits = 8 * sizeof(short);     break;
-                    case MVM_P6INT_C_TYPE_INT:      repr_data->bits = 8 * sizeof(int);       break;
-                    case MVM_P6INT_C_TYPE_LONG:     repr_data->bits = 8 * sizeof(long);      break;
-                    case MVM_P6INT_C_TYPE_LONGLONG: repr_data->bits = 8 * sizeof(long long); break;
-                    case MVM_P6INT_C_TYPE_SIZE_T:   repr_data->bits = 8 * sizeof(size_t);    break;
+                    case MVM_P6INT_C_TYPE_CHAR:       repr_data->bits = 8 * sizeof(char);      break;
+                    case MVM_P6INT_C_TYPE_SHORT:      repr_data->bits = 8 * sizeof(short);     break;
+                    case MVM_P6INT_C_TYPE_INT:        repr_data->bits = 8 * sizeof(int);       break;
+                    case MVM_P6INT_C_TYPE_LONG:       repr_data->bits = 8 * sizeof(long);      break;
+                    case MVM_P6INT_C_TYPE_LONGLONG:   repr_data->bits = 8 * sizeof(long long); break;
+                    case MVM_P6INT_C_TYPE_SIZE_T:     repr_data->bits = 8 * sizeof(size_t);    break;
 #ifdef MVM_BOOL
-                    case MVM_P6INT_C_TYPE_BOOL:     repr_data->bits = 8 * sizeof(MVM_BOOL);  break;
+                    case MVM_P6INT_C_TYPE_BOOL:       repr_data->bits = 8 * sizeof(MVM_BOOL);  break;
 #else
-                    case MVM_P6INT_C_TYPE_BOOL:     repr_data->bits = 8 * sizeof(char);      break;
+                    case MVM_P6INT_C_TYPE_BOOL:       repr_data->bits = 8 * sizeof(char);      break;
 #endif
-                    case MVM_P6INT_C_TYPE_ATOMIC:   repr_data->bits = 8 * sizeof(AO_t);      break;
-                    case MVM_P6INT_C_TYPE_WCHAR_T:  repr_data->bits = 8 * sizeof(MVMwchar);  break;
-                    case MVM_P6INT_C_TYPE_WINT_T:   repr_data->bits = 8 * sizeof(MVMwint);   break;
-                    case MVM_P6INT_C_TYPE_CHAR16_T: repr_data->bits = 8 * sizeof(MVMchar16); break;
-                    case MVM_P6INT_C_TYPE_CHAR32_T: repr_data->bits = 8 * sizeof(MVMchar32); break;
+                    case MVM_P6INT_C_TYPE_ATOMIC_INT: repr_data->bits = 8 * sizeof(AO_t);      break;
+                    case MVM_P6INT_C_TYPE_WCHAR_T:    repr_data->bits = 8 * sizeof(MVMwchar);  break;
+                    case MVM_P6INT_C_TYPE_WINT_T:     repr_data->bits = 8 * sizeof(MVMwint);   break;
+                    case MVM_P6INT_C_TYPE_CHAR16_T:   repr_data->bits = 8 * sizeof(MVMchar16); break;
+                    case MVM_P6INT_C_TYPE_CHAR32_T:   repr_data->bits = 8 * sizeof(MVMchar32); break;
                 }
             }
         }

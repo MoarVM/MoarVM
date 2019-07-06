@@ -1,7 +1,3 @@
-#define MVM_P6NUM_C_TYPE_FLOAT       -1
-#define MVM_P6NUM_C_TYPE_DOUBLE      -2
-#define MVM_P6NUM_C_TYPE_LONGDOUBLE  -3
-
 /* Representation used by P6 nums. */
 struct MVMP6numBody {
     /* Float storage slot. */
