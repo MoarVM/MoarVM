@@ -15,7 +15,8 @@ struct MVMCStr {
 };
 
 struct MVMCStrREPRData {
-    MVMint32 type;
+    MVMint32  type;
+    MVMuint64 length;
 };
 
 /* Initializes the CStr REPR. */

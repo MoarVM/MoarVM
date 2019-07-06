@@ -11,7 +11,8 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMROOT(tc, st, {
         MVMObject       *obj       = MVM_gc_allocate_type_object(tc, st);
         MVMCStrREPRData *repr_data = MVM_malloc(sizeof(MVMCStrREPRData));
-        repr_data->type = MVM_P6STR_C_TYPE_CHAR;
+        repr_data->type   = MVM_P6STR_C_TYPE_CHAR;
+        repr_data->length = 0;
 
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size      = sizeof(MVMCStr);
@@ -44,32 +45,40 @@ static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     MVM_ASSIGN_REF(tc, &(root->header), body->source, value);
 
     switch (repr_data->type) {
-        case MVM_P6STR_C_TYPE_CHAR:
-            body->value.c = MVM_string_utf8_encode_C_string(tc, value);
+        case MVM_P6STR_C_TYPE_CHAR: {
+            MVMuint64  length;
+            char      *utf8    = MVM_string_utf8_encode(tc, value, &length, 0);
+            char      *c       = MVM_calloc(length + 1, sizeof(char));
+
+            memcpy(c, utf8, length);
+            MVM_free(utf8);
+
+            body->value.c     = c;
+            repr_data->length = length;
             break;
+        }
         case MVM_P6STR_C_TYPE_WCHAR_T: {
             MVMwchar  *wide;
             mbstate_t  state;
             size_t     len;
             size_t     els;
 
-            char *c = MVM_string_utf8_encode_C_string(tc, value);
+            const char *c = MVM_string_utf8_encode_C_string(tc, value);
             memcpy(&state, 0, sizeof(mbstate_t));
-            len = mbsrtowcs(NULL, (const char **)&c, 0, &state);
-            els = mbsrtowcs(wide, (const char **)&c, len, &state);
+            len = mbsrtowcs(NULL, &c, 0, &state);
+            els = mbsrtowcs(wide, &c, len, &state);
             if (els == (size_t)-1)
                 MVM_exception_throw_adhoc(tc, "CStr: failed to encode wide string with error '%s'", strerror(errno));
+            MVM_free((char *)c);
 
-            body->value.wide = wide;
-            MVM_free(c);
+            body->value.wide  = wide;
+            repr_data->length = els;
             break;
         }
         case MVM_P6STR_C_TYPE_CHAR16_T:
             MVM_exception_throw_adhoc(tc, "CStr: u16string support NYI");
-            break;
         case MVM_P6STR_C_TYPE_CHAR32_T:
             MVM_exception_throw_adhoc(tc, "CStr: u32string support NYI");
-            break;
     }
 }
 
@@ -103,20 +112,43 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMCStrREPRData *repr_data = (MVMCStrREPRData *)st->REPR_data;
     MVM_serialization_write_int(tc, writer, repr_data->type);
+    MVM_serialization_write_int(tc, writer, repr_data->length);
 }
 
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     MVMCStrREPRData *repr_data = MVM_malloc(sizeof(MVMCStrREPRData));
 
-    if (reader->root.version >= 22) {
-        repr_data->type = MVM_serialization_read_int(tc, reader);
+    if (reader->root.version >= 23) {
+        repr_data->type   = MVM_serialization_read_int(tc, reader);
+        repr_data->length = MVM_serialization_read_int(tc, reader);
+    }
+    else if (reader->root.version >= 22) {
+        repr_data->type   = MVM_serialization_read_int(tc, reader);
+        repr_data->length = 0;
     } else {
-        repr_data->type = MVM_P6STR_C_TYPE_CHAR;
+        repr_data->type   = MVM_P6STR_C_TYPE_CHAR;
+        repr_data->length = 0;
     }
 
     if (repr_data->type != MVM_P6STR_C_TYPE_CHAR && repr_data->type != MVM_P6STR_C_TYPE_WCHAR_T
      && repr_data->type != MVM_P6STR_C_TYPE_CHAR16_T && repr_data->type != MVM_P6STR_C_TYPE_CHAR32_T)
         MVM_exception_throw_adhoc(tc, "CStr: unsupported character type (%d)", repr_data->type);
+
+    if (repr_data->length == 0) {
+        MVMCStrBody *body = (MVMCStrBody *)OBJECT_BODY(st->WHAT);
+        switch (repr_data->type) {
+            case MVM_P6STR_C_TYPE_CHAR:
+                repr_data->length = strlen(body->value.c) + 1;
+                break;
+            case MVM_P6STR_C_TYPE_WCHAR_T:
+                repr_data->length = wcslen(body->value.wide) + 1;
+                break;
+            case MVM_P6STR_C_TYPE_CHAR16_T:
+                MVM_exception_throw_adhoc(tc, "CStr: u16string support NYI");
+            case MVM_P6STR_C_TYPE_CHAR32_T:
+                MVM_exception_throw_adhoc(tc, "CStr: u32string support NYI");
+        }
+    }
 
     st->REPR_data = repr_data;
 }
@@ -165,18 +197,15 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
     MVMCStrREPRData *repr_data = (MVMCStrREPRData *)st->REPR_data;
     switch (repr_data->type) {
         case MVM_P6STR_C_TYPE_CHAR:
-            return sizeof(char) * (strlen(body->value.c) + 1);
+            return sizeof(char) * repr_data->length;
         case MVM_P6STR_C_TYPE_WCHAR_T:
-            return sizeof(MVMwchar) * (wcslen(body->value.wide) + 1);
+            return sizeof(MVMwchar) * repr_data->length;;
         case MVM_P6STR_C_TYPE_CHAR16_T:
             MVM_exception_throw_adhoc(tc, "CStr: u16string support NYI");
-            break;
         case MVM_P6STR_C_TYPE_CHAR32_T:
             MVM_exception_throw_adhoc(tc, "CStr: u32string support NYI");
-            break;
         default:
             MVM_exception_throw_adhoc(tc, "CStr: unsupported native type (%d)", repr_data->type);
-            break;
     }
 }
 
