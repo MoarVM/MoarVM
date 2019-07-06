@@ -91,6 +91,7 @@ typedef struct MVMNull MVMNull;
 typedef struct MVMNullBody MVMNullBody;
 typedef struct MVMCStr MVMCStr;
 typedef struct MVMCStrBody MVMCStrBody;
+typedef struct MVMCStrREPRData MVMCStrREPRData;
 typedef struct MVMCPointer MVMCPointer;
 typedef struct MVMCPointerBody MVMCPointerBody;
 typedef struct MVMCArray MVMCArray;
