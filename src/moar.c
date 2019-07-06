@@ -85,6 +85,11 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up instance data structure. */
     instance = MVM_calloc(1, sizeof(MVMInstance));
 
+#ifndef _WIN32
+    /* Set up instance locale. */
+    instance->locale = newlocale(LC_CTYPE_MASK, "", (locale_t)0);
+#endif
+
     /* Create the main thread's ThreadContext and stash it. */
     instance->main_thread = MVM_tc_create(NULL, instance);
     /* Get the 128-bit hashSecret */
@@ -641,6 +646,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up fixed size allocator */
     MVM_fixed_size_destroy(instance->fsa);
+
+    /* Clean up locale. */
+    MVM_free(instance->locale);
 
     /* Clear up VM instance memory. */
     MVM_free(instance);

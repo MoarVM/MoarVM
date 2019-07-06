@@ -328,6 +328,13 @@ struct MVMThreadContext {
 
     MVMuint32 cur_file_idx;
     MVMuint32 cur_line_no;
+
+#ifndef _WIN32
+    /* Locale settings. This isn't handled on Windows since it keeps no state
+     * related to locale. */
+    locale_t  locale;
+    mbstate_t mbstate;
+#endif
 };
 
 MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance);

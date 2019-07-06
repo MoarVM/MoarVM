@@ -57,6 +57,13 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
     /* Initialize plugin_guard_args so we never have to do a NULL check */
     tc->plugin_guard_args = instance->VMNull;
 
+#ifndef _WIN32
+    /* Initialize locale on UNIX-like OSes. Windows handles locales
+     * differently in such a way that we can't keep anything in state. */
+    tc->locale  = duplocale(instance->locale);
+    tc->mbstate = (mbstate_t){ 0 };
+#endif
+
     /* Note that these two assignments above are repeated in
      * MVM_6model_bootstrap because VMNull doesn't exist yet when the very
      * first tc is created. */
@@ -108,6 +115,10 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
         mp_clear(tc->temp_bigints[i]);
         MVM_free(tc->temp_bigints[i]);
     }
+
+#ifndef _WIN32
+    freelocale(tc->locale);
+#endif
 
     /* Free the thread context itself. */
     memset(tc, 0, sizeof(MVMThreadContext));

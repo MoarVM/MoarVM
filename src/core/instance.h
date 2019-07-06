@@ -531,4 +531,10 @@ struct MVMInstance {
     /* Hash Secrets which is used as the hash seed. This is to avoid denial of
      * service type attacks. */
     MVMuint64 hashSecrets[2];
+
+#ifndef _WIN32
+    /* Locale information for UNIX-like OSes. Storing this here allows us to
+     * use duplocale instead of having to create a new one for each thread. */
+    locale_t locale;
+#endif
 };
