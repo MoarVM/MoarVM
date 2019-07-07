@@ -1163,6 +1163,92 @@ void write_toc_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *co
     }
 }
 
+typedef struct {
+    MVMuint64 identity;
+    MVMuint64 value;
+} to_sort_entry;
+
+static int comparator(const void *one_entry, const void *two_entry) {
+    to_sort_entry *one = (to_sort_entry *)one_entry;
+    to_sort_entry *two = (to_sort_entry *)two_entry;
+
+    if (one->value < two->value)
+        return 1;
+    if (one->value > two->value)
+        return -1;
+    return 0;
+}
+
+typedef struct leaderboard {
+    MVMuint64 tofi;
+    MVMuint64 value;
+} leaderboard;
+
+#define LEADERBOARDS_TOP_SPOTS 25
+
+static void make_leaderboards(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapSnapshot *hs) {
+    MVMHeapSnapshotStats *stats = hs->stats;
+    to_sort_entry *data_body;
+    MVMuint32 i;
+    MVMuint8 which;
+
+    leaderboard boards[4][LEADERBOARDS_TOP_SPOTS];
+
+    char *descriptions[4] = {
+        "types_by_count",
+        "frames_by_count",
+        "types_by_size",
+        "frames_by_size",
+    };
+
+    if (!stats)
+        return;
+
+    /* keep one allocation for all the work */
+    data_body = MVM_malloc(
+            (stats->type_stats_alloc > stats->sf_stats_alloc ? stats->type_stats_alloc : stats->sf_stats_alloc)
+            * sizeof(to_sort_entry)
+            );
+    /*fprintf(stderr, "{\n");*/
+    for (which = 0; which < 4; which++) {
+        MVMuint32 size = which == 0 || which == 2 ? stats->type_stats_alloc : stats->sf_stats_alloc;
+        for (i = 0; i < size; i++) {
+            data_body[i].identity = i;
+            data_body[i].value =
+                which == 0 ? stats->type_counts[i]
+                : which == 1 ? stats->sf_counts[i]
+                : which == 2 ? stats->type_size_sum[i]
+                             : stats->sf_size_sum[i];
+        }
+        qsort((void *)data_body, size, sizeof(to_sort_entry), comparator);
+
+        /*fprintf(stderr, "  %s: [\n", descriptions[which]);*/
+        for (i = 0; i < LEADERBOARDS_TOP_SPOTS; i++) {
+            char *name = NULL;
+            boards[which][i].tofi = data_body[i].identity;
+            boards[which][i].value = data_body[i].value;
+
+            /*name = col->strings[which == 0 || which == 2*/
+                    /*? col->types[data_body[i].identity].type_name : col->static_frames[data_body[i].identity].name];*/
+
+            /*fprintf(stderr, "      { id: %d, name: \"%s\", score: %d }%s\n",*/
+                    /*data_body[i].identity, name, data_body[i].value, i == 20 ? "" : ",");*/
+        }
+        /*fprintf(stderr, "  ]\n");*/
+    }
+    /*fprintf(stderr, "}\n");*/
+
+    {
+        char *first_entry  = (char *)(&boards[0][0].tofi);
+        char *second_entry = (char *)(&boards[0][1].tofi);
+
+        SERIALIZE_ATTR_STREAM("topIDs",    first_entry, second_entry, leaderboard, tofi,  4 * LEADERBOARDS_TOP_SPOTS);
+        SERIALIZE_ATTR_STREAM("topscore",  first_entry, second_entry, leaderboard, value, 4 * LEADERBOARDS_TOP_SPOTS);
+    }
+
+    MVM_free(data_body);
+}
+
 void snapshot_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMuint64 i = col->snapshot_idx;
     MVMHeapDumpIndexSnapshotEntry *entry;
@@ -1184,6 +1270,8 @@ void snapshot_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection
     string_heap_to_filehandle_ver3(tc, col);
     types_to_filehandle_ver3(tc, col);
     static_frames_to_filehandle_ver3(tc, col);
+
+    make_leaderboards(tc, col, col->snapshot);
 
     write_toc_to_filehandle(tc, col, inner_toc, outer_toc);
 
@@ -1574,76 +1662,6 @@ void finish_collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollec
 #endif
 }
 
-typedef struct {
-    MVMuint32 identity;
-    MVMuint64 value;
-} to_sort_entry;
-
-static int comparator(const void *one_entry, const void *two_entry) {
-    to_sort_entry *one = (to_sort_entry *)one_entry;
-    to_sort_entry *two = (to_sort_entry *)two_entry;
-
-    if (one->value < two->value)
-        return 1;
-    if (one->value > two->value)
-        return -1;
-    return 0;
-}
-
-typedef struct leaderboard {
-    MVMuint32 tofi;
-    MVMuint64 value;
-} leaderboard;
-
-static void make_leaderboards(MVMThreadContext *tc, MVMHeapSnapshot *hs) {
-    MVMHeapSnapshotStats *stats = hs->stats;
-    to_sort_entry *data_body;
-    MVMuint32 i;
-    MVMuint8 which;
-
-    leaderboard boards[4][20];
-
-    char *descriptions[4] = {
-        "types_by_count",
-        "frames_by_count",
-        "types_by_size",
-        "frames_by_size",
-    };
-
-    if (!stats)
-        return;
-
-    /* keep one allocation for all the work */
-    data_body = MVM_malloc(
-            (stats->type_stats_alloc > stats->sf_stats_alloc ? stats->type_stats_alloc : stats->sf_stats_alloc)
-            * sizeof(to_sort_entry)
-            );
-    fprintf(stderr, "{\n");
-    for (which = 0; which < 4; which++) {
-        MVMuint32 size = which == 0 || which == 2 ? stats->type_stats_alloc : stats->sf_stats_alloc;
-        for (i = 0; i < size; i++) {
-            data_body[i].identity = i;
-            data_body[i].value =
-                which == 0 ? stats->type_counts[i]
-                : which == 1 ? stats->sf_counts[i]
-                : which == 2 ? stats->type_size_sum[i]
-                             : stats->sf_size_sum[i];
-        }
-        qsort((void *)data_body, size, sizeof(to_sort_entry), comparator);
-
-        fprintf(stderr, "  %s: [\n", descriptions[which]);
-        for (i = 0; i < 20; i++) {
-            boards[which][i].tofi = data_body[i].identity;
-            boards[which][i].value = data_body[i].value;
-            fprintf(stderr, "      { id: %d, name: \"%s\", score: %d }%s\n",
-                    data_body[i].identity, "NYI", data_body[i].value, i == 20 ? "" : ",");
-        }
-        fprintf(stderr, "  ]\n");
-    }
-    fprintf(stderr, "}\n");
-    MVM_free(data_body);
-}
-
 /* Takes a snapshot of the heap, outputting it to the filehandle */
 void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
     if (MVM_profile_heap_profiling(tc)) {
@@ -1665,9 +1683,8 @@ void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
 #else
             snapshot_to_filehandle_ver2(tc, col);
 #endif
-            fflush(col->fh);
 
-            make_leaderboards(tc, col->snapshot);
+            fflush(col->fh);
             destroy_current_heap_snapshot(tc);
         }
 
