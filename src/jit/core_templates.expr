@@ -43,6 +43,15 @@
   (when (zr $0)
     (branch $1)))
 
+(template: if_n
+  (when (nz $0)
+    (branch $1)))
+
+(template: unless_n
+  (when (zr $0)
+    (branch $1)))
+
+
 (template: getlex (copy $1))
 (template: bindlex! (store \$0 $1 reg_sz))
 
@@ -151,6 +160,14 @@
 (template: gt_i (flagval (gt $1 $2)))
 (template: ge_i (flagval (ge $1 $2)))
 (template: cmp_i (sub (flagval (gt $1 $2)) (flagval (lt $1 $2))))
+
+(template: eq_n (flagval (eq $1 $2)))
+(template: ne_n (flagval (ne $1 $2)))
+(template: lt_n (flagval (lt $1 $2)))
+(template: le_n (flagval (le $1 $2)))
+(template: gt_n (flagval (gt $1 $2)))
+(template: ge_n (flagval (ge $1 $2)))
+(template: cmp_n (sub (flagval (gt $1 $2)) (flagval (lt $1 $2))))
 
 (template: add_i (add $1 $2))
 (template: sub_i (sub $1 $2))

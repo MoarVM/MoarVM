@@ -239,7 +239,7 @@ void MVM_jit_compile_branch(MVMThreadContext *tc, MVMJitCompiler *compiler,
 
 void MVM_jit_compile_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                         MVMJitTile *tile, MVMJitExprTree *tree) {
-    MVM_jit_emit_conditional_branch(tc, compiler, tile->args[0], tile->args[1]);
+    MVM_jit_emit_conditional_branch(tc, compiler, tile->args[0], tile->args[1], tile->args[2]);
 }
 
 void MVM_jit_compile_label(MVMThreadContext *tc, MVMJitCompiler *compiler,

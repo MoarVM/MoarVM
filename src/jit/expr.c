@@ -315,7 +315,15 @@ static MVMint32 ins_has_single_input_output_operand(MVMSpeshIns *ins) {
     return 0;
 }
 
-
+/* One of the operands might not even have a type (LOAD and CONST are untyped, should they be?) */
+static MVMuint8 coalesce_type(MVMuint8 left, MVMuint8 right) {
+    if (left != 0) {
+        /* Bit 5 indicates unsignedness, we don't care about that */
+        assert(right == 0 || (right & 0xf) == (left & 0xf));
+        return left;
+    }
+    return right;
+}
 
 void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree,
                                 MVMSpeshGraph *sg, MVMSpeshIns *ins,
@@ -463,15 +471,18 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVMint32        *links = MVM_JIT_EXPR_LINKS(tree, node);
     MVMint32         *args = MVM_JIT_EXPR_ARGS(tree, node);
     MVMint32     cast_mode = MVM_JIT_NOOP;
+    MVMint8      node_type = MVM_JIT_EXPR_INFO(tree, node)->type;
     MVMint32 node_size = 0;
     MVMint32 i;
 
 
     /* propagate node sizes */
     switch (tree->nodes[node]) {
+    case MVM_JIT_CONST_NUM:
+        node_type = (args[1] == sizeof(MVMnum32) ? MVM_reg_num32 : MVM_reg_num64);
+        /* fallthrough */
     case MVM_JIT_CONST:
     case MVM_JIT_CONST_LARGE:
-    case MVM_JIT_CONST_NUM:
         /* node size is given */
         node_size        = args[1];
         break;
@@ -480,9 +491,12 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         break;
     case MVM_JIT_COPY:
         node_size = MVM_JIT_EXPR_INFO(tree, links[0])->size;
+        node_type = MVM_JIT_EXPR_INFO(tree, links[0])->type;
         break;
-    case MVM_JIT_LOAD:
     case MVM_JIT_LOAD_NUM:
+        node_type = (args[0] == sizeof(MVMnum32) ? MVM_reg_num32 : MVM_reg_num64);
+        /* fallthrough */
+    case MVM_JIT_LOAD:
         node_size = args[0];
         break;
     case MVM_JIT_SCAST:
@@ -512,13 +526,13 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     case MVM_JIT_GT:
     case MVM_JIT_EQ:
     case MVM_JIT_NE:
-        {
-            /* arithmetic nodes use their largest operand */
-            node_size = MAX(MVM_JIT_EXPR_INFO(tree, links[0])->size,
-                            MVM_JIT_EXPR_INFO(tree, links[1])->size);
-            cast_mode = MVM_JIT_SCAST;
-            break;
-        }
+        /* arithmetic nodes use their largest operand */
+        node_size = MAX(MVM_JIT_EXPR_INFO(tree, links[0])->size,
+                        MVM_JIT_EXPR_INFO(tree, links[1])->size);
+        cast_mode = MVM_JIT_SCAST;
+        node_type = coalesce_type(MVM_JIT_EXPR_INFO(tree, links[0])->type,
+                                  MVM_JIT_EXPR_INFO(tree, links[1])->type);
+        break;
        /* unsigned binary operations */
     case MVM_JIT_AND:
     case MVM_JIT_OR:
@@ -542,12 +556,15 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         /* node size of last child */
         {
             node_size = MVM_JIT_EXPR_INFO(tree, links[nchild-1])->size;
+            node_type = MVM_JIT_EXPR_INFO(tree, links[nchild-1])->type;
             break;
         }
     case MVM_JIT_IF:
         {
             node_size = MAX(MVM_JIT_EXPR_INFO(tree, links[1])->size,
                             MVM_JIT_EXPR_INFO(tree, links[2])->size);
+            node_type = coalesce_type(MVM_JIT_EXPR_INFO(tree, links[1])->type,
+                                      MVM_JIT_EXPR_INFO(tree, links[2])->type);
             break;
         }
     case MVM_JIT_CALL:
@@ -555,10 +572,12 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         break;
     case MVM_JIT_CALLN:
         node_size = sizeof(MVMnum64);
+        node_type = MVM_reg_num64;
         break;
     case MVM_JIT_NZ:
     case MVM_JIT_ZR:
         node_size = MVM_JIT_EXPR_INFO(tree, links[0])->size;
+        node_type = MVM_JIT_EXPR_INFO(tree, links[0])->type;
         break;
     default:
         /* all other things, branches, labels, when, arglist, carg,
@@ -567,6 +586,7 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         break;
     }
     MVM_JIT_EXPR_INFO(tree, node)->size = node_size;
+    MVM_JIT_EXPR_INFO(tree, node)->type = node_type;
 
     /* Insert casts as necessary */
     if (cast_mode != MVM_JIT_NOOP) {

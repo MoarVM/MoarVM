@@ -124,7 +124,20 @@
 (tile: cmp (le reg reg) flag 2)
 (tile: cmp (ge reg reg) flag 2)
 
+(tile: test_num (zr num) flag 2)
+(tile: test_num (nz num) flag 2)
+
+(tile: cmp_num (eq num num) flag 2)
+(tile: cmp_num (lt num num) flag 2)
+(tile: cmp_num (gt num num) flag 2)
+(tile: cmp_num (ne num num) flag 2)
+(tile: cmp_num (le num num) flag 2)
+(tile: cmp_num (ge num num) flag 2)
+
 (tile: flagval (flagval flag) reg 2)
+
+
+
 
 # Labels and branches
 (tile: mark (mark $label) void 1)

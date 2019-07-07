@@ -527,8 +527,9 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 MVM_VECTOR_PUSH(list->items, label);
             } else {
                 /* Other tests require a conditional branch, but no label */
+                MVMuint8 test_type = MVM_JIT_EXPR_INFO(tree, test)->type;
                 MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_conditional_branch,
-                                                       2, 0, MVM_jit_expr_op_invert_comparison(flag), when_label);
+                                                       3, 0, MVM_jit_expr_op_invert_comparison(flag), when_label, test_type);
                 branch->debug_name = "(branch :fail)";
                 MVM_VECTOR_PUSH(list->items, branch);
                 start_basic_block(tc, tiler, first_child);
@@ -567,9 +568,10 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             MVM_VECTOR_PUSH(list->items, label);
         } else {
             /* Flag should be negated (ALL = short-circiut unless condition)) */
+            MVMuint8 test_type = MVM_JIT_EXPR_INFO(tree, test)->type;
             MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler,
-                                                   MVM_jit_compile_conditional_branch, 2, 0,
-                                                   MVM_jit_expr_op_invert_comparison(flag), all_label);
+                                                   MVM_jit_compile_conditional_branch, 3, 0,
+                                                   MVM_jit_expr_op_invert_comparison(flag), all_label, test_type);
             branch->debug_name = "(conditional-branch :fail)";
             MVM_VECTOR_PUSH(list->items, branch);
             start_basic_block(tc, tiler, first_child + i);
@@ -603,9 +605,10 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             tiler->states[first_child + i].block = tiler->states[last_child].block;
         } else {
             /* Normal evaluation (ANY = short-circuit if condition) */
+            MVMuint8 test_type = MVM_JIT_EXPR_INFO(tree, test)->type;
             MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler,
                                                    MVM_jit_compile_conditional_branch,
-                                                   2, 0, flag, any_label);
+                                                   3, 0, flag, any_label, test_type);
             branch->debug_name  = "(branch :success)";
             MVM_VECTOR_PUSH(list->items, branch);
             start_basic_block(tc, tiler, first_child + i);
@@ -640,9 +643,10 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 extend_last_block(tc, tiler, first_child);
                 MVM_VECTOR_PUSH(list->items, label);
             } else {
+                MVMuint8 test_type = MVM_JIT_EXPR_INFO(tree, test)->type;
                 MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler,
-                                                       MVM_jit_compile_conditional_branch, 2, 0,
-                                                       MVM_jit_expr_op_invert_comparison(flag), left_label);
+                                                       MVM_jit_compile_conditional_branch, 3, 0,
+                                                       MVM_jit_expr_op_invert_comparison(flag), left_label, test_type);
                 branch->debug_name = "(conditional-branch: fail)";
                 MVM_VECTOR_PUSH(list->items, branch);
                 start_basic_block(tc, tiler, first_child);
