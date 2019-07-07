@@ -106,6 +106,12 @@ MVMint16 MVM_nativecall_get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMi
         result = MVM_NATIVECALL_ARG_UTF8STR | get_str_free_flag(tc, info);
     else if (strcmp(ctypename, "utf16str") == 0)
         result = MVM_NATIVECALL_ARG_UTF16STR | get_str_free_flag(tc, info);
+    else if (strcmp(ctypename, "widestr") == 0)
+        result = MVM_NATIVECALL_ARG_WIDESTR | get_str_free_flag(tc, info);
+    else if (strcmp(ctypename, "u16str") == 0)
+        result = MVM_NATIVECALL_ARG_U16STR | get_str_free_flag(tc, info);
+    else if (strcmp(ctypename, "u32str") == 0)
+        result = MVM_NATIVECALL_ARG_U32STR | get_str_free_flag(tc, info);
     else if (strcmp(ctypename, "cstruct") == 0)
         result = MVM_NATIVECALL_ARG_CSTRUCT;
     else if (strcmp(ctypename, "cppstruct") == 0)
@@ -140,23 +146,37 @@ MVMObject * MVM_nativecall_make_num(MVMThreadContext *tc, MVMObject *type, MVMnu
     return type ? MVM_repr_box_num(tc, type, value) : NULL;
 }
 
-MVMObject * MVM_nativecall_make_str(MVMThreadContext *tc, MVMObject *type, MVMint16 ret_type, char *cstring) {
+MVMObject * MVM_nativecall_make_str(MVMThreadContext *tc, MVMObject *type, MVMint16 ret_type, void *string) {
     MVMObject *result = type;
-    if (cstring && type) {
+    if (string && type) {
         MVMString *value;
 
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&type);
 
         switch (ret_type & MVM_NATIVECALL_ARG_TYPE_MASK) {
             case MVM_NATIVECALL_ARG_ASCIISTR:
-                value = MVM_string_ascii_decode(tc, tc->instance->VMString, cstring, strlen(cstring));
+                value = MVM_string_ascii_decode(tc, tc->instance->VMString, string, strlen((char *)string));
                 break;
             case MVM_NATIVECALL_ARG_UTF8STR:
-                value = MVM_string_utf8_decode(tc, tc->instance->VMString, cstring, strlen(cstring));
+                value = MVM_string_utf8_decode(tc, tc->instance->VMString, string, strlen((char *)string));
                 break;
             case MVM_NATIVECALL_ARG_UTF16STR:
-                value = MVM_string_utf16_decode(tc, tc->instance->VMString, cstring, strlen(cstring));
+                value = MVM_string_utf16_decode(tc, tc->instance->VMString, string, strlen((char *)string));
                 break;
+            case MVM_NATIVECALL_ARG_WIDESTR: {
+                MVMwchar *wide_string = (MVMwchar *)string;
+                size_t    length      = wcsrtombs(NULL, (const MVMwchar **)&wide_string, 0, &tc->mbstate);
+                char     *cstring     = MVM_calloc(length + 1, sizeof(char));
+                size_t    elems       = wcsrtombs(cstring, (const MVMwchar **)&wide_string, length, &tc->mbstate);
+                if (elems == (size_t)-1)
+                    MVM_exception_throw_adhoc(tc, "Internal error: failed to decode wide string");
+                value = MVM_string_utf8_decode(tc, tc->instance->VMString, cstring, elems);
+                break;
+            }
+            case MVM_NATIVECALL_ARG_U16STR:
+                MVM_exception_throw_adhoc(tc, "Internal error: u16string support NYI");
+            case MVM_NATIVECALL_ARG_U32STR:
+                MVM_exception_throw_adhoc(tc, "Internal error: u32string support NYI");
             default:
                 MVM_exception_throw_adhoc(tc, "Internal error: unhandled encoding");
         }
@@ -164,7 +184,7 @@ MVMObject * MVM_nativecall_make_str(MVMThreadContext *tc, MVMObject *type, MVMin
         MVM_gc_root_temp_pop(tc);
         result = MVM_repr_box_str(tc, type, value);
         if (ret_type & MVM_NATIVECALL_ARG_FREE_STR)
-            MVM_free(cstring);
+            MVM_free(string);
     }
 
     return result;
@@ -307,12 +327,12 @@ MVMchar32 MVM_nativecall_unmarshal_char32_t(MVMThreadContext *tc, MVMObject *val
     return (MVMchar32)MVM_repr_get_int(tc, value);
 }
 
-char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 type, MVMint16 *free) {
+void * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 type, MVMint16 *free) {
     if (IS_CONCRETE(value)) {
         MVMString *value_str = MVM_repr_get_str(tc, value);
 
         /* Encode string. */
-        char *str;
+        void *str;
         switch (type & MVM_NATIVECALL_ARG_TYPE_MASK) {
             case MVM_NATIVECALL_ARG_ASCIISTR:
                 str = MVM_string_ascii_encode_any(tc, value_str);
@@ -320,8 +340,24 @@ char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, M
             case MVM_NATIVECALL_ARG_UTF16STR:
                 str = MVM_string_utf16_encode(tc, value_str, 0);
                 break;
-            default:
+            case MVM_NATIVECALL_ARG_UTF8STR:
                 str = MVM_string_utf8_encode_C_string(tc, value_str);
+                break;
+            case MVM_NATIVECALL_ARG_WIDESTR: {
+                MVMwchar *wstr;
+                char     *cstr   = MVM_string_utf8_encode_C_string(tc, value_str);
+                size_t    length = mbsrtowcs(NULL, (const char **)&cstr, 0, &tc->mbstate);
+                size_t    elems  = mbsrtowcs(wstr, (const char **)&cstr, length, &tc->mbstate);
+                if (elems == (size_t)-1)
+                    MVM_exception_throw_adhoc(tc, "Internal error: failed to decode wide string");
+                MVM_free(cstr);
+                str = wstr;
+                break;
+            }
+            case MVM_NATIVECALL_ARG_U16STR:
+                MVM_exception_throw_adhoc(tc, "Internal error: u16string support NYI");
+            case MVM_NATIVECALL_ARG_U32STR:
+                MVM_exception_throw_adhoc(tc, "Internal error: u32string support NYI");
         }
 
         /* Set whether to free it or not. */
@@ -802,8 +838,7 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
                     result = MVM_nativecall_make_num(tc, target_type, value);
                 }
                 else if(ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
-                    result = MVM_nativecall_make_str(tc, target_type, MVM_NATIVECALL_ARG_UTF8STR,
-                    (char *)cpointer_body);
+                    result = MVM_nativecall_make_str(tc, target_type, MVM_NATIVECALL_ARG_UTF8STR, (char *)cpointer_body);
                 }
                 else
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled target type");
@@ -862,11 +897,11 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
                 result = MVM_nativecall_make_num(tc, target_type, value);
                 break;
             }
-            case MVM_REPR_ID_MVMCStr:
             case MVM_REPR_ID_P6str:
-                result = MVM_nativecall_make_str(tc, target_type, MVM_NATIVECALL_ARG_UTF8STR,
-                    (char *)cpointer_body);
+            case MVM_REPR_ID_MVMCStr: {
+                result = MVM_nativecall_make_str(tc, target_type, MVM_NATIVECALL_ARG_UTF8STR, (char *)cpointer_body);
                 break;
+            }
             case MVM_REPR_ID_MVMCStruct:
                 result = MVM_nativecall_make_cstruct(tc, target_type, (void *)cpointer_body);
                 break;
@@ -920,7 +955,7 @@ MVMObject * MVM_nativecall_global(MVMThreadContext *tc, MVMString *lib, MVMStrin
     ||  REPR(target_type)->ID == MVM_REPR_ID_P6str
     || (REPR(target_type)->ID == MVM_REPR_ID_P6opaque
         && REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec))->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)) {
-        entry_point = *(void **)entry_point;
+        entry_point = *(void **)&entry_point;
     }
 
     ret = nativecall_cast(tc, target_spec, target_type, entry_point);

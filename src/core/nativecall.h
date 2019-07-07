@@ -26,6 +26,9 @@
 #define MVM_NATIVECALL_ARG_WINT_T          48
 #define MVM_NATIVECALL_ARG_CHAR16_T        50
 #define MVM_NATIVECALL_ARG_CHAR32_T        52
+#define MVM_NATIVECALL_ARG_WIDESTR         54
+#define MVM_NATIVECALL_ARG_U16STR          56
+#define MVM_NATIVECALL_ARG_U32STR          58
 #define MVM_NATIVECALL_ARG_TYPE_MASK       62
 
 /* Flag for whether we should free a string after passing it or not. */
@@ -113,7 +116,7 @@ MVMObject * MVM_nativecall_make_carray(MVMThreadContext *tc, MVMObject *type, vo
 MVMObject * MVM_nativecall_make_int(MVMThreadContext *tc, MVMObject *type, MVMint64 value);
 MVMObject * MVM_nativecall_make_uint(MVMThreadContext *tc, MVMObject *type, MVMuint64 value);
 MVMObject * MVM_nativecall_make_num(MVMThreadContext *tc, MVMObject *type, MVMnum64 value);
-MVMObject * MVM_nativecall_make_str(MVMThreadContext *tc, MVMObject *type, MVMint16 ret_type, char *cstring);
+MVMObject * MVM_nativecall_make_str(MVMThreadContext *tc, MVMObject *type, MVMint16 ret_type, void *string);
 
 signed char         MVM_nativecall_unmarshal_char(MVMThreadContext *tc, MVMObject *value);
 signed short        MVM_nativecall_unmarshal_short(MVMThreadContext *tc, MVMObject *value);
@@ -132,7 +135,7 @@ MVMwint             MVM_nativecall_unmarshal_wint_t(MVMThreadContext *tc, MVMObj
 MVMuint16           MVM_nativecall_unmarshal_char16_t(MVMThreadContext *tc, MVMObject *value);
 MVMuint32           MVM_nativecall_unmarshal_char32_t(MVMThreadContext *tc, MVMObject *value);
 
-char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 type, MVMint16 *free);
+void * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 type, MVMint16 *free);
 void * MVM_nativecall_unmarshal_cstruct(MVMThreadContext *tc, MVMObject *value);
 void * MVM_nativecall_unmarshal_cppstruct(MVMThreadContext *tc, MVMObject *value);
 void * MVM_nativecall_unmarshal_cpointer(MVMThreadContext *tc, MVMObject *value);
