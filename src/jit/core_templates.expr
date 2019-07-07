@@ -177,6 +177,13 @@
       (carg (tc) ptr)
       (carg $1   ptr)) int_sz))
 
+(template: smrt_intify!
+  (callv (^func &MVM_coerce_smart_intify)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg \$0 ptr))))
+
 (template: smrt_numify!
   (callv (^func &MVM_coerce_smart_numify)
     (arglist
