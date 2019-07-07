@@ -75,7 +75,7 @@ static void start_thread(void *data) {
     setlocale(LC_CTYPE, "");
     _setmbcp(_MB_CP_LOCALE);
 #else
-    uselocale(tc->locale);
+    uselocale(duplocale(tc->locale));
 #endif
 
     /* wait for the GC to finish if it's not finished stealing us. */

@@ -344,13 +344,12 @@ void * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, M
                 str = MVM_string_utf8_encode_C_string(tc, value_str);
                 break;
             case MVM_NATIVECALL_ARG_WIDESTR: {
-                MVMwchar *wstr;
                 char     *cstr   = MVM_string_utf8_encode_C_string(tc, value_str);
                 size_t    length = mbsrtowcs(NULL, (const char **)&cstr, 0, &tc->mbstate);
+                MVMwchar *wstr   = MVM_calloc(length + 1, sizeof(MVMwchar));
                 size_t    elems  = mbsrtowcs(wstr, (const char **)&cstr, length, &tc->mbstate);
                 if (elems == (size_t)-1)
                     MVM_exception_throw_adhoc(tc, "Internal error: failed to decode wide string");
-                MVM_free(cstr);
                 str = wstr;
                 break;
             }

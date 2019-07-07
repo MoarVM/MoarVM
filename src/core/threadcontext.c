@@ -57,11 +57,11 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
     /* Initialize plugin_guard_args so we never have to do a NULL check */
     tc->plugin_guard_args = instance->VMNull;
 
-#ifndef _WIN32
     /* Initialize locale on UNIX-like OSes. Windows handles locales
      * differently in such a way that we can't keep anything in state. */
-    tc->locale  = duplocale(instance->locale);
     tc->mbstate = (mbstate_t){ 0 };
+#ifndef _WIN32
+    tc->locale  = duplocale(instance->locale);
 #endif
 
     /* Note that these two assignments above are repeated in
