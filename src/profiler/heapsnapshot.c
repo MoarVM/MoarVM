@@ -907,7 +907,7 @@ void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotCollection 
         count--;
     }
 
-    {
+    do {
         size_t written;
 
         if (ZSTD_isError(return_value = ZSTD_endStream(cstream, &outbuf))) {
@@ -919,7 +919,7 @@ void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotCollection 
             written_total += written;
             outbuf.pos = 0;
         }
-    }
+    } while (return_value != 0 && !ZSTD_isError(return_value));
 
     /*fprintf(stderr, "for an attribute %s, wrote %lld kibytes (compressed from %lld kibytes, %f%%)\n", name, written_total / 1024,*/
             /*original_total / 1024, written_total * 100.0f / original_total);*/
@@ -967,7 +967,7 @@ void string_heap_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollect
         char *str = col->strings[i];
         MVMuint32 output_size = strlen(str);
 
-        if (result_buffer_insert_pos + output_size + 4 >= result_buffer + result_buffer_size) {
+        while (result_buffer_insert_pos + output_size + 4 >= result_buffer + result_buffer_size) {
             size_t offset = result_buffer_insert_pos - result_buffer;
             result_buffer_size += 2048;
             result_buffer = MVM_realloc(result_buffer, result_buffer_size);
@@ -1022,16 +1022,28 @@ void string_heap_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollect
         inbuf.size -= inbuf.pos;
         inbuf.pos = 0;
 
-        written = fwrite(outbuf.dst, sizeof(char), outbuf.pos, fh);
+        while (written < outbuf.pos) {
+            written += fwrite((char *)outbuf.dst + written, sizeof(char), outbuf.pos - written, fh);
+        }
 
         outbuf.pos = 0;
     }
 
-    ZSTD_endStream(cstream, &outbuf);
+    do {
+        return_value = ZSTD_endStream(cstream, &outbuf);
 
-    /* If at this point we haven't written anything out yet, it'd be a great
-     * opportunity to write the right size before the data */
-    fwrite(outbuf.dst, sizeof(char), outbuf.pos, fh);
+        /* If at this point we haven't written anything out yet, it'd be a great
+         * opportunity to write the right size before the data */
+        fwrite(outbuf.dst, sizeof(char), outbuf.pos, fh);
+
+        outbuf.pos = 0;
+    } while (return_value != 0 && !ZSTD_isError(return_value));
+
+
+    if (ZSTD_isError(return_value)) {
+        MVM_panic(1, "Error compressing heap snapshot data: %s", ZSTD_getErrorName(return_value));
+    }
+
 
     end_position = ftell(fh);
 
