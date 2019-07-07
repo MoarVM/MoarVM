@@ -116,10 +116,6 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
         MVM_free(tc->temp_bigints[i]);
     }
 
-#ifndef _WIN32
-    freelocale(tc->locale);
-#endif
-
     /* Free the thread context itself. */
     memset(tc, 0, sizeof(MVMThreadContext));
     MVM_free(tc);

@@ -75,7 +75,7 @@ static void start_thread(void *data) {
     setlocale(LC_CTYPE, "");
     _setmbcp(_MB_CP_LOCALE);
 #else
-    uselocale(duplocale(tc->locale));
+    uselocale(tc->locale);
 #endif
 
     /* wait for the GC to finish if it's not finished stealing us. */
@@ -106,6 +106,11 @@ static void start_thread(void *data) {
 
     /* Mark as exited, so the GC will know to clear our stuff. */
     tc->thread_obj->body.stage = MVM_thread_stage_exited;
+
+    /* Clean up this thread's locale. */
+#ifndef _WIN32
+    freelocale(tc->locale);
+#endif
 
     /* Mark ourselves as blocked, so that another thread will take care
      * of GC-ing our objects and cleaning up our thread context. */

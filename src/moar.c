@@ -87,7 +87,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
 #ifndef _WIN32
     /* Set up instance locale. */
-    instance->locale = newlocale(LC_CTYPE_MASK, "", (locale_t)0);
+    instance->locale = newlocale(LC_CTYPE_MASK, "en_US.UTF-8", (locale_t)0);
 #endif
 
     /* Create the main thread's ThreadContext and stash it. */
