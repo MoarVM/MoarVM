@@ -722,6 +722,7 @@ MVM_JIT_TILE_DECL(test_addr) {
     MVMint8 base  = tile->values[1];
     MVMint32 ofs  = tile->args[0];
     MVMint32 size = tile->args[1];
+    /* TODO - I now suspect that this can be OR [addr], 0, without loss of generality */
     switch (size) {
     case 1:
         | cmp byte [Rq(base)+ofs], 0;
@@ -825,6 +826,12 @@ MVM_JIT_TILE_DECL(test_addr_const) {
     }
 }
 
+MVM_JIT_TILE_DECL(test_num) {
+    MVMint8 reg = REG_NUM(tile->values[1]);
+    | xorpd xmm0, xmm0;
+    | ucomisd xmm(reg), xmm0;
+}
+
 
 MVM_JIT_TILE_DECL(cmp) {
     MVMint8 regl = tile->values[1];
@@ -845,34 +852,70 @@ MVM_JIT_TILE_DECL(cmp) {
     }
 }
 
+MVM_JIT_TILE_DECL(cmp_num) {
+    MVMint8 left = REG_NUM(tile->values[0]);
+    MVMint8 right = REG_NUM(tile->values[1]);
+    | ucomisd xmm(left), xmm(right);
+}
+
+
 MVM_JIT_TILE_DECL(flagval) {
+    /* Intel SDM Volume 1, ch5.1.6 - Bit and Byte Instructions */
     MVMint8 out = tile->values[0];
     MVMint32 child = MVM_JIT_EXPR_LINKS(tree, tile->node)[0];
-    MVMint32 flag  = tree->nodes[child];
-    switch (flag) {
-    case MVM_JIT_LT:
-        | setl Rb(out);
-        break;
-    case MVM_JIT_LE:
-        | setle Rb(out);
-        break;
-    case MVM_JIT_ZR:
-    case MVM_JIT_EQ:
-        | setz Rb(out);
-        break;
-    case MVM_JIT_NZ:
-    case MVM_JIT_NE:
-        | setnz Rb(out);
-        break;
-    case MVM_JIT_GE:
-        | setge Rb(out);
-        break;
-    case MVM_JIT_GT:
-        | setg Rb(out);
-        break;
-    default:
-        MVM_panic(1, "No flagval possible");
-        break;
+    enum MVMJitExprOperator flag  = tree->nodes[child];
+    /* This isn't exactly elegant, better mechanism wanted */
+    MVMuint8 test_type = MVM_JIT_EXPR_INFO(tree, child)->type;
+    if (test_type == MVM_reg_num32 || test_type == MVM_reg_num64) {
+        switch (flag) {
+        case MVM_JIT_LT:
+            | setb Rb(out);
+            break;
+        case MVM_JIT_LE:
+            | setbe Rb(out);
+            break;
+        case MVM_JIT_EQ:
+            | setp al;
+            | setz Rb(out);
+            | sub Rb(out), al;
+            break;
+        case MVM_JIT_NE:
+            | setp al;
+            | setnz Rb(out);
+            | or Rb(out), al;
+            break;
+        case MVM_JIT_GE:
+            | setae Rb(out);
+            break;
+        case MVM_JIT_GT:
+            | seta Rb(out);
+            break;
+        }
+    } else {
+        switch (flag) {
+        case MVM_JIT_LT:
+            | setl Rb(out);
+            break;
+        case MVM_JIT_LE:
+            | setle Rb(out);
+            break;
+        case MVM_JIT_ZR:
+        case MVM_JIT_EQ:
+            | setz Rb(out);
+            break;
+        case MVM_JIT_NZ:
+        case MVM_JIT_NE:
+            | setnz Rb(out);
+            break;
+        case MVM_JIT_GE:
+            | setge Rb(out);
+            break;
+        case MVM_JIT_GT:
+            | setg Rb(out);
+            break;
+        default:
+            abort();
+        }
     }
     /* XXX THIS IS A HACK
 
@@ -882,6 +925,7 @@ MVM_JIT_TILE_DECL(flagval) {
      * arguments. (const_i64_16 returns a 64 bit signed integer as a 16 bit
      * signed integer argument, and currently CONST doesn't have a sign, and the
      * tile yielding the value (fortunately) doesn't respect the size. */
+
     | movzx Rq(out), Rb(out);
 }
 
