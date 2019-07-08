@@ -3885,7 +3885,7 @@ static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
 
     /* add a jit breakpoint if required */
     for (i = 0; i < tc->instance->jit_breakpoints_num; i++) {
-        if (tc->instance->jit_breakpoints[i].frame_nr == tc->instance->jit_seq_nr &&
+        if (tc->instance->jit_breakpoints[i].frame_nr == tc->instance->spesh_produced &&
             tc->instance->jit_breakpoints[i].block_nr == iter->bb->idx) {
             jg_append_control(tc, jg, bb->first_ins, MVM_JIT_CONTROL_BREAKPOINT);
             break; /* one is enough though */

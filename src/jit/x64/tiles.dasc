@@ -853,8 +853,8 @@ MVM_JIT_TILE_DECL(cmp) {
 }
 
 MVM_JIT_TILE_DECL(cmp_num) {
-    MVMint8 left = REG_NUM(tile->values[0]);
-    MVMint8 right = REG_NUM(tile->values[1]);
+    MVMint8 left = REG_NUM(tile->values[1]);
+    MVMint8 right = REG_NUM(tile->values[2]);
     | ucomisd xmm(left), xmm(right);
 }
 
@@ -869,16 +869,22 @@ MVM_JIT_TILE_DECL(flagval) {
     if (test_type == MVM_reg_num32 || test_type == MVM_reg_num64) {
         switch (flag) {
         case MVM_JIT_LT:
+            | setnp al;
             | setb Rb(out);
+            | and Rb(out), al;
             break;
         case MVM_JIT_LE:
+            | setnp al;
             | setbe Rb(out);
+            | and Rb(out), al;
             break;
+        case MVM_JIT_ZR:
         case MVM_JIT_EQ:
-            | setp al;
+            | setnp al;
             | setz Rb(out);
-            | sub Rb(out), al;
+            | and Rb(out), al;
             break;
+        case MVM_JIT_NZ:
         case MVM_JIT_NE:
             | setp al;
             | setnz Rb(out);
@@ -890,6 +896,8 @@ MVM_JIT_TILE_DECL(flagval) {
         case MVM_JIT_GT:
             | seta Rb(out);
             break;
+        default:
+            abort();
         }
     } else {
         switch (flag) {
