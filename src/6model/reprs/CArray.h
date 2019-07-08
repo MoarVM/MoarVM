@@ -26,13 +26,16 @@ struct MVMCArray {
 };
 
 /* What kind of element do we have? */
-#define MVM_CARRAY_ELEM_KIND_NUMERIC    1
-#define MVM_CARRAY_ELEM_KIND_STRING     2
-#define MVM_CARRAY_ELEM_KIND_CPOINTER   3
-#define MVM_CARRAY_ELEM_KIND_CARRAY     4
-#define MVM_CARRAY_ELEM_KIND_CSTRUCT    5
-#define MVM_CARRAY_ELEM_KIND_CUNION     6
-#define MVM_CARRAY_ELEM_KIND_CPPSTRUCT  7
+#define MVM_CARRAY_ELEM_KIND_NUMERIC     1
+#define MVM_CARRAY_ELEM_KIND_STRING      2
+#define MVM_CARRAY_ELEM_KIND_CPOINTER    3
+#define MVM_CARRAY_ELEM_KIND_CARRAY      4
+#define MVM_CARRAY_ELEM_KIND_CSTRUCT     5
+#define MVM_CARRAY_ELEM_KIND_CUNION      6
+#define MVM_CARRAY_ELEM_KIND_CPPSTRUCT   7
+#define MVM_CARRAY_ELEM_KIND_WIDE_STRING 8
+#define MVM_CARRAY_ELEM_KIND_U16_STRING  9
+#define MVM_CARRAY_ELEM_KIND_U32_STRING  10
 
 /* The CArray REPR data contains a little info about the type of array
  * that we have. */
