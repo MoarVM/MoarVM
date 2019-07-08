@@ -152,17 +152,19 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMSTable *st,
         /* Go over the attributes and arrange their allocation. */
         for (i = 0; i < num_attrs; i++) {
             /* Fetch its type; see if it's some kind of unboxed type. */
-            MVMObject *attr  = MVM_repr_at_pos_o(tc, flat_list, i);
-            MVMObject *type  = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.type);
-            MVMObject *inlined_val = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.inlined);
-            MVMObject *dimensions         = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.dimensions);
-            MVMP6opaqueREPRData *dim_repr = (MVMP6opaqueREPRData *)STABLE(dimensions)->REPR_data;
-            MVMint64 num_dimensions       = dim_repr && dim_repr->pos_del_slot >= 0
-                                          ? MVM_repr_elems(tc, dimensions)
-                                          : 0;
+            MVMObject           *attr           = MVM_repr_at_pos_o(tc, flat_list, i);
+            MVMObject           *type           = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.type);
+            MVMObject           *inlined_val    = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.inlined);
+            MVMObject           *dimensions     = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.dimensions);
+            MVMP6opaqueREPRData *dim_repr       = (MVMP6opaqueREPRData *)STABLE(dimensions)->REPR_data;
+            MVMint64             num_dimensions = dim_repr && dim_repr->pos_del_slot >= 0
+                                                ? MVM_repr_elems(tc, dimensions)
+                                                : 0;
+
             MVMint64 inlined = !MVM_is_null(tc, inlined_val) && MVM_repr_get_int(tc, inlined_val);
-            MVMint32   bits  = sizeof(void *) * 8;
-            MVMint32   align = ALIGNOF(void *);
+            MVMint32 bits    = sizeof(void *) * 8;
+            MVMint32 align   = ALIGNOF(void *);
+            MVMint32 type_id = REPR(type)->ID;
 
             if (num_dimensions > 1) {
                 MVM_exception_throw_adhoc(tc,
@@ -172,7 +174,6 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMSTable *st,
             if (!MVM_is_null(tc, type)) {
                 /* See if it's a type that we know how to handle in a C struct. */
                 const MVMStorageSpec *spec = REPR(type)->get_storage_spec(tc, STABLE(type));
-                MVMint32  type_id    = REPR(type)->ID;
                 if (spec->inlineable == MVM_STORAGE_SPEC_INLINED &&
                         (spec->boxed_primitive == MVM_STORAGE_SPEC_BP_INT ||
                          spec->boxed_primitive == MVM_STORAGE_SPEC_BP_NUM)) {
@@ -198,9 +199,24 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMSTable *st,
                 }
                 else if (spec->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
                     /* It's a string of some kind.  */
+                    MVMint32 char_type;
+                    MVMint32 str_type;
+
+                    switch (type_id) {
+                        case MVM_REPR_ID_P6str:   char_type = ((MVMP6strREPRData *)STABLE(type)->REPR_data)->type; break;
+                        case MVM_REPR_ID_MVMCStr: char_type = ((MVMCStrREPRData *)STABLE(type)->REPR_data)->type;  break;
+                        default:                  char_type = MVM_P6STR_C_TYPE_CHAR;                               break;
+                    }
+
+                    switch (char_type) {
+                        case MVM_P6STR_C_TYPE_CHAR:     str_type = MVM_CPPSTRUCT_ATTR_STRING;      break;
+                        case MVM_P6STR_C_TYPE_WCHAR_T:  str_type = MVM_CPPSTRUCT_ATTR_WIDE_STRING; break;
+                        case MVM_P6STR_C_TYPE_CHAR16_T: str_type = MVM_CPPSTRUCT_ATTR_U16_STRING;  break;
+                        case MVM_P6STR_C_TYPE_CHAR32_T: str_type = MVM_CPPSTRUCT_ATTR_U32_STRING;  break;
+                    }
+
                     repr_data->num_child_objs++;
-                    repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CPPSTRUCT_ATTR_SHIFT)
-                        | MVM_CPPSTRUCT_ATTR_STRING;
+                    repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CPPSTRUCT_ATTR_SHIFT) | str_type;
                     MVM_ASSIGN_REF(tc, &(st->header), repr_data->member_types[i], type);
                     MVM_ASSIGN_REF(tc, &(st->header), repr_data->flattened_stables[i],
                         STABLE(type));
@@ -468,37 +484,50 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                         if (type == MVM_CPPSTRUCT_ATTR_CARRAY) {
                             obj = MVM_nativecall_make_carray(tc, typeobj, cobj);
                         }
-                        else if(type == MVM_CPPSTRUCT_ATTR_CSTRUCT) {
+                        else if (type == MVM_CPPSTRUCT_ATTR_CSTRUCT) {
                             if (repr_data->attribute_locations[slot] & MVM_CPPSTRUCT_ATTR_INLINED)
                                 obj = MVM_nativecall_make_cstruct(tc, typeobj,
                                     (char *)body->cppstruct + repr_data->struct_offsets[slot]);
                             else
                                 obj = MVM_nativecall_make_cstruct(tc, typeobj, cobj);
                         }
-                        else if(type == MVM_CPPSTRUCT_ATTR_CPPSTRUCT) {
+                        else if (type == MVM_CPPSTRUCT_ATTR_CPPSTRUCT) {
                             if (repr_data->attribute_locations[slot] & MVM_CPPSTRUCT_ATTR_INLINED)
                                 obj = MVM_nativecall_make_cppstruct(tc, typeobj,
                                     (char *)body->cppstruct + repr_data->struct_offsets[slot]);
                             else
                                 obj = MVM_nativecall_make_cppstruct(tc, typeobj, cobj);
                         }
-                        else if(type == MVM_CPPSTRUCT_ATTR_CUNION) {
+                        else if (type == MVM_CPPSTRUCT_ATTR_CUNION) {
                             if (repr_data->attribute_locations[slot] & MVM_CPPSTRUCT_ATTR_INLINED)
                                 obj = MVM_nativecall_make_cunion(tc, typeobj,
                                     (char *)body->cppstruct + repr_data->struct_offsets[slot]);
                             else
                                 obj = MVM_nativecall_make_cunion(tc, typeobj, cobj);
                         }
-                        else if(type == MVM_CPPSTRUCT_ATTR_CPTR) {
+                        else if (type == MVM_CPPSTRUCT_ATTR_CPTR) {
                             obj = MVM_nativecall_make_cpointer(tc, typeobj, cobj);
                         }
-                        else if(type == MVM_CPPSTRUCT_ATTR_STRING) {
+                        else if (type == MVM_CPPSTRUCT_ATTR_STRING) {
                             MVMROOT(tc, typeobj, {
                                 MVMString *str = MVM_string_utf8_decode(tc, tc->instance->VMString,
                                     cobj, strlen(cobj));
                                 obj = MVM_repr_box_str(tc, typeobj, str);
                             });
                         }
+                        else if (type == MVM_CPPSTRUCT_ATTR_WIDE_STRING) {
+                            MVMROOT(tc, typeobj, {
+                                MVMString *str = MVM_string_utf8_decode_wide_string(tc, cobj, NULL);
+                                obj = MVM_repr_box_str(tc, typeobj, str);
+                            });
+                        }
+                        else if (type == MVM_CPPSTRUCT_ATTR_U16_STRING) {
+                            MVM_exception_throw_adhoc(tc, "CPPStruct: u16string support NYI");
+                        }
+                        else if (type == MVM_CPPSTRUCT_ATTR_U32_STRING) {
+                            MVM_exception_throw_adhoc(tc, "CPPStruct: u32string support NYI");
+                        }
+
                         MVM_ASSIGN_REF(tc, &(root->header), body->child_objs[real_slot], obj);
                     }
                     else {
@@ -607,8 +636,18 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                         cobj = ((MVMCPointer *)value)->body.ptr;
                     }
                     else if (type == MVM_CPPSTRUCT_ATTR_STRING) {
-                        MVMString *str  = MVM_repr_get_str(tc, value);
+                        MVMString *str = MVM_repr_get_str(tc, value);
                         cobj = MVM_string_utf8_encode_C_string(tc, str);
+                    }
+                    else if (type == MVM_CPPSTRUCT_ATTR_WIDE_STRING) {
+                        MVMString *str = MVM_repr_get_str(tc, value);
+                        cobj = MVM_string_utf8_encode_wide_string(tc, str, NULL);
+                    }
+                    else if (type == MVM_CPPSTRUCT_ATTR_U16_STRING) {
+                        MVM_exception_throw_adhoc(tc, "CPPStruct: u16string support NYI");
+                    }
+                    else if (type == MVM_CPPSTRUCT_ATTR_U32_STRING) {
+                        MVM_exception_throw_adhoc(tc, "CPPStruct: u32string support NYI");
                     }
 
                     set_ptr_at_offset(body->cppstruct, repr_data->struct_offsets[slot], cobj);
