@@ -174,24 +174,9 @@ MVMObject * MVM_nativecall_make_str(MVMThreadContext *tc, MVMObject *type, MVMin
                 value = MVM_string_utf16_decode(tc, tc->instance->VMString, cstr, strlen(cstr);
                 break;
             }
-            case MVM_NATIVECALL_ARG_WIDESTR: {
-#if defined(_WIN32) && defined(_MSVC_VER)
-                MVMwchar *wstr = (MVMwchar *)string;
-                int       length = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, NULL, 0, NULL);
-                char     *cstr = MVM_calloc(length, sizeof(char));
-                (void *)WideCharToMultiByte(CP_UTF8, 0, wstr, -1, cstr, length, NULL);
-                value = MVM_string_utf8_decode(tc, tc->instance->VMString, cstr, length);
-#else
-                MVMwchar *wstr   = (MVMwchar *)string;
-                size_t    length = wcsrtombs(NULL, (const MVMwchar **)&wstr, 0, &tc->mbstate);
-                char     *cstr   = MVM_calloc(length + 1, sizeof(char));
-                (void *)wcsrtombs(cstr, (const MVMwchar **)&wstr, length, &tc->mbstate);
-                if (elems == (size_t)-1)
-                    MVM_exception_throw_adhoc(tc, "Internal error: failed to decode wide string");
-                value = MVM_string_utf8_decode(tc, tc->instance->VMString, cstr, length);
-#endif
+            case MVM_NATIVECALL_ARG_WIDESTR:
+                value = MVM_string_utf8_decode_wide_string(tc, (MVMwchar *)string, NULL);
                 break;
-            }
             case MVM_NATIVECALL_ARG_U16STR:
                 MVM_exception_throw_adhoc(tc, "Internal error: u16string support NYI");
             case MVM_NATIVECALL_ARG_U32STR:
@@ -362,24 +347,9 @@ void * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, M
             case MVM_NATIVECALL_ARG_UTF8STR:
                 str = MVM_string_utf8_encode_C_string(tc, value_str);
                 break;
-            case MVM_NATIVECALL_ARG_WIDESTR: {
-#if defined(_WIN32) && defined(_MSVC_VER)
-                char *cstr = MVM_string_utf8_encode_C_string(tc, value_str);
-                int length = MultiByteToWideChar(CP_UTF8, 0, cstr, -1, NULL, 0);
-                MVMwchar *wstr = MVM_calloc(length, sizeof(MVMwchar));
-                (void *)MultiByteToWideChar(CP_UTF8, 0, cstr, -1, wstr, length);
-                str = wstr;
-#else
-                char     *cstr   = MVM_string_utf8_encode_C_string(tc, value_str);
-                size_t    length = mbsrtowcs(NULL, (const char **)&cstr, 0, &tc->mbstate);
-                MVMwchar *wstr   = MVM_calloc(length + 1, sizeof(MVMwchar));
-                (void *)mbsrtowcs(wstr, (const char **)&cstr, length, &tc->mbstate);
-                if (elems == (size_t)-1)
-                    MVM_exception_throw_adhoc(tc, "Internal error: failed to decode wide string");
-                str = wstr;
-#endif
+            case MVM_NATIVECALL_ARG_WIDESTR:
+                str = MVM_string_utf8_encode_wide_string(tc, value_str, NULL);
                 break;
-            }
             case MVM_NATIVECALL_ARG_U16STR:
                 MVM_exception_throw_adhoc(tc, "Internal error: u16string support NYI");
             case MVM_NATIVECALL_ARG_U32STR:
