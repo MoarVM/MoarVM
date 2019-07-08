@@ -9,9 +9,13 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, &P6str_this_repr, HOW);
 
     MVMROOT(tc, st, {
-        MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
+        MVMObject        *obj       = MVM_gc_allocate_type_object(tc, st);
+        MVMP6strREPRData *repr_data = MVM_malloc(sizeof(MVMP6strREPRData));
+        repr_data->type = MVM_P6STR_C_TYPE_CHAR;
+
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMP6str);
+        st->REPR_data = repr_data;
     });
 
     return st->WHAT;
@@ -33,12 +37,12 @@ static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 }
 
 static const MVMStorageSpec storage_spec = {
-    MVM_STORAGE_SPEC_INLINED, /* inlineable */
-    sizeof(MVMString*) * 8,   /* bits */
-    ALIGNOF(void *),               /* align */
-    MVM_STORAGE_SPEC_BP_STR,       /* boxed_primitive */
-    MVM_STORAGE_SPEC_CAN_BOX_STR,  /* can_box */
-    0,                          /* is_unsigned */
+    MVM_STORAGE_SPEC_INLINED,     /* inlineable */
+    sizeof(MVMString *) * 8,      /* bits */
+    ALIGNOF(void *),              /* align */
+    MVM_STORAGE_SPEC_BP_STR,      /* boxed_primitive */
+    MVM_STORAGE_SPEC_CAN_BOX_STR, /* can_box */
+    0,                            /* is_unsigned */
 };
 
 /* Gets the storage specification for this representation. */
@@ -47,7 +51,22 @@ static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *
 }
 
 /* Compose the representation. */
-static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
+static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
+    MVMP6strREPRData *repr_data  = (MVMP6strREPRData *)st->REPR_data;
+    MVMStringConsts   str_consts = tc->instance->str_consts;
+    MVMObject        *info       = MVM_repr_at_key_o(tc, info_hash, str_consts.string);
+    if (!MVM_is_null(tc, info)) {
+        MVMObject *type_o = MVM_repr_at_key_o(tc, info, str_consts.type);
+        if (!MVM_is_null(tc, type_o)) {
+            repr_data->type = MVM_repr_get_int(tc, type_o);
+        }
+        else {
+            repr_data->type = MVM_P6STR_C_TYPE_CHAR;
+        }
+    }
+    else {
+        repr_data->type = MVM_P6STR_C_TYPE_CHAR;
+    }
 }
 
 /* Called by the VM to mark any GCable items. */
