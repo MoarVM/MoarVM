@@ -69,12 +69,11 @@ static void start_thread(void *data) {
     ThreadStart *ts = (ThreadStart *)data;
     MVMThreadContext *tc = ts->tc;
 
-    /* Set up the thread's locale. */
-#ifdef _WIN32
-    _configthreadlocale(_ENABLE_PER_THREAD_LOCALE);
-    setlocale(LC_CTYPE, "");
-    _setmbcp(_MB_CP_LOCALE);
-#else
+    /* Set up the thread's locale. This is not important on Windows since its
+     * locale support blows and doesn't allow setting it to UTF-8. We handle
+     * transcoding wide strings to UTF-8 strings and vice versa in a different
+     * way from how you'd do it on other OSes on Windows. */
+#if !(defined(_WIN32) && defined(_MSVC_VER))
     uselocale(tc->locale);
 #endif
 
@@ -108,7 +107,7 @@ static void start_thread(void *data) {
     tc->thread_obj->body.stage = MVM_thread_stage_exited;
 
     /* Clean up this thread's locale. */
-#ifndef _WIN32
+#if !(defined(_WIN32) && defined(_MSVC_VER)
     freelocale(tc->locale);
 #endif
 

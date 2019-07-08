@@ -1,5 +1,10 @@
 #include "moar.h"
-#ifndef _WIN32
+#ifdef _WIN32
+#  ifdef _MSVC_VER
+#    include <windows.h>
+#    include <stringapiset.h>
+#  endif
+#else
 #include <dlfcn.h>
 #endif
 #include <platform/threads.h>
@@ -154,23 +159,37 @@ MVMObject * MVM_nativecall_make_str(MVMThreadContext *tc, MVMObject *type, MVMin
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&type);
 
         switch (ret_type & MVM_NATIVECALL_ARG_TYPE_MASK) {
-            case MVM_NATIVECALL_ARG_ASCIISTR:
-                value = MVM_string_ascii_decode(tc, tc->instance->VMString, string, strlen((char *)string));
+            case MVM_NATIVECALL_ARG_ASCIISTR: {
+                char *cstr = (char *)string;
+                value = MVM_string_ascii_decode(tc, tc->instance->VMString, cstr, strlen(cstr);
                 break;
-            case MVM_NATIVECALL_ARG_UTF8STR:
-                value = MVM_string_utf8_decode(tc, tc->instance->VMString, string, strlen((char *)string));
+            }
+            case MVM_NATIVECALL_ARG_UTF8STR: {
+                char *cstr = (char *)string;
+                value = MVM_string_utf8_decode(tc, tc->instance->VMString, cstr, strlen(cstr);
                 break;
-            case MVM_NATIVECALL_ARG_UTF16STR:
-                value = MVM_string_utf16_decode(tc, tc->instance->VMString, string, strlen((char *)string));
+            }
+            case MVM_NATIVECALL_ARG_UTF16STR: {
+                char *cstr = (char *)string;
+                value = MVM_string_utf16_decode(tc, tc->instance->VMString, cstr, strlen(cstr);
                 break;
+            }
             case MVM_NATIVECALL_ARG_WIDESTR: {
-                MVMwchar *wide_string = (MVMwchar *)string;
-                size_t    length      = wcsrtombs(NULL, (const MVMwchar **)&wide_string, 0, &tc->mbstate);
-                char     *cstring     = MVM_calloc(length + 1, sizeof(char));
-                size_t    elems       = wcsrtombs(cstring, (const MVMwchar **)&wide_string, length, &tc->mbstate);
+#if defined(_WIN32) && defined(_MSVC_VER)
+                MVMwchar *wstr = (MVMwchar *)string;
+                int       length = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, NULL, 0, NULL);
+                char     *cstr = MVM_calloc(length, sizeof(char));
+                (void *)WideCharToMultiByte(CP_UTF8, 0, wstr, -1, cstr, length, NULL);
+                value = MVM_string_utf8_decode(tc, tc->instance->VMString, cstr, length);
+#else
+                MVMwchar *wstr   = (MVMwchar *)string;
+                size_t    length = wcsrtombs(NULL, (const MVMwchar **)&wstr, 0, &tc->mbstate);
+                char     *cstr   = MVM_calloc(length + 1, sizeof(char));
+                (void *)wcsrtombs(cstr, (const MVMwchar **)&wstr, length, &tc->mbstate);
                 if (elems == (size_t)-1)
                     MVM_exception_throw_adhoc(tc, "Internal error: failed to decode wide string");
-                value = MVM_string_utf8_decode(tc, tc->instance->VMString, cstring, elems);
+                value = MVM_string_utf8_decode(tc, tc->instance->VMString, cstr, length);
+#endif
                 break;
             }
             case MVM_NATIVECALL_ARG_U16STR:
@@ -344,13 +363,21 @@ void * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, M
                 str = MVM_string_utf8_encode_C_string(tc, value_str);
                 break;
             case MVM_NATIVECALL_ARG_WIDESTR: {
+#if defined(_WIN32) && defined(_MSVC_VER)
+                char *cstr = MVM_string_utf8_encode_C_string(tc, value_str);
+                int length = MultiByteToWideChar(CP_UTF8, 0, cstr, -1, NULL, 0);
+                MVMwchar *wstr = MVM_calloc(length, sizeof(MVMwchar));
+                (void *)MultiByteToWideChar(CP_UTF8, 0, cstr, -1, wstr, length);
+                str = wstr;
+#else
                 char     *cstr   = MVM_string_utf8_encode_C_string(tc, value_str);
                 size_t    length = mbsrtowcs(NULL, (const char **)&cstr, 0, &tc->mbstate);
                 MVMwchar *wstr   = MVM_calloc(length + 1, sizeof(MVMwchar));
-                size_t    elems  = mbsrtowcs(wstr, (const char **)&cstr, length, &tc->mbstate);
+                (void *)mbsrtowcs(wstr, (const char **)&cstr, length, &tc->mbstate);
                 if (elems == (size_t)-1)
                     MVM_exception_throw_adhoc(tc, "Internal error: failed to decode wide string");
                 str = wstr;
+#endif
                 break;
             }
             case MVM_NATIVECALL_ARG_U16STR:

@@ -57,10 +57,12 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
     /* Initialize plugin_guard_args so we never have to do a NULL check */
     tc->plugin_guard_args = instance->VMNull;
 
-    /* Initialize locale on UNIX-like OSes. Windows handles locales
-     * differently in such a way that we can't keep anything in state. */
+    /* Initialize state related to locales on UNIX-like OSes. Windows doesn't
+     * need this because it doesn't support setting UTF-8 as the locale;
+     * transcoding between wide strings and UTF-8 strings and vice versa is
+     * handled differently from how you'd normally do it on other OSes. */
+#if !(defined(_WIN32) && defined(_MSVC_VER))
     tc->mbstate = (mbstate_t){ 0 };
-#ifndef _WIN32
     tc->locale  = duplocale(instance->locale);
 #endif
 
