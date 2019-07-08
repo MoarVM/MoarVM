@@ -161,17 +161,17 @@ MVMObject * MVM_nativecall_make_str(MVMThreadContext *tc, MVMObject *type, MVMin
         switch (ret_type & MVM_NATIVECALL_ARG_TYPE_MASK) {
             case MVM_NATIVECALL_ARG_ASCIISTR: {
                 char *cstr = (char *)string;
-                value = MVM_string_ascii_decode(tc, tc->instance->VMString, cstr, strlen(cstr);
+                value = MVM_string_ascii_decode(tc, tc->instance->VMString, cstr, strlen(cstr));
                 break;
             }
             case MVM_NATIVECALL_ARG_UTF8STR: {
                 char *cstr = (char *)string;
-                value = MVM_string_utf8_decode(tc, tc->instance->VMString, cstr, strlen(cstr);
+                value = MVM_string_utf8_decode(tc, tc->instance->VMString, cstr, strlen(cstr));
                 break;
             }
             case MVM_NATIVECALL_ARG_UTF16STR: {
                 char *cstr = (char *)string;
-                value = MVM_string_utf16_decode(tc, tc->instance->VMString, cstr, strlen(cstr);
+                value = MVM_string_utf16_decode(tc, tc->instance->VMString, cstr, strlen(cstr));
                 break;
             }
             case MVM_NATIVECALL_ARG_WIDESTR:

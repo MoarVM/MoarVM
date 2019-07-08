@@ -7,5 +7,5 @@ MVM_PUBLIC char * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, M
 MVM_PUBLIC char * MVM_string_utf8_encode_C_string(MVMThreadContext *tc, MVMString *str);
 char * MVM_string_utf8_maybe_encode_C_string(MVMThreadContext *tc, MVMString *str);
 void MVM_string_utf8_throw_encoding_exception (MVMThreadContext *tc, MVMCodepoint cp);
-MVM_PUBLIC MVMwchar * MVM_string_utf8_encode_wide_string(MVMThreadContext *tc, const MVMString *str, MVMuint64 *output_size);
+MVM_PUBLIC MVMwchar * MVM_string_utf8_encode_wide_string(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size);
 MVM_PUBLIC MVMString * MVM_string_utf8_decode_wide_string(MVMThreadContext *tc, const MVMwchar *wstr, MVMuint64 *output_size);

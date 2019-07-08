@@ -107,7 +107,7 @@ static void start_thread(void *data) {
     tc->thread_obj->body.stage = MVM_thread_stage_exited;
 
     /* Clean up this thread's locale. */
-#if !(defined(_WIN32) && defined(_MSVC_VER)
+#if !(defined(_WIN32) && defined(_MSVC_VER))
     freelocale(tc->locale);
 #endif
 

@@ -616,8 +616,8 @@ void MVM_string_utf8_throw_encoding_exception (MVMThreadContext *tc, MVMCodepoin
     }
 }
 
-MVMwchar * MVM_string_utf8_encode_wide_string(MVMThreadContext *tc, const MVMString *str, MVMuint64 *output_size) {
-    const char      *cstr = MVM_string_utf8_encode_c_string(tc, str);
+MVMwchar * MVM_string_utf8_encode_wide_string(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
+    const char      *cstr = MVM_string_utf8_encode_C_string(tc, str);
           MVMwchar  *wstr;
           size_t     size;
 
@@ -668,5 +668,5 @@ MVMString * MVM_string_utf8_decode_wide_string(MVMThreadContext *tc, const MVMwc
     if (output_size != NULL)
         *output_size = (MVMuint64)size;
 
-    return MVM_string_utf8_decode(tc, tc->instance->VMString, cstr, *length);
+    return MVM_string_utf8_decode(tc, tc->instance->VMString, cstr, size);
 }
