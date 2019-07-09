@@ -156,8 +156,24 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                 }
                 else if (spec->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
                     /* It's a string of some kind.  */
+                    MVMint16 char_type;
+                    MVMint16 str_type;
+
+                    switch (type_id) {
+                        case MVM_REPR_ID_P6str:   char_type = ((MVMP6strREPRData *)STABLE(type)->REPR_data)->type; break;
+                        case MVM_REPR_ID_MVMCStr: char_type = ((MVMCStrREPRData *)STABLE(type)->REPR_data)->type;  break;
+                        default:                  char_type = MVM_P6STR_C_TYPE_CHAR;                               break;
+                    }
+
+                    switch (char_type) {
+                        case MVM_P6STR_C_TYPE_CHAR:     str_type = MVM_CUNION_ATTR_STRING;      break;
+                        case MVM_P6STR_C_TYPE_WCHAR_T:  str_type = MVM_CUNION_ATTR_WIDE_STRING; break;
+                        case MVM_P6STR_C_TYPE_CHAR16_T: str_type = MVM_CUNION_ATTR_U16_STRING;  break;
+                        case MVM_P6STR_C_TYPE_CHAR32_T: str_type = MVM_CUNION_ATTR_U32_STRING;  break;
+                    }
+
                     repr_data->num_child_objs++;
-                    repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CUNION_ATTR_SHIFT) | MVM_CUNION_ATTR_STRING;
+                    repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CUNION_ATTR_SHIFT) | str_type;
                     repr_data->member_types[i] = type;
                     repr_data->flattened_stables[i] = STABLE(type);
                     if (REPR(type)->initialize) {
@@ -434,24 +450,36 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                             if (type == MVM_CUNION_ATTR_CARRAY) {
                                 obj = MVM_nativecall_make_carray(tc, typeobj, cobj);
                             }
-                            else if(type == MVM_CUNION_ATTR_CSTRUCT) {
+                            else if (type == MVM_CUNION_ATTR_CSTRUCT) {
                                 obj = MVM_nativecall_make_cstruct(tc, typeobj, cobj);
                             }
-                            else if(type == MVM_CUNION_ATTR_CPPSTRUCT) {
+                            else if (type == MVM_CUNION_ATTR_CPPSTRUCT) {
                                 obj = MVM_nativecall_make_cppstruct(tc, typeobj, cobj);
                             }
-                            else if(type == MVM_CUNION_ATTR_CUNION) {
+                            else if (type == MVM_CUNION_ATTR_CUNION) {
                                 obj = MVM_nativecall_make_cunion(tc, typeobj, cobj);
                             }
-                            else if(type == MVM_CUNION_ATTR_CPTR) {
+                            else if (type == MVM_CUNION_ATTR_CPTR) {
                                 obj = MVM_nativecall_make_cpointer(tc, typeobj, cobj);
                             }
-                            else if(type == MVM_CUNION_ATTR_STRING) {
+                            else if (type == MVM_CUNION_ATTR_STRING) {
                                 MVMROOT(tc, typeobj, {
                                     MVMString *str = MVM_string_utf8_decode(tc, tc->instance->VMString,
                                         cobj, strlen(cobj));
                                     obj = MVM_repr_box_str(tc, typeobj, str);
                                 });
+                            }
+                            else if (type == MVM_CUNION_ATTR_WIDE_STRING) {
+                                MVMROOT(tc, typeobj, {
+                                    MVMString *str = MVM_string_utf8_decode_wide_string(tc, cobj, NULL);
+                                    obj = MVM_repr_box_str(tc, typeobj, str);
+                                });
+                            }
+                            else if (type == MVM_CUNION_ATTR_U16_STRING) {
+                                MVM_exception_throw_adhoc(tc, "CUnion: u16string support NYI");
+                            }
+                            else if (type == MVM_CUNION_ATTR_U16_STRING) {
+                                MVM_exception_throw_adhoc(tc, "CUnion: u32string support NYI");
                             }
                         }
                         else {
@@ -550,8 +578,18 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                         cobj = ((MVMCPointer *)value)->body.ptr;
                     }
                     else if (type == MVM_CUNION_ATTR_STRING) {
-                        MVMString *str  = MVM_repr_get_str(tc, value);
+                        MVMString *str = MVM_repr_get_str(tc, value);
                         cobj = MVM_string_utf8_encode_C_string(tc, str);
+                    }
+                    else if (type == MVM_CUNION_ATTR_WIDE_STRING) {
+                        MVMString *str = MVM_repr_get_str(tc, value);
+                        cobj = MVM_string_utf8_encode_wide_string(tc, str, NULL);
+                    }
+                    else if (type == MVM_CUNION_ATTR_U16_STRING) {
+                        MVM_exception_throw_adhoc(tc, "CUnion: u16string support NYI");
+                    }
+                    else if (type == MVM_CUNION_ATTR_U32_STRING) {
+                        MVM_exception_throw_adhoc(tc, "CUnion: u32string support NYI");
                     }
 
                     set_ptr_at_offset(body->cunion, repr_data->struct_offsets[slot], cobj);
