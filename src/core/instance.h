@@ -89,6 +89,7 @@ struct MVMStringConsts {
     MVMString *replacement;
     MVMString *string;
     MVMString *length;
+    MVMString *chartype;
 };
 
 /* An entry in the representations registry. */

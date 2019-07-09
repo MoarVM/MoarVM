@@ -155,25 +155,21 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     }
                 }
                 else if (spec->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
-                    /* It's a string of some kind.  */
-                    MVMint16 char_type;
-                    MVMint16 str_type;
+                    /* It's a string of some kind. */
+                    MVMObject *string     = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.string);
+                    MVMObject *chartype_o = MVM_repr_at_key_o(tc, string, tc->instance->str_consts.chartype);
+                    MVMint32   chartype   = MVM_repr_get_int(tc, chartype_o);
+                    MVMint32   kind;
 
-                    switch (type_id) {
-                        case MVM_REPR_ID_P6str:   char_type = ((MVMP6strREPRData *)STABLE(type)->REPR_data)->type; break;
-                        case MVM_REPR_ID_MVMCStr: char_type = ((MVMCStrREPRData *)STABLE(type)->REPR_data)->type;  break;
-                        default:                  char_type = MVM_P6STR_C_TYPE_CHAR;                               break;
-                    }
-
-                    switch (char_type) {
-                        case MVM_P6STR_C_TYPE_CHAR:     str_type = MVM_CUNION_ATTR_STRING;      break;
-                        case MVM_P6STR_C_TYPE_WCHAR_T:  str_type = MVM_CUNION_ATTR_WIDE_STRING; break;
-                        case MVM_P6STR_C_TYPE_CHAR16_T: str_type = MVM_CUNION_ATTR_U16_STRING;  break;
-                        case MVM_P6STR_C_TYPE_CHAR32_T: str_type = MVM_CUNION_ATTR_U32_STRING;  break;
+                    switch (chartype) {
+                        case MVM_P6STR_C_TYPE_CHAR:     kind = MVM_CUNION_ATTR_STRING;      break;
+                        case MVM_P6STR_C_TYPE_WCHAR_T:  kind = MVM_CUNION_ATTR_WIDE_STRING; break;
+                        case MVM_P6STR_C_TYPE_CHAR16_T: kind = MVM_CUNION_ATTR_U16_STRING;  break;
+                        case MVM_P6STR_C_TYPE_CHAR32_T: kind = MVM_CUNION_ATTR_U32_STRING;  break;
                     }
 
                     repr_data->num_child_objs++;
-                    repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CUNION_ATTR_SHIFT) | str_type;
+                    repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CUNION_ATTR_SHIFT) | kind;
                     repr_data->member_types[i] = type;
                     repr_data->flattened_stables[i] = STABLE(type);
                     if (REPR(type)->initialize) {

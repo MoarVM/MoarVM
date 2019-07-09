@@ -56,9 +56,9 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMStringConsts   str_consts = tc->instance->str_consts;
     MVMObject        *info       = MVM_repr_at_key_o(tc, info_hash, str_consts.string);
     if (!MVM_is_null(tc, info)) {
-        MVMObject *type_o = MVM_repr_at_key_o(tc, info, str_consts.type);
-        if (!MVM_is_null(tc, type_o)) {
-            repr_data->type = MVM_repr_get_int(tc, type_o);
+        MVMObject *chartype_o = MVM_repr_at_key_o(tc, info, str_consts.chartype);
+        if (!MVM_is_null(tc, chartype_o)) {
+            repr_data->type = MVM_repr_get_int(tc, chartype_o);
         }
         else {
             repr_data->type = MVM_P6STR_C_TYPE_CHAR;
