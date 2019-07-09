@@ -57,19 +57,9 @@ static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
             break;
         }
         case MVM_P6STR_C_TYPE_WCHAR_T: {
-            MVMwchar  *wide;
-            size_t     len;
-            size_t     els;
-
-            char *c = MVM_string_utf8_encode_C_string(tc, value);
-            len = mbsrtowcs(NULL, (const char **)&c, 0, &tc->mbstate);
-            els = mbsrtowcs(wide, (const char **)&c, len, &tc->mbstate);
-            if (els == (size_t)-1)
-                MVM_exception_throw_adhoc(tc, "CStr: failed to encode wide string with error '%s'", strerror(errno));
-            MVM_free((char *)c);
-
-            body->value.wide  = wide;
-            repr_data->length = els;
+            MVMuint64 length;
+            body->value.wide  = MVM_string_utf8_encode_wide_string(tc, value, &length);
+            repr_data->length = length;
             break;
         }
         case MVM_P6STR_C_TYPE_CHAR16_T:
