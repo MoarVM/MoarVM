@@ -1,6 +1,6 @@
 #include "moar.h"
 #ifdef _WIN32
-#  ifdef _MSVC_VER
+#  ifdef _MSC_VER
 #    include <windows.h>
 #    include <stringapiset.h>
 #  endif

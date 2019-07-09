@@ -73,7 +73,7 @@ static void start_thread(void *data) {
      * locale support blows and doesn't allow setting it to UTF-8. We handle
      * transcoding wide strings to UTF-8 strings and vice versa in a different
      * way from how you'd do it on other OSes on Windows. */
-#if !(defined(_WIN32) && defined(_MSVC_VER))
+#ifndef _MSC_VER
     uselocale(tc->locale);
 #endif
 
@@ -107,7 +107,7 @@ static void start_thread(void *data) {
     tc->thread_obj->body.stage = MVM_thread_stage_exited;
 
     /* Clean up this thread's locale. */
-#if !(defined(_WIN32) && defined(_MSVC_VER))
+#ifndef _MSC_VER
     freelocale(tc->locale);
 #endif
 

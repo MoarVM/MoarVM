@@ -621,7 +621,7 @@ MVMwchar * MVM_string_utf8_encode_wide_string(MVMThreadContext *tc, MVMString *s
           MVMwchar  *wstr;
           size_t     size;
 
-#if defined(_WIN32) && defined(_MSVC_VER)
+#ifdef _MSC_VER
     size = MultiByteToWideChar(CP_UTF8, 0, cstr, -1, NULL, 0);
     if (size == 0)
         /* XXX: this should get the error message, but accomplishing that is a
@@ -648,7 +648,7 @@ MVMString * MVM_string_utf8_decode_wide_string(MVMThreadContext *tc, const MVMwc
     char   *cstr;
     size_t  size;
 
-#if defined(_WIN32) && defined(_MSVC_VER)
+#ifdef _MSC_VER
     size = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, NULL, 0, NULL);
     if (size == 0)
         /* XXX: this should get the error message, but accomplishing that is a
