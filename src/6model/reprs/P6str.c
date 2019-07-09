@@ -88,6 +88,28 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     MVM_serialization_write_str(tc, writer, ((MVMP6strBody *)data)->value);
 }
 
+static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
+    MVMP6strREPRData *repr_data = (MVMP6strREPRData *)st->REPR_data;
+    MVM_serialization_write_int(tc, writer, repr_data->type);
+}
+
+static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    MVMP6strREPRData *repr_data = MVM_malloc(sizeof(MVMP6strREPRData));
+
+    if (reader->root.version >= 24) {
+        repr_data->type = MVM_serialization_read_int(tc, reader);
+    }
+    else {
+        repr_data->type = MVM_P6STR_C_TYPE_CHAR;
+    }
+
+    if (repr_data->type != MVM_P6STR_C_TYPE_CHAR && repr_data->type != MVM_P6STR_C_TYPE_WCHAR_T
+     && repr_data->type != MVM_P6STR_C_TYPE_CHAR16_T && repr_data->type != MVM_P6STR_C_TYPE_CHAR32_T)
+        MVM_exception_throw_adhoc(tc, "P6str: unsupported character type (%d)", repr_data->type);
+
+    st->REPR_data = repr_data;
+}
+
 static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     switch (ins->info->opcode) {
         case MVM_OP_box_s: {
@@ -165,9 +187,9 @@ static const MVMREPROps P6str_this_repr = {
     get_storage_spec,
     NULL, /* change_type */
     serialize,
-    deserialize, /* deserialize */
-    NULL, /* serialize_repr_data */
-    NULL, /* deserialize_repr_data */
+    deserialize,
+    serialize_repr_data,
+    deserialize_repr_data,
     deserialize_stable_size,
     gc_mark,
     NULL, /* gc_free */

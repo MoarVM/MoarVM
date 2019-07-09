@@ -112,7 +112,8 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     else if (reader->root.version >= 22) {
         repr_data->type   = MVM_serialization_read_int(tc, reader);
         repr_data->length = 0;
-    } else {
+    }
+    else {
         repr_data->type   = MVM_P6STR_C_TYPE_CHAR;
         repr_data->length = 0;
     }
