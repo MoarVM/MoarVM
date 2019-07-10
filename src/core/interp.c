@@ -1058,8 +1058,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(param_rp_n):
-                GET_REG(cur_op, 0).n64 = MVM_args_get_pos_num(tc, &tc->cur_frame->params,
-                    GET_UI16(cur_op, 2), MVM_ARG_REQUIRED).arg.n64;
+                GET_REG(cur_op, 0).n64 = MVM_args_get_required_pos_num(tc, &tc->cur_frame->params,
+                    GET_UI16(cur_op, 2)).arg.n64;
                 cur_op += 4;
                 goto NEXT;
             OP(param_rp_s):
@@ -1089,8 +1089,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(param_op_n):
             {
-                MVMArgInfo param = MVM_args_get_pos_num(tc, &tc->cur_frame->params,
-                    GET_UI16(cur_op, 2), MVM_ARG_OPTIONAL);
+                MVMArgInfo param = MVM_args_get_optional_pos_num(tc, &tc->cur_frame->params,
+                    GET_UI16(cur_op, 2));
                 if (param.exists) {
                     GET_REG(cur_op, 0).n64 = param.arg.n64;
                     cur_op = bytecode_start + GET_UI32(cur_op, 4);
@@ -1404,8 +1404,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
                     MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    GET_REG(cur_op, 0).n64 = MVM_args_get_pos_num(tc, cc->body.apc,
-                        (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED).arg.n64;
+                    GET_REG(cur_op, 0).n64 = MVM_args_get_required_pos_num(tc, cc->body.apc,
+                        (MVMuint32)GET_REG(cur_op, 4).i64).arg.n64;
                 }
                 else {
                     MVM_exception_throw_adhoc(tc, "captureposarg_n needs a MVMCallCapture");
