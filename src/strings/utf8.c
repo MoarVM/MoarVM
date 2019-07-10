@@ -628,13 +628,13 @@ MVMwchar * MVM_string_utf8_encode_wide_string(MVMThreadContext *tc, MVMString *s
          * huge pain in the ass on Windows. There should be an error handling
          * function that deals with the annoying parts of it for you. */
         MVM_exception_throw_adhoc(tc, "Internal error: failed to encode wide string with an unknown error");
-    wstr = MVM_calloc(size, sizeof(MVMwchar));
+    wstr = MVM_calloc(size + 1, sizeof(MVMwchar));
     (void)MultiByteToWideChar(CP_UTF8, 0, cstr, -1, wstr, size);
 #else
     size = mbsrtowcs(NULL, &cstr, 0, &tc->mbstate);
     if (size == (size_t)-1)
         MVM_exception_throw_adhoc(tc, "Internal error: failed to encode wide string with error '%s'", strerror(errno));
-    wstr = MVM_calloc(size, sizeof(MVMwchar));
+    wstr = MVM_calloc(size + 1, sizeof(MVMwchar));
     (void)mbsrtowcs(wstr, &cstr, size, &tc->mbstate);
 #endif
 
@@ -655,13 +655,13 @@ MVMString * MVM_string_utf8_decode_wide_string(MVMThreadContext *tc, const MVMwc
          * huge pain in the ass on Windows. There should be an error handling
          * function that deals with the annoying parts of it for you. */
         MVM_exception_throw_adhoc(tc, "Internal error: failed to decode wide string with an unknown error");
-    cstr = MVM_calloc(size, sizeof(char));
+    cstr = MVM_calloc(size + 1, sizeof(char));
     (void)WideCharToMultiByte(CP_UTF8, 0, wstr, -1, cstr, size, NULL);
 #else
     size = wcsrtombs(NULL, &wstr, 0, &tc->mbstate);
     if (size == (size_t)-1)
         MVM_exception_throw_adhoc(tc, "Internal error: failed to decode wide string with error '%s'", strerror(errno));
-    cstr = MVM_calloc(size, sizeof(char));
+    cstr = MVM_calloc(size + 1, sizeof(char));
     (void)wcsrtombs(cstr, &wstr, size, &tc->mbstate);
 #endif
 
