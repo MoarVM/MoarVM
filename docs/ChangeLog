@@ -1,3 +1,68 @@
+New in 2019.07
+
+6model:
++ [065b2b42] When there's no .^find_method nor method cache, output debug name
++ [36469a62] Throw an exception instead triggering a segfault when trying to HAS before a type is defined
++ [fe472ce9] Enforce wb in get_attribute of C repr. Fixes non-deterministic segfaults in anything that non-trivially uses CStruct/CPPStruct/CUnion reprs
++ [9ed86e4c] Eliminate an unused collectable flag
++ [24b3ef1a] Fix inlining CStruct and CUnion in CPPStruct REPR instances
+
+Core:
++ [f2ee9baa] Add freemem and totalmem ops
++ [1c279a23] Don't needlessly install VMNulls into ->work to reduce cost of entry into spesh'd/JIT-compiled frames
++ [f8743c11] Add type name to exception if a thing can't be coerced
+
+Debug Server:
++ [61f0b7e8] Silence clang dangling-else & return-type warnings
+
+Documentation:
++ [145149c2] Update bytecode docs to define SC acronym
++ [807c2dab] Add contribution guidelines
+
+IO:
++ [3241e9f5] Fix memory leak in socket_read_bytes
++ [6bc095d8] Move freeing of event_loop_wakeup to after uv_loop_close
+
+JIT:
++ [6053919e] Add exprJIT template for strfromcodes
++ [b55658b9] Store first and then initialize in 'create' expr template to fix potential race
++ [69033692] Fix decodeconf and add decoderepconf legojit
++ [c160a22f,69033692] Add decodeconf and decoderepconf ops to legojit
+
+Libraries:
++ [a515819b] Update libuv to version 1.29.1
+
+Math:
++ [0e7599e7] Throw if MVM_is_prime called with too many rounds
++ [2fe2f588] Use a cheaper way to force_bigint
++ [aad6fdc0] Greatly reduce allocation churn on bigint ops
++ [c5545770] Use mp_set_int in force_bigint when we know we have a 32-bit int
+
+Ops:
++ [c20f896f] Skip numification in mast nodes code
+
+Other:
++ [5b5e7f19] Clean up CMP object files on Windows when running `make realclean`
++ [75602b0e] Add the ability to detect the malloc_trim() function
+
+Platform:
++ [dc3f36c0] Remove compiler warning that was accidently left in
++ [aeae1033] musl does not have malloc_trim, so only use it w/ glibc
++ [42ea81f3,aeae1033,75602b0e,dc3f36c0] Ask malloc to free kernel pages on GC collection to reduce max memory usage
+
+Profiler:
++ [fbd48017] Remove profiling overhead from profiles
++ [807b92f9] Use strndup instead of malloc+strncpy
+
+Spesh:
++ [ed1ce32f] Silence -Wlogical-op-parentheses warnings
+
+Tooling/Build:
++ [44b69939] Fix warning in Configure in non-relocatable builds
++ [55b27c2a] Fix -fno-ret-protector flag passing on OpenBSD
++ [5f29b094] Fail when being requested to do a relocatable build and we can't
++ [b5172363] Default to doing a non-relocatable build
+
 New in 2019.05
 
 Other:
