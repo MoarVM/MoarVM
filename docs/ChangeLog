@@ -124,6 +124,7 @@ Ops:
 
 
 Profiler:
++ Introduce confprog to allow profiling of specific subroutines
 + [423a9cc7] Fix misc. problems with profiling
 + [95094ae2] Count deallocated objects categorized by life time
 + [38252329] Heapsnapshot: properly handle empty debug name
