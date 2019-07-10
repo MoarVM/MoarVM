@@ -48,9 +48,19 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         }
         else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
             /* It's a string of some kind. */
-            MVMObject *string     = MVM_repr_at_key_o(tc, info, str_consts.string);
-            MVMObject *chartype_o = MVM_repr_at_key_o(tc, string, str_consts.chartype);
-            MVMint32   chartype   = MVM_repr_get_int(tc, chartype_o);
+            MVMObject *string    = MVM_repr_at_key_o(tc, info, str_consts.string);
+            MVMint32   chartype;
+
+            if (!MVM_is_null(tc, string)) {
+                MVMObject *chartype_o = MVM_repr_at_key_o(tc, string, str_consts.chartype);
+                if (!MVM_is_null(tc, chartype_o)) {
+                    chartype = MVM_repr_get_int(tc, chartype_o);
+                } else {
+                    chartype = MVM_P6STR_C_TYPE_CHAR;
+                }
+            } else {
+                chartype = MVM_P6STR_C_TYPE_CHAR;
+            }
 
             switch (chartype) {
                 case MVM_P6STR_C_TYPE_CHAR:     repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_STRING;      break;
