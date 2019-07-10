@@ -951,7 +951,7 @@ MVMObject * MVM_nativecall_global(MVMThreadContext *tc, MVMString *lib, MVMStrin
     ||  REPR(target_type)->ID == MVM_REPR_ID_P6str
     || (REPR(target_type)->ID == MVM_REPR_ID_P6opaque
         && REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec))->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)) {
-        entry_point = *(void **)&entry_point;
+        entry_point = *(void **)entry_point;
     }
 
     ret = nativecall_cast(tc, target_spec, target_type, entry_point);
@@ -1049,6 +1049,9 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                         objptr = ((MVMCUnionBody *)OBJECT_BODY(body->child_objs[i]))->cunion;
                         break;
                     case MVM_CARRAY_ELEM_KIND_STRING:
+                    case MVM_CARRAY_ELEM_KIND_WIDE_STRING:
+                    case MVM_CARRAY_ELEM_KIND_U16_STRING:
+                    case MVM_CARRAY_ELEM_KIND_U32_STRING:
                         objptr = NULL; /* TODO */
                         break;
                     default:
@@ -1101,6 +1104,9 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                         objptr = (MVMCUnionBody *)OBJECT_BODY(body->child_objs[slot]);
                         break;
                     case MVM_CSTRUCT_ATTR_STRING:
+                    case MVM_CSTRUCT_ATTR_WIDE_STRING:
+                    case MVM_CSTRUCT_ATTR_U16_STRING:
+                    case MVM_CSTRUCT_ATTR_U32_STRING:
                         objptr = NULL;
                         break;
                     default:
@@ -1153,6 +1159,9 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                         objptr = (MVMCUnionBody *)OBJECT_BODY(body->child_objs[slot]);
                         break;
                     case MVM_CPPSTRUCT_ATTR_STRING:
+                    case MVM_CPPSTRUCT_ATTR_WIDE_STRING:
+                    case MVM_CPPSTRUCT_ATTR_U16_STRING:
+                    case MVM_CPPSTRUCT_ATTR_U32_STRING:
                         objptr = NULL;
                         break;
                     default:

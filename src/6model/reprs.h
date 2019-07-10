@@ -157,7 +157,7 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
     MVM_REPR_DEFAULT_GET_VALUE_STORAGE_SPEC \
 }
 
-/* Numbers representing P6int, P6num, and P6num/CStr's native types. */
+/* Numbers representing P6int, P6num, and P6str/CStr's native types. */
 #define MVM_P6INT_C_TYPE_CHAR       -1
 #define MVM_P6INT_C_TYPE_SHORT      -2
 #define MVM_P6INT_C_TYPE_INT        -3
