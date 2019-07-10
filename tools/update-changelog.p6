@@ -36,9 +36,9 @@ class ViewOptions {
     method format-output ($thing) {
         my @text;
         if self.commit {
-            my @all = $thing<ID>;
-            @all.append: $thing{$merged-into} if $thing{$merged-into};
-            @text.push: '[' ~ @all».substr(0, 8).join(',') ~ ']';
+            my @all = $thing<ID>.list;
+            @all.append: $thing{$merged-into}.list if $thing{$merged-into};
+            @text.push: '[' ~ @all».substr(0, 8).join(',') ~  ']';
         }
         if self.dropped && $thing<dropped> {
             @text.push: '<dropped>';
@@ -49,15 +49,9 @@ class ViewOptions {
             @text.push: $cat;
         }
         if self.subject-origin {
-            if $thing<CustomSubject> {
-                @text.push: '(Custom)';
-            }
-            elsif $thing<AutoSubject> {
-                @text.push: '(Auto)';
-            }
-            else {
-                @text.push: '(Commit)';
-            }
+            @text.push:
+                $thing<CustomSubject> ?? '(Custom)' !!
+                $thing<AutoSubject>   ?? '(Auto)'   !! '(Commit)';
         }
         my $subj = ($thing<CustomSubject> // $thing<AutoSubject> // $thing<Subject>);
         $subj = colored($subj, 'bold') if $!color;
