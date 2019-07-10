@@ -88,7 +88,6 @@ struct MVMStringConsts {
     MVMString *config;
     MVMString *replacement;
     MVMString *string;
-    MVMString *length;
     MVMString *chartype;
 };
 

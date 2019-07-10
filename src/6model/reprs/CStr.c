@@ -105,11 +105,7 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     MVMCStrREPRData *repr_data = MVM_malloc(sizeof(MVMCStrREPRData));
 
-    if (reader->root.version >= 23) {
-        repr_data->type   = MVM_serialization_read_int(tc, reader);
-        repr_data->length = MVM_serialization_read_int(tc, reader);
-    }
-    else if (reader->root.version >= 22) {
+    if (reader->root.version >= 22) {
         repr_data->type   = MVM_serialization_read_int(tc, reader);
         repr_data->length = 0;
     }
@@ -157,9 +153,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
     if (!MVM_is_null(tc, info)) {
         MVMObject *chartype_o = MVM_repr_at_key_o(tc, info, str_consts.chartype);
-        MVMObject *length_o   = MVM_repr_at_key_o(tc, info, str_consts.length);
         repr_data->type   = MVM_repr_get_int(tc, chartype_o);
-        repr_data->length = MVM_repr_get_int(tc, length_o);
+        repr_data->length = 0;
     }
     else {
         repr_data->type   = MVM_P6STR_C_TYPE_CHAR;

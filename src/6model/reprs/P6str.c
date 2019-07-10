@@ -96,7 +96,7 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     MVMP6strREPRData *repr_data = MVM_malloc(sizeof(MVMP6strREPRData));
 
-    if (reader->root.version >= 24) {
+    if (reader->root.version >= 23) {
         repr_data->type = MVM_serialization_read_int(tc, reader);
     }
     else {

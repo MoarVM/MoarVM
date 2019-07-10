@@ -585,7 +585,6 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(config, "config");
     string_creator(replacement, "replacement");
     string_creator(string, "string");
-    string_creator(length, "length");
     string_creator(chartype, "chartype");
 }
 
