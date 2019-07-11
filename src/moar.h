@@ -1,9 +1,14 @@
-#include <locale.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <setjmp.h>
 #include <stddef.h>
+
+#ifdef __APPLE__
+#include <xlocale.h>
+#else
+#include <locale.h>
+#endif
 
 /* Configuration. */
 #include "gen/config.h"
