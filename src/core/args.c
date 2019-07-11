@@ -307,9 +307,15 @@ MVMArgInfo MVM_args_get_optional_pos_int(MVMThreadContext *tc, MVMArgProcContext
     autounbox(tc, MVM_CALLSITE_ARG_INT, "integer", result);
     return result;
 }
-MVMArgInfo MVM_args_get_pos_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
+MVMArgInfo MVM_args_get_required_pos_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos) {
     MVMArgInfo result;
-    args_get_pos(tc, ctx, pos, required, result);
+    args_get_pos(tc, ctx, pos, MVM_ARG_REQUIRED, result);
+    autounbox(tc, MVM_CALLSITE_ARG_NUM, "number", result);
+    return result;
+}
+MVMArgInfo MVM_args_get_optional_pos_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos) {
+    MVMArgInfo result;
+    args_get_pos(tc, ctx, pos, MVM_ARG_OPTIONAL, result);
     autounbox(tc, MVM_CALLSITE_ARG_NUM, "number", result);
     return result;
 }
