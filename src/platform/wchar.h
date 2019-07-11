@@ -1,19 +1,19 @@
 #include <wchar.h>
 
 #if defined(__WCHAR_TYPE__)
-#  define MVMwchar __WCHAR_TYPE__
+typedef __WCHAR_TYPE__ MVMwchar;
 #elif defined(WCHAR_TYPE)
-#  define MVMwchar WCHAR_TYPE
+typedef WCHAR_TYPE     MVMwchar;
 #else
-#  define MVMwchar wchar_t
+typedef wchar_t        MVMwchar;
 #endif
 
 #if defined(__WINT_TYPE__)
-#  define MVMwint __WINT_TYPE__
+typedef __WINT_TYPE__ MVMwint;
 #elif defined(WINT_TYPE)
-#  define MVMwint WINT_TYPE
+typedef WINT_TYPE     MVMwint;
 #else
-#  define MVMwint wint_t
+typedef wint_t        MVMwint;
 #endif
 
 MVMint64 MVM_platform_is_wchar_unsigned(void);
