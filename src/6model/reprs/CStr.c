@@ -174,8 +174,6 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
             MVM_exception_throw_adhoc(tc, "CStr: u16string support NYI");
         case MVM_P6STR_C_TYPE_CHAR32_T:
             MVM_exception_throw_adhoc(tc, "CStr: u32string support NYI");
-        default:
-            MVM_exception_throw_adhoc(tc, "CStr: unsupported native type (%d)", repr_data->type);
     }
 }
 

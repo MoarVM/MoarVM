@@ -172,7 +172,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
         if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
          && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
-            MVM_exception_throw_adhoc(tc, "MVMP6int: Unsupported int size (%dbit)", repr_data->bits);
+            MVM_exception_throw_adhoc(tc, "P6int: unsupported integer size (%dbit)", repr_data->bits);
 
         if (!MVM_is_null(tc, is_unsigned_o))
             repr_data->is_unsigned = MVM_repr_get_int(tc, is_unsigned_o);
@@ -218,7 +218,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
 
     if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
      && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
-        MVM_exception_throw_adhoc(tc, "MVMP6int: Unsupported int size (%dbit)", repr_data->bits);
+        MVM_exception_throw_adhoc(tc, "P6int: unsupported integer size (%dbit)", repr_data->bits);
 
     mk_storage_spec(tc, repr_data->bits, repr_data->is_unsigned, &repr_data->storage_spec);
 

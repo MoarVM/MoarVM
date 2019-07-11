@@ -902,6 +902,7 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
                     case MVM_P6STR_C_TYPE_WCHAR_T:  str_type = MVM_NATIVECALL_ARG_WIDESTR; break;
                     case MVM_P6STR_C_TYPE_CHAR16_T: str_type = MVM_NATIVECALL_ARG_U16STR;  break;
                     case MVM_P6STR_C_TYPE_CHAR32_T: str_type = MVM_NATIVECALL_ARG_U32STR;  break;
+                    default:                        MVM_exception_throw_adhoc(tc, "NativeCall: unsupported string type");
                 }
 
                 result = MVM_nativecall_make_str(tc, target_type, str_type, (void *)cpointer_body);
@@ -916,6 +917,7 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
                     case MVM_P6STR_C_TYPE_WCHAR_T:  str_type = MVM_NATIVECALL_ARG_WIDESTR; break;
                     case MVM_P6STR_C_TYPE_CHAR16_T: str_type = MVM_NATIVECALL_ARG_U16STR;  break;
                     case MVM_P6STR_C_TYPE_CHAR32_T: str_type = MVM_NATIVECALL_ARG_U32STR;  break;
+                    default:                        MVM_exception_throw_adhoc(tc, "NativeCall: unsupported string type");
                 }
 
                 result = MVM_nativecall_make_str(tc, target_type, str_type, (void *)cpointer_body);

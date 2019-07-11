@@ -9,7 +9,7 @@ struct MVMP6str {
 };
 
 struct MVMP6strREPRData {
-    MVMint32 type;
+    MVMStrNativeType type;
 };
 
 /* Function for REPR setup. */

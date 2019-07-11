@@ -121,7 +121,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
         if (repr_data->bits != 1 && repr_data->bits != 2 && repr_data->bits != 4 && repr_data->bits != 8
          && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64 && repr_data->bits != 128) {
-            MVM_exception_throw_adhoc(tc, "MVMP6num: Unsupported num size (%dbit)", repr_data->bits);
+            MVM_exception_throw_adhoc(tc, "P6num: Unsupported numeric size (%dbit)", repr_data->bits);
         }
     }
 
@@ -161,7 +161,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
 
     if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
      && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
-        MVM_exception_throw_adhoc(tc, "MVMP6num: Unsupported num size (%dbit)", repr_data->bits);
+        MVM_exception_throw_adhoc(tc, "P6num: unsupported numeric size (%dbit)", repr_data->bits);
 
     if (repr_data->bits)
         mk_storage_spec(tc, repr_data->bits, &repr_data->storage_spec);

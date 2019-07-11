@@ -8,15 +8,15 @@ struct MVMP6numBody {
 };
 
 struct MVMP6num {
-    MVMObject common;
+    MVMObject    common;
     MVMP6numBody body;
 };
 
 /* The bit width requirement is shared for all instances of the same type. */
 struct MVMP6numREPRData {
-    MVMint32       type;
-    MVMint16       bits;
-    MVMStorageSpec storage_spec;
+    MVMNumNativeType type;
+    MVMint16         bits;
+    MVMStorageSpec   storage_spec;
 };
 
 /* Function for REPR setup. */
