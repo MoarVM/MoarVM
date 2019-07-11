@@ -1,10 +1,5 @@
 #include "moar.h"
-#ifdef _WIN32
-#  ifdef _MSC_VER
-#    include <windows.h>
-#    include <stringapiset.h>
-#  endif
-#else
+#ifndef _WIN32
 #include <dlfcn.h>
 #endif
 #include <platform/threads.h>
