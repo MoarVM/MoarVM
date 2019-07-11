@@ -560,7 +560,7 @@ sub wchar_size_native {
 #include <wchar.h>
 
 int main(int argc, char **argv) {
-    printf("%zu\n", sizeof(wchar_t));
+    printf("%lu\n", (unsigned long)sizeof(wchar_t));
     return EXIT_SUCCESS;
 }
 EOT
@@ -628,7 +628,7 @@ sub wint_size_native {
 #include <wchar.h>
 
 int main(int argc, char **argv) {
-    printf("%zu\n", sizeof(wint_t));
+    printf("%lu\n", (unsigned long)sizeof(wint_t));
     return EXIT_SUCCESS;
 }
 EOT
