@@ -22,45 +22,9 @@ ffi_type * MVM_nativecall_get_ffi_type(MVMThreadContext *tc, MVMuint64 type_id) 
         case MVM_NATIVECALL_ARG_DOUBLE:
             return &ffi_type_double;
         case MVM_NATIVECALL_ARG_WCHAR_T:
-#ifdef MVM_WCHAR_UNSIGNED
-#  if MVM_WCHAR_SIZE == 1
-            return &ffi_type_uchar;
-#  elif MVM_WCHAR_SIZE == 2
-            return &ffi_type_ushort;
-#  elif MVM_WCHAR_SIZE == 4
-            return &ffi_type_uint;
-#  elif MVM_WCHAR_SIZE == 8
-            return &ffi_type_ulong;
-#  endif
-#else
-#  if MVM_WCHAR_SIZE == 1
-            return &ffi_type_schar;
-#  elif MVM_WCHAR_SIZE == 2
-            return &ffi_type_sshort;
-#  elif MVM_WCHAR_SIZE == 4
-            return &ffi_type_sint;
-#  elif MVM_WCHAR_SIZE == 8
-            return &ffi_type_slong;
-#  endif
-#endif
+            return &MVM_WCHAR_FFI_TYPE;
         case MVM_NATIVECALL_ARG_WINT_T:
-#ifdef MVM_WINT_UNSIGNED
-#  if MVM_WINT_SIZE == 2
-            return &ffi_type_ushort;
-#  elif MVM_WINT_SIZE == 4
-            return &ffi_type_uint;
-#  elif MVM_WINT_SIZE == 8
-            return &ffi_type_ulong;
-#  endif
-#else
-#  if MVM_WINT_SIZE == 2
-            return &ffi_type_sshort;
-#  elif MVM_WINT_SIZE == 4
-            return &ffi_type_sint;
-#  elif MVM_WINT_SIZE == 8
-            return &ffi_type_slong;
-#  endif
-#endif
+            return &MVM_WINT_FFI_TYPE;
         case MVM_NATIVECALL_ARG_CHAR16_T:
             return &ffi_type_ushort;
         case MVM_NATIVECALL_ARG_CHAR32_T:
@@ -213,23 +177,13 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
                     cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_NUM;
                     break;
                 case MVM_NATIVECALL_ARG_WCHAR_T:
-#ifdef MVM_WCHAR_UNSIGNED
-                    /* TODO: should probably be UINT, when we can support that. */
+                    /* TODO: should probably be UINT if needed, when we can support that. */
                     cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
                     break;
-#else
-                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
-                    break;
-#endif
                 case MVM_NATIVECALL_ARG_WINT_T:
-#ifdef MVM_WINT_UNSIGNED
-                    /* TODO: should probably be UINT, when we can support that. */
+                    /* TODO: should probably be UINT if needed, when we can support that. */
                     cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
                     break;
-#else
-                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
-                    break;
-#endif
                 case MVM_NATIVECALL_ARG_CHAR16_T:
                 case MVM_NATIVECALL_ARG_CHAR32_T:
                     /* TODO: should probably be UINT, when we can support that. */
@@ -825,18 +779,10 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 }
                 case MVM_NATIVECALL_ARG_WCHAR_T:
-#ifdef MVM_WCHAR_UNSIGNED
-                    handle_ret(tc, MVMwchar, ffi_arg, MVM_nativecall_make_int);
-#else
-                    handle_ret(tc, MVMwchar, ffi_sarg, MVM_nativecall_make_int);
-#endif
+                    handle_ret(tc, MVMwchar, MVM_WCHAR_FFI_ARG, MVM_nativecall_make_int);
                     break;
                 case MVM_NATIVECALL_ARG_WINT_T:
-#ifdef MVM_WINT_UNSIGNED
-                    handle_ret(tc, MVMwint, ffi_arg, MVM_nativecall_make_int);
-#else
-                    handle_ret(tc, MVMwint, ffi_sarg, MVM_nativecall_make_int);
-#endif
+                    handle_ret(tc, MVMwint, MVM_WINT_FFI_ARG, MVM_nativecall_make_int);
                     break;
                 case MVM_NATIVECALL_ARG_CHAR16_T:
                     handle_ret(tc, MVMchar16, ffi_arg, MVM_nativecall_make_int);

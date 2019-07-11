@@ -687,46 +687,10 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 handle_arg("number", cont_n, DCdouble, n64, dcArgDouble, MVM_nativecall_unmarshal_double);
                 break;
             case MVM_NATIVECALL_ARG_WCHAR_T:
-#ifdef MVM_WCHAR_UNSIGNED
-#  if MVM_WCHAR_SIZE == 1
-                handle_arg("integer", cont_n, DCuchar, i64, dcArgChar, MVM_nativecall_unmarshal_wchar_t);
-#  elif MVM_WCHAR_SIZE == 2
-                handle_arg("integer", cont_n, DCushort, i64, dcArgShort, MVM_nativecall_unmarshal_wchar_t);
-#  elif MVM_WCHAR_SIZE == 4
-                handle_arg("integer", cont_n, DCuint, i64, dcArgInt, MVM_nativecall_unmarshal_wchar_t);
-#  elif MVM_WCHAR_SIZE == 8
-                handle_arg("integer", cont_n, DCulong, i64, dcArgLong, MVM_nativecall_unmrshal_wchar_t);
-#  endif
-#else
-#  if MVM_WCHAR_SIZE == 1
-                handle_arg("integer", cont_n, DCchar, i64, dcArgChar, MVM_nativecall_unmarshal_wchar_t);
-#  elif MVM_WCHAR_SIZE == 2
-                handle_arg("integer", cont_n, DCshort, i64, dcArgShort, MVM_nativecall_unmarshal_wchar_t);
-#  elif MVM_WCHAR_SIZE == 4
-                handle_arg("integer", cont_n, DCuint, i64, dcArgInt, MVM_nativecall_unmarshal_wchar_t);
-#  elif MVM_WCHAR_SIZE == 8
-                handle_arg("integer", cont_n, DClong, i64, dcArgLong, MVM_nativecall_unmarshal_wchar_t);
-#  endif
-#endif
+                handle_arg("integer", cont_n, MVM_WCHAR_DC_TYPE, i64, MVM_WCHAR_DC_ARG, MVM_nativecall_unmarshal_wchar_t);
                 break;
             case MVM_NATIVECALL_ARG_WINT_T:
-#ifdef MVM_WINT_UNSIGNED
-#  if MVM_WINT_SIZE == 2
-                handle_arg("integer", cont_n, DCushort, i64, dcArgShort, MVM_nativecall_unmarshal_wint_t);
-#  elif MVM_WINT_SIZE == 4
-                handle_arg("integer", cont_n, DCuint, i64, dcArgInt, MVM_nativecall_unmarshal_wint_t);
-#  elif MVM_WINT_SIZE == 8
-                handle_arg("integer", cont_n, DCulong, i64, dcArgLong, MVM_nativecall_unmarshal_wint_t);
-#  endif
-#else
-#  if MVM_WINT_SIZE == 2
-                handle_arg("integer", cont_n, DCshort, i64, dcArgShort, MVM_nativecall_unmarshal_wint_t);
-#  elif MVM_WINT_SIZE == 4
-                handle_arg("integer", cont_n, DCint, i64, dcArgInt, MVM_nativecall_unmarshal_wint_t);
-#  elif MVM_WCHAR_SIZE == 8
-                handle_arg("integer", cont_n, DClong, i64, dcArgLong, MVM_nativecall_unmarshal_wchar_t);
-#  endif
-#endif
+                handle_arg("integer", cont_n, MVM_WINT_DC_TYPE, i64, MVM_WINT_DC_ARG, MVM_nativecall_unmarshal_wint_t);
                 break;
             case MVM_NATIVECALL_ARG_CHAR16_T:
                 handle_arg("integer", cont_n, DCushort, i64, dcArgShort, MVM_nativecall_unmarshal_char16_t);
@@ -888,27 +852,13 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 }
                 case MVM_NATIVECALL_ARG_WCHAR_T: {
-#if MVM_WCHAR_SIZE == 1
-                    MVMwchar native_result = (MVMwchar)dcCallChar(vm, entry_point);
-#elif MVM_WCHAR_SIZE == 2
-                    MVMwchar native_result = (MVMwchar)dcCallShort(vm, entry_point);
-#elif MVM_WCHAR_SIZE == 4
-                    MVMwchar native_result = (MVMwchar)dcCallInt(vm, entry_point);
-#elif MVM_WCHAR_SIZE == 8
-                    MVMwchar native_result = (MVMwchar)dcCallLong(vm, entry_point);
-#endif
+                    MVMwchar native_result = MVM_WCHAR_DC_CALL(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_int(tc, res_type, native_result);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_WINT_T: {
-#if MVM_WINT_SIZE == 2
-                    MVMwint native_result = (MVMwint)dcCallShort(vm, entry_point);
-#elif MVM_WINT_SIZE == 4
-                    MVMwint native_result = (MVMwint)dcCallInt(vm, entry_point);
-#elif MVM_WINT_SIZE == 8
-                    MVMwint native_result = (MVMwint)dcCallLong(vm, entry_point);
-#endif
+                    MVMwint native_result = MVM_WINT_DC_CALL(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_int(tc, res_type, native_result);
                     break;
@@ -1053,46 +1003,10 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCulonglong *)free_rws[num_rws]);
                     break;
                 case MVM_NATIVECALL_ARG_WCHAR_T:
-#ifdef MVM_WCHAR_UNSIGNED
-#  if MVM_WCHAR_SIZE == 1
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCuchar *)free_rws[num_rws]);
-#  elif MVM_WCHAR_SIZE == 2
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCushort *)free_rws[num_rws]);
-#  elif MVM_WCHAR_SIZE == 4
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCuint *)free_rws[num_rws]);
-#  elif MVM_WCHAR_SIZE == 8
-                    MVM_6model_container_assign_i(tc, value, (MVmint64)*(DCulong *)free_rws[num_rws]);
-#  endif
-#else
-#  if MVM_WCHAR_SIZE == 1
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCchar *)free_rws[num_rws]);
-#  elif MVM_WCHAR_SIZE == 2
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCshort *)free_rws[num_rws]);
-#  elif MVM_WCHAR_SIZE == 4
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCint *)free_rws[num_rws]);
-#  elif MVM_WCHAR_SIZE == 8
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DClong *)free_rws[num_rws]);
-#  endif
-#endif
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(MVM_WCHAR_DC_TYPE *)free_rws[num_rws]);
                     break;
                 case MVM_NATIVECALL_ARG_WINT_T:
-#ifdef MVM_WINT_UNSIGNED
-#  if MVM_WINT_SIZE == 2
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCushort *)free_rws[num_rws]);
-#  elif MVM_WINT_SIZE == 4
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCuint *)free_rws[num_rws]);
-#  elif MVM_WINT_SIZE == 8
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCulong *)free_rws[num_rws]);
-#  endif
-#else
-#  if MVM_WINT_SIZE == 2
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCshort *)free_rws[num_rws]);
-#  elif MVM_WINT_SIZE == 4
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCint *)free_rws[num_rws]);
-#  elif MVM_WCHAR_SIZE == 8
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DClong *)free_rws[num_rws]);
-#  endif
-#endif
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(MVM_WINT_DC_TYPE *)free_rws[num_rws]);
                     break;
                 case MVM_NATIVECALL_ARG_CHAR16_T:
                     MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCushort *)free_rws[num_rws]);
