@@ -24,7 +24,7 @@ MVMwchar * MVM_string_wide_encode(MVMThreadContext *tc, MVMString *str, MVMuint6
           size_t    size;
 
 #ifdef _MSC_VER
-    MVMwchar *wide = (MVMwchar *)MVM_string_utf16_encode_substr(tc, str, output_size, 0, -1, NULL, 0);
+    wstr = (MVMwchar *)MVM_string_utf16_encode_substr(tc, str, output_size, 0, -1, NULL, 0);
 #else
     cstr = MVM_string_utf8_encode_C_string(tc, str);
     size = mbsrtowcs(NULL, &cstr, 0, &tc->mbstate);
