@@ -51,45 +51,9 @@ static char get_signature_char(MVMint16 type_id) {
         case MVM_NATIVECALL_ARG_DOUBLE:
             return 'd';
         case MVM_NATIVECALL_ARG_WCHAR_T:
-#ifdef MVM_WCHAR_UNSIGNED
-#  if MVM_WCHAR_SIZE == 1
-            return 'C';
-#  elif MVM_WCHAR_SIZE == 2
-            return 'S';
-#  elif MVM_WCHAR_SIZE == 4
-            return 'I';
-#  elif MVM_WCHAR_SIZE == 8
-            return 'J';
-#  endif
-#else
-#  if MVM_WCHAR_SIZE == 1
-            return 'c';
-#  elif MVM_WHCAR_SIZE == 2
-            return 's';
-#  elif MVM_WCHAR_SIZE == 4
-            return 'i';
-#  elif MVM_WCHAR_SIZE == 8
-            return 'j';
-#  endif
-#endif
+            return MVM_WCHAR_DC_SIG_CHAR;
         case MVM_NATIVECALL_ARG_WINT_T:
-#ifdef MVM_WINT_UNSIGNED
-#  if MVM_WINT_SIZE == 2
-            return 'S';
-#  elif MVM_WINT_SIZE == 4
-            return 'I';
-#  elif MVM_WINT_SIZE == 8
-            return 'J';
-#  endif
-#else
-#  if MVM_WINT_SIZE == 2
-            return 's';
-#  elif MVM_WINT_SIZE == 4
-            return 'i';
-#  elif MVM_WINT_SIZE == 8
-            return 'j';
-#  endif
-#endif
+            return MVM_WINT_DC_SIG_CHAR;
         case MVM_NATIVECALL_ARG_CHAR16_T:
             return 's';
         case MVM_NATIVECALL_ARG_CHAR32_T:
@@ -220,20 +184,12 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
                     cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_NUM;
                     break;
                 case MVM_NATIVECALL_ARG_WCHAR_T:
-#ifdef MVM_WCHAR_UNSIGNED
-                    /* TODO: should probably be UINT, when we can support that. */
+                    /* TODO: should probably be UINT when needed, when we can support that. */
                     cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
-#else
-                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
-#endif
                     break;
                 case MVM_NATIVECALL_ARG_WINT_T:
-#ifdef MVM_WINT_UNSIGNED
-                    /* TODO: should probably be UINT, when we can support that. */
+                    /* TODO: should probably be UINT when needed, when we can support that. */
                     cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
-#else
-                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
-#endif
                     break;
                 case MVM_NATIVECALL_ARG_CHAR16_T:
                 case MVM_NATIVECALL_ARG_CHAR32_T:
@@ -322,46 +278,10 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
                 args[i - 1].n64 = dcbArgDouble(cb_args);
                 break;
             case MVM_NATIVECALL_ARG_WCHAR_T:
-#ifdef MVM_WCHAR_UNSIGNED
-#  if MVM_WCHAR_SIZE == 1
-                args[i - 1].i64 = dcbArgUChar(cb_args);
-#  elif MVM_WCHAR_SIZE == 2
-                args[i - 1].i64 = dcbArgUShort(cb_args);
-#  elif MVM_WCHAR_SIZE == 4
-                args[i - 1].i64 = dcbArgUInt(cb_args);
-#  elif MVM_WCHAR_SIZE == 8
-                args[i - 1].i64 = dcbArgULong(cb_args);
-#  endif
-#else
-#  if MVM_WCHAR_SIZE == 1
-                args[i - 1].i64 = dcbArgChar(cb_args);
-#  elif MVM_WCHAR_SIZE == 2
-                args[i - 1].i64 = dcbArgShort(cb_args);
-#  elif MVM_WCHAR_SIZE == 4
-                args[i - 1].i64 = dcbArgInt(cb_args);
-#  elif MVM_WCHAR_SIZE == 8
-                args[i - 1].i64 = dcbArgLong(cb_args);
-#  endif
-#endif
+                args[i - 1].i64 = MVM_WCHAR_DCB_ARG(cb_args);
                 break;
             case MVM_NATIVECALL_ARG_WINT_T:
-#ifdef MVM_WINT_UNSIGNED
-#  if MVM_WINT_SIZE == 2
-                args[i - 1].i64 = dcbArgUShort(cb_args);
-#  elif MVM_WINT_SIZE == 4
-                args[i - 1].i64 = dcbArgUInt(cb_args);
-#  elif MVM_WINT_SIZE == 8
-                args[i - 1].i64 = dcbArgULong(cb_args);
-#  endif
-#else
-#  if MVM_WINT_SIZE == 2
-                args[i - 1].i64 = dcbArgShort(cb_args);
-#  elif MVM_WINT_SIZE == 4
-                args[i - 1].i64 = dcbArgInt(cb_args);
-#  elif MVM_WINT_SIZE == 8
-                args[i - 1].i64 = dcbArgLong(cb_args);
-#  endif
-#endif
+                args[i - 1].i64 = MVM_WINT_DCB_ARG(cb_args);
                 break;
             case MVM_NATIVECALL_ARG_CHAR16_T:
                 args[i - 1].i64 = dcbArgUShort(cb_args);
@@ -519,7 +439,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
 #elif MVM_WCHAR_SIZE == 4
             cb_result->i = MVM_nativecall_unmarshal_wchar_t(tc, res.o);
 #elif MVM_WCHAR_SIZE == 8
-            cb_result->j = MVM_nativecall_unmarshal_wchar_t(tc, res.o);
+            cb_result->l = MVM_nativecall_unmarshal_wchar_t(tc, res.o);
 #endif
             break;
         case MVM_NATIVECALL_ARG_WINT_T:
@@ -528,7 +448,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
 #elif MVM_WINT_SIZE == 4
             cb_result->i = MVM_nativecall_unmarshal_wint_t(tc, res.o);
 #elif MVM_WINT_SIZE == 8
-            cb_result->j = MVM_nativecall_unmarshal_wint_t(tc, res.o);
+            cb_result->l = MVM_nativecall_unmarshal_wint_t(tc, res.o);
 #endif
             break;
         case MVM_NATIVECALL_ARG_CHAR16_T:

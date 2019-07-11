@@ -13,22 +13,26 @@ ffi_abi MVM_nativecall_get_calling_convention(MVMThreadContext *tc, MVMString *n
 #  if MVM_WCHAR_SIZE == 1
 #    define MVM_WCHAR_FFI_TYPE ffi_type_uchar
 #  elif MVM_WCHAR_SIZE == 2
-#    define MVM_WCHAR_FFI_TYPE ffi_type_ushort;
+#    define MVM_WCHAR_FFI_TYPE ffi_type_ushort
 #  elif MVM_WCHAR_SIZE == 4
-#    define MVM_WCHAR_FFI_TyPE ffi_type_uint
+#    define MVM_WCHAR_FFI_TYPE ffi_type_uint
 #  elif MVM_WCHAR_SIZE == 8
 #    define MVM_WCHAR_FFI_TYPE ffi_type_uint64
+#  else
+#    error "Unsupported wchar_t size"
 #  endif
 #else
 #  define MVM_WCHAR_FFI_ARG ffi_sarg
 #  if MVM_WCHAR_SIZE == 1
 #    define MVM_WCHAR_FFI_TYPE ffi_type_schar
 #  elif MVM_WCHAR_SIZE == 2
-#    define MVM_WCHAR_FFI_TYPE ffi_type_sshort;
+#    define MVM_WCHAR_FFI_TYPE ffi_type_sshort
 #  elif MVM_WCHAR_SIZE == 4
-#    define MVM_WCHAR_FFI_TyPE ffi_type_sint
+#    define MVM_WCHAR_FFI_TYPE ffi_type_sint
 #  elif MVM_WCHAR_SIZE == 8
 #    define MVM_WCHAR_FFI_TYPE ffi_type_sint64
+#  else
+#    error "Unsupported wchar_t size"
 #  endif
 #endif
 
@@ -40,6 +44,8 @@ ffi_abi MVM_nativecall_get_calling_convention(MVMThreadContext *tc, MVMString *n
 #     define MVM_WINT_FFI_TYPE ffi_type_uint
 #  elif MVM_WINT_SIZE == 8
 #     define MVM_WINT_FFI_TYPE ffi_type_uint64
+#  else
+#     error "Unsupported wint_t size"
 #  endif
 #else
 #  define MVM_WINT_FFI_ARG ffi_sarg
@@ -49,5 +55,7 @@ ffi_abi MVM_nativecall_get_calling_convention(MVMThreadContext *tc, MVMString *n
 #     define MVM_WINT_FFI_TYPE ffi_type_sint
 #  elif MVM_WINT_SIZE == 8
 #     define MVM_WINT_FFI_TYPE ffi_type_sint64
+#  else
+#     error "Unsupported wint_t size"
 #  endif
 #endif
