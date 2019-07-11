@@ -825,14 +825,14 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 }
                 case MVM_NATIVECALL_ARG_WCHAR_T: {
-#if MVM_WCHAR_UNSIGNED
+#ifdef MVM_WCHAR_UNSIGNED
                     handle_ret(tc, MVMwchar, ffi_uarg, MVM_nativecall_make_int);
 #else
                     handle_ret(tc, MVMwchar, ffi_sarg, MVM_nativecall_make_int);
 #endif
                     break;
                 case MVM_NATIVECALL_ARG_WINT_T: {
-#if MVM_WINT_UNSIGNED
+#ifdef MVM_WINT_UNSIGNED
                     handle_ret(tc, MVMwint, ffi_uarg, MVM_nativecall_make_int);
 #else
                     handle_ret(tc, MVMwint, ffi_sarg, MVM_nativecall_make_int);
