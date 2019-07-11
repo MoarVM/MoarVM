@@ -596,7 +596,7 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
 MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
         MVMObject *site, MVMObject *args) {
     MVMObject     *result  = NULL;
-    char      **free_strs  = NULL;
+    void      **free_strs  = NULL;
     MVMint16     num_strs  = 0;
     MVMint16            i;
 
@@ -824,28 +824,26 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     result = MVM_nativecall_make_num(tc, res_type, ret);
                     break;
                 }
-                case MVM_NATIVECALL_ARG_WCHAR_T: {
+                case MVM_NATIVECALL_ARG_WCHAR_T:
 #ifdef MVM_WCHAR_UNSIGNED
-                    handle_ret(tc, MVMwchar, ffi_uarg, MVM_nativecall_make_int);
+                    handle_ret(tc, MVMwchar, ffi_arg, MVM_nativecall_make_int);
 #else
                     handle_ret(tc, MVMwchar, ffi_sarg, MVM_nativecall_make_int);
 #endif
                     break;
-                case MVM_NATIVECALL_ARG_WINT_T: {
+                case MVM_NATIVECALL_ARG_WINT_T:
 #ifdef MVM_WINT_UNSIGNED
-                    handle_ret(tc, MVMwint, ffi_uarg, MVM_nativecall_make_int);
+                    handle_ret(tc, MVMwint, ffi_arg, MVM_nativecall_make_int);
 #else
                     handle_ret(tc, MVMwint, ffi_sarg, MVM_nativecall_make_int);
 #endif
                     break;
-                case MVM_NATIVECALL_ARG_CHAR16_T: {
-                    handle_ret(tc, MVMchar16, ffi_uarg, MVM_nativecall_make_int);
+                case MVM_NATIVECALL_ARG_CHAR16_T:
+                    handle_ret(tc, MVMchar16, ffi_arg, MVM_nativecall_make_int);
                     break;
-                }
-                case MVM_NATIVECALL_ARG_CHAR32_T: {
-                    handle_ret(tc, MVMchar32, ffi_uarg, MVM_nativecall_make_int);
+                case MVM_NATIVECALL_ARG_CHAR32_T:
+                    handle_ret(tc, MVMchar32, ffi_arg, MVM_nativecall_make_int);
                     break;
-                }
                 case MVM_NATIVECALL_ARG_ASCIISTR:
                 case MVM_NATIVECALL_ARG_UTF8STR:
                 case MVM_NATIVECALL_ARG_UTF16STR: {
