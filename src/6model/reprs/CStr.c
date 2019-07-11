@@ -58,7 +58,7 @@ static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
         }
         case MVM_P6STR_C_TYPE_WCHAR_T: {
             MVMuint64 length;
-            body->value.wide  = MVM_string_utf8_encode_wide_string(tc, value, &length);
+            body->value.wide  = MVM_string_wide_encode(tc, value, &length);
             repr_data->length = length;
             break;
         }

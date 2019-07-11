@@ -174,9 +174,11 @@ MVMObject * MVM_nativecall_make_str(MVMThreadContext *tc, MVMObject *type, MVMin
                 value = MVM_string_utf16_decode(tc, tc->instance->VMString, cstr, strlen(cstr));
                 break;
             }
-            case MVM_NATIVECALL_ARG_WIDESTR:
-                value = MVM_string_utf8_decode_wide_string(tc, (MVMwchar *)string, NULL);
+            case MVM_NATIVECALL_ARG_WIDESTR: {
+                MVMwchar *wstr = (MVMwchar *)string;
+                value = MVM_string_wide_decode(tc, wstr, wcslen(wstr));
                 break;
+            }
             case MVM_NATIVECALL_ARG_U16STR:
                 MVM_exception_throw_adhoc(tc, "Internal error: u16string support NYI");
             case MVM_NATIVECALL_ARG_U32STR:
@@ -348,7 +350,7 @@ void * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, M
                 str = MVM_string_utf8_encode_C_string(tc, value_str);
                 break;
             case MVM_NATIVECALL_ARG_WIDESTR:
-                str = MVM_string_utf8_encode_wide_string(tc, value_str, NULL);
+                str = MVM_string_wide_encode(tc, value_str, NULL);
                 break;
             case MVM_NATIVECALL_ARG_U16STR:
                 MVM_exception_throw_adhoc(tc, "Internal error: u16string support NYI");

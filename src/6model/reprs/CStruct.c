@@ -527,7 +527,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                         }
                         else if (type == MVM_CSTRUCT_ATTR_WIDE_STRING) {
                             MVMROOT(tc, typeobj, {
-                                MVMString *str = MVM_string_utf8_decode_wide_string(tc, cobj, NULL);
+                                MVMString *str = MVM_string_wide_decode(tc, cobj, wcslen(cobj));
                                 obj = MVM_repr_box_str(tc, typeobj, str);
                             });
                         }
@@ -655,7 +655,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                     }
                     else if (type == MVM_CSTRUCT_ATTR_WIDE_STRING) {
                         MVMString *str = MVM_repr_get_str(tc, value);
-                        cobj = MVM_string_utf8_encode_wide_string(tc, str, NULL);
+                        cobj = MVM_string_wide_encode(tc, str, NULL);
                     }
                     else if (type == MVM_CSTRUCT_ATTR_U16_STRING) {
                         MVM_exception_throw_adhoc(tc, "CStruct: u16string support NYI");

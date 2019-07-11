@@ -236,7 +236,10 @@ static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArray
                || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CSTRUCT
                || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CPPSTRUCT
                || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CUNION
-               || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_STRING);
+               || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_STRING
+               || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_WIDE_STRING
+               || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_U16_STRING
+               || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_U32_STRING);
 
     if (is_complex) {
         const size_t old_size = body->allocated * sizeof(MVMObject *);
@@ -253,12 +256,13 @@ static MVMObject * make_wrapper(MVMThreadContext *tc, MVMSTable *st, void *data)
     MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
     switch (repr_data->elem_kind) {
         case MVM_CARRAY_ELEM_KIND_STRING: {
-            MVMString *str = MVM_string_utf8_decode(tc, tc->instance->VMString,
-                (char *)data, strlen((char *)data));
+            char      *cstr = (char *)data;
+            MVMString *str  = MVM_string_utf8_decode(tc, tc->instance->VMString, cstr, strlen(cstr));
             return MVM_repr_box_str(tc, repr_data->elem_type, str);
         }
         case MVM_CARRAY_ELEM_KIND_WIDE_STRING: {
-            MVMString *str = MVM_string_utf8_decode_wide_string(tc, (MVMwchar *)data, NULL);
+            MVMwchar  *wstr = (MVMwchar *)data;
+            MVMString *str  = MVM_string_wide_decode(tc, data, wcslen(data));
             return MVM_repr_box_str(tc, repr_data->elem_type, str);
         }
         case MVM_CARRAY_ELEM_KIND_U16_STRING:
@@ -407,7 +411,7 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
         }
         case MVM_CARRAY_ELEM_KIND_WIDE_STRING: {
             MVMwchar *string = IS_CONCRETE(value.o)
-                             ? MVM_string_utf8_encode_wide_string(tc, MVM_repr_get_str(tc, value.o), NULL)
+                             ? MVM_string_wide_encode(tc, MVM_repr_get_str(tc, value.o), NULL)
                              : NULL;
             bind_wrapper_and_ptr(tc, root, body, index, value.o, string);
             break;
