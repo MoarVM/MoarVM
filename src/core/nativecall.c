@@ -609,52 +609,58 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
         }
     }
 
-    if (body->ret_type == MVM_NATIVECALL_ARG_CHAR
-        || body->ret_type == MVM_NATIVECALL_ARG_UCHAR
-        || body->ret_type == MVM_NATIVECALL_ARG_SHORT
-        || body->ret_type == MVM_NATIVECALL_ARG_USHORT
-        || body->ret_type == MVM_NATIVECALL_ARG_INT
-        || body->ret_type == MVM_NATIVECALL_ARG_UINT
-        || body->ret_type == MVM_NATIVECALL_ARG_LONG
-        || body->ret_type == MVM_NATIVECALL_ARG_ULONG
-        || body->ret_type == MVM_NATIVECALL_ARG_LONGLONG
-        || body->ret_type == MVM_NATIVECALL_ARG_ULONGLONG
-        || body->ret_type == MVM_NATIVECALL_ARG_WCHAR_T
-        || body->ret_type == MVM_NATIVECALL_ARG_WINT_T
-        || body->ret_type == MVM_NATIVECALL_ARG_CHAR16_T
-        || body->ret_type == MVM_NATIVECALL_ARG_CHAR32_T
-    ) {
-        init_box_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_int, restype, dst);
-    }
-    else if (body->ret_type == MVM_NATIVECALL_ARG_CPOINTER) {
-        init_box_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_cpointer, restype, dst);
-    }
-    else if (body->ret_type == MVM_NATIVECALL_ARG_UTF8STR) {
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_REG_DYNIDX, { 2 } },
-                                 { MVM_JIT_LITERAL, { MVM_NATIVECALL_ARG_UTF8STR } },
-                                 { MVM_JIT_STACK_VALUE, { 0 } }};
-        init_c_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_str, 4, args);
-        box_rv_node->next = NULL;
-        if (dst == -1) {
-            box_rv_node->u.call.rv_mode = MVM_JIT_RV_DYNIDX;
-            box_rv_node->u.call.rv_idx = 0;
-        }
-        else {
-            box_rv_node->u.call.args[1].type = MVM_JIT_REG_VAL;
-            box_rv_node->u.call.args[1].v.reg = restype;
+    switch (body->ret_type) {
+        case MVM_NATIVECALL_ARG_CHAR:
+        case MVM_NATIVECALL_ARG_UCHAR:
+        case MVM_NATIVECALL_ARG_SHORT:
+        case MVM_NATIVECALL_ARG_USHORT:
+        case MVM_NATIVECALL_ARG_INT:
+        case MVM_NATIVECALL_ARG_UINT:
+        case MVM_NATIVECALL_ARG_LONG:
+        case MVM_NATIVECALL_ARG_ULONG:
+        case MVM_NATIVECALL_ARG_LONGLONG:
+        case MVM_NATIVECALL_ARG_ULONGLONG:
+        case MVM_NATIVECALL_ARG_WCHAR_T:
+        case MVM_NATIVECALL_ARG_WINT_T:
+        case MVM_NATIVECALL_ARG_CHAR16_T:
+        case MVM_NATIVECALL_ARG_CHAR32_T:
+            init_box_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_int, restype, dst);
+            break;
+        case MVM_NATIVECALL_ARG_CPOINTER:
+            init_box_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_cpointer, restype, dst);
+            break;
+        case MVM_NATIVECALL_ARG_UTF8STR:
+        case MVM_NATIVECALL_ARG_ASCIISTR:
+        case MVM_NATIVECALL_ARG_UTF16STR:
+        case MVM_NATIVECALL_ARG_WIDESTR:
+        case MVM_NATIVECALL_ARG_U16STR:
+        case MVM_NATIVECALL_ARG_U32STR: {
+            MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } },
+                                     { MVM_JIT_REG_DYNIDX, { 2 } },
+                                     { MVM_JIT_LITERAL, { body->ret_type } },
+                                     { MVM_JIT_STACK_VALUE, { 0 } }};
+            init_c_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_str, 4, args);
+            box_rv_node->next = NULL;
+            if (dst == -1) {
+                box_rv_node->u.call.rv_mode = MVM_JIT_RV_DYNIDX;
+                box_rv_node->u.call.rv_idx = 0;
+            }
+            else {
+                box_rv_node->u.call.args[1].type = MVM_JIT_REG_VAL;
+                box_rv_node->u.call.args[1].v.reg = restype;
 
-            box_rv_node->u.call.rv_mode = MVM_JIT_RV_PTR;
-            box_rv_node->u.call.rv_idx = dst;
+                box_rv_node->u.call.rv_mode = MVM_JIT_RV_PTR;
+                box_rv_node->u.call.rv_idx = dst;
+            }
+            break;
         }
-    }
-    else if (body->ret_type == MVM_NATIVECALL_ARG_VOID) {
-        call_node->next = unblock_gc_node;
-        unblock_gc_node->next = NULL;
-        jg->last_node = unblock_gc_node;
-    }
-    else {
-        goto fail;
+        case MVM_NATIVECALL_ARG_VOID:
+            call_node->next = unblock_gc_node;
+            unblock_gc_node->next = NULL;
+            jg->last_node = unblock_gc_node;
+            break;
+        default:
+            goto fail;
     }
 
     return jg;
