@@ -141,6 +141,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_continuationreset: return MVM_continuation_reset;
     case MVM_OP_continuationcontrol: return MVM_continuation_control;
     case MVM_OP_continuationinvoke: return MVM_continuation_invoke;
+    case MVM_OP_smrt_intify: return MVM_coerce_smart_intify;
     case MVM_OP_smrt_numify: return MVM_coerce_smart_numify;
     case MVM_OP_smrt_strify: return MVM_coerce_smart_stringify;
     case MVM_OP_gethow: return MVM_6model_get_how_obj;
@@ -2730,6 +2731,7 @@ start:
         break;
     }
     case MVM_OP_smrt_strify:
+    case MVM_OP_smrt_intify:
     case MVM_OP_smrt_numify: {
         MVMint16 obj = ins->operands[1].reg.orig;
         MVMint16 dst = ins->operands[0].reg.orig;

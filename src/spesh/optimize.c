@@ -940,14 +940,16 @@ static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB 
         }
 }
 
-/* smrt_strify and smrt_numify can turn into unboxes, but at least
- * for smrt_numify it's "complicated". Also, later when we know how
- * to put new invocations into spesh'd code, we could make direct
- * invoke calls to the .Str and .Num methods. */
+/* smrt_strify, smrt_numify, and smrt_intify can turn into unboxes,
+ * but at least for smrt_numify it's "complicated". Also, later
+ * when we know how to put new invocations into spesh'd code, we
+ * could make direct invoke calls to the .Str, .Num, and .Int methods. */
 static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
 
     MVMuint16 is_strify = ins->info->opcode == MVM_OP_smrt_strify;
+    MVMuint16 is_numify = ins->info->opcode == MVM_OP_smrt_numify;
+    MVMuint16 is_intify = ins->info->opcode == MVM_OP_smrt_intify;
 
     if (facts->flags & (MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE) && facts->type) {
         const MVMStorageSpec *ss;
@@ -975,12 +977,14 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
         }
         else {
             can_result = MVM_spesh_try_can_method(tc, facts->type,
-                    is_strify ? tc->instance->str_consts.Str : tc->instance->str_consts.Num);
+                    is_strify ? tc->instance->str_consts.Str :
+                    is_numify ? tc->instance->str_consts.Num :
+                                tc->instance->str_consts.Int);
         }
 
         if (can_result == -1) {
             /* Couldn't safely figure out if the type has a Str method or not. */
-            MVM_spesh_graph_add_comment(tc, g, ins, "Couldn't safely determine whether %s can .Str/.Num",
+            MVM_spesh_graph_add_comment(tc, g, ins, "Couldn't safely determine whether %s can .Str/.Num/.Int",
                     MVM_6model_get_debug_name(tc, facts->type));
             return;
         } else if (can_result == 0) {
@@ -1014,8 +1018,11 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
 
                 if (is_strify)
                     new_ins->info = MVM_op_get_op(register_type == MVM_reg_num64 ? MVM_OP_coerce_ns : MVM_OP_coerce_is);
-                else
-                    new_ins->info = MVM_op_get_op(register_type == MVM_reg_num64 ? MVM_OP_set : MVM_OP_coerce_in);
+                else if (is_numify)
+                    new_ins->info = MVM_op_get_op(register_type == MVM_reg_num64 ? MVM_OP_set       : MVM_OP_coerce_in);
+                else if (is_intify)
+                    new_ins->info = MVM_op_get_op(register_type == MVM_reg_num64 ? MVM_OP_coerce_in : MVM_OP_set);
+
                 new_ins->operands = operands;
                 operands[0] = ins->operands[0];
                 operands[1] = temp;
@@ -1038,9 +1045,9 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
                 return;
             } else if (!is_strify && (REPR(facts->type)->ID == MVM_REPR_ID_VMArray ||
                                      (REPR(facts->type)->ID == MVM_REPR_ID_MVMHash))) {
-                /* A smrt_numify on an array or hash can be replaced by an
-                 * elems operation, that can then be optimized by our
-                 * versatile and dilligent friend optimize_repr_op. */
+                /* A smrt_numify or smrt_intify on an array or hash can be
+                 * replaced by an elems operation, that can then be optimzed
+                 * by our versatile and dilligent friend optimize_repr_op. */
 
                 MVMSpeshIns     *new_ins   = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
                 MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
@@ -1054,7 +1061,7 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
 
                 MVM_spesh_get_facts(tc, g, temp)->writer = ins;
 
-                new_ins->info = MVM_op_get_op(MVM_OP_coerce_in);
+                new_ins->info = MVM_op_get_op(is_numify ? MVM_OP_coerce_in : MVM_OP_set);
                 new_ins->operands = operands;
                 operands[0] = orig_dst;
                 operands[1] = temp;
