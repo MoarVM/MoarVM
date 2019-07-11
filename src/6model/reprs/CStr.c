@@ -152,8 +152,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMObject       *info       = MVM_repr_at_key_o(tc, info_hash, str_consts.string);
 
     if (!MVM_is_null(tc, info)) {
-        MVMObject *chartype_o = MVM_repr_at_key_o(tc, info, str_consts.chartype);
-        repr_data->type   = MVM_repr_get_int(tc, chartype_o);
+        MVMObject *nativetype_o = MVM_repr_at_key_o(tc, info, str_consts.nativetype);
+        repr_data->type   = MVM_repr_get_int(tc, nativetype_o);
         repr_data->length = 0;
     }
     else {

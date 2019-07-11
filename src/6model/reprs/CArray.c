@@ -49,20 +49,20 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
             /* It's a string of some kind. */
             MVMObject *string    = MVM_repr_at_key_o(tc, info, str_consts.string);
-            MVMint32   chartype;
+            MVMint32   nativetype;
 
             if (!MVM_is_null(tc, string)) {
-                MVMObject *chartype_o = MVM_repr_at_key_o(tc, string, str_consts.chartype);
-                if (!MVM_is_null(tc, chartype_o)) {
-                    chartype = MVM_repr_get_int(tc, chartype_o);
+                MVMObject *nativetype_o = MVM_repr_at_key_o(tc, string, str_consts.nativetype);
+                if (!MVM_is_null(tc, nativetype_o)) {
+                    nativetype = MVM_repr_get_int(tc, nativetype_o);
                 } else {
-                    chartype = MVM_P6STR_C_TYPE_CHAR;
+                    nativetype = MVM_P6STR_C_TYPE_CHAR;
                 }
             } else {
-                chartype = MVM_P6STR_C_TYPE_CHAR;
+                nativetype = MVM_P6STR_C_TYPE_CHAR;
             }
 
-            switch (chartype) {
+            switch (nativetype) {
                 case MVM_P6STR_C_TYPE_CHAR:     repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_STRING;      break;
                 case MVM_P6STR_C_TYPE_WCHAR_T:  repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_WIDE_STRING; break;
                 case MVM_P6STR_C_TYPE_CHAR16_T: repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_U16_STRING;  break;

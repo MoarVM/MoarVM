@@ -56,9 +56,9 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMStringConsts   str_consts = tc->instance->str_consts;
     MVMObject        *info       = MVM_repr_at_key_o(tc, info_hash, str_consts.string);
     if (!MVM_is_null(tc, info)) {
-        MVMObject *chartype_o = MVM_repr_at_key_o(tc, info, str_consts.chartype);
-        if (!MVM_is_null(tc, chartype_o)) {
-            repr_data->type = MVM_repr_get_int(tc, chartype_o);
+        MVMObject *nativetype_o = MVM_repr_at_key_o(tc, info, str_consts.nativetype);
+        if (!MVM_is_null(tc, nativetype_o)) {
+            repr_data->type = MVM_repr_get_int(tc, nativetype_o);
         }
         else {
             repr_data->type = MVM_P6STR_C_TYPE_CHAR;
@@ -96,7 +96,7 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     MVMP6strREPRData *repr_data = MVM_malloc(sizeof(MVMP6strREPRData));
 
-    if (reader->root.version >= 23) {
+    if (reader->root.version >= 22) {
         repr_data->type = MVM_serialization_read_int(tc, reader);
     }
     else {

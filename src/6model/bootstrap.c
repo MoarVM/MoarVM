@@ -585,7 +585,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(config, "config");
     string_creator(replacement, "replacement");
     string_creator(string, "string");
-    string_creator(chartype, "chartype");
+    string_creator(nativetype, "nativetype");
 }
 
 /* Drives the overall bootstrap process. */

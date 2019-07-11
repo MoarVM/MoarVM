@@ -88,7 +88,7 @@ struct MVMStringConsts {
     MVMString *config;
     MVMString *replacement;
     MVMString *string;
-    MVMString *chartype;
+    MVMString *nativetype;
 };
 
 /* An entry in the representations registry. */

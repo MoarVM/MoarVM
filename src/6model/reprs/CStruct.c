@@ -196,12 +196,12 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                 }
                 else if (spec->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
                     /* It's a string of some kind. */
-                    MVMObject *string     = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.string);
-                    MVMObject *chartype_o = MVM_repr_at_key_o(tc, string, tc->instance->str_consts.chartype);
-                    MVMint32   chartype   = MVM_repr_get_int(tc, chartype_o);
+                    MVMObject *string       = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.string);
+                    MVMObject *nativetype_o = MVM_repr_at_key_o(tc, string, tc->instance->str_consts.nativetype);
+                    MVMint32   nativetype   = MVM_repr_get_int(tc, nativetype_o);
                     MVMint32   kind;
 
-                    switch (chartype) {
+                    switch (nativetype) {
                         case MVM_P6STR_C_TYPE_CHAR:     kind = MVM_CSTRUCT_ATTR_STRING;      break;
                         case MVM_P6STR_C_TYPE_WCHAR_T:  kind = MVM_CSTRUCT_ATTR_WIDE_STRING; break;
                         case MVM_P6STR_C_TYPE_CHAR16_T: kind = MVM_CSTRUCT_ATTR_U16_STRING;  break;

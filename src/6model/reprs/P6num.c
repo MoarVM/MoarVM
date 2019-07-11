@@ -91,11 +91,11 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
     MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_consts.float_str);
     if (!MVM_is_null(tc, info)) {
-        MVMObject *type_o = MVM_repr_at_key_o(tc, info, str_consts.type);
-        MVMObject *bits_o = MVM_repr_at_key_o(tc, info, str_consts.bits);
+        MVMObject *nativetype_o = MVM_repr_at_key_o(tc, info, str_consts.nativetype);
+        MVMObject *bits_o       = MVM_repr_at_key_o(tc, info, str_consts.bits);
 
-        if (!MVM_is_null(tc, type_o)) {
-            repr_data->type = MVM_repr_get_int(tc, type_o);
+        if (!MVM_is_null(tc, nativetype_o)) {
+            repr_data->type = MVM_repr_get_int(tc, nativetype_o);
             if (!MVM_is_null(tc, bits_o)) {
                 repr_data->bits = MVM_repr_get_int(tc, bits_o);
             } else {
