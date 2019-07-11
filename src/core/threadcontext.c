@@ -57,11 +57,9 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
     /* Initialize plugin_guard_args so we never have to do a NULL check */
     tc->plugin_guard_args = instance->VMNull;
 
-    /* Initialize state related to locales on UNIX-like OSes. Windows doesn't
-     * need this because it doesn't support setting UTF-8 as the locale;
-     * transcoding between wide strings and UTF-8 strings and vice versa is
-     * handled differently from how you'd normally do it on other OSes. */
 #ifndef _MSC_VER
+    /* Initialize state related to locales on UNIX-like OSes. Windows doesn't
+     * need this because its locale support blows and doesn't support UTF-8. */
     tc->mbstate = (mbstate_t){ 0 };
     tc->locale  = duplocale(instance->locale);
 #endif
@@ -117,6 +115,11 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
         mp_clear(tc->temp_bigints[i]);
         MVM_free(tc->temp_bigints[i]);
     }
+
+#ifndef _MSC_VER
+    /* Free our thread's locale. */
+    freelocale(tc->locale);
+#endif
 
     /* Free the thread context itself. */
     memset(tc, 0, sizeof(MVMThreadContext));

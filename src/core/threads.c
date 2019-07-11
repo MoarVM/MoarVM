@@ -69,11 +69,8 @@ static void start_thread(void *data) {
     ThreadStart *ts = (ThreadStart *)data;
     MVMThreadContext *tc = ts->tc;
 
-    /* Set up the thread's locale. This is not important on Windows since its
-     * locale support blows and doesn't allow setting it to UTF-8. We handle
-     * transcoding wide strings to UTF-8 strings and vice versa in a different
-     * way from how you'd do it on other OSes on Windows. */
 #ifndef _MSC_VER
+    /* Use the locale created by our thread context. */
     uselocale(tc->locale);
 #endif
 
@@ -105,11 +102,6 @@ static void start_thread(void *data) {
 
     /* Mark as exited, so the GC will know to clear our stuff. */
     tc->thread_obj->body.stage = MVM_thread_stage_exited;
-
-    /* Clean up this thread's locale. */
-#ifndef _MSC_VER
-    freelocale(tc->locale);
-#endif
 
     /* Mark ourselves as blocked, so that another thread will take care
      * of GC-ing our objects and cleaning up our thread context. */
