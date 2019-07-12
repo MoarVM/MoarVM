@@ -34,7 +34,7 @@ MVMwchar * MVM_string_wide_encode(MVMThreadContext *tc, MVMString *str, MVMuint6
     wstr = MVM_calloc(size + 1, sizeof(MVMwchar));
     (void)mbsrtowcs(wstr, &cstr, size, &tc->mbstate);
     if (output_size != NULL)
-        *output_size = (MVMuint64)size;
+        *output_size = (MVMuint64)(size + 1);
 #endif
 
     return wstr;
