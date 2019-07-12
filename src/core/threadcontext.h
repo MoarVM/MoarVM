@@ -329,11 +329,11 @@ struct MVMThreadContext {
     MVMuint32 cur_file_idx;
     MVMuint32 cur_line_no;
 
-#ifndef _WIN32
-    /* Locale settings. This isn't handled on Windows since it keeps no state
-     * related to locale. */
+#ifndef _MSC_VER
+    /* Locale settings. We don't handle this on Windows since its locale
+     * support is so brilliant it doesn't include UTF-8. Luckily, wide strings
+     * on Windows are just UTF-16 strings, which we can handle. */
     locale_t  locale;
-    mbstate_t mbstate;
 #endif
 };
 
