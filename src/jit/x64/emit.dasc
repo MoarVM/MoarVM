@@ -3041,8 +3041,10 @@ void MVM_jit_emit_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *compi
     switch (cond) {
     case MVM_JIT_LT:
         if (is_float) {
-            /* CF */
+            /* CF & !PF */
+            | jp >1;
             | jb =>(label);
+            |1:
         } else {
             /* SF ^ OF */
             | jl =>(label);
@@ -3050,8 +3052,10 @@ void MVM_jit_emit_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *compi
         break;
     case MVM_JIT_LE:
         if (is_float) {
-            /* CF | ZF */
+            /* (CF | ZF) & !PF */
+            | jp >1;
             | jbe =>(label);
+            |1:
         } else {
             /* (SF ^ OF) | ZF */
             | jle =>(label);
@@ -3059,9 +3063,8 @@ void MVM_jit_emit_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *compi
         break;
     case MVM_JIT_EQ:
         if (is_float) {
-            /* If unordered, PF is set as well as ZF */
+            /* ZF & !PF */
             | jp >1;
-            /* ZF */
             | je =>(label);
             |1:
         } else {
@@ -3071,7 +3074,7 @@ void MVM_jit_emit_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *compi
         break;
     case MVM_JIT_NE:
         if (is_float) {
-            /* PF will be set, as well as ZF */
+            /* PF | !ZF */
             | jp =>(label);
         }
         /* !ZF */
