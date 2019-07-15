@@ -441,6 +441,7 @@ push @ldflags, '-fsanitize=address'  if $args{asan};
 push @ldflags, $ENV{LDFLAGS}         if $ENV{LDFLAGS};
 $config{ldflags} = join ' ', @ldflags;
 
+$config{moarshared} = '';
 # Switch shared lib compiler flags in relocatable case.
 if (not $args{static} and $config{prefix} ne '/usr') {
     $config{moarshared} = $config{moarshared_relocatable}   if  $args{relocatable};
