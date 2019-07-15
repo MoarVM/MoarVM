@@ -2849,7 +2849,7 @@ const static MVMint32 gb2312_cp_to_index_record[65511]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,41449,41450,0,41982,0,41892,0}; 
 
-static MVMGrapheme32 gb2312_index_to_cp(MVMuint16 codepoint)
+MVMGrapheme32 gb2312_index_to_cp(MVMuint16 codepoint)
 {
 	int zone = codepoint / 256 - 161;
 	int point = codepoint % 256 - 161;
@@ -2863,7 +2863,7 @@ static MVMGrapheme32 gb2312_index_to_cp(MVMuint16 codepoint)
 	}
 }
 
-static MVMint32 gb2312_cp_to_index(MVMGrapheme32 codepoint) {
+MVMint32 gb2312_cp_to_index(MVMGrapheme32 codepoint) {
 	if (codepoint >= 0 && codepoint < 65511) {
 		MVMint16 result = gb2312_cp_to_index_record[codepoint];
 		return result == 0 ? GB2312_NULL : result;
