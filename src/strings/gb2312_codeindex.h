@@ -2865,7 +2865,7 @@ MVMGrapheme32 gb2312_index_to_cp(MVMuint16 codepoint)
 
 MVMint32 gb2312_cp_to_index(MVMGrapheme32 codepoint) {
 	if (codepoint >= 0 && codepoint < 65511) {
-		MVMint16 result = gb2312_cp_to_index_record[codepoint];
+		MVMint32 result = gb2312_cp_to_index_record[codepoint];
 		return result == 0 ? GB2312_NULL : result;
 	}
 	else {
