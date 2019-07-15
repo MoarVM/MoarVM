@@ -733,9 +733,18 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         MVMObject *msg_box = NULL;
         si->state = STATE_DONE;
         MVMROOT2(tc, async_task, msg_box, {
+            char *error_str = MVM_malloc(128);
             MVMObject *error_cb;
-            MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
-                tc->instance->VMString, uv_strerror(spawn_result));
+            MVMString *msg_str;
+
+            snprintf(error_str, 127, "Failed to spawn process %s: %s (error code %d)",
+                    si->prog, uv_strerror(spawn_result), spawn_result);
+
+            msg_str = MVM_string_ascii_decode_nt(tc,
+                tc->instance->VMString, error_str);
+
+            MVM_free(error_str);
+
             msg_box = MVM_repr_box_str(tc,
                 tc->instance->boot_types.BOOTStr, msg_str);
 
