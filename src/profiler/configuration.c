@@ -929,7 +929,7 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 cur_op += 2;
                 MVM_code_location_out(tc, code_obj, &file_out, &line_out);
                 if (ins == MVM_OP_smrt_strify) {
-                    GET_REG(cur_op, 0).s = file_out;
+                    GET_REG(cur_op, 0).s = file_out ? file_out : tc->instance->str_consts.empty;
                 }
                 else {
                     GET_REG(cur_op, 0).i64 = line_out;
