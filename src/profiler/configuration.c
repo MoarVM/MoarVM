@@ -907,6 +907,18 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(band_i):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 & GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            OP(bor_i):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 | GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            OP(bxor_i):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 ^ GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
             OP(getcodelocation): {
                 MVMuint32 line_out = 0;
                 MVMString *file_out = NULL;
