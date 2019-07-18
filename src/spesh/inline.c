@@ -83,6 +83,16 @@ static int is_static_frame_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inlin
         return 0;
     }
 
+    /* Ensure that we haven't hit size limits. */
+    if (inliner->num_locals > MVM_SPESH_INLINE_MAX_LOCALS) {
+        *no_inline_reason = "inliner has too many locals";
+        return 0;
+    }
+    if (inliner->num_inlines > MVM_SPESH_INLINE_MAX_INLINES) {
+        *no_inline_reason = "inliner has too many inlines";
+        return 0;
+    }
+
     return 1;
 }
 

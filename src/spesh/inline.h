@@ -1,6 +1,12 @@
 /* Default maximum size of bytecode we'll inline. */
 #define MVM_SPESH_DEFAULT_MAX_INLINE_SIZE 192
 
+/* The maximum number of locals an inliner can reach, and maximum number of
+ * inlines we can reach, before we stop inlining; this is to prevent us
+ * reaching sizes where the analysis becomes hugely costly. */
+#define MVM_SPESH_INLINE_MAX_LOCALS     512
+#define MVM_SPESH_INLINE_MAX_INLINES    128
+
 /* Inline table entry. The data is primarily used in deopt. */
 struct MVMSpeshInline {
     /* Start and end position in the bytecode where we're inside of this
