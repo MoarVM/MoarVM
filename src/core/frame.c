@@ -81,6 +81,9 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
         MVM_ASSIGN_REF(tc, &(static_frame->common.header), static_frame_body->spesh,
             MVM_repr_alloc_init(tc, tc->instance->StaticFrameSpesh));
         MVM_gc_allocate_gen2_default_clear(tc);
+
+        /* We now have at least instrumentation level 1. */
+        static_frame->body.instrumentation_level = 1;
     }
 
     /* Unlock, now we're finished. */
@@ -103,9 +106,6 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
 
         /* Re-check instrumentation level in case of races. */
         if (static_frame->body.instrumentation_level != tc->instance->instrumentation_level) {
-            /* Mark frame as being at the current instrumentation level. */
-            static_frame->body.instrumentation_level = tc->instance->instrumentation_level;
-
             /* Add profiling instrumentation if needed. */
             if (tc->instance->profiling)
                 MVM_profile_instrument(tc, static_frame);
@@ -120,6 +120,9 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
                  * woes. If you add an instrumentation that has to be "turned off"
                  * again at some point, a solution for this problem must be found. */
                 MVM_profile_ensure_uninstrumented(tc, static_frame);
+
+            /* Mark frame as being at the current instrumentation level. */
+            static_frame->body.instrumentation_level = tc->instance->instrumentation_level;
         }
 
         /* Release the lock. */
