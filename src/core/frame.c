@@ -92,27 +92,39 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
  * verify it. It may also be because we need to instrument the code for
  * profiling. */
 static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
-    /* Prepare and verify if needed. */
-    if (static_frame->body.instrumentation_level == 0)
-        prepare_and_verify_static_frame(tc, static_frame);
+    MVMCompUnit *cu = static_frame->body.cu;
+    MVMROOT2(tc, static_frame, cu, {
+        /* Obtain mutex, so we don't end up with instrumentation races. */
+        MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
 
-    /* Mark frame as being at the current instrumentation level. */
-    static_frame->body.instrumentation_level = tc->instance->instrumentation_level;
+        /* Prepare and verify if needed. */
+        if (static_frame->body.instrumentation_level == 0)
+            prepare_and_verify_static_frame(tc, static_frame);
 
-    /* Add profiling instrumentation if needed. */
-    if (tc->instance->profiling)
-        MVM_profile_instrument(tc, static_frame);
-    else if (tc->instance->cross_thread_write_logging)
-        MVM_cross_thread_write_instrument(tc, static_frame);
-    else if (tc->instance->coverage_logging)
-        MVM_line_coverage_instrument(tc, static_frame);
-    else if (tc->instance->debugserver)
-        MVM_breakpoint_instrument(tc, static_frame);
-    else
-        /* XXX uninstrumenting is currently turned off, due to multithreading
-         * woes. If you add an instrumentation that has to be "turned off"
-         * again at some point, a solution for this problem must be found. */
-        MVM_profile_ensure_uninstrumented(tc, static_frame);
+        /* Re-check instrumentation level in case of races. */
+        if (static_frame->body.instrumentation_level != tc->instance->instrumentation_level) {
+            /* Mark frame as being at the current instrumentation level. */
+            static_frame->body.instrumentation_level = tc->instance->instrumentation_level;
+
+            /* Add profiling instrumentation if needed. */
+            if (tc->instance->profiling)
+                MVM_profile_instrument(tc, static_frame);
+            else if (tc->instance->cross_thread_write_logging)
+                MVM_cross_thread_write_instrument(tc, static_frame);
+            else if (tc->instance->coverage_logging)
+                MVM_line_coverage_instrument(tc, static_frame);
+            else if (tc->instance->debugserver)
+                MVM_breakpoint_instrument(tc, static_frame);
+            else
+                /* XXX uninstrumenting is currently turned off, due to multithreading
+                 * woes. If you add an instrumentation that has to be "turned off"
+                 * again at some point, a solution for this problem must be found. */
+                MVM_profile_ensure_uninstrumented(tc, static_frame);
+        }
+
+        /* Release the lock. */
+        MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
+    });
 }
 
 /* Called when the GC destroys a frame. Since the frame may have been alive as
