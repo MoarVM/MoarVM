@@ -299,6 +299,7 @@ void log_one_allocation(MVMThreadContext *tc, MVMObject *obj, MVMProfileCallNode
     MVMObject *what = STABLE(obj)->WHAT;
     MVMuint32 i;
     MVMuint8 allocation_target;
+    MVM_ASSERT_NOT_FROMSPACE(tc, what);
     if (replaced) {
         allocation_target = 3;
     } else if (pcn->entry_mode == MVM_PROFILE_ENTER_SPESH || pcn->entry_mode == MVM_PROFILE_ENTER_SPESH_INLINE) {
@@ -369,6 +370,11 @@ void MVM_profiler_log_gc_deallocate(MVMThreadContext *tc, MVMObject *object) {
         MVMuint32 i;
 
         MVMuint8 dealloc_target = 0;
+
+        if (what->header.flags & MVM_CF_FORWARDER_VALID)
+            what = (MVMObject *)what->header.sc_forward_u.forwarder;
+
+        MVM_ASSERT_NOT_FROMSPACE(tc, what);
 
         if (item->flags & MVM_CF_SECOND_GEN)
             dealloc_target = 2;
