@@ -2,9 +2,14 @@
 struct MVMP6strBody {
     MVMString *value;
 };
+
 struct MVMP6str {
     MVMObject common;
     MVMP6strBody body;
+};
+
+struct MVMP6strREPRData {
+    MVMStrNativeType type;
 };
 
 /* Function for REPR setup. */

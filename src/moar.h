@@ -4,6 +4,12 @@
 #include <setjmp.h>
 #include <stddef.h>
 
+#ifdef __APPLE__
+#include <xlocale.h>
+#else
+#include <locale.h>
+#endif
+
 /* Configuration. */
 #include "gen/config.h"
 
@@ -35,16 +41,21 @@
 #include "types.h"
 
 /* Sized types. */
-typedef int8_t   MVMint8;
-typedef uint8_t  MVMuint8;
-typedef int16_t  MVMint16;
-typedef uint16_t MVMuint16;
-typedef int32_t  MVMint32;
-typedef uint32_t MVMuint32;
-typedef int64_t  MVMint64;
-typedef uint64_t MVMuint64;
-typedef float    MVMnum32;
-typedef double   MVMnum64;
+typedef int8_t         MVMint8;
+typedef uint8_t        MVMuint8;
+typedef int16_t        MVMint16;
+typedef uint16_t       MVMuint16;
+typedef int32_t        MVMint32;
+typedef uint32_t       MVMuint32;
+typedef int64_t        MVMint64;
+typedef uint64_t       MVMuint64;
+typedef float          MVMnum32;
+typedef double         MVMnum64;
+typedef uint_least16_t MVMchar16;
+typedef uint_least32_t MVMchar32;
+
+/* platform-specific wide string handling */
+#include <platform/wchar.h>
 
 /* Alignment. */
 #if HAVE_ALIGNOF
@@ -125,6 +136,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "core/dll.h"
 #include "core/continuation.h"
 #include "debug/debugserver.h"
+#include "6model/native_types.h"
 #include "6model/reprs.h"
 #include "6model/reprconv.h"
 #include "6model/bootstrap.h"
@@ -183,6 +195,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "strings/windows1252.h"
 #include "strings/shiftjis.h"
 #include "strings/unicode_ops.h"
+#include "strings/wide.h"
 #include "io/io.h"
 #include "io/eventloop.h"
 #include "io/syncfile.h"

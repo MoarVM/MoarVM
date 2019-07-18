@@ -22,10 +22,10 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMStringConsts str_consts = tc->instance->str_consts;
     MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_consts.array);
     if (!MVM_is_null(tc, info)) {
-        MVMCArrayREPRData *repr_data = MVM_malloc(sizeof(MVMCArrayREPRData));
-        MVMObject *type    = MVM_repr_at_key_o(tc, info, str_consts.type);
-        const MVMStorageSpec *ss = REPR(type)->get_storage_spec(tc, STABLE(type));
-        MVMint32 type_id   = REPR(type)->ID;
+              MVMCArrayREPRData *repr_data = MVM_malloc(sizeof(MVMCArrayREPRData));
+              MVMObject         *type      = MVM_repr_at_key_o(tc, info, str_consts.type);
+        const MVMStorageSpec    *ss        = REPR(type)->get_storage_spec(tc, STABLE(type));
+              MVMint32           type_id   = REPR(type)->ID;
 
         MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
         st->REPR_data = repr_data;
@@ -47,8 +47,29 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_NUMERIC;
         }
         else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
+            /* It's a string of some kind. */
+            MVMObject *string    = MVM_repr_at_key_o(tc, info, str_consts.string);
+            MVMint32   nativetype;
+
+            if (!MVM_is_null(tc, string)) {
+                MVMObject *nativetype_o = MVM_repr_at_key_o(tc, string, str_consts.nativetype);
+                if (!MVM_is_null(tc, nativetype_o)) {
+                    nativetype = MVM_repr_get_int(tc, nativetype_o);
+                } else {
+                    nativetype = MVM_P6STR_C_TYPE_CHAR;
+                }
+            } else {
+                nativetype = MVM_P6STR_C_TYPE_CHAR;
+            }
+
+            switch (nativetype) {
+                case MVM_P6STR_C_TYPE_CHAR:     repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_STRING;      break;
+                case MVM_P6STR_C_TYPE_WCHAR_T:  repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_WIDE_STRING; break;
+                case MVM_P6STR_C_TYPE_CHAR16_T: repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_U16_STRING;  break;
+                case MVM_P6STR_C_TYPE_CHAR32_T: repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_U32_STRING;  break;
+            }
+
             repr_data->elem_size = sizeof(MVMObject *);
-            repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_STRING;
         }
         else if (type_id == MVM_REPR_ID_MVMCArray) {
             repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_CARRAY;
@@ -215,7 +236,10 @@ static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArray
                || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CSTRUCT
                || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CPPSTRUCT
                || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CUNION
-               || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_STRING);
+               || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_STRING
+               || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_WIDE_STRING
+               || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_U16_STRING
+               || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_U32_STRING);
 
     if (is_complex) {
         const size_t old_size = body->allocated * sizeof(MVMObject *);
@@ -232,10 +256,19 @@ static MVMObject * make_wrapper(MVMThreadContext *tc, MVMSTable *st, void *data)
     MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
     switch (repr_data->elem_kind) {
         case MVM_CARRAY_ELEM_KIND_STRING: {
-            MVMString *str = MVM_string_utf8_decode(tc, tc->instance->VMString,
-                (char *)data, strlen((char *)data));
+            char      *cstr = (char *)data;
+            MVMString *str  = MVM_string_utf8_decode(tc, tc->instance->VMString, cstr, strlen(cstr));
             return MVM_repr_box_str(tc, repr_data->elem_type, str);
         }
+        case MVM_CARRAY_ELEM_KIND_WIDE_STRING: {
+            MVMwchar  *wstr = (MVMwchar *)data;
+            MVMString *str  = MVM_string_wide_decode(tc, data, wcslen(data));
+            return MVM_repr_box_str(tc, repr_data->elem_type, str);
+        }
+        case MVM_CARRAY_ELEM_KIND_U16_STRING:
+            MVM_exception_throw_adhoc(tc, "CArray: u16string support NYI");
+        case MVM_CARRAY_ELEM_KIND_U32_STRING:
+            MVM_exception_throw_adhoc(tc, "CArray: u32string support NYI");
         case MVM_CARRAY_ELEM_KIND_CPOINTER:
             return MVM_nativecall_make_cpointer(tc, repr_data->elem_type, data);
         case MVM_CARRAY_ELEM_KIND_CARRAY:
@@ -266,6 +299,7 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
                 MVM_exception_throw_adhoc(tc, "Wrong kind of access to numeric CArray");
             break;
         case MVM_CARRAY_ELEM_KIND_STRING:
+        case MVM_CARRAY_ELEM_KIND_WIDE_STRING:
         case MVM_CARRAY_ELEM_KIND_CPOINTER:
         case MVM_CARRAY_ELEM_KIND_CARRAY:
         case MVM_CARRAY_ELEM_KIND_CSTRUCT: {
@@ -327,6 +361,10 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
             }
             break;
         }
+        case MVM_CARRAY_ELEM_KIND_U16_STRING:
+            MVM_exception_throw_adhoc(tc, "CArray: u16string support NYI");
+        case MVM_CARRAY_ELEM_KIND_U32_STRING:
+            MVM_exception_throw_adhoc(tc, "CArray: u32string support NYI");
         default:
             MVM_exception_throw_adhoc(tc, "Unknown element type in CArray");
     }
@@ -371,6 +409,17 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
             bind_wrapper_and_ptr(tc, root, body, index, value.o, string);
             break;
         }
+        case MVM_CARRAY_ELEM_KIND_WIDE_STRING: {
+            MVMwchar *string = IS_CONCRETE(value.o)
+                             ? MVM_string_wide_encode(tc, MVM_repr_get_str(tc, value.o), NULL)
+                             : NULL;
+            bind_wrapper_and_ptr(tc, root, body, index, value.o, string);
+            break;
+        }
+        case MVM_CARRAY_ELEM_KIND_U16_STRING:
+            MVM_exception_throw_adhoc(tc, "CArray: u16string support NYI");
+        case MVM_CARRAY_ELEM_KIND_U32_STRING:
+            MVM_exception_throw_adhoc(tc, "CArray: u32string support NYI");
         case MVM_CARRAY_ELEM_KIND_CPOINTER:
             if (REPR(value.o)->ID != MVM_REPR_ID_MVMCPointer)
                 MVM_exception_throw_adhoc(tc, "CArray of CPointer passed non-CPointer object");

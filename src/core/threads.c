@@ -69,6 +69,11 @@ static void start_thread(void *data) {
     ThreadStart *ts = (ThreadStart *)data;
     MVMThreadContext *tc = ts->tc;
 
+#ifndef _MSC_VER
+    /* Use the locale created by our thread context. */
+    uselocale(tc->locale);
+#endif
+
     /* wait for the GC to finish if it's not finished stealing us. */
     MVM_gc_mark_thread_unblocked(tc);
     tc->thread_obj->body.stage = MVM_thread_stage_started;

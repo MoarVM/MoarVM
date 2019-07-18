@@ -226,6 +226,7 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/strings/windows1252@obj@ \
           src/strings/shiftjis@obj@ \
           src/strings/shiftjis_codeindex@obj@ \
+          src/strings/wide@obj@ \
           src/math/bigintops@obj@ \
           src/profiler/instrument@obj@ \
           src/profiler/log@obj@ \
@@ -239,6 +240,7 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/platform/random@obj@ \
           src/platform/memmem32@obj@ \
           src/platform/malloc_trim@obj@ \
+          src/platform/wchar@obj@ \
           src/moar@obj@ \
           @platform@ \
           @jit_obj@
@@ -299,6 +301,7 @@ HEADERS = src/moar.h \
           src/gc/objectid.h \
           src/gc/finalize.h \
           src/gc/debug.h \
+          src/6model/native_types.h \
           src/6model/reprs.h \
           src/6model/reprconv.h \
           src/6model/bootstrap.h \
@@ -390,6 +393,7 @@ HEADERS = src/moar.h \
           src/strings/utf16.h \
           src/strings/windows1252.h \
           src/strings/shiftjis_codeindex.h \
+          src/strings/wide.h \
           src/math/bigintops.h \
           src/profiler/instrument.h \
           src/profiler/log.h \
@@ -424,7 +428,8 @@ HEADERS = src/moar.h \
           src/strings/uthash_types.h \
           src/strings/uthash.h \
           3rdparty/cmp/cmp.h \
-          src/platform/memmem32.h
+          src/platform/memmem32.h \
+          src/platform/wchar.h
 
 UV_UNIX = 3rdparty/libuv/src/strscpy@obj@ \
           3rdparty/libuv/src/fs-poll@obj@ \

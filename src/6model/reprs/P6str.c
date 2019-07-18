@@ -9,9 +9,13 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, &P6str_this_repr, HOW);
 
     MVMROOT(tc, st, {
-        MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
+        MVMObject        *obj       = MVM_gc_allocate_type_object(tc, st);
+        MVMP6strREPRData *repr_data = MVM_malloc(sizeof(MVMP6strREPRData));
+        repr_data->type = MVM_P6STR_C_TYPE_CHAR;
+
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMP6str);
+        st->REPR_data = repr_data;
     });
 
     return st->WHAT;
@@ -33,12 +37,12 @@ static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 }
 
 static const MVMStorageSpec storage_spec = {
-    MVM_STORAGE_SPEC_INLINED, /* inlineable */
-    sizeof(MVMString*) * 8,   /* bits */
-    ALIGNOF(void *),               /* align */
-    MVM_STORAGE_SPEC_BP_STR,       /* boxed_primitive */
-    MVM_STORAGE_SPEC_CAN_BOX_STR,  /* can_box */
-    0,                          /* is_unsigned */
+    MVM_STORAGE_SPEC_INLINED,     /* inlineable */
+    sizeof(MVMString *) * 8,      /* bits */
+    ALIGNOF(void *),              /* align */
+    MVM_STORAGE_SPEC_BP_STR,      /* boxed_primitive */
+    MVM_STORAGE_SPEC_CAN_BOX_STR, /* can_box */
+    0,                            /* is_unsigned */
 };
 
 /* Gets the storage specification for this representation. */
@@ -47,7 +51,22 @@ static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *
 }
 
 /* Compose the representation. */
-static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
+static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
+    MVMP6strREPRData *repr_data  = (MVMP6strREPRData *)st->REPR_data;
+    MVMStringConsts   str_consts = tc->instance->str_consts;
+    MVMObject        *info       = MVM_repr_at_key_o(tc, info_hash, str_consts.string);
+    if (!MVM_is_null(tc, info)) {
+        MVMObject *nativetype_o = MVM_repr_at_key_o(tc, info, str_consts.nativetype);
+        if (!MVM_is_null(tc, nativetype_o)) {
+            repr_data->type = MVM_repr_get_int(tc, nativetype_o);
+        }
+        else {
+            repr_data->type = MVM_P6STR_C_TYPE_CHAR;
+        }
+    }
+    else {
+        repr_data->type = MVM_P6STR_C_TYPE_CHAR;
+    }
 }
 
 /* Called by the VM to mark any GCable items. */
@@ -67,6 +86,28 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVM_serialization_write_str(tc, writer, ((MVMP6strBody *)data)->value);
+}
+
+static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
+    MVMP6strREPRData *repr_data = (MVMP6strREPRData *)st->REPR_data;
+    MVM_serialization_write_int(tc, writer, repr_data->type);
+}
+
+static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    MVMP6strREPRData *repr_data = MVM_malloc(sizeof(MVMP6strREPRData));
+
+    if (reader->root.version >= 22) {
+        repr_data->type = MVM_serialization_read_int(tc, reader);
+    }
+    else {
+        repr_data->type = MVM_P6STR_C_TYPE_CHAR;
+    }
+
+    if (repr_data->type != MVM_P6STR_C_TYPE_CHAR && repr_data->type != MVM_P6STR_C_TYPE_WCHAR_T
+     && repr_data->type != MVM_P6STR_C_TYPE_CHAR16_T && repr_data->type != MVM_P6STR_C_TYPE_CHAR32_T)
+        MVM_exception_throw_adhoc(tc, "P6str: unsupported character type (%d)", repr_data->type);
+
+    st->REPR_data = repr_data;
 }
 
 static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
@@ -146,9 +187,9 @@ static const MVMREPROps P6str_this_repr = {
     get_storage_spec,
     NULL, /* change_type */
     serialize,
-    deserialize, /* deserialize */
-    NULL, /* serialize_repr_data */
-    NULL, /* deserialize_repr_data */
+    deserialize,
+    serialize_repr_data,
+    deserialize_repr_data,
     deserialize_stable_size,
     gc_mark,
     NULL, /* gc_free */

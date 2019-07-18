@@ -50,9 +50,20 @@ static char get_signature_char(MVMint16 type_id) {
             return 'f';
         case MVM_NATIVECALL_ARG_DOUBLE:
             return 'd';
+        case MVM_NATIVECALL_ARG_WCHAR_T:
+            return MVM_WCHAR_DC_SIG_CHAR;
+        case MVM_NATIVECALL_ARG_WINT_T:
+            return MVM_WINT_DC_SIG_CHAR;
+        case MVM_NATIVECALL_ARG_CHAR16_T:
+            return 's';
+        case MVM_NATIVECALL_ARG_CHAR32_T:
+            return 'i';
         case MVM_NATIVECALL_ARG_ASCIISTR:
         case MVM_NATIVECALL_ARG_UTF8STR:
         case MVM_NATIVECALL_ARG_UTF16STR:
+        case MVM_NATIVECALL_ARG_WIDESTR:
+        case MVM_NATIVECALL_ARG_U16STR:
+        case MVM_NATIVECALL_ARG_U32STR:
         case MVM_NATIVECALL_ARG_CSTRUCT:
         case MVM_NATIVECALL_ARG_CPPSTRUCT:
         case MVM_NATIVECALL_ARG_CPOINTER:
@@ -172,6 +183,18 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
                 case MVM_NATIVECALL_ARG_DOUBLE:
                     cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_NUM;
                     break;
+                case MVM_NATIVECALL_ARG_WCHAR_T:
+                    /* TODO: should probably be UINT when needed, when we can support that. */
+                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                    break;
+                case MVM_NATIVECALL_ARG_WINT_T:
+                    /* TODO: should probably be UINT when needed, when we can support that. */
+                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                    break;
+                case MVM_NATIVECALL_ARG_CHAR16_T:
+                case MVM_NATIVECALL_ARG_CHAR32_T:
+                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                    break;
                 default:
                     cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_OBJ;
                     break;
@@ -254,11 +277,26 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
             case MVM_NATIVECALL_ARG_DOUBLE:
                 args[i - 1].n64 = dcbArgDouble(cb_args);
                 break;
+            case MVM_NATIVECALL_ARG_WCHAR_T:
+                args[i - 1].i64 = MVM_WCHAR_DCB_ARG(cb_args);
+                break;
+            case MVM_NATIVECALL_ARG_WINT_T:
+                args[i - 1].i64 = MVM_WINT_DCB_ARG(cb_args);
+                break;
+            case MVM_NATIVECALL_ARG_CHAR16_T:
+                args[i - 1].i64 = dcbArgUShort(cb_args);
+                break;
+            case MVM_NATIVECALL_ARG_CHAR32_T:
+                args[i - 1].i64 = dcbArgUInt(cb_args);
+                break;
             case MVM_NATIVECALL_ARG_ASCIISTR:
             case MVM_NATIVECALL_ARG_UTF8STR:
             case MVM_NATIVECALL_ARG_UTF16STR:
+            case MVM_NATIVECALL_ARG_WIDESTR:
+            case MVM_NATIVECALL_ARG_U16STR:
+            case MVM_NATIVECALL_ARG_U32STR:
                 args[i - 1].o = MVM_nativecall_make_str(tc, type, typeinfo,
-                    (char *)dcbArgPointer(cb_args));
+                    dcbArgPointer(cb_args));
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
                 num_roots++;
                 break;
@@ -393,9 +431,38 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
         case MVM_NATIVECALL_ARG_DOUBLE:
             cb_result->d = MVM_nativecall_unmarshal_double(tc, res.o);
             break;
+        case MVM_NATIVECALL_ARG_WCHAR_T:
+#if MVM_WCHAR_SIZE == 1
+            cb_result->c = MVM_nativecall_unmarshal_wchar_t(tc, res.o);
+#elif MVM_WCHAR_SIZE == 2
+            cb_result->s = MVM_nativecall_unmarshal_wchar_t(tc, res.o);
+#elif MVM_WCHAR_SIZE == 4
+            cb_result->i = MVM_nativecall_unmarshal_wchar_t(tc, res.o);
+#elif MVM_WCHAR_SIZE == 8
+            cb_result->l = MVM_nativecall_unmarshal_wchar_t(tc, res.o);
+#endif
+            break;
+        case MVM_NATIVECALL_ARG_WINT_T:
+#if MVM_WINT_SIZE == 2
+            cb_result->s = MVM_nativecall_unmarshal_wint_t(tc, res.o);
+#elif MVM_WINT_SIZE == 4
+            cb_result->i = MVM_nativecall_unmarshal_wint_t(tc, res.o);
+#elif MVM_WINT_SIZE == 8
+            cb_result->l = MVM_nativecall_unmarshal_wint_t(tc, res.o);
+#endif
+            break;
+        case MVM_NATIVECALL_ARG_CHAR16_T:
+            cb_result->s = MVM_nativecall_unmarshal_char16_t(tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_CHAR32_T:
+            cb_result->d = MVM_nativecall_unmarshal_char32_t(tc, res.o);
+            break;
         case MVM_NATIVECALL_ARG_ASCIISTR:
         case MVM_NATIVECALL_ARG_UTF8STR:
         case MVM_NATIVECALL_ARG_UTF16STR:
+        case MVM_NATIVECALL_ARG_WIDESTR:
+        case MVM_NATIVECALL_ARG_U16STR:
+        case MVM_NATIVECALL_ARG_U32STR:
             cb_result->Z = MVM_nativecall_unmarshal_string(tc, res.o, data->typeinfos[0], NULL);
             break;
         case MVM_NATIVECALL_ARG_CSTRUCT:
@@ -460,7 +527,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
         if (MVM_6model_container_is ## cont_X(tc, value)) { \
             dc_type *rw = (dc_type *)MVM_malloc(sizeof(dc_type)); \
             MVM_6model_container_de ## cont_X(tc, value, &r); \
-            *rw = (dc_type)r. reg_slot ; \
+            *rw = (dc_type)r.reg_slot; \
             if (!free_rws) \
                 free_rws = (void **)MVM_malloc(num_args * sizeof(void *)); \
             free_rws[num_rws] = rw; \
@@ -485,21 +552,22 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
 
 MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
         MVMObject *site, MVMObject *args) {
-    MVMObject  *result = NULL;
-    char      **free_strs = NULL;
-    void      **free_rws  = NULL;
-    MVMint16    num_strs  = 0;
-    MVMint16    num_rws   = 0;
+    MVMObject  *result         = NULL;
+    void      **free_strs      = NULL;
+    MVMint32  **free_str_types = NULL;
+    void      **free_rws       = NULL;
+    MVMint16    num_strs       = 0;
+    MVMint16    num_rws        = 0;
     MVMint16    i;
 
     /* Get native call body, so we can locate the call info. Read out all we
      * shall need, since later we may allocate a result and and move it. */
-    MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
-    MVMint16  num_args    = body->num_args;
-    MVMint16 *arg_types   = body->arg_types;
-    MVMint16  ret_type    = body->ret_type;
-    void     *entry_point = body->entry_point;
-    void     *ptr         = NULL;
+    MVMNativeCallBody *body        = MVM_nativecall_get_nc_body(tc, site);
+    MVMint16           num_args    = body->num_args;
+    MVMint16          *arg_types   = body->arg_types;
+    MVMint16           ret_type    = body->ret_type;
+    void              *entry_point = body->entry_point;
+    void              *ptr         = NULL;
 
     unsigned int interval_id;
     DCCallVM *vm;
@@ -514,8 +582,9 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
 
     /* Process arguments. */
     for (i = 0; i < num_args; i++) {
-        MVMObject *value = MVM_repr_at_pos_o(tc, args, i);
-        switch (arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
+        MVMObject *value    = MVM_repr_at_pos_o(tc, args, i);
+        MVMint32   typename = arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK;
+        switch (typename) {
             case MVM_NATIVECALL_ARG_CHAR:
                 handle_arg("integer", cont_i, DCchar, i64, dcArgChar, MVM_nativecall_unmarshal_char);
                 break;
@@ -537,19 +606,47 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
             case MVM_NATIVECALL_ARG_DOUBLE:
                 handle_arg("number", cont_n, DCdouble, n64, dcArgDouble, MVM_nativecall_unmarshal_double);
                 break;
+            case MVM_NATIVECALL_ARG_WCHAR_T:
+                handle_arg("integer", cont_n, MVM_WCHAR_DC_TYPE, i64, MVM_WCHAR_DC_ARG, MVM_nativecall_unmarshal_wchar_t);
+                break;
+            case MVM_NATIVECALL_ARG_WINT_T:
+                handle_arg("integer", cont_n, MVM_WINT_DC_TYPE, i64, MVM_WINT_DC_ARG, MVM_nativecall_unmarshal_wint_t);
+                break;
+            case MVM_NATIVECALL_ARG_CHAR16_T:
+                handle_arg("integer", cont_n, DCushort, i64, dcArgShort, MVM_nativecall_unmarshal_char16_t);
+                break;
+            case MVM_NATIVECALL_ARG_CHAR32_T:
+                handle_arg("integer", cont_n, DCuint, i64, dcArgInt, MVM_nativecall_unmarshal_char32_t);
+                break;
             case MVM_NATIVECALL_ARG_ASCIISTR:
             case MVM_NATIVECALL_ARG_UTF8STR:
             case MVM_NATIVECALL_ARG_UTF16STR:
+            case MVM_NATIVECALL_ARG_WIDESTR:
+            case MVM_NATIVECALL_ARG_U16STR:
+            case MVM_NATIVECALL_ARG_U32STR:
                 {
                     MVMint16 free = 0;
-                    char *str = MVM_nativecall_unmarshal_string(tc, value, arg_types[i], &free);
+                    void *str = MVM_nativecall_unmarshal_string(tc, value, arg_types[i], &free);
                     if (free) {
                         if (!free_strs)
-                            free_strs = (char**)MVM_malloc(num_args * sizeof(char *));
+                            free_strs = MVM_calloc(num_args, sizeof(void *));
                         free_strs[num_strs] = str;
+
                         num_strs++;
                     }
-                    dcArgPointer(vm, str);
+
+                    if (typename == MVM_NATIVECALL_ARG_WIDESTR) {
+                        dcArgPointer(vm, (MVMwchar *)str);
+                    }
+                    else if (typename == MVM_NATIVECALL_ARG_U16STR) {
+                        dcArgPointer(vm, (MVMchar16 *)str);
+                    }
+                    else if (typename == MVM_NATIVECALL_ARG_U32STR) {
+                        dcArgPointer(vm, (MVMchar32 *)str);
+                    }
+                    else {
+                        dcArgPointer(vm, (char *)str);
+                    }
                 }
                 break;
             case MVM_NATIVECALL_ARG_CSTRUCT:
@@ -674,13 +771,39 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     result = MVM_nativecall_make_num(tc, res_type, native_result);
                     break;
                 }
+                case MVM_NATIVECALL_ARG_WCHAR_T: {
+                    MVMwchar native_result = MVM_WCHAR_DC_CALL(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_int(tc, res_type, native_result);
+                    break;
+                }
+                case MVM_NATIVECALL_ARG_WINT_T: {
+                    MVMwint native_result = MVM_WINT_DC_CALL(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_int(tc, res_type, native_result);
+                    break;
+                }
+                case MVM_NATIVECALL_ARG_CHAR16_T: {
+                    MVMchar16 native_result = (MVMchar16)dcCallShort(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_int(tc, res_type, native_result);
+                    break;
+                }
+                case MVM_NATIVECALL_ARG_CHAR32_T: {
+                    MVMchar32 native_result = (MVMchar32)dcCallInt(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_int(tc, res_type, native_result);
+                    break;
+                }
                 case MVM_NATIVECALL_ARG_ASCIISTR:
                 case MVM_NATIVECALL_ARG_UTF8STR:
-                case MVM_NATIVECALL_ARG_UTF16STR: {
-                    char *native_result = (char *)dcCallPointer(vm, entry_point);
+                case MVM_NATIVECALL_ARG_UTF16STR:
+                case MVM_NATIVECALL_ARG_WIDESTR:
+                case MVM_NATIVECALL_ARG_U16STR:
+                case MVM_NATIVECALL_ARG_U32STR: {
+                    void *native_result = dcCallPointer(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
-                    result = MVM_nativecall_make_str(tc, res_type, body->ret_type,
-                        native_result);
+                    result = MVM_nativecall_make_str(tc, res_type, body->ret_type, native_result);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CSTRUCT: {
@@ -798,6 +921,18 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 case MVM_NATIVECALL_ARG_ULONGLONG:
                     MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCulonglong *)free_rws[num_rws]);
+                    break;
+                case MVM_NATIVECALL_ARG_WCHAR_T:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(MVM_WCHAR_DC_TYPE *)free_rws[num_rws]);
+                    break;
+                case MVM_NATIVECALL_ARG_WINT_T:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(MVM_WINT_DC_TYPE *)free_rws[num_rws]);
+                    break;
+                case MVM_NATIVECALL_ARG_CHAR16_T:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCushort *)free_rws[num_rws]);
+                    break;
+                case MVM_NATIVECALL_ARG_CHAR32_T:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCuint *)free_rws[num_rws]);
                     break;
                 case MVM_NATIVECALL_ARG_CPOINTER:
                     REPR(value)->box_funcs.set_int(tc, STABLE(value), value, OBJECT_BODY(value),

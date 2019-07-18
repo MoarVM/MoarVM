@@ -225,7 +225,7 @@ if ($config{cc} eq 'gcc' && !$config{can_specific_werror}) {
 
 # Disable ROP vulnerability protection on OpenBSD, since it breaks the legojit.
 if ($^O eq 'openbsd' && $config{cc} eq 'clang') {
-	$config{ccmiscflags} .= ' -fno-ret-protector';
+    $config{ccmiscflags} .= ' -fno-ret-protector';
 }
 
 # Set the remaining ldmiscflags. Do this after probing for gcc -Werror probe to not miss that change for the linker.
@@ -484,12 +484,20 @@ if ($config{crossconf}) {
     build::probe::static_inline_cross(\%config, \%defaults);
     build::probe::unaligned_access_cross(\%config, \%defaults);
     build::probe::ptr_size_cross(\%config, \%defaults);
+    build::probe::wchar_unsigned_cross(\%config, \%defaults);
+    build::probe::wchar_size_cross(\%config, \%defaults);
+    build::probe::wint_unsigned_cross(\%config, \%defaults);
+    build::probe::wint_size_cross(\%config, \%defaults);
 }
 else {
     build::auto::detect_native(\%config, \%defaults);
     build::probe::static_inline_native(\%config, \%defaults);
     build::probe::unaligned_access(\%config, \%defaults);
     build::probe::ptr_size_native(\%config, \%defaults);
+    build::probe::wchar_unsigned_native(\%config, \%defaults);
+    build::probe::wchar_size_native(\%config, \%defaults);
+    build::probe::wint_unsigned_native(\%config, \%defaults);
+    build::probe::wint_size_native(\%config, \%defaults);
 }
 
 

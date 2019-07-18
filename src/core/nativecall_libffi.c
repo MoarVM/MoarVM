@@ -21,9 +21,20 @@ ffi_type * MVM_nativecall_get_ffi_type(MVMThreadContext *tc, MVMuint64 type_id) 
             return &ffi_type_float;
         case MVM_NATIVECALL_ARG_DOUBLE:
             return &ffi_type_double;
+        case MVM_NATIVECALL_ARG_WCHAR_T:
+            return &MVM_WCHAR_FFI_TYPE;
+        case MVM_NATIVECALL_ARG_WINT_T:
+            return &MVM_WINT_FFI_TYPE;
+        case MVM_NATIVECALL_ARG_CHAR16_T:
+            return &ffi_type_ushort;
+        case MVM_NATIVECALL_ARG_CHAR32_T:
+            return &ffi_type_uint;
         case MVM_NATIVECALL_ARG_ASCIISTR:
         case MVM_NATIVECALL_ARG_UTF8STR:
         case MVM_NATIVECALL_ARG_UTF16STR:
+        case MVM_NATIVECALL_ARG_WIDESTR:
+        case MVM_NATIVECALL_ARG_U16STR:
+        case MVM_NATIVECALL_ARG_U32STR:
         case MVM_NATIVECALL_ARG_CPPSTRUCT:
         case MVM_NATIVECALL_ARG_CSTRUCT:
         case MVM_NATIVECALL_ARG_CPOINTER:
@@ -165,6 +176,19 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
                 case MVM_NATIVECALL_ARG_DOUBLE:
                     cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_NUM;
                     break;
+                case MVM_NATIVECALL_ARG_WCHAR_T:
+                    /* TODO: should probably be UINT if needed, when we can support that. */
+                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                    break;
+                case MVM_NATIVECALL_ARG_WINT_T:
+                    /* TODO: should probably be UINT if needed, when we can support that. */
+                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                    break;
+                case MVM_NATIVECALL_ARG_CHAR16_T:
+                case MVM_NATIVECALL_ARG_CHAR32_T:
+                    /* TODO: should probably be UINT, when we can support that. */
+                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                    break;
                 default:
                     cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_OBJ;
                     break;
@@ -253,10 +277,37 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
             case MVM_NATIVECALL_ARG_DOUBLE:
                 args[i - 1].n64 = *(double *)cb_args[i - 1];
                 break;
+            case MVM_NATIVECALL_ARG_WCHAR_T:
+                args[i - 1].i64 = *(MVMwchar *)cb_args[i - 1];
+                break;
+            case MVM_NATIVECALL_ARG_WINT_T:
+                args[i - 1].i64 = *(MVMwint *)cb_args[i - 1];
+                break;
+            case MVM_NATIVECALL_ARG_CHAR16_T:
+                args[i - 1].i64 = *(MVMchar16 *)cb_args[i - 1];
+                break;
+            case MVM_NATIVECALL_ARG_CHAR32_T:
+                args[i - 1].i64 = *(MVMchar32 *)cb_args[i - 1];
+                break;
             case MVM_NATIVECALL_ARG_ASCIISTR:
             case MVM_NATIVECALL_ARG_UTF8STR:
             case MVM_NATIVECALL_ARG_UTF16STR:
                 args[i - 1].o = MVM_nativecall_make_str(tc, type, typeinfo, *(char **)cb_args[i - 1]);
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
+                num_roots++;
+                break;
+            case MVM_NATIVECALL_ARG_WIDESTR:
+                args[i - 1].o = MVM_nativecall_make_str(tc, type, typeinfo, *(MVMwchar **)cb_args[i - 1]);
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
+                num_roots++;
+                break;
+            case MVM_NATIVECALL_ARG_U16STR:
+                args[i - 1].o = MVM_nativecall_make_str(tc, type, typeinfo, *(MVMchar16 **)cb_args[i - 1]);
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
+                num_roots++;
+                break;
+            case MVM_NATIVECALL_ARG_U32STR:
+                args[i - 1].o = MVM_nativecall_make_str(tc, type, typeinfo, *(MVMchar32 **)cb_args[i - 1]);
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
                 num_roots++;
                 break;
@@ -382,9 +433,24 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
         case MVM_NATIVECALL_ARG_DOUBLE:
             *(double *)cb_result = MVM_nativecall_unmarshal_double(tc, res.o);
             break;
+        case MVM_NATIVECALL_ARG_WCHAR_T:
+            *(MVMwchar *)cb_result = MVM_nativecall_unmarshal_wchar_t(tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_WINT_T:
+            *(MVMwint *)cb_result = MVM_nativecall_unmarshal_wint_t(tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_CHAR16_T:
+            *(MVMchar16 *)cb_result = MVM_nativecall_unmarshal_char16_t(tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_CHAR32_T:
+            *(MVMchar32 *)cb_result = MVM_nativecall_unmarshal_char32_t(tc, res.o);
+            break;
         case MVM_NATIVECALL_ARG_ASCIISTR:
         case MVM_NATIVECALL_ARG_UTF8STR:
         case MVM_NATIVECALL_ARG_UTF16STR:
+        case MVM_NATIVECALL_ARG_WIDESTR:
+        case MVM_NATIVECALL_ARG_U16STR:
+        case MVM_NATIVECALL_ARG_U32STR:
             *(void **)cb_result = MVM_nativecall_unmarshal_string(tc, res.o, data->typeinfos[0], NULL);
             break;
         case MVM_NATIVECALL_ARG_CSTRUCT:
@@ -483,19 +549,19 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
 
 MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
         MVMObject *site, MVMObject *args) {
-    MVMObject     *result = NULL;
-    char      **free_strs = NULL;
-    MVMint16     num_strs = 0;
-    MVMint16    i;
+    MVMObject     *result  = NULL;
+    void      **free_strs  = NULL;
+    MVMint16     num_strs  = 0;
+    MVMint16            i;
 
     /* Get native call body, so we can locate the call info. Read out all we
      * shall need, since later we may allocate a result and and move it. */
-    MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
-    MVMint16  num_args    = body->num_args;
-    MVMint16 *arg_types   = body->arg_types;
-    MVMint16  ret_type    = body->ret_type;
-    void     *entry_point = body->entry_point;
-    void    **values      = MVM_malloc(sizeof(void *) * (num_args ? num_args : 1));
+    MVMNativeCallBody  *body        = MVM_nativecall_get_nc_body(tc, site);
+    MVMint16            num_args    = body->num_args;
+    MVMint16           *arg_types   = body->arg_types;
+    MVMint16            ret_type    = body->ret_type;
+    void               *entry_point = body->entry_point;
+    void              **values      = MVM_malloc(sizeof(void *) * (num_args ? num_args : 1));
 
     unsigned int interval_id;
 
@@ -530,6 +596,18 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
             case MVM_NATIVECALL_ARG_DOUBLE:
                 handle_arg("number", cont_n, double, n64, MVM_nativecall_unmarshal_double);
                 break;
+            case MVM_NATIVECALL_ARG_WCHAR_T:
+                handle_arg("integer", cont_i, MVMwchar, i64, MVM_nativecall_unmarshal_wchar_t);
+                break;
+            case MVM_NATIVECALL_ARG_WINT_T:
+                handle_arg("integer", cont_i, MVMwint, i64, MVM_nativecall_unmarshal_wint_t);
+                break;
+            case MVM_NATIVECALL_ARG_CHAR16_T:
+                handle_arg("integer", cont_i, MVMchar16, i64, MVM_nativecall_unmarshal_char16_t);
+                break;
+            case MVM_NATIVECALL_ARG_CHAR32_T:
+                handle_arg("integer", cont_i, MVMchar32, i64, MVM_nativecall_unmarshal_char32_t);
+                break;
             case MVM_NATIVECALL_ARG_ASCIISTR:
             case MVM_NATIVECALL_ARG_UTF8STR:
             case MVM_NATIVECALL_ARG_UTF16STR: {
@@ -537,7 +615,46 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 char *str = MVM_nativecall_unmarshal_string(tc, value, arg_types[i], &free);
                 if (free) {
                     if (!free_strs)
-                        free_strs = (char**)MVM_malloc(num_args * sizeof(char *));
+                        free_strs = (void **)MVM_malloc(num_args * sizeof(void *));
+                    free_strs[num_strs] = str;
+                    num_strs++;
+                }
+                values[i]           = MVM_malloc(sizeof(void *));
+                *(void **)values[i] = str;
+                break;
+            }
+            case MVM_NATIVECALL_ARG_WIDESTR: {
+                MVMint16 free = 0;
+                MVMwchar *str = MVM_nativecall_unmarshal_string(tc, value, arg_types[i], &free);
+                if (free) {
+                    if (!free_strs)
+                        free_strs = (void **)MVM_malloc(num_args * sizeof(void *));
+                    free_strs[num_strs] = str;
+                    num_strs++;
+                }
+                values[i]           = MVM_malloc(sizeof(void *));
+                *(void **)values[i] = str;
+                break;
+            }
+            case MVM_NATIVECALL_ARG_U16STR: {
+                MVMint16 free = 0;
+                MVMchar16 *str = MVM_nativecall_unmarshal_string(tc, value, arg_types[i], &free);
+                if (free) {
+                    if (!free_strs)
+                        free_strs = (void **)MVM_malloc(num_args * sizeof(void *));
+                    free_strs[num_strs] = str;
+                    num_strs++;
+                }
+                values[i]           = MVM_malloc(sizeof(void *));
+                *(void **)values[i] = str;
+                break;
+            }
+            case MVM_NATIVECALL_ARG_U32STR: {
+                MVMint16 free = 0;
+                MVMchar32 *str = MVM_nativecall_unmarshal_string(tc, value, arg_types[i], &free);
+                if (free) {
+                    if (!free_strs)
+                        free_strs = (void **)MVM_malloc(num_args * sizeof(void *));
                     free_strs[num_strs] = str;
                     num_strs++;
                 }
@@ -661,6 +778,18 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     result = MVM_nativecall_make_num(tc, res_type, ret);
                     break;
                 }
+                case MVM_NATIVECALL_ARG_WCHAR_T:
+                    handle_ret(tc, MVMwchar, MVM_WCHAR_FFI_ARG, MVM_nativecall_make_int);
+                    break;
+                case MVM_NATIVECALL_ARG_WINT_T:
+                    handle_ret(tc, MVMwint, MVM_WINT_FFI_ARG, MVM_nativecall_make_int);
+                    break;
+                case MVM_NATIVECALL_ARG_CHAR16_T:
+                    handle_ret(tc, MVMchar16, ffi_arg, MVM_nativecall_make_int);
+                    break;
+                case MVM_NATIVECALL_ARG_CHAR32_T:
+                    handle_ret(tc, MVMchar32, ffi_arg, MVM_nativecall_make_int);
+                    break;
                 case MVM_NATIVECALL_ARG_ASCIISTR:
                 case MVM_NATIVECALL_ARG_UTF8STR:
                 case MVM_NATIVECALL_ARG_UTF16STR: {
@@ -669,6 +798,24 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_str(tc, res_type, body->ret_type, ret);
                     break;
+                }
+                case MVM_NATIVECALL_ARG_WIDESTR: {
+                    MVMwchar *ret;
+                    ffi_call(&cif, entry_point, &ret, values);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_str(tc, res_type, body->ret_type, ret);
+                }
+                case MVM_NATIVECALL_ARG_U16STR: {
+                    MVMchar16 *ret;
+                    ffi_call(&cif, entry_point, &ret, values);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_str(tc, res_type, body->ret_type, ret);
+                }
+                case MVM_NATIVECALL_ARG_U32STR: {
+                    MVMchar32 *ret;
+                    ffi_call(&cif, entry_point, &ret, values);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_str(tc, res_type, body->ret_type, ret);
                 }
                 case MVM_NATIVECALL_ARG_CSTRUCT:
                     handle_ret(tc, void *, ffi_arg, MVM_nativecall_make_cstruct);
@@ -757,6 +904,18 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 case MVM_NATIVECALL_ARG_ULONGLONG:
                     MVM_6model_container_assign_i(tc, value, (MVMint64)*(unsigned long long *)*(void **)values[i]);
+                    break;
+                case MVM_NATIVECALL_ARG_WCHAR_T:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(MVMwchar *)*(void **)values[i]);
+                    break;
+                case MVM_NATIVECALL_ARG_WINT_T:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(MVMwint *)*(void **)values[i]);
+                    break;
+                case MVM_NATIVECALL_ARG_CHAR16_T:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(MVMchar16 *)*(void **)values[i]);
+                    break;
+                case MVM_NATIVECALL_ARG_CHAR32_T:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(MVMchar32 *)*(void **)values[i]);
                     break;
                 case MVM_NATIVECALL_ARG_CPOINTER:
                     REPR(value)->box_funcs.set_int(tc, STABLE(value), value, OBJECT_BODY(value),

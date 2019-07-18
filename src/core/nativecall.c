@@ -92,12 +92,26 @@ MVMint16 MVM_nativecall_get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMi
         result = MVM_NATIVECALL_ARG_FLOAT | get_rw_flag(tc, info);
     else if (strcmp(ctypename, "double") == 0)
         result = MVM_NATIVECALL_ARG_DOUBLE | get_rw_flag(tc, info);
+    else if (strcmp(ctypename, "wchar_t") == 0)
+        result = MVM_NATIVECALL_ARG_WCHAR_T | get_rw_flag(tc, info);
+    else if (strcmp(ctypename, "wint_t") == 0)
+        result = MVM_NATIVECALL_ARG_WINT_T | get_rw_flag(tc, info);
+    else if (strcmp(ctypename, "char16_t") == 0)
+        result = MVM_NATIVECALL_ARG_CHAR16_T | get_rw_flag(tc, info);
+    else if (strcmp(ctypename, "char32_t") == 0)
+        result = MVM_NATIVECALL_ARG_CHAR32_T | get_rw_flag(tc, info);
     else if (strcmp(ctypename, "asciistr") == 0)
         result = MVM_NATIVECALL_ARG_ASCIISTR | get_str_free_flag(tc, info);
     else if (strcmp(ctypename, "utf8str") == 0)
         result = MVM_NATIVECALL_ARG_UTF8STR | get_str_free_flag(tc, info);
     else if (strcmp(ctypename, "utf16str") == 0)
         result = MVM_NATIVECALL_ARG_UTF16STR | get_str_free_flag(tc, info);
+    else if (strcmp(ctypename, "widestr") == 0)
+        result = MVM_NATIVECALL_ARG_WIDESTR | get_str_free_flag(tc, info);
+    else if (strcmp(ctypename, "u16str") == 0)
+        result = MVM_NATIVECALL_ARG_U16STR | get_str_free_flag(tc, info);
+    else if (strcmp(ctypename, "u32str") == 0)
+        result = MVM_NATIVECALL_ARG_U32STR | get_str_free_flag(tc, info);
     else if (strcmp(ctypename, "cstruct") == 0)
         result = MVM_NATIVECALL_ARG_CSTRUCT;
     else if (strcmp(ctypename, "cppstruct") == 0)
@@ -132,23 +146,38 @@ MVMObject * MVM_nativecall_make_num(MVMThreadContext *tc, MVMObject *type, MVMnu
     return type ? MVM_repr_box_num(tc, type, value) : NULL;
 }
 
-MVMObject * MVM_nativecall_make_str(MVMThreadContext *tc, MVMObject *type, MVMint16 ret_type, char *cstring) {
+MVMObject * MVM_nativecall_make_str(MVMThreadContext *tc, MVMObject *type, MVMint16 ret_type, void *string) {
     MVMObject *result = type;
-    if (cstring && type) {
+    if (string && type) {
         MVMString *value;
 
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&type);
 
         switch (ret_type & MVM_NATIVECALL_ARG_TYPE_MASK) {
-            case MVM_NATIVECALL_ARG_ASCIISTR:
-                value = MVM_string_ascii_decode(tc, tc->instance->VMString, cstring, strlen(cstring));
+            case MVM_NATIVECALL_ARG_ASCIISTR: {
+                char *cstr = (char *)string;
+                value = MVM_string_ascii_decode(tc, tc->instance->VMString, cstr, strlen(cstr));
                 break;
-            case MVM_NATIVECALL_ARG_UTF8STR:
-                value = MVM_string_utf8_decode(tc, tc->instance->VMString, cstring, strlen(cstring));
+            }
+            case MVM_NATIVECALL_ARG_UTF8STR: {
+                char *cstr = (char *)string;
+                value = MVM_string_utf8_decode(tc, tc->instance->VMString, cstr, strlen(cstr));
                 break;
-            case MVM_NATIVECALL_ARG_UTF16STR:
-                value = MVM_string_utf16_decode(tc, tc->instance->VMString, cstring, strlen(cstring));
+            }
+            case MVM_NATIVECALL_ARG_UTF16STR: {
+                char *cstr = (char *)string;
+                value = MVM_string_utf16_decode(tc, tc->instance->VMString, cstr, strlen(cstr));
                 break;
+            }
+            case MVM_NATIVECALL_ARG_WIDESTR: {
+                MVMwchar *wstr = (MVMwchar *)string;
+                value = MVM_string_wide_decode(tc, wstr, wcslen(wstr));
+                break;
+            }
+            case MVM_NATIVECALL_ARG_U16STR:
+                MVM_exception_throw_adhoc(tc, "Internal error: u16string support NYI");
+            case MVM_NATIVECALL_ARG_U32STR:
+                MVM_exception_throw_adhoc(tc, "Internal error: u32string support NYI");
             default:
                 MVM_exception_throw_adhoc(tc, "Internal error: unhandled encoding");
         }
@@ -156,7 +185,7 @@ MVMObject * MVM_nativecall_make_str(MVMThreadContext *tc, MVMObject *type, MVMin
         MVM_gc_root_temp_pop(tc);
         result = MVM_repr_box_str(tc, type, value);
         if (ret_type & MVM_NATIVECALL_ARG_FREE_STR)
-            MVM_free(cstring);
+            MVM_free(string);
     }
 
     return result;
@@ -283,12 +312,28 @@ double MVM_nativecall_unmarshal_double(MVMThreadContext *tc, MVMObject *value) {
     return (double)MVM_repr_get_num(tc, value);
 }
 
-char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 type, MVMint16 *free) {
+MVMwchar MVM_nativecall_unmarshal_wchar_t(MVMThreadContext *tc, MVMObject *value) {
+    return (MVMwchar)MVM_repr_get_int(tc, value);
+}
+
+MVMwint MVM_nativecall_unmarshal_wint_t(MVMThreadContext *tc, MVMObject *value) {
+    return (MVMwint)MVM_repr_get_int(tc, value);
+}
+
+MVMchar16 MVM_nativecall_unmarshal_char16_t(MVMThreadContext *tc, MVMObject *value) {
+    return (MVMchar16)MVM_repr_get_int(tc, value);
+}
+
+MVMchar32 MVM_nativecall_unmarshal_char32_t(MVMThreadContext *tc, MVMObject *value) {
+    return (MVMchar32)MVM_repr_get_int(tc, value);
+}
+
+void * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 type, MVMint16 *free) {
     if (IS_CONCRETE(value)) {
         MVMString *value_str = MVM_repr_get_str(tc, value);
 
         /* Encode string. */
-        char *str;
+        void *str;
         switch (type & MVM_NATIVECALL_ARG_TYPE_MASK) {
             case MVM_NATIVECALL_ARG_ASCIISTR:
                 str = MVM_string_ascii_encode_any(tc, value_str);
@@ -296,8 +341,16 @@ char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, M
             case MVM_NATIVECALL_ARG_UTF16STR:
                 str = MVM_string_utf16_encode(tc, value_str, 0);
                 break;
-            default:
+            case MVM_NATIVECALL_ARG_UTF8STR:
                 str = MVM_string_utf8_encode_C_string(tc, value_str);
+                break;
+            case MVM_NATIVECALL_ARG_WIDESTR:
+                str = MVM_string_wide_encode(tc, value_str, NULL);
+                break;
+            case MVM_NATIVECALL_ARG_U16STR:
+                MVM_exception_throw_adhoc(tc, "Internal error: u16string support NYI");
+            case MVM_NATIVECALL_ARG_U32STR:
+                MVM_exception_throw_adhoc(tc, "Internal error: u32string support NYI");
         }
 
         /* Set whether to free it or not. */
@@ -515,6 +568,10 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
                 case MVM_NATIVECALL_ARG_ULONG:
                 case MVM_NATIVECALL_ARG_LONGLONG:
                 case MVM_NATIVECALL_ARG_ULONGLONG:
+                case MVM_NATIVECALL_ARG_WCHAR_T:
+                case MVM_NATIVECALL_ARG_WINT_T:
+                case MVM_NATIVECALL_ARG_CHAR16_T:
+                case MVM_NATIVECALL_ARG_CHAR32_T:
                     arg_type = dst == -1
                         ? is_rw ? MVM_JIT_ARG_I64_RW : MVM_JIT_ARG_I64
                         : is_rw ? MVM_JIT_PARAM_I64_RW : MVM_JIT_PARAM_I64;
@@ -549,48 +606,58 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
         }
     }
 
-    if (body->ret_type == MVM_NATIVECALL_ARG_CHAR
-        || body->ret_type == MVM_NATIVECALL_ARG_UCHAR
-        || body->ret_type == MVM_NATIVECALL_ARG_SHORT
-        || body->ret_type == MVM_NATIVECALL_ARG_USHORT
-        || body->ret_type == MVM_NATIVECALL_ARG_INT
-        || body->ret_type == MVM_NATIVECALL_ARG_UINT
-        || body->ret_type == MVM_NATIVECALL_ARG_LONG
-        || body->ret_type == MVM_NATIVECALL_ARG_ULONG
-        || body->ret_type == MVM_NATIVECALL_ARG_LONGLONG
-        || body->ret_type == MVM_NATIVECALL_ARG_ULONGLONG
-    ) {
-        init_box_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_int, restype, dst);
-    }
-    else if (body->ret_type == MVM_NATIVECALL_ARG_CPOINTER) {
-        init_box_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_cpointer, restype, dst);
-    }
-    else if (body->ret_type == MVM_NATIVECALL_ARG_UTF8STR) {
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_REG_DYNIDX, { 2 } },
-                                 { MVM_JIT_LITERAL, { MVM_NATIVECALL_ARG_UTF8STR } },
-                                 { MVM_JIT_STACK_VALUE, { 0 } }};
-        init_c_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_str, 4, args);
-        box_rv_node->next = NULL;
-        if (dst == -1) {
-            box_rv_node->u.call.rv_mode = MVM_JIT_RV_DYNIDX;
-            box_rv_node->u.call.rv_idx = 0;
-        }
-        else {
-            box_rv_node->u.call.args[1].type = MVM_JIT_REG_VAL;
-            box_rv_node->u.call.args[1].v.reg = restype;
+    switch (body->ret_type) {
+        case MVM_NATIVECALL_ARG_CHAR:
+        case MVM_NATIVECALL_ARG_UCHAR:
+        case MVM_NATIVECALL_ARG_SHORT:
+        case MVM_NATIVECALL_ARG_USHORT:
+        case MVM_NATIVECALL_ARG_INT:
+        case MVM_NATIVECALL_ARG_UINT:
+        case MVM_NATIVECALL_ARG_LONG:
+        case MVM_NATIVECALL_ARG_ULONG:
+        case MVM_NATIVECALL_ARG_LONGLONG:
+        case MVM_NATIVECALL_ARG_ULONGLONG:
+        case MVM_NATIVECALL_ARG_WCHAR_T:
+        case MVM_NATIVECALL_ARG_WINT_T:
+        case MVM_NATIVECALL_ARG_CHAR16_T:
+        case MVM_NATIVECALL_ARG_CHAR32_T:
+            init_box_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_int, restype, dst);
+            break;
+        case MVM_NATIVECALL_ARG_CPOINTER:
+            init_box_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_cpointer, restype, dst);
+            break;
+        case MVM_NATIVECALL_ARG_UTF8STR:
+        case MVM_NATIVECALL_ARG_ASCIISTR:
+        case MVM_NATIVECALL_ARG_UTF16STR:
+        case MVM_NATIVECALL_ARG_WIDESTR:
+        case MVM_NATIVECALL_ARG_U16STR:
+        case MVM_NATIVECALL_ARG_U32STR: {
+            MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } },
+                                     { MVM_JIT_REG_DYNIDX, { 2 } },
+                                     { MVM_JIT_LITERAL, { body->ret_type } },
+                                     { MVM_JIT_STACK_VALUE, { 0 } }};
+            init_c_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_str, 4, args);
+            box_rv_node->next = NULL;
+            if (dst == -1) {
+                box_rv_node->u.call.rv_mode = MVM_JIT_RV_DYNIDX;
+                box_rv_node->u.call.rv_idx = 0;
+            }
+            else {
+                box_rv_node->u.call.args[1].type = MVM_JIT_REG_VAL;
+                box_rv_node->u.call.args[1].v.reg = restype;
 
-            box_rv_node->u.call.rv_mode = MVM_JIT_RV_PTR;
-            box_rv_node->u.call.rv_idx = dst;
+                box_rv_node->u.call.rv_mode = MVM_JIT_RV_PTR;
+                box_rv_node->u.call.rv_idx = dst;
+            }
+            break;
         }
-    }
-    else if (body->ret_type == MVM_NATIVECALL_ARG_VOID) {
-        call_node->next = unblock_gc_node;
-        unblock_gc_node->next = NULL;
-        jg->last_node = unblock_gc_node;
-    }
-    else {
-        goto fail;
+        case MVM_NATIVECALL_ARG_VOID:
+            call_node->next = unblock_gc_node;
+            unblock_gc_node->next = NULL;
+            jg->last_node = unblock_gc_node;
+            break;
+        default:
+            goto fail;
     }
 
     return jg;
@@ -770,8 +837,7 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
                     result = MVM_nativecall_make_num(tc, target_type, value);
                 }
                 else if(ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
-                    result = MVM_nativecall_make_str(tc, target_type, MVM_NATIVECALL_ARG_UTF8STR,
-                    (char *)cpointer_body);
+                    result = MVM_nativecall_make_str(tc, target_type, MVM_NATIVECALL_ARG_UTF8STR, (char *)cpointer_body);
                 }
                 else
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled target type");
@@ -830,11 +896,36 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
                 result = MVM_nativecall_make_num(tc, target_type, value);
                 break;
             }
-            case MVM_REPR_ID_MVMCStr:
-            case MVM_REPR_ID_P6str:
-                result = MVM_nativecall_make_str(tc, target_type, MVM_NATIVECALL_ARG_UTF8STR,
-                    (char *)cpointer_body);
+            case MVM_REPR_ID_P6str: {
+                MVMP6strREPRData *repr_data = (MVMP6strREPRData *)STABLE(target_type)->REPR_data;
+                MVMint32          str_type;
+
+                switch (repr_data->type) {
+                    case MVM_P6STR_C_TYPE_CHAR:     str_type = MVM_NATIVECALL_ARG_UTF8STR; break;
+                    case MVM_P6STR_C_TYPE_WCHAR_T:  str_type = MVM_NATIVECALL_ARG_WIDESTR; break;
+                    case MVM_P6STR_C_TYPE_CHAR16_T: str_type = MVM_NATIVECALL_ARG_U16STR;  break;
+                    case MVM_P6STR_C_TYPE_CHAR32_T: str_type = MVM_NATIVECALL_ARG_U32STR;  break;
+                    default:                        MVM_exception_throw_adhoc(tc, "NativeCall: unsupported string type");
+                }
+
+                result = MVM_nativecall_make_str(tc, target_type, str_type, (void *)cpointer_body);
                 break;
+            }
+            case MVM_REPR_ID_MVMCStr: {
+                MVMCStrREPRData *repr_data = (MVMCStrREPRData *)STABLE(target_type)->REPR_data;
+                MVMint32         str_type;
+
+                switch (repr_data->type) {
+                    case MVM_P6STR_C_TYPE_CHAR:     str_type = MVM_NATIVECALL_ARG_UTF8STR; break;
+                    case MVM_P6STR_C_TYPE_WCHAR_T:  str_type = MVM_NATIVECALL_ARG_WIDESTR; break;
+                    case MVM_P6STR_C_TYPE_CHAR16_T: str_type = MVM_NATIVECALL_ARG_U16STR;  break;
+                    case MVM_P6STR_C_TYPE_CHAR32_T: str_type = MVM_NATIVECALL_ARG_U32STR;  break;
+                    default:                        MVM_exception_throw_adhoc(tc, "NativeCall: unsupported string type");
+                }
+
+                result = MVM_nativecall_make_str(tc, target_type, str_type, (void *)cpointer_body);
+                break;
+            }
             case MVM_REPR_ID_MVMCStruct:
                 result = MVM_nativecall_make_cstruct(tc, target_type, (void *)cpointer_body);
                 break;
@@ -986,6 +1077,9 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                         objptr = ((MVMCUnionBody *)OBJECT_BODY(body->child_objs[i]))->cunion;
                         break;
                     case MVM_CARRAY_ELEM_KIND_STRING:
+                    case MVM_CARRAY_ELEM_KIND_WIDE_STRING:
+                    case MVM_CARRAY_ELEM_KIND_U16_STRING:
+                    case MVM_CARRAY_ELEM_KIND_U32_STRING:
                         objptr = NULL; /* TODO */
                         break;
                     default:
@@ -1038,6 +1132,9 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                         objptr = (MVMCUnionBody *)OBJECT_BODY(body->child_objs[slot]);
                         break;
                     case MVM_CSTRUCT_ATTR_STRING:
+                    case MVM_CSTRUCT_ATTR_WIDE_STRING:
+                    case MVM_CSTRUCT_ATTR_U16_STRING:
+                    case MVM_CSTRUCT_ATTR_U32_STRING:
                         objptr = NULL;
                         break;
                     default:
@@ -1090,6 +1187,9 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                         objptr = (MVMCUnionBody *)OBJECT_BODY(body->child_objs[slot]);
                         break;
                     case MVM_CPPSTRUCT_ATTR_STRING:
+                    case MVM_CPPSTRUCT_ATTR_WIDE_STRING:
+                    case MVM_CPPSTRUCT_ATTR_U16_STRING:
+                    case MVM_CPPSTRUCT_ATTR_U32_STRING:
                         objptr = NULL;
                         break;
                     default:

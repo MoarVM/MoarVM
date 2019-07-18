@@ -103,7 +103,7 @@ EOT
     }
 
     if ($can_compile) {
-	$ENV{LDFLAGS} //= '';
+    $ENV{LDFLAGS} //= '';
         $command = "$config->{ld} $ENV{LDFLAGS} $config->{ldout}$leaf $obj 2>&1";
         $output  = `$command` || $!;
         if ($? >> 8 == 0) {
@@ -514,6 +514,142 @@ EOT
     }
     print $print_result . "\n";
     $config->{arch_bits} = $num_bits;
+}
+
+sub wchar_unsigned_native {
+    my ($config) = @_;
+    my $restore = _to_probe_dir();
+    _spew('try.c', <<'EOT');
+#include <stdio.h>
+#include <stdlib.h>
+#include <wchar.h>
+
+int main(int argc, char **argv) {
+    wchar_t wc = -1;
+    printf("%d\n", wc > 0);
+    return EXIT_SUCCESS;
+}
+EOT
+    print ::dots("    probing the sign of wchar_t");
+    compile($config, 'try')
+        or die "Can't compile simple probe, so something is badly wrong";
+    my $is_unsigned = `./try`;
+    die "Unable to run probe, so something is badly wrong"
+        unless defined $is_unsigned;
+    chomp $is_unsigned;
+    die "Probe gave nonsensical answer '$is_unsigned', so something is badly wrong"
+        unless $is_unsigned =~ /\A[0|1]\z/;
+    print "un" if $is_unsigned;
+    print "signed\n";
+    $config->{wchar_unsigned} = $is_unsigned;
+}
+
+sub wchar_unsigned_cross {
+    my ($config) = @_;
+    warn "Guessing :-(";
+    # Mddore likely than not, wchar_t is signed.
+    $config->{wchar_unsigned} = 0;
+}
+
+sub wchar_size_native {
+    my ($config) = @_;
+    my $restore = _to_probe_dir();
+    _spew('try.c', <<'EOT');
+#include <stdio.h>
+#include <stdlib.h>
+#include <wchar.h>
+
+int main(int argc, char **argv) {
+    printf("%lu\n", (unsigned long)sizeof(wchar_t));
+    return EXIT_SUCCESS;
+}
+EOT
+    print ::dots("    probing the size of wchar_t");
+    compile($config, 'try')
+        or die "Can't compile simple probe, so something is badly wrong";
+    my $size = `./try`;
+    die "Unable to run probe, so something is badly wrong"
+        unless defined $size;
+    chomp $size;
+    die "Probe gave nonsensical answer '$size', so something is badly wrong"
+        unless $size =~ /\A[0-9]+\z/;
+    print "$size\n";
+    $config->{wchar_size} = $size;
+}
+
+sub wchar_size_cross {
+    my ($config) = @_;
+    warn "Guessing :-(";
+    # More likely than not, wchar_t is an int.
+    $config->{wchar_size} = 4;
+}
+
+sub wint_unsigned_native {
+    my ($config) = @_;
+    my $restore = _to_probe_dir();
+    _spew('try.c', <<'EOT');
+#include <stdio.h>
+#include <stdlib.h>
+#include <wchar.h>
+
+int main(int argc, char **argv) {
+    wint_t wc = -1;
+    printf("%d\n", wc > 0);
+    return EXIT_SUCCESS;
+}
+EOT
+    print ::dots("    probing the sign of wint_t");
+    compile($config, 'try')
+        or die "Can't compile simple probe, so something is badly wrong";
+    my $is_unsigned = `./try`;
+    die "Unable to run probe, so something is badly wrong"
+        unless defined $is_unsigned;
+    chomp $is_unsigned;
+    die "Probe gave nonsensical answer '$is_unsigned', so something is badly wrong"
+        unless $is_unsigned =~ /\A[0|1]\z/;
+    print "un" if $is_unsigned;
+    print "signed\n";
+    $config->{wint_unsigned} = $is_unsigned;
+}
+
+sub wint_unsigned_cross {
+    my ($config) = @_;
+    warn "Guessing :-(";
+    # Mddore likely than not, wint_t is signed.
+    $config->{wint_unsigned} = 0;
+}
+
+sub wint_size_native {
+    my ($config) = @_;
+    my $restore = _to_probe_dir();
+    _spew('try.c', <<'EOT');
+#include <stdio.h>
+#include <stdlib.h>
+#include <wchar.h>
+
+int main(int argc, char **argv) {
+    printf("%lu\n", (unsigned long)sizeof(wint_t));
+    return EXIT_SUCCESS;
+}
+EOT
+    print ::dots("    probing the size of wint_t");
+    compile($config, 'try')
+        or die "Can't compile simple probe, so something is badly wrong";
+    my $size = `./try`;
+    die "Unable to run probe, so something is badly wrong"
+        unless defined $size;
+    chomp $size;
+    die "Probe gave nonsensical answer '$size', so something is badly wrong"
+        unless $size =~ /\A[0-9]+\z/;
+    print "$size\n";
+    $config->{wint_size} = $size;
+}
+
+sub wint_size_cross {
+    my ($config) = @_;
+    warn "Guessing :-(";
+    # More likely than not, wint_t is an int.
+    $config->{wint_size} = 4;
 }
 
 sub win32_compiler_toolchain {

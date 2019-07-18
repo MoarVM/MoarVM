@@ -825,7 +825,9 @@ BEGIN {
     2070,
     2072,
     2073,
-    2074);
+    2074,
+    2075,
+    2076);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     2,
     2,
@@ -1646,6 +1648,8 @@ BEGIN {
     4,
     4,
     2,
+    1,
+    1,
     1,
     1,
     1);
@@ -3723,6 +3727,8 @@ BEGIN {
     65,
     66,
     34,
+    34,
+    34,
     34);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'const_i8', 1,
@@ -4546,7 +4552,9 @@ BEGIN {
     'smrt_intify', 819,
     'uname', 820,
     'freemem', 821,
-    'totalmem', 822);
+    'totalmem', 822,
+    'iswcharunsigned', 823,
+    'iswintunsigned', 824);
     MAST::Ops.WHO<@names> := nqp::list_s('no_op',
     'const_i8',
     'const_i16',
@@ -5369,7 +5377,9 @@ BEGIN {
     'smrt_intify',
     'uname',
     'freemem',
-    'totalmem');
+    'totalmem',
+    'iswcharunsigned',
+    'iswintunsigned');
     MAST::Ops.WHO<%generators> := nqp::hash('no_op', sub () {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
@@ -11575,6 +11585,18 @@ BEGIN {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 822, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+    },
+    'iswcharunsigned', sub ($op0) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+        nqp::writeuint($bytecode, $elems, 823, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+    },
+    'iswintunsigned', sub ($op0) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+        nqp::writeuint($bytecode, $elems, 824, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     });
 }

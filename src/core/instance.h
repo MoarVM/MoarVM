@@ -87,6 +87,8 @@ struct MVMStringConsts {
     MVMString *path;
     MVMString *config;
     MVMString *replacement;
+    MVMString *string;
+    MVMString *nativetype;
 };
 
 /* An entry in the representations registry. */
@@ -530,4 +532,10 @@ struct MVMInstance {
     /* Hash Secrets which is used as the hash seed. This is to avoid denial of
      * service type attacks. */
     MVMuint64 hashSecrets[2];
+
+#ifndef _WIN32
+    /* Locale information for UNIX-like OSes. Storing this here allows us to
+     * use duplocale instead of having to create a new one for each thread. */
+    locale_t locale;
+#endif
 };
