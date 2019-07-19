@@ -405,7 +405,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
     state->prev_op_bc = prev_op_bc_ptr;
 }
 
-MVMuint8 MVM_confprog_validate(MVMThreadContext *tc, MVMConfigurationProgram *prog) {
+void MVM_confprog_validate(MVMThreadContext *tc, MVMConfigurationProgram *prog) {
     validatorstate state;
 
     state.confprog = prog;
@@ -920,7 +920,7 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 cur_op += 6;
                 goto NEXT;
             OP(getcodelocation): {
-                MVMuint32 line_out = 0;
+                MVMint32 line_out = 0;
                 MVMString *file_out = NULL;
                 MVMObject *code_obj = (MVMObject *)((MVMStaticFrame *)reg_base[REGISTER_STRUCT_ACCUMULATOR].any)->body.static_code;
                 cur_op += 4;

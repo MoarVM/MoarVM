@@ -339,7 +339,8 @@ MVMint32 MVM_jit_spill_memory_select(MVMThreadContext *tc, MVMJitCompiler *compi
         idx = compiler->spills_free[bucket];
         compiler->spills_free[bucket] = compiler->spills[idx].next;
     } else {
-        MVM_VECTOR_ENSURE_SPACE(compiler->spills, idx = compiler->spills_num++);
+        idx = compiler->spills_num; compiler->spills_num++;
+        MVM_VECTOR_ENSURE_SPACE(compiler->spills, idx);
         compiler->spills[idx].reg_type = reg_type;
     }
     return compiler->spills_base + idx * sizeof(MVMRegister);

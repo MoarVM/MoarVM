@@ -91,7 +91,7 @@ static void read_one_packet(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
 MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMint64 bytes) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     char *use_last_packet = NULL;
-    MVMuint16 use_last_packet_start, use_last_packet_end;
+    MVMuint16 use_last_packet_start = 0, use_last_packet_end = 0;
 
     /* If at EOF, nothing more to do. */
     if (data->eof) {
