@@ -215,9 +215,6 @@ if ($^O eq 'darwin') {
 # Probe the compiler.
 build::probe::compiler_usability(\%config, \%defaults);
 
-# Enable most (useful) warnings
-$config{ccwarnflags} = '-Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-label -Wno-maybe-uninitialized -Wno-missing-braces -Wno-unknown-pragmas -Wno-strict-aliasing';
-
 # Remove unsupported -Werror=* gcc flags if gcc doesn't support them.
 build::probe::specific_werror(\%config, \%defaults);
 if ($config{cc} eq 'gcc' && !$config{can_specific_werror}) {
