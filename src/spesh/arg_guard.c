@@ -538,6 +538,7 @@ void MVM_spesh_arg_guard_gc_mark(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
                 case MVM_SPESH_GUARD_OP_STABLE_TYPE:
                     MVM_gc_worklist_add(tc, worklist, &(ag->nodes[i].st));
                     break;
+                default: break;
             }
 #pragma clang diagnostic pop
         }
@@ -557,6 +558,7 @@ void MVM_spesh_arg_guard_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState 
                     MVM_profile_heap_add_collectable_rel_idx(tc, ss,
                         (MVMCollectable*)(ag->nodes[i].st), i);
                     break;
+                default: break;
             }
 #pragma clang diagnostic pop
         }
