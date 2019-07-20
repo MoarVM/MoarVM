@@ -223,8 +223,8 @@ if ($config{cc} eq 'gcc' && !$config{can_specific_werror}) {
     $config{ccmiscflags} =~ s/^ +$//;
 }
 
-# Disable ROP vulnerability protection on OpenBSD, since it breaks the legojit.
-if ($^O eq 'openbsd' && $config{cc} eq 'clang') {
+# Disable RETGUARD on OpenBSD, since it breaks the legojit.
+if ($^O eq 'openbsd' && $args{jit} && $config{cc} eq 'clang') {
 	$config{ccmiscflags} .= ' -fno-ret-protector';
 }
 
