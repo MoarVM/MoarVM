@@ -633,7 +633,7 @@ static MVMint64 get_pipe_fd(MVMThreadContext *tc, uv_pipe_t *pipe) {
         return 0;
 }
 static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
-    MVMint64 spawn_result;
+    MVMint32 spawn_result;
 
     /* Process info setup. */
     uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
@@ -737,7 +737,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
             MVMObject *error_cb;
             MVMString *msg_str;
 
-            snprintf(error_str, 127, "Failed to spawn process %s: %s (error code %ld)",
+            snprintf(error_str, 127, "Failed to spawn process %s: %s (error code %d)",
                     si->prog, uv_strerror(spawn_result), spawn_result);
 
             msg_str = MVM_string_ascii_decode_nt(tc,
