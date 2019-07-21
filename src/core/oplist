@@ -883,6 +883,7 @@ smrt_intify         w(int64) r(obj) :pure :invokish :maycausedeopt :confprog
 uname               w(obj) :pure
 freemem             w(int64) :pure
 totalmem            w(int64) :pure
+fdopen_fh           w(obj) r(int32)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

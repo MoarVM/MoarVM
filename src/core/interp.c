@@ -5614,6 +5614,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_platform_total_memory();
                 cur_op += 2;
                 goto NEXT;
+            OP(fdopen_fh):
+                GET_REG(cur_op, 0).o = MVM_file_handle_from_fd(tc, (int)GET_REG(cur_op, 2).i32);
+                cur_op += 4;
+                goto NEXT;
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
