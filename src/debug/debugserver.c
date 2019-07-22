@@ -2565,11 +2565,24 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
     vm->debugserver->thread_id = tc->thread_obj->body.thread_id;
 
     {
+#ifdef _WIN32
+        WORD wVersionRequested;
+        WSADATA wsaData;
+#endif
         char portstr[16];
         struct addrinfo *res;
         int error;
 
         snprintf(portstr, 16, "%"PRIu64, port);
+
+#ifdef _WIN32
+        wVersionRequested = MAKEWORD(2, 2);
+
+        error = WSAStartup(wVersionRequested, &wsaData);
+        if (error != 0) {
+            MVM_panic(1, "WSAStartup failed with error: %n", error);
+        }
+#endif
 
         getaddrinfo("localhost", portstr, NULL, &res);
 
