@@ -226,6 +226,7 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/strings/windows1252@obj@ \
           src/strings/shiftjis@obj@ \
           src/strings/shiftjis_codeindex@obj@ \
+          src/strings/gb2312@obj@ \
           src/math/bigintops@obj@ \
           src/profiler/instrument@obj@ \
           src/profiler/log@obj@ \
@@ -390,6 +391,8 @@ HEADERS = src/moar.h \
           src/strings/utf16.h \
           src/strings/windows1252.h \
           src/strings/shiftjis_codeindex.h \
+          src/strings/gb2312.h \
+          src/strings/gb2312_codeindex.h \
           src/math/bigintops.h \
           src/profiler/instrument.h \
           src/profiler/log.h \

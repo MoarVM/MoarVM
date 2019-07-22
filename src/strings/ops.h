@@ -10,7 +10,8 @@
 #define MVM_encoding_type_shiftjis      8
 #define MVM_encoding_type_utf16le       9
 #define MVM_encoding_type_utf16be      10
-#define MVM_encoding_type_MAX          10
+#define MVM_encoding_type_gb2312       11
+#define MVM_encoding_type_MAX          11
 #define ENCODING_VALID(enc) \
     (((enc) >= MVM_encoding_type_MIN && (enc) <= MVM_encoding_type_MAX) \
     || (MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", (enc)),1))
