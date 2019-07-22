@@ -39,7 +39,7 @@ MVMString * MVM_string_gb2312_decode(MVMThreadContext *tc, const MVMObject *resu
             else {
                 MVM_exception_throw_adhoc(tc, 
                 "Error decoding gb2312 string: invalid gb2312 format (two bytes for a gb2312 character). Last byte seen was 0x%hhX\n", 
-				(MVMuint8)gb2312[i]);
+                (MVMuint8)gb2312[i]);
             }
         }
     }
@@ -50,35 +50,36 @@ MVMString * MVM_string_gb2312_decode(MVMThreadContext *tc, const MVMObject *resu
 }
 
 #define GB2312_DECODE_FORMAT_EXCEPTION -1
-#define GB2312_DECODE_CODEPOINT -2
+#define GB2312_DECODE_ASCII_CODEPOINT -2
 #define GB2312_DECODE_CONTINUE -3
 #define GB2312_DECODE_CODEPOINT_EXCEPTION -4
+#define GB2312_DECODE_CHINESE_CODEPOINT -5
 
-int gb2312_decode_handler(MVMThreadContext *tc, MVMint32 *last_was_first_byte, 
-	                      MVMuint16 codepoint, MVMuint16 *last_codepoint, MVMGrapheme32 *out) {
+int gb2312_decode_handler(MVMThreadContext *tc, MVMint32 last_was_first_byte, 
+                          MVMuint16 codepoint, MVMuint16 last_codepoint, MVMGrapheme32 *out) {
+    MVMGrapheme32 graph;
     if (codepoint <= 127) {
         if (last_was_first_byte) {
             return GB2312_DECODE_FORMAT_EXCEPTION;
         }
-        *out = codepoint;
+        graph = (MVMGrapheme32)codepoint;
+        *out = graph;
+        return GB2312_DECODE_ASCII_CODEPOINT;
     }
     else {
         if (last_was_first_byte) {
             MVMuint16 combined_codepoint = last_codepoint * 256 + codepoint;
-            MVMGrapheme32 graph = gb2312_index_to_cp(combined_codepoint);
-            *last_was_first_byte = 0;
+            graph = gb2312_index_to_cp(combined_codepoint);
+            *out = graph;
             if (graph == GB2312_NULL) {
                 return GB2312_DECODE_CODEPOINT_EXCEPTION;
             }
-            *out = graph;
+            return GB2312_DECODE_CHINESE_CODEPOINT;
         }
         else {
-            *last_was_first_byte = 1;
-            *last_codepoint = codepoint;
             return GB2312_DECODE_CONTINUE;
         }
     }
-    return GB2312_DECODE_CODEPOINT;
 }
 
 MVMuint32 MVM_string_gb2312_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
@@ -123,7 +124,7 @@ MVMuint32 MVM_string_gb2312_decodestream(MVMThreadContext *tc, MVMDecodeStream *
             MVMGrapheme32 graph;
             MVMuint16 codepoint = (MVMuint16) bytes[pos++];
 
-            int handler_rtrn = gb2312_decode_handler(tc, &last_was_first_byte, codepoint, &last_codepoint, &graph);
+            int handler_rtrn = gb2312_decode_handler(tc, last_was_first_byte, codepoint, last_codepoint, &graph);
 
             if (handler_rtrn == GB2312_DECODE_FORMAT_EXCEPTION) {
                 MVM_exception_throw_adhoc(tc, 
@@ -135,9 +136,13 @@ MVMuint32 MVM_string_gb2312_decodestream(MVMThreadContext *tc, MVMDecodeStream *
                 last_codepoint * 256 + codepoint);
             }
             else if (handler_rtrn == GB2312_DECODE_CONTINUE) {
+                last_codepoint = codepoint;
+                last_was_first_byte = 1;
                 continue;
             }
-
+            else if (handler_rtrn == GB2312_DECODE_CHINESE_CODEPOINT) {
+                last_was_first_byte = 0;
+            }
             if (last_was_cr) {
                 if (codepoint == '\n') {
                     graph = MVM_unicode_normalizer_translated_crlf(tc, &(ds->norm));
@@ -252,10 +257,8 @@ char * MVM_string_gb2312_encode_substr(MVMThreadContext *tc, MVMString *str,
                         }
                         continue;
                     }
-                    else {
-                        MVM_free(result);
-                        MVM_exception_throw_adhoc(tc, "Error encoding gb2312 string: could not encode codepoint 0x%hhX", codepoint);
-                    }
+                    MVM_free(result);
+                    MVM_exception_throw_adhoc(tc, "Error encoding gb2312 string: could not encode codepoint 0x%hhX", codepoint);
                 }
                 result[out_pos++] = gb2312_cp / 256;
                 result[out_pos++] = gb2312_cp % 256;
