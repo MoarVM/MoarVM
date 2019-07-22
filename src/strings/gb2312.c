@@ -97,8 +97,7 @@ MVMuint32 MVM_string_gb2312_decodestream(MVMThreadContext *tc, MVMDecodeStream *
                 "Error decoding gb2312 string: invalid gb2312 format (two bytes for a gb2312 character). Last byte seen was 0x%hhX\n", 
                 last_codepoint);
                 }
-
-                if (last_was_cr) {
+                else if (last_was_cr) {
                     if (codepoint == '\n') {
                         graph = MVM_unicode_normalizer_translated_crlf(tc, &(ds->norm));
                     }
