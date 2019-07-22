@@ -49,6 +49,38 @@ MVMString * MVM_string_gb2312_decode(MVMThreadContext *tc, const MVMObject *resu
     return result;
 }
 
+#define GB2312_DECODE_FORMAT_EXCEPTION -1
+#define GB2312_DECODE_CODEPOINT -2
+#define GB2312_DECODE_CONTINUE -3
+#define GB2312_DECODE_CODEPOINT_EXCEPTION -4
+
+int gb2312_decode_handler(MVMThreadContext *tc, MVMint32 *last_was_first_byte, 
+	                      MVMuint16 codepoint, MVMuint16 *last_codepoint, MVMGrapheme32 *out) {
+    if (codepoint <= 127) {
+        if (last_was_first_byte) {
+            return GB2312_DECODE_FORMAT_EXCEPTION;
+        }
+        *out = codepoint;
+    }
+    else {
+        if (last_was_first_byte) {
+            MVMuint16 combined_codepoint = last_codepoint * 256 + codepoint;
+            MVMGrapheme32 graph = gb2312_index_to_cp(combined_codepoint);
+            *last_was_first_byte = 0;
+            if (graph == GB2312_NULL) {
+                return GB2312_DECODE_CODEPOINT_EXCEPTION;
+            }
+            *out = graph;
+        }
+        else {
+            *last_was_first_byte = 1;
+            *last_codepoint = codepoint;
+            return GB2312_DECODE_CONTINUE;
+        }
+    }
+    return GB2312_DECODE_CODEPOINT;
+}
+
 MVMuint32 MVM_string_gb2312_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                                          const MVMint32 *stopper_chars, MVMDecodeStreamSeparators *seps) {
     MVMint32 count = 0, total = 0;
@@ -91,45 +123,34 @@ MVMuint32 MVM_string_gb2312_decodestream(MVMThreadContext *tc, MVMDecodeStream *
             MVMGrapheme32 graph;
             MVMuint16 codepoint = (MVMuint16) bytes[pos++];
 
-            if (codepoint <= 127) {
-                if (last_was_first_byte) {
-                    MVM_exception_throw_adhoc(tc, 
+            int handler_rtrn = gb2312_decode_handler(tc, &last_was_first_byte, codepoint, &last_codepoint, &graph);
+
+            if (handler_rtrn == GB2312_DECODE_FORMAT_EXCEPTION) {
+                MVM_exception_throw_adhoc(tc, 
                 "Error decoding gb2312 string: invalid gb2312 format (two bytes for a gb2312 character). Last byte seen was 0x%hhX\n", 
                 last_codepoint);
-                }
-                else if (last_was_cr) {
-                    if (codepoint == '\n') {
-                        graph = MVM_unicode_normalizer_translated_crlf(tc, &(ds->norm));
-                    }
-                    else {
-                        graph = '\r';
-                        pos--;
-                    }
-                    last_was_cr = 0;
-                }
-                else if (graph == '\r') {
-                    last_was_cr = 1;
-                    continue;
-                }
-                else {
-                    graph = codepoint;
-                }
             }
-            else {
-                if (last_was_first_byte) {
-                    MVMuint16 combined_codepoint = last_codepoint * 256 + codepoint;
-                    graph = gb2312_index_to_cp(combined_codepoint);
-                    if (graph == GB2312_NULL) {
-                        MVM_exception_throw_adhoc(tc, "Error decoding gb2312 string: could not decode codepoint 0x%hhX", 
-                        combined_codepoint);
-                    }
-                    last_was_first_byte = 0;
+            else if (handler_rtrn == GB2312_DECODE_CODEPOINT_EXCEPTION) {
+                MVM_exception_throw_adhoc(tc, "Error decoding gb2312 string: could not decode codepoint 0x%hhX", 
+                last_codepoint * 256 + codepoint);
+            }
+            else if (handler_rtrn == GB2312_DECODE_CONTINUE) {
+                continue;
+            }
+
+            if (last_was_cr) {
+                if (codepoint == '\n') {
+                    graph = MVM_unicode_normalizer_translated_crlf(tc, &(ds->norm));
                 }
                 else {
-                    last_was_first_byte = 1;
-                    last_codepoint = codepoint;
-                    continue;
+                    graph = '\r';
+                    pos--;
                 }
+                last_was_cr = 0;
+            }
+            else if (codepoint == '\r') {
+                last_was_cr = 1;
+                continue;
             }
 
             if (count == bufsize) {
@@ -244,8 +265,6 @@ char * MVM_string_gb2312_encode_substr(MVMThreadContext *tc, MVMString *str,
         if (output_size)
             *output_size = out_pos;
     }
-    if (repl_bytes) MVM_free(repl_bytes);
+    MVM_free(repl_bytes);
     return (char *)result;
 }
-
-
