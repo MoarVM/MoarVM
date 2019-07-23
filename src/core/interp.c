@@ -2447,7 +2447,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 REPR(obj)->ass_funcs.bind_key(tc, STABLE(obj), obj,
                     OBJECT_BODY(obj), (MVMObject *)GET_REG(cur_op, 2).s,
                     GET_REG(cur_op, 4), MVM_reg_int64);
-                MVM_SC_WB_OBJ(tc, obj);
+                MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o); /* read register, obj may have moved in GC */
                 cur_op += 6;
                 goto NEXT;
             }
@@ -2457,7 +2457,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 REPR(obj)->ass_funcs.bind_key(tc, STABLE(obj), obj,
                     OBJECT_BODY(obj), (MVMObject *)GET_REG(cur_op, 2).s,
                     GET_REG(cur_op, 4), MVM_reg_num64);
-                MVM_SC_WB_OBJ(tc, obj);
+                MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o); /* read register, obj may have moved in GC */
                 cur_op += 6;
                 goto NEXT;
             }
@@ -2467,7 +2467,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 REPR(obj)->ass_funcs.bind_key(tc, STABLE(obj), obj,
                     OBJECT_BODY(obj), (MVMObject *)GET_REG(cur_op, 2).s,
                     GET_REG(cur_op, 4), MVM_reg_str);
-                MVM_SC_WB_OBJ(tc, obj);
+                MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o); /* read register, obj may have moved in GC */
                 cur_op += 6;
                 goto NEXT;
             }
@@ -2477,7 +2477,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 REPR(obj)->ass_funcs.bind_key(tc, STABLE(obj), obj,
                     OBJECT_BODY(obj), (MVMObject *)GET_REG(cur_op, 2).s,
                     GET_REG(cur_op, 4), MVM_reg_obj);
-                MVM_SC_WB_OBJ(tc, obj);
+                MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o); /* read register, obj may have moved in GC */
                 cur_op += 6;
                 goto NEXT;
             }
