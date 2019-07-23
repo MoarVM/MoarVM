@@ -2788,6 +2788,8 @@ MVM_PUBLIC void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
     int threadCreateError;
     int init_stat;
 
+    tc->instance->instrumentation_level++; /* So we insert breakpoint instructions. */
+
     init_mutex(debugserver->mutex_cond, "debug server orchestration");
     init_mutex(debugserver->mutex_network_send, "debug server network socket lock");
     init_mutex(debugserver->mutex_request_list, "debug server request list lock");
