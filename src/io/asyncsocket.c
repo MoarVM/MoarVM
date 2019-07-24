@@ -794,29 +794,33 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
     }
 
     {
-        MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+        MVMObject    *arr;
         struct sockaddr_storage sockaddr;
         int name_len = sizeof(struct sockaddr_storage);
 
-        MVM_repr_push_o(tc, arr, ((MVMAsyncTask *)async_task)->body.schedulee);
-        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTIO);
-        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
-        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
-        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
+        MVMROOT(tc, async_task, {
+            arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
 
-        MVMROOT2(tc, arr, async_task, {
-            MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-            MVMIOAsyncSocketData *data   = MVM_calloc(1, sizeof(MVMIOAsyncSocketData));
-            data->handle                 = (uv_stream_t *)li->socket;
-            result->body.ops             = &op_table;
-            result->body.data            = data;
+            MVM_repr_push_o(tc, arr, ((MVMAsyncTask *)async_task)->body.schedulee);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTIO);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
 
-            MVM_repr_push_o(tc, arr, (MVMObject *)result);
+            MVMROOT(tc, arr, {
+                MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
+                MVMIOAsyncSocketData *data   = MVM_calloc(1, sizeof(MVMIOAsyncSocketData));
+                data->handle                 = (uv_stream_t *)li->socket;
+                result->body.ops             = &op_table;
+                result->body.data            = data;
 
-            uv_tcp_getsockname(li->socket, (struct sockaddr *)&sockaddr, &name_len);
-            push_name_and_port(tc, &sockaddr, arr);
+                MVM_repr_push_o(tc, arr, (MVMObject *)result);
+
+                uv_tcp_getsockname(li->socket, (struct sockaddr *)&sockaddr, &name_len);
+                push_name_and_port(tc, &sockaddr, arr);
+            });
+            MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
         });
-        MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
     }
 }
 
