@@ -2584,7 +2584,9 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
         }
 #endif
 
-        getaddrinfo("localhost", portstr, NULL, &res);
+        if (getaddrinfo("localhost", portstr, NULL, &res) != 0) {
+            MVM_panic(1, "Debugserver: Could not get addrinfo for localhost / port %"PRIu64": %s", port, strerror(errno));
+        }
 
         listensocket = socket(res->ai_family, SOCK_STREAM, 0);
         if (listensocket == -1)
