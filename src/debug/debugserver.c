@@ -2580,7 +2580,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
 
         error = WSAStartup(wVersionRequested, &wsaData);
         if (error != 0) {
-            MVM_panic(1, "WSAStartup failed with error: %n", error);
+            MVM_panic(1, "Debugserver: WSAStartup failed with error: %n", error);
         }
 #endif
 
@@ -2588,7 +2588,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
 
         listensocket = socket(res->ai_family, SOCK_STREAM, 0);
         if (listensocket == -1)
-            MVM_panic(1, "Could not create file descriptor for socket: %s", strerror(errno));
+            MVM_panic(1, "Debugserver: Could not create file descriptor for socket: %s", strerror(errno));
 
 #ifndef _WIN32
         {
@@ -2598,13 +2598,13 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
 #endif
 
         if (bind(listensocket, res->ai_addr, res->ai_addrlen) == -1) {
-            MVM_panic(1, "Could not bind to socket: %s", strerror(errno));
+            MVM_panic(1, "Debugserver: Could not bind to socket: %s", strerror(errno));
         }
 
         freeaddrinfo(res);
 
         if (listen(listensocket, 1) == -1) {
-            MVM_panic(1, "Could not listen on socket: %s", strerror(errno));
+            MVM_panic(1, "Debugserver: Could not listen on socket: %s", strerror(errno));
         }
     }
 
@@ -2622,7 +2622,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
 
         if (!receive_greeting(&clientsocket)) {
             if (tc->instance->debugserver->debugspam_protocol)
-                fprintf(stderr, "did not receive greeting properly\n");
+                fprintf(stderr, "Debugserver: did not receive greeting properly\n");
             close(clientsocket);
             continue;
         }
