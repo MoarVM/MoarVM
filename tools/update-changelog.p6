@@ -376,7 +376,7 @@ sub MAIN (Bool:D :$print-modified-files = False, Bool:D :$print-commit = False) 
     my $last-tag = last-tag();
     my $next-tag = next-tag($last-tag);
     my $output-filename = $next-tag ~ "-changelog.json";
-    my @loggy = git-log '--topo-order', "{last-tag()}..master", :get-changes;
+    my @loggy = git-log '--topo-order', "{last-tag()}..HEAD", :get-changes;
     my %categories;
     my $dat = OutputFile.new(:filename($output-filename.IO));
     if $output-filename.IO.f {
