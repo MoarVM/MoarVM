@@ -1205,7 +1205,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(param_sn):
-                GET_REG(cur_op, 0).o = MVM_args_slurpy_named(tc, &tc->cur_frame->params);
+                GET_REG(cur_op, 0).o = MVM_args_slurpy_named(tc, NULL);
                 cur_op += 2;
                 goto NEXT;
             OP(getcode):

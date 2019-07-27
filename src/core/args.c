@@ -139,9 +139,9 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
 
 /* Get positional arguments. */
 #define find_pos_arg(ctx, pos, result) do { \
-    if (pos < ctx->num_pos) { \
-        result.arg   = ctx->args[pos]; \
-        result.flags = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[pos]; \
+    if (pos < (ctx)->num_pos) { \
+        result.arg   = (ctx)->args[pos]; \
+        result.flags = ((ctx)->arg_flags ? (ctx)->arg_flags : (ctx)->callsite->arg_flags)[pos]; \
         result.exists = 1; \
     } \
     else { \
@@ -608,7 +608,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
         REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&box);
 
-    find_pos_arg(ctx, pos, arg_info);
+    find_pos_arg(&(tc->cur_frame->params), pos, arg_info);
     pos++;
     while (arg_info.exists) {
 
@@ -640,7 +640,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
                 MVM_exception_throw_adhoc(tc, "arg flag is empty in slurpy positional");
         }
 
-        find_pos_arg(ctx, pos, arg_info);
+        find_pos_arg(&(tc->cur_frame->params), pos, arg_info);
         pos++;
         if (pos == 1) break; /* overflow?! */
     }
@@ -670,6 +670,7 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
     MVMArgInfo arg_info;
     MVMuint32 flag_pos, arg_pos;
     MVMRegister reg;
+    int reset_ctx = ctx == NULL;
     arg_info.exists = 0;
 
     if (!type || IS_CONCRETE(type)) {
@@ -681,6 +682,8 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
     if (REPR(result)->initialize)
         REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&box);
+    if (reset_ctx)
+        ctx = &tc->cur_frame->params;
 
     for (flag_pos = arg_pos = ctx->num_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2) {
         MVMString *key;
@@ -705,18 +708,24 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
             case MVM_CALLSITE_ARG_OBJ: {
                 REPR(result)->ass_funcs.bind_key(tc, STABLE(result),
                     result, OBJECT_BODY(result), (MVMObject *)key, arg_info.arg, MVM_reg_obj);
+                if (reset_ctx)
+                    ctx = &(tc->cur_frame->params);
                 break;
             }
             case MVM_CALLSITE_ARG_INT: {
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
                 box_slurpy_named(tc, type, result, box, arg_info.arg.i64, reg, int_box_type, "int", set_int, key);
                 MVM_gc_root_temp_pop(tc);
+                if (reset_ctx)
+                    ctx = &(tc->cur_frame->params);
                 break;
             }
             case MVM_CALLSITE_ARG_NUM: {
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
                 box_slurpy_named(tc, type, result, box, arg_info.arg.n64, reg, num_box_type, "num", set_num, key);
                 MVM_gc_root_temp_pop(tc);
+                if (reset_ctx)
+                    ctx = &(tc->cur_frame->params);
                 break;
             }
             case MVM_CALLSITE_ARG_STR: {
@@ -724,6 +733,8 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&arg_info.arg.s);
                 box_slurpy_named(tc, type, result, box, arg_info.arg.s, reg, str_box_type, "str", set_str, key);
                 MVM_gc_root_temp_pop_n(tc, 2);
+                if (reset_ctx)
+                    ctx = &(tc->cur_frame->params);
                 break;
             }
             default:

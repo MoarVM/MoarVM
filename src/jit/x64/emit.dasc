@@ -2305,7 +2305,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMuint16 dst = ins->operands[0].reg.orig;
         | mov ARG1, TC
         | mov ARG2, TC:ARG1->cur_frame
-        | lea ARG2, FRAME:ARG2->params
+        | xor ARG2, ARG2
         | callp &MVM_args_slurpy_named;
         | mov qword WORK[dst], RV;
         break;
