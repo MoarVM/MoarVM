@@ -599,7 +599,9 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
     else
         MVM_exception_throw_adhoc(tc, "Op 'backtracestrings' needs an exception object");
 
-    arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+    MVMROOT(tc, ex, {
+        arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+    });
     cur_frame = ex->body.origin;
 
     MVMROOT2(tc, arr, cur_frame, {
