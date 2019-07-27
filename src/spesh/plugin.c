@@ -16,8 +16,11 @@ void MVM_spesh_plugin_register(MVMThreadContext *tc, MVMString *language,
         MVMString *name, MVMObject *plugin) {
     MVMHLLConfig *hll = MVM_hll_get_config_for(tc, language);
     uv_mutex_lock(&tc->instance->mutex_hllconfigs);
-    if (!hll->spesh_plugins)
-        hll->spesh_plugins = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+    if (!hll->spesh_plugins) {
+        MVMROOT2(tc, name, plugin, {
+            hll->spesh_plugins = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+        });
+    }
     MVM_repr_bind_key_o(tc, hll->spesh_plugins, name, plugin);
     uv_mutex_unlock(&tc->instance->mutex_hllconfigs);
 }
