@@ -585,9 +585,10 @@ MVMObject * MVM_repr_dimensions(MVMThreadContext *tc, MVMObject *obj) {
     if (IS_CONCRETE(obj)) {
         MVMint64 num_dims, i;
         MVMint64 *dims;
-        MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
+        MVMObject *result;
         REPR(obj)->pos_funcs.dimensions(tc, STABLE(obj), obj, OBJECT_BODY(obj),
             &num_dims, &dims);
+        result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
         for (i = 0; i < num_dims; i++)
             MVM_repr_bind_pos_i(tc, result, i, dims[i]);
         return result;
