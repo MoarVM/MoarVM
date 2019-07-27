@@ -821,9 +821,15 @@ static MVMuint16 final_strand_match_with_repetition_count(MVMThreadContext *tc, 
 	 * (plus 1 for the strand itself) to the final strand of a's repetitions. */
         else if (b->body.storage_type == MVM_STRING_STRAND && b->body.num_strands == 1) {
             MVMStringStrand *sb = &(b->body.storage.strands[0]);
-            if (sa->end - sa->start == sb->end - sb->start)
-                if (MVM_string_equal(tc, string_from_strand_at_index(tc, a, a->body.num_strands - 1), string_from_strand_at_index(tc, b, 0)))
+            if (sa->end - sa->start == sb->end - sb->start) {
+                MVMString *a_strand, *b_strand;
+                MVMROOT2(tc, a, b, {
+                    a_strand = string_from_strand_at_index(tc, a, a->body.num_strands - 1);
+                    b_strand = string_from_strand_at_index(tc, b, 0);
+                });
+                if (MVM_string_equal(tc, a_strand, b_strand))
                     return b->body.storage.strands[0].repetitions + 1;
+            }
 	}
     }
     return 0;
