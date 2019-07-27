@@ -197,7 +197,6 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     interval_id = MVM_telemetry_interval_start(tc, "ConcBlockingQueue.unshift");
 
     add = MVM_calloc(1, sizeof(MVMConcBlockingQueueNode));
-    MVM_ASSIGN_REF(tc, &(root->header), add->value, to_add);
 
     /* We'll need to hold both the head and the tail lock, in case head == tail
      * and push would update tail->next - without the tail lock, this could
@@ -209,6 +208,7 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
         MVM_gc_mark_thread_unblocked(tc);
     });
 
+    MVM_ASSIGN_REF(tc, &(root->header), add->value, to_add);
     add->next = cbq->head->next;
     cbq->head->next = add;
 
