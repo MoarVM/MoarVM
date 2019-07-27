@@ -1343,7 +1343,7 @@ static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haysta
     MVMint64 H_expansion;
     MVMint64 return_val = -1;
     int is_gic = Haystack->body.storage_type == MVM_STRING_STRAND ? 1 : 0;
-    void *Hs_or_gic = Haystack;
+    void *Hs_or_gic;
     MVM_string_check_arg(tc, Haystack, ignoremark ? "index ignore case ignore mark search target" : "index ignore case search target");
     MVM_string_check_arg(tc, needle,   ignoremark ? "index ignore case ignore mark search term"   : "index ignore case search term");
     H_graphs = MVM_string_graphs_nocheck(tc, Haystack);
@@ -1371,6 +1371,9 @@ static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haysta
     if (is_gic) {
         Hs_or_gic = alloca(sizeof(MVMGraphemeIter_cached));
         MVM_string_gi_cached_init(tc, Hs_or_gic, Haystack, start);
+    }
+    else {
+        Hs_or_gic = Haystack;
     }
     while (index <= H_graphs) {
         H_expansion = string_equal_at_ignore_case_INTERNAL_loop(tc, Hs_or_gic, needle_fc, index, H_graphs, n_fc_graphs, ignoremark, ignorecase, is_gic);
