@@ -1,3 +1,30 @@
+New in 2019.07.1
+
+Core:
++ [79d21189] Bump level until after instrumenting instead of before to fix various races
++ [36cb624e] Avoid various races in profile/coverage/debug
++ [cb5787aa] Fix possible memory corruption in bindkey_*
++ [e99af058] Fix pointer arithmetic in inlined CArrays in CStruct/CPPStruct REPRs
+
+Debug Server:
++ [58c54a1f] Unbreak debugger instrumentation
++ [052966bb] Init debug socket for Windows
+
+Platform:
++ [7360ee5d] Fix GC rooting in MVM_platform_uname
+
+Profiler:
++ [1c274772] Don't return null from filename()
++ [df226330] Add band_i, bor_i, bxor_i ops
++ [8f4997b3] Fix dealloc profile logging by following any forwarder
+
+Spesh:
++ [536cff8b] Put limits on local and inline counts for inlining
+
+Tooling/Build:
++ [cfead8e2] Only use -fno-ret-protector with Clang on OpenBSD if the JIT is enabled
++ [2501678a] Fix Configure.pl failing when --prefix /usr is passed
+
 New in 2019.07
 
 6model:
