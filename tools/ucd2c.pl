@@ -1350,12 +1350,17 @@ sub add_unicode_sequence {
             $hex_ords = trim shift @list;
             $type     = trim shift @list;
             $name     = trim shift @list;
+            # Don't process non sequences
+            return if $hex_ords =~ /\.\./;
+            return if $hex_ords !~ / /;
         }
         else {
             $name     = trim shift @list;
             $hex_ords = trim shift @list;
             $type     = 'NamedSequences';
         }
+
+
         #\x{23} => chr 0x24
         # It's possible there could be hex unicode digits. In that case convert
         # to the actual codepoints
@@ -1384,7 +1389,7 @@ sub emit_unicode_sequence_keypairs {
     my $count = 0;
     my $seq_c_hash_str = '';
     my @seq_c_hash_array;
-    my $enum_table;
+    my $enum_table = '';
     my $string_seq = "/* Unicode sequences such as Emoji sequences */\n";
     for my $thing ( sort keys %$named_sequences ) {
         my $seq_name = "uni_seq_$count";
@@ -1399,7 +1404,7 @@ sub emit_unicode_sequence_keypairs {
         $ord_data   =~ s/ , $ //x;
         $string_seq =~ s/ , $ //x;
         $string_seq = $string_seq . "}; " . "/* $thing */ /*" . $named_sequences->{$thing}->{'type'} . " */\n";
-        $enum_table = $enum_table . "$seq_name,\n";
+        $enum_table .= "$seq_name,\n";
         $count++;
         if ( length $seq_c_hash_str > 80 ) {
             push @seq_c_hash_array, $seq_c_hash_str . "\n";

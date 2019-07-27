@@ -4,16 +4,16 @@ struct MVMUnicodeNamedValue {
     const char *name;
     MVMint32 value;
 };
-#define num_unicode_property_keypairs 3621
+#define num_unicode_property_keypairs 3681
 
 #define MVM_NUM_UNICODE_EXTENTS 103
 
 MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block_name);
 
-#define MVM_CODEPOINT_NAMES_COUNT 54234
+#define MVM_CODEPOINT_NAMES_COUNT 55009
 #define MVM_NUM_PROPERTY_CODES 107
 
-#define num_unicode_seq_keypairs 2032
+#define num_unicode_seq_keypairs 2748
 #define num_unicode_namealias_keypairs 468
 struct MVMUnicodeNamedAlias {
     char *name;
@@ -159,7 +159,7 @@ typedef struct MVMUnicodeNamedAlias MVMUnicodeNamedAlias;
 #define MVM_UNICODE_PVALUE_Numeric_Type_NONE 0
 #define MVM_UNICODE_PVALUE_Numeric_Type_NUMERIC 1
 
-#define num_unicode_property_value_keypairs 4290
+#define num_unicode_property_value_keypairs 4358
 
 typedef enum {
     MVM_UNICODE_PROPERTY_DECOMP_SPEC = 1,

@@ -108,7 +108,8 @@ sub get-emoji {
     }
     say "Emoji versions: ", @emoji-vers.join(', ');
     #exit;
-    for @emoji-vers.grep($first-emoji-ver <= *).sort.reverse -> $version {
+    my @sorted-emoji-versions = @emoji-vers».Int.sort.reverse;
+    for @sorted-emoji-versions.grep($first-emoji-ver <= *) -> $version {
         say "See version $version of Emoji, checking to see if it's a draft";
         my $readme = qqx{curl -s "ftp://ftp.unicode.org/Public/emoji/$version/ReadMe.txt"}.chomp;
         if $readme.match(/draft|PRELIMINARY/, :i) {
