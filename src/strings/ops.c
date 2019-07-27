@@ -1294,9 +1294,14 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
         next_is_malloced = 1;
     }
     /* If the needle is a strand, flatten it, otherwise use the original string */
-    flat_needle = needle->body.storage_type == MVM_STRING_STRAND
-        ? collapse_strands(tc, needle)
-        : needle;
+    if (needle->body.storage_type == MVM_STRING_STRAND) {
+        MVMROOT(tc, Haystack, {
+            flat_needle = collapse_strands(tc, needle);
+        });
+    }
+    else {
+        flat_needle = needle;
+    }
     /* Process the needle into a jump table put into variable 'next' */
     knuth_morris_pratt_process_pattern(tc, flat_needle, next, needle_graphs);
     /* If the Haystack is a strand, use MVM_string_gi_cached_get_grapheme
