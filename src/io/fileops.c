@@ -50,84 +50,84 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, void *f, MVMint64 status, MVMint32 
             break;
         case MVM_STAT_ISDIR:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = (statbuf.st_mode & S_IFMT) == S_IFDIR;
-			break;
+            r       = (statbuf.st_mode & S_IFMT) == S_IFDIR;
+            break;
         case MVM_STAT_ISREG:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = (statbuf.st_mode & S_IFMT) == S_IFREG;
-			break;
+            r       = (statbuf.st_mode & S_IFMT) == S_IFREG;
+            break;
 #ifdef _WIN32
         case MVM_STAT_ISDEV:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = statbuf.st_mode & S_IFMT == S_IFCHR;
-			break;
+            r       = statbuf.st_mode & S_IFMT == S_IFCHR;
+            break;
 #else
         case MVM_STAT_ISDEV:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = (statbuf.st_mode & S_IFMT) == S_IFCHR || (statbuf.st_mode & S_IFMT) == S_IFBLK;
-			break;
+            r       = (statbuf.st_mode & S_IFMT) == S_IFCHR || (statbuf.st_mode & S_IFMT) == S_IFBLK;
+            break;
 #endif
         case MVM_STAT_CREATETIME:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = statbuf.st_birthtim.tv_sec;
-			break;
+            r       = statbuf.st_birthtim.tv_sec;
+            break;
         case MVM_STAT_ACCESSTIME:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = statbuf.st_atim.tv_sec;
-			break;
+            r       = statbuf.st_atim.tv_sec;
+            break;
         case MVM_STAT_MODIFYTIME:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = statbuf.st_mtim.tv_sec;
-			break;
+            r       = statbuf.st_mtim.tv_sec;
+            break;
         case MVM_STAT_CHANGETIME:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = statbuf.st_ctim.tv_sec;
-			break;
+            r       = statbuf.st_ctim.tv_sec;
+            break;
 /*        case MVM_STAT_BACKUPTIME:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = -1;
-			break;
-			*/
+            r       = -1;
+            break;
+            */
         case MVM_STAT_UID:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = statbuf.st_uid;
-			break;
+            r       = statbuf.st_uid;
+            break;
         case MVM_STAT_GID:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = statbuf.st_gid;
-			break;
+            r       = statbuf.st_gid;
+            break;
         case MVM_STAT_ISLNK:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, 1);
-			r       = (statbuf.st_mode & S_IFMT) == S_IFLNK;
-			break;
+            r       = (statbuf.st_mode & S_IFMT) == S_IFLNK;
+            break;
         case MVM_STAT_PLATFORM_DEV:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = statbuf.st_dev;
-			break;
+            r       = statbuf.st_dev;
+            break;
         case MVM_STAT_PLATFORM_INODE:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = statbuf.st_ino;
-			break;
+            r       = statbuf.st_ino;
+            break;
         case MVM_STAT_PLATFORM_MODE:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = statbuf.st_mode;
-			break;
+            r       = statbuf.st_mode;
+            break;
         case MVM_STAT_PLATFORM_NLINKS:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = statbuf.st_nlink;
-			break;
+            r       = statbuf.st_nlink;
+            break;
         case MVM_STAT_PLATFORM_DEVTYPE:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = statbuf.st_rdev;
-			break;
+            r       = statbuf.st_rdev;
+            break;
         case MVM_STAT_PLATFORM_BLOCKSIZE:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = statbuf.st_blksize;
-			break;
+            r       = statbuf.st_blksize;
+            break;
         case MVM_STAT_PLATFORM_BLOCKS:
             statbuf = use_fstat ? file_info_fd(tc, *(int *)f) : file_info(tc, (MVMString *)f, use_lstat);
-			r       = statbuf.st_blocks;
-			break;
+            r       = statbuf.st_blocks;
+            break;
     }
 
     return r;
