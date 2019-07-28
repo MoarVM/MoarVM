@@ -199,6 +199,7 @@ sub main {
         write_file("ucd2c_extents.log", $LOG);
     }
     print "\nDONE!!!\n\n";
+    print "Make sure you update tests in roast by following docs/unicode-generated-tests.asciidoc in the roast repo\n";
     return 1;
 }
 sub find_quick_prop_data {
