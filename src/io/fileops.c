@@ -236,7 +236,7 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, void *f, MVMint32 use_lstat, MVMi
 
 #ifdef _WIN32
 #define FILE_IS(name, rwx) \
-    MVMint64 MVM_file_is ## name (MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat, MVMint32 use_fstat) { \
+    MVMint64 MVM_file_is ## name (MVMThreadContext *tc, void *f, MVMint32 use_lstat, MVMint32 use_fstat) { \
         if (!MVM_file_exists(tc, f, use_lstat, use_fstat)) { \
             return 0; \
         } else { \
@@ -248,7 +248,7 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, void *f, MVMint32 use_lstat, MVMi
 FILE_IS(readable, READ)
 FILE_IS(writable, WRITE)
 MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, void *f, MVMint32 use_lstat, MVMint32 use_fstat) {
-    if (!MVM_file_exists(tc, filename, use_lstat, use_fstat))
+    if (!MVM_file_exists(tc, f, use_lstat, use_fstat))
         return 0;
     else {
         MVMint64  r       = 0;
