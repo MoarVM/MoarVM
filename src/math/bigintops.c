@@ -860,7 +860,10 @@ MVMObject * MVM_coerce_sI(MVMThreadContext *tc, MVMString *s, MVMObject *type) {
     char *buf = NULL;
     int is_malloced = 0;
     MVMStringIndex i;
-    MVMObject *a = MVM_repr_alloc_init(tc, type);
+    MVMObject *a;
+    MVMROOT(tc, s, {
+        a = MVM_repr_alloc_init(tc, type);
+    });
     if (s->body.num_graphs < 120) {
         buf = alloca(s->body.num_graphs + 1);
     }
