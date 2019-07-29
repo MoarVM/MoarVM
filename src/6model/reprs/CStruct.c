@@ -511,13 +511,13 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                             obj = MVM_nativecall_make_cpointer(tc, typeobj, cobj);
                         }
                         else if(type == MVM_CSTRUCT_ATTR_STRING) {
-                            MVMROOT(tc, typeobj, {
+                            MVMROOT2(tc, typeobj, root, {
                                 MVMString *str = MVM_string_utf8_decode(tc, tc->instance->VMString,
                                     cobj, strlen(cobj));
                                 obj = MVM_repr_box_str(tc, typeobj, str);
                             });
                         }
-                        MVM_ASSIGN_REF(tc, &(root->header), body->child_objs[real_slot], obj);
+                        MVM_ASSIGN_REF(tc, &(root->header), ((MVMCStruct*)root)->body.child_objs[real_slot], obj);
                     }
                     else {
                         obj = typeobj;
