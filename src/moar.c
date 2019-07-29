@@ -144,6 +144,10 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up persistent object ID hash mutex. */
     init_mutex(instance->mutex_object_ids, "object ID hash");
 
+    /* Assume IPv6 works until it gets used for the first time. */
+    init_mutex(instance->mutex_ipv6, "IPv6");
+    instance->ipv6 = 1;
+
     /* Allocate all things during following setup steps directly in gen2, as
      * they will have program lifetime. */
     MVM_gc_allocate_gen2_default_set(instance->main_thread);

@@ -258,11 +258,69 @@ static size_t get_struct_size_for_family(sa_family_t family) {
     }
 }
 
-/*
- * This function may return any type of sockaddr e.g. sockaddr_un, sockaddr_in or sockaddr_in6
- * It shouldn't be a problem with general code as long as the port number is kept below the int16 limit: 65536
- * After this it defines the family which may spawn non internet sockaddr's
- * The family can be extracted by (port >> 16) & USHORT_MAX
+/* If the given family is AF_UNSPEC and the given hostname resolves to an IPv6
+ * address first, trying to use the resolved address will return an error of
+ * some sort on systems where IPv6 is enabled, but misconfigured. When we know
+ * that IPv6 doesn't actually work, use an IPv4 address instead (if any exists).
+ *
+ * Calls to this must be wrapped with calls to lock and unlock
+ * tc->instance->mutex_ipv6, and on_error should also unlock it if it's
+ * actually locked. */
+void MVM_io_get_usable_address(
+    MVMThreadContext         *tc,
+    char                     *host_cstr,
+    int                       port,
+    unsigned short            family,
+    struct addrinfo         **result,
+    void                     *misc_data,
+    MVMIOGetUsableAddressCB   on_error
+) {
+    struct addrinfo *res;
+
+    if (family == AF_UNSPEC && (*result)->ai_family == AF_INET6 && tc->instance->ipv6 == 0) {
+        /* Look for an IPv4 address. */
+        for (res = *result; res != NULL && res->ai_family != AF_INET; res = res->ai_next) {
+            (*result)->ai_next = NULL;
+            freeaddrinfo(*result);
+            *result = res;
+        }
+
+        if (res == NULL)
+            on_error(tc, host_cstr, port, family, result, misc_data);
+    }
+}
+
+/* Miscellaneous host name resolving error data. */
+typedef struct {
+    int e;
+    int locked;
+} ResolveErrorData;
+
+MVM_NO_RETURN static void on_resolve_host_name_error(
+    MVMThreadContext  *tc,
+    char              *host_cstr,
+    int                port,
+    unsigned short     family,
+    struct addrinfo  **result,
+    void              *misc_data
+) {
+    char *waste[]          = { host_cstr, NULL };
+    ResolveErrorData *data = (ResolveErrorData *)misc_data;
+    int               e    = data->e;
+
+    if (data->locked)
+        uv_mutex_unlock(&tc->instance->mutex_ipv6);
+
+    if (*result != NULL)
+        freeaddrinfo(*result);
+    MVM_free(misc_data);
+
+    MVM_exception_throw_adhoc_free(tc, waste, "Failed to resolve host name '%s' at port %d with family %d. Error: '%s'",
+                                   host_cstr, port, family, gai_strerror(e));
+}
+
+/* This function may return an addrinfo containing any type of sockaddr e.g.
+ * sockaddr_un, sockaddr_in, or sockaddr_in6.
  *
  * Currently supported families:
  *
@@ -281,29 +339,43 @@ static size_t get_struct_size_for_family(sa_family_t family) {
  *   will spawn an unix domain socket on /run/moarvm.sock
  */
 
-struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host, MVMint64 port, MVMuint16 family) {
-    char *host_cstr = MVM_string_utf8_encode_C_string(tc, host);
-    struct sockaddr *dest;
-    int error;
-    struct addrinfo *result;
-    char port_cstr[8];
-    struct addrinfo hints;
+struct addrinfo * MVM_io_resolve_host_name(
+    MVMThreadContext *tc,
+    MVMString        *host,
+    MVMint64          port,
+    MVMuint16         family,
+    MVMint32          type
+) {
+    char             *host_cstr     = MVM_string_utf8_encode_C_string(tc, host);
+    struct addrinfo  *result        = NULL;
+    char              port_cstr[8];
+    struct addrinfo   hints;
+    int               e;
+    ResolveErrorData *e_data;
 
 #ifndef _WIN32
     if (family == SOCKET_FAMILY_UNIX) {
-        struct sockaddr_un *result_un = MVM_malloc(sizeof(struct sockaddr_un));
+        struct sockaddr_un *dest_un = MVM_malloc(sizeof(struct sockaddr_un));
+
+        result               = MVM_malloc(sizeof(struct addrinfo));
+        result->ai_family    = AF_UNIX;
+        result->ai_addr      = MVM_malloc(sizeof(struct sockaddr));
+        result->ai_next      = NULL;
+        result->ai_canonname = MVM_malloc(sizeof(char));
 
         if (strlen(host_cstr) > 107) {
-            MVM_free(result_un);
             MVM_free(host_cstr);
+            freeaddrinfo(result);
+            MVM_free(dest_un);
             MVM_exception_throw_adhoc(tc, "Socket path can only be maximal 107 characters long");
         }
 
-        result_un->sun_family = AF_UNIX;
-        strcpy(result_un->sun_path, host_cstr);
+        dest_un->sun_family = AF_UNIX;
+        strcpy(dest_un->sun_path, host_cstr);
         MVM_free(host_cstr);
 
-        return (struct sockaddr *)result_un;
+        result->ai_addr = (struct sockaddr *)dest_un;
+        return result;
     }
 #endif
 
@@ -325,80 +397,174 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
             break;
     }
 
-    hints.ai_socktype = 0;
-    hints.ai_flags = AI_PASSIVE;
-    hints.ai_protocol = 0;
-    hints.ai_addrlen = 0;
-    hints.ai_addr = NULL;
+    hints.ai_socktype  = type;
+    hints.ai_flags     = AI_PASSIVE;
+    hints.ai_protocol  = 0;
+    hints.ai_addrlen   = 0;
+    hints.ai_addr      = NULL;
     hints.ai_canonname = NULL;
-    hints.ai_next = NULL;
+    hints.ai_next      = NULL;
 
     snprintf(port_cstr, 8, "%d", (int)port);
 
     MVM_gc_mark_thread_blocked(tc);
-    error = getaddrinfo(host_cstr, port_cstr, &hints, &result);
+    e = getaddrinfo(host_cstr, port_cstr, &hints, &result);
     MVM_gc_mark_thread_unblocked(tc);
-    if (error == 0) {
-        size_t size = get_struct_size_for_family(result->ai_addr->sa_family);
+
+    if (e == 0) {
+        uv_mutex_lock(&tc->instance->mutex_ipv6);
+
+        e_data         = MVM_malloc(sizeof(ResolveErrorData));
+        e_data->e      = EHOSTUNREACH;
+        e_data->locked = 1;
+        MVM_io_get_usable_address(tc, host_cstr, port, family, &result, e_data, &on_resolve_host_name_error);
+
+        uv_mutex_unlock(&tc->instance->mutex_ipv6);
+
         MVM_free(host_cstr);
-        dest = MVM_malloc(size);
-        memcpy(dest, result->ai_addr, size);
     }
     else {
-        char *waste[] = { host_cstr, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste, "Failed to resolve host name '%s' with family %hu. Error: '%s'",
-                                       host_cstr, family, gai_strerror(error));
+        e_data         = MVM_malloc(sizeof(ResolveErrorData));
+        e_data->e      = e;
+        e_data->locked = 0;
+        on_resolve_host_name_error(tc, host_cstr, port, family, &result, e_data);
     }
-    freeaddrinfo(result);
 
-    return dest;
+    return result;
+}
+
+/* Miscellaneous connection error data. */
+typedef struct {
+    unsigned int interval_id;
+    int          e;
+    int          locked;
+} ConnectErrorData;
+
+MVM_NO_RETURN static void on_socket_connect_error(
+    MVMThreadContext *tc,
+    char             *host_cstr,
+    int               port,
+    unsigned short    family,
+    struct addrinfo **result,
+    void             *misc_data
+) {
+    ConnectErrorData *data = (ConnectErrorData *)misc_data;
+    int               e    = data->e;
+
+    if (data->locked)
+        uv_mutex_unlock(&tc->instance->mutex_ipv6);
+
+    MVM_telemetry_interval_stop(tc, data->interval_id, "syncsocket connect");
+    MVM_free(host_cstr);
+    if (*result != NULL)
+        freeaddrinfo(*result);
+    MVM_free(data);
+
+    throw_error(tc, e, "connect socket");
 }
 
 /* Establishes a connection. */
 static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMuint16 family) {
-    MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
-    unsigned int interval_id;
+    MVMIOSyncSocketData *data         = (MVMIOSyncSocketData *)h->body.data;
+    unsigned int         interval_id;
+    char                *host_cstr    = MVM_string_utf8_encode_C_string(tc, host);
+    struct addrinfo     *result       = NULL;
+    int                  e;
+    ConnectErrorData    *e_data       = NULL;
 
     interval_id = MVM_telemetry_interval_start(tc, "syncsocket connect");
     if (!data->handle) {
-        struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family);
-        int r;
+        size_t size;
+        int    r;
+        Socket s;
 
-        Socket s = socket(dest->sa_family , SOCK_STREAM , 0);
+        result = MVM_io_resolve_host_name(tc, host, port, family, SOCK_STREAM);
+        size   = get_struct_size_for_family(result->ai_family);
+
+connect:
+        s = socket(result->ai_family, SOCK_STREAM, 0);
         if (MVM_IS_SOCKET_ERROR(s)) {
-            MVM_free(dest);
-            MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
-            throw_error(tc, s, "create socket");
+            e = s;
+            goto error;
         }
 
         do {
             MVM_gc_mark_thread_blocked(tc);
-            r = connect(s, dest, (socklen_t)get_struct_size_for_family(dest->sa_family));
+            r = connect(s, result->ai_addr, (socklen_t)size);
             MVM_gc_mark_thread_unblocked(tc);
-        } while(r == -1 && errno == EINTR);
-        MVM_free(dest);
-        if (MVM_IS_SOCKET_ERROR(r)) {
-            MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
-            throw_error(tc, s, "connect socket");
-        }
+        } while (r == -1 && errno == EINTR);
 
-        data->handle = s;
+        if (MVM_IS_SOCKET_ERROR(r)) {
+            if ((errno == EHOSTUNREACH || errno == ETIMEDOUT || errno == EACCES || errno == ECONNREFUSED)
+             && family == AF_UNSPEC
+             && result->ai_family == AF_INET6) {
+                /* The firewall or the networking interface used on either end
+                 * of the connection is likely isn't configured to use IPv6
+                 * properly. */
+                uv_mutex_lock(&tc->instance->mutex_ipv6);
+                if (tc->instance->ipv6) {
+                    /* We now know IPv6 doesn't work. Stop trying to connect to
+                     * IPv6 addresses when AF_UNSPEC is specified. */
+                    tc->instance->ipv6 = 0;
+
+                    e_data              = MVM_malloc(sizeof(ConnectErrorData));
+                    e_data->e           = r;
+                    e_data->interval_id = interval_id;
+                    e_data->locked      = 1;
+
+                    MVM_io_get_usable_address(tc, host_cstr, port, family, &result, e_data, on_socket_connect_error);
+                    uv_mutex_unlock(&tc->instance->mutex_ipv6);
+
+                    size = get_struct_size_for_family(result->ai_family);
+                    close(s);
+                    goto connect;
+                }
+                else {
+                    /* It shouldn't be possible for us to end up here, but just
+                     * in case... */
+                    uv_mutex_unlock(&tc->instance->mutex_ipv6);
+                    e = errno;
+                    goto error;
+                }
+            }
+            else {
+                e = errno;
+                goto error;
+            }
+        }
+        else {
+            MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
+            MVM_free(host_cstr);
+            freeaddrinfo(result);
+            MVM_free(e_data);
+
+            data->handle = s;
+            return;
+        }
     }
     else {
         MVM_telemetry_interval_stop(tc, interval_id, "syncsocket didn't connect");
         MVM_exception_throw_adhoc(tc, "Socket is already bound or connected");
     }
+
+error:
+    if (e_data == NULL)
+        e_data = MVM_malloc(sizeof(ConnectErrorData));
+    e_data->e           = e;
+    e_data->interval_id = interval_id;
+    e_data->locked      = 0;
+    on_socket_connect_error(tc, host_cstr, port, family, &result, e_data);
 }
 
 static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMuint16 family, MVMint32 backlog) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     if (!data->handle) {
-        struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family);
+        struct addrinfo *result = MVM_io_resolve_host_name(tc, host, port, family, SOCK_STREAM);
         int r;
 
-        Socket s = socket(dest->sa_family , SOCK_STREAM , 0);
+        Socket s = socket(result->ai_family, SOCK_STREAM, 0);
         if (MVM_IS_SOCKET_ERROR(s)) {
-            MVM_free(dest);
+            freeaddrinfo(result);
             throw_error(tc, s, "create socket");
         }
 
@@ -415,14 +581,14 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
         }
 #endif
 
-        r = bind(s, dest, (socklen_t)get_struct_size_for_family(dest->sa_family));
-        MVM_free(dest);
+        r = bind(s, result->ai_addr, (socklen_t)get_struct_size_for_family(result->ai_family));
+        freeaddrinfo(result);
         if (MVM_IS_SOCKET_ERROR(r))
-            throw_error(tc, s, "bind socket");
+            throw_error(tc, r, "bind socket");
 
         r = listen(s, (int)backlog);
         if (MVM_IS_SOCKET_ERROR(r))
-            throw_error(tc, s, "start listening on socket");
+            throw_error(tc, r, "start listening on socket");
 
         data->handle = s;
     }
@@ -508,7 +674,7 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
         MVM_gc_mark_thread_blocked(tc);
         s = accept(data->handle, NULL, NULL);
         MVM_gc_mark_thread_unblocked(tc);
-    } while(s == -1 && errno == EINTR);
+    } while (s == -1 && errno == EINTR);
     if (MVM_IS_SOCKET_ERROR(s)) {
         MVM_telemetry_interval_stop(tc, interval_id, "syncsocket accept failed");
         throw_error(tc, s, "accept socket connection");

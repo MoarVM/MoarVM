@@ -373,6 +373,11 @@ struct MVMInstance {
     /* Flags indicating the signals available on the host system */
     MVMuint64       valid_sigs;
 
+    /* Whether or not IPv6 actually works. This is necessary for systems where
+     * IPv6 is enabled, but misconfigured. */
+    uv_mutex_t      mutex_ipv6;
+    MVMuint8        ipv6;
+
     /************************************************************************
      * Caching and interning
      ************************************************************************/
