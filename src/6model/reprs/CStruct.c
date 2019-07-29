@@ -216,6 +216,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     if (inlined) {
                         MVMCArrayREPRData *carray_repr_data = (MVMCArrayREPRData *)STABLE(type)->REPR_data;
                         if (!carray_repr_data) {
+                            MVM_gc_allocate_gen2_default_clear(tc);
                             MVM_exception_throw_adhoc(tc,
                                 "CStruct: can't inline a CArray attribute before its type's definition");
                         }
@@ -253,6 +254,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     if (inlined) {
                         MVMCStructREPRData *cstruct_repr_data = (MVMCStructREPRData *)STABLE(type)->REPR_data;
                         if (!cstruct_repr_data) {
+                            MVM_gc_allocate_gen2_default_clear(tc);
                             MVM_exception_throw_adhoc(tc,
                                 "CStruct: can't inline a CStruct attribute before its type's definition");
                         }
@@ -269,6 +271,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     if (inlined) {
                         MVMCPPStructREPRData *cppstruct_repr_data = (MVMCPPStructREPRData *)STABLE(type)->REPR_data;
                         if (!cppstruct_repr_data) {
+                            MVM_gc_allocate_gen2_default_clear(tc);
                             MVM_exception_throw_adhoc(tc,
                                 "CStruct: can't inline a CPPStruct attribute before its type's definition");
                         }
@@ -285,6 +288,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     if (inlined) {
                         MVMCUnionREPRData *cunion_repr_data = (MVMCUnionREPRData *)STABLE(type)->REPR_data;
                         if (!cunion_repr_data) {
+                            MVM_gc_allocate_gen2_default_clear(tc);
                             MVM_exception_throw_adhoc(tc,
                                 "CStruct: can't inline a CUnion attribute before its type's definition");
                         }

@@ -715,6 +715,7 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
                     if (cur_to_promote == tc->thread_entry_frame)
                         tc->thread_entry_frame = promoted;
                     cur_to_promote = NULL;
+                    MVM_gc_write_barrier(tc, (MVMCollectable*)promoted, (MVMCollectable*)promoted->caller);
                 }
             }
             else {

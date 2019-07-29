@@ -64,6 +64,7 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
             MVM_repr_push_o(tc, attr_map_list, attr_map);
         }
         else {
+            MVM_gc_allocate_gen2_default_clear(tc);
             MVM_exception_throw_adhoc(tc,
                 "CUnion representation does not support multiple inheritance");
         }
@@ -181,6 +182,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     if (inlined) {
                         MVMCStructREPRData *cstruct_repr_data = (MVMCStructREPRData *)STABLE(type)->REPR_data;
                         if (!cstruct_repr_data) {
+                            MVM_gc_allocate_gen2_default_clear(tc);
                             MVM_exception_throw_adhoc(tc,
                                 "CUnion: can't inline a CStruct attribute before its type's definition");
                         }
@@ -197,6 +199,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     if (inlined) {
                         MVMCPPStructREPRData *cppstruct_repr_data = (MVMCPPStructREPRData *)STABLE(type)->REPR_data;
                         if (!cppstruct_repr_data) {
+                            MVM_gc_allocate_gen2_default_clear(tc);
                             MVM_exception_throw_adhoc(tc,
                                 "CUnion: can't inline a CPPStruct attribute before its type's definition");
                         }
@@ -213,6 +216,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     if (inlined) {
                         MVMCUnionREPRData *cunion_repr_data = (MVMCUnionREPRData *)STABLE(type)->REPR_data;
                         if (!cunion_repr_data) {
+                            MVM_gc_allocate_gen2_default_clear(tc);
                             MVM_exception_throw_adhoc(tc,
                                 "CUnion: can't inline a CUnion attribute before its type's definition");
                         }
@@ -228,6 +232,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     repr_data->member_types[i] = type;
                 }
                 else {
+                    MVM_gc_allocate_gen2_default_clear(tc);
                     MVM_exception_throw_adhoc(tc,
                         "CUnion representation only handles attributes of type:\n"
                         "  (u)int8, (u)int16, (u)int32, (u)int64, (u)long, (u)longlong, num32, num64, (s)size_t, bool, Str\n"
@@ -235,12 +240,14 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                 }
             }
             else {
+                MVM_gc_allocate_gen2_default_clear(tc);
                 MVM_exception_throw_adhoc(tc,
                     "CUnion representation requires the types of all attributes to be specified");
             }
 
             if (bits % 8) {
-                 MVM_exception_throw_adhoc(tc,
+                MVM_gc_allocate_gen2_default_clear(tc);
+                MVM_exception_throw_adhoc(tc,
                     "CUnion only supports native types that are a multiple of 8 bits wide (was passed: %"PRId32")", bits);
             }
 
