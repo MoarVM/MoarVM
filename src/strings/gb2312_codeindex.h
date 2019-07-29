@@ -1,4 +1,10 @@
 #define GB2312_NULL -1
+
+/* Conversion tables are generated according to mapping from
+ * unicode.org-mappings/EASTASIA/GB/GB2312.TXT
+ * at https://haible.de/bruno/charsets/conversion-tables/GB2312.html
+ * The following tables use EUC form for GB2312 characters. */ 
+
 const static MVMGrapheme32 gb2312_index_to_cp_record[87][94]=
 {{0x3000,0x3001,0x3002,0x30fb,0x2c9,0x2c7,0xa8,0x3003,0x3005,0x2015,0xff5e
 ,0x2016,0x2026,0x2018,0x2019,0x201c,0x201d,0x3014,0x3015,0x3008,0x3009,0x300a
