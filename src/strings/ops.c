@@ -823,8 +823,10 @@ static MVMuint16 final_strand_match_with_repetition_count(MVMThreadContext *tc, 
             MVMStringStrand *sb = &(b->body.storage.strands[0]);
             if (sa->end - sa->start == sb->end - sb->start) {
                 MVMString *a_strand, *b_strand;
-                MVMROOT2(tc, a, b, {
+                MVMROOT(tc, b, {
                     a_strand = string_from_strand_at_index(tc, a, a->body.num_strands - 1);
+                });
+                MVMROOT(tc, a_strand, {
                     b_strand = string_from_strand_at_index(tc, b, 0);
                 });
                 if (MVM_string_equal(tc, a_strand, b_strand))
