@@ -428,6 +428,7 @@ void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
            location cu->body.filename */
         MVMString *const str = MVM_string_utf8_c8_decode(tc, instance->VMString, filename, strlen(filename));
         cu->body.filename = str;
+        MVM_gc_write_barrier_hit(tc, (MVMCollectable *)cu);
 
         /* Run deserialization frame, if there is one. Disable specialization
          * during this time, so we don't waste time logging one-shot setup

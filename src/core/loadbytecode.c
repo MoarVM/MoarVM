@@ -101,13 +101,14 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
     }
 
     /* Otherwise, load from disk. */
-    MVMROOT(tc, filename, {
+    MVMROOT2(tc, cu, filename, {
         char *c_filename = MVM_string_utf8_c8_encode_C_string(tc, filename);
         /* XXX any exception from MVM_cu_map_from_file needs to be handled
          *     and c_filename needs to be freed */
         cu = MVM_cu_map_from_file(tc, c_filename);
         MVM_free(c_filename);
         cu->body.filename = filename;
+        MVM_gc_write_barrier_hit(tc, (MVMCollectable *)cu);
 
         run_comp_unit(tc, cu);
 
@@ -126,10 +127,11 @@ void MVM_load_bytecode_fh(MVMThreadContext *tc, MVMObject *oshandle, MVMString *
     if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle)
         MVM_exception_throw_adhoc(tc, "loadbytecodefh requires an object with REPR MVMOSHandle");
 
-    MVMROOT(tc, filename, {
+    MVMROOT2(tc, cu, filename, {
         MVMuint64 pos = MVM_io_tell(tc, oshandle);
         cu = MVM_cu_map_from_file_handle(tc, MVM_io_fileno(tc, oshandle), pos);
         cu->body.filename = filename;
+        MVM_gc_write_barrier_hit(tc, (MVMCollectable *)cu);
 
         run_comp_unit(tc, cu);
     });
