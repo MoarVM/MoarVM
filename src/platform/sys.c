@@ -29,19 +29,31 @@ MVMObject * MVM_platform_uname(MVMThreadContext *tc) {
         MVM_exception_throw_adhoc(tc, "Unable to uname: %s", uv_strerror(error));
 
     MVMROOT(tc, result, {
-        MVMString *sysname;
-        MVMString *release;
-        MVMString *version;
-        MVMString *machine;
-        sysname = MVM_string_utf8_decode(tc, tc->instance->VMString, uname.sysname, strlen((char *)uname.sysname));
-        release = MVM_string_utf8_decode(tc, tc->instance->VMString, uname.release, strlen((char *)uname.release));
-        version = MVM_string_utf8_decode(tc, tc->instance->VMString, uname.version, strlen((char *)uname.version));
-        machine = MVM_string_utf8_decode(tc, tc->instance->VMString, uname.machine, strlen((char *)uname.machine));
         result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStrArray);
-        MVM_repr_push_s(tc, result, sysname);
-        MVM_repr_push_s(tc, result, release);
-        MVM_repr_push_s(tc, result, version);
-        MVM_repr_push_s(tc, result, machine);
+
+        MVM_repr_push_s(
+            tc,
+            result,
+            MVM_string_utf8_decode(tc, tc->instance->VMString, uname.sysname, strlen((char *)uname.sysname))
+        );
+
+        MVM_repr_push_s(
+            tc,
+            result,
+            MVM_string_utf8_decode(tc, tc->instance->VMString, uname.release, strlen((char *)uname.release))
+        );
+
+        MVM_repr_push_s(
+            tc,
+            result,
+            MVM_string_utf8_decode(tc, tc->instance->VMString, uname.version, strlen((char *)uname.version))
+        );
+
+        MVM_repr_push_s(
+            tc,
+            result,
+            MVM_string_utf8_decode(tc, tc->instance->VMString, uname.machine, strlen((char *)uname.machine))
+        );
     });
 
     return result;
