@@ -3564,7 +3564,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(exists_f):
-                GET_REG(cur_op, 0).i64 = MVM_file_exists(tc, GET_REG(cur_op, 2).s, 0);
+                GET_REG(cur_op, 0).i64 = MVM_file_exists(tc, GET_REG(cur_op, 2).s, 0, 0);
                 cur_op += 4;
                 goto NEXT;
             OP(mkdir):
@@ -3673,7 +3673,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(stat):
-                GET_REG(cur_op, 0).i64 = MVM_file_stat(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 0);
+                GET_REG(cur_op, 0).i64 = MVM_file_stat(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 0, 0);
                 cur_op += 6;
                 goto NEXT;
             OP(tryfindmeth): {
@@ -3865,15 +3865,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(filereadable):
-                GET_REG(cur_op, 0).i64 = MVM_file_isreadable(tc, GET_REG(cur_op, 2).s,0);
+                GET_REG(cur_op, 0).i64 = MVM_file_isreadable(tc, GET_REG(cur_op, 2).s, 0, 0);
                 cur_op += 4;
                 goto NEXT;
             OP(filewritable):
-                GET_REG(cur_op, 0).i64 = MVM_file_iswritable(tc, GET_REG(cur_op, 2).s,0);
+                GET_REG(cur_op, 0).i64 = MVM_file_iswritable(tc, GET_REG(cur_op, 2).s, 0, 0);
                 cur_op += 4;
                 goto NEXT;
             OP(fileexecutable):
-                GET_REG(cur_op, 0).i64 = MVM_file_isexecutable(tc, GET_REG(cur_op, 2).s,0);
+                GET_REG(cur_op, 0).i64 = MVM_file_isexecutable(tc, GET_REG(cur_op, 2).s, 0, 0);
                 cur_op += 4;
                 goto NEXT;
             OP(capturenamedshash): {
@@ -4441,7 +4441,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(lstat):
-                GET_REG(cur_op, 0).i64 = MVM_file_stat(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 1);
+                GET_REG(cur_op, 0).i64 = MVM_file_stat(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 1, 0);
                 cur_op += 6;
                 goto NEXT;
             OP(iscont_i):
@@ -4986,11 +4986,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(stat_time):
-                GET_REG(cur_op, 0).n64 = MVM_file_time(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 0);
+                GET_REG(cur_op, 0).n64 = MVM_file_time(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 0, 0);
                 cur_op += 6;
                 goto NEXT;
             OP(lstat_time):
-                GET_REG(cur_op, 0).n64 = MVM_file_time(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 1);
+                GET_REG(cur_op, 0).n64 = MVM_file_time(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 1, 0);
                 cur_op += 6;
                 goto NEXT;
             OP(setdebugtypename):
@@ -5613,6 +5613,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(totalmem):
                 GET_REG(cur_op, 0).i64 = MVM_platform_total_memory();
                 cur_op += 2;
+                goto NEXT;
+            OP(fdopen_fh):
+                GET_REG(cur_op, 0).o = MVM_file_handle_from_fd(tc, (int)GET_REG(cur_op, 2).i32);
+                cur_op += 4;
+                goto NEXT;
+            OP(fstat):
+                GET_REG(cur_op, 0).i64 = MVM_file_stat(tc, (int *)&GET_REG(cur_op, 2).i32, GET_REG(cur_op, 4).i64, 0, 1);
+                cur_op += 6;
+                goto NEXT;
+            OP(fstat_time):
+                GET_REG(cur_op, 0).n64 = MVM_file_time(tc, (int *)&GET_REG(cur_op, 2).i32, GET_REG(cur_op, 4).i64, 0, 1);
+                cur_op += 6;
                 goto NEXT;
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);

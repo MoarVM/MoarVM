@@ -397,8 +397,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_strfromname: return MVM_unicode_string_from_name;
     case MVM_OP_strfromcodes: return MVM_unicode_codepoints_to_nfg_string;
     case MVM_OP_callercode: return MVM_frame_caller_code;
-    case MVM_OP_stat: return MVM_file_stat;
-    case MVM_OP_lstat: return MVM_file_stat;
+    case MVM_OP_stat: case MVM_OP_lstat: case MVM_OP_fstat: return MVM_file_stat;
 
     case MVM_OP_getuniprop_int: return MVM_unicode_codepoint_get_property_int;
     case MVM_OP_getuniprop_bool: return MVM_unicode_codepoint_get_property_bool;
@@ -2778,15 +2777,17 @@ start:
         break;
     }
     case MVM_OP_stat:
-    case MVM_OP_lstat: {
-        MVMint16 dst      = ins->operands[0].reg.orig;
-        MVMint16 filename = ins->operands[1].reg.orig;
-        MVMint16 status   = ins->operands[2].reg.orig;
+    case MVM_OP_lstat:
+    case MVM_OP_fstat: {
+        MVMint16 dst    = ins->operands[0].reg.orig;
+        MVMint16 f      = ins->operands[1].reg.orig;
+        MVMint16 status = ins->operands[2].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_REG_VAL, { filename } },
+                                 { MVM_JIT_REG_VAL, { f } },
                                  { MVM_JIT_REG_VAL, { status } },
-                                 { MVM_JIT_LITERAL, { op == MVM_OP_stat ? 0 : 1 } } };
-        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_INT, dst);
+                                 { MVM_JIT_LITERAL, { op == MVM_OP_lstat } },
+                                 { MVM_JIT_LITERAL, { op == MVM_OP_fstat } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 5, args, MVM_JIT_RV_INT, dst);
         break;
     }
     case MVM_OP_open_dir: {

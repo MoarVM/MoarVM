@@ -24,16 +24,16 @@
 #define MVM_STAT_PLATFORM_BLOCKSIZE -6
 #define MVM_STAT_PLATFORM_BLOCKS    -7
 
-MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 status, MVMint32 use_lstat);
-MVMnum64 MVM_file_time(MVMThreadContext *tc, MVMString *filename, MVMint64 status, MVMint32 use_lstat);
+MVMint64 MVM_file_stat(MVMThreadContext *tc, void *f, MVMint64 status, MVMint32 use_lstat, MVMint32 use_fstat);
+MVMnum64 MVM_file_time(MVMThreadContext *tc, void *f, MVMint64 status, MVMint32 use_lstat, MVMint32 use_fstat);
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest);
 void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest);
 void MVM_file_delete(MVMThreadContext *tc, MVMString *f);
 void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag);
-MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f, MVMint32 use_lstat);
-MVMint64 MVM_file_isreadable(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat);
-MVMint64 MVM_file_iswritable(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat);
-MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat);
+MVMint64 MVM_file_exists(MVMThreadContext *tc, void *f, MVMint32 use_lstat, MVMint32 use_fstat);
+MVMint64 MVM_file_isreadable(MVMThreadContext *tc, void *f, MVMint32 use_lstat, MVMint32 use_fstat);
+MVMint64 MVM_file_iswritable(MVMThreadContext *tc, void *f, MVMint32 use_lstat, MVMint32 use_fstat);
+MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, void *f, MVMint32 use_lstat, MVMint32 use_fstat);
 MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMint32 type);
 MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig);
 void MVM_file_link(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpath);

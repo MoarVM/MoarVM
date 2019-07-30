@@ -825,7 +825,10 @@ BEGIN {
     2070,
     2072,
     2073,
-    2074);
+    2074,
+    2075,
+    2077,
+    2080);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     2,
     2,
@@ -1648,7 +1651,10 @@ BEGIN {
     2,
     1,
     1,
-    1);
+    1,
+    2,
+    3,
+    3);
     MAST::Ops.WHO<@values> := nqp::list_i(10,
     8,
     18,
@@ -3723,7 +3729,15 @@ BEGIN {
     65,
     66,
     34,
-    34);
+    34,
+    66,
+    25,
+    34,
+    25,
+    33,
+    50,
+    25,
+    33);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'const_i8', 1,
     'const_i16', 2,
@@ -4546,7 +4560,10 @@ BEGIN {
     'smrt_intify', 819,
     'uname', 820,
     'freemem', 821,
-    'totalmem', 822);
+    'totalmem', 822,
+    'fdopen_fh', 823,
+    'fstat', 824,
+    'fstat_time', 825);
     MAST::Ops.WHO<@names> := nqp::list_s('no_op',
     'const_i8',
     'const_i16',
@@ -5369,7 +5386,10 @@ BEGIN {
     'smrt_intify',
     'uname',
     'freemem',
-    'totalmem');
+    'totalmem',
+    'fdopen_fh',
+    'fstat',
+    'fstat_time');
     MAST::Ops.WHO<%generators> := nqp::hash('no_op', sub () {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
@@ -11576,5 +11596,28 @@ BEGIN {
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 822, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+    },
+    'fdopen_fh', sub ($op0, $op1) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+        nqp::writeuint($bytecode, $elems, 823, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+    },
+    'fstat', sub ($op0, $op1, $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+        nqp::writeuint($bytecode, $elems, 824, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+    },
+    'fstat_time', sub ($op0, $op1, $op2) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+        nqp::writeuint($bytecode, $elems, 825, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     });
 }
