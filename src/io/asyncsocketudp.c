@@ -504,18 +504,21 @@ static void setup_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
 
     if (r >= 0) {
         /* UDP handle initialized; wrap it up in an I/O handle and send. */
-        MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
         MVMAsyncTask *t   = (MVMAsyncTask *)async_task;
-        MVM_repr_push_o(tc, arr, t->body.schedulee);
-        MVMROOT2(tc, arr, t, {
-            MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-            MVMIOAsyncUDPSocketData *data   = MVM_calloc(1, sizeof(MVMIOAsyncUDPSocketData));
-            data->handle                 = udp_handle;
-            result->body.ops             = &op_table;
-            result->body.data            = data;
-            MVM_repr_push_o(tc, arr, (MVMObject *)result);
+        MVMObject    *arr;
+        MVMROOT(tc, t, {
+            arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+            MVM_repr_push_o(tc, arr, t->body.schedulee);
+            MVMROOT(tc, arr, {
+                MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
+                MVMIOAsyncUDPSocketData *data   = MVM_calloc(1, sizeof(MVMIOAsyncUDPSocketData));
+                data->handle                 = udp_handle;
+                result->body.ops             = &op_table;
+                result->body.data            = data;
+                MVM_repr_push_o(tc, arr, (MVMObject *)result);
+            });
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
         });
-        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
         MVM_repr_push_o(tc, t->body.queue, arr);
     }
     else {
