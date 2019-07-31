@@ -173,7 +173,7 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
      * is vivified to prevent the clone (which is what creates the correct
      * BEGIN/INIT semantics). */
     if (static_frame->body.env_size) {
-        frame->env = MVM_fixed_size_alloc(tc, tc->instance->fsa, static_frame->body.env_size);
+        frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, static_frame->body.env_size);
         frame->allocd_env = static_frame->body.env_size;
         if (autoclose) {
             MVMROOT2(tc, frame, static_frame, {
