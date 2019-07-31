@@ -945,11 +945,15 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             if (MVM_STRING_MAX_STRANDS < strands_a + strands_b) {
                 MVMROOT(tc, result, {
                     if (strands_b <= strands_a) {
-                        effective_a = collapse_strands(tc, effective_a);
+                        MVMROOT(tc, effective_b, {
+                            effective_a = collapse_strands(tc, effective_a);
+                        });
                         strands_a   = 1;
                     }
                     else {
-                        effective_b = collapse_strands(tc, effective_b);
+                        MVMROOT(tc, effective_a, {
+                            effective_b = collapse_strands(tc, effective_b);
+                        });
                         strands_b   = 1;
                     }
                 });
