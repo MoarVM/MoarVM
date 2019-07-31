@@ -565,12 +565,9 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
      * For now we decompose utf8-c8 synthetics. Eventually we may want to pass
      * them back and choose some way to generate sorting info for them, similar
      * to how Unassigned codepoints are dealt with */
-    MVMROOT(tc, a_ci, {
-        MVM_string_ci_init(tc, &a_ci, a, 0, 0);
-        MVMROOT(tc, b_ci, {
-            MVM_string_ci_init(tc, &b_ci, b, 0, 0);
-        });
-    });
+    MVM_string_ci_init(tc, &a_ci, a, 0, 0);
+    MVM_string_ci_init(tc, &b_ci, b, 0, 0);
+
     init_ringbuffer(tc, &buf_a);
     init_ringbuffer(tc, &buf_b);
     /* The ring buffers hold the exact number of codepoints which comprise the longest
