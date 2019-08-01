@@ -127,8 +127,10 @@ static void wval_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 tgt_ori
 static void wvalfrom_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 tgt_orig,
                            MVMuint16 tgt_i, MVMuint16 sslot, MVMint64 idx) {
     MVMSerializationContext *sc = (MVMSerializationContext *)g->spesh_slots[sslot];
-    MVMObject *target = MVM_sc_get_object(tc, sc, idx);
-    object_facts(tc, g, tgt_orig, tgt_i, MVM_sc_try_get_object(tc, sc, idx));
+    if (MVM_sc_is_object_immediately_available(tc, sc, idx)) {
+        MVMObject *target = MVM_sc_get_object(tc, sc, idx);
+        object_facts(tc, g, tgt_orig, tgt_i, MVM_sc_try_get_object(tc, sc, idx));
+    }
 }
 
 /* Let's figure out what exact type of iter we'll get from an iter op */
