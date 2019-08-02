@@ -2691,6 +2691,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_coerce_in:
             optimize_coerce(tc, g, bb, ins);
             break;
+        case MVM_OP_smrt_intify:
         case MVM_OP_smrt_numify:
         case MVM_OP_smrt_strify:
             optimize_smart_coerce(tc, g, bb, ins);
