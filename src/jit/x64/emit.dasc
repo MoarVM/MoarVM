@@ -2282,6 +2282,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |1:
         | mov TMP2, aword WORK[code];
         | mov aword CODE:TMP1->body.code_object, TMP2;
+        | check_wb TMP1, TMP2, >2;
+        | hit_wb TMP1, TMP2
+        |2:
+        |
         break;
     }
     case MVM_OP_lastexpayload: {
