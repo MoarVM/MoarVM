@@ -249,6 +249,10 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
                     other->thread_id, (int)MVM_load(&thread_obj->body.stage));
             }
 
+#if MVM_GC_DEBUG >= 3
+                memset(other->nursery_fromspace, 0xef, other->nursery_fromspace_size);
+#endif
+
             /* Mark thread free to continue. */
             MVM_cas(&other->gc_status, MVMGCStatus_STOLEN, MVMGCStatus_UNABLE);
             MVM_cas(&other->gc_status, MVMGCStatus_INTERRUPT, MVMGCStatus_NONE);

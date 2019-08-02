@@ -643,12 +643,14 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *executing_thread, MV
 /* Free STables (in any thread/generation!) queued to be freed. */
 void MVM_gc_collect_free_stables(MVMThreadContext *tc) {
     MVMSTable *st = tc->instance->stables_to_free;
+#if MVM_GC_DEBUG < 3
     while (st) {
         MVMSTable *st_to_free = st;
         st = st_to_free->header.sc_forward_u.st;
         st_to_free->header.sc_forward_u.st = NULL;
         MVM_6model_stable_gc_free(tc, st_to_free);
     }
+#endif
     tc->instance->stables_to_free = NULL;
 }
 

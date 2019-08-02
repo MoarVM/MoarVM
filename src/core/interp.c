@@ -4,7 +4,7 @@
 #include "platform/sys.h"
 
 /* Macros for getting things from the bytecode stream. */
-#if MVM_GC_DEBUG == 2
+#if MVM_GC_DEBUG >= 2
 MVM_STATIC_INLINE MVMuint16 check_reg(MVMThreadContext *tc, MVMRegister *reg_base, MVMuint16 idx) {
     MVMFrame *f = tc->cur_frame;
     MVMuint16 kind = f->spesh_cand && f->spesh_cand->local_types
@@ -22,7 +22,7 @@ MVM_STATIC_INLINE MVMuint16 check_reg(MVMThreadContext *tc, MVMRegister *reg_bas
 #else
 #define GET_REG(pc, idx)    reg_base[*((MVMuint16 *)(pc + idx))]
 #endif
-#if MVM_GC_DEBUG == 2
+#if MVM_GC_DEBUG >= 2
 MVM_STATIC_INLINE MVMuint16 check_lex(MVMThreadContext *tc, MVMFrame *f, MVMuint16 idx) {
     MVMuint16 kind = f->spesh_cand && f->spesh_cand->lexical_types
         ? f->spesh_cand->lexical_types[idx]

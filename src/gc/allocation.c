@@ -29,11 +29,15 @@ void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
          * actually gets freed up. The next run will promote them to the
          * second generation. Note that this circumstance is exceptionally
          * unlikely in any non-contrived situation. */
+#if MVM_GC_DEBUG < 3
         while (MVM_UNLIKELY((char *)tc->nursery_alloc + size >= (char *)tc->nursery_alloc_limit)) {
+#endif
             if (size > MVM_NURSERY_SIZE)
                 MVM_panic(MVM_exitcode_gcalloc, "Attempt to allocate more than the maximum nursery size");
             MVM_gc_enter_from_allocator(tc);
+#if MVM_GC_DEBUG < 3
         }
+#endif
 
         /* Allocate (just bump the pointer). */
         allocated = tc->nursery_alloc;

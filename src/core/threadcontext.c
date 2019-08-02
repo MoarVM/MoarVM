@@ -76,7 +76,13 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     MVM_spesh_sim_stack_destroy(tc, tc->spesh_sim_stack);
 
     /* Free the nursery and finalization queue. */
+#if MVM_GC_DEBUG >= 3
+    memset(tc->nursery_fromspace, 0xfe, tc->nursery_fromspace_size);
+#endif
     MVM_free(tc->nursery_fromspace);
+#if MVM_GC_DEBUG >= 3
+    memset(tc->nursery_tospace, 0xfe, tc->nursery_tospace_size);
+#endif
     MVM_free(tc->nursery_tospace);
     MVM_free(tc->finalizing);
 
@@ -110,7 +116,7 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     }
 
     /* Free the thread context itself. */
-    memset(tc, 0, sizeof(MVMThreadContext));
+    memset(tc, 0xfe, sizeof(MVMThreadContext));
     MVM_free(tc);
 }
 

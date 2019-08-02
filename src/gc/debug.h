@@ -2,6 +2,7 @@
  * 0 = No checking
  * 1 = Checks on reference assignments and other relatively cheap cases
  * 2 = Checks on every object register access (slow)
+ * 3 = Collects garbage on every allocation
  */
 #define MVM_GC_DEBUG 0
 
