@@ -753,6 +753,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
             result->body.storage.strands = allocate_strands(tc, 1);
             result->body.num_strands     = 1;
             result->body.storage.strands[0].blob_string = a;
+            MVM_gc_write_barrier(tc, (MVMCollectable *)result, (MVMCollectable *)a);
             result->body.storage.strands[0].start       = start_pos;
             result->body.storage.strands[0].end         = end_pos;
             result->body.storage.strands[0].repetitions = 0;
@@ -765,6 +766,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
             result->body.storage.strands = allocate_strands(tc, 1);
             result->body.num_strands     = 1;
             result->body.storage.strands[0].blob_string = orig_strand->blob_string;
+            MVM_gc_write_barrier(tc, (MVMCollectable *)result, (MVMCollectable *)orig_strand->blob_string);
             result->body.storage.strands[0].start       = orig_strand->start + start_pos;
             result->body.storage.strands[0].end         = orig_strand->start + end_pos;
             result->body.storage.strands[0].repetitions = 0;
@@ -969,6 +971,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
                 int index_ss_a = 0;
                 MVMStringStrand *ss_a = &(result->body.storage.strands[index_ss_a]);
                 ss_a->blob_string = effective_a;
+                MVM_gc_write_barrier(tc, (MVMCollectable *)result, (MVMCollectable *)effective_a);
                 ss_a->start       = 0;
                 ss_a->end         = effective_a->body.num_graphs;
                 ss_a->repetitions = 0;
@@ -990,6 +993,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
 
                 /* Add the renormalized section in as a strand */
                 ss_re->blob_string = renormalized_section;
+                MVM_gc_write_barrier(tc, (MVMCollectable *)result, (MVMCollectable *)renormalized_section);
                 ss_re->start       = 0;
                 ss_re->end         = renormalized_section->body.num_graphs;
                 ss_re->repetitions = 0;
@@ -1009,6 +1013,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             else {
                 MVMStringStrand *ss_b = &(result->body.storage.strands[index_ss_b]);
                 ss_b->blob_string = effective_b;
+                MVM_gc_write_barrier(tc, (MVMCollectable *)result, (MVMCollectable *)effective_b);
                 ss_b->start       = 0;
                 ss_b->end         = effective_b->body.num_graphs;
                 ss_b->repetitions = 0;
@@ -1083,12 +1088,14 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
                     a = collapse_strands(tc, a);
                 });
                 result->body.storage.strands[0].blob_string = a;
+                MVM_gc_write_barrier(tc, (MVMCollectable *)result, (MVMCollectable *)a);
                 result->body.storage.strands[0].start       = 0;
                 result->body.storage.strands[0].end         = agraphs;
             }
         }
         else {
             result->body.storage.strands[0].blob_string = a;
+            MVM_gc_write_barrier(tc, (MVMCollectable *)result, (MVMCollectable *)a);
             result->body.storage.strands[0].start       = 0;
             result->body.storage.strands[0].end         = agraphs;
         }
