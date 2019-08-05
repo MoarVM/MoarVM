@@ -112,11 +112,13 @@ void MVM_decoder_ensure_decoder(MVMThreadContext *tc, MVMObject *decoder, const 
 static void enter_single_user(MVMThreadContext *tc, MVMDecoder *decoder) {
     if (!MVM_trycas(&(decoder->body.in_use), 0, 1))
        MVM_exception_throw_adhoc(tc, "Decoder may not be used concurrently");
+    MVM_tc_set_ex_release_atomic(tc, &(decoder->body.in_use));
 }
 
 /* Releases the decoder single-user sanity check flag. */
 static void exit_single_user(MVMThreadContext *tc, MVMDecoder *decoder) {
     decoder->body.in_use = 0;
+    MVM_tc_clear_ex_release_mutex(tc);
 }
 
 /* Configures the decoder with the specified encoding and other configuration. */
