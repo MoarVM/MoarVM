@@ -1832,7 +1832,8 @@
       (carg (tc) ptr)
       (carg $0   ptr)
       (carg $1   ptr)
-      (carg $2   int))))
+      (carg $2   int)
+      (carg $3   int))))
 
 (template: socket
   (call (^func &MVM_io_socket_create)
@@ -1847,7 +1848,8 @@
       (carg $0   ptr)
       (carg $1   ptr)
       (carg $2   int)
-      (carg $3   int))))
+      (carg $3   int)
+      (carg $4   int))))
 
 (template: accept_sk
   (call (^func &MVM_io_accept)

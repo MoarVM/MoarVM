@@ -654,7 +654,7 @@ MVMObject * MVM_io_socket_connect_async(MVMThreadContext *tc, MVMObject *queue,
 
     /* Resolve hostname. (Could be done asynchronously too.) */
     MVMROOT3(tc, queue, schedulee, async_type, {
-        dest = MVM_io_resolve_host_name(tc, host, port);
+        dest = MVM_io_resolve_host_name(tc, host, port, SOCKET_FAMILY_UNSPEC);
     });
 
     /* Create async task handle. */
@@ -877,7 +877,7 @@ MVMObject * MVM_io_socket_listen_async(MVMThreadContext *tc, MVMObject *queue,
 
     /* Resolve hostname. (Could be done asynchronously too.) */
     MVMROOT3(tc, queue, schedulee, async_type, {
-        dest = MVM_io_resolve_host_name(tc, host, port);
+        dest = MVM_io_resolve_host_name(tc, host, port, SOCKET_FAMILY_UNSPEC);
     });
 
     /* Create async task handle. */

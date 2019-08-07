@@ -543,9 +543,9 @@ eof_fh              w(int64) r(obj)
 getstdin            w(obj) :pure
 getstdout           w(obj) :pure
 getstderr           w(obj) :pure
-connect_sk          r(obj) r(str) r(int64)
+connect_sk          r(obj) r(str) r(int64) r(uint16)
 socket              w(obj) r(int64)
-bind_sk             r(obj) r(str) r(int64) r(int64)
+bind_sk             r(obj) r(str) r(int64) r(uint16) r(int64)
 DEPRECATED_24       r(obj) r(str)
 accept_sk           w(obj) r(obj)
 decodetocodes       r(obj) r(str) r(int64) r(obj)

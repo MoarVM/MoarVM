@@ -258,39 +258,39 @@ static size_t get_struct_size_for_family(sa_family_t family) {
     }
 }
 
-/* This function may return any type of sockaddr e.g. sockaddr_un, sockaddr_in or sockaddr_in6
+/*
+ * This function may return any type of sockaddr e.g. sockaddr_un, sockaddr_in or sockaddr_in6
  * It shouldn't be a problem with general code as long as the port number is kept below the int16 limit: 65536
  * After this it defines the family which may spawn non internet sockaddr's
  * The family can be extracted by (port >> 16) & USHORT_MAX
  *
  * Currently supported families:
  *
- * AF_UNSPEC = 1
+ * SOCKET_FAMILY_UNSPEC = 0
  *   Unspecified, in most cases should be equal to AF_INET or AF_INET6
  *
- * AF_UNIX = 1
- *   Unix domain socket, will spawn a sockaddr_un which will use the given host as path
- *   e.g: MVM_io_resolve_host_name(tc, "/run/moarvm.sock", 1 << 16)
- *   will spawn an unix domain socket on /run/moarvm.sock
- *
- * AF_INET = 2
+ * SOCKET_FAMILY_INET = 1
  *   IPv4 socket
  *
- * AF_INET6 = 10
+ * SOCKET_FAMILY_INET6 = 2
  *   IPv6 socket
+ *
+ * SOCKET_FAMILY_UNIX = 3
+ *   Unix domain socket, will spawn a sockaddr_un which will use the given host as path
+ *   e.g: MVM_io_resolve_host_name(tc, "/run/moarvm.sock", 0, SOCKET_FAMILY_UNIX)
+ *   will spawn an unix domain socket on /run/moarvm.sock
  */
-struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host, MVMint64 port) {
+
+struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host, MVMint64 port, MVMuint16 family) {
     char *host_cstr = MVM_string_utf8_encode_C_string(tc, host);
     struct sockaddr *dest;
     int error;
     struct addrinfo *result;
     char port_cstr[8];
-    unsigned short family = (port >> 16) & USHRT_MAX;
     struct addrinfo hints;
 
 #ifndef _WIN32
-    /* AF_UNIX = 1 */
-    if (family == AF_UNIX) {
+    if (family == SOCKET_FAMILY_UNIX) {
         struct sockaddr_un *result_un = MVM_malloc(sizeof(struct sockaddr_un));
 
         if (strlen(host_cstr) > 107) {
@@ -307,7 +307,24 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
     }
 #endif
 
-    hints.ai_family = family;
+    switch (family) {
+        case SOCKET_FAMILY_UNSPEC:
+            hints.ai_family = AF_UNSPEC;
+            break;
+        case SOCKET_FAMILY_INET:
+            hints.ai_family = AF_INET;
+            break;
+        case SOCKET_FAMILY_INET6:
+            hints.ai_family = AF_INET6;
+            break;
+        case SOCKET_FAMILY_UNIX:
+            hints.ai_family = AF_UNIX;
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "Unsupported socket family: %hu", family);
+            break;
+    }
+
     hints.ai_socktype = 0;
     hints.ai_flags = AI_PASSIVE;
     hints.ai_protocol = 0;
@@ -329,7 +346,7 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
     }
     else {
         char *waste[] = { host_cstr, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste, "Failed to resolve host name '%s' with family %d. Error: '%s'",
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to resolve host name '%s' with family %hu. Error: '%s'",
                                        host_cstr, family, gai_strerror(error));
     }
     freeaddrinfo(result);
@@ -338,13 +355,13 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
 }
 
 /* Establishes a connection. */
-static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port) {
+static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMuint16 family) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     unsigned int interval_id;
 
     interval_id = MVM_telemetry_interval_start(tc, "syncsocket connect");
     if (!data->handle) {
-        struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port);
+        struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family);
         int r;
 
         Socket s = socket(dest->sa_family , SOCK_STREAM , 0);
@@ -373,10 +390,10 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
     }
 }
 
-static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMint32 backlog) {
+static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMuint16 family, MVMint32 backlog) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     if (!data->handle) {
-        struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port);
+        struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family);
         int r;
 
         Socket s = socket(dest->sa_family , SOCK_STREAM , 0);
