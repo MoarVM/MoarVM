@@ -592,10 +592,6 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
 
     MVM_telemetry_timestamp(tc, "gc_enter_from_interrupt");
 
-    /* If profiling, record that GC is starting. */
-    if (tc->instance->profiling)
-        MVM_profiler_log_gc_start(tc, is_full_collection(tc), 0);
-
     /* We'll certainly take care of our own work. */
     tc->gc_work_count = 0;
     add_work(tc, tc);
@@ -610,6 +606,13 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     MVM_decr(&tc->instance->gc_start);
     uv_cond_broadcast(&tc->instance->cond_gc_start);
     uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
+
+    /* If profiling, record that GC is starting.
+     * We don't do this before add_work, because the gc_sequence_number
+     * may not yet have been increased, leading to duplicate entries
+     * in the gc parts of the profiler */
+    if (tc->instance->profiling)
+        MVM_profiler_log_gc_start(tc, is_full_collection(tc), 0);
 
     /* Wait for all threads to indicate readiness to collect. */
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Waiting for other threads\n");
