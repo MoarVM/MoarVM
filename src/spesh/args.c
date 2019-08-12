@@ -85,9 +85,38 @@ static void pos_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
 /* Gets the primitive boxed by a type. */
 static MVMuint16 prim_spec(MVMThreadContext *tc, MVMSpeshStatsType *type_tuple, MVMint32 i) {
     MVMObject *type = type_tuple ? type_tuple[i].type : NULL;
-    return type
-        ? REPR(type)->get_storage_spec(tc, STABLE(type))->boxed_primitive
-        : 0;
+    const MVMStorageSpec *ss;
+    if (!type)
+        return 0;
+    ss = REPR(type)->get_storage_spec(tc, STABLE(type));
+    if (ss->boxed_primitive)
+        return ss->boxed_primitive;
+    return 0;
+}
+
+static MVMuint8 cmp_prim_spec(MVMThreadContext *tc, MVMSpeshStatsType *type_tuple, MVMint32 i, MVMint32 wanted_prim_spec) {
+    MVMObject *type = type_tuple ? type_tuple[i].type : NULL;
+    const MVMStorageSpec *ss;
+    if (!type)
+        return 0;
+    ss = REPR(type)->get_storage_spec(tc, STABLE(type));
+    if (ss->boxed_primitive) {
+        return ss->boxed_primitive == wanted_prim_spec;
+    }
+    if (ss->can_box) {
+        if (wanted_prim_spec == MVM_STORAGE_SPEC_BP_INT) {
+            return ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT;
+        }
+        else if (wanted_prim_spec == MVM_STORAGE_SPEC_BP_NUM) {
+            return ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM;
+        }
+        else if (wanted_prim_spec == MVM_STORAGE_SPEC_BP_STR) {
+            return ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR;
+        }
+        else
+            MVM_panic(1, "Spesh error: unexpected wanted_prim_spec %ld", wanted_prim_spec);
+    }
+    return 0;
 }
 
 /* Puts a single named argument into a slurpy hash, boxing if needed. */
@@ -362,14 +391,19 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
             case MVM_OP_param_op_i:
                 if (arg_flag != MVM_CALLSITE_ARG_INT)
                     if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
-                            prim_spec(tc, type_tuple, i) != MVM_STORAGE_SPEC_BP_INT)
+                            !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_INT)) {
+                        MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
+                                "bailed argument spesh: expected arg flag %ld to be int or box an int; type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
                         goto cleanup;
+                    }
                 break;
             case MVM_OP_param_rp_u:
             case MVM_OP_param_op_u:
                 if (arg_flag != MVM_CALLSITE_ARG_INT)
                     if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
-                            prim_spec(tc, type_tuple, i) != MVM_STORAGE_SPEC_BP_INT) {
+                            !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_INT)) {
+                        MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
+                                "bailed argument spesh: expected arg flag %ld to be int or box an int; type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
                         goto cleanup;
                     }
                 break;
@@ -377,21 +411,30 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
             case MVM_OP_param_op_n:
                 if (arg_flag != MVM_CALLSITE_ARG_NUM)
                     if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
-                            prim_spec(tc, type_tuple, i) != MVM_STORAGE_SPEC_BP_NUM)
+                            !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_NUM)) {
+                        MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
+                                "bailed argument spesh: expected arg flag %ld to be num or box a num", i);
                         goto cleanup;
+                    }
                 break;
             case MVM_OP_param_rp_s:
             case MVM_OP_param_op_s:
                 if (arg_flag != MVM_CALLSITE_ARG_STR)
                     if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
-                            prim_spec(tc, type_tuple, i) != MVM_STORAGE_SPEC_BP_STR)
+                            !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_STR)) {
+                        MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
+                                "bailed argument spesh: expected arg flag %ld to be str or box a str type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
                         goto cleanup;
+                    }
                 break;
             case MVM_OP_param_rp_o:
             case MVM_OP_param_op_o:
                 if (arg_flag != MVM_CALLSITE_ARG_OBJ && arg_flag != MVM_CALLSITE_ARG_INT &&
-                    arg_flag != MVM_CALLSITE_ARG_NUM && arg_flag != MVM_CALLSITE_ARG_STR)
+                    arg_flag != MVM_CALLSITE_ARG_NUM && arg_flag != MVM_CALLSITE_ARG_STR) {
+                    MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
+                            "bailed argument spesh: expected arg flag %ld to be obj or int or num or str", i);
                     goto cleanup;
+                }
                 break;
             default:
                 break;
