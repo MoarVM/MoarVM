@@ -52,7 +52,7 @@ void MVM_dll_retain(MVMThreadContext *tc, MVMDLL *dll)
 int MVM_dll_release(MVMThreadContext *tc, MVMDLL *dll)
 {
     AO_t old_count = MVM_decr(&dll->refcount);
-    if (old_count > 1) return;
+    if (old_count > 1) return 0;
 
     /* oops... */
     if (old_count == 0) {
