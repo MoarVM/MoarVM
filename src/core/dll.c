@@ -1,5 +1,10 @@
 #include "moar.h"
 
+#ifdef _WIN32
+#include <windows.h>
+extern char __ImageBase[];
+#endif
+
 MVMObject * MVM_dll_box(MVMThreadContext *tc, MVMDLL *dll, MVMObject *type)
 {
     MVMObject *obj;
@@ -8,7 +13,7 @@ MVMObject * MVM_dll_box(MVMThreadContext *tc, MVMDLL *dll, MVMObject *type)
     if (IS_CONCRETE(type)) {
         MVM_exception_throw_adhoc(tc, "cannot box into concrete object");
     }
-    
+
     if (REPR(type)->ID != MVM_REPR_ID_MVMCPointer) {
         MVM_exception_throw_adhoc(tc,
                 "box type must have representation CPointer");
@@ -53,7 +58,7 @@ int MVM_dll_release(MVMThreadContext *tc, MVMDLL *dll)
     if (old_count == 0) {
         MVM_incr(&dll->refcount); /* can this race hurt us?
                                      AO_t is unsigned, so no 'bad' overflow */
-                                  
+
         MVM_exception_throw_adhoc(tc, "cannot release unloaded dll");
     }
 
@@ -144,7 +149,36 @@ void * MVM_dll_find_symbol(MVMThreadContext *tc, MVMDLL *dll, MVMString *sym)
 {
     /* no mutex: the refcounting should protect us */
     char *csym = MVM_string_utf8_c8_encode_C_string(tc, sym);
-    void *ptr = MVM_nativecall_find_sym(dll->lib, csym);
+    void *ptr;
+
+    if(dll) ptr = MVM_nativecall_find_sym(dll->lib, csym);
+    else {
+#ifdef _WIN32
+        /* search in current module */
+        ptr = (void *)GetProcAddress(GetModuleHandle(NULL), csym);
+
+        /* search in MoarVM's module */
+        if(!ptr) ptr = (void *)GetProcAddress((HMODULE)__ImageBase, csym);
+
+        /* search in libc */
+        if(!ptr) {
+            /* or: GetProcAddress(ReverseGetModuleHandle(SOME_LIBC_FUNC)) */
+            const void *some_address = stderr;
+            HMODULE module;
+
+            if(GetModuleHandleExA(
+                    GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+                        | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                    some_address, &module)) {
+                ptr = (void *)GetProcAddress(module, csym);
+            }
+        }
+#else
+        DLLib *lib = MVM_nativecall_load_lib(NULL);
+        ptr = MVM_nativecall_find_sym(lib, csym);
+        MVM_nativecall_free_lib(lib);
+#endif
+    }
 
     MVM_free(csym);
     return ptr;
