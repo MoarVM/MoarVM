@@ -573,7 +573,7 @@ cwd                 w(str) :pure :confprog
 clargs              w(obj) :pure :useshll :confprog
 getenvhash          w(obj) :pure :useshll :confprog
 loadlib             r(str) r(str)
-droplib             r(str)
+droplib             r(obj)
 getlib              w(obj) r(str) r(obj)
 findsym             w(int64) r(obj) r(str)
 loadext             r(str) r(str)

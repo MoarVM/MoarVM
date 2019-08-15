@@ -3757,8 +3757,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(droplib): {
-                MVMDLL *dll = MVM_dll_get(tc, GET_REG(cur_op, 0).s);
-                MVM_dll_release(tc, dll);
+                MVMDLL *dll = MVM_dll_unbox(tc, GET_REG(cur_op, 0).o);
+                if(dll) MVM_dll_release(tc, dll);
                 cur_op += 2;
                 goto NEXT;
             }
