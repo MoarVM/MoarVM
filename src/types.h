@@ -35,8 +35,6 @@ typedef struct MVMContinuationTag MVMContinuationTag;
 typedef struct MVMDecoder MVMDecoder;
 typedef struct MVMDecoderBody MVMDecoderBody;
 typedef struct MVMDLLRegistry MVMDLLRegistry;
-typedef struct MVMDLLSym MVMDLLSym;
-typedef struct MVMDLLSymBody MVMDLLSymBody;
 typedef struct MVMException MVMException;
 typedef struct MVMExceptionBody MVMExceptionBody;
 typedef struct MVMExtOpRecord MVMExtOpRecord;

@@ -3,7 +3,8 @@
 int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
     MVMString *colon, *prefix, *name;
     MVMExtRegistry *entry;
-    MVMDLLSym *sym;
+    MVMDLL *dll;
+    void *sym;
     void (*init)(MVMThreadContext *);
 
     MVMROOT2(tc, lib, ext, {
@@ -23,9 +24,13 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
         return 0;
     }
 
-    MVMROOT(tc, name, {
-        sym = (MVMDLLSym *)MVM_dll_find_symbol(tc, lib, ext);
-    });
+    dll = MVM_dll_get(tc, lib);
+    if (!lib) {
+        uv_mutex_unlock(&tc->instance->mutex_ext_registry);
+        MVM_exception_throw_adhoc(tc, "extension DLL not loaded");
+    }
+
+    sym = MVM_dll_find_symbol(tc, dll, ext);
     if (!sym) {
         uv_mutex_unlock(&tc->instance->mutex_ext_registry);
         MVM_exception_throw_adhoc(tc, "extension symbol not found");
@@ -44,7 +49,7 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
     uv_mutex_unlock(&tc->instance->mutex_ext_registry);
 
     /* Call extension's initializer */
-    init = (void (*)(MVMThreadContext *))sym->body.address;
+    init = (void (*)(MVMThreadContext *))sym;
     init(tc);
 
     return 1;

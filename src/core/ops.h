@@ -517,9 +517,9 @@
 #define MVM_OP_clargs 513
 #define MVM_OP_getenvhash 514
 #define MVM_OP_loadlib 515
-#define MVM_OP_freelib 516
-#define MVM_OP_findsym 517
-#define MVM_OP_dropsym 518
+#define MVM_OP_droplib 516
+#define MVM_OP_getlib 517
+#define MVM_OP_findsym 518
 #define MVM_OP_loadext 519
 #define MVM_OP_backendconfig 520
 #define MVM_OP_getlexouter 521

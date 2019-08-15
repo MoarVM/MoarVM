@@ -161,8 +161,7 @@ OBJECTS1 = src/core/callsite@obj@ \
           src/6model/reprs/P6bigint@obj@ \
           src/6model/reprs/NFA@obj@ \
           src/6model/reprs/MVMException@obj@
-OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
-          src/6model/reprs/MVMMultiCache@obj@ \
+OBJECTS2 = src/6model/reprs/MVMMultiCache@obj@ \
           src/6model/reprs/MVMContinuation@obj@ \
           src/6model/reprs/NativeCall@obj@ \
           src/6model/reprs/CPointer@obj@ \
@@ -329,7 +328,6 @@ HEADERS = src/moar.h \
           src/6model/reprs/NFA.h \
           src/6model/reprs/MVMException.h \
           src/6model/reprs/MVMCompUnit.h \
-          src/6model/reprs/MVMDLLSym.h \
           src/6model/reprs/MVMMultiCache.h \
           src/6model/reprs/MVMContinuation.h \
           src/6model/reprs/NativeCall.h \
