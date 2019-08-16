@@ -480,7 +480,7 @@ sub mark_spans(@ops) {
     %current<mark> = "  ";
     die "expected first op to not have a mark" unless @ops.head.mark eq "  ";
     sub store-span {
-        @spans.push(Map.new(%current));
+        @spans.push(Map.new(%current>>.clone));
     }
     sub make-lookup-code {
         die "expected last span of ops to have the .s mark" unless @spans.tail.<mark> eq ".s";
