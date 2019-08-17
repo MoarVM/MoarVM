@@ -445,6 +445,28 @@ void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
     MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame);
 }
 
+/* Loads bytecode from memory and runs it. */
+void MVM_vm_run_bytecode(MVMInstance *instance, MVMuint8 *bytes, MVMuint32 size) {
+    /* Map the compilation unit into memory and dissect it. */
+    MVMThreadContext *tc = instance->main_thread;
+    MVMCompUnit      *cu = MVM_cu_from_bytes(tc, bytes, size);
+
+    MVMROOT(tc, cu, {
+        /* Run deserialization frame, if there is one. Disable specialization
+         * during this time, so we don't waste time logging one-shot setup
+         * code. */
+        if (cu->body.deserialize_frame) {
+            MVMint8 spesh_enabled_orig = tc->instance->spesh_enabled;
+            tc->instance->spesh_enabled = 0;
+            MVM_interp_run(tc, toplevel_initial_invoke, cu->body.deserialize_frame);
+            tc->instance->spesh_enabled = spesh_enabled_orig;
+        }
+    });
+
+    /* Run the entry-point frame. */
+    MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame);
+}
+
 /* Loads bytecode from the specified file name and dumps it. */
 void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
     /* Map the compilation unit into memory and dissect it. */
