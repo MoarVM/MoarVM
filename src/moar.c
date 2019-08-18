@@ -417,6 +417,18 @@ static void toplevel_initial_invoke(MVMThreadContext *tc, void *data) {
     MVM_frame_invoke(tc, (MVMStaticFrame *)data, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS), NULL, NULL, NULL, -1);
 }
 
+/* Run deserialization frame, if there is one. Disable specialization
+ * during this time, so we don't waste time logging one-shot setup
+ * code. */
+static void run_deserialization_frame(MVMThreadContext *tc, MVMCompUnit *cu) {
+    if (cu->body.deserialize_frame) {
+        MVMint8 spesh_enabled_orig = tc->instance->spesh_enabled;
+        tc->instance->spesh_enabled = 0;
+        MVM_interp_run(tc, toplevel_initial_invoke, cu->body.deserialize_frame);
+        tc->instance->spesh_enabled = spesh_enabled_orig;
+    }
+}
+
 /* Loads bytecode from the specified file name and runs it. */
 void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
     /* Map the compilation unit into memory and dissect it. */
@@ -430,15 +442,8 @@ void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
         cu->body.filename = str;
         MVM_gc_write_barrier_hit(tc, (MVMCollectable *)cu);
 
-        /* Run deserialization frame, if there is one. Disable specialization
-         * during this time, so we don't waste time logging one-shot setup
-         * code. */
-        if (cu->body.deserialize_frame) {
-            MVMint8 spesh_enabled_orig = tc->instance->spesh_enabled;
-            tc->instance->spesh_enabled = 0;
-            MVM_interp_run(tc, toplevel_initial_invoke, cu->body.deserialize_frame);
-            tc->instance->spesh_enabled = spesh_enabled_orig;
-        }
+        /* Run the deserialization frame, if any. */
+        run_deserialization_frame(tc, cu);
     });
 
     /* Run the entry-point frame. */
@@ -451,17 +456,8 @@ void MVM_vm_run_bytecode(MVMInstance *instance, MVMuint8 *bytes, MVMuint32 size)
     MVMThreadContext *tc = instance->main_thread;
     MVMCompUnit      *cu = MVM_cu_from_bytes(tc, bytes, size);
 
-    MVMROOT(tc, cu, {
-        /* Run deserialization frame, if there is one. Disable specialization
-         * during this time, so we don't waste time logging one-shot setup
-         * code. */
-        if (cu->body.deserialize_frame) {
-            MVMint8 spesh_enabled_orig = tc->instance->spesh_enabled;
-            tc->instance->spesh_enabled = 0;
-            MVM_interp_run(tc, toplevel_initial_invoke, cu->body.deserialize_frame);
-            tc->instance->spesh_enabled = spesh_enabled_orig;
-        }
-    });
+    /* Run the deserialization frame, if any. */
+    MVMROOT(tc, cu, { run_deserialization_frame(tc, cu); });
 
     /* Run the entry-point frame. */
     MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame);
