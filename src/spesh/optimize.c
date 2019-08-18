@@ -1467,7 +1467,7 @@ static void optimize_getlex_per_invocant(MVMThreadContext *tc, MVMSpeshGraph *g,
             MVMuint32 j;
             for (j = 0; j < ts->num_by_offset; j++) {
                 if (ts->by_offset[j].bytecode_offset == ann->data.bytecode_offset) {
-                    if (ts->by_offset[j].num_types) {
+                    if (ts->by_offset[j].num_types == 1) {
                         MVMObject *log_obj = ts->by_offset[j].types[0].type;
                         if (log_obj && !ts->by_offset[j].types[0].type_concrete)
                             lex_to_constant(tc, g, ins, log_obj);
