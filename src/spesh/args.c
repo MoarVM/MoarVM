@@ -352,6 +352,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
             case MVM_OP_usecapture:
             case MVM_OP_savecapture:
                 /* Require full args processing context for now; bail. */
+                MVM_spesh_graph_add_comment(tc, g, ins,
+                        "bailed argument spesh: support for %s NYI", ins->info->name);
                 goto cleanup;
             case MVM_OP_paramnamesused:
                 if (paramnamesused_ins)
@@ -370,6 +372,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
             case MVM_OP_param_rn2_u:
             case MVM_OP_param_on2_u:
                 /* Don't understand how to specialize these yet. */
+                MVM_spesh_graph_add_comment(tc, g, ins,
+                        "bailed argument spesh: support for %s NYI", ins->info->name);
                 goto cleanup;
             default:
                 break;
@@ -381,12 +385,18 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
     }
 
     /* If we didn't find a checkarity instruction, bail. */
-    if (!checkarity_ins)
+    if (!checkarity_ins) {
+        MVM_spesh_graph_add_comment(tc, g, g->entry->first_ins,
+                "bailed argument spesh: no checkarity instruction found");
         goto cleanup;
+    }
 
     /* If required and optional aren't contiguous, bail. */
-    if (opt_min >= 0 && req_max + 1 != opt_min)
+    if (opt_min >= 0 && req_max + 1 != opt_min) {
+        MVM_spesh_graph_add_comment(tc, g, g->entry->first_ins,
+                "bailed argument spesh: required and optional args aren't contiguous");
         goto cleanup;
+    }
 
     /* If the number of passed args is in range... */
     if (cs->num_pos >= req_max + 1 && (opt_max < 0 || cs->num_pos <= opt_max + 1)) {
@@ -395,8 +405,11 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
         MVMint32 i;
         for (i = 0; i < cs->num_pos; i++) {
             MVMCallsiteEntry arg_flag = cs->arg_flags[i];
-            if (!pos_ins[i])
+            if (!pos_ins[i]) {
+                MVM_spesh_graph_add_comment(tc, g, g->entry->first_ins,
+                        "bailed argument spesh: no positional arg fetch op found for %ld", i);
                 goto cleanup;
+            }
             switch (pos_ins[i]->info->opcode) {
             case MVM_OP_param_rp_i:
             case MVM_OP_param_op_i:
@@ -601,8 +614,10 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
             /* Now go by instruction. */
             switch (named_ins[i]->info->opcode) {
             case MVM_OP_param_rn_i:
-                if (found_idx == -1)
+                if (found_idx == -1) {
+                    MVM_spesh_graph_add_comment(tc, g, named_ins[i], "bailed argument spesh: required named argument not found!");
                     goto cleanup;
+                }
                 if (found_flag & MVM_CALLSITE_ARG_INT) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
@@ -617,8 +632,10 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 named_used++;
                 break;
             case MVM_OP_param_rn_n:
-                if (found_idx == -1)
+                if (found_idx == -1) {
+                    MVM_spesh_graph_add_comment(tc, g, named_ins[i], "bailed argument spesh: required named argument not found!");
                     goto cleanup;
+                }
                 if (found_flag & MVM_CALLSITE_ARG_NUM) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_n);
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
@@ -633,8 +650,10 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 named_used++;
                 break;
             case MVM_OP_param_rn_s:
-                if (found_idx == -1)
+                if (found_idx == -1) {
+                    MVM_spesh_graph_add_comment(tc, g, named_ins[i], "bailed argument spesh: required named argument not found!");
                     goto cleanup;
+                }
                 if (found_flag & MVM_CALLSITE_ARG_STR) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_s);
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
@@ -649,8 +668,10 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 named_used++;
                 break;
             case MVM_OP_param_rn_o:
-                if (found_idx == -1)
+                if (found_idx == -1) {
+                    MVM_spesh_graph_add_comment(tc, g, named_ins[i], "bailed argument spesh: required named argument not found!");
                     goto cleanup;
+                }
                 if (found_flag & MVM_CALLSITE_ARG_OBJ) {
                     MVMuint16 arg_idx = found_idx + 1;
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
