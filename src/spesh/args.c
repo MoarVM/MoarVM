@@ -130,6 +130,86 @@ static MVMuint8 cmp_prim_spec(MVMThreadContext *tc, MVMSpeshStatsType *type_tupl
     return 0;
 }
 
+static void insert_getarg_and_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                                  MVMSpeshIns *insert_point, MVMCallsiteFlags arg_flags,
+                                  MVMint32 argument_idx, MVMSpeshOperand value_temp) {
+    /* Instruction to get value depends on argument type. */
+    if ((arg_flags & MVM_CALLSITE_ARG_MASK) == MVM_CALLSITE_ARG_OBJ) {
+        /* It's already a boxed object, so just fetch it into the value
+         * register. */
+        MVMSpeshIns *fetch_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        fetch_ins->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
+        fetch_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+        fetch_ins->operands[0] = value_temp;
+        fetch_ins->operands[1].lit_ui16 = argument_idx;
+        MVM_spesh_manipulate_insert_ins(tc, bb, insert_point, fetch_ins);
+    }
+    else {
+        MVMSpeshIns *box_ins, *hlltype_ins, *fetch_ins;
+
+        /* We need to box it. Get a temporary register to box into, and one
+         * for the HLL type. */
+        MVMSpeshOperand unboxed_temp, box_type_temp;
+        MVMuint16 box_op;
+        MVMuint16 hlltype_op;
+        MVMuint16 fetch_op;
+        switch (arg_flags & MVM_CALLSITE_ARG_MASK) {
+            case MVM_CALLSITE_ARG_INT:
+                unboxed_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+                box_op = MVM_OP_box_i;
+                hlltype_op = MVM_OP_hllboxtype_i;
+                fetch_op = MVM_OP_sp_getarg_i;
+                break;
+            case MVM_CALLSITE_ARG_NUM:
+                unboxed_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_num64);
+                box_op = MVM_OP_box_n;
+                hlltype_op = MVM_OP_hllboxtype_n;
+                fetch_op = MVM_OP_sp_getarg_n;
+                break;
+            case MVM_CALLSITE_ARG_STR:
+                unboxed_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_str);
+                box_op = MVM_OP_box_s;
+                hlltype_op = MVM_OP_hllboxtype_s;
+                fetch_op = MVM_OP_sp_getarg_s;
+                break;
+            default:
+                MVM_panic(1, "Spesh args: unexpected named argument type %d", arg_flags);
+        }
+
+        /* Emit instruction to box value. */
+        box_type_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+        box_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        box_ins->info = MVM_op_get_op(box_op);
+        box_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+        box_ins->operands[0] = value_temp;
+        box_ins->operands[1] = unboxed_temp;
+        box_ins->operands[2] = box_type_temp;
+        MVM_spesh_manipulate_insert_ins(tc, bb, insert_point, box_ins);
+        MVM_spesh_get_facts(tc, g, value_temp)->writer = box_ins;
+
+        /* Prepend the instruction get box type. */
+        hlltype_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        hlltype_ins->info = MVM_op_get_op(hlltype_op);
+        hlltype_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand));
+        hlltype_ins->operands[0] = box_type_temp;
+        MVM_spesh_manipulate_insert_ins(tc, bb, insert_point, hlltype_ins);
+        MVM_spesh_get_facts(tc, g, box_type_temp)->writer = hlltype_ins;
+
+        /* Prepend fetch instruction. */
+        fetch_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        fetch_ins->info = MVM_op_get_op(fetch_op);
+        fetch_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+        fetch_ins->operands[0] = unboxed_temp;
+        fetch_ins->operands[1].lit_ui16 = argument_idx;
+        MVM_spesh_manipulate_insert_ins(tc, bb, insert_point, fetch_ins);
+        MVM_spesh_get_facts(tc, g, unboxed_temp)->writer = fetch_ins;
+
+        /* Can release the temporary register now. */
+        MVM_spesh_manipulate_release_temp_reg(tc, g, unboxed_temp);
+        MVM_spesh_manipulate_release_temp_reg(tc, g, box_type_temp);
+    }
+}
+
 /* Puts a single named argument into a slurpy hash, boxing if needed. */
 static void slurp_named_arg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                             MVMSpeshIns *hash_ins, MVMint32 named_idx) {
@@ -155,81 +235,7 @@ static void slurp_named_arg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     bindkey_ins->operands[2] = value_temp;
     MVM_spesh_manipulate_insert_ins(tc, bb, hash_ins, bindkey_ins);
 
-    /* Instruction to get value depends on argument type. */
-    if ((flags & MVM_CALLSITE_ARG_MASK) == MVM_CALLSITE_ARG_OBJ) {
-        /* It's already a boxed object, so just fetch it into the value
-         * register. */
-        MVMSpeshIns *fetch_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-        fetch_ins->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
-        fetch_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
-        fetch_ins->operands[0] = value_temp;
-        fetch_ins->operands[1].lit_ui16 = arg_idx;
-        MVM_spesh_manipulate_insert_ins(tc, bb, hash_ins, fetch_ins);
-    }
-    else {
-        MVMSpeshIns *box_ins, *hlltype_ins, *fetch_ins;
-
-        /* We need to box it. Get a temporary register to box into, and one
-         * for the HLL type. */
-        MVMSpeshOperand unboxed_temp, box_type_temp;
-        MVMuint16 box_op;
-        MVMuint16 hlltype_op;
-        MVMuint16 fetch_op;
-        switch (flags & MVM_CALLSITE_ARG_MASK) {
-            case MVM_CALLSITE_ARG_INT:
-                unboxed_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
-                box_op = MVM_OP_box_i;
-                hlltype_op = MVM_OP_hllboxtype_i;
-                fetch_op = MVM_OP_sp_getarg_i;
-                break;
-            case MVM_CALLSITE_ARG_NUM:
-                unboxed_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_num64);
-                box_op = MVM_OP_box_n;
-                hlltype_op = MVM_OP_hllboxtype_n;
-                fetch_op = MVM_OP_sp_getarg_n;
-                break;
-            case MVM_CALLSITE_ARG_STR:
-                unboxed_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_str);
-                box_op = MVM_OP_box_s;
-                hlltype_op = MVM_OP_hllboxtype_s;
-                fetch_op = MVM_OP_sp_getarg_s;
-                break;
-            default:
-                MVM_panic(1, "Spesh args: unexpected named argument type %d", flags);
-        }
-
-        /* Emit instruction to box value. */
-        box_type_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
-        box_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-        box_ins->info = MVM_op_get_op(box_op);
-        box_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-        box_ins->operands[0] = value_temp;
-        box_ins->operands[1] = unboxed_temp;
-        box_ins->operands[2] = box_type_temp;
-        MVM_spesh_manipulate_insert_ins(tc, bb, hash_ins, box_ins);
-        MVM_spesh_get_facts(tc, g, value_temp)->writer = box_ins;
-
-        /* Prepend the instruction get box type. */
-        hlltype_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-        hlltype_ins->info = MVM_op_get_op(hlltype_op);
-        hlltype_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand));
-        hlltype_ins->operands[0] = box_type_temp;
-        MVM_spesh_manipulate_insert_ins(tc, bb, hash_ins, hlltype_ins);
-        MVM_spesh_get_facts(tc, g, box_type_temp)->writer = hlltype_ins;
-
-        /* Prepend fetch instruction. */
-        fetch_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-        fetch_ins->info = MVM_op_get_op(fetch_op);
-        fetch_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
-        fetch_ins->operands[0] = unboxed_temp;
-        fetch_ins->operands[1].lit_ui16 = arg_idx;
-        MVM_spesh_manipulate_insert_ins(tc, bb, hash_ins, fetch_ins);
-        MVM_spesh_get_facts(tc, g, unboxed_temp)->writer = fetch_ins;
-
-        /* Can release the temporary register now. */
-        MVM_spesh_manipulate_release_temp_reg(tc, g, unboxed_temp);
-        MVM_spesh_manipulate_release_temp_reg(tc, g, box_type_temp);
-    }
+    insert_getarg_and_box(tc, g, bb, hash_ins, flags, arg_idx, value_temp);
 
     /* Insert key fetching instruciton; we just store the string in a spesh
      * slot. */
@@ -245,6 +251,43 @@ static void slurp_named_arg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     MVM_spesh_manipulate_release_temp_reg(tc, g, value_temp);
 }
 
+static void slurp_positional_arg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                                 MVMSpeshIns *array_ins, MVMint32 pos_idx, MVMint32 target_idx) {
+    MVMSpeshIns *index_ins;
+
+    /* Look up arg flags and name, and compute index. */
+    MVMCallsiteFlags flags = g->cs->arg_flags[pos_idx];
+
+    /* Allocate temporary registers for the key and value. */
+    MVMSpeshOperand index_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+    MVMSpeshOperand value_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+
+    /* Insert bind key instruction after slurpy hash creation instruction (we
+     * do it first as below we prepend instructions to obtain the key and the
+     * value. */
+    MVMSpeshIns *bindpos_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    bindpos_ins->info = MVM_op_get_op(MVM_OP_bindpos_o);
+    bindpos_ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+    bindpos_ins->operands[0] = array_ins->operands[0];
+    bindpos_ins->operands[1] = index_temp;
+    bindpos_ins->operands[2] = value_temp;
+    MVM_spesh_manipulate_insert_ins(tc, bb, array_ins, bindpos_ins);
+
+    insert_getarg_and_box(tc, g, bb, array_ins, flags, pos_idx, value_temp);
+
+    /* Insert index setting instruciton */
+    index_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    index_ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
+    index_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+    index_ins->operands[0] = index_temp;
+    index_ins->operands[1].lit_i16 = target_idx;
+    MVM_spesh_manipulate_insert_ins(tc, bb, array_ins, index_ins);
+
+    /* Release temporary registers after. */
+    MVM_spesh_manipulate_release_temp_reg(tc, g, index_temp);
+    MVM_spesh_manipulate_release_temp_reg(tc, g, value_temp);
+}
+
 /* Takes information about the incoming callsite and arguments, and performs
  * various optimizations based on that information. */
 void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
@@ -257,6 +300,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
     MVMSpeshBB   *paramnamesused_bb  = NULL;
     MVMSpeshIns  *param_sn_ins       = NULL;
     MVMSpeshBB   *param_sn_bb        = NULL;
+    MVMSpeshIns  *param_sp_ins       = NULL;
+    MVMSpeshBB   *param_sp_bb        = NULL;
 
     MVMSpeshIns **pos_ins    = MVM_calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
     MVMSpeshBB  **pos_bb     = MVM_calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
@@ -344,6 +389,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 num_named++;
                 break;
             case MVM_OP_param_sp:
+                param_sp_ins = ins;
+                param_sp_bb = bb;
                 break;
             case MVM_OP_param_sn:
                 param_sn_ins = ins;
@@ -405,63 +452,65 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
         MVMint32 i;
         for (i = 0; i < cs->num_pos; i++) {
             MVMCallsiteEntry arg_flag = cs->arg_flags[i];
-            if (!pos_ins[i]) {
+            if (pos_ins[i]) {
+                switch (pos_ins[i]->info->opcode) {
+                case MVM_OP_param_rp_i:
+                case MVM_OP_param_op_i:
+                    if (arg_flag != MVM_CALLSITE_ARG_INT)
+                        if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
+                                !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_INT)) {
+                            MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
+                                    "bailed argument spesh: expected arg flag %ld to be int or box an int; type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
+                            goto cleanup;
+                        }
+                    break;
+                case MVM_OP_param_rp_u:
+                case MVM_OP_param_op_u:
+                    if (arg_flag != MVM_CALLSITE_ARG_INT)
+                        if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
+                                !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_INT)) {
+                            MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
+                                    "bailed argument spesh: expected arg flag %ld to be int or box an int; type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
+                            goto cleanup;
+                        }
+                    break;
+                case MVM_OP_param_rp_n:
+                case MVM_OP_param_op_n:
+                    if (arg_flag != MVM_CALLSITE_ARG_NUM)
+                        if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
+                                !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_NUM)) {
+                            MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
+                                    "bailed argument spesh: expected arg flag %ld to be num or box a num", i);
+                            goto cleanup;
+                        }
+                    break;
+                case MVM_OP_param_rp_s:
+                case MVM_OP_param_op_s:
+                    if (arg_flag != MVM_CALLSITE_ARG_STR)
+                        if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
+                                !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_STR)) {
+                            MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
+                                    "bailed argument spesh: expected arg flag %ld to be str or box a str type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
+                            goto cleanup;
+                        }
+                    break;
+                case MVM_OP_param_rp_o:
+                case MVM_OP_param_op_o:
+                    if (arg_flag != MVM_CALLSITE_ARG_OBJ && arg_flag != MVM_CALLSITE_ARG_INT &&
+                        arg_flag != MVM_CALLSITE_ARG_NUM && arg_flag != MVM_CALLSITE_ARG_STR) {
+                        MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
+                                "bailed argument spesh: expected arg flag %ld to be obj or int or num or str", i);
+                        goto cleanup;
+                    }
+                    break;
+                default:
+                    break;
+                }
+            }
+            else if (!pos_ins[i] && !param_sp_ins) {
                 MVM_spesh_graph_add_comment(tc, g, g->entry->first_ins,
                         "bailed argument spesh: no positional arg fetch op found for %ld", i);
                 goto cleanup;
-            }
-            switch (pos_ins[i]->info->opcode) {
-            case MVM_OP_param_rp_i:
-            case MVM_OP_param_op_i:
-                if (arg_flag != MVM_CALLSITE_ARG_INT)
-                    if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
-                            !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_INT)) {
-                        MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
-                                "bailed argument spesh: expected arg flag %ld to be int or box an int; type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
-                        goto cleanup;
-                    }
-                break;
-            case MVM_OP_param_rp_u:
-            case MVM_OP_param_op_u:
-                if (arg_flag != MVM_CALLSITE_ARG_INT)
-                    if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
-                            !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_INT)) {
-                        MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
-                                "bailed argument spesh: expected arg flag %ld to be int or box an int; type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
-                        goto cleanup;
-                    }
-                break;
-            case MVM_OP_param_rp_n:
-            case MVM_OP_param_op_n:
-                if (arg_flag != MVM_CALLSITE_ARG_NUM)
-                    if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
-                            !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_NUM)) {
-                        MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
-                                "bailed argument spesh: expected arg flag %ld to be num or box a num", i);
-                        goto cleanup;
-                    }
-                break;
-            case MVM_OP_param_rp_s:
-            case MVM_OP_param_op_s:
-                if (arg_flag != MVM_CALLSITE_ARG_STR)
-                    if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
-                            !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_STR)) {
-                        MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
-                                "bailed argument spesh: expected arg flag %ld to be str or box a str type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
-                        goto cleanup;
-                    }
-                break;
-            case MVM_OP_param_rp_o:
-            case MVM_OP_param_op_o:
-                if (arg_flag != MVM_CALLSITE_ARG_OBJ && arg_flag != MVM_CALLSITE_ARG_INT &&
-                    arg_flag != MVM_CALLSITE_ARG_NUM && arg_flag != MVM_CALLSITE_ARG_STR) {
-                    MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
-                            "bailed argument spesh: expected arg flag %ld to be obj or int or num or str", i);
-                    goto cleanup;
-                }
-                break;
-            default:
-                break;
             }
         }
 
@@ -472,6 +521,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
          * facts. */
         for (i = 0; i < cs->num_pos; i++) {
             MVMCallsiteEntry arg_flag = cs->arg_flags[i];
+            if (!pos_ins[i])
+                continue;
             switch (pos_ins[i]->info->opcode) {
                 /* FIXME add support for param_rp_u here */
             case MVM_OP_param_rp_i:
@@ -873,6 +924,30 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 for (i = 0; i < named_passed; i++)
                     if (!(named_used_bit_field & ((MVMuint64)1 << i)))
                         slurp_named_arg(tc, g, param_sn_bb, param_sn_ins, i);
+        }
+
+        /* If we have a slurpy array ... */
+        if (param_sp_ins) {
+            MVMint32 start_slurping_at = param_sp_ins->operands[1].lit_i16;
+            /* Construct it as a hash. */
+            MVMObject *array_type = g->sf->body.cu->body.hll_config->slurpy_array_type;
+            if (REPR(array_type)->ID == MVM_REPR_ID_VMArray && !REPR(array_type)->initialize) {
+                MVMSpeshOperand target    = param_sp_ins->operands[0];
+                param_sp_ins->info        = MVM_op_get_op(MVM_OP_sp_fastcreate);
+                param_sp_ins->operands    = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                param_sp_ins->operands[0] = target;
+                param_sp_ins->operands[1].lit_i16 = sizeof(MVMArray);
+                param_sp_ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g,
+                    (MVMCollectable *)STABLE(array_type));
+                MVM_spesh_graph_add_comment(tc, g, param_sp_ins, "argument spesh: slurpy positional optimized");
+            }
+            else {
+                MVM_oops(tc, "Arg spesh: slurpy array type was not a VMArray as expected");
+            }
+
+            /* Populate it with all args after the numeral argument */
+            for (i = cs->num_pos - 1; i >= start_slurping_at; i--)
+                slurp_positional_arg(tc, g, param_sp_bb, param_sp_ins, i, i - start_slurping_at);
         }
 
         /* Stash the named used bit field in the graph; will need to make it
