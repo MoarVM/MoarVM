@@ -344,8 +344,11 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 MVMint16 idx = ins->operands[1].lit_i16;
                 if (idx < 0 || idx >= MAX_POS_ARGS)
                     goto cleanup;
-                if (pos_ins[idx]) /* Dupe; weird. */
+                if (pos_ins[idx]) { /* Dupe; weird. */
+                    MVM_spesh_graph_add_comment(tc, g, ins,
+                            "bailed argument spesh: duplicate access to argument %ld", idx);
                     goto cleanup;
+                }
                 pos_ins[idx] = ins;
                 pos_bb[idx]  = bb;
                 if (idx > req_max)
@@ -361,8 +364,11 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 MVMint16 idx = ins->operands[1].lit_i16;
                 if (idx < 0 || idx >= MAX_POS_ARGS)
                     goto cleanup;
-                if (pos_ins[idx]) /* Dupe; weird. */
+                if (pos_ins[idx]) { /* Dupe; weird. */
+                    MVM_spesh_graph_add_comment(tc, g, ins,
+                            "bailed argument spesh: duplicate access to argument %ld", idx);
                     goto cleanup;
+                }
                 pos_ins[idx] = ins;
                 pos_bb[idx]  = bb;
                 if (idx > opt_max)
