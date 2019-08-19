@@ -333,5 +333,6 @@ struct MVMThreadContext {
 MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance);
 void MVM_tc_destroy(MVMThreadContext *tc);
 void MVM_tc_set_ex_release_mutex(MVMThreadContext *tc, uv_mutex_t *mutex);
+void MVM_tc_set_ex_release_atomic(MVMThreadContext *tc, AO_t *flag);
 void MVM_tc_release_ex_release_mutex(MVMThreadContext *tc);
 void MVM_tc_clear_ex_release_mutex(MVMThreadContext *tc);
