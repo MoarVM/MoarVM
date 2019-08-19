@@ -911,7 +911,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
         if (param_sn_ins) {
             /* Construct it as a hash. */
             MVMObject *hash_type = g->sf->body.cu->body.hll_config->slurpy_hash_type;
-            if (REPR(hash_type)->ID == MVM_REPR_ID_MVMHash) {
+            if (REPR(hash_type)->ID == MVM_REPR_ID_MVMHash && !REPR(hash_type)->initialize) {
                 MVMSpeshOperand target    = param_sn_ins->operands[0];
                 param_sn_ins->info        = MVM_op_get_op(MVM_OP_sp_fastcreate);
                 param_sn_ins->operands    = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
