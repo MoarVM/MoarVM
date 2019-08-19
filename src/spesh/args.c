@@ -919,6 +919,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 param_sn_ins->operands[1].lit_i16 = sizeof(MVMHash);
                 param_sn_ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g,
                     (MVMCollectable *)STABLE(hash_type));
+                MVM_spesh_graph_add_comment(tc, g, param_sn_ins, "argument spesh: slurpy nameds optimized");
             }
             else {
                 MVM_oops(tc, "Arg spesh: slurpy hash type was not a VMHash as expected");
