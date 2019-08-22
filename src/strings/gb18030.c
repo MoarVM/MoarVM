@@ -1,14 +1,19 @@
 #include "moar.h"
 #include "gb18030_codeindex.h"
 
-const int gb18030_two_byte_lower_bound[126] = {
+/*  Information about GB18030: http://www.gb18030.com/
+    GB18030 to Unicode Mapping used (included in GNU LIBICONV Package):
+	ftp://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.7.tar.gz
+*/
+
+const MVMint32 gb18030_two_byte_lower_bound[126] = {
 64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,
 64,64,64,64,64,64,161,161,161,161,161,161,161,64,64,64,64,64,64,64,64,64,64,64,
 64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,
 64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,
 64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64};
 
-const int gb18030_two_byte_upper_bound[126] = {
+const MVMint32 gb18030_two_byte_upper_bound[126] = {
 254,254,254,254,254,254,254,254,254,254,254,254,254,254,254,254,254,254,254,254,
 254,254,254,254,254,254,254,254,254,254,254,254,254,252,254,243,246,245,241,233,
 239,160,160,160,160,160,160,254,254,254,254,254,254,254,254,254,254,254,254,254,
@@ -16,12 +21,6 @@ const int gb18030_two_byte_upper_bound[126] = {
 254,254,254,254,254,254,249,254,254,254,254,254,254,254,254,254,254,254,254,254,
 254,254,254,254,254,254,254,254,254,254,254,254,254,254,254,254,254,254,254,160,
 160,160,160,160,160,159};
-
-MVMint32 is_valid_gb18030_two_byte(int c_1, int c_2) {
-    if (c_1 < 0x81 || c_1 > 0xfe) return 0;
-    c_1 -= 0x81;
-    return gb18030_two_byte_lower_bound[c_1] <= c_2 && c_2 <= gb18030_two_byte_upper_bound[c_1] ? 1 : 0;
-}
 
 MVMint32 gb18030_valid_check_len2(MVMint32 c_1, MVMint32 c_2) {
     /* This function serves like a 'first stage check' of c_1 and c_2.
@@ -69,6 +68,7 @@ MVMString * MVM_string_gb18030_decode(MVMThreadContext *tc, const MVMObject *res
         }
         else {
             if (i + 1 < bytes) {
+            //  GB18030 codepoint of length 2
                 MVMuint8 byte1 = gb18030[i];
                 MVMuint8 byte2 = gb18030[i + 1];
                 if (gb18030_valid_check_len2(byte1, byte2)) {
@@ -81,6 +81,7 @@ MVMString * MVM_string_gb18030_decode(MVMThreadContext *tc, const MVMObject *res
                 }
             }
             if (i + 3 < bytes) {
+            //  GB18030 codepoint of length 4
                 MVMuint8 byte1 = gb18030[i];
                 MVMuint8 byte2 = gb18030[i + 1];
                 MVMuint8 byte3 = gb18030[i + 2];
@@ -156,8 +157,7 @@ MVMuint32 MVM_string_gb18030_decodestream(MVMThreadContext *tc, MVMDecodeStream 
             MVMGrapheme32 graph;
             MVMint32 codepoint = (MVMint32) bytes[pos++];
             
-            if (is_len4)
-            {
+            if (is_len4) {
                 if (len4_cnt == 2) {
                     len4_cnt++;
                     len4_byte3 = codepoint;
@@ -301,7 +301,6 @@ char * MVM_string_gb18030_encode_substr(MVMThreadContext *tc, MVMString *str,
                 result = MVM_realloc(result, result_alloc + 5);
             }
             if (codepoint <= 0x7F) {
-                /* Length = 1 */
                 result[out_pos++] = codepoint;
             }
             else {
@@ -325,10 +324,12 @@ char * MVM_string_gb18030_encode_substr(MVMThreadContext *tc, MVMString *str,
                     }
                 }
                 if (gb18030_cp <= 0xffff) {
+                //  Length = 2
                     result[out_pos++] = gb18030_cp / 256;
                     result[out_pos++] = gb18030_cp % 256;
                 }
                 else {
+                //  Length = 4
                     result[out_pos++] = (gb18030_cp / 16777216) % 256;
                     result[out_pos++] = (gb18030_cp / 65536) % 256;
                     result[out_pos++] = (gb18030_cp / 256) % 256;
