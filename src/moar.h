@@ -184,6 +184,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "strings/shiftjis.h"
 #include "strings/unicode_ops.h"
 #include "strings/gb2312.h"
+#include "strings/gb18030.h"
 #include "io/io.h"
 #include "io/eventloop.h"
 #include "io/syncfile.h"

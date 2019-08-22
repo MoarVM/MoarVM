@@ -150,6 +150,9 @@ static MVMuint32 run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVM
     case MVM_encoding_type_gb2312:
         reached_stopper = MVM_string_gb2312_decodestream(tc, ds, stopper_chars, sep_spec);
         break;
+    case MVM_encoding_type_gb18030:
+        reached_stopper = MVM_string_gb18030_decodestream(tc, ds, stopper_chars, sep_spec);
+        break;
     default:
         if (ds->encoding < MVM_encoding_type_MIN || MVM_encoding_type_MAX < ds->encoding)
             MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRIi32, ds->encoding);
