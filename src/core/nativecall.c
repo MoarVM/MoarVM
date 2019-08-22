@@ -283,7 +283,7 @@ double MVM_nativecall_unmarshal_double(MVMThreadContext *tc, MVMObject *value) {
     return (double)MVM_repr_get_num(tc, value);
 }
 
-char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 type, MVMint16 *free) {
+char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 type, MVMint16 *free, MVMint16 unmarshal_kind) {
     if (IS_CONCRETE(value)) {
         MVMString *value_str = MVM_repr_get_str(tc, value);
 
@@ -317,47 +317,62 @@ char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, M
     }
 }
 
-void * MVM_nativecall_unmarshal_cstruct(MVMThreadContext *tc, MVMObject *value) {
+static void unmarshal_error(MVMThreadContext *tc, char *desired_repr, MVMObject *value, MVMint16 unmarshal_kind) {
+    if (unmarshal_kind == MVM_NATIVECALL_UNMARSHAL_KIND_GENERIC) {
+        MVM_exception_throw_adhoc(tc,
+            "NativeCall conversion expected type with %s representation, but got a %s (%s)", desired_repr, REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+    }
+    else if (unmarshal_kind == MVM_NATIVECALL_UNMARSHAL_KIND_RETURN) {
+        MVM_exception_throw_adhoc(tc,
+            "Expected return value with %s representation, but got a %s (%s)", desired_repr, REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+    }
+    else if (unmarshal_kind == MVM_NATIVECALL_UNMARSHAL_KIND_NATIVECAST) {
+        MVM_exception_throw_adhoc(tc,
+            "NativeCast expected value with %s representation, but got a %s (%s)", desired_repr, REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Native call expected argument %ld with %s representation, but got a %s (%s)", unmarshal_kind + 1, desired_repr, REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+    }
+}
+
+void * MVM_nativecall_unmarshal_cstruct(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind) {
     if (!IS_CONCRETE(value))
         return NULL;
     else if (REPR(value)->ID == MVM_REPR_ID_MVMCStruct)
         return ((MVMCStruct *)value)->body.cstruct;
     else
-        MVM_exception_throw_adhoc(tc,
-            "Native call expected return type with CStruct representation, but got a %s (%s)", REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+        unmarshal_error(tc, "CStruct", value, unmarshal_kind);
 }
 
-void * MVM_nativecall_unmarshal_cppstruct(MVMThreadContext *tc, MVMObject *value) {
+void * MVM_nativecall_unmarshal_cppstruct(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind) {
     if (!IS_CONCRETE(value))
         return NULL;
     else if (REPR(value)->ID == MVM_REPR_ID_MVMCPPStruct)
         return ((MVMCPPStruct *)value)->body.cppstruct;
     else
-        MVM_exception_throw_adhoc(tc,
-            "Native call expected return type with CPPStruct representation, but got a %s (%s)", REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+        unmarshal_error(tc, "CPPStruct", value, unmarshal_kind);
 }
 
-void * MVM_nativecall_unmarshal_cpointer(MVMThreadContext *tc, MVMObject *value) {
+void * MVM_nativecall_unmarshal_cpointer(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind) {
     if (!IS_CONCRETE(value))
         return NULL;
     else if (REPR(value)->ID == MVM_REPR_ID_MVMCPointer)
         return ((MVMCPointer *)value)->body.ptr;
     else
-        MVM_exception_throw_adhoc(tc,
-            "Native call expected return type with CPointer representation, but got a %s (%s)", REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+        unmarshal_error(tc, "CPointer", value, unmarshal_kind);
 }
 
-void * MVM_nativecall_unmarshal_carray(MVMThreadContext *tc, MVMObject *value) {
+void * MVM_nativecall_unmarshal_carray(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind) {
     if (!IS_CONCRETE(value))
         return NULL;
     else if (REPR(value)->ID == MVM_REPR_ID_MVMCArray)
         return ((MVMCArray *)value)->body.storage;
     else
-        MVM_exception_throw_adhoc(tc,
-            "Native call expected return type with CArray representation, but got a %s (%s)", REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+        unmarshal_error(tc, "CArray", value, unmarshal_kind);
 }
 
-void * MVM_nativecall_unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value) {
+void * MVM_nativecall_unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind) {
     if (!IS_CONCRETE(value))
         return NULL;
     else if (REPR(value)->ID == MVM_REPR_ID_VMArray) {
@@ -367,18 +382,16 @@ void * MVM_nativecall_unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value) 
         return ((char *)body->slots.any) + start_pos;
     }
     else
-        MVM_exception_throw_adhoc(tc,
-            "Native call expected object with Array representation, but got a %s (%s)", REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+        unmarshal_error(tc, "VMArray", value, unmarshal_kind);
 }
 
-void * MVM_nativecall_unmarshal_cunion(MVMThreadContext *tc, MVMObject *value) {
+void * MVM_nativecall_unmarshal_cunion(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind) {
     if (!IS_CONCRETE(value))
         return NULL;
     else if (REPR(value)->ID == MVM_REPR_ID_MVMCUnion)
         return ((MVMCUnion *)value)->body.cunion;
     else
-        MVM_exception_throw_adhoc(tc,
-            "Native call expected return type with CUnion representation, but got a %s (%s)", REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+        unmarshal_error(tc, "CUnion", value, unmarshal_kind);
 }
 
 #ifdef _WIN32
@@ -649,7 +662,7 @@ MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *l
 
     /* Try to locate the symbol. */
     if (entry_point_o) {
-        body->entry_point = MVM_nativecall_unmarshal_cpointer(tc, entry_point_o);
+        body->entry_point = MVM_nativecall_unmarshal_cpointer(tc, entry_point_o, MVM_NATIVECALL_UNMARSHAL_KIND_GENERIC);
         body->sym_name    = sym_name;
         keep_sym_name     = 1;
     }
@@ -903,20 +916,20 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
         return target_type;
 
     if (REPR(source)->ID == MVM_REPR_ID_MVMCStruct)
-        data_body = MVM_nativecall_unmarshal_cstruct(tc, source);
+        data_body = MVM_nativecall_unmarshal_cstruct(tc, source, MVM_NATIVECALL_UNMARSHAL_KIND_NATIVECAST);
     else if (REPR(source)->ID == MVM_REPR_ID_MVMCPPStruct)
-        data_body = MVM_nativecall_unmarshal_cppstruct(tc, source);
+        data_body = MVM_nativecall_unmarshal_cppstruct(tc, source, MVM_NATIVECALL_UNMARSHAL_KIND_NATIVECAST);
     else if (REPR(source)->ID == MVM_REPR_ID_MVMCUnion)
-        data_body = MVM_nativecall_unmarshal_cunion(tc, source);
+        data_body = MVM_nativecall_unmarshal_cunion(tc, source, MVM_NATIVECALL_UNMARSHAL_KIND_NATIVECAST);
     else if (REPR(source)->ID == MVM_REPR_ID_MVMCPointer)
-        data_body = MVM_nativecall_unmarshal_cpointer(tc, source);
+        data_body = MVM_nativecall_unmarshal_cpointer(tc, source, MVM_NATIVECALL_UNMARSHAL_KIND_NATIVECAST);
     else if (REPR(source)->ID == MVM_REPR_ID_MVMCArray)
-        data_body = MVM_nativecall_unmarshal_carray(tc, source);
+        data_body = MVM_nativecall_unmarshal_carray(tc, source, MVM_NATIVECALL_UNMARSHAL_KIND_NATIVECAST);
     else if (REPR(source)->ID == MVM_REPR_ID_VMArray)
-        data_body = MVM_nativecall_unmarshal_vmarray(tc, source);
+        data_body = MVM_nativecall_unmarshal_vmarray(tc, source, MVM_NATIVECALL_UNMARSHAL_KIND_NATIVECAST);
     else
         MVM_exception_throw_adhoc(tc,
-            "Native call expected return type with CPointer, CStruct, CArray, or VMArray representation, but got a %s (%s)", REPR(source)->name, MVM_6model_get_debug_name(tc, source));
+            "Native call cast expected return type with CPointer, CStruct, CArray, or VMArray representation, but got a %s (%s)", REPR(source)->name, MVM_6model_get_debug_name(tc, source));
     return nativecall_cast(tc, target_spec, target_type, data_body);
 }
 

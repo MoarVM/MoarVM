@@ -396,25 +396,25 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
         case MVM_NATIVECALL_ARG_ASCIISTR:
         case MVM_NATIVECALL_ARG_UTF8STR:
         case MVM_NATIVECALL_ARG_UTF16STR:
-            cb_result->Z = MVM_nativecall_unmarshal_string(tc, res.o, data->typeinfos[0], NULL);
+            cb_result->Z = MVM_nativecall_unmarshal_string(tc, res.o, data->typeinfos[0], NULL, MVM_NATIVECALL_UNMARSHAL_KIND_GENERIC);
             break;
         case MVM_NATIVECALL_ARG_CSTRUCT:
-            cb_result->p = MVM_nativecall_unmarshal_cstruct(tc, res.o);
+            cb_result->p = MVM_nativecall_unmarshal_cstruct(tc, res.o, MVM_NATIVECALL_UNMARSHAL_KIND_GENERIC);
             break;
         case MVM_NATIVECALL_ARG_CPPSTRUCT:
-            cb_result->p = MVM_nativecall_unmarshal_cppstruct(tc, res.o);
+            cb_result->p = MVM_nativecall_unmarshal_cppstruct(tc, res.o, MVM_NATIVECALL_UNMARSHAL_KIND_GENERIC);
             break;
         case MVM_NATIVECALL_ARG_CPOINTER:
-            cb_result->p = MVM_nativecall_unmarshal_cpointer(tc, res.o);
+            cb_result->p = MVM_nativecall_unmarshal_cpointer(tc, res.o, MVM_NATIVECALL_UNMARSHAL_KIND_GENERIC);
             break;
         case MVM_NATIVECALL_ARG_CARRAY:
-            cb_result->p = MVM_nativecall_unmarshal_carray(tc, res.o);
+            cb_result->p = MVM_nativecall_unmarshal_carray(tc, res.o, MVM_NATIVECALL_UNMARSHAL_KIND_GENERIC);
             break;
         case MVM_NATIVECALL_ARG_CUNION:
-            cb_result->p = MVM_nativecall_unmarshal_cunion(tc, res.o);
+            cb_result->p = MVM_nativecall_unmarshal_cunion(tc, res.o, MVM_NATIVECALL_UNMARSHAL_KIND_GENERIC);
             break;
         case MVM_NATIVECALL_ARG_VMARRAY:
-            cb_result->p = MVM_nativecall_unmarshal_vmarray(tc, res.o);
+            cb_result->p = MVM_nativecall_unmarshal_vmarray(tc, res.o, MVM_NATIVECALL_UNMARSHAL_KIND_GENERIC);
             break;
         case MVM_NATIVECALL_ARG_CALLBACK:
             cb_result->p = unmarshal_callback(tc, res.o, data->types[0]);
@@ -469,7 +469,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
         } \
         else \
             MVM_exception_throw_adhoc(tc, \
-                "Native call expected argument that references a native %s, but got %s", \
+                "Native call expected argument %lld to reference a native %s, but got %s", \
                 what, REPR(value)->name); \
     } \
     else { \
@@ -542,7 +542,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
             case MVM_NATIVECALL_ARG_UTF16STR:
                 {
                     MVMint16 free = 0;
-                    char *str = MVM_nativecall_unmarshal_string(tc, value, arg_types[i], &free);
+                    char *str = MVM_nativecall_unmarshal_string(tc, value, arg_types[i], &free, i);
                     if (free) {
                         if (!free_strs)
                             free_strs = (char**)MVM_malloc(num_args * sizeof(char *));
@@ -553,7 +553,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 }
                 break;
             case MVM_NATIVECALL_ARG_CSTRUCT:
-                dcArgPointer(vm, MVM_nativecall_unmarshal_cstruct(tc, value));
+                dcArgPointer(vm, MVM_nativecall_unmarshal_cstruct(tc, value, i));
                 break;
             case MVM_NATIVECALL_ARG_CPPSTRUCT: {
                     /* We need to allocate the struct (THIS) for C++ constructor before passing it along. */
@@ -566,14 +566,14 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                         dcArgPointer(vm, ptr);
                     }
                     else {
-                        dcArgPointer(vm, MVM_nativecall_unmarshal_cppstruct(tc, value));
+                        dcArgPointer(vm, MVM_nativecall_unmarshal_cppstruct(tc, value, i));
                     }
                 }
                 break;
             case MVM_NATIVECALL_ARG_CPOINTER:
                 if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
                     DCpointer *rw = (DCpointer *)MVM_malloc(sizeof(DCpointer *));
-                    *rw           = (DCpointer)MVM_nativecall_unmarshal_cpointer(tc, value);
+                    *rw           = (DCpointer)MVM_nativecall_unmarshal_cpointer(tc, value, i);
                     if (!free_rws)
                         free_rws = (void **)MVM_malloc(num_args * sizeof(void *));
                     free_rws[num_rws] = rw;
@@ -581,17 +581,17 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     dcArgPointer(vm, rw);
                 }
                 else {
-                    dcArgPointer(vm, MVM_nativecall_unmarshal_cpointer(tc, value));
+                    dcArgPointer(vm, MVM_nativecall_unmarshal_cpointer(tc, value, i));
                 }
                 break;
             case MVM_NATIVECALL_ARG_CARRAY:
-                dcArgPointer(vm, MVM_nativecall_unmarshal_carray(tc, value));
+                dcArgPointer(vm, MVM_nativecall_unmarshal_carray(tc, value, i));
                 break;
             case MVM_NATIVECALL_ARG_CUNION:
-                dcArgPointer(vm, MVM_nativecall_unmarshal_cunion(tc, value));
+                dcArgPointer(vm, MVM_nativecall_unmarshal_cunion(tc, value, i));
                 break;
             case MVM_NATIVECALL_ARG_VMARRAY:
-                dcArgPointer(vm, MVM_nativecall_unmarshal_vmarray(tc, value));
+                dcArgPointer(vm, MVM_nativecall_unmarshal_vmarray(tc, value, i));
                 break;
             case MVM_NATIVECALL_ARG_CALLBACK:
                 dcArgPointer(vm, unmarshal_callback(tc, value, body->arg_info[i]));
