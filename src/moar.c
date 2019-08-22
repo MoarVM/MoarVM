@@ -451,10 +451,12 @@ void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
 }
 
 /* Loads bytecode from memory and runs it. */
-void MVM_vm_run_bytecode(MVMInstance *instance, MVMuint8 *bytes, MVMuint32 size) {
+void MVM_vm_run_bytecode(MVMInstance *instance, const void *bytes, size_t size) {
     /* Map the compilation unit into memory and dissect it. */
     MVMThreadContext *tc = instance->main_thread;
-    MVMCompUnit      *cu = MVM_cu_from_bytes(tc, bytes, size);
+
+    /* Casting const away, oh well... */
+    MVMCompUnit *cu = MVM_cu_from_bytes(tc, (MVMuint8 *)bytes, (MVMuint32)size);
 
     /* Run the deserialization frame, if any. */
     MVMROOT(tc, cu, { run_deserialization_frame(tc, cu); });
