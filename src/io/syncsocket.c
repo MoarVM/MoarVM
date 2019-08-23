@@ -27,10 +27,10 @@
 #define PACKET_SIZE 65535
 
 /* Error handling varies between POSIX and WinSock. */
-MVM_NO_RETURN static void throw_error(MVMThreadContext *tc, int r, char *operation) MVM_NO_RETURN_ATTRIBUTE;
+MVM_NO_RETURN static void throw_error(MVMThreadContext *tc, int r, const char *operation) MVM_NO_RETURN_ATTRIBUTE;
 #ifdef _WIN32
     #define MVM_IS_SOCKET_ERROR(x) ((x) == SOCKET_ERROR)
-    static void throw_error(MVMThreadContext *tc, int r, char *operation) {
+    static void throw_error(MVMThreadContext *tc, int r, const char *operation) {
         int error = WSAGetLastError();
         LPTSTR error_string = NULL;
         if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
@@ -42,7 +42,7 @@ MVM_NO_RETURN static void throw_error(MVMThreadContext *tc, int r, char *operati
     }
 #else
     #define MVM_IS_SOCKET_ERROR(x) ((x) < 0)
-    static void throw_error(MVMThreadContext *tc, int r, char *operation) {
+    static void throw_error(MVMThreadContext *tc, int r, const char *operation) {
         MVM_exception_throw_adhoc(tc, "Could not %s: %s", operation, strerror(errno));
     }
 #endif
@@ -277,36 +277,35 @@ static size_t get_struct_size_for_family(sa_family_t family) {
  *
  * SOCKET_FAMILY_UNIX = 3
  *   Unix domain socket, will spawn a sockaddr_un which will use the given host as path
- *   e.g: MVM_io_resolve_host_name(tc, "/run/moarvm.sock", 0, SOCKET_FAMILY_UNIX)
+ *   e.g: MVM_io_resolve_host_name(tc, "/run/moarvm.sock", 0, SOCKET_FAMILY_UNIX, 0, 0, 0)
  *   will spawn an unix domain socket on /run/moarvm.sock
+ *
+ * TODO: proper support for the types and protocols that can be passed to this.
+ *
+ * Passing passive as 1 will look up hostnames for sockets intended for
+ * bind(2), and passing it as 0 will look them up for those intended for
+ * connect(2).
  */
 
-struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host, MVMint64 port, MVMuint16 family) {
-    char *host_cstr = MVM_string_utf8_encode_C_string(tc, host);
-    struct sockaddr *dest;
-    int error;
+struct addrinfo * MVM_io_resolve_host_name(
+    MVMThreadContext *tc,
+    MVMString        *host,
+    MVMint64          port,
+    MVMuint16         family,
+    MVMint64          type,
+    MVMint64          protocol,
+    MVMint64          passive
+) {
+    char            *host_cstr     = MVM_string_utf8_encode_C_string(tc, host);
+    char             port_cstr[8];
+    int              error;
+    struct addrinfo  hints;
     struct addrinfo *result;
-    char port_cstr[8];
-    struct addrinfo hints;
 
-#ifndef _WIN32
-    if (family == SOCKET_FAMILY_UNIX) {
-        struct sockaddr_un *result_un = MVM_malloc(sizeof(struct sockaddr_un));
-
-        MVMuint64 host_len = strlen(host_cstr);
-        if (host_len > 107) {
-            char *waste[] = { host_cstr, NULL };
-            MVM_free(result_un);
-            MVM_exception_throw_adhoc_free(tc, waste, "Socket path '%s' is %"PRIu64" characters, max allowed is 107", host_cstr, host_len);
-        }
-
-        result_un->sun_family = AF_UNIX;
-        strcpy(result_un->sun_path, host_cstr);
-        MVM_free(host_cstr);
-
-        return (struct sockaddr *)result_un;
-    }
-#endif
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_flags = passive
+                   ? (AI_ADDRCONFIG | AI_NUMERICSERV | AI_PASSIVE)
+                   : (AI_ADDRCONFIG | AI_NUMERICSERV);
 
     switch (family) {
         case SOCKET_FAMILY_UNSPEC:
@@ -318,72 +317,141 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
         case SOCKET_FAMILY_INET6:
             hints.ai_family = AF_INET6;
             break;
-        case SOCKET_FAMILY_UNIX:
-            hints.ai_family = AF_UNIX;
-            break;
+        case SOCKET_FAMILY_UNIX: {
+            /* XXX: this is pretty hacky... */
+#ifdef _WIN32
+            MVM_exception_throw_adhoc(tc, "UNIX sockets are unsupported on Windows.");
+#else
+            struct sockaddr_un *dest_un;
+            MVMuint64           host_len = strlen(host_cstr);
+
+            if (host_len > 107) {
+                char *waste[] = { host_cstr, NULL };
+                MVM_free(host_cstr);
+                MVM_exception_throw_adhoc_free(tc, waste, "Socket path '%s' is %"PRIu64" characters, max allowed is 107", host_cstr, host_len);
+            }
+
+            dest_un             = MVM_malloc(sizeof(struct sockaddr_un));
+            dest_un->sun_family = AF_UNIX;
+            strcpy(dest_un->sun_path, host_cstr);
+            MVM_free(host_cstr);
+
+            result             = MVM_calloc(1, sizeof(struct addrinfo));
+            result->ai_family  = AF_UNIX;
+            result->ai_addrlen = sizeof(struct sockaddr_un);
+            result->ai_addr    = (struct sockaddr *)dest_un;
+            return result;
+#endif
+        }
         default:
             MVM_exception_throw_adhoc(tc, "Unsupported socket family: %hu", family);
-            break;
     }
 
-    hints.ai_socktype = 0;
-    hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV | AI_PASSIVE;
-    hints.ai_protocol = 0;
-    hints.ai_addrlen = 0;
-    hints.ai_addr = NULL;
-    hints.ai_canonname = NULL;
-    hints.ai_next = NULL;
+    switch (type) {
+        case 0:
+            hints.ai_socktype = 0;
+            break;
+        case SOCKET_TYPE_STREAM:
+            hints.ai_socktype = SOCK_STREAM;
+            break;
+        case SOCKET_TYPE_DGRAM:
+            hints.ai_socktype = SOCK_DGRAM;
+            break;
+        case SOCKET_TYPE_RAW:
+            hints.ai_socktype = SOCK_RAW;
+            break;
+        case SOCKET_TYPE_RDM:
+            hints.ai_socktype = SOCK_RDM;
+            break;
+        case SOCKET_TYPE_SEQPACKET:
+            hints.ai_socktype = SOCK_SEQPACKET;
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "Unsupported socket type: %lld", type);
+    }
+
+    switch (protocol) {
+        case 0:
+            hints.ai_protocol = 0;
+            break;
+        case SOCKET_PROTOCOL_TCP:
+            hints.ai_protocol = IPPROTO_TCP;
+            break;
+        case SOCKET_PROTOCOL_UDP:
+            hints.ai_protocol = IPPROTO_UDP;
+            break;
+        case SOCKET_PROTOCOL_RAW:
+            hints.ai_protocol = IPPROTO_RAW;
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "Unsupported socket protocol: %lld", protocol);
+    }
 
     snprintf(port_cstr, 8, "%d", (int)port);
 
     MVM_gc_mark_thread_blocked(tc);
     error = getaddrinfo(host_cstr, port_cstr, &hints, &result);
     MVM_gc_mark_thread_unblocked(tc);
-    if (error == 0) {
-        size_t size = get_struct_size_for_family(result->ai_addr->sa_family);
-        MVM_free(host_cstr);
-        dest = MVM_malloc(size);
-        memcpy(dest, result->ai_addr, size);
-    }
-    else {
+
+    if (error) {
         char *waste[] = { host_cstr, NULL };
         MVM_exception_throw_adhoc_free(tc, waste, "Failed to resolve host name '%s' with family %hu. Error: '%s'",
                                        host_cstr, family, gai_strerror(error));
     }
-    freeaddrinfo(result);
 
-    return dest;
+    return result;
 }
 
 /* Establishes a connection. */
 static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMuint16 family) {
-    MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
-    unsigned int interval_id;
+    MVMIOSyncSocketData *data        = (MVMIOSyncSocketData *)h->body.data;
+    unsigned int         interval_id = MVM_telemetry_interval_start(tc, "syncsocket connect");
 
-    interval_id = MVM_telemetry_interval_start(tc, "syncsocket connect");
     if (!data->handle) {
-        struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family);
-        int r;
+        struct addrinfo *result = MVM_io_resolve_host_name(tc, host, port, family, SOCKET_TYPE_STREAM, SOCKET_PROTOCOL_TCP, 0);
+        struct addrinfo *record;
+        Socket           s;
+        const char      *errmsg = NULL;
 
-        Socket s = socket(dest->sa_family , SOCK_STREAM , 0);
-        if (MVM_IS_SOCKET_ERROR(s)) {
-            MVM_free(dest);
-            MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
-            throw_error(tc, s, "create socket");
-        }
+        for (record = result; record != NULL; record = record->ai_next) {
+            int r;
 
-        do {
             MVM_gc_mark_thread_blocked(tc);
-            r = connect(s, dest, (socklen_t)get_struct_size_for_family(dest->sa_family));
+            s = socket(record->ai_family, record->ai_socktype, record->ai_protocol);
             MVM_gc_mark_thread_unblocked(tc);
-        } while(r == -1 && errno == EINTR);
-        MVM_free(dest);
-        if (MVM_IS_SOCKET_ERROR(r)) {
-            MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
-            throw_error(tc, s, "connect socket");
+            if (MVM_IS_SOCKET_ERROR(s)) {
+                errmsg = "create socket";
+                continue;
+            }
+
+            do {
+                MVM_gc_mark_thread_blocked(tc);
+                r = connect(s, record->ai_addr, record->ai_addrlen);
+                MVM_gc_mark_thread_unblocked(tc);
+            } while (r == -1 && errno == EINTR);
+
+            if (MVM_IS_SOCKET_ERROR(r)) {
+                int saved_errno;
+
+                MVM_gc_mark_thread_blocked(tc);
+                saved_errno = errno;
+                close(s);
+                errno = saved_errno;
+                MVM_gc_mark_thread_unblocked(tc);
+
+                errmsg = "connect socket";
+                continue;
+            }
+
+            data->handle = s;
+            errmsg       = NULL;
+            break;
         }
 
-        data->handle = s;
+        if (errmsg != NULL) {
+            MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
+            throw_error(tc, s, errmsg);
+        }
     }
     else {
         MVM_telemetry_interval_stop(tc, interval_id, "syncsocket didn't connect");
@@ -394,38 +462,77 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
 static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMuint16 family, MVMint32 backlog) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     if (!data->handle) {
-        struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family);
-        int r;
+        struct addrinfo *result  = MVM_io_resolve_host_name(tc, host, port, family, SOCKET_TYPE_STREAM, SOCKET_PROTOCOL_TCP, 1);
+        struct addrinfo *record;
+        Socket           s;
+        const char      *errmsg  = NULL;
 
-        Socket s = socket(dest->sa_family , SOCK_STREAM , 0);
-        if (MVM_IS_SOCKET_ERROR(s)) {
-            MVM_free(dest);
-            throw_error(tc, s, "create socket");
-        }
+        for (record = result; record != NULL; record = record->ai_next) {
+            int r;
 
-        /* On POSIX, we set the SO_REUSEADDR option, which allows re-use of
-         * a port in TIME_WAIT state (modulo many hair details). Oringinally,
-         * MoarVM used libuv, which does this automatically on non-Windows.
-         * We have tests with bring up a server, then take it down, and then
-         * bring another up on the same port, and we get test failures due
-         * to racing to re-use the port without this. */
+            MVM_gc_mark_thread_blocked(tc);
+            s = socket(record->ai_family, record->ai_socktype, record->ai_protocol);
+            MVM_gc_mark_thread_unblocked(tc);
+            if (MVM_IS_SOCKET_ERROR(s)) {
+                errmsg = "create socket";
+                continue;
+            }
+
+            /* On POSIX, we set the SO_REUSEADDR option, which allows re-use of
+             * a port in TIME_WAIT state (modulo many hair details). Oringinally,
+             * MoarVM used libuv, which does this automatically on non-Windows.
+             * We have tests with bring up a server, then take it down, and then
+             * bring another up on the same port, and we get test failures due
+             * to racing to re-use the port without this. */
 #ifndef _WIN32
-        {
-            int one = 1;
-            setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
-        }
+            {
+                int one = 1;
+
+                MVM_gc_mark_thread_blocked(tc);
+                setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+                MVM_gc_mark_thread_unblocked(tc);
+            }
 #endif
 
-        r = bind(s, dest, (socklen_t)get_struct_size_for_family(dest->sa_family));
-        MVM_free(dest);
-        if (MVM_IS_SOCKET_ERROR(r))
-            throw_error(tc, s, "bind socket");
+            MVM_gc_mark_thread_blocked(tc);
+            r = bind(s, record->ai_addr, record->ai_addrlen);
+            MVM_gc_mark_thread_unblocked(tc);
+            if (MVM_IS_SOCKET_ERROR(r)) {
+                int saved_errno;
 
-        r = listen(s, (int)backlog);
-        if (MVM_IS_SOCKET_ERROR(r))
-            throw_error(tc, s, "start listening on socket");
+                MVM_gc_mark_thread_blocked(tc);
+                saved_errno = errno;
+                close(s);
+                errno = saved_errno;
+                MVM_gc_mark_thread_unblocked(tc);
 
-        data->handle = s;
+                errmsg = "bind socket";
+                continue;
+            }
+
+            MVM_gc_mark_thread_blocked(tc);
+            r = listen(s, (int)backlog);
+            MVM_gc_mark_thread_unblocked(tc);
+            if (MVM_IS_SOCKET_ERROR(r)) {
+                int saved_errno;
+
+                MVM_gc_mark_thread_blocked(tc);
+                saved_errno = errno;
+                close(s);
+                errno = saved_errno;
+                MVM_gc_mark_thread_unblocked(tc);
+
+                errmsg = "start listening on socket";
+                continue;
+            }
+
+            data->handle = s;
+            errmsg       = NULL;
+            break;
+        }
+
+        if (errmsg != NULL)
+            throw_error(tc, s, errmsg);
     }
     else {
         MVM_exception_throw_adhoc(tc, "Socket is already bound or connected");
