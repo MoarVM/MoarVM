@@ -10,7 +10,7 @@ typedef void MVMExtOpFactDiscover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
 #define MVM_EXTOP_ALLOCATING    16
 
 struct MVMExtRegistry {
-    MVMDLLSym *sym;
+    void      *sym;
     MVMString *name;
     UT_hash_handle hash_handle;
 };

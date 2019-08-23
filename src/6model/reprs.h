@@ -23,7 +23,6 @@
 #include "6model/reprs/MVMException.h"
 #include "6model/reprs/MVMStaticFrame.h"
 #include "6model/reprs/MVMCompUnit.h"
-#include "6model/reprs/MVMDLLSym.h"
 #include "6model/reprs/MVMMultiCache.h"
 #include "6model/reprs/MVMContinuation.h"
 #include "6model/reprs/NativeCall.h"
@@ -78,28 +77,27 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMException            22
 #define MVM_REPR_ID_MVMStaticFrame          23
 #define MVM_REPR_ID_MVMCompUnit             24
-#define MVM_REPR_ID_MVMDLLSym               25
-#define MVM_REPR_ID_MVMMultiCache           26
-#define MVM_REPR_ID_MVMContinuation         27
-#define MVM_REPR_ID_MVMNativeCall           28
-#define MVM_REPR_ID_MVMCPointer             29
-#define MVM_REPR_ID_MVMCStr                 30
-#define MVM_REPR_ID_MVMCArray               31
-#define MVM_REPR_ID_MVMCStruct              32
-#define MVM_REPR_ID_ReentrantMutex          33
-#define MVM_REPR_ID_ConditionVariable       34
-#define MVM_REPR_ID_Semaphore               35
-#define MVM_REPR_ID_ConcBlockingQueue       36
-#define MVM_REPR_ID_MVMAsyncTask            37
-#define MVM_REPR_ID_MVMNull                 38
-#define MVM_REPR_ID_NativeRef               39
-#define MVM_REPR_ID_MVMCUnion               40
-#define MVM_REPR_ID_MultiDimArray           41
-#define MVM_REPR_ID_MVMCPPStruct            42
-#define MVM_REPR_ID_Decoder                 43
-#define MVM_REPR_ID_MVMStaticFrameSpesh     44
+#define MVM_REPR_ID_MVMMultiCache           25
+#define MVM_REPR_ID_MVMContinuation         26
+#define MVM_REPR_ID_MVMNativeCall           27
+#define MVM_REPR_ID_MVMCPointer             28
+#define MVM_REPR_ID_MVMCStr                 29
+#define MVM_REPR_ID_MVMCArray               30
+#define MVM_REPR_ID_MVMCStruct              31
+#define MVM_REPR_ID_ReentrantMutex          32
+#define MVM_REPR_ID_ConditionVariable       33
+#define MVM_REPR_ID_Semaphore               34
+#define MVM_REPR_ID_ConcBlockingQueue       35
+#define MVM_REPR_ID_MVMAsyncTask            36
+#define MVM_REPR_ID_MVMNull                 37
+#define MVM_REPR_ID_NativeRef               38
+#define MVM_REPR_ID_MVMCUnion               39
+#define MVM_REPR_ID_MultiDimArray           40
+#define MVM_REPR_ID_MVMCPPStruct            41
+#define MVM_REPR_ID_Decoder                 42
+#define MVM_REPR_ID_MVMStaticFrameSpesh     43
 
-#define MVM_REPR_CORE_COUNT                 45
+#define MVM_REPR_CORE_COUNT                 44
 #define MVM_REPR_MAX_COUNT                  64
 
 /* Default attribute functions for a REPR that lacks them. */

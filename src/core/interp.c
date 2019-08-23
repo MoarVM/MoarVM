@@ -3756,26 +3756,31 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-            OP(freelib): {
-                MVMString *name = GET_REG(cur_op, 0).s;
-                MVM_dll_free(tc, name);
+            OP(droplib): {
+                MVMDLL *dll = MVM_dll_unbox(tc, GET_REG(cur_op, 0).o);
+                if(dll) MVM_dll_release(tc, dll);
                 cur_op += 2;
                 goto NEXT;
             }
-            OP(findsym): {
-                MVMString *lib = GET_REG(cur_op, 2).s;
-                MVMString *sym = GET_REG(cur_op, 4).s;
-                MVMObject *obj = MVM_dll_find_symbol(tc, lib, sym);
-                if (MVM_is_null(tc, obj))
-                    MVM_exception_throw_adhoc(tc, "symbol not found in DLL");
-
-                GET_REG(cur_op, 0).o = obj;
+            OP(getlib): {
+                MVMDLL *dll = MVM_dll_get(tc, GET_REG(cur_op, 2).s);
+                MVMObject *type = GET_REG(cur_op, 4).o;
+                GET_REG(cur_op, 0).o = MVM_dll_box(tc, dll, type);
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(dropsym): {
-                MVM_dll_drop_symbol(tc, GET_REG(cur_op, 0).o);
-                cur_op += 2;
+            OP(findsym): {
+                MVMDLL *dll = MVM_dll_unbox(tc, GET_REG(cur_op, 2).o);
+                MVMString *sym = GET_REG(cur_op, 4).s;
+                void *ptr = MVM_dll_find_symbol(tc, dll, sym);
+                MVMint64 val;
+#if MVM_PTR_SIZE == 4
+                val = (MVMint32)ptr;
+#else
+                val = (MVMint64)ptr;
+#endif
+                GET_REG(cur_op, 0).i64 = val;
+                cur_op += 6;
                 goto NEXT;
             }
             OP(loadext): {

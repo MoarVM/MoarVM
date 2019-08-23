@@ -573,9 +573,9 @@ cwd                 w(str) :pure :confprog
 clargs              w(obj) :pure :useshll :confprog
 getenvhash          w(obj) :pure :useshll :confprog
 loadlib             r(str) r(str)
-freelib             r(str)
-findsym             w(obj) r(str) r(str)
-dropsym             r(obj)
+droplib             r(obj)
+getlib              w(obj) r(str) r(obj)
+findsym             w(int64) r(obj) r(str)
 loadext             r(str) r(str)
 backendconfig       w(obj) :pure :confprog
 getlexouter         w(obj) r(str) :pure :noinline :useshll
