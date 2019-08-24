@@ -30,20 +30,20 @@ MVMint32 gb18030_valid_check_len2(MVMint32 c_1, MVMint32 c_2) {
        in the conversion table. */
     if (c_1 < 0x81 || c_1 > 0xfe) return 0;
     c_1 -= 0x81;
-    return gb18030_two_byte_lower_bound[c_1] <= c_2 && c_2 <= gb18030_two_byte_upper_bound[c_1] ? 1 : 0;
+    return gb18030_two_byte_lower_bound[c_1] <= c_2 && c_2 <= gb18030_two_byte_upper_bound[c_1];
 }
 
 MVMint32 gb18030_valid_check_len4(MVMint32 c_1, MVMint32 c_2, MVMint32 c_3, MVMint32 c_4) {
     if ((0x81 <= c_1 && c_1 <= 0x83) || (c_1 == 0x84 && c_2 == 0x30)) {
-        return (0x30 <= c_2 && c_2 <= 0x39) && (0x81 <= c_3 && c_3 <= 0xfe) && (0x30 <= c_4 && c_4 <= 0x39) ? 1 : 0;
+        return (0x30 <= c_2 && c_2 <= 0x39) && (0x81 <= c_3 && c_3 <= 0xfe) && (0x30 <= c_4 && c_4 <= 0x39);
     } else if (c_1 == 0x84 && c_2 == 0x31) {
-        return (0x81 <= c_3 && c_3 <= 0xa4) && (0x30 <= c_4 && c_4 <= 0x39) ? 1 : 0;
+        return (0x81 <= c_3 && c_3 <= 0xa4) && (0x30 <= c_4 && c_4 <= 0x39);
     }
     return 0;
 }
 
 MVMint32 gb18030_valid_check_len4_first2(MVMint32 c_1, MVMint32 c_2) {
-    return (((0x81 <= c_1 && c_1 <= 0x83) || (c_1 == 0x84 && c_2 == 0x30)) && (0x30 <= c_2 && c_2 <= 0x39))	|| (c_1 == 0x84 && c_2 == 0x31) ? 1 : 0;
+    return (((0x81 <= c_1 && c_1 <= 0x83) || (c_1 == 0x84 && c_2 == 0x30)) && (0x30 <= c_2 && c_2 <= 0x39))	|| (c_1 == 0x84 && c_2 == 0x31);
 }
 
 MVMString * MVM_string_gb18030_decode(MVMThreadContext *tc, const MVMObject *result_type, const char *gb18030, size_t bytes) {
@@ -68,7 +68,7 @@ MVMString * MVM_string_gb18030_decode(MVMThreadContext *tc, const MVMObject *res
         }
         else {
             if (i + 1 < bytes) {
-            //  GB18030 codepoint of length 2
+                /* GB18030 codepoint of length 2 */
                 MVMuint8 byte1 = gb18030[i];
                 MVMuint8 byte2 = gb18030[i + 1];
                 if (gb18030_valid_check_len2(byte1, byte2)) {
@@ -81,7 +81,7 @@ MVMString * MVM_string_gb18030_decode(MVMThreadContext *tc, const MVMObject *res
                 }
             }
             if (i + 3 < bytes) {
-            //  GB18030 codepoint of length 4
+                /* GB18030 codepoint of length 4 */
                 MVMuint8 byte1 = gb18030[i];
                 MVMuint8 byte2 = gb18030[i + 1];
                 MVMuint8 byte3 = gb18030[i + 2];
@@ -324,12 +324,12 @@ char * MVM_string_gb18030_encode_substr(MVMThreadContext *tc, MVMString *str,
                     }
                 }
                 if (gb18030_cp <= 0xffff) {
-                //  Length = 2
+                    /* Length = 2 */
                     result[out_pos++] = gb18030_cp / 256;
                     result[out_pos++] = gb18030_cp % 256;
                 }
                 else {
-                //  Length = 4
+                    /* Length = 4 */
                     result[out_pos++] = (gb18030_cp / 16777216) % 256;
                     result[out_pos++] = (gb18030_cp / 65536) % 256;
                     result[out_pos++] = (gb18030_cp / 256) % 256;
