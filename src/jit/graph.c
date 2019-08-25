@@ -315,6 +315,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_radix: return MVM_radix;
     case MVM_OP_radix_I: return MVM_bigint_radix;
     case MVM_OP_sqrt_n: return sqrt;
+    case MVM_OP_log_n: return log;
+    case MVM_OP_exp_n: return exp;
     case MVM_OP_sin_n: return sin;
     case MVM_OP_cos_n: return cos;
     case MVM_OP_tan_n: return tan;
@@ -322,6 +324,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_acos_n: return acos;
     case MVM_OP_atan_n: return atan;
     case MVM_OP_atan2_n: return atan2;
+    case MVM_OP_ceil_n: return ceil;
     case MVM_OP_floor_n: return floor;
     case MVM_OP_pow_I: return MVM_bigint_pow;
     case MVM_OP_rand_I: return MVM_bigint_rand;
@@ -3439,8 +3442,11 @@ start:
         break;
     }
     case MVM_OP_abs_n:
+    case MVM_OP_ceil_n:
     case MVM_OP_floor_n:
     case MVM_OP_sqrt_n:
+    case MVM_OP_log_n:
+    case MVM_OP_exp_n:
     case MVM_OP_sin_n:
     case MVM_OP_cos_n:
     case MVM_OP_tan_n:
