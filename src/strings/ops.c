@@ -1702,6 +1702,8 @@ MVMString * MVM_string_decode_config(MVMThreadContext *tc,
             return MVM_string_utf16be_decode(tc, type_object, Cbuf, byte_length);
         case MVM_encoding_type_gb2312:
             return MVM_string_gb2312_decode(tc, type_object, Cbuf, byte_length);
+        case MVM_encoding_type_gb18030:
+            return MVM_string_gb18030_decode(tc, type_object, Cbuf, byte_length);
         default:
             if (encoding_flag < MVM_encoding_type_MIN || MVM_encoding_type_MAX < encoding_flag)
                 MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRId64, encoding_flag);
@@ -1744,6 +1746,8 @@ char * MVM_string_encode_config(MVMThreadContext *tc, MVMString *s, MVMint64 sta
             return MVM_string_utf8_c8_encode_substr(tc, s, output_size, start, length, replacement);
         case MVM_encoding_type_gb2312:
             return MVM_string_gb2312_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
+        case MVM_encoding_type_gb18030:
+            return MVM_string_gb18030_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
         default:
             if (encoding_flag < MVM_encoding_type_MIN || MVM_encoding_type_MAX < encoding_flag)
                 MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRId64, encoding_flag);
@@ -2784,7 +2788,8 @@ static struct encoding_name_struct encoding_names[MVM_encoding_type_MAX] = {
     { NULL, "windows-932", MVM_encoding_type_shiftjis },     /* 8 */
     { NULL, "utf16le", MVM_encoding_type_utf16le },          /* 9 */
     { NULL, "utf16be", MVM_encoding_type_utf16be },          /* 10 */
-    { NULL, "gb2312", MVM_encoding_type_gb2312 }             /* 11 */
+    { NULL, "gb2312", MVM_encoding_type_gb2312 },            /* 11 */
+    { NULL, "gb18030", MVM_encoding_type_gb18030 }           /* 12 */
 };
 
 char * MVM_string_encoding_cname(MVMThreadContext *tc, MVMint64 encoding) {
