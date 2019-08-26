@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 package template_compiler;
+use 5.020;
 use strict;
 use warnings FATAL => 'all';
 
