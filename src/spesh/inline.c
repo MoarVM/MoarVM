@@ -190,7 +190,7 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 
 /* Gets the effective size for inlining considerations of a specialization,
  * which is its code size minus the code size of its inlines. */
-MVMint32 get_effective_size(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
+MVMuint32 get_effective_size(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
     MVMint32 result = cand->bytecode_size;
     MVMuint32 i;
     for (i = 0; i < cand->num_inlines; i++)
