@@ -231,6 +231,8 @@ MVM_PUBLIC void MVM_vm_set_exec_name(MVMInstance *instance, const char *exec_nam
 MVM_PUBLIC void MVM_vm_set_prog_name(MVMInstance *instance, const char *prog_name);
 MVM_PUBLIC void MVM_vm_set_lib_path(MVMInstance *instance, int count, const char **lib_path);
 
+MVM_PUBLIC void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue, MVMObject *config);
+
 /* Returns absolute executable path. */
 MVM_PUBLIC int MVM_exepath(char* buffer, size_t* size);
 

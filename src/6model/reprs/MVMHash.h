@@ -27,7 +27,7 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
             HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, hash, key, value); \
         } \
         else { \
-            MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings"); \
+            MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings (got %s)", MVM_6model_get_debug_name(tc, (MVMObject *)key)); \
         } \
     } while (0);
 
@@ -38,7 +38,7 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
             HASH_FIND_VM_STR(tc, hash_handle, hash, key, value); \
         } \
         else { \
-            MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings"); \
+            MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings (got %s)", MVM_6model_get_debug_name(tc, (MVMObject *)key)); \
         } \
     } while (0);
 

@@ -3934,6 +3934,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
+            OP(vmeventsubscribe): {
+                MVMObject *queue  = GET_REG(cur_op, 0).o;
+                MVMObject *config = GET_REG(cur_op, 2).o;
+                MVM_vm_event_subscription_configure(tc, queue, config);
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(continuationreset): {
                 MVMRegister *res  = &GET_REG(cur_op, 0);
                 MVMObject   *tag  = GET_REG(cur_op, 2).o;
@@ -6517,8 +6524,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(DEPRECATED_11):
             OP(DEPRECATED_12):
                 MVM_exception_throw_adhoc(tc, "The getregref_* ops were removed in MoarVM 2017.01.");
-            OP(DEPRECATED_13):
-                MVM_exception_throw_adhoc(tc, "The continuationclone op was removed in MoarVM 2017.01.");
             OP(DEPRECATED_14):
                 MVM_exception_throw_adhoc(tc, "The asyncwritestr op was removed in MoarVM 2017.05.");
             OP(DEPRECATED_15):

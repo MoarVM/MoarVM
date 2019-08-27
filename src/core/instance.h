@@ -115,6 +115,16 @@ struct MVMObjectId {
     UT_hash_handle hash_handle;
 };
 
+struct MVMEventSubscriptions {
+    uv_mutex_t mutex_event_subscription;
+
+    MVMObject *subscription_queue;
+
+    MVMObject *GCEvent;
+
+    MVMuint64 vm_startup_time;
+};
+
 /* Represents a MoarVM instance. */
 struct MVMInstance {
     /************************************************************************
@@ -530,4 +540,10 @@ struct MVMInstance {
     /* Hash Secrets which is used as the hash seed. This is to avoid denial of
      * service type attacks. */
     MVMuint64 hashSecrets[2];
+
+    /************************************************************************
+     * VM Event subscription
+     ************************************************************************/
+
+    MVMEventSubscriptions subscriptions;
 };
