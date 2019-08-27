@@ -1,13 +1,12 @@
 #!/usr/bin/env perl
 package template_compiler;
-use 5.020;
+use v5.10;
 use strict;
 use warnings FATAL => 'all';
 
 use Getopt::Long;
 use File::Spec;
 use Scalar::Util qw(looks_like_number refaddr reftype);
-use List::Util qw(pairkeys pairvalues pairgrep);
 use Carp qw(confess);
 
 # use my libs
@@ -108,9 +107,42 @@ my %MOAR_TYPES = (
 
 my %VARIADIC = map { $_ => 1 } grep $EXPR_OPS{$_}{num_operands} < 0, keys %EXPR_OPS;
 
+# Opcode helpers
+sub operand_direction {
+    my ($opcode) = @_;
+    my @operands = @{$OPLIST{$opcode}{operands}};
+    my @direction;
+    while (@operands) {
+        my ($direction, $type) = splice @operands, 0, 2;
+        push @direction, $direction;
+    }
+    return @direction;
+}
+
+sub operand_types {
+    my ($opcode) = @_;
+    my @operands = @{$OPLIST{$opcode}{operands}};
+    my @type;
+    while (@operands) {
+        my ($direction, $type) = splice @operands, 0, 2;
+        push @type, $type;
+    }
+    return @type;
+}
+
+sub output_operand {
+    my ($opcode) = @_;
+    my @operands = @{$OPLIST{$opcode}{operands}};
+    while (@operands) {
+        my ($mode,$type) = splice @operands, 0, 2;
+        return $type if $mode eq 'w';
+    }
+    return;
+}
+
 sub moar_operands {
     my ($opcode) = @_;
-    my @types = pairvalues @{$OPLIST{$opcode}{operands}};
+    my @types = operand_types($opcode);
     push @types, @types if ($opcode =~ m/^(inc|dec)_[iu]$/); # hack
     return map {; "\$$_" => $MOAR_TYPES{$types[$_]} || 'reg' } (0..$#types);
 }
@@ -355,11 +387,10 @@ sub compile_reference {
         my $opcode = $compiler->{opcode};
         # special case for dec_i/inc_i
         return 'i' => $name if $opcode =~ m/^(dec|inc)_i$/ and $name <= 1;
-        my $operands = $OPLIST{$opcode}{operands};
-        my $direction = [pairkeys @$operands];
+        my @direction = operand_direction($opcode);
         die "Invalid operand reference $expr for $opcode"
-            unless $name >= 0 && $name < @$direction;
-        if ($direction->[$name] eq 'w') {
+            unless $name >= 0 && $name < @direction;
+        if ($direction[$name] eq 'w') {
             die "Require reference for write operand \$$name ($opcode)"
                 unless $ref;
         } else {
@@ -449,6 +480,8 @@ sub test {
 }
 
 test if $OPTIONS{test};
+
+
 my %SEEN;
 
 sub parse_file {
@@ -473,7 +506,8 @@ sub parse_file {
             die "Opcode '$opcode' unknown" unless exists $OPLIST{$opcode};
             die "Opcode '$opcode' redefined" if exists $info{$opcode};
 
-            my (undef,$output) = pairgrep { $a eq 'w' } @{$OPLIST{$opcode}{operands}};
+            my $output  = output_operand($opcode);
+
             die "No write operand for destructive template $opcode"
                 if $destructive && !$output;
             my $operands = +{ moar_operands($opcode) };
