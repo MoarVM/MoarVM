@@ -134,6 +134,12 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
     if (tc->instance->confprog)
         MVM_confprog_mark(tc, worklist, snapshot);
 
+    add_collectable(tc, worklist, snapshot, tc->instance->subscriptions.subscription_queue,
+        "VM Event Subscription Queue");
+
+    add_collectable(tc, worklist, snapshot, tc->instance->subscriptions.GCEvent,
+        "VM Event GCEvent type");
+
     MVM_debugserver_mark_handles(tc, worklist, snapshot);
 }
 
