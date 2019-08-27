@@ -12,6 +12,7 @@ typedef struct MVMAsyncTaskOps MVMAsyncTaskOps;
 typedef struct MVMAttributeIdentifier MVMAttributeIdentifier;
 typedef struct MVMBoolificationSpec MVMBoolificationSpec;
 typedef struct MVMBootTypes MVMBootTypes;
+typedef struct MVMEventSubscriptions MVMEventSubscriptions;
 typedef struct MVMBytecodeAnnotation MVMBytecodeAnnotation;
 typedef struct MVMCallCapture MVMCallCapture;
 typedef struct MVMCallCaptureBody MVMCallCaptureBody;

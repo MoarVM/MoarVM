@@ -2968,7 +2968,7 @@ BEGIN {
     57,
     58,
     65,
-    66,
+    65,
     65,
     66,
     65,
@@ -4276,7 +4276,7 @@ BEGIN {
     'link', 547,
     'gethostname', 548,
     'exreturnafterunwind', 549,
-    'DEPRECATED_13', 550,
+    'vmeventsubscribe', 550,
     'continuationreset', 551,
     'continuationcontrol', 552,
     'continuationinvoke', 553,
@@ -5099,7 +5099,7 @@ BEGIN {
     'link',
     'gethostname',
     'exreturnafterunwind',
-    'DEPRECATED_13',
+    'vmeventsubscribe',
     'continuationreset',
     'continuationcontrol',
     'continuationinvoke',
@@ -9453,7 +9453,7 @@ BEGIN {
         nqp::writeuint($bytecode, $elems, 549, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'DEPRECATED_13', sub ($op0, $op1) {
+    'vmeventsubscribe', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 550, 5);

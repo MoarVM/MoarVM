@@ -392,6 +392,8 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Back to nursery allocation, now we're set up. */
     MVM_gc_allocate_gen2_default_clear(instance->main_thread);
 
+    init_mutex(instance->subscriptions.mutex_event_subscription, "vm event subscription mutex");
+
     return instance;
 }
 
@@ -661,6 +663,8 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up fixed size allocator */
     MVM_fixed_size_destroy(instance->fsa);
 
+    uv_mutex_destroy(&instance->subscriptions.mutex_event_subscription);
+
     /* Clear up VM instance memory. */
     MVM_free(instance);
 }
@@ -676,6 +680,44 @@ void MVM_vm_set_exec_name(MVMInstance *instance, const char *exec_name) {
 
 void MVM_vm_set_prog_name(MVMInstance *instance, const char *prog_name) {
     instance->prog_name = prog_name;
+}
+
+void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue, MVMObject *config) {
+    MVMString *gcevent;
+
+    MVMROOT2(tc, queue, config, {
+        if (!IS_CONCRETE(config)) {
+            MVM_exception_throw_adhoc(tc, "vmeventsubscribe requires a concrete configuration hash (got a %s type object)", MVM_6model_get_debug_name(tc, config));
+        }
+
+        if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue && !MVM_is_null(tc, queue) || !IS_CONCRETE(queue)) {
+            MVM_exception_throw_adhoc(tc, "vmeventsubscribe requires a concrete ConcBlockingQueue (got a %s)", MVM_6model_get_debug_name(tc, queue));
+        }
+
+        uv_mutex_lock(&tc->instance->subscriptions.mutex_event_subscription);
+
+        if (REPR(queue)->ID == MVM_REPR_ID_ConcBlockingQueue && IS_CONCRETE(queue)) {
+            tc->instance->subscriptions.subscription_queue = queue;
+        }
+
+        gcevent = MVM_string_utf8_decode(tc, tc->instance->boot_types.BOOTStr, "gcevent", 7);
+
+        if (MVM_repr_exists_key(tc, config, gcevent)) {
+            MVMObject *value = MVM_repr_at_key_o(tc, config, gcevent);
+
+            if (MVM_is_null(tc, value)) {
+                tc->instance->subscriptions.GCEvent = NULL;
+            }
+            else if (REPR(value)->ID == MVM_REPR_ID_VMArray && !IS_CONCRETE(value) && ((MVMArrayREPRData *)STABLE(value)->REPR_data)->slot_type == MVM_ARRAY_I64) {
+                tc->instance->subscriptions.GCEvent = value;
+            }
+            else {
+                MVM_exception_throw_adhoc(tc, "vmeventsubscribe expects value at 'gcevent' key to be null (to unsubscribe) or a VMArray of int64 type object, got a %s%s%s", IS_CONCRETE(value) ? "concrete " : "", MVM_6model_get_debug_name(tc, value), IS_CONCRETE(value) ? "" : " type object");
+            }
+        }
+    });
+
+    uv_mutex_unlock(&tc->instance->subscriptions.mutex_event_subscription);
 }
 
 void MVM_vm_set_lib_path(MVMInstance *instance, int count, const char **lib_path) {
