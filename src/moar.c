@@ -700,7 +700,7 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
             tc->instance->subscriptions.subscription_queue = queue;
         }
 
-        gcevent = MVM_string_utf8_decode(tc, tc->instance->boot_types.BOOTStr, "gcevent", 7);
+        gcevent = MVM_string_utf8_decode(tc, tc->instance->VMString, "gcevent", 7);
 
         if (MVM_repr_exists_key(tc, config, gcevent)) {
             MVMObject *value = MVM_repr_at_key_o(tc, config, gcevent);
