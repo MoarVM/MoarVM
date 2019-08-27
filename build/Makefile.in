@@ -40,6 +40,7 @@ PKGCONFIGDIR = @prefix@/share/pkgconfig
 
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO) @ccdef@MVM_RDTSCP=$(RDTSCP)
 CINCLUDES = @cincludes@ \
+            @moar_cincludes@ \
             @ccinc@@shaincludedir@ \
             @ccinc@3rdparty/tinymt \
             @ccinc@3rdparty/dynasm \
