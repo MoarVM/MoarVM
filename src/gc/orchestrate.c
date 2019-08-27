@@ -444,7 +444,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
         MVMObject *instance = MVM_repr_alloc_init(tc, tc->instance->subscriptions.GCEvent);
 
         MVM_repr_push_i(tc, instance, MVM_load(&tc->instance->gc_seq_number));
-        MVM_repr_push_i(tc, instance, start_time);
+        MVM_repr_push_i(tc, instance, start_time - tc->instance->subscriptions.vm_startup_time);
         MVM_repr_push_i(tc, instance, end_time - start_time);
         MVM_repr_push_i(tc, instance, gen == MVMGCGenerations_Both);
         MVM_repr_push_i(tc, instance, tc->gc_promoted_bytes);

@@ -85,6 +85,8 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up instance data structure. */
     instance = MVM_calloc(1, sizeof(MVMInstance));
 
+    instance->subscriptions.vm_startup_time = uv_hrtime();
+
     /* Create the main thread's ThreadContext and stash it. */
     instance->main_thread = MVM_tc_create(NULL, instance);
     /* Get the 128-bit hashSecret */
