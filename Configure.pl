@@ -262,6 +262,7 @@ if (-e "$config{pkgconfig}") {
 
 # conditionally set include dirs and install rules
 $config{cincludes} = '' unless defined $config{cincludes};
+$config{moar_cincludes} = '' unless defined $config{moar_cincludes};
 $config{lincludes} = '' unless defined $config{lincludes};
 $config{install}   = '' unless defined $config{install};
 if ($args{'has-libuv'}) {
@@ -270,8 +271,8 @@ if ($args{'has-libuv'}) {
     setup_native_library('libuv') if $config{pkgconfig_works};
 }
 else {
-    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libuv/include'
-                        . ' ' . $defaults{ccinc} . '3rdparty/libuv/src';
+    $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libuv/include'
+                             . ' ' . $defaults{ccinc} . '3rdparty/libuv/src';
     $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/libuv\"\n"
                         . "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/libuv/uv\"\n"
                         . "\t\$(CP) 3rdparty/libuv/include/*.h \"\$(DESTDIR)\$(PREFIX)/include/libuv\"\n"
@@ -284,7 +285,7 @@ if ($args{'has-libatomic_ops'}) {
     setup_native_library('atomic_ops') if $config{pkgconfig_works};
 }
 else {
-    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libatomicops/src';
+    $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libatomicops/src';
     my $lao             = '$(DESTDIR)$(PREFIX)/include/libatomic_ops';
     $config{install}   .= "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/armcc\"\n"
                         . "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/gcc\"\n"
@@ -320,7 +321,7 @@ if ($args{'has-libtommath'}) {
     }
 }
 else {
-    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libtommath';
+    $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libtommath';
     $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/libtommath\"\n"
                         . "\t\$(CP) 3rdparty/libtommath/*.h \"\$(DESTDIR)\$(PREFIX)/include/libtommath\"\n";
 }
@@ -363,9 +364,9 @@ elsif ($args{'has-dyncall'}) {
 }
 else {
     $config{nativecall_backend} = 'dyncall';
-    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/dyncall/dynload'
-                        . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncall'
-                        . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncallback';
+    $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/dyncall/dynload'
+                             . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncall'
+                             . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncallback';
     $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n"
                         . "\t\$(CP) 3rdparty/dyncall/dynload/*.h \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n"
                         . "\t\$(CP) 3rdparty/dyncall/dyncall/*.h \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n"
@@ -541,7 +542,7 @@ my $order = $config{be} ? 'big endian' : 'little endian';
 print "\n", <<TERM, "\n";
         make: $config{make}
      compile: $config{cc} $config{cflags}
-    includes: $config{cincludes}
+    includes: $config{cincludes} $config{moar_cincludes}
         link: $config{ld} $config{ldflags}
         libs: $config{ldlibs}
 
