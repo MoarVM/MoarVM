@@ -712,7 +712,7 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
                 tc->instance->subscriptions.GCEvent = value;
             }
             else {
-                MVM_exception_throw_adhoc(tc, "vmeventsubscribe expects value at 'gcevent' key to be null (to unsubscribe) or a VMArray of int64 type object, got a %s%s%s", IS_CONCRETE(value) ? "concrete " : "", MVM_6model_get_debug_name(tc, value), IS_CONCRETE(value) ? "" : " type object");
+                MVM_exception_throw_adhoc(tc, "vmeventsubscribe expects value at 'gcevent' key to be null (to unsubscribe) or a VMArray of int64 type object, got a %s%s%s (%s)", IS_CONCRETE(value) ? "concrete " : "", MVM_6model_get_debug_name(tc, value), IS_CONCRETE(value) ? "" : " type object", REPR(value)->name);
             }
         }
     });
