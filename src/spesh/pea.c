@@ -637,6 +637,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                         tran->prof.ins = ins;
                         add_transform_for_bb(tc, gs, bb, tran);
                     }
+                    break;
                 }
                 case MVM_SSA_PHI: {
                     /* If a PHI doesn't really merge anything, and its input is
