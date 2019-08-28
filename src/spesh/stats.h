@@ -237,7 +237,7 @@ struct MVMSpeshSimCallType {
     MVMSpeshStatsType *arg_types;
 };
 
-void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf_updated);
+void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf_updated, MVMuint64 *newly_seen, MVMuint64 *updated);
 void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames);
 void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorklist *worklist);
 void MVM_spesh_stats_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *snapshot, MVMSpeshStats *ss);

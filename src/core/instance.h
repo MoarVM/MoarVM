@@ -121,6 +121,7 @@ struct MVMEventSubscriptions {
     MVMObject *subscription_queue;
 
     MVMObject *GCEvent;
+    MVMObject *SpeshOverviewEvent;
 
     MVMuint64 vm_startup_time;
 };

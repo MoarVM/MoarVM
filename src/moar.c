@@ -686,6 +686,7 @@ void MVM_vm_set_prog_name(MVMInstance *instance, const char *prog_name) {
 
 void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue, MVMObject *config) {
     MVMString *gcevent;
+    MVMString *speshoverviewevent;
 
     MVMROOT2(tc, queue, config, {
         if (!IS_CONCRETE(config)) {
@@ -703,6 +704,9 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
         }
 
         gcevent = MVM_string_utf8_decode(tc, tc->instance->VMString, "gcevent", 7);
+        MVMROOT(tc, gcevent, {
+            speshoverviewevent = MVM_string_utf8_decode(tc, tc->instance->VMString, "speshoverviewevent", 18);
+        });
 
         if (MVM_repr_exists_key(tc, config, gcevent)) {
             MVMObject *value = MVM_repr_at_key_o(tc, config, gcevent);
@@ -710,12 +714,27 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
             if (MVM_is_null(tc, value)) {
                 tc->instance->subscriptions.GCEvent = NULL;
             }
-            else if (REPR(value)->ID == MVM_REPR_ID_VMArray && !IS_CONCRETE(value) && ((MVMArrayREPRData *)STABLE(value)->REPR_data)->slot_type == MVM_ARRAY_I64) {
+            else if (REPR(value)->ID == MVM_REPR_ID_VMArray && !IS_CONCRETE(value) && (((MVMArrayREPRData *)STABLE(value)->REPR_data)->slot_type == MVM_ARRAY_I64 || ((MVMArrayREPRData *)STABLE(value)->REPR_data)->slot_type == MVM_ARRAY_U64)) {
                 tc->instance->subscriptions.GCEvent = value;
             }
             else {
                 uv_mutex_unlock(&tc->instance->subscriptions.mutex_event_subscription);
                 MVM_exception_throw_adhoc(tc, "vmeventsubscribe expects value at 'gcevent' key to be null (to unsubscribe) or a VMArray of int64 type object, got a %s%s%s (%s)", IS_CONCRETE(value) ? "concrete " : "", MVM_6model_get_debug_name(tc, value), IS_CONCRETE(value) ? "" : " type object", REPR(value)->name);
+            }
+        }
+
+        if (MVM_repr_exists_key(tc, config, speshoverviewevent)) {
+            MVMObject *value = MVM_repr_at_key_o(tc, config, speshoverviewevent);
+
+            if (MVM_is_null(tc, value)) {
+                tc->instance->subscriptions.SpeshOverviewEvent = NULL;
+            }
+            else if (REPR(value)->ID == MVM_REPR_ID_VMArray && !IS_CONCRETE(value) && (((MVMArrayREPRData *)STABLE(value)->REPR_data)->slot_type == MVM_ARRAY_I64 || ((MVMArrayREPRData *)STABLE(value)->REPR_data)->slot_type == MVM_ARRAY_U64)) {
+                tc->instance->subscriptions.SpeshOverviewEvent = value;
+            }
+            else {
+                uv_mutex_unlock(&tc->instance->subscriptions.mutex_event_subscription);
+                MVM_exception_throw_adhoc(tc, "vmeventsubscribe expects value at 'speshoverviewevent' key to be null (to unsubscribe) or a VMArray of int64 type object, got a %s%s%s (%s)", IS_CONCRETE(value) ? "concrete " : "", MVM_6model_get_debug_name(tc, value), IS_CONCRETE(value) ? "" : " type object", REPR(value)->name);
             }
         }
     });

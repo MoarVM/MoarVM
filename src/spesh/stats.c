@@ -516,11 +516,13 @@ static void save_or_free_sim_stack(MVMThreadContext *tc, MVMSpeshSimStack *sims,
 
 /* Receives a spesh log and updates static frame statistics. Each static frame
  * that is updated is pushed once into sf_updated. */
-void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf_updated) {
+void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf_updated, MVMuint64 *in_newly_seen, MVMuint64 *in_updated) {
     MVMuint32 i;
     MVMuint32 n = sl->body.used;
     MVMSpeshSimStack *sims;
     MVMThreadContext *log_from_tc = sl->body.thread->body.tc;
+    MVMuint64 newly_seen = 0;
+    MVMuint64 updated = 0;
 #if MVM_GC_DEBUG
     tc->in_spesh = 1;
 #endif
@@ -553,6 +555,10 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
             case MVM_SPESH_LOG_ENTRY: {
                 MVMSpeshStats *ss = stats_for(tc, e->entry.sf);
                 MVMuint32 callsite_idx;
+                if (ss->last_update == 0)
+                    newly_seen++;
+                else
+                    updated++;
                 if (ss->last_update != tc->instance->spesh_stats_version) {
                     ss->last_update = tc->instance->spesh_stats_version;
                     MVM_repr_push_o(tc, sf_updated, (MVMObject *)e->entry.sf);
@@ -628,6 +634,11 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
         }
     }
     save_or_free_sim_stack(tc, sims, log_from_tc, sf_updated);
+
+    if (in_newly_seen)
+        *in_newly_seen = newly_seen;
+    if (in_updated)
+        *in_updated = updated;
 #if MVM_GC_DEBUG
     tc->in_spesh = 0;
 #endif
