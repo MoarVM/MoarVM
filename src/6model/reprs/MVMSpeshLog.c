@@ -63,37 +63,45 @@ static void describe_refs (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMST
     MVMSpeshLogBody  *body      = (MVMSpeshLogBody *)data;
     MVMuint64         i         = 0;
 
+    MVMuint64 cache_1 = 0;
+    MVMuint64 cache_2 = 0;
+    MVMuint64 cache_3 = 0;
+    MVMuint64 cache_4 = 0;
+    MVMuint64 cache_5 = 0;
+    MVMuint64 cache_6 = 0;
+    MVMuint64 cache_7 = 0;
+
     if (!body->entries)
         return;
     for (i = 0; i < body->used; i++) {
         switch (body->entries[i].kind) {
             case MVM_SPESH_LOG_ENTRY:
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->entries[i].entry.sf, "Spesh log entry");
+                MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                    (MVMCollectable *)body->entries[i].entry.sf, "Spesh log entry", &cache_1);
                 break;
             case MVM_SPESH_LOG_PARAMETER:
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->entries[i].param.type, "Parameter entry");
+                MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                    (MVMCollectable *)body->entries[i].param.type, "Parameter entry", &cache_2);
                 break;
             case MVM_SPESH_LOG_PARAMETER_DECONT:
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->entries[i].param.type, "Deconted parameter entry");
+                MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                    (MVMCollectable *)body->entries[i].param.type, "Deconted parameter entry", &cache_3);
                 break;
             case MVM_SPESH_LOG_TYPE:
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->entries[i].type.type, "Type entry");
+                MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                    (MVMCollectable *)body->entries[i].type.type, "Type entry", &cache_4);
                 break;
             case MVM_SPESH_LOG_RETURN:
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->entries[i].type.type, "Return entry");
+                MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                    (MVMCollectable *)body->entries[i].type.type, "Return entry", &cache_5);
                 break;
             case MVM_SPESH_LOG_STATIC:
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->entries[i].value.value, "Static value entry");
+                MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                    (MVMCollectable *)body->entries[i].value.value, "Static value entry", &cache_6);
                 break;
             case MVM_SPESH_LOG_INVOKE:
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->entries[i].invoke.sf, "Invoked staticframe entry");
+                MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                    (MVMCollectable *)body->entries[i].invoke.sf, "Invoked staticframe entry", &cache_7);
                 break;
         }
     }

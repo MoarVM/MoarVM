@@ -229,21 +229,24 @@ void MVM_spesh_plan_gc_mark(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMGCWorkl
 
 void MVM_spesh_plan_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSpeshPlan *plan) {
     MVMuint32 i;
+    MVMuint64 cache_1 = 0;
+    MVMuint64 cache_2 = 0;
+    MVMuint64 cache_3 = 0;
     if (!plan)
         return;
     for (i = 0; i < plan->num_planned; i++) {
         MVMSpeshPlanned *p = &(plan->planned[i]);
-        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-            (MVMCollectable*)(p->sf), "staticframe");
+        MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+            (MVMCollectable*)(p->sf), "staticframe", &cache_1);
         if (p->type_tuple) {
             MVMCallsite *cs = p->cs_stats->cs;
             MVMuint32 j;
             for (j = 0; j < cs->flag_count; j++) {
                 if (cs->arg_flags[j] & MVM_CALLSITE_ARG_OBJ) {
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                        (MVMCollectable*)(p->type_tuple[j].type), "argument type");
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                        (MVMCollectable*)(p->type_tuple[j].decont_type), "argument decont type");
+                    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                        (MVMCollectable*)(p->type_tuple[j].type), "argument type", &cache_2);
+                    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                        (MVMCollectable*)(p->type_tuple[j].decont_type), "argument decont type", &cache_3);
                 }
             }
         }

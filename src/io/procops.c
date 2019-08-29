@@ -506,10 +506,27 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
         MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
 }
 
+#ifndef MIN
+    #define MIN(x,y) ((x)<(y)?(x):(y))
+#endif
+
+MVM_STATIC_INLINE void adjust_nursery(MVMThreadContext *tc, size_t read_buffer_size) {
+    int adjustment = MIN(read_buffer_size, 32768) & ~0x7;
+    if (adjustment && (char *)tc->nursery_alloc_limit - adjustment > (char *)tc->nursery_alloc) {
+        tc->nursery_alloc_limit = (char *)(tc->nursery_alloc_limit) - adjustment;
+        /*fprintf(stderr, "made an adjustment of %x: %p - %p == %x; read buffer size %x\n", adjustment, tc->nursery_alloc_limit, tc->nursery_alloc, (char *)tc->nursery_alloc_limit - (char *)tc->nursery_alloc, read_buffer_size);*/
+    }
+    else {
+        /*fprintf(stderr, "did not make an adjustment of %x: %p - %p == %x; read buffer size %x\n", adjustment, tc->nursery_alloc_limit, tc->nursery_alloc, (char *)tc->nursery_alloc_limit - (char *)tc->nursery_alloc, read_buffer_size);*/
+    }
+}
+
+
 /* Allocates a buffer of the suggested size. */
 static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
     SpawnInfo *si = (SpawnInfo *)handle->data;
     size_t size   = si->last_read ? si->last_read : 64;
+    MVMThreadContext *tc = si->tc;
 
     if (size < 128) {
         size = 128;
@@ -517,6 +534,8 @@ static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) 
     else {
         size = MVM_bithacks_next_greater_pow2(size + 1);
     }
+
+    adjust_nursery(tc, size);
 
     buf->base = MVM_malloc(size);
     buf->len  = size;
