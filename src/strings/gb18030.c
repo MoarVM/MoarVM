@@ -170,7 +170,7 @@ MVMuint32 MVM_string_gb18030_decodestream(MVMThreadContext *tc, MVMDecodeStream 
                         is_len4 = 0;
                     } else {
                         MVM_exception_throw_adhoc(tc, 
-                         "Error decoding gb18030 string: invalid gb18030 format. Last four bytes seen was 0x%hhX, 0x%hhX, 0x%hhX, 0x%hhX\n", 
+                         "Error decoding gb18030 string: invalid gb18030 format. Last four bytes seen was 0x%x, 0x%x, 0x%x, 0x%x\n", 
                          len4_byte1, len4_byte2, len4_byte3, len4_byte4);
                     }
                 }
@@ -207,7 +207,7 @@ MVMuint32 MVM_string_gb18030_decodestream(MVMThreadContext *tc, MVMDecodeStream 
                     graph = gb18030_index_to_cp_len2(last_codepoint, codepoint);
                     if (graph == GB18030_NULL) {
                         MVM_exception_throw_adhoc(tc, 
-                        "Error decoding gb18030 string: invalid gb18030 format. Last two bytes seen was 0x%hhX, 0x%hhX\n", 
+                        "Error decoding gb18030 string: invalid gb18030 format. Last two bytes seen was 0x%x, 0x%x\n", 
                         last_codepoint, codepoint);
                     }
                     last_was_first_byte = 0;
@@ -320,7 +320,7 @@ char * MVM_string_gb18030_encode_substr(MVMThreadContext *tc, MVMString *str,
                     }
                     else {
                         MVM_free(result);
-                        MVM_exception_throw_adhoc(tc, "Error encoding gb18030 string: could not encode codepoint 0x%hhX", codepoint);
+                        MVM_exception_throw_adhoc(tc, "Error encoding gb18030 string: could not encode codepoint 0x%x", codepoint);
                     }
                 }
                 if (gb18030_cp <= 0xffff) {
