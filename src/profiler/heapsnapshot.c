@@ -198,13 +198,12 @@ static void add_reference_const_cstr(MVMThreadContext *tc, MVMHeapSnapshotState 
 }
 
 static MVMuint64 get_const_string_index_cached(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
-                                               char *cstr, MVMuint64 *cache, MVMuint64 str_mode) {
+                                               const char *cstr, MVMuint64 *cache, MVMuint64 str_mode) {
     MVMuint64 str_idx;
     if (cache && *cache < ss->col->num_strings) {
         if (strcmp(ss->col->strings[*cache], (char *)cstr) == 0) {
             /*fprintf(stderr, "hit! %d\n", *cache);*/
-            if (str_mode == STR_MODE_OWN)
-                MVM_free(cstr);
+            assert(str_mode != STR_MODE_OWN);
             str_idx = *cache;
         }
         else {
