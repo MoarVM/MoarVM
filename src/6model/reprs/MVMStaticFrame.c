@@ -240,25 +240,16 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
     MVMStaticFrameBody *body = (MVMStaticFrameBody *)data;
     MVMLexicalRegistry *current;
 
-    static MVMuint64 cache_1 = 0;
-    static MVMuint64 cache_2 = 0;
-    static MVMuint64 cache_3 = 0;
-    static MVMuint64 cache_4 = 0;
-    static MVMuint64 cache_5 = 0;
-    static MVMuint64 cache_6 = 0;
-
-    MVMuint64 nonstatic_cache_1 = 0;
-
-    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
-        (MVMCollectable *)body->cu, "Compilation Unit", &cache_1);
-    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
-        (MVMCollectable *)body->cuuid, "Compilation Unit Unique ID", &cache_2);
-    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
-        (MVMCollectable *)body->name, "Name", &cache_3);
-    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
-        (MVMCollectable *)body->outer, "Outer static frame", &cache_4);
-    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
-        (MVMCollectable *)body->static_code, "Static code object", &cache_5);
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->cu, "Compilation Unit");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->cuuid, "Compilation Unit Unique ID");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->name, "Name");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->outer, "Outer static frame");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->static_code, "Static code object");
 
     /* If it's not fully deserialized, none of the following can apply. */
     if (!body->fully_deserialized)
@@ -266,8 +257,8 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
 
     /* lexical names hash keys */
     HASH_ITER_FAST(tc, hash_handle, body->lexical_names, current, {
-        MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
-            (MVMCollectable *)current->key, "Lexical name", &nonstatic_cache_1);
+        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+            (MVMCollectable *)current->key, "Lexical name");
     });
 
     /* static env */
@@ -275,16 +266,15 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
         MVMuint16 *type_map = body->lexical_types;
         MVMuint16  count    = body->num_lexicals;
         MVMuint16  i;
-        MVMuint64 cache_1;
         for (i = 0; i < count; i++)
             if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
-                MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
-                    (MVMCollectable *)body->static_env[i].o, "Static Environment Entry", &cache_6);
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->static_env[i].o, "Static Environment Entry");
     }
 
     /* Spesh data */
-    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
-        (MVMCollectable *)body->spesh, "Specializer Data", &cache_6);
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->spesh, "Specializer Data");
 }
 
 /* Initializes the representation. */

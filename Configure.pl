@@ -373,15 +373,6 @@ else {
                         . "\t\$(CP) 3rdparty/dyncall/dyncallback/*.h \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n";
 }
 
-if ($config{pkgconfig_works} && has_native_library('libzstd')) {
-    setup_native_library('libzstd');
-    $config{heapsnapformat} = 3;
-}
-else {
-    print "did not find libzstd; will not use heap snapshot format version 3\n";
-    $config{heapsnapformat} = 2;
-}
-
 # mangle library names
 $config{ldlibs} = join ' ',
     $config{lincludes},
@@ -389,7 +380,6 @@ $config{ldlibs} = join ' ',
     (map { sprintf $config{ldsys}, $_; } @{$config{syslibs}});
 $config{ldlibs} = ' -lasan ' . $config{ldlibs} if $args{asan} && $^O ne 'darwin' && $config{cc} ne 'clang';
 $config{ldlibs} = ' -lubsan ' . $config{ldlibs} if $args{ubsan} and $^O ne 'darwin';
-$config{ldlibs} = $config{ldlibs} . ' -lzstd ' if $config{heapsnapformat} == 3;
 # macro defs
 $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
 
@@ -434,7 +424,6 @@ push @cflags, '-DDEBUG_HELPERS' if $args{debug};
 push @cflags, '-DMVM_VALGRIND_SUPPORT' if $args{valgrind};
 push @cflags, '-DHAVE_TELEMEH' if $args{telemeh};
 push @cflags, '-DWORDS_BIGENDIAN' if $config{be}; # 3rdparty/sha1 needs it and it isnt set on mips;
-push @cflags, '-DMVM_HEAPSNAPSHOT_FORMAT=' . $config{heapsnapformat};
 push @cflags, $ENV{CFLAGS} if $ENV{CFLAGS};
 push @cflags, $ENV{CPPFLAGS} if $ENV{CPPFLAGS};
 $config{cflags} = join ' ', uniq(@cflags);
@@ -936,17 +925,6 @@ sub setup_native_library {
     }
     else {
         print("Error occured when running $config{pkgconfig} --libs-only-L $library.\n");
-    }
-}
-
-sub has_native_library {
-    my $library = shift;
-    my $result_exists = `$config{pkgconfig} --exists $library`;
-    if ($? == 0) {
-        return 1;
-    }
-    else {
-
     }
 }
 

@@ -5,7 +5,6 @@ struct MVMHeapDumpIndexSnapshotEntry {
     MVMuint64 incremental_data;
 };
 
-/* Used in version 2 of the heap snapshot format */
 struct MVMHeapDumpIndex {
     MVMuint64 stringheap_size;
     MVMuint64 types_size;
@@ -15,31 +14,6 @@ struct MVMHeapDumpIndex {
     MVMHeapDumpIndexSnapshotEntry *snapshot_sizes;
 
     MVMuint64 snapshot_sizes_alloced;
-};
-
-/* Used in version 3 of the heap snapshot format.
- * There is one top-level TOC for the whole file,
- * but every snapshot in the file has a TOC of its
- * own that's got an entry in the top-level TOC.
- */
-struct MVMHeapDumpTableOfContents {
-    MVMuint32 toc_entry_alloc;
-    MVMuint32 toc_entry_used;
-
-    char **toc_words;
-    MVMuint64 *toc_positions;
-};
-
-struct MVMHeapSnapshotStats {
-    MVMuint64 type_stats_alloc;
-
-    MVMuint32 *type_counts;
-    MVMuint64 *type_size_sum;
-
-    MVMuint64 sf_stats_alloc;
-
-    MVMuint32 *sf_counts;
-    MVMuint64 *sf_size_sum;
 };
 
 /* A collection of heap snapshots, with common type and static frame names.
@@ -75,12 +49,7 @@ struct MVMHeapSnapshotCollection {
     MVMuint64 static_frames_written;
     MVMuint64 strings_written;
 
-    /* For heap snapshot format 2, an index */
     MVMHeapDumpIndex *index;
-
-    /* For heap snapshot format 3, table of contents */
-    MVMHeapDumpTableOfContents *toplevel_toc;
-    MVMHeapDumpTableOfContents *second_level_toc;
 
     /* The file handle we are outputting to */
     FILE *fh;
@@ -97,33 +66,31 @@ struct MVMHeapSnapshot {
     MVMHeapSnapshotReference *references;
     MVMuint64 num_references;
     MVMuint64 alloc_references;
-
-    MVMHeapSnapshotStats *stats;
 };
 
 /* An object/type object/STable type in the snapshot. */
 struct MVMHeapSnapshotType {
     /* String heap index of the REPR name. */
-    MVMuint32 repr_name;
+    MVMuint64 repr_name;
 
     /* String heap index of the type's debug name. */
-    MVMuint32 type_name;
+    MVMuint64 type_name;
 };
 
 /* A static frame in the snapshot. */
 struct MVMHeapSnapshotStaticFrame {
     /* The static frame name; index into the snapshot collection string heap. */
-    MVMuint32 name;
+    MVMuint64 name;
 
     /* The static frame compilation unit ID, for added uniqueness checking.
      * Also an index into the string heap. */
-    MVMuint32 cuid;
+    MVMuint64 cuid;
 
     /* The line number where it's declared. */
-    MVMuint32 line;
+    MVMuint64 line;
 
     /* And the filename; also an index into snapshot collection string heap. */
-    MVMuint32 file;
+    MVMuint64 file;
 };
 
 /* Kinds of collectable, plus a few "virtual" kinds to cover the various places
@@ -206,19 +173,6 @@ struct MVMHeapSnapshotState {
      * around for those times (much cheaper than allocating it whenever we
      * need it). */
     MVMGCWorklist *gcwl;
-
-    /* Many reprs have only one type (BOOTCode) or two
-     * types (P6int, BOOTInt), so caching string index
-     * per repr id is worth a lot. */
-    MVMuint64 repr_str_idx_cache[MVM_REPR_MAX_COUNT];
-    MVMuint64 type_str_idx_cache[MVM_REPR_MAX_COUNT];
-    MVMuint64 anon_repr_type_str_idx_cache[MVM_REPR_MAX_COUNT];
-
-    MVMuint32 type_of_type_idx_cache[8];
-    MVMuint32 repr_of_type_idx_cache[8];
-    MVMuint32 type_idx_cache[8];
-
-    MVMuint8 type_idx_rotating_insert_slot;
 };
 
 /* Work item used while taking a heap snapshot. */
@@ -254,8 +208,6 @@ MVMObject * MVM_profile_heap_end(MVMThreadContext *tc);
  * profile. */
 MVM_PUBLIC void MVM_profile_heap_add_collectable_rel_const_cstr(MVMThreadContext *tc,
     MVMHeapSnapshotState *ss, MVMCollectable *collectable, char *desc);
-MVM_PUBLIC void MVM_profile_heap_add_collectable_rel_const_cstr_cached(MVMThreadContext *tc,
-    MVMHeapSnapshotState *ss, MVMCollectable *collectable, char *desc, MVMuint64 *cache);
 MVM_PUBLIC void MVM_profile_heap_add_collectable_rel_vm_str(MVMThreadContext *tc,
     MVMHeapSnapshotState *ss, MVMCollectable *collectable, MVMString *desc);
 MVM_PUBLIC void MVM_profile_heap_add_collectable_rel_idx(MVMThreadContext *tc,
