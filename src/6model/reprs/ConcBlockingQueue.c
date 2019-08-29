@@ -175,6 +175,7 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
         uv_cond_signal(&body->head_cond);
         uv_mutex_unlock(&body->head_lock);
     }
+    MVM_telemetry_interval_annotate(orig_elems, interval_id, "this many items in it");
     MVM_telemetry_interval_stop(tc, interval_id, "ConcBlockingQueue.push");
 }
 
