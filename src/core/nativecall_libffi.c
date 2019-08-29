@@ -451,8 +451,8 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
         } \
         else \
             MVM_exception_throw_adhoc(tc, \
-                "Native call expected argument that references a native %s, but got %s", \
-                what, REPR(value)->name); \
+                "Native call expected argument %d to reference a native %s, but got %s", \
+                i, what, REPR(value)->name); \
     } \
     else { \
         values[i] = MVM_malloc(sizeof(dc_type)); \
