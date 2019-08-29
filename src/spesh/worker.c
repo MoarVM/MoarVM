@@ -18,8 +18,8 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
     tc->instance->speshworker_thread_id = tc->thread_obj->body.thread_id;
 
     /*MVMROOT2(tc, updated_static_frames, previous_static_frames, {*/
-    MVM_gc_root_temp_push(tc, &updated_static_frames);
-    MVM_gc_root_temp_push(tc, &previous_static_frames);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&updated_static_frames);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&previous_static_frames);
     {
         while (1) {
             MVMObject *log_obj;
@@ -47,7 +47,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                     MVMuint64 now_time = uv_hrtime();
 
                     overview_subscription_packet = MVM_repr_alloc(tc, spesh_overview_event);
-                    MVM_gc_root_temp_push(tc, &overview_subscription_packet);
+                    MVM_gc_root_temp_push(tc, (MVMCollectable **)&overview_subscription_packet);
 
                     MVM_repr_pos_set_elems(tc, overview_subscription_packet, 15);
 
@@ -76,7 +76,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                 if (overview_data) {
                     overview_data[4] = sl->body.thread->body.tc->thread_id;
                 }
-                MVM_gc_root_temp_push(tc, &sl);
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&sl);
                 {
                 /*MVMROOT(tc, sl, {*/
                     MVMThreadContext *stc;
