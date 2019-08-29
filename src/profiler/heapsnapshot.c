@@ -1079,6 +1079,25 @@ void types_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
 
         SERIALIZE_ATTR_STREAM("reprname", first_type, second_type, MVMHeapSnapshotType, repr_name, col->num_types - col->types_written);
         SERIALIZE_ATTR_STREAM("typename", first_type, second_type, MVMHeapSnapshotType, type_name, col->num_types - col->types_written);
+
+#if DUMP_EVERYTHING_RAW
+        {
+            gzFile reprname_fh = open_coll_file(col, "reprname");
+            gzFile typename_fh = open_coll_file(col, "typename");
+            MVMuint64 i;
+
+            for (i = col->types_written; i < col->types_written; i++) {
+                MVMHeapSnapshotType *t = &col->types[i];
+
+                gzprintf(reprname_fh, "%lld\n", t->repr_name);
+                gzprintf(typename_fh, "%lld\n", t->type_name);
+            }
+
+            gzclose(reprname_fh);
+            gzclose(typename_fh);
+        }
+#endif
+
         col->types_written = col->num_types;
     }
 }
@@ -1093,6 +1112,30 @@ void static_frames_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotColle
         SERIALIZE_ATTR_STREAM("sfcuid", first_sf, second_sf, MVMHeapSnapshotStaticFrame, cuid, col->num_static_frames - col->static_frames_written);
         SERIALIZE_ATTR_STREAM("sfline", first_sf, second_sf, MVMHeapSnapshotStaticFrame, line, col->num_static_frames - col->static_frames_written);
         SERIALIZE_ATTR_STREAM("sffile", first_sf, second_sf, MVMHeapSnapshotStaticFrame, file, col->num_static_frames - col->static_frames_written);
+
+#if DUMP_EVERYTHING_RAW
+        {
+            gzFile names_fh = open_coll_file(col, "names");
+            gzFile cuid_fh = open_coll_file(col, "cuid");
+            gzFile line_fh = open_coll_file(col, "line");
+            gzFile file_fh =open_coll_file(col, "file");
+            MVMuint64 i;
+
+            for (i = col->static_frames_written; i < col->num_static_frames; i++) {
+                MVMHeapSnapshotStaticFrame *sf = &col->static_frames[i];
+
+                gzprintf(names_fh, "%lld\n", sf->name);
+                gzprintf(cuid_fh, "%lld\n", sf->cuid);
+                gzprintf(line_fh, "%lld\n", sf->line);
+                gzprintf(file_fh, "%lld\n", sf->file);
+            }
+
+            gzclose(names_fh);
+            gzclose(cuid_fh);
+            gzclose(line_fh);
+            gzclose(file_fh);
+        }
+#endif
         col->static_frames_written = col->num_static_frames;
     }
 }
@@ -1108,6 +1151,36 @@ void collectables_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollec
     SERIALIZE_ATTR_STREAM("colrfcnt", first_coll, second_coll, MVMHeapSnapshotCollectable, num_refs, s->num_collectables);
     SERIALIZE_ATTR_STREAM("colrfstr", first_coll, second_coll, MVMHeapSnapshotCollectable, refs_start, s->num_collectables);
     SERIALIZE_ATTR_STREAM("colusize", first_coll, second_coll, MVMHeapSnapshotCollectable, unmanaged_size, s->num_collectables);
+
+#if DUMP_EVERYTHING_RAW
+        {
+            MVMuint64 i;
+            gzFile kind_fh  = open_coll_file(col, "colkind");
+            gzFile size_fh  = open_coll_file(col, "colsize");
+            gzFile tofi_fh  = open_coll_file(col, "coltofi");
+            gzFile rfcnt_fh = open_coll_file(col, "colrfcnt");
+            gzFile rfstr_fh = open_coll_file(col, "colrfstr");
+            gzFile usize_fh = open_coll_file(col, "colusize");
+
+            for (i = 0; i < s->num_collectables; i++) {
+                MVMHeapSnapshotCollectable *col = &s->collectables[i];
+
+                gzprintf(kind_fh, "%lld\n", col->kind);
+                gzprintf(size_fh, "%lld\n", col->collectable_size);
+                gzprintf(tofi_fh, "%lld\n", col->type_or_frame_index);
+                gzprintf(rfcnt_fh, "%lld\n", col->num_refs);
+                gzprintf(rfstr_fh, "%lld\n", col->refs_start);
+                gzprintf(usize_fh, "%lld\n", col->unmanaged_size);
+            }
+
+            gzclose(kind_fh);
+            gzclose(size_fh);
+            gzclose(tofi_fh);
+            gzclose(rfcnt_fh);
+            gzclose(rfstr_fh);
+            gzclose(usize_fh);
+        }
+#endif
 }
 
 void references_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapDumpIndexSnapshotEntry *entry) {
