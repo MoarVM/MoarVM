@@ -128,7 +128,7 @@ MVMuint32 MVM_string_gb2312_decodestream(MVMThreadContext *tc, MVMDecodeStream *
 
             if (handler_rtrn == GB2312_DECODE_FORMAT_EXCEPTION) {
                 MVM_exception_throw_adhoc(tc, 
-                "Error decoding gb2312 string: invalid gb2312 format (two bytes for a gb2312 character). Last byte seen was 0x%hhX\n", 
+                "Error decoding gb2312 string: invalid gb2312 format (two bytes for a gb2312 character). Last byte seen was 0x%x\n", 
                 last_codepoint);
             }
             else if (handler_rtrn == GB2312_DECODE_CODEPOINT_EXCEPTION) {
