@@ -255,7 +255,6 @@ static void on_write(uv_write_t *req, int status) {
         });
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
-    MVM_free(wi->req);
     MVM_io_eventloop_remove_active_work(tc, &(wi->work_idx));
 }
 
@@ -270,7 +269,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     /* Ensure not closed. */
     wi = (WriteInfo *)data;
     handle_data = (MVMIOAsyncSocketData *)wi->handle->body.data;
-    if (!handle_data->handle || uv_is_closing((uv_handle_t *)handle_data->handle)) {
+    if (handle_data->handle == NULL || uv_is_closing((uv_handle_t *)handle_data->handle)) {
         MVMROOT(tc, async_task, {
             MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
             MVMAsyncTask *t   = (MVMAsyncTask *)async_task;
@@ -320,8 +319,11 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         });
 
         /* Cleanup handle. */
-        MVM_free(wi->req);
-        wi->req = NULL;
+        if (handle_data->handle != NULL && !uv_is_closing((uv_handle_t *)handle_data->handle)) {
+            handle_data->handle = NULL;
+            uv_close((uv_handle_t *)handle_data->handle, free_on_close_cb);
+        }
+
         MVM_io_eventloop_remove_active_work(tc, &(wi->work_idx));
     }
 }
@@ -393,10 +395,10 @@ typedef struct {
 
 /* Does an asynchronous close (since it must run on the event loop). */
 static void close_perform(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
-    CloseInfo *ci = (CloseInfo *)data;
+    CloseInfo            *ci          = (CloseInfo *)data;
     MVMIOAsyncSocketData *handle_data = (MVMIOAsyncSocketData *)ci->handle->body.data;
-    uv_handle_t *handle = (uv_handle_t *)handle_data->handle;
-    if (handle && !uv_is_closing(handle)) {
+    uv_handle_t          *handle      = (uv_handle_t *)handle_data->handle;
+    if (handle != NULL && !uv_is_closing(handle)) {
         handle_data->handle = NULL;
         uv_close(handle, free_on_close_cb);
     }
@@ -572,7 +574,6 @@ static void on_connect(uv_connect_t* req, int status) {
         });
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
-    MVM_free(req);
     MVM_io_eventloop_remove_active_work(tc, &(ci->work_idx));
 }
 
@@ -619,10 +620,13 @@ static void do_connect_setup(uv_handle_t *handle) {
     });
 
     /* Cleanup handles. */
-    MVM_free(ci->connect);
-    ci->connect = NULL;
-    uv_close((uv_handle_t *)ci->socket, free_on_close_cb);
-    ci->socket = NULL;
+    MVM_free_null(ci->connect);
+
+    if (handle != NULL && !uv_is_closing(handle)) {
+        ci->socket = NULL;
+        uv_close(handle, free_on_close_cb);
+    }
+
     MVM_io_eventloop_remove_active_work(tc, &(ci->work_idx));
 }
 
@@ -763,8 +767,6 @@ static void on_connection(uv_stream_t *server, int status) {
         });
     }
     else {
-        uv_close((uv_handle_t*)client, NULL);
-        MVM_free(client);
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTIO);
         MVMROOT2(tc, arr, t, {
             MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
@@ -778,6 +780,9 @@ static void on_connection(uv_stream_t *server, int status) {
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
         });
+
+        if (client != NULL && !uv_is_closing((uv_handle_t *)client))
+            uv_close((uv_handle_t*)client, free_on_close_cb);
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
 }
@@ -826,7 +831,7 @@ static void do_listen_setup(uv_handle_t *handle) {
             record->ai_next = NULL;
             freeaddrinfo(li->dest);
             li->dest = next;
-            uv_close((uv_handle_t *)li->socket, do_listen_setup);
+            uv_close(handle, do_listen_setup);
             /* Don't throw yet; wait until uv_close calls this again. */
         }
 
@@ -853,8 +858,12 @@ static void do_listen_setup(uv_handle_t *handle) {
         });
         MVM_repr_push_o(tc, ((MVMAsyncTask *)li->async_task)->body.queue, arr);
     });
-    uv_close((uv_handle_t *)li->socket, do_listen_setup);
-    li->socket = NULL;
+
+    if (handle != NULL && !uv_is_closing(handle)) {
+        li->socket = NULL;
+        uv_close(handle, free_on_close_cb);
+    }
+
     MVM_io_eventloop_remove_active_work(tc, &(li->work_idx));
 }
 /* Sets up a socket listener. */

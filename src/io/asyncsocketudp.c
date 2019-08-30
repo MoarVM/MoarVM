@@ -208,7 +208,7 @@ static const MVMAsyncTaskOps read_op_table = {
 static MVMAsyncTask * read_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObject *queue,
                                  MVMObject *schedulee, MVMObject *buf_type, MVMObject *async_type) {
     MVMAsyncTask *task;
-    ReadInfo    *ri;
+    ReadInfo     *ri;
 
     /* Validate REPRs. */
     if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
@@ -311,20 +311,16 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     output_size = (int)buffer->body.elems;
 
     /* Create and initialize write request. */
-    wi->req   = MVM_malloc(sizeof(uv_udp_send_t));
-    wi->buf   = uv_buf_init(output, output_size);
-    wi->error = 0;
+    wi->req       = MVM_malloc(sizeof(uv_udp_send_t));
+    wi->req->data = wi;
+    wi->buf       = uv_buf_init(output, output_size);
+    wi->error     = 0;
 
     handle = ((MVMIOAsyncUDPSocketData *)wi->handle->body.data)->handle;
     if (uv_is_closing((uv_handle_t *)handle))
         MVM_exception_throw_adhoc(tc, "cannot send over a closed socket");
 
     for (record = wi->dest_addr; record != NULL; record = record->ai_next) {
-        char *hostname = MVM_malloc(sizeof(char));
-        inet_ntop(record->ai_family, &((struct sockaddr_in *)record->ai_addr)->sin_addr, hostname, record->ai_addrlen);
-        printf("writing to %s %d %d %d\n", hostname, record->ai_family, record->ai_socktype, record->ai_protocol);
-        MVM_free(hostname);
-
         if ((wi->error = uv_udp_send(wi->req, handle, &(wi->buf), 1, record->ai_addr, on_write)) >= 0)
             break;
     }
@@ -513,28 +509,33 @@ static void do_setup_setup(uv_handle_t *handle) {
     MVMThreadContext *tc      = ssi->tc;
     struct addrinfo  *record;
 
-    for (record = ssi->bind_addr; record != NULL; record = record->ai_next) {
-        char *hostname = MVM_malloc(sizeof(char));
-        inet_ntop(record->ai_family, &((struct sockaddr_in *)record->ai_addr)->sin_addr, hostname, record->ai_addrlen);
-        printf("binding on %s %d %d %d\n", hostname, record->ai_family, record->ai_socktype, record->ai_protocol);
-        MVM_free(hostname);
-
-        if ((ssi->error = uv_udp_init(ssi->loop, ssi->handle)) >= 0) {
-            if (ssi->bind_addr != NULL)
+    if (ssi->bind_addr == NULL) {
+        ssi->error = uv_udp_init(ssi->loop, ssi->handle);
+        if (ssi->error >= 0 && (ssi->flags & 1))
+            ssi->error = uv_udp_set_broadcast(ssi->handle, 1);
+    } else {
+        for (record = ssi->bind_addr; record != NULL; record = record->ai_next) {
+            if ((ssi->error = uv_udp_init(ssi->loop, ssi->handle)) >= 0) {
                 ssi->error = uv_udp_bind(ssi->handle, record->ai_addr, 0);
-            if (ssi->error >= 0 && (ssi->flags & 1))
-                ssi->error = uv_udp_set_broadcast(ssi->handle, 1);
-        }
+                if (ssi->error >= 0 && (ssi->flags & 1))
+                    ssi->error = uv_udp_set_broadcast(ssi->handle, 1);
+            }
 
-        if (ssi->error >= 0)
-            break;
-        else {
-            struct addrinfo *next = record->ai_next;
-            record->ai_next = NULL;
-            freeaddrinfo(ssi->bind_addr);
-            ssi->bind_addr = next;
-            uv_close(handle, do_setup_setup);
-            return;
+            if (ssi->error >= 0)
+                break;
+            else {
+                struct addrinfo *next = record->ai_next;
+                record->ai_next = NULL;
+                freeaddrinfo(ssi->bind_addr);
+                if (next == NULL) {
+                    uv_close(handle, free_on_close_cb);
+                    break;
+                } else {
+                    ssi->bind_addr = next;
+                    uv_close(handle, do_setup_setup);
+                    return;
+                }
+            }
         }
     }
 
@@ -553,9 +554,9 @@ static void do_setup_setup(uv_handle_t *handle) {
                 result->body.ops                = &op_table;
                 result->body.data               = data;
                 MVM_repr_push_o(tc, arr, (MVMObject *)result);
-                MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
-                MVM_repr_push_o(tc, t->body.queue, arr);
             });
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVM_repr_push_o(tc, t->body.queue, arr);
         });
     }
     else {
@@ -629,7 +630,7 @@ MVMObject * MVM_io_socket_udp_async(MVMThreadContext *tc, MVMObject *queue,
             "asyncudp result type must have REPR AsyncTask");
 
     /* Resolve hostname. (Could be done asynchronously too.) */
-    if (host && IS_CONCRETE(host)) {
+    if (host != NULL && IS_CONCRETE(host)) {
         MVMROOT3(tc, queue, schedulee, async_type, {
             bind_addr = MVM_io_resolve_host_name(tc, host, port, SOCKET_FAMILY_UNSPEC, SOCKET_TYPE_DGRAM, SOCKET_PROTOCOL_UDP, 1);
         });
