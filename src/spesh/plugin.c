@@ -290,6 +290,7 @@ static void mark_plugin_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWork
         frame->extra->special_return_data;
     MVM_gc_worklist_add(tc, worklist, &(srd->sf));
     MVM_gc_worklist_add(tc, worklist, &(srd->prev_plugin_guard_args));
+    MVM_spesh_plugin_guard_list_mark(tc, srd->prev_plugin_guards, srd->prev_num_plugin_guards, worklist);
 }
 
 /* Restore the spesh plugin resolve state that was in dynamic scope when we
@@ -399,11 +400,6 @@ static void call_resolver(MVMThreadContext *tc, MVMString *name, MVMRegister *re
             c_name);
     }
 
-    /* Set up the guard state to record into. */
-    MVMROOT2(tc, plugin, prev_plugin_guard_args, {
-        setup_for_guard_recording(tc, callsite);
-    });
-
     /* Run it, registering handlers to save or discard guards and result. */
     tc->cur_frame->return_value = result;
     tc->cur_frame->return_type = MVM_RETURN_OBJ;
@@ -418,6 +414,11 @@ static void call_resolver(MVMThreadContext *tc, MVMString *name, MVMRegister *re
     srd->prev_num_plugin_guards = prev_num_plugin_guards;
     MVM_frame_special_return(tc, tc->cur_frame, add_resolution_to_guard_set,
             cleanup_recorded_guards, srd, mark_plugin_sr_data);
+
+    /* Set up the guard state to record into. */
+    MVMROOT2(tc, plugin, prev_plugin_guard_args, {
+        setup_for_guard_recording(tc, callsite);
+    });
     STABLE(plugin)->invoke(tc, plugin, callsite, tc->cur_frame->args);
 }
 void MVM_spesh_plugin_resolve(MVMThreadContext *tc, MVMString *name,
