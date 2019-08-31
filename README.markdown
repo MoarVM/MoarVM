@@ -65,12 +65,11 @@ Some key features provided by MoarVM include:
 
 * Meta-object programming, using the 6model design
 * Precise, generational, and parallel GC
-* Unicode 10.0 support (Unicode Character Database, encodings, normalization)
+* Unicode 12.1 support (Unicode Character Database, encodings, normalization)
 * First-class code objects, lexical variables and closures
 * Exceptions
 * Continuations
 * Bounded serialization
-* Code generation from MAST (MoarVM AST)
 * Runtime loading of code
 * Big integers
 * A range of IO and process support, including asynchronous sockets, signals,
@@ -79,9 +78,12 @@ Some key features provided by MoarVM include:
 * Threads, mutexes, condition variables, semaphores, and blocking queues
 * Bytecode specialization by type, and numerous optimizations (including
   resolution of method calls and multiple dispatch, dead code elimination,
-  inlining, and on stack replacement)
+  inlining, on stack replacement, scalar replacement, and partial escape
+  analysis)
 * JIT compilation
 * Instrumentation-based profiling of call frames and allocations
+* Heap snapshotting
+* Remote Debugging with single stepping and variable/object introspection
 
 ## Contributing
 
