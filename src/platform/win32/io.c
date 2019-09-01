@@ -18,6 +18,22 @@ static wchar_t * UTF8ToUnicode(const char *str)
      return result;
 }
 
+int MVM_platform_open(const char *pathname, int flags, mode_t mode)
+{
+    LPWSTR wpathname;
+    int result;
+    const int wpathname_length = MultiByteToWideChar(CP_UTF8, 0, pathname, -1, NULL, 0);
+    if (wpathname_length == 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    wpathname = MVM_malloc(wpathname_length * sizeof(wchar_t));
+    MultiByteToWideChar(CP_UTF8, 0, pathname, -1, wpathname, wpathname_length);
+    result = _wopen(wpathname, flags | _O_BINARY, mode);
+    MVM_free(wpathname);
+    return result;
+}
+
 MVMint64 MVM_platform_lseek(int fd, MVMint64 offset, int origin)
 {
     HANDLE hf;
