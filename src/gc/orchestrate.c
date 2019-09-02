@@ -427,7 +427,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
             other->thread_id);
         other->gc_promoted_bytes = 0;
         if (tc->instance->profiling)
-            MVM_profiler_log_gen2_roots(tc, other, other->num_gen2roots);
+            MVM_profiler_log_gen2_roots(tc, other->num_gen2roots, other);
         MVM_gc_collect(other, (other == tc ? what_to_do : MVMGCWhatToDo_NoInstance), gen);
     }
 
