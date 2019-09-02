@@ -488,6 +488,14 @@ void MVM_profiler_log_unmanaged_data_promoted(MVMThreadContext *tc, MVMuint64 am
     ptd->gc_promoted_unmanaged_bytes += amount;
 }
 
+void MVM_profiler_log_gen2_roots(MVMThreadContext *tc, MVMuint64 amount, MVMThreadContext *other) {
+    if (tc != other) {
+        MVMProfileThreadData *ptd = get_thread_data(tc);
+
+        ptd->gcs[ptd->num_gcs].num_stolen_gen2roots += amount;
+    }
+}
+
 /* Log that we're starting some work on bytecode specialization or JIT. */
 void MVM_profiler_log_spesh_start(MVMThreadContext *tc) {
     /* Record start time. */
