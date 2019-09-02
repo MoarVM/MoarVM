@@ -459,6 +459,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
         data[3] = (end_time - start_time) / 1000;
         data[4] = gen == MVMGCGenerations_Both;
         data[5] = tc->gc_promoted_bytes;
+        data[5] = MVM_load(&tc->instance->gc_promoted_bytes_since_last_full);
         data[6] = tc->thread_id;
         data[7] = 0;
 
