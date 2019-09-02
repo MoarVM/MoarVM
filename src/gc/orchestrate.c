@@ -449,7 +449,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
         MVMArray *arrobj = (MVMArray *)instance;
         MVMuint64 *data;
 
-        MVM_repr_pos_set_elems(tc, instance, 8);
+        MVM_repr_pos_set_elems(tc, instance, 9);
 
         data = arrobj->body.slots.u64;
 
@@ -459,14 +459,14 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
         data[3] = (end_time - start_time) / 1000;
         data[4] = gen == MVMGCGenerations_Both;
         data[5] = tc->gc_promoted_bytes;
-        data[5] = MVM_load(&tc->instance->gc_promoted_bytes_since_last_full);
-        data[6] = tc->thread_id;
-        data[7] = 0;
+        data[6] = MVM_load(&tc->instance->gc_promoted_bytes_since_last_full);
+        data[7] = tc->thread_id;
+        data[8] = 0;
 
         uv_mutex_lock(&tc->instance->mutex_threads);
         cur_thread = tc->instance->threads;
         while (cur_thread) {
-            data[7] += cur_thread->body.tc->num_gen2roots;
+            data[8] += cur_thread->body.tc->num_gen2roots;
             cur_thread = cur_thread->body.next;
         }
         uv_mutex_unlock(&tc->instance->mutex_threads);
