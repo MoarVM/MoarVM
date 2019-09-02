@@ -336,6 +336,7 @@ typedef struct {
     MVMString *promoted_bytes;
     MVMString *promoted_bytes_unmanaged;
     MVMString *gen2_roots;
+    MVMString *stolen_gen2_roots;
     MVMString *start_time;
     MVMString *first_entry_time;
     MVMString *osr;
@@ -637,6 +638,8 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
             box_i(tc, gc->promoted_unmanaged_bytes));
         MVM_repr_bind_key_o(tc, gc_hash, pds->gen2_roots,
             box_i(tc, gc->num_gen2roots));
+        MVM_repr_bind_key_o(tc, gc_hash, pds->stolen_gen2_roots,
+            box_i(tc, gc->num_stolen_gen2roots));
         MVM_repr_bind_key_o(tc, gc_hash, pds->start_time,
             box_i(tc, (gc->abstime - absolute_start_time) / 1000));
 
@@ -744,6 +747,7 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
         pds.nursery_seen    = str(tc, "nursery_seen");
         pds.gen2            = str(tc, "gen2");
 
+        pds.stolen_gen2_roots  = str(tc, "stolen_gen2_roots");
         pds.has_unmanaged_data = str(tc, "has_unmanaged_data");
         pds.repr               = str(tc, "repr");
 

@@ -426,6 +426,8 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : starting collection for thread %d\n",
             other->thread_id);
         other->gc_promoted_bytes = 0;
+        if (tc->instance->profiling)
+            MVM_profiler_log_gen2_roots(tc, other, other->num_gen2roots);
         MVM_gc_collect(other, (other == tc ? what_to_do : MVMGCWhatToDo_NoInstance), gen);
     }
 
@@ -442,11 +444,12 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
 
     if (is_coordinator && subscription_queue && tc->instance->subscriptions.GCEvent) {
         MVMObject *instance = MVM_repr_alloc(tc, tc->instance->subscriptions.GCEvent);
+        MVMThread *cur_thread;
 
         MVMArray *arrobj = (MVMArray *)instance;
         MVMuint64 *data;
 
-        MVM_repr_pos_set_elems(tc, instance, 7);
+        MVM_repr_pos_set_elems(tc, instance, 8);
 
         data = arrobj->body.slots.u64;
 
@@ -457,6 +460,15 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
         data[4] = gen == MVMGCGenerations_Both;
         data[5] = tc->gc_promoted_bytes;
         data[6] = tc->thread_id;
+        data[7] = 0;
+
+        uv_mutex_lock(&tc->instance->mutex_threads);
+        cur_thread = tc->instance->threads;
+        while (cur_thread) {
+            data[7] += cur_thread->body.tc->num_gen2roots;
+            cur_thread = cur_thread->body.next;
+        }
+        uv_mutex_unlock(&tc->instance->mutex_threads);
 
         MVM_repr_push_o(tc, tc->instance->subscriptions.subscription_queue, instance);
     }
