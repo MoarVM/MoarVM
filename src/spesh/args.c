@@ -125,7 +125,7 @@ static MVMuint8 cmp_prim_spec(MVMThreadContext *tc, MVMSpeshStatsType *type_tupl
             return ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR;
         }
         else
-            MVM_panic(1, "Spesh error: unexpected wanted_prim_spec %ld", wanted_prim_spec);
+            MVM_panic(1, "Spesh error: unexpected wanted_prim_spec %d", wanted_prim_spec);
     }
     return 0;
 }

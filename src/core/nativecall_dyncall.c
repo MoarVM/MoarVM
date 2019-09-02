@@ -469,8 +469,8 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
         } \
         else \
             MVM_exception_throw_adhoc(tc, \
-                "Native call expected argument %lld to reference a native %s, but got %s", \
-                what, REPR(value)->name); \
+                "Native call expected argument %d to reference a native %s, but got %s", \
+                i, what, REPR(value)->name); \
     } \
     else { \
         if (value && IS_CONCRETE(value) && STABLE(value)->container_spec) { \
