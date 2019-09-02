@@ -946,7 +946,7 @@ sub has_native_library {
         return 1;
     }
     else {
-
+        return 0;
     }
 }
 
