@@ -17,10 +17,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
 
     tc->instance->speshworker_thread_id = tc->thread_obj->body.thread_id;
 
-    /*MVMROOT2(tc, updated_static_frames, previous_static_frames, {*/
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&updated_static_frames);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&previous_static_frames);
-    {
+    MVMROOT2(tc, updated_static_frames, previous_static_frames, {
         while (1) {
             MVMObject *log_obj;
             MVMuint64 start_time;
@@ -76,15 +73,16 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                 if (overview_data) {
                     overview_data[4] = sl->body.thread->body.tc->thread_id;
                 }
-                MVM_gc_root_temp_push(tc, (MVMCollectable **)&sl);
-                {
-                /*MVMROOT(tc, sl, {*/
+                MVMROOT(tc, sl, {
                     MVMThreadContext *stc;
                     MVMuint32 i;
                     MVMuint32 n;
-                    MVMuint64 newly_seen, updated;
+                    MVMuint64 newly_seen;
+                    MVMuint64 updated;
 
-                    MVMuint64 certain_spesh, observed_spesh, osr_spesh;
+                    MVMuint64 certain_spesh;
+                    MVMuint64 observed_spesh;
+                    MVMuint64 osr_spesh;
 
                     /* Update stats, and if we're logging dump each of them. */
                     tc->instance->spesh_stats_version++;
@@ -199,9 +197,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                         sl->body.entries = NULL;
                         MVM_free(entries);
                     }
-                /*});*/
-                }
-                MVM_gc_root_temp_pop(tc);
+                });
 
             }
             else if (MVM_is_null(tc, log_obj)) {
@@ -237,9 +233,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
 
             work_sequence_number++;
         }
-    } /* MVMROOT2 */
-    MVM_gc_root_temp_pop_n(tc, 2);
-    /*});*/
+    });
 }
 
 /* Not thread safe per instance, but normally only used when instance is still
