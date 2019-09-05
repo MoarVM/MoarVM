@@ -532,7 +532,6 @@ sub parse_file {
                 info => $compiled->{desc},
                 root => $compiled->{root},
                 len => length($compiled->{desc}),
-                flags => $destructive,
             };
             push @templates, @{$compiled->{template}};
         } elsif ($keyword eq 'include:') {
@@ -586,10 +585,10 @@ for my $opcode (@OPLIST) {
     my ($name) = @$opcode;
     if (defined($info->{$name})) {
         my $td = $info->{$name};
-        printf '    { MVM_jit_expr_templates + %d, "%s", %d, %d, %d },%s',
-          $td->{idx}, $td->{info}, $td->{len}, $td->{root}, $td->{flags}, "\n";
+        printf '    { MVM_jit_expr_templates + %d, "%s", %d, %d },%s',
+          $td->{idx}, $td->{info}, $td->{len}, $td->{root}, "\n";
     } else {
-        print "    { NULL, NULL, -1, 0, 0 },\n";
+        print "    { NULL, NULL, -1, 0 },\n";
     }
 }
 print "};\n";

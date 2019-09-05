@@ -53,7 +53,7 @@ struct ValueDefinition {
 static MVMint32 noop_code[] = { MVM_JIT_NOOP, 0 };
 
 static struct MVMJitExprTemplate noop_template = {
-    noop_code, "ns", 2, 0, 0
+    noop_code, "ns", 2, 0
 };
 
 /* Logical negation of comparison operators */
@@ -957,11 +957,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                 /* for write_reg and write_lex, operands[i] is the *address*,
                  * the *value* is the root, but this is only valid if the
                  * operand index is 0 */
-                if (template->flags & MVM_JIT_EXPR_TEMPLATE_DESTRUCTIVE) {
-                    assert(!MVM_jit_expr_op_yields_value(tree->nodes[root]));
-                } else {
-                    assert(MVM_jit_expr_op_yields_value(tree->nodes[root]));
-                }
                 if (!MVM_jit_expr_op_yields_value(tree->nodes[root])) {
                     /* overrides any earlier definition of this local variable */
                     memset(values + opr.reg.orig, -1, sizeof(struct ValueDefinition));
