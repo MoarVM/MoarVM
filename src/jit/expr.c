@@ -1,6 +1,5 @@
 #include "moar.h"
 
-
 struct OpInfo {
     const char *name;
     MVMint8   nchild;
@@ -133,6 +132,40 @@ MVMint32 MVM_jit_expr_op_is_call(enum MVMJitExprOperator op) {
     }
 }
 
+#define OP(n) MVM_JIT_ ## n
+MVMint32 MVM_jit_expr_op_yields_value(enum MVMJitExprOperator op) {
+    switch (op) {
+    case OP(COPY):
+    case OP(LOAD):
+    case OP(LOAD_NUM):
+    case OP(ADDR):
+    case OP(IDX):
+    case OP(CONST):
+    case OP(CONST_PTR):
+    case OP(CONST_LARGE):
+    case OP(CONST_NUM):
+    case OP(FLAGVAL):
+    case OP(SCAST):
+    case OP(UCAST):
+    case OP(ADD):
+    case OP(SUB):
+    case OP(MUL):
+    case OP(AND):
+    case OP(OR):
+    case OP(XOR):
+    case OP(NOT):
+    case OP(DO):
+    case OP(IF):
+    case OP(CALL):
+    case OP(TC):
+    case OP(CU):
+    case OP(LOCAL):
+    case OP(STACK):
+        return 1;
+    default:
+        return 0;
+    }
+}
 
 static MVMint32 MVM_jit_expr_add_regaddr(MVMThreadContext *tc, MVMJitExprTree *tree,
                                          MVMuint16 reg) {
@@ -655,7 +688,7 @@ static void active_values_flush(MVMThreadContext *tc, MVMJitExprTree *tree,
 }
 
 static MVMint32 tree_is_empty(MVMThreadContext *tc, MVMJitExprTree *tree) {
-    return MVM_VECTOR_ELEMS(tree->nodes) == 0;
+    return MVM_VECTOR_ELEMS(tree->roots) == 0;
 }
 
 static MVMObject* get_type_object_for_instruction(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMSpeshIns *ins, MVMuint16 opcode) {
@@ -771,6 +804,8 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
 
 #define BAIL(x, ...) do { if (x) { MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins, "expr bail: " __VA_ARGS__); goto done; } } while (0)
 
+    /* start with a no-op so every valid reference is nonzero */
+    MVM_jit_expr_apply_template(tc, tree, &noop_template, NULL);
 
     /* Generate a tree based on templates. The basic idea is to keep a
        index to the node that last computed the value of a local.
@@ -871,14 +906,9 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             goto emit;
         }
 
-        type_object = get_type_object_for_instruction(tc, sg, ins, opcode);
-/*        if (type_object != NULL);
-          fprintf(stderr, "opcode=%s type_object=%p debug_name=%s\n", ins->info->name, type_object, type_object->st->debug_name); */
         template = MVM_jit_get_template_for_opcode(opcode);
         BAIL(template == NULL, "Cannot get template for: %s", ins->info->name);
         if (tree_is_empty(tc, tree)) {
-            /* start with a no-op so every valid reference is nonzero */
-            MVM_jit_expr_apply_template(tc, tree, &noop_template, NULL);
             MVM_spesh_graph_add_comment(tc, jg->sg, iter->ins, "start of exprjit tree");
         }
 
@@ -902,6 +932,15 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         }
 
         MVM_jit_expr_load_operands(tc, tree, sg, ins, values, operands);
+
+        type_object = get_type_object_for_instruction(tc, sg, ins, opcode);
+        if (type_object != NULL) {
+            /* Hmm, we might not have added a noop template yet. In fact, we
+             * maybe should do that upon initialization, rather than being delayed */
+            MVM_spesh_graph_add_comment(tc, jg->sg, iter->ins, "Potentially devirtualized node");
+        }
+
+
         root = MVM_jit_expr_apply_template(tc, tree, template, operands);
 
         /* mark operand types */
@@ -919,6 +958,11 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                  * the *value* is the root, but this is only valid if the
                  * operand index is 0 */
                 if (template->flags & MVM_JIT_EXPR_TEMPLATE_DESTRUCTIVE) {
+                    assert(!MVM_jit_expr_op_yields_value(tree->nodes[root]));
+                } else {
+                    assert(MVM_jit_expr_op_yields_value(tree->nodes[root]));
+                }
+                if (!MVM_jit_expr_op_yields_value(tree->nodes[root])) {
                     /* overrides any earlier definition of this local variable */
                     memset(values + opr.reg.orig, -1, sizeof(struct ValueDefinition));
                 } else {
@@ -935,7 +979,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             case MVM_operand_write_lex:
                 /* does not define a value we can look up, but we may need to
                  * insert a store */
-                if (!(template->flags & MVM_JIT_EXPR_TEMPLATE_DESTRUCTIVE)) {
+                if (MVM_jit_expr_op_yields_value(tree->nodes[root])) {
                     BAIL(i != 0, "Write lex operand %d", i);
                     MVM_JIT_EXPR_INFO(tree, root)->type = opr_type >> 3;
                     /* insert the store to lexicals directly, do not record as value */
