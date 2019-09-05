@@ -53,6 +53,11 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                 memcpy(uf->env, f->env + cand->inlines[i].lexicals_start,
                     usf->body.num_lexicals * sizeof(MVMRegister));
 
+            /* Store the callsite, in case we need it for further processing
+             * of arguments. (TODO may need to consider the rest of the arg
+             * processing context too.) */
+            uf->params.callsite = cand->inlines[i].cs;
+
             /* Store the named argument used bit field, since if we deopt in
              * argument handling code we may have missed some. */
             if (cand->inlines[i].deopt_named_used_bit_field)

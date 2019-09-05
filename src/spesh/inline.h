@@ -47,6 +47,9 @@ struct MVMSpeshInline {
      * not count them multiple times. */
     MVMuint16 bytecode_size;
 
+    /* The callsite that we were invoked with. */
+    MVMCallsite *cs;
+
     /* Bit field of named args used to put in place during deopt, since we
      * typically don't update the array in specialized code. */
     MVMuint64 deopt_named_used_bit_field;

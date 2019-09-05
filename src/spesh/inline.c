@@ -494,7 +494,8 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
                  MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins,
                  MVMSpeshOperand code_ref_reg,
-                 MVMuint32 *inline_boundary_handler, MVMuint16 bytecode_size) {
+                 MVMuint32 *inline_boundary_handler, MVMuint16 bytecode_size,
+                 MVMCallsite *cs) {
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
     MVMint32        i, j, orig_inlines, total_inlines, orig_deopt_addrs,
@@ -819,6 +820,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     inliner->inlines[total_inlines - 1].unreachable = 0;
     inliner->inlines[total_inlines - 1].deopt_named_used_bit_field =
         inlinee->deopt_named_used_bit_field;
+    inliner->inlines[total_inlines - 1].cs = cs;
     inliner->inlines[total_inlines - 1].may_cause_deopt = may_cause_deopt;
     inliner->inlines[total_inlines - 1].bytecode_size   = bytecode_size;
     inliner->num_inlines = total_inlines;
@@ -1327,7 +1329,8 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* Merge inlinee's graph into the inliner. */
     MVMuint32 inline_boundary_handler;
     MVMSpeshBB *inlinee_last_bb = merge_graph(tc, inliner, inlinee, inlinee_sf,
-        invoke_bb, invoke_ins, code_ref_reg, &inline_boundary_handler, bytecode_size);
+        invoke_bb, invoke_ins, code_ref_reg, &inline_boundary_handler, bytecode_size,
+        call_info->cs);
 
     /* If we're profiling, note it's an inline. */
     first_ins = find_first_instruction(tc, inlinee);
