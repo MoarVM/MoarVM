@@ -139,10 +139,6 @@
 
 (template: return_o
   (dov
-    (callv (^func &MVM_spesh_log_return_type_from_jit)
-      (arglist
-        (carg (tc) ptr)
-        (carg $0 ptr)))
     (callv (^func &MVM_args_set_result_obj)
       (arglist
         (carg (tc) ptr)

@@ -227,11 +227,15 @@ void MVM_spesh_log_return_type(MVMThreadContext *tc, MVMObject *value) {
     commit_entry(tc, sl);
 }
 
-/* Inserted by the JIT on return_o so that it can do the appropriate thing.
- * There may be ways to optimize this. */
-void MVM_spesh_log_return_type_from_jit(MVMThreadContext *tc, MVMObject *value) {
-    if (MVM_spesh_log_is_caller_logging(tc))
-        MVM_spesh_log_return_type(tc, value);
+/* Logs the return from logged to unlogged code, for the purpose of stack
+ * tracking. */
+void MVM_spesh_log_return_to_unlogged(MVMThreadContext *tc) {
+    MVMSpeshLog *sl = tc->spesh_log;
+    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
+    MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
+    entry->kind = MVM_SPESH_LOG_RETURN_TO_UNLOGGED;
+    entry->id = cid;
+    commit_entry(tc, sl);
 }
 
 /* Log the result of a spesh plugin resolution. */

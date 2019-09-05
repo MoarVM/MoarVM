@@ -631,6 +631,12 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                     add_static_value(tc, simf, e->value.bytecode_offset, e->value.value);
                 break;
             }
+            case MVM_SPESH_LOG_RETURN_TO_UNLOGGED: {
+                MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id, sf_updated);
+                if (simf)
+                    sim_stack_pop(tc, sims, sf_updated);
+                break;
+            }
         }
     }
     save_or_free_sim_stack(tc, sims, log_from_tc, sf_updated);
