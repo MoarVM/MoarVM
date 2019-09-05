@@ -239,8 +239,9 @@ struct MVMThreadContext {
 
     /* We try to do better at OSR by creating a fresh log when we enter a new
      * compilation unit. However, for things that EVAL or do a ton of BEGIN,
-     * this does more harm than good. Use this to throttle it back. */
-    MVMuint32 num_compunit_extra_logs;
+     * we risk high memory use. Use this to throttle it by limiting the number
+     * of such extra logs that might exist at a time. */
+    AO_t num_compunit_extra_logs;
 
     /* The current specialization correlation ID, used in logging. */
     MVMuint32 spesh_cid;

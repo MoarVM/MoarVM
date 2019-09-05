@@ -16,8 +16,8 @@ struct MVMSpeshLogGuard {
  * thread allows it to write more (effectively, the limit on the number of
  * outstanding work per thread). Threads other than the main one getting a
  * bit less buffer space helps reduce memory use a bit. */
-#define MVM_SPESH_LOG_QUOTA_MAIN_THREAD 2
-#define MVM_SPESH_LOG_QUOTA 1
+#define MVM_SPESH_LOG_QUOTA_MAIN_THREAD 3
+#define MVM_SPESH_LOG_QUOTA 2
 
 /* The number of logged invocations before we decide we've enough data for
  * the time being; should be at least the maximum threshold value in

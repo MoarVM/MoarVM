@@ -175,11 +175,17 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                     /* Allow the sending thread to produce more logs again,
                      * putting a new spesh log in place if needed. */
                     stc = sl->body.thread->body.tc;
-                    if (stc && !sl->body.was_compunit_bumped)
-                        if (MVM_incr(&(stc->spesh_log_quota)) == 0) {
-                            stc->spesh_log = MVM_spesh_log_create(tc, sl->body.thread);
-                            MVM_telemetry_timestamp(stc, "logging restored after quota had run out");
+                    if (stc) {
+                        if (!sl->body.was_compunit_bumped) {
+                            if (MVM_incr(&(stc->spesh_log_quota)) == 0) {
+                                stc->spesh_log = MVM_spesh_log_create(tc, sl->body.thread);
+                                MVM_telemetry_timestamp(stc, "logging restored after quota had run out");
+                            }
                         }
+                        else {
+                            MVM_decr(&(stc->num_compunit_extra_logs));
+                        }
+                    }
 
                     /* If needed, signal sending thread that it can continue. */
                     if (sl->body.block_mutex) {
