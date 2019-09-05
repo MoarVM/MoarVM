@@ -240,6 +240,7 @@ static const MVMREPROps P6num_this_repr = {
     gc_free_repr_data,
     compose,
     spesh,
+    NULL, /* jit */
     "P6num", /* name */
     MVM_REPR_ID_P6num,
     NULL, /* unmanaged_size */

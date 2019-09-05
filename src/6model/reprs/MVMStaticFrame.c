@@ -351,6 +351,7 @@ static const MVMREPROps MVMStaticFrame_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "MVMStaticFrame", /* name */
     MVM_REPR_ID_MVMStaticFrame,
     unmanaged_size, /* unmanaged_size */

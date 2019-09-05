@@ -96,6 +96,7 @@ static const MVMREPROps MVMMultiCache_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "MVMMultiCache", /* name */
     MVM_REPR_ID_MVMMultiCache,
     unmanaged_size, /* unmanaged_size */

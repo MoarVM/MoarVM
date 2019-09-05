@@ -151,6 +151,7 @@ static const MVMREPROps CPointer_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "CPointer", /* name */
     MVM_REPR_ID_MVMCPointer,
     NULL, /* unmanaged_size */

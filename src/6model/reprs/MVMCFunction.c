@@ -83,6 +83,7 @@ static const MVMREPROps MVMCFunction_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "MVMCFunction", /* name */
     MVM_REPR_ID_MVMCFunction,
     NULL, /* unmanaged_size */

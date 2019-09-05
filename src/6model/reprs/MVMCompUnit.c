@@ -240,6 +240,7 @@ static const MVMREPROps MVMCompUnit_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "MVMCompUnit", /* name */
     MVM_REPR_ID_MVMCompUnit,
     unmanaged_size,

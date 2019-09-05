@@ -315,6 +315,7 @@ static const MVMREPROps ConcBlockingQueue_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "ConcBlockingQueue", /* name */
     MVM_REPR_ID_ConcBlockingQueue,
     unmanaged_size,

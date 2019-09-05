@@ -106,6 +106,7 @@ static const MVMREPROps MVMContinuation_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "MVMContinuation", /* name */
     MVM_REPR_ID_MVMContinuation,
     NULL, /* unmanaged_size */

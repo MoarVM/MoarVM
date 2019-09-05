@@ -91,6 +91,7 @@ static const MVMREPROps MVMThread_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "VMThread", /* name */
     MVM_REPR_ID_MVMThread,
     NULL, /* unmanaged_size */

@@ -83,6 +83,7 @@ static const MVMREPROps MVMDLLSym_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "MVMDLLSym",
     MVM_REPR_ID_MVMDLLSym,
     NULL, /* unmanaged_size */

@@ -260,6 +260,7 @@ static const MVMREPROps MVMContext_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "MVMContext", /* name */
     MVM_REPR_ID_MVMContext,
     NULL, /* unmanaged_size */

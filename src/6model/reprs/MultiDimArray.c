@@ -834,6 +834,7 @@ static const MVMREPROps MultiDimArray_this_repr = {
     gc_free_repr_data,
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "MultiDimArray", /* name */
     MVM_REPR_ID_MultiDimArray,
     NULL, /* unmanaged_size */

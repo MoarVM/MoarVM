@@ -120,6 +120,7 @@ static const MVMREPROps MVMCode_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "MVMCode", /* name */
     MVM_REPR_ID_MVMCode,
     NULL, /* unmanaged_size */

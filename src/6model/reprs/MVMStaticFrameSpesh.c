@@ -179,6 +179,7 @@ static const MVMREPROps StaticFrameSpesh_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "MVMStaticFrameSpesh", /* name */
     MVM_REPR_ID_MVMStaticFrameSpesh,
     unmanaged_size,

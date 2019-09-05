@@ -94,6 +94,7 @@ static const MVMREPROps Decoder_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "Decoder", /* name */
     MVM_REPR_ID_Decoder,
     NULL, /* unmanaged_size */

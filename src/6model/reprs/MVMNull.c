@@ -80,6 +80,7 @@ static const MVMREPROps MVMNull_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "Null", /* name */
     MVM_REPR_ID_MVMNull,
     NULL, /* unmanaged_size */

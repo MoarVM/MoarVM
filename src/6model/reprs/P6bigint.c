@@ -308,6 +308,7 @@ static const MVMREPROps P6bigint_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "P6bigint", /* name */
     MVM_REPR_ID_P6bigint,
     unmanaged_size, /* unmanaged_size */

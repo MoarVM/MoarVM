@@ -2049,6 +2049,7 @@ static const MVMREPROps P6opaque_this_repr = {
     gc_free_repr_data,
     compose,
     spesh,
+    NULL, /* jit */
     "P6opaque", /* name */
     MVM_REPR_ID_P6opaque,
     NULL, /* unmanaged_size */

@@ -104,6 +104,7 @@ static const MVMREPROps MVMOSHandle_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "MVMOSHandle", /* name */
     MVM_REPR_ID_MVMOSHandle,
     NULL, /* unmanaged_size */

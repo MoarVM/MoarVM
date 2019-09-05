@@ -110,6 +110,7 @@ static const MVMREPROps CStr_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "CStr", /* name */
     MVM_REPR_ID_MVMCStr,
     NULL, /* unmanaged_size */

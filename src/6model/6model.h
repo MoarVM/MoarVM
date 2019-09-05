@@ -680,6 +680,10 @@ struct MVMREPROps {
     void (*spesh) (MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g,
         MVMSpeshBB *bb, MVMSpeshIns *ins);
 
+    /* Allows the REPR to produce specialized expr IR of various instructions,
+     * when we know the type involved. */
+    MVMint32 (*jit) (MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMJitExprTree *tree, MVMint32 args[]);
+
     /* The representation's name. */
     const char *name;
 

@@ -99,6 +99,7 @@ static const MVMREPROps KnowHOWAttributeREPR_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "KnowHOWAttributeREPR", /* name */
     MVM_REPR_ID_KnowHOWAttributeREPR,
     NULL, /* unmanaged_size */

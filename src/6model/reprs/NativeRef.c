@@ -173,6 +173,7 @@ static const MVMREPROps NativeRef_this_repr = {
     gc_free_repr_data,
     compose,
     spesh, /* spesh */
+    NULL, /* jit */
     "NativeRef", /* name */
     MVM_REPR_ID_NativeRef,
     NULL, /* unmanaged_size */

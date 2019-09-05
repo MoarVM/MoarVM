@@ -253,6 +253,7 @@ static const MVMREPROps SCRef_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "SCRef", /* name */
     MVM_REPR_ID_SCRef,
     unmanaged_size,

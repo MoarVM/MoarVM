@@ -209,6 +209,7 @@ static const MVMREPROps MVMIter_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "VMIter", /* name */
     MVM_REPR_ID_MVMIter,
     NULL, /* unmanaged_size */

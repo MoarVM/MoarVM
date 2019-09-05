@@ -345,6 +345,7 @@ static const MVMREPROps NFA_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "NFA", /* name */
     MVM_REPR_ID_NFA,
     unmanaged_size,

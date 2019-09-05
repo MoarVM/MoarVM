@@ -92,6 +92,7 @@ static const MVMREPROps ConditionVariable_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "ConditionVariable", /* name */
     MVM_REPR_ID_ConditionVariable,
     NULL, /* unmanaged_size */

@@ -878,6 +878,7 @@ static const MVMREPROps CPPStruct_this_repr = {
     gc_free_repr_data,
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "CPPStruct", /* name */
     MVM_REPR_ID_MVMCPPStruct,
     NULL, /* unmanaged_size */

@@ -293,6 +293,7 @@ static const MVMREPROps MVMHash_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     spesh,
+    NULL, /* jit */
     "VMHash", /* name */
     MVM_REPR_ID_MVMHash,
     unmanaged_size, /* unmanaged_size */

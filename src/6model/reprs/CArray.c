@@ -540,6 +540,7 @@ static const MVMREPROps CArray_this_repr = {
     gc_free_repr_data,
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "CArray", /* name */
     MVM_REPR_ID_MVMCArray,
     unmanaged_size, /* unmanaged_size */

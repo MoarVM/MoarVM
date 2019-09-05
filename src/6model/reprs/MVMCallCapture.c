@@ -117,6 +117,7 @@ static const MVMREPROps MVMCallCapture_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "MVMCallCapture", /* name */
     MVM_REPR_ID_MVMCallCapture,
     NULL, /* unmanaged_size */

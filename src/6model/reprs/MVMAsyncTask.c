@@ -93,6 +93,7 @@ static const MVMREPROps MVMAsyncTask_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "AsyncTask", /* name */
     MVM_REPR_ID_MVMAsyncTask,
     NULL, /* unmanaged_size */

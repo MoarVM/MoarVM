@@ -79,6 +79,7 @@ static const MVMREPROps MVMException_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "VMException", /* name */
     MVM_REPR_ID_MVMException,
     NULL, /* unmanaged_size */

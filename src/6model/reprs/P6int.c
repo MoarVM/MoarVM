@@ -295,6 +295,7 @@ static const MVMREPROps P6int_this_repr = {
     gc_free_repr_data,
     compose,
     spesh,
+    NULL, /* jit */
     "P6int", /* name */
     MVM_REPR_ID_P6int,
     NULL, /* unmanaged_size */

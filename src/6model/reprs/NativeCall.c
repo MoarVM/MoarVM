@@ -212,6 +212,7 @@ static const MVMREPROps NativeCall_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "NativeCall", /* name */
     MVM_REPR_ID_MVMNativeCall,
     NULL, /* unmanaged_size */

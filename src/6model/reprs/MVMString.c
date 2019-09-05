@@ -130,6 +130,7 @@ static const MVMREPROps MVMString_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "MVMString", /* name */
     MVM_REPR_ID_MVMString,
     unmanaged_size,

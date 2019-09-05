@@ -107,6 +107,7 @@ static const MVMREPROps SpeshPluginState_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "MVMSpeshPluginState", /* name */
     MVM_REPR_ID_MVMSpeshPluginState,
     unmanaged_size,

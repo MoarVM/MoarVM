@@ -82,6 +82,7 @@ static const MVMREPROps Uninstantiable_this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     NULL, /* spesh */
+    NULL, /* jit */
     "Uninstantiable", /* name */
     MVM_REPR_ID_Uninstantiable,
     NULL, /* unmanaged_size */
