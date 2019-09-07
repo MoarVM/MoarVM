@@ -65,11 +65,11 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
 
     fprintf(col->fh, "MoarHeapDumpv00%d", MVM_HEAPSNAPSHOT_FORMAT);
 
-    if (MVM_HEAPSNAPSHOT_FORMAT == 2) {
+#if MVM_HEAPSNAPSHOT_FORMAT == 2
         col->index = MVM_calloc(1, sizeof(MVMHeapDumpIndex));
         col->index->snapshot_sizes = MVM_calloc(1, sizeof(MVMHeapDumpIndexSnapshotEntry));
-    }
-    else if (MVM_HEAPSNAPSHOT_FORMAT == 3) {
+#endif
+#if MVM_HEAPSNAPSHOT_FORMAT == 3
         MVMuint8 i;
         MVMHeapDumpTableOfContents *toc = MVM_calloc(1, sizeof(MVMHeapDumpTableOfContents));
         col->toplevel_toc = toc;
@@ -78,7 +78,7 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
         toc->toc_positions = (MVMuint64 *)MVM_calloc(8, sizeof(MVMuint64) * 2);
 
         filemeta_to_filehandle_ver3(tc, col);
-    }
+#endif
 
     tc->instance->heap_snapshots = col;
 }
@@ -1725,6 +1725,7 @@ void index_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     fwrite(&index->snapshot_size_entries, sizeof(MVMuint64), 1, fh);
 }
 
+#if MVM_HEAPSNAPSHOT_FORMAT == 3
 static void filemeta_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     char *metadata = MVM_malloc(1024);
     MVMuint64 size_position;
@@ -1822,6 +1823,7 @@ static void snapmeta_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCol
         col->second_level_toc->toc_positions[toc_i * 2 + 1] = end_position;
     }
 }
+#endif
 
 void finish_collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     /*col->strings_written = 0;*/
