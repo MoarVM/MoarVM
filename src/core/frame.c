@@ -1153,7 +1153,6 @@ MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code) {
 
 /* Given the specified code object, sets its outer to the current scope. */
 void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
-    MVMCode *code_obj = (MVMCode *)code;
     MVMFrame *captured;
     if (MVM_UNLIKELY(REPR(code)->ID != MVM_REPR_ID_MVMCode))
         MVM_exception_throw_adhoc(tc,
@@ -1161,7 +1160,7 @@ void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
     MVMROOT(tc, code, {
         captured = MVM_frame_force_to_heap(tc, tc->cur_frame);
     });
-    MVM_ASSIGN_REF(tc, &(code->header), code_obj->body.outer, captured);
+    MVM_ASSIGN_REF(tc, &(code->header), ((MVMCode*)code)->body.outer, captured);
 }
 
 /* This is used for situations in Perl 6 like:
@@ -1179,10 +1178,9 @@ void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
  * $x.
  */
 void MVM_frame_capture_inner(MVMThreadContext *tc, MVMObject *code) {
-    MVMCode *code_obj = (MVMCode *)code;
     MVMFrame *outer;
     MVMROOT(tc, code, {
-        MVMStaticFrame *sf_outer = code_obj->body.sf->body.outer;
+        MVMStaticFrame *sf_outer = ((MVMCode*)code)->body.sf->body.outer;
         MVMROOT(tc, sf_outer, {
             outer = create_context_only(tc, sf_outer, (MVMObject *)sf_outer->body.static_code, 1);
         });
@@ -1191,7 +1189,7 @@ void MVM_frame_capture_inner(MVMThreadContext *tc, MVMObject *code) {
             MVM_ASSIGN_REF(tc, &(outer->header), outer->outer, outer_outer);
         });
     });
-    MVM_ASSIGN_REF(tc, &(code->header), code_obj->body.outer, outer);
+    MVM_ASSIGN_REF(tc, &(code->header), ((MVMCode*)code)->body.outer, outer);
 }
 
 /* Given the specified code object, copies it and returns a copy which
