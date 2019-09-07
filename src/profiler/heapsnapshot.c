@@ -300,6 +300,7 @@ static MVMuint64 get_frame_idx(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
     MVMuint64 idx;
     if (!seen(tc, ss, frame, &idx)) {
         idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_FRAME, frame);
+        ss->col->total_frames++;
         saw(tc, ss, frame, idx);
     }
     return idx;
