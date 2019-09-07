@@ -1277,7 +1277,7 @@ typedef struct leaderboard {
     MVMuint64 value;
 } leaderboard;
 
-#define LEADERBOARDS_TOP_SPOTS 25
+#define LEADERBOARDS_TOP_SPOTS 40
 
 static void make_leaderboards(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapSnapshot *hs) {
     MVMHeapSnapshotStats *stats = hs->stats;
