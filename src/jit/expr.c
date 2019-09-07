@@ -157,6 +157,7 @@ MVMint32 MVM_jit_expr_op_yields_value(enum MVMJitExprOperator op) {
     case OP(DO):
     case OP(IF):
     case OP(CALL):
+    case OP(CALLN):
     case OP(TC):
     case OP(CU):
     case OP(LOCAL):
