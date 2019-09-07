@@ -82,6 +82,16 @@ struct MVMHeapSnapshotCollection {
     MVMHeapDumpTableOfContents *toplevel_toc;
     MVMHeapDumpTableOfContents *second_level_toc;
 
+    /* When the heap snapshot recording was started */
+    MVMuint64 start_time;
+
+    /* Counts for the current recording to make an overview */
+    MVMuint64 total_heap_size;
+    MVMuint64 total_objects;
+    MVMuint64 total_typeobjects;
+    MVMuint64 total_stables;
+    MVMuint64 total_frames;
+
     /* The file handle we are outputting to */
     FILE *fh;
 };
@@ -99,6 +109,9 @@ struct MVMHeapSnapshot {
     MVMuint64 alloc_references;
 
     MVMHeapSnapshotStats *stats;
+
+    /* When the snapshot was recorded */
+    MVMuint64 record_time;
 };
 
 /* An object/type object/STable type in the snapshot. */

@@ -4,6 +4,10 @@
 #define MVM_HEAPSNAPSHOT_FORMAT 3
 #endif
 
+#if MVM_HEAPSNAPSHOT_FORMAT == 3
+#define MVM_HEAPSNAPSHOT_FORMAT_SUBVERSION 1
+#endif
+
 #define ZSTD_COMPRESSION_VALUE 9
 
 /* In order to debug heap snapshot output, or to rapid-prototype new formats,
@@ -31,11 +35,16 @@ MVMint32 MVM_profile_heap_profiling(MVMThreadContext *tc) {
     return tc->instance->heap_snapshots != NULL;
 }
 
+static void filemeta_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *col);
+static void snapmeta_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *col);
+
 /* Start heap profiling. */
 void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
     MVMHeapSnapshotCollection *col = MVM_calloc(1, sizeof(MVMHeapSnapshotCollection));
     char *path;
     MVMString *path_str;
+
+    col->start_time = uv_hrtime();
 
     path_str = MVM_repr_get_str(tc,
         MVM_repr_at_key_o(tc, config, tc->instance->str_consts.path));
@@ -54,6 +63,8 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
     }
     MVM_free(path);
 
+    fprintf(col->fh, "MoarHeapDumpv00%d", MVM_HEAPSNAPSHOT_FORMAT);
+
     if (MVM_HEAPSNAPSHOT_FORMAT == 2) {
         col->index = MVM_calloc(1, sizeof(MVMHeapDumpIndex));
         col->index->snapshot_sizes = MVM_calloc(1, sizeof(MVMHeapDumpIndexSnapshotEntry));
@@ -65,11 +76,11 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
         toc->toc_entry_alloc = 8;
         toc->toc_words = MVM_calloc(8, sizeof(char *));
         toc->toc_positions = (MVMuint64 *)MVM_calloc(8, sizeof(MVMuint64) * 2);
+
+        filemeta_to_filehandle_ver3(tc, col);
     }
 
     tc->instance->heap_snapshots = col;
-
-    fprintf(col->fh, "MoarHeapDumpv00%d", MVM_HEAPSNAPSHOT_FORMAT);
 }
 
 /* Grows storage if it's full, zeroing the extension. Assumes it's only being
@@ -261,14 +272,22 @@ static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
         MVMHeapSnapshotState *ss, MVMCollectable *collectable) {
     MVMuint64 idx;
     if (!seen(tc, ss, collectable, &idx)) {
-        if (collectable->flags & MVM_CF_STABLE)
+        if (collectable->flags & MVM_CF_STABLE) {
             idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_STABLE, collectable);
-        else if (collectable->flags & MVM_CF_TYPE_OBJECT)
+            ss->col->total_stables++;
+        }
+        else if (collectable->flags & MVM_CF_TYPE_OBJECT) {
             idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT, collectable);
-        else if (collectable->flags & MVM_CF_FRAME)
+            ss->col->total_typeobjects++;
+        }
+        else if (collectable->flags & MVM_CF_FRAME) {
             idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_FRAME, collectable);
-        else
+            ss->col->total_frames++;
+        }
+        else {
             idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_OBJECT, collectable);
+            ss->col->total_objects++;
+        }
         saw(tc, ss, collectable, idx);
     }
     return idx;
@@ -708,6 +727,8 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
             default:
                 MVM_panic(1, "Unknown heap snapshot worklist item kind %d", item.kind);
         }
+
+        ss->col->total_heap_size += col.collectable_size + col.unmanaged_size;
 
         /* Store updated collectable info into array. Note that num_refs was
          * updated "at a distance". */
@@ -1336,6 +1357,8 @@ void snapshot_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection
 
     col->second_level_toc = inner_toc;
 
+    snapmeta_to_filehandle_ver3(tc, col);
+
     collectables_to_filehandle_ver3(tc, col, entry);
     references_to_filehandle_ver3(tc, col, entry);
 
@@ -1700,6 +1723,105 @@ void index_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     fwrite(&index->staticframes_size, sizeof(MVMuint64), 1, fh);
     fwrite(&index->snapshot_size_entries, sizeof(MVMuint64), 1, fh);
 }
+
+static void filemeta_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+    char *metadata = MVM_malloc(1024);
+    MVMuint64 size_position;
+    MVMuint64 end_position;
+    MVMuint64 size;
+    FILE *fh = col->fh;
+
+    char typename[8] = "filemeta";
+
+    snprintf(metadata, 1023,
+            "{ "
+            "\"subversion\": %d, "
+            "\"start_time\": %lld, "
+            "\"pid\": %ld, "
+            "\"highscore_structure\": { "
+                "\"entry_count\": %ld, "
+                "\"data_order\": ["
+                    "\"types_by_count\", \"frames_by_count\", \"types_by_size\", \"frames_by_size\""
+                "]"
+            "}"
+            "}",
+            MVM_HEAPSNAPSHOT_FORMAT_SUBVERSION,
+            col->start_time / 1000,
+            MVM_proc_getpid(tc),
+            LEADERBOARDS_TOP_SPOTS
+    );
+
+    /* Be nice and put an extra null byte after the string */
+    size = strlen(metadata) + 1;
+
+    size_position = ftell(fh);
+    fwrite(&typename, sizeof(char), 8, fh);
+    fwrite(&size, sizeof(MVMuint64), 1, fh);
+
+    fputs(metadata, fh);
+    fputc(0, fh);
+
+    end_position = ftell(fh);
+
+    {
+        MVMuint32 toc_i = get_new_toc_entry(tc, col->toplevel_toc);
+        col->toplevel_toc->toc_words[toc_i] = "filemeta";
+        col->toplevel_toc->toc_positions[toc_i * 2]     = size_position;
+        col->toplevel_toc->toc_positions[toc_i * 2 + 1] = end_position;
+    }
+}
+
+static void snapmeta_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+    char *metadata = MVM_malloc(1024);
+    MVMHeapSnapshot *s = col->snapshot;
+    MVMuint64 size_position;
+    MVMuint64 end_position;
+    MVMuint64 size;
+    FILE *fh = col->fh;
+
+    char typename[8] = "snapmeta";
+
+    snprintf(metadata, 1023,
+            "{ "
+            "\"snap_time\": %lld, "
+            "\"gc_seq_num\": %lld, "
+            "\"total_heap_size\": %lld, "
+            "\"total_objects\": %lld, "
+            "\"total_typeobjects\": %lld, "
+            "\"total_stables\": %lld, "
+            "\"total_frames\": %lld, "
+            "\"total_refs\": %lld "
+            "}",
+            s->record_time / 1000,
+            MVM_load(&tc->instance->gc_seq_number),
+            col->total_heap_size,
+            col->total_objects,
+            col->total_typeobjects,
+            col->total_stables,
+            col->total_frames,
+            col->snapshot->num_references
+    );
+
+    /* Be nice and put an extra null byte after the string */
+    size = strlen(metadata) + 1;
+
+    size_position = ftell(fh);
+    fwrite(&typename, sizeof(char), 8, fh);
+    fwrite(&size, sizeof(MVMuint64), 1, fh);
+
+    fputs(metadata, fh);
+    fputc(0, fh);
+
+    end_position = ftell(fh);
+
+    if (col->second_level_toc) {
+        MVMuint32 toc_i = get_new_toc_entry(tc, col->second_level_toc);
+        col->second_level_toc->toc_words[toc_i] = "snapmeta";
+        col->second_level_toc->toc_positions[toc_i * 2]     = size_position;
+        col->second_level_toc->toc_positions[toc_i * 2 + 1] = end_position;
+    }
+}
+
 void finish_collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     /*col->strings_written = 0;*/
     /*col->types_written = 0;*/
@@ -1747,6 +1869,14 @@ void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
             col->snapshot = MVM_calloc(1, sizeof(MVMHeapSnapshot));
 
             col->snapshot->stats = MVM_calloc(1, sizeof(MVMHeapSnapshotStats));
+
+            col->total_heap_size = 0;
+            col->total_objects = 0;
+            col->total_typeobjects = 0;
+            col->total_stables = 0;
+            col->total_frames = 0;
+
+            col->snapshot->record_time = uv_hrtime();
 
             record_snapshot(tc, col, col->snapshot);
 
