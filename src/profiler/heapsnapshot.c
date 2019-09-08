@@ -65,12 +65,12 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
 
     fprintf(col->fh, "MoarHeapDumpv00%d", MVM_HEAPSNAPSHOT_FORMAT);
 
+    {
 #if MVM_HEAPSNAPSHOT_FORMAT == 2
         col->index = MVM_calloc(1, sizeof(MVMHeapDumpIndex));
         col->index->snapshot_sizes = MVM_calloc(1, sizeof(MVMHeapDumpIndexSnapshotEntry));
 #endif
 #if MVM_HEAPSNAPSHOT_FORMAT == 3
-        MVMuint8 i;
         MVMHeapDumpTableOfContents *toc = MVM_calloc(1, sizeof(MVMHeapDumpTableOfContents));
         col->toplevel_toc = toc;
         toc->toc_entry_alloc = 8;
@@ -79,6 +79,7 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
 
         filemeta_to_filehandle_ver3(tc, col);
 #endif
+    }
 
     tc->instance->heap_snapshots = col;
 }
