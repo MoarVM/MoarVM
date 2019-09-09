@@ -489,6 +489,28 @@ static void rewrite_hlltype(MVMThreadContext *tc, MVMSpeshGraph *inlinee, MVMSpe
     ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
 }
 
+static void tweak_guard_deopt_idx(MVMSpeshIns *ins, MVMSpeshAnn *ann) {
+    /* Twiddle guard opcode to point to the correct deopt index */
+    switch (ins->info->opcode) {
+    case MVM_OP_sp_guard:
+    case MVM_OP_sp_guardconc:
+    case MVM_OP_sp_guardtype:
+    case MVM_OP_sp_guardobj:
+    case MVM_OP_sp_guardnotobj:
+    case MVM_OP_sp_rebless:
+        ins->operands[3].lit_ui32 = ann->data.deopt_idx;
+        break;
+    case MVM_OP_sp_guardsf:
+    case MVM_OP_sp_guardsfouter:
+    case MVM_OP_sp_guardjustconc:
+    case MVM_OP_sp_guardjusttype:
+        ins->operands[2].lit_ui32 = ann->data.deopt_idx;
+        break;
+    default:
+        break;
+    }
+}
+
 /* Merges the inlinee's spesh graph into the inliner. */
 MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
@@ -552,6 +574,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 case MVM_SPESH_ANN_DEOPT_INLINE:
                 case MVM_SPESH_ANN_DEOPT_OSR:
                     ann->data.deopt_idx += inliner->num_deopt_addrs;
+                    tweak_guard_deopt_idx(ins, ann);
                     for (i = 0; i < MVM_VECTOR_ELEMS(regs_for_deopt); i++)
                         MVM_spesh_usages_add_deopt_usage_by_reg(tc, inliner,
                                 regs_for_deopt[i], ann->data.deopt_idx);

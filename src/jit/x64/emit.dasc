@@ -3210,9 +3210,8 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
     |1:
     /* emit deopt */
     | mov ARG1, TC;
-    | mov ARG2, guard->deopt_offset;
-    | mov ARG3, guard->deopt_target;
-    | callp &MVM_spesh_deopt_one_direct;
+    | mov ARG2, guard->deopt_idx;
+    | callp &MVM_spesh_deopt_one;
     /* jump out */
     | jmp ->exit;
     |2:

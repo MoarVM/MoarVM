@@ -378,7 +378,7 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         guard->operands[1] = preguard_reg;
         guard->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
             (MVMCollectable *)agg_type->st);
-        guard->operands[3].lit_ui32 = g->deopt_addrs[2 * deopt_one_ann->data.deopt_idx];
+        guard->operands[3].lit_ui32 = deopt_one_ann->data.deopt_idx;
         if (ins->next)
             MVM_spesh_manipulate_insert_ins(tc, bb, ins, guard);
         else

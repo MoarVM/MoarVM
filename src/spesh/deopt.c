@@ -229,34 +229,14 @@ static void materialize_replaced_objects(MVMThreadContext *tc, MVMFrame *f, MVMi
     MVM_free(materialized);
 }
 
-/* If there are any materializations, resolve the deopt_offset into and index
- * and then perform them. */
-static void materialize_replaced_objects_by_offset(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset) {
-    MVMSpeshCandidate *cand = f->spesh_cand;
-    if (MVM_VECTOR_ELEMS(cand->deopt_pea.deopt_point)) {
-        MVMint32 i;
-        for (i = 0; i < cand->num_deopts; i++) {
-            if (cand->deopts[2 * i + 1] == deopt_offset) {
-#if MVM_LOG_DEOPTS
-                fprintf(stderr, "    Resolved offset %d to deopt index %d\n", deopt_offset, i);
-#endif
-                materialize_replaced_objects(tc, f, i);
-                return;
-            }
-        }
-    }
-#if MVM_LOG_DEOPTS
-    fprintf(stderr, "    Failed to find deopt index for offset %d\n", deopt_offset);
-#endif
-}
 
-static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset, MVMint32 deopt_target) {
+static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMuint32 deopt_idx, MVMuint32 deopt_offset, MVMuint32 deopt_target) {
     /* Found it. We materialize any replaced objects first, then if
      * we have stuff replaced in inlines then uninlining will take
      * care of moving it out into the frames where it belongs. */
     deopt_named_args_used(tc, f);
     MVMROOT(tc, f, {
-        materialize_replaced_objects_by_offset(tc, f, deopt_offset);
+        materialize_replaced_objects(tc, f, deopt_idx);
     });
 
     /* Check if we have inlines. */
@@ -295,7 +275,7 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
 
 /* De-optimizes the currently executing frame, provided it is specialized and
  * at a valid de-optimization point. Typically used when a guard fails. */
-void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_target) {
+void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_idx) {
     MVMFrame *f = tc->cur_frame;
     if (tc->instance->profiling)
         MVM_profiler_log_deopt_one(tc);
@@ -305,12 +285,15 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_target) {
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
 #endif
     clear_dynlex_cache(tc, f);
+    assert(f->spesh_cand != NULL);
+    assert(deopt_idx < f->spesh_cand->num_deopts);
     if (f->spesh_cand) {
-        MVMuint32 deopt_offset = *(tc->interp_cur_op) - f->spesh_cand->bytecode;
+        MVMuint32 deopt_target = f->spesh_cand->deopts[deopt_idx * 2];
+        MVMuint32 deopt_offset = f->spesh_cand->deopts[deopt_idx * 2 + 1];
 #if MVM_LOG_DEOPTS
-    fprintf(stderr, "    Will deopt %u -> %u\n", deopt_offset, deopt_target);
+        fprintf(stderr, "    Will deopt %u -> %u\n", deopt_offset, deopt_target);
 #endif
-        deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
+        deopt_frame(tc, tc->cur_frame, deopt_idx, deopt_offset, deopt_target);
     }
     else {
         MVM_oops(tc, "deopt_one failed for %s (%s)",
@@ -321,23 +304,6 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_target) {
     MVM_CHECK_CALLER_CHAIN(tc, tc->cur_frame);
 }
 
-/* De-optimizes the current frame by directly specifying the addresses */
-void MVM_spesh_deopt_one_direct(MVMThreadContext *tc, MVMuint32 deopt_offset,
-                                MVMuint32 deopt_target) {
-    MVMFrame *f = tc->cur_frame;
-#if MVM_LOG_DEOPTS
-    fprintf(stderr, "Deopt one requested by JIT in frame '%s' (cuid '%s') (%u -> %u)\n",
-        MVM_string_utf8_encode_C_string(tc, f->static_info->body.name),
-        MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid),
-        deopt_offset, deopt_target);
-#endif
-    if (tc->instance->profiling)
-        MVM_profiler_log_deopt_one(tc);
-    clear_dynlex_cache(tc, f);
-    deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
-
-    MVM_CHECK_CALLER_CHAIN(tc, tc->cur_frame);
-}
 
 /* Takes a frame that is *not* the one currently running on the call stack
  * but is in specialized code. Finds the currently active deopt index at
