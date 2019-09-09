@@ -277,17 +277,45 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
 
         /* If there were deopt point annotations, update table. */
         if (has_deopts) {
+            MVMint32 seen_deopt_idx = 0;
+            MVMint32 deopt_idx;
+            switch (ins->info->opcode) {
+            case MVM_OP_sp_guard:
+            case MVM_OP_sp_guardconc:
+            case MVM_OP_sp_guardtype:
+            case MVM_OP_sp_guardobj:
+            case MVM_OP_sp_guardnotobj:
+            case MVM_OP_sp_rebless:
+                deopt_idx = ins->operands[3].lit_ui32;
+                break;
+            case MVM_OP_sp_guardsf:
+            case MVM_OP_sp_guardsfouter:
+            case MVM_OP_sp_guardjustconc:
+            case MVM_OP_sp_guardjusttype:
+                deopt_idx = ins->operands[2].lit_ui32;
+                break;
+            default:
+                deopt_idx = -1;
+                break;
+            }
             ann = ins->annotations;
             while (ann) {
                 switch (ann->type) {
                 case MVM_SPESH_ANN_DEOPT_ONE_INS:
                 case MVM_SPESH_ANN_DEOPT_ALL_INS:
                 case MVM_SPESH_ANN_DEOPT_INLINE:
-                    g->deopt_addrs[2 * ann->data.deopt_idx + 1] = ws->bytecode_pos;;
+                    g->deopt_addrs[2 * ann->data.deopt_idx + 1] = ws->bytecode_pos;
+                    if (deopt_idx == ann->data.deopt_idx)
+                        seen_deopt_idx = 1;
+                    break;
+                case MVM_SPESH_ANN_DEOPT_SYNTH:
+                    if (deopt_idx == ann->data.deopt_idx)
+                        seen_deopt_idx = 1;
                     break;
                 }
                 ann = ann->next;
             }
+            assert(deopt_idx < 0 || seen_deopt_idx);
         }
 
         ins = ins->next;

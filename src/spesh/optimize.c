@@ -1609,7 +1609,7 @@ static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     guard->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
         (MVMCollectable *)type_info->type->st);
     find_deopt_target_and_index(tc, g, arg_info->prepargs_ins, &deopt_target, &deopt_index);
-    guard->operands[3].lit_ui32 = deopt_target;
+    guard->operands[3].lit_ui32 = deopt_index;
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, guard);
     MVM_spesh_usages_add_by_reg(tc, g, preguard_reg, guard);
@@ -1662,7 +1662,7 @@ static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     guard->operands[1] = temp;
     guard->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
         (MVMCollectable *)type_info->decont_type->st);
-    guard->operands[3].lit_ui32 = deopt_target;
+    guard->operands[3].lit_ui32 = deopt_index;
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, guard);
     MVM_spesh_usages_add_by_reg(tc, g, temp, guard);
@@ -1807,7 +1807,7 @@ static void tweak_for_target_sf(MVMThreadContext *tc, MVMSpeshGraph *g,
     guard->operands[0] = temp;
     guard->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
         (MVMCollectable *)target_sf);
-    guard->operands[2].lit_ui32 = deopt_target;
+    guard->operands[2].lit_ui32 = deopt_index;
     MVM_spesh_usages_add_by_reg(tc, g, temp, guard);
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, guard);
@@ -2373,7 +2373,7 @@ static void tweak_rebless(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
     new_operands[1] = ins->operands[1];
     new_operands[2] = ins->operands[2];
     find_deopt_target_and_index(tc, g, ins, &deopt_target, &deopt_index);
-    new_operands[3].lit_ui32 = deopt_target;
+    new_operands[3].lit_ui32 = deopt_index;
     ins->info = MVM_op_get_op(MVM_OP_sp_rebless);
     ins->operands = new_operands;
 }

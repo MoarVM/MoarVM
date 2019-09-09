@@ -51,8 +51,7 @@ struct MVMJitPrimitive {
 
 struct MVMJitGuard {
     MVMSpeshIns * ins;
-    MVMint32      deopt_target;
-    MVMint32      deopt_offset;
+    MVMuint32 deopt_idx;
 };
 
 
