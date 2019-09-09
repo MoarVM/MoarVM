@@ -160,6 +160,7 @@ delete @ENV{qw(
 delete @ENV{qw(
     MVM_SPESH_INLINE_DISABLE
     MVM_SPESH_OSR_DISABLE
+    MVM_SPESH_PEA_DISABLE
 )} if $OPTS{spesh};
 $ENV{MVM_SPESH_BLOCKING} = 1;
 $ENV{MVM_SPESH_NODELAY} = 1 if exists $OPTS{nodelay};
@@ -187,18 +188,19 @@ if ($OPTS{spesh}) {
     # /without/ inlining or OSR, than with it, let's first try to
     # switch flags until we find a breaking combination
     my @flags = ({});
-    for my $flag (qw(MVM_SPESH_OSR_DISABLE MVM_SPESH_INLINE_DISABLE MVM_JIT_DISABLE)) {
-        @flags = map { $_, { %$_, $flag => 1 } } @flags;
+    for my $flag (qw(MVM_SPESH_OSR_DISABLE MVM_SPESH_INLINE_DISABLE MVM_SPESH_PEA_DISABLE MVM_JIT_DISABLE)) {
+        @flags = map { $_, { %$_, $flag => 1 } } @flags; # this does not leave the flags in good left-to-right order
     }
 
+    # Try to detect the right set of flags
     my $spesh_flags;
-    for my $try_flags (reverse @flags) {
+    for my $try_flags (sort { keys %$b <=> keys %$a } @flags) {
         quietly {
             run_with(\@command, $try_flags, $timeout);
         } and do {
             $spesh_flags = $try_flags;
             last;
-        }
+        };
     }
 
     my $last_good_frame = bisect('MVM_SPESH_LIMIT', \@command, $spesh_flags, $timeout);
