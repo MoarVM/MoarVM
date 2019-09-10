@@ -920,7 +920,7 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 cur_op += 6;
                 goto NEXT;
             OP(getcodelocation): {
-                MVMuint32 line_out = 0;
+                MVMint32 line_out = 0;
                 MVMString *file_out = NULL;
                 MVMObject *code_obj = (MVMObject *)((MVMStaticFrame *)reg_base[REGISTER_STRUCT_ACCUMULATOR].any)->body.static_code;
                 cur_op += 4;

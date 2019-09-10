@@ -1739,10 +1739,10 @@ static void filemeta_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCol
     snprintf(metadata, 1023,
             "{ "
             "\"subversion\": %d, "
-            "\"start_time\": %lld, "
+            "\"start_time\": %lu, "
             "\"pid\": %ld, "
             "\"highscore_structure\": { "
-                "\"entry_count\": %ld, "
+                "\"entry_count\": %d, "
                 "\"data_order\": ["
                     "\"types_by_count\", \"frames_by_count\", \"types_by_size\", \"frames_by_size\""
                 "]"
@@ -1786,14 +1786,14 @@ static void snapmeta_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCol
 
     snprintf(metadata, 1023,
             "{ "
-            "\"snap_time\": %lld, "
-            "\"gc_seq_num\": %lld, "
-            "\"total_heap_size\": %lld, "
-            "\"total_objects\": %lld, "
-            "\"total_typeobjects\": %lld, "
-            "\"total_stables\": %lld, "
-            "\"total_frames\": %lld, "
-            "\"total_refs\": %lld "
+            "\"snap_time\": %lu, "
+            "\"gc_seq_num\": %lu, "
+            "\"total_heap_size\": %lu, "
+            "\"total_objects\": %lu, "
+            "\"total_typeobjects\": %lu, "
+            "\"total_stables\": %lu, "
+            "\"total_frames\": %lu, "
+            "\"total_refs\": %lu "
             "}",
             s->record_time / 1000,
             MVM_load(&tc->instance->gc_seq_number),

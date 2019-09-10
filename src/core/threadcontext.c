@@ -134,12 +134,13 @@ void MVM_tc_set_ex_release_atomic(MVMThreadContext *tc, AO_t *flag) {
     tc->ex_release_mutex = (uv_mutex_t *)((uintptr_t)flag | 1);
 }
 void MVM_tc_release_ex_release_mutex(MVMThreadContext *tc) {
-    if (tc->ex_release_mutex)
+    if (tc->ex_release_mutex) {
         if (MVM_UNLIKELY((uintptr_t)tc->ex_release_mutex & 1)) {
             *((AO_t*)((uintptr_t)tc->ex_release_mutex & ~(uintptr_t)1)) = 0;
         } else {
             uv_mutex_unlock(tc->ex_release_mutex);
         }
+    }
     tc->ex_release_mutex = NULL;
 }
 void MVM_tc_clear_ex_release_mutex(MVMThreadContext *tc) {

@@ -48,7 +48,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
 
                     MVM_repr_pos_set_elems(tc, overview_subscription_packet, 15);
 
-                    overview_data = ((MVMArray *)overview_subscription_packet)->body.slots.u64;
+                    overview_data = ((MVMArray *)overview_subscription_packet)->body.slots.i64;
 
                     overview_data[0] = work_sequence_number;
                     overview_data[1] = now_time / 1000;
