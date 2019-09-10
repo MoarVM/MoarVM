@@ -332,7 +332,7 @@ static void unmarshal_error(MVMThreadContext *tc, char *desired_repr, MVMObject 
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "Native call expected argument %ld with %s representation, but got a %s (%s)", unmarshal_kind + 1, desired_repr, REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+            "Native call expected argument %d with %s representation, but got a %s (%s)", unmarshal_kind + 1, desired_repr, REPR(value)->name, MVM_6model_get_debug_name(tc, value));
     }
 }
 
