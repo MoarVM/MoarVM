@@ -19,6 +19,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             switch (ins->info->opcode) {
                 case MVM_OP_rebless:
                     prepend_ctw_check(tc, g, bb, ins, ins->operands[0], MVM_CTW_REBLESS);
+                    break;
                 case MVM_OP_bindattr_i:
                 case MVM_OP_bindattr_n:
                 case MVM_OP_bindattr_s:

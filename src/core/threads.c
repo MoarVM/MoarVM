@@ -266,7 +266,7 @@ MVMint32 MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head)
             case MVM_thread_stage_starting:
             case MVM_thread_stage_waiting:
             case MVM_thread_stage_started:
-                alive++;
+                alive++; /* fall through intended */
             case MVM_thread_stage_exited:
             case MVM_thread_stage_clearing_nursery:
                 /* push it to the new starting list */
