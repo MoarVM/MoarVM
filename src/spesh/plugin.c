@@ -695,8 +695,10 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
             MVMSpeshPluginGuard *guard = &(gs->guards[guards_start]);
             MVMSpeshFacts *preguarded_facts = MVM_spesh_get_facts(tc, g, arg_regs[guard->test_idx]);
             if (guard->kind != MVM_SPESH_PLUGIN_GUARD_GETATTR) {
-                if (stolen_deopt_ann_used)
+                if (stolen_deopt_ann_used) {
                     stolen_deopt_ann = clone_deopt_ann(tc, g, stolen_deopt_ann);
+                    deopt_idx = stolen_deopt_ann->data.deopt_idx;
+                }
             }
             switch (guard->kind) {
                 case MVM_SPESH_PLUGIN_GUARD_OBJ: {
