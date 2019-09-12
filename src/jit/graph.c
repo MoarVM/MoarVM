@@ -419,17 +419,24 @@ static void jg_append_guard(MVMThreadContext *tc, MVMJitGraph *jg,
     MVMint32 deopt_idx;
     node->type = MVM_JIT_NODE_GUARD;
     node->u.guard.ins = ins;
-    while (ann) {
-        if (ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS ||
-            ann->type == MVM_SPESH_ANN_DEOPT_INLINE) {
-            deopt_idx = ann->data.deopt_idx;
-            break;
-        }
-        ann = ann->next;
-    }
-    if (!ann) {
-        MVM_oops(tc, "Can't find deopt idx annotation on spesh ins <%s>",
-            ins->info->name);
+    switch (ins->info->opcode) {
+    case MVM_OP_sp_guard:
+    case MVM_OP_sp_guardconc:
+    case MVM_OP_sp_guardtype:
+    case MVM_OP_sp_guardobj:
+    case MVM_OP_sp_guardnotobj:
+    case MVM_OP_sp_rebless:
+        deopt_idx = ins->operands[3].lit_ui32;
+        break;
+    case MVM_OP_sp_guardsf:
+    case MVM_OP_sp_guardsfouter:
+    case MVM_OP_sp_guardjustconc:
+    case MVM_OP_sp_guardjusttype:
+        deopt_idx = ins->operands[2].lit_ui32;
+        break;
+    default:
+        abort();
+        break;
     }
     node->u.guard.deopt_idx = deopt_idx;
     jg_append_node(jg, node);
