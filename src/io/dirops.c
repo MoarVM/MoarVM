@@ -204,60 +204,67 @@ static const MVMIOOps op_table = {
 
 /* Open a filehandle, returning a handle. */
 MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
-    MVMOSHandle  * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
+    MVMOSHandle  * result;
     MVMIODirIter * const data   = MVM_calloc(1, sizeof(MVMIODirIter));
+    MVMROOT(tc, dirname, {
+        result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
+    });
 #ifdef _WIN32
-    char *name;
-    int str_len;
-    wchar_t *wname;
-    wchar_t *dir_name;
+    {
+        char *name;
+        int str_len;
+        wchar_t *wname;
+        wchar_t *dir_name;
 
-    name  = MVM_string_utf8_c8_encode_C_string(tc, dirname);
-    wname = UTF8ToUnicode(name);
-    MVM_free(name);
+        name  = MVM_string_utf8_c8_encode_C_string(tc, dirname);
+        wname = UTF8ToUnicode(name);
+        MVM_free(name);
 
-    str_len = wcslen(wname);
+        str_len = wcslen(wname);
 
-    if (str_len > MAX_PATH - 2) { // the length of later appended '\*' is 2
-        wchar_t  abs_dirname[4096]; /* 4096 should be enough for absolute path */
-        wchar_t *lpp_part;
+        if (str_len > MAX_PATH - 2) { // the length of later appended '\*' is 2
+            wchar_t  abs_dirname[4096]; /* 4096 should be enough for absolute path */
+            wchar_t *lpp_part;
 
-        /* You cannot use the "\\?\" prefix with a relative path,
-         * relative paths are always limited to a total of MAX_PATH characters.
-         * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx */
-        if (!GetFullPathNameW(wname, 4096, abs_dirname, &lpp_part)) {
+            /* You cannot use the "\\?\" prefix with a relative path,
+             * relative paths are always limited to a total of MAX_PATH characters.
+             * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx */
+            if (!GetFullPathNameW(wname, 4096, abs_dirname, &lpp_part)) {
+                MVM_free(wname);
+                MVM_exception_throw_adhoc(tc, "Directory path is wrong: %d", GetLastError());
+            }
             MVM_free(wname);
-            MVM_exception_throw_adhoc(tc, "Directory path is wrong: %d", GetLastError());
+
+            str_len  = wcslen(abs_dirname);
+            dir_name = (wchar_t *)MVM_malloc((str_len + 7) * sizeof(wchar_t));
+            wcscpy(dir_name, L"\\\\?\\");
+            wcscat(dir_name, abs_dirname);
+        } else {
+            dir_name = (wchar_t *)MVM_malloc((str_len + 3) * sizeof(wchar_t));
+            wcscpy(dir_name, wname);
+            MVM_free(wname);
         }
-        MVM_free(wname);
 
-        str_len  = wcslen(abs_dirname);
-        dir_name = (wchar_t *)MVM_malloc((str_len + 7) * sizeof(wchar_t));
-        wcscpy(dir_name, L"\\\\?\\");
-        wcscat(dir_name, abs_dirname);
-    } else {
-        dir_name = (wchar_t *)MVM_malloc((str_len + 3) * sizeof(wchar_t));
-        wcscpy(dir_name, wname);
-        MVM_free(wname);
+        wcscat(dir_name, L"\\*");     /* Three characters are for the "\*" plus NULL appended.
+                                       * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365200%28v=vs.85%29.aspx */
+
+        data->dir_name   = dir_name;
+        data->dir_handle = INVALID_HANDLE_VALUE;
     }
-
-    wcscat(dir_name, L"\\*");     /* Three characters are for the "\*" plus NULL appended.
-                                   * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365200%28v=vs.85%29.aspx */
-
-    data->dir_name   = dir_name;
-    data->dir_handle = INVALID_HANDLE_VALUE;
 
 #else
-    char * const dir_name = MVM_string_utf8_c8_encode_C_string(tc, dirname);
-    DIR * const dir_handle = opendir(dir_name);
-    int opendir_error = errno;
-    MVM_free(dir_name);
+    {
+        char * const dir_name = MVM_string_utf8_c8_encode_C_string(tc, dirname);
+        DIR * const dir_handle = opendir(dir_name);
+        int opendir_error = errno;
+        MVM_free(dir_name);
 
-    if (!dir_handle) {
-        MVM_exception_throw_adhoc(tc, "Failed to open dir: %s", strerror(opendir_error));
+        if (!dir_handle) {
+            MVM_exception_throw_adhoc(tc, "Failed to open dir: %s", strerror(opendir_error));
+        }
+
+        data->dir_handle = dir_handle;
     }
-
-    data->dir_handle = dir_handle;
 #endif
 
     result->body.ops  = &op_table;
