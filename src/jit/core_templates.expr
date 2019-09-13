@@ -2684,6 +2684,66 @@
 (template: sp_p6obind_s
   (^store_write_barrier! $0 (add (^p6obody $0) $1) $2))
 
+(macro: ^deopt_one (,deopt_idx)
+  (dov (callv (^func MVM_spesh_deopt_one) (arglist (carg (tc) ptr) (carg ,deopt_idx int))) (^exit)))
+
+# Optimization guards
+(template: sp_guard
+  (let: (($check (copy $1)))
+    (when (any (zr $check) (ne (^stable $check) (^spesh_slot_value $2)))
+       (^deopt_one $3))
+    (copy $check)))
+
+(template: sp_guardconc
+  (let: (($check (copy $1)))
+    (when (any (zr $check) (^is_type_obj $check) (ne (^stable $check) (^spesh_slot_value $2)))
+       (^deopt_one $3))
+    (copy $check)))
+
+(template: sp_guardtype
+  (let: (($check (copy $1)))
+     (when (any (zr $check) (^is_conc_obj $check) (ne (^stable $check) (^spesh_slot_value $2)))
+       (^deopt_one $3))
+     (copy $check)))
+
+(template: sp_guardsf
+  (let: (($check (copy $0)))
+    (when (any (^not_repr_id $check MVM_REPR_ID_MVMCode)
+               (ne (^getf $check MVMCode body.sf) (^spesh_slot_value $1)))
+         (^deopt_one $2))))
+
+(template: sp_guardsfouter
+  (let: (($check (copy $0)))
+    (when (any (^not_repr_id $check MVM_REPR_ID_MVMCode)
+               (ne (^getf $check MVMCode body.sf) (^spesh_slot_value $1))
+               (ne (^getf $check MVMCode body.outer) (^frame)))
+         (^deopt_one $2))))
+
+(template: sp_guardobj
+  (let: (($check (copy $1)))
+     (when (ne $check (^spesh_slot_value $2))
+       (^deopt_one $3))
+     (copy $check)))
+
+(template: sp_guardnotobj
+  (let: (($check (copy $1)))
+     (when (eq $check (^spesh_slot_value $2))
+       (^deopt_one $3))
+     (copy $check)))
+
+(template: sp_guardjustconc
+  (let: (($check (copy $1)))
+    (when (^is_type_obj $check)
+      (^deopt_one $2))
+    (copy $check)))
+
+(template: sp_guardjusttype
+  (let: (($check (copy $1)))
+    (when (^is_conc_obj $check)
+      (^deopt_one $2))
+    (copy $check)))
+
+
 # MVMCompUnit *dep = (MVMCompUnit *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 2)];
 # MVMuint16 idx = GET_UI32(cur_op, 4);
 # GET_REG(cur_op, 0).s = MVM_cu_string(tc, dep, idx);

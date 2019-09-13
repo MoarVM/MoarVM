@@ -276,6 +276,10 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
         constant = opr.lit_i16;
         size = sizeof(MVMuint16);
         break;
+    case MVM_operand_uint32:
+        constant = opr.lit_ui32;
+        size = sizeof(MVMuint32);
+        break;
     default:
         MVM_oops(tc, "Can't add constant for operand type %d\n", (type & MVM_operand_type_mask) >> 3);
     }
@@ -752,18 +756,9 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                 jg->inlines[ann->data.inline_idx].end_label = after_label;
                 break;
             case MVM_SPESH_ANN_DEOPT_INLINE:
-                break;
             case MVM_SPESH_ANN_DEOPT_ONE_INS:
-                /* we should only see this in guards, which we don't do just
-                 * yet, although we will. At the very least, this implies a flush. */
-                switch (opcode) {
-                case MVM_OP_sp_guard:
-                case MVM_OP_sp_guardconc:
-                case MVM_OP_sp_guardtype:
-                case MVM_OP_sp_guardsf:
-                    BAIL(1, "Cannot handle DEOPT_ONE (ins=%s)", ins->info->name);
-                    break;
-                }
+                /* In so far as we care about these, the relevant deopt index
+                 * should've been assigned to the instruction */
                 break;
             case MVM_SPESH_ANN_DEOPT_ALL_INS:
                 /* don't expect to be handling these, either, but these also
@@ -792,6 +787,25 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             /* start with a no-op so every valid reference is nonzero */
             MVM_jit_expr_apply_template(tc, tree, &noop_template, NULL);
             MVM_spesh_graph_add_comment(tc, jg->sg, iter->ins, "start of exprjit tree");
+        }
+
+        switch (ins->info->opcode) {
+        case MVM_OP_sp_guard:
+        case MVM_OP_sp_guardconc:
+        case MVM_OP_sp_guardtype:
+        case MVM_OP_sp_guardobj:
+        case MVM_OP_sp_guardnotobj:
+        case MVM_OP_sp_rebless:
+        case MVM_OP_sp_guardsf:
+        case MVM_OP_sp_guardsfouter:
+        case MVM_OP_sp_guardjustconc:
+        case MVM_OP_sp_guardjusttype:
+            /* If we deopt, then all values must be stored to memory, otherwise
+             * the interpreter can't see them */
+            active_values_flush(tc, tree, values, sg->num_locals);
+            break;
+        default:
+            break;
         }
 
         MVM_jit_expr_load_operands(tc, tree, sg, ins, values, operands);
