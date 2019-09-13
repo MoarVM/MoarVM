@@ -32,11 +32,14 @@ static void finalize_handler_caller(MVMThreadContext *tc, void *sr_data) {
     MVMObject *handler = MVM_hll_current(tc)->finalize_handler;
     if (handler) {
         MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+        MVMObject *drain;
 
         /* Drain the finalizing queue to an array. */
-        MVMObject *drain = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-        while (tc->num_finalizing > 0)
-            MVM_repr_push_o(tc, drain, tc->finalizing[--tc->num_finalizing]);
+        MVMROOT(tc, handler, {
+            drain = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+            while (tc->num_finalizing > 0)
+                MVM_repr_push_o(tc, drain, tc->finalizing[--tc->num_finalizing]);
+        });
 
         /* Invoke the handler. */
         handler = MVM_frame_find_invokee(tc, handler, NULL);
