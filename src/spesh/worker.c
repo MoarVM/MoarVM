@@ -43,7 +43,9 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
                 if (spesh_overview_event) {
                     MVMuint64 now_time = uv_hrtime();
 
-                    overview_subscription_packet = MVM_repr_alloc(tc, spesh_overview_event);
+                    MVMROOT(tc, log_obj, {
+                        overview_subscription_packet = MVM_repr_alloc(tc, spesh_overview_event);
+                    });
                     MVM_gc_root_temp_push(tc, (MVMCollectable **)&overview_subscription_packet);
 
                     MVM_repr_pos_set_elems(tc, overview_subscription_packet, 15);
