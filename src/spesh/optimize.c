@@ -1591,7 +1591,7 @@ static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
                                   MVMSpeshStatsType *type_info,
                                   MVMSpeshCallInfo *arg_info, MVMuint32 arg_idx,
                                   MVMuint32 add_comment) {
-    MVMuint32 deopt_target, deopt_index;
+    MVMuint32 deopt_target, deopt_index, new_deopt_index;
 
     /* Split the SSA version of the arg. */
     MVMSpeshOperand preguard_reg = arg_info->arg_ins[arg_idx]->operands[1];
@@ -1609,7 +1609,7 @@ static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     guard->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
         (MVMCollectable *)type_info->type->st);
     find_deopt_target_and_index(tc, g, arg_info->prepargs_ins, &deopt_target, &deopt_index);
-    guard->operands[3].lit_ui32 = deopt_index;
+
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, guard);
     MVM_spesh_usages_add_by_reg(tc, g, preguard_reg, guard);
@@ -1621,8 +1621,9 @@ static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
 
     /* Also give the instruction a deopt annotation, and related it to the
      * one on the prepargs. */
-    MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
+    new_deopt_index = MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
         MVM_SPESH_ANN_DEOPT_ONE_INS);
+    guard->operands[3].lit_ui32 = new_deopt_index;
     add_synthetic_deopt_annotation(tc, g, guard, deopt_index);
 }
 
@@ -1632,7 +1633,7 @@ static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
                                          MVMSpeshCallInfo *arg_info, MVMuint32 arg_idx,
                                          MVMuint32 add_comment) {
     MVMSpeshIns *decont, *guard;
-    MVMuint32 deopt_target, deopt_index;
+    MVMuint32 deopt_target, deopt_index, new_deopt_index;
     MVMSpeshOperand throwaway;
 
     /* We need a temporary register to decont into. */
@@ -1662,7 +1663,6 @@ static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     guard->operands[1] = temp;
     guard->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
         (MVMCollectable *)type_info->decont_type->st);
-    guard->operands[3].lit_ui32 = deopt_index;
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, guard);
     MVM_spesh_usages_add_by_reg(tc, g, temp, guard);
@@ -1674,8 +1674,9 @@ static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
 
     /* Also give the instruction a deopt annotation and reference prepargs
      * deopt index. */
-    MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
+    new_deopt_index = MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
         MVM_SPESH_ANN_DEOPT_ONE_INS);
+    guard->operands[3].lit_ui32 = new_deopt_index;
     add_synthetic_deopt_annotation(tc, g, guard, deopt_index);
 }
 
@@ -1782,7 +1783,7 @@ static void tweak_for_target_sf(MVMThreadContext *tc, MVMSpeshGraph *g,
                                 MVMStaticFrame *target_sf, MVMSpeshIns *ins,
                                 MVMSpeshCallInfo *arg_info, MVMSpeshOperand temp) {
     MVMSpeshIns *guard, *resolve;
-    MVMuint32 deopt_target, deopt_index;
+    MVMuint32 deopt_target, deopt_index, new_deopt_index;
 
     /* Work out which operand of the invoke instruction has the invokee. */
     MVMuint32 inv_code_index = ins->info->opcode == MVM_OP_invoke_v ? 0 : 1;
@@ -1807,15 +1808,15 @@ static void tweak_for_target_sf(MVMThreadContext *tc, MVMSpeshGraph *g,
     guard->operands[0] = temp;
     guard->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
         (MVMCollectable *)target_sf);
-    guard->operands[2].lit_ui32 = deopt_index;
     MVM_spesh_usages_add_by_reg(tc, g, temp, guard);
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, guard);
 
     /* Also give the guard instruction a deopt annotation and reference the
      * prepargs annotation. */
-    MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
+    new_deopt_index = MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
         MVM_SPESH_ANN_DEOPT_ONE_INS);
+    guard->operands[2].lit_ui32 = new_deopt_index;
     add_synthetic_deopt_annotation(tc, g, guard, deopt_index);
 
     /* Make the invoke instruction call the resolved result. */

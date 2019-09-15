@@ -47,7 +47,7 @@ void MVM_spesh_graph_grow_deopt_table(MVMThreadContext *tc, MVMSpeshGraph *g) {
 }
 
 /* Records a de-optimization annotation and mapping pair. */
-void MVM_spesh_graph_add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g,
+MVMint32 MVM_spesh_graph_add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g,
                                           MVMSpeshIns *ins_node, MVMuint32 deopt_target,
                                           MVMint32 type) {
     /* Add an annotations. */
@@ -61,6 +61,7 @@ void MVM_spesh_graph_add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g
     MVM_spesh_graph_grow_deopt_table(tc, g);
     g->deopt_addrs[2 * g->num_deopt_addrs] = deopt_target;
     g->num_deopt_addrs++;
+    return ann->data.deopt_idx;
 }
 
 MVM_FORMAT(printf, 4, 5)
