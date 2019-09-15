@@ -642,7 +642,7 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     MVMFrame *update_caller = NULL;
     MVMFrame *result = NULL;
     MVM_CHECK_CALLER_CHAIN(tc, cur_to_promote);
-    MVMROOT3(tc, new_cur_frame, update_caller, result, {
+    MVMROOT4(tc, new_cur_frame, update_caller, cur_to_promote, result, {
         while (cur_to_promote) {
             /* Allocate a heap frame. */
             MVMFrame *promoted = MVM_gc_allocate_frame(tc);
