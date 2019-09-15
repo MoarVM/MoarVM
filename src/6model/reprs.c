@@ -140,6 +140,14 @@ AO_t * MVM_REPR_DEFAULT_POS_AS_ATOMIC_MULTIDIM(MVMThreadContext *tc, MVMSTable *
                                                MVMint64 num_indices, MVMint64 *indices) {
     die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
+void MVM_REPR_DEFAULT_POS_WRITE_BUF(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+                                      void *data, char *from, MVMint64 offset, MVMuint64 elems) {
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
+}
+MVMint64 MVM_REPR_DEFAULT_POS_READ_BUF(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+                                      void *data, MVMint64 offset, MVMuint64 elems) {
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
+}
 GCC_DIAG_ON(return-type)
 void MVM_REPR_DEFAULT_SPLICE(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMint64 offset, MVMuint64 elems) {
     die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
