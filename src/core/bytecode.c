@@ -682,7 +682,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
 
         if (lex_idx >= sf->body.num_lexicals) {
             MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
-            MVM_exception_throw_adhoc(tc, "Lexical index out of bounds: %d > %d", lex_idx, sf->body.num_lexicals);
+            MVM_exception_throw_adhoc(tc, "Lexical index out of bounds: %d >= %d", lex_idx, sf->body.num_lexicals);
         }
 
         sf->body.static_env_flags[lex_idx] = flags;
