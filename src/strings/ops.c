@@ -2324,7 +2324,9 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
         spos += sgraphs - spos;
         rpos -= sgraphs - spos;
 
-        res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+        MVMROOT(tc, s, {
+            res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+        });
         res->body.storage_type    = s->body.storage_type;
         res->body.storage.blob_8  = rbuffer;
         break;
