@@ -2672,15 +2672,6 @@
         (^store_write_barrier! $1 $addr $type)
         (copy $type)))))
 
-(template: sp_p6oget_bi (let: (($bibody (add (^p6obody $1) $2) ptr_sz))
-        (if (nz (^bigint_is_smallint $bibody))
-            (^getf $bibody MVMP6bigintBody u.smallint.value)
-            (call (^func MVM_p6bigint_get_int64)
-              (arglist
-                (carg (tc) ptr)
-                (carg $bibody ptr)) int_sz))))
-
-
 (template: sp_p6oget_i (load (add (^p6obody $1) $2) int_sz))
 (template: sp_p6oget_n (load_num (add (^p6obody $1) $2) num_sz))
 (template: sp_p6oget_s (load (add (^p6obody $1) $2) ptr_sz))
