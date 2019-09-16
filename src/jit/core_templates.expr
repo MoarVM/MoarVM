@@ -2703,9 +2703,6 @@
 (template: sp_get_i16 (load (add $1 $2) 2))
 (template: sp_get_i8  (load (add $1 $2) 1))
 
-(template: sp_bind_o
-  (^store_write_barrier! $0 (add $0 $1) $2))
-
 (macro: ^deopt_one (,deopt_idx)
   (dov (callv (^func MVM_spesh_deopt_one) (arglist (carg (tc) ptr) (carg ,deopt_idx int))) (^exit)))
 
