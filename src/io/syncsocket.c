@@ -293,11 +293,10 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
     if (family == SOCKET_FAMILY_UNIX) {
         struct sockaddr_un *result_un = MVM_malloc(sizeof(struct sockaddr_un));
 
-        MVMuint64 host_len = strlen(host_cstr);
-        if (host_len > 107) {
-            char *waste[] = { host_cstr, NULL };
+        if (strlen(host_cstr) > 107) {
             MVM_free(result_un);
-            MVM_exception_throw_adhoc_free(tc, waste, "Socket path '%s' is %"PRIu64" characters, max allowed is 107", host_cstr, host_len);
+            MVM_free(host_cstr);
+            MVM_exception_throw_adhoc(tc, "Socket path can only be maximal 107 characters long");
         }
 
         result_un->sun_family = AF_UNIX;

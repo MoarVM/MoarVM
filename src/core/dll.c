@@ -57,10 +57,8 @@ int MVM_dll_free(MVMThreadContext *tc, MVMString *name) {
     MVM_HASH_GET(tc, tc->instance->dll_registry, name, entry);
 
     if (!entry) {
-        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-        char *waste[] = { c_name, NULL };
         uv_mutex_unlock(&tc->instance->mutex_dll_registry);
-        MVM_exception_throw_adhoc_free(tc, waste, "cannot free non-existent library '%s'", c_name);
+        MVM_exception_throw_adhoc(tc, "cannot free non-existent library");
     }
 
     /* already freed */
@@ -70,10 +68,8 @@ int MVM_dll_free(MVMThreadContext *tc, MVMString *name) {
     }
 
     if (entry->refcount > 0) {
-        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-        char *waste[] = { c_name, NULL };
         uv_mutex_unlock(&tc->instance->mutex_dll_registry);
-        MVM_exception_throw_adhoc_free(tc, waste, "cannot free in-use library '%s'", c_name);
+        MVM_exception_throw_adhoc(tc, "cannot free in-use library");
     }
 
     MVM_nativecall_free_lib(entry->lib);
@@ -96,19 +92,15 @@ MVMObject * MVM_dll_find_symbol(MVMThreadContext *tc, MVMString *lib,
     MVM_HASH_GET(tc, tc->instance->dll_registry, lib, entry);
 
     if (!entry) {
-        char *c_lib = MVM_string_utf8_encode_C_string(tc, lib);
-        char *waste[] = { c_lib, NULL };
         uv_mutex_unlock(&tc->instance->mutex_dll_registry);
-        MVM_exception_throw_adhoc_free(tc, waste,
-                "cannot find symbol '%s' in non-existent library", c_lib);
+        MVM_exception_throw_adhoc(tc,
+                "cannot find symbol in non-existent library");
     }
 
     if (!entry->lib) {
-        char *c_lib = MVM_string_utf8_encode_C_string(tc, lib);
-        char *waste[] = { c_lib, NULL };
         uv_mutex_unlock(&tc->instance->mutex_dll_registry);
-        MVM_exception_throw_adhoc_free(tc, waste,
-                "cannot find symbol '%s' in unloaded library", c_lib);
+        MVM_exception_throw_adhoc(tc,
+                "cannot find symbol in unloaded library");
     }
 
     csym = MVM_string_utf8_c8_encode_C_string(tc, sym);

@@ -974,7 +974,7 @@ MVMint32 unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64 pro
                                    /* number + dash + property_value + NULL */
     MVMuint64 out_str_length = length_of_num(property_code) + 1 + cname_length + 1;
     if (1024 < out_str_length)
-        MVM_exception_throw_adhoc(tc, "Property value or name queried (%"PRIu64") is larger than allowed (1024).", out_str_length);
+        MVM_exception_throw_adhoc(tc, "Property value or name queried is larger than allowed.");
 
     out_str = alloca(sizeof(char) * out_str_length);
     snprintf(out_str, out_str_length, "%"PRIi64"-%s", property_code, cname);

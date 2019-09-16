@@ -637,7 +637,7 @@ static int hex2int(MVMThreadContext *tc, MVMCodepoint cp) {
     else if (cp >= 'A' && cp <= 'F')
         return 10 + (cp - 'A');
     else
-        MVM_exception_throw_adhoc(tc, "UTF-8 C-8 encoding encountered corrupt synthetic (%"PRId32")", cp);
+        MVM_exception_throw_adhoc(tc, "UTF-8 C-8 encoding encountered corrupt synthetic");
 }
 char * MVM_string_utf8_c8_encode_substr(MVMThreadContext *tc,
         MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement) {
@@ -649,11 +649,11 @@ char * MVM_string_utf8_c8_encode_substr(MVMThreadContext *tc,
     MVMuint64        repl_length;
 
     if (start < 0 || start > strgraphs)
-        MVM_exception_throw_adhoc(tc, "start (%"PRId64") out of range (0..%"PRIu32")", start, strgraphs);
+        MVM_exception_throw_adhoc(tc, "start out of range");
     if (length == -1)
         length = strgraphs;
     if (length < 0 || start + length > strgraphs)
-        MVM_exception_throw_adhoc(tc, "length (%"PRId64") out of range (0..%"PRIu32")", length, strgraphs);
+        MVM_exception_throw_adhoc(tc, "length out of range");
 
     if (replacement)
         repl_bytes = (MVMuint8 *) MVM_string_utf8_c8_encode_substr(tc, replacement, &repl_length, 0, -1, NULL);

@@ -474,7 +474,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *val  = GET_REG(cur_op, 6).o;
                 MVMint16   flag = GET_I16(cur_op, 8);
                 if (flag < 0 || flag > 2)
-                    MVM_exception_throw_adhoc(tc, "setlexvalue provided with invalid flag (%"PRId16")", flag);
+                    MVM_exception_throw_adhoc(tc, "setlexvalue provided with invalid flag");
                 if (IS_CONCRETE(code) && REPR(code)->ID == MVM_REPR_ID_MVMCode) {
                     MVMStaticFrame *sf = ((MVMCode *)code)->body.sf;
                     MVMuint8 found = 0;
@@ -489,11 +489,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             found = 1;
                         }
                     }
-                    if (!found) {
-                        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-                        char *waste[] = { c_name, NULL };
-                        MVM_exception_throw_adhoc_free(tc, waste, "setstaticlex given invalid lexical name '%s'", c_name);
-                    }
+                    if (!found)
+                        MVM_exception_throw_adhoc(tc, "setstaticlex given invalid lexical name");
                 }
                 else {
                     MVM_exception_throw_adhoc(tc, "setstaticlex needs a code ref");
@@ -1442,7 +1439,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     else {
                         MVM_exception_throw_adhoc(tc,
-                            "Bad argument index (%"PRId64") given to captureposprimspec", i);
+                            "Bad argument index given to captureposprimspec");
                     }
                 }
                 else {
@@ -3756,13 +3753,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMString *lib = GET_REG(cur_op, 2).s;
                 MVMString *sym = GET_REG(cur_op, 4).s;
                 MVMObject *obj = MVM_dll_find_symbol(tc, lib, sym);
-                if (MVM_is_null(tc, obj)) {
-                    char *lib_cstr = MVM_string_utf8_encode_C_string(tc, lib);
-                    char *sym_cstr = MVM_string_utf8_encode_C_string(tc, sym);
-                    char *waste[] = { lib_cstr, sym_cstr, NULL };
-                    MVM_exception_throw_adhoc_free(tc, waste,
-                        "symbol (%s) not found in DLL (%s)", sym_cstr, lib_cstr);
-                }
+                if (MVM_is_null(tc, obj))
+                    MVM_exception_throw_adhoc(tc, "symbol not found in DLL");
 
                 GET_REG(cur_op, 0).o = obj;
                 cur_op += 6;
@@ -3793,9 +3785,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getlexrel): {
                 MVMObject *ctx  = GET_REG(cur_op, 2).o;
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
-                    MVM_exception_throw_adhoc(tc,
-                        "getlexrel requires a concrete object with REPR MVMContext, got %s (%s)",
-                        REPR(ctx)->name, MVM_6model_get_debug_name(tc, ctx));
+                    MVM_exception_throw_adhoc(tc, "getlexrel needs a context");
                 GET_REG(cur_op, 0).o = MVM_context_lexical_lookup(tc, (MVMContext *)ctx,
                         GET_REG(cur_op, 4).s);
                 cur_op += 6;
@@ -3804,9 +3794,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getlexreldyn): {
                 MVMObject *ctx  = GET_REG(cur_op, 2).o;
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
-                    MVM_exception_throw_adhoc(tc,
-                        "getlexreldyn requires a concrete object with REPR MVMContext, got %s (%s)",
-                        REPR(ctx)->name, MVM_6model_get_debug_name(tc, ctx));
+                    MVM_exception_throw_adhoc(tc, "getlexreldyn needs a context");
                 GET_REG(cur_op, 0).o = MVM_context_dynamic_lookup(tc, (MVMContext *)ctx,
                         GET_REG(cur_op, 4).s);
                 cur_op += 6;
@@ -3815,9 +3803,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getlexrelcaller): {
                 MVMObject   *ctx  = GET_REG(cur_op, 2).o;
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
-                    MVM_exception_throw_adhoc(tc,
-                        "getlexrelcaller requires a concrete object with REPR MVMContext, got %s (%s)",
-                        REPR(ctx)->name, MVM_6model_get_debug_name(tc, ctx));
+                    MVM_exception_throw_adhoc(tc, "getlexrelcaller needs a context");
                 GET_REG(cur_op, 0).o = MVM_context_caller_lookup(tc, (MVMContext *)ctx,
                         GET_REG(cur_op, 4).s);
                 cur_op += 6;
@@ -3884,9 +3870,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 0).o = MVM_args_slurpy_named(tc, cc->body.apc);
                 }
                 else {
-                    MVM_exception_throw_adhoc(tc,
-                        "capturehasnameds requires a concrete object with REPR MVMCallCapture, got %s (%s)",
-                        REPR(obj)->name, MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "capturehasnameds needs a MVMCallCapture");
                 }
                 cur_op += 4;
                 goto NEXT;
@@ -4069,8 +4053,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_semaphore_acquire(tc, (MVMSemaphore *)sem);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "semacquire requires a concrete object with REPR Semaphore, got %s (%s)",
-                        REPR(sem)->name, MVM_6model_get_debug_name(tc, sem));
+                        "semacquire requires a concrete object with REPR Semaphore");
                 cur_op += 2;
                 goto NEXT;
             }
@@ -4081,8 +4064,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         (MVMSemaphore *)sem);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "semtryacquire requires a concrete object with REPR Semaphore, got %s (%s)",
-                        REPR(sem)->name, MVM_6model_get_debug_name(tc, sem));
+                        "semtryacquire requires a concrete object with REPR Semaphore");
                 cur_op += 4;
                 goto NEXT;
             }
@@ -4092,8 +4074,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_semaphore_release(tc, (MVMSemaphore *)sem);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "semrelease requires a concrete object with REPR Semaphore, got %s (%s)",
-                        REPR(sem)->name, MVM_6model_get_debug_name(tc, sem));
+                        "semrelease requires a concrete object with REPR Semaphore");
                 cur_op += 2;
                 goto NEXT;
             }
@@ -4104,8 +4085,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         (MVMReentrantMutex *)lock, GET_REG(cur_op, 4).o);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "getlockcondvar requires a concrete object with REPR ReentrantMutex, got %s (%s)",
-                        REPR(lock)->name, MVM_6model_get_debug_name(tc, lock));
+                        "getlockcondvar requires a concrete object with REPR ReentrantMutex");
                 cur_op += 6;
                 goto NEXT;
             }
@@ -4115,8 +4095,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_conditionvariable_wait(tc, (MVMConditionVariable *)cv);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "condwait requires a concrete object with REPR ConditionVariable, got %s (%s)",
-                        REPR(cv)->name, MVM_6model_get_debug_name(tc, cv));
+                        "condwait requires a concrete object with REPR ConditionVariable");
                 cur_op += 2;
                 goto NEXT;
             }
@@ -4126,8 +4105,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_conditionvariable_signal_one(tc, (MVMConditionVariable *)cv);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "condsignalone requires a concrete object with REPR ConditionVariable, got %s (%s)",
-                        REPR(cv)->name, MVM_6model_get_debug_name(tc, cv));
+                        "condsignalone requires a concrete object with REPR ConditionVariable");
                 cur_op += 2;
                 goto NEXT;
             }
@@ -4137,8 +4115,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_conditionvariable_signal_all(tc, (MVMConditionVariable *)cv);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "condsignalall requires a concrete object with REPR ConditionVariable, got %s (%s)",
-                        REPR(cv)->name, MVM_6model_get_debug_name(tc, cv));
+                        "condsignalall requires a concrete object with REPR ConditionVariable");
                 cur_op += 2;
                 goto NEXT;
             }
@@ -4149,8 +4126,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         (MVMConcBlockingQueue *)queue);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "queuepoll requires a concrete object with REPR ConcBlockingQueue, got %s (%s)",
-                        REPR(queue)->name, MVM_6model_get_debug_name(tc, queue));
+                        "queuepoll requires a concrete object with REPR ConcBlockingQueue");
                 cur_op += 4;
                 goto NEXT;
             }
@@ -4177,8 +4153,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(ctxouterskipthunks): {
                 MVMObject *ctx = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
-                    MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext, got %s (%s)",
-                        REPR(ctx)->name, MVM_6model_get_debug_name(tc, ctx));
+                    MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext");
                 GET_REG(cur_op, 0).o = MVM_context_apply_traversal(tc, (MVMContext *)ctx,
                         MVM_CTX_TRAV_OUTER_SKIP_THUNKS);
                 cur_op += 4;
@@ -4187,8 +4162,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(ctxcallerskipthunks): {
                 MVMObject *ctx = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
-                    MVM_exception_throw_adhoc(tc, "ctxcallerskipthunks needs an MVMContext, got %s (%s)",
-                        REPR(ctx)->name, MVM_6model_get_debug_name(tc, ctx));
+                    MVM_exception_throw_adhoc(tc, "ctxcallerskipthunks needs an MVMContext");
                 GET_REG(cur_op, 0).o = MVM_context_apply_traversal(tc, (MVMContext *)ctx,
                         MVM_CTX_TRAV_CALLER_SKIP_THUNKS);
                 cur_op += 4;
@@ -4802,8 +4776,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     cur_op += 4;
                 }
                 else {
-                    MVM_exception_throw_adhoc(tc, "ctxcode needs an MVMContext, got %s (%s)",
-                        REPR(this_ctx)->name, MVM_6model_get_debug_name(tc, this_ctx));
+                    MVM_exception_throw_adhoc(tc, "ctxcode needs an MVMContext");
                 }
                 goto NEXT;
             }
@@ -4908,8 +4881,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(unbox_u): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot unbox a %s (%s) type object",
-                        REPR(obj)->name, MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot unbox a type object");
                 GET_REG(cur_op, 0).u64 = REPR(obj)->box_funcs.get_uint(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj));
                 cur_op += 4;
@@ -5488,7 +5460,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (!IS_CONCRETE(buf))
                     MVM_exception_throw_adhoc(tc, "Cannot write to a %s type object", MVM_6model_get_debug_name(tc, buf));
                 if ((flags & 3) == 3 || size > 8) {
-                    MVM_exception_throw_adhoc(tc, "Invalid flags (%"PRIu64") or size (%hhu) value for writeint", flags, size);
+                    MVM_exception_throw_adhoc(tc, "Invalid flags value for writeint");
                 }
                 if ((flags & 3) == MVM_SWITCHENDIAN) {
                     value = switch_endian(value, size);
@@ -5551,8 +5523,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *type = GET_REG(cur_op, 6).o;
                 if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                     MVM_exception_throw_adhoc(tc,
-                        "Must provide an SCRef operand to serialize, got %s (%s)",
-                        REPR(sc)->name, MVM_6model_get_debug_name(tc, sc));
+                        "Must provide an SCRef operand to serialize");
                 GET_REG(cur_op, 0).o = MVM_serialization_serialize(
                     tc,
                     (MVMSerializationContext *)sc,
@@ -5562,7 +5533,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             }
-            OP(readint): /* XXX TODO: make consistent with writeintc */
+            OP(readint):
             OP(readuint): {
                 MVMObject*    const buf   = GET_REG(cur_op, 2).o;
                 MVMint64      const off   = (MVMuint64)GET_REG(cur_op, 4).i64;
@@ -5738,10 +5709,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     target->o = check;
                 goto NEXT;
             }
-            OP(sp_rebless): {
-                MVMObject *obj = GET_REG(cur_op, 2).o;
-                if (!REPR(obj)->change_type) {
-                    MVM_exception_throw_adhoc(tc, "REPR %s (%s) cannot change type", REPR(obj)->name, MVM_6model_get_debug_name(tc, obj));
+            OP(sp_rebless):
+                if (!REPR(GET_REG(cur_op, 2).o)->change_type) {
+                    MVM_exception_throw_adhoc(tc, "This REPR cannot change type");
                 }
                 REPR(GET_REG(cur_op, 2).o)->change_type(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
@@ -5750,7 +5720,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_spesh_deopt_all(tc);
                 MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
                 goto NEXT;
-            }
             OP(sp_resolvecode):
                 GET_REG(cur_op, 0).o = MVM_frame_resolve_invokee_spesh(tc,
                     GET_REG(cur_op, 2).o);
