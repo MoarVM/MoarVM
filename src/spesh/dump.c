@@ -904,8 +904,12 @@ char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
                 append(&ds, "For unknown reasons.\n");
             break;
         }
-        case MVM_SPESH_PLANNED_DERIVED_TYPES:
+        case MVM_SPESH_PLANNED_DERIVED_TYPES: {
+            MVMCallsite *cs = p->cs_stats->cs;
+            append(&ds, "It was planned for the type tuple:\n");
+            dump_stats_type_tuple(tc, &ds, cs, p->type_tuple, "    ");
             break;
+        }
     }
 
     appendf(&ds, "\nThe maximum stack depth is %d.\n\n", p->max_depth);
