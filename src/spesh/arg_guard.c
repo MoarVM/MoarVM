@@ -81,32 +81,64 @@ static MVMuint32 get_callsite_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, M
  * ($obj, $obj) specializations of (Foo, <no guard>) and (<no guard>, Foo).
  * In that case, we tweak the previous tree(s) of other starting points so
  * any "no result" points to instead try the added subtree. */
+static void attach_to_nodes(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 at_node,
+                           MVMuint32 insert) {
+    switch (ag->nodes[at_node].op) {
+        case MVM_SPESH_GUARD_OP_STABLE_CONC:
+        case MVM_SPESH_GUARD_OP_STABLE_TYPE:
+            if (ag->nodes[at_node].no == 0)
+                ag->nodes[at_node].no = insert;
+            else
+                attach_to_nodes(tc, ag, ag->nodes[at_node].no, insert);
+            break;
+    }
+}
 static MVMuint32 get_load_node(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 base_node,
                                MVMuint16 arg_idx) {
-    MVMuint16 new_no = 0;
+    MVMuint16 update_yes = 0;
+    MVMuint16 update_no = 0;
     if (ag->nodes[base_node].yes) {
+        /* If we have anything at this point, it should really be a load
+         * node, because  */
         MVMuint32 check_node = ag->nodes[base_node].yes;
         MVMSpeshArgGuardOp op = ag->nodes[check_node].op;
         if (op == MVM_SPESH_GUARD_OP_LOAD_ARG) {
+            /* If the load matches, then we'll chain below this point. */
             if (ag->nodes[check_node].arg_index == arg_idx)
                 return check_node;
-            MVM_panic(1, "Spesh arg guard: unimplemented sparse guard case");
+
+            /* If it doesn't match, we must have a derived type situation. We
+             * will produce a new load arg node, and then attach it beneath
+             * a failing "no" test beneath us. */
+            ag->nodes[ag->used_nodes].op = MVM_SPESH_GUARD_OP_LOAD_ARG;
+            ag->nodes[ag->used_nodes].arg_index = arg_idx;
+            ag->nodes[ag->used_nodes].yes = 0;
+            ag->nodes[base_node].yes = ag->used_nodes;
+            attach_to_nodes(tc, ag, ag->nodes[check_node].yes, ag->used_nodes);
+            return ag->used_nodes++;
         }
         else if (op == MVM_SPESH_GUARD_OP_RESULT) {
-            new_no = check_node;
+            /* If it would return a result here, chain of "no" of the base node. */
+            ag->nodes[ag->used_nodes].op = MVM_SPESH_GUARD_OP_LOAD_ARG;
+            ag->nodes[ag->used_nodes].arg_index = arg_idx;
+            ag->nodes[ag->used_nodes].yes = 0;
+            ag->nodes[base_node].yes = ag->used_nodes;
+            attach_to_nodes(tc, ag, base_node, ag->used_nodes);
+            return ag->used_nodes++;
         }
         else {
             MVM_panic(1, "Spesh arg guard: unexpected op %d in get_load_node", op);
         }
     }
-
-    /* If we get here, need to add a new load node. */
-    ag->nodes[ag->used_nodes].op = MVM_SPESH_GUARD_OP_LOAD_ARG;
-    ag->nodes[ag->used_nodes].arg_index = arg_idx;
-    ag->nodes[ag->used_nodes].yes = 0;
-    ag->nodes[ag->used_nodes].no = new_no;
-    ag->nodes[base_node].yes = ag->used_nodes;
-    return ag->used_nodes++;
+    else {
+        /* There's no load node at all yet, so add it and link it from the base
+         * node's "yes". */
+        ag->nodes[ag->used_nodes].op = MVM_SPESH_GUARD_OP_LOAD_ARG;
+        ag->nodes[ag->used_nodes].arg_index = arg_idx;
+        ag->nodes[ag->used_nodes].yes = 0;
+        ag->nodes[base_node].yes = ag->used_nodes;
+        return ag->used_nodes++;
+    }
 }
 
 /* Resolves or inserts a node for testing the curernt type loaded into the
@@ -267,7 +299,9 @@ static MVMint32 try_add_guard(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMCal
          * already have that specialization. Otherwise, we need to insert it
          * and redirect the current_node's .yes to point to it, and it to
          * point to whatever current_node's .yes used to point to (so it goes
-         * in ahead of type guards etc.). */
+         * in ahead of type guards etc.). The walker will continue to visit
+         * the nodes after it to see if there's a matching type-based
+         * specialization. */
         if (ag->nodes[ag->nodes[current_node].yes].op == MVM_SPESH_GUARD_OP_CERTAIN_RESULT)
             return 0;
         ag->nodes[ag->used_nodes].op = MVM_SPESH_GUARD_OP_CERTAIN_RESULT;
