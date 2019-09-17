@@ -250,9 +250,10 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
 #define autobox_int(tc, target, result, dest) do { \
     MVMObject *box, *box_type; \
     MVMint64 result_int = result; \
+    MVMObject *autobox_temp; \
     box_type = target->static_info->body.cu->body.hll_config->int_box_type; \
-    dest = MVM_intcache_get(tc, box_type, result_int); \
-    if (!dest) { \
+    autobox_temp = MVM_intcache_get(tc, box_type, result_int); \
+    if (autobox_temp == NULL) { \
         box = REPR(box_type)->allocate(tc, STABLE(box_type)); \
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&box); \
         if (REPR(box)->initialize) \
@@ -260,6 +261,9 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
         REPR(box)->box_funcs.set_int(tc, STABLE(box), box, OBJECT_BODY(box), result_int); \
         MVM_gc_root_temp_pop(tc); \
         dest = box; \
+    } \
+    else { \
+        dest = autobox_temp; \
     } \
 } while (0)
 
@@ -529,7 +533,7 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
                 target->return_value->n64 = (MVMnum64)result;
                 break;
             case MVM_RETURN_OBJ:
-                autobox(tc, target, result, int_box_type, 0, set_int, (frameless ? tc->cur_frame : tc->cur_frame->caller)->return_value->o);
+                autobox_int(tc, target, result, (frameless ? tc->cur_frame : tc->cur_frame->caller)->return_value->o);
                 break;
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion from int NYI; expects type %u", target->return_type);
@@ -724,6 +728,23 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
     REPR(result)->ass_funcs.bind_key(tc, STABLE(result), result, \
         OBJECT_BODY(result), (MVMObject *)key, reg, MVM_reg_obj); \
 } while (0)
+#define box_slurpy_named_int(tc, type, result, box, value, reg, key) do { \
+    type = (*(tc->interp_cu))->body.hll_config->int_box_type; \
+    if (!type || IS_CONCRETE(type)) { \
+        MVM_exception_throw_adhoc(tc, "Missing hll int box type"); \
+    } \
+    box = MVM_intcache_get(tc, type, value); \
+    if (box == NULL) { \
+        box = REPR(type)->allocate(tc, STABLE(type)); \
+        if (REPR(box)->initialize) \
+            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
+        REPR(box)->box_funcs.set_int(tc, STABLE(box), box, \
+            OBJECT_BODY(box), value); \
+    } \
+    reg.o = box; \
+    REPR(result)->ass_funcs.bind_key(tc, STABLE(result), result, \
+        OBJECT_BODY(result), (MVMObject *)key, reg, MVM_reg_obj); \
+} while (0)
 
 MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     MVMObject *type = (*(tc->interp_cu))->body.hll_config->slurpy_hash_type, *result = NULL, *box = NULL;
@@ -774,7 +795,7 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
             }
             case MVM_CALLSITE_ARG_INT: {
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
-                box_slurpy_named(tc, type, result, box, arg_info.arg.i64, reg, int_box_type, "int", set_int, key);
+                box_slurpy_named_int(tc, type, result, box, arg_info.arg.i64, reg, key);
                 MVM_gc_root_temp_pop(tc);
                 if (reset_ctx)
                     ctx = &(tc->cur_frame->params);
