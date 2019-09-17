@@ -914,22 +914,22 @@ char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
 }
 
 /* Dumps a static frame's guard set into a string. */
-char * MVM_spesh_dump_arg_guard(MVMThreadContext *tc, MVMStaticFrame *sf) {
-    MVMSpeshArgGuard *ag = sf->body.spesh->body.spesh_arg_guard;
-
+char * MVM_spesh_dump_arg_guard(MVMThreadContext *tc, MVMStaticFrame *sf, MVMSpeshArgGuard *ag) {
     DumpStr ds;
     ds.alloc  = 8192;
     ds.buffer = MVM_malloc(ds.alloc);
     ds.pos    = 0;
 
     /* Dump name and CUID. */
-    append(&ds, "Latest guard tree for '");
-    append_str(tc, &ds, sf->body.name);
-    append(&ds, "' (cuid: ");
-    append_str(tc, &ds, sf->body.cuuid);
-    append(&ds, ", file: ");
-    dump_fileinfo(tc, &ds, sf);
-    append(&ds, ")\n\n");
+    if (sf) {
+        append(&ds, "Latest guard tree for '");
+        append_str(tc, &ds, sf->body.name);
+        append(&ds, "' (cuid: ");
+        append_str(tc, &ds, sf->body.cuuid);
+        append(&ds, ", file: ");
+        dump_fileinfo(tc, &ds, sf);
+        append(&ds, ")\n\n");
+    }
 
     /* Dump nodes. */
     if (ag) {
