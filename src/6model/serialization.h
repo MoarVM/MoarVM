@@ -118,6 +118,8 @@ struct MVMSerializationReader {
      * indicates when it should be. */
     char      *data;
     MVMuint32  data_needs_free;
+
+    MVMuint8   discrim_extra_data;
 };
 
 /* Represents the serialization writer and the various functions available

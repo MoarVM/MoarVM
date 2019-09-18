@@ -31,6 +31,14 @@
 #define DEFAULT_CONTEXTS_DATA_SIZE      1024
 #define DEFAULT_PARAM_INTERNS_DATA_SIZE 128
 
+/* We can store a little extra data in the discriminators.
+ * Mask them out to figure out the actual type */
+#define REFVAR_DISCRIM_BITS 0x0f
+#define REFVAR_EXTRA_BITS   0xf0
+#define REFVAR_EXTRA_SHIFT  4
+
+#define FITS_DISCRIM_EXTRA(val) (val >= 0 && val < 15)
+
 /* Possible reference types we can serialize. */
 #define REFVAR_NULL                 1
 #define REFVAR_OBJECT               2
@@ -45,10 +53,8 @@
 #define REFVAR_STATIC_CODEREF       11
 #define REFVAR_CLONED_CODEREF       12
 #define REFVAR_SC_REF               13
-#define REFVAR_EMPTY_VM_ARR_VAR     14
-#define REFVAR_EMPTY_VM_ARR_STR     15
-#define REFVAR_EMPTY_VM_ARR_INT     16
-#define REFVAR_EMPTY_VM_HASH_STR_VAR 17
+
+#define REFVAR_EXTRA_NOTHING        15
 
 /* For the packed format, for "small" values of si and idx */
 #define OBJECTS_TABLE_ENTRY_SC_MASK     0x7FF
@@ -456,6 +462,18 @@ static void write_locate_sc_and_index(MVMThreadContext *tc, MVMSerializationWrit
     }
 }
 
+static void add_discrim_extra_data(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMuint8 extra_data) {
+    MVMuint8 discrim;
+
+    --*(writer->cur_write_offset);
+    discrim = *(*(writer->cur_write_buffer) + *(writer->cur_write_offset));
+    discrim = discrim & REFVAR_DISCRIM_BITS;
+    discrim |= extra_data << REFVAR_EXTRA_SHIFT;
+    *(*(writer->cur_write_buffer) + *(writer->cur_write_offset)) = discrim;
+    ++*(writer->cur_write_offset);
+}
+
+
 /* Writes an object reference. */
 static void write_obj_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref) {
     MVMint32 sc_id, idx;
@@ -477,7 +495,10 @@ static void write_array_var(MVMThreadContext *tc, MVMSerializationWriter *writer
     MVMint32 i;
 
     /* Write out element count. */
-    MVM_serialization_write_int(tc, writer, elems);
+    if (FITS_DISCRIM_EXTRA(elems))
+        add_discrim_extra_data(tc, writer, elems);
+    else
+        MVM_serialization_write_int(tc, writer, elems);
 
     /* Write elements. */
     for (i = 0; i < elems; i++)
@@ -490,7 +511,10 @@ static void write_array_int(MVMThreadContext *tc, MVMSerializationWriter *writer
     MVMint32 i;
 
     /* Write out element count. */
-    MVM_serialization_write_int(tc, writer, elems);
+    if (FITS_DISCRIM_EXTRA(elems))
+        add_discrim_extra_data(tc, writer, elems);
+    else
+        MVM_serialization_write_int(tc, writer, elems);
 
     /* Write elements. */
     for (i = 0; i < elems; i++)
@@ -503,7 +527,10 @@ static void write_array_str(MVMThreadContext *tc, MVMSerializationWriter *writer
     MVMint32 i;
 
     /* Write out element count. */
-    MVM_serialization_write_int(tc, writer, elems);
+    if (FITS_DISCRIM_EXTRA(elems))
+        add_discrim_extra_data(tc, writer, elems);
+    else
+        MVM_serialization_write_int(tc, writer, elems);
 
     /* Write elements. */
     for (i = 0; i < elems; i++)
@@ -522,7 +549,10 @@ static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *wri
     MVMuint64 i = 0;
 
     /* Write out element count. */
-    MVM_serialization_write_int(tc, writer, elems);
+    if (FITS_DISCRIM_EXTRA(elems))
+        add_discrim_extra_data(tc, writer, elems);
+    else
+        MVM_serialization_write_int(tc, writer, elems);
 
     /* Write elements, as key,value,key,value etc. */
     while (MVM_iter_istrue(tc, (MVMIter *)iter)) {
@@ -711,36 +741,16 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
         discrim = REFVAR_VM_STR;
     }
     else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTArray) && IS_CONCRETE(ref)) {
-        if (MVM_repr_elems(tc, ref) == 0) {
-            fprintf(stderr, "writing empty_vm_arr_var\n");
-            discrim = REFVAR_EMPTY_VM_ARR_VAR;
-        }
-        else
-            discrim = REFVAR_VM_ARR_VAR;
+        discrim = REFVAR_VM_ARR_VAR;
     }
     else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTIntArray) && IS_CONCRETE(ref)) {
-        if (MVM_repr_elems(tc, ref) == 0) {
-            fprintf(stderr, "writing empty_vm_arr_int\n");
-            discrim = REFVAR_EMPTY_VM_ARR_INT;
-        }
-        else
-            discrim = REFVAR_VM_ARR_INT;
+        discrim = REFVAR_VM_ARR_INT;
     }
     else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTStrArray) && IS_CONCRETE(ref)) {
-        if (MVM_repr_elems(tc, ref) == 0) {
-            fprintf(stderr, "writing empty_vm_arr_str\n");
-            discrim = REFVAR_EMPTY_VM_ARR_STR;
-        }
-        else
-            discrim = REFVAR_VM_ARR_STR;
+        discrim = REFVAR_VM_ARR_STR;
     }
     else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTHash) && IS_CONCRETE(ref)) {
-        if (MVM_repr_elems(tc, ref) == 0) {
-            fprintf(stderr, "writing empty_hash_str_var\n");
-            discrim = REFVAR_EMPTY_VM_HASH_STR_VAR;
-        }
-        else
-            discrim = REFVAR_VM_HASH_STR_VAR;
+        discrim = REFVAR_VM_HASH_STR_VAR;
     }
     else if (REPR(ref)->ID == MVM_REPR_ID_MVMCode && IS_CONCRETE(ref)) {
         if (MVM_sc_get_obj_sc(tc, ref) && ((MVMCode *)ref)->body.is_static) {
@@ -768,7 +778,7 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
 
     /* Write the discriminator. */
     expand_storage_if_needed(tc, writer, 1);
-    *(*(writer->cur_write_buffer) + *(writer->cur_write_offset)) = discrim;
+    *(*(writer->cur_write_buffer) + *(writer->cur_write_offset)) = discrim | (REFVAR_EXTRA_NOTHING << REFVAR_EXTRA_SHIFT);
     ++*(writer->cur_write_offset);
 
     /* Now take appropriate action. */
@@ -780,9 +790,14 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
         case REFVAR_VM_NULL:
             /* Nothing to do for these. */
             break;
-        case REFVAR_VM_INT:
-            MVM_serialization_write_int(tc, writer, MVM_repr_get_int(tc, ref));
+        case REFVAR_VM_INT: {
+            MVMint64 value = MVM_repr_get_int(tc, ref);
+            if (FITS_DISCRIM_EXTRA(value + 1))
+                add_discrim_extra_data(tc, writer, value + 1);
+            else
+                MVM_serialization_write_int(tc, writer, value);
             break;
+        }
         case REFVAR_VM_NUM:
             MVM_serialization_write_num(tc, writer, MVM_repr_get_num(tc, ref));
             break;
@@ -810,11 +825,6 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
             MVM_serialization_write_str(tc, writer, handle);
             break;
         }
-        case REFVAR_EMPTY_VM_ARR_VAR:
-        case REFVAR_EMPTY_VM_ARR_INT:
-        case REFVAR_EMPTY_VM_ARR_STR:
-        case REFVAR_EMPTY_VM_HASH_STR_VAR:
-            break;
         default:
             MVM_exception_throw_adhoc(tc,
                 "Serialization Error: Unimplemented discriminator %d in MVM_serialization_read_ref",
@@ -1823,7 +1833,12 @@ static MVMObject * read_array_var(MVMThreadContext *tc, MVMSerializationReader *
     MVMint32 elems, i;
 
     /* Read the element count. */
-    elems = MVM_serialization_read_int(tc, reader);
+    if (reader->discrim_extra_data != REFVAR_EXTRA_NOTHING) {
+        elems = reader->discrim_extra_data;
+    }
+    else {
+        elems = MVM_serialization_read_int(tc, reader);
+    }
 
     /* Read in the elements. */
     for (i = 0; i < elems; i++)
@@ -1846,7 +1861,10 @@ static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReade
 
     /* Read the element count. */
     if (reader->root.version >= 19) {
-        elems = MVM_serialization_read_int(tc, reader);
+        if (reader->discrim_extra_data != REFVAR_EXTRA_NOTHING)
+            elems = reader->discrim_extra_data;
+        else
+            elems = MVM_serialization_read_int(tc, reader);
     } else {
         assert_can_read(tc, reader, 4);
         elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
@@ -1871,7 +1889,12 @@ static MVMObject * read_array_int(MVMThreadContext *tc, MVMSerializationReader *
     MVMint64 elems, i;
 
     /* Read the element count. */
-    elems = MVM_serialization_read_int(tc, reader);
+    if (reader->discrim_extra_data != REFVAR_EXTRA_NOTHING) {
+        elems = reader->discrim_extra_data;
+    }
+    else {
+        elems = MVM_serialization_read_int(tc, reader);
+    }
 
     /* Read in the elements. */
     for (i = 0; i < elems; i++)
@@ -1887,7 +1910,12 @@ static MVMObject * read_array_str(MVMThreadContext *tc, MVMSerializationReader *
 
     /* Read the element count. */
     if (reader->root.version >= 19) {
-        elems = MVM_serialization_read_int(tc, reader);
+        if (reader->discrim_extra_data != REFVAR_EXTRA_NOTHING) {
+            elems = reader->discrim_extra_data;
+        }
+        else {
+            elems = MVM_serialization_read_int(tc, reader);
+        }
     } else {
         assert_can_read(tc, reader, 4);
         elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
@@ -1932,8 +1960,16 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
 
     /* Read the discriminator. */
     const int discrim_size = 1;
-    const MVMuint8 discrim = read_discrim(tc, reader);
+    const MVMuint8 discrim_data = read_discrim(tc, reader);
+    const MVMuint8 discrim = discrim_data & REFVAR_DISCRIM_BITS;
+    MVMuint8 discrim_extra = (discrim_data & REFVAR_EXTRA_BITS) >> REFVAR_EXTRA_SHIFT;
+
     *(reader->cur_read_offset) += discrim_size;
+
+    if (reader->root.version < 22)
+        discrim_extra = REFVAR_EXTRA_NOTHING;
+
+    reader->discrim_extra_data = discrim_extra;
 
     /* Decide what to do based on it. */
     switch (discrim) {
@@ -1945,7 +1981,12 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
             return tc->instance->VMNull;
         case REFVAR_VM_INT: {
             MVMint64 value;
-            value = MVM_serialization_read_int(tc, reader);
+            if (discrim_extra == REFVAR_EXTRA_NOTHING) {
+                value = MVM_serialization_read_int(tc, reader);
+            }
+            else {
+                value = discrim_extra - 1;
+            }
             result = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, value);
             return result;
         }
@@ -1969,12 +2010,6 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
             return read_array_str(tc, reader);
         case REFVAR_VM_ARR_INT:
             return read_array_int(tc, reader);
-        case REFVAR_EMPTY_VM_ARR_VAR:
-            return MVM_repr_alloc(tc, tc->instance->boot_types.BOOTArray);
-        case REFVAR_EMPTY_VM_ARR_STR:
-            return MVM_repr_alloc(tc, tc->instance->boot_types.BOOTStrArray);
-        case REFVAR_EMPTY_VM_ARR_INT:
-            return MVM_repr_alloc(tc, tc->instance->boot_types.BOOTIntArray);
         case REFVAR_VM_HASH_STR_VAR:
             result = read_hash_str_var(tc, reader);
             if (reader->current_object) {
@@ -1983,8 +2018,6 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
                     reader->current_object);
             }
             return result;
-        case REFVAR_EMPTY_VM_HASH_STR_VAR:
-            return MVM_repr_alloc(tc, tc->instance->boot_types.BOOTHash);
         case REFVAR_STATIC_CODEREF:
         case REFVAR_CLONED_CODEREF:
             return read_code_ref(tc, reader);
@@ -2485,7 +2518,14 @@ static MVMuint8 calculate_int_bytes(MVMThreadContext *tc, MVMSerializationReader
 static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     /* Peek ahead at the discriminator. */
     const int discrim_size = 1;
-    const MVMuint8 discrim = read_discrim(tc, reader);
+    const MVMuint8 discrim_data = read_discrim(tc, reader);
+    const MVMuint8 discrim = discrim_data & REFVAR_DISCRIM_BITS;
+    MVMuint8 discrim_extra = (discrim_data & REFVAR_EXTRA_BITS) >> REFVAR_EXTRA_SHIFT;
+
+    if (reader->root.version < 22)
+        discrim_extra = REFVAR_EXTRA_NOTHING;
+
+    reader->discrim_extra_data = discrim_extra;
 
     /* We only know how to lazily handle a hash of code refs or code objects;
      * for anything else, don't do it lazily. */
@@ -2498,7 +2538,10 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
 
         /* Check the elements are as expected. */
         if (reader->root.version >= 19) {
-            elems = MVM_serialization_read_int(tc, reader);
+            if (reader->discrim_extra_data != REFVAR_EXTRA_NOTHING)
+                elems = reader->discrim_extra_data;
+            else
+                elems = MVM_serialization_read_int(tc, reader);
         } else {
             assert_can_read(tc, reader, 4);
             elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
@@ -2520,7 +2563,7 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
 
             /* Ensure we've a coderef or code object. */
             assert_can_read(tc, reader, discrim_size);
-            inner_discrim = read_discrim(tc, reader);
+            inner_discrim = read_discrim(tc, reader) & REFVAR_DISCRIM_BITS;
             *(reader->cur_read_offset) += discrim_size;
             switch (inner_discrim) {
             case REFVAR_OBJECT:
@@ -2559,10 +2602,6 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
             case REFVAR_VM_ARR_STR:
             case REFVAR_VM_ARR_INT:
             case REFVAR_VM_HASH_STR_VAR:
-            case REFVAR_EMPTY_VM_ARR_VAR:
-            case REFVAR_EMPTY_VM_ARR_INT:
-            case REFVAR_EMPTY_VM_ARR_STR:
-            case REFVAR_EMPTY_VM_HASH_STR_VAR:
                 valid = 0;
                 *(reader->cur_read_offset) = before;
                 break;
@@ -2596,10 +2635,6 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
         case REFVAR_VM_ARR_STR:
         case REFVAR_VM_ARR_INT:
         case REFVAR_VM_HASH_STR_VAR:
-        case REFVAR_EMPTY_VM_ARR_VAR:
-        case REFVAR_EMPTY_VM_ARR_INT:
-        case REFVAR_EMPTY_VM_ARR_STR:
-        case REFVAR_EMPTY_HASH_STR_VAR:
             break;
         default:
             MVM_exception_throw_adhoc(tc,
