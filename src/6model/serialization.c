@@ -10,7 +10,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 21
+#define CURRENT_VERSION 22
 #define MIN_VERSION     16
 
 /* Various sizes (in bytes). */
@@ -45,6 +45,10 @@
 #define REFVAR_STATIC_CODEREF       11
 #define REFVAR_CLONED_CODEREF       12
 #define REFVAR_SC_REF               13
+#define REFVAR_EMPTY_VM_ARR_VAR     14
+#define REFVAR_EMPTY_VM_ARR_STR     15
+#define REFVAR_EMPTY_VM_ARR_INT     16
+#define REFVAR_EMPTY_VM_HASH_STR_VAR 17
 
 /* For the packed format, for "small" values of si and idx */
 #define OBJECTS_TABLE_ENTRY_SC_MASK     0x7FF
@@ -707,16 +711,36 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
         discrim = REFVAR_VM_STR;
     }
     else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTArray) && IS_CONCRETE(ref)) {
-        discrim = REFVAR_VM_ARR_VAR;
+        if (MVM_repr_elems(tc, ref) == 0) {
+            fprintf(stderr, "writing empty_vm_arr_var\n");
+            discrim = REFVAR_EMPTY_VM_ARR_VAR;
+        }
+        else
+            discrim = REFVAR_VM_ARR_VAR;
     }
     else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTIntArray) && IS_CONCRETE(ref)) {
-        discrim = REFVAR_VM_ARR_INT;
+        if (MVM_repr_elems(tc, ref) == 0) {
+            fprintf(stderr, "writing empty_vm_arr_int\n");
+            discrim = REFVAR_EMPTY_VM_ARR_INT;
+        }
+        else
+            discrim = REFVAR_VM_ARR_INT;
     }
     else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTStrArray) && IS_CONCRETE(ref)) {
-        discrim = REFVAR_VM_ARR_STR;
+        if (MVM_repr_elems(tc, ref) == 0) {
+            fprintf(stderr, "writing empty_vm_arr_str\n");
+            discrim = REFVAR_EMPTY_VM_ARR_STR;
+        }
+        else
+            discrim = REFVAR_VM_ARR_STR;
     }
     else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTHash) && IS_CONCRETE(ref)) {
-        discrim = REFVAR_VM_HASH_STR_VAR;
+        if (MVM_repr_elems(tc, ref) == 0) {
+            fprintf(stderr, "writing empty_hash_str_var\n");
+            discrim = REFVAR_EMPTY_VM_HASH_STR_VAR;
+        }
+        else
+            discrim = REFVAR_VM_HASH_STR_VAR;
     }
     else if (REPR(ref)->ID == MVM_REPR_ID_MVMCode && IS_CONCRETE(ref)) {
         if (MVM_sc_get_obj_sc(tc, ref) && ((MVMCode *)ref)->body.is_static) {
@@ -786,6 +810,11 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
             MVM_serialization_write_str(tc, writer, handle);
             break;
         }
+        case REFVAR_EMPTY_VM_ARR_VAR:
+        case REFVAR_EMPTY_VM_ARR_INT:
+        case REFVAR_EMPTY_VM_ARR_STR:
+        case REFVAR_EMPTY_VM_HASH_STR_VAR:
+            break;
         default:
             MVM_exception_throw_adhoc(tc,
                 "Serialization Error: Unimplemented discriminator %d in MVM_serialization_read_ref",
@@ -1940,6 +1969,12 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
             return read_array_str(tc, reader);
         case REFVAR_VM_ARR_INT:
             return read_array_int(tc, reader);
+        case REFVAR_EMPTY_VM_ARR_VAR:
+            return MVM_repr_alloc(tc, tc->instance->boot_types.BOOTArray);
+        case REFVAR_EMPTY_VM_ARR_STR:
+            return MVM_repr_alloc(tc, tc->instance->boot_types.BOOTStrArray);
+        case REFVAR_EMPTY_VM_ARR_INT:
+            return MVM_repr_alloc(tc, tc->instance->boot_types.BOOTIntArray);
         case REFVAR_VM_HASH_STR_VAR:
             result = read_hash_str_var(tc, reader);
             if (reader->current_object) {
@@ -1948,6 +1983,8 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
                     reader->current_object);
             }
             return result;
+        case REFVAR_EMPTY_VM_HASH_STR_VAR:
+            return MVM_repr_alloc(tc, tc->instance->boot_types.BOOTHash);
         case REFVAR_STATIC_CODEREF:
         case REFVAR_CLONED_CODEREF:
             return read_code_ref(tc, reader);
@@ -2522,6 +2559,10 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
             case REFVAR_VM_ARR_STR:
             case REFVAR_VM_ARR_INT:
             case REFVAR_VM_HASH_STR_VAR:
+            case REFVAR_EMPTY_VM_ARR_VAR:
+            case REFVAR_EMPTY_VM_ARR_INT:
+            case REFVAR_EMPTY_VM_ARR_STR:
+            case REFVAR_EMPTY_VM_HASH_STR_VAR:
                 valid = 0;
                 *(reader->cur_read_offset) = before;
                 break;
@@ -2555,6 +2596,10 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
         case REFVAR_VM_ARR_STR:
         case REFVAR_VM_ARR_INT:
         case REFVAR_VM_HASH_STR_VAR:
+        case REFVAR_EMPTY_VM_ARR_VAR:
+        case REFVAR_EMPTY_VM_ARR_INT:
+        case REFVAR_EMPTY_VM_ARR_STR:
+        case REFVAR_EMPTY_HASH_STR_VAR:
             break;
         default:
             MVM_exception_throw_adhoc(tc,
