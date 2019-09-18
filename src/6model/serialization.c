@@ -827,7 +827,7 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
         }
         default:
             MVM_exception_throw_adhoc(tc,
-                "Serialization Error: Unimplemented discriminator %d in MVM_serialization_read_ref",
+                "Serialization Error: Unimplemented discriminator %d in MVM_serialization_write_ref",
                 discrim);
     }
 }
