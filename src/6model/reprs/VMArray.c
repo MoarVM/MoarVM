@@ -1243,8 +1243,15 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMint64 i;
 
-    body->elems = MVM_serialization_read_int(tc, reader);
+    /*if (reader->discrim_has_extra_data) {*/
+        /*body->elems = reader->discrim_extra_data;*/
+        /*reader->discrim_has_extra_data = 0;*/
+    /*}*/
+    /*else*/
+        body->elems = MVM_serialization_read_int(tc, reader);
+
     body->ssize = body->elems;
+
     if (body->ssize)
         body->slots.any = MVM_malloc(body->ssize * repr_data->elem_size);
 
@@ -1297,7 +1304,13 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMint64 i;
 
-    MVM_serialization_write_int(tc, writer, body->elems);
+    /*if (MVM_SERIALIZATION_VALUE_FITS_DISCRIM_EXTRA(body->elems)) {*/
+        /*writer->discrim_has_extra_data = 1;*/
+        /*writer->discrim_extra_data = body->elems;*/
+    /*}*/
+    /*else*/
+        MVM_serialization_write_int(tc, writer, body->elems);
+
     for (i = 0; i < body->elems; i++) {
         switch (repr_data->slot_type) {
             case MVM_ARRAY_OBJ:

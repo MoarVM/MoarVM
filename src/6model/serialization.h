@@ -119,6 +119,7 @@ struct MVMSerializationReader {
     char      *data;
     MVMuint32  data_needs_free;
 
+    MVMuint8   discrim_has_extra_data;
     MVMuint8   discrim_extra_data;
 };
 
@@ -170,6 +171,9 @@ struct MVMSerializationWriter {
     char      **cur_write_buffer;
     MVMuint32  *cur_write_offset;
     MVMuint32  *cur_write_limit;
+
+    MVMuint8 discrim_has_extra_data;
+    MVMuint8 discrim_extra_data;
 };
 
 /* Core serialize and deserialize functions. */
@@ -200,3 +204,6 @@ void MVM_serialization_write_num(MVMThreadContext *tc, MVMSerializationWriter *w
 void MVM_serialization_write_str(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMString *value);
 MVM_PUBLIC void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref);
 void MVM_serialization_write_stable_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st);
+
+//#define MVM_SERIALIZATION_VALUE_FITS_DISCRIM_EXTRA(val) (val >= 0 && val < 15)
+#define MVM_SERIALIZATION_VALUE_FITS_DISCRIM_EXTRA(val) (0)
